@@ -17,13 +17,16 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.sdk.io.iceberg.IcebergReadSchemaTransformProvider.OUTPUT_TAG;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.apache.beam.sdk.managed.Managed;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
@@ -39,6 +42,7 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.yaml.snakeyaml.Yaml;
 
 public class IcebergReadSchemaTransformProviderTest {
 
@@ -112,7 +116,62 @@ public class IcebergReadSchemaTransformProviderTest {
     PCollection<Row> output =
         PCollectionRowTuple.empty(testPipeline)
             .apply(new IcebergReadSchemaTransformProvider().from(readConfig))
-            .get(IcebergReadSchemaTransformProvider.OUTPUT_TAG);
+            .get(OUTPUT_TAG);
+
+    PAssert.that(output)
+        .satisfies(
+            (Iterable<Row> rows) -> {
+              assertThat(rows, containsInAnyOrder(expectedRows.toArray()));
+              return null;
+            });
+
+    testPipeline.run();
+  }
+
+  @Test
+  public void testReadUsingManagedTransform() throws Exception {
+    String identifier = "default.table_" + Long.toString(UUID.randomUUID().hashCode(), 16);
+    TableIdentifier tableId = TableIdentifier.parse(identifier);
+
+    Table simpleTable = warehouse.createTable(tableId, TestFixtures.SCHEMA);
+    final Schema schema = SchemaAndRowConversions.icebergSchemaToBeamSchema(TestFixtures.SCHEMA);
+
+    simpleTable
+        .newFastAppend()
+        .appendFile(
+            warehouse.writeRecords(
+                "file1s1.parquet", simpleTable.schema(), TestFixtures.FILE1SNAPSHOT1))
+        .appendFile(
+            warehouse.writeRecords(
+                "file2s1.parquet", simpleTable.schema(), TestFixtures.FILE2SNAPSHOT1))
+        .appendFile(
+            warehouse.writeRecords(
+                "file3s1.parquet", simpleTable.schema(), TestFixtures.FILE3SNAPSHOT1))
+        .commit();
+
+    final List<Row> expectedRows =
+        Stream.of(
+                TestFixtures.FILE1SNAPSHOT1,
+                TestFixtures.FILE2SNAPSHOT1,
+                TestFixtures.FILE3SNAPSHOT1)
+            .flatMap(List::stream)
+            .map(record -> SchemaAndRowConversions.recordToRow(schema, record))
+            .collect(Collectors.toList());
+
+    String yamlConfig =
+        String.format(
+            "table: %s\n"
+                + "catalog_config: \n"
+                + "  catalog_name: hadoop\n"
+                + "  catalog_type: %s\n"
+                + "  warehouse_location: %s",
+            identifier, CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP, warehouse.location);
+    Map<String, Object> configMap = new Yaml().load(yamlConfig);
+
+    PCollection<Row> output =
+        PCollectionRowTuple.empty(testPipeline)
+            .apply(Managed.read(Managed.ICEBERG).withConfig(configMap))
+            .get(OUTPUT_TAG);
 
     PAssert.that(output)
         .satisfies(

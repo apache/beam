@@ -174,9 +174,7 @@ public class ManagedSchemaTransformProvider
 
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
-      SchemaTransform underlyingTransform = underlyingTransformProvider.from(transformConfig);
-
-      return input.apply(underlyingTransform);
+      return input.apply(underlyingTransformProvider.from(transformConfig));
     }
 
     public ManagedConfig getManagedConfig() {

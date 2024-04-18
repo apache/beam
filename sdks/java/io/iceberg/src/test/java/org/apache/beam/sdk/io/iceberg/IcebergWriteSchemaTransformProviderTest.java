@@ -24,7 +24,9 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import org.apache.beam.sdk.managed.Managed;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.testing.PAssert;
@@ -47,6 +49,7 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.yaml.snakeyaml.Yaml;
 
 @RunWith(JUnit4.class)
 public class IcebergWriteSchemaTransformProviderTest {
@@ -119,6 +122,40 @@ public class IcebergWriteSchemaTransformProviderTest {
     assertThat(writtenRecords, Matchers.containsInAnyOrder(TestFixtures.FILE1SNAPSHOT1.toArray()));
   }
 
+  @Test
+  public void testWriteUsingManagedTransform() {
+    String identifier = "default.table_" + Long.toString(UUID.randomUUID().hashCode(), 16);
+    Table table = warehouse.createTable(TableIdentifier.parse(identifier), TestFixtures.SCHEMA);
+
+    String yamlConfig =
+        String.format(
+            "table: %s\n"
+                + "catalog_config: \n"
+                + "  catalog_name: hadoop\n"
+                + "  catalog_type: %s\n"
+                + "  warehouse_location: %s",
+            identifier, CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP, warehouse.location);
+    Map<String, Object> configMap = new Yaml().load(yamlConfig);
+
+    PCollectionRowTuple input =
+        PCollectionRowTuple.of(
+            INPUT_TAG,
+            testPipeline
+                .apply(
+                    "Records To Add", Create.of(TestFixtures.asRows(TestFixtures.FILE1SNAPSHOT1)))
+                .setRowSchema(
+                    SchemaAndRowConversions.icebergSchemaToBeamSchema(TestFixtures.SCHEMA)));
+    PCollection<Row> result =
+        input.apply(Managed.write(Managed.ICEBERG).withConfig(configMap)).get(OUTPUT_TAG);
+
+    PAssert.that(result).satisfies(new VerifyOutputs(identifier, "append"));
+
+    testPipeline.run().waitUntilFinish();
+
+    List<Record> writtenRecords = ImmutableList.copyOf(IcebergGenerics.read(table).build());
+    assertThat(writtenRecords, Matchers.containsInAnyOrder(TestFixtures.FILE1SNAPSHOT1.toArray()));
+  }
+
   private static class VerifyOutputs implements SerializableFunction<Iterable<Row>, Void> {
     private final String tableId;
     private final String operation;
@@ -130,6 +167,7 @@ public class IcebergWriteSchemaTransformProviderTest {
 
     @Override
     public Void apply(Iterable<Row> input) {
+      System.out.println(input);
       Row row = input.iterator().next();
 
       assertEquals(tableId, row.getString("table"));

@@ -51,9 +51,9 @@ message StandardSchemaAwareTransforms {
 // and is configured using Beam Schema-compatible parameters.
 // The information available in the payload can be used by runners to override the schema-aware transform.
 message SchemaAwareTransformPayload {
-    // The schema of the configuration row used to upgrade the transform
+    // The schema of the configuration row used to override the transform
     Schema expansion_schema = 1;
-    // The configuration used to build this transform.
+    // The configuration used to override this transform.
     // Must be compatible with the configuration schema, and decodable via beam:coder:row:v1.
     bytes expansion_payload = 2;
 }
@@ -65,7 +65,7 @@ message ManagedSchemaTransformPayload {
     string underlying_transform_identifier = 1;
     // The managed transform's configuration Schema.
     Schema expansion_schema = 2;
-    // The configuration used to upgrade the managed transform.
+    // The configuration used to override the managed transform.
     // Must be compatible with the expansion schema, and decodable via beam:coder:row:v1.
     bytes expansion_payload = 3;
     // The underlying transform's configuration, represented as a YAML string.
