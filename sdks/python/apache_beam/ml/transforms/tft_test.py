@@ -195,8 +195,7 @@ class ScaleToGaussianTest(unittest.TestCase):
           np.array([-0.23087855, 0.5079328, 1.9855555], dtype=np.float32)
       ]
       actual_data = (list_result | beam.Map(lambda x: x.x))
-      assert_that(
-          actual_data, equal_to(expected_data, equals_fn=np.allclose))
+      assert_that(actual_data, equal_to(expected_data, equals_fn=np.allclose))
 
   def test_gaussian_uniform(self):
     data = [
@@ -279,8 +278,7 @@ class ScaleToGaussianTest(unittest.TestCase):
       ]
 
       actual_data = (result | beam.Map(lambda x: x.x))
-      assert_that(
-          actual_data, equal_to(expected_data, equals_fn=np.allclose))
+      assert_that(actual_data, equal_to(expected_data, equals_fn=np.allclose))
 
 
 class BucketizeTest(unittest.TestCase):
