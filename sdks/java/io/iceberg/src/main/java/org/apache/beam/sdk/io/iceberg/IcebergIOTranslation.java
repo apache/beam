@@ -26,11 +26,8 @@ import com.google.auto.service.AutoService;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InvalidClassException;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.SchemaApi;
 import org.apache.beam.model.pipeline.v1.SchemaAwareTransforms.SchemaAwareTransformPayload;
@@ -96,11 +93,7 @@ public class IcebergIOTranslation {
             toByteArray(new ExternalizableIcebergCatalogConfig(transform.getCatalogConfig())));
       }
       if (transform.getTableIdentifier() != null) {
-        TableIdentifier identifier = transform.getTableIdentifier();
-        List<String> identifierParts =
-            Arrays.stream(identifier.namespace().levels()).collect(Collectors.toList());
-        identifierParts.add(identifier.name());
-        fieldValues.put("table_identifier", String.join(".", identifierParts));
+        fieldValues.put("table_identifier", transform.getTableIdentifier().toString());
       }
 
       return Row.withSchema(READ_SCHEMA).withFieldValues(fieldValues).build();
@@ -187,14 +180,18 @@ public class IcebergIOTranslation {
             toByteArray(new ExternalizableIcebergCatalogConfig(transform.getCatalogConfig())));
       }
       if (transform.getTableIdentifier() != null) {
-        TableIdentifier identifier = transform.getTableIdentifier();
-        List<String> identifierParts =
-            Arrays.stream(identifier.namespace().levels()).collect(Collectors.toList());
-        identifierParts.add(identifier.name());
-        fieldValues.put("table_identifier", String.join(".", identifierParts));
+        fieldValues.put("table_identifier", transform.getTableIdentifier().toString());
       }
-      if (transform.getDynamicDestinations() != null) {
-        fieldValues.put("dynamic_destinations", toByteArray(transform.getDynamicDestinations()));
+      DynamicDestinations dynamicDestinations = transform.getDynamicDestinations();
+      if (dynamicDestinations != null) {
+        System.out.println(dynamicDestinations.getClass());
+        if (!dynamicDestinations.getClass().equals(OneTableDynamicDestinations.class)) {
+          throw new IllegalArgumentException(
+              String.format(
+                  "Unsupported dynamic destinations class was found: %s. Translation is currently only supported for %s.",
+                  dynamicDestinations.getClass(), OneTableDynamicDestinations.class));
+        }
+        fieldValues.put("dynamic_destinations", toByteArray(dynamicDestinations));
       }
 
       return Row.withSchema(WRITE_SCHEMA).withFieldValues(fieldValues).build();

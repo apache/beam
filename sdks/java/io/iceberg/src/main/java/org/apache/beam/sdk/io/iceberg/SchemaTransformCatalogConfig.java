@@ -23,6 +23,7 @@ import com.google.auto.value.AutoValue;
 import java.util.Set;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
@@ -38,6 +39,7 @@ public abstract class SchemaTransformCatalogConfig {
 
   public abstract String getCatalogName();
 
+  @SchemaFieldDescription("Valid types are: {hadoop, hive, rest}")
   public abstract @Nullable String getCatalogType();
 
   public abstract @Nullable String getCatalogImplementation();
@@ -58,7 +60,7 @@ public abstract class SchemaTransformCatalogConfig {
     public abstract SchemaTransformCatalogConfig build();
   }
 
-  Set<String> validTypes =
+  public static final Set<String> VALID_CATALOG_TYPES =
       Sets.newHashSet(
           CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP,
           CatalogUtil.ICEBERG_CATALOG_TYPE_HIVE,
@@ -67,9 +69,9 @@ public abstract class SchemaTransformCatalogConfig {
   public void validate() {
     if (Strings.isNullOrEmpty(getCatalogType())) {
       checkArgument(
-          validTypes.contains(Preconditions.checkArgumentNotNull(getCatalogType())),
+          VALID_CATALOG_TYPES.contains(Preconditions.checkArgumentNotNull(getCatalogType())),
           "Invalid catalog type. Please pick one of %s",
-          validTypes);
+          VALID_CATALOG_TYPES);
     }
   }
 }

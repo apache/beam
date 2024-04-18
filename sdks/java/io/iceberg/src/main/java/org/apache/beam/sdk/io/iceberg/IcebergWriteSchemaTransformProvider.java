@@ -26,6 +26,7 @@ import org.apache.beam.sdk.managed.ManagedTransformConstants;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
@@ -93,8 +94,10 @@ public class IcebergWriteSchemaTransformProvider extends TypedSchemaTransformPro
       return new AutoValue_IcebergWriteSchemaTransformProvider_Config.Builder();
     }
 
+    @SchemaFieldDescription("Identifier of the Iceberg table to write to.")
     public abstract String getTable();
 
+    @SchemaFieldDescription("Configuration parameters used to set up the Iceberg catalog.")
     public abstract SchemaTransformCatalogConfig getCatalogConfig();
 
     @AutoValue.Builder

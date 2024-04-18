@@ -44,10 +44,12 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.CatalogUtil;
+import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 
 public class IcebergIOTranslationTest {
@@ -73,6 +75,8 @@ public class IcebergIOTranslationTest {
   @Rule
   public transient TestDataWarehouse warehouse = new TestDataWarehouse(TEMPORARY_FOLDER, "default");
 
+  @Rule public transient ExpectedException thrown = ExpectedException.none();
+
   @Test
   public void testReCreateWriteTransformFromRow() {
     // setting a subset of fields here.
@@ -82,8 +86,9 @@ public class IcebergIOTranslationTest {
             .setIcebergCatalogType(CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
             .setWarehouseLocation(warehouse.location)
             .build();
+    String tableId = "test_namespace.test_table";
     IcebergIO.WriteRows writeTransform =
-        IcebergIO.writeRows(config).to(TableIdentifier.of("test_namespace", "test_table"));
+        IcebergIO.writeRows(config).to(TableIdentifier.parse(tableId));
 
     IcebergIOTranslation.IcebergIOWriteTranslator translator =
         new IcebergIOTranslation.IcebergIOWriteTranslator();
@@ -92,15 +97,85 @@ public class IcebergIOTranslationTest {
     IcebergIO.WriteRows writeTransformFromRow =
         translator.fromConfigRow(row, PipelineOptionsFactory.create());
     assertNotNull(writeTransformFromRow.getTableIdentifier());
-    assertEquals(
-        "test_namespace", writeTransformFromRow.getTableIdentifier().namespace().levels()[0]);
-    assertEquals("test_table", writeTransformFromRow.getTableIdentifier().name());
+    assertEquals(tableId, writeTransformFromRow.getTableIdentifier().toString());
     assertEquals("test_catalog", writeTransformFromRow.getCatalogConfig().getName());
     assertEquals(
         CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP,
         writeTransformFromRow.getCatalogConfig().getIcebergCatalogType());
     assertEquals(
         warehouse.location, writeTransformFromRow.getCatalogConfig().getWarehouseLocation());
+  }
+
+  @Test
+  public void testReCreateWriteTransformWithOneTableDynamicDestinationsFromRow() {
+    // setting a subset of fields here.
+    IcebergCatalogConfig config =
+        IcebergCatalogConfig.builder()
+            .setName("test_catalog")
+            .setIcebergCatalogType(CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
+            .setWarehouseLocation(warehouse.location)
+            .build();
+    TableIdentifier tableIdentifier = TableIdentifier.of("test_namespace", "test_table");
+    IcebergIO.WriteRows writeTransform =
+        IcebergIO.writeRows(config).to(DynamicDestinations.singleTable(tableIdentifier));
+
+    IcebergIOTranslation.IcebergIOWriteTranslator translator =
+        new IcebergIOTranslation.IcebergIOWriteTranslator();
+    Row row = translator.toConfigRow(writeTransform);
+
+    IcebergIO.WriteRows writeTransformFromRow =
+        translator.fromConfigRow(row, PipelineOptionsFactory.create());
+    assertNull(writeTransformFromRow.getTableIdentifier());
+    DynamicDestinations dynamicDestinations = writeTransformFromRow.getDynamicDestinations();
+
+    assertNotNull(dynamicDestinations);
+    assertEquals(OneTableDynamicDestinations.class, dynamicDestinations.getClass());
+    assertEquals(Schema.builder().build(), dynamicDestinations.getMetadataSchema());
+    assertEquals(
+        tableIdentifier, ((OneTableDynamicDestinations) dynamicDestinations).getTableIdentifier());
+    assertEquals("test_catalog", writeTransformFromRow.getCatalogConfig().getName());
+    assertEquals(
+        CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP,
+        writeTransformFromRow.getCatalogConfig().getIcebergCatalogType());
+    assertEquals(
+        warehouse.location, writeTransformFromRow.getCatalogConfig().getWarehouseLocation());
+  }
+
+  @Test
+  public void testReCreateWriteTransformFromRowFailsWithUnsupportedDynamicDestinations() {
+    // setting a subset of fields here.
+    IcebergCatalogConfig config = IcebergCatalogConfig.builder().setName("test_catalog").build();
+    TableIdentifier tableIdentifier = TableIdentifier.of("test_namespace", "test_table");
+    IcebergIO.WriteRows writeTransform =
+        IcebergIO.writeRows(config)
+            .to(
+                new DynamicDestinations() {
+                  @Override
+                  public Schema getMetadataSchema() {
+                    return Schema.builder().build();
+                  }
+
+                  @Override
+                  public Row assignDestinationMetadata(Row data) {
+                    return Row.nullRow(getMetadataSchema());
+                  }
+
+                  @Override
+                  public IcebergDestination instantiateDestination(Row dest) {
+                    return IcebergDestination.builder()
+                        .setTableIdentifier(tableIdentifier)
+                        .setTableCreateConfig(null)
+                        .setFileFormat(FileFormat.PARQUET)
+                        .build();
+                  }
+                });
+
+    IcebergIOTranslation.IcebergIOWriteTranslator translator =
+        new IcebergIOTranslation.IcebergIOWriteTranslator();
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Unsupported dynamic destinations class was found");
+    translator.toConfigRow(writeTransform);
   }
 
   @Test
@@ -162,7 +237,8 @@ public class IcebergIOTranslationTest {
     IcebergIO.WriteRows writeTransformFromSpec =
         translator.fromConfigRow(rowFromSpec, PipelineOptionsFactory.create());
 
-    assertEquals(TableIdentifier.parse(identifier), writeTransformFromSpec.getTableIdentifier());
+    assertNotNull(writeTransformFromSpec.getTableIdentifier());
+    assertEquals(identifier, writeTransformFromSpec.getTableIdentifier().toString());
     assertEquals(catalogConfig, writeTransformFromSpec.getCatalogConfig());
     assertNull(writeTransformFromSpec.getDynamicDestinations());
   }
@@ -211,8 +287,9 @@ public class IcebergIOTranslationTest {
             .setIcebergCatalogType(CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
             .setWarehouseLocation(warehouse.location)
             .build();
-    IcebergIO.ReadRows readTransform =
-        IcebergIO.readRows(config).from(TableIdentifier.of("test_namespace", "test_table"));
+
+    String tableId = "test_namespace.test_table";
+    IcebergIO.ReadRows readTransform = IcebergIO.readRows(config).from(TableIdentifier.of(tableId));
 
     IcebergIOTranslation.IcebergIOReadTranslator translator =
         new IcebergIOTranslation.IcebergIOReadTranslator();
@@ -221,9 +298,7 @@ public class IcebergIOTranslationTest {
     IcebergIO.ReadRows readTransformFromRow =
         translator.fromConfigRow(row, PipelineOptionsFactory.create());
     assertNotNull(readTransformFromRow.getTableIdentifier());
-    assertEquals(
-        "test_namespace", readTransformFromRow.getTableIdentifier().namespace().levels()[0]);
-    assertEquals("test_table", readTransformFromRow.getTableIdentifier().name());
+    assertEquals(tableId, readTransformFromRow.getTableIdentifier().toString());
     assertEquals("test_catalog", readTransformFromRow.getCatalogConfig().getName());
     assertEquals(
         CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP,

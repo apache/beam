@@ -17,25 +17,34 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import java.io.Externalizable;
+import java.io.IOException;
+import java.io.ObjectInput;
+import java.io.ObjectOutput;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 
-class OneTableDynamicDestinations implements DynamicDestinations {
+class OneTableDynamicDestinations implements DynamicDestinations, Externalizable {
 
   private static final Schema EMPTY_SCHEMA = Schema.builder().build();
   private static final Row EMPTY_ROW = Row.nullRow(EMPTY_SCHEMA);
 
   // TableId represented as String for serializability
-  private final String tableIdString;
+  private transient @MonotonicNonNull String tableIdString;
 
   private transient @MonotonicNonNull TableIdentifier tableId;
 
-  private TableIdentifier getTableIdentifier() {
+  @VisibleForTesting
+  TableIdentifier getTableIdentifier() {
+    Preconditions.checkState(!Strings.isNullOrEmpty(tableIdString));
     if (tableId == null) {
-      tableId = TableIdentifier.parse(tableIdString);
+      tableId = TableIdentifier.parse(Preconditions.checkNotNull(tableIdString));
     }
     return tableId;
   }
@@ -61,5 +70,19 @@ class OneTableDynamicDestinations implements DynamicDestinations {
         .setTableCreateConfig(null)
         .setFileFormat(FileFormat.PARQUET)
         .build();
+  }
+
+  // Need a public default constructor for custom serialization
+  public OneTableDynamicDestinations() {}
+
+  @Override
+  public void writeExternal(ObjectOutput out) throws IOException {
+    out.writeUTF(Preconditions.checkNotNull(tableIdString));
+  }
+
+  @Override
+  public void readExternal(ObjectInput in) throws IOException {
+    tableIdString = in.readUTF();
+    tableId = TableIdentifier.parse(tableIdString);
   }
 }
