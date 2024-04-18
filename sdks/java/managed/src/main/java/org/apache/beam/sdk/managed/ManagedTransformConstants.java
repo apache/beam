@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.managed;
 
+/**
+ * This class contains constants for supported managed transform identifiers.
+ */
 public class ManagedTransformConstants {
   public static final String ICEBERG_READ = "beam:schematransform:org.apache.beam:iceberg_read:v1";
   public static final String ICEBERG_WRITE =
