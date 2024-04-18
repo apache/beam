@@ -128,10 +128,7 @@ public class BigQuerySinkMetricsTest {
     MetricName deletesDisabledCounterName =
         MetricName.named(
             "BigQuerySink", "RowsAppendedCount*row_status:SUCCESSFUL;rpc_status:rpcStatus;");
-    assertThat(testContainer.perWorkerCounters, IsMapContaining.hasKey(deletesDisabledCounterName));
-    assertThat(
-        testContainer.perWorkerCounters.get(deletesDisabledCounterName).getCumulative(),
-        equalTo(1L));
+    testContainer.assertPerWorkerCounterValue(deletesDisabledCounterName, 1L);
 
     BigQuerySinkMetrics.setSupportMetricsDeletion(true);
     testContainer.reset();
@@ -143,10 +140,7 @@ public class BigQuerySinkMetricsTest {
         MetricName.named(
             "BigQuerySink",
             "RowsAppendedCount*row_status:SUCCESSFUL;rpc_status:rpcStatus;table_id:tableId;");
-    assertThat(testContainer.perWorkerCounters, IsMapContaining.hasKey(deletesEnabledCounterName));
-    assertThat(
-        testContainer.perWorkerCounters.get(deletesEnabledCounterName).getCumulative(),
-        equalTo(1L));
+    testContainer.assertPerWorkerCounterValue(deletesEnabledCounterName, 1L);
   }
 
   @Test
@@ -179,8 +173,7 @@ public class BigQuerySinkMetricsTest {
 
     MetricName counterName =
         MetricName.named("BigQuerySink", "ThrottledTime*rpc_method:APPEND_ROWS;");
-    assertThat(testContainer.perWorkerCounters, IsMapContaining.hasKey(counterName));
-    assertThat(testContainer.perWorkerCounters.get(counterName).getCumulative(), equalTo(1L));
+    testContainer.assertPerWorkerCounterValue(counterName, 1L);
   }
 
   @Test
@@ -201,14 +194,9 @@ public class BigQuerySinkMetricsTest {
         MetricName.named("BigQuerySink", "RpcRequestsCount*rpc_method:APPEND_ROWS;rpc_status:OK;");
     MetricName histogramName =
         MetricName.named("BigQuerySink", "RpcLatency*rpc_method:APPEND_ROWS;");
-    HistogramData.BucketType bucketType = HistogramData.ExponentialBuckets.of(1, 34);
-    assertThat(testContainer.perWorkerCounters, IsMapContaining.hasKey(counterNameDisabledDeletes));
-    assertThat(
-        testContainer.perWorkerCounters.get(counterNameDisabledDeletes).getCumulative(),
-        equalTo(1L));
-    assertThat(
-        testContainer.perWorkerHistograms.get(KV.of(histogramName, bucketType)).values,
-        containsInAnyOrder(Double.valueOf(3.0)));
+    HistogramData.BucketType bucketType = HistogramData.ExponentialBuckets.of(0, 17);
+    testContainer.assertPerWorkerCounterValue(counterNameDisabledDeletes, 1L);
+    testContainer.assertPerWorkerHistogramValues(histogramName, bucketType, 3.0);
 
     // Test enable SupportMetricsDeletion.
     BigQuerySinkMetrics.setSupportMetricsDeletion(true);
@@ -219,13 +207,8 @@ public class BigQuerySinkMetricsTest {
         MetricName.named(
             "BigQuerySink",
             "RpcRequestsCount*rpc_method:APPEND_ROWS;rpc_status:OK;table_id:tableId;");
-    assertThat(testContainer.perWorkerCounters, IsMapContaining.hasKey(counterNameEnabledDeletes));
-    assertThat(
-        testContainer.perWorkerCounters.get(counterNameEnabledDeletes).getCumulative(),
-        equalTo(1L));
-    assertThat(
-        testContainer.perWorkerHistograms.get(KV.of(histogramName, bucketType)).values,
-        containsInAnyOrder(Double.valueOf(3.0)));
+    testContainer.assertPerWorkerCounterValue(counterNameEnabledDeletes, 1L);
+    testContainer.assertPerWorkerHistogramValues(histogramName, bucketType, 3.0);
   }
 
   @Test
@@ -251,17 +234,9 @@ public class BigQuerySinkMetricsTest {
             "BigQuerySink", "RpcRequestsCount*rpc_method:APPEND_ROWS;rpc_status:NOT_FOUND;");
     MetricName histogramName =
         MetricName.named("BigQuerySink", "RpcLatency*rpc_method:APPEND_ROWS;");
-    HistogramData.BucketType bucketType = HistogramData.ExponentialBuckets.of(1, 34);
-    assertThat(testContainer.perWorkerCounters, IsMapContaining.hasKey(counterNameDisabledDeletes));
-    assertThat(
-        testContainer.perWorkerCounters.get(counterNameDisabledDeletes).getCumulative(),
-        equalTo(1L));
-    assertThat(
-        testContainer.perWorkerHistograms,
-        IsMapContaining.hasKey(KV.of(histogramName, bucketType)));
-    assertThat(
-        testContainer.perWorkerHistograms.get(KV.of(histogramName, bucketType)).values,
-        containsInAnyOrder(Double.valueOf(5.0)));
+    HistogramData.BucketType bucketType = HistogramData.ExponentialBuckets.of(0, 17);
+    testContainer.assertPerWorkerCounterValue(counterNameDisabledDeletes, 1L);
+    testContainer.assertPerWorkerHistogramValues(histogramName, bucketType, 5.0);
 
     // Test enable SupportMetricsDeletion
     BigQuerySinkMetrics.setSupportMetricsDeletion(true);
@@ -272,13 +247,8 @@ public class BigQuerySinkMetricsTest {
         MetricName.named(
             "BigQuerySink",
             "RpcRequestsCount*rpc_method:APPEND_ROWS;rpc_status:NOT_FOUND;table_id:tableId;");
-    assertThat(testContainer.perWorkerCounters, IsMapContaining.hasKey(counterNameEnabledDeletes));
-    assertThat(
-        testContainer.perWorkerCounters.get(counterNameEnabledDeletes).getCumulative(),
-        equalTo(1L));
-    assertThat(
-        testContainer.perWorkerHistograms.get(KV.of(histogramName, bucketType)).values,
-        containsInAnyOrder(Double.valueOf(5.0)));
+    testContainer.assertPerWorkerCounterValue(counterNameEnabledDeletes, 1L);
+    testContainer.assertPerWorkerHistogramValues(histogramName, bucketType, 5.0);
   }
 
   @Test
@@ -303,14 +273,9 @@ public class BigQuerySinkMetricsTest {
             "BigQuerySink", "RpcRequestsCount*rpc_method:APPEND_ROWS;rpc_status:UNKNOWN;");
     MetricName histogramName =
         MetricName.named("BigQuerySink", "RpcLatency*rpc_method:APPEND_ROWS;");
-    HistogramData.BucketType bucketType = HistogramData.ExponentialBuckets.of(1, 34);
-    assertThat(testContainer.perWorkerCounters, IsMapContaining.hasKey(counterNameDisabledDeletes));
-    assertThat(
-        testContainer.perWorkerCounters.get(counterNameDisabledDeletes).getCumulative(),
-        equalTo(1L));
-    assertThat(
-        testContainer.perWorkerHistograms.get(KV.of(histogramName, bucketType)).values,
-        containsInAnyOrder(Double.valueOf(15.0)));
+    HistogramData.BucketType bucketType = HistogramData.ExponentialBuckets.of(0, 17);
+    testContainer.assertPerWorkerCounterValue(counterNameDisabledDeletes, 1L);
+    testContainer.assertPerWorkerHistogramValues(histogramName, bucketType, 15.0);
 
     // Test enable SupportMetricsDeletion
     BigQuerySinkMetrics.setSupportMetricsDeletion(true);
@@ -321,13 +286,8 @@ public class BigQuerySinkMetricsTest {
         MetricName.named(
             "BigQuerySink",
             "RpcRequestsCount*rpc_method:APPEND_ROWS;rpc_status:UNKNOWN;table_id:tableId;");
-    assertThat(testContainer.perWorkerCounters, IsMapContaining.hasKey(counterNameEnabledDeletes));
-    assertThat(
-        testContainer.perWorkerCounters.get(counterNameEnabledDeletes).getCumulative(),
-        equalTo(1L));
-    assertThat(
-        testContainer.perWorkerHistograms.get(KV.of(histogramName, bucketType)).values,
-        containsInAnyOrder(Double.valueOf(15.0)));
+    testContainer.assertPerWorkerCounterValue(counterNameEnabledDeletes, 1L);
+    testContainer.assertPerWorkerHistogramValues(histogramName, bucketType, 15.0);
   }
 
   @Test

@@ -21,11 +21,10 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.NavigableMap;
+import java.util.Map;
 import java.util.Optional;
-import java.util.SortedMap;
-import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
@@ -78,8 +77,8 @@ public class FlinkUnboundedSourceReader<T>
   private final List<ReaderAndOutput> readers = new ArrayList<>();
   private int currentReaderIndex = 0;
   private volatile boolean shouldEmitWatermark;
-  private final NavigableMap<Long, List<FlinkSourceSplit<T>>> unfinishedCheckpoints =
-      new TreeMap<>();
+  private final LinkedHashMap<Long, List<FlinkSourceSplit<T>>> pendingCheckpoints =
+      new LinkedHashMap<>();
 
   public FlinkUnboundedSourceReader(
       String stepName,
@@ -103,22 +102,22 @@ public class FlinkUnboundedSourceReader<T>
   protected void addSplitsToUnfinishedForCheckpoint(
       long checkpointId, List<FlinkSourceSplit<T>> flinkSourceSplits) {
 
-    unfinishedCheckpoints.put(checkpointId, flinkSourceSplits);
+    pendingCheckpoints.put(checkpointId, flinkSourceSplits);
   }
 
   @Override
   public void notifyCheckpointComplete(long checkpointId) throws Exception {
     super.notifyCheckpointComplete(checkpointId);
-    SortedMap<Long, List<FlinkSourceSplit<T>>> headMap =
-        unfinishedCheckpoints.headMap(checkpointId + 1);
-    for (List<FlinkSourceSplit<T>> splits : headMap.values()) {
-      for (FlinkSourceSplit<T> s : splits) {
-        finalizeSourceSplit(s.getCheckpointMark());
+    List<Long> finalized = new ArrayList<>();
+    for (Map.Entry<Long, List<FlinkSourceSplit<T>>> e : pendingCheckpoints.entrySet()) {
+      if (e.getKey() <= checkpointId) {
+        for (FlinkSourceSplit<T> s : e.getValue()) {
+          finalizeSourceSplit(s.getCheckpointMark());
+        }
+        finalized.add(e.getKey());
       }
     }
-    for (long checkpoint : new ArrayList<>(headMap.keySet())) {
-      unfinishedCheckpoints.remove(checkpoint);
-    }
+    finalized.forEach(pendingCheckpoints::remove);
   }
 
   @Override

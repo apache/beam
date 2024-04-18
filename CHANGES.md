@@ -53,7 +53,7 @@
 * ([#X](https://github.com/apache/beam/issues/X)).
 -->
 
-# [2.56.0] - Unreleased
+# [2.57.0] - Unreleased
 
 ## Highlights
 
@@ -63,12 +63,45 @@
 ## I/Os
 
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+
+## New Features / Improvements
+
+* Added Feast feature store handler for enrichment transform (Python) ([#30957](https://github.com/apache/beam/issues/30964)).
+
+## Breaking Changes
+
+* X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
+
+## Deprecations
+
+* X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
+
+## Bugfixes
+
+* Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+
+## Security Fixes
+* Fixed (CVE-YYYY-NNNN)[https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN] (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).
+
+## Known Issues
+
+* ([#X](https://github.com/apache/beam/issues/X)).
+
+# [2.56.0] - Unreleased
+
+## Highlights
+
+* Added FlinkRunner for Flink 1.17, removed support for Flink 1.12 and 1.13. Previous version of Pipeline running on Flink 1.16 and below can be upgraded to 1.17, if the Pipeline is first updated to Beam 2.56.0 with the same Flink version. After Pipeline runs with Beam 2.56.0, it should be possible to upgrade to FlinkRunner with Flink 1.17. ([#29939](https://github.com/apache/beam/issues/29939))
+
+## I/Os
+
+* Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Upgraded Avro version to 1.11.3, kafka-avro-serializer and kafka-schema-registry-client versions to 7.6.0 (Java) ([#30638](https://github.com/apache/beam/pull/30638)).
   The newer Avro package is known to have breaking changes. If you are affected, you can keep pinned to older Avro versions which are also tested with Beam.
 
 ## New Features / Improvements
 
-* Added Feast feature store handler for enrichment transform (Python) ([#30957](https://github.com/apache/beam/issues/30964)).
+* Profiling of Cythonized code has been disabled by default. This might improve performance for some Python pipelines ([#30938](https://github.com/apache/beam/pull/30938)).
 * Bigtable enrichment handler now accepts a custom function to build a composite row key. (Python) ([#30974](https://github.com/apache/beam/issues/30975)).
 
 ## Breaking Changes

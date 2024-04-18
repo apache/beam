@@ -135,7 +135,7 @@ class ReadFromKafka(ExternalTransform):
       max_read_time=None,
       commit_offset_in_finalize=False,
       timestamp_policy=processing_time_policy,
-      consumer_polling_timeout=None,
+      consumer_polling_timeout=2,
       with_metadata=False,
       expansion_service=None,
   ):

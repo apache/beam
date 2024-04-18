@@ -2123,14 +2123,14 @@ public class KafkaIOTest {
 
   @Test(expected = IllegalStateException.class)
   public void testWithInvalidConsumerPollingTimeout() {
-    KafkaIO.<Integer, Long>read().withConsumerPollingTimeout(Duration.standardSeconds(-5));
+    KafkaIO.<Integer, Long>read().withConsumerPollingTimeout(-5L);
   }
 
   @Test
   public void testWithValidConsumerPollingTimeout() {
     KafkaIO.Read<Integer, Long> reader =
-        KafkaIO.<Integer, Long>read().withConsumerPollingTimeout(Duration.standardSeconds(15));
-    assertEquals(15, reader.getConsumerPollingTimeout().getStandardSeconds());
+        KafkaIO.<Integer, Long>read().withConsumerPollingTimeout(15L);
+    assertEquals(15, reader.getConsumerPollingTimeout());
   }
 
   private static void verifyProducerRecords(
