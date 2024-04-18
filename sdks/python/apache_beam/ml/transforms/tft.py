@@ -299,11 +299,13 @@ class ScaleToGaussian(TFTOperation):
       elementwise: bool = False,
       name: Optional[str] = None):
     """
-    This function applies a scaling transformation on the given columns
-    of incoming data. The operation transforms the input column values
-    to an approximately normal distribution with mean 0 and variance of 1.
-    The Gaussian transformation is only applied if the column has long tails;
-    otherwise, the transformation is performed by normalizing to z scores.
+    This operation scales the given input column values to an approximately 
+    normal distribution with mean 0 and variance of 1. The Gaussian
+    transformation is only applied if the column has long tails;
+    otherwise, the transformation is the same as normalizing to z scores.
+
+    For more information, see: 
+    https://www.tensorflow.org/tfx/transform/api_docs/python/tft/scale_to_gaussian
 
     Args:
       columns: A list of column names to apply the transformation on.
