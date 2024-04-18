@@ -33,6 +33,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.SchemaAwareTransforms;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.RowCoder;
+import org.apache.beam.sdk.managed.ManagedTransformConstants;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
@@ -133,13 +134,7 @@ public class IcebergIOTranslationTest {
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
     List<RunnerApi.PTransform> writeTransformProto =
         pipelineProto.getComponents().getTransformsMap().values().stream()
-            .filter(
-                tr ->
-                    tr.getSpec()
-                        .getUrn()
-                        .equals(
-                            IcebergIOTranslation.IcebergIOWriteTranslator
-                                .ICEBERG_WRITE_TRANSFORM_URN))
+            .filter(tr -> tr.getSpec().getUrn().equals(ManagedTransformConstants.ICEBERG_WRITE))
             .collect(Collectors.toList());
     assertEquals(1, writeTransformProto.size());
     RunnerApi.FunctionSpec spec = writeTransformProto.get(0).getSpec();
@@ -261,13 +256,7 @@ public class IcebergIOTranslationTest {
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
     List<RunnerApi.PTransform> readTransformProto =
         pipelineProto.getComponents().getTransformsMap().values().stream()
-            .filter(
-                tr ->
-                    tr.getSpec()
-                        .getUrn()
-                        .equals(
-                            IcebergIOTranslation.IcebergIOReadTranslator
-                                .ICEBERG_READ_TRANSFORM_URN))
+            .filter(tr -> tr.getSpec().getUrn().equals(ManagedTransformConstants.ICEBERG_READ))
             .collect(Collectors.toList());
     assertEquals(1, readTransformProto.size());
     RunnerApi.FunctionSpec spec = readTransformProto.get(0).getSpec();

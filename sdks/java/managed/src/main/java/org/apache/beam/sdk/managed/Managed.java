@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.managed;
 
+import static org.apache.beam.sdk.managed.ManagedTransformConstants.ICEBERG_READ;
+import static org.apache.beam.sdk.managed.ManagedTransformConstants.ICEBERG_WRITE;
+
 import com.google.auto.value.AutoValue;
 import java.util.ArrayList;
 import java.util.List;
@@ -80,13 +83,9 @@ public class Managed {
 
   // Supported SchemaTransforms
   public static final Map<String, String> READ_TRANSFORMS =
-      ImmutableMap.<String, String>builder()
-          .put(ICEBERG, "beam:schematransform:org.apache.beam:iceberg_read:v1")
-          .build();
+      ImmutableMap.<String, String>builder().put(ICEBERG, ICEBERG_READ).build();
   public static final Map<String, String> WRITE_TRANSFORMS =
-      ImmutableMap.<String, String>builder()
-          .put(ICEBERG, "beam:schematransform:org.apache.beam:iceberg_write:v1")
-          .build();
+      ImmutableMap.<String, String>builder().put(ICEBERG, ICEBERG_WRITE).build();
 
   /**
    * Instantiates a {@link Managed.ManagedTransform} transform for the specified source. The

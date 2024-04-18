@@ -22,6 +22,7 @@ import com.google.auto.value.AutoValue;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.io.iceberg.IcebergWriteSchemaTransformProvider.Config;
+import org.apache.beam.sdk.managed.ManagedTransformConstants;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
@@ -82,7 +83,7 @@ public class IcebergWriteSchemaTransformProvider extends TypedSchemaTransformPro
 
   @Override
   public String identifier() {
-    return "beam:schematransform:org.apache.beam:iceberg_write:v1";
+    return ManagedTransformConstants.ICEBERG_WRITE;
   }
 
   @DefaultSchema(AutoValueSchema.class)

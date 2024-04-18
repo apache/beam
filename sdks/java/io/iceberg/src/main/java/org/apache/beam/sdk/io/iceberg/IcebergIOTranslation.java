@@ -35,6 +35,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.SchemaApi;
 import org.apache.beam.model.pipeline.v1.SchemaAwareTransforms.SchemaAwareTransformPayload;
 import org.apache.beam.sdk.coders.RowCoder;
+import org.apache.beam.sdk.managed.ManagedTransformConstants;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.schemas.Schema;
@@ -59,12 +60,9 @@ public class IcebergIOTranslation {
             .addNullableStringField("table_identifier")
             .build();
 
-    public static final String ICEBERG_READ_TRANSFORM_URN =
-        "beam:schematransform:org.apache.beam:iceberg_read:v1";
-
     @Override
     public String getUrn() {
-      return ICEBERG_READ_TRANSFORM_URN;
+      return ManagedTransformConstants.ICEBERG_READ;
     }
 
     @Override
@@ -153,12 +151,9 @@ public class IcebergIOTranslation {
             .addNullableByteArrayField("dynamic_destinations")
             .build();
 
-    public static final String ICEBERG_WRITE_TRANSFORM_URN =
-        "beam:schematransform:org.apache.beam:iceberg_write:v1";
-
     @Override
     public String getUrn() {
-      return ICEBERG_WRITE_TRANSFORM_URN;
+      return ManagedTransformConstants.ICEBERG_WRITE;
     }
 
     @Override
