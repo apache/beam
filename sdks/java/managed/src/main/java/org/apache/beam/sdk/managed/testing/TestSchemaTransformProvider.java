@@ -15,10 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.managed;
+package org.apache.beam.sdk.managed.testing;
 
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
+import org.apache.beam.sdk.managed.testing.AutoValue_TestSchemaTransformProvider_Config;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
@@ -37,8 +38,8 @@ import org.apache.beam.sdk.values.TypeDescriptors;
 @AutoService(SchemaTransformProvider.class)
 public class TestSchemaTransformProvider
     extends TypedSchemaTransformProvider<TestSchemaTransformProvider.Config> {
-  static final String IDENTIFIER = "beam:schematransform:org.apache.beam:test_transform:v1";
-  static final Schema SCHEMA;
+  public static final String IDENTIFIER = "beam:schematransform:org.apache.beam:test_transform:v1";
+  public static final Schema SCHEMA;
 
   static {
     try {

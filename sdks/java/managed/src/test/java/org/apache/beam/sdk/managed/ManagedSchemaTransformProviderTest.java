@@ -24,6 +24,8 @@ import static org.junit.Assert.assertTrue;
 import java.net.URISyntaxException;
 import java.nio.file.Paths;
 import java.util.Arrays;
+
+import org.apache.beam.sdk.managed.testing.TestSchemaTransformProvider;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
 import org.junit.Rule;

@@ -32,9 +32,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
-public abstract class SchemaTransformCatalogConfig {
+public abstract class IcebergSchemaTransformCatalogConfig {
   public static Builder builder() {
-    return new AutoValue_SchemaTransformCatalogConfig.Builder();
+    return new AutoValue_IcebergSchemaTransformCatalogConfig.Builder();
   }
 
   public abstract String getCatalogName();
@@ -57,7 +57,7 @@ public abstract class SchemaTransformCatalogConfig {
 
     public abstract Builder setWarehouseLocation(String warehouseLocation);
 
-    public abstract SchemaTransformCatalogConfig build();
+    public abstract IcebergSchemaTransformCatalogConfig build();
   }
 
   public static final Set<String> VALID_CATALOG_TYPES =

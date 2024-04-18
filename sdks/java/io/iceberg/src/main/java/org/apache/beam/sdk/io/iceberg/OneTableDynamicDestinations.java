@@ -42,7 +42,6 @@ class OneTableDynamicDestinations implements DynamicDestinations, Externalizable
 
   @VisibleForTesting
   TableIdentifier getTableIdentifier() {
-    Preconditions.checkState(!Strings.isNullOrEmpty(tableIdString));
     if (tableId == null) {
       tableId = TableIdentifier.parse(Preconditions.checkNotNull(tableIdString));
     }

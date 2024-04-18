@@ -68,13 +68,13 @@ public class IcebergReadSchemaTransformProvider extends TypedSchemaTransformProv
 
     public abstract String getTable();
 
-    public abstract SchemaTransformCatalogConfig getCatalogConfig();
+    public abstract IcebergSchemaTransformCatalogConfig getCatalogConfig();
 
     @AutoValue.Builder
     public abstract static class Builder {
       public abstract Builder setTable(String tables);
 
-      public abstract Builder setCatalogConfig(SchemaTransformCatalogConfig catalogConfig);
+      public abstract Builder setCatalogConfig(IcebergSchemaTransformCatalogConfig catalogConfig);
 
       public abstract Config build();
     }
@@ -93,7 +93,7 @@ public class IcebergReadSchemaTransformProvider extends TypedSchemaTransformProv
 
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
-      SchemaTransformCatalogConfig catalogConfig = configuration.getCatalogConfig();
+      IcebergSchemaTransformCatalogConfig catalogConfig = configuration.getCatalogConfig();
 
       IcebergCatalogConfig.Builder catalogBuilder =
           IcebergCatalogConfig.builder().setName(catalogConfig.getCatalogName());

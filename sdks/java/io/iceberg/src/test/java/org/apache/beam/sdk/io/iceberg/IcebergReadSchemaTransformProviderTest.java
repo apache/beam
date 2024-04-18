@@ -55,7 +55,7 @@ public class IcebergReadSchemaTransformProviderTest {
   @Test
   public void testBuildTransformWithRow() throws NoSuchSchemaException {
     Row catalogConfigRow =
-        Row.withSchema(SchemaRegistry.createDefault().getSchema(SchemaTransformCatalogConfig.class))
+        Row.withSchema(SchemaRegistry.createDefault().getSchema(IcebergSchemaTransformCatalogConfig.class))
             .withFieldValue("catalogName", "test_name")
             .withFieldValue("catalogType", "test_type")
             .withFieldValue("catalogImplementation", "testImplementation")
@@ -100,8 +100,8 @@ public class IcebergReadSchemaTransformProviderTest {
             .map(record -> SchemaAndRowConversions.recordToRow(schema, record))
             .collect(Collectors.toList());
 
-    SchemaTransformCatalogConfig catalogConfig =
-        SchemaTransformCatalogConfig.builder()
+    IcebergSchemaTransformCatalogConfig catalogConfig =
+        IcebergSchemaTransformCatalogConfig.builder()
             .setCatalogName("hadoop")
             .setCatalogType(CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
             .setWarehouseLocation(warehouse.location)
