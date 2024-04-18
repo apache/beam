@@ -46,7 +46,6 @@ dependencies {
     implementation project(path: ":model:pipeline", configuration: "shadow")
     implementation project(path: ":sdks:java:core", configuration: "shadow")
     implementation project(":sdks:java:managed")
-    implementation project(":sdks:java:io:hadoop-common")
     implementation library.java.slf4j_api
     implementation library.java.joda_time
     implementation "org.apache.parquet:parquet-column:$parquet_version"
