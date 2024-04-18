@@ -222,7 +222,7 @@ public interface DataflowPipelineDebugOptions
   @Default.Double(10.0)
   Double getUnboundedReaderMaxReadTimeSec();
 
-  void setUnboundedReaderMaxReadTimeSec(Double value);
+  void setUnboundedReaderMaxReadTimeSec(double value);
 
   /** The max elements read from an UnboundedReader before checkpointing. */
   @Description("The max elements read from an UnboundedReader before checkpointing. ")

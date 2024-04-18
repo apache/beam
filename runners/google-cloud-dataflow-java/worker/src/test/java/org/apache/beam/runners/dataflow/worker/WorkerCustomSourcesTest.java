@@ -598,6 +598,7 @@ public class WorkerCustomSourcesTest {
     int maxElements = 10;
     DataflowPipelineDebugOptions debugOptions = options.as(DataflowPipelineDebugOptions.class);
     debugOptions.setUnboundedReaderMaxElements(maxElements);
+    debugOptions.setUnboundedReaderMaxReadTimeSec(10);
 
     ByteString state = ByteString.EMPTY;
     for (int i = 0; i < 10 * maxElements;
