@@ -233,6 +233,41 @@ public class SchemaTest {
   }
 
   @Test
+  public void testNestedSorted() {
+    Schema unsortedNestedSchema =
+        Schema.builder().addStringField("bb").addInt32Field("aa").addStringField("cc").build();
+    Schema unsortedSchema =
+        Schema.builder()
+            .addStringField("d")
+            .addInt32Field("c")
+            .addRowField("e", unsortedNestedSchema)
+            .addStringField("b")
+            .addByteField("a")
+            .build();
+
+    Schema sortedSchema = unsortedSchema.sorted();
+
+    Schema expectedInnerSortedSchema =
+        Schema.builder().addInt32Field("aa").addStringField("bb").addStringField("cc").build();
+    Schema expectedSortedSchema =
+        Schema.builder()
+            .addByteField("a")
+            .addStringField("b")
+            .addInt32Field("c")
+            .addStringField("d")
+            .addRowField("e", expectedInnerSortedSchema)
+            .build();
+
+    assertTrue(unsortedSchema.equivalent(sortedSchema));
+    assertEquals(expectedSortedSchema.getFields(), sortedSchema.getFields());
+    assertEquals(expectedSortedSchema.getEncodingPositions(), sortedSchema.getEncodingPositions());
+    assertEquals(expectedInnerSortedSchema, sortedSchema.getField("e").getType().getRowSchema());
+    assertEquals(
+        expectedInnerSortedSchema.getEncodingPositions(),
+        sortedSchema.getField("e").getType().getRowSchema().getEncodingPositions());
+  }
+
+  @Test
   public void testSortedMethodIncludesAllSchemaFields() {
     // This test is most likely to break when new Schema object attributes are added. It is designed
     // this way to make sure that the Schema::sorted() method is updated to return a full sorted

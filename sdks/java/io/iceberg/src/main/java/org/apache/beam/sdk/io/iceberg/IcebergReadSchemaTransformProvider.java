@@ -24,6 +24,7 @@ import java.util.List;
 import org.apache.beam.sdk.io.iceberg.IcebergReadSchemaTransformProvider.Config;
 import org.apache.beam.sdk.managed.ManagedTransformConstants;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
@@ -46,7 +47,7 @@ public class IcebergReadSchemaTransformProvider extends TypedSchemaTransformProv
   @Override
   protected SchemaTransform from(Config configuration) {
     configuration.validate();
-    return new IcebergReadSchemaTransform(configuration);
+    return new IcebergReadSchemaTransform(configuration, configurationSchema());
   }
 
   @Override
@@ -84,11 +85,21 @@ public class IcebergReadSchemaTransformProvider extends TypedSchemaTransformProv
     }
   }
 
-  private static class IcebergReadSchemaTransform extends SchemaTransform {
+  static class IcebergReadSchemaTransform extends SchemaTransform {
     private final Config configuration;
+    private final Row configurationRow;
 
-    IcebergReadSchemaTransform(Config configuration) {
+    IcebergReadSchemaTransform(Config configuration, Schema configSchema) {
       this.configuration = configuration;
+      configurationRow =
+          Row.withSchema(configSchema)
+              .withFieldValue("table", configuration.getTable())
+              .withFieldValue("catalogConfig", configuration.getCatalogConfig().toRow())
+              .build();
+    }
+
+    Row getConfigurationRow() {
+      return configurationRow;
     }
 
     @Override

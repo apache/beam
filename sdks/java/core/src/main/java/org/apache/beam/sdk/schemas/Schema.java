@@ -326,7 +326,7 @@ public class Schema implements Serializable {
     return Schema.builder().addFields(fields).build();
   }
 
-  /** Returns an identical Schema with sorted fields. */
+  /** Returns an identical Schema with sorted fields. Recursively sorts nested fields. */
   public Schema sorted() {
     // Create a new schema and copy over the appropriate Schema object attributes:
     // {fields, uuid, options}
@@ -336,6 +336,16 @@ public class Schema implements Serializable {
     Schema sortedSchema =
         this.fields.stream()
             .sorted(Comparator.comparing(Field::getName))
+            .map(
+                field -> {
+                  FieldType innerType = field.getType();
+                  if (innerType.getRowSchema() != null) {
+                    Schema innerSortedSchema = innerType.getRowSchema().sorted();
+                    innerType = innerType.toBuilder().setRowSchema(innerSortedSchema).build();
+                    return field.toBuilder().setType(innerType).build();
+                  }
+                  return field;
+                })
             .collect(Schema.toSchema())
             .withOptions(getOptions());
     sortedSchema.setUUID(getUUID());

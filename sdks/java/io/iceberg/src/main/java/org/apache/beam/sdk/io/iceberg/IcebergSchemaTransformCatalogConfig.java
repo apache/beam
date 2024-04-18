@@ -22,9 +22,13 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import com.google.auto.value.AutoValue;
 import java.util.Set;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
+import org.apache.beam.sdk.schemas.NoSuchSchemaException;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.util.Preconditions;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.apache.iceberg.CatalogUtil;
@@ -58,6 +62,29 @@ public abstract class IcebergSchemaTransformCatalogConfig {
     public abstract Builder setWarehouseLocation(String warehouseLocation);
 
     public abstract IcebergSchemaTransformCatalogConfig build();
+  }
+
+  public static final Schema SCHEMA;
+
+  static {
+    try {
+      SCHEMA =
+          SchemaRegistry.createDefault()
+              .getSchema(IcebergSchemaTransformCatalogConfig.class)
+              .sorted();
+    } catch (NoSuchSchemaException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  @SuppressWarnings("argument")
+  public Row toRow() {
+    return Row.withSchema(SCHEMA)
+        .withFieldValue("catalogName", getCatalogName())
+        .withFieldValue("catalogType", getCatalogType())
+        .withFieldValue("catalogImplementation", getCatalogImplementation())
+        .withFieldValue("warehouseLocation", getWarehouseLocation())
+        .build();
   }
 
   public static final Set<String> VALID_CATALOG_TYPES =

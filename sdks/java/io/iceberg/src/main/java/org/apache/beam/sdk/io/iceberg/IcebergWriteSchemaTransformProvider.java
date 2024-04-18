@@ -69,7 +69,7 @@ public class IcebergWriteSchemaTransformProvider extends TypedSchemaTransformPro
   @Override
   protected SchemaTransform from(Config configuration) {
     configuration.validate();
-    return new IcebergWriteSchemaTransform(configuration);
+    return new IcebergWriteSchemaTransform(configuration, configurationSchema());
   }
 
   @Override
@@ -114,12 +114,22 @@ public class IcebergWriteSchemaTransformProvider extends TypedSchemaTransformPro
     }
   }
 
-  @VisibleForTesting
-  private static class IcebergWriteSchemaTransform extends SchemaTransform {
+  static class IcebergWriteSchemaTransform extends SchemaTransform {
     private final Config configuration;
+    private final Row configurationRow;
 
-    IcebergWriteSchemaTransform(Config configuration) {
+    IcebergWriteSchemaTransform(Config configuration, Schema configSchema) {
       this.configuration = configuration;
+
+      configurationRow =
+          Row.withSchema(configSchema)
+              .withFieldValue("table", configuration.getTable())
+              .withFieldValue("catalogConfig", configuration.getCatalogConfig().toRow())
+              .build();
+    }
+
+    Row getConfigurationRow() {
+      return configurationRow;
     }
 
     @Override
