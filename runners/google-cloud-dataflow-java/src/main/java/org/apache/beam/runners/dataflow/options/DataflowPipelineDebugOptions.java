@@ -224,13 +224,13 @@ public interface DataflowPipelineDebugOptions
 
   void setUnboundedReaderMaxReadTimeSec(Integer value);
 
-    /** The max amount of time an UnboundedReader is consumed before checkpointing. */
-    @Description(
-        "The max amount of time (UnboundedReaderMaxReadTimeSec+UnboundedReaderMaxReadTimeMs) before an UnboundedReader is consumed before checkpointing, millis part.")
-    @Default.Integer(0)
-    Integer getUnboundedReaderMaxReadTimeMs();
-  
-    void setUnboundedReaderMaxReadTimeMs(Integer value);
+  /** The max amount of time an UnboundedReader is consumed before checkpointing. */
+  @Description(
+      "The max amount of time (UnboundedReaderMaxReadTimeSec+UnboundedReaderMaxReadTimeMs) before an UnboundedReader is consumed before checkpointing, millis part.")
+  @Default.Integer(0)
+  Integer getUnboundedReaderMaxReadTimeMs();
+
+  void setUnboundedReaderMaxReadTimeMs(Integer value);
 
   /** The max elements read from an UnboundedReader before checkpointing. */
   @Description("The max elements read from an UnboundedReader before checkpointing. ")
