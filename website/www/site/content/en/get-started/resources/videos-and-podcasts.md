@@ -141,7 +141,7 @@ ApacheCon, Miami, 2017
 
 Presented by Etienne Chauchot and Ismaël Mejia, *Apache Beam PMC members*
 
-[Link to Slides](www.slideshare.net/slideshow/embed_code/key/auWXjEK7GTkiUK)
+[Link to Slides](https://www.slideshare.net/slideshow/embed_code/key/auWXjEK7GTkiUK)
 <audio controls>
   <source src="https://feathercastapache.files.wordpress.com/2017/05/0517-04-mejia.mp3" type="audio/mpeg">
 Your browser does not support the audio element.
@@ -152,7 +152,7 @@ ApacheCon, Montreal, 2018
 
 Presented by Etienne Chauchot, *Apache Beam PMC member*
 
-[Link to Slides](www.slideshare.net/slideshow/embed_code/key/kKJRzR8HxkxLsR)
+[Link to Slides](https://www.slideshare.net/slideshow/embed_code/key/kKJRzR8HxkxLsR)
 <audio controls>
   <source src="//feathercastapache.files.wordpress.com/2018/09/03-universal-metrics-with-beam-etienne-chauchot.mp3" type="audio/mpeg">
 Your browser does not support the audio element.
