@@ -92,6 +92,10 @@ abstract class FileWriteResult {
     @Override
     public void encode(FileWriteResult value, OutputStream outStream)
         throws CoderException, IOException {
+      // "version" of this coder. If breaking changes are introduced (whether with Beam, Iceberg, Avro, etc..),
+      // then update this version and create a fork in decode() below for the new decode logic.
+      // This helps keep the pipeline update-compatible
+      outStream.write(0);
       tableIdentifierCoder.encode(value.getTableIdentifier().toString(), outStream);
       partitionSpecCoder.encode(value.getPartitionSpec(), outStream);
       dataFileBytesCoder.encode(
@@ -100,6 +104,8 @@ abstract class FileWriteResult {
 
     @Override
     public FileWriteResult decode(InputStream inStream) throws CoderException, IOException {
+      // Forking logic can be added here depending on the version of this coder
+      assert inStream.read() == 0;
       TableIdentifier tableId = TableIdentifier.parse(tableIdentifierCoder.decode(inStream));
       PartitionSpec partitionSpec = partitionSpecCoder.decode(inStream);
       DataFile dataFile =

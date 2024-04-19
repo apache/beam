@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.managed;
 
+import static org.apache.beam.model.pipeline.v1.ExternalTransforms.SchemaTransformPayload;
 import static org.apache.beam.sdk.managed.ManagedSchemaTransformProvider.ManagedConfig;
 import static org.apache.beam.sdk.managed.ManagedSchemaTransformProvider.ManagedSchemaTransform;
 import static org.apache.beam.sdk.managed.ManagedSchemaTransformTranslation.ManagedSchemaTransformTranslator;
@@ -31,7 +32,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.model.pipeline.v1.SchemaAwareTransforms;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.managed.testing.TestSchemaTransformProvider;
@@ -153,14 +153,11 @@ public class ManagedSchemaTransformTranslationTest {
     RunnerApi.FunctionSpec spec = managedTransformProto.get(0).getSpec();
 
     // Check that the proto contains correct values
-    SchemaAwareTransforms.ManagedSchemaTransformPayload payload =
-        SchemaAwareTransforms.ManagedSchemaTransformPayload.parseFrom(spec.getPayload());
-    assertEquals(
-        TestSchemaTransformProvider.IDENTIFIER, payload.getUnderlyingTransformIdentifier());
-    assertEquals(yamlStringConfig, payload.getYamlConfig());
-    Schema schemaFromSpec = SchemaTranslation.schemaFromProto(payload.getExpansionSchema());
+    SchemaTransformPayload payload = SchemaTransformPayload.parseFrom(spec.getPayload());
+    assertEquals(TestSchemaTransformProvider.IDENTIFIER, payload.getIdentifier());
+    Schema schemaFromSpec = SchemaTranslation.schemaFromProto(payload.getConfigurationSchema());
     assertEquals(ManagedSchemaTransformTranslator.SCHEMA, schemaFromSpec);
-    Row rowFromSpec = RowCoder.of(schemaFromSpec).decode(payload.getExpansionPayload().newInput());
+    Row rowFromSpec = RowCoder.of(schemaFromSpec).decode(payload.getConfigurationRow().newInput());
     Row expectedRow =
         Row.withSchema(ManagedSchemaTransformTranslator.SCHEMA)
             .withFieldValue("transformIdentifier", TestSchemaTransformProvider.IDENTIFIER)
