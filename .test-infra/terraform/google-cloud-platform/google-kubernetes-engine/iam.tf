@@ -16,6 +16,18 @@
  * limitations under the License.
  */
 
-output get_kubeconfig_command {
-  value = "gcloud container clusters get-credentials ${google_container_cluster.default.name} --region ${google_container_cluster.default.location} --project ${var.project}"
+// Bind minimally permissive IAM roles to the service account.
+// See https://cloud.google.com/kubernetes-engine/docs/how-to/hardening-your-cluster#use_least_privilege_sa
+resource "google_project_iam_member" "assign_gke_iam" {
+  for_each = toset([
+    "roles/logging.logWriter",
+    "roles/monitoring.metricWriter",
+    "roles/monitoring.viewer",
+    "roles/stackdriver.resourceMetadata.writer",
+    "roles/autoscaling.metricsWriter",
+    "roles/artifactregistry.reader",
+  ])
+  member  = "serviceAccount:${data.google_service_account.default.email}"
+  project = var.project
+  role    = each.key
 }
