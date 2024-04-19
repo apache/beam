@@ -24,7 +24,7 @@ This page provides links to some of our favorite videos and podcasts that will h
 
 <ul><li><a href="">Introduction</a></li></ul>
 
-[Link to Video](https://www.youtube.com/embed/videoseries?list=PLIivdWyY5sqIEiHGunZXg_yoS7unlHNJt)
+<iframe class="video video--medium-size" width="560" height="315" src="https://www.youtube.com/embed/videoseries?list=PLIivdWyY5sqIEiHGunZXg_yoS7unlHNJt" frameborder="0" allowfullscreen></iframe>
 <br>
 
 {{< toc >}}
@@ -39,7 +39,7 @@ Data Science Summit, Jerusalem, 2016
 
 Presented by Tyler Akidau, *Apache Beam PPMC member*
 
-[Link to Video](https://www.youtube.com/embed/V35MwYcXEX0)
+<iframe class="video video--medium-size" width="560" height="315" src="https://www.youtube.com/embed/V35MwYcXEX0" frameborder="0" allowfullscreen></iframe>
 <br>
 
 ### Apache Beam: A Unified Model for Batch and Streaming Data Processing
@@ -48,7 +48,7 @@ Hadoop Summit, San Jose, CA, 2016
 
 Presented by Davor Bonaci, *Apache Beam PPMC member*
 
-[Link to Video](https://www.youtube.com/embed/7DZ8ONmeP5A)
+<iframe class="video video--medium-size" width="560" height="315" src="https://www.youtube.com/embed/7DZ8ONmeP5A" frameborder="0" allowfullscreen></iframe>
 <br>
 
 ### Fundamentals of Stream Processing with Apache Beam
@@ -64,14 +64,14 @@ Presented by Dan Halperin, *Apache Beam PPMC member*
 
 Presented by Frances Perry, *Apache Beam PPMC member*
 
-[Link to audio](https://www.se-radio.net/2016/10/se-radio-episode-272-frances-perry-on-apache-beam/)
+<a href="https://www.se-radio.net/2016/10/se-radio-episode-272-frances-perry-on-apache-beam/" target="_blank">![alt text](/images/resources/se-radio-podcast.png)</a>
 <br>
 
 ### How to run ML Inference with Apache Beam
 
 Video by Cassie Kozyrkov
 
-[Link to Video](https://www.youtube.com/embed/ga2TNdrFRoU)
+<iframe class="video video--medium-size" width="560" height="315" src="https://www.youtube.com/embed/ga2TNdrFRoU" frameborder="0" allowfullscreen></iframe>
 <br>
 
 ## Beam & Friends
@@ -84,7 +84,7 @@ Flink Forward, 2020
 
 Presented by Ahmet Altay, Robert Crowe, Reza Rokni
 
-[Link to Video](https://www.youtube.com/embed/jV1WFTmm4qg)
+<iframe class="video video--medium-size" width="560" height="315" src="https://www.youtube.com/embed/jV1WFTmm4qg" frameborder="0" allowfullscreen></iframe>
 <br>
 
 ### TensorFlow Extended: An End-to-End Machine Learning Platform for TensorFlow
@@ -93,7 +93,7 @@ Spark+AI, San Francisco, 2019
 
 Presented by Konstantinos Katsiapis, Ahmet Altay
 
-[Link to Video](https://www.youtube.com/embed/GTibgKo7WaI)
+<iframe class="video video--medium-size" width="560" height="315" src="https://www.youtube.com/embed/GTibgKo7WaI" frameborder="0" allowfullscreen></iframe>
 <br>
 
 ### Flink and Beam: Current State & Roadmap
@@ -102,7 +102,7 @@ Flink Forward, Berlin, 2016
 
 Presented by Maximilian Michels, *Apache Beam PPMC member*
 
-[Link to Video](https://www.youtube.com/embed/msdjh6KRXC8)
+<iframe class="video video--medium-size" width="560" height="315" src="https://www.youtube.com/embed/msdjh6KRXC8" frameborder="0" allowfullscreen></iframe>
 <br>
 
 ### Lessons learned from developing a stream processing platform at scale
@@ -111,7 +111,7 @@ Big Things Meetup, Tel Aviv, 2016
 
 By Amit Sela, *Apache Beam PPMC member*
 
-[Link to Video](https://www.youtube.com/embed/fc-YigLn_gs)
+<iframe class="video video--medium-size" width="560" height="315" src="https://www.youtube.com/embed/fc-YigLn_gs" frameborder="0" allowfullscreen></iframe>
 <br>
 
 ## Technical Details
@@ -124,7 +124,7 @@ Strata+Hadoop World, New York, 2016
 
 Presented by Slava Chernyak, *Software Engineer at Google*
 
-[Link to Video](https://www.youtube.com/embed/TWxSLmkWPm4)
+<iframe class="video video--medium-size" width="560" height="315" src="https://www.youtube.com/embed/TWxSLmkWPm4" frameborder="0" allowfullscreen></iframe>
 <br>
 
 ### Triggers in Apache Beam
@@ -133,7 +133,7 @@ Strata+Hadoop World, New York, 2016
 
 Presented by Kenneth Knowles, *Apache Beam PPMC member*
 
-[Link to Video](https://www.youtube.com/embed/E1k0B9LN46M)
+<iframe class="video video--medium-size" width="560" height="315" src="https://www.youtube.com/embed/E1k0B9LN46M" frameborder="0" allowfullscreen></iframe>
 
 ### Nexmark Evaluating Big Data systems with Apache Beam
 
