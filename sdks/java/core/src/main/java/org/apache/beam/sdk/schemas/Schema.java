@@ -327,7 +327,10 @@ public class Schema implements Serializable {
     return Schema.builder().addFields(fields).build();
   }
 
-  /** Returns an identical Schema with sorted fields. Recursively sorts nested fields. */
+  /**
+   * Returns an identical Schema with lexicographically sorted fields. Recursively sorts nested
+   * fields.
+   */
   public Schema sorted() {
     // Create a new schema and copy over the appropriate Schema object attributes:
     // {fields, uuid, options}

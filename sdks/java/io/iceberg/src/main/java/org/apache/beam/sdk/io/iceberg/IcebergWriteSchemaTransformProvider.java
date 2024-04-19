@@ -24,7 +24,9 @@ import java.util.List;
 import org.apache.beam.sdk.io.iceberg.IcebergWriteSchemaTransformProvider.Config;
 import org.apache.beam.sdk.managed.ManagedTransformConstants;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
+import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
@@ -63,7 +65,7 @@ public class IcebergWriteSchemaTransformProvider extends TypedSchemaTransformPro
   @Override
   protected SchemaTransform from(Config configuration) {
     configuration.validate();
-    return new IcebergWriteSchemaTransform(configuration, configurationSchema());
+    return new IcebergWriteSchemaTransform(configuration);
   }
 
   @Override
@@ -110,20 +112,20 @@ public class IcebergWriteSchemaTransformProvider extends TypedSchemaTransformPro
 
   static class IcebergWriteSchemaTransform extends SchemaTransform {
     private final Config configuration;
-    private final Row configurationRow;
 
-    IcebergWriteSchemaTransform(Config configuration, Schema configSchema) {
+    IcebergWriteSchemaTransform(Config configuration) {
       this.configuration = configuration;
-
-      configurationRow =
-          Row.withSchema(configSchema)
-              .withFieldValue("table", configuration.getTable())
-              .withFieldValue("catalogConfig", configuration.getCatalogConfig().toRow())
-              .build();
     }
 
     Row getConfigurationRow() {
-      return configurationRow;
+      try {
+        return SchemaRegistry.createDefault()
+            .getToRowFunction(Config.class)
+            .apply(configuration)
+            .sorted();
+      } catch (NoSuchSchemaException e) {
+        throw new RuntimeException(e);
+      }
     }
 
     @Override

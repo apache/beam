@@ -34,7 +34,9 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
+import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
@@ -151,34 +153,45 @@ public class ManagedSchemaTransformProvider
   }
 
   static class ManagedSchemaTransform extends SchemaTransform {
-    private final Row transformConfig;
     private final ManagedConfig managedConfig;
+    private final Row underlyingTransformConfig;
     private final SchemaTransformProvider underlyingTransformProvider;
 
     ManagedSchemaTransform(
         ManagedConfig managedConfig, SchemaTransformProvider underlyingTransformProvider) {
       // parse config before expansion to check if it matches underlying transform's config schema
       Schema transformConfigSchema = underlyingTransformProvider.configurationSchema();
-      Row transformConfig;
+      Row underlyingTransformConfig;
       try {
-        transformConfig = getRowConfig(managedConfig, transformConfigSchema);
+        underlyingTransformConfig = getRowConfig(managedConfig, transformConfigSchema);
       } catch (Exception e) {
         throw new IllegalArgumentException(
             "Encountered an error when retrieving a Row configuration", e);
       }
 
-      this.transformConfig = transformConfig;
       this.managedConfig = managedConfig;
+      this.underlyingTransformConfig = underlyingTransformConfig;
       this.underlyingTransformProvider = underlyingTransformProvider;
     }
 
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
-      return input.apply(underlyingTransformProvider.from(transformConfig));
+      return input.apply(underlyingTransformProvider.from(underlyingTransformConfig));
     }
 
     public ManagedConfig getManagedConfig() {
       return this.managedConfig;
+    }
+
+    Row getConfigurationRow() {
+      try {
+        return SchemaRegistry.createDefault()
+            .getToRowFunction(ManagedConfig.class)
+            .apply(managedConfig)
+            .sorted();
+      } catch (NoSuchSchemaException e) {
+        throw new RuntimeException(e);
+      }
     }
   }
 
