@@ -52,13 +52,212 @@ import org.slf4j.LoggerFactory;
 /**
  * A {@link PTransform} to read and write from/to Solace.
  *
- * <h3>Authentication</h3>
+ * <h2>Authentication</h2>
  *
- * TODO: Auth for the read connector
+ * <p>When reading from Solace, the user must use {@link
+ * Read#withSessionServiceFactory(SessionServiceFactory)} to create a JCSMP session and {@link
+ * Read#withSempClientFactory(SempClientFactory)} to authenticate to the SEMP API.
  *
- * <h3>Reading</h3>
+ * <p>See {@link Read#withSessionServiceFactory(SessionServiceFactory)} for session authentication.
+ * The connector provides implementation of the {@link SessionServiceFactory} using the Basic
+ * Authentication: {@link org.apache.beam.sdk.io.solace.broker.BasicAuthJcsmpSessionService}.
  *
- * TODO
+ * <p>For the authentication to the SEMP API ({@link Read#withSempClientFactory(SempClientFactory)})
+ * the connector provides {@link org.apache.beam.sdk.io.solace.broker.BasicAuthSempClientFactory} to
+ * authenticate using the Basic Authentication.
+ *
+ * <h2>Reading</h2>
+ *
+ * To read from Solace, use the {@link SolaceIO#read()} or {@link SolaceIO#read(TypeDescriptor,
+ * SerializableFunction, SerializableFunction)}.
+ *
+ * <h3>No-arg {@link SolaceIO#read()} top-level method</h3>
+ *
+ * <p>This method returns a PCollection of {@link Solace.Record} objects. It uses a default mapper
+ * ({@link SolaceRecordMapper#map(BytesXMLMessage)}) to map from the received {@link
+ * BytesXMLMessage} from Solace, to the {@link Solace.Record} objects.
+ *
+ * <p>By default, it also uses a {@link BytesXMLMessage#getSenderTimestamp()} for watermark
+ * estimation. This {@link SerializableFunction} can be overridden with {@link
+ * Read#withTimestampFn(SerializableFunction)} method.
+ *
+ * <p>When using this method, the Coders are inferred automatically.
+ *
+ * <h3>Advanced {@link SolaceIO#read(TypeDescriptor, SerializableFunction, SerializableFunction)}
+ * top-level method</h3>
+ *
+ * <p>With this method, the user can:
+ *
+ * <ul>
+ *   <li>specify custom output type of the PTransform (for example their own class consisting only
+ *       of the relevant fields, optimized for their use-case),
+ *   <li>create a custom mapping between {@link BytesXMLMessage} and their output type and
+ *   <li>specify what field to use for watermark estimation from their mapped field (for example, in
+ *       this method the user can use a field which is encoded in the payload as a timestamp, which
+ *       cannot be done with the {@link SolaceIO#read()} method.
+ * </ul>
+ *
+ * <h3>Reading from a queue ({@link Read#from(Solace.Queue)}} or a topic ({@link
+ * Read#from(Solace.Topic)})</h3>
+ *
+ * <p>Regardless of the top-level read method choice, the user can specify whether to read from a
+ * Queue - {@link Read#from(Solace.Queue)}, or a Topic {@link Read#from(Solace.Topic)}.
+ *
+ * <p>Note: when a user specifies to read from a Topic, the connector will create a matching Queue
+ * and a Subscription. The user must ensure that the SEMP API is reachable from the driver program
+ * and must provide credentials that have `write` permission to the <a
+ * href="https://docs.solace.com/Admin/SEMP/Using-SEMP.htm">SEMP Config API</a>. The created Queue
+ * will be non-exclusive. The Queue will not be deleted when the pipeline is terminated.
+ *
+ * <p>Note: If the user specifies to read from a Queue, <a
+ * href="https://beam.apache.org/documentation/programming-guide/#overview">the driver program</a>
+ * will execute a call to the SEMP API to check if the Queue is `exclusive` or `non-exclusive`. The
+ * user must ensure that the SEMP API is reachable from the driver program and provide credentials
+ * with `read` permission to the {@link Read#withSempClientFactory(SempClientFactory)}.
+ *
+ * <h3>{@link Read#withSempClientFactory(SempClientFactory)}</h3>
+ *
+ * <p>The user can specify a factory class that creates a {@link
+ * org.apache.beam.sdk.io.solace.broker.SempClient}.
+ *
+ * <p>An existing implementation of the SempClientFactory includes {@link
+ * org.apache.beam.sdk.io.solace.broker.BasicAuthSempClientFactory} which implements the Basic
+ * Authentication to Solace.
+ *
+ * <p>To use it, specify the credentials with the builder methods.
+ *
+ * <p>The format of the host is `[Protocol://]Host[:Port]`
+ *
+ * <pre>{@code
+ * .withSempClientFactory(
+ *         BasicAuthSempClientFactory.builder()
+ *                 .host("http://" + options.getSolaceHost() + ":8080")
+ *                 .username(options.getSolaceUsername())
+ *                 .password(options.getSolacePassword())
+ *                 .vpnName(options.getSolaceVpnName())
+ *                 .build())
+ * }</pre>
+ *
+ * <h3>{@link Read#withSessionServiceFactory(SessionServiceFactory)}</h3>
+ *
+ * <p>The user can specify a factory class that creates a {@link SessionService}.
+ *
+ * <p>An existing implementation of the SempClientFactory includes {@link
+ * org.apache.beam.sdk.io.solace.broker.BasicAuthJcsmpSessionService} which implements the Basic
+ * Authentication to Solace.
+ *
+ * <p>To use it, specify the credentials with the builder methods.
+ *
+ * <p>The format of the host is `[Protocol://]Host[:Port]`
+ *
+ * <pre>{@code
+ * BasicAuthJcsmpSessionServiceFactory.builder()
+ *         .host(options.getSolaceHost())
+ *         .username(options.getSolaceUsername())
+ *         .password(options.getSolacePassword())
+ *         .vpnName(options.getSolaceVpnName())
+ *         .build()));
+ * }</pre>
+ *
+ * <h3>{@link Read#withMaxNumConnections(Integer)}</h3>
+ *
+ * <p>Optional. Sets the maximum number of connections to the broker. The actual number of sessions
+ * is determined by this and the number set by the runner. If not set, the number of sessions is
+ * determined by the runner. The number of connections created follows this logic:
+ * `numberOfConnections = min(maxNumConnections, desiredNumberOfSplits)`, where the
+ * `desiredNumberOfSplits` is set by the runner.
+ *
+ * <h3>{@link Read#withDeduplicateRecords(boolean)}</h3>
+ *
+ * <p>Optional, default: true. Set to deduplicate messages based on the {@link
+ * BytesXMLMessage#getApplicationMessageId()} of the incoming {@link BytesXMLMessage}. If the field
+ * is null, then the {@link BytesXMLMessage#getReplicationGroupMessageId()} will be used, which is
+ * always set by Solace.
+ *
+ * <h3>{@link Read#withTimestampFn(SerializableFunction)}</h3>
+ *
+ * <p>The timestamp function, used for estimating the watermark, mapping the record T to an {@link
+ * Instant}
+ *
+ * <p>Optional when using the no-arg {@link SolaceIO#read()} method. Defaults to {@link
+ * SolaceIO#SENDER_TIMESTAMP_FUNCTION}. When using the {@link SolaceIO#read(TypeDescriptor,
+ * SerializableFunction, SerializableFunction)} method, the function mapping from T to {@link
+ * Instant} has to be passed as an argument.
+ *
+ * <h3>Usage example</h3>
+ *
+ * <h4>The no-arg {@link SolaceIO#read()} method</h4>
+ *
+ * <p>The minimal example - reading from an existing Queue, using the no-arg {@link SolaceIO#read()}
+ * method, with all the default configuration options.
+ *
+ * <pre>{@code
+ * PCollection<Solace.Record> events =
+ *   pipeline.apply(
+ *     SolaceIO.read()
+ *         .from(Queue.fromName(options.getSolaceReadQueue()))
+ *         .withSempClientFactory(
+ *                 BasicAuthSempClientFactory.builder()
+ *                         .host("http://" + options.getSolaceHost() + ":8080")
+ *                         .username(options.getSolaceUsername())
+ *                         .password(options.getSolacePassword())
+ *                         .vpnName(options.getSolaceVpnName())
+ *                         .build())
+ *         .withSessionServiceFactory(
+ *                 BasicAuthJcsmpSessionServiceFactory.builder()
+ *                         .host(options.getSolaceHost())
+ *                         .username(options.getSolaceUsername())
+ *                         .password(options.getSolacePassword())
+ *                         .vpnName(options.getSolaceVpnName())
+ *                         .build()));
+ * }</pre>
+ *
+ * <h4>The advanced {@link SolaceIO#read(TypeDescriptor, SerializableFunction,
+ * SerializableFunction)} method</h4>
+ *
+ * <p>When using this method we can specify a custom output PCollection type and a custom timestamp
+ * function.
+ *
+ * <pre>{@code
+ * @DefaultSchema(JavaBeanSchema.class)
+ * public static class SimpleRecord {
+ *    public String payload;
+ *    public String messageId;
+ *    public Instant timestamp;
+ *
+ *    public SimpleRecord() {}
+ *
+ *    public SimpleRecord(String payload, String messageId, Instant timestamp) {
+ *        this.payload = payload;
+ *        this.messageId = messageId;
+ *        this.timestamp = timestamp;
+ *    }
+ * }
+ *
+ * private static SimpleRecord toSimpleRecord(BytesXMLMessage record) {
+ *    if (record == null) {
+ *        return null;
+ *    }
+ *    return new SimpleRecord(
+ *            new String(record.getBytes(), StandardCharsets.UTF_8),
+ *            record.getApplicationMessageId(),
+ *            record.getSenderTimestamp() != null
+ *                    ? Instant.ofEpochMilli(record.getSenderTimestamp())
+ *                    : Instant.now());
+ * }
+ *
+ * PCollection<SimpleRecord> events =
+ *  pipeline.apply(
+ *      SolaceIO.read(
+ *                      TypeDescriptor.of(SimpleRecord.class),
+ *                      record -> toSimpleRecord(record),
+ *                      record -> record.timestamp)
+ *              .from(Topic.fromName(options.getSolaceReadTopic()))
+ *              .withSempClientFactory(...)
+ *              .withSessionServiceFactory(...);
+ *
+ *
+ * }</pre>
  */
 public class SolaceIO {
 

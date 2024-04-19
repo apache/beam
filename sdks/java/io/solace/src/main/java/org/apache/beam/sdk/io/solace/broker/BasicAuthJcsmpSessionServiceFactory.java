@@ -38,7 +38,7 @@ public abstract class BasicAuthJcsmpSessionServiceFactory extends SessionService
   @AutoValue.Builder
   public abstract static class Builder {
 
-    /** Set Solace host, format: Protocol://Host[:Port]. */
+    /** Set Solace host, format: [Protocol://]Host[:Port]. */
     public abstract Builder host(String host);
 
     /** Set Solace username. */
