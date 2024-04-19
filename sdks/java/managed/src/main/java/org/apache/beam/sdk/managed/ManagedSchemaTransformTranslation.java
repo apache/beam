@@ -46,12 +46,12 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public class ManagedSchemaTransformTranslation {
   static class ManagedSchemaTransformTranslator
       implements TransformPayloadTranslator<ManagedSchemaTransform> {
-    static final ManagedSchemaTransformProvider provider = new ManagedSchemaTransformProvider(null);
-    static final Schema SCHEMA = provider.configurationSchema();
+    static final ManagedSchemaTransformProvider PROVIDER = new ManagedSchemaTransformProvider(null);
+    static final Schema SCHEMA = PROVIDER.configurationSchema();
 
     @Override
     public String getUrn() {
-      return provider.identifier();
+      return PROVIDER.identifier();
     }
 
     @Override
@@ -98,7 +98,7 @@ public class ManagedSchemaTransformTranslation {
 
     @Override
     public ManagedSchemaTransform fromConfigRow(Row configRow, PipelineOptions options) {
-      return (ManagedSchemaTransform) provider.from(configRow);
+      return (ManagedSchemaTransform) PROVIDER.from(configRow);
     }
   }
 

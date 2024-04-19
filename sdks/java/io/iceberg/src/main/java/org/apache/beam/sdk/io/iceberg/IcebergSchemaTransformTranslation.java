@@ -30,6 +30,7 @@ import org.apache.beam.model.pipeline.v1.SchemaAwareTransforms.SchemaAwareTransf
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.construction.PTransformTranslation.TransformPayloadTranslator;
@@ -46,6 +47,7 @@ public class IcebergSchemaTransformTranslation {
       implements TransformPayloadTranslator<IcebergReadSchemaTransform> {
     static final IcebergReadSchemaTransformProvider READ_PROVIDER =
         new IcebergReadSchemaTransformProvider();
+    static final Schema READ_SCHEMA = READ_PROVIDER.configurationSchema();
 
     @Override
     public String getUrn() {
@@ -56,11 +58,10 @@ public class IcebergSchemaTransformTranslation {
     public @Nullable FunctionSpec translate(
         AppliedPTransform<?, ?, IcebergReadSchemaTransform> application, SdkComponents components)
         throws IOException {
-      SchemaApi.Schema expansionSchema =
-          SchemaTranslation.schemaToProto(READ_PROVIDER.configurationSchema(), true);
+      SchemaApi.Schema expansionSchema = SchemaTranslation.schemaToProto(READ_SCHEMA, true);
       Row configRow = toConfigRow(application.getTransform());
       ByteArrayOutputStream os = new ByteArrayOutputStream();
-      RowCoder.of(READ_PROVIDER.configurationSchema()).encode(configRow, os);
+      RowCoder.of(READ_SCHEMA).encode(configRow, os);
 
       return FunctionSpec.newBuilder()
           .setUrn(getUrn())
@@ -103,6 +104,7 @@ public class IcebergSchemaTransformTranslation {
 
     static final IcebergWriteSchemaTransformProvider WRITE_PROVIDER =
         new IcebergWriteSchemaTransformProvider();
+    static final Schema WRITE_SCHEMA = WRITE_PROVIDER.configurationSchema();
 
     @Override
     public String getUrn() {
@@ -113,11 +115,10 @@ public class IcebergSchemaTransformTranslation {
     public @Nullable FunctionSpec translate(
         AppliedPTransform<?, ?, IcebergWriteSchemaTransform> application, SdkComponents components)
         throws IOException {
-      SchemaApi.Schema expansionSchema =
-          SchemaTranslation.schemaToProto(WRITE_PROVIDER.configurationSchema(), true);
+      SchemaApi.Schema expansionSchema = SchemaTranslation.schemaToProto(WRITE_SCHEMA, true);
       Row configRow = toConfigRow(application.getTransform());
       ByteArrayOutputStream os = new ByteArrayOutputStream();
-      RowCoder.of(WRITE_PROVIDER.configurationSchema()).encode(configRow, os);
+      RowCoder.of(WRITE_SCHEMA).encode(configRow, os);
 
       return FunctionSpec.newBuilder()
           .setUrn(getUrn())

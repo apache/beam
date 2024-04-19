@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.io.iceberg;
 
 import static org.apache.beam.sdk.io.iceberg.IcebergReadSchemaTransformProvider.IcebergReadSchemaTransform;
+import static org.apache.beam.sdk.io.iceberg.IcebergSchemaTransformTranslation.IcebergReadSchemaTransformTranslator.READ_SCHEMA;
+import static org.apache.beam.sdk.io.iceberg.IcebergSchemaTransformTranslation.IcebergWriteSchemaTransformTranslator.WRITE_SCHEMA;
 import static org.apache.beam.sdk.io.iceberg.IcebergWriteSchemaTransformProvider.INPUT_TAG;
 import static org.apache.beam.sdk.io.iceberg.IcebergWriteSchemaTransformProvider.IcebergWriteSchemaTransform;
 import static org.junit.Assert.assertEquals;
@@ -71,7 +73,7 @@ public class IcebergSchemaTransformTranslationTest {
             .withFieldValue("warehouseLocation", "test_location")
             .build();
     Row transformConfigRow =
-        Row.withSchema(WRITE_PROVIDER.configurationSchema())
+        Row.withSchema(WRITE_SCHEMA)
             .withFieldValue("table", "test_table_identifier")
             .withFieldValue("catalogConfig", catalogConfigRow)
             .build();
@@ -107,7 +109,7 @@ public class IcebergSchemaTransformTranslationTest {
             .withFieldValue("warehouseLocation", warehouse.location)
             .build();
     Row transformConfigRow =
-        Row.withSchema(WRITE_PROVIDER.configurationSchema())
+        Row.withSchema(WRITE_SCHEMA)
             .withFieldValue("table", "test_identifier")
             .withFieldValue("catalogConfig", catalogConfigRow)
             .build();
@@ -129,7 +131,7 @@ public class IcebergSchemaTransformTranslationTest {
     SchemaAwareTransforms.SchemaAwareTransformPayload payload =
         SchemaAwareTransforms.SchemaAwareTransformPayload.parseFrom(spec.getPayload());
     Schema schemaFromSpec = SchemaTranslation.schemaFromProto(payload.getExpansionSchema());
-    assertEquals(WRITE_PROVIDER.configurationSchema(), schemaFromSpec);
+    assertEquals(WRITE_SCHEMA, schemaFromSpec);
     Row rowFromSpec = RowCoder.of(schemaFromSpec).decode(payload.getExpansionPayload().newInput());
 
     assertEquals(transformConfigRow, rowFromSpec);
@@ -154,7 +156,7 @@ public class IcebergSchemaTransformTranslationTest {
             .withFieldValue("warehouseLocation", "test_location")
             .build();
     Row transformConfigRow =
-        Row.withSchema(READ_PROVIDER.configurationSchema())
+        Row.withSchema(READ_SCHEMA)
             .withFieldValue("table", "test_table_identifier")
             .withFieldValue("catalogConfig", catalogConfigRow)
             .build();
@@ -186,7 +188,7 @@ public class IcebergSchemaTransformTranslationTest {
     warehouse.createTable(TableIdentifier.parse(identifier), TestFixtures.SCHEMA);
 
     Row transformConfigRow =
-        Row.withSchema(READ_PROVIDER.configurationSchema())
+        Row.withSchema(READ_SCHEMA)
             .withFieldValue("table", identifier)
             .withFieldValue("catalogConfig", catalogConfigRow)
             .build();
@@ -209,7 +211,7 @@ public class IcebergSchemaTransformTranslationTest {
     SchemaAwareTransforms.SchemaAwareTransformPayload payload =
         SchemaAwareTransforms.SchemaAwareTransformPayload.parseFrom(spec.getPayload());
     Schema schemaFromSpec = SchemaTranslation.schemaFromProto(payload.getExpansionSchema());
-    assertEquals(READ_PROVIDER.configurationSchema(), schemaFromSpec);
+    assertEquals(READ_SCHEMA, schemaFromSpec);
     Row rowFromSpec = RowCoder.of(schemaFromSpec).decode(payload.getExpansionPayload().newInput());
     assertEquals(transformConfigRow, rowFromSpec);
 
