@@ -894,6 +894,20 @@ public abstract class Row implements Serializable {
         .build();
   }
 
+  /** Returns an identical {@link Row} with fields lexicographically sorted by their name. */
+  public Row sorted() {
+    Schema sortedSchema = getSchema().sorted();
+    return sortedSchema.getFields().stream()
+        .map(
+            field -> {
+              if (field.getType().getRowSchema() != null) {
+                return ((Row) getValue(field.getName())).sorted();
+              }
+              return (Object) getValue(field.getName());
+            })
+        .collect(Row.toRow(sortedSchema));
+  }
+
   /** Returns an equivalent {@link Row} with `lower_snake_case` field names. */
   public Row toSnakeCase() {
     return getSchema().getFields().stream()

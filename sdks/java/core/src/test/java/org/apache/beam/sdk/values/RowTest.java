@@ -808,6 +808,40 @@ public class RowTest {
   }
 
   @Test
+  public void testSorted() {
+    Schema unsortedNestedSchema =
+        Schema.builder().addStringField("bb").addStringField("aa").addStringField("cc").build();
+    Schema unsortedSchema =
+        Schema.builder()
+            .addStringField("d")
+            .addStringField("c")
+            .addRowField("e", unsortedNestedSchema)
+            .addStringField("b")
+            .addStringField("a")
+            .build();
+    Row unsortedNestedRow =
+        Row.withSchema(unsortedNestedSchema).addValues("bb_val", "aa_val", "cc_val").build();
+    Row unsortedRow =
+        Row.withSchema(unsortedSchema)
+            .addValues("d_val", "c_val", unsortedNestedRow, "b_val", "a_val")
+            .build();
+
+    Row expectedSortedNestedRow =
+        Row.withSchema(unsortedNestedSchema.sorted())
+            .addValues("aa_val", "bb_val", "cc_val")
+            .build();
+    Row expectedSortedRow =
+        Row.withSchema(unsortedSchema.sorted())
+            .addValues("a_val", "b_val", "c_val", "d_val", expectedSortedNestedRow)
+            .build();
+
+    Row sortedRow = unsortedRow.sorted();
+    assertEquals(expectedSortedNestedRow, sortedRow.getRow("e"));
+    assertEquals(expectedSortedRow, sortedRow);
+    assertNotEquals(unsortedRow, sortedRow);
+  }
+
+  @Test
   public void testToSnakeCase() {
     Schema innerSchema =
         Schema.builder()
