@@ -37,7 +37,7 @@ import org.apache.beam.sdk.values.TypeDescriptors;
 @AutoService(SchemaTransformProvider.class)
 public class TestSchemaTransformProvider
     extends TypedSchemaTransformProvider<TestSchemaTransformProvider.Config> {
-  public static final String IDENTIFIER = "beam:schematransform:org.apache.beam:test_transform:v1";
+  public static final String IDENTIFIER = "beam:test_schematransform:v1";
   public static final Schema SCHEMA;
 
   static {

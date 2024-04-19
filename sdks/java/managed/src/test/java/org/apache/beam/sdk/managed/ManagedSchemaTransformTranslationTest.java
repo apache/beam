@@ -23,7 +23,6 @@ import static org.apache.beam.sdk.managed.ManagedSchemaTransformTranslation.Mana
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
 
 import java.net.URISyntaxException;
 import java.nio.file.Paths;
@@ -117,41 +116,6 @@ public class ManagedSchemaTransformTranslationTest {
   }
 
   @Test
-  public void testManagedTransformRowIncludesAllFields() {
-    List<String> getMethodNames =
-        Arrays.stream(ManagedConfig.class.getDeclaredMethods())
-            .map(method -> method.getName())
-            .filter(methodName -> methodName.startsWith("get"))
-            .collect(Collectors.toList());
-
-    // Just to make sure that this does not pass trivially.
-    assertTrue(getMethodNames.size() > 0);
-
-    for (String getMethodName : getMethodNames) {
-      assertTrue(
-          "Method "
-              + getMethodName
-              + " will not be tracked when upgrading the 'ManagedSchemaTransform'. Please update"
-              + "'ManagedSchemaTransformTranslation.ManagedSchemaTransformTranslator' to track the "
-              + "new method and update this test.",
-          MANAGED_TRANSFORM_SCHEMA_MAPPING.keySet().contains(getMethodName));
-    }
-
-    // Confirming that all fields mentioned in `WRITE_TRANSFORM_SCHEMA_MAPPING` are
-    // actually available in the schema.
-    MANAGED_TRANSFORM_SCHEMA_MAPPING.values().stream()
-        .forEach(
-            fieldName -> {
-              assertTrue(
-                  "Field name "
-                      + fieldName
-                      + " was not found in the transform schema defined in "
-                      + "ManagedSchemaTransformTranslation.ManagedSchemaTransformTranslator.",
-                  ManagedSchemaTransformTranslator.SCHEMA.getFieldNames().contains(fieldName));
-            });
-  }
-
-  @Test
   public void testProtoTranslation() throws Exception {
     // First build a pipeline
     Pipeline p = Pipeline.create();
@@ -199,8 +163,8 @@ public class ManagedSchemaTransformTranslationTest {
     Row rowFromSpec = RowCoder.of(schemaFromSpec).decode(payload.getExpansionPayload().newInput());
     Row expectedRow =
         Row.withSchema(ManagedSchemaTransformTranslator.SCHEMA)
-            .withFieldValue("transform_identifier", TestSchemaTransformProvider.IDENTIFIER)
-            .withFieldValue("config_url", null)
+            .withFieldValue("transformIdentifier", TestSchemaTransformProvider.IDENTIFIER)
+            .withFieldValue("configUrl", null)
             .withFieldValue("config", yamlStringConfig)
             .build();
     assertEquals(expectedRow, rowFromSpec);
