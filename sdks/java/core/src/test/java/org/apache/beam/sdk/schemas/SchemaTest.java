@@ -195,6 +195,71 @@ public class SchemaTest {
   }
 
   @Test
+  public void testToSnakeCase() {
+    Schema innerSchema =
+        Schema.builder()
+            .addStringField("myFirstNestedStringField")
+            .addStringField("mySecondNestedStringField")
+            .build();
+    Schema schema =
+        Schema.builder()
+            .addStringField("myFirstStringField")
+            .addStringField("mySecondStringField")
+            .addRowField("myRowField", innerSchema)
+            .build();
+
+    Schema expectedInnerSnakeCaseSchema =
+        Schema.builder()
+            .addStringField("my_first_nested_string_field")
+            .addStringField("my_second_nested_string_field")
+            .build();
+    Schema expectedSnakeCaseSchema =
+        Schema.builder()
+            .addStringField("my_first_string_field")
+            .addStringField("my_second_string_field")
+            .addRowField("my_row_field", expectedInnerSnakeCaseSchema)
+            .build();
+
+    assertEquals(
+        expectedInnerSnakeCaseSchema,
+        schema.toSnakeCase().getField("my_row_field").getType().getRowSchema());
+    assertEquals(expectedSnakeCaseSchema, schema.toSnakeCase());
+  }
+
+  @Test
+  public void testToCamelCase() {
+    Schema innerSchema =
+        Schema.builder()
+            .addStringField("my_first_nested_string_field")
+            .addStringField("my_second_nested_string_field")
+            .build();
+    Schema schema =
+        Schema.builder()
+            .addStringField("my_first_string_field")
+            .addStringField("my_second_string_field")
+            .addRowField("my_row_field", innerSchema)
+            .build();
+
+    Schema expectedInnerCamelCaseSchema =
+        Schema.builder()
+            .addStringField("myFirstNestedStringField")
+            .addStringField("mySecondNestedStringField")
+            .build();
+    Schema expectedCamelCaseSchema =
+        Schema.builder()
+            .addStringField("myFirstStringField")
+            .addStringField("mySecondStringField")
+            .addRowField("myRowField", expectedInnerCamelCaseSchema)
+            .build();
+
+    assertTrue(schema.toCamelCase().hasField("myRowField"));
+    assertEquals(
+        expectedInnerCamelCaseSchema,
+        schema.toCamelCase().getField("myRowField").getType().getRowSchema());
+    assertEquals(expectedCamelCaseSchema, schema.toCamelCase());
+  }
+
+  @Test
   public void testSorted() {
     Options testOptions =
         Options.builder()

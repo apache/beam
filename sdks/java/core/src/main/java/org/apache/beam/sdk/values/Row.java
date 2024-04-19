@@ -893,4 +893,30 @@ public abstract class Row implements Serializable {
         .addValues(Collections.nCopies(schema.getFieldCount(), null))
         .build();
   }
+
+  /** Returns an equivalent {@link Row} with `lower_snake_case` field names. */
+  public Row toSnakeCase() {
+    return getSchema().getFields().stream()
+        .map(
+            field -> {
+              if (field.getType().getRowSchema() != null) {
+                return ((Row) getValue(field.getName())).toSnakeCase();
+              }
+              return (Object) getValue(field.getName());
+            })
+        .collect(toRow(getSchema().toSnakeCase()));
+  }
+
+  /** Returns an equivalent {@link Row} with `lowerCamelCase` field names. */
+  public Row toCamelCase() {
+    return getSchema().getFields().stream()
+        .map(
+            field -> {
+              if (field.getType().getRowSchema() != null) {
+                return ((Row) getValue(field.getName())).toCamelCase();
+              }
+              return (Object) getValue(field.getName());
+            })
+        .collect(toRow(getSchema().toCamelCase()));
+  }
 }

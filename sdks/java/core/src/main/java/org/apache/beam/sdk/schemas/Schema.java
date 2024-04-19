@@ -37,6 +37,7 @@ import java.util.stream.Collector;
 import java.util.stream.Collectors;
 import javax.annotation.concurrent.Immutable;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.CaseFormat;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.HashBiMap;
@@ -1460,5 +1461,43 @@ public class Schema implements Serializable {
 
   public Options getOptions() {
     return this.options;
+  }
+
+  /** Recursively converts all field names to `lower_snake_case`. */
+  public Schema toSnakeCase() {
+    return this.getFields().stream()
+        .map(
+            field -> {
+              FieldType innerType = field.getType();
+              if (innerType.getRowSchema() != null) {
+                Schema innerSnakeCaseSchema = innerType.getRowSchema().toSnakeCase();
+                innerType = innerType.toBuilder().setRowSchema(innerSnakeCaseSchema).build();
+                field = field.toBuilder().setType(innerType).build();
+              }
+              return field
+                  .toBuilder()
+                  .setName(CaseFormat.LOWER_CAMEL.to(CaseFormat.LOWER_UNDERSCORE, field.getName()))
+                  .build();
+            })
+        .collect(toSchema());
+  }
+
+  /** Recursively converts all field names to `lowerCamelCase`. */
+  public Schema toCamelCase() {
+    return this.getFields().stream()
+        .map(
+            field -> {
+              FieldType innerType = field.getType();
+              if (innerType.getRowSchema() != null) {
+                Schema innerCamelCaseSchema = innerType.getRowSchema().toCamelCase();
+                innerType = innerType.toBuilder().setRowSchema(innerCamelCaseSchema).build();
+                field = field.toBuilder().setType(innerType).build();
+              }
+              return field
+                  .toBuilder()
+                  .setName(CaseFormat.LOWER_UNDERSCORE.to(CaseFormat.LOWER_CAMEL, field.getName()))
+                  .build();
+            })
+        .collect(toSchema());
   }
 }
