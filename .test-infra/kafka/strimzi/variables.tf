@@ -16,20 +16,32 @@
  * limitations under the License.
  */
 
-resource "helm_release" "strimzi-helm-release" {
-  name       = "strimzi"
-  namespace  = "strimzi"
-  create_namespace = true
-  repository = "https://strimzi.io/charts/"
-  chart      = "strimzi-kafka-operator"
-  version = "0.40.0"
-  
-  atomic = "true"
-  timeout = 500
-
-  set {
-    name  = "watchAnyNamespace"
-    value = "true"
-  }
+variable "kubeconfig_path" {
+  type        = string
+  description = "The path to the Kube config file; See https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/"
 }
 
+variable "name" {
+  type        = string
+  description = "The name of the Kafka cluster"
+}
+
+variable "namespace" {
+  type        = string
+  description = "The namespace to provision the Kubernetes workload"
+}
+
+variable "chart_name" {
+  type        = string
+  description = "The name of the Helm chart"
+}
+
+variable "chart_repository" {
+  type        = string
+  description = "The URL of the chart respository"
+}
+
+variable "chart_version" {
+  type        = string
+  description = "The version of the Helm chart"
+}

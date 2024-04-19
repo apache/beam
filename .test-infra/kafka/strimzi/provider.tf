@@ -17,11 +17,6 @@
 # under the License.
 #
 
-terraform {
-   backend "gcs" {
-   }
-}
-
 provider "helm" {
   kubernetes {
     config_path = var.kubeconfig_path

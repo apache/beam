@@ -16,6 +16,19 @@
  * limitations under the License.
  */
 
-output get_kubeconfig_command {
-  value = "gcloud container clusters get-credentials ${google_container_cluster.default.name} --region ${google_container_cluster.default.location} --project ${var.project}"
+resource "helm_release" "strimzi-helm-release" {
+  name             = var.name
+  namespace        = var.namespace
+  create_namespace = true
+  repository       = var.chart_repository
+  chart            = var.chart_name
+  version          = var.chart_version
+
+  atomic  = "true"
+  timeout = 500
+
+  set {
+    name  = "watchAnyNamespace"
+    value = "true"
+  }
 }

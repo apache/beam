@@ -16,6 +16,5 @@
  * limitations under the License.
  */
 
-output get_kubeconfig_command {
-  value = "gcloud container clusters get-credentials ${google_container_cluster.default.name} --region ${google_container_cluster.default.location} --project ${var.project}"
-}
+bucket = "b507e468-52e9-4e72-83e5-ecbf563eda12"
+prefix = ".test-infra/terraform/google-cloud-platform/google-kubernetes-engine/<cluster-name-prefix>"

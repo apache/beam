@@ -16,6 +16,9 @@
  * limitations under the License.
  */
 
-output get_kubeconfig_command {
-  value = "gcloud container clusters get-credentials ${google_container_cluster.default.name} --region ${google_container_cluster.default.location} --project ${var.project}"
-}
+name             = "strimzi"
+namespace        = "strimzi"
+kubeconfig_path  = "~/.kube/config"
+chart_name       = "strimzi-kafka-operator"
+chart_version    = "0.40.0"
+chart_repository = "https://strimzi.io/charts/"
