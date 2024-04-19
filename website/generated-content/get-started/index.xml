@@ -5356,8 +5356,8 @@ limitations under the License.
 &lt;h3 id="fundamentals-of-stream-processing-with-apache-beam-1">Fundamentals of Stream Processing with Apache Beam&lt;/h3>
 &lt;p>@Scale Conference, San Jose, CA, 2016&lt;/p>
 &lt;p>Presented by Dan Halperin, &lt;em>Apache Beam PPMC member&lt;/em>&lt;/p>
-&lt;iframe class="video video--medium-size" src="https://www.facebook.com/plugins/video.php?href=https%3A%2F%2Fwww.facebook.com%2Fatscaleevents%2Fvideos%2F1775945569345206%2F&amp;show_text=0&amp;width=560" width="560" height="315" style="border:none;overflow:hidden" scrolling="no" frameborder="0" allowTransparency="true" allowFullScreen="true">&lt;/iframe>
-&lt;br>
+&lt;p>&lt;a href="https://www.facebook.com/plugins/video.php?href=https%3A%2F%2Fwww.facebook.com%2Fatscaleevents%2Fvideos%2F1775945569345206%2F&amp;amp;show_text=0&amp;amp;width=560">Link to Video&lt;/a>
+&lt;br>&lt;/p>
 &lt;h3 id="software-engineering-radio-podcast-episode-272-apache-beam">Software Engineering Radio Podcast Episode 272: Apache Beam&lt;/h3>
 &lt;p>Presented by Frances Perry, &lt;em>Apache Beam PPMC member&lt;/em>&lt;/p>
 &lt;p>&lt;a href="https://www.se-radio.net/2016/10/se-radio-episode-272-frances-perry-on-apache-beam/" target="_blank">&lt;img src="/images/resources/se-radio-podcast.png" alt="alt text">&lt;/a>
@@ -5402,16 +5402,16 @@ limitations under the License.
 &lt;h3 id="nexmark-evaluating-big-data-systems-with-apache-beam">Nexmark Evaluating Big Data systems with Apache Beam&lt;/h3>
 &lt;p>ApacheCon, Miami, 2017&lt;/p>
 &lt;p>Presented by Etienne Chauchot and Ismaël Mejia, &lt;em>Apache Beam PMC members&lt;/em>&lt;/p>
-&lt;iframe src="//www.slideshare.net/slideshow/embed_code/key/auWXjEK7GTkiUK" width="595" height="485" frameborder="0" marginwidth="0" marginheight="0" scrolling="no" style="border:1px solid #CCC; border-width:1px; margin-bottom:5px; max-width: 100%;" allowfullscreen> &lt;/iframe> &lt;div style="margin-bottom:5px"> &lt;strong> &lt;a href="//www.slideshare.net/EtienneChauchot/nexmark-with-beam" title="Nexmark with Beam" target="_blank">Nexmark with Beam&lt;/a> &lt;/strong> by &lt;strong>&lt;a href="https://www.slideshare.net/EtienneChauchot" target="_blank">Etienne Chauchot&lt;/a>&lt;/strong> &lt;/div>
-&lt;audio controls>
+&lt;p>&lt;a href="www.slideshare.net/slideshow/embed_code/key/auWXjEK7GTkiUK">Link to Slides&lt;/a>
+&lt;audio controls>&lt;/p>
 &lt;source src="https://feathercastapache.files.wordpress.com/2017/05/0517-04-mejia.mp3" type="audio/mpeg">
 Your browser does not support the audio element.
 &lt;/audio>
 ### Universal metrics with Apache Beam
 &lt;p>ApacheCon, Montreal, 2018&lt;/p>
 &lt;p>Presented by Etienne Chauchot, &lt;em>Apache Beam PMC member&lt;/em>&lt;/p>
-&lt;iframe src="//www.slideshare.net/slideshow/embed_code/key/kKJRzR8HxkxLsR" width="595" height="485" frameborder="0" marginwidth="0" marginheight="0" scrolling="no" style="border:1px solid #CCC; border-width:1px; margin-bottom:5px; max-width: 100%;" allowfullscreen> &lt;/iframe> &lt;div style="margin-bottom:5px"> &lt;strong> &lt;a href="//www.slideshare.net/EtienneChauchot/universal-metrics-with-apache-beam" title="Universal metrics with Apache Beam" target="_blank">Universal metrics with Apache Beam&lt;/a> &lt;/strong> by &lt;strong>&lt;a href="https://www.slideshare.net/EtienneChauchot" target="_blank">Etienne Chauchot&lt;/a>&lt;/strong> &lt;/div>
-&lt;audio controls>
+&lt;p>&lt;a href="www.slideshare.net/slideshow/embed_code/key/kKJRzR8HxkxLsR">Link to Slides&lt;/a>
+&lt;audio controls>&lt;/p>
 &lt;source src="//feathercastapache.files.wordpress.com/2018/09/03-universal-metrics-with-beam-etienne-chauchot.mp3" type="audio/mpeg">
 Your browser does not support the audio element.
 &lt;/audio>
