@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.managed;
 
-import static org.apache.beam.sdk.managed.Managed.READ_TRANSFORMS;
-
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
@@ -44,7 +42,6 @@ public class ManagedTest {
 
   @Test
   public void testInvalidTransform() {
-    System.out.println(READ_TRANSFORMS);
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("An unsupported source was specified");
     Managed.read("nonexistent-source");

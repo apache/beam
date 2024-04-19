@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.util;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
@@ -50,7 +49,7 @@ public class YamlUtilsTest {
   public void testEmptyYamlString() {
     Schema schema = Schema.builder().build();
 
-    assertNull(YamlUtils.toBeamRow("", schema));
+    assertEquals(Row.nullRow(schema), YamlUtils.toBeamRow("", schema));
   }
 
   @Test

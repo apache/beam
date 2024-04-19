@@ -130,8 +130,6 @@ public class IcebergSchemaTransformTranslationTest {
         SchemaAwareTransforms.SchemaAwareTransformPayload.parseFrom(spec.getPayload());
     Schema schemaFromSpec = SchemaTranslation.schemaFromProto(payload.getExpansionSchema());
     assertEquals(WRITE_PROVIDER.configurationSchema(), schemaFromSpec);
-    System.out.println(
-        "spec: " + schemaFromSpec.getField("catalogConfig").getType().getRowSchema());
     Row rowFromSpec = RowCoder.of(schemaFromSpec).decode(payload.getExpansionPayload().newInput());
 
     assertEquals(transformConfigRow, rowFromSpec);

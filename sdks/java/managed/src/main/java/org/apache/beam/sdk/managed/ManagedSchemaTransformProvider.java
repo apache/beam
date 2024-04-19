@@ -182,12 +182,12 @@ public class ManagedSchemaTransformProvider
     }
   }
 
+  /** */
   @VisibleForTesting
   static Row getRowConfig(ManagedConfig config, Schema transformSchema) {
-    Row configRow = YamlUtils.toBeamRow(config.resolveUnderlyingConfig(), transformSchema, true);
-    // If our config is still null (perhaps the underlying transform doesn't have any required
-    // parameters), then return an empty row.
-    return configRow != null ? configRow : Row.nullRow(transformSchema);
+    // May return an empty row (perhaps the underlying transform doesn't have any required
+    // parameters)
+    return YamlUtils.toBeamRow(config.resolveUnderlyingConfig(), transformSchema, true);
   }
 
   Map<String, SchemaTransformProvider> getAllProviders() {

@@ -168,7 +168,6 @@ public class IcebergWriteSchemaTransformProviderTest {
 
     @Override
     public Void apply(Iterable<Row> input) {
-      System.out.println(input);
       Row row = input.iterator().next();
 
       assertEquals(tableId, row.getString("table"));

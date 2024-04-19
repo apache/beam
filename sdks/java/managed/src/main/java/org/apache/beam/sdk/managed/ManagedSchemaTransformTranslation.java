@@ -81,8 +81,6 @@ public class ManagedSchemaTransformTranslation {
     @Override
     public Row toConfigRow(ManagedSchemaTransform transform) {
       ManagedConfig managedConfig = transform.getManagedConfig();
-      System.out.println("MANAGED config: \n" + managedConfig);
-
       Row configRow;
       try {
         configRow =
@@ -92,7 +90,6 @@ public class ManagedSchemaTransformTranslation {
       } catch (NoSuchSchemaException e) {
         throw new RuntimeException(e);
       }
-      System.out.println("config row: \n" + configRow);
       // Sanity check: sort fields according to the configuration schema
       return SCHEMA.getFields().stream()
           .map(field -> configRow.getValue(field.getName()))

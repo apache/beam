@@ -57,7 +57,7 @@ public class YamlUtils {
     return toBeamRow(yamlString, schema, false);
   }
 
-  public static @Nullable Row toBeamRow(
+  public static Row toBeamRow(
       @Nullable String yamlString, Schema schema, boolean convertNamesToCamelCase) {
     if (yamlString == null || yamlString.isEmpty()) {
       List<Field> requiredFields =
@@ -65,7 +65,7 @@ public class YamlUtils {
               .filter(field -> !field.getType().getNullable())
               .collect(Collectors.toList());
       if (requiredFields.isEmpty()) {
-        return null;
+        return Row.nullRow(schema);
       } else {
         throw new IllegalArgumentException(
             String.format(
@@ -147,7 +147,7 @@ public class YamlUtils {
   }
 
   @SuppressWarnings("nullness")
-  public static @Nullable Row toBeamRow(
+  public static Row toBeamRow(
       @Nullable Map<String, Object> map, Schema rowSchema, boolean toCamelCase) {
     if (map == null || map.isEmpty()) {
       List<Field> requiredFields =
@@ -155,7 +155,7 @@ public class YamlUtils {
               .filter(field -> !field.getType().getNullable())
               .collect(Collectors.toList());
       if (requiredFields.isEmpty()) {
-        return null;
+        return Row.nullRow(rowSchema);
       } else {
         throw new IllegalArgumentException(
             String.format(
