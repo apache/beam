@@ -250,14 +250,14 @@ func (s *Server) Cancel(_ context.Context, req *jobpb.CancelJobRequest) (*jobpb.
 	}
 	state := job.state.Load().(jobpb.JobState_Enum)
 	switch state {
-	case jobpb.JobState_CANCELLED, jobpb.JobState_DONE, jobpb.JobState_DRAINED, jobpb.JobState_UPDATED, jobpb.JobState_FAILED, jobpb.JobState_STOPPED:
+	case jobpb.JobState_CANCELLED, jobpb.JobState_DONE, jobpb.JobState_DRAINED, jobpb.JobState_UPDATED, jobpb.JobState_FAILED:
 		// Already at terminal state.
 		return &jobpb.CancelJobResponse{
 			State: state,
 		}, nil
 	}
 	job.SendMsg("canceling " + job.String())
-	job.Canceled()
+	job.Canceling()
 	job.CancelFn(ErrCancel)
 	return &jobpb.CancelJobResponse{
 		State: jobpb.JobState_CANCELLING,
