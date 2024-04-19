@@ -30,6 +30,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.solace.data.Solace.Destination;
+import org.apache.beam.sdk.io.solace.data.Solace.DestinationType;
 import org.apache.beam.sdk.io.solace.data.Solace.Record;
 import org.checkerframework.checker.nullness.qual.NonNull;
 
@@ -73,18 +74,25 @@ public class SolaceRecordCoder extends CustomCoder<Record> {
 
   @Override
   public Record decode(InputStream inStream) throws IOException {
-    return Record.builder()
-        .setMessageId(STRING_CODER.decode(inStream))
-        .setReplicationGroupMessageId(STRING_CODER.decode(inStream))
-        .setPayload(BYTE_CODER.decode(inStream))
-        .setDestination(
-            Solace.Destination.builder()
-                .setName(STRING_CODER.decode(inStream))
-                .setType(
-                    Objects.equals(STRING_CODER.decode(inStream), "QUEUE")
-                        ? Solace.DestinationType.QUEUE
-                        : Solace.DestinationType.TOPIC)
-                .build())
+    Record.Builder builder =
+        Record.builder()
+            .setMessageId(STRING_CODER.decode(inStream))
+            .setReplicationGroupMessageId(STRING_CODER.decode(inStream))
+            .setPayload(BYTE_CODER.decode(inStream));
+
+    String destinationName = STRING_CODER.decode(inStream);
+    String destinationType = STRING_CODER.decode(inStream);
+    if (destinationName != null) {
+      builder.setDestination(
+          Destination.builder()
+              .setName(destinationName)
+              .setType(
+                  Objects.equals(destinationType, "QUEUE")
+                      ? DestinationType.QUEUE
+                      : DestinationType.TOPIC)
+              .build());
+    }
+    return builder
         .setExpiration(LONG_CODER.decode(inStream))
         .setPriority(INTEGER_CODER.decode(inStream))
         .setRedelivered(BOOLEAN_CODER.decode(inStream))

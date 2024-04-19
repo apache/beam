@@ -90,7 +90,7 @@ public class Solace {
   @DefaultSchema(AutoValueSchema.class)
   public abstract static class Destination {
     @SchemaFieldNumber("0")
-    public abstract @Nullable String getName();
+    public abstract String getName();
 
     @SchemaFieldNumber("1")
     public abstract DestinationType getType();
@@ -101,7 +101,7 @@ public class Solace {
 
     @AutoValue.Builder
     public abstract static class Builder {
-      public abstract Builder setName(@Nullable String name);
+      public abstract Builder setName(String name);
 
       public abstract Builder setType(DestinationType type);
 

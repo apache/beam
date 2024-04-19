@@ -44,7 +44,6 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
-import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -128,7 +127,7 @@ public class SolaceIO {
    */
   public static <T> Read<T> read(
       TypeDescriptor<T> typeDescriptor,
-      SerializableFunction<BytesXMLMessage, @Nullable T> parseFn,
+      SerializableFunction<@Nullable BytesXMLMessage, @Nullable T> parseFn,
       SerializableFunction<T, Instant> timestampFn) {
     checkState(typeDescriptor != null, "SolaceIO.Read: typeDescriptor must not be null");
     checkState(parseFn != null, "SolaceIO.Read: parseFn must not be null");
@@ -231,7 +230,7 @@ public class SolaceIO {
 
     abstract boolean getDeduplicateRecords();
 
-    abstract SerializableFunction<BytesXMLMessage, @Nullable T> getParseFn();
+    abstract SerializableFunction<@Nullable BytesXMLMessage, @Nullable T> getParseFn();
 
     abstract @Nullable SempClientFactory getSempClientFactory();
 
@@ -260,7 +259,8 @@ public class SolaceIO {
 
       abstract Builder<T> setDeduplicateRecords(boolean deduplicateRecords);
 
-      abstract Builder<T> setParseFn(SerializableFunction<BytesXMLMessage, @Nullable T> parseFn);
+      abstract Builder<T> setParseFn(
+          SerializableFunction<@Nullable BytesXMLMessage, @Nullable T> parseFn);
 
       abstract Builder<T> setSempClientFactory(SempClientFactory brokerServiceFactory);
 
@@ -269,10 +269,6 @@ public class SolaceIO {
       abstract Builder<T> setTypeDescriptor(TypeDescriptor<T> typeDescriptor);
 
       abstract Read<T> build();
-    }
-
-    private static <T> T castIfNull(@Nullable T arg0, @NonNull T arg1) {
-      return arg0 != null ? arg0 : arg1;
     }
 
     @Override
@@ -284,11 +280,15 @@ public class SolaceIO {
       SempClientFactory sempClientFactory =
           checkNotNull(getSempClientFactory(), "SolaceIO: sempClientFactory is null.");
       String jobName = input.getPipeline().getOptions().getJobName();
-      Queue queue = castIfNull(getQueue(), initializeQueueForTopic(jobName, sempClientFactory));
+      Queue queueFromOptions = getQueue();
+      Queue initializedQueue =
+          queueFromOptions != null
+              ? queueFromOptions
+              : initializeQueueForTopic(jobName, sempClientFactory);
 
       SessionServiceFactory sessionServiceFactory =
           checkNotNull(getSessionServiceFactory(), "SolaceIO: sessionServiceFactory is null.");
-      sessionServiceFactory.setQueue(queue);
+      sessionServiceFactory.setQueue(initializedQueue);
 
       registerDefaultCoder(input.getPipeline());
       // Infer the actual coder
@@ -297,7 +297,7 @@ public class SolaceIO {
       return input.apply(
           org.apache.beam.sdk.io.Read.from(
               new UnboundedSolaceSource<>(
-                  queue,
+                  initializedQueue,
                   sempClientFactory,
                   sessionServiceFactory,
                   getMaxNumConnections(),

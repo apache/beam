@@ -27,7 +27,6 @@ import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
-import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -37,14 +36,13 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @Internal
 @DefaultCoder(AvroCoder.class)
 public class SolaceCheckpointMark implements UnboundedSource.CheckpointMark {
-  private transient @Nullable AtomicBoolean activeReader;
+  private transient AtomicBoolean activeReader;
   private ArrayDeque<BytesXMLMessage> ackQueue;
 
   @SuppressWarnings("initialization") // Avro will set the fields by breaking abstraction
-  private SolaceCheckpointMark() {} // for Avro
+  private SolaceCheckpointMark() {}
 
-  public SolaceCheckpointMark(
-      @Nullable AtomicBoolean activeReader, @NonNull List<BytesXMLMessage> ackQueue) {
+  public SolaceCheckpointMark(AtomicBoolean activeReader, List<BytesXMLMessage> ackQueue) {
     this.activeReader = activeReader;
     this.ackQueue = new ArrayDeque<>(ackQueue);
   }
@@ -65,6 +63,9 @@ public class SolaceCheckpointMark implements UnboundedSource.CheckpointMark {
 
   @Override
   public boolean equals(@Nullable Object o) {
+    if (o == null) {
+      return false;
+    }
     if (this == o) {
       return true;
     }

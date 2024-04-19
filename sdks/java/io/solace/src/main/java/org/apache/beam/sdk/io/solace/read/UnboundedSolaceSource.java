@@ -46,7 +46,7 @@ public class UnboundedSolaceSource<T> extends UnboundedSource<T, SolaceCheckpoin
   private final SempClientFactory sempClientFactory;
   private final SessionServiceFactory sessionServiceFactory;
   private final SerializableFunction<T, Instant> timestampFn;
-  private final SerializableFunction<BytesXMLMessage, @Nullable T> parseFn;
+  private final SerializableFunction<@Nullable BytesXMLMessage, @Nullable T> parseFn;
 
   public Queue getQueue() {
     return queue;
@@ -64,7 +64,7 @@ public class UnboundedSolaceSource<T> extends UnboundedSource<T, SolaceCheckpoin
     return timestampFn;
   }
 
-  public SerializableFunction<BytesXMLMessage, @Nullable T> getParseFn() {
+  public SerializableFunction<@Nullable BytesXMLMessage, @Nullable T> getParseFn() {
     return parseFn;
   }
 
@@ -76,7 +76,7 @@ public class UnboundedSolaceSource<T> extends UnboundedSource<T, SolaceCheckpoin
       boolean enableDeduplication,
       Coder<T> coder,
       SerializableFunction<T, Instant> timestampFn,
-      SerializableFunction<BytesXMLMessage, @Nullable T> parseFn) {
+      SerializableFunction<@Nullable BytesXMLMessage, @Nullable T> parseFn) {
     this.queue = queue;
     this.sempClientFactory = sempClientFactory;
     this.sessionServiceFactory = sessionServiceFactory;
