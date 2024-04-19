@@ -28,8 +28,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.apache.beam.model.pipeline.v1.ExternalTransforms.SchemaTransformPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.model.pipeline.v1.SchemaAwareTransforms;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.managed.ManagedTransformConstants;
@@ -128,11 +128,10 @@ public class IcebergSchemaTransformTranslationTest {
     RunnerApi.FunctionSpec spec = writeTransformProto.get(0).getSpec();
 
     // Check that the proto contains correct values
-    SchemaAwareTransforms.SchemaAwareTransformPayload payload =
-        SchemaAwareTransforms.SchemaAwareTransformPayload.parseFrom(spec.getPayload());
-    Schema schemaFromSpec = SchemaTranslation.schemaFromProto(payload.getExpansionSchema());
+    SchemaTransformPayload payload = SchemaTransformPayload.parseFrom(spec.getPayload());
+    Schema schemaFromSpec = SchemaTranslation.schemaFromProto(payload.getConfigurationSchema());
     assertEquals(WRITE_SCHEMA, schemaFromSpec);
-    Row rowFromSpec = RowCoder.of(schemaFromSpec).decode(payload.getExpansionPayload().newInput());
+    Row rowFromSpec = RowCoder.of(schemaFromSpec).decode(payload.getConfigurationRow().newInput());
 
     assertEquals(transformConfigRow, rowFromSpec);
 
@@ -208,11 +207,10 @@ public class IcebergSchemaTransformTranslationTest {
     RunnerApi.FunctionSpec spec = readTransformProto.get(0).getSpec();
 
     // Check that the proto contains correct values
-    SchemaAwareTransforms.SchemaAwareTransformPayload payload =
-        SchemaAwareTransforms.SchemaAwareTransformPayload.parseFrom(spec.getPayload());
-    Schema schemaFromSpec = SchemaTranslation.schemaFromProto(payload.getExpansionSchema());
+    SchemaTransformPayload payload = SchemaTransformPayload.parseFrom(spec.getPayload());
+    Schema schemaFromSpec = SchemaTranslation.schemaFromProto(payload.getConfigurationSchema());
     assertEquals(READ_SCHEMA, schemaFromSpec);
-    Row rowFromSpec = RowCoder.of(schemaFromSpec).decode(payload.getExpansionPayload().newInput());
+    Row rowFromSpec = RowCoder.of(schemaFromSpec).decode(payload.getConfigurationRow().newInput());
     assertEquals(transformConfigRow, rowFromSpec);
 
     // Use the information in the proto to recreate the IcebergReadSchemaTransform

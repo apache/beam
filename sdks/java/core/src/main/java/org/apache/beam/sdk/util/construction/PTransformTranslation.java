@@ -35,7 +35,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardPTransforms;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardPTransforms.CombineComponents;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardPTransforms.SplittableParDoComponents;
-import org.apache.beam.model.pipeline.v1.SchemaAwareTransforms.StandardSchemaAwareTransforms;
+import org.apache.beam.model.pipeline.v1.SchemaAwareTransforms.ManagedSchemaAwareTransforms;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.RowCoder;
@@ -184,7 +184,7 @@ public class PTransformTranslation {
         MAP_WINDOWS_TRANSFORM_URN.equals(getUrn(StandardPTransforms.Primitives.MAP_WINDOWS)));
     checkState(
         MERGE_WINDOWS_TRANSFORM_URN.equals(getUrn(StandardPTransforms.Primitives.MERGE_WINDOWS)));
-    checkState(MANAGED_TRANSFORM_URN.equals(getUrn(StandardSchemaAwareTransforms.Managed.MANAGED)));
+    checkState(MANAGED_TRANSFORM_URN.equals(getUrn(ManagedSchemaAwareTransforms.Managed.MANAGED)));
 
     // DeprecatedPrimitives
     checkState(READ_TRANSFORM_URN.equals(getUrn(StandardPTransforms.DeprecatedPrimitives.READ)));

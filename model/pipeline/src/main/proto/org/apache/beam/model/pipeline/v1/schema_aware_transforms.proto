@@ -33,8 +33,8 @@ import "org/apache/beam/model/pipeline/v1/beam_runner_api.proto";
 import "org/apache/beam/model/pipeline/v1/schema.proto";
 
 
-message StandardSchemaAwareTransforms {
-    // Payload for all of these: SchemaAwareTransformPayload
+message ManagedSchemaAwareTransforms {
+    // Payload for all of these: SchemaTransformPayload (in external_transforms.proto)
     enum IOs {
         ICEBERG_READ = 0 [(beam_urn) = "beam:schematransform:org.apache.beam:iceberg_read:v1"];
         ICEBERG_WRITE = 1 [(beam_urn) = "beam:schematransform:org.apache.beam:iceberg_write:v1"];
@@ -45,18 +45,6 @@ message StandardSchemaAwareTransforms {
     }
 }
 
-
-// Payload for a Schema-aware PTransform.
-// This is a transform that is aware of its input and output PCollection schemas
-// and is configured using Beam Schema-compatible parameters.
-// The information available in the payload can be used by runners to override the schema-aware transform.
-message SchemaAwareTransformPayload {
-    // The schema of the configuration row used to override the transform
-    Schema expansion_schema = 1;
-    // The configuration used to override this transform.
-    // Must be compatible with the configuration schema, and decodable via beam:coder:row:v1.
-    bytes expansion_payload = 2;
-}
 
 // Payload for a ManagedSchemaTransform.
 // The information available in the payload can be used by runners to override the ManagedSchemaTransform.

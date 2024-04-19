@@ -24,9 +24,9 @@ import com.google.auto.service.AutoService;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Map;
+import org.apache.beam.model.pipeline.v1.ExternalTransforms.SchemaTransformPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.SchemaApi;
-import org.apache.beam.model.pipeline.v1.SchemaAwareTransforms.SchemaAwareTransformPayload;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -66,9 +66,10 @@ public class IcebergSchemaTransformTranslation {
       return FunctionSpec.newBuilder()
           .setUrn(getUrn())
           .setPayload(
-              SchemaAwareTransformPayload.newBuilder()
-                  .setExpansionSchema(expansionSchema)
-                  .setExpansionPayload(ByteString.copyFrom(os.toByteArray()))
+              SchemaTransformPayload.newBuilder()
+                  .setConfigurationSchema(expansionSchema)
+                  .setConfigurationRow(ByteString.copyFrom(os.toByteArray()))
+                  .setIdentifier(getUrn())
                   .build()
                   .toByteString())
           .build();
@@ -123,9 +124,10 @@ public class IcebergSchemaTransformTranslation {
       return FunctionSpec.newBuilder()
           .setUrn(getUrn())
           .setPayload(
-              SchemaAwareTransformPayload.newBuilder()
-                  .setExpansionSchema(expansionSchema)
-                  .setExpansionPayload(ByteString.copyFrom(os.toByteArray()))
+              SchemaTransformPayload.newBuilder()
+                  .setConfigurationSchema(expansionSchema)
+                  .setConfigurationRow(ByteString.copyFrom(os.toByteArray()))
+                  .setIdentifier(getUrn())
                   .build()
                   .toByteString())
           .build();
