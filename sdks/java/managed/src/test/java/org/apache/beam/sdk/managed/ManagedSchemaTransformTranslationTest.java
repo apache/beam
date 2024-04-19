@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.managed;
 
+import static org.apache.beam.model.pipeline.v1.ExternalTransforms.ExpansionMethods.Enum.SCHEMA_TRANSFORM;
 import static org.apache.beam.model.pipeline.v1.ExternalTransforms.SchemaTransformPayload;
 import static org.apache.beam.sdk.managed.ManagedSchemaTransformProvider.ManagedConfig;
 import static org.apache.beam.sdk.managed.ManagedSchemaTransformProvider.ManagedSchemaTransform;
@@ -40,23 +41,17 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.sdk.schemas.utils.YamlUtils;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.util.construction.PTransformTranslation;
+import org.apache.beam.sdk.util.construction.BeamUrns;
 import org.apache.beam.sdk.util.construction.PipelineTranslation;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Test;
 
 public class ManagedSchemaTransformTranslationTest {
-  // A mapping from ManagedConfig builder methods to the corresponding schema fields in
-  // ManagedSchemaTransformTranslation.
-  static final Map<String, String> MANAGED_TRANSFORM_SCHEMA_MAPPING =
-      ImmutableMap.<String, String>builder()
-          .put("getTransformIdentifier", "transform_identifier")
-          .put("getConfigUrl", "config_url")
-          .put("getConfig", "config")
-          .build();
+  static ManagedSchemaTransformProvider PROVIDER = new ManagedSchemaTransformProvider(null);
 
   @Test
   public void testReCreateTransformFromRowWithConfigUrl() throws URISyntaxException {
@@ -71,9 +66,8 @@ public class ManagedSchemaTransformTranslationTest {
             .setConfigUrl(yamlConfigPath)
             .build();
 
-    ManagedSchemaTransformProvider provider = new ManagedSchemaTransformProvider(null);
     ManagedSchemaTransform originalTransform =
-        (ManagedSchemaTransform) provider.from(originalConfig);
+        (ManagedSchemaTransform) PROVIDER.from(originalConfig);
 
     ManagedSchemaTransformTranslator translator = new ManagedSchemaTransformTranslator();
     Row configRow = translator.toConfigRow(originalTransform);
@@ -98,9 +92,8 @@ public class ManagedSchemaTransformTranslationTest {
             .setConfig(yamlString)
             .build();
 
-    ManagedSchemaTransformProvider provider = new ManagedSchemaTransformProvider(null);
     ManagedSchemaTransform originalTransform =
-        (ManagedSchemaTransform) provider.from(originalConfig);
+        (ManagedSchemaTransform) PROVIDER.from(originalConfig);
 
     ManagedSchemaTransformTranslator translator = new ManagedSchemaTransformTranslator();
     Row configRow = translator.toConfigRow(originalTransform);
@@ -147,21 +140,35 @@ public class ManagedSchemaTransformTranslationTest {
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
     List<RunnerApi.PTransform> managedTransformProto =
         pipelineProto.getComponents().getTransformsMap().values().stream()
-            .filter(tr -> tr.getSpec().getUrn().equals(PTransformTranslation.MANAGED_TRANSFORM_URN))
+            .filter(
+                tr -> {
+                  RunnerApi.FunctionSpec spec = tr.getSpec();
+                  try {
+                    return spec.getUrn().equals(BeamUrns.getUrn(SCHEMA_TRANSFORM))
+                        && SchemaTransformPayload.parseFrom(spec.getPayload())
+                            .getIdentifier()
+                            .equals(PROVIDER.identifier());
+                  } catch (InvalidProtocolBufferException e) {
+                    throw new RuntimeException(e);
+                  }
+                })
             .collect(Collectors.toList());
     assertEquals(1, managedTransformProto.size());
     RunnerApi.FunctionSpec spec = managedTransformProto.get(0).getSpec();
 
     // Check that the proto contains correct values
     SchemaTransformPayload payload = SchemaTransformPayload.parseFrom(spec.getPayload());
-    assertEquals(TestSchemaTransformProvider.IDENTIFIER, payload.getIdentifier());
+    assertEquals(PROVIDER.identifier(), payload.getIdentifier());
     Schema schemaFromSpec = SchemaTranslation.schemaFromProto(payload.getConfigurationSchema());
-    assertEquals(ManagedSchemaTransformTranslator.SCHEMA, schemaFromSpec);
+    // TODO(https://github.com/apache/beam/issues/31061): Remove conversion when
+    // TypedSchemaTransformProvider starts generating with snake_case convention
+    assertEquals(ManagedSchemaTransformTranslator.SCHEMA, schemaFromSpec.toCamelCase());
     Row rowFromSpec = RowCoder.of(schemaFromSpec).decode(payload.getConfigurationRow().newInput());
+    // Translation logic outputs a Row with snake_case naming convention
     Row expectedRow =
-        Row.withSchema(ManagedSchemaTransformTranslator.SCHEMA)
-            .withFieldValue("transformIdentifier", TestSchemaTransformProvider.IDENTIFIER)
-            .withFieldValue("configUrl", null)
+        Row.withSchema(ManagedSchemaTransformTranslator.SCHEMA.toSnakeCase())
+            .withFieldValue("transform_identifier", TestSchemaTransformProvider.IDENTIFIER)
+            .withFieldValue("config_url", null)
             .withFieldValue("config", yamlStringConfig)
             .build();
     assertEquals(expectedRow, rowFromSpec);

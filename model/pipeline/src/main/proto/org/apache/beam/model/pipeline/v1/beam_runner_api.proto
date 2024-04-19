@@ -443,12 +443,6 @@ message StandardPTransforms {
   enum GroupIntoBatchesComponents {
     GROUP_INTO_BATCHES = 0 [(beam_urn) = "beam:transform:group_into_batches:v1"];
   }
-  // Payload for all of these: SchemaTransformPayload (in external_transforms.proto)
-  enum ManagedSchemaTransforms {
-    MANAGED = 0 [(beam_urn) = "beam:transform:managed:v1"];
-    ICEBERG_READ = 1 [(beam_urn) = "beam:schematransform:org.apache.beam:iceberg_read:v1"];
-    ICEBERG_WRITE = 2 [(beam_urn) = "beam:schematransform:org.apache.beam:iceberg_write:v1"];
-  }
 }
 
 message StandardSideInputTypes {
