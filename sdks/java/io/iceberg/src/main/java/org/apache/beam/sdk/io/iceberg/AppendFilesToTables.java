@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.iceberg;
 
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -30,14 +29,13 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.iceberg.AppendFiles;
-import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 
 class AppendFilesToTables
-    extends PTransform<PCollection<FileWriteResult>, PCollection<KV<String, Snapshot>>> {
+    extends PTransform<PCollection<FileWriteResult>, PCollection<KV<String, SnapshotInfo>>> {
 
   private final IcebergCatalogConfig catalogConfig;
 
@@ -46,7 +44,7 @@ class AppendFilesToTables
   }
 
   @Override
-  public PCollection<KV<String, Snapshot>> expand(PCollection<FileWriteResult> writtenFiles) {
+  public PCollection<KV<String, SnapshotInfo>> expand(PCollection<FileWriteResult> writtenFiles) {
 
     // Apply any sharded writes and flatten everything for catalog updates
     return writtenFiles
@@ -63,11 +61,11 @@ class AppendFilesToTables
         .apply(
             "Append metadata updates to tables",
             ParDo.of(new AppendFilesToTablesDoFn(catalogConfig)))
-        .setCoder(KvCoder.of(StringUtf8Coder.of(), SerializableCoder.of(Snapshot.class)));
+        .setCoder(KvCoder.of(StringUtf8Coder.of(), SnapshotInfo.CODER));
   }
 
   private static class AppendFilesToTablesDoFn
-      extends DoFn<KV<String, Iterable<FileWriteResult>>, KV<String, Snapshot>> {
+      extends DoFn<KV<String, Iterable<FileWriteResult>>, KV<String, SnapshotInfo>> {
 
     private final IcebergCatalogConfig catalogConfig;
 
@@ -87,7 +85,7 @@ class AppendFilesToTables
     @ProcessElement
     public void processElement(
         @Element KV<String, Iterable<FileWriteResult>> element,
-        OutputReceiver<KV<String, Snapshot>> out,
+        OutputReceiver<KV<String, SnapshotInfo>> out,
         BoundedWindow window) {
       Table table = getCatalog().loadTable(TableIdentifier.parse(element.getKey()));
       AppendFiles update = table.newAppend();
@@ -96,7 +94,8 @@ class AppendFilesToTables
       }
       update.commit();
       out.outputWithTimestamp(
-          KV.of(element.getKey(), table.currentSnapshot()), window.maxTimestamp());
+          KV.of(element.getKey(), SnapshotInfo.fromSnapshot(table.currentSnapshot())),
+          window.maxTimestamp());
     }
   }
 }

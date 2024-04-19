@@ -33,7 +33,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.ShardedKey;
-import org.apache.iceberg.Snapshot;
 
 class WriteToDestinations extends PTransform<PCollection<Row>, IcebergWriteResult> {
 
@@ -115,7 +114,7 @@ class WriteToDestinations extends PTransform<PCollection<Row>, IcebergWriteResul
             .apply("Flatten Written Files", Flatten.pCollections());
 
     // Apply any sharded writes and flatten everything for catalog updates
-    PCollection<KV<String, Snapshot>> snapshots =
+    PCollection<KV<String, SnapshotInfo>> snapshots =
         allWrittenFiles.apply(new AppendFilesToTables(catalogConfig));
 
     return new IcebergWriteResult(input.getPipeline(), snapshots);

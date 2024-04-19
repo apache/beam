@@ -27,22 +27,21 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
-import org.apache.iceberg.Snapshot;
 
 public final class IcebergWriteResult implements POutput {
 
-  private static final TupleTag<KV<String, Snapshot>> SNAPSHOTS_TAG =
-      new TupleTag<KV<String, Snapshot>>() {};
+  private static final TupleTag<KV<String, SnapshotInfo>> SNAPSHOTS_TAG =
+      new TupleTag<KV<String, SnapshotInfo>>() {};
 
   private final Pipeline pipeline;
 
-  private final PCollection<KV<String, Snapshot>> snapshots;
+  private final PCollection<KV<String, SnapshotInfo>> snapshots;
 
-  public PCollection<KV<String, Snapshot>> getSnapshots() {
+  public PCollection<KV<String, SnapshotInfo>> getSnapshots() {
     return snapshots;
   }
 
-  IcebergWriteResult(Pipeline pipeline, PCollection<KV<String, Snapshot>> snapshots) {
+  IcebergWriteResult(Pipeline pipeline, PCollection<KV<String, SnapshotInfo>> snapshots) {
     this.pipeline = pipeline;
     this.snapshots = snapshots;
   }

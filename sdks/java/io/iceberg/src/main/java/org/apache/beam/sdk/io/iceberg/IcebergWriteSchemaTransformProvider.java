@@ -38,7 +38,6 @@ import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
-import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.catalog.TableIdentifier;
 
 /**
@@ -52,12 +51,7 @@ public class IcebergWriteSchemaTransformProvider extends TypedSchemaTransformPro
   static final String OUTPUT_TAG = "output";
 
   static final Schema OUTPUT_SCHEMA =
-      Schema.builder()
-          .addStringField("table")
-          .addStringField("operation")
-          .addMapField("summary", Schema.FieldType.STRING, Schema.FieldType.STRING)
-          .addStringField("manifestListLocation")
-          .build();
+      Schema.builder().addStringField("table").addFields(SnapshotInfo.SCHEMA.getFields()).build();
 
   @Override
   public String description() {
@@ -166,16 +160,14 @@ public class IcebergWriteSchemaTransformProvider extends TypedSchemaTransformPro
     }
 
     @VisibleForTesting
-    static class SnapshotToRow extends SimpleFunction<KV<String, Snapshot>, Row> {
+    static class SnapshotToRow extends SimpleFunction<KV<String, SnapshotInfo>, Row> {
       @Override
-      public Row apply(KV<String, Snapshot> input) {
-        Snapshot snapshot = input.getValue();
+      public Row apply(KV<String, SnapshotInfo> input) {
+        SnapshotInfo snapshot = input.getValue();
+
         return Row.withSchema(OUTPUT_SCHEMA)
-            .addValues(
-                input.getKey(),
-                snapshot.operation(),
-                snapshot.summary(),
-                snapshot.manifestListLocation())
+            .addValue(input.getKey())
+            .addValues(snapshot.toRow().getValues())
             .build();
       }
     }
