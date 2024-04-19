@@ -27,6 +27,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
@@ -532,12 +533,26 @@ func (em *ElementManager) StateForBundle(rb RunBundle) TentativeData {
 	return ret
 }
 
+// Residual represents the unprocessed portion of a single element to be rescheduled for processing later.
+type Residual struct {
+	Element []byte
+	Delay   time.Duration // The relative time delay.
+	Bounded bool          // Whether this element is finite or not.
+}
+
+// Residuals is used to specify process continuations within a bundle.
+type Residuals struct {
+	Data                 []Residual
+	TransformID, InputID string                // Prism only allows one SDF at the root of a bundledescriptor so there should only be one each.
+	MinOutputWatermarks  map[string]mtime.Time // Output watermarks (technically per Residual, but aggregated here until it makes a difference.)
+}
+
 // reElementResiduals extracts the windowed value header from residual bytes, and explodes them
 // back out to their windows.
-func reElementResiduals(residuals [][]byte, inputInfo PColInfo, rb RunBundle) []element {
+func reElementResiduals(residuals []Residual, inputInfo PColInfo, rb RunBundle) []element {
 	var unprocessedElements []element
 	for _, residual := range residuals {
-		buf := bytes.NewBuffer(residual)
+		buf := bytes.NewBuffer(residual.Element)
 		ws, et, pn, err := exec.DecodeWindowedValueHeader(inputInfo.WDec, buf)
 		if err != nil {
 			if err == io.EOF {
@@ -583,7 +598,7 @@ func reElementResiduals(residuals [][]byte, inputInfo PColInfo, rb RunBundle) []
 //
 // PersistBundle takes in the stage ID, ID of the bundle associated with the pending
 // input elements, and the committed output elements.
-func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PColInfo, d TentativeData, inputInfo PColInfo, residuals [][]byte, estimatedOWM map[string]mtime.Time) {
+func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PColInfo, d TentativeData, inputInfo PColInfo, residuals Residuals) {
 	for output, data := range d.Raw {
 		info := col2Coders[output]
 		var newPending []element
@@ -641,44 +656,16 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 		}
 	}
 
-	// Process each timer family in the order we received them, so we can filter to the last one.
-	// Since we're process each timer family individually, use a unique key for each userkey, tag, window.
-	// The last timer set for each combination is the next one we're keeping.
-	type timerKey struct {
-		key string
-		tag string
-		win typex.Window
-	}
-
-	var pendingTimers []element
-	for tentativeKey, timers := range d.timers {
-		keyToTimers := map[timerKey]element{}
-		for _, t := range timers {
-			key, tag, elms := decodeTimer(inputInfo.KeyDec, true, t)
-			for _, e := range elms {
-				keyToTimers[timerKey{key: string(key), tag: tag, win: e.window}] = e
-			}
-			if len(elms) == 0 {
-				// TODO(lostluck): Determine best way to mark clear a timer cleared.
-				continue
-			}
-		}
-
-		for _, elm := range keyToTimers {
-			elm.transform = tentativeKey.Transform
-			elm.family = tentativeKey.Family
-			pendingTimers = append(pendingTimers, elm)
-		}
-	}
-
 	stage := em.stages[rb.StageID]
-	if len(pendingTimers) > 0 {
-		count := stage.AddPending(pendingTimers)
-		em.addPending(count)
-	}
+
+	// Triage timers into their time domains for scheduling.
+	// EventTime timers are handled with normal elements,
+	// ProcessingTime timers need to be scheduled into the processing time based queue.
+	em.triageTimers(d, inputInfo, stage)
 
 	// Return unprocessed to this stage's pending
-	unprocessedElements := reElementResiduals(residuals, inputInfo, rb)
+	unprocessedElements := reElementResiduals(residuals.Data, inputInfo, rb)
+
 	// Add unprocessed back to the pending stack.
 	if len(unprocessedElements) > 0 {
 		count := stage.AddPending(unprocessedElements)
@@ -714,9 +701,9 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 
 	// If there are estimated output watermarks, set the estimated
 	// output watermark for the stage.
-	if len(estimatedOWM) > 0 {
+	if len(residuals.MinOutputWatermarks) > 0 {
 		estimate := mtime.MaxTimestamp
-		for _, t := range estimatedOWM {
+		for _, t := range residuals.MinOutputWatermarks {
 			estimate = mtime.Min(estimate, t)
 		}
 		stage.estimatedOutput = estimate
@@ -745,6 +732,45 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 	em.addRefreshAndClearBundle(stage.ID, rb.BundleID)
 }
 
+// triageTimers prepares received timers for eventual firing, as well as rebasing processing time timers as needed.
+func (em *ElementManager) triageTimers(d TentativeData, inputInfo PColInfo, stage *stageState) {
+	// Process each timer family in the order we received them, so we can filter to the last one.
+	// Since we're process each timer family individually, use a unique key for each userkey, tag, window.
+	// The last timer set for each combination is the next one we're keeping.
+	type timerKey struct {
+		key string
+		tag string
+		win typex.Window
+	}
+
+	var pendingEventTimers []element
+	for tentativeKey, timers := range d.timers {
+		keyToTimers := map[timerKey]element{}
+		for _, t := range timers {
+			key, tag, elms := decodeTimer(inputInfo.KeyDec, true, t)
+			for _, e := range elms {
+				keyToTimers[timerKey{key: string(key), tag: tag, win: e.window}] = e
+			}
+			if len(elms) == 0 {
+				// TODO(lostluck): Determine best way to mark clear a timer cleared.
+				continue
+			}
+		}
+
+		for _, elm := range keyToTimers {
+			elm.transform = tentativeKey.Transform
+			elm.family = tentativeKey.Family
+
+			pendingEventTimers = append(pendingEventTimers, elm)
+		}
+	}
+
+	if len(pendingEventTimers) > 0 {
+		count := stage.AddPending(pendingEventTimers)
+		em.addPending(count)
+	}
+}
+
 // FailBundle clears the extant data allowing the execution to shut down.
 func (em *ElementManager) FailBundle(rb RunBundle) {
 	stage := em.stages[rb.StageID]
@@ -758,11 +784,11 @@ func (em *ElementManager) FailBundle(rb RunBundle) {
 
 // ReturnResiduals is called after a successful split, so the remaining work
 // can be re-assigned to a new bundle.
-func (em *ElementManager) ReturnResiduals(rb RunBundle, firstRsIndex int, inputInfo PColInfo, residuals [][]byte) {
+func (em *ElementManager) ReturnResiduals(rb RunBundle, firstRsIndex int, inputInfo PColInfo, residuals Residuals) {
 	stage := em.stages[rb.StageID]
 
 	stage.splitBundle(rb, firstRsIndex)
-	unprocessedElements := reElementResiduals(residuals, inputInfo, rb)
+	unprocessedElements := reElementResiduals(residuals.Data, inputInfo, rb)
 	if len(unprocessedElements) > 0 {
 		slog.Debug("ReturnResiduals: unprocessed elements", "bundle", rb, "count", len(unprocessedElements))
 		count := stage.AddPending(unprocessedElements)
