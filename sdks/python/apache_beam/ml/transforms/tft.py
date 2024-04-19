@@ -292,6 +292,43 @@ class ScaleTo01(TFTOperation):
 
 
 @register_input_dtype(float)
+class ScaleToGaussian(TFTOperation):
+  def __init__(
+      self,
+      columns: List[str],
+      elementwise: bool = False,
+      name: Optional[str] = None):
+    """
+    This operation scales the given input column values to an approximately 
+    normal distribution with mean 0 and variance of 1. The Gaussian
+    transformation is only applied if the column has long tails;
+    otherwise, the transformation is the same as normalizing to z scores.
+
+    For more information, see: 
+    https://www.tensorflow.org/tfx/transform/api_docs/python/tft/scale_to_gaussian
+
+    Args:
+      columns: A list of column names to apply the transformation on.
+      elementwise: If True, the transformation is applied elementwise.
+        Otherwise, the transformation is applied on the entire column.
+      name: A name for the operation (optional).
+
+    """
+    super().__init__(columns)
+    self.elementwise = elementwise
+    self.name = name
+
+  def apply_transform(
+      self, data: common_types.TensorType,
+      output_column_name: str) -> Dict[str, common_types.TensorType]:
+    output_dict = {
+        output_column_name: tft.scale_to_gaussian(
+            x=data, elementwise=self.elementwise, name=self.name)
+    }
+    return output_dict
+
+
+@register_input_dtype(float)
 class ApplyBuckets(TFTOperation):
   def __init__(
       self,
