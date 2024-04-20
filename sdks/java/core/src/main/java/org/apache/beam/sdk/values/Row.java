@@ -901,7 +901,10 @@ public abstract class Row implements Serializable {
         .map(
             field -> {
               if (field.getType().getRowSchema() != null) {
-                return ((Row) getValue(field.getName())).sorted();
+                Row innerRow = getValue(field.getName());
+                if (innerRow != null) {
+                  return innerRow.sorted();
+                }
               }
               return (Object) getValue(field.getName());
             })
@@ -914,7 +917,10 @@ public abstract class Row implements Serializable {
         .map(
             field -> {
               if (field.getType().getRowSchema() != null) {
-                return ((Row) getValue(field.getName())).toSnakeCase();
+                Row innerRow = getValue(field.getName());
+                if (innerRow != null) {
+                  return innerRow.toSnakeCase();
+                }
               }
               return (Object) getValue(field.getName());
             })
@@ -927,7 +933,10 @@ public abstract class Row implements Serializable {
         .map(
             field -> {
               if (field.getType().getRowSchema() != null) {
-                return ((Row) getValue(field.getName())).toCamelCase();
+                Row innerRow = getValue(field.getName());
+                if (innerRow != null) {
+                  return innerRow.toCamelCase();
+                }
               }
               return (Object) getValue(field.getName());
             })
