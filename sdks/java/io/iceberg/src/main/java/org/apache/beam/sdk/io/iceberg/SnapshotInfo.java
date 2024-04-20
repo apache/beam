@@ -20,14 +20,20 @@ package org.apache.beam.sdk.io.iceberg;
 import com.google.auto.value.AutoValue;
 import java.util.Map;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.schemas.*;
+import org.apache.beam.sdk.schemas.AutoValueSchema;
+import org.apache.beam.sdk.schemas.NoSuchSchemaException;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.values.Row;
 import org.apache.iceberg.Snapshot;
 
 /**
- * This is a Beam Schema-compatible representation of an Iceberg {@link
- * org.apache.iceberg.Snapshot}.
+ * This is an AutoValue representation of an Iceberg {@link Snapshot}.
+ *
+ * <p>Note: this only includes the subset of fields in {@link Snapshot} that are Beam
+ * Schema-compatible.
  */
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
@@ -47,7 +53,10 @@ public abstract class SnapshotInfo {
 
   public Row toRow() {
     try {
-      return SchemaRegistry.createDefault().getToRowFunction(SnapshotInfo.class).apply(this);
+      return SchemaRegistry.createDefault()
+          .getToRowFunction(SnapshotInfo.class)
+          .apply(this)
+          .sorted();
     } catch (NoSuchSchemaException e) {
       throw new RuntimeException(e);
     }
@@ -60,7 +69,7 @@ public abstract class SnapshotInfo {
     try {
       SchemaRegistry registry = SchemaRegistry.createDefault();
       CODER = registry.getSchemaCoder(SnapshotInfo.class);
-      SCHEMA = registry.getSchema(SnapshotInfo.class);
+      SCHEMA = registry.getSchema(SnapshotInfo.class).sorted();
     } catch (NoSuchSchemaException e) {
       throw new RuntimeException(e);
     }
