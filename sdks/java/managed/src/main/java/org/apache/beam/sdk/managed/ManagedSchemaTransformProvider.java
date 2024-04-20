@@ -188,7 +188,8 @@ public class ManagedSchemaTransformProvider
         return SchemaRegistry.createDefault()
             .getToRowFunction(ManagedConfig.class)
             .apply(managedConfig)
-            .sorted();
+            .sorted()
+            .toSnakeCase();
       } catch (NoSuchSchemaException e) {
         throw new RuntimeException(e);
       }
@@ -200,7 +201,7 @@ public class ManagedSchemaTransformProvider
   static Row getRowConfig(ManagedConfig config, Schema transformSchema) {
     // May return an empty row (perhaps the underlying transform doesn't have any required
     // parameters)
-    return YamlUtils.toBeamRow(config.resolveUnderlyingConfig(), transformSchema, true);
+    return YamlUtils.toBeamRow(config.resolveUnderlyingConfig(), transformSchema, false);
   }
 
   Map<String, SchemaTransformProvider> getAllProviders() {

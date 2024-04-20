@@ -58,13 +58,10 @@ public class ManagedSchemaTransformTranslation {
     public @Nullable FunctionSpec translate(
         AppliedPTransform<?, ?, ManagedSchemaTransform> application, SdkComponents components)
         throws IOException {
-      // TODO(https://github.com/apache/beam/issues/31061): Remove conversion when
-      // TypedSchemaTransformProvider starts generating with snake_case convention
-      Schema snakeCaseSchema = SCHEMA.toSnakeCase();
-      SchemaApi.Schema expansionSchema = SchemaTranslation.schemaToProto(snakeCaseSchema, true);
+      SchemaApi.Schema expansionSchema = SchemaTranslation.schemaToProto(SCHEMA, true);
       Row configRow = toConfigRow(application.getTransform());
       ByteArrayOutputStream os = new ByteArrayOutputStream();
-      RowCoder.of(snakeCaseSchema).encode(configRow, os);
+      RowCoder.of(SCHEMA).encode(configRow, os);
 
       return FunctionSpec.newBuilder()
           .setUrn(getUrn())
@@ -80,19 +77,12 @@ public class ManagedSchemaTransformTranslation {
 
     @Override
     public Row toConfigRow(ManagedSchemaTransform transform) {
-      // Return with snake_case naming convention!
-      // TODO(https://github.com/apache/beam/issues/31061): Remove conversion when
-      // TypedSchemaTransformProvider starts generating with snake_case convention
-      return transform.getConfigurationRow().toSnakeCase();
+      return transform.getConfigurationRow();
     }
 
     @Override
     public ManagedSchemaTransform fromConfigRow(Row configRow, PipelineOptions options) {
-      // Will retrieve a Row with snake_case naming convention.
-      // Transform expects camelCase convention, so convert back
-      // TODO(https://github.com/apache/beam/issues/31061): Remove conversion when
-      // TypedSchemaTransformProvider starts generating with snake_case convention
-      return (ManagedSchemaTransform) PROVIDER.from(configRow.toCamelCase());
+      return (ManagedSchemaTransform) PROVIDER.from(configRow);
     }
   }
 

@@ -98,7 +98,8 @@ public class IcebergReadSchemaTransformProvider extends TypedSchemaTransformProv
         return SchemaRegistry.createDefault()
             .getToRowFunction(Config.class)
             .apply(configuration)
-            .sorted();
+            .sorted()
+            .toSnakeCase();
       } catch (NoSuchSchemaException e) {
         throw new RuntimeException(e);
       }

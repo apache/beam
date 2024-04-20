@@ -60,11 +60,10 @@ public class IcebergSchemaTransformTranslation {
     public @Nullable FunctionSpec translate(
         AppliedPTransform<?, ?, IcebergReadSchemaTransform> application, SdkComponents components)
         throws IOException {
-      Schema snakeCaseSchema = READ_SCHEMA.toSnakeCase();
-      SchemaApi.Schema expansionSchema = SchemaTranslation.schemaToProto(snakeCaseSchema, true);
+      SchemaApi.Schema expansionSchema = SchemaTranslation.schemaToProto(READ_SCHEMA, true);
       Row configRow = toConfigRow(application.getTransform());
       ByteArrayOutputStream os = new ByteArrayOutputStream();
-      RowCoder.of(snakeCaseSchema).encode(configRow, os);
+      RowCoder.of(READ_SCHEMA).encode(configRow, os);
 
       return FunctionSpec.newBuilder()
           .setUrn(getUrn())
@@ -80,20 +79,12 @@ public class IcebergSchemaTransformTranslation {
 
     @Override
     public Row toConfigRow(IcebergReadSchemaTransform transform) {
-      // Will retrieve a Row with snake_case naming convention.
-      // Transform expects camelCase convention, so convert back
-      // TODO(https://github.com/apache/beam/issues/31061): Remove conversion when
-      // TypedSchemaTransformProvider starts generating with snake_case convention
-      return transform.getConfigurationRow().toSnakeCase();
+      return transform.getConfigurationRow();
     }
 
     @Override
     public IcebergReadSchemaTransform fromConfigRow(Row configRow, PipelineOptions options) {
-      // Will retrieve a Row with snake_case naming convention.
-      // Transform expects camelCase convention, so convert back
-      // TODO(https://github.com/apache/beam/issues/31061): Remove conversion when
-      // TypedSchemaTransformProvider starts generating with snake_case convention
-      return (IcebergReadSchemaTransform) READ_PROVIDER.from(configRow.toCamelCase());
+      return (IcebergReadSchemaTransform) READ_PROVIDER.from(configRow);
     }
   }
 
@@ -127,13 +118,10 @@ public class IcebergSchemaTransformTranslation {
     public @Nullable FunctionSpec translate(
         AppliedPTransform<?, ?, IcebergWriteSchemaTransform> application, SdkComponents components)
         throws IOException {
-      // TODO(https://github.com/apache/beam/issues/31061): Remove conversion when
-      // TypedSchemaTransformProvider starts generating with snake_case convention
-      Schema snakeCaseSchema = WRITE_SCHEMA.toSnakeCase();
-      SchemaApi.Schema expansionSchema = SchemaTranslation.schemaToProto(snakeCaseSchema, true);
+      SchemaApi.Schema expansionSchema = SchemaTranslation.schemaToProto(WRITE_SCHEMA, true);
       Row configRow = toConfigRow(application.getTransform());
       ByteArrayOutputStream os = new ByteArrayOutputStream();
-      RowCoder.of(snakeCaseSchema).encode(configRow, os);
+      RowCoder.of(WRITE_SCHEMA).encode(configRow, os);
 
       return FunctionSpec.newBuilder()
           .setUrn(getUrn())
@@ -149,19 +137,12 @@ public class IcebergSchemaTransformTranslation {
 
     @Override
     public Row toConfigRow(IcebergWriteSchemaTransform transform) {
-      // Return with snake_case naming convention!
-      // TODO(https://github.com/apache/beam/issues/31061): Remove conversion when
-      // TypedSchemaTransformProvider starts generating with snake_case convention
-      return transform.getConfigurationRow().toSnakeCase();
+      return transform.getConfigurationRow();
     }
 
     @Override
     public IcebergWriteSchemaTransform fromConfigRow(Row configRow, PipelineOptions options) {
-      // Will retrieve a Row with snake_case naming convention.
-      // Transform expects camelCase convention, so convert back
-      // TODO(https://github.com/apache/beam/issues/31061): Remove conversion when
-      // TypedSchemaTransformProvider starts generating with snake_case convention
-      return (IcebergWriteSchemaTransform) WRITE_PROVIDER.from(configRow.toCamelCase());
+      return (IcebergWriteSchemaTransform) WRITE_PROVIDER.from(configRow);
     }
   }
 

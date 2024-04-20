@@ -20,9 +20,7 @@ package org.apache.beam.sdk.managed.testing;
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
-import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
@@ -37,16 +35,9 @@ import org.apache.beam.sdk.values.TypeDescriptors;
 @AutoService(SchemaTransformProvider.class)
 public class TestSchemaTransformProvider
     extends TypedSchemaTransformProvider<TestSchemaTransformProvider.Config> {
-  public static final String IDENTIFIER = "beam:test_schematransform:v1";
-  public static final Schema SCHEMA;
-
-  static {
-    try {
-      SCHEMA = SchemaRegistry.createDefault().getSchema(Config.class);
-    } catch (NoSuchSchemaException e) {
-      throw new RuntimeException(e);
-    }
-  }
+  private static final TestSchemaTransformProvider INSTANCE = new TestSchemaTransformProvider();
+  public static final String IDENTIFIER = INSTANCE.identifier();
+  public static final Schema SCHEMA = INSTANCE.configurationSchema();
 
   @DefaultSchema(AutoValueSchema.class)
   @AutoValue
@@ -104,6 +95,6 @@ public class TestSchemaTransformProvider
 
   @Override
   public String identifier() {
-    return IDENTIFIER;
+    return "beam:test_schematransform:v1";
   }
 }

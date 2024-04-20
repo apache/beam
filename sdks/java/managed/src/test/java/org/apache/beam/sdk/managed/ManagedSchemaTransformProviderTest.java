@@ -60,8 +60,8 @@ public class ManagedSchemaTransformProviderTest {
 
     Row expectedRow =
         Row.withSchema(TestSchemaTransformProvider.SCHEMA)
-            .withFieldValue("extraString", "abc")
-            .withFieldValue("extraInteger", 123)
+            .withFieldValue("extra_string", "abc")
+            .withFieldValue("extra_integer", 123)
             .build();
 
     Row returnedRow =
@@ -84,8 +84,8 @@ public class ManagedSchemaTransformProviderTest {
     Schema configSchema = new TestSchemaTransformProvider().configurationSchema();
     Row expectedRow =
         Row.withSchema(configSchema)
-            .withFieldValue("extraString", "abc")
-            .withFieldValue("extraInteger", 123)
+            .withFieldValue("extra_string", "abc")
+            .withFieldValue("extra_integer", 123)
             .build();
     Row configRow =
         ManagedSchemaTransformProvider.getRowConfig(

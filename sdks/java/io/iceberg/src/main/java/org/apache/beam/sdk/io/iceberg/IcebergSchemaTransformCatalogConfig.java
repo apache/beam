@@ -71,7 +71,8 @@ public abstract class IcebergSchemaTransformCatalogConfig {
       SCHEMA =
           SchemaRegistry.createDefault()
               .getSchema(IcebergSchemaTransformCatalogConfig.class)
-              .sorted();
+              .sorted()
+              .toSnakeCase();
     } catch (NoSuchSchemaException e) {
       throw new RuntimeException(e);
     }
@@ -80,10 +81,10 @@ public abstract class IcebergSchemaTransformCatalogConfig {
   @SuppressWarnings("argument")
   public Row toRow() {
     return Row.withSchema(SCHEMA)
-        .withFieldValue("catalogName", getCatalogName())
-        .withFieldValue("catalogType", getCatalogType())
-        .withFieldValue("catalogImplementation", getCatalogImplementation())
-        .withFieldValue("warehouseLocation", getWarehouseLocation())
+        .withFieldValue("catalog_name", getCatalogName())
+        .withFieldValue("catalog_type", getCatalogType())
+        .withFieldValue("catalog_implementation", getCatalogImplementation())
+        .withFieldValue("warehouse_location", getWarehouseLocation())
         .build();
   }
 

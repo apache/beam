@@ -69,15 +69,15 @@ public class IcebergSchemaTransformTranslationTest {
   public void testReCreateWriteTransformFromRow() {
     Row catalogConfigRow =
         Row.withSchema(IcebergSchemaTransformCatalogConfig.SCHEMA)
-            .withFieldValue("catalogName", "test_name")
-            .withFieldValue("catalogType", "test_type")
-            .withFieldValue("catalogImplementation", "testImplementation")
-            .withFieldValue("warehouseLocation", "test_location")
+            .withFieldValue("catalog_name", "test_name")
+            .withFieldValue("catalog_type", "test_type")
+            .withFieldValue("catalog_implementation", "testImplementation")
+            .withFieldValue("warehouse_location", "test_location")
             .build();
     Row transformConfigRow =
         Row.withSchema(WRITE_SCHEMA)
             .withFieldValue("table", "test_table_identifier")
-            .withFieldValue("catalogConfig", catalogConfigRow)
+            .withFieldValue("catalog_config", catalogConfigRow)
             .build();
     IcebergWriteSchemaTransform writeTransform =
         (IcebergWriteSchemaTransform) WRITE_PROVIDER.from(transformConfigRow);
@@ -106,15 +106,15 @@ public class IcebergSchemaTransformTranslationTest {
 
     Row catalogConfigRow =
         Row.withSchema(IcebergSchemaTransformCatalogConfig.SCHEMA)
-            .withFieldValue("catalogName", "test_catalog")
-            .withFieldValue("catalogType", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
-            .withFieldValue("catalogImplementation", "test_implementation")
-            .withFieldValue("warehouseLocation", warehouse.location)
+            .withFieldValue("catalog_name", "test_catalog")
+            .withFieldValue("catalog_type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
+            .withFieldValue("catalog_implementation", "test_implementation")
+            .withFieldValue("warehouse_location", warehouse.location)
             .build();
     Row transformConfigRow =
         Row.withSchema(WRITE_SCHEMA)
             .withFieldValue("table", "test_identifier")
-            .withFieldValue("catalogConfig", catalogConfigRow)
+            .withFieldValue("catalog_config", catalogConfigRow)
             .build();
 
     IcebergWriteSchemaTransform writeTransform =
@@ -144,12 +144,10 @@ public class IcebergSchemaTransformTranslationTest {
     // Check that the proto contains correct values
     SchemaTransformPayload payload = SchemaTransformPayload.parseFrom(spec.getPayload());
     Schema schemaFromSpec = SchemaTranslation.schemaFromProto(payload.getConfigurationSchema());
-    // TODO(https://github.com/apache/beam/issues/31061): Remove conversion when
-    // TypedSchemaTransformProvider starts generating with snake_case convention
-    assertEquals(WRITE_SCHEMA.toSnakeCase(), schemaFromSpec);
+    assertEquals(WRITE_SCHEMA, schemaFromSpec);
     Row rowFromSpec = RowCoder.of(schemaFromSpec).decode(payload.getConfigurationRow().newInput());
 
-    assertEquals(transformConfigRow, rowFromSpec.toCamelCase());
+    assertEquals(transformConfigRow, rowFromSpec);
 
     // Use the information in the proto to recreate the IcebergWriteSchemaTransform
     IcebergSchemaTransformTranslation.IcebergWriteSchemaTransformTranslator translator =
@@ -165,15 +163,15 @@ public class IcebergSchemaTransformTranslationTest {
     // setting a subset of fields here.
     Row catalogConfigRow =
         Row.withSchema(IcebergSchemaTransformCatalogConfig.SCHEMA)
-            .withFieldValue("catalogName", "test_name")
-            .withFieldValue("catalogType", "test_type")
-            .withFieldValue("catalogImplementation", "testImplementation")
-            .withFieldValue("warehouseLocation", "test_location")
+            .withFieldValue("catalog_name", "test_name")
+            .withFieldValue("catalog_type", "test_type")
+            .withFieldValue("catalog_implementation", "testImplementation")
+            .withFieldValue("warehouse_location", "test_location")
             .build();
     Row transformConfigRow =
         Row.withSchema(READ_SCHEMA)
             .withFieldValue("table", "test_table_identifier")
-            .withFieldValue("catalogConfig", catalogConfigRow)
+            .withFieldValue("catalog_config", catalogConfigRow)
             .build();
 
     IcebergReadSchemaTransform readTransform =
@@ -196,9 +194,9 @@ public class IcebergSchemaTransformTranslationTest {
     Pipeline p = Pipeline.create();
     Row catalogConfigRow =
         Row.withSchema(IcebergSchemaTransformCatalogConfig.SCHEMA)
-            .withFieldValue("catalogName", "test_catalog")
-            .withFieldValue("catalogType", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
-            .withFieldValue("warehouseLocation", warehouse.location)
+            .withFieldValue("catalog_name", "test_catalog")
+            .withFieldValue("catalog_type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
+            .withFieldValue("warehouse_location", warehouse.location)
             .build();
     String identifier = "default.table_" + Long.toString(UUID.randomUUID().hashCode(), 16);
     warehouse.createTable(TableIdentifier.parse(identifier), TestFixtures.SCHEMA);
@@ -206,7 +204,7 @@ public class IcebergSchemaTransformTranslationTest {
     Row transformConfigRow =
         Row.withSchema(READ_SCHEMA)
             .withFieldValue("table", identifier)
-            .withFieldValue("catalogConfig", catalogConfigRow)
+            .withFieldValue("catalog_config", catalogConfigRow)
             .build();
 
     IcebergReadSchemaTransform readTransform =
@@ -237,11 +235,9 @@ public class IcebergSchemaTransformTranslationTest {
     // Check that the proto contains correct values
     SchemaTransformPayload payload = SchemaTransformPayload.parseFrom(spec.getPayload());
     Schema schemaFromSpec = SchemaTranslation.schemaFromProto(payload.getConfigurationSchema());
-    // TODO(https://github.com/apache/beam/issues/31061): Remove conversion when
-    // TypedSchemaTransformProvider starts generating with snake_case convention
-    assertEquals(READ_SCHEMA.toSnakeCase(), schemaFromSpec);
+    assertEquals(READ_SCHEMA, schemaFromSpec);
     Row rowFromSpec = RowCoder.of(schemaFromSpec).decode(payload.getConfigurationRow().newInput());
-    assertEquals(transformConfigRow, rowFromSpec.toCamelCase());
+    assertEquals(transformConfigRow, rowFromSpec);
 
     // Use the information in the proto to recreate the IcebergReadSchemaTransform
     IcebergSchemaTransformTranslation.IcebergReadSchemaTransformTranslator translator =

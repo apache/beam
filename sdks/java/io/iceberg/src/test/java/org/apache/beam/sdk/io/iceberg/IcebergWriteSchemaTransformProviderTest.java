@@ -27,8 +27,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.apache.beam.sdk.managed.Managed;
-import org.apache.beam.sdk.schemas.NoSuchSchemaException;
-import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -62,19 +60,18 @@ public class IcebergWriteSchemaTransformProviderTest {
   @Rule public transient TestPipeline testPipeline = TestPipeline.create();
 
   @Test
-  public void testBuildTransformWithRow() throws NoSuchSchemaException {
+  public void testBuildTransformWithRow() {
     Row catalogConfigRow =
-        Row.withSchema(
-                SchemaRegistry.createDefault().getSchema(IcebergSchemaTransformCatalogConfig.class))
-            .withFieldValue("catalogName", "test_name")
-            .withFieldValue("catalogType", "test_type")
-            .withFieldValue("catalogImplementation", "testImplementation")
-            .withFieldValue("warehouseLocation", "test_location")
+        Row.withSchema(IcebergSchemaTransformCatalogConfig.SCHEMA)
+            .withFieldValue("catalog_name", "test_name")
+            .withFieldValue("catalog_type", "test_type")
+            .withFieldValue("catalog_implementation", "testImplementation")
+            .withFieldValue("warehouse_location", "test_location")
             .build();
     Row transformConfigRow =
         Row.withSchema(new IcebergWriteSchemaTransformProvider().configurationSchema())
             .withFieldValue("table", "test_table_identifier")
-            .withFieldValue("catalogConfig", catalogConfigRow)
+            .withFieldValue("catalog_config", catalogConfigRow)
             .build();
 
     new IcebergWriteSchemaTransformProvider().from(transformConfigRow);
