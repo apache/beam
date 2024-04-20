@@ -51,7 +51,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.junit.Test;
 
 public class ManagedSchemaTransformTranslationTest {
-  static ManagedSchemaTransformProvider PROVIDER = new ManagedSchemaTransformProvider(null);
+  static final ManagedSchemaTransformProvider PROVIDER = new ManagedSchemaTransformProvider(null);
 
   @Test
   public void testReCreateTransformFromRowWithConfigUrl() throws URISyntaxException {

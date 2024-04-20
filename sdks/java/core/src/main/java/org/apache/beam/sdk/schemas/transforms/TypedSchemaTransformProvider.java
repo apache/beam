@@ -20,6 +20,7 @@ package org.apache.beam.sdk.schemas.transforms;
 import static org.apache.beam.sdk.schemas.annotations.DefaultSchema.DefaultSchemaProvider;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.lang.reflect.ParameterizedType;
 import java.util.List;
@@ -33,7 +34,6 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaProvider;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.common.base.Preconditions;
 
 /**
  * Like {@link SchemaTransformProvider} except uses a configuration object instead of Schema and
@@ -113,7 +113,7 @@ public abstract class TypedSchemaTransformProvider<ConfigT> implements SchemaTra
       // camelCase naming convention
       SchemaProvider schemaProvider = registry.getSchemaProvider(configurationClass());
       if (schemaProvider.getClass().equals(DefaultSchemaProvider.class)
-          && Preconditions.checkNotNull(
+          && checkNotNull(
                   ((DefaultSchemaProvider) schemaProvider)
                       .getUnderlyingSchemaProvider(configurationClass()))
               .getClass()

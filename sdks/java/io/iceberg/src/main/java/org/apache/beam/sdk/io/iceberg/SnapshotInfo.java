@@ -62,8 +62,8 @@ public abstract class SnapshotInfo {
     }
   }
 
-  public static SchemaCoder<SnapshotInfo> CODER;
-  public static Schema SCHEMA;
+  public static final SchemaCoder<SnapshotInfo> CODER;
+  public static final Schema SCHEMA;
 
   static {
     try {
