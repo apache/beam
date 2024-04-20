@@ -1466,7 +1466,7 @@ public class Schema implements Serializable {
     return this.options;
   }
 
-  /** Recursively converts all field names to `lower_snake_case`. */
+  /** Recursively converts all field names to `snake_case`. */
   public Schema toSnakeCase() {
     return this.getFields().stream()
         .map(

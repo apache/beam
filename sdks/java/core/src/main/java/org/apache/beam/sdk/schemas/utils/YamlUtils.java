@@ -53,7 +53,7 @@ public class YamlUtils {
           .put(Schema.TypeName.BYTES, str -> BaseEncoding.base64().decode(str))
           .build();
 
-  public static @Nullable Row toBeamRow(@Nullable String yamlString, Schema schema) {
+  public static Row toBeamRow(@Nullable String yamlString, Schema schema) {
     return toBeamRow(yamlString, schema, false);
   }
 
