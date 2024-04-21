@@ -36,7 +36,6 @@ cramjam==2.8.3
 crcmod==1.7
 cryptography==42.0.5
 Cython==0.29.37
-Deprecated==1.2.14
 deprecation==2.1.0
 dill==0.3.1.1
 dnspython==2.6.1
@@ -53,8 +52,8 @@ google-api-python-client==2.126.0
 google-apitools==0.5.31
 google-auth==2.29.0
 google-auth-httplib2==0.2.0
-google-cloud-aiplatform==1.47.0
-google-cloud-bigquery==3.20.1
+google-cloud-aiplatform==1.48.0
+google-cloud-bigquery==3.21.0
 google-cloud-bigquery-storage==2.24.0
 google-cloud-bigtable==2.23.1
 google-cloud-core==2.4.1
@@ -66,7 +65,7 @@ google-cloud-pubsub==2.21.1
 google-cloud-pubsublite==1.10.0
 google-cloud-recommendations-ai==0.10.10
 google-cloud-resource-manager==1.12.3
-google-cloud-spanner==3.44.0
+google-cloud-spanner==3.45.0
 google-cloud-storage==2.16.0
 google-cloud-videointelligence==2.13.3
 google-cloud-vision==3.7.2
@@ -101,7 +100,7 @@ overrides==7.7.0
 packaging==24.0
 pandas==2.0.3
 parameterized==0.9.0
-pluggy==1.4.0
+pluggy==1.5.0
 proto-plus==1.23.0
 protobuf==4.25.3
 psycopg2-binary==2.9.9
