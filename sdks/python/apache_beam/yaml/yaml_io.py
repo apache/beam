@@ -196,8 +196,8 @@ def _create_formatter(
     beam_schema: schema_pb2.Schema) -> Callable[[beam.Row], bytes]:
 
   if format.islower():
-     format = format.upper()
-     logging.warning('Lowercase formats will be deprecated in version 2.60')
+    format = format.upper()
+    logging.warning('Lowercase formats will be deprecated in version 2.60')
 
   if format == 'RAW':
     if schema:
