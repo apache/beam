@@ -41,6 +41,13 @@ import org.apache.beam.sdk.values.Row;
  *
  * <p>ConfigT should be available in the SchemaRegistry.
  *
+ * <p>{@link #configurationSchema()} produces a configuration {@link Schema} that is inferred from
+ * {@code ConfigT} using the SchemaRegistry. A Beam {@link Row} can still be used produce a {@link
+ * SchemaTransform} using {@link #from(Row)}, as long as the Row fits the configuration Schema.
+ *
+ * <p>NOTE: The inferred field names in the configuration {@link Schema} and {@link Row} follow the
+ * {@code snake_case} naming convention.
+ *
  * <p><b>Internal only:</b> This interface is actively being worked on and it will likely change as
  * we provide implementations for more standard Beam transforms. We provide no backwards
  * compatibility guarantees and it should not be implemented outside of the Beam repository.

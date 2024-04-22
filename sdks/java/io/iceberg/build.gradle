@@ -42,8 +42,6 @@ def hive_version = "3.1.3"
 
 dependencies {
     implementation library.java.vendored_guava_32_1_2_jre
-    implementation library.java.vendored_grpc_1_60_1
-    implementation project(path: ":model:pipeline", configuration: "shadow")
     implementation project(path: ":sdks:java:core", configuration: "shadow")
     implementation project(":sdks:java:managed")
     implementation library.java.slf4j_api
