@@ -802,6 +802,21 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
       return self._unkeyed.share_model_across_processes()
     return True
 
+  def max_shared_model_copies(self) -> int:
+    if self._single_model:
+      return self._unkeyed.max_shared_model_copies()
+    for mh in self._id_to_mh_map.values():
+      if mh.max_shared_model_copies() != 1:
+        raise ValueError(
+            'KeyedModelHandler cannot map records to multiple '
+            'models if one or more of its ModelHandlers '
+            'require multiple model copies (set via'
+            'max_shared_model_copies). To fix, verify that each '
+            'ModelHandler is not set to load multiple copies of '
+            'its model.')
+
+    return 1
+
   def override_metrics(self, metrics_namespace: str = '') -> bool:
     if self._single_model:
       return self._unkeyed.override_metrics(metrics_namespace)
@@ -909,6 +924,9 @@ class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
   def share_model_across_processes(self) -> bool:
     return self._unkeyed.share_model_across_processes()
 
+  def max_shared_model_copies(self) -> int:
+    return self._unkeyed.max_shared_model_copies()
+
 
 class _PrebatchedModelHandler(Generic[ExampleT, PredictionT, ModelT],
                               ModelHandler[Sequence[ExampleT],
@@ -958,6 +976,12 @@ class _PrebatchedModelHandler(Generic[ExampleT, PredictionT, ModelT],
 
   def should_skip_batching(self) -> bool:
     return True
+
+  def share_model_across_processes(self) -> bool:
+    return self._base.share_model_across_processes()
+
+  def max_shared_model_copies(self) -> int:
+    return self._base.max_shared_model_copies()
 
   def get_postprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
     return self._base.get_postprocess_fns()
@@ -1019,6 +1043,12 @@ class _PreProcessingModelHandler(Generic[ExampleT,
   def should_skip_batching(self) -> bool:
     return self._base.should_skip_batching()
 
+  def share_model_across_processes(self) -> bool:
+    return self._base.share_model_across_processes()
+
+  def max_shared_model_copies(self) -> int:
+    return self._base.max_shared_model_copies()
+
   def get_postprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
     return self._base.get_postprocess_fns()
 
@@ -1077,6 +1107,12 @@ class _PostProcessingModelHandler(Generic[ExampleT,
 
   def should_skip_batching(self) -> bool:
     return self._base.should_skip_batching()
+
+  def share_model_across_processes(self) -> bool:
+    return self._base.share_model_across_processes()
+
+  def max_shared_model_copies(self) -> int:
+    return self._base.max_shared_model_copies()
 
   def get_postprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
     return self._base.get_postprocess_fns() + [self._postprocess_fn]

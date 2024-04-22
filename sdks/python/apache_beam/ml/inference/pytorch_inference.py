@@ -266,7 +266,7 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
     self._torch_script_model_path = torch_script_model_path
     self._load_model_args = load_model_args if load_model_args else {}
     self._env_vars = kwargs.get('env_vars', {})
-    self._large_model = large_model or (model_copies is not None)
+    self._share_across_processes = large_model or (model_copies is not None)
     self._model_copies = model_copies or 1
 
     _validate_constructor_args(
@@ -349,7 +349,7 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
     return self._batching_kwargs
 
   def share_model_across_processes(self) -> bool:
-    return self._large_model
+    return self._share_across_processes
 
   def max_shared_model_copies(self) -> int:
     return self._model_copies
@@ -512,7 +512,7 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
     self._torch_script_model_path = torch_script_model_path
     self._load_model_args = load_model_args if load_model_args else {}
     self._env_vars = kwargs.get('env_vars', {})
-    self._large_model = large_model or (model_copies is not None)
+    self._share_across_processes = large_model or (model_copies is not None)
     self._model_copies = model_copies or 1
 
     _validate_constructor_args(
@@ -597,7 +597,7 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
     return self._batching_kwargs
 
   def share_model_across_processes(self) -> bool:
-    return self._large_model
+    return self._share_across_processes
 
   def max_shared_model_copies(self) -> int:
     return self._model_copies

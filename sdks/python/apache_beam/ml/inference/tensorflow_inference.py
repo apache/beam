@@ -161,7 +161,7 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
       self._batching_kwargs['max_batch_size'] = max_batch_size
     if max_batch_duration_secs is not None:
       self._batching_kwargs["max_batch_duration_secs"] = max_batch_duration_secs
-    self._large_model = large_model or (model_copies is not None)
+    self._share_across_processes = large_model or (model_copies is not None)
     self._model_copies = model_copies or 1
 
   def load_model(self) -> tf.Module:
@@ -227,7 +227,7 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
     return self._batching_kwargs
 
   def share_model_across_processes(self) -> bool:
-    return self._large_model
+    return self._share_across_processes
 
   def max_shared_model_copies(self) -> int:
     return self._model_copies
@@ -302,7 +302,7 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
       self._batching_kwargs['max_batch_size'] = max_batch_size
     if max_batch_duration_secs is not None:
       self._batching_kwargs["max_batch_duration_secs"] = max_batch_duration_secs
-    self._large_model = large_model or (model_copies is not None)
+    self._share_across_processes = large_model or (model_copies is not None)
     self._model_copies = model_copies or 1
 
   def load_model(self) -> tf.Module:
@@ -368,7 +368,7 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
     return self._batching_kwargs
 
   def share_model_across_processes(self) -> bool:
-    return self._large_model
+    return self._share_across_processes
 
   def max_shared_model_copies(self) -> int:
     return self._model_copies

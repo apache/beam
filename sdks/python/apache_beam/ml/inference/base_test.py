@@ -300,6 +300,36 @@ class RunInferenceBaseTest(unittest.TestCase):
               max_batch_size=1))
       assert_that(actual, equal_to(expected), label='assert:inferences')
 
+  def test_run_inference_impl_multi_process_shared_nobatch_incrementing_multi_copy(
+      self):
+    with TestPipeline() as pipeline:
+      examples = [1, 5, 3, 10, 1, 5, 3, 10, 1, 5, 3, 10, 1, 5, 3, 10]
+      expected = [1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4]
+      batched_examples = [[example] for example in examples]
+      pcoll = pipeline | 'start' >> beam.Create(batched_examples)
+      actual = pcoll | base.RunInference(
+          FakeModelHandler(
+              multi_process_shared=True, max_copies=4,
+              incrementing=True).with_no_batching())
+      assert_that(actual, equal_to(expected), label='assert:inferences')
+
+  def test_run_inference_impl_keyed_multi_process_shared_incrementing_multi_copy(
+      self):
+    with TestPipeline() as pipeline:
+      examples = [1, 5, 3, 10, 1, 5, 3, 10, 1, 5, 3, 10, 1, 5, 3, 10]
+      keyed_examples = [('abc', example) for example in examples]
+      expected = [1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4]
+      keyed_expected = [('abc', val) for val in expected]
+      pcoll = pipeline | 'start' >> beam.Create(keyed_examples)
+      actual = pcoll | base.RunInference(
+          base.KeyedModelHandler(
+              FakeModelHandler(
+                  multi_process_shared=True,
+                  max_copies=4,
+                  incrementing=True,
+                  max_batch_size=1)))
+      assert_that(actual, equal_to(keyed_expected), label='assert:inferences')
+
   def test_run_inference_impl_with_keyed_examples(self):
     with TestPipeline() as pipeline:
       examples = [1, 5, 3, 10]

@@ -101,7 +101,7 @@ class OnnxModelHandlerNumpy(ModelHandler[numpy.ndarray,
     self._provider_options = provider_options
     self._model_inference_fn = inference_fn
     self._env_vars = kwargs.get('env_vars', {})
-    self._large_model = large_model or (model_copies is not None)
+    self._share_across_processes = large_model or (model_copies is not None)
     self._model_copies = model_copies or 1
     self._batching_kwargs = {}
     if min_batch_size is not None:
@@ -162,7 +162,7 @@ class OnnxModelHandlerNumpy(ModelHandler[numpy.ndarray,
     return 'BeamML_Onnx'
 
   def share_model_across_processes(self) -> bool:
-    return self._large_model
+    return self._share_across_processes
 
   def max_shared_model_copies(self) -> int:
     return self._model_copies

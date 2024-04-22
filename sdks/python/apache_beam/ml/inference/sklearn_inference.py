@@ -136,7 +136,7 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
     if max_batch_duration_secs is not None:
       self._batching_kwargs["max_batch_duration_secs"] = max_batch_duration_secs
     self._env_vars = kwargs.get('env_vars', {})
-    self._large_model = large_model or (model_copies is not None)
+    self._share_across_processes = large_model or (model_copies is not None)
     self._model_copies = model_copies or 1
 
   def load_model(self) -> BaseEstimator:
@@ -191,7 +191,7 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
     return self._batching_kwargs
 
   def share_model_across_processes(self) -> bool:
-    return self._large_model
+    return self._share_across_processes
 
   def max_shared_model_copies(self) -> int:
     return self._model_copies
@@ -274,7 +274,7 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
     if max_batch_duration_secs is not None:
       self._batching_kwargs["max_batch_duration_secs"] = max_batch_duration_secs
     self._env_vars = kwargs.get('env_vars', {})
-    self._large_model = large_model or (model_copies is not None)
+    self._share_across_processes = large_model or (model_copies is not None)
     self._model_copies = model_copies or 1
 
   def load_model(self) -> BaseEstimator:
@@ -331,7 +331,7 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
     return self._batching_kwargs
 
   def share_model_across_processes(self) -> bool:
-    return self._large_model
+    return self._share_across_processes
 
   def max_shared_model_copies(self) -> int:
     return self._model_copies

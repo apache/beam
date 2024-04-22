@@ -276,7 +276,7 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
     elif 'onnx_path' in kwargs:
       self.onnx_path = kwargs.get('onnx_path')
     self._env_vars = kwargs.get('env_vars', {})
-    self._large_model = large_model or (model_copies is not None)
+    self._share_across_processes = large_model or (model_copies is not None)
     self._model_copies = model_copies or 1
 
   def batch_elements_kwargs(self):
@@ -339,7 +339,7 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
     return 'BeamML_TensorRT'
 
   def share_model_across_processes(self) -> bool:
-    return self._large_model
+    return self._share_across_processes
 
   def max_shared_model_copies(self) -> int:
     return self._model_copies
