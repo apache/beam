@@ -164,7 +164,7 @@ class OnnxModelHandlerNumpy(ModelHandler[numpy.ndarray,
   def share_model_across_processes(self) -> bool:
     return self._share_across_processes
 
-  def max_shared_model_copies(self) -> int:
+  def model_copies(self) -> int:
     return self._model_copies
 
   def batch_elements_kwargs(self) -> Mapping[str, Any]:

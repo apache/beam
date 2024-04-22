@@ -357,7 +357,7 @@ class HuggingFaceModelHandlerKeyedTensor(ModelHandler[Dict[str,
   def share_model_across_processes(self) -> bool:
     return self._share_across_processes
 
-  def max_shared_model_copies(self) -> int:
+  def model_copies(self) -> int:
     return self._model_copies
 
   def get_metrics_namespace(self) -> str:
@@ -552,7 +552,7 @@ class HuggingFaceModelHandlerTensor(ModelHandler[Union[tf.Tensor, torch.Tensor],
   def share_model_across_processes(self) -> bool:
     return self._share_across_processes
 
-  def max_shared_model_copies(self) -> int:
+  def model_copies(self) -> int:
     return self._model_copies
 
   def get_metrics_namespace(self) -> str:
@@ -741,7 +741,7 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
   def share_model_across_processes(self) -> bool:
     return self._share_across_processes
 
-  def max_shared_model_copies(self) -> int:
+  def model_copies(self) -> int:
     return self._model_copies
 
   def get_metrics_namespace(self) -> str:

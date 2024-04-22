@@ -315,7 +315,7 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
     https://beam.apache.org/releases/pydoc/current/apache_beam.utils.multi_process_shared.html"""
     return False
 
-  def max_shared_model_copies(self) -> int:
+  def model_copies(self) -> int:
     """Returns the maximum number of model copies that should be loaded at one
     time. This only impacts model handlers that are using
     share_model_across_processes to share their model across processes instead
@@ -802,16 +802,16 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
       return self._unkeyed.share_model_across_processes()
     return True
 
-  def max_shared_model_copies(self) -> int:
+  def model_copies(self) -> int:
     if self._single_model:
-      return self._unkeyed.max_shared_model_copies()
+      return self._unkeyed.model_copies()
     for mh in self._id_to_mh_map.values():
-      if mh.max_shared_model_copies() != 1:
+      if mh.model_copies() != 1:
         raise ValueError(
             'KeyedModelHandler cannot map records to multiple '
             'models if one or more of its ModelHandlers '
             'require multiple model copies (set via'
-            'max_shared_model_copies). To fix, verify that each '
+            'model_copies). To fix, verify that each '
             'ModelHandler is not set to load multiple copies of '
             'its model.')
 
@@ -924,8 +924,8 @@ class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
   def share_model_across_processes(self) -> bool:
     return self._unkeyed.share_model_across_processes()
 
-  def max_shared_model_copies(self) -> int:
-    return self._unkeyed.max_shared_model_copies()
+  def model_copies(self) -> int:
+    return self._unkeyed.model_copies()
 
 
 class _PrebatchedModelHandler(Generic[ExampleT, PredictionT, ModelT],
@@ -980,8 +980,8 @@ class _PrebatchedModelHandler(Generic[ExampleT, PredictionT, ModelT],
   def share_model_across_processes(self) -> bool:
     return self._base.share_model_across_processes()
 
-  def max_shared_model_copies(self) -> int:
-    return self._base.max_shared_model_copies()
+  def model_copies(self) -> int:
+    return self._base.model_copies()
 
   def get_postprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
     return self._base.get_postprocess_fns()
@@ -1046,8 +1046,8 @@ class _PreProcessingModelHandler(Generic[ExampleT,
   def share_model_across_processes(self) -> bool:
     return self._base.share_model_across_processes()
 
-  def max_shared_model_copies(self) -> int:
-    return self._base.max_shared_model_copies()
+  def model_copies(self) -> int:
+    return self._base.model_copies()
 
   def get_postprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
     return self._base.get_postprocess_fns()
@@ -1111,8 +1111,8 @@ class _PostProcessingModelHandler(Generic[ExampleT,
   def share_model_across_processes(self) -> bool:
     return self._base.share_model_across_processes()
 
-  def max_shared_model_copies(self) -> int:
-    return self._base.max_shared_model_copies()
+  def model_copies(self) -> int:
+    return self._base.model_copies()
 
   def get_postprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
     return self._base.get_postprocess_fns() + [self._postprocess_fn]
@@ -1520,7 +1520,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     if self._model_handler.share_model_across_processes():
       # TODO - update this to populate a list of models of configurable length
       models = []
-      for i in range(self._model_handler.max_shared_model_copies()):
+      for i in range(self._model_handler.model_copies()):
         models.append(
             multi_process_shared.MultiProcessShared(
                 load, tag=f'{model_tag}{i}', always_proxy=True).acquire())

@@ -229,7 +229,7 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
   def share_model_across_processes(self) -> bool:
     return self._share_across_processes
 
-  def max_shared_model_copies(self) -> int:
+  def model_copies(self) -> int:
     return self._model_copies
 
 
@@ -370,5 +370,5 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
   def share_model_across_processes(self) -> bool:
     return self._share_across_processes
 
-  def max_shared_model_copies(self) -> int:
+  def model_copies(self) -> int:
     return self._model_copies

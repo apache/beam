@@ -131,7 +131,7 @@ class FakeModelHandler(base.ModelHandler[int, int, FakeModel]):
   def share_model_across_processes(self):
     return self._multi_process_shared
 
-  def max_shared_model_copies(self):
+  def model_copies(self):
     return self._max_copies
 
   def get_num_bytes(self, batch: Sequence[int]) -> int:
@@ -300,8 +300,7 @@ class RunInferenceBaseTest(unittest.TestCase):
               max_batch_size=1))
       assert_that(actual, equal_to(expected), label='assert:inferences')
 
-  def test_run_inference_impl_mps_nobatch_incrementing_multi_copy(
-      self):
+  def test_run_inference_impl_mps_nobatch_incrementing_multi_copy(self):
     with TestPipeline() as pipeline:
       examples = [1, 5, 3, 10, 1, 5, 3, 10, 1, 5, 3, 10, 1, 5, 3, 10]
       expected = [1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4]
@@ -313,8 +312,7 @@ class RunInferenceBaseTest(unittest.TestCase):
               incrementing=True).with_no_batching())
       assert_that(actual, equal_to(expected), label='assert:inferences')
 
-  def test_run_inference_impl_keyed_mps_incrementing_multi_copy(
-      self):
+  def test_run_inference_impl_keyed_mps_incrementing_multi_copy(self):
     with TestPipeline() as pipeline:
       examples = [1, 5, 3, 10, 1, 5, 3, 10, 1, 5, 3, 10, 1, 5, 3, 10]
       keyed_examples = [('abc', example) for example in examples]
