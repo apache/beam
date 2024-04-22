@@ -183,7 +183,7 @@ func panicIfNot42(v int) {
 	}
 }
 
-// dropKeyEmitValues panics if the value is not 42.
+// dropKeyEmitValues drops the key and emits the value.
 func dropKeyEmitValues(_ int, vs func(*int) bool, emit func(int)) {
 	var v int
 	for vs(&v) {
