@@ -431,7 +431,6 @@ class WriteToAvro(beam.transforms.PTransform):
             "An explicit schema is required to write non-schema'd PCollections."
         ) from exn
       avro_schema = beam_schema_to_avro_schema(beam_schema)
-      print("HERE: ", avro_schema)
       records = pcoll | beam.Map(
           beam_row_to_avro_dict(avro_schema, beam_schema))
     self._sink = self._sink_provider(avro_schema)
