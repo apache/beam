@@ -17,72 +17,29 @@
  */
 package org.apache.beam.sdk.managed;
 
-import static org.apache.beam.model.pipeline.v1.ExternalTransforms.ExpansionMethods.Enum.SCHEMA_TRANSFORM;
-import static org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import static org.apache.beam.sdk.managed.ManagedSchemaTransformProvider.ManagedSchemaTransform;
+import static org.apache.beam.sdk.schemas.transforms.SchemaTransformTranslation.SchemaTransformPayloadTranslator;
 import static org.apache.beam.sdk.util.construction.PTransformTranslation.TransformPayloadTranslator;
 
 import com.google.auto.service.AutoService;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.util.Map;
-import org.apache.beam.model.pipeline.v1.ExternalTransforms.SchemaTransformPayload;
-import org.apache.beam.model.pipeline.v1.SchemaApi;
-import org.apache.beam.sdk.coders.RowCoder;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.runners.AppliedPTransform;
-import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.SchemaTranslation;
+import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.util.construction.BeamUrns;
-import org.apache.beam.sdk.util.construction.SdkComponents;
 import org.apache.beam.sdk.util.construction.TransformPayloadTranslatorRegistrar;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class ManagedSchemaTransformTranslation {
   static class ManagedSchemaTransformTranslator
-      implements TransformPayloadTranslator<ManagedSchemaTransform> {
-    static final ManagedSchemaTransformProvider PROVIDER = new ManagedSchemaTransformProvider(null);
-    static final Schema SCHEMA = PROVIDER.configurationSchema();
-
+      extends SchemaTransformPayloadTranslator<ManagedSchemaTransform> {
     @Override
-    public String getUrn() {
-      return BeamUrns.getUrn(SCHEMA_TRANSFORM);
-    }
-
-    @Override
-    @SuppressWarnings("argument")
-    public @Nullable FunctionSpec translate(
-        AppliedPTransform<?, ?, ManagedSchemaTransform> application, SdkComponents components)
-        throws IOException {
-      SchemaApi.Schema expansionSchema = SchemaTranslation.schemaToProto(SCHEMA, true);
-      Row configRow = toConfigRow(application.getTransform());
-      ByteArrayOutputStream os = new ByteArrayOutputStream();
-      RowCoder.of(SCHEMA).encode(configRow, os);
-
-      return FunctionSpec.newBuilder()
-          .setUrn(getUrn())
-          .setPayload(
-              SchemaTransformPayload.newBuilder()
-                  .setIdentifier(PROVIDER.identifier())
-                  .setConfigurationSchema(expansionSchema)
-                  .setConfigurationRow(ByteString.copyFrom(os.toByteArray()))
-                  .build()
-                  .toByteString())
-          .build();
+    public SchemaTransformProvider provider() {
+      return new ManagedSchemaTransformProvider(null);
     }
 
     @Override
     public Row toConfigRow(ManagedSchemaTransform transform) {
       return transform.getConfigurationRow();
-    }
-
-    @Override
-    public ManagedSchemaTransform fromConfigRow(Row configRow, PipelineOptions options) {
-      return (ManagedSchemaTransform) PROVIDER.from(configRow);
     }
   }
 

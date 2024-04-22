@@ -17,74 +17,31 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
-import static org.apache.beam.model.pipeline.v1.ExternalTransforms.ExpansionMethods.Enum.SCHEMA_TRANSFORM;
 import static org.apache.beam.sdk.io.iceberg.IcebergReadSchemaTransformProvider.IcebergReadSchemaTransform;
 import static org.apache.beam.sdk.io.iceberg.IcebergWriteSchemaTransformProvider.IcebergWriteSchemaTransform;
+import static org.apache.beam.sdk.schemas.transforms.SchemaTransformTranslation.SchemaTransformPayloadTranslator;
 
 import com.google.auto.service.AutoService;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.util.Map;
-import org.apache.beam.model.pipeline.v1.ExternalTransforms.SchemaTransformPayload;
-import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
-import org.apache.beam.model.pipeline.v1.SchemaApi;
-import org.apache.beam.sdk.coders.RowCoder;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.runners.AppliedPTransform;
-import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.SchemaTranslation;
+import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.util.construction.BeamUrns;
 import org.apache.beam.sdk.util.construction.PTransformTranslation.TransformPayloadTranslator;
-import org.apache.beam.sdk.util.construction.SdkComponents;
 import org.apache.beam.sdk.util.construction.TransformPayloadTranslatorRegistrar;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 @SuppressWarnings({"rawtypes", "nullness"})
 public class IcebergSchemaTransformTranslation {
   static class IcebergReadSchemaTransformTranslator
-      implements TransformPayloadTranslator<IcebergReadSchemaTransform> {
-    static final IcebergReadSchemaTransformProvider READ_PROVIDER =
-        new IcebergReadSchemaTransformProvider();
-    static final Schema READ_SCHEMA = READ_PROVIDER.configurationSchema();
-
+      extends SchemaTransformPayloadTranslator<IcebergReadSchemaTransform> {
     @Override
-    public String getUrn() {
-      return BeamUrns.getUrn(SCHEMA_TRANSFORM);
-    }
-
-    @Override
-    public @Nullable FunctionSpec translate(
-        AppliedPTransform<?, ?, IcebergReadSchemaTransform> application, SdkComponents components)
-        throws IOException {
-      SchemaApi.Schema expansionSchema = SchemaTranslation.schemaToProto(READ_SCHEMA, true);
-      Row configRow = toConfigRow(application.getTransform());
-      ByteArrayOutputStream os = new ByteArrayOutputStream();
-      RowCoder.of(READ_SCHEMA).encode(configRow, os);
-
-      return FunctionSpec.newBuilder()
-          .setUrn(getUrn())
-          .setPayload(
-              SchemaTransformPayload.newBuilder()
-                  .setIdentifier(READ_PROVIDER.identifier())
-                  .setConfigurationSchema(expansionSchema)
-                  .setConfigurationRow(ByteString.copyFrom(os.toByteArray()))
-                  .build()
-                  .toByteString())
-          .build();
+    public SchemaTransformProvider provider() {
+      return new IcebergReadSchemaTransformProvider();
     }
 
     @Override
     public Row toConfigRow(IcebergReadSchemaTransform transform) {
       return transform.getConfigurationRow();
-    }
-
-    @Override
-    public IcebergReadSchemaTransform fromConfigRow(Row configRow, PipelineOptions options) {
-      return (IcebergReadSchemaTransform) READ_PROVIDER.from(configRow);
     }
   }
 
@@ -103,46 +60,15 @@ public class IcebergSchemaTransformTranslation {
   }
 
   static class IcebergWriteSchemaTransformTranslator
-      implements TransformPayloadTranslator<IcebergWriteSchemaTransform> {
-
-    static final IcebergWriteSchemaTransformProvider WRITE_PROVIDER =
-        new IcebergWriteSchemaTransformProvider();
-    static final Schema WRITE_SCHEMA = WRITE_PROVIDER.configurationSchema();
-
+      extends SchemaTransformPayloadTranslator<IcebergWriteSchemaTransform> {
     @Override
-    public String getUrn() {
-      return BeamUrns.getUrn(SCHEMA_TRANSFORM);
-    }
-
-    @Override
-    public @Nullable FunctionSpec translate(
-        AppliedPTransform<?, ?, IcebergWriteSchemaTransform> application, SdkComponents components)
-        throws IOException {
-      SchemaApi.Schema expansionSchema = SchemaTranslation.schemaToProto(WRITE_SCHEMA, true);
-      Row configRow = toConfigRow(application.getTransform());
-      ByteArrayOutputStream os = new ByteArrayOutputStream();
-      RowCoder.of(WRITE_SCHEMA).encode(configRow, os);
-
-      return FunctionSpec.newBuilder()
-          .setUrn(getUrn())
-          .setPayload(
-              SchemaTransformPayload.newBuilder()
-                  .setIdentifier(WRITE_PROVIDER.identifier())
-                  .setConfigurationSchema(expansionSchema)
-                  .setConfigurationRow(ByteString.copyFrom(os.toByteArray()))
-                  .build()
-                  .toByteString())
-          .build();
+    public SchemaTransformProvider provider() {
+      return new IcebergWriteSchemaTransformProvider();
     }
 
     @Override
     public Row toConfigRow(IcebergWriteSchemaTransform transform) {
       return transform.getConfigurationRow();
-    }
-
-    @Override
-    public IcebergWriteSchemaTransform fromConfigRow(Row configRow, PipelineOptions options) {
-      return (IcebergWriteSchemaTransform) WRITE_PROVIDER.from(configRow);
     }
   }
 

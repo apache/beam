@@ -160,11 +160,11 @@ public class ManagedSchemaTransformTranslationTest {
     SchemaTransformPayload payload = SchemaTransformPayload.parseFrom(spec.getPayload());
     assertEquals(PROVIDER.identifier(), payload.getIdentifier());
     Schema schemaFromSpec = SchemaTranslation.schemaFromProto(payload.getConfigurationSchema());
-    assertEquals(ManagedSchemaTransformTranslator.SCHEMA, schemaFromSpec);
+    assertEquals(PROVIDER.configurationSchema(), schemaFromSpec);
     Row rowFromSpec = RowCoder.of(schemaFromSpec).decode(payload.getConfigurationRow().newInput());
     // Translation logic outputs a Row with snake_case naming convention
     Row expectedRow =
-        Row.withSchema(ManagedSchemaTransformTranslator.SCHEMA)
+        Row.withSchema(PROVIDER.configurationSchema())
             .withFieldValue("transform_identifier", TestSchemaTransformProvider.IDENTIFIER)
             .withFieldValue("config_url", null)
             .withFieldValue("config", yamlStringConfig)

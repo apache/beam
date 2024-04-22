@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.expansion.service;
 
+import static org.apache.beam.model.pipeline.v1.ExternalTransforms.ExpansionMethods.Enum.SCHEMA_TRANSFORM;
+import static org.apache.beam.sdk.schemas.transforms.SchemaTransformTranslation.SchemaTransformPayloadTranslator;
 import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
 import static org.apache.beam.sdk.util.construction.PTransformTranslation.READ_TRANSFORM_URN;
 
@@ -68,6 +70,7 @@ import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.util.construction.BeamUrns;
 import org.apache.beam.sdk.util.construction.Environments;
 import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.util.construction.PTransformTranslation.TransformPayloadTranslator;
@@ -170,6 +173,9 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
                     + translator
                     + " to the Expansion Service since it did not produce a unique URN.");
             continue;
+          } else if (urn.equals(BeamUrns.getUrn(SCHEMA_TRANSFORM))
+              && translator instanceof SchemaTransformPayloadTranslator) {
+            urn = ((SchemaTransformPayloadTranslator) translator).provider().identifier();
           }
         } catch (Exception e) {
           LOG.info(
@@ -590,7 +596,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
           pipelineOptions.as(ExpansionServiceOptions.class).getJavaClassLookupAllowlist();
       assert allowList != null;
       transformProvider = new JavaClassLookupTransformProvider(allowList);
-    } else if (getUrn(ExpansionMethods.Enum.SCHEMA_TRANSFORM).equals(urn)) {
+    } else if (getUrn(SCHEMA_TRANSFORM).equals(urn)) {
       transformProvider = ExpansionServiceSchemaTransformProvider.of();
     } else {
       transformProvider = getRegisteredTransforms().get(urn);
