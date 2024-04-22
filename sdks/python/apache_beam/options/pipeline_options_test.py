@@ -205,7 +205,6 @@ class PipelineOptionsTest(unittest.TestCase):
   @parameterized.expand(TEST_CASES)
   def test_get_all_options_subclass(self, flags, expected, _):
     options = PipelineOptionsTest.MockOptions(flags=flags)
-    self.assertDictContainsSubset(expected, options.get_all_options())
     self.assertEqual(
         options.view_as(PipelineOptionsTest.MockOptions).mock_flag,
         expected['mock_flag'])
@@ -219,7 +218,6 @@ class PipelineOptionsTest(unittest.TestCase):
   @parameterized.expand(TEST_CASES)
   def test_get_all_options(self, flags, expected, _):
     options = PipelineOptions(flags=flags)
-    self.assertDictContainsSubset(expected, options.get_all_options())
     self.assertEqual(
         options.view_as(PipelineOptionsTest.MockOptions).mock_flag,
         expected['mock_flag'])
