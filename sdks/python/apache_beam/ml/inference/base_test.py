@@ -300,7 +300,7 @@ class RunInferenceBaseTest(unittest.TestCase):
               max_batch_size=1))
       assert_that(actual, equal_to(expected), label='assert:inferences')
 
-  def test_run_inference_impl_multi_process_shared_nobatch_incrementing_multi_copy(
+  def test_run_inference_impl_mps_nobatch_incrementing_multi_copy(
       self):
     with TestPipeline() as pipeline:
       examples = [1, 5, 3, 10, 1, 5, 3, 10, 1, 5, 3, 10, 1, 5, 3, 10]
@@ -313,7 +313,7 @@ class RunInferenceBaseTest(unittest.TestCase):
               incrementing=True).with_no_batching())
       assert_that(actual, equal_to(expected), label='assert:inferences')
 
-  def test_run_inference_impl_keyed_multi_process_shared_incrementing_multi_copy(
+  def test_run_inference_impl_keyed_mps_incrementing_multi_copy(
       self):
     with TestPipeline() as pipeline:
       examples = [1, 5, 3, 10, 1, 5, 3, 10, 1, 5, 3, 10, 1, 5, 3, 10]
