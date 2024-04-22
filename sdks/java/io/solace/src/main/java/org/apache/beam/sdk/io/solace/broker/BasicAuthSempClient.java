@@ -20,15 +20,12 @@ package org.apache.beam.sdk.io.solace.broker;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.google.api.client.http.HttpRequestFactory;
-import com.google.auto.value.AutoValue;
 import com.solacesystems.jcsmp.JCSMPFactory;
 import java.io.IOException;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.solace.SerializableSupplier;
+import org.apache.beam.sdk.io.solace.data.Semp.Queue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -93,130 +90,5 @@ public class BasicAuthSempClient implements SempClient {
   private <T> T mapJsonToClass(String content, Class<T> mapSuccessToClass)
       throws JsonProcessingException {
     return objectMapper.readValue(content, mapSuccessToClass);
-  }
-
-  @AutoValue
-  @JsonSerialize(as = Queue.class)
-  @JsonDeserialize(builder = AutoValue_BasicAuthSempClient_Queue.Builder.class)
-  abstract static class Queue {
-
-    public abstract QueueData data();
-
-    public static Builder builder() {
-      return new AutoValue_BasicAuthSempClient_Queue.Builder();
-    }
-
-    public abstract Builder toBuilder();
-
-    @AutoValue.Builder
-    @JsonPOJOBuilder(withPrefix = "set")
-    abstract static class Builder {
-
-      public abstract Builder setData(QueueData queueData);
-
-      public abstract Queue build();
-    }
-  }
-
-  @AutoValue
-  @JsonDeserialize(builder = AutoValue_BasicAuthSempClient_QueueData.Builder.class)
-  abstract static class QueueData {
-    public abstract String accessType();
-
-    public abstract long msgSpoolUsage();
-
-    public static Builder builder() {
-      return new AutoValue_BasicAuthSempClient_QueueData.Builder();
-    }
-
-    public abstract Builder toBuilder();
-
-    @AutoValue.Builder
-    @JsonPOJOBuilder(withPrefix = "set")
-    abstract static class Builder {
-
-      public abstract Builder setAccessType(String accessType);
-
-      public abstract Builder setMsgSpoolUsage(long msgSpoolUsage);
-
-      public abstract QueueData build();
-    }
-  }
-
-  @AutoValue
-  @JsonSerialize(as = ErrorMessage.class)
-  @JsonDeserialize(builder = AutoValue_BasicAuthSempClient_ErrorMessage.Builder.class)
-  abstract static class ErrorMessage {
-
-    public abstract ErrorMessageMeta meta();
-
-    public static Builder builder() {
-      return new AutoValue_BasicAuthSempClient_ErrorMessage.Builder();
-    }
-
-    public abstract Builder toBuilder();
-
-    @AutoValue.Builder
-    @JsonPOJOBuilder(withPrefix = "set")
-    abstract static class Builder {
-
-      public abstract Builder setMeta(ErrorMessageMeta errorMessageMeta);
-
-      public abstract ErrorMessage build();
-    }
-
-    @AutoValue
-    @JsonSerialize(as = ErrorMessageMeta.class)
-    @JsonDeserialize(
-        builder = AutoValue_BasicAuthSempClient_ErrorMessage_ErrorMessageMeta.Builder.class)
-    abstract static class ErrorMessageMeta {
-      public abstract ErrorMessageDetails error();
-
-      public static Builder builder() {
-        return new AutoValue_BasicAuthSempClient_ErrorMessage_ErrorMessageMeta.Builder();
-      }
-
-      public abstract Builder toBuilder();
-
-      @AutoValue.Builder
-      @JsonPOJOBuilder(withPrefix = "set")
-      abstract static class Builder {
-
-        public abstract Builder setError(ErrorMessageDetails errorMessageDetails);
-
-        public abstract ErrorMessageMeta build();
-      }
-    }
-
-    @AutoValue
-    @JsonSerialize(as = ErrorMessageDetails.class)
-    @JsonDeserialize(
-        builder = AutoValue_BasicAuthSempClient_ErrorMessage_ErrorMessageDetails.Builder.class)
-    abstract static class ErrorMessageDetails {
-      public abstract Integer code();
-
-      public abstract String description();
-
-      public abstract String status();
-
-      public static Builder builder() {
-        return new AutoValue_BasicAuthSempClient_ErrorMessage_ErrorMessageDetails.Builder();
-      }
-
-      public abstract Builder toBuilder();
-
-      @AutoValue.Builder
-      @JsonPOJOBuilder(withPrefix = "set")
-      abstract static class Builder {
-
-        public abstract Builder setCode(Integer code);
-
-        public abstract Builder setDescription(String description);
-
-        public abstract Builder setStatus(String status);
-
-        public abstract ErrorMessageDetails build();
-      }
-    }
   }
 }
