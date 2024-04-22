@@ -153,7 +153,8 @@ type Config struct {
 type ElementManager struct {
 	config Config
 
-	stages map[string]*stageState // The state for each stage.
+	impulses set[string]            // List of impulse stages.
+	stages   map[string]*stageState // The state for each stage.
 
 	consumers     map[string][]string // Map from pcollectionID to stageIDs that consumes them as primary input.
 	sideConsumers map[string][]LinkID // Map from pcollectionID to the stage+transform+input that consumes them as side input.
@@ -254,6 +255,14 @@ func (em *ElementManager) Impulse(stageID string) {
 		em.addPending(count)
 	}
 	refreshes := stage.updateWatermarks(em)
+
+	// Since impulses are synthetic, we need to simulate them properly
+	// if a pipeline is only test stream driven.
+	if em.impulses == nil {
+		em.impulses = refreshes
+	} else {
+		em.impulses.merge(refreshes)
+	}
 	em.addRefreshes(refreshes)
 }
 
@@ -286,6 +295,13 @@ func (em *ElementManager) Bundles(ctx context.Context, nextBundID func() string)
 	// Watermark evaluation goroutine.
 	go func() {
 		defer close(runStageCh)
+
+		// If we have a test stream, clear out existing refreshes, so the test stream can
+		// insert any elements it needs.
+		if em.testStreamHandler != nil {
+			em.watermarkRefreshes = singleSet(em.testStreamHandler.ID)
+		}
+
 		for {
 			em.refreshCond.L.Lock()
 			// If there are no watermark refreshes available, we wait until there are.
@@ -370,7 +386,13 @@ func (em *ElementManager) checkForQuiescence(advanced set[string]) {
 		nextEvent.Execute(em)
 		// Decrement pending for the event being processed.
 		em.addPending(-1)
-		return
+		// If there are refreshes scheduled, then test stream permitted execution to continue.
+		// Note: it's a prism bug if test stream never causes a refresh to occur for a given event.
+		// It's not correct to move to the next event if no refreshes would occur.
+		if len(em.watermarkRefreshes) > 0 {
+			return
+		}
+		// If there are no refreshes,  then there's no mechanism to make progress, so it's time to fast fail.
 	}
 
 	v := em.livePending.Load()
