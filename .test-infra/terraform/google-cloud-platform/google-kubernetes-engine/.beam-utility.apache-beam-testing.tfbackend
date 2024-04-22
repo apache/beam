@@ -15,6 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
+
 bucket = "b507e468-52e9-4e72-83e5-ecbf563eda12"
 prefix = ".test-infra/terraform/google-cloud-platform/google-kubernetes-engine/beam-utility"
