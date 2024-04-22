@@ -87,7 +87,7 @@ func TestTestStreamToGBK(t *testing.T) {
 	ptest.BuildAndRun(t, TestStreamToGBK)
 }
 
-func TestTestStreamTimersEventTimeTestStream(t *testing.T) {
+func TestTestStreamTimersEventTime(t *testing.T) {
 	integration.CheckFilters(t)
 	ptest.BuildAndRun(t, TestStreamTimersEventTime)
 }
