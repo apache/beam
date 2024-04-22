@@ -31,11 +31,6 @@ from typing import Optional
 from typing import TypeVar
 from typing import Union
 
-import js2py
-from js2py import base
-from js2py.constructors import jsdate
-from js2py.internals import simplex
-
 import apache_beam as beam
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.portability.api import schema_pb2
@@ -51,6 +46,14 @@ from apache_beam.yaml import json_utils
 from apache_beam.yaml import options
 from apache_beam.yaml import yaml_provider
 from apache_beam.yaml.yaml_provider import dicts_to_rows
+
+# Import js2py package if it exists
+try:
+  import js2py
+  from js2py.base import JsObjectWrapper
+except ImportError:
+  js2py = None
+  JsObjectWrapper = object
 
 
 def normalize_mapping(spec):
@@ -87,7 +90,7 @@ def _check_mapping_arguments(
 # js2py's JsObjectWrapper object has a self-referencing __dict__ property
 # that cannot be pickled without implementing the __getstate__ and
 # __setstate__ methods.
-class _CustomJsObjectWrapper(js2py.base.JsObjectWrapper):
+class _CustomJsObjectWrapper(JsObjectWrapper):
   def __init__(self, js_obj):
     super().__init__(js_obj.__dict__['_obj'])
 
@@ -115,6 +118,17 @@ def py_value_to_js_dict(py_value):
 #  ECMAScript 5 and 6
 def _expand_javascript_mapping_func(
     original_fields, expression=None, callable=None, path=None, name=None):
+
+  # Check for installed js2py package
+  if js2py is None:
+    raise ValueError(
+        "Javascript mapping functions are not supported on"
+        " Python 3.12 or later.")
+
+  # import remaining js2py objects
+  from js2py import base
+  from js2py.constructors import jsdate
+  from js2py.internals import simplex
 
   js_array_type = (
       base.PyJsArray,
@@ -515,7 +529,7 @@ def normalize_fields(pcoll, fields, drop=(), append=False, language='generic'):
 
   if append:
     return input_schema, {
-        **{name: name
+        **{name: f'`{name}`' if language in ['sql', 'calcite'] else name
            for name in input_schema.keys() if name not in drop},
         **fields
     }
@@ -561,10 +575,10 @@ def _SqlMapToFieldsTransform(pcoll, sql_transform_constructor, **mapping_args):
     elif 'expression' in v:
       return v['expression']
     else:
-      raise ValueError("Only expressions allowed in SQL at {name}.")
+      raise ValueError(f"Only expressions allowed in SQL at {name}.")
 
   selects = [
-      f'({extract_expr(name, expr)}) AS {name}'
+      f'({extract_expr(name, expr)}) AS `{name}`'
       for (name, expr) in fields.items()
   ]
   query = "SELECT " + ", ".join(selects) + " FROM PCOLLECTION"

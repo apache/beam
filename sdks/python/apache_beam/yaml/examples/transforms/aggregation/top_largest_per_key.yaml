@@ -48,9 +48,6 @@ pipeline:
                 n: 2
     - type: LogForTesting
 
-options:
-  yaml_experimental_features: Combine
-
 # Expected:
 #  Row(produce='🥕', biggest=[3, 2])
 #  Row(produce='🍆', biggest=[1])

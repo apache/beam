@@ -28,8 +28,8 @@ spec:
   kafka:
     resources:
       requests:
-        cpu: 2
-        memory: 4Gi  
+        cpu: 8
+        memory: 64Gi
     version: 3.6.0
     replicas: 3
     config:
@@ -44,7 +44,7 @@ spec:
       volumes:
         - id: 0
           type: persistent-claim
-          size: 100Gi
+          size: 500Gi
           deleteClaim: false
   zookeeper:
     resources:

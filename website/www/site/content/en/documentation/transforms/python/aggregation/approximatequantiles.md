@@ -17,7 +17,14 @@ limitations under the License.
 
 # ApproximateQuantiles
 
+{{< localstorage language language-py >}}
+
+{{< button-pydoc path="apache_beam.transforms.stat" class="ApproximateQuantile" >}}
+
 ## Examples
-See [Issue 19547](https://github.com/apache/beam/issues/19547) for updates.
+
+{{< playground height="700px" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_ApproximateQuantiles" show="approximatequantiles" >}}
+{{< /playground >}}
 
 ## Related transforms

@@ -21,7 +21,10 @@ Most workflows will get kicked off automatically when you open a PR, push code, 
 
 If you would like to manually trigger a job, you have 2 options:
 
-1) Trigger Phrases: Many jobs have trigger phrases associated with them (e.g. `Run XYZ PreCommit`). These will appear in statuses of previous PR runs of that check. You can trigger the job on any PR by commenting that trigger phrase in the PR.
+1) Trigger Phrases: Some jobs have trigger phrases associated with them (e.g. `Run XYZ PreCommit`). These will appear in statuses of previous PR runs of that check. You can trigger the job on any PR by commenting that trigger phrase in the PR.
+
+   **Note:** this approach is found not scalable ([#28909](https://github.com/apache/beam/issues/28909)) and currently only enabled for PreCommit workflows. For PostCommit jobs, it is currently replaced by a temporary approach: test suites are configured to trigger whenever a particular trigger file is modified. Test [workflows](https://github.com/apache/beam/tree/master/.github/workflows) have [pull_request_target paths](https://github.com/apache/beam/blob/e33dec69c7cfd01c0b827538e1dad8567e3ff95e/.github/workflows/beam_PreCommit_Whitespace.yml#L25), which include a trigger file. Whenever a trigger file is modified, the test suite will trigger on the pull request. Make any change to this file to trigger the job. The trigger file looks like the following: `.github/trigger_files/<workflow_file_name.json>`.
+
 2) **Committers only** - Manual triggering: Any committer can start any job with a [workflow_dispatch](https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#workflow_dispatch) trigger defined (all jobs should have these). To do so, navigate to the [Actions tab](https://github.com/apache/beam/actions), click on your desired workflow in the left navigation bar, and then click `Run Workflow`.
 
 # Guidelines for Adding or Modifying Workflows
@@ -139,7 +142,7 @@ In order to make it easier for non-committers to interact with workflows, workfl
 2) Each job should have the rerun action immediately after its checkout step. You can add a step that uses the `setup-action` action in your workflow, which encapsulates the checkout and rerun logic in one place. This should be gated on the comment trigger (example: https://github.com/apache/beam/blob/0ee2dc73ec6f555a5bf1a643dffd37f4927be67e/.github/workflows/beam_PreCommit_Go.yml#L65-L70)
 3) Each job should have a descriptive name that includes the comment trigger (example: https://github.com/apache/beam/blob/ba8fc935222aeb070668fbafd588bc58e7a21289/.github/workflows/beam_PreCommit_CommunityMetrics.yml#L48)
 
-**Note:** this approach is found not scalable ([#28909](https://github.com/apache/beam/issues/28909)) and currently only enabled for PreCommit workflows. For PostCommit jobs, it is currently replaced by a temporary approach of `pull_request_target` trigger with specific path `.github/trigger_files/<workflow_file_name_stem.json>`.
+**Note:** Comment triggering is found not scalable ([#28909](https://github.com/apache/beam/issues/28909)) and is currently limited to a subset of suites. For more information see the [Running Workflows Manually](#running-workflows-manually) section.
 
 # Testing new workflows or workflow updates
 
@@ -271,6 +274,8 @@ PreCommit Jobs run in a schedule and also get triggered in a PR if relevant sour
 | [ PreCommit Website Stage GCS ](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Website_Stage_GCS.yml) | N/A |`Run Website_Stage_GCS PreCommit`| [![.github/workflows/beam_PreCommit_Website_Stage_GCS.yml](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Website_Stage_GCS.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Website_Stage_GCS.yml?query=event%3Aschedule) |
 | [ PreCommit Whitespace ](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Whitespace.yml) | N/A |`Run Whitespace PreCommit`| [![.github/workflows/beam_PreCommit_Whitespace.yml](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Whitespace.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Whitespace.yml?query=event%3Aschedule) |
 | [ PreCommit Xlang Generated Transforms ](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Xlang_Generated_Transforms.yml) | N/A |`Run Xlang_Generated_Transforms PreCommit`| [![.github/workflows/beam_PreCommit_Xlang_Generated_Transforms.yml](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Xlang_Generated_Transforms.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Xlang_Generated_Transforms.yml?query=event%3Aschedule) |
+| [ PreCommit YAML Xlang Direct ](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Yaml_Xlang_Direct.yml) | N/A |`Run Yaml_Xlang_Direct PreCommit`| [![.github/workflows/beam_PreCommit_Yaml_Xlang_Direct.yml](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Yaml_Xlang_Direct.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PreCommit_Yaml_Xlang_Direct.yml?query=event%3Aschedule) |
+
 
 ### PostCommit Jobs
 

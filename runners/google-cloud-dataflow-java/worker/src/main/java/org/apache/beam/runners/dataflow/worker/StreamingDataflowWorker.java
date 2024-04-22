@@ -131,6 +131,7 @@ import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
+import org.apache.beam.sdk.util.construction.CoderTranslation;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
@@ -431,8 +432,9 @@ public class StreamingDataflowWorker {
             failureTracker,
             streamingCounters,
             memoryMonitor,
-            workExecutor);
-
+            workExecutor,
+            options.getWindmillHarnessUpdateReportingPeriod().getMillis(),
+            options.getPerWorkerMetricsUpdateReportingPeriodMillis());
     return new StreamingDataflowWorker(
         windmillServer,
         clientId,
@@ -500,7 +502,9 @@ public class StreamingDataflowWorker {
             streamingCounters,
             memoryMonitor,
             workExecutor,
-            executorSupplier);
+            executorSupplier,
+            options.getWindmillHarnessUpdateReportingPeriod().getMillis(),
+            options.getPerWorkerMetricsUpdateReportingPeriodMillis());
     return new StreamingDataflowWorker(
         windmillServer,
         1L,
@@ -597,6 +601,8 @@ public class StreamingDataflowWorker {
         !DataflowRunner.hasExperiment(options, "beam_fn_api"),
         "%s cannot be main() class with beam_fn_api enabled",
         StreamingDataflowWorker.class.getSimpleName());
+
+    CoderTranslation.verifyModelCodersRegistered();
 
     LOG.debug("Creating StreamingDataflowWorker from options: {}", options);
     StreamingDataflowWorker worker = StreamingDataflowWorker.fromOptions(options);
@@ -760,7 +766,7 @@ public class StreamingDataflowWorker {
       scheduledExecutors.add(statusPageTimer);
     }
     workCommitter.start();
-    workerStatusReporter.start(options.getWindmillHarnessUpdateReportingPeriod().getMillis());
+    workerStatusReporter.start();
     activeWorkRefresher.start();
   }
 

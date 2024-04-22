@@ -14,7 +14,6 @@
 # limitations under the License.
 #
 
-# cython: profile=True
 
 """ For internal use only. No backwards compatibility guarantees."""
 

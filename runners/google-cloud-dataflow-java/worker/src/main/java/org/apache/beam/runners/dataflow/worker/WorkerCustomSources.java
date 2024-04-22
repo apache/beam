@@ -798,7 +798,9 @@ public class WorkerCustomSources {
       DataflowPipelineDebugOptions debugOptions = options.as(DataflowPipelineDebugOptions.class);
       this.endTime =
           Instant.now()
-              .plus(Duration.standardSeconds(debugOptions.getUnboundedReaderMaxReadTimeSec()));
+              .plus(
+                  Duration.millis(
+                      (long) (debugOptions.getUnboundedReaderMaxReadTimeSec() * 1000L)));
       this.maxElems = debugOptions.getUnboundedReaderMaxElements();
       this.backoffFactory =
           FluentBackoff.DEFAULT

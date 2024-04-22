@@ -67,7 +67,7 @@ def replace_recursive(spec, vars):
     }
   elif isinstance(spec, list):
     return [replace_recursive(value, vars) for value in spec]
-  elif isinstance(spec, str) and '{' in spec:
+  elif isinstance(spec, str) and '{' in spec and '{\n' not in spec:
     try:
       return spec.format(**vars)
     except Exception as exn:
@@ -92,12 +92,19 @@ def provider_sets(spec, require_available=False):
   """For transforms that are vended by multiple providers, yields all possible
   combinations of providers to use.
   """
-  all_transform_types = set.union(
-      *(
-          set(
-              transform_types(
-                  yaml_transform.preprocess(copy.deepcopy(p['pipeline']))))
-          for p in spec['pipelines']))
+  try:
+    for p in spec['pipelines']:
+      _ = yaml_transform.preprocess(copy.deepcopy(p['pipeline']))
+  except Exception as exn:
+    print(exn)
+    all_transform_types = []
+  else:
+    all_transform_types = set.union(
+        *(
+            set(
+                transform_types(
+                    yaml_transform.preprocess(copy.deepcopy(p['pipeline']))))
+            for p in spec['pipelines']))
 
   def filter_to_available(t, providers):
     if require_available:
@@ -115,7 +122,7 @@ def provider_sets(spec, require_available=False):
       if len(filter_to_available(t, standard_providers[t])) > 1
   }
   if not multiple_providers:
-    return 'only', standard_providers
+    yield 'only', standard_providers
   else:
     names, provider_lists = zip(*sorted(multiple_providers.items()))
     for ix, c in enumerate(itertools.product(*provider_lists)):
@@ -146,6 +153,7 @@ def create_test_methods(spec):
         for pipeline_spec in spec['pipelines']:
           with beam.Pipeline(options=PipelineOptions(
               pickle_library='cloudpickle',
+              yaml_experimental_features=['Combine'],
               **yaml_transform.SafeLineLoader.strip_metadata(pipeline_spec.get(
                   'options', {})))) as p:
             yaml_transform.expand_pipeline(
@@ -157,7 +165,8 @@ def create_test_methods(spec):
 def parse_test_files(filepattern):
   for path in glob.glob(filepattern):
     with open(path) as fin:
-      suite_name = os.path.splitext(os.path.basename(path))[0].title() + 'Test'
+      suite_name = os.path.splitext(os.path.basename(path))[0].title().replace(
+          '-', '') + 'Test'
       print(path, suite_name)
       methods = dict(
           create_test_methods(

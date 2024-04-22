@@ -112,6 +112,12 @@ class KafkaIOReadImplementationCompatibility {
     VALUE_DESERIALIZER_PROVIDER,
     CHECK_STOP_READING_FN(SDF),
     BAD_RECORD_ERROR_HANDLER(SDF),
+    CONSUMER_POLLING_TIMEOUT(SDF) {
+      @Override
+      Object getDefaultValue() {
+        return Long.valueOf(2);
+      }
+    },
     ;
 
     @Nonnull private final ImmutableSet<KafkaIOReadImplementation> supportedImplementations;

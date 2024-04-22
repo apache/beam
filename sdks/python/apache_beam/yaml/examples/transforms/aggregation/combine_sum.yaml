@@ -57,9 +57,6 @@ pipeline:
             fn: mean
     - type: LogForTesting
 
-options:
-  yaml_experimental_features: Combine
-
 # Expected:
 #  Row(fruit='raspberry', total_quantity=1, mean_price=3.5)
 #  Row(fruit='blackberry', total_quantity=1, mean_price=4.0)

@@ -297,7 +297,7 @@ TODO: document Spark on Gradle: https://github.com/apache/beam/issues/21502
 {{< runner dataflow >}}
 gradle clean execute -DmainClass=org.apache.beam.examples.WordCount \
     --args="--project=<your-gcp-project> --inputFile=gs://apache-beam-samples/shakespeare/* \
-    --output=gs://<your-gcs-bucket>/counts" -Pdataflow-runner
+    --output=gs://<your-gcs-bucket>/counts --runner=DataflowRunner" -Pdataflow-runner
 {{< /runner >}}
 {{< runner samza>}}
 TODO: document Samza on Gradle: https://github.com/apache/beam/issues/21500
