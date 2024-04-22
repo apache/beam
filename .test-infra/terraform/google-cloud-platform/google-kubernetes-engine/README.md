@@ -85,7 +85,7 @@ See below for details on naming convention and expected content.
 If using `apache-beam-testing`, a suggested naming convention is
 `<cluster-name-prefix>.<region>.apache-beam-testing.tfvars`.
 
-For example, `my-cluster.us-central1.apache-beam-testing.tfvars` communicates to others that the 
+For example, `my-cluster.us-central1.apache-beam-testing.tfvars` communicates to others that the
 
 Both
 [.test-infra/terraform/google-cloud-platform/google-kubernetes-engine/us-central1.apache-beam-testing.tfvars](us-central1.apache-beam-testing.tfvars)
