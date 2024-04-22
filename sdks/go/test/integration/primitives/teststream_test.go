@@ -77,7 +77,7 @@ func TestTestStreamSimple(t *testing.T) {
 	ptest.BuildAndRun(t, TestStreamSimple)
 }
 
-func TestTestStreamTestStreamSimple_InfinityDefault(t *testing.T) {
+func TestTestStreamSimple_InfinityDefault(t *testing.T) {
 	integration.CheckFilters(t)
 	ptest.BuildAndRun(t, TestStreamSimple_InfinityDefault)
 }
