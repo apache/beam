@@ -5905,7 +5905,7 @@ java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCou
 &lt;/a>
 &lt;pre tabindex="0">&lt;code class="language-dataflow" data-lang="dataflow">gradle clean execute -DmainClass=org.apache.beam.examples.WordCount \
 --args=&amp;#34;--project=&amp;lt;your-gcp-project&amp;gt; --inputFile=gs://apache-beam-samples/shakespeare/* \
---output=gs://&amp;lt;your-gcs-bucket&amp;gt;/counts&amp;#34; -Pdataflow-runner&lt;/code>&lt;/pre>
+--output=gs://&amp;lt;your-gcs-bucket&amp;gt;/counts --runner=DataflowRunner&amp;#34; -Pdataflow-runner&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;div class='runner-samza snippet'>
