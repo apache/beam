@@ -72,6 +72,7 @@ abstract class FileWriteResult {
   }
 
   public static class FileWriteResultCoder extends StructuredCoder<FileWriteResult> {
+    static final int VERSION = 0;
     private static final FileWriteResultCoder SINGLETON = new FileWriteResultCoder();
 
     private static final Coder<String> tableIdentifierCoder = StringUtf8Coder.of();
@@ -96,7 +97,7 @@ abstract class FileWriteResult {
       // If breaking changes are introduced (e.g. from Beam, Iceberg, Avro, etc..),
       // then update this version and create a fork in decode() below for the new decode logic.
       // This helps keep the pipeline update-compatible
-      outStream.write(0);
+      outStream.write(VERSION);
 
       tableIdentifierCoder.encode(value.getTableIdentifier().toString(), outStream);
       partitionSpecCoder.encode(value.getPartitionSpec(), outStream);

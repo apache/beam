@@ -21,7 +21,10 @@ import static org.apache.iceberg.types.Types.NestedField.optional;
 import static org.apache.iceberg.types.Types.NestedField.required;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertEquals;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.Serializable;
 import java.util.List;
 import java.util.UUID;
@@ -138,6 +141,18 @@ public class FileWriteResultTest implements Serializable {
   public void testDecodeEncodeEqual() throws Exception {
     for (FileWriteResult value : getTestValues()) {
       CoderProperties.structuralValueDecodeEncodeEqual(TEST_CODER, value);
+    }
+  }
+
+  @Test
+  public void testDecodeEncodeVersionNumber() throws Exception {
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    ByteArrayInputStream in;
+    for (FileWriteResult value : getTestValues()) {
+      TEST_CODER.encode(value, out);
+      in = new ByteArrayInputStream(out.toByteArray());
+
+      assertEquals(FileWriteResult.FileWriteResultCoder.VERSION, in.read());
     }
   }
 
