@@ -185,6 +185,8 @@ public class ManagedSchemaTransformProvider
 
     Row getConfigurationRow() {
       try {
+        // To stay consistent with our SchemaTransform configuration naming conventions,
+        // we sort lexicographically and convert field names to snake_case
         return SchemaRegistry.createDefault()
             .getToRowFunction(ManagedConfig.class)
             .apply(managedConfig)

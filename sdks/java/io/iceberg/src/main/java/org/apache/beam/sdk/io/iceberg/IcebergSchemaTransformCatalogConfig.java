@@ -68,6 +68,8 @@ public abstract class IcebergSchemaTransformCatalogConfig {
 
   static {
     try {
+      // To stay consistent with our SchemaTransform configuration naming conventions,
+      // we sort lexicographically and convert field names to snake_case
       SCHEMA =
           SchemaRegistry.createDefault()
               .getSchema(IcebergSchemaTransformCatalogConfig.class)
