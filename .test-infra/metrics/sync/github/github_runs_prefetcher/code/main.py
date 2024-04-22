@@ -36,7 +36,7 @@ import uuid
 from psycopg2 import extras
 from ruamel.yaml import YAML
 from github import GithubIntegration
-from datetime import datetime
+from datetime import datetime, timedelta
 
 DB_HOST = os.environ["DB_HOST"]
 DB_PORT = os.environ["DB_PORT"]
@@ -158,10 +158,12 @@ async def check_workflow_flakiness(workflow):
     if not len(workflow.runs):
         return False
 
+    three_months_ago_datetime = datetime.now() - timedelta(days=90)
+    workflow_runs = [run for run in workflow.runs if run.started_at > three_months_ago_datetime]
+
     url = f"https://api.github.com/repos/{GIT_ORG}/beam/issues"
     headers = {"Authorization": get_token()}
     semaphore = asyncio.Semaphore(5)
-    workflow_runs = workflow.runs
     params = {
         "state": "closed",
         "labels": f"flaky_test,workflow_id: {workflow.id}",
