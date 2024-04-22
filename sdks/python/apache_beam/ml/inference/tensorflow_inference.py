@@ -140,7 +140,7 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
           set this to True if N*W > M.
         model_copies: The exact number of models that you would like loaded
           onto your machine. This can be useful if you exactly know your CPU or
-          GPU capacity. If set, large_model becomes a no-op.
+          GPU capacity and want to maximize resource utilization.
         kwargs: 'env_vars' can be used to set environment variables
           before loading the model.
 
@@ -281,7 +281,7 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
           set this to True if N*W > M.
         model_copies: The exact number of models that you would like loaded
           onto your machine. This can be useful if you exactly know your CPU or
-          GPU capacity. If set, large_model becomes a no-op.
+          GPU capacity and want to maximize resource utilization.
         kwargs: 'env_vars' can be used to set environment variables
           before loading the model.
 

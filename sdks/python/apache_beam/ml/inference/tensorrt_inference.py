@@ -257,7 +257,7 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
         set this to True if N*W > M.
       model_copies: The exact number of models that you would like loaded
         onto your machine. This can be useful if you exactly know your CPU or
-        GPU capacity. If set, large_model becomes a no-op.
+        GPU capacity and want to maximize resource utilization.
       max_batch_duration_secs: the maximum amount of time to buffer 
         a batch before emitting; used in streaming contexts.
       kwargs: Additional arguments like 'engine_path' and 'onnx_path' are

@@ -237,7 +237,7 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
         set this to True if N*W > M.
       model_copies: The exact number of models that you would like loaded
         onto your machine. This can be useful if you exactly know your CPU or
-        GPU capacity. If set, large_model becomes a no-op.
+        GPU capacity and want to maximize resource utilization.
       load_model_args: a dictionary of parameters passed to the torch.load
         function to specify custom config for loading models.
       kwargs: 'env_vars' can be used to set environment variables
@@ -483,7 +483,7 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
         set this to True if N*W > M.
       model_copies: The exact number of models that you would like loaded
         onto your machine. This can be useful if you exactly know your CPU or
-        GPU capacity. If set, large_model becomes a no-op.
+        GPU capacity and want to maximize resource utilization.
       load_model_args: a dictionary of parameters passed to the torch.load
         function to specify custom config for loading models.
       kwargs: 'env_vars' can be used to set environment variables

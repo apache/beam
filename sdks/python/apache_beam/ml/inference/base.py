@@ -810,7 +810,7 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
         raise ValueError(
             'KeyedModelHandler cannot map records to multiple '
             'models if one or more of its ModelHandlers '
-            'require multiple model copies (set via'
+            'require multiple model copies (set via '
             'model_copies). To fix, verify that each '
             'ModelHandler is not set to load multiple copies of '
             'its model.')
@@ -1434,7 +1434,7 @@ class _ModelRoutingStrategy():
     return self._cur_index
 
 
-class _CrossProcessModelWrapper():
+class _SharedModelWrapper():
   """A router class to map incoming calls to the correct model.
   
     This allows us to round robin calls to models sitting in different
@@ -1442,7 +1442,7 @@ class _CrossProcessModelWrapper():
   """
   def __init__(self, models: List[Any], model_tag: str):
     self.models = models
-    if len(models) > 0:
+    if len(models) > 1:
       self.model_router = multi_process_shared.MultiProcessShared(
           lambda: _ModelRoutingStrategy(),
           tag=f'{model_tag}_counter',
@@ -1490,7 +1490,8 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
   def _load_model(
       self,
       side_input_model_path: Optional[Union[str,
-                                            List[KeyModelPathMapping]]] = None):
+                                            List[KeyModelPathMapping]]] = None
+  ) -> _SharedModelWrapper:
     def load():
       """Function for constructing shared LoadedModel."""
       memory_before = _get_current_process_memory_in_bytes()
@@ -1518,16 +1519,15 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     if isinstance(side_input_model_path, str) and side_input_model_path != '':
       model_tag = side_input_model_path
     if self._model_handler.share_model_across_processes():
-      # TODO - update this to populate a list of models of configurable length
       models = []
       for i in range(self._model_handler.model_copies()):
         models.append(
             multi_process_shared.MultiProcessShared(
                 load, tag=f'{model_tag}{i}', always_proxy=True).acquire())
-      model_wrapper = _CrossProcessModelWrapper(models, model_tag)
+      model_wrapper = _SharedModelWrapper(models, model_tag)
     else:
       model = self._shared_model_handle.acquire(load, tag=model_tag)
-      model_wrapper = _CrossProcessModelWrapper([model], model_tag)
+      model_wrapper = _SharedModelWrapper([model], model_tag)
     # since shared_model_handle is shared across threads, the model path
     # might not get updated in the model handler
     # because we directly get cached weak ref model from shared cache, instead

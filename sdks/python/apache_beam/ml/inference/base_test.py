@@ -95,6 +95,7 @@ class FakeModelHandler(base.ModelHandler[int, int, FakeModel]):
     self._num_bytes_per_element = num_bytes_per_element
 
   def load_model(self):
+    assert (not self._incrementing or self._state is None)
     if self._fake_clock:
       self._fake_clock.current_time_ns += 500_000_000  # 500ms
     if self._incrementing:
