@@ -343,7 +343,6 @@ func (em *ElementManager) Bundles(ctx context.Context, nextBundID func() string)
 				ss := em.stages[stageID]
 				watermark, ready := ss.bundleReady(em)
 				if ready {
-					// TODO Move handling ProcessingTime bundle fireing *HERE* to avoid nonsense against normal eventtime handling.
 					bundleID, ok, reschedule := ss.startBundle(watermark, nextBundID)
 					// Handle the reschedule even when there's no bundle.
 					if reschedule {
@@ -631,20 +630,6 @@ func reElementResiduals(residuals []Residual, inputInfo PColInfo, rb RunBundle) 
 		}
 	}
 	return unprocessedElements
-}
-
-// Residual represents the unprocessed portion of a single element.
-type Residual struct {
-	Element []byte
-	Delay   time.Duration // The relative time delay.
-	Bounded bool          // Whether this element is finite or not.
-}
-
-// Residuals is used to specify process continuations within a bundle.
-type Residuals struct {
-	Data                 []Residual
-	TransformID, InputID string                // We only allow one SDF at the root of a bundledescriptor so there should only be one each.
-	MinOutputWatermarks  map[string]mtime.Time // Output watermarks (technically per Residual, but aggregated here until it makes a difference.)
 }
 
 // PersistBundle uses the tentative bundle output to update the watermarks for the stage.
@@ -1442,6 +1427,13 @@ func (ss *stageState) updateWatermarks(em *ElementManager) set[string] {
 func (ss *stageState) bundleReady(em *ElementManager) (mtime.Time, bool) {
 	ss.mu.Lock()
 	defer ss.mu.Unlock()
+
+	// TODO Move handling ProcessingTime bundle fireing *HERE* to avoid nonsense against normal eventtime handling.
+	// Specifically, have the override here (is data ready at this time?)
+	// And in startBundle pull out that data.
+	// Or I add a new ready based on processing time signal that this returns, that is independently checked
+	// for sending.
+
 	// If the upstream watermark and the input watermark are the same,
 	// then we can't yet process this stage.
 	inputW := ss.input
