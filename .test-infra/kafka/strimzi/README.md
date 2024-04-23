@@ -46,4 +46,4 @@ terraform -chdir=$DIR init
 terraform -chdir=$DIR apply -var-file=$VARS
 ```
 
-This will deploy the operator. For actual strimzi kafka cluster please check out [.test-infra/kafka/02-kafka-persistent](02-kafka-persistent/README.md) 
+This will deploy the operator. For actual strimzi kafka cluster please check out [.test-infra/kafka/02-kafka-persistent](02-kafka-persistent/README.md)
