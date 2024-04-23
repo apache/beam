@@ -225,9 +225,9 @@ class WriteToBigTable(beam.PTransform):
           identifier=self.schematransform_config.identifier,
           expansion_service=self._expansion_service,
           rearrange_based_on_discovery=True,
-          tableId=self._table_id,
-          instanceId=self._instance_id,
-          projectId=self._project_id)
+          table_id=self._table_id,
+          instance_id=self._instance_id,
+          project_id=self._project_id)
 
       return (
           input
@@ -323,9 +323,9 @@ class ReadFromBigtable(PTransform):
         identifier=self.schematransform_config.identifier,
         expansion_service=self._expansion_service,
         rearrange_based_on_discovery=True,
-        tableId=self._table_id,
-        instanceId=self._instance_id,
-        projectId=self._project_id)
+        table_id=self._table_id,
+        instance_id=self._instance_id,
+        project_id=self._project_id)
 
     return (
         input.pipeline
