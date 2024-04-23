@@ -53,6 +53,13 @@
 * ([#X](https://github.com/apache/beam/issues/X)).
 -->
 
+# [2.57.0] - Unreleased
+
+* Java's View.asList() side inputs are now optimized for iterating rather than indexing.
+  This new implementation still supports all (immutable) List methods as before,
+  but some of the random access methods like get() and size() will be slower.
+  To use the old implementation one can use View.asList().withRandomAccess().
+
 # [2.56.0] - Unreleased
 
 ## Highlights

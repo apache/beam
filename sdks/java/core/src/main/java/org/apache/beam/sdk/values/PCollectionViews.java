@@ -19,6 +19,7 @@ package org.apache.beam.sdk.values;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
+import com.facebook.presto.hadoop.$internal.com.google.common.collect.Iterators;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -28,6 +29,7 @@ import java.util.AbstractMap;
 import java.util.AbstractSet;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -58,6 +60,7 @@ import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers;
@@ -173,6 +176,38 @@ public class PCollectionViews {
    * provided {@link WindowingStrategy}.
    */
   public static <T, W extends BoundedWindow> PCollectionView<List<T>> listView(
+      PCollection<T> pCollection,
+      TypeDescriptorSupplier<T> typeDescriptorSupplier,
+      WindowingStrategy<?, W> windowingStrategy) {
+    return new SimplePCollectionView<>(
+        pCollection,
+        new ListViewFn3<>(typeDescriptorSupplier),
+        windowingStrategy.getWindowFn().getDefaultWindowMappingFn(),
+        windowingStrategy);
+  }
+
+  /**
+   * Returns a {@code PCollectionView<List<T>>} capable of processing elements windowed using the
+   * provided {@link WindowingStrategy}.
+   */
+  public static <T, W extends BoundedWindow> PCollectionView<List<T>> listView(
+      PCollection<T> pCollection,
+      TupleTag<Materializations.IterableView<T>> tag,
+      TypeDescriptorSupplier<T> typeDescriptorSupplier,
+      WindowingStrategy<?, W> windowingStrategy) {
+    return new SimplePCollectionView<>(
+        pCollection,
+        tag,
+        new ListViewFn3<>(typeDescriptorSupplier),
+        windowingStrategy.getWindowFn().getDefaultWindowMappingFn(),
+        windowingStrategy);
+  }
+
+  /**
+   * Returns a {@code PCollectionView<List<T>>} capable of processing elements windowed using the
+   * provided {@link WindowingStrategy}.
+   */
+  public static <T, W extends BoundedWindow> PCollectionView<List<T>> listViewWithRandomAccess(
       PCollection<KV<Long, ValueOrMetadata<T, OffsetRange>>> pCollection,
       TypeDescriptorSupplier<T> typeDescriptorSupplier,
       WindowingStrategy<?, W> windowingStrategy) {
@@ -187,7 +222,7 @@ public class PCollectionViews {
    * Returns a {@code PCollectionView<List<T>>} capable of processing elements windowed using the
    * provided {@link WindowingStrategy}.
    */
-  public static <T, W extends BoundedWindow> PCollectionView<List<T>> listView(
+  public static <T, W extends BoundedWindow> PCollectionView<List<T>> listViewWithRandomAccess(
       PCollection<KV<Long, ValueOrMetadata<T, OffsetRange>>> pCollection,
       TupleTag<Materializations.MultimapView<Long, ValueOrMetadata<T, OffsetRange>>> tag,
       TypeDescriptorSupplier<T> typeDescriptorSupplier,
@@ -917,6 +952,179 @@ public class PCollectionViews {
     public void verifyDeterministic() throws NonDeterministicException {
       verifyDeterministic(valueCoder, "value coder");
       verifyDeterministic(metadataCoder, "metadata coder");
+    }
+  }
+
+  /**
+   * Implementation which is able to adapt an iterable materialization to a {@code List<T>}.
+   *
+   * <p>Unlike ListViewFn2, this implementation is optimized for iteration rather than indexing.
+   *
+   * <p>For internal use only.
+   */
+  public static class ListViewFn3<T> extends ViewFn<IterableView<T>, List<T>> {
+    private TypeDescriptorSupplier<T> typeDescriptorSupplier;
+
+    public ListViewFn3(TypeDescriptorSupplier<T> typeDescriptorSupplier) {
+      this.typeDescriptorSupplier = typeDescriptorSupplier;
+    }
+
+    @Override
+    public Materialization<IterableView<T>> getMaterialization() {
+      return Materializations.iterable();
+    }
+
+    @Override
+    public List<T> apply(IterableView<T> primitiveViewT) {
+      Supplier<Integer> size = Suppliers.memoize(() -> Iterables.size(primitiveViewT.get()));
+
+      return new List<T>() {
+        @Override
+        public int size() {
+          return size.get();
+        }
+
+        @Override
+        public boolean isEmpty() {
+          return Iterables.isEmpty(primitiveViewT.get());
+        }
+
+        @Override
+        public boolean contains(Object o) {
+          return Iterables.contains(primitiveViewT.get(), o);
+        }
+
+        @Override
+        public Iterator<T> iterator() {
+          return primitiveViewT.get().iterator();
+        }
+
+        @Override
+        public T get(int index) {
+          return Iterables.get(primitiveViewT.get(), index);
+        }
+
+        @Override
+        public Object[] toArray() {
+          return Iterables.toArray(primitiveViewT.get(), Object.class);
+        }
+
+        @Override
+        public <T1> T1[] toArray(T1[] a) {
+          return Iterables.toArray(
+              (Iterable<T1>) primitiveViewT.get(), (Class<T1>) a.getClass().getComponentType());
+        }
+
+        @Override
+        public boolean containsAll(Collection<?> c) {
+          for (Object o : c) {
+            if (!contains(o)) {
+              return false;
+            }
+          }
+          return true;
+        }
+
+        @Override
+        public int indexOf(Object o) {
+          return Iterables.indexOf(primitiveViewT.get(), v -> Objects.equals(v, o));
+        }
+
+        @Override
+        public int lastIndexOf(Object o) {
+          return ImmutableList.copyOf(primitiveViewT.get()).lastIndexOf(o);
+        }
+
+        @Override
+        public List<T> subList(int fromIndex, int toIndex) {
+          Iterator<T> iterator = primitiveViewT.get().iterator();
+          if (Iterators.skip(iterator, fromIndex) != fromIndex) {
+            throw new IndexOutOfBoundsException();
+          }
+          List<T> subList = ImmutableList.copyOf(Iterators.limit(iterator, toIndex - fromIndex));
+          if (subList.size() != toIndex - fromIndex) {
+            throw new IndexOutOfBoundsException();
+          }
+          return subList;
+        }
+
+        @Override
+        public ListIterator<T> listIterator() {
+          return ImmutableList.copyOf(primitiveViewT.get()).listIterator();
+        }
+
+        @Override
+        public ListIterator<T> listIterator(int index) {
+          return ImmutableList.copyOf(primitiveViewT.get()).listIterator(index);
+        }
+
+        // Unimplemented mutable list methods.
+
+        @Override
+        public boolean add(T t) {
+          throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean remove(Object o) {
+          throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean addAll(Collection<? extends T> c) {
+          throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean addAll(int index, Collection<? extends T> c) {
+          throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean removeAll(Collection<?> c) {
+          throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean retainAll(Collection<?> c) {
+          throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void clear() {
+          throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public T set(int index, T element) {
+          throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void add(int index, T element) {
+          throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public T remove(int index) {
+          throw new UnsupportedOperationException();
+        }
+      };
+    }
+
+    @Override
+    public TypeDescriptor<List<T>> getTypeDescriptor() {
+      return TypeDescriptors.lists(typeDescriptorSupplier.get());
+    }
+
+    @Override
+    public boolean equals(@Nullable Object other) {
+      return other instanceof ListViewFn;
+    }
+
+    @Override
+    public int hashCode() {
+      return ListViewFn.class.hashCode();
     }
   }
 

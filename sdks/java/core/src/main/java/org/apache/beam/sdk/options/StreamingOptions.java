@@ -17,6 +17,10 @@
  */
 package org.apache.beam.sdk.options;
 
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.List;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Comparators;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Options used to configure streaming. */
@@ -41,4 +45,15 @@ public interface StreamingOptions extends ApplicationNameOptions, PipelineOption
   String getUpdateCompatibilityVersion();
 
   void setUpdateCompatibilityVersion(@Nullable String updateCompatibilityVersion);
+
+  default boolean updateCompatibilityVersionLessThan(String version) {
+    if (getUpdateCompatibilityVersion() == null) {
+      return false;
+    }
+    List<String> requestedVersion = Arrays.asList(getUpdateCompatibilityVersion().split("\\."));
+    List<String> targetVersion = Arrays.asList(version.split("\\."));
+    return Comparators.lexicographical(Comparator.<String>naturalOrder())
+            .compare(requestedVersion, targetVersion)
+        < 0;
+  }
 }
