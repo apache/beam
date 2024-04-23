@@ -39,7 +39,6 @@ import org.apache.beam.sdk.io.gcp.testing.FakeJobService;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
-import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -153,11 +152,11 @@ public class BigQueryExportReadSchemaTransformProviderTest {
     for (Pair<BigQueryExportReadSchemaTransformConfiguration.Builder, TypedRead<TableRow>> caze :
         cases) {
       Map<Identifier, Item> want = DisplayData.from(caze.getRight()).asMap();
-      SchemaTransformProvider provider = new BigQueryExportReadSchemaTransformProvider();
+      BigQueryExportReadSchemaTransformProvider provider =
+          new BigQueryExportReadSchemaTransformProvider();
       BigQueryExportReadSchemaTransformConfiguration configuration = caze.getLeft().build();
-      Row configurationRow = configuration.toBeamRow();
       BigQueryExportSchemaTransform schemaTransform =
-          (BigQueryExportSchemaTransform) provider.from(configurationRow);
+          (BigQueryExportSchemaTransform) provider.from(configuration);
       Map<Identifier, Item> got = DisplayData.from(schemaTransform.toTypedRead()).asMap();
       assertEquals(want, got);
     }
@@ -165,12 +164,12 @@ public class BigQueryExportReadSchemaTransformProviderTest {
 
   @Test
   public void testExtract() {
-    SchemaTransformProvider provider = new BigQueryExportReadSchemaTransformProvider();
+    BigQueryExportReadSchemaTransformProvider provider =
+        new BigQueryExportReadSchemaTransformProvider();
     BigQueryExportReadSchemaTransformConfiguration configuration =
         BigQueryExportReadSchemaTransformConfiguration.builder().setTableSpec(TABLE_SPEC).build();
-    Row configurationRow = configuration.toBeamRow();
     BigQueryExportSchemaTransform schemaTransform =
-        (BigQueryExportSchemaTransform) provider.from(configurationRow);
+        (BigQueryExportSchemaTransform) provider.from(configuration);
 
     schemaTransform.setTestBigQueryServices(fakeBigQueryServices);
     PCollectionRowTuple input = PCollectionRowTuple.empty(p);
@@ -185,7 +184,8 @@ public class BigQueryExportReadSchemaTransformProviderTest {
 
   @Test
   public void testInvalidConfiguration() {
-    SchemaTransformProvider provider = new BigQueryExportReadSchemaTransformProvider();
+    BigQueryExportReadSchemaTransformProvider provider =
+        new BigQueryExportReadSchemaTransformProvider();
     for (Pair<
             BigQueryExportReadSchemaTransformConfiguration.Builder,
             ? extends Class<? extends RuntimeException>>
@@ -207,9 +207,8 @@ public class BigQueryExportReadSchemaTransformProviderTest {
                     BigQueryExportReadSchemaTransformConfiguration.builder()
                         .setUseStandardSql(true),
                     IllegalArgumentException.class))) {
-      Row configurationRow = caze.getLeft().build().toBeamRow();
       BigQueryExportSchemaTransform schemaTransform =
-          (BigQueryExportSchemaTransform) provider.from(configurationRow);
+          (BigQueryExportSchemaTransform) provider.from(caze.getLeft().build());
       schemaTransform.setTestBigQueryServices(fakeBigQueryServices);
       PCollectionRowTuple empty = PCollectionRowTuple.empty(p);
       assertThrows(caze.getRight(), () -> empty.apply(schemaTransform));
@@ -218,12 +217,12 @@ public class BigQueryExportReadSchemaTransformProviderTest {
 
   @Test
   public void testInvalidInput() {
-    SchemaTransformProvider provider = new BigQueryExportReadSchemaTransformProvider();
+    BigQueryExportReadSchemaTransformProvider provider =
+        new BigQueryExportReadSchemaTransformProvider();
     BigQueryExportReadSchemaTransformConfiguration configuration =
         BigQueryExportReadSchemaTransformConfiguration.builder().setTableSpec(TABLE_SPEC).build();
-    Row configurationRow = configuration.toBeamRow();
     BigQueryExportSchemaTransform schemaTransform =
-        (BigQueryExportSchemaTransform) provider.from(configurationRow);
+        (BigQueryExportSchemaTransform) provider.from(configuration);
 
     schemaTransform.setTestBigQueryServices(fakeBigQueryServices);
     PCollectionRowTuple input = PCollectionRowTuple.of("badinput", p.apply(Create.of(ROWS)));

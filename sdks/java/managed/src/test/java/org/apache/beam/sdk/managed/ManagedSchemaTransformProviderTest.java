@@ -24,6 +24,7 @@ import static org.junit.Assert.assertTrue;
 import java.net.URISyntaxException;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import org.apache.beam.sdk.managed.testing.TestSchemaTransformProvider;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
 import org.junit.Rule;
@@ -49,28 +50,28 @@ public class ManagedSchemaTransformProviderTest {
   }
 
   @Test
-  public void testGetRowFromYamlConfig() {
+  public void testGetConfigRowFromYamlString() {
     String yamlString = "extra_string: abc\n" + "extra_integer: 123";
     ManagedConfig config =
         ManagedConfig.builder()
             .setTransformIdentifier(TestSchemaTransformProvider.IDENTIFIER)
             .setConfig(yamlString)
             .build();
-    Schema configSchema = new TestSchemaTransformProvider().configurationSchema();
-    Row expectedRow =
-        Row.withSchema(configSchema)
-            .withFieldValue("extraString", "abc")
-            .withFieldValue("extraInteger", 123)
-            .build();
-    Row configRow =
-        ManagedSchemaTransformProvider.getRowConfig(
-            config, new TestSchemaTransformProvider().configurationSchema());
 
-    assertEquals(expectedRow, configRow);
+    Row expectedRow =
+        Row.withSchema(TestSchemaTransformProvider.SCHEMA)
+            .withFieldValue("extra_string", "abc")
+            .withFieldValue("extra_integer", 123)
+            .build();
+
+    Row returnedRow =
+        ManagedSchemaTransformProvider.getRowConfig(config, TestSchemaTransformProvider.SCHEMA);
+
+    assertEquals(expectedRow, returnedRow);
   }
 
   @Test
-  public void testGetRowFromConfigUrl() throws URISyntaxException {
+  public void testGetConfigRowFromYamlFile() throws URISyntaxException {
     String yamlConfigPath =
         Paths.get(getClass().getClassLoader().getResource("test_config.yaml").toURI())
             .toFile()
@@ -83,14 +84,43 @@ public class ManagedSchemaTransformProviderTest {
     Schema configSchema = new TestSchemaTransformProvider().configurationSchema();
     Row expectedRow =
         Row.withSchema(configSchema)
-            .withFieldValue("extraString", "abc")
-            .withFieldValue("extraInteger", 123)
+            .withFieldValue("extra_string", "abc")
+            .withFieldValue("extra_integer", 123)
             .build();
     Row configRow =
         ManagedSchemaTransformProvider.getRowConfig(
             config, new TestSchemaTransformProvider().configurationSchema());
 
     assertEquals(expectedRow, configRow);
+  }
+
+  @Test
+  public void testBuildWithYamlString() {
+    String yamlString = "extra_string: abc\n" + "extra_integer: 123";
+
+    ManagedConfig config =
+        ManagedConfig.builder()
+            .setTransformIdentifier(TestSchemaTransformProvider.IDENTIFIER)
+            .setConfig(yamlString)
+            .build();
+
+    new ManagedSchemaTransformProvider(null).from(config);
+  }
+
+  @Test
+  public void testBuildWithYamlFile() throws URISyntaxException {
+    String yamlConfigPath =
+        Paths.get(getClass().getClassLoader().getResource("test_config.yaml").toURI())
+            .toFile()
+            .getAbsolutePath();
+
+    ManagedConfig config =
+        ManagedConfig.builder()
+            .setTransformIdentifier(TestSchemaTransformProvider.IDENTIFIER)
+            .setConfigUrl(yamlConfigPath)
+            .build();
+
+    new ManagedSchemaTransformProvider(null).from(config);
   }
 
   @Test

@@ -43,7 +43,7 @@ import org.junit.Test;
 public class BigQueryIOTranslationTest {
 
   // A mapping from Read transform builder methods to the corresponding schema fields in
-  // KafkaIOTranslation.
+  // BigQueryIOTranslation.
   static final Map<String, String> READ_TRANSFORM_SCHEMA_MAPPING = new HashMap<>();
 
   static {
