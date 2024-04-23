@@ -216,10 +216,10 @@ jobs:
           cd "${RELEASE_DIR}"/python
           ls
 
-          echo "------Checking Hash Value for apache-beam-${RELEASE}.tar.gz-----"
+          echo "------Checking Hash Value for apache_beam-${RELEASE}.tar.gz-----"
           sha512sum -c "apache_beam-${RELEASE}.tar.gz.sha512"
 
-          echo "------Signing Source Release apache-beam-${RELEASE}.tar.gz------"
+          echo "------Signing Source Release apache_beam-${RELEASE}.tar.gz------"
           gpg --local-user "${{steps.import_gpg.outputs.name}}" --armor --detach-sig "apache_beam-${RELEASE}.tar.gz"
 
           for artifact in *.whl; do
