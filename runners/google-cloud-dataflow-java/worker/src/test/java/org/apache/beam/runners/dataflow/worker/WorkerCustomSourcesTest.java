@@ -598,7 +598,6 @@ public class WorkerCustomSourcesTest {
     int maxElements = 10;
     DataflowPipelineDebugOptions debugOptions = options.as(DataflowPipelineDebugOptions.class);
     debugOptions.setUnboundedReaderMaxElements(maxElements);
-    debugOptions.setUnboundedReaderMaxReadTimeSec(10);
 
     ByteString state = ByteString.EMPTY;
     for (int i = 0; i < 10 * maxElements;
@@ -646,10 +645,10 @@ public class WorkerCustomSourcesTest {
         numReadOnThisIteration++;
       }
       Instant afterReading = Instant.now();
-      double maxReadSec = debugOptions.getUnboundedReaderMaxReadTimeSec();
+      long maxReadSec = debugOptions.getUnboundedReaderMaxReadTimeSec();
       assertThat(
-          new Duration(beforeReading, afterReading).getMillis(),
-          lessThanOrEqualTo((long) ((maxReadSec + 1) * 1000L)));
+          new Duration(beforeReading, afterReading).getStandardSeconds(),
+          lessThanOrEqualTo(maxReadSec + 1));
       assertThat(
           numReadOnThisIteration, lessThanOrEqualTo(debugOptions.getUnboundedReaderMaxElements()));
 
