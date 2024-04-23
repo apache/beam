@@ -267,7 +267,7 @@ class WriteUngroupedRowsToFiles
         out.get(WRITTEN_FILES_TAG)
             .output(
                 FileWriteResult.builder()
-                    .setDataFile(writer.dataFile())
+                    .setManifestFile(writer.getManifestFile())
                     .setTableIdentifier(destination.getTableIdentifier())
                     .build());
         writer = createAndInsertWriter(destination, window);
@@ -307,9 +307,8 @@ class WriteUngroupedRowsToFiles
                   getWindows().get(destination), "internal error: no windows for destination");
           c.output(
               FileWriteResult.builder()
-                  .setDataFile(writer.dataFile())
+                  .setManifestFile(writer.getManifestFile())
                   .setTableIdentifier(destination.getTableIdentifier())
-                  .setPartitionSpec(writer.getTable().spec())
                   .build(),
               window.maxTimestamp(),
               window);

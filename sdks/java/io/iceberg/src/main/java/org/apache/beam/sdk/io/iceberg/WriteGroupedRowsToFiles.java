@@ -95,8 +95,7 @@ class WriteGroupedRowsToFiles
       c.output(
           FileWriteResult.builder()
               .setTableIdentifier(destination.getTableIdentifier())
-              .setDataFile(writer.dataFile())
-              .setPartitionSpec(writer.getTable().spec())
+              .setManifestFile(writer.getManifestFile())
               .build());
     }
   }
