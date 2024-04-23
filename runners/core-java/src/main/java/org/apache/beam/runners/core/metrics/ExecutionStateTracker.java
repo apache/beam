@@ -165,10 +165,8 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
     currentState = null;
     numTransitions = 0;
     millisSinceLastTransition = 0;
-    millisSinceBundleStart = 0;
     transitionsAtLastSample = 0;
     nextLullReportMs = LULL_REPORT_MS;
-    nextBundleLullReportMs = BUNDLE_LULL_REPORT_MS;
   }
 
   @VisibleForTesting
@@ -258,6 +256,8 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
       CURRENT_TRACKERS.remove(thread.getId());
     }
     this.trackedThread = null;
+    millisSinceBundleStart = 0;
+    nextBundleLullReportMs = BUNDLE_LULL_REPORT_MS;
   }
 
   public ExecutionState getCurrentState() {
@@ -319,6 +319,11 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
   /** Return the time of the next lull report. */
   public long getNextLullReportMs() {
     return nextLullReportMs;
+  }
+
+  /** Return the time of the next bundle lull report. */
+  public long getNextBundleLullReportMs() {
+    return nextBundleLullReportMs;
   }
 
   /**

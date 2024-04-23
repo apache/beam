@@ -107,8 +107,6 @@ public class MapTaskExecutor implements WorkExecutor {
         }
         throw exn;
       }
-    } finally {
-      executionStateTracker.reset();
     }
 
     LOG.debug("Map task execution complete");
