@@ -111,7 +111,7 @@ public class Solace {
 
   @AutoValue
   @DefaultSchema(AutoValueSchema.class)
-  public abstract static class Record implements Serializable {
+  public abstract static class Record {
     @SchemaFieldNumber("0")
     public abstract @Nullable String getMessageId();
 
