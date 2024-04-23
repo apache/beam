@@ -188,10 +188,10 @@ progress:
 					continue progress
 				}
 				// TODO sort out rescheduling primary Roots on bundle failure.
-				var residualData [][]byte
+				var residuals []engine.Residual
 				for _, rr := range sr.GetResidualRoots() {
 					ba := rr.GetApplication()
-					residualData = append(residualData, ba.GetElement())
+					residuals = append(residuals, engine.Residual{Element: ba.GetElement()})
 					if len(ba.GetElement()) == 0 {
 						slog.LogAttrs(context.TODO(), slog.LevelError, "returned empty residual application", slog.Any("bundle", rb))
 						panic("sdk returned empty residual application")
@@ -206,8 +206,10 @@ progress:
 				// The first residual can be after the end of data, so filter out those cases.
 				if b.EstimatedInputElements >= int(fr) {
 					b.EstimatedInputElements = int(fr) // Update the estimate for the next split.
-					// Residuals are returned right away for rescheduling.
-					em.ReturnResiduals(rb, int(fr), s.inputInfo, residualData)
+					// Split Residuals are returned right away for rescheduling.
+					em.ReturnResiduals(rb, int(fr), s.inputInfo, engine.Residuals{
+						Data: residuals,
+					})
 				}
 			} else {
 				previousIndex = index["index"]
@@ -225,30 +227,48 @@ progress:
 		md := wk.MonitoringMetadata(ctx, unknownIDs)
 		j.AddMetricShortIDs(md)
 	}
-	var residualData [][]byte
-	var minOutputWatermark map[string]mtime.Time
+
+	// ProcessContinuation residuals are rescheduled after the specified delay.
+	residuals := engine.Residuals{
+		MinOutputWatermarks: map[string]mtime.Time{},
+	}
 	for _, rr := range resp.GetResidualRoots() {
 		ba := rr.GetApplication()
-		residualData = append(residualData, ba.GetElement())
 		if len(ba.GetElement()) == 0 {
 			slog.LogAttrs(context.TODO(), slog.LevelError, "returned empty residual application", slog.Any("bundle", rb))
 			panic("sdk returned empty residual application")
 		}
+		if residuals.TransformID == "" {
+			residuals.TransformID = ba.GetTransformId()
+		}
+		if residuals.InputID == "" {
+			residuals.InputID = ba.GetInputId()
+		}
+		if residuals.TransformID != ba.GetTransformId() {
+			panic("sdk returned inconsistent residual application transform : got = " + ba.GetTransformId() + " want = " + residuals.TransformID)
+		}
+		if residuals.InputID != ba.GetInputId() {
+			panic("sdk returned inconsistent residual application input : got = " + ba.GetInputId() + " want = " + residuals.InputID)
+		}
+
 		for col, wm := range ba.GetOutputWatermarks() {
-			if minOutputWatermark == nil {
-				minOutputWatermark = map[string]mtime.Time{}
-			}
-			cur, ok := minOutputWatermark[col]
+			cur, ok := residuals.MinOutputWatermarks[col]
 			if !ok {
 				cur = mtime.MaxTimestamp
 			}
-			minOutputWatermark[col] = mtime.Min(mtime.FromTime(wm.AsTime()), cur)
+			residuals.MinOutputWatermarks[col] = mtime.Min(mtime.FromTime(wm.AsTime()), cur)
 		}
+
+		residuals.Data = append(residuals.Data, engine.Residual{
+			Element: ba.GetElement(),
+			Delay:   rr.GetRequestedTimeDelay().AsDuration(),
+			Bounded: ba.GetIsBounded() == pipepb.IsBounded_BOUNDED,
+		})
 	}
-	if l := len(residualData); l > 0 {
+	if l := len(residuals.Data); l == 0 {
 		slog.Debug("returned empty residual application", "bundle", rb, slog.Int("numResiduals", l), slog.String("pcollection", s.primaryInput))
 	}
-	em.PersistBundle(rb, s.OutputsToCoders, b.OutputData, s.inputInfo, residualData, minOutputWatermark)
+	em.PersistBundle(rb, s.OutputsToCoders, b.OutputData, s.inputInfo, residuals)
 	b.OutputData = engine.TentativeData{} // Clear the data.
 	return nil
 }
