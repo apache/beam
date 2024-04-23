@@ -217,10 +217,10 @@ jobs:
           ls
 
           echo "------Checking Hash Value for apache-beam-${RELEASE}.tar.gz-----"
-          sha512sum -c "apache-beam-${RELEASE}.tar.gz.sha512"
+          sha512sum -c "apache_beam-${RELEASE}.tar.gz.sha512"
 
           echo "------Signing Source Release apache-beam-${RELEASE}.tar.gz------"
-          gpg --local-user "${{steps.import_gpg.outputs.name}}" --armor --detach-sig "apache-beam-${RELEASE}.tar.gz"
+          gpg --local-user "${{steps.import_gpg.outputs.name}}" --armor --detach-sig "apache_beam-${RELEASE}.tar.gz"
 
           for artifact in *.whl; do
             echo "----------Checking Hash Value for ${artifact} wheel-----------"
@@ -377,7 +377,7 @@ jobs:
             ln -s ${{ github.event.inputs.RELEASE }} typedoc/current
 
             echo "............Copying generated yamldoc into beam-site.........."
-            mkdir -p yamldoc
+            mkdir -p yamldoc/${{ github.event.inputs.RELEASE }}
             cp -r ${BEAM_ROOT_DIR}/sdks/python/build/yaml-ref.html yamldoc/${{ github.event.inputs.RELEASE }}/index.html
             # Update current symlink to point to the latest release
             unlink yamldoc/current | true
