@@ -304,7 +304,7 @@ Beam SDKs.</p><pre tabindex=0><code>pipeline:
     - type: ReadFromPubSub
       config:
         topic: myPubSubTopic
-        format: json
+        format: JSON
         schema:
           type: object
           properties:
@@ -321,7 +321,7 @@ Beam SDKs.</p><pre tabindex=0><code>pipeline:
     - type: WriteToPubSub
       config:
         topic: anotherPubSubTopic
-        format: json
+        format: JSON
 options:
   streaming: true
 </code></pre><p>Rather than using an explicit <code>WindowInto</code> operation, you can tag a transform
@@ -344,7 +344,7 @@ itself) to be applied with that windowing.</p><pre tabindex=0><code>pipeline:
     - type: WriteToPubSub
       config:
         topic: anotherPubSubTopic
-        format: json
+        format: JSON
 options:
   streaming: true
 </code></pre><p>Note that the <code>Sql</code> operation itself is often a from of aggregation, and
@@ -366,7 +366,7 @@ grouping to be done per window.</p><pre tabindex=0><code>pipeline:
     - type: WriteToPubSub
       config:
         topic: anotherPubSubTopic
-        format: json
+        format: JSON
 options:
   streaming: true
 </code></pre><p>The specified windowing is applied to all inputs, in this case resulting in
@@ -416,7 +416,7 @@ consuming operations. This is especially useful for root operations like Read.</
     - type: WriteToPubSub
       config:
         topic: anotherPubSubTopic
-        format: json
+        format: JSON
 options:
   streaming: true
 </code></pre><p>One can also specify windowing at the top level of a pipeline (or composite),
@@ -436,7 +436,7 @@ effective way to apply a window everywhere in the pipeline.</p><pre tabindex=0><
     - type: WriteToPubSub
       config:
         topic: anotherPubSubTopic
-        format: json
+        format: JSON
   windowing:
     type: fixed
     size: 60
@@ -528,7 +528,7 @@ append an options block at the end of your yaml file. For example:</p><pre tabin
     - type: WriteToPubSub
       config:
         topic: anotherPubSubTopic
-        format: json
+        format: JSON
 options:
   streaming: true
 </code></pre><h2 id=other-resources>Other Resources</h2><ul><li><a href=https://github.com/apache/beam/tree/master/sdks/python/apache_beam/yaml/examples>Example pipeline</a></li><li><a href=https://gist.github.com/robertwb/2cb26973f1b1203e8f5f8f88c5764da0>More examples</a></li></ul></div></div><footer class=footer><div class=footer__contained><div class=footer__cols><div class="footer__cols__col footer__cols__col__logos"><div class=footer__cols__col__logo><img src=/images/beam_logo_circle.svg class=footer__logo alt="Beam logo"></div><div class=footer__cols__col__logo><img src=/images/apache_logo_circle.svg class=footer__logo alt="Apache logo"></div></div><div class=footer-wrapper><div class=wrapper-grid><div class=footer__cols__col><div class=footer__cols__col__title>Start</div><div class=footer__cols__col__link><a href=/get-started/beam-overview/>Overview</a></div><div class=footer__cols__col__link><a href=/get-started/quickstart-java/>Quickstart (Java)</a></div><div class=footer__cols__col__link><a href=/get-started/quickstart-py/>Quickstart (Python)</a></div><div class=footer__cols__col__link><a href=/get-started/quickstart-go/>Quickstart (Go)</a></div><div class=footer__cols__col__link><a href=/get-started/downloads/>Downloads</a></div></div><div class=footer__cols__col><div class=footer__cols__col__title>Docs</div><div class=footer__cols__col__link><a href=/documentation/programming-guide/>Concepts</a></div><div class=footer__cols__col__link><a href=/documentation/pipelines/design-your-pipeline/>Pipelines</a></div><div class=footer__cols__col__link><a href=/documentation/runners/capability-matrix/>Runners</a></div></div><div class=footer__cols__col><div class=footer__cols__col__title>Community</div><div class=footer__cols__col__link><a href=/contribute/>Contribute</a></div><div class=footer__cols__col__link><a href=https://projects.apache.org/committee.html?beam target=_blank>Team<img src=/images/external-link-icon.png width=14 height=14 alt="External link."></a></div><div class=footer__cols__col__link><a href=/community/presentation-materials/>Media</a></div><div class=footer__cols__col__link><a href=/community/in-person/>Events/Meetups</a></div><div class=footer__cols__col__link><a href=/community/contact-us/>Contact Us</a></div></div><div class=footer__cols__col><div class=footer__cols__col__title>Resources</div><div class=footer__cols__col__link><a href=/blog/>Blog</a></div><div class=footer__cols__col__link><a href=https://github.com/apache/beam>GitHub</a></div></div></div><div class=footer__bottom>&copy;
