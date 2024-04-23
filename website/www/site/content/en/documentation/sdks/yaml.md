@@ -424,7 +424,7 @@ pipeline:
     - type: ReadFromPubSub
       config:
         topic: myPubSubTopic
-        format: json
+        format: JSON
         schema:
           type: object
           properties:
@@ -441,7 +441,7 @@ pipeline:
     - type: WriteToPubSub
       config:
         topic: anotherPubSubTopic
-        format: json
+        format: JSON
 options:
   streaming: true
 ```
@@ -469,7 +469,7 @@ pipeline:
     - type: WriteToPubSub
       config:
         topic: anotherPubSubTopic
-        format: json
+        format: JSON
 options:
   streaming: true
 ```
@@ -496,7 +496,7 @@ pipeline:
     - type: WriteToPubSub
       config:
         topic: anotherPubSubTopic
-        format: json
+        format: JSON
 options:
   streaming: true
 ```
@@ -556,7 +556,7 @@ pipeline:
     - type: WriteToPubSub
       config:
         topic: anotherPubSubTopic
-        format: json
+        format: JSON
 options:
   streaming: true
 ```
@@ -581,7 +581,7 @@ pipeline:
     - type: WriteToPubSub
       config:
         topic: anotherPubSubTopic
-        format: json
+        format: JSON
   windowing:
     type: fixed
     size: 60
@@ -700,7 +700,7 @@ pipeline:
     - type: WriteToPubSub
       config:
         topic: anotherPubSubTopic
-        format: json
+        format: JSON
 options:
   streaming: true
 ```
