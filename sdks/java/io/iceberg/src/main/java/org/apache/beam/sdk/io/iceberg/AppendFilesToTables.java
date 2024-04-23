@@ -90,7 +90,7 @@ class AppendFilesToTables
       Table table = getCatalog().loadTable(TableIdentifier.parse(element.getKey()));
       AppendFiles update = table.newAppend();
       for (FileWriteResult writtenFile : element.getValue()) {
-        update.appendFile(writtenFile.getDataFile());
+        update.appendManifest(writtenFile.getManifestFile());
       }
       update.commit();
       out.outputWithTimestamp(
