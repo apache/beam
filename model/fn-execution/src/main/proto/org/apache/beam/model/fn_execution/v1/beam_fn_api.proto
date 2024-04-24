@@ -1090,7 +1090,7 @@ message StateAppendRequest {
   // For OrderedListState, elements of TimeStampedValue<T> should be encoded
   // with TimestampedValueCoder.of(LengthPrefixCoder.of(Coder<T>)), so that
   // the request handler knows how to decode timestamps from the data without
-  // decoding the value bytes.
+  // decoding the value bytes.  Returned data will be encoded the same way.
   bytes data = 1;
 }
 
