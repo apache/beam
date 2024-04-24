@@ -217,8 +217,6 @@ func (ev tsWatermarkEvent) Execute(em *ElementManager) {
 	em.testStreamHandler.tagState[ev.Tag] = t
 
 	// Update the upstream watermarks in the consumers.
-
-	fmt.Println("XXXXX updating watermark to", t.watermark, "for stages", em.consumers[t.pcollection])
 	for _, sID := range em.consumers[t.pcollection] {
 		ss := em.stages[sID]
 		ss.updateUpstreamWatermark(ss.inputID, t.watermark)
