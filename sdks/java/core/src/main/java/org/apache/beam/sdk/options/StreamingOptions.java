@@ -46,11 +46,16 @@ public interface StreamingOptions extends ApplicationNameOptions, PipelineOption
 
   void setUpdateCompatibilityVersion(@Nullable String updateCompatibilityVersion);
 
-  default boolean updateCompatibilityVersionLessThan(String version) {
-    if (getUpdateCompatibilityVersion() == null) {
+  static boolean updateCompatibilityVersionLessThan(PipelineOptions options, String version) {
+    if (options == null) {
       return false;
     }
-    List<String> requestedVersion = Arrays.asList(getUpdateCompatibilityVersion().split("\\."));
+    String updateCompatibilityVersion =
+        options.as(StreamingOptions.class).getUpdateCompatibilityVersion();
+    if (updateCompatibilityVersion == null) {
+      return false;
+    }
+    List<String> requestedVersion = Arrays.asList(updateCompatibilityVersion.split("\\."));
     List<String> targetVersion = Arrays.asList(version.split("\\."));
     return Comparators.lexicographical(Comparator.<String>naturalOrder())
             .compare(requestedVersion, targetVersion)

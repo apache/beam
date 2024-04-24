@@ -274,11 +274,8 @@ public class View {
       boolean explicitWithRandomAccess =
           withRandomAccess != null
               ? withRandomAccess
-              : input
-                  .getPipeline()
-                  .getOptions()
-                  .as(StreamingOptions.class)
-                  .updateCompatibilityVersionLessThan("2.57.0");
+              : StreamingOptions.updateCompatibilityVersionLessThan(
+                  input.getPipeline().getOptions(), "2.57.0");
       if (explicitWithRandomAccess) {
         return expandWithRandomAccess(input);
       } else {
