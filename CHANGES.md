@@ -53,7 +53,7 @@
 * ([#X](https://github.com/apache/beam/issues/X)).
 -->
 
-# [2.56.0] - Unreleased
+# [2.56.0]
 
 ## Highlights
 
@@ -72,25 +72,15 @@
 
 ## Breaking Changes
 
-* X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
 * Default consumer polling timeout for KafkaIO.Read was increased from 1 second to 2 seconds. Use KafkaIO.read().withConsumerPollingTimeout(Duration duration) to configure this timeout value when necessary ([#30870](https://github.com/apache/beam/issues/30870)).
 * Python Dataflow users no longer need to manually specify --streaming for pipelines using unbounded sources such as ReadFromPubSub.
-
-## Deprecations
-
-* X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Bugfixes
 
 * Fixed locking issue when shutting down inactive bundle processors. Symptoms of this issue include slowness or stuckness in long-running jobs (Python) ([#30679](https://github.com/apache/beam/pull/30679)).
 * Fixed logging issue that caused silecing the pip output when installing of dependencies provided in `--requirements_file` (Python).
 
-## Security Fixes
-* Fixed (CVE-YYYY-NNNN)[https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN] (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).
-
 ## Known Issues
-
-* ([#X](https://github.com/apache/beam/issues/X)).
 
 # [2.55.1]
 
