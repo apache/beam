@@ -796,9 +796,13 @@ public class WorkerCustomSources {
       this.context = context;
       this.started = started;
       DataflowPipelineDebugOptions debugOptions = options.as(DataflowPipelineDebugOptions.class);
-      this.endTime =
-          Instant.now()
-              .plus(Duration.standardSeconds(debugOptions.getUnboundedReaderMaxReadTimeSec()));
+      long MaxReadTimeMsDeprecated = debugOptions.getUnboundedReaderMaxReadTimeSec() * 1000L;
+      long maxReadTimeMs = debugOptions.getUnboundedReaderMaxReadTimeMs();
+      if (MaxReadTimeMsDeprecated != 10000L && maxReadTimeMs == 10000L) {
+        // Take old field if UnboundedReaderMaxReadTimeMs is default
+        maxReadTimeMs = MaxReadTimeMsDeprecated;
+      }
+      this.endTime = Instant.now().plus(Duration.millis(maxReadTimeMs));
       this.maxElems = debugOptions.getUnboundedReaderMaxElements();
       this.backoffFactory =
           FluentBackoff.DEFAULT
