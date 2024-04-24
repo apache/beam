@@ -22,6 +22,8 @@ to set up test feast feature repository.
 """
 
 import unittest
+from typing import Any
+from typing import Mapping
 
 import pytest
 
@@ -37,6 +39,11 @@ try:
 except ImportError:
   raise unittest.SkipTest(
       'Feast feature store test dependencies are not installed.')
+
+
+def _entity_row_fn(request: beam.Row) -> Mapping[str, Any]:
+  entity_value = request.user_id  # type: ignore[attr-defined]
+  return {'user_id': entity_value}
 
 
 @pytest.mark.uses_feast
@@ -86,6 +93,28 @@ class TestFeastEnrichmentHandler(unittest.TestCase):
       _ = (test_pipeline | beam.Create(requests) | Enrichment(handler))
       res = test_pipeline.run()
       res.wait_until_finish()
+
+  def test_feast_enrichment_with_lambda(self):
+    requests = [
+        beam.Row(user_id=2, product_id=1),
+        beam.Row(user_id=6, product_id=2),
+        beam.Row(user_id=9, product_id=3),
+    ]
+    expected_fields = [
+        'user_id', 'product_id', 'state', 'country', 'gender', 'age'
+    ]
+    handler = FeastFeatureStoreEnrichmentHandler(
+        feature_store_yaml_path=self.feature_store_yaml_file,
+        feature_service_name=self.feature_service_name,
+        entity_row_fn=_entity_row_fn,
+    )
+
+    with TestPipeline(is_integration_test=True) as test_pipeline:
+      _ = (
+          test_pipeline
+          | beam.Create(requests)
+          | Enrichment(handler)
+          | beam.ParDo(ValidateResponse(expected_fields)))
 
 
 if __name__ == '__main__':

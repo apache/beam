@@ -16,9 +16,13 @@
 #
 import unittest
 
+from parameterized import parameterized
+
 try:
   from apache_beam.transforms.enrichment_handlers.feast_feature_store import \
     FeastFeatureStoreEnrichmentHandler
+  from apache_beam.transforms.enrichment_handlers.feast_feature_store_it_test \
+    import _entity_row_fn
 except ImportError:
   raise unittest.SkipTest(
       'Feast feature store test dependencies are not installed.')
@@ -47,6 +51,15 @@ class TestFeastFeatureStoreHandler(unittest.TestCase):
       _ = FeastFeatureStoreEnrichmentHandler(
           entity_id='user_id',
           feature_store_yaml_path=self.feature_store_yaml_file,
+      )
+
+  @parameterized.expand([('user_id', _entity_row_fn), ('', None)])
+  def test_feast_enrichment_invalid_args(self, entity_id, entity_row_fn):
+    with self.assertRaises(ValueError):
+      _ = FeastFeatureStoreEnrichmentHandler(
+          feature_store_yaml_path=self.feature_store_yaml_file,
+          entity_id=entity_id,
+          entity_row_fn=entity_row_fn,
       )
 
 
