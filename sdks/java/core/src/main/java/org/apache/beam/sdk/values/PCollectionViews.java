@@ -1038,7 +1038,7 @@ public class PCollectionViews {
         @Override
         public List<T> subList(int fromIndex, int toIndex) {
           Iterator<T> iterator = primitiveViewT.get().iterator();
-          if (Iterators.skip(iterator, fromIndex) != fromIndex) {
+          if (Iterators.advance(iterator, fromIndex) != fromIndex) {
             throw new IndexOutOfBoundsException();
           }
           List<T> subList = ImmutableList.copyOf(Iterators.limit(iterator, toIndex - fromIndex));
