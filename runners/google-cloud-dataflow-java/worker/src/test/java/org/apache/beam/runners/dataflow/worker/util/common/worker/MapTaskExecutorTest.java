@@ -341,7 +341,7 @@ public class MapTaskExecutorTest {
           context3.metricsContainer().getUpdates().counterUpdates(),
           contains(metricUpdate("TestMetric", "MetricCounter", o3, 3L)));
       assertEquals(0, stateTracker.getMillisSinceBundleStart());
-      assertEquals(TimeUnit.MINUTES.toMillis(10), stateTracker.getNextBundleLullReportMs());
+      assertEquals(TimeUnit.MINUTES.toMillis(10), stateTracker.getNextBundleLullDurationReportMs());
     }
   }
 

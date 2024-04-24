@@ -150,7 +150,7 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
 
   private long transitionsAtLastSample = 0;
   private long nextLullReportMs = LULL_REPORT_MS;
-  private long nextBundleLullReportMs = BUNDLE_LULL_REPORT_MS;
+  private long nextBundleLullDurationReportMs = BUNDLE_LULL_REPORT_MS;
 
   public ExecutionStateTracker(ExecutionStateSampler sampler) {
     this.sampler = sampler;
@@ -257,7 +257,7 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
     }
     this.trackedThread = null;
     millisSinceBundleStart = 0;
-    nextBundleLullReportMs = BUNDLE_LULL_REPORT_MS;
+    nextBundleLullDurationReportMs = BUNDLE_LULL_REPORT_MS;
   }
 
   public ExecutionState getCurrentState() {
@@ -321,9 +321,10 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
     return nextLullReportMs;
   }
 
-  /** Return the time of the next bundle lull report. */
-  public long getNextBundleLullReportMs() {
-    return nextBundleLullReportMs;
+  /** Return the duration since bundle start for the next bundle lull report. */
+  @VisibleForTesting
+  public long getNextBundleLullDurationReportMs() {
+    return nextBundleLullDurationReportMs;
   }
 
   /**
@@ -368,9 +369,9 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
   @SuppressWarnings("NonAtomicVolatileUpdate")
   private void updateMillisSinceBundleStart(long millisSinceLastSample) {
     millisSinceBundleStart += millisSinceLastSample;
-    if (millisSinceBundleStart > nextBundleLullReportMs) {
+    if (millisSinceBundleStart > nextBundleLullDurationReportMs) {
       reportBundleLull(trackedThread, millisSinceBundleStart);
-      nextBundleLullReportMs += BUNDLE_LULL_REPORT_MS;
+      nextBundleLullDurationReportMs += BUNDLE_LULL_REPORT_MS;
     }
   }
 
