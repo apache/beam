@@ -39,32 +39,6 @@ def snake_case_to_upper_camel_case(string):
   return output
 
 
-def snake_case_to_lower_camel_case(string):
-  """Convert snake_case to lowerCamelCase"""
-  if len(string) <= 1:
-    return string.lower()
-  upper = snake_case_to_upper_camel_case(string)
-  return upper[0].lower() + upper[1:]
-
-
-def camel_case_to_snake_case(string):
-  """Convert camelCase to snake_case"""
-  arr = []
-  word = []
-  for i, n in enumerate(string):
-    # If seeing an upper letter after a lower letter, we just witnessed a word
-    # If seeing an upper letter and the next letter is lower, we may have just
-    # witnessed an all caps word
-    if n.isupper() and ((i > 0 and string[i - 1].islower()) or
-                        (i + 1 < len(string) and string[i + 1].islower())):
-      arr.append(''.join(word))
-      word = [n.lower()]
-    else:
-      word.append(n.lower())
-  arr.append(''.join(word))
-  return '_'.join(arr).strip('_')
-
-
 # Information regarding a Wrapper parameter.
 ParamInfo = namedtuple('ParamInfo', ['type', 'description', 'original_name'])
 
@@ -76,7 +50,7 @@ def get_config_with_descriptions(
   descriptions = schematransform.configuration_schema._field_descriptions
   fields_with_descriptions = {}
   for field in schema.fields:
-    fields_with_descriptions[camel_case_to_snake_case(field.name)] = ParamInfo(
+    fields_with_descriptions[field.name] = ParamInfo(
         typing_from_runner_api(field.type),
         descriptions[field.name],
         field.name)
@@ -105,16 +79,11 @@ class ExternalTransform(PTransform):
         expansion_service or self.default_expansion_service
 
   def expand(self, input):
-    camel_case_kwargs = {
-        snake_case_to_lower_camel_case(k): v
-        for k, v in self._kwargs.items()
-    }
-
     external_schematransform = SchemaAwareExternalTransform(
         identifier=self.identifier,
         expansion_service=self._expansion_service,
         rearrange_based_on_discovery=True,
-        **camel_case_kwargs)
+        **self._kwargs)
 
     return input | external_schematransform
 

@@ -24,15 +24,19 @@ import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
+import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
@@ -43,6 +47,7 @@ import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 
 @AutoService(SchemaTransformProvider.class)
@@ -51,14 +56,14 @@ public class ManagedSchemaTransformProvider
 
   @Override
   public String identifier() {
-    return "beam:schematransform:org.apache.beam:managed:v1";
+    return "beam:transform:managed:v1";
   }
 
   private final Map<String, SchemaTransformProvider> schemaTransformProviders = new HashMap<>();
 
   public ManagedSchemaTransformProvider() {}
 
-  ManagedSchemaTransformProvider(Collection<String> supportedIdentifiers) {
+  ManagedSchemaTransformProvider(@Nullable Collection<String> supportedIdentifiers) {
     try {
       for (SchemaTransformProvider schemaTransformProvider :
           ServiceLoader.load(SchemaTransformProvider.class)) {
@@ -67,13 +72,15 @@ public class ManagedSchemaTransformProvider
               "Found multiple SchemaTransformProvider implementations with the same identifier "
                   + schemaTransformProvider.identifier());
         }
-        schemaTransformProviders.put(schemaTransformProvider.identifier(), schemaTransformProvider);
+        if (supportedIdentifiers == null
+            || supportedIdentifiers.contains(schemaTransformProvider.identifier())) {
+          schemaTransformProviders.put(
+              schemaTransformProvider.identifier(), schemaTransformProvider);
+        }
       }
     } catch (Exception e) {
       throw new RuntimeException(e.getMessage());
     }
-
-    schemaTransformProviders.entrySet().removeIf(e -> !supportedIdentifiers.contains(e.getKey()));
   }
 
   @DefaultSchema(AutoValueSchema.class)
@@ -84,13 +91,15 @@ public class ManagedSchemaTransformProvider
       return new AutoValue_ManagedSchemaTransformProvider_ManagedConfig.Builder();
     }
 
-    @SchemaFieldDescription("Identifier of the underlying IO to instantiate.")
+    @SchemaFieldDescription(
+        "Identifier of the underlying SchemaTransform to discover and instantiate.")
     public abstract String getTransformIdentifier();
 
-    @SchemaFieldDescription("URL path to the YAML config file used to build the underlying IO.")
+    @SchemaFieldDescription(
+        "URL path to the YAML config file used to build the underlying SchemaTransform.")
     public abstract @Nullable String getConfigUrl();
 
-    @SchemaFieldDescription("YAML string config used to build the underlying IO.")
+    @SchemaFieldDescription("YAML string config used to build the underlying SchemaTransform.")
     public abstract @Nullable String getConfig();
 
     @AutoValue.Builder
@@ -99,7 +108,7 @@ public class ManagedSchemaTransformProvider
 
       public abstract Builder setConfigUrl(@Nullable String configUrl);
 
-      public abstract Builder setConfig(@Nullable String config);
+      public abstract Builder setConfig(@Nullable String yamlConfig);
 
       public abstract ManagedConfig build();
     }
@@ -107,9 +116,27 @@ public class ManagedSchemaTransformProvider
     protected void validate() {
       boolean configExists = !Strings.isNullOrEmpty(getConfig());
       boolean configUrlExists = !Strings.isNullOrEmpty(getConfigUrl());
+      List<Boolean> configs = Arrays.asList(configExists, configUrlExists);
       checkArgument(
-          !(configExists && configUrlExists) && (configExists || configUrlExists),
+          1 == configs.stream().filter(Predicates.equalTo(true)).count(),
           "Please specify a config or a config URL, but not both.");
+    }
+
+    public @Nullable String resolveUnderlyingConfig() {
+      String yamlTransformConfig = getConfig();
+      // If YAML string is empty, then attempt to read from YAML file
+      if (Strings.isNullOrEmpty(yamlTransformConfig)) {
+        try {
+          MatchResult.Metadata fileMetaData =
+              FileSystems.matchSingleFileSpec(Preconditions.checkNotNull(getConfigUrl()));
+          ByteBuffer buffer = ByteBuffer.allocate((int) fileMetaData.sizeBytes());
+          FileSystems.open(fileMetaData.resourceId()).read(buffer);
+          yamlTransformConfig = new String(buffer.array(), StandardCharsets.UTF_8);
+        } catch (IOException e) {
+          throw new RuntimeException(e);
+        }
+      }
+      return yamlTransformConfig;
     }
   }
 
@@ -122,61 +149,63 @@ public class ManagedSchemaTransformProvider
             "Could not find transform with identifier %s, or it may not be supported",
             managedConfig.getTransformIdentifier());
 
-    // parse config before expansion to check if it matches underlying transform's config schema
-    Schema transformConfigSchema = schemaTransformProvider.configurationSchema();
-    Row transformConfig;
-    try {
-      transformConfig = getRowConfig(managedConfig, transformConfigSchema);
-    } catch (Exception e) {
-      throw new IllegalArgumentException(
-          String.format(
-              "Specified configuration does not align with the underlying transform's configuration schema [%s].",
-              transformConfigSchema),
-          e);
-    }
-
-    return new ManagedSchemaTransform(transformConfig, schemaTransformProvider);
+    return new ManagedSchemaTransform(managedConfig, schemaTransformProvider);
   }
 
-  private static class ManagedSchemaTransform extends SchemaTransform {
-    private final Row transformConfig;
+  static class ManagedSchemaTransform extends SchemaTransform {
+    private final ManagedConfig managedConfig;
+    private final Row underlyingTransformConfig;
     private final SchemaTransformProvider underlyingTransformProvider;
 
     ManagedSchemaTransform(
-        Row transformConfig, SchemaTransformProvider underlyingTransformProvider) {
-      this.transformConfig = transformConfig;
+        ManagedConfig managedConfig, SchemaTransformProvider underlyingTransformProvider) {
+      // parse config before expansion to check if it matches underlying transform's config schema
+      Schema transformConfigSchema = underlyingTransformProvider.configurationSchema();
+      Row underlyingTransformConfig;
+      try {
+        underlyingTransformConfig = getRowConfig(managedConfig, transformConfigSchema);
+      } catch (Exception e) {
+        throw new IllegalArgumentException(
+            "Encountered an error when retrieving a Row configuration", e);
+      }
+
+      this.managedConfig = managedConfig;
+      this.underlyingTransformConfig = underlyingTransformConfig;
       this.underlyingTransformProvider = underlyingTransformProvider;
     }
 
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
-      SchemaTransform underlyingTransform = underlyingTransformProvider.from(transformConfig);
-
-      return input.apply(underlyingTransform);
+      return input.apply(underlyingTransformProvider.from(underlyingTransformConfig));
     }
-  }
 
-  @VisibleForTesting
-  static Row getRowConfig(ManagedConfig config, Schema transformSchema) {
-    String transformYamlConfig;
-    if (!Strings.isNullOrEmpty(config.getConfigUrl())) {
+    public ManagedConfig getManagedConfig() {
+      return this.managedConfig;
+    }
+
+    Row getConfigurationRow() {
       try {
-        MatchResult.Metadata fileMetaData =
-            FileSystems.matchSingleFileSpec(Preconditions.checkNotNull(config.getConfigUrl()));
-        ByteBuffer buffer = ByteBuffer.allocate((int) fileMetaData.sizeBytes());
-        FileSystems.open(fileMetaData.resourceId()).read(buffer);
-        transformYamlConfig = new String(buffer.array(), StandardCharsets.UTF_8);
-      } catch (IOException e) {
+        // To stay consistent with our SchemaTransform configuration naming conventions,
+        // we sort lexicographically and convert field names to snake_case
+        return SchemaRegistry.createDefault()
+            .getToRowFunction(ManagedConfig.class)
+            .apply(managedConfig)
+            .sorted()
+            .toSnakeCase();
+      } catch (NoSuchSchemaException e) {
         throw new RuntimeException(e);
       }
-    } else {
-      transformYamlConfig = config.getConfig();
     }
-
-    return YamlUtils.toBeamRow(transformYamlConfig, transformSchema, true);
   }
 
+  /** */
   @VisibleForTesting
+  static Row getRowConfig(ManagedConfig config, Schema transformSchema) {
+    // May return an empty row (perhaps the underlying transform doesn't have any required
+    // parameters)
+    return YamlUtils.toBeamRow(config.resolveUnderlyingConfig(), transformSchema, false);
+  }
+
   Map<String, SchemaTransformProvider> getAllProviders() {
     return schemaTransformProviders;
   }

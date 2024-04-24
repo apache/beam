@@ -37,9 +37,7 @@ from apache_beam.transforms.external import BeamJarExpansionService
 from apache_beam.transforms.external_transform_provider import STANDARD_URN_PATTERN
 from apache_beam.transforms.external_transform_provider import ExternalTransform
 from apache_beam.transforms.external_transform_provider import ExternalTransformProvider
-from apache_beam.transforms.external_transform_provider import camel_case_to_snake_case
 from apache_beam.transforms.external_transform_provider import infer_name_from_identifier
-from apache_beam.transforms.external_transform_provider import snake_case_to_lower_camel_case
 from apache_beam.transforms.external_transform_provider import snake_case_to_upper_camel_case
 from apache_beam.transforms.xlang.io import GenerateSequence
 
@@ -53,26 +51,6 @@ class NameAndTypeUtilsTest(unittest.TestCase):
                   ("appended_underscore_", "AppendedUnderscore")]
     for case in test_cases:
       self.assertEqual(case[1], snake_case_to_upper_camel_case(case[0]))
-
-  def test_snake_case_to_lower_camel_case(self):
-    test_cases = [("", ""), ("test", "test"), ("test_name", "testName"),
-                  ("test_double_underscore", "testDoubleUnderscore"),
-                  ("TEST_CAPITALIZED", "testCapitalized"),
-                  ("_prepended_underscore", "prependedUnderscore"),
-                  ("appended_underscore_", "appendedUnderscore")]
-    for case in test_cases:
-      self.assertEqual(case[1], snake_case_to_lower_camel_case(case[0]))
-
-  def test_camel_case_to_snake_case(self):
-    test_cases = [("", ""), ("Test", "test"), ("TestName", "test_name"),
-                  ("TestDoubleUnderscore",
-                   "test_double_underscore"), ("MyToLoFo", "my_to_lo_fo"),
-                  ("BEGINNINGAllCaps",
-                   "beginning_all_caps"), ("AllCapsENDING", "all_caps_ending"),
-                  ("AllCapsMIDDLEWord", "all_caps_middle_word"),
-                  ("lowerCamelCase", "lower_camel_case")]
-    for case in test_cases:
-      self.assertEqual(case[1], camel_case_to_snake_case(case[0]))
 
   def test_infer_name_from_identifier(self):
     standard_test_cases = [

@@ -111,4 +111,4 @@ jobs:
       - name: run Cross-Language Wrapper Validation script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:python:test-suites:direct:crossLanguageWrapperValidationPreCommit
+          gradle-command: :sdks:python:test-suites:direct:crossLanguageWrapperValidationPreCommit --info
