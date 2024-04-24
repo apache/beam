@@ -806,4 +806,94 @@ public class RowTest {
     assertEquals(
         enumerationType.valueOf("zero"), row.getLogicalTypeValue(0, EnumerationType.Value.class));
   }
+
+  @Test
+  public void testSorted() {
+    Schema unsortedNestedSchema =
+        Schema.builder().addStringField("bb").addStringField("aa").addStringField("cc").build();
+    Schema unsortedSchema =
+        Schema.builder()
+            .addStringField("d")
+            .addStringField("c")
+            .addRowField("e", unsortedNestedSchema)
+            .addStringField("b")
+            .addStringField("a")
+            .build();
+    Row unsortedNestedRow =
+        Row.withSchema(unsortedNestedSchema).addValues("bb_val", "aa_val", "cc_val").build();
+    Row unsortedRow =
+        Row.withSchema(unsortedSchema)
+            .addValues("d_val", "c_val", unsortedNestedRow, "b_val", "a_val")
+            .build();
+
+    Row expectedSortedNestedRow =
+        Row.withSchema(unsortedNestedSchema.sorted())
+            .addValues("aa_val", "bb_val", "cc_val")
+            .build();
+    Row expectedSortedRow =
+        Row.withSchema(unsortedSchema.sorted())
+            .addValues("a_val", "b_val", "c_val", "d_val", expectedSortedNestedRow)
+            .build();
+
+    Row sortedRow = unsortedRow.sorted();
+    assertEquals(expectedSortedNestedRow, sortedRow.getRow("e"));
+    assertEquals(expectedSortedRow, sortedRow);
+    assertNotEquals(unsortedRow, sortedRow);
+  }
+
+  @Test
+  public void testToSnakeCase() {
+    Schema innerSchema =
+        Schema.builder()
+            .addStringField("myFirstNestedStringField")
+            .addStringField("mySecondNestedStringField")
+            .build();
+    Schema schema =
+        Schema.builder()
+            .addStringField("myFirstStringField")
+            .addStringField("mySecondStringField")
+            .addRowField("myRowField", innerSchema)
+            .build();
+
+    Row innerRow = Row.withSchema(innerSchema).addValues("nested1", "nested2").build();
+    Row row = Row.withSchema(schema).addValues("str1", "str2", innerRow).build();
+
+    Row expectedSnakeCaseInnerRow =
+        Row.withSchema(innerSchema.toSnakeCase()).addValues("nested1", "nested2").build();
+    Row expectedSnakeCaseRow =
+        Row.withSchema(schema.toSnakeCase())
+            .addValues("str1", "str2", expectedSnakeCaseInnerRow)
+            .build();
+
+    assertEquals(expectedSnakeCaseInnerRow, row.toSnakeCase().getRow("my_row_field"));
+    assertEquals(expectedSnakeCaseRow, row.toSnakeCase());
+  }
+
+  @Test
+  public void testToCamelCase() {
+    Schema innerSchema =
+        Schema.builder()
+            .addStringField("my_first_nested_string_field")
+            .addStringField("my_second_nested_string_field")
+            .build();
+    Schema schema =
+        Schema.builder()
+            .addStringField("my_first_string_field")
+            .addStringField("my_second_string_field")
+            .addRowField("my_row_field", innerSchema)
+            .build();
+
+    Row innerRow = Row.withSchema(innerSchema).addValues("nested1", "nested2").build();
+    Row row = Row.withSchema(schema).addValues("str1", "str2", innerRow).build();
+
+    Row expectedCamelCaseInnerRow =
+        Row.withSchema(innerSchema.toCamelCase()).addValues("nested1", "nested2").build();
+    Row expectedCamelCaseRow =
+        Row.withSchema(schema.toCamelCase())
+            .addValues("str1", "str2", expectedCamelCaseInnerRow)
+            .build();
+
+    assertEquals(expectedCamelCaseInnerRow, row.toCamelCase().getRow("myRowField"));
+    assertEquals(expectedCamelCaseRow, row.toCamelCase());
+  }
 }

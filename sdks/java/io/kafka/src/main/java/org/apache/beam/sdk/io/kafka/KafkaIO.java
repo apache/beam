@@ -587,7 +587,7 @@ public class KafkaIO {
         .setCommitOffsetsInFinalizeEnabled(false)
         .setDynamicRead(false)
         .setTimestampPolicyFactory(TimestampPolicyFactory.withProcessingTime())
-        .setConsumerPollingTimeout(Duration.standardSeconds(2L))
+        .setConsumerPollingTimeout(2L)
         .build();
   }
 
@@ -708,7 +708,7 @@ public class KafkaIO {
     public abstract @Nullable ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
 
     @Pure
-    public abstract @Nullable Duration getConsumerPollingTimeout();
+    public abstract long getConsumerPollingTimeout();
 
     abstract Builder<K, V> toBuilder();
 
@@ -766,7 +766,7 @@ public class KafkaIO {
         return setCheckStopReadingFn(CheckStopReadingFnWrapper.of(checkStopReadingFn));
       }
 
-      abstract Builder<K, V> setConsumerPollingTimeout(Duration consumerPollingTimeout);
+      abstract Builder<K, V> setConsumerPollingTimeout(long consumerPollingTimeout);
 
       abstract Read<K, V> build();
 
@@ -836,10 +836,9 @@ public class KafkaIO {
           if (config.consumerPollingTimeout <= 0) {
             throw new IllegalArgumentException("consumerPollingTimeout should be > 0.");
           }
-          builder.setConsumerPollingTimeout(
-              Duration.standardSeconds(config.consumerPollingTimeout));
+          builder.setConsumerPollingTimeout(config.consumerPollingTimeout);
         } else {
-          builder.setConsumerPollingTimeout(Duration.standardSeconds(2L));
+          builder.setConsumerPollingTimeout(2L);
         }
       }
 
@@ -1356,14 +1355,12 @@ public class KafkaIO {
     }
 
     /**
-     * Sets the timeout time for Kafka consumer polling request in the {@link ReadFromKafkaDoFn}. A
-     * lower timeout optimizes for latency. Increase the timeout if the consumer is not fetching
-     * enough (or any) records. The default is 2 seconds.
+     * Sets the timeout time in seconds for Kafka consumer polling request in the {@link
+     * ReadFromKafkaDoFn}. A lower timeout optimizes for latency. Increase the timeout if the
+     * consumer is not fetching any records. The default is 2 seconds.
      */
-    public Read<K, V> withConsumerPollingTimeout(Duration duration) {
-      checkState(
-          duration == null || duration.compareTo(Duration.ZERO) > 0,
-          "Consumer polling timeout must be greater than 0.");
+    public Read<K, V> withConsumerPollingTimeout(long duration) {
+      checkState(duration > 0, "Consumer polling timeout must be greater than 0.");
       return toBuilder().setConsumerPollingTimeout(duration).build();
     }
 
@@ -2071,7 +2068,7 @@ public class KafkaIO {
     abstract ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
 
     @Pure
-    abstract @Nullable Duration getConsumerPollingTimeout();
+    abstract long getConsumerPollingTimeout();
 
     abstract boolean isBounded();
 
@@ -2123,8 +2120,7 @@ public class KafkaIO {
       abstract ReadSourceDescriptors.Builder<K, V> setBadRecordErrorHandler(
           ErrorHandler<BadRecord, ?> badRecordErrorHandler);
 
-      abstract ReadSourceDescriptors.Builder<K, V> setConsumerPollingTimeout(
-          @Nullable Duration duration);
+      abstract ReadSourceDescriptors.Builder<K, V> setConsumerPollingTimeout(long duration);
 
       abstract ReadSourceDescriptors.Builder<K, V> setBounded(boolean bounded);
 
@@ -2139,7 +2135,7 @@ public class KafkaIO {
           .setBounded(false)
           .setBadRecordRouter(BadRecordRouter.THROWING_ROUTER)
           .setBadRecordErrorHandler(new ErrorHandler.DefaultErrorHandler<>())
-          .setConsumerPollingTimeout(Duration.standardSeconds(2L))
+          .setConsumerPollingTimeout(2L)
           .build()
           .withProcessingTime()
           .withMonotonicallyIncreasingWatermarkEstimator();
@@ -2402,11 +2398,11 @@ public class KafkaIO {
     }
 
     /**
-     * Sets the timeout time for Kafka consumer polling request in the {@link ReadFromKafkaDoFn}. A
-     * lower timeout optimizes for latency. Increase the timeout if the consumer is not fetching
-     * enough (or any) records. The default is 2 seconds.
+     * Sets the timeout time in seconds for Kafka consumer polling request in the {@link
+     * ReadFromKafkaDoFn}. A lower timeout optimizes for latency. Increase the timeout if the
+     * consumer is not fetching any records. The default is 2 seconds.
      */
-    public ReadSourceDescriptors<K, V> withConsumerPollingTimeout(@Nullable Duration duration) {
+    public ReadSourceDescriptors<K, V> withConsumerPollingTimeout(long duration) {
       return toBuilder().setConsumerPollingTimeout(duration).build();
     }
 

@@ -140,15 +140,15 @@ events of different types to different tables, and the table names are
 computed at pipeline runtime, one may do something like the following::
 
     with Pipeline() as p:
-      elements = (p | beam.Create([
+      elements = (p | 'Create elements' >> beam.Create([
         {'type': 'error', 'timestamp': '12:34:56', 'message': 'bad'},
         {'type': 'user_log', 'timestamp': '12:34:59', 'query': 'flu symptom'},
       ]))
 
-      table_names = (p | beam.Create([
+      table_names = (p | 'Create table_names' >> beam.Create([
         ('error', 'my_project:dataset1.error_table_for_today'),
         ('user_log', 'my_project:dataset1.query_table_for_today'),
-      ])
+      ]))
 
       table_names_dict = beam.pvalue.AsDict(table_names)
 
@@ -2574,13 +2574,13 @@ class StorageWriteToBigQuery(PTransform):
             expansion_service=self._expansion_service,
             rearrange_based_on_discovery=True,
             table=table,
-            createDisposition=self._create_disposition,
-            writeDisposition=self._write_disposition,
-            triggeringFrequencySeconds=self._triggering_frequency,
-            autoSharding=self._with_auto_sharding,
-            numStreams=self._num_storage_api_streams,
-            useAtLeastOnceSemantics=self._use_at_least_once,
-            errorHandling={
+            create_disposition=self._create_disposition,
+            write_disposition=self._write_disposition,
+            triggering_frequency_seconds=self._triggering_frequency,
+            auto_sharding=self._with_auto_sharding,
+            num_streams=self._num_storage_api_streams,
+            use_at_least_once_semantics=self._use_at_least_once,
+            error_handling={
                 'output': StorageWriteToBigQuery.FAILED_ROWS_WITH_ERRORS
             }))
 

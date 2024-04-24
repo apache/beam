@@ -49,7 +49,7 @@ jobs:
         run: pip install -U build && python -m build --sdist
       - name: Rename source file
         working-directory: ./sdks/python/dist
-        run: mv $(ls | grep "apache-beam.*tar\.gz") apache-beam-source.tar.gz
+        run: mv $(ls | grep "apache-beam.*tar\.gz\|apache_beam.*tar\.gz") apache-beam-source.tar.gz
       - name: Upload compressed sources as artifacts
         uses: actions/upload-artifact@v4
         with:

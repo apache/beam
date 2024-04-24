@@ -253,6 +253,11 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
     Functions are in order that they should be applied."""
     return []
 
+  def should_skip_batching(self) -> bool:
+    """Whether RunInference's batching should be skipped. Can be flipped to
+    True by using `with_no_batching`"""
+    return False
+
   def set_environment_vars(self):
     """Sets environment variables using a dictionary provided via kwargs.
     Keys are the env variable name, and values are the env variable value.
@@ -283,6 +288,23 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
     postprocessing functions, they will be run on your original
     inference result in order from first applied to last applied."""
     return _PostProcessingModelHandler(self, fn)
+
+  def with_no_batching(
+      self
+  ) -> """ModelHandler[Union[
+    ExampleT, Iterable[ExampleT]], PostProcessT, ModelT, PostProcessT]""":
+    """Returns a new ModelHandler which does not require batching
+    of inputs so that RunInference will skip this step.  RunInference will
+    expect the input to be pre-batched and passed in as an Iterable of records.
+    If you skip batching, any preprocessing functions should accept a batch of
+    data, not just a single record.
+
+    This option is only recommended if you want to do custom batching yourself.
+    If you just want to pass in records without a batching dimension, it is
+    recommended to (1) add `max_batch_size=1` to `batch_elements_kwargs` and
+    (2) remove the batching dimension as part of your inference call (by
+    calling `record=batch[0]`)"""
+    return _PrebatchedModelHandler(self)
 
   def share_model_across_processes(self) -> bool:
     """Returns a boolean representing whether or not a model should
@@ -874,8 +896,64 @@ class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
   def get_postprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
     return self._unkeyed.get_postprocess_fns()
 
+  def should_skip_batching(self) -> bool:
+    return self._unkeyed.should_skip_batching()
+
   def share_model_across_processes(self) -> bool:
     return self._unkeyed.share_model_across_processes()
+
+
+class _PrebatchedModelHandler(Generic[ExampleT, PredictionT, ModelT],
+                              ModelHandler[Sequence[ExampleT],
+                                           PredictionT,
+                                           ModelT]):
+  def __init__(self, base: ModelHandler[ExampleT, PredictionT, ModelT]):
+    """A ModelHandler that skips batching in RunInference.
+
+    Args:
+      base: An implementation of the underlying model handler.
+    """
+    self._base = base
+    self._env_vars = getattr(base, '_env_vars', {})
+
+  def load_model(self) -> ModelT:
+    return self._base.load_model()
+
+  def run_inference(
+      self,
+      batch: Sequence[Union[ExampleT, Tuple[KeyT, ExampleT]]],
+      model: ModelT,
+      inference_args: Optional[Dict[str, Any]] = None
+  ) -> Union[Iterable[PredictionT], Iterable[Tuple[KeyT, PredictionT]]]:
+    return self._base.run_inference(batch, model, inference_args)
+
+  def get_num_bytes(
+      self, batch: Sequence[Union[ExampleT, Tuple[KeyT, ExampleT]]]) -> int:
+    return self._base.get_num_bytes(batch)
+
+  def get_metrics_namespace(self) -> str:
+    return self._base.get_metrics_namespace()
+
+  def get_resource_hints(self):
+    return self._base.get_resource_hints()
+
+  def batch_elements_kwargs(self):
+    return self._base.batch_elements_kwargs()
+
+  def validate_inference_args(self, inference_args: Optional[Dict[str, Any]]):
+    return self._base.validate_inference_args(inference_args)
+
+  def update_model_path(self, model_path: Optional[str] = None):
+    return self._base.update_model_path(model_path=model_path)
+
+  def get_preprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
+    return self._base.get_preprocess_fns()
+
+  def should_skip_batching(self) -> bool:
+    return True
+
+  def get_postprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
+    return self._base.get_postprocess_fns()
 
 
 class _PreProcessingModelHandler(Generic[ExampleT,
@@ -930,6 +1008,9 @@ class _PreProcessingModelHandler(Generic[ExampleT,
 
   def get_preprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
     return [self._preprocess_fn] + self._base.get_preprocess_fns()
+
+  def should_skip_batching(self) -> bool:
+    return self._base.should_skip_batching()
 
   def get_postprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
     return self._base.get_postprocess_fns()
@@ -987,11 +1068,15 @@ class _PostProcessingModelHandler(Generic[ExampleT,
   def get_preprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
     return self._base.get_preprocess_fns()
 
+  def should_skip_batching(self) -> bool:
+    return self._base.should_skip_batching()
+
   def get_postprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
     return self._base.get_postprocess_fns() + [self._postprocess_fn]
 
 
-class RunInference(beam.PTransform[beam.PCollection[ExampleT],
+class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
+                                                          Iterable[ExampleT]]],
                                    beam.PCollection[PredictionT]]):
   def __init__(
       self,
@@ -1121,11 +1206,14 @@ class RunInference(beam.PTransform[beam.PCollection[ExampleT],
       self._model_metadata_pcoll = self._get_model_metadata_pcoll(
           pcoll.pipeline)
 
-    batched_elements_pcoll = (
-        pcoll
-        # TODO(https://github.com/apache/beam/issues/21440): Hook into the
-        # batching DoFn APIs.
-        | beam.BatchElements(**self._model_handler.batch_elements_kwargs()))
+    if self._model_handler.should_skip_batching():
+      batched_elements_pcoll = pcoll
+    else:
+      batched_elements_pcoll = (
+          pcoll
+          # TODO(https://github.com/apache/beam/issues/21440): Hook into the
+          # batching DoFn APIs.
+          | beam.BatchElements(**self._model_handler.batch_elements_kwargs()))
 
     run_inference_pardo = beam.ParDo(
         _RunInferenceDoFn(

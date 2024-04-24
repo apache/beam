@@ -889,7 +889,7 @@ def create_java_builtin_provider():
     return java_provider.create_transform(
         'WindowIntoStrategy',
         {
-            'serializedWindowingStrategy': windowing_strategy.to_runner_api(
+            'serialized_windowing_strategy': windowing_strategy.to_runner_api(
                 empty_context).SerializeToString()
         },
         None)
@@ -1143,6 +1143,7 @@ def merge_providers(*provider_sets):
 def standard_providers():
   from apache_beam.yaml.yaml_combine import create_combine_providers
   from apache_beam.yaml.yaml_mapping import create_mapping_providers
+  from apache_beam.yaml.yaml_join import create_join_providers
   from apache_beam.yaml.yaml_io import io_providers
   with open(os.path.join(os.path.dirname(__file__),
                          'standard_providers.yaml')) as fin:
@@ -1153,5 +1154,6 @@ def standard_providers():
       create_java_builtin_provider(),
       create_mapping_providers(),
       create_combine_providers(),
+      create_join_providers(),
       io_providers(),
       parse_providers(standard_providers))

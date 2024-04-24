@@ -37,6 +37,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public class FlinkSourceSplit<T> implements SourceSplit, Serializable {
   // The index of the split.
+
+  private static final long serialVersionUID = 7458114818012108972L;
+
   private final int splitIndex;
   private final Source<T> beamSplitSource;
   private final byte @Nullable [] splitState;

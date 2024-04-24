@@ -201,4 +201,21 @@ public class CoderTranslation {
         SerializableUtils.deserializeFromByteArray(
             protoCoder.getSpec().getPayload().toByteArray(), "Custom Coder Bytes");
   }
+
+  /**
+   * Explicitly validate that required coders are registered.
+   *
+   * <p>Called early to give avoid significantly more obscure error later if this precondition is
+   * not satisfied.
+   */
+  public static void verifyModelCodersRegistered() {
+    for (String urn : new ModelCoderRegistrar().getCoderURNs().values()) {
+      if (!getKnownCoderUrns().inverse().containsKey(urn)) {
+        throw new IllegalStateException(
+            "Model coder not registered for "
+                + urn
+                + ". Perhaps this is a fat jar built with missing ServiceLoader entries?");
+      }
+    }
+  }
 }
