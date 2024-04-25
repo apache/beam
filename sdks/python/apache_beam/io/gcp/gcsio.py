@@ -110,12 +110,15 @@ class GcsIO(object):
         pipeline_options = PipelineOptions.from_dictionary(pipeline_options)
       credentials = auth.get_service_credentials(pipeline_options)
       if credentials:
+        job_name = pipeline_options.view_as(GoogleCloudOptions).job_name
+        if not job_name:
+          job_name = "UNKNOWN"
         storage_client = storage.Client(
             credentials=credentials.get_google_auth_credentials(),
             project=pipeline_options.view_as(GoogleCloudOptions).project,
             extra_headers={
-                "User-Agent": "apache-beam/%s (GPN:Beam)" %
-                beam_version.__version__
+                "User-Agent": "apache-beam/%s job-name/%s (GPN:Beam)" %
+                (beam_version.__version__, job_name)
             })
       else:
         storage_client = storage.Client.create_anonymous_client()
