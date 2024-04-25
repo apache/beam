@@ -112,17 +112,17 @@ public class KafkaReadSchemaTransformProviderTest {
 
     assertEquals(
         Sets.newHashSet(
-            "bootstrap_servers",
+            "bootstrapServers",
             "topic",
             "schema",
-            "auto_offset_reset_config",
-            "consumer_config_updates",
+            "autoOffsetResetConfig",
+            "consumerConfigUpdates",
             "format",
-            "confluent_schema_registry_subject",
-            "confluent_schema_registry_url",
-            "error_handling",
-            "file_descriptor_path",
-            "message_name"),
+            "confluentSchemaRegistrySubject",
+            "confluentSchemaRegistryUrl",
+            "errorHandling",
+            "fileDescriptorPath",
+            "messageName"),
         kafkaProvider.configurationSchema().getFields().stream()
             .map(field -> field.getName())
             .collect(Collectors.toSet()));
