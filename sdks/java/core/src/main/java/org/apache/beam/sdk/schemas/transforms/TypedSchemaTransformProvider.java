@@ -41,9 +41,6 @@ import org.apache.beam.sdk.values.Row;
  * {@code ConfigT} using the SchemaRegistry. A Beam {@link Row} can still be used produce a {@link
  * SchemaTransform} using {@link #from(Row)}, as long as the Row fits the configuration Schema.
  *
- * <p>NOTE: The inferred field names in the configuration {@link Schema} and {@link Row} follow the
- * {@code snake_case} naming convention.
- *
  * <p><b>Internal only:</b> This interface is actively being worked on and it will likely change as
  * we provide implementations for more standard Beam transforms. We provide no backwards
  * compatibility guarantees and it should not be implemented outside of the Beam repository.
@@ -84,7 +81,6 @@ public abstract class TypedSchemaTransformProvider<ConfigT> implements SchemaTra
   public Schema configurationSchema() {
     try {
       // Sort the fields by name to ensure a consistent schema is produced
-      // We also establish a `snake_case` convention for all SchemaTransform configurations
       return SchemaRegistry.createDefault().getSchema(configurationClass()).sorted();
     } catch (NoSuchSchemaException e) {
       throw new RuntimeException(
@@ -94,10 +90,7 @@ public abstract class TypedSchemaTransformProvider<ConfigT> implements SchemaTra
     }
   }
 
-  /**
-   * Produces a {@link SchemaTransform} from a Row configuration. Row fields are expected to have
-   * `snake_case` naming convention.
-   */
+  /** Produces a {@link SchemaTransform} from a Row configuration. */
   @Override
   public SchemaTransform from(Row configuration) {
     return from(configFromRow(configuration));
