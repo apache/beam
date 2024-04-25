@@ -106,8 +106,6 @@ class FeastFeatureStoreEnrichmentHandler(EnrichmentSourceHandler[beam.Row,
     """Initializes an instance of `FeastFeatureStoreEnrichmentHandler`.
 
     Args:
-      entity_id (str): entity name for the entity associated with the features.
-        The `entity_id` is used to extract the entity value from the input row.
       feature_store_yaml_path (str): The path to a YAML configuration file for
         the Feast feature store. See
         https://docs.feast.dev/reference/feature-repository/feature-store-yaml
@@ -118,10 +116,14 @@ class FeastFeatureStoreEnrichmentHandler(EnrichmentSourceHandler[beam.Row,
         the features to fetch from the online Feast feature store.
       full_feature_names (bool): Whether to use full feature names
         (including namespaces, etc.). Defaults to False.
-      entity_row_fn: a lambda function that returns a dictionary with
-        a mapping from the entity key column name to entity key value from the
-        input row. It is used to build/extract the entity dict for feature
-        retrieval.
+      entity_id (str): entity name for the entity associated with the features.
+        The `entity_id` is used to extract the entity value from the input row.
+        Please provide exactly one of `entity_id` or `entity_row_fn`.
+      entity_row_fn: a lambda function that takes an input `beam.Row` and
+        returns a dictionary with a mapping from the entity key column name to
+        entity key value. It is used to build/extract the entity dict for
+        feature retrieval. Please provide exactly one of `entity_id` or
+        `entity_row_fn`.
         See https://docs.feast.dev/getting-started/concepts/feature-retrieval
         for more information.
       exception_level: a `enum.Enum` value from
