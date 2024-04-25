@@ -3819,6 +3819,7 @@ public class BigQueryIO {
         StorageApiLoads<DestinationT, T> storageApiLoads =
             new StorageApiLoads<>(
                 destinationCoder,
+                elementCoder,
                 storageApiDynamicDestinations,
                 getRowMutationInformationFn(),
                 getCreateDisposition(),

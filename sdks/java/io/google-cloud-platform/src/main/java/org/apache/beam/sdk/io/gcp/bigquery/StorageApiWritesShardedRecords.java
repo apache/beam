@@ -114,7 +114,7 @@ import org.slf4j.LoggerFactory;
 })
 public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object, ElementT>
     extends PTransform<
-        PCollection<KV<ShardedKey<DestinationT>, Iterable<StorageApiWritePayload>>>,
+        PCollection<KV<ShardedKey<DestinationT>, Iterable<KV<ElementT,StorageApiWritePayload>>>>,
         PCollectionTuple> {
   private static final Logger LOG = LoggerFactory.getLogger(StorageApiWritesShardedRecords.class);
   private static final Duration DEFAULT_STREAM_IDLE_TIME = Duration.standardHours(1);
@@ -238,7 +238,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
 
   @Override
   public PCollectionTuple expand(
-      PCollection<KV<ShardedKey<DestinationT>, Iterable<StorageApiWritePayload>>> input) {
+      PCollection<KV<ShardedKey<DestinationT>, Iterable<KV<ElementT,StorageApiWritePayload>>>> input) {
     BigQueryOptions bigQueryOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
     final long splitSize = bigQueryOptions.getStorageApiAppendThresholdBytes();
     final long maxRequestSize = bigQueryOptions.getStorageWriteApiMaxRequestSize();
@@ -292,7 +292,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
 
   class WriteRecordsDoFn
       extends DoFn<
-          KV<ShardedKey<DestinationT>, Iterable<StorageApiWritePayload>>, KV<String, Operation>> {
+          KV<ShardedKey<DestinationT>, Iterable<KV<ElementT,StorageApiWritePayload>>>, KV<String, Operation>> {
     private final Counter recordsAppended =
         Metrics.counter(WriteRecordsDoFn.class, "recordsAppended");
     private final Counter streamsCreated =
@@ -427,7 +427,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
     public void process(
         ProcessContext c,
         final PipelineOptions pipelineOptions,
-        @Element KV<ShardedKey<DestinationT>, Iterable<StorageApiWritePayload>> element,
+        @Element KV<ShardedKey<DestinationT>, Iterable<KV<ElementT,StorageApiWritePayload>>> element,
         @Timestamp org.joda.time.Instant elementTs,
         final @AlwaysFetched @StateId("streamName") ValueState<String> streamName,
         final @AlwaysFetched @StateId("streamOffset") ValueState<Long> streamOffset,
@@ -552,7 +552,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
       // TODO: Push messageFromTableRow up to top level. That we we cans skip TableRow entirely if
       // already proto or already schema.
       Iterable<SplittingIterable.Value> messages =
-          new SplittingIterable(
+          new SplittingIterable<ElementT>(
               element.getValue(),
               splitSize,
               (fields, ignore) -> appendClientInfo.get().encodeUnknownFields(fields, ignore),

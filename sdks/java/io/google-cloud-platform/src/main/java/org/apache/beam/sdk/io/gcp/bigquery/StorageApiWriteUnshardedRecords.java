@@ -96,7 +96,7 @@ import org.slf4j.LoggerFactory;
  */
 @SuppressWarnings({"FutureReturnValueIgnored"})
 public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
-    extends PTransform<PCollection<KV<DestinationT, StorageApiWritePayload>>, PCollectionTuple> {
+    extends PTransform<PCollection<KV<DestinationT, KV<ElementT,StorageApiWritePayload>>>, PCollectionTuple> {
   private static final Logger LOG = LoggerFactory.getLogger(StorageApiWriteUnshardedRecords.class);
 
   private final StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations;
@@ -187,7 +187,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
   }
 
   @Override
-  public PCollectionTuple expand(PCollection<KV<DestinationT, StorageApiWritePayload>> input) {
+  public PCollectionTuple expand(PCollection<KV<DestinationT, KV<ElementT,StorageApiWritePayload>>> input) {
     String operationName = input.getName() + "/" + getName();
     BigQueryOptions options = input.getPipeline().getOptions().as(BigQueryOptions.class);
     org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument(
@@ -237,7 +237,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
   }
 
   static class WriteRecordsDoFn<DestinationT extends @NonNull Object, ElementT>
-      extends DoFn<KV<DestinationT, StorageApiWritePayload>, KV<String, String>> {
+      extends DoFn<KV<DestinationT, KV<ElementT,StorageApiWritePayload>>, KV<String, String>> {
     private final Counter forcedFlushes = Metrics.counter(WriteRecordsDoFn.class, "forcedFlushes");
     private final TupleTag<KV<String, String>> finalizeTag;
     private final TupleTag<BigQueryStorageApiInsertError> failedRowsTag;
@@ -1048,7 +1048,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
     public void process(
         ProcessContext c,
         PipelineOptions pipelineOptions,
-        @Element KV<DestinationT, StorageApiWritePayload> element,
+        @Element KV<DestinationT, KV<ElementT,StorageApiWritePayload>> element,
         @Timestamp org.joda.time.Instant elementTs,
         MultiOutputReceiver o)
         throws Exception {
@@ -1074,9 +1074,9 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       OutputReceiver<TableRow> successfulRowsReceiver =
           (successfulRowsTag != null) ? o.get(successfulRowsTag) : null;
       flushIfNecessary(failedRowsReceiver, successfulRowsReceiver);
-      state.addMessage(element.getValue(), elementTs, failedRowsReceiver);
+      state.addMessage(element.getValue().getValue(), elementTs, failedRowsReceiver);
       ++numPendingRecords;
-      numPendingRecordBytes += element.getValue().getPayload().length;
+      numPendingRecordBytes += element.getValue().getValue().getPayload().length;
     }
 
     @FinishBundle

@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -36,7 +37,7 @@ import org.joda.time.Instant;
  * parameter controls how many rows are batched into a single ProtoRows object before we move on to
  * the next one.
  */
-class SplittingIterable implements Iterable<SplittingIterable.Value> {
+class SplittingIterable<ElementT> implements Iterable<SplittingIterable.Value> {
   @AutoValue
   abstract static class Value {
     abstract ProtoRows getProtoRows();
@@ -49,7 +50,7 @@ class SplittingIterable implements Iterable<SplittingIterable.Value> {
         throws TableRowToStorageApiProto.SchemaConversionException;
   }
 
-  private final Iterable<StorageApiWritePayload> underlying;
+  private final Iterable<KV<ElementT,StorageApiWritePayload>> underlying;
   private final long splitSize;
 
   private final ConvertUnknownFields unknownFieldsToMessage;
@@ -61,7 +62,7 @@ class SplittingIterable implements Iterable<SplittingIterable.Value> {
   private final Instant elementsTimestamp;
 
   public SplittingIterable(
-      Iterable<StorageApiWritePayload> underlying,
+      Iterable<KV<ElementT,StorageApiWritePayload>> underlying,
       long splitSize,
       ConvertUnknownFields unknownFieldsToMessage,
       Function<ByteString, TableRow> protoToTableRow,
@@ -82,7 +83,7 @@ class SplittingIterable implements Iterable<SplittingIterable.Value> {
   @Override
   public Iterator<Value> iterator() {
     return new Iterator<Value>() {
-      final Iterator<StorageApiWritePayload> underlyingIterator = underlying.iterator();
+      final Iterator<KV<ElementT,StorageApiWritePayload>> underlyingIterator = underlying.iterator();
 
       @Override
       public boolean hasNext() {
@@ -99,7 +100,7 @@ class SplittingIterable implements Iterable<SplittingIterable.Value> {
         ProtoRows.Builder inserts = ProtoRows.newBuilder();
         long bytesSize = 0;
         while (underlyingIterator.hasNext()) {
-          StorageApiWritePayload payload = underlyingIterator.next();
+          StorageApiWritePayload payload = underlyingIterator.next().getValue();
           ByteString byteString = ByteString.copyFrom(payload.getPayload());
           if (autoUpdateSchema) {
             try {
