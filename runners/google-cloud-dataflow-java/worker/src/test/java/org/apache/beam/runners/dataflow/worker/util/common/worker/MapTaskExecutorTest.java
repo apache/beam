@@ -141,7 +141,7 @@ public class MapTaskExecutorTest {
     Operation o3 = Mockito.mock(Operation.class);
     List<Operation> operations = Arrays.asList(new Operation[] {o1, o2, o3});
 
-    ExecutionStateTracker stateTracker = Mockito.mock(ExecutionStateTracker.class);
+    ExecutionStateTracker stateTracker = Mockito.spy(ExecutionStateTracker.newForTest());
 
     try (MapTaskExecutor executor = new MapTaskExecutor(operations, counterSet, stateTracker)) {
       executor.execute();
@@ -154,6 +154,7 @@ public class MapTaskExecutorTest {
     inOrder.verify(o1).finish();
     inOrder.verify(o2).finish();
     inOrder.verify(o3).finish();
+    inOrder.verify(stateTracker).deactivate();
   }
 
   private TestOperation createOperation(String stepName, long count) {
@@ -405,13 +406,13 @@ public class MapTaskExecutorTest {
     Operation o3 = Mockito.mock(Operation.class);
     Mockito.doThrow(new Exception("in start")).when(o2).start();
 
-    ExecutionStateTracker stateTracker = ExecutionStateTracker.newForTest();
+    ExecutionStateTracker stateTracker = Mockito.spy(ExecutionStateTracker.newForTest());
     try (MapTaskExecutor executor =
         new MapTaskExecutor(Arrays.<Operation>asList(o1, o2, o3), counterSet, stateTracker)) {
       executor.execute();
       fail("Should have thrown");
     } catch (Exception e) {
-      InOrder inOrder = Mockito.inOrder(o1, o2, o3);
+      InOrder inOrder = Mockito.inOrder(o1, o2, o3, stateTracker);
       inOrder.verify(o3).start();
       inOrder.verify(o2).start();
 
@@ -419,6 +420,7 @@ public class MapTaskExecutorTest {
       Mockito.verify(o1).abort();
       Mockito.verify(o2).abort();
       Mockito.verify(o3).abort();
+      Mockito.verify(stateTracker).deactivate();
       Mockito.verifyNoMoreInteractions(o1, o2, o3);
     }
   }
@@ -430,7 +432,7 @@ public class MapTaskExecutorTest {
     Operation o3 = Mockito.mock(Operation.class);
     Mockito.doThrow(new Exception("in finish")).when(o2).finish();
 
-    ExecutionStateTracker stateTracker = ExecutionStateTracker.newForTest();
+    ExecutionStateTracker stateTracker = Mockito.spy(ExecutionStateTracker.newForTest());
     try (MapTaskExecutor executor =
         new MapTaskExecutor(Arrays.<Operation>asList(o1, o2, o3), counterSet, stateTracker)) {
       executor.execute();
@@ -447,6 +449,7 @@ public class MapTaskExecutorTest {
       Mockito.verify(o1).abort();
       Mockito.verify(o2).abort();
       Mockito.verify(o3).abort();
+      Mockito.verify(stateTracker).deactivate();
       Mockito.verifyNoMoreInteractions(o1, o2, o3);
     }
   }
@@ -460,7 +463,7 @@ public class MapTaskExecutorTest {
     Mockito.doThrow(new Exception("in finish")).when(o2).finish();
     Mockito.doThrow(new Exception("suppressed in abort")).when(o3).abort();
 
-    ExecutionStateTracker stateTracker = ExecutionStateTracker.newForTest();
+    ExecutionStateTracker stateTracker = Mockito.spy(ExecutionStateTracker.newForTest());
     try (MapTaskExecutor executor =
         new MapTaskExecutor(Arrays.<Operation>asList(o1, o2, o3, o4), counterSet, stateTracker)) {
       executor.execute();
@@ -479,6 +482,7 @@ public class MapTaskExecutorTest {
       Mockito.verify(o2).abort();
       Mockito.verify(o3).abort(); // will throw an exception, but we shouldn't fail
       Mockito.verify(o4).abort();
+      Mockito.verify(stateTracker).deactivate();
       Mockito.verifyNoMoreInteractions(o1, o2, o3, o4);
 
       // Make sure the failure while aborting shows up as a suppressed error
@@ -495,7 +499,7 @@ public class MapTaskExecutorTest {
     ReadOperation o1 = Mockito.mock(ReadOperation.class);
     ReadOperation o2 = Mockito.mock(ReadOperation.class);
 
-    ExecutionStateTracker stateTracker = ExecutionStateTracker.newForTest();
+    ExecutionStateTracker stateTracker = Mockito.spy(ExecutionStateTracker.newForTest());
     MapTaskExecutor executor =
         new MapTaskExecutor(Arrays.<Operation>asList(o1, o2), counterSet, stateTracker);
     Mockito.doAnswer(
@@ -508,5 +512,6 @@ public class MapTaskExecutorTest {
     executor.execute();
     Mockito.verify(o1, atLeastOnce()).abortReadLoop();
     Mockito.verify(o2, atLeastOnce()).abortReadLoop();
+    Mockito.verify(stateTracker).deactivate();
   }
 }

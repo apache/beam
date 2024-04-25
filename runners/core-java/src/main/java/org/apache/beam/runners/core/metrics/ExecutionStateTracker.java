@@ -249,7 +249,8 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
     return trackedThread;
   }
 
-  private synchronized void deactivate() {
+  @VisibleForTesting
+  public synchronized void deactivate() {
     sampler.removeTracker(this);
     Thread thread = this.trackedThread;
     if (thread != null) {
