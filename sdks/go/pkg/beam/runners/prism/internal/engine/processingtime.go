@@ -42,29 +42,6 @@ import (
 // A stage may trigger on multiple ticks.
 // It's up to a stage to schedule additional work on those notices.
 
-// mtimeHeap is a minHeap to find the earliest processing time event.
-type mtimeHeap []mtime.Time
-
-func (h mtimeHeap) Len() int { return len(h) }
-func (h mtimeHeap) Less(i, j int) bool {
-	return h[i] < h[j]
-}
-func (h mtimeHeap) Swap(i, j int) { h[i], h[j] = h[j], h[i] }
-
-func (h *mtimeHeap) Push(x any) {
-	// Push and Pop use pointer receivers because they modify the slice's length,
-	// not just its contents.
-	*h = append(*h, x.(mtime.Time))
-}
-
-func (h *mtimeHeap) Pop() any {
-	old := *h
-	n := len(old)
-	x := old[n-1]
-	*h = old[0 : n-1]
-	return x
-}
-
 // stageRefreshQueue manages ProcessingTime events, in particular, which stages need notification
 // at which points in processing time they occur. It doesn't handle the interface between
 // walltime or any synthetic notions of time.

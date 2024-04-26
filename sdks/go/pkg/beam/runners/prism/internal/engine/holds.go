@@ -22,21 +22,23 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 )
 
-// holdHeap orders holds based on their timestamps
-// so we can always find the minimum timestamp of pending holds.
-type holdHeap []mtime.Time
+// mtimeHeap is a minHeap to find the earliest processing time event.
+// Used for holds, and general processing time event ordering.
+type mtimeHeap []mtime.Time
 
-func (h holdHeap) Len() int           { return len(h) }
-func (h holdHeap) Less(i, j int) bool { return h[i] < h[j] }
-func (h holdHeap) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
+func (h mtimeHeap) Len() int { return len(h) }
+func (h mtimeHeap) Less(i, j int) bool {
+	return h[i] < h[j]
+}
+func (h mtimeHeap) Swap(i, j int) { h[i], h[j] = h[j], h[i] }
 
-func (h *holdHeap) Push(x any) {
+func (h *mtimeHeap) Push(x any) {
 	// Push and Pop use pointer receivers because they modify the slice's length,
 	// not just its contents.
 	*h = append(*h, x.(mtime.Time))
 }
 
-func (h *holdHeap) Pop() any {
+func (h *mtimeHeap) Pop() any {
 	old := *h
 	n := len(old)
 	x := old[n-1]
@@ -55,7 +57,7 @@ func (h *holdHeap) Pop() any {
 // A heap of the hold times is kept so we have quick access to the minimum hold, for calculating
 // how to advance the watermark.
 type holdTracker struct {
-	heap   holdHeap
+	heap   mtimeHeap
 	counts map[mtime.Time]int
 }
 
