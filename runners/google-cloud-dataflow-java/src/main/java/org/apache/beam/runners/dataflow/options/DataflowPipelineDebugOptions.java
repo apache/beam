@@ -224,6 +224,7 @@ public interface DataflowPipelineDebugOptions
   @Description(
       "The max amount of time before an UnboundedReader is consumed before checkpointing, in seconds.")
   @Deprecated
+  @Default.Integer(10)
   Integer getUnboundedReaderMaxReadTimeSec();
 
   void setUnboundedReaderMaxReadTimeSec(Integer value);
@@ -238,17 +239,13 @@ public interface DataflowPipelineDebugOptions
 
   /**
    * Sets Integer value based on old, deprecated field ({@link
-   * DataflowPipelineDebugOptions#getUnboundedReaderMaxReadTimeSec()}) is set.
+   * DataflowPipelineDebugOptions#getUnboundedReaderMaxReadTimeSec()}).
    */
-  class UnboundedReaderMaxReadTimeFactory implements DefaultValueFactory<Integer> {
+  static final class UnboundedReaderMaxReadTimeFactory implements DefaultValueFactory<Integer> {
     @Override
     public Integer create(PipelineOptions options) {
       DataflowPipelineDebugOptions debugOptions = options.as(DataflowPipelineDebugOptions.class);
-      if (debugOptions.getUnboundedReaderMaxReadTimeSec() != null) {
-        return debugOptions.getUnboundedReaderMaxReadTimeSec() * 1000;
-      } else {
-        return 10000;
-      }
+      return debugOptions.getUnboundedReaderMaxReadTimeSec() * 1000;
     }
   }
 
