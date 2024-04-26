@@ -241,7 +241,7 @@ public interface DataflowPipelineDebugOptions
    * Sets Integer value based on old, deprecated field ({@link
    * DataflowPipelineDebugOptions#getUnboundedReaderMaxReadTimeSec()}).
    */
-  static final class UnboundedReaderMaxReadTimeFactory implements DefaultValueFactory<Integer> {
+  final class UnboundedReaderMaxReadTimeFactory implements DefaultValueFactory<Integer> {
     @Override
     public Integer create(PipelineOptions options) {
       DataflowPipelineDebugOptions debugOptions = options.as(DataflowPipelineDebugOptions.class);
