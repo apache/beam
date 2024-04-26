@@ -228,13 +228,14 @@ class ElasticsearchIOTestCommon implements Serializable {
             ElasticsearchIO.read()
                 .withConnectionConfiguration(connectionConfiguration)
                 // set to default value, useful just to test parameter passing.
-                .withIteratorKeepalive("5m")
+                .withScrollKeepalive("5m")
                 // set to default value, useful just to test parameter passing.
                 .withBatchSize(100L));
     PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(numDocs);
     pipeline.run();
   }
 
+  /** Point in Time search is currently available for Elasticsearch version 8+. */
   void testReadPIT() throws Exception {
     if (!useAsITests) {
       ElasticsearchIOTestUtils.insertTestDocuments(connectionConfiguration, numDocs, restClient);

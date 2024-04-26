@@ -857,29 +857,17 @@ public class ElasticsearchIO {
     /**
      * Provide a scroll keepalive. See <a
      * href="https://www.elastic.co/guide/en/elasticsearch/reference/7.17/search-request-scroll.html">scroll
-     * API</a> Default is "5m". Change this only if you get "No search context found" errors.
+     * API</a> Default is "5m". Change this only if you get "No search context found" errors. When
+     * configuring the read to use Point In Time (PIT) search this configuration is used to set the
+     * PIT keep alive.
      *
-     * @deprecated use {@link Read#withIteratorKeepalive} instead
      * @param scrollKeepalive keepalive duration of the scroll
      * @return a {@link PTransform} reading data from Elasticsearch.
      */
-    @Deprecated
     public Read withScrollKeepalive(String scrollKeepalive) {
-      return this.withIteratorKeepalive(scrollKeepalive);
-    }
-
-    /**
-     * Sets the iterator keepalive. This setting should work the same for Scroll or Point In Team
-     * search iteration. Default is "5m". Change this only if you get "No search context found"
-     * errors.
-     *
-     * @param iteratorKeepalive keepalive duration of the selected iterator.
-     * @return a {@link PTransform} reading data from Elasticsearch.
-     */
-    public Read withIteratorKeepalive(String iteratorKeepalive) {
-      checkArgument(iteratorKeepalive != null, "iteratorKeepalive can not be null");
-      checkArgument(!"0m".equals(iteratorKeepalive), "iteratorKeepalive can not be 0m");
-      return builder().setIteratorKeepalive(iteratorKeepalive).build();
+      checkArgument(scrollKeepalive != null, "iteratorKeepalive can not be null");
+      checkArgument(!"0m".equals(scrollKeepalive), "iteratorKeepalive can not be 0m");
+      return builder().setIteratorKeepalive(scrollKeepalive).build();
     }
 
     /**
