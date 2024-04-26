@@ -50,9 +50,10 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
   private final StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations;
   private final BigQueryServices bqServices;
   private final TupleTag<BigQueryStorageApiInsertError> failedWritesTag;
-  private final TupleTag<KV<DestinationT, KV<ElementT,StorageApiWritePayload>>> successfulWritesTag;
+  private final TupleTag<KV<DestinationT, KV<ElementT, StorageApiWritePayload>>>
+      successfulWritesTag;
   private final Coder<BigQueryStorageApiInsertError> errorCoder;
-  private final Coder<KV<DestinationT, KV<ElementT,StorageApiWritePayload>>> successCoder;
+  private final Coder<KV<DestinationT, KV<ElementT, StorageApiWritePayload>>> successCoder;
 
   private final @Nullable SerializableFunction<ElementT, RowMutationInformation> rowMutationFn;
   private final BadRecordRouter badRecordRouter;
@@ -61,9 +62,9 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
       StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations,
       BigQueryServices bqServices,
       TupleTag<BigQueryStorageApiInsertError> failedWritesTag,
-      TupleTag<KV<DestinationT, KV<ElementT,StorageApiWritePayload>>> successfulWritesTag,
+      TupleTag<KV<DestinationT, KV<ElementT, StorageApiWritePayload>>> successfulWritesTag,
       Coder<BigQueryStorageApiInsertError> errorCoder,
-      Coder<KV<DestinationT, KV<ElementT,StorageApiWritePayload>>> successCoder,
+      Coder<KV<DestinationT, KV<ElementT, StorageApiWritePayload>>> successCoder,
       @Nullable SerializableFunction<ElementT, RowMutationInformation> rowMutationFn,
       BadRecordRouter badRecordRouter) {
     this.dynamicDestinations = dynamicDestinations;
@@ -104,12 +105,14 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
   }
 
   public static class ConvertMessagesDoFn<DestinationT extends @NonNull Object, ElementT>
-      extends DoFn<KV<DestinationT, ElementT>, KV<DestinationT, KV<ElementT,StorageApiWritePayload>>> {
+      extends DoFn<
+          KV<DestinationT, ElementT>, KV<DestinationT, KV<ElementT, StorageApiWritePayload>>> {
     private final StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations;
     private TwoLevelMessageConverterCache<DestinationT, ElementT> messageConverters;
     private final BigQueryServices bqServices;
     private final TupleTag<BigQueryStorageApiInsertError> failedWritesTag;
-    private final TupleTag<KV<DestinationT, KV<ElementT,StorageApiWritePayload>>> successfulWritesTag;
+    private final TupleTag<KV<DestinationT, KV<ElementT, StorageApiWritePayload>>>
+        successfulWritesTag;
     private final @Nullable SerializableFunction<ElementT, RowMutationInformation> rowMutationFn;
     private final BadRecordRouter badRecordRouter;
     Coder<KV<DestinationT, ElementT>> elementCoder;
@@ -120,7 +123,7 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
         BigQueryServices bqServices,
         String operationName,
         TupleTag<BigQueryStorageApiInsertError> failedWritesTag,
-        TupleTag<KV<DestinationT, KV<ElementT,StorageApiWritePayload>>> successfulWritesTag,
+        TupleTag<KV<DestinationT, KV<ElementT, StorageApiWritePayload>>> successfulWritesTag,
         @Nullable SerializableFunction<ElementT, RowMutationInformation> rowMutationFn,
         BadRecordRouter badRecordRouter,
         Coder<KV<DestinationT, ElementT>> elementCoder) {
@@ -177,7 +180,8 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
             messageConverter
                 .toMessage(element.getValue(), rowMutationInformation)
                 .withTimestamp(timestamp);
-        o.get(successfulWritesTag).output(KV.of(element.getKey(), KV.of(element.getValue(),payload)));
+        o.get(successfulWritesTag)
+            .output(KV.of(element.getKey(), KV.of(element.getValue(), payload)));
       } catch (TableRowToStorageApiProto.SchemaConversionException conversionException) {
         TableRow tableRow;
         try {

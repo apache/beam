@@ -50,7 +50,7 @@ class SplittingIterable<ElementT> implements Iterable<SplittingIterable.Value> {
         throws TableRowToStorageApiProto.SchemaConversionException;
   }
 
-  private final Iterable<KV<ElementT,StorageApiWritePayload>> underlying;
+  private final Iterable<KV<ElementT, StorageApiWritePayload>> underlying;
   private final long splitSize;
 
   private final ConvertUnknownFields unknownFieldsToMessage;
@@ -62,7 +62,7 @@ class SplittingIterable<ElementT> implements Iterable<SplittingIterable.Value> {
   private final Instant elementsTimestamp;
 
   public SplittingIterable(
-      Iterable<KV<ElementT,StorageApiWritePayload>> underlying,
+      Iterable<KV<ElementT, StorageApiWritePayload>> underlying,
       long splitSize,
       ConvertUnknownFields unknownFieldsToMessage,
       Function<ByteString, TableRow> protoToTableRow,
@@ -83,7 +83,8 @@ class SplittingIterable<ElementT> implements Iterable<SplittingIterable.Value> {
   @Override
   public Iterator<Value> iterator() {
     return new Iterator<Value>() {
-      final Iterator<KV<ElementT,StorageApiWritePayload>> underlyingIterator = underlying.iterator();
+      final Iterator<KV<ElementT, StorageApiWritePayload>> underlyingIterator =
+          underlying.iterator();
 
       @Override
       public boolean hasNext() {
