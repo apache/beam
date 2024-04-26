@@ -15,8 +15,4 @@
 # limitations under the License.
 #
 
-# Creates a kubernetes namespace for the strimzi kafka cluster.
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: strimzi
+feast[gcp]

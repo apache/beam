@@ -198,7 +198,6 @@ public class ManagedSchemaTransformProvider
     }
   }
 
-  /** */
   @VisibleForTesting
   static Row getRowConfig(ManagedConfig config, Schema transformSchema) {
     // May return an empty row (perhaps the underlying transform doesn't have any required
@@ -208,5 +207,16 @@ public class ManagedSchemaTransformProvider
 
   Map<String, SchemaTransformProvider> getAllProviders() {
     return schemaTransformProviders;
+  }
+
+  // TODO: set global snake_case naming convention and remove these special cases
+  @Override
+  public SchemaTransform from(Row rowConfig) {
+    return super.from(rowConfig.toCamelCase());
+  }
+
+  @Override
+  public Schema configurationSchema() {
+    return super.configurationSchema().toSnakeCase();
   }
 }

@@ -414,7 +414,7 @@ func (em *ElementManager) checkForQuiescence(advanced set[string]) {
 		outW := ss.OutputWatermark()
 		upPCol, upW := ss.UpstreamWatermark()
 		upS := em.pcolParents[upPCol]
-		stageState = append(stageState, fmt.Sprintln(id, "watermark in", inW, "out", outW, "upstream", upW, "from", upS, "pending", ss.pending, "byKey", ss.pendingByKeys, "inprogressKeys", ss.inprogressKeys, "byBundle", ss.inprogressKeysByBundle, "holds", ss.watermarkHoldHeap, "holdCounts", ss.watermarkHoldsCounts))
+		stageState = append(stageState, fmt.Sprintln(id, "watermark in", inW, "out", outW, "upstream", upW, "from", upS, "pending", ss.pending, "byKey", ss.pendingByKeys, "inprogressKeys", ss.inprogressKeys, "byBundle", ss.inprogressKeysByBundle, "holds", ss.watermarkHolds.heap, "holdCounts", ss.watermarkHolds.counts))
 	}
 	panic(fmt.Sprintf("nothing in progress and no refreshes with non zero pending elements: %v\n%v", v, strings.Join(stageState, "")))
 }
@@ -706,18 +706,7 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 	delete(stage.inprogressKeysByBundle, rb.BundleID)
 
 	for hold, v := range stage.inprogressHoldsByBundle[rb.BundleID] {
-		n := stage.watermarkHoldsCounts[hold] - v
-		if n == 0 {
-			delete(stage.watermarkHoldsCounts, hold)
-			for i, h := range stage.watermarkHoldHeap {
-				if hold == h {
-					heap.Remove(&stage.watermarkHoldHeap, i)
-					break
-				}
-			}
-		} else {
-			stage.watermarkHoldsCounts[hold] = n
-		}
+		stage.watermarkHolds.Drop(hold, v)
 	}
 	delete(stage.inprogressHoldsByBundle, rb.BundleID)
 
@@ -918,8 +907,7 @@ type stageState struct {
 	// We track the count of timers with the same hold, and clear it from
 	// the map and heap when the count goes to zero.
 	// This avoids scanning the heap to remove or access a hold for each element.
-	watermarkHoldsCounts    map[mtime.Time]int
-	watermarkHoldHeap       holdHeap
+	watermarkHolds          *holdTracker
 	inprogressHoldsByBundle map[string]map[mtime.Time]int // bundle to associated holds.
 }
 
@@ -940,37 +928,15 @@ type dataAndTimers struct {
 	timers   map[timerKey]timerTimes
 }
 
-// holdHeap orders holds based on their timestamps
-// so we can always find the minimum timestamp of pending holds.
-type holdHeap []mtime.Time
-
-func (h holdHeap) Len() int           { return len(h) }
-func (h holdHeap) Less(i, j int) bool { return h[i] < h[j] }
-func (h holdHeap) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
-
-func (h *holdHeap) Push(x any) {
-	// Push and Pop use pointer receivers because they modify the slice's length,
-	// not just its contents.
-	*h = append(*h, x.(mtime.Time))
-}
-
-func (h *holdHeap) Pop() any {
-	old := *h
-	n := len(old)
-	x := old[n-1]
-	*h = old[0 : n-1]
-	return x
-}
-
 // makeStageState produces an initialized stageState.
 func makeStageState(ID string, inputIDs, outputIDs []string, sides []LinkID) *stageState {
 	ss := &stageState{
-		ID:                   ID,
-		outputIDs:            outputIDs,
-		sides:                sides,
-		strat:                defaultStrat{},
-		state:                map[LinkID]map[typex.Window]map[string]StateData{},
-		watermarkHoldsCounts: map[mtime.Time]int{},
+		ID:             ID,
+		outputIDs:      outputIDs,
+		sides:          sides,
+		strat:          defaultStrat{},
+		state:          map[LinkID]map[typex.Window]map[string]StateData{},
+		watermarkHolds: newHoldTracker(),
 
 		input:           mtime.MinTimestamp,
 		output:          mtime.MinTimestamp,
@@ -1016,29 +982,13 @@ func (ss *stageState) AddPending(newPending []element) int {
 					// don't increase the count this time, as "this" timer is already pending.
 					count--
 					// clear out the existing hold for accounting purposes.
-					v := ss.watermarkHoldsCounts[lastSet.hold] - 1
-					if v == 0 {
-						delete(ss.watermarkHoldsCounts, lastSet.hold)
-						for i, hold := range ss.watermarkHoldHeap {
-							if hold == lastSet.hold {
-								heap.Remove(&ss.watermarkHoldHeap, i)
-								break
-							}
-						}
-					} else {
-						ss.watermarkHoldsCounts[lastSet.hold] = v
-					}
+					ss.watermarkHolds.Drop(lastSet.hold, 1)
 				}
 				// Update the last set time on the timer.
 				dnt.timers[timerKey{family: e.family, tag: e.tag, window: e.window}] = timerTimes{firing: e.timestamp, hold: e.holdTimestamp}
 
 				// Mark the hold in the heap.
-				ss.watermarkHoldsCounts[e.holdTimestamp] = ss.watermarkHoldsCounts[e.holdTimestamp] + 1
-
-				if len(ss.watermarkHoldsCounts) != len(ss.watermarkHoldHeap) {
-					// The hold should not be in the heap, so we add it.
-					heap.Push(&ss.watermarkHoldHeap, e.holdTimestamp)
-				}
+				ss.watermarkHolds.Add(e.holdTimestamp, 1)
 			}
 		}
 		return count
@@ -1308,10 +1258,7 @@ func (ss *stageState) updateWatermarks(em *ElementManager) set[string] {
 	defer ss.mu.Unlock()
 
 	minPending := ss.minPendingTimestampLocked()
-	minWatermarkHold := mtime.MaxTimestamp
-	if ss.watermarkHoldHeap.Len() > 0 {
-		minWatermarkHold = ss.watermarkHoldHeap[0]
-	}
+	minWatermarkHold := ss.watermarkHolds.Min()
 
 	// PCollection watermarks are based on their parents's output watermark.
 	_, newIn := ss.UpstreamWatermark()

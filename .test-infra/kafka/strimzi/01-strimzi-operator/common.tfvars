@@ -16,13 +16,9 @@
  * limitations under the License.
  */
 
-// Setup Google Cloud provider
-provider "google" {
-  project = var.project
-}
-
-
-terraform {
-   backend "gcs" {
-   }
-}
+name             = "strimzi"
+namespace        = "strimzi"
+kubeconfig_path  = "~/.kube/config"
+chart_name       = "strimzi-kafka-operator"
+chart_version    = "0.40.0"
+chart_repository = "https://strimzi.io/charts/"

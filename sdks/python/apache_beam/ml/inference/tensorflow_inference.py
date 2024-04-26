@@ -112,6 +112,7 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
       max_batch_size: Optional[int] = None,
       max_batch_duration_secs: Optional[int] = None,
       large_model: bool = False,
+      model_copies: Optional[int] = None,
       **kwargs):
     """Implementation of the ModelHandler interface for Tensorflow.
 
@@ -137,6 +138,9 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
           memory pressure if you load multiple copies. Given a model that
           consumes N memory and a machine with W cores and M memory, you should
           set this to True if N*W > M.
+        model_copies: The exact number of models that you would like loaded
+          onto your machine. This can be useful if you exactly know your CPU or
+          GPU capacity and want to maximize resource utilization.
         kwargs: 'env_vars' can be used to set environment variables
           before loading the model.
 
@@ -157,7 +161,8 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
       self._batching_kwargs['max_batch_size'] = max_batch_size
     if max_batch_duration_secs is not None:
       self._batching_kwargs["max_batch_duration_secs"] = max_batch_duration_secs
-    self._large_model = large_model
+    self._share_across_processes = large_model or (model_copies is not None)
+    self._model_copies = model_copies or 1
 
   def load_model(self) -> tf.Module:
     """Loads and initializes a Tensorflow model for processing."""
@@ -222,7 +227,10 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
     return self._batching_kwargs
 
   def share_model_across_processes(self) -> bool:
-    return self._large_model
+    return self._share_across_processes
+
+  def model_copies(self) -> int:
+    return self._model_copies
 
 
 class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
@@ -240,6 +248,7 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
       max_batch_size: Optional[int] = None,
       max_batch_duration_secs: Optional[int] = None,
       large_model: bool = False,
+      model_copies: Optional[int] = None,
       **kwargs):
     """Implementation of the ModelHandler interface for Tensorflow.
 
@@ -270,6 +279,9 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
           memory pressure if you load multiple copies. Given a model that
           consumes N memory and a machine with W cores and M memory, you should
           set this to True if N*W > M.
+        model_copies: The exact number of models that you would like loaded
+          onto your machine. This can be useful if you exactly know your CPU or
+          GPU capacity and want to maximize resource utilization.
         kwargs: 'env_vars' can be used to set environment variables
           before loading the model.
 
@@ -290,7 +302,8 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
       self._batching_kwargs['max_batch_size'] = max_batch_size
     if max_batch_duration_secs is not None:
       self._batching_kwargs["max_batch_duration_secs"] = max_batch_duration_secs
-    self._large_model = large_model
+    self._share_across_processes = large_model or (model_copies is not None)
+    self._model_copies = model_copies or 1
 
   def load_model(self) -> tf.Module:
     """Loads and initializes a tensorflow model for processing."""
@@ -355,4 +368,7 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
     return self._batching_kwargs
 
   def share_model_across_processes(self) -> bool:
-    return self._large_model
+    return self._share_across_processes
+
+  def model_copies(self) -> int:
+    return self._model_copies

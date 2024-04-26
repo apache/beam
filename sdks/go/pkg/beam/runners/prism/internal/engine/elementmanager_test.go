@@ -295,7 +295,7 @@ func TestStageState_updateWatermarks(t *testing.T) {
 			ss.output = test.initOutput
 			ss.updateUpstreamWatermark(inputCol, test.upstream)
 			ss.pending = append(ss.pending, element{timestamp: test.minPending})
-			ss.watermarkHoldHeap = append(ss.watermarkHoldHeap, test.minStateHold)
+			ss.watermarkHolds.Add(test.minStateHold, 1)
 			ss.updateWatermarks(em)
 			if got, want := ss.input, test.wantInput; got != want {
 				pcol, up := ss.UpstreamWatermark()
