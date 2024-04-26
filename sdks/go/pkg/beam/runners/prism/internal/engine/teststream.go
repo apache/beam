@@ -233,13 +233,12 @@ type tsProcessingTimeEvent struct {
 
 // Execute this ProcessingTime event by advancing the synthetic processing time.
 func (ev tsProcessingTimeEvent) Execute(em *ElementManager) {
-	if ev.AdvanceBy == time.Duration(mtime.MaxTimestamp) {
+	em.testStreamHandler.processingTime = em.testStreamHandler.processingTime.Add(ev.AdvanceBy)
+	if em.testStreamHandler.processingTime.After(mtime.MaxTimestamp.ToTime()) || ev.AdvanceBy == time.Duration(mtime.MaxTimestamp) {
 		em.testStreamHandler.processingTime = mtime.MaxTimestamp.ToTime()
-	} else {
-		em.testStreamHandler.processingTime = em.testStreamHandler.processingTime.Add(ev.AdvanceBy)
 	}
 
-	// // Add the refreshes now so our block prevention logic works.
+	// Add the refreshes now so our block prevention logic works.
 	emNow := em.ProcessingTimeNow()
 	toRefresh := em.processTimeEvents.AdvanceTo(emNow)
 	em.watermarkRefreshes.merge(toRefresh)
@@ -256,11 +255,6 @@ func (ev tsFinalEvent) Execute(em *ElementManager) {
 	em.testStreamHandler.UpdateHold(em, mtime.MaxTimestamp)
 	ss := em.stages[ev.stageID]
 	kickSet := ss.updateWatermarks(em)
-	if ss.OutputWatermark() == mtime.MaxTimestamp {
-		for k := range em.stages {
-			kickSet.insert(k)
-		}
-	}
 	kickSet.insert(ev.stageID)
 	em.watermarkRefreshes.merge(kickSet)
 }

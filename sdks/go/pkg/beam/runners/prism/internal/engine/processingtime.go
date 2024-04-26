@@ -85,9 +85,9 @@ func (q *stageRefreshQueue) Peek() (mtime.Time, bool) {
 
 // AdvanceTo takes in the current now time, and returns the set of ids that need a refresh.
 func (q *stageRefreshQueue) AdvanceTo(now mtime.Time) set[string] {
-	// If there are no elements, then we're done.
 	notify := set[string]{}
 	for {
+		// If there are no elements, then we're done.
 		if len(q.order) == 0 || q.order[0] > now {
 			return notify
 		}

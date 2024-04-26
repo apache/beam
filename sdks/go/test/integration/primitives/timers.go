@@ -52,7 +52,7 @@ type inputFn[K, V any] struct {
 	Inputs []kv[K, V]
 }
 
-func (fn *inputFn[K, V]) ProcessElement(imp []byte, emit func(K, V)) {
+func (fn *inputFn[K, V]) ProcessElement(_ []byte, emit func(K, V)) {
 	for _, in := range fn.Inputs {
 		emit(in.Key, in.Value)
 	}
@@ -153,17 +153,7 @@ func TimersEventTimeUnbounded(s beam.Scope) {
 	})(s)
 }
 
-// TimersEventTimeTestStream validates event time timers in a test stream "driven" pipeline.
-func TimersEventTimeTestStream(s beam.Scope) {
-	timersEventTimePipelineBuilder(func(s beam.Scope) beam.PCollection {
-		c := teststream.NewConfig()
-		c.AddElements(123456, []byte{42})
-		c.AdvanceWatermarkToInfinity()
-		return teststream.Create(s, c)
-	})(s)
-}
-
-// Below here are tests for ProcessingTime timers using TestStream.
+// Below here are tests for ProcessingTime timers.
 
 func init() {
 	register.DoFn2x0[[]byte, func(string, int)](&inputFn[string, int]{})
@@ -259,7 +249,8 @@ func timersProcessingTimePipelineBuilder(makeImp func(s beam.Scope) beam.PCollec
 	}
 }
 
-// TimersProcessingTimeBounded validates processing time timers in a bounded pipeline.
+// TimersProcessingTimeTestStream_Infinity validates processing time timers in a bounded pipeline
+// kicked along by TestStream.
 func TimersProcessingTimeTestStream_Infinity(s beam.Scope) {
 	timersProcessingTimePipelineBuilder(func(s beam.Scope) beam.PCollection {
 		c := teststream.NewConfig()
@@ -271,4 +262,9 @@ func TimersProcessingTimeTestStream_Infinity(s beam.Scope) {
 		c.AdvanceProcessingTimeToInfinity()
 		return teststream.Create(s, c)
 	})(s)
+}
+
+// TimersProcessingTimeBounded validates processing time timers in a bounded pipeline.
+func TimersProcessingTime_Bounded(s beam.Scope) {
+	timersProcessingTimePipelineBuilder(beam.Impulse)(s)
 }

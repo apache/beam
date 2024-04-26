@@ -232,6 +232,7 @@ func TestProcessingTime(t *testing.T) {
 		pipeline func(s beam.Scope)
 	}{
 		{pipeline: primitives.TimersProcessingTimeTestStream_Infinity},
+		{pipeline: primitives.TimersProcessingTime_Bounded},
 	}
 
 	configs := []struct {
