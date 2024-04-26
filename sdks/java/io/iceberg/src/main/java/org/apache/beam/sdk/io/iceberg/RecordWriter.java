@@ -23,6 +23,9 @@ import java.io.IOException;
 import org.apache.beam.sdk.values.Row;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.FileFormat;
+import org.apache.iceberg.ManifestFile;
+import org.apache.iceberg.ManifestFiles;
+import org.apache.iceberg.ManifestWriter;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.avro.Avro;
 import org.apache.iceberg.catalog.Catalog;
@@ -37,6 +40,7 @@ class RecordWriter {
   private final DataWriter<Record> icebergDataWriter;
 
   private final Table table;
+  private final String absoluteFilename;
 
   RecordWriter(Catalog catalog, IcebergDestination destination, String filename)
       throws IOException {
@@ -46,9 +50,9 @@ class RecordWriter {
 
   RecordWriter(Table table, FileFormat fileFormat, String filename) throws IOException {
     this.table = table;
-
-    String absoluteFilename = table.location() + "/" + filename;
+    this.absoluteFilename = table.location() + "/" + filename;
     OutputFile outputFile = table.io().newOutputFile(absoluteFilename);
+
     switch (fileFormat) {
       case AVRO:
         icebergDataWriter =
@@ -92,7 +96,15 @@ class RecordWriter {
     return icebergDataWriter.length();
   }
 
-  public DataFile dataFile() {
-    return icebergDataWriter.toDataFile();
+  public ManifestFile getManifestFile() throws IOException {
+    String manifestFilename = FileFormat.AVRO.addExtension(absoluteFilename + ".manifest");
+    OutputFile outputFile = table.io().newOutputFile(manifestFilename);
+    ManifestWriter<DataFile> manifestWriter;
+    try (ManifestWriter<DataFile> openWriter = ManifestFiles.write(getTable().spec(), outputFile)) {
+      openWriter.add(icebergDataWriter.toDataFile());
+      manifestWriter = openWriter;
+    }
+
+    return manifestWriter.toManifestFile();
   }
 }
