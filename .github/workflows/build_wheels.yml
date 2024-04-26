@@ -235,7 +235,9 @@ jobs:
       matrix:
         os_python: [
           {"os": "ubuntu-latest", "python": "${{ needs.check_env_variables.outputs.py-versions-full }}" },
-          {"os": "macos-latest", "python": "${{ needs.check_env_variables.outputs.py-versions-test }}" },
+          # Temporarily pin to macos-13 because macos-latest breaks this build
+          # TODO(https://github.com/apache/beam/issues/31114)
+          {"os": "macos-13", "python": "${{ needs.check_env_variables.outputs.py-versions-test }}" },
           {"os": "windows-latest", "python": "${{ needs.check_env_variables.outputs.py-versions-test }}" },
         ]
         arch: [auto]
