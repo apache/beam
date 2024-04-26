@@ -148,6 +148,7 @@ public class MapTaskExecutorTest {
     }
 
     InOrder inOrder = Mockito.inOrder(stateTracker, o1, o2, o3);
+    inOrder.verify(stateTracker).activate();
     inOrder.verify(o3).start();
     inOrder.verify(o2).start();
     inOrder.verify(o1).start();
@@ -413,6 +414,7 @@ public class MapTaskExecutorTest {
       fail("Should have thrown");
     } catch (Exception e) {
       InOrder inOrder = Mockito.inOrder(o1, o2, o3, stateTracker);
+      inOrder.verify(stateTracker).activate();
       inOrder.verify(o3).start();
       inOrder.verify(o2).start();
 
@@ -438,6 +440,7 @@ public class MapTaskExecutorTest {
       executor.execute();
       fail("Should have thrown");
     } catch (Exception e) {
+      Mockito.verify(stateTracker).activate();
       InOrder inOrder = Mockito.inOrder(o1, o2, o3);
       inOrder.verify(o3).start();
       inOrder.verify(o2).start();
@@ -469,7 +472,8 @@ public class MapTaskExecutorTest {
       executor.execute();
       fail("Should have thrown");
     } catch (Exception e) {
-      InOrder inOrder = Mockito.inOrder(o1, o2, o3, o4);
+      Mockito.verify(stateTracker).activate();
+      InOrder inOrder = Mockito.inOrder(o1, o2, o3, o4, stateTracker);
       inOrder.verify(o4).start();
       inOrder.verify(o3).start();
       inOrder.verify(o2).start();
@@ -510,6 +514,7 @@ public class MapTaskExecutorTest {
         .when(o1)
         .finish();
     executor.execute();
+    Mockito.verify(stateTracker).activate();
     Mockito.verify(o1, atLeastOnce()).abortReadLoop();
     Mockito.verify(o2, atLeastOnce()).abortReadLoop();
     Mockito.verify(stateTracker).deactivate();
