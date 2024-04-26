@@ -246,7 +246,9 @@ public interface DataflowPipelineDebugOptions
       DataflowPipelineDebugOptions debugOptions = options.as(DataflowPipelineDebugOptions.class);
       if (debugOptions.getUnboundedReaderMaxReadTimeSec() != null) {
         return debugOptions.getUnboundedReaderMaxReadTimeSec() * 1000;
-      } else return 10000;
+      } else {
+        return 10000;
+      }
     }
   }
 
