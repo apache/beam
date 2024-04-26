@@ -342,7 +342,7 @@ func (em *ElementManager) Bundles(ctx context.Context, nextBundID func() string)
 			for stageID := range advanced {
 				ss := em.stages[stageID]
 				watermark, ready := ss.bundleReady(em)
-				ptimeEventsReady := ss.processTimeEvents.Peek() <= emNow
+				ptimeEventsReady := ss.processTimeEvents.Peek() <= emNow || emNow == mtime.MaxTimestamp
 				if ready {
 					if ptimeEventsReady {
 						fmt.Println("XXXX Both ProcessingTime ready & Regularevents ready. stage", stageID) // Panic ?
@@ -367,7 +367,7 @@ func (em *ElementManager) Bundles(ctx context.Context, nextBundID func() string)
 					case runStageCh <- rb:
 					}
 					em.refreshCond.L.Lock()
-				} else if ss.processTimeEvents.Peek() <= emNow {
+				} else if ptimeEventsReady {
 					// TODO what if both regular events and processing time are ready?
 					fmt.Println("XXXX ProcessingTime ready stage", stageID, "watermark", watermark, ss.pending, "aggregate", ss.aggregate)
 					// Queue up elements!
@@ -375,9 +375,9 @@ func (em *ElementManager) Bundles(ctx context.Context, nextBundID func() string)
 					elems := ss.AdvanceProcessingTimeTo(emNow)
 
 					var toProcess []element
-					// TODO Sort out real holds (improve hold logic?)
 					minTs := mtime.MaxTimestamp
 					newKeys := set[string]{}
+
 					holdsInBundle := map[mtime.Time]int{}
 					for _, es := range elems {
 						for _, e := range es {
@@ -390,41 +390,46 @@ func (em *ElementManager) Bundles(ctx context.Context, nextBundID func() string)
 						}
 					}
 
-					bundID := nextBundID()
+					// Only do this if we have anything to process.
+					if len(toProcess) > 0 {
+						bundID := nextBundID()
 
-					es := elements{
-						es:           toProcess,
-						minTimestamp: minTs,
-					}
-					if ss.inprogress == nil {
-						ss.inprogress = make(map[string]elements)
-					}
-					if ss.inprogressKeysByBundle == nil {
-						ss.inprogressKeysByBundle = make(map[string]set[string])
-					}
-					if ss.inprogressHoldsByBundle == nil {
-						ss.inprogressHoldsByBundle = make(map[string]map[mtime.Time]int)
-					}
-					ss.inprogress[bundID] = es
-					ss.inprogressKeysByBundle[bundID] = newKeys
-					ss.inprogressKeys.merge(newKeys)
-					ss.inprogressHoldsByBundle[bundID] = holdsInBundle
+						es := elements{
+							es:           toProcess,
+							minTimestamp: minTs,
+						}
+						if ss.inprogress == nil {
+							ss.inprogress = make(map[string]elements)
+						}
+						if ss.inprogressKeysByBundle == nil {
+							ss.inprogressKeysByBundle = make(map[string]set[string])
+						}
+						if ss.inprogressHoldsByBundle == nil {
+							ss.inprogressHoldsByBundle = make(map[string]map[mtime.Time]int)
+						}
+						ss.inprogress[bundID] = es
+						ss.inprogressKeysByBundle[bundID] = newKeys
+						ss.inprogressKeys.merge(newKeys)
+						ss.inprogressHoldsByBundle[bundID] = holdsInBundle
 
-					fmt.Println("XXXXX QQQQQ ProcessingTimeBundle Started stage", stageID, "bundID", bundID, "watermark", watermark, ss.pending, "aggregate", ss.aggregate, "numElms", len(es.es))
+						fmt.Println("XXXXX QQQQQ ProcessingTimeBundle Started stage", stageID, "bundID", bundID, "watermark", watermark, ss.pending, "aggregate", ss.aggregate, "numElms", len(es.es), "holds in bundle", holdsInBundle, "stage", ss.watermarkHolds.counts, "pendingTime", ss.processTimeEvents.events)
 
-					rb := RunBundle{StageID: stageID, BundleID: bundID, Watermark: watermark}
+						rb := RunBundle{StageID: stageID, BundleID: bundID, Watermark: watermark}
 
-					em.inprogressBundles.insert(rb.BundleID)
-					em.refreshCond.L.Unlock()
+						em.inprogressBundles.insert(rb.BundleID)
+						em.refreshCond.L.Unlock()
 
-					select {
-					case <-ctx.Done():
-						return
-					case runStageCh <- rb:
+						select {
+						case <-ctx.Done():
+							return
+						case runStageCh <- rb:
+						}
+						em.refreshCond.L.Lock()
+					} else {
+						fmt.Println("XXXXXXX no processing time events")
 					}
-					em.refreshCond.L.Lock()
 				} else {
-					fmt.Println("XXXX BundleNotReady stage", stageID, "watermark", watermark, ss.pending, "aggregate", ss.aggregate)
+					fmt.Println("XXXX BundleNotReady stage", stageID, "watermark", watermark, ss.pending, "aggregate", ss.aggregate, ss.processTimeEvents.Peek(), emNow, ptimeEventsReady, ss.processTimeEvents.Peek()-emNow)
 				}
 			}
 			em.checkForQuiescence(advanced)
@@ -464,7 +469,7 @@ func (em *ElementManager) checkForQuiescence(advanced set[string]) {
 	// There are no further incoming watermark changes, see if there are test stream events for this job.
 	nextEvent := em.testStreamHandler.NextEvent()
 	if nextEvent != nil {
-		fmt.Println("XXXX TestStreamEvent!", nextEvent)
+		fmt.Printf("XXXX TestStreamEvent! %T %v\n", nextEvent, nextEvent)
 		nextEvent.Execute(em)
 		// Decrement pending for the event being processed.
 		em.addPending(-1)
@@ -475,6 +480,7 @@ func (em *ElementManager) checkForQuiescence(advanced set[string]) {
 			return
 		}
 		// If there are no refreshes,  then there's no mechanism to make progress, so it's time to fast fail.
+		fmt.Println("XXXX TesStream event was a no-op!")
 	}
 
 	v := em.livePending.Load()
@@ -495,7 +501,7 @@ func (em *ElementManager) checkForQuiescence(advanced set[string]) {
 		outW := ss.OutputWatermark()
 		upPCol, upW := ss.UpstreamWatermark()
 		upS := em.pcolParents[upPCol]
-		stageState = append(stageState, fmt.Sprintln(id, "watermark in", inW, "out", outW, "upstream", upW, "from", upS, "pending", ss.pending, "byKey", ss.pendingByKeys, "inprogressKeys", ss.inprogressKeys, "byBundle", ss.inprogressKeysByBundle, "holds", ss.watermarkHolds.heap, "holdCounts", ss.watermarkHolds.counts))
+		stageState = append(stageState, fmt.Sprintln(id, "watermark in", inW, "out", outW, "upstream", upW, "from", upS, "pending", ss.pending, "byKey", ss.pendingByKeys, "inprogressKeys", ss.inprogressKeys, "byBundle", ss.inprogressKeysByBundle, "holds", ss.watermarkHolds.heap, "holdCounts", ss.watermarkHolds.counts, "ptEvents", ss.processTimeEvents.events))
 	}
 	panic(fmt.Sprintf("nothing in progress and no refreshes with non zero pending elements: %v\n%v", v, strings.Join(stageState, "")))
 }
@@ -767,6 +773,7 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 	em.triageTimers(d, inputInfo, stage)
 
 	// Return unprocessed to this stage's pending
+	// TODO sort out pending element watermark holds for process continuation residuals.
 	unprocessedElements := reElementResiduals(residuals.Data, inputInfo, rb)
 
 	// Add unprocessed back to the pending stack.
@@ -839,6 +846,7 @@ func (em *ElementManager) triageTimers(d TentativeData, inputInfo PColInfo, stag
 
 	var pendingEventTimers []element
 	var pendingProcessingTimers map[mtime.Time][]element
+	holds := map[mtime.Time]int{}
 	for tentativeKey, timers := range d.timers {
 		keyToTimers := map[timerKey]element{}
 		for _, t := range timers {
@@ -870,10 +878,20 @@ func (em *ElementManager) triageTimers(d TentativeData, inputInfo PColInfo, stag
 				prev := pendingProcessingTimers[newTimerFire]
 				prev = append(prev, elm)
 				pendingProcessingTimers[newTimerFire] = prev
+				holds[elm.holdTimestamp] += holds[elm.holdTimestamp] + 1
 			} else {
 				pendingEventTimers = append(pendingEventTimers, elm)
 			}
 		}
+	}
+
+	// Add holds for pending processing time timers.
+	if len(holds) > 0 {
+		stage.mu.Lock()
+		for h, v := range holds {
+			stage.watermarkHolds.Add(h, v)
+		}
+		stage.mu.Unlock()
 	}
 
 	if len(pendingEventTimers) > 0 {
@@ -1138,6 +1156,8 @@ func (ss *stageState) AddProcessingTimePending(newPending map[mtime.Time][]eleme
 	ss.mu.Lock()
 	defer ss.mu.Unlock()
 	var count int
+
+	// TODO add pending watermark for input data for watermark propagation, for non-timers.
 
 	// TODO sort out processing time watermark holds here.
 	// TODO sort out per key processing time uniqueness here (only "one" can be set for a given key+fam+window, just like event times.)
@@ -1521,17 +1541,21 @@ func (em *ElementManager) ProcessingTimeNow() (ret mtime.Time) {
 	// defer func() {
 	// 	fmt.Println("XXXX ProcessingTimeNow -> ", ret, em.processTimeEvents.order)
 	// }()
-	if em.testStreamHandler != nil {
+	if em.testStreamHandler != nil && !em.testStreamHandler.completed {
+		fmt.Println("XXXX ProcessingTimeNow via-testStream ", em.testStreamHandler.Now())
 		return em.testStreamHandler.Now()
 	}
 	// "Test" mode -> advance to next processing time event if any, to allow execution.
 	// if test mode...
 	if t, ok := em.processTimeEvents.Peek(); ok {
+		fmt.Println("XXXX ProcessingTimeNow via-event ", t)
 		return t
 	}
 
 	// "Production" mode, always real time now.
-	return mtime.Now()
+	now := mtime.Now()
+	fmt.Println("XXXX ProcessingTimeNow via-now ", now)
+	return now
 }
 
 // rebaseProcessingTime turns an absolute processing time to be relative to the provided local clock now.

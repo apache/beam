@@ -16,7 +16,6 @@ package engine
 
 import (
 	"container/heap"
-	"fmt"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 )
@@ -85,7 +84,6 @@ func newStageRefreshQueue() *stageRefreshQueue {
 
 // Schedule a stage event at the given time.
 func (q *stageRefreshQueue) Schedule(t mtime.Time, stageID string) {
-	fmt.Println("XXXX stageRefreshQueue scheduled! ", t, stageID)
 	if s, ok := q.events[t]; ok {
 		// We already have a trigger at this time, mutate that instead.
 		if s.present(stageID) {
@@ -114,8 +112,6 @@ func (q *stageRefreshQueue) AdvanceTo(now mtime.Time) set[string] {
 	notify := set[string]{}
 	for {
 		if len(q.order) == 0 || q.order[0] > now {
-			t, ok := q.Peek()
-			fmt.Println("XXXX stageRefreshQueue advanced to ", now, "refreshed", notify, "next time?", ok, t, t-now)
 			return notify
 		}
 		// pop elements off the queue until the next time is later than now.
@@ -166,4 +162,13 @@ func (q *processingTimeElementQueue) AdvanceTo(now mtime.Time) [][]element {
 		ret = append(ret, q.events[next])
 		delete(q.events, next)
 	}
+}
+
+// Peek returns the next scheduled ProcessingTime event in the queue.
+// Returns [mtime.MaxTimestamp] if the queue is empty.
+func (q *processingTimeElementQueue) Peek() mtime.Time {
+	if len(q.order) == 0 {
+		return mtime.MaxTimestamp
+	}
+	return q.order[0]
 }

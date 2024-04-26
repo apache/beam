@@ -17,7 +17,6 @@ package primitives
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 	"time"
 
@@ -54,7 +53,6 @@ type inputFn[K, V any] struct {
 }
 
 func (fn *inputFn[K, V]) ProcessElement(imp []byte, emit func(K, V)) {
-	fmt.Println("XXXX inputFn.ProcessElement kv:", imp)
 	for _, in := range fn.Inputs {
 		emit(in.Key, in.Value)
 	}
@@ -178,16 +176,15 @@ type processingTimeFn struct {
 
 	Offset      int
 	TimerOutput int
+	Cap         int
 }
 
 func (fn *processingTimeFn) ProcessElement(sp state.Provider, tp timers.Provider, key string, value int, emit func(string, int)) {
-	fmt.Println("XXXX processingTimeFn.ProcessElement kv:", key, value)
-	fn.Callback.Set(tp, time.Now().Add(10*time.Second))
+	fn.Callback.Set(tp, time.Now().Add(9*time.Second))
 	fn.MyValue.Write(sp, 0)
 }
 
 func (fn *processingTimeFn) OnTimer(ctx context.Context, ts beam.EventTime, sp state.Provider, tp timers.Provider, key string, timer timers.Context, emit func(string, int)) {
-	fmt.Println("XXXX processingTimeFn.OnTimer k:", key, ts, timer)
 	switch timer.Family {
 	case fn.Callback.Family:
 		switch timer.Tag {
@@ -200,9 +197,9 @@ func (fn *processingTimeFn) OnTimer(ctx context.Context, ts beam.EventTime, sp s
 				panic("State must be set for key: " + key)
 			}
 			emit(key, read)
-			if read < 3 {
+			if read < fn.Cap-1 {
 				fn.MyValue.Write(sp, read+1)
-				fn.Callback.Set(tp, time.Now().Add(10*time.Second))
+				fn.Callback.Set(tp, time.Now().Add(9*time.Second))
 			}
 		default:
 			panic("unexpected timer tag: " + timer.Family + " tag:" + timer.Tag + " want: \"\", for key:" + key)
@@ -215,20 +212,14 @@ func (fn *processingTimeFn) OnTimer(ctx context.Context, ts beam.EventTime, sp s
 }
 
 func regroup(key string, vs func(*int) bool, emit func(kv[string, int])) {
-	fmt.Println("XXXXX GROUPING OCCURED for key ", key)
 	var v int
 	for vs(&v) {
 		emit(kvfn(key, v))
 	}
 }
 
-func dumbdumb(key string, v int) {
-	fmt.Println("XXXXX DUMBDUMB OCCURED for key ", key, v)
-}
-
 func init() {
 	register.Function3x0(regroup)
-	register.Function2x0(dumbdumb)
 }
 
 func timersProcessingTimePipelineBuilder(makeImp func(s beam.Scope) beam.PCollection) func(s beam.Scope) {
@@ -251,8 +242,6 @@ func timersProcessingTimePipelineBuilder(makeImp func(s beam.Scope) beam.PCollec
 
 		imp := makeImp(s)
 
-		fmt.Println("XXXX inputs and outputs", inputs, wantOutputs)
-
 		keyed := beam.ParDo(s, &inputFn[string, int]{
 			Inputs: inputs,
 		}, imp)
@@ -261,12 +250,12 @@ func timersProcessingTimePipelineBuilder(makeImp func(s beam.Scope) beam.PCollec
 			TimerOutput: timerOutput,
 			Callback:    timers.InProcessingTime("Callback"),
 			MyValue:     state.MakeValueState[int]("MyKey"),
+			Cap:         numDuplicateTimers, // Syncs the cycles to the number of duplicate keyed inputs.
 		}, keyed)
-		beam.ParDo0(s, dumbdumb, times)
 		// We GroupByKey here so input to passert is blocked until teststream advances time to Infinity.
-		// gbk := beam.GroupByKey(s, times)
-		// beam.ParDo(s, regroup, gbk)
-		//passert.EqualsList(s, regrouped, wantOutputs)
+		gbk := beam.GroupByKey(s, times)
+		regrouped := beam.ParDo(s, regroup, gbk)
+		passert.EqualsList(s, regrouped, wantOutputs)
 	}
 }
 
@@ -279,7 +268,6 @@ func TimersProcessingTimeTestStream_Infinity(s beam.Scope) {
 		c.AdvanceProcessingTime(int64(mtime.FromDuration(10 * time.Second)))
 		c.AdvanceProcessingTime(int64(mtime.FromDuration(10 * time.Second)))
 		c.AdvanceProcessingTime(int64(mtime.FromDuration(10 * time.Second)))
-		// We should get one emission per advancement.
 		c.AdvanceProcessingTimeToInfinity()
 		return teststream.Create(s, c)
 	})(s)
