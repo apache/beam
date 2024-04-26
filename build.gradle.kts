@@ -208,6 +208,9 @@ tasks.rat {
 
     // DuetAI training prompts
     "learning/prompts/**/*.md",
+
+    // Ignore terraform lock files
+    "**/.terraform.lock.hcl"
   )
 
   // Add .gitignore excludes to the Apache Rat exclusion list. We re-create the behavior

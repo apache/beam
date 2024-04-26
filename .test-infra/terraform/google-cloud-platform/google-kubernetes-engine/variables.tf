@@ -31,9 +31,25 @@ variable "cluster_name_prefix" {
   description = "The prefix to assign the provisioned Google Kubernetes Engine (GKE) cluster; a random string is appended to this value"
 }
 
+variable "cluster_name_override" {
+  type = string
+  description = "Use this to override naming and omit the postfix. Leave empty to use prefix-suffix format"
+  default = ""
+}
+
 variable "network" {
   type        = string
   description = "The Google Cloud Virtual Private Cloud (VPC) network name"
+}
+
+variable "router" {
+  type        = string
+  description = "The name of the Google Compute Router resource associated with the VPC Network"
+}
+
+variable "router_nat" {
+  type        = string
+  description = "The name of the NAT associated with the Google Compute Router"
 }
 
 variable "subnetwork" {

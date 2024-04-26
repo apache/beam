@@ -16,13 +16,12 @@
  * limitations under the License.
  */
 
-// Setup Google Cloud provider
-provider "google" {
-  project = var.project
-}
-
-
-terraform {
-   backend "gcs" {
-   }
-}
+project    = "apache-beam-testing"
+network    = "default"
+subnetwork = "default-f91f013bcf8bd369"
+region     = "us-central1"
+router     = "default-us-central1-router"
+router_nat = "default-us-central1-router-nat"
+cluster_name_override = "kafka-workflows"
+cluster_name_prefix = "kafka-workflows"
+service_account_id = "beam-github-actions"
