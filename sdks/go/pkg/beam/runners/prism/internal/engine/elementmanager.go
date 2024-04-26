@@ -1138,9 +1138,7 @@ func (ss *stageState) AddProcessingTimePending(newPending map[mtime.Time][]eleme
 	defer ss.mu.Unlock()
 	var count int
 
-	// TODO add pending watermark for input data for watermark propagation, for non-timers.
-
-	// TODO sort out processing time watermark holds here.
+	// TODO move processing time watermark holds here.
 	// TODO sort out per key processing time uniqueness here (only "one" can be set for a given key+fam+window, just like event times.)
 	//   -  Only the last set one can work.
 	for t, event := range newPending {
@@ -1154,9 +1152,8 @@ func (ss *stageState) AddProcessingTimePending(newPending map[mtime.Time][]eleme
 // continuation elements and processing time timers.
 func (ss *stageState) AdvanceProcessingTimeTo(now mtime.Time) [][]element {
 	ss.mu.Lock()
-	events := ss.processTimeEvents.AdvanceTo(now)
-	ss.mu.Unlock()
-	return events
+	defer ss.mu.Unlock()	
+	return ss.processTimeEvents.AdvanceTo(now)
 }
 
 // GetSideData returns side input data for the provided transform+input pair, valid to the watermark.
