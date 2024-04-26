@@ -303,6 +303,8 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.frame.DataFrame.to_timestamp': ['*']
         },
         skip={
+            # DeferredDataFrame  doesn't implement the DF interchange protocol.
+            'pandas.core.frame.DataFrame.__dataframe__': ['*'],
             # DataFrame construction from a dictionary, Series, or other
             # DataFrame requires using the len() function, which is a
             # non-deferred operation that we do not allow
