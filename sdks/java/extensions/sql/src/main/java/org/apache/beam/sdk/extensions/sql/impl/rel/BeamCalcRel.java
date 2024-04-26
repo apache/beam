@@ -396,6 +396,8 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
         return ((ByteString) value).getBytes();
       case ARRAY:
         return toBeamList((List<Object>) value, fieldType.getCollectionElementType(), verifyValues);
+      case ITERABLE:
+        return toBeamList((List<Object>) value, fieldType.getCollectionElementType(), verifyValues);
       case MAP:
         return toBeamMap(
             (Map<Object, Object>) value,
