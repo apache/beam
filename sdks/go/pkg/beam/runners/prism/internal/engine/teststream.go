@@ -243,8 +243,6 @@ func (ev tsProcessingTimeEvent) Execute(em *ElementManager) {
 	emNow := em.ProcessingTimeNow()
 	toRefresh := em.processTimeEvents.AdvanceTo(emNow)
 	em.watermarkRefreshes.merge(toRefresh)
-
-	fmt.Println("XXXXX processing time advance by", ev.AdvanceBy, "event refreshes", emNow, toRefresh)
 }
 
 // tsFinalEvent is the "last" event we perform after all preceeding events.
