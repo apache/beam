@@ -29,11 +29,11 @@ are named according to the version release.
 
 Simply deploy the cluster by using kustomize plugin of kubectl
 ```
-kubectl apply -k .test-infra/kafka/strimzi/02-kafka-persistent
+kubectl apply -k .test-infra/kafka/strimzi/02-kafka-persistent/overlays/gke-internal-load-balanced --namespace=strimzi
 ```
 and wait until the cluster is deployed
 ```
-kubectl wait kafka beam-testing-cluster --for=condition=Ready
+kubectl wait kafka beam-testing-cluster --for=condition=Ready --timeout=1200s
 ```
 Then to get the needed ips and ports:
 ```

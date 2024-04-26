@@ -35,7 +35,7 @@ Simply follow standard terraform workflow to apply this module using the existin
 Where:
 
 ```
-DIR=.test-infra/kafka/strimzi
+DIR=.test-infra/kafka/strimzi/01-strimzui-operator
 VARS=common.tfvars # without the directory
 ```
 
