@@ -69,18 +69,18 @@ func newHoldTracker() *holdTracker {
 // removed from the heap. Drop panics if holds become negative.
 func (ht *holdTracker) Drop(hold mtime.Time, v int) {
 	n := ht.counts[hold] - v
-	if n == 0 {
-		delete(ht.counts, hold)
-		for i, h := range ht.heap {
-			if hold == h {
-				heap.Remove(&ht.heap, i)
-				break
-			}
-		}
-	} else if n > 0 {
+	if n > 0 {
 		ht.counts[hold] = n
-	} else {
+		return
+	} else if n < 0 {
 		panic(fmt.Sprintf("prism error: negative watermark hold count %v for time %v", n, hold))
+	}
+	delete(ht.counts, hold)
+	for i, h := range ht.heap {
+		if hold == h {
+			heap.Remove(&ht.heap, i)
+			break
+		}
 	}
 }
 
