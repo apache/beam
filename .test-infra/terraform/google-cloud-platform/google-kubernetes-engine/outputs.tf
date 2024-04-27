@@ -16,13 +16,6 @@
  * limitations under the License.
  */
 
-// Setup Google Cloud provider
-provider "google" {
-  project = var.project
-}
-
-
-terraform {
-   backend "gcs" {
-   }
+output get_kubeconfig_command {
+  value = "gcloud container clusters get-credentials ${google_container_cluster.default.name} --region ${google_container_cluster.default.location} --project ${var.project}"
 }

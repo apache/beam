@@ -16,7 +16,6 @@
 package engine
 
 import (
-	"container/heap"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
@@ -139,13 +138,9 @@ func (ts *testStreamHandler) UpdateHold(em *ElementManager, newHold mtime.Time) 
 	ss.mu.Lock()
 	defer ss.mu.Unlock()
 
-	if ss.watermarkHoldsCounts[ts.currentHold] > 0 {
-		heap.Pop(&ss.watermarkHoldHeap)
-		ss.watermarkHoldsCounts[ts.currentHold] = ss.watermarkHoldsCounts[ts.currentHold] - 1
-	}
+	ss.watermarkHolds.Drop(ts.currentHold, 1)
 	ts.currentHold = newHold
-	heap.Push(&ss.watermarkHoldHeap, ts.currentHold)
-	ss.watermarkHoldsCounts[ts.currentHold] = 1
+	ss.watermarkHolds.Add(ts.currentHold, 1)
 
 	// kick the TestStream and Impulse stages too.
 	kick := singleSet(ts.ID)
@@ -281,8 +276,7 @@ func (tsi *testStreamImpl) initHandler(id string) {
 		tsi.em.addPending(1) // We subtrack a pending after event execution, so add one now for the final event to avoid a race condition.
 
 		// Arrest the watermark initially to prevent terminal advancement.
-		heap.Push(&ss.watermarkHoldHeap, tsi.em.testStreamHandler.currentHold)
-		ss.watermarkHoldsCounts[tsi.em.testStreamHandler.currentHold] = 1
+		ss.watermarkHolds.Add(tsi.em.testStreamHandler.currentHold, 1)
 	}
 }
 

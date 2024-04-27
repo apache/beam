@@ -16,13 +16,32 @@
  * limitations under the License.
  */
 
-// Setup Google Cloud provider
-provider "google" {
-  project = var.project
+variable "kubeconfig_path" {
+  type        = string
+  description = "The path to the Kube config file; See https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/"
 }
 
+variable "name" {
+  type        = string
+  description = "The name of the Kafka cluster"
+}
 
-terraform {
-   backend "gcs" {
-   }
+variable "namespace" {
+  type        = string
+  description = "The namespace to provision the Kubernetes workload"
+}
+
+variable "chart_name" {
+  type        = string
+  description = "The name of the Helm chart"
+}
+
+variable "chart_repository" {
+  type        = string
+  description = "The URL of the chart respository"
+}
+
+variable "chart_version" {
+  type        = string
+  description = "The version of the Helm chart"
 }
