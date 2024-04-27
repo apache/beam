@@ -1,0 +1,74 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+plugins { id 'org.apache.beam.module' }
+applyGoNature()
+
+description = "Apache Beam :: Runners :: Prism"
+ext.summary = "Tasks related to executing the Prism Runner"
+
+// jobPort Property optionally configures the Prism job_port flag.
+def jobPort = findProperty("jobPort")
+
+// buildTargetDir is the gradle build directory convention for this project.
+def buildTargetDir = layout.buildDirectory.dir("tmp")
+
+// buildTarget is the go build output target path for the Prism service.
+def buildTarget = buildTargetDir.get().file("prism")
+
+// modDir is the path containing the go.mod file.
+def modDir = project.rootDir.toPath().resolve("sdks")
+
+// goRootDir is the root directory of the Beam Go SDK.
+def goRootDir = modDir.resolve("go")
+
+// jobPortFlag is Prism service's job management service port flag name.
+def jobPortFlag = "job_port"
+
+// cmdDir is directory conventionally containing Go executables.
+def cmdDir = goRootDir.resolve("cmd")
+
+// prismDir is the directory containing the prism executable.
+def prismDir = cmdDir.resolve("prism")
+
+// Overrides the gradle build task to build the prism executable.
+def buildTask = tasks.named("build") {
+    // goPrepare is a task registered in applyGoNature.
+    dependsOn("goPrepare")
+    doLast {
+        exec {
+            workingDir = modDir
+            executable = 'sh'
+            args = ["-c", "${project.ext.goCmd} build -o $buildTarget $prismDir"]
+        }
+    }
+}
+
+tasks.register("runServer", Exec) {
+    dependsOn(buildTask)
+    group = "application"
+    description = "Run the Prism server"
+
+    List<String> command = new ArrayList<>()
+    command.add(buildTarget.asFile.path)
+    if (jobPort != null) {
+        command.add("-$jobPortFlag=$jobPort" as String)
+    }
+
+    commandLine = command
+}
