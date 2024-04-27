@@ -25,6 +25,9 @@ import (
 )
 
 func init() {
+	beam.RegisterType(reflect.TypeOf((*wrappedCallerOnlyUserType)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*Request)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*Response)(nil)).Elem())
 	register.Emitter1[*Response]()
 	register.DoFn3x1[context.Context, *Request, func(*Response), error](&callerFn{})
 }
