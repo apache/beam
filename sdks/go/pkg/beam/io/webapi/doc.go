@@ -16,15 +16,13 @@
 /*
 Package webapi supports reading from or writing to Web APIs.
 
-Its design goals are to reduce the boilerplate of building Beam I/O connectors.
-The implementation is not yet complete (See tracking issue: https://github.com/apache/beam/issues/30423).
-Meanwhile, visit the Beam website (https://beam.apache.org/documentation/io/built-in/webapis/)
-for details and examples on how this transform behaves in other SDKs for a preview of how this might look in the Go
-SDK.
+Its design goals are to reduce the boilerplate of building Beam I/O connectors. See tracking issue:
+https://github.com/apache/beam/issues/30423 and visit the Beam website
+(https://beam.apache.org/documentation/io/built-in/webapis/) for details and examples.
 
 # Basic usage
 
-Basic usage minimally requires providing a Caller to the Call func.
+Basic usage requires providing a Caller to the Call func.
 
 	var _ webapi.Caller = &myCaller{}
 	type myCaller struct {
