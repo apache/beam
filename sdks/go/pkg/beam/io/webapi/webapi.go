@@ -20,14 +20,13 @@ import (
 	"context"
 	"fmt"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"reflect"
 )
 
 func init() {
-	beam.RegisterType(reflect.TypeOf((*wrappedCallerOnlyUserType)(nil)).Elem())
-	beam.RegisterType(reflect.TypeOf((*Request)(nil)).Elem())
-	beam.RegisterType(reflect.TypeOf((*Response)(nil)).Elem())
-	beam.RegisterDoFn(reflect.TypeOf((*callerFn)(nil)).Elem())
+	register.Emitter1[*Response]()
+	register.DoFn3x1[context.Context, *Request, func(*Response), error](&callerFn{})
 }
 
 // Caller is an interface to a Web API endpoint.
