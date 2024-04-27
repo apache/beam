@@ -412,7 +412,7 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
 
             return null;
           } finally {
-            future.cancel(true); // may or may not desire this
+            future.cancel(true);
           }
         } catch (FailedPreconditionException e) {
           // The current source has already moved past the split point, so this split attempt

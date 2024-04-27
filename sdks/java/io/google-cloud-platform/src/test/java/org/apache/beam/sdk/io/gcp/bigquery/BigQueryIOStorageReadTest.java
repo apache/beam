@@ -1394,10 +1394,6 @@ public class BigQueryIOStorageReadTest {
       this.latch = latch;
     }
 
-    static final Object lock = new Object();
-
-    static boolean hasNextCalled = false;
-
     @Override
     public Iterator<ReadRowsResponse> iterator() {
       return new StuckIterator();
