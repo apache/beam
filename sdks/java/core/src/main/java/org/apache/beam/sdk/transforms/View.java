@@ -31,6 +31,7 @@ import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -276,7 +277,8 @@ public class View {
               ? withRandomAccess
               : StreamingOptions.updateCompatibilityVersionLessThan(
                   input.getPipeline().getOptions(), "2.57.0");
-      if (explicitWithRandomAccess) {
+      if (explicitWithRandomAccess
+          || !(input.getWindowingStrategy().getWindowFn() instanceof GlobalWindows)) {
         return expandWithRandomAccess(input);
       } else {
         return expandWithoutRandomAccess(input);

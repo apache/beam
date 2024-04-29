@@ -183,7 +183,7 @@ public class PCollectionViews {
       WindowingStrategy<?, W> windowingStrategy) {
     return new SimplePCollectionView<>(
         pCollection,
-        new ListViewFn3<>(typeDescriptorSupplier),
+        new IterableBackedListViewFn<>(typeDescriptorSupplier),
         windowingStrategy.getWindowFn().getDefaultWindowMappingFn(),
         windowingStrategy);
   }
@@ -200,7 +200,7 @@ public class PCollectionViews {
     return new SimplePCollectionView<>(
         pCollection,
         tag,
-        new ListViewFn3<>(typeDescriptorSupplier),
+        new IterableBackedListViewFn<>(typeDescriptorSupplier),
         windowingStrategy.getWindowFn().getDefaultWindowMappingFn(),
         windowingStrategy);
   }
@@ -1002,10 +1002,10 @@ public class PCollectionViews {
    *
    * <p>For internal use only.
    */
-  public static class ListViewFn3<T> extends ViewFn<IterableView<T>, List<T>> {
+  public static class IterableBackedListViewFn<T> extends ViewFn<IterableView<T>, List<T>> {
     private TypeDescriptorSupplier<T> typeDescriptorSupplier;
 
-    public ListViewFn3(TypeDescriptorSupplier<T> typeDescriptorSupplier) {
+    public IterableBackedListViewFn(TypeDescriptorSupplier<T> typeDescriptorSupplier) {
       this.typeDescriptorSupplier = typeDescriptorSupplier;
     }
 
