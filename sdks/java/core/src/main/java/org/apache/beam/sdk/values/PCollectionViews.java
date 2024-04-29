@@ -1159,7 +1159,7 @@ public class PCollectionViews {
 
     @Override
     public boolean equals(@Nullable Object other) {
-      return other instanceof ListViewFn;
+      return other instanceof IterableBackedListViewFn;
     }
 
     @Override
