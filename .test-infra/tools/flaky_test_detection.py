@@ -74,9 +74,11 @@ def get_workflow_issues(issues):
 
 def create_github_issue(repo, alert):
     github_workflow_failing_runs_url = f"https://github.com/{GIT_ORG}/beam/actions/{alert.workflow_filename}?query=is%3Afailure+branch%3Amaster"
+    github_workflow_all_runs_url = f"https://github.com/{GIT_ORG}/beam/actions/{alert.workflow_filename}?query=branch%3Amaster"
     title = f"The {alert.workflow_name} job is flaky"
-    body = f"The {alert.workflow_name } is failing over {int(alert.workflow_threshold * 100)}% of the time.\n" \
-           f"Please visit {github_workflow_failing_runs_url} to see all failed workflow runs.\n"
+    body = f"The {alert.workflow_name } is failing over {int(alert.workflow_threshold * 100)}% of the time.\n\n" \
+           f" - [Failed runs]({github_workflow_failing_runs_url})\n" \
+           f" - [All runs]({github_workflow_all_runs_url}).\n\n"
     if GRAFANA_PANEL_IDS.get(alert.workflow_dashboard_category):
         grafana_workflow_runs_url = f"{GRAFANA_URL}/d/CTYdoxP4z/ga-post-commits-status?orgId=1" \
                            f"&viewPanel={GRAFANA_PANEL_IDS[alert.workflow_dashboard_category]}" \
