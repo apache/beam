@@ -2046,7 +2046,7 @@ public class BigQueryIO {
       return toBuilder().setQueryTempDataset(queryTempDatasetRef).build();
     }
 
-    /** See {@link #withQueryTempDataset(String)} */
+    /** See {@link #withQueryTempDataset(String)}. */
     public TypedRead<T> withQueryTempProjectAndDataset(
         String queryTempProjectRef, String queryTempDatasetRef) {
       return toBuilder()
