@@ -61,6 +61,7 @@ public class Neo4jResourceManager extends TestContainerResourceManager<Neo4jCont
 
   private final Driver neo4jDriver;
   private final String databaseName;
+  private final DatabaseWaitOption waitOption;
   private final String connectionString;
   private final boolean usingStaticDatabase;
 
@@ -92,9 +93,11 @@ public class Neo4jResourceManager extends TestContainerResourceManager<Neo4jCont
     this.usingStaticDatabase = builder.databaseName != null;
     if (usingStaticDatabase) {
       this.databaseName = builder.databaseName;
+      this.waitOption = null;
     } else {
       this.databaseName = generateDatabaseName(builder.testId);
-      createDatabase(databaseName);
+      this.waitOption = builder.waitOption;
+      createDatabase(databaseName, waitOption);
     }
   }
 
@@ -138,7 +141,7 @@ public class Neo4jResourceManager extends TestContainerResourceManager<Neo4jCont
     // First, delete the database if it was not given as a static argument
     try {
       if (!usingStaticDatabase) {
-        dropDatabase(databaseName);
+        dropDatabase(databaseName, waitOption);
       }
     } catch (Exception e) {
       LOG.error("Failed to delete Neo4j database {}.", databaseName, e);
@@ -164,10 +167,11 @@ public class Neo4jResourceManager extends TestContainerResourceManager<Neo4jCont
     LOG.info("Neo4j manager successfully cleaned up.");
   }
 
-  private void createDatabase(String databaseName) {
+  private void createDatabase(String databaseName, DatabaseWaitOption waitOption) {
     try (Session session =
         neo4jDriver.session(SessionConfig.builder().withDatabase("system").build())) {
-      session.run("CREATE DATABASE $db", Collections.singletonMap("db", databaseName)).consume();
+      String query = String.format("CREATE DATABASE $db %s", formatWaitOption(waitOption));
+      session.run(query, Collections.singletonMap("db", databaseName)).consume();
     } catch (Exception e) {
       throw new Neo4jResourceManagerException(
           String.format("Error dropping database %s.", databaseName), e);
@@ -175,10 +179,11 @@ public class Neo4jResourceManager extends TestContainerResourceManager<Neo4jCont
   }
 
   @VisibleForTesting
-  void dropDatabase(String databaseName) {
+  void dropDatabase(String databaseName, DatabaseWaitOption waitOption) {
     try (Session session =
         neo4jDriver.session(SessionConfig.builder().withDatabase("system").build())) {
-      session.run("DROP DATABASE $db", Collections.singletonMap("db", databaseName)).consume();
+      String query = String.format("DROP DATABASE $db %s", formatWaitOption(waitOption));
+      session.run(query, Collections.singletonMap("db", databaseName)).consume();
     } catch (Exception e) {
       throw new Neo4jResourceManagerException(
           String.format("Error dropping database %s.", databaseName), e);
@@ -189,11 +194,25 @@ public class Neo4jResourceManager extends TestContainerResourceManager<Neo4jCont
     return adminPassword;
   }
 
+  private static String formatWaitOption(DatabaseWaitOption waitOption) {
+    if (waitOption instanceof DatabaseWaitInSeconds) {
+      return String.format("WAIT %d SECONDS", ((DatabaseWaitInSeconds) waitOption).getSeconds());
+    }
+    if (waitOption == DatabaseWait.WAIT) {
+      return "WAIT";
+    }
+    if (waitOption == DatabaseNoWait.NO_WAIT || waitOption == null) {
+      return "NOWAIT";
+    }
+    throw new Neo4jResourceManagerException(String.format("Unsupported wait option type %s", waitOption.getClass()));
+  }
+
   /** Builder for {@link Neo4jResourceManager}. */
   public static final class Builder
       extends TestContainerResourceManager.Builder<Neo4jResourceManager> {
 
     private @Nullable String databaseName;
+    private @Nullable DatabaseWaitOption waitOption;
 
     private String adminPassword;
 
@@ -203,6 +222,7 @@ public class Neo4jResourceManager extends TestContainerResourceManager<Neo4jCont
       super(testId, DEFAULT_NEO4J_CONTAINER_NAME, DEFAULT_NEO4J_CONTAINER_TAG);
       this.adminPassword = generatePassword(4, 10, 2, 2, 0, Collections.emptyList());
       this.databaseName = null;
+      this.waitOption = null;
       this.driver = null;
     }
 
@@ -219,7 +239,28 @@ public class Neo4jResourceManager extends TestContainerResourceManager<Neo4jCont
      * @return this builder object with the database name set.
      */
     public Builder setDatabaseName(String databaseName) {
+      return setDatabaseName(databaseName, DatabaseWaitOptions.noWaitDatabase());
+    }
+
+    /**
+     * Sets the database name to that of a static database instance and sets the wait policy. Use this method only when
+     * attempting to operate on a pre-existing Neo4j database.
+     *
+     *
+     * <p>Note: if a database name is set, and a static Neo4j server is being used
+     * (useStaticContainer() is also called on the builder), then a database will be created on the
+     * static server if it does not exist, and it will not be removed when cleanupAll() is called on
+     * the Neo4jResourceManager.
+     *
+     * <p>{@link DatabaseWaitOptions} exposes all configurable wait options
+     *
+     * @param databaseName The database name.
+     * @param waitOption The database wait policy.
+     * @return this builder object with the database name set.
+     */
+    public Builder setDatabaseName(String databaseName, DatabaseWaitOption waitOption) {
       this.databaseName = databaseName;
+      this.waitOption = waitOption;
       return this;
     }
 
