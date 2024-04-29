@@ -36,6 +36,7 @@ import com.google.protobuf.DynamicMessage;
 import io.grpc.Status;
 import java.io.IOException;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -67,6 +68,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.Preconditions;
@@ -114,6 +116,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
   private final @Nullable String kmsKey;
   private final boolean usesCdc;
   private final AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation;
+
+  private final @Nullable SerializableFunction<ElementT, TableRow> formatRecordOnFailureFunction;
 
   /**
    * The Guava cache object is thread-safe. However our protocol requires that client pin the
@@ -172,7 +176,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       BigQueryIO.Write.CreateDisposition createDisposition,
       @Nullable String kmsKey,
       boolean usesCdc,
-      AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation) {
+      AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation,
+      @Nullable SerializableFunction<ElementT, TableRow> formatRecordOnFailureFunction) {
     this.dynamicDestinations = dynamicDestinations;
     this.bqServices = bqServices;
     this.failedRowsTag = failedRowsTag;
@@ -185,6 +190,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
     this.kmsKey = kmsKey;
     this.usesCdc = usesCdc;
     this.defaultMissingValueInterpretation = defaultMissingValueInterpretation;
+    this.formatRecordOnFailureFunction = formatRecordOnFailureFunction;
   }
 
   @Override
@@ -219,7 +225,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                         createDisposition,
                         kmsKey,
                         usesCdc,
-                        defaultMissingValueInterpretation))
+                        defaultMissingValueInterpretation,
+                        formatRecordOnFailureFunction))
                 .withOutputTags(finalizeTag, tupleTagList)
                 .withSideInputs(dynamicDestinations.getSideInputs()));
 
@@ -250,19 +257,27 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
     private final @Nullable String kmsKey;
     private final boolean usesCdc;
     private final AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation;
+    private final @Nullable SerializableFunction<ElementT, TableRow> formatRecordOnFailureFunction;
 
-    static class AppendRowsContext extends RetryManager.Operation.Context<AppendRowsResponse> {
+    static class AppendRowsContext<ElementT>
+        extends RetryManager.Operation.Context<AppendRowsResponse> {
       long offset;
       ProtoRows protoRows;
       List<org.joda.time.Instant> timestamps;
 
+      List<ElementT> originalMessages;
+
       int failureCount;
 
       public AppendRowsContext(
-          long offset, ProtoRows protoRows, List<org.joda.time.Instant> timestamps) {
+          long offset,
+          ProtoRows protoRows,
+          List<org.joda.time.Instant> timestamps,
+          List<ElementT> originalMessages) {
         this.offset = offset;
         this.protoRows = protoRows;
         this.timestamps = timestamps;
+        this.originalMessages = originalMessages;
         this.failureCount = 0;
       }
     }
@@ -274,6 +289,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       private @Nullable AppendClientInfo appendClientInfo = null;
       private long currentOffset = 0;
       private List<ByteString> pendingMessages;
+
+      private List<ElementT> originalMessages;
       private List<org.joda.time.Instant> pendingTimestamps;
       private transient @Nullable WriteStreamService maybeWriteStreamService;
       private final Counter recordsAppended =
@@ -313,6 +330,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         this.tableUrn = tableUrn;
         this.shortTableUrn = shortTableUrn;
         this.pendingMessages = Lists.newArrayList();
+        this.originalMessages = Lists.newArrayList();
         this.pendingTimestamps = Lists.newArrayList();
         this.maybeWriteStreamService = writeStreamService;
         this.useDefaultStream = useDefaultStream;
@@ -533,11 +551,12 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       }
 
       void addMessage(
-          StorageApiWritePayload payload,
+          KV<ElementT, StorageApiWritePayload> originalAndPayload,
           org.joda.time.Instant elementTs,
           OutputReceiver<BigQueryStorageApiInsertError> failedRowsReceiver)
           throws Exception {
         maybeTickleCache();
+        StorageApiWritePayload payload = originalAndPayload.getValue();
         ByteString payloadBytes = ByteString.copyFrom(payload.getPayload());
         if (autoUpdateSchema) {
           if (appendClientInfo == null) {
@@ -569,12 +588,13 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
           }
         }
         pendingMessages.add(payloadBytes);
+        originalMessages.add(originalAndPayload.getKey());
         org.joda.time.Instant timestamp = payload.getTimestamp();
         pendingTimestamps.add(timestamp != null ? timestamp : elementTs);
       }
 
       long flush(
-          RetryManager<AppendRowsResponse, AppendRowsContext> retryManager,
+          RetryManager<AppendRowsResponse, AppendRowsContext<ElementT>> retryManager,
           OutputReceiver<BigQueryStorageApiInsertError> failedRowsReceiver,
           @Nullable OutputReceiver<TableRow> successfulRowsReceiver)
           throws Exception {
@@ -632,8 +652,10 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
           offset = this.currentOffset;
           this.currentOffset += inserts.getSerializedRowsCount();
         }
-        AppendRowsContext appendRowsContext =
-            new AppendRowsContext(offset, inserts, insertTimestamps);
+        AppendRowsContext<ElementT> appendRowsContext =
+            new AppendRowsContext<>(
+                offset, inserts, insertTimestamps, new ArrayList<>(originalMessages));
+        originalMessages.clear();
 
         retryManager.addOperation(
             c -> {
@@ -662,7 +684,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
               }
             },
             contexts -> {
-              AppendRowsContext failedContext =
+              AppendRowsContext<ElementT> failedContext =
                   Preconditions.checkStateNotNull(Iterables.getFirst(contexts, null));
               BigQuerySinkMetrics.reportFailedRPCMetrics(
                   failedContext, BigQuerySinkMetrics.RpcMethod.APPEND_ROWS, shortTableUrn);
@@ -681,14 +703,21 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                   ByteString protoBytes = failedContext.protoRows.getSerializedRows(failedIndex);
                   org.joda.time.Instant timestamp = failedContext.timestamps.get(failedIndex);
                   try {
-                    TableRow failedRow =
-                        TableRowToStorageApiProto.tableRowFromMessage(
-                            DynamicMessage.parseFrom(
-                                TableRowToStorageApiProto.wrapDescriptorProto(
-                                    Preconditions.checkStateNotNull(appendClientInfo)
-                                        .getDescriptor()),
-                                protoBytes),
-                            true);
+                    TableRow failedRow;
+                    if (formatRecordOnFailureFunction != null) {
+                      failedRow =
+                          formatRecordOnFailureFunction.apply(
+                              failedContext.originalMessages.get(failedIndex));
+                    } else {
+                      failedRow =
+                          TableRowToStorageApiProto.tableRowFromMessage(
+                              DynamicMessage.parseFrom(
+                                  TableRowToStorageApiProto.wrapDescriptorProto(
+                                      Preconditions.checkStateNotNull(appendClientInfo)
+                                          .getDescriptor()),
+                                  protoBytes),
+                              true);
+                    }
                     failedRowsReceiver.outputWithTimestamp(
                         new BigQueryStorageApiInsertError(
                             failedRow, error.getRowIndexToErrorMessage().get(failedIndex)),
@@ -724,7 +753,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                 // Since we removed rows, we need to update the insert offsets for all remaining
                 // rows.
                 long newOffset = failedContext.offset;
-                for (AppendRowsContext context : contexts) {
+                for (AppendRowsContext<ElementT> context : contexts) {
                   context.offset = newOffset;
                   newOffset += context.protoRows.getSerializedRowsCount();
                 }
@@ -835,7 +864,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         return inserts.getSerializedRowsCount();
       }
 
-      String retrieveErrorDetails(Iterable<AppendRowsContext> failedContext) {
+      String retrieveErrorDetails(Iterable<AppendRowsContext<ElementT>> failedContext) {
         return StreamSupport.stream(failedContext.spliterator(), false)
             .<@Nullable Throwable>map(AppendRowsContext::getError)
             .filter(Objects::nonNull)
@@ -901,7 +930,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         BigQueryIO.Write.CreateDisposition createDisposition,
         @Nullable String kmsKey,
         boolean usesCdc,
-        AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation) {
+        AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation,
+        @Nullable SerializableFunction<ElementT, TableRow> formatRecordOnFailureFunction) {
       this.messageConverters = new TwoLevelMessageConverterCache<>(operationName);
       this.dynamicDestinations = dynamicDestinations;
       this.bqServices = bqServices;
@@ -918,6 +948,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       this.kmsKey = kmsKey;
       this.usesCdc = usesCdc;
       this.defaultMissingValueInterpretation = defaultMissingValueInterpretation;
+      this.formatRecordOnFailureFunction = formatRecordOnFailureFunction;
     }
 
     boolean shouldFlush() {
@@ -941,12 +972,12 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         OutputReceiver<BigQueryStorageApiInsertError> failedRowsReceiver,
         @Nullable OutputReceiver<TableRow> successfulRowsReceiver)
         throws Exception {
-      List<RetryManager<AppendRowsResponse, AppendRowsContext>> retryManagers =
+      List<RetryManager<AppendRowsResponse, AppendRowsContext<ElementT>>> retryManagers =
           Lists.newArrayListWithCapacity(Preconditions.checkStateNotNull(destinations).size());
       long numRowsWritten = 0;
       for (DestinationState destinationState :
           Preconditions.checkStateNotNull(destinations).values()) {
-        RetryManager<AppendRowsResponse, AppendRowsContext> retryManager =
+        RetryManager<AppendRowsResponse, AppendRowsContext<ElementT>> retryManager =
             new RetryManager<>(
                 Duration.standardSeconds(1),
                 Duration.standardSeconds(10),
@@ -963,7 +994,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         // await is called, so
         // this approach means that if one call fais, it has to wait for all prior calls to complete
         // before a retry happens.
-        for (RetryManager<AppendRowsResponse, AppendRowsContext> retryManager : retryManagers) {
+        for (RetryManager<AppendRowsResponse, AppendRowsContext<ElementT>> retryManager :
+            retryManagers) {
           retryManager.await();
         }
       }
@@ -1076,7 +1108,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       OutputReceiver<TableRow> successfulRowsReceiver =
           (successfulRowsTag != null) ? o.get(successfulRowsTag) : null;
       flushIfNecessary(failedRowsReceiver, successfulRowsReceiver);
-      state.addMessage(element.getValue().getValue(), elementTs, failedRowsReceiver);
+      state.addMessage(element.getValue(), elementTs, failedRowsReceiver);
       ++numPendingRecords;
       numPendingRecordBytes += element.getValue().getValue().getPayload().length;
     }

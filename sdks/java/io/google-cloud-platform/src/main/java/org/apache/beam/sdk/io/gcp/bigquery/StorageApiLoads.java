@@ -63,6 +63,7 @@ public class StorageApiLoads<DestinationT, ElementT>
   private final StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations;
 
   private final @Nullable SerializableFunction<ElementT, RowMutationInformation> rowUpdateFn;
+  private final @Nullable SerializableFunction<ElementT, TableRow> formatRecordOnFailureFunction;
   private final CreateDisposition createDisposition;
   private final String kmsKey;
   private final Duration triggeringFrequency;
@@ -85,6 +86,7 @@ public class StorageApiLoads<DestinationT, ElementT>
       Coder<ElementT> elementCoder,
       StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations,
       @Nullable SerializableFunction<ElementT, RowMutationInformation> rowUpdateFn,
+      @Nullable SerializableFunction<ElementT, TableRow> formatRecordOnFailureFunction,
       CreateDisposition createDisposition,
       String kmsKey,
       Duration triggeringFrequency,
@@ -103,6 +105,7 @@ public class StorageApiLoads<DestinationT, ElementT>
     this.elementCoder = elementCoder;
     this.dynamicDestinations = dynamicDestinations;
     this.rowUpdateFn = rowUpdateFn;
+    this.formatRecordOnFailureFunction = formatRecordOnFailureFunction;
     this.createDisposition = createDisposition;
     this.kmsKey = kmsKey;
     this.triggeringFrequency = triggeringFrequency;
@@ -379,7 +382,8 @@ public class StorageApiLoads<DestinationT, ElementT>
                     createDisposition,
                     kmsKey,
                     usesCdc,
-                    defaultMissingValueInterpretation));
+                    defaultMissingValueInterpretation,
+                    formatRecordOnFailureFunction));
 
     PCollection<BigQueryStorageApiInsertError> insertErrors =
         PCollectionList.of(convertMessagesResult.get(failedRowsTag))
