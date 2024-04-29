@@ -28,6 +28,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 public class MockSessionService implements SessionService {
 
   private final SerializableFunction<Integer, BytesXMLMessage> getRecordFn;
+  private final AtomicInteger ackCounter;
   private MessageReceiver messageReceiver = null;
   private final int minMessagesReceived;
 
@@ -35,6 +36,16 @@ public class MockSessionService implements SessionService {
       SerializableFunction<Integer, BytesXMLMessage> getRecordFn, int minMessagesReceived) {
     this.getRecordFn = getRecordFn;
     this.minMessagesReceived = minMessagesReceived;
+    this.ackCounter = new AtomicInteger();
+  }
+
+  public MockSessionService(
+      SerializableFunction<Integer, BytesXMLMessage> getRecordFn,
+      AtomicInteger ackCounter,
+      int minMessagesReceived) {
+    this.getRecordFn = getRecordFn;
+    this.minMessagesReceived = minMessagesReceived;
+    this.ackCounter = ackCounter;
   }
 
   @Override
@@ -48,7 +59,7 @@ public class MockSessionService implements SessionService {
   @Override
   public MessageReceiver createReceiver() {
     if (messageReceiver == null) {
-      messageReceiver = new MockReceiver(getRecordFn, minMessagesReceived);
+      messageReceiver = new MockReceiver(getRecordFn, ackCounter, minMessagesReceived);
     }
     return messageReceiver;
   }
@@ -57,13 +68,17 @@ public class MockSessionService implements SessionService {
   public void connect() {}
 
   public static class MockReceiver implements MessageReceiver, Serializable {
-    private final AtomicInteger counter = new AtomicInteger();
+    private final AtomicInteger receiveCounter = new AtomicInteger();
+    private final AtomicInteger ackCounter;
     private final SerializableFunction<Integer, BytesXMLMessage> getRecordFn;
     private final int minMessagesReceived;
 
     public MockReceiver(
-        SerializableFunction<Integer, BytesXMLMessage> getRecordFn, int minMessagesReceived) {
+        SerializableFunction<Integer, BytesXMLMessage> getRecordFn,
+        AtomicInteger ackCounter,
+        int minMessagesReceived) {
       this.getRecordFn = getRecordFn;
+      this.ackCounter = ackCounter;
       this.minMessagesReceived = minMessagesReceived;
     }
 
@@ -77,12 +92,17 @@ public class MockSessionService implements SessionService {
 
     @Override
     public BytesXMLMessage receive() throws IOException {
-      return getRecordFn.apply(counter.getAndIncrement());
+      return getRecordFn.apply(receiveCounter.getAndIncrement());
+    }
+
+    @Override
+    public void ack(long ackId) throws IOException {
+      ackCounter.getAndIncrement();
     }
 
     @Override
     public boolean isEOF() {
-      return counter.get() >= minMessagesReceived;
+      return receiveCounter.get() >= minMessagesReceived;
     }
   }
 }

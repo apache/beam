@@ -37,7 +37,6 @@ import java.util.Objects;
 import org.apache.beam.sdk.io.solace.data.Solace;
 import org.apache.beam.sdk.schemas.JavaBeanSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class SolaceDataUtils {
@@ -118,25 +117,12 @@ public class SolaceDataUtils {
         .build();
   }
 
-  public static BytesXMLMessage getBytesXmlMessage(String payload) {
-    return getBytesXmlMessage(payload, "messageId", null);
-  }
-
   public static BytesXMLMessage getBytesXmlMessage(String payload, String messageId) {
-    return getBytesXmlMessage(payload, messageId, null, null);
+    return getBytesXmlMessage(payload, messageId, null);
   }
 
   public static BytesXMLMessage getBytesXmlMessage(
-      String payload, String messageId, SerializableFunction<Integer, Integer> ackMessageFn) {
-
-    return getBytesXmlMessage(payload, messageId, ackMessageFn, null);
-  }
-
-  public static BytesXMLMessage getBytesXmlMessage(
-      String payload,
-      String messageId,
-      SerializableFunction<Integer, Integer> ackMessageFn,
-      ReplicationGroupMessageId replicationGroupMessageId) {
+      String payload, String messageId, ReplicationGroupMessageId replicationGroupMessageId) {
     long receiverTimestamp = 1708100477067L;
     long expiration = 1000L;
     long timeToLive = 1000L;
@@ -184,11 +170,7 @@ public class SolaceDataUtils {
       }
 
       @Override
-      public void ackMessage() {
-        if (ackMessageFn != null) {
-          ackMessageFn.apply(0);
-        }
-      }
+      public void ackMessage() {}
 
       @Override
       public void clearAttachment() {

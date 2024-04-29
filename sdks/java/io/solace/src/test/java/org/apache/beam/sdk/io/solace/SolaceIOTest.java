@@ -32,6 +32,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
@@ -207,11 +208,11 @@ public class SolaceIOTest {
               List<BytesXMLMessage> messages =
                   ImmutableList.of(
                       SolaceDataUtils.getBytesXmlMessage(
-                          "payload_test0", null, null, new ReplicationGroupMessageIdImpl(2L, 1L)),
+                          "payload_test0", null, new ReplicationGroupMessageIdImpl(2L, 1L)),
                       SolaceDataUtils.getBytesXmlMessage(
-                          "payload_test1", null, null, new ReplicationGroupMessageIdImpl(2L, 2L)),
+                          "payload_test1", null, new ReplicationGroupMessageIdImpl(2L, 2L)),
                       SolaceDataUtils.getBytesXmlMessage(
-                          "payload_test2", null, null, new ReplicationGroupMessageIdImpl(2L, 2L)));
+                          "payload_test2", null, new ReplicationGroupMessageIdImpl(2L, 2L)));
               return getOrNull(index, messages);
             },
             3);
@@ -375,13 +376,12 @@ public class SolaceIOTest {
             index -> {
               List<BytesXMLMessage> messages = new ArrayList<>();
               for (int i = 0; i < 10; i++) {
-                messages.add(
-                    SolaceDataUtils.getBytesXmlMessage(
-                        "payload_test" + i, "45" + i, (num) -> countAckMessages.incrementAndGet()));
+                messages.add(SolaceDataUtils.getBytesXmlMessage("payload_test" + i, "45" + i));
               }
               countConsumedMessages.incrementAndGet();
               return getOrNull(index, messages);
             },
+            countAckMessages,
             10);
 
     SessionServiceFactory fakeSessionServiceFactory =
@@ -436,6 +436,7 @@ public class SolaceIOTest {
               countConsumedMessages.incrementAndGet();
               return getOrNull(index, messages);
             },
+            countAckMessages,
             10);
     SessionServiceFactory fakeSessionServiceFactory =
         new MockSessionServiceFactory(mockClientService);
@@ -548,7 +549,8 @@ public class SolaceIOTest {
 
   @Test
   public void testCheckpointMarkDefaultCoder() throws Exception {
-    SolaceCheckpointMark checkpointMark = new SolaceCheckpointMark(null, new ArrayList<>());
+    SolaceCheckpointMark checkpointMark =
+        new SolaceCheckpointMark(null, new ArrayList<>(), new AtomicReference<>());
     Coder<SolaceCheckpointMark> coder =
         new UnboundedSolaceSource<>(null, null, null, 0, false, null, null, null)
             .getCheckpointMarkCoder();

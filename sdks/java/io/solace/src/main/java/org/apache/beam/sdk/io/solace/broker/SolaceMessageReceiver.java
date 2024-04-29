@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.solace.broker;
 import com.solacesystems.jcsmp.BytesXMLMessage;
 import com.solacesystems.jcsmp.FlowReceiver;
 import com.solacesystems.jcsmp.JCSMPException;
+import com.solacesystems.jcsmp.impl.flow.FlowHandle;
 import java.io.IOException;
 import org.apache.beam.sdk.io.solace.RetryCallableManager;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
@@ -56,5 +57,13 @@ public class SolaceMessageReceiver implements MessageReceiver {
     } catch (JCSMPException e) {
       throw new IOException(e);
     }
+  }
+
+  @Override
+  public void ack(long ackId) throws IOException {
+    if (isClosed()) {
+      throw new IOException("SolaceIO: FlowReceiver is closed, can't acknowledge messages.");
+    }
+    ((FlowHandle) flowReceiver).sendSingleAck(ackId, true);
   }
 }

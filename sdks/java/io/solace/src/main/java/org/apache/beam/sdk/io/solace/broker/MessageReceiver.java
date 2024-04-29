@@ -25,6 +25,8 @@ public interface MessageReceiver {
 
   boolean isClosed();
 
+  void ack(long ackId) throws IOException;
+
   BytesXMLMessage receive() throws IOException;
 
   /**
