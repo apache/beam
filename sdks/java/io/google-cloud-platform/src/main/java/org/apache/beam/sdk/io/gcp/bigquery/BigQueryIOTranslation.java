@@ -94,6 +94,7 @@ public class BigQueryIOTranslation {
             .addNullableByteArrayField("query_priority")
             .addNullableStringField("query_location")
             .addNullableStringField("query_temp_dataset")
+            .addNullableStringField("query_temp_project")
             .addNullableByteArrayField("method")
             .addNullableByteArrayField("format")
             .addNullableArrayField("selected_fields", FieldType.STRING)
@@ -159,6 +160,9 @@ public class BigQueryIOTranslation {
       }
       if (transform.getQueryTempDataset() != null) {
         fieldValues.put("query_temp_dataset", transform.getQueryTempDataset());
+      }
+      if (transform.getQueryTempProject() != null) {
+        fieldValues.put("query_temp_project", transform.getQueryTempProject());
       }
       if (transform.getMethod() != null) {
         fieldValues.put("method", toByteArray(transform.getMethod()));
@@ -269,6 +273,10 @@ public class BigQueryIOTranslation {
         String queryTempDataset = configRow.getString("query_temp_dataset");
         if (queryTempDataset != null) {
           builder = builder.setQueryTempDataset(queryTempDataset);
+        }
+        String queryTempProject = configRow.getString("query_temp_project");
+        if (queryTempProject != null) {
+          builder = builder.setQueryTempProject(queryTempProject);
         }
         byte[] methodBytes = configRow.getBytes("method");
         if (methodBytes != null) {
@@ -576,7 +584,7 @@ public class BigQueryIOTranslation {
             "deterministic_record_id_fn", toByteArray(transform.getDeterministicRecordIdFn()));
       }
       if (transform.getWriteTempDataset() != null) {
-        fieldValues.put("write_temp_dataset", toByteArray(transform.getDeterministicRecordIdFn()));
+        fieldValues.put("write_temp_dataset", toByteArray(transform.getWriteTempDataset()));
       }
       if (transform.getRowMutationInformationFn() != null) {
         fieldValues.put(

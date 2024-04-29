@@ -92,6 +92,7 @@ class BigQueryQueryHelper {
       QueryPriority priority,
       @Nullable String location,
       @Nullable String queryTempDatasetId,
+      @Nullable String queryTempProjectId,
       @Nullable String kmsKey)
       throws InterruptedException, IOException {
     // Step 1: Find the effective location of the query.
@@ -128,13 +129,15 @@ class BigQueryQueryHelper {
           BigQueryResourceNaming.createJobIdPrefix(
               options.getJobName(), stepUuid, JobType.QUERY, BigQueryHelpers.randomUUIDString());
       Optional<String> queryTempDatasetOpt = Optional.ofNullable(queryTempDatasetId);
+      String project = queryTempProjectId;
+      if (project == null) {
+        project =
+            options.getBigQueryProject() == null
+                ? options.getProject()
+                : options.getBigQueryProject();
+      }
       TableReference queryResultTable =
-          createTempTableReference(
-              options.getBigQueryProject() == null
-                  ? options.getProject()
-                  : options.getBigQueryProject(),
-              tempTableID,
-              queryTempDatasetOpt);
+          createTempTableReference(project, tempTableID, queryTempDatasetOpt);
 
       boolean beamToCreateTempDataset = !queryTempDatasetOpt.isPresent();
       // Create dataset only if it has not been set by the user
