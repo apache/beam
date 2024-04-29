@@ -1181,8 +1181,11 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
       pd.DataFrame, 'hist', reason="plotting-tools")
 
   attrs = property(
-      frame_base.wont_implement_method(
-          pd.DataFrame, 'attrs', reason='experimental'))
+      fget=frame_base.wont_implement_method(
+          pd.DataFrame, 'attrs', reason='experimental'),
+      fset=frame_base.wont_implement_method(
+          pd.DataFrame, 'attrs', reason='experimental'),
+  )
 
   reorder_levels = frame_base._proxy_method(
       'reorder_levels',
