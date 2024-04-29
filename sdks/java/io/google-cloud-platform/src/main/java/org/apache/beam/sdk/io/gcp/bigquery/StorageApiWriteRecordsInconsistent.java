@@ -23,6 +23,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -52,6 +53,7 @@ public class StorageApiWriteRecordsInconsistent<DestinationT, ElementT>
   private final @Nullable String kmsKey;
   private final boolean usesCdc;
   private final AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation;
+  private final @Nullable SerializableFunction<ElementT, TableRow> formatRecordOnFailureFunction;
 
   public StorageApiWriteRecordsInconsistent(
       StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations,
@@ -65,7 +67,8 @@ public class StorageApiWriteRecordsInconsistent<DestinationT, ElementT>
       BigQueryIO.Write.CreateDisposition createDisposition,
       @Nullable String kmsKey,
       boolean usesCdc,
-      AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation) {
+      AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation,
+      @Nullable SerializableFunction<ElementT, TableRow> formatRecordOnFailureFunction) {
     this.dynamicDestinations = dynamicDestinations;
     this.bqServices = bqServices;
     this.failedRowsTag = failedRowsTag;
@@ -78,6 +81,7 @@ public class StorageApiWriteRecordsInconsistent<DestinationT, ElementT>
     this.kmsKey = kmsKey;
     this.usesCdc = usesCdc;
     this.defaultMissingValueInterpretation = defaultMissingValueInterpretation;
+    this.formatRecordOnFailureFunction = formatRecordOnFailureFunction;
   }
 
   @Override
@@ -110,7 +114,8 @@ public class StorageApiWriteRecordsInconsistent<DestinationT, ElementT>
                         createDisposition,
                         kmsKey,
                         usesCdc,
-                        defaultMissingValueInterpretation))
+                        defaultMissingValueInterpretation,
+                        formatRecordOnFailureFunction))
                 .withOutputTags(finalizeTag, tupleTagList)
                 .withSideInputs(dynamicDestinations.getSideInputs()));
     result.get(failedRowsTag).setCoder(failedRowsCoder);

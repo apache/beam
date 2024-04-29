@@ -3822,6 +3822,7 @@ public class BigQueryIO {
                 elementCoder,
                 storageApiDynamicDestinations,
                 getRowMutationInformationFn(),
+                getFormatRecordOnFailureFunction(),
                 getCreateDisposition(),
                 getKmsKey(),
                 getStorageApiTriggeringFrequency(bqOptions),
