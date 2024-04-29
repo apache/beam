@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.util.construction;
 
+import static org.apache.beam.model.pipeline.v1.ExternalTransforms.ExpansionMethods.Enum.SCHEMA_TRANSFORM;
 import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
@@ -30,6 +31,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.ServiceLoader;
 import java.util.Set;
+import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardPTransforms;
@@ -100,6 +102,7 @@ public class PTransformTranslation {
   public static final String CONFIG_ROW_KEY = "config_row";
 
   public static final String CONFIG_ROW_SCHEMA_KEY = "config_row_schema";
+  public static final String SCHEMATRANSFORM_URN_KEY = "schematransform_urn";
 
   // DeprecatedPrimitives
   /**
@@ -119,6 +122,9 @@ public class PTransformTranslation {
   public static final String COMBINE_PER_KEY_TRANSFORM_URN = "beam:transform:combine_per_key:v1";
   public static final String COMBINE_GLOBALLY_TRANSFORM_URN = "beam:transform:combine_globally:v1";
   public static final String RESHUFFLE_URN = "beam:transform:reshuffle:v1";
+  public static final String REDISTRIBUTE_BY_KEY_URN = "beam:transform:redistribute_by_key:v1";
+  public static final String REDISTRIBUTE_ARBITRARILY_URN =
+      "beam:transform:redistribute_arbitrarily:v1";
   public static final String WRITE_FILES_TRANSFORM_URN = "beam:transform:write_files:v1";
   public static final String GROUP_INTO_BATCHES_WITH_SHARDED_KEY_URN =
       "beam:transform:group_into_batches_with_sharded_key:v1";
@@ -197,6 +203,11 @@ public class PTransformTranslation {
         COMBINE_GLOBALLY_TRANSFORM_URN.equals(
             getUrn(StandardPTransforms.Composites.COMBINE_GLOBALLY)));
     checkState(RESHUFFLE_URN.equals(getUrn(StandardPTransforms.Composites.RESHUFFLE)));
+    checkState(
+        REDISTRIBUTE_BY_KEY_URN.equals(getUrn(StandardPTransforms.Composites.REDISTRIBUTE_BY_KEY)));
+    checkState(
+        REDISTRIBUTE_ARBITRARILY_URN.equals(
+            getUrn(StandardPTransforms.Composites.REDISTRIBUTE_ARBITRARILY)));
     checkState(
         WRITE_FILES_TRANSFORM_URN.equals(getUrn(StandardPTransforms.Composites.WRITE_FILES)));
     checkState(PUBSUB_READ.equals(getUrn(StandardPTransforms.Composites.PUBSUB_READ)));
@@ -508,6 +519,14 @@ public class PTransformTranslation {
             transformBuilder.setEnvironmentId(
                 components.getEnvironmentIdFor(appliedPTransform.getResourceHints()));
           }
+        }
+
+        if (spec.getUrn().equals(BeamUrns.getUrn(SCHEMA_TRANSFORM))) {
+          transformBuilder.putAnnotations(
+              SCHEMATRANSFORM_URN_KEY,
+              ByteString.copyFromUtf8(
+                  ExternalTransforms.SchemaTransformPayload.parseFrom(spec.getPayload())
+                      .getIdentifier()));
         }
       }
 

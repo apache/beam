@@ -20,31 +20,43 @@ import json
 import logging
 import math
 import os
+import pytest
 import tempfile
 import unittest
-from typing import List
+from typing import List, Any
 
+import fastavro
 import hamcrest as hc
 
 from fastavro.schema import parse_schema
 from fastavro import writer
 
 import apache_beam as beam
-from apache_beam import Create
+from apache_beam import Create, schema_pb2
 from apache_beam.io import avroio
 from apache_beam.io import filebasedsource
 from apache_beam.io import iobase
 from apache_beam.io import source_test_utils
 from apache_beam.io.avroio import _FastAvroSource  # For testing
+from apache_beam.io.avroio import avro_schema_to_beam_schema  # For testing
+from apache_beam.io.avroio import beam_schema_to_avro_schema  # For testing
+from apache_beam.io.avroio import avro_atomic_value_to_beam_atomic_value  # For testing
+from apache_beam.io.avroio import avro_union_type_to_beam_type  # For testing
+from apache_beam.io.avroio import beam_atomic_value_to_avro_atomic_value  # For testing
+from apache_beam.io.avroio import avro_dict_to_beam_row  # For testing
+from apache_beam.io.avroio import beam_row_to_avro_dict  # For testing
 from apache_beam.io.avroio import _create_avro_sink  # For testing
 from apache_beam.io.filesystems import FileSystems
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
+from apache_beam.transforms.sql import SqlTransform
 from apache_beam.transforms.userstate import CombiningValueStateSpec
 from apache_beam.utils.timestamp import Timestamp
+from apache_beam.typehints import schemas
 
 # Import snappy optionally; some tests will be skipped when import fails.
 try:
@@ -159,6 +171,70 @@ class AvroBase(object):
             | avroio.ReadFromAvro(path + '*', as_rows=True)
             | beam.Map(stable_repr))
         assert_that(readback, equal_to([stable_repr(r) for r in rows]))
+
+  @pytest.mark.xlang_sql_expansion_service
+  @unittest.skipIf(
+      TestPipeline().get_pipeline_options().view_as(StandardOptions).runner is
+      None,
+      "Must be run with a runner that supports staging java artifacts.")
+  def test_avro_schema_to_beam_schema_with_nullable_atomic_fields(self):
+    records = []
+    records.extend(self.RECORDS)
+    records.append({
+        'name': 'Bruce', 'favorite_number': None, 'favorite_color': None
+    })
+    avro_schema = fastavro.parse_schema(json.loads(self.SCHEMA_STRING))
+    beam_schema = avro_schema_to_beam_schema(avro_schema)
+
+    with TestPipeline() as p:
+      readback = (
+          p
+          | Create(records)
+          | beam.Map(avro_dict_to_beam_row(avro_schema, beam_schema))
+          | SqlTransform("SELECT * FROM PCOLLECTION")
+          | beam.Map(beam_row_to_avro_dict(avro_schema, beam_schema)))
+      assert_that(readback, equal_to(records))
+
+  def test_avro_atomic_value_to_beam_atomic_value(self):
+    input_outputs = [('int', 1, 1), ('int', -1, 0xffffffff),
+                     ('int', None, None), ('long', 1, 1),
+                     ('long', -1, 0xffffffffffffffff), ('long', None, None),
+                     ('string', 'foo', 'foo')]
+    for test_avro_type, test_value, expected_value in input_outputs:
+      actual_value = avro_atomic_value_to_beam_atomic_value(
+          test_avro_type, test_value)
+      hc.assert_that(actual_value, hc.equal_to(expected_value))
+
+  def test_beam_atomic_value_to_avro_atomic_value(self):
+    input_outputs = [('int', 1, 1), ('int', 0xffffffff, -1),
+                     ('int', None, None), ('long', 1, 1),
+                     ('long', 0xffffffffffffffff, -1), ('long', None, None),
+                     ('string', 'foo', 'foo')]
+    for test_avro_type, test_value, expected_value in input_outputs:
+      actual_value = beam_atomic_value_to_avro_atomic_value(
+          test_avro_type, test_value)
+      hc.assert_that(actual_value, hc.equal_to(expected_value))
+
+  def test_avro_union_type_to_beam_type_with_nullable_long(self):
+    union_type = ['null', 'long']
+    beam_type = avro_union_type_to_beam_type(union_type)
+    expected_beam_type = schema_pb2.FieldType(
+        atomic_type=schema_pb2.INT64, nullable=True)
+    hc.assert_that(beam_type, hc.equal_to(expected_beam_type))
+
+  def test_avro_union_type_to_beam_type_with_string_long(self):
+    union_type = ['string', 'long']
+    beam_type = avro_union_type_to_beam_type(union_type)
+    expected_beam_type = schemas.typing_to_runner_api(Any)
+    hc.assert_that(beam_type, hc.equal_to(expected_beam_type))
+
+  def test_avro_schema_to_beam_and_back(self):
+    avro_schema = fastavro.parse_schema(json.loads(self.SCHEMA_STRING))
+    beam_schema = avro_schema_to_beam_schema(avro_schema)
+    converted_avro_schema = beam_schema_to_avro_schema(beam_schema)
+    expected_fields = json.loads(self.SCHEMA_STRING)["fields"]
+    hc.assert_that(
+        converted_avro_schema["fields"], hc.equal_to(expected_fields))
 
   def test_read_without_splitting(self):
     file_name = self._write_data()

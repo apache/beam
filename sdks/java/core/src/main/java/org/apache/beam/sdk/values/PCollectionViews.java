@@ -48,6 +48,8 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.io.range.OffsetRange;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.Materialization;
 import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.Materializations.IterableView;
@@ -616,6 +618,10 @@ public class PCollectionViews {
       return TypeDescriptors.lists(typeDescriptorSupplier.get());
     }
 
+    private static final Counter listViewIteratorCount =
+        Metrics.counter(ListViewFn2.class, "iteratorCount");
+    private static final Counter listViewGetCount = Metrics.counter(ListViewFn2.class, "getCount");
+
     /**
      * A {@link List} adapter over a {@link MultimapView}.
      *
@@ -637,22 +643,47 @@ public class PCollectionViews {
 
       private final Supplier<Integer> size;
 
+      private final boolean recordGets;
+
       private ListOverMultimapView(
           MultimapView<Long, ValueOrMetadata<T, OffsetRange>> primitiveView) {
-        this.primitiveView = primitiveView;
-        this.nonOverlappingRangesToNumElementsPerPosition =
+        this(
+            primitiveView,
             Suppliers.memoize(
                 () ->
                     computeOverlappingRanges(
                         Iterables.transform(
-                            primitiveView.get(Long.MIN_VALUE), (value) -> value.getMetadata())));
-        this.size =
+                            primitiveView.get(Long.MIN_VALUE), (value) -> value.getMetadata()))));
+      }
+
+      private ListOverMultimapView(
+          MultimapView<Long, ValueOrMetadata<T, OffsetRange>> primitiveView,
+          Supplier<SortedMap<OffsetRange, Integer>> nonOverlappingRangesToNumElementsPerPosition) {
+        this(
+            primitiveView,
+            nonOverlappingRangesToNumElementsPerPosition,
             Suppliers.memoize(
-                () -> computeTotalNumElements(nonOverlappingRangesToNumElementsPerPosition.get()));
+                () -> computeTotalNumElements(nonOverlappingRangesToNumElementsPerPosition.get())),
+            true);
+      }
+
+      private ListOverMultimapView(
+          MultimapView<Long, ValueOrMetadata<T, OffsetRange>> primitiveView,
+          Supplier<SortedMap<OffsetRange, Integer>> nonOverlappingRangesToNumElementsPerPosition,
+          Supplier<Integer> size,
+          boolean recordGets) {
+        this.primitiveView = primitiveView;
+        this.nonOverlappingRangesToNumElementsPerPosition =
+            nonOverlappingRangesToNumElementsPerPosition;
+        this.size = size;
+        this.recordGets = recordGets;
       }
 
       @Override
       public T get(int index) {
+        if (recordGets) {
+          listViewGetCount.inc();
+        }
         if (index < 0 || index >= size.get()) {
           throw new IndexOutOfBoundsException();
         }
@@ -673,7 +704,16 @@ public class PCollectionViews {
 
       @Override
       public ListIterator<T> listIterator() {
-        return super.listIterator();
+        listViewIteratorCount.inc();
+        if (recordGets) {
+          // AbstractList's iterable is implemented in terms of get().
+          // We don't want to count those as user-initiated gets.
+          return new ListOverMultimapView<>(
+                  primitiveView, nonOverlappingRangesToNumElementsPerPosition, size, false)
+              .listIterator();
+        } else {
+          return super.listIterator();
+        }
       }
     }
   }

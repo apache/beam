@@ -207,6 +207,7 @@ dependencies {
   implementation "org.apache.flink:flink-core:$flink_version"
   implementation "org.apache.flink:flink-metrics-core:$flink_version"
   implementation "org.apache.flink:flink-java:$flink_version"
+  implementation "org.apache.flink:flink-optimizer:$flink_version"
 
   implementation "org.apache.flink:flink-runtime:$flink_version"
   implementation "org.apache.flink:flink-metrics-core:$flink_version"

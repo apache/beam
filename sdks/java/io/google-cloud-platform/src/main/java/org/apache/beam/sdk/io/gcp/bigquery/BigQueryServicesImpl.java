@@ -1653,13 +1653,30 @@ public class BigQueryServicesImpl implements BigQueryServices {
 
   static class StorageClientImpl implements StorageClient {
 
+    public final Counter throttlingMsecs =
+        Metrics.counter(StorageClientImpl.class, "throttling-msecs");
+
+    private transient long unreportedDelay = 0L;
+
+    private void addToPendingMetrics(long delay) {
+      unreportedDelay += delay;
+    }
+
+    @Override
+    public void reportPendingMetrics() {
+      long delay = unreportedDelay;
+      unreportedDelay = 0L;
+
+      if (delay > 0) {
+        throttlingMsecs.inc(delay);
+      }
+    }
+
     // If client retries ReadRows requests due to RESOURCE_EXHAUSTED error, bump
     // throttlingMsecs according to delay. Runtime can use this information for
     // autoscaling decisions.
     @VisibleForTesting
-    public static class RetryAttemptCounter implements BigQueryReadSettings.RetryAttemptListener {
-      public final Counter throttlingMsecs =
-          Metrics.counter(StorageClientImpl.class, "throttling-msecs");
+    class RetryAttemptCounter implements BigQueryReadSettings.RetryAttemptListener {
 
       @SuppressWarnings("ProtoDurationGetSecondsGetNano")
       @Override
@@ -1673,7 +1690,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
             long delay =
                 retryInfo.getRetryDelay().getSeconds() * 1000
                     + retryInfo.getRetryDelay().getNanos() / 1000000;
-            throttlingMsecs.inc(delay);
+            addToPendingMetrics(delay);
           }
         }
       }
@@ -1685,7 +1702,11 @@ public class BigQueryServicesImpl implements BigQueryServices {
 
     private final BigQueryReadClient client;
 
-    private StorageClientImpl(BigQueryOptions options) throws IOException {
+    private final RetryAttemptCounter listener;
+
+    @VisibleForTesting
+    StorageClientImpl(BigQueryOptions options) throws IOException {
+      listener = new RetryAttemptCounter();
       BigQueryReadSettings.Builder settingsBuilder =
           BigQueryReadSettings.newBuilder()
               .setCredentialsProvider(FixedCredentialsProvider.create(options.getGcpCredential()))
@@ -1693,7 +1714,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
                   BigQueryReadSettings.defaultGrpcTransportProviderBuilder()
                       .setHeaderProvider(USER_AGENT_HEADER_PROVIDER)
                       .build())
-              .setReadRowsRetryAttemptListener(new RetryAttemptCounter());
+              .setReadRowsRetryAttemptListener(listener);
 
       UnaryCallSettings.Builder<CreateReadSessionRequest, ReadSession> createReadSessionSettings =
           settingsBuilder.getStubSettingsBuilder().createReadSessionSettings();
@@ -1721,6 +1742,11 @@ public class BigQueryServicesImpl implements BigQueryServices {
               .build());
 
       this.client = BigQueryReadClient.create(settingsBuilder.build());
+    }
+
+    @VisibleForTesting
+    RetryAttemptCounter getListener() {
+      return listener;
     }
 
     // Since BigQueryReadClient client's methods are final they cannot be mocked with Mockito for

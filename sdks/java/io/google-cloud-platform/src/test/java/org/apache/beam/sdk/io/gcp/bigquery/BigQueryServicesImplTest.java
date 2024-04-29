@@ -2027,9 +2027,11 @@ public class BigQueryServicesImplTest {
   }
 
   @Test
-  public void testRetryAttemptCounter() {
-    BigQueryServicesImpl.StorageClientImpl.RetryAttemptCounter counter =
-        new BigQueryServicesImpl.StorageClientImpl.RetryAttemptCounter();
+  public void testRetryAttemptCounter() throws IOException {
+    BigQueryServicesImpl.StorageClientImpl impl =
+        new BigQueryServicesImpl.StorageClientImpl(
+            PipelineOptionsFactory.create().as(BigQueryOptions.class));
+    BigQueryServicesImpl.StorageClientImpl.RetryAttemptCounter counter = impl.getListener();
 
     RetryInfo retryInfo =
         RetryInfo.newBuilder()
@@ -2071,19 +2073,23 @@ public class BigQueryServicesImplTest {
 
     // Nulls don't bump the counter.
     counter.onRetryAttempt(null, null);
+    impl.reportPendingMetrics();
     assertEquals(0, (long) container.getCounter(metricName).getCumulative());
 
     // Resource exhausted with empty metadata doesn't bump the counter.
     counter.onRetryAttempt(
         Status.RESOURCE_EXHAUSTED.withDescription("You have consumed some quota"), new Metadata());
+    impl.reportPendingMetrics();
     assertEquals(0, (long) container.getCounter(metricName).getCumulative());
 
     // Resource exhausted with retry info bumps the counter.
     counter.onRetryAttempt(Status.RESOURCE_EXHAUSTED.withDescription("Stop for a while"), metadata);
+    impl.reportPendingMetrics();
     assertEquals(123456, (long) container.getCounter(metricName).getCumulative());
 
     // Other errors with retry info doesn't bump the counter.
     counter.onRetryAttempt(Status.UNAVAILABLE.withDescription("Server is gone"), metadata);
+    impl.reportPendingMetrics();
     assertEquals(123456, (long) container.getCounter(metricName).getCumulative());
   }
 }
