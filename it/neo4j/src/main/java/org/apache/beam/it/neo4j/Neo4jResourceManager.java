@@ -204,7 +204,8 @@ public class Neo4jResourceManager extends TestContainerResourceManager<Neo4jCont
     if (waitOption == DatabaseNoWait.NO_WAIT || waitOption == null) {
       return "NOWAIT";
     }
-    throw new Neo4jResourceManagerException(String.format("Unsupported wait option type %s", waitOption.getClass()));
+    throw new Neo4jResourceManagerException(
+        String.format("Unsupported wait option type %s", waitOption.getClass()));
   }
 
   /** Builder for {@link Neo4jResourceManager}. */
@@ -243,9 +244,8 @@ public class Neo4jResourceManager extends TestContainerResourceManager<Neo4jCont
     }
 
     /**
-     * Sets the database name to that of a static database instance and sets the wait policy. Use this method only when
-     * attempting to operate on a pre-existing Neo4j database.
-     *
+     * Sets the database name to that of a static database instance and sets the wait policy. Use
+     * this method only when attempting to operate on a pre-existing Neo4j database.
      *
      * <p>Note: if a database name is set, and a static Neo4j server is being used
      * (useStaticContainer() is also called on the builder), then a database will be created on the

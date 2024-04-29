@@ -38,7 +38,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.mockito.AdditionalMatchers;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
@@ -94,14 +93,11 @@ public class Neo4jResourceManagerTest {
   @Test
   public void testDatabaseIsCreatedWithNoWaitOptions() {
     Neo4jResourceManager.Builder builder =
-            Neo4jResourceManager.builder(TEST_ID).setDatabaseName(STATIC_DATABASE_NAME, DatabaseWaitOptions.noWaitDatabase());
+        Neo4jResourceManager.builder(TEST_ID)
+            .setDatabaseName(STATIC_DATABASE_NAME, DatabaseWaitOptions.noWaitDatabase());
     new Neo4jResourceManager(neo4jDriver, container, builder);
 
-    verify(session).run(
-            and(
-                    startsWith("CREATE DATABASE"),
-                    endsWith("NOWAIT")
-            ), anyMap());
+    verify(session).run(and(startsWith("CREATE DATABASE"), endsWith("NOWAIT")), anyMap());
   }
 
   @Test
@@ -119,7 +115,8 @@ public class Neo4jResourceManagerTest {
     doThrow(ClientException.class).when(session).run(anyString(), anyMap());
 
     assertThrows(
-        Neo4jResourceManagerException.class, () -> testManager.dropDatabase(STATIC_DATABASE_NAME, DatabaseWaitOptions.noWaitDatabase()));
+        Neo4jResourceManagerException.class,
+        () -> testManager.dropDatabase(STATIC_DATABASE_NAME, DatabaseWaitOptions.noWaitDatabase()));
   }
 
   @Test
