@@ -40,10 +40,15 @@ class DoctestTest(unittest.TestCase):
         report=True,
         wont_implement_ok={
             'pandas.core.generic.NDFrame.attrs': ['*'],
+            'pandas.core.generic.NDFrame.bfill': ['*'],
+            'pandas.core.generic.NDFrame.ffill': ['*'],
+            'pandas.core.generic.NDFrame.first_valid_index': ['*'],
             'pandas.core.generic.NDFrame.head': ['*'],
+            'pandas.core.generic.NDFrame.last_valid_index': ['*'],
             'pandas.core.generic.NDFrame.shift': [
                 'df.shift(periods=3)',
                 'df.shift(periods=3, fill_value=0)',
+                "df['Col1'].shift(periods=[0, 1, 2])",
             ],
             'pandas.core.generic.NDFrame.tail': ['*'],
             'pandas.core.generic.NDFrame.take': ['*'],
