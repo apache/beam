@@ -911,6 +911,7 @@ public class BigQueryIOReadTest implements Serializable {
                 QueryPriority.BATCH,
                 null,
                 null,
+                null,
                 null)
             .toSource(stepUuid, TableRowJsonCoder.of(), datumReaderFactoryFn, false);
 
@@ -987,6 +988,7 @@ public class BigQueryIOReadTest implements Serializable {
                 QueryPriority.BATCH,
                 null,
                 null,
+                null,
                 null)
             .toSource(stepUuid, TableRowJsonCoder.of(), datumReaderFactoryFn, false);
 
@@ -1057,6 +1059,7 @@ public class BigQueryIOReadTest implements Serializable {
                 true /* flattenResults */,
                 true /* useLegacySql */,
                 QueryPriority.BATCH,
+                null,
                 null,
                 null,
                 null)
