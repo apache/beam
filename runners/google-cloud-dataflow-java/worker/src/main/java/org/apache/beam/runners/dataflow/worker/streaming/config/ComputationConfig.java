@@ -15,19 +15,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.beam.runners.dataflow.worker.streaming.config;
 
+import com.google.api.services.dataflow.model.MapTask;
+import com.google.auto.value.AutoValue;
+import java.util.Map;
 import java.util.Optional;
-import org.apache.beam.sdk.annotations.Internal;
+import javax.annotation.Nullable;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
-/**
- * Interface for fetching and loading streaming pipeline configurations from Dataflow service.
- * Pipeline configurations are needed to execute computations and manage metadata needed for user
- * worker harness communications with the streaming backend.
- */
-@Internal
-public interface StreamingConfigLoader {
-  void start();
+@AutoValue
+public abstract class ComputationConfig {
 
-  void stop();
+  public static ComputationConfig create(
+      MapTask mapTask, @Nullable Map<String, String> userTransformToStateFamilyName) {
+    return new AutoValue_ComputationConfig(
+        mapTask,
+        Optional.ofNullable(userTransformToStateFamilyName)
+            .map(ImmutableMap::copyOf)
+            .orElseGet(ImmutableMap::of));
+  }
+
+  public abstract MapTask mapTask();
+
+  public abstract ImmutableMap<String, String> userTransformToStateFamilyName();
+
+  @FunctionalInterface
+  public interface Factory {
+    Optional<ComputationConfig> getComputationConfig(String computationId);
+  }
 }

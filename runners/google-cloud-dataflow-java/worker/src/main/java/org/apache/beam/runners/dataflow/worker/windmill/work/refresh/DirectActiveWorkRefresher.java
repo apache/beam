@@ -105,7 +105,7 @@ public final class DirectActiveWorkRefresher extends ActiveWorkRefresher {
   }
 
   @Override
-  protected void refreshActiveWork() {
+  protected synchronized void refreshActiveWork() {
     Instant refreshDeadline = clock.get().minus(Duration.millis(activeWorkRefreshPeriodMillis));
 
     Map<GetDataStream, Map<String, List<HeartbeatRequest>>> fannedOutHeartbeatRequests =
@@ -117,7 +117,7 @@ public final class DirectActiveWorkRefresher extends ActiveWorkRefresher {
       // to correctly fan-out the heartbeat requests.
       ImmutableListMultimap<GetDataStream, HeartbeatRequest> heartbeats =
           HeartbeatRequests.getRefreshableDirectKeyHeartbeats(
-              computationState.currentActiveWorkReadOnly(), refreshDeadline, sampler);
+              computationState.getActiveWork(), refreshDeadline, sampler);
       // Aggregate the heartbeats across computations by GetDataStream for correct fan out.
       for (Map.Entry<GetDataStream, Collection<HeartbeatRequest>> heartbeatsPerStream :
           heartbeats.asMap().entrySet()) {

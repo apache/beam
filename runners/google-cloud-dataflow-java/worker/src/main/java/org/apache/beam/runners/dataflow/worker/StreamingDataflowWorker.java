@@ -51,7 +51,7 @@ public final class StreamingDataflowWorker {
 
     // Use the MetricsLogger container which is used by BigQueryIO to periodically log process-wide
     // metrics.
-    MetricsEnvironment.setProcessWideContainer(MetricsLogger.createUnboundedMetricsLogger());
+    MetricsEnvironment.setProcessWideContainer(MetricsLogger.forWorkerMetrics());
     JvmInitializers.runBeforeProcessing(options);
 
     LOG.info("Starting worker harness in mode={}.", worker.mode());
@@ -59,11 +59,17 @@ public final class StreamingDataflowWorker {
   }
 
   private static boolean isDirectPathPipeline(DataflowWorkerHarnessOptions options) {
+    boolean isEnableIpV6 = Optional.ofNullable(options.getDataflowServiceOptions())
+        .map(dataflowServiceOptions -> dataflowServiceOptions.contains(ENABLE_IPV6_EXPERIMENT))
+        .orElse(false);
+
+    if (options.isEnableWindmillServiceDirectPath() && !isEnableIpV6) {
+      LOG.warn("IPv6 is required for direct path, launching in dispatched mode.");
+    }
+
     return options.isEnableStreamingEngine()
-        && options.getIsWindmillServiceDirectPathEnabled()
-        && Optional.ofNullable(options.getDataflowServiceOptions())
-            .map(dataflowServiceOptions -> dataflowServiceOptions.contains(ENABLE_IPV6_EXPERIMENT))
-            .orElse(false);
+        && options.isEnableWindmillServiceDirectPath()
+        && isEnableIpV6;
   }
 
   private static StreamingWorkerHarness createStreamingWorkerHarness(

@@ -317,6 +317,11 @@ final class GrpcGetDataStream
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         throw new RuntimeException(e);
+      } catch (AppendableInputStream.InvalidStreamTerminationException e) {
+        // Stream was explicitly closed
+        if (!isClosed()) {
+          throw e;
+        }
       } finally {
         pending.remove(request.id());
       }

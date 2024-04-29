@@ -21,12 +21,12 @@ import java.io.PrintWriter;
 import java.util.ArrayDeque;
 import java.util.Collection;
 import java.util.Deque;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Queue;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import javax.annotation.Nullable;
@@ -38,6 +38,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudge
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableListMultimap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multimap;
 import org.joda.time.Duration;
@@ -83,7 +84,7 @@ public final class ActiveWorkState {
   }
 
   static ActiveWorkState create(WindmillStateCache.ForComputation computationStateCache) {
-    return new ActiveWorkState(new ConcurrentHashMap<>(), computationStateCache);
+    return new ActiveWorkState(new HashMap<>(), computationStateCache);
   }
 
   @VisibleForTesting
@@ -291,8 +292,15 @@ public final class ActiveWorkState {
     return stuckCommits.build();
   }
 
-  synchronized ImmutableMap<ShardedKey, Deque<Work>> getReadOnlyActiveWork() {
-    return ImmutableMap.copyOf(activeWork);
+  synchronized ImmutableListMultimap<ShardedKey, Work> getActiveWork() {
+    ImmutableListMultimap.Builder<ShardedKey, Work> currentActiveWork =
+        ImmutableListMultimap.builder();
+
+    for (Entry<ShardedKey, Deque<Work>> keyedWorkQueue : activeWork.entrySet()) {
+      currentActiveWork.putAll(keyedWorkQueue.getKey(), keyedWorkQueue.getValue());
+    }
+
+    return currentActiveWork.build();
   }
 
   /**

@@ -37,7 +37,7 @@ public class MetricsLogger extends MetricsContainerImpl {
     super(stepName);
   }
 
-  public static MetricsLogger createUnboundedMetricsLogger() {
+  public static MetricsLogger forWorkerMetrics() {
     return new MetricsLogger(null);
   }
 

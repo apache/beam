@@ -56,8 +56,8 @@ public abstract class ExecutionState {
   }
 
   public final void close() {
+    context().invalidateCache();
     try {
-      context().invalidateCache();
       workExecutor().close();
     } catch (Exception e) {
       LOG.warn("Failed to close map task executor: ", e);

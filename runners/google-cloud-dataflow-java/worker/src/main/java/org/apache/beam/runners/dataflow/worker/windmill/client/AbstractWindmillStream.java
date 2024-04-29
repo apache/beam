@@ -165,7 +165,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   protected final void startStream() {
     // Add the stream to the registry after it has been fully constructed.
     streamRegistry.add(this);
-    while (true) {
+    while (!isClosed()) {
       try {
         synchronized (this) {
           startTimeMs.set(Instant.now().getMillis());
@@ -189,6 +189,9 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
           // Keep trying to create the stream.
         }
       }
+    }
+    if (isClosed()) {
+      streamRegistry.remove(this);
     }
   }
 

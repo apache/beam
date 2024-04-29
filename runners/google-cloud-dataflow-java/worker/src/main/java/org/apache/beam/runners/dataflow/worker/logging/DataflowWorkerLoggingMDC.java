@@ -20,9 +20,6 @@ package org.apache.beam.runners.dataflow.worker.logging;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Mapped diagnostic context for the Dataflow worker. */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class DataflowWorkerLoggingMDC {
   private static final InheritableThreadLocal<String> jobId = new InheritableThreadLocal<>();
   private static final InheritableThreadLocal<@Nullable String> stageName =

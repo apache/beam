@@ -112,7 +112,7 @@ public final class DispatchedStreamingEngineWorkerHarness implements StreamingWo
   private final DataflowWorkerHarnessOptions options;
   private final AtomicBoolean isRunning;
   private final long clientId;
-  private final StreamingConfigLoader<StreamingEnginePipelineConfig> streamingConfigLoader;
+  private final StreamingConfigLoader streamingConfigLoader;
   private final ComputationStateCache computationStateCache;
   private final WindmillServerStub windmillServer;
   private final WorkCommitter workCommitter;
@@ -256,7 +256,7 @@ public final class DispatchedStreamingEngineWorkerHarness implements StreamingWo
             workFailureProcessor,
             StreamingCommitFinalizer.create(workExecutor),
             streamingCounters,
-            HotKeyLogger.ofSystemClock(),
+            HotKeyLogger.create(),
             stageInfo,
             sampler,
             maxWorkItemCommitBytes);

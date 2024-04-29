@@ -401,7 +401,7 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
             clock),
         StreamingCommitFinalizer.create(workExecutor),
         streamingCounters,
-        HotKeyLogger.ofSystemClock(),
+        HotKeyLogger.create(),
         stageInfo,
         sampler,
         maxWorkItemCommitBytes);

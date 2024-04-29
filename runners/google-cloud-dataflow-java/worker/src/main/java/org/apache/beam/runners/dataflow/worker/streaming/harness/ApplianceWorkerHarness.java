@@ -219,7 +219,7 @@ public final class ApplianceWorkerHarness implements StreamingWorkerHarness {
                 clock),
             StreamingCommitFinalizer.create(workExecutor),
             streamingCounters,
-            HotKeyLogger.ofSystemClock(),
+            HotKeyLogger.create(),
             stageInfo,
             sampler,
             maxWorkItemCommitBytes);

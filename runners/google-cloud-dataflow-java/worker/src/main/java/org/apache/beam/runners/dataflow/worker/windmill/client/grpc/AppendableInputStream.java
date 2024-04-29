@@ -159,7 +159,7 @@ final class AppendableInputStream extends InputStream {
         if (complete.get()) {
           return false;
         }
-        throw new IllegalStateException("Got poison pill or timeout but stream is not done.");
+        throw new InvalidStreamTerminationException();
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         throw new CancellationException();
@@ -176,6 +176,12 @@ final class AppendableInputStream extends InputStream {
       InputStream next = current;
       current = null;
       return next;
+    }
+  }
+
+  static class InvalidStreamTerminationException extends IllegalStateException {
+    InvalidStreamTerminationException() {
+      super("Got poison pill or timeout but stream is not done.");
     }
   }
 }

@@ -26,6 +26,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
+
+import org.apache.beam.runners.dataflow.worker.streaming.config.ComputationConfig;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingConfigLoader;
 import org.apache.beam.runners.dataflow.worker.streaming.harness.StreamingWorkerEnvironment;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
@@ -47,7 +49,7 @@ public final class StreamingApplianceComputationStateCacheLoader
   private static final Logger LOG =
       LoggerFactory.getLogger(StreamingApplianceComputationStateCacheLoader.class);
 
-  private final StreamingConfigLoader<Windmill.GetConfigResponse> streamingApplianceConfigLoader;
+  private final ComputationConfig.Factory streamingApplianceConfigLoader;
   private final BoundedQueueExecutor workUnitExecutor;
   private final ConcurrentHashMap<String, String> systemNameToComputationIdMap;
   private final Function<String, WindmillStateCache.ForComputation>

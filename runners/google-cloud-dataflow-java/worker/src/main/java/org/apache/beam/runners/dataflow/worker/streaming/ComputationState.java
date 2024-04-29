@@ -19,7 +19,6 @@ package org.apache.beam.runners.dataflow.worker.streaming;
 
 import com.google.api.services.dataflow.model.MapTask;
 import java.io.PrintWriter;
-import java.util.Deque;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -29,6 +28,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableListMultimap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multimap;
 import org.joda.time.Instant;
@@ -80,18 +80,16 @@ public class ComputationState {
   }
 
   /**
-   * Adds the {@link ExecutionState} to the internal {@link #executionStateQueue} so that it can be
-   * re-used in future processing.
+   * Cache the {@link ExecutionState} so that it can be re-used in future {@link
+   * #acquireExecutionState()} calls.
    */
   public void releaseExecutionState(ExecutionState executionState) {
     executionStateQueue.offer(executionState);
   }
 
   /**
-   * Removes an {@link ExecutionState} instance from {@link #executionStateQueue} if one exists, and
-   * returns it. Calls to this method must be followed by a call to {@link
-   * #releaseExecutionState(ExecutionState)} to return the {@link ExecutionState} if it is to be
-   * reused.
+   * Returns {@link ExecutionState} that was previously offered in {@link
+   * #releaseExecutionState(ExecutionState)} or {@link Optional#empty()} if one does not exist.
    */
   public Optional<ExecutionState> acquireExecutionState() {
     return Optional.ofNullable(executionStateQueue.poll());
@@ -152,8 +150,8 @@ public class ComputationState {
     executor.forceExecute(work, work.getWorkItem().getSerializedSize());
   }
 
-  public ImmutableMap<ShardedKey, Deque<Work>> currentActiveWorkReadOnly() {
-    return activeWorkState.getReadOnlyActiveWork();
+  public ImmutableListMultimap<ShardedKey, Work> getActiveWork() {
+    return activeWorkState.getActiveWork();
   }
 
   public void printActiveWork(PrintWriter writer) {
@@ -167,11 +165,7 @@ public class ComputationState {
   public final void close() {
     @Nullable ExecutionState executionState;
     while ((executionState = executionStateQueue.poll()) != null) {
-      try {
-        executionState.workExecutor().close();
-      } catch (Exception e) {
-        LOG.warn("Failed to close workExecutor {}.", executionState.workExecutor(), e);
-      }
+      executionState.close();
     }
     executionStateQueue.clear();
   }

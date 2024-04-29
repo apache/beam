@@ -45,14 +45,14 @@ public final class ComputationStateCache implements StatusDataProvider {
 
   private static final Logger LOG = LoggerFactory.getLogger(ComputationStateCache.class);
 
-  private final LoadingCache<String, Optional<ComputationState>> computationCache;
+  private final LoadingCache<String, ComputationState> computationCache;
 
-  private ComputationStateCache(LoadingCache<String, Optional<ComputationState>> computationCache) {
+  private ComputationStateCache(LoadingCache<String, ComputationState> computationCache) {
     this.computationCache = computationCache;
   }
 
   public static ComputationStateCache create(
-      CacheLoader<String, Optional<ComputationState>> cacheLoader) {
+      CacheLoader<String, ComputationState> cacheLoader) {
     return new ComputationStateCache(CacheBuilder.newBuilder().build(cacheLoader));
   }
 

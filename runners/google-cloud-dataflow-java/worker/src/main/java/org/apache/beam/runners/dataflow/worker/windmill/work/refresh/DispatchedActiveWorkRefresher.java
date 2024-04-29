@@ -71,7 +71,7 @@ public final class DispatchedActiveWorkRefresher extends ActiveWorkRefresher {
   }
 
   @Override
-  protected void refreshActiveWork() {
+  protected synchronized void refreshActiveWork() {
     Map<String, List<Windmill.HeartbeatRequest>> heartbeats = new HashMap<>();
     Instant refreshDeadline = clock.get().minus(Duration.millis(activeWorkRefreshPeriodMillis));
 
@@ -79,7 +79,7 @@ public final class DispatchedActiveWorkRefresher extends ActiveWorkRefresher {
       heartbeats.put(
           computationState.getComputationId(),
           HeartbeatRequests.getRefreshableKeyHeartbeats(
-              computationState.currentActiveWorkReadOnly(), refreshDeadline, sampler));
+              computationState.getActiveWork(), refreshDeadline, sampler));
     }
 
     activeWorkRefresherFn.accept(heartbeats);

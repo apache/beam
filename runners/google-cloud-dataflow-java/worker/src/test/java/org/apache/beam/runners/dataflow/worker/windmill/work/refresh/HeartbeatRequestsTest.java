@@ -30,6 +30,7 @@ import java.util.ArrayDeque;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import javax.annotation.Nullable;
@@ -42,8 +43,10 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.commits.Commit;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkProcessingContext;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ArrayListMultimap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableListMultimap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ListMultimap;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Test;
@@ -53,7 +56,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class HeartbeatRequestsTest {
 
-  private Map<ShardedKey, Deque<Work>> activeWork;
+  private ListMultimap<ShardedKey, Work> activeWork;
 
   private static Work createWork(
       Windmill.WorkItem workItem, WindmillStream.GetDataStream getDataStream) {
@@ -119,7 +122,7 @@ public class HeartbeatRequestsTest {
 
   @Before
   public void setUp() {
-    activeWork = new HashMap<>();
+    activeWork = ArrayListMultimap.create();
   }
 
   @Test
@@ -196,8 +199,7 @@ public class HeartbeatRequestsTest {
   }
 
   private void activateWorkForKey(ShardedKey shardedKey, Work work) {
-    Deque<Work> workQueue = activeWork.computeIfAbsent(shardedKey, ignored -> new ArrayDeque<>());
-    workQueue.addLast(work);
+    activeWork.put(shardedKey, work);
   }
 
   @AutoValue

@@ -21,6 +21,7 @@ import static java.util.stream.StreamSupport.stream;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet.toImmutableSet;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
 
+import com.google.api.services.dataflow.model.MapTask;
 import com.google.api.services.dataflow.model.StreamingComputationConfig;
 import com.google.api.services.dataflow.model.StreamingConfigTask;
 import com.google.api.services.dataflow.model.WorkItem;
@@ -36,6 +37,7 @@ import java.util.function.Function;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.WorkUnitClient;
+import org.apache.beam.runners.dataflow.worker.streaming.harness.StreamingWorkerEnvironment;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
@@ -45,6 +47,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Precondit
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.MoreCollectors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPort;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.joda.time.Duration;
@@ -54,7 +57,7 @@ import org.slf4j.LoggerFactory;
 @Internal
 @ThreadSafe
 public final class StreamingEngineConfigLoader
-    implements StreamingConfigLoader<StreamingEnginePipelineConfig> {
+    implements StreamingConfigLoader, ComputationConfig.Factory {
   private static final Logger LOG = LoggerFactory.getLogger(StreamingEngineConfigLoader.class);
   private static final String GLOBAL_PIPELINE_CONFIG_REFRESHER = "GlobalPipelineConfigRefresher";
 
@@ -112,6 +115,15 @@ public final class StreamingEngineConfigLoader
         .backoff();
   }
 
+  private static MapTask createMapTask(StreamingComputationConfig computationConfig) {
+    return StreamingWorkerEnvironment.fixMapTaskMultiOutputInfoFnInstance()
+        .apply(
+            new MapTask()
+                .setSystemName(computationConfig.getSystemName())
+                .setStageName(computationConfig.getStageName())
+                .setInstructions(computationConfig.getInstructions()));
+  }
+
   @Override
   public void start() {
     fetchInitialPipelineGlobalConfig();
@@ -119,11 +131,20 @@ public final class StreamingEngineConfigLoader
   }
 
   @Override
-  public Optional<StreamingEnginePipelineConfig> getComputationConfig(String computationId) {
+  public Optional<ComputationConfig> getComputationConfig(String computationId) {
     Preconditions.checkArgument(
         !computationId.isEmpty(),
         "computationId is empty. Cannot fetch computation config without a computationId.");
-    return getComputationConfigInternal(computationId);
+    return getComputationConfigInternal(computationId)
+        .flatMap(
+            pipelineConfig ->
+                pipelineConfig.computationConfigs().stream()
+                    .filter(s -> s.getComputationId().equals(computationId))
+                    .collect(MoreCollectors.toOptional()))
+        .map(
+            config ->
+                ComputationConfig.create(
+                    createMapTask(config), config.getTransformUserNameToStateFamily()));
   }
 
   @Override

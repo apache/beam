@@ -20,7 +20,7 @@ package org.apache.beam.runners.dataflow.worker.windmill.work.refresh;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList.toImmutableList;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableListMultimap.toImmutableListMultimap;
 
-import java.util.Deque;
+import java.util.Collection;
 import java.util.Map;
 import java.util.stream.Stream;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
@@ -32,35 +32,36 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.Ge
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableListMultimap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multimap;
 import org.joda.time.Instant;
 
 /** Helper factory class for creating heartbeat requests. */
 final class HeartbeatRequests {
 
   static ImmutableList<HeartbeatRequest> getRefreshableKeyHeartbeats(
-      Map<ShardedKey, Deque<Work>> activeWork,
+      Multimap<ShardedKey, Work> activeWork,
       Instant refreshDeadline,
       DataflowExecutionStateSampler sampler) {
-    return activeWork.entrySet().stream()
+    return activeWork.asMap().entrySet().stream()
         .flatMap(entry -> toHeartbeatRequestStream(entry, refreshDeadline, sampler))
         .collect(toImmutableList());
   }
 
   static ImmutableListMultimap<GetDataStream, HeartbeatRequest> getRefreshableDirectKeyHeartbeats(
-      Map<ShardedKey, Deque<Work>> activeWork,
+      Multimap<ShardedKey, Work> activeWork,
       Instant refreshDeadline,
       DataflowExecutionStateSampler sampler) {
-    return activeWork.entrySet().stream()
+    return activeWork.asMap().entrySet().stream()
         .flatMap(e -> toDirectHeartbeatRequest(e, refreshDeadline, sampler))
         .collect(toImmutableListMultimap(Pair::getKey, Pair::getValue));
   }
 
   private static Stream<Pair<GetDataStream, HeartbeatRequest>> toDirectHeartbeatRequest(
-      Map.Entry<ShardedKey, Deque<Work>> shardedKeyAndWorkQueue,
+      Map.Entry<ShardedKey, Collection<Work>> shardedKeyAndWorkQueue,
       Instant refreshDeadline,
       DataflowExecutionStateSampler sampler) {
     ShardedKey shardedKey = shardedKeyAndWorkQueue.getKey();
-    Deque<Work> workQueue = shardedKeyAndWorkQueue.getValue();
+    Collection<Work> workQueue = shardedKeyAndWorkQueue.getValue();
 
     return getRefreshableWork(workQueue, refreshDeadline)
         .peek(HeartbeatRequests::failWorkForClosedStream)
@@ -74,11 +75,11 @@ final class HeartbeatRequests {
   }
 
   private static Stream<HeartbeatRequest> toHeartbeatRequestStream(
-      Map.Entry<ShardedKey, Deque<Work>> shardedKeyAndWorkQueue,
+      Map.Entry<ShardedKey, Collection<Work>> shardedKeyAndWorkQueue,
       Instant refreshDeadline,
       DataflowExecutionStateSampler sampler) {
     ShardedKey shardedKey = shardedKeyAndWorkQueue.getKey();
-    Deque<Work> workQueue = shardedKeyAndWorkQueue.getValue();
+    Collection<Work> workQueue = shardedKeyAndWorkQueue.getValue();
 
     return getRefreshableWork(workQueue, refreshDeadline)
         // Don't send heartbeats for queued work we already know is failed.
@@ -96,7 +97,8 @@ final class HeartbeatRequests {
         .build();
   }
 
-  private static Stream<Work> getRefreshableWork(Deque<Work> workQueue, Instant refreshDeadline) {
+  private static Stream<Work> getRefreshableWork(
+      Collection<Work> workQueue, Instant refreshDeadline) {
     return workQueue.stream().filter(work -> work.getStartTime().isBefore(refreshDeadline));
   }
 

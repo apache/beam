@@ -46,7 +46,7 @@ public class HotKeyLogger {
     this.clock = clock;
   }
 
-  public static HotKeyLogger ofSystemClock() {
+  public static HotKeyLogger create() {
     return new HotKeyLogger(Clock.SYSTEM);
   }
 
