@@ -231,6 +231,7 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.frame.DataFrame.shift': [
                 'df.shift(periods=3)',
                 'df.shift(periods=3, fill_value=0)',
+                "df['Col1'].shift(periods=[0, 1, 2])",
             ],
             'pandas.core.frame.DataFrame.unstack': ['*'],
             'pandas.core.frame.DataFrame.memory_usage': ['*'],
