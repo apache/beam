@@ -26,6 +26,7 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import java.io.IOException;
 import java.util.List;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
@@ -33,6 +34,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -102,6 +104,13 @@ public class StorageApiSinkFailedRowsIT {
 
   private static final byte[] BIG_BYTES = new byte[11 * 1024 * 1024];
 
+  private static final SerializableFunction<TableRow, TableRow> ERROR_FN = new SerializableFunction<TableRow, TableRow>() {
+    @Override
+    public TableRow apply(TableRow input) {
+      return input.set("modified", "true");
+    }
+  };
+
   private BigQueryIO.Write.Method getMethod() {
     return useAtLeastOnce
         ? BigQueryIO.Write.Method.STORAGE_API_AT_LEAST_ONCE
@@ -128,34 +137,103 @@ public class StorageApiSinkFailedRowsIT {
   @Test
   public void testSchemaMismatchCaughtByBeam() throws IOException, InterruptedException {
     String tableSpec = createTable(BASE_TABLE_SCHEMA);
-    TableRow good1 = new TableRow().set("str", "foo").set("i64", "42");
-    TableRow good2 = new TableRow().set("str", "foo").set("i64", "43");
-    Iterable<TableRow> goodRows =
-        ImmutableList.of(
-            good1.clone().set("inner", new TableRow()),
-            good2.clone().set("inner", new TableRow()),
-            new TableRow().set("inner", good1),
-            new TableRow().set("inner", good2));
 
-    TableRow bad1 = new TableRow().set("str", "foo").set("i64", "baad");
-    TableRow bad2 = new TableRow().set("str", "foo").set("i64", "42").set("unknown", "foobar");
-    Iterable<TableRow> badRows =
-        ImmutableList.of(
-            bad1, bad2, new TableRow().set("inner", bad1), new TableRow().set("inner", bad2));
+    Iterable<TableRow> goodRows = getSchemaMismatchGoodRows();
+    Iterable<TableRow> badRows = getSchemaMismatchBadRows();
 
     runPipeline(
         getMethod(),
         useStreamingExactlyOnce,
         tableSpec,
         Iterables.concat(goodRows, badRows),
-        badRows);
+        badRows,
+        null);
     assertGoodRowsWritten(tableSpec, goodRows);
+  }
+
+  @Test
+  public void testSchemaMismatchCaughtByBeamWithCustomErrorHandling() throws IOException, InterruptedException {
+    String tableSpec = createTable(BASE_TABLE_SCHEMA);
+
+    Iterable<TableRow> goodRows = getSchemaMismatchGoodRows();
+    Iterable<TableRow> badRows = getSchemaMismatchBadRows();
+
+    List<TableRow> modifiedBadRows = getSchemaMismatchBadRows();
+
+    for (TableRow tr: modifiedBadRows){
+      tr.set("modified", "true");
+    }
+
+    runPipeline(
+        getMethod(),
+        useStreamingExactlyOnce,
+        tableSpec,
+        Iterables.concat(goodRows, badRows),
+        modifiedBadRows,
+        ERROR_FN);
+    assertGoodRowsWritten(tableSpec, goodRows);
+  }
+
+  public List<TableRow> getSchemaMismatchGoodRows(){
+    TableRow good1 = new TableRow().set("str", "foo").set("i64", "42");
+    TableRow good2 = new TableRow().set("str", "foo").set("i64", "43");
+    return
+        ImmutableList.of(
+            good1.clone().set("inner", new TableRow()),
+            good2.clone().set("inner", new TableRow()),
+            new TableRow().set("inner", good1),
+            new TableRow().set("inner", good2));
+  }
+
+  public List<TableRow> getSchemaMismatchBadRows(){
+    TableRow bad1 = new TableRow().set("str", "foo").set("i64", "baad");
+    TableRow bad2 = new TableRow().set("str", "foo").set("i64", "42").set("unknown", "foobar");
+    return
+        ImmutableList.of(
+            bad1, bad2, new TableRow().set("inner", bad1), new TableRow().set("inner", bad2));
   }
 
   @Test
   public void testInvalidRowCaughtByBigquery() throws IOException, InterruptedException {
     String tableSpec = createTable(BASE_TABLE_SCHEMA);
 
+    Iterable<TableRow> goodRows = getInvalidBQGoodRows();
+    Iterable<TableRow> badRows = getInvalidBQBadRows();
+
+    runPipeline(
+        getMethod(),
+        useStreamingExactlyOnce,
+        tableSpec,
+        Iterables.concat(goodRows, badRows),
+        badRows,
+        null);
+    assertGoodRowsWritten(tableSpec, goodRows);
+  }
+
+  @Test
+  public void testInvalidRowCaughtByBigqueryWithCustomErrorHandling() throws IOException, InterruptedException {
+    String tableSpec = createTable(BASE_TABLE_SCHEMA);
+
+    Iterable<TableRow> goodRows = getInvalidBQGoodRows();
+    Iterable<TableRow> badRows = getInvalidBQBadRows();
+
+    List<TableRow> modifiedBadRows = getInvalidBQBadRows();
+
+    for (TableRow tr: modifiedBadRows){
+      tr.set("modified", "true");
+    }
+
+    runPipeline(
+        getMethod(),
+        useStreamingExactlyOnce,
+        tableSpec,
+        Iterables.concat(goodRows, badRows),
+        modifiedBadRows,
+        ERROR_FN);
+    assertGoodRowsWritten(tableSpec, goodRows);
+  }
+
+  private List<TableRow> getInvalidBQGoodRows(){
     TableRow good1 =
         new TableRow()
             .set("str", "foo")
@@ -164,13 +242,15 @@ public class StorageApiSinkFailedRowsIT {
             .set("stronearray", Lists.newArrayList());
     TableRow good2 =
         new TableRow().set("str", "foo").set("i64", "43").set("stronearray", Lists.newArrayList());
-    Iterable<TableRow> goodRows =
+    return
         ImmutableList.of(
             good1.clone().set("inner", new TableRow().set("stronearray", Lists.newArrayList())),
             good2.clone().set("inner", new TableRow().set("stronearray", Lists.newArrayList())),
             new TableRow().set("inner", good1).set("stronearray", Lists.newArrayList()),
             new TableRow().set("inner", good2).set("stronearray", Lists.newArrayList()));
+  }
 
+  private List<TableRow> getInvalidBQBadRows(){
     TableRow bad1 = new TableRow().set("str", "foo").set("i64", "42").set("date", "10001-08-16");
     TableRow bad2 = new TableRow().set("str", "foo").set("i64", "42").set("strone", "ab");
     TableRow bad3 = new TableRow().set("str", "foo").set("i64", "42").set("json", "BAADF00D");
@@ -180,7 +260,7 @@ public class StorageApiSinkFailedRowsIT {
             .set("i64", "42")
             .set("stronearray", Lists.newArrayList("toolong"));
     TableRow bad5 = new TableRow().set("bytes", BIG_BYTES);
-    Iterable<TableRow> badRows =
+    return
         ImmutableList.of(
             bad1,
             bad2,
@@ -190,16 +270,7 @@ public class StorageApiSinkFailedRowsIT {
             new TableRow().set("inner", bad1),
             new TableRow().set("inner", bad2),
             new TableRow().set("inner", bad3));
-
-    runPipeline(
-        getMethod(),
-        useStreamingExactlyOnce,
-        tableSpec,
-        Iterables.concat(goodRows, badRows),
-        badRows);
-    assertGoodRowsWritten(tableSpec, goodRows);
   }
-
   private static String createTable(TableSchema tableSchema)
       throws IOException, InterruptedException {
     String table = "table" + System.nanoTime();
@@ -240,7 +311,8 @@ public class StorageApiSinkFailedRowsIT {
       boolean triggered,
       String tableSpec,
       Iterable<TableRow> tableRows,
-      Iterable<TableRow> expectedFailedRows) {
+      Iterable<TableRow> expectedFailedRows,
+      @Nullable SerializableFunction<TableRow, TableRow> userProvidedErrorFunction) {
     Pipeline p = Pipeline.create();
 
     BigQueryIO.Write<TableRow> write =
@@ -249,6 +321,9 @@ public class StorageApiSinkFailedRowsIT {
             .withSchema(BASE_TABLE_SCHEMA)
             .withMethod(method)
             .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER);
+    if (userProvidedErrorFunction != null){
+      write = write.withFormatRecordOnFailureFunction(userProvidedErrorFunction);
+    }
     if (method == BigQueryIO.Write.Method.STORAGE_WRITE_API) {
       write = write.withNumStorageWriteApiStreams(1);
       if (triggered) {
