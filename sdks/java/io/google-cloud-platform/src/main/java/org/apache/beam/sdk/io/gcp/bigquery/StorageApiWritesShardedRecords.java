@@ -79,6 +79,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Max;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
@@ -129,6 +130,8 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
   private final boolean ignoreUnknownValues;
   private final AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation;
 
+  private final @Nullable SerializableFunction<ElementT, TableRow> formatRecordOnFailureFunction;
+
   private final Duration streamIdleTime = DEFAULT_STREAM_IDLE_TIME;
   private final TupleTag<BigQueryStorageApiInsertError> failedRowsTag;
   private final @Nullable TupleTag<TableRow> successfulRowsTag;
@@ -147,12 +150,18 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
     long tryIteration = 0;
     ProtoRows protoRows;
 
+    List<ElementT> originalElements;
+
     List<org.joda.time.Instant> timestamps;
 
     AppendRowsContext(
-        ShardedKey<DestinationT> key, ProtoRows protoRows, List<org.joda.time.Instant> timestamps) {
+        ShardedKey<DestinationT> key,
+        ProtoRows protoRows,
+        List<ElementT> originalElements,
+        List<org.joda.time.Instant> timestamps) {
       this.key = key;
       this.protoRows = protoRows;
+      this.originalElements = originalElements;
       this.timestamps = timestamps;
     }
 
@@ -221,7 +230,8 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
       @Nullable TupleTag<TableRow> successfulRowsTag,
       boolean autoUpdateSchema,
       boolean ignoreUnknownValues,
-      AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation) {
+      AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation,
+      @Nullable SerializableFunction<ElementT, TableRow> formatRecordOnFailureFunction) {
     this.dynamicDestinations = dynamicDestinations;
     this.createDisposition = createDisposition;
     this.kmsKey = kmsKey;
@@ -234,6 +244,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
     this.autoUpdateSchema = autoUpdateSchema;
     this.ignoreUnknownValues = ignoreUnknownValues;
     this.defaultMissingValueInterpretation = defaultMissingValueInterpretation;
+    this.formatRecordOnFailureFunction = formatRecordOnFailureFunction;
   }
 
   @Override
@@ -554,7 +565,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
       // Each ProtoRows object contains at most 1MB of rows.
       // TODO: Push messageFromTableRow up to top level. That we we cans skip TableRow entirely if
       // already proto or already schema.
-      Iterable<SplittingIterable.Value> messages =
+      Iterable<SplittingIterable.Value<ElementT>> messages =
           new SplittingIterable<ElementT>(
               element.getValue(),
               splitSize,
@@ -574,7 +585,8 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
               },
               autoUpdateSchema,
               ignoreUnknownValues,
-              elementTs);
+              elementTs,
+              formatRecordOnFailureFunction);
 
       // Initialize stream names and offsets for all contexts. This will be called initially, but
       // will also be called if we roll over to a new stream on a retry.
@@ -674,7 +686,14 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
               for (int failedIndex : failedRowIndices) {
                 // Convert the message to a TableRow and send it to the failedRows collection.
                 ByteString protoBytes = failedContext.protoRows.getSerializedRows(failedIndex);
-                TableRow failedRow = appendClientInfo.get().toTableRow(protoBytes);
+                TableRow failedRow;
+                if (formatRecordOnFailureFunction != null) {
+                  failedRow =
+                      formatRecordOnFailureFunction.apply(
+                          failedContext.originalElements.get(failedIndex));
+                } else {
+                  failedRow = appendClientInfo.get().toTableRow(protoBytes);
+                }
                 org.joda.time.Instant timestamp = failedContext.timestamps.get(failedIndex);
                 o.get(failedRowsTag)
                     .outputWithTimestamp(
@@ -825,7 +844,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
               1000,
               BigQuerySinkMetrics.throttledTimeCounter(BigQuerySinkMetrics.RpcMethod.APPEND_ROWS));
       int numAppends = 0;
-      for (SplittingIterable.Value splitValue : messages) {
+      for (SplittingIterable.Value<ElementT> splitValue : messages) {
         // Handle the case of a row that is too large.
         if (splitValue.getProtoRows().getSerializedSize() >= maxRequestSize) {
           if (splitValue.getProtoRows().getSerializedRowsCount() > 1) {
@@ -860,7 +879,10 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
           // RetryManager
           AppendRowsContext context =
               new AppendRowsContext(
-                  element.getKey(), splitValue.getProtoRows(), splitValue.getTimestamps());
+                  element.getKey(),
+                  splitValue.getProtoRows(),
+                  splitValue.getOriginalElements(),
+                  splitValue.getTimestamps());
           contexts.add(context);
           retryManager.addOperation(runOperation, onError, onSuccess, context);
           recordsAppended.inc(splitValue.getProtoRows().getSerializedRowsCount());

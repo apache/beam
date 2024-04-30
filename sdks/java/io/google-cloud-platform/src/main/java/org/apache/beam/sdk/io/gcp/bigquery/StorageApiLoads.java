@@ -289,7 +289,8 @@ public class StorageApiLoads<DestinationT, ElementT>
                 successfulWrittenRowsTag,
                 autoUpdateSchema,
                 ignoreUnknownValues,
-                defaultMissingValueInterpretation));
+                defaultMissingValueInterpretation,
+                formatRecordOnFailureFunction));
 
     PCollection<BigQueryStorageApiInsertError> insertErrors =
         PCollectionList.of(convertMessagesResult.get(failedRowsTag))
