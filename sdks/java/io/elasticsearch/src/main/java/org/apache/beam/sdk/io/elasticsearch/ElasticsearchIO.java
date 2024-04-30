@@ -220,7 +220,7 @@ public class ElasticsearchIO {
     // with big documents and still a good compromise for performances
     return new AutoValue_ElasticsearchIO_Read.Builder()
         .setWithMetadata(false)
-        .setIteratorKeepalive("5m")
+        .setScrollKeepalive("5m")
         .setBatchSize(100L)
         .setUsePITSearch(false)
         .build();
@@ -772,7 +772,7 @@ public class ElasticsearchIO {
 
     abstract boolean isWithMetadata();
 
-    abstract String getIteratorKeepalive();
+    abstract String getScrollKeepalive();
 
     abstract long getBatchSize();
 
@@ -792,7 +792,7 @@ public class ElasticsearchIO {
 
       abstract Builder setWithMetadata(boolean withMetadata);
 
-      abstract Builder setIteratorKeepalive(String iteratorKeepalive);
+      abstract Builder setScrollKeepalive(String scrollKeepalive);
 
       abstract Builder setBatchSize(long batchSize);
 
@@ -865,9 +865,9 @@ public class ElasticsearchIO {
      * @return a {@link PTransform} reading data from Elasticsearch.
      */
     public Read withScrollKeepalive(String scrollKeepalive) {
-      checkArgument(scrollKeepalive != null, "iteratorKeepalive can not be null");
-      checkArgument(!"0m".equals(scrollKeepalive), "iteratorKeepalive can not be 0m");
-      return builder().setIteratorKeepalive(scrollKeepalive).build();
+      checkArgument(scrollKeepalive != null, "scrollKeepalive can not be null");
+      checkArgument(!"0m".equals(scrollKeepalive), "scrollKeepalive can not be 0m");
+      return builder().setScrollKeepalive(scrollKeepalive).build();
     }
 
     /**
@@ -955,7 +955,7 @@ public class ElasticsearchIO {
       builder.addIfNotNull(DisplayData.item("query", getQuery()));
       builder.addIfNotNull(DisplayData.item("withMetadata", isWithMetadata()));
       builder.addIfNotNull(DisplayData.item("batchSize", getBatchSize()));
-      builder.addIfNotNull(DisplayData.item("iteratorKeepalive", getIteratorKeepalive()));
+      builder.addIfNotNull(DisplayData.item("scrollKeepalive", getScrollKeepalive()));
       builder.addIfNotNull(DisplayData.item("usePointInTimeSearch", getUsePITSearch()));
       getConnectionConfiguration().populateDisplayData(builder);
     }
@@ -1254,7 +1254,7 @@ public class ElasticsearchIO {
       }
       String endPoint = source.spec.getConnectionConfiguration().getSearchEndPoint();
       Map<String, String> params = new HashMap<>();
-      params.put("scroll", source.spec.getIteratorKeepalive());
+      params.put("scroll", source.spec.getScrollKeepalive());
       HttpEntity queryEntity = new NStringEntity(query, ContentType.APPLICATION_JSON);
       Request request = new Request("GET", endPoint);
       request.addParameters(params);
@@ -1267,7 +1267,7 @@ public class ElasticsearchIO {
       String requestBody =
           String.format(
               "{\"scroll\" : \"%s\",\"scroll_id\" : \"%s\"}",
-              source.spec.getIteratorKeepalive(), iteratorId);
+              source.spec.getScrollKeepalive(), iteratorId);
       HttpEntity scrollEntity = new NStringEntity(requestBody, ContentType.APPLICATION_JSON);
       Request request = new Request("GET", "/_search/scroll");
       request.addParameters(Collections.emptyMap());
@@ -1322,7 +1322,7 @@ public class ElasticsearchIO {
       String endPoint =
           String.format("/%s/_pit", source.spec.getConnectionConfiguration().getIndex());
       Map<String, String> params = new HashMap<>();
-      params.put("keep_alive", source.spec.getIteratorKeepalive());
+      params.put("keep_alive", source.spec.getScrollKeepalive());
       Request request = new Request("POST", endPoint);
       request.addParameters(params);
       return request;
