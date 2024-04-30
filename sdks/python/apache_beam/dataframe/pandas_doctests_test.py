@@ -109,6 +109,7 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.generic.NDFrame.get': ['*'],
         },
         not_implemented_ok={
+            'pandas.core.generic.NDFrame.__iter__': ['*'],
             'pandas.core.generic.NDFrame.asof': ['*'],
             'pandas.core.generic.NDFrame.at_time': ['*'],
             'pandas.core.generic.NDFrame.between_time': ['*'],
