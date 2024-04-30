@@ -43,7 +43,7 @@ public class DatabaseWaitOptions {
       return String.format("WAIT %s SECONDS", wait.getSeconds());
     }
     throw new Neo4jResourceManagerException(
-            String.format("Unsupported wait option type %s", option.getClass()));
+        String.format("Unsupported wait option type %s", option.getClass()));
   }
 
   private enum DatabaseNoWait implements DatabaseWaitOption {

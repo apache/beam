@@ -170,7 +170,8 @@ public class Neo4jResourceManager extends TestContainerResourceManager<Neo4jCont
   private void createDatabase(String databaseName, DatabaseWaitOption waitOption) {
     try (Session session =
         neo4jDriver.session(SessionConfig.builder().withDatabase("system").build())) {
-      String query = String.format("CREATE DATABASE $db %s", DatabaseWaitOptions.asCypher(waitOption));
+      String query =
+          String.format("CREATE DATABASE $db %s", DatabaseWaitOptions.asCypher(waitOption));
       session.run(query, Collections.singletonMap("db", databaseName)).consume();
     } catch (Exception e) {
       throw new Neo4jResourceManagerException(
@@ -182,7 +183,8 @@ public class Neo4jResourceManager extends TestContainerResourceManager<Neo4jCont
   void dropDatabase(String databaseName, DatabaseWaitOption waitOption) {
     try (Session session =
         neo4jDriver.session(SessionConfig.builder().withDatabase("system").build())) {
-      String query = String.format("DROP DATABASE $db %s", DatabaseWaitOptions.asCypher(waitOption));
+      String query =
+          String.format("DROP DATABASE $db %s", DatabaseWaitOptions.asCypher(waitOption));
       session.run(query, Collections.singletonMap("db", databaseName)).consume();
     } catch (Exception e) {
       throw new Neo4jResourceManagerException(
