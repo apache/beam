@@ -310,10 +310,19 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.frame.DataFrame.to_timestamp': ['*']
         },
         skip={
-            # mul doesn't work in Beam with axis='index'. This example occurs
-            # in docstrings for several ops.
-            '*': ["df.mul({'circle': 0, 'triangle': 2, 'rectangle': 3}, "
-                  "axis='index')"],
+            # These examples occur in docstrings for several ops.
+            '*': [
+                # mul doesn't work in Beam with axis='index'.
+                "df.mul({'circle': 0, 'triangle': 2, 'rectangle': 3}, "
+                  "axis='index')",
+                # eq doesn't work with axis='index'.
+                "df.eq([250, 250, 100], axis='index')",
+                # New test in Pandas 2.1 that uses indexes.
+                'df != pd.Series([100, 250], index=["cost", "revenue"])',
+                # New test in Pandas 2.1 that uses indexes.
+                'df.le(df_multindex, level=1)'
+
+            ],
             # DeferredDataFrame  doesn't implement the DF interchange protocol.
             'pandas.core.frame.DataFrame.__dataframe__': ['*'],
             # DataFrame construction from a dictionary, Series, or other
@@ -442,7 +451,8 @@ class DoctestTest(unittest.TestCase):
             # Mode that we don't yet support, documentation added in pandas
             # 1.2.0 (https://github.com/pandas-dev/pandas/issues/35912)
             'pandas.core.frame.DataFrame.aggregate': [
-                "df.agg(x=('A', max), y=('B', 'min'), z=('C', np.mean))"
+                "df.agg(x=('A', max), y=('B', 'min'), z=('C', np.mean))",
+                "df.agg(x=('A', 'max'), y=('B', 'min'), z=('C', 'mean'))"
             ],
         })
     self.assertEqual(result.failed, 0)
