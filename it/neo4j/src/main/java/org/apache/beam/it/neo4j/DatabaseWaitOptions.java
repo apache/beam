@@ -24,10 +24,45 @@ public class DatabaseWaitOptions {
   }
 
   public static DatabaseWaitOption waitDatabase(int seconds) {
-    return DatabaseWaitInSeconds.wait(seconds);
+    return new DatabaseWaitInSeconds(seconds);
   }
 
   public static DatabaseWaitOption noWaitDatabase() {
     return DatabaseNoWait.NO_WAIT;
+  }
+
+  static String asCypher(DatabaseWaitOption option) {
+    if (option == null || option == DatabaseNoWait.NO_WAIT) {
+      return "NOWAIT";
+    }
+    if (option == DatabaseWait.WAIT) {
+      return "WAIT";
+    }
+    if (option instanceof DatabaseWaitInSeconds) {
+      DatabaseWaitInSeconds wait = (DatabaseWaitInSeconds) option;
+      return String.format("WAIT %s SECONDS", wait.getSeconds());
+    }
+    throw new Neo4jResourceManagerException(
+            String.format("Unsupported wait option type %s", option.getClass()));
+  }
+
+  private enum DatabaseNoWait implements DatabaseWaitOption {
+    NO_WAIT;
+  }
+
+  private enum DatabaseWait implements DatabaseWaitOption {
+    WAIT;
+  }
+
+  private static class DatabaseWaitInSeconds implements DatabaseWaitOption {
+    private final int seconds;
+
+    public DatabaseWaitInSeconds(int seconds) {
+      this.seconds = seconds;
+    }
+
+    public int getSeconds() {
+      return seconds;
+    }
   }
 }
