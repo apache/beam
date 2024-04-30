@@ -15,19 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.io.gcp.bigtable.changestreams.dofn;
 
-resource "helm_release" "strimzi-helm-release" {
-  name             = var.name
-  namespace        = var.namespace
-  create_namespace = true
-  repository       = var.chart_repository
-  chart            = var.chart_name
-  version          = var.chart_version
+import java.io.Serializable;
+import java.util.function.Supplier;
 
-  wait = false
-
-  set {
-    name  = "watchAnyNamespace"
-    value = "true"
-  }
-}
+/** Union of Supplier and Serializable interfaces to allow serialized supplier for testing. */
+@FunctionalInterface
+interface SerializableSupplier<T> extends Supplier<T>, Serializable {}
