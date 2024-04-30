@@ -25,26 +25,17 @@ ext.summary = "Tasks related to executing the Prism Runner"
 // jobPort Property optionally configures the Prism job_port flag.
 def jobPort = findProperty("jobPort")
 
-// buildTargetDir is the gradle build directory convention for this project.
-def buildTargetDir = layout.buildDirectory.dir("tmp")
+// jobPortFlag is Prism service's job management service port flag name.
+def jobPortFlag = "job_port"
 
 // buildTarget is the go build output target path for the Prism service.
-def buildTarget = buildTargetDir.get().file("prism")
+def buildTarget = layout.buildDirectory.get().file("tmp/prism")
 
 // modDir is the path containing the go.mod file.
 def modDir = project.rootDir.toPath().resolve("sdks")
 
-// goRootDir is the root directory of the Beam Go SDK.
-def goRootDir = modDir.resolve("go")
-
-// jobPortFlag is Prism service's job management service port flag name.
-def jobPortFlag = "job_port"
-
-// cmdDir is directory conventionally containing Go executables.
-def cmdDir = goRootDir.resolve("cmd")
-
 // prismDir is the directory containing the prism executable.
-def prismDir = cmdDir.resolve("prism")
+def prismDir = modDir.resolve("go/cmd/prism")
 
 // Overrides the gradle build task to build the prism executable.
 def buildTask = tasks.named("build") {
