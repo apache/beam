@@ -392,9 +392,10 @@ class BeamDataframeDoctestRunner(doctest.DocTestRunner):
 
   def run(self, test, **kwargs):
     self._checker.reset()
+    always_skip = self._skip.get('*', [])
     for example in test.examples:
       if any(should_skip(example)
-             for should_skip in self._skip.get(test.name, [])):
+             for should_skip in self._skip.get(test.name, [])+always_skip):
         self._skipped_set.add(example)
         example.source = 'pass'
         example.want = ''
@@ -726,6 +727,7 @@ def with_run_patched_docstring(target=None):
         verify the examples, else use PartitioningSession to simulate
         distributed execution.
       skip (Dict[str,str]): A set of examples to skip entirely.
+        If a key is '*', an example will be skipped in all test scenarios.
       wont_implement_ok (Dict[str,str]): A set of examples that are allowed to
         raise WontImplementError.
       not_implemented_ok (Dict[str,str]): A set of examples that are allowed to

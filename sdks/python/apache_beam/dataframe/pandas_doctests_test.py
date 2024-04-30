@@ -310,6 +310,10 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.frame.DataFrame.to_timestamp': ['*']
         },
         skip={
+            # mul doesn't work in Beam with axis='index'. This example occurs
+            # in docstrings for several ops.
+            '*': ["df.mul({'circle': 0, 'triangle': 2, 'rectangle': 3}, "
+                  "axis='index')"],
             # DeferredDataFrame  doesn't implement the DF interchange protocol.
             'pandas.core.frame.DataFrame.__dataframe__': ['*'],
             # DataFrame construction from a dictionary, Series, or other
