@@ -24,8 +24,7 @@ resource "helm_release" "strimzi-helm-release" {
   chart            = var.chart_name
   version          = var.chart_version
 
-  atomic  = "true"
-  timeout = 500
+  wait = false
 
   set {
     name  = "watchAnyNamespace"
