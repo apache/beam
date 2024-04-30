@@ -1079,6 +1079,8 @@ message StateGetResponse {
   // Represents a part of a logical byte stream. Elements within
   // the logical byte stream are encoded in the nested context and
   // concatenated together.
+  //
+  // See also the note about OrderedListState in StateAppendRequest.
   bytes data = 2;
 }
 
@@ -1087,10 +1089,11 @@ message StateAppendRequest {
   // Represents a part of a logical byte stream. Elements within
   // the logical byte stream are encoded in the nested context and
   // multiple append requests are concatenated together.
-  // For OrderedListState, elements of TimeStampedValue<T> should be encoded
-  // with TimestampedValueCoder.of(LengthPrefixCoder.of(Coder<T>)), so that
-  // the request handler knows how to decode timestamps from the data without
-  // decoding the value bytes.  Returned data will be encoded the same way.
+  //
+  // For OrderedListState, elements of should be encoded with the
+  // beam:coder:kv:v1 coder, where the first (key) component must be a
+  // beam:coder:varint:v1 and the second (value) component must be encoded
+  // with a beam:coder:length_prefix:v1 coder.
   bytes data = 1;
 }
 
