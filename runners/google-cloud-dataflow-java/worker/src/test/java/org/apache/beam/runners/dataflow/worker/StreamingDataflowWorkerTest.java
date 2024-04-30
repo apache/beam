@@ -72,7 +72,6 @@ import java.util.Optional;
 import java.util.PriorityQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
@@ -85,6 +84,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -97,6 +97,7 @@ import org.apache.beam.runners.dataflow.util.CloudObjects;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.runners.dataflow.util.Structs;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
+import org.apache.beam.runners.dataflow.worker.streaming.ComputationStateCache;
 import org.apache.beam.runners.dataflow.worker.streaming.ShardedKey;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.testing.RestoreDataflowLoggingMDC;
@@ -179,6 +180,7 @@ import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Ignore;
@@ -271,9 +273,10 @@ public class StreamingDataflowWorkerTest {
   WorkUnitClient mockWorkUnitClient = mock(WorkUnitClient.class);
   HotKeyLogger hotKeyLogger = mock(HotKeyLogger.class);
 
-  private final ConcurrentMap<String, ComputationState> computationMap = new ConcurrentHashMap<>();
+  private AtomicReference<ComputationStateCache> computationStateCache = new AtomicReference<>();
   private final FakeWindmillServer server =
-      new FakeWindmillServer(errorCollector, id -> Optional.ofNullable(computationMap.get(id)));
+      new FakeWindmillServer(
+          errorCollector, computationId -> computationStateCache.get().get(computationId));
 
   public StreamingDataflowWorkerTest(Boolean streamingEngine) {
     this.streamingEngine = streamingEngine;
@@ -295,8 +298,13 @@ public class StreamingDataflowWorkerTest {
 
   @Before
   public void setUp() {
-    computationMap.clear();
     server.clearCommitsReceived();
+  }
+
+  @After
+  public void cleanUp() {
+    Optional.ofNullable(computationStateCache.get())
+        .ifPresent(ComputationStateCache::closeAndInvalidateAll);
   }
 
   static Work createMockWork(long workToken) {
@@ -799,7 +807,7 @@ public class StreamingDataflowWorkerTest {
       int localRetryTimeoutMs) {
     StreamingDataflowWorker worker =
         StreamingDataflowWorker.forTesting(
-            computationMap,
+            computationStateCache,
             server,
             Collections.singletonList(defaultMapTask(instructions)),
             IntrinsicMapTaskExecutorFactory.defaultFactory(),

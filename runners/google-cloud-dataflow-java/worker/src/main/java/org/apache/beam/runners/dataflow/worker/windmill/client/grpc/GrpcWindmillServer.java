@@ -107,14 +107,14 @@ public final class GrpcWindmillServer extends WindmillServerStub {
   // If true, then active work refreshes will be sent as KeyedGetDataRequests. Otherwise, use the
   // newer ComputationHeartbeatRequests.
   private final boolean sendKeyedGetDataRequests;
-  private final Consumer<List<ComputationHeartbeatResponse>> processHeartbeatResponses;
+  private @Nullable Consumer<List<ComputationHeartbeatResponse>> processHeartbeatResponses;
   private final GrpcWindmillStreamFactory windmillStreamFactory;
 
   private GrpcWindmillServer(
       DataflowWorkerHarnessOptions options,
       GrpcWindmillStreamFactory grpcWindmillStreamFactory,
       GrpcDispatcherClient grpcDispatcherClient,
-      Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses) {
+      @Nullable Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses) {
     this.options = options;
     this.throttleTimers = StreamingEngineThrottleTimers.create();
     this.maxBackoff = Duration.millis(options.getWindmillServiceStreamMaxBackoffMillis());
@@ -154,7 +154,7 @@ public final class GrpcWindmillServer extends WindmillServerStub {
   public static GrpcWindmillServer create(
       DataflowWorkerHarnessOptions workerOptions,
       GrpcWindmillStreamFactory grpcWindmillStreamFactory,
-      Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses)
+      @Nullable Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses)
       throws IOException {
     Function<WindmillServiceAddress, ManagedChannel> channelFactory =
         serviceAddress ->
@@ -279,6 +279,13 @@ public final class GrpcWindmillServer extends WindmillServerStub {
   @Override
   public void setWindmillServiceEndpoints(Set<HostAndPort> endpoints) {
     dispatcherClient.consumeWindmillDispatcherEndpoints(ImmutableSet.copyOf(endpoints));
+  }
+
+  public synchronized void setProcessHeartbeatResponses(
+      @Nullable Consumer<List<ComputationHeartbeatResponse>> processHeartbeatResponses) {
+    Preconditions.checkState(
+        processHeartbeatResponses == null, "processHeartbeatResponses is already set.");
+    this.processHeartbeatResponses = processHeartbeatResponses;
   }
 
   @Override
