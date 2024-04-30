@@ -29,6 +29,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.IOException;
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -334,6 +335,7 @@ class ElasticsearchIOTestUtils {
   static List<String> createDocuments(long numDocs, InjectionMode injectionMode) {
 
     ArrayList<String> data = new ArrayList<>();
+    LocalDateTime baseDateTime = LocalDateTime.now();
     for (int i = 0; i < numDocs; i++) {
       int index = i % FAMOUS_SCIENTISTS.length;
       // insert 2 malformed documents
@@ -341,7 +343,10 @@ class ElasticsearchIOTestUtils {
           && INVALID_DOCS_IDS.contains(i)) {
         data.add(String.format("{\"scientist\";\"%s\", \"id\":%s}", FAMOUS_SCIENTISTS[index], i));
       } else {
-        data.add(String.format("{\"scientist\":\"%s\", \"id\":%s}", FAMOUS_SCIENTISTS[index], i));
+        data.add(
+            String.format(
+                "{\"scientist\":\"%s\", \"id\":%s, \"@timestamp\" : \"%s\"}",
+                FAMOUS_SCIENTISTS[index], i, baseDateTime.plusSeconds(i).toString()));
       }
     }
     return data;
