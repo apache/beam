@@ -381,21 +381,25 @@ class BeamDataframeDoctestRunner(doctest.DocTestRunner):
     self._skipped_set = set()
 
   def _is_wont_implement_ok(self, example, test):
+    always_wont_implement = self._wont_implement_ok.get('*', [])
     return any(
         wont_implement(example)
-        for wont_implement in self._wont_implement_ok.get(test.name, []))
+        for wont_implement in (
+            self._wont_implement_ok.get(test.name, []) + always_wont_implement))
 
   def _is_not_implemented_ok(self, example, test):
+    always_not_impl = self._not_implemented_ok.get('*', [])
     return any(
         not_implemented(example)
-        for not_implemented in self._not_implemented_ok.get(test.name, []))
+        for not_implemented in (
+            self._not_implemented_ok.get(test.name, []) + always_not_impl))
 
   def run(self, test, **kwargs):
     self._checker.reset()
     always_skip = self._skip.get('*', [])
     for example in test.examples:
       if any(should_skip(example)
-             for should_skip in self._skip.get(test.name, [])+always_skip):
+             for should_skip in self._skip.get(test.name, []) + always_skip):
         self._skipped_set.add(example)
         example.source = 'pass'
         example.want = ''
