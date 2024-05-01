@@ -413,6 +413,18 @@ class DoctestTest(unittest.TestCase):
                 "          ignore_index=True)"
             ],
             'pandas.core.frame.DataFrame.eval': ['df'],
+            # Fails when result is a singleton:
+            # https://github.com/apache/beam/issues/28559
+            'pandas.core.frame.DataFrame.kurt': [
+                'df.kurt(axis=None).round(6)',
+                's.kurt()'
+            ],
+            # Fails when result is a singleton:
+            # https://github.com/apache/beam/issues/28559
+            'pandas.core.frame.DataFrame.sem': [
+                'df.sem().round(6)',
+                's.sem().round(6)'
+            ],
             'pandas.core.frame.DataFrame.melt': [
                 "df.columns = [list('ABC'), list('DEF')]", "df"
             ],
