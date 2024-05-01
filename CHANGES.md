@@ -78,7 +78,7 @@
 ## Bugfixes
 
 * Fixed locking issue when shutting down inactive bundle processors. Symptoms of this issue include slowness or stuckness in long-running jobs (Python) ([#30679](https://github.com/apache/beam/pull/30679)).
-* Fixed logging issue that caused silecing the pip output when installing of dependencies provided in `--requirements_file` (Python).
+* Fixed logging issue that caused silencing the pip output when installing of dependencies provided in `--requirements_file` (Python).
 
 ## Known Issues
 
