@@ -372,6 +372,8 @@ class DoctestTest(unittest.TestCase):
                 # and fail with set_axis(axis='index')
                 "df.set_axis(['a', 'b', 'c'], axis='index')"
             ],
+            # Beam's implementation takes a filepath as an argument.
+            'pandas.core.frame.DataFrame.to_html': ['*'],
             'pandas.core.frame.DataFrame.to_markdown': ['*'],
             'pandas.core.frame.DataFrame.to_parquet': ['*'],
 
@@ -440,6 +442,10 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.frame.DataFrame.applymap': [
                 'df_copy.iloc[0, 0] = pd.NA',
                 "df_copy.applymap(lambda x: len(str(x)), na_action='ignore')",
+            ],
+            'pandas.core.frame.DataFrame.map': [
+                'df_copy.iloc[0, 0] = pd.NA',
+                "df_copy.map(lambda x: len(str(x)), na_action='ignore')",
             ],
             # Skipped so we don't need to install natsort
             'pandas.core.frame.DataFrame.sort_values': [
