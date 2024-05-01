@@ -34,7 +34,7 @@ public class ResourceManagerUtilsTest {
   private static final String REPLACE_INSTANCE_CHAR = "-";
   public static final int MAX_INSTANCE_ID_LENGTH = 36;
   private static final DateTimeFormatter TIME_FORMAT =
-      DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-SSSSSS");
+      DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
 
   @Test
   public void testGenerateResourceIdShouldReplaceDollarSignWithHyphen() {
@@ -48,7 +48,18 @@ public class ResourceManagerUtilsTest {
             MAX_INSTANCE_ID_LENGTH,
             TIME_FORMAT);
 
-    assertThat(actual).matches("test-instance-\\d{8}-\\d{6}-\\d{6}");
+    assertThat(actual).matches("test-instance-\\d{8}-\\d{6}-[a-zA-Z0-9]{6}");
+  }
+
+  @Test
+  public void testGenerateResourceIdShouldReplaceDollarSignWithHyphenWithoutTimeFormatter() {
+    String testBaseString = "test$instance";
+
+    String actual =
+        generateResourceId(
+            testBaseString, ILLEGAL_INSTANCE_CHARS, REPLACE_INSTANCE_CHAR, MAX_INSTANCE_ID_LENGTH);
+
+    assertThat(actual).matches("test-instance-\\d{8}-\\d{6}-[a-zA-Z0-9]{6}");
   }
 
   @Test
@@ -63,7 +74,7 @@ public class ResourceManagerUtilsTest {
             MAX_INSTANCE_ID_LENGTH,
             TIME_FORMAT);
 
-    assertThat(actual).matches("test-instance-\\d{8}-\\d{6}-\\d{6}");
+    assertThat(actual).matches("test-instance-\\d{8}-\\d{6}-[a-zA-Z0-9]{6}");
   }
 
   @Test
@@ -78,7 +89,7 @@ public class ResourceManagerUtilsTest {
             MAX_INSTANCE_ID_LENGTH,
             TIME_FORMAT);
 
-    assertThat(actual).matches("test-inst-\\d{8}-\\d{6}-\\d{6}");
+    assertThat(actual).matches("test-inst-\\d{8}-\\d{6}-[a-zA-Z0-9]{6}");
   }
 
   @Test
@@ -93,7 +104,7 @@ public class ResourceManagerUtilsTest {
             MAX_INSTANCE_ID_LENGTH,
             TIME_FORMAT);
 
-    assertThat(actual).matches("test-instance-\\d{8}-\\d{6}-\\d{6}");
+    assertThat(actual).matches("test-instance-\\d{8}-\\d{6}-[a-zA-Z0-9]{6}");
   }
 
   @Test
@@ -138,7 +149,7 @@ public class ResourceManagerUtilsTest {
             MAX_INSTANCE_ID_LENGTH,
             TIME_FORMAT);
 
-    assertThat(actual).matches("test-instance-\\d{8}-\\d{6}-\\d{6}");
+    assertThat(actual).matches("test-instance-\\d{8}-\\d{6}-[a-zA-Z0-9]{6}");
   }
 
   @Test

@@ -43,6 +43,7 @@ public class ResourceManagerUtils {
   private static final int MAX_PROJECT_ID_LENGTH = 30;
   private static final Pattern ILLEGAL_PROJECT_CHARS = Pattern.compile("[^a-zA-Z0-9-!:\\.']");
   private static final String TIME_ZONE = "UTC";
+  private static final String DEFAULT_TIME_FORMAT = "yyyyMMdd-HHmmss";
 
   /**
    * Generates a new id string from an existing one.
@@ -66,13 +67,35 @@ public class ResourceManagerUtils {
 
   /**
    * Generates a generic resource id from a given string, avoiding characters specified in the
-   * illegalChars Pattern. The length of the generated string ID will not exceed the length
-   * specified by targetLength.
+   * illegalChars Pattern. A randomly generated suffix will be appended to ensure unique ID. The
+   * length of the generated string ID will not exceed the length specified by targetLength.
    *
    * @param baseString the base ID to generate the resource ID from.
    * @param illegalChars a pattern of characters to remove from the generated ID.
    * @param replaceChar the character to replace all illegal characters with.
    * @param targetLength the max length of the generated ID.
+   * @return the generated resource ID.
+   */
+  public static String generateResourceId(
+      String baseString, Pattern illegalChars, String replaceChar, int targetLength) {
+    return generateResourceId(
+        baseString,
+        illegalChars,
+        replaceChar,
+        targetLength,
+        DateTimeFormatter.ofPattern(DEFAULT_TIME_FORMAT));
+  }
+
+  /**
+   * Generates a generic resource id from a given string, avoiding characters specified in the
+   * illegalChars Pattern. A randomly generated suffix will be appended to ensure unique ID. The
+   * length of the generated string ID will not exceed the length specified by targetLength.
+   *
+   * @param baseString the base ID to generate the resource ID from.
+   * @param illegalChars a pattern of characters to remove from the generated ID.
+   * @param replaceChar the character to replace all illegal characters with.
+   * @param targetLength the max length of the generated ID.
+   * @param timeFormat a time formatter used as part of the generated suffix.
    * @return the generated resource ID.
    */
   public static String generateResourceId(
@@ -88,13 +111,18 @@ public class ResourceManagerUtils {
     String illegalCharsRemoved =
         illegalChars.matcher(baseString.toLowerCase()).replaceAll(replaceChar);
 
-    // finally, append the date/time and return the substring that does not exceed the length limit
+    // finally, append the date/time and return the substring that does not exceed the length limit.
+    // add random characters to end to ensure minimal collision.
     LocalDateTime localDateTime = LocalDateTime.now(ZoneId.of(TIME_ZONE));
-    String timeAddOn = localDateTime.format(timeFormat);
+    String timeAddOn = replaceChar + localDateTime.format(timeFormat);
+    String randomAddOn = replaceChar + RandomStringUtils.randomAlphanumeric(6);
     return illegalCharsRemoved.subSequence(
-            0, min(targetLength - timeAddOn.length() - 1, illegalCharsRemoved.length()))
-        + replaceChar
-        + localDateTime.format(timeFormat);
+            0,
+            min(
+                targetLength - timeAddOn.length() - randomAddOn.length(),
+                illegalCharsRemoved.length()))
+        + timeAddOn
+        + randomAddOn;
   }
 
   /** Generates random letter for padding. */
