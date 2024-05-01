@@ -18,9 +18,14 @@
 package org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -35,6 +40,10 @@ import org.apache.beam.runners.dataflow.worker.WorkItemCancelledException;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.commits.Commit;
+import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
+import org.apache.beam.runners.dataflow.worker.windmill.work.WorkProcessingContext;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.joda.time.Duration;
@@ -81,12 +90,21 @@ public class WorkFailureProcessorTest {
   }
 
   private static Work createWork(Supplier<Instant> clock, Consumer<Work> processWorkFn) {
+    WorkCommitter workCommitter = mock(WorkCommitter.class);
+    doNothing().when(workCommitter).commit(any(Commit.class));
+    WindmillStream.GetDataStream getDataStream = mock(WindmillStream.GetDataStream.class);
+    when(getDataStream.requestKeyedData(anyString(), any()))
+        .thenReturn(Windmill.KeyedGetDataResponse.getDefaultInstance());
     return Work.create(
-        Windmill.WorkItem.newBuilder()
-            .setKey(ByteString.EMPTY)
-            .setWorkToken(1L)
-            .setCacheToken(1L)
-            .setShardingKey(1L)
+        WorkProcessingContext.builder()
+            .setWorkItem(
+                Windmill.WorkItem.newBuilder().setKey(ByteString.EMPTY).setWorkToken(1L).build())
+            .setWorkCommitter(workCommitter::commit)
+            .setComputationId("computation")
+            .setInputDataWatermark(Instant.EPOCH)
+            .setKeyedDataFetcher(
+                request ->
+                    Optional.ofNullable(getDataStream.requestKeyedData("computationId", request)))
             .build(),
         clock,
         new ArrayList<>(),
