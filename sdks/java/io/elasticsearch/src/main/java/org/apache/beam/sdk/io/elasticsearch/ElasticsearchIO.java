@@ -2561,12 +2561,12 @@ public class ElasticsearchIO {
     /**
      * Whether to throw runtime exceptions when write (IO) errors occur. Especially useful in
      * streaming pipelines where non-transient IO failures will cause infinite retries. If true, a
-     * runtime error will be thrown for any error found by {@link
-     * ElasticsearchIO#createWriteReport} and/or org.elasticsearch.client.ResponseException found by in batch flush.
-     * If false, a {@link PCollectionTuple} will be returned
-     * with tags {@link Write#SUCCESSFUL_WRITES} and {@link Write#FAILED_WRITES}, each being a
-     * {@link PCollection} of {@link Document} representing documents which were written to
-     * Elasticsearch without errors and those which failed to write due to errors, respectively.
+     * runtime error will be thrown for any error found by {@link ElasticsearchIO#createWriteReport}
+     * and/or org.elasticsearch.client.ResponseException found by in batch flush. If false, a {@link
+     * PCollectionTuple} will be returned with tags {@link Write#SUCCESSFUL_WRITES} and {@link
+     * Write#FAILED_WRITES}, each being a {@link PCollection} of {@link Document} representing
+     * documents which were written to Elasticsearch without errors and those which failed to write
+     * due to errors, respectively.
      *
      * @param throwWriteErrors whether to surface write errors as runtime exceptions or return them
      *     in a {@link PCollection}
@@ -2841,16 +2841,13 @@ public class ElasticsearchIO {
           request.setEntity(requestBody);
           response = restClient.performRequest(request);
           responseEntity = new BufferedHttpEntity(response.getEntity());
-        }
-        catch (ResponseException ex) {
-          if (spec.getThrowWriteErrors()){
+        } catch (ResponseException ex) {
+          if (spec.getThrowWriteErrors()) {
             throw ex;
-          }
-          else {
+          } else {
             elasticResponseExceptionMessage = ex.getMessage();
           }
-        }
-        catch (java.io.IOException ex) {
+        } catch (java.io.IOException ex) {
           if (spec.getRetryConfiguration() == null || !isRetryableClientException(ex)) {
             throw ex;
           }
@@ -2869,16 +2866,26 @@ public class ElasticsearchIO {
         }
 
         List<Document> responses;
-        // If org.elasticsearch.client.ResponseException was thrown, return all input Documents with withHasError(true)
+        // If org.elasticsearch.client.ResponseException was thrown, return all input Documents with
+        // withHasError(true)
         // so that they could be caught by FAILED_WRITES tag.
         if (elasticResponseExceptionMessage != null) {
-          String errorJsonMessage = String.format("{\"message\":\"org.elasticsearch.client.ResponseException was thrown in batch flush: %s\"}", elasticResponseExceptionMessage);
-          responses = inputEntries.stream()
-                  .map(doc -> Document.create().withHasError(true).withResponseItemJson(errorJsonMessage))
+          String errorJsonMessage =
+              String.format(
+                  "{\"message\":\"org.elasticsearch.client.ResponseException was thrown in batch flush: %s\"}",
+                  elasticResponseExceptionMessage);
+          responses =
+              inputEntries.stream()
+                  .map(
+                      doc ->
+                          Document.create()
+                              .withHasError(true)
+                              .withResponseItemJson(errorJsonMessage))
                   .collect(Collectors.toList());
-        }
-        else {
-          responses = createWriteReport(responseEntity, spec.getAllowedResponseErrors(), spec.getThrowWriteErrors());
+        } else {
+          responses =
+              createWriteReport(
+                  responseEntity, spec.getAllowedResponseErrors(), spec.getThrowWriteErrors());
         }
 
         return Streams.zip(
