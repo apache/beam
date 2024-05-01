@@ -74,6 +74,7 @@ resource "google_compute_instance" "bastion" {
     scopes = ["https://www.googleapis.com/auth/cloud-platform"]
   }
   metadata_startup_script = <<EOF
+$(gcloud info --format="value(basic.python_location)") -m pip install numpy
 curl -Ls https://github.com/grepplabs/kafka-proxy/releases/download/${var.kafka_proxy_version}/kafka-proxy-${var.kafka_proxy_version}-linux-amd64.tar.gz | tar xz
 ./kafka-proxy server ${local.bootstrap_server_mapping}
 EOF
