@@ -33,9 +33,7 @@ import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -110,6 +108,9 @@ public class StorageApiSinkFailedRowsIT {
       new SerializableFunction<TableRow, TableRow>() {
         @Override
         public TableRow apply(TableRow input) {
+          if (input.containsKey("bytes")) {
+            return new TableRow().set("bytes", "found").set("modified", "true");
+          }
           return input.clone().set("modified", "true");
         }
       };
@@ -192,7 +193,10 @@ public class StorageApiSinkFailedRowsIT {
     TableRow bad1 = new TableRow().set("str", "foo").set("i64", "baad");
     TableRow bad2 = new TableRow().set("str", "foo").set("i64", "42").set("unknown", "foobar");
     return ImmutableList.of(
-        bad1, bad2, new TableRow().set("inner", bad1.clone()), new TableRow().set("inner", bad2.clone()));
+        bad1,
+        bad2,
+        new TableRow().set("inner", bad1.clone()),
+        new TableRow().set("inner", bad2.clone()));
   }
 
   @Test
@@ -224,6 +228,9 @@ public class StorageApiSinkFailedRowsIT {
 
     for (TableRow tr : modifiedBadRows) {
       tr.set("modified", "true");
+      if (tr.containsKey("bytes")) {
+        tr.set("bytes", "found");
+      }
     }
 
     runPipeline(
@@ -268,9 +275,9 @@ public class StorageApiSinkFailedRowsIT {
         bad3,
         bad4,
         bad5,
-        new TableRow().set("inner", bad1),
-        new TableRow().set("inner", bad2),
-        new TableRow().set("inner", bad3));
+        new TableRow().set("inner", bad1.clone()),
+        new TableRow().set("inner", bad2.clone()),
+        new TableRow().set("inner", bad3.clone()));
   }
 
   private static String createTable(TableSchema tableSchema)
@@ -344,14 +351,6 @@ public class StorageApiSinkFailedRowsIT {
             .apply(
                 MapElements.into(TypeDescriptor.of(TableRow.class))
                     .via(BigQueryStorageApiInsertError::getRow));
-
-    result.getFailedStorageApiInserts().apply(ParDo.of(
-        new DoFn<BigQueryStorageApiInsertError, BigQueryStorageApiInsertError>() {
-          @ProcessElement
-          public void processElement(@Element BigQueryStorageApiInsertError error, OutputReceiver<BigQueryStorageApiInsertError> outputReceiver){
-            outputReceiver.output(error);
-          }
-        }));
 
     PAssert.that(failedRows).containsInAnyOrder(expectedFailedRows);
 
