@@ -727,6 +727,12 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.arrays.datetimes.DatetimeArray.tz_localize': ['*'],
         },
         not_implemented_ok={
+            # Beam Dataframes don't implement a deferred to_timedelta operation.
+            # Top-level issue: https://github.com/apache/beam/issues/20318
+            '*': [
+                "ser = pd.Series(pd.to_timedelta([1, 2, 3], unit='d'))",
+                "tdelta_idx = pd.to_timedelta([1, 2, 3], unit='D')",
+                'tdelta_idx = pd.to_timedelta(["0 days", "10 days", "20 days"])'],
             # Verifies index version of this method
             'pandas.core.arrays.datetimes.DatetimeArray.to_period': [
                 'df.index.to_period("M")'
