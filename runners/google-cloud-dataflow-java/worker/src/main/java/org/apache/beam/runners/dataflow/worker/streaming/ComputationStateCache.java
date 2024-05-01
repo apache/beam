@@ -17,9 +17,12 @@
  */
 package org.apache.beam.runners.dataflow.worker.streaming;
 
+import static java.util.stream.Collectors.toConcurrentMap;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList.toImmutableList;
 
+import com.google.api.services.dataflow.model.MapTask;
 import java.io.PrintWriter;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
@@ -36,6 +39,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBui
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheLoader;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.LoadingCache;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -116,7 +120,24 @@ public final class ComputationStateCache implements StatusDataProvider {
   }
 
   @VisibleForTesting
-  public void putAll(Map<String, ComputationState> computationStates) {
+  public void loadCacheForTesting(
+      List<MapTask> mapTasks,
+      BoundedQueueExecutor workUnitExecutor,
+      Function<String, WindmillStateCache.ForComputation> forComputationStateCacheFactory) {
+    Map<String, ComputationState> computationStates =
+        mapTasks.stream()
+            .map(
+                mapTask -> {
+                  LOG.info("Adding config for {}: {}", mapTask.getSystemName(), mapTask);
+                  String computationId = mapTask.getStageName();
+                  return new ComputationState(
+                      computationId,
+                      mapTask,
+                      workUnitExecutor,
+                      ImmutableMap.of(),
+                      forComputationStateCacheFactory.apply(computationId));
+                })
+            .collect(toConcurrentMap(ComputationState::getComputationId, Function.identity()));
     computationCache.putAll(computationStates);
   }
 
@@ -139,7 +160,8 @@ public final class ComputationStateCache implements StatusDataProvider {
     }
   }
 
-  private static class ComputationStateNotFoundException extends IllegalStateException {
+  @VisibleForTesting
+  static class ComputationStateNotFoundException extends IllegalStateException {
     private ComputationStateNotFoundException(String computationId) {
       super("No computation found for computationId=[ " + computationId + " ]");
     }

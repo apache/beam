@@ -112,9 +112,12 @@ public final class StreamingApplianceConfigFetcher implements ComputationConfig.
     }
 
     onPipelineConfig.accept(
-        StreamingPipelineConfig.forAppliance(
-            response.getNameMapList().stream()
-                .collect(toImmutableMap(NameMapEntry::getUserName, NameMapEntry::getSystemName))));
+        StreamingPipelineConfig.builder()
+            .setUserStepToStateFamilyNameMap(
+                response.getNameMapList().stream()
+                    .collect(
+                        toImmutableMap(NameMapEntry::getUserName, NameMapEntry::getSystemName)))
+            .build());
 
     return createComputationConfig(
         // We are only fetching the config for 1 computation, so we should only be getting that

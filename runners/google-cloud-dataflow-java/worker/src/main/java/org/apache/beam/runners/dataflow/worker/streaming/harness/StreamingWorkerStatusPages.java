@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker.streaming.harness;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import com.google.auto.value.AutoBuilder;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -55,7 +56,7 @@ import org.slf4j.LoggerFactory;
  * @implNote Class member state should only be accessed, not modified.
  */
 @Internal
-public final class StreamingWorkerStatusPages implements StreamingStatusPages {
+public final class StreamingWorkerStatusPages {
   private static final Logger LOG = LoggerFactory.getLogger(StreamingWorkerStatusPages.class);
   private static final String DUMP_STATUS_PAGES_EXECUTOR = "DumpStatusPages";
   private static final long DEFAULT_STATUS_PAGE_DUMP_PERIOD_SECONDS = 60;
@@ -76,7 +77,7 @@ public final class StreamingWorkerStatusPages implements StreamingStatusPages {
   private final DebugCapture.@Nullable Manager debugCapture;
   private final @Nullable ChannelzServlet channelzServlet;
 
-  private StreamingWorkerStatusPages(
+  StreamingWorkerStatusPages(
       Supplier<Instant> clock,
       long clientId,
       AtomicBoolean isRunning,
@@ -105,64 +106,13 @@ public final class StreamingWorkerStatusPages implements StreamingStatusPages {
     this.statusPageDumper = statusPageDumper;
   }
 
-  public static StreamingWorkerStatusPages forStreamingEngine(
-      Supplier<Instant> clock,
-      long clientId,
-      AtomicBoolean isRunning,
-      WorkerStatusPages statusPages,
-      DebugCapture.Manager debugCapture,
-      ChannelzServlet channelzServlet,
-      WindmillStateCache stateCache,
-      ComputationStateCache computationStateCache,
-      Supplier<Long> currentActiveCommitBytes,
-      GrpcWindmillStreamFactory windmillStreamFactory,
-      Consumer<PrintWriter> getDataStatusProvider,
-      BoundedQueueExecutor workUnitExecutor) {
-    return new StreamingWorkerStatusPages(
-        clock,
-        clientId,
-        isRunning,
-        statusPages,
-        debugCapture,
-        channelzServlet,
-        stateCache,
-        computationStateCache,
-        currentActiveCommitBytes,
-        windmillStreamFactory,
-        getDataStatusProvider,
-        workUnitExecutor,
-        Executors.newSingleThreadScheduledExecutor(
-            new ThreadFactoryBuilder().setNameFormat(DUMP_STATUS_PAGES_EXECUTOR).build()));
+  public static StreamingWorkerStatusPages.Builder builder() {
+    return new AutoBuilder_StreamingWorkerStatusPages_Builder()
+        .setStatusPageDumper(
+            Executors.newSingleThreadScheduledExecutor(
+                new ThreadFactoryBuilder().setNameFormat(DUMP_STATUS_PAGES_EXECUTOR).build()));
   }
 
-  public static StreamingWorkerStatusPages forAppliance(
-      Supplier<Instant> clock,
-      long clientId,
-      AtomicBoolean isRunning,
-      WorkerStatusPages statusPages,
-      WindmillStateCache stateCache,
-      ComputationStateCache computationStateCache,
-      Supplier<Long> currentActiveCommitBytes,
-      Consumer<PrintWriter> getDataStatusProvider,
-      BoundedQueueExecutor workUnitExecutor) {
-    return new StreamingWorkerStatusPages(
-        clock,
-        clientId,
-        isRunning,
-        statusPages,
-        null,
-        null,
-        stateCache,
-        computationStateCache,
-        currentActiveCommitBytes,
-        null,
-        getDataStatusProvider,
-        workUnitExecutor,
-        Executors.newSingleThreadScheduledExecutor(
-            new ThreadFactoryBuilder().setNameFormat(DUMP_STATUS_PAGES_EXECUTOR).build()));
-  }
-
-  @Override
   public void start(DataflowWorkerHarnessOptions options) {
     statusPages.addServlet(stateCache.statusServlet());
     statusPages.addServlet(newSpecServlet());
@@ -206,7 +156,6 @@ public final class StreamingWorkerStatusPages implements StreamingStatusPages {
     return debugCapture != null && channelzServlet != null && windmillStreamFactory != null;
   }
 
-  @Override
   public void stop() {
     statusPages.stop();
     if (debugCapture != null) {
@@ -276,5 +225,37 @@ public final class StreamingWorkerStatusPages implements StreamingStatusPages {
         computationStateCache.appendSummaryHtml(writer);
       }
     };
+  }
+
+  @Internal
+  @AutoBuilder(ofClass = StreamingWorkerStatusPages.class)
+  public interface Builder {
+    Builder setClock(Supplier<Instant> clock);
+
+    Builder setClientId(long clientId);
+
+    Builder setIsRunning(AtomicBoolean isRunning);
+
+    Builder setStatusPages(WorkerStatusPages statusPages);
+
+    Builder setDebugCapture(DebugCapture.Manager debugCapture);
+
+    Builder setChannelzServlet(ChannelzServlet channelzServlet);
+
+    Builder setStateCache(WindmillStateCache stateCache);
+
+    Builder setComputationStateCache(ComputationStateCache computationStateCache);
+
+    Builder setCurrentActiveCommitBytes(Supplier<Long> currentActiveCommitBytes);
+
+    Builder setWindmillStreamFactory(GrpcWindmillStreamFactory windmillStreamFactory);
+
+    Builder setGetDataStatusProvider(Consumer<PrintWriter> getDataStatusProvider);
+
+    Builder setWorkUnitExecutor(BoundedQueueExecutor workUnitExecutor);
+
+    Builder setStatusPageDumper(ScheduledExecutorService statusPageDumper);
+
+    StreamingWorkerStatusPages build();
   }
 }

@@ -22,8 +22,10 @@ import com.google.auto.value.AutoValue;
 import java.util.Map;
 import java.util.Optional;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
+@Internal
 @AutoValue
 public abstract class ComputationConfig {
 
@@ -40,8 +42,13 @@ public abstract class ComputationConfig {
 
   public abstract ImmutableMap<String, String> userTransformToStateFamilyName();
 
+  /** Interface to fetch configurations for a specific computation. */
   @FunctionalInterface
   public interface Fetcher {
+    default void start() {}
+
+    default void stop() {}
+
     Optional<ComputationConfig> getConfig(String computationId);
   }
 }

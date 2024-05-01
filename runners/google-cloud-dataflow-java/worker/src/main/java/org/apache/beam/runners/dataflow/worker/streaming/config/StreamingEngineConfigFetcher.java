@@ -127,6 +127,7 @@ public final class StreamingEngineConfigFetcher implements ComputationConfig.Fet
             .setInstructions(computationConfig.getInstructions()));
   }
 
+  @Override
   public void start() {
     fetchInitialPipelineGlobalConfig();
     schedulePeriodicGlobalConfigRequests();
@@ -145,6 +146,7 @@ public final class StreamingEngineConfigFetcher implements ComputationConfig.Fet
                     createMapTask(config), config.getTransformUserNameToStateFamily()));
   }
 
+  @Override
   public void stop() {
     // We have already shutdown or start has not been called.
     if (globalConfigRefresher.isShutdown() || !hasReceivedGlobalConfig.get()) {

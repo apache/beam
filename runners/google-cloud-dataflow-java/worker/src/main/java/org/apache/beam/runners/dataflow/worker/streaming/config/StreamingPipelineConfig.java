@@ -27,7 +27,6 @@ import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPort;
 
-/** Pipeline configuration for jobs running w/ Streaming Engine. */
 @AutoValue
 @Internal
 public abstract class StreamingPipelineConfig {
@@ -40,14 +39,6 @@ public abstract class StreamingPipelineConfig {
         .setComputationConfig(null)
         .setUserStepToStateFamilyNameMap(new HashMap<>())
         .setWindmillServiceEndpoints(ImmutableSet.of());
-  }
-
-  public static StreamingPipelineConfig forAppliance(
-      Map<String, String> userStepToStateFamilyNameMap) {
-    return builder()
-        .setMaxWorkItemCommitBytes(Integer.MAX_VALUE)
-        .setUserStepToStateFamilyNameMap(userStepToStateFamilyNameMap)
-        .build();
   }
 
   public abstract long maxWorkItemCommitBytes();

@@ -69,12 +69,14 @@ public class StreamingApplianceConfigFetcherTest {
                             .setInstructions(ImmutableList.of())))
             .build();
     StreamingPipelineConfig expectedConfig =
-        StreamingPipelineConfig.forAppliance(
-            nameMapEntries.stream()
-                .collect(
-                    toMap(
-                        Windmill.GetConfigResponse.NameMapEntry::getUserName,
-                        Windmill.GetConfigResponse.NameMapEntry::getSystemName)));
+        StreamingPipelineConfig.builder()
+            .setUserStepToStateFamilyNameMap(
+                nameMapEntries.stream()
+                    .collect(
+                        toMap(
+                            Windmill.GetConfigResponse.NameMapEntry::getUserName,
+                            Windmill.GetConfigResponse.NameMapEntry::getSystemName)))
+            .build();
     Set<StreamingPipelineConfig> configs = new HashSet<>();
     StreamingApplianceConfigFetcher configLoader =
         createStreamingApplianceConfigLoader(configs::add);
