@@ -169,7 +169,8 @@ public class StorageApiLoads<DestinationT, ElementT>
                 BigQueryStorageApiInsertErrorCoder.of(),
                 successCoder,
                 rowUpdateFn,
-                badRecordRouter));
+                badRecordRouter,
+                formatRecordOnFailureFunction));
     PCollectionTuple writeRecordsResult =
         convertMessagesResult
             .get(successfulConvertedRowsTag)
@@ -232,7 +233,8 @@ public class StorageApiLoads<DestinationT, ElementT>
                 BigQueryStorageApiInsertErrorCoder.of(),
                 successCoder,
                 rowUpdateFn,
-                badRecordRouter));
+                badRecordRouter,
+                formatRecordOnFailureFunction));
 
     PCollection<KV<ShardedKey<DestinationT>, Iterable<KV<ElementT, StorageApiWritePayload>>>>
         groupedRecords;
@@ -365,7 +367,8 @@ public class StorageApiLoads<DestinationT, ElementT>
                 BigQueryStorageApiInsertErrorCoder.of(),
                 successCoder,
                 rowUpdateFn,
-                badRecordRouter));
+                badRecordRouter,
+                formatRecordOnFailureFunction));
 
     PCollectionTuple writeRecordsResult =
         convertMessagesResult

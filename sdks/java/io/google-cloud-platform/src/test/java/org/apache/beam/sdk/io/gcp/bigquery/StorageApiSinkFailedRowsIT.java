@@ -33,7 +33,9 @@ import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -104,12 +106,13 @@ public class StorageApiSinkFailedRowsIT {
 
   private static final byte[] BIG_BYTES = new byte[11 * 1024 * 1024];
 
-  private static final SerializableFunction<TableRow, TableRow> ERROR_FN = new SerializableFunction<TableRow, TableRow>() {
-    @Override
-    public TableRow apply(TableRow input) {
-      return input.set("modified", "true");
-    }
-  };
+  private static final SerializableFunction<TableRow, TableRow> ERROR_FN =
+      new SerializableFunction<TableRow, TableRow>() {
+        @Override
+        public TableRow apply(TableRow input) {
+          return input.clone().set("modified", "true");
+        }
+      };
 
   private BigQueryIO.Write.Method getMethod() {
     return useAtLeastOnce
@@ -152,7 +155,8 @@ public class StorageApiSinkFailedRowsIT {
   }
 
   @Test
-  public void testSchemaMismatchCaughtByBeamWithCustomErrorHandling() throws IOException, InterruptedException {
+  public void testSchemaMismatchCaughtByBeamWithCustomErrorHandling()
+      throws IOException, InterruptedException {
     String tableSpec = createTable(BASE_TABLE_SCHEMA);
 
     Iterable<TableRow> goodRows = getSchemaMismatchGoodRows();
@@ -160,7 +164,7 @@ public class StorageApiSinkFailedRowsIT {
 
     List<TableRow> modifiedBadRows = getSchemaMismatchBadRows();
 
-    for (TableRow tr: modifiedBadRows){
+    for (TableRow tr : modifiedBadRows) {
       tr.set("modified", "true");
     }
 
@@ -174,23 +178,21 @@ public class StorageApiSinkFailedRowsIT {
     assertGoodRowsWritten(tableSpec, goodRows);
   }
 
-  public List<TableRow> getSchemaMismatchGoodRows(){
+  public List<TableRow> getSchemaMismatchGoodRows() {
     TableRow good1 = new TableRow().set("str", "foo").set("i64", "42");
     TableRow good2 = new TableRow().set("str", "foo").set("i64", "43");
-    return
-        ImmutableList.of(
-            good1.clone().set("inner", new TableRow()),
-            good2.clone().set("inner", new TableRow()),
-            new TableRow().set("inner", good1),
-            new TableRow().set("inner", good2));
+    return ImmutableList.of(
+        good1.clone().set("inner", new TableRow()),
+        good2.clone().set("inner", new TableRow()),
+        new TableRow().set("inner", good1),
+        new TableRow().set("inner", good2));
   }
 
-  public List<TableRow> getSchemaMismatchBadRows(){
+  public List<TableRow> getSchemaMismatchBadRows() {
     TableRow bad1 = new TableRow().set("str", "foo").set("i64", "baad");
     TableRow bad2 = new TableRow().set("str", "foo").set("i64", "42").set("unknown", "foobar");
-    return
-        ImmutableList.of(
-            bad1, bad2, new TableRow().set("inner", bad1), new TableRow().set("inner", bad2));
+    return ImmutableList.of(
+        bad1, bad2, new TableRow().set("inner", bad1.clone()), new TableRow().set("inner", bad2.clone()));
   }
 
   @Test
@@ -211,7 +213,8 @@ public class StorageApiSinkFailedRowsIT {
   }
 
   @Test
-  public void testInvalidRowCaughtByBigqueryWithCustomErrorHandling() throws IOException, InterruptedException {
+  public void testInvalidRowCaughtByBigqueryWithCustomErrorHandling()
+      throws IOException, InterruptedException {
     String tableSpec = createTable(BASE_TABLE_SCHEMA);
 
     Iterable<TableRow> goodRows = getInvalidBQGoodRows();
@@ -219,7 +222,7 @@ public class StorageApiSinkFailedRowsIT {
 
     List<TableRow> modifiedBadRows = getInvalidBQBadRows();
 
-    for (TableRow tr: modifiedBadRows){
+    for (TableRow tr : modifiedBadRows) {
       tr.set("modified", "true");
     }
 
@@ -233,7 +236,7 @@ public class StorageApiSinkFailedRowsIT {
     assertGoodRowsWritten(tableSpec, goodRows);
   }
 
-  private List<TableRow> getInvalidBQGoodRows(){
+  private List<TableRow> getInvalidBQGoodRows() {
     TableRow good1 =
         new TableRow()
             .set("str", "foo")
@@ -242,15 +245,14 @@ public class StorageApiSinkFailedRowsIT {
             .set("stronearray", Lists.newArrayList());
     TableRow good2 =
         new TableRow().set("str", "foo").set("i64", "43").set("stronearray", Lists.newArrayList());
-    return
-        ImmutableList.of(
-            good1.clone().set("inner", new TableRow().set("stronearray", Lists.newArrayList())),
-            good2.clone().set("inner", new TableRow().set("stronearray", Lists.newArrayList())),
-            new TableRow().set("inner", good1).set("stronearray", Lists.newArrayList()),
-            new TableRow().set("inner", good2).set("stronearray", Lists.newArrayList()));
+    return ImmutableList.of(
+        good1.clone().set("inner", new TableRow().set("stronearray", Lists.newArrayList())),
+        good2.clone().set("inner", new TableRow().set("stronearray", Lists.newArrayList())),
+        new TableRow().set("inner", good1).set("stronearray", Lists.newArrayList()),
+        new TableRow().set("inner", good2).set("stronearray", Lists.newArrayList()));
   }
 
-  private List<TableRow> getInvalidBQBadRows(){
+  private List<TableRow> getInvalidBQBadRows() {
     TableRow bad1 = new TableRow().set("str", "foo").set("i64", "42").set("date", "10001-08-16");
     TableRow bad2 = new TableRow().set("str", "foo").set("i64", "42").set("strone", "ab");
     TableRow bad3 = new TableRow().set("str", "foo").set("i64", "42").set("json", "BAADF00D");
@@ -260,17 +262,17 @@ public class StorageApiSinkFailedRowsIT {
             .set("i64", "42")
             .set("stronearray", Lists.newArrayList("toolong"));
     TableRow bad5 = new TableRow().set("bytes", BIG_BYTES);
-    return
-        ImmutableList.of(
-            bad1,
-            bad2,
-            bad3,
-            bad4,
-            bad5,
-            new TableRow().set("inner", bad1),
-            new TableRow().set("inner", bad2),
-            new TableRow().set("inner", bad3));
+    return ImmutableList.of(
+        bad1,
+        bad2,
+        bad3,
+        bad4,
+        bad5,
+        new TableRow().set("inner", bad1),
+        new TableRow().set("inner", bad2),
+        new TableRow().set("inner", bad3));
   }
+
   private static String createTable(TableSchema tableSchema)
       throws IOException, InterruptedException {
     String table = "table" + System.nanoTime();
@@ -321,7 +323,7 @@ public class StorageApiSinkFailedRowsIT {
             .withSchema(BASE_TABLE_SCHEMA)
             .withMethod(method)
             .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER);
-    if (userProvidedErrorFunction != null){
+    if (userProvidedErrorFunction != null) {
       write = write.withFormatRecordOnFailureFunction(userProvidedErrorFunction);
     }
     if (method == BigQueryIO.Write.Method.STORAGE_WRITE_API) {
@@ -342,6 +344,14 @@ public class StorageApiSinkFailedRowsIT {
             .apply(
                 MapElements.into(TypeDescriptor.of(TableRow.class))
                     .via(BigQueryStorageApiInsertError::getRow));
+
+    result.getFailedStorageApiInserts().apply(ParDo.of(
+        new DoFn<BigQueryStorageApiInsertError, BigQueryStorageApiInsertError>() {
+          @ProcessElement
+          public void processElement(@Element BigQueryStorageApiInsertError error, OutputReceiver<BigQueryStorageApiInsertError> outputReceiver){
+            outputReceiver.output(error);
+          }
+        }));
 
     PAssert.that(failedRows).containsInAnyOrder(expectedFailedRows);
 

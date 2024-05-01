@@ -58,6 +58,8 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
   private final @Nullable SerializableFunction<ElementT, RowMutationInformation> rowMutationFn;
   private final BadRecordRouter badRecordRouter;
 
+  private final @Nullable SerializableFunction<ElementT, TableRow> formatRecordOnFailureFunction;
+
   public StorageApiConvertMessages(
       StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations,
       BigQueryServices bqServices,
@@ -66,7 +68,8 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
       Coder<BigQueryStorageApiInsertError> errorCoder,
       Coder<KV<DestinationT, KV<ElementT, StorageApiWritePayload>>> successCoder,
       @Nullable SerializableFunction<ElementT, RowMutationInformation> rowMutationFn,
-      BadRecordRouter badRecordRouter) {
+      BadRecordRouter badRecordRouter,
+      @Nullable SerializableFunction<ElementT, TableRow> formatRecordOnFailureFunction) {
     this.dynamicDestinations = dynamicDestinations;
     this.bqServices = bqServices;
     this.failedWritesTag = failedWritesTag;
@@ -75,6 +78,7 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
     this.successCoder = successCoder;
     this.rowMutationFn = rowMutationFn;
     this.badRecordRouter = badRecordRouter;
+    this.formatRecordOnFailureFunction = formatRecordOnFailureFunction;
   }
 
   @Override
@@ -93,7 +97,8 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
                         successfulWritesTag,
                         rowMutationFn,
                         badRecordRouter,
-                        input.getCoder()))
+                        input.getCoder(),
+                        formatRecordOnFailureFunction))
                 .withOutputTags(
                     successfulWritesTag,
                     TupleTagList.of(ImmutableList.of(failedWritesTag, BAD_RECORD_TAG)))
@@ -118,6 +123,8 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
     Coder<KV<DestinationT, ElementT>> elementCoder;
     private transient @Nullable DatasetService datasetServiceInternal = null;
 
+    private final @Nullable SerializableFunction<ElementT, TableRow> formatRecordOnFailureFunction;
+
     ConvertMessagesDoFn(
         StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations,
         BigQueryServices bqServices,
@@ -126,7 +133,8 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
         TupleTag<KV<DestinationT, KV<ElementT, StorageApiWritePayload>>> successfulWritesTag,
         @Nullable SerializableFunction<ElementT, RowMutationInformation> rowMutationFn,
         BadRecordRouter badRecordRouter,
-        Coder<KV<DestinationT, ElementT>> elementCoder) {
+        Coder<KV<DestinationT, ElementT>> elementCoder,
+        @Nullable SerializableFunction<ElementT, TableRow> formatRecordOnFailureFunction) {
       this.dynamicDestinations = dynamicDestinations;
       this.messageConverters = new TwoLevelMessageConverterCache<>(operationName);
       this.bqServices = bqServices;
@@ -135,6 +143,7 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
       this.rowMutationFn = rowMutationFn;
       this.badRecordRouter = badRecordRouter;
       this.elementCoder = elementCoder;
+      this.formatRecordOnFailureFunction = formatRecordOnFailureFunction;
     }
 
     private DatasetService getDatasetService(PipelineOptions pipelineOptions) throws IOException {
@@ -185,7 +194,11 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
       } catch (TableRowToStorageApiProto.SchemaConversionException conversionException) {
         TableRow tableRow;
         try {
-          tableRow = messageConverter.toTableRow(element.getValue());
+          if (formatRecordOnFailureFunction != null) {
+            tableRow = formatRecordOnFailureFunction.apply(element.getValue());
+          } else {
+            tableRow = messageConverter.toTableRow(element.getValue());
+          }
         } catch (Exception e) {
           badRecordRouter.route(o, element, elementCoder, e, "Unable to convert value to TableRow");
           return;
