@@ -23,8 +23,12 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import com.google.auto.value.AutoValue;
 import java.util.Collections;
@@ -36,7 +40,11 @@ import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.streaming.ActiveWorkState.ActivateWorkResult;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.commits.Commit;
+import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
+import org.apache.beam.runners.dataflow.worker.windmill.work.WorkProcessingContext;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -62,11 +70,38 @@ public class ActiveWorkStateTest {
   }
 
   private static Work createWork(Windmill.WorkItem workItem) {
-    return Work.create(workItem, Instant::now, Collections.emptyList(), unused -> {});
+    WorkCommitter workCommitter = mock(WorkCommitter.class);
+    doNothing().when(workCommitter).commit(any(Commit.class));
+    WindmillStream.GetDataStream getDataStream = mock(WindmillStream.GetDataStream.class);
+    when(getDataStream.requestKeyedData(anyString(), any()))
+        .thenReturn(Windmill.KeyedGetDataResponse.getDefaultInstance());
+    return Work.create(
+        createWorkProcessingContext(workItem), Instant::now, Collections.emptyList(), unused -> {});
   }
 
   private static Work expiredWork(Windmill.WorkItem workItem) {
-    return Work.create(workItem, () -> Instant.EPOCH, Collections.emptyList(), unused -> {});
+    return Work.create(
+        createWorkProcessingContext(workItem),
+        () -> Instant.EPOCH,
+        Collections.emptyList(),
+        unused -> {});
+  }
+
+  private static WorkProcessingContext createWorkProcessingContext(Windmill.WorkItem workItem) {
+    WorkCommitter workCommitter = mock(WorkCommitter.class);
+    doNothing().when(workCommitter).commit(any(Commit.class));
+    WindmillStream.GetDataStream getDataStream = mock(WindmillStream.GetDataStream.class);
+    when(getDataStream.requestKeyedData(anyString(), any()))
+        .thenReturn(Windmill.KeyedGetDataResponse.getDefaultInstance());
+    return WorkProcessingContext.builder()
+        .setWorkItem(workItem)
+        .setWorkCommitter(workCommitter::commit)
+        .setComputationId("computation")
+        .setInputDataWatermark(Instant.EPOCH)
+        .setKeyedDataFetcher(
+            request ->
+                Optional.ofNullable(getDataStream.requestKeyedData("computationId", request)))
+        .build();
   }
 
   private static WorkId workId(long workToken, long cacheToken) {

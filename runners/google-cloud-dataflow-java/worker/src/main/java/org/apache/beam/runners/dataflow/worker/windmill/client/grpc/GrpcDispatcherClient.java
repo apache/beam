@@ -24,6 +24,7 @@ import com.google.auto.value.AutoValue;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
@@ -46,6 +47,7 @@ import org.slf4j.LoggerFactory;
 public class GrpcDispatcherClient {
   private static final Logger LOG = LoggerFactory.getLogger(GrpcDispatcherClient.class);
   private final WindmillStubFactory windmillStubFactory;
+  private final CountDownLatch onInitializedEndpoints;
 
   /**
    * Current dispatcher endpoints and stubs used to communicate with Windmill Dispatcher.
@@ -64,6 +66,7 @@ public class GrpcDispatcherClient {
     this.windmillStubFactory = windmillStubFactory;
     this.rand = rand;
     this.dispatcherStubs = new AtomicReference<>(initialDispatcherStubs);
+    this.onInitializedEndpoints = new CountDownLatch(1);
   }
 
   public static GrpcDispatcherClient create(WindmillStubFactory windmillStubFactory) {
@@ -86,7 +89,7 @@ public class GrpcDispatcherClient {
         new Random());
   }
 
-  CloudWindmillServiceV1Alpha1Stub getWindmillServiceStub() {
+  public CloudWindmillServiceV1Alpha1Stub getWindmillServiceStub() {
     ImmutableList<CloudWindmillServiceV1Alpha1Stub> windmillServiceStubs =
         dispatcherStubs.get().windmillServiceStubs();
     Preconditions.checkState(
@@ -101,11 +104,19 @@ public class GrpcDispatcherClient {
     return dispatcherStubs.get().dispatcherEndpoints();
   }
 
-  CloudWindmillMetadataServiceV1Alpha1Stub getWindmillMetadataServiceStub() {
+  /** Will block the calling thread until the initial endpoints are present. */
+  CloudWindmillMetadataServiceV1Alpha1Stub getWindmillMetadataServiceStubBlocking() {
+    try {
+      onInitializedEndpoints.await();
+    } catch (InterruptedException e) {
+      LOG.error(
+          "Interrupted while waiting for initial Windmill Service endpoints. "
+              + "These endpoints are required to do any pipeline processing.",
+          e);
+    }
+
     ImmutableList<CloudWindmillMetadataServiceV1Alpha1Stub> windmillMetadataServiceStubs =
         dispatcherStubs.get().windmillMetadataServiceStubs();
-    Preconditions.checkState(
-        !windmillMetadataServiceStubs.isEmpty(), "windmillServiceEndpoint has not been set");
 
     return (windmillMetadataServiceStubs.size() == 1
         ? windmillMetadataServiceStubs.get(0)
@@ -121,7 +132,7 @@ public class GrpcDispatcherClient {
    * #dispatcherStubs} will always have a value as empty updates will trigger an {@link
    * IllegalStateException}.
    */
-  boolean hasInitializedEndpoints() {
+  public boolean hasInitializedEndpoints() {
     return dispatcherStubs.get().hasInitializedEndpoints();
   }
 
@@ -144,6 +155,7 @@ public class GrpcDispatcherClient {
 
     LOG.info("Initializing Streaming Engine GRPC client for endpoints: {}", dispatcherEndpoints);
     dispatcherStubs.set(DispatcherStubs.create(dispatcherEndpoints, windmillStubFactory));
+    onInitializedEndpoints.countDown();
   }
 
   /**

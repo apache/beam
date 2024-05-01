@@ -106,6 +106,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.Channe
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.IsolationChannel;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReader;
+import org.apache.beam.runners.dataflow.worker.windmill.work.WorkProcessingContext;
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.FailureTracker;
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.StreamingApplianceFailureTracker;
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.StreamingEngineFailureTracker;
@@ -929,18 +930,24 @@ public class StreamingDataflowWorker {
         WindmillTimeUtils.windmillToHarnessWatermark(workItem.getOutputDataWatermark());
     Preconditions.checkState(
         outputDataWatermark == null || !outputDataWatermark.isAfter(inputDataWatermark));
+    WorkProcessingContext workProcessingContext =
+        WorkProcessingContext.builder(
+                computationState.getComputationId(),
+                (computationId, request) ->
+                    Optional.ofNullable(
+                        metricTrackingWindmillServer.getStateData(computationId, request)))
+            .setWorkCommitter(workCommitter::commit)
+            .setOutputDataWatermark(outputDataWatermark)
+            .setInputDataWatermark(inputDataWatermark)
+            .setSynchronizedProcessingTime(synchronizedProcessingTime)
+            .setWorkItem(workItem)
+            .build();
     Work scheduledWork =
         Work.create(
-            workItem,
+            workProcessingContext,
             clock,
             getWorkStreamLatencies,
-            work ->
-                process(
-                    computationState,
-                    inputDataWatermark,
-                    outputDataWatermark,
-                    synchronizedProcessingTime,
-                    work));
+            work -> process(computationState, work));
     computationState.activateWork(
         ShardedKey.create(workItem.getKey(), workItem.getShardingKey()), scheduledWork);
   }
@@ -1002,12 +1009,8 @@ public class StreamingDataflowWorker {
         .setCacheToken(workItem.getCacheToken());
   }
 
-  private void process(
-      final ComputationState computationState,
-      final Instant inputDataWatermark,
-      final @Nullable Instant outputDataWatermark,
-      final @Nullable Instant synchronizedProcessingTime,
-      final Work work) {
+  private void process(final ComputationState computationState, final Work work) {
+    WorkProcessingContext workProcessingContext = work.getWorkProcessingContext();
     final Windmill.WorkItem workItem = work.getWorkItem();
     final String computationId = computationState.getComputationId();
     final ByteString key = workItem.getKey();
@@ -1025,7 +1028,8 @@ public class StreamingDataflowWorker {
     if (workItem.getSourceState().getOnlyFinalize()) {
       outputBuilder.setSourceStateUpdates(Windmill.SourceState.newBuilder().setOnlyFinalize(true));
       work.setState(State.COMMIT_QUEUED);
-      workCommitter.commit(Commit.create(outputBuilder.build(), computationState, work));
+      workProcessingContext.queueCommit(
+          Commit.create(outputBuilder.build(), computationState, work));
       return;
     }
 
@@ -1145,9 +1149,7 @@ public class StreamingDataflowWorker {
 
       WindmillStateReader stateReader =
           new WindmillStateReader(
-              (request) ->
-                  Optional.ofNullable(
-                      metricTrackingWindmillServer.getStateData(computationId, request)),
+              request -> workProcessingContext.keyedDataFetcher().apply(request),
               key,
               workItem.getShardingKey(),
               workItem.getWorkToken(),
@@ -1188,9 +1190,9 @@ public class StreamingDataflowWorker {
           .start(
               executionKey,
               workItem,
-              inputDataWatermark,
-              outputDataWatermark,
-              synchronizedProcessingTime,
+              workProcessingContext.inputDataWatermark(),
+              workProcessingContext.outputDataWatermark(),
+              workProcessingContext.synchronizedProcessingTime(),
               stateReader,
               localSideInputStateFetcher,
               outputBuilder,
@@ -1252,7 +1254,7 @@ public class StreamingDataflowWorker {
         commitRequest = buildWorkItemTruncationRequest(key, workItem, estimatedCommitSize);
       }
 
-      workCommitter.commit(Commit.create(commitRequest, computationState, work));
+      workProcessingContext.queueCommit(Commit.create(commitRequest, computationState, work));
 
       // Compute shuffle and state byte statistics these will be flushed asynchronously.
       long stateBytesWritten =

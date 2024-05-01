@@ -49,6 +49,11 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.google.api.services.dataflow.model.ApproximateReportedProgress;
 import com.google.api.services.dataflow.model.DataflowPackage;
@@ -69,6 +74,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
@@ -92,7 +98,11 @@ import org.apache.beam.runners.dataflow.worker.testing.TestCountingSource;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.NativeReaderIterator;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.commits.Commit;
+import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
+import org.apache.beam.runners.dataflow.worker.windmill.work.WorkProcessingContext;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -645,10 +655,10 @@ public class WorkerCustomSourcesTest {
         numReadOnThisIteration++;
       }
       Instant afterReading = Instant.now();
-      long maxReadMs = debugOptions.getUnboundedReaderMaxReadTimeMs();
+      long maxReadSec = debugOptions.getUnboundedReaderMaxReadTimeSec();
       assertThat(
-          new Duration(beforeReading, afterReading).getMillis(),
-          lessThanOrEqualTo(maxReadMs + 1000L));
+          new Duration(beforeReading, afterReading).getStandardSeconds(),
+          lessThanOrEqualTo(maxReadSec + 1));
       assertThat(
           numReadOnThisIteration, lessThanOrEqualTo(debugOptions.getUnboundedReaderMaxElements()));
 
@@ -975,7 +985,24 @@ public class WorkerCustomSourcesTest {
             .setSourceState(
                 Windmill.SourceState.newBuilder().setState(state).build()) // Source state.
             .build();
-    Work dummyWork = Work.create(workItem, Instant::now, Collections.emptyList(), unused -> {});
+    WorkCommitter workCommitter = mock(WorkCommitter.class);
+    doNothing().when(workCommitter).commit(any(Commit.class));
+    WindmillStream.GetDataStream getDataStream = mock(WindmillStream.GetDataStream.class);
+    when(getDataStream.requestKeyedData(anyString(), any()))
+        .thenReturn(Windmill.KeyedGetDataResponse.getDefaultInstance());
+    Work dummyWork =
+        Work.create(
+            WorkProcessingContext.builder()
+                .setWorkItem(workItem)
+                .setWorkCommitter(workCommitter::commit)
+                .setKeyedDataFetcher(
+                    request ->
+                        Optional.ofNullable(
+                            getDataStream.requestKeyedData("computationId", request)))
+                .build(),
+            Instant::now,
+            Collections.emptyList(),
+            unused -> {});
 
     context.start(
         "key",

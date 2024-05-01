@@ -19,6 +19,11 @@ package org.apache.beam.runners.dataflow.worker.windmill.client.commits;
 
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertNotNull;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.google.api.services.dataflow.model.MapTask;
 import com.google.common.truth.Correspondence;
@@ -34,6 +39,8 @@ import org.apache.beam.runners.dataflow.worker.streaming.ShardedKey;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream;
+import org.apache.beam.runners.dataflow.worker.windmill.work.WorkProcessingContext;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.Instant;
@@ -53,12 +60,26 @@ public class StreamingApplianceWorkCommitterTest {
   private StreamingApplianceWorkCommitter workCommitter;
 
   private static Work createMockWork(long workToken, Consumer<Work> processWorkFn) {
+    WorkCommitter workCommitter = mock(WorkCommitter.class);
+    doNothing().when(workCommitter).commit(any(Commit.class));
+    WindmillStream.GetDataStream getDataStream = mock(WindmillStream.GetDataStream.class);
+    when(getDataStream.requestKeyedData(anyString(), any()))
+        .thenReturn(Windmill.KeyedGetDataResponse.getDefaultInstance());
     return Work.create(
-        Windmill.WorkItem.newBuilder()
-            .setKey(ByteString.EMPTY)
-            .setWorkToken(workToken)
-            .setShardingKey(workToken)
-            .setCacheToken(workToken)
+        WorkProcessingContext.builder()
+            .setWorkItem(
+                Windmill.WorkItem.newBuilder()
+                    .setKey(ByteString.EMPTY)
+                    .setWorkToken(workToken)
+                    .setCacheToken(1L)
+                    .setShardingKey(2L)
+                    .build())
+            .setWorkCommitter(workCommitter::commit)
+            .setComputationId("computation")
+            .setInputDataWatermark(Instant.EPOCH)
+            .setKeyedDataFetcher(
+                request ->
+                    Optional.ofNullable(getDataStream.requestKeyedData("computationId", request)))
             .build(),
         Instant::now,
         Collections.emptyList(),
