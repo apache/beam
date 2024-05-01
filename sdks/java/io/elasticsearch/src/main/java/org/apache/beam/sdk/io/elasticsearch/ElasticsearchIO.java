@@ -2872,7 +2872,7 @@ public class ElasticsearchIO {
         // If org.elasticsearch.client.ResponseException was thrown, return all input Documents with withHasError(true)
         // so that they could be caught by FAILED_WRITES tag.
         if (elasticResponseExceptionMessage != null) {
-          String errorJsonMessage = String.format("{\"message\":\"org.elasticsearch.client.ResponseException was thrown in batch flush: %s\", \"status\": 400}", elasticResponseExceptionMessage);
+          String errorJsonMessage = String.format("{\"message\":\"org.elasticsearch.client.ResponseException was thrown in batch flush: %s\"}", elasticResponseExceptionMessage);
           responses = inputEntries.stream()
                   .map(doc -> Document.create().withHasError(true).withResponseItemJson(errorJsonMessage))
                   .collect(Collectors.toList());
