@@ -109,7 +109,7 @@ public class StorageApiSinkFailedRowsIT {
         @Override
         public TableRow apply(TableRow input) {
           if (input.containsKey("bytes")) {
-            return new TableRow().set("bytes", "found").set("modified", "true");
+            return new TableRow().set("bytes", new byte[10]).set("modified", "true");
           }
           return input.clone().set("modified", "true");
         }
@@ -204,7 +204,7 @@ public class StorageApiSinkFailedRowsIT {
     String tableSpec = createTable(BASE_TABLE_SCHEMA);
 
     Iterable<TableRow> goodRows = getInvalidBQGoodRows();
-    Iterable<TableRow> badRows = getInvalidBQBadRows();
+    Iterable<TableRow> badRows = getInvalidBQBadRows(false);
 
     runPipeline(
         getMethod(),
@@ -222,15 +222,12 @@ public class StorageApiSinkFailedRowsIT {
     String tableSpec = createTable(BASE_TABLE_SCHEMA);
 
     Iterable<TableRow> goodRows = getInvalidBQGoodRows();
-    Iterable<TableRow> badRows = getInvalidBQBadRows();
+    Iterable<TableRow> badRows = getInvalidBQBadRows(false);
 
-    List<TableRow> modifiedBadRows = getInvalidBQBadRows();
+    List<TableRow> modifiedBadRows = getInvalidBQBadRows(true);
 
     for (TableRow tr : modifiedBadRows) {
       tr.set("modified", "true");
-      if (tr.containsKey("bytes")) {
-        tr.set("bytes", "found");
-      }
     }
 
     runPipeline(
@@ -259,7 +256,7 @@ public class StorageApiSinkFailedRowsIT {
         new TableRow().set("inner", good2).set("stronearray", Lists.newArrayList()));
   }
 
-  private List<TableRow> getInvalidBQBadRows() {
+  private List<TableRow> getInvalidBQBadRows(boolean isModifiedRows) {
     TableRow bad1 = new TableRow().set("str", "foo").set("i64", "42").set("date", "10001-08-16");
     TableRow bad2 = new TableRow().set("str", "foo").set("i64", "42").set("strone", "ab");
     TableRow bad3 = new TableRow().set("str", "foo").set("i64", "42").set("json", "BAADF00D");
@@ -268,7 +265,7 @@ public class StorageApiSinkFailedRowsIT {
             .set("str", "foo")
             .set("i64", "42")
             .set("stronearray", Lists.newArrayList("toolong"));
-    TableRow bad5 = new TableRow().set("bytes", BIG_BYTES);
+    TableRow bad5 = new TableRow().set("bytes", isModifiedRows ? new byte[10] : BIG_BYTES);
     return ImmutableList.of(
         bad1,
         bad2,

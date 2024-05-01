@@ -860,7 +860,13 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
           for (int i = 0; i < splitValue.getProtoRows().getSerializedRowsCount(); ++i) {
             ByteString rowBytes = splitValue.getProtoRows().getSerializedRows(i);
             org.joda.time.Instant timestamp = splitValue.getTimestamps().get(i);
-            TableRow failedRow = appendClientInfo.get().toTableRow(rowBytes);
+            TableRow failedRow;
+            if (formatRecordOnFailureFunction != null) {
+              failedRow =
+                  formatRecordOnFailureFunction.apply(splitValue.getOriginalElements().get(i));
+            } else {
+              failedRow = appendClientInfo.get().toTableRow(rowBytes);
+            }
             o.get(failedRowsTag)
                 .outputWithTimestamp(
                     new BigQueryStorageApiInsertError(
