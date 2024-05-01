@@ -725,6 +725,11 @@ class DoctestTest(unittest.TestCase):
             # Verified seperately in
             # frames_test.py::DeferredFrameTest::test_dt_tz_localize_*
             'pandas.core.arrays.datetimes.DatetimeArray.tz_localize': ['*'],
+            # Test uses to_datetime. Beam calls to_datetime element-wise, and
+            # therefore the .tz attribute is not evaluated on entire Series.
+            # Hence, .tz becomes None, unless explicitly set.
+            # See: see test_tz_with_utc_zone_set_explicitly
+            'pandas.core.arrays.datetimes.DatetimeArray.tz': ['*'],
         },
         not_implemented_ok={
             # Beam Dataframes don't implement a deferred to_timedelta operation.
