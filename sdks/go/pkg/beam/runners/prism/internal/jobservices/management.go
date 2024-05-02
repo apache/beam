@@ -243,8 +243,8 @@ func (s *Server) Run(ctx context.Context, req *jobpb.RunJobRequest) (*jobpb.RunJ
 // Otherwise, returns nil if Job does not exist or the Job's existing state as part of the CancelJobResponse.
 func (s *Server) Cancel(_ context.Context, req *jobpb.CancelJobRequest) (*jobpb.CancelJobResponse, error) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	job, ok := s.jobs[req.GetJobId()]
+	s.mu.Unlock()
 	if !ok {
 		return nil, nil
 	}
