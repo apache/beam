@@ -693,6 +693,7 @@ class DoctestTest(unittest.TestCase):
         pd.core.indexes.accessors,
         use_beam=False,
         skip={
+            '*': ["ser = pd.Series(pd.to_timedelta([1, 2, 3], unit='d'))"],
             'pandas.core.indexes.accessors.TimedeltaProperties': [
                 # Seems like an upstream bug. The property is 'second'
                 'seconds_series.dt.seconds'
@@ -708,13 +709,39 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.indexes.accessors.TimedeltaProperties.components': [
                 '*'
             ],
+            'pandas.core.indexes.accessors.TimedeltaProperties.days': ['*'],
+            'pandas.core.indexes.accessors.TimedeltaProperties.seconds': ['*'],
+            'pandas.core.indexes.accessors.TimedeltaProperties.microseconds': [
+                '*'
+            ],
+            'pandas.core.indexes.accessors.TimedeltaProperties.nanoseconds': [
+                '*'
+            ],
             'pandas.core.indexes.accessors.TimedeltaProperties.to_pytimedelta': [
                 '*'
             ],
             # pylint: enable=line-too-long
+            # Test uses to_datetime. Beam calls to_datetime element-wise, and
+            # therefore the .tz attribute is not evaluated on entire Series.
+            # Hence, .tz becomes None, unless explicitly set.
+            # See: see test_tz_with_utc_zone_set_explicitly
+            'pandas.core.indexes.accessors.DatetimeProperties.tz': ['*'],
         })
     datetimelike_result = doctests.testmod(
-        pd.core.arrays.datetimelike, use_beam=False)
+        pd.core.arrays.datetimelike, use_beam=False,
+        not_implemented_ok={
+            # Beam Dataframes don't implement a deferred to_timedelta operation.
+            # Top-level issue: https://github.com/apache/beam/issues/20318
+            '*': [
+                "ser = pd.Series(pd.to_timedelta([1, 2, 3], unit='d'))",
+                "tdelta_idx = pd.to_timedelta([1, 2, 3], unit='D')",
+                'tdelta_idx = pd.to_timedelta(["0 days", "10 days", "20 days"])',
+                "tdelta_idx",
+                "tdelta_idx.inferred_freq",
+                "tdelta_idx.mean()",
+            ],
+        })
+
 
     datetime_result = doctests.testmod(
         pd.core.arrays.datetimes,
@@ -725,11 +752,6 @@ class DoctestTest(unittest.TestCase):
             # Verified seperately in
             # frames_test.py::DeferredFrameTest::test_dt_tz_localize_*
             'pandas.core.arrays.datetimes.DatetimeArray.tz_localize': ['*'],
-            # Test uses to_datetime. Beam calls to_datetime element-wise, and
-            # therefore the .tz attribute is not evaluated on entire Series.
-            # Hence, .tz becomes None, unless explicitly set.
-            # See: see test_tz_with_utc_zone_set_explicitly
-            'pandas.core.arrays.datetimes.DatetimeArray.tz': ['*'],
         },
         not_implemented_ok={
             # Beam Dataframes don't implement a deferred to_timedelta operation.
@@ -742,6 +764,13 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.arrays.datetimes.DatetimeArray.to_period': [
                 'df.index.to_period("M")'
             ],
+        },
+        skip={
+            # Test uses to_datetime. Beam calls to_datetime element-wise, and
+            # therefore the .tz attribute is not evaluated on entire Series.
+            # Hence, .tz becomes None, unless explicitly set.
+            # See: see test_tz_with_utc_zone_set_explicitly
+            'pandas.core.arrays.datetimes.DatetimeArray.tz': ['*'],
         })
 
     self.assertEqual(indexes_accessors_result.failed, 0)
