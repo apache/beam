@@ -113,7 +113,7 @@ public class MorePipelineTest {
                       PCollectionViews.ValueOrMetadataCoder.create(
                           inputCoder, OffsetRange.Coder.of())));
       PCollectionView<List<T>> view =
-          PCollectionViews.listView(
+          PCollectionViews.listViewWithRandomAccess(
               materializationInput,
               (TupleTag<
                       Materializations.MultimapView<

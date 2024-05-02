@@ -53,6 +53,45 @@
 * ([#X](https://github.com/apache/beam/issues/X)).
 -->
 
+# [2.57.0] - Unreleased
+
+## Highlights
+
+* New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
+* New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
+
+## I/Os
+
+* Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+
+## New Features / Improvements
+
+* Added Feast feature store handler for enrichment transform (Python) ([#30957](https://github.com/apache/beam/issues/30964)).
+
+## Breaking Changes
+
+* X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
+* Java's View.asList() side inputs are now optimized for iterating rather than
+  indexing when in the global window.
+  This new implementation still supports all (immutable) List methods as before,
+  but some of the random access methods like get() and size() will be slower.
+  To use the old implementation one can use View.asList().withRandomAccess().
+
+## Deprecations
+
+* X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
+
+## Bugfixes
+
+* Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+
+## Security Fixes
+* Fixed (CVE-YYYY-NNNN)[https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN] (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).
+
+## Known Issues
+
+* ([#X](https://github.com/apache/beam/issues/X)).
+
 # [2.56.0]
 
 ## Highlights
@@ -67,6 +106,7 @@
 
 ## New Features / Improvements
 
+* Added ability to control the exact number of models loaded across processes by RunInference. This may be useful for pipelines with tight memory constraints ([#31052](https://github.com/apache/beam/pull/31052))
 * Profiling of Cythonized code has been disabled by default. This might improve performance for some Python pipelines ([#30938](https://github.com/apache/beam/pull/30938)).
 * Bigtable enrichment handler now accepts a custom function to build a composite row key. (Python) ([#30974](https://github.com/apache/beam/issues/30975)).
 
@@ -78,7 +118,8 @@
 ## Bugfixes
 
 * Fixed locking issue when shutting down inactive bundle processors. Symptoms of this issue include slowness or stuckness in long-running jobs (Python) ([#30679](https://github.com/apache/beam/pull/30679)).
-* Fixed logging issue that caused silencing the pip output when installing of dependencies provided in `--requirements_file` (Python).
+* Fixed logging issue that caused silecing the pip output when installing of dependencies provided in `--requirements_file` (Python).
+* Fixed pipeline stuckness issue by disallowing versions of grpcio that can cause the stuckness (Python) ([#30867](https://github.com/apache/beam/issues/30867)).
 
 ## Known Issues
 
@@ -134,6 +175,7 @@
 
 * In Python pipelines, when shutting down inactive bundle processors, shutdown logic can overaggressively hold the lock, blocking acceptance of new work. Symptoms of this issue include slowness or stuckness in long-running jobs. Fixed in 2.56.0 ([#30679](https://github.com/apache/beam/pull/30679)).
 * WriteToJson broken in languages other than Java (X-lang) ([#30776](https://github.com/apache/beam/issues/30776)).
+* Python pipelines might occasionally become stuck due to a regression in grpcio ([#30867](https://github.com/apache/beam/issues/30867)). The issue manifests frequently with Bigtable IO connector, but might also affect other GCP connectors. Fixed in 2.56.0.
 
 # [2.54.0] - 2024-02-14
 
@@ -264,6 +306,7 @@ as a workaround, a copy of "old" `CountingSource` class should be placed into a 
 
 * MLTransform drops the identical elements in the output PCollection. For any duplicate elements, a single element will be emitted downstream. ([#29600](https://github.com/apache/beam/issues/29600)).
 * Some Python pipelines that run with 2.52.0-2.54.0 SDKs and use large materialized side inputs might be affected by a performance regression. To restore the prior behavior on these SDK versions, supply the `--max_cache_memory_usage_mb=0` pipeline option. (Python) ([#30360](https://github.com/apache/beam/issues/30360)).
+* Users who lauch Python pipelines in an environment without internet access and use the `--setup_file` pipeline option might experience an increase in pipeline submission time. This has been fixed in 2.56.0 ([#31070](https://github.com/apache/beam/pull/31070)).
 
 # [2.51.0] - 2023-10-03
 
