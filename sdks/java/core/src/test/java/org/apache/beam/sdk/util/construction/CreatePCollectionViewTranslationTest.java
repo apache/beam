@@ -79,7 +79,7 @@ public class CreatePCollectionViewTranslationTest {
         },
         new Object[] {
           CreatePCollectionView.of(
-              PCollectionViews.listViewWithRandomAccess(
+              PCollectionViews.listView(
                   listTestPCollection,
                   (TypeDescriptorSupplier<String>) () -> TypeDescriptors.strings(),
                   listTestPCollection.getWindowingStrategy())),
