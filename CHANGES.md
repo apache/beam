@@ -92,7 +92,7 @@
 
 * ([#X](https://github.com/apache/beam/issues/X)).
 
-# [2.56.0]
+# [2.56.0] - 2024-05-01
 
 ## Highlights
 
@@ -123,7 +123,7 @@
 
 ## Known Issues
 
-# [2.55.1]
+# [2.55.1] - 2024-04-08
 
 ## Bugfixes
 
