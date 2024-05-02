@@ -706,6 +706,10 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.indexes.accessors.DatetimeProperties.to_pydatetime': [
                 '*'
             ],
+
+            # Beam doesn't have a deferred version of PeriodIndex.
+            # PeriodIndex instance is created in the test scenario.
+            'pandas.core.indexes.accessors.PeriodProperties.end_time' : ['*'],
             'pandas.core.indexes.accessors.TimedeltaProperties.components': [
                 '*'
             ],
