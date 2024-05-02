@@ -948,9 +948,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     Pipeline pipeline = Pipeline.create(options);
 
     final PCollectionView<List<Integer>> view =
-        pipeline
-            .apply("CreateSideInput", Create.of(11, 13, 17, 23))
-            .apply(View.<Integer>asList().withRandomAccess());
+        pipeline.apply("CreateSideInput", Create.of(11, 13, 17, 23)).apply(View.asList());
 
     pipeline
         .apply("CreateMainInput", Create.of(29, 31))
