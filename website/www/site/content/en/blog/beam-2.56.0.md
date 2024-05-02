@@ -1,6 +1,6 @@
 ---
 title:  "Apache Beam 2.56.0"
-date:   TODO
+date:   2024-05-01 10:00:00 -0400
 categories:
   - blog
   - release
