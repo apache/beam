@@ -25,6 +25,7 @@ import (
 	// Library imports
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/schema"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
@@ -43,9 +44,12 @@ func init() {
 	runtime.RegisterFunction(schemaDec)
 	runtime.RegisterFunction(schemaEnc)
 	runtime.RegisterFunction(swapKVFn)
+	runtime.RegisterType(reflect.TypeOf((*reflect.Type)(nil)).Elem())
+	schema.RegisterType(reflect.TypeOf((*reflect.Type)(nil)).Elem())
+	runtime.RegisterType(reflect.TypeOf((*reflectx.Func)(nil)).Elem())
+	schema.RegisterType(reflect.TypeOf((*reflectx.Func)(nil)).Elem())
 	reflectx.RegisterFunc(reflect.TypeOf((*func(reflect.Type, []byte) (typex.T, error))(nil)).Elem(), funcMakerReflect۰TypeSliceOfByteГTypex۰TError)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(reflect.Type, typex.T) ([]byte, error))(nil)).Elem(), funcMakerReflect۰TypeTypex۰TГSliceOfByteError)
-	reflectx.RegisterFunc(reflect.TypeOf((*func([]byte, func(typex.T)) error)(nil)).Elem(), funcMakerSliceOfByteEmitTypex۰TГError)
 	reflectx.RegisterFunc(reflect.TypeOf((*func([]typex.T, func(typex.T)))(nil)).Elem(), funcMakerSliceOfTypex۰TEmitTypex۰TГ)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(string, reflect.Type, []byte) reflectx.Func)(nil)).Elem(), funcMakerStringReflect۰TypeSliceOfByteГReflectx۰Func)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(typex.T) (int, typex.T))(nil)).Elem(), funcMakerTypex۰TГIntTypex۰T)
@@ -106,32 +110,6 @@ func (c *callerReflect۰TypeTypex۰TГSliceOfByteError) Call(args []any) []any {
 
 func (c *callerReflect۰TypeTypex۰TГSliceOfByteError) Call2x2(arg0, arg1 any) (any, any) {
 	return c.fn(arg0.(reflect.Type), arg1.(typex.T))
-}
-
-type callerSliceOfByteEmitTypex۰TГError struct {
-	fn func([]byte, func(typex.T)) error
-}
-
-func funcMakerSliceOfByteEmitTypex۰TГError(fn any) reflectx.Func {
-	f := fn.(func([]byte, func(typex.T)) error)
-	return &callerSliceOfByteEmitTypex۰TГError{fn: f}
-}
-
-func (c *callerSliceOfByteEmitTypex۰TГError) Name() string {
-	return reflectx.FunctionName(c.fn)
-}
-
-func (c *callerSliceOfByteEmitTypex۰TГError) Type() reflect.Type {
-	return reflect.TypeOf(c.fn)
-}
-
-func (c *callerSliceOfByteEmitTypex۰TГError) Call(args []any) []any {
-	out0 := c.fn(args[0].([]byte), args[1].(func(typex.T)))
-	return []any{out0}
-}
-
-func (c *callerSliceOfByteEmitTypex۰TГError) Call2x1(arg0, arg1 any) any {
-	return c.fn(arg0.([]byte), arg1.(func(typex.T)))
 }
 
 type callerSliceOfTypex۰TEmitTypex۰TГ struct {
@@ -322,6 +300,7 @@ type emitNative struct {
 	est *sdf.WatermarkEstimator
 
 	ctx   context.Context
+	pn    typex.PaneInfo
 	ws    []typex.Window
 	et    typex.EventTime
 	value exec.FullValue
@@ -331,6 +310,7 @@ func (e *emitNative) Init(ctx context.Context, pn typex.PaneInfo, ws []typex.Win
 	e.ctx = ctx
 	e.ws = ws
 	e.et = et
+	e.pn = pn
 	return nil
 }
 
@@ -349,7 +329,7 @@ func emitMakerTypex۰T(n exec.ElementProcessor) exec.ReusableEmitter {
 }
 
 func (e *emitNative) invokeTypex۰T(val typex.T) {
-	e.value = exec.FullValue{Windows: e.ws, Timestamp: e.et, Elm: val}
+	e.value = exec.FullValue{Windows: e.ws, Pane: e.pn, Timestamp: e.et, Elm: val}
 	if e.est != nil {
 		(*e.est).(sdf.TimestampObservingEstimator).ObserveTimestamp(e.et.ToTime())
 	}

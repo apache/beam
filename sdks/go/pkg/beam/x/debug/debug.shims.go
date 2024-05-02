@@ -268,15 +268,17 @@ type emitNative struct {
 	est *sdf.WatermarkEstimator
 
 	ctx   context.Context
+	pn    typex.PaneInfo
 	ws    []typex.Window
 	et    typex.EventTime
 	value exec.FullValue
 }
 
-func (e *emitNative) Init(ctx context.Context, pn typex.PaneInfo, ws []typex.Window, t typex.EventTime) error {
+func (e *emitNative) Init(ctx context.Context, pn typex.PaneInfo, ws []typex.Window, et typex.EventTime) error {
 	e.ctx = ctx
 	e.ws = ws
 	e.et = et
+	e.pn = pn
 	return nil
 }
 
@@ -295,7 +297,7 @@ func emitMakerTypex۰T(n exec.ElementProcessor) exec.ReusableEmitter {
 }
 
 func (e *emitNative) invokeTypex۰T(val typex.T) {
-	e.value = exec.FullValue{Windows: e.ws, Timestamp: e.et, Elm: val}
+	e.value = exec.FullValue{Windows: e.ws, Pane: e.pn, Timestamp: e.et, Elm: val}
 	if e.est != nil {
 		(*e.est).(sdf.TimestampObservingEstimator).ObserveTimestamp(e.et.ToTime())
 	}
@@ -311,7 +313,7 @@ func emitMakerTypex۰XTypex۰Y(n exec.ElementProcessor) exec.ReusableEmitter {
 }
 
 func (e *emitNative) invokeTypex۰XTypex۰Y(key typex.X, val typex.Y) {
-	e.value = exec.FullValue{Windows: e.ws, Timestamp: e.et, Elm: key, Elm2: val}
+	e.value = exec.FullValue{Windows: e.ws, Pane: e.pn, Timestamp: e.et, Elm: key, Elm2: val}
 	if e.est != nil {
 		(*e.est).(sdf.TimestampObservingEstimator).ObserveTimestamp(e.et.ToTime())
 	}
