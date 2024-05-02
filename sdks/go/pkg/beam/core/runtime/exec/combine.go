@@ -175,7 +175,7 @@ func (n *Combine) ProcessElement(ctx context.Context, value *FullValue, values .
 	if err != nil {
 		return n.fail(err)
 	}
-	return n.Out.ProcessElement(n.ctx, &FullValue{Windows: value.Windows, Elm: value.Elm, Elm2: out, Timestamp: value.Timestamp})
+	return n.Out.ProcessElement(n.ctx, &FullValue{Windows: value.Windows, Elm: value.Elm, Elm2: out, Timestamp: value.Timestamp, Pane: value.Pane})
 }
 
 // FinishBundle completes this node's processing of a bundle.
@@ -606,7 +606,7 @@ func (n *MergeAccumulators) ProcessElement(ctx context.Context, value *FullValue
 			return err
 		}
 	}
-	return n.Out.ProcessElement(n.Combine.ctx, &FullValue{Windows: value.Windows, Elm: value.Elm, Elm2: a, Timestamp: value.Timestamp})
+	return n.Out.ProcessElement(n.Combine.ctx, &FullValue{Windows: value.Windows, Elm: value.Elm, Elm2: a, Timestamp: value.Timestamp, Pane: value.Pane})
 }
 
 // Up eagerly gets the optimized binary merge function.
@@ -637,7 +637,7 @@ func (n *ExtractOutput) ProcessElement(ctx context.Context, value *FullValue, va
 	if err != nil {
 		return n.fail(err)
 	}
-	return n.Out.ProcessElement(n.Combine.ctx, &FullValue{Windows: value.Windows, Elm: value.Elm, Elm2: out, Timestamp: value.Timestamp})
+	return n.Out.ProcessElement(n.Combine.ctx, &FullValue{Windows: value.Windows, Elm: value.Elm, Elm2: out, Timestamp: value.Timestamp, Pane: value.Pane})
 }
 
 // ConvertToAccumulators is an executor for converting an input value to an accumulator value.
@@ -665,5 +665,5 @@ func (n *ConvertToAccumulators) ProcessElement(ctx context.Context, value *FullV
 	if err != nil {
 		return n.fail(err)
 	}
-	return n.Out.ProcessElement(n.Combine.ctx, &FullValue{Windows: value.Windows, Elm: value.Elm, Elm2: a, Timestamp: value.Timestamp})
+	return n.Out.ProcessElement(n.Combine.ctx, &FullValue{Windows: value.Windows, Elm: value.Elm, Elm2: a, Timestamp: value.Timestamp, Pane: value.Pane})
 }

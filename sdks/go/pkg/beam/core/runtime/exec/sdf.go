@@ -95,7 +95,7 @@ func (n *PairWithRestriction) ProcessElement(ctx context.Context, elm *FullValue
 		return err
 	}
 
-	output := FullValue{Elm: elm, Elm2: &FullValue{Elm: rest, Elm2: n.iwesInv.Invoke(rest, elm)}, Timestamp: elm.Timestamp, Windows: elm.Windows}
+	output := FullValue{Elm: elm, Elm2: &FullValue{Elm: rest, Elm2: n.iwesInv.Invoke(rest, elm)}, Timestamp: elm.Timestamp, Windows: elm.Windows, Pane: elm.Pane}
 
 	return n.Out.ProcessElement(ctx, &output, values...)
 }
@@ -220,6 +220,7 @@ func (n *SplitAndSizeRestrictions) ProcessElement(ctx context.Context, elm *Full
 		output.Windows = elm.Windows
 		output.Elm = &FullValue{Elm: mainElm, Elm2: &FullValue{Elm: splitRest, Elm2: ws}}
 		output.Elm2 = size
+		output.Pane = elm.Pane
 
 		if err := n.Out.ProcessElement(ctx, output, values...); err != nil {
 			return err

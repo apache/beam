@@ -69,6 +69,7 @@ func (n *Inject) ProcessElement(ctx context.Context, elm *FullValue, values ...R
 		},
 		Timestamp: elm.Timestamp,
 		Windows:   elm.Windows,
+		Pane:      elm.Pane,
 	}
 	return n.Out.ProcessElement(ctx, v, values...)
 }

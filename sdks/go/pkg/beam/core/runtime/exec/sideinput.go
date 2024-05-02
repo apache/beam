@@ -197,6 +197,7 @@ func (n *FixedKey) ProcessElement(ctx context.Context, elm *FullValue, values ..
 		Elm2:      elm,
 		Timestamp: elm.Timestamp,
 		Windows:   elm.Windows,
+		Pane:      elm.Pane,
 	}
 	return n.Out.ProcessElement(ctx, v, values...)
 }
