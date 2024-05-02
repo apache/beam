@@ -678,7 +678,9 @@ public class IsmSideInputReaderTest {
             KV.of(2L, valueInGlobalWindow(62L)));
 
     final PCollectionView<List<Long>> view =
-        Pipeline.create().apply(Create.empty(VarLongCoder.of())).apply(View.asList());
+        Pipeline.create()
+            .apply(Create.empty(VarLongCoder.of()))
+            .apply(View.<Long>asList().withRandomAccess());
 
     Source sourceA = initInputFile(fromKvsForList(firstElements), ismCoder);
     Source sourceB = initInputFile(fromKvsForList(secondElements), ismCoder);
@@ -736,7 +738,7 @@ public class IsmSideInputReaderTest {
         Pipeline.create()
             .apply(Create.empty(VarLongCoder.of()))
             .apply(Window.into(FixedWindows.of(Duration.millis(10))))
-            .apply(View.asList());
+            .apply(View.<Long>asList().withRandomAccess());
 
     Source sourceA = initInputFile(fromKvsForList(concat(firstElements, secondElements)), ismCoder);
     Source sourceB = initInputFile(fromKvsForList(thirdElements), ismCoder);

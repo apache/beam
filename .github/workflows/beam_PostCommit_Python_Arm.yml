@@ -110,7 +110,6 @@ jobs:
             -Pdocker-tag=${{ steps.set_tag.outputs.TAG }} \
             -Ppush-containers \
         env:
-          CLOUDSDK_CONFIG: ${{ env.KUBELET_GCLOUD_CONFIG_PATH}}
           MULTIARCH_TAG: ${{ steps.set_tag.outputs.TAG }}
           USER: github-actions
       - name: Archive Python Test Results

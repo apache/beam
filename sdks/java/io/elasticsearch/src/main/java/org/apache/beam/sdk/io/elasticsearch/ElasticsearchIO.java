@@ -61,6 +61,8 @@ import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -220,6 +222,7 @@ public class ElasticsearchIO {
         .setWithMetadata(false)
         .setScrollKeepalive("5m")
         .setBatchSize(100L)
+        .setUsePITSearch(false)
         .build();
   }
 
@@ -752,6 +755,16 @@ public class ElasticsearchIO {
   public abstract static class Read extends PTransform<PBegin, PCollection<String>> {
 
     private static final long MAX_BATCH_SIZE = 10000L;
+    private static final String SEARCH_AFTER_DEFAULT_SORT_PROPERTY = "@timestamp";
+    private static final String SEARCH_AFTER_SORT_TEMPLATE =
+        "\"sort\" : {"
+            + " \"%s\" : {"
+            + "  \"order\" : \"asc\", "
+            + "  \"format\" : \"strict_date_optional_time_nanos\""
+            + " }"
+            + "}";
+    private static final String SEARCH_AFTER_DEFAULT_SORT =
+        String.format(SEARCH_AFTER_SORT_TEMPLATE, SEARCH_AFTER_DEFAULT_SORT_PROPERTY);
 
     abstract @Nullable ConnectionConfiguration getConnectionConfiguration();
 
@@ -762,6 +775,12 @@ public class ElasticsearchIO {
     abstract String getScrollKeepalive();
 
     abstract long getBatchSize();
+
+    abstract boolean getUsePITSearch();
+
+    abstract @Nullable String getPITSortConfig();
+
+    abstract @Nullable String getPITSortTimestampProperty();
 
     abstract Builder builder();
 
@@ -776,6 +795,12 @@ public class ElasticsearchIO {
       abstract Builder setScrollKeepalive(String scrollKeepalive);
 
       abstract Builder setBatchSize(long batchSize);
+
+      abstract Builder setUsePITSearch(boolean usePIT);
+
+      abstract Builder setPITSortConfig(String pitConfig);
+
+      abstract Builder setPITSortTimestampProperty(String pitTimestampProperty);
 
       abstract Read build();
     }
@@ -832,7 +857,9 @@ public class ElasticsearchIO {
     /**
      * Provide a scroll keepalive. See <a
      * href="https://www.elastic.co/guide/en/elasticsearch/reference/7.17/search-request-scroll.html">scroll
-     * API</a> Default is "5m". Change this only if you get "No search context found" errors.
+     * API</a> Default is "5m". Change this only if you get "No search context found" errors. When
+     * configuring the read to use Point In Time (PIT) search this configuration is used to set the
+     * PIT keep alive.
      *
      * @param scrollKeepalive keepalive duration of the scroll
      * @return a {@link PTransform} reading data from Elasticsearch.
@@ -862,6 +889,58 @@ public class ElasticsearchIO {
       return builder().setBatchSize(batchSize).build();
     }
 
+    /**
+     * Configures the source to user Point In Time search iteration while reading data from
+     * Elasticsearch. See <a
+     * href="https://www.elastic.co/guide/en/elasticsearch/reference/current/point-in-time-api.html">
+     * Point in time search</a>, using default settings. This iteration mode for searches does not
+     * have the same size constrains the Scroll API have (slice counts, batch size or how deep the
+     * iteration is). By default this iteration mode will use a {@code @timestamp} named property on
+     * the indexed documents to consistently retrieve the data when failures occur on an specific
+     * read work.
+     *
+     * @return a {@link PTransform} reading data from Elasticsearch.
+     */
+    public Read withPointInTimeSearch() {
+      return builder()
+          .setUsePITSearch(true)
+          .setBatchSize(1000)
+          .setPITSortConfig(SEARCH_AFTER_DEFAULT_SORT)
+          .build();
+    }
+
+    /**
+     * Similar to {@link #withPointInTimeSearch() the default PIT search} but setting an existing
+     * timestamp based property name which Elasticsearch will use to sort for the results.
+     *
+     * @param timestampSortProperty a property name found in the read documents containing a
+     *     timestamp-like value.
+     * @return a {@link PTransform} reading data from Elasticsearch.
+     */
+    public Read withPointInTimeSearchAndTimestampSortProperty(String timestampSortProperty) {
+      return builder()
+          .setUsePITSearch(true)
+          .setBatchSize(1000)
+          .setPITSortConfig(String.format(SEARCH_AFTER_SORT_TEMPLATE, timestampSortProperty))
+          .build();
+    }
+
+    /**
+     * Similar to {@link #withPointInTimeSearch() the default PIT search} but setting a specific
+     * sorting configuration which Elasticsearch will use to sort for the results.
+     *
+     * @param sortConfiguration the full sorting configuration to be sent to Elasticsearch while
+     *     iterating on the results.
+     * @return a {@link PTransform} reading data from Elasticsearch.
+     */
+    public Read withPointInTimeSearchAndSortConfiguration(String sortConfiguration) {
+      return builder()
+          .setUsePITSearch(true)
+          .setBatchSize(1000)
+          .setPITSortConfig(sortConfiguration)
+          .build();
+    }
+
     @Override
     public PCollection<String> expand(PBegin input) {
       ConnectionConfiguration connectionConfiguration = getConnectionConfiguration();
@@ -877,7 +956,14 @@ public class ElasticsearchIO {
       builder.addIfNotNull(DisplayData.item("withMetadata", isWithMetadata()));
       builder.addIfNotNull(DisplayData.item("batchSize", getBatchSize()));
       builder.addIfNotNull(DisplayData.item("scrollKeepalive", getScrollKeepalive()));
+      builder.addIfNotNull(DisplayData.item("usePointInTimeSearch", getUsePITSearch()));
       getConnectionConfiguration().populateDisplayData(builder);
+    }
+
+    void validatePITConfiguration(int backendVersion) {
+      checkArgument(
+          getUsePITSearch() && backendVersion >= 8,
+          "Point in time searches are supported for clusters with version 8 and higher.");
     }
   }
 
@@ -1014,7 +1100,12 @@ public class ElasticsearchIO {
 
     @Override
     public BoundedReader<String> createReader(PipelineOptions options) {
-      return new BoundedElasticsearchReader(this);
+      if (!spec.getUsePITSearch()) {
+        return new BoundedElasticsearchScrollReader(this);
+      } else {
+        spec.validatePITConfiguration(backendVersion);
+        return new BoundedElasticsearchPITReader(this);
+      }
     }
 
     @Override
@@ -1039,27 +1130,122 @@ public class ElasticsearchIO {
     }
   }
 
-  private static class BoundedElasticsearchReader extends BoundedSource.BoundedReader<String> {
+  abstract static class BoundedElasticsearchReader extends BoundedSource.BoundedReader<String> {
+    private static final Counter READ =
+        Metrics.counter(BoundedElasticsearchScrollReader.class, "es-read-document-count");
+    private static final String MATCH_ALL_QUERY = "{\"query\": { \"match_all\": {} }}";
 
-    private final BoundedElasticsearchSource source;
+    protected final BoundedElasticsearchSource source;
 
-    private RestClient restClient;
-    private String current;
-    private String scrollId;
-    private ListIterator<String> batchIterator;
+    protected RestClient restClient;
+    protected JsonNode current;
+    protected ListIterator<JsonNode> batchIterator;
+    protected String iteratorId;
 
-    private BoundedElasticsearchReader(BoundedElasticsearchSource source) {
+    protected BoundedElasticsearchReader(BoundedElasticsearchSource source) {
       this.source = source;
+    }
+
+    protected abstract Request createStartRequest();
+
+    protected abstract Request createAdvanceRequest();
+
+    protected abstract Request createCloseRequest();
+
+    protected abstract boolean processResult(JsonNode searchResult) throws IOException;
+
+    protected abstract void updateIteratorId(JsonNode searchResult);
+
+    protected String createBaseQuery() {
+      String query = source.spec.getQuery() != null ? source.spec.getQuery().get() : null;
+      if (query == null) {
+        query = BoundedElasticsearchReader.MATCH_ALL_QUERY;
+      }
+      return query;
     }
 
     @Override
     public boolean start() throws IOException {
       restClient = source.spec.getConnectionConfiguration().createClient();
+      Response response = restClient.performRequest(createStartRequest());
+      JsonNode searchResult = parseResponse(response.getEntity());
+      updateIteratorId(searchResult);
+      return processResult(searchResult);
+    }
 
-      String query = source.spec.getQuery() != null ? source.spec.getQuery().get() : null;
-      if (query == null) {
-        query = "{\"query\": { \"match_all\": {} }}";
+    @Override
+    public boolean advance() throws IOException {
+      if (batchIterator.hasNext()) {
+        current = batchIterator.next();
+        return true;
+      } else {
+        return performAdvance();
       }
+    }
+
+    protected boolean performAdvance() throws IOException {
+      Response response = restClient.performRequest(createAdvanceRequest());
+      JsonNode searchResult = parseResponse(response.getEntity());
+      updateIteratorId(searchResult);
+      return processResult(searchResult);
+    }
+
+    protected boolean readNextBatchAndReturnFirstDocument(JsonNode searchResult) {
+      // stop if no more data
+      JsonNode hits = searchResult.path("hits").path("hits");
+      if (hits.size() == 0) {
+        current = null;
+        batchIterator = null;
+        return false;
+      }
+      // list behind iterator is empty
+      List<JsonNode> batch = new ArrayList<>();
+      for (JsonNode hit : hits) {
+        batch.add(hit);
+      }
+      batchIterator = batch.listIterator();
+      current = batchIterator.next();
+      return true;
+    }
+
+    @Override
+    public String getCurrent() throws NoSuchElementException {
+      if (current == null) {
+        throw new NoSuchElementException();
+      }
+      READ.inc();
+      boolean withMetadata = source.spec.isWithMetadata();
+      return withMetadata ? current.toString() : current.path("_source").toString();
+    }
+
+    @Override
+    public void close() throws IOException {
+      Request closeRequest = createCloseRequest();
+      // clear the selected iterator
+      try {
+        restClient.performRequest(closeRequest);
+      } finally {
+        if (restClient != null) {
+          restClient.close();
+        }
+      }
+    }
+
+    @Override
+    public BoundedSource<String> getCurrentSource() {
+      return source;
+    }
+  }
+
+  static class BoundedElasticsearchScrollReader extends BoundedElasticsearchReader {
+
+    public BoundedElasticsearchScrollReader(BoundedElasticsearchSource source) {
+      super(source);
+    }
+
+    @Override
+    protected Request createStartRequest() {
+      String query = createBaseQuery();
       if ((source.backendVersion >= 5) && source.numSlices != null && source.numSlices > 1) {
         // if there is more than one slice, add the slice to the user query
         String sliceQuery =
@@ -1073,91 +1259,172 @@ public class ElasticsearchIO {
       Request request = new Request("GET", endPoint);
       request.addParameters(params);
       request.setEntity(queryEntity);
-      Response response = restClient.performRequest(request);
-      JsonNode searchResult = parseResponse(response.getEntity());
-      updateScrollId(searchResult);
+      return request;
+    }
+
+    @Override
+    protected Request createAdvanceRequest() {
+      String requestBody =
+          String.format(
+              "{\"scroll\" : \"%s\",\"scroll_id\" : \"%s\"}",
+              source.spec.getScrollKeepalive(), iteratorId);
+      HttpEntity scrollEntity = new NStringEntity(requestBody, ContentType.APPLICATION_JSON);
+      Request request = new Request("GET", "/_search/scroll");
+      request.addParameters(Collections.emptyMap());
+      request.setEntity(scrollEntity);
+      return request;
+    }
+
+    @Override
+    protected Request createCloseRequest() {
+      String requestBody = String.format("{\"scroll_id\" : [\"%s\"]}", iteratorId);
+      HttpEntity entity = new NStringEntity(requestBody, ContentType.APPLICATION_JSON);
+      Request request = new Request("DELETE", "/_search/scroll");
+      request.addParameters(Collections.emptyMap());
+      request.setEntity(entity);
+      return request;
+    }
+
+    @Override
+    protected boolean processResult(JsonNode searchResult) throws IOException {
       return readNextBatchAndReturnFirstDocument(searchResult);
     }
 
-    private void updateScrollId(JsonNode searchResult) {
-      scrollId = searchResult.path("_scroll_id").asText();
+    @Override
+    protected void updateIteratorId(JsonNode searchResult) {
+      iteratorId = searchResult.path("_scroll_id").asText();
+    }
+  }
+
+  static class BoundedElasticsearchPITReader extends BoundedElasticsearchReader {
+
+    private String searchAfterProperty = "";
+
+    public BoundedElasticsearchPITReader(BoundedElasticsearchSource source) {
+      super(source);
+    }
+
+    private String modifyQueryForPIT(String originalQuery) {
+      String trimmed = originalQuery.trim();
+      if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+        return trimmed.substring(1, trimmed.length() - 1);
+      }
+      return originalQuery;
+    }
+
+    @Override
+    protected String createBaseQuery() {
+      return modifyQueryForPIT(super.createBaseQuery()) + ", " + source.spec.getPITSortConfig();
+    }
+
+    @Override
+    protected Request createStartRequest() {
+      String endPoint =
+          String.format("/%s/_pit", source.spec.getConnectionConfiguration().getIndex());
+      Map<String, String> params = new HashMap<>();
+      params.put("keep_alive", source.spec.getScrollKeepalive());
+      Request request = new Request("POST", endPoint);
+      request.addParameters(params);
+      return request;
+    }
+
+    String searchAfter() {
+      if (searchAfterProperty.isEmpty()) {
+        return "";
+      }
+      return String.format("\"search_after\" : %s,", searchAfterProperty);
+    }
+
+    @Override
+    protected Request createAdvanceRequest() {
+      // if there is more than one slice, add the slice to the user query
+      String sliceQuery =
+          source.numSlices > 1
+              ? String.format(
+                  "\"slice\" : {\"id\" : %s, \"max\" : %s},", source.sliceId, source.numSlices)
+              : "";
+
+      String requestBody =
+          String.format(
+              "{"
+                  + " %s"
+                  + " \"size\" : %d,"
+                  + " %s"
+                  + " %s,"
+                  + " \"pit\": {"
+                  + "  \"id\": \"%s\""
+                  + " }"
+                  + "}",
+              searchAfter(), source.spec.getBatchSize(), sliceQuery, createBaseQuery(), iteratorId);
+      HttpEntity pitSearchEntity = new NStringEntity(requestBody, ContentType.APPLICATION_JSON);
+      Request request = new Request("POST", "/_search");
+      request.addParameters(Collections.emptyMap());
+      request.setEntity(pitSearchEntity);
+      return request;
+    }
+
+    @Override
+    protected Request createCloseRequest() {
+      String requestBody = String.format("{\"id\" : \"%s\"}", iteratorId);
+      HttpEntity entity = new NStringEntity(requestBody, ContentType.APPLICATION_JSON);
+      Request request = new Request("DELETE", "/_pit");
+      request.addParameters(Collections.emptyMap());
+      request.setEntity(entity);
+      return request;
+    }
+
+    String extractSearchAfterFromDocument(JsonNode document) {
+      return document.path("sort").toString();
     }
 
     @Override
     public boolean advance() throws IOException {
       if (batchIterator.hasNext()) {
         current = batchIterator.next();
+        searchAfterProperty = extractSearchAfterFromDocument(current);
         return true;
       } else {
-        String requestBody =
-            String.format(
-                "{\"scroll\" : \"%s\",\"scroll_id\" : \"%s\"}",
-                source.spec.getScrollKeepalive(), scrollId);
-        HttpEntity scrollEntity = new NStringEntity(requestBody, ContentType.APPLICATION_JSON);
-        Request request = new Request("GET", "/_search/scroll");
-        request.addParameters(Collections.emptyMap());
-        request.setEntity(scrollEntity);
-        Response response = restClient.performRequest(request);
-        JsonNode searchResult = parseResponse(response.getEntity());
-        updateScrollId(searchResult);
-        return readNextBatchAndReturnFirstDocument(searchResult);
+        return performAdvance();
       }
     }
 
-    private boolean readNextBatchAndReturnFirstDocument(JsonNode searchResult) {
-      // stop if no more data
-      JsonNode hits = searchResult.path("hits").path("hits");
-      if (hits.size() == 0) {
-        current = null;
-        batchIterator = null;
+    @Override
+    protected boolean processResult(JsonNode searchResult) throws IOException {
+      JsonNode hits = searchResult.path("hits");
+      if (hits == null || hits.isMissingNode()) {
+        // after creating the PIT we need to make the first request to comply with Reader API and
+        // try to get a first result or declare the source empty
+        return performAdvance();
+      }
+      JsonNode resultArray = hits.path("hits");
+      // check if results are empty
+      if (resultArray == null || resultArray.isEmpty()) {
         return false;
       }
-      // list behind iterator is empty
-      List<String> batch = new ArrayList<>();
-      boolean withMetadata = source.spec.isWithMetadata();
-      for (JsonNode hit : hits) {
-        if (withMetadata) {
-          batch.add(hit.toString());
-        } else {
-          String document = hit.path("_source").toString();
-          batch.add(document);
-        }
+      // we already opened the PIT search and are processing the search results
+      boolean wasDocumentRead = readNextBatchAndReturnFirstDocument(searchResult);
+      if (wasDocumentRead && current != null) {
+        searchAfterProperty = extractSearchAfterFromDocument(current);
       }
-      batchIterator = batch.listIterator();
-      current = batchIterator.next();
-      return true;
+      return wasDocumentRead;
     }
 
     @Override
-    public String getCurrent() throws NoSuchElementException {
-      if (current == null) {
-        throw new NoSuchElementException();
-      }
-      return current;
+    protected void updateIteratorId(JsonNode searchResult) {
+      iteratorId = extractPITId(searchResult);
     }
 
-    @Override
-    public void close() throws IOException {
-      // remove the scroll
-      String requestBody = String.format("{\"scroll_id\" : [\"%s\"]}", scrollId);
-      HttpEntity entity = new NStringEntity(requestBody, ContentType.APPLICATION_JSON);
-      try {
-        Request request = new Request("DELETE", "/_search/scroll");
-        request.addParameters(Collections.emptyMap());
-        request.setEntity(entity);
-        restClient.performRequest(request);
-      } finally {
-        if (restClient != null) {
-          restClient.close();
-        }
+    String extractPITId(JsonNode searchResult) {
+      String maybeId = searchResult.path("id").asText();
+      // check if this is the first request
+      if (maybeId != null && !maybeId.isEmpty()) {
+        return maybeId;
+      } else {
+        return searchResult.path("pit_id").asText();
       }
-    }
-
-    @Override
-    public BoundedSource<String> getCurrentSource() {
-      return source;
     }
   }
+
   /**
    * A POJO encapsulating a configuration for retry behavior when issuing requests to ES. A retry
    * will be attempted until the maxAttempts or maxDuration is exceeded, whichever comes first, for
@@ -1423,8 +1690,8 @@ public class ElasticsearchIO {
      * href="https://www.elastic.co/guide/en/elasticsearch/reference/current/data-streams.html">data
      * stream</a>. Data streams only support the {@code create} operation. For more information see
      * the <a
-     * href="https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html#docs-bulk-api-desc>
-     * Elasticsearch documentation</a>
+     * href="https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html#docs-bulk-api-desc">Elasticsearch
+     * documentation</a>
      *
      * <p>Updates and deletions are not allowed, so related options will be ignored.
      *
@@ -1485,7 +1752,7 @@ public class ElasticsearchIO {
      * the batch will fail and the exception propagated. Incompatible with update operations and
      * should only be used with withUsePartialUpdate(false)
      *
-     * @param docVersionType the version type to use, one of {@value VERSION_TYPES}
+     * @param docVersionType the version type to use, one of {@link VERSION_TYPES}
      * @return the {@link DocToBulk} with the doc version type set
      */
     public DocToBulk withDocVersionType(String docVersionType) {

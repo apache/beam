@@ -80,7 +80,7 @@ def create_github_issue(repo, alert):
     if GRAFANA_PANEL_IDS.get(alert.workflow_dashboard_category):
         grafana_workflow_runs_url = f"{GRAFANA_URL}/d/CTYdoxP4z/ga-post-commits-status?orgId=1" \
                            f"&viewPanel={GRAFANA_PANEL_IDS[alert.workflow_dashboard_category]}" \
-                           f"&var-Workflow={alert.workflow_name}"
+                           f"&var-Workflow={alert.workflow_name.replace(' ', '%20')}"
         body += f"See also Grafana statistics: {grafana_workflow_runs_url}"
     labels = ["flaky_test", f"workflow_id: {alert.workflow_id}", "bug", "P1"]
     print("___")

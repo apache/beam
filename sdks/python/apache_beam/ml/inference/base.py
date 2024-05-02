@@ -315,6 +315,13 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
     https://beam.apache.org/releases/pydoc/current/apache_beam.utils.multi_process_shared.html"""
     return False
 
+  def model_copies(self) -> int:
+    """Returns the maximum number of model copies that should be loaded at one
+    time. This only impacts model handlers that are using
+    share_model_across_processes to share their model across processes instead
+    of being loaded per process."""
+    return 1
+
   def override_metrics(self, metrics_namespace: str = '') -> bool:
     """Returns a boolean representing whether or not a model handler will
     override metrics reporting. If True, RunInference will not report any
@@ -795,6 +802,21 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
       return self._unkeyed.share_model_across_processes()
     return True
 
+  def model_copies(self) -> int:
+    if self._single_model:
+      return self._unkeyed.model_copies()
+    for mh in self._id_to_mh_map.values():
+      if mh.model_copies() != 1:
+        raise ValueError(
+            'KeyedModelHandler cannot map records to multiple '
+            'models if one or more of its ModelHandlers '
+            'require multiple model copies (set via '
+            'model_copies). To fix, verify that each '
+            'ModelHandler is not set to load multiple copies of '
+            'its model.')
+
+    return 1
+
   def override_metrics(self, metrics_namespace: str = '') -> bool:
     if self._single_model:
       return self._unkeyed.override_metrics(metrics_namespace)
@@ -902,6 +924,9 @@ class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
   def share_model_across_processes(self) -> bool:
     return self._unkeyed.share_model_across_processes()
 
+  def model_copies(self) -> int:
+    return self._unkeyed.model_copies()
+
 
 class _PrebatchedModelHandler(Generic[ExampleT, PredictionT, ModelT],
                               ModelHandler[Sequence[ExampleT],
@@ -951,6 +976,12 @@ class _PrebatchedModelHandler(Generic[ExampleT, PredictionT, ModelT],
 
   def should_skip_batching(self) -> bool:
     return True
+
+  def share_model_across_processes(self) -> bool:
+    return self._base.share_model_across_processes()
+
+  def model_copies(self) -> int:
+    return self._base.model_copies()
 
   def get_postprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
     return self._base.get_postprocess_fns()
@@ -1012,6 +1043,12 @@ class _PreProcessingModelHandler(Generic[ExampleT,
   def should_skip_batching(self) -> bool:
     return self._base.should_skip_batching()
 
+  def share_model_across_processes(self) -> bool:
+    return self._base.share_model_across_processes()
+
+  def model_copies(self) -> int:
+    return self._base.model_copies()
+
   def get_postprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
     return self._base.get_postprocess_fns()
 
@@ -1070,6 +1107,12 @@ class _PostProcessingModelHandler(Generic[ExampleT,
 
   def should_skip_batching(self) -> bool:
     return self._base.should_skip_batching()
+
+  def share_model_across_processes(self) -> bool:
+    return self._base.share_model_across_processes()
+
+  def model_copies(self) -> int:
+    return self._base.model_copies()
 
   def get_postprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
     return self._base.get_postprocess_fns() + [self._postprocess_fn]
@@ -1378,6 +1421,45 @@ class _MetricsCollector:
     self._inference_request_batch_byte_size.update(examples_byte_size)
 
 
+class _ModelRoutingStrategy():
+  """A class meant to sit in a shared location for mapping incoming batches to
+  different models. Currently only supports round-robin, but can be extended
+  to support other protocols if needed.
+  """
+  def __init__(self):
+    self._cur_index = 0
+
+  def next_model_index(self, num_models):
+    self._cur_index = (self._cur_index + 1) % num_models
+    return self._cur_index
+
+
+class _SharedModelWrapper():
+  """A router class to map incoming calls to the correct model.
+  
+    This allows us to round robin calls to models sitting in different
+    processes so that we can more efficiently use resources (e.g. GPUs).
+  """
+  def __init__(self, models: List[Any], model_tag: str):
+    self.models = models
+    if len(models) > 1:
+      self.model_router = multi_process_shared.MultiProcessShared(
+          lambda: _ModelRoutingStrategy(),
+          tag=f'{model_tag}_counter',
+          always_proxy=True).acquire()
+
+  def next_model(self):
+    if len(self.models) == 1:
+      # Short circuit if there's no routing strategy needed in order to
+      # avoid the cross-process call
+      return self.models[0]
+
+    return self.models[self.model_router.next_model_index(len(self.models))]
+
+  def all_models(self):
+    return self.models
+
+
 class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
   def __init__(
       self,
@@ -1408,7 +1490,8 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
   def _load_model(
       self,
       side_input_model_path: Optional[Union[str,
-                                            List[KeyModelPathMapping]]] = None):
+                                            List[KeyModelPathMapping]]] = None
+  ) -> _SharedModelWrapper:
     def load():
       """Function for constructing shared LoadedModel."""
       memory_before = _get_current_process_memory_in_bytes()
@@ -1416,8 +1499,10 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       if isinstance(side_input_model_path, str):
         self._model_handler.update_model_path(side_input_model_path)
       else:
-        self._model_handler.update_model_paths(
-            self._model, side_input_model_path)
+        if self._model is not None:
+          models = self._model.all_models()
+          for m in models:
+            self._model_handler.update_model_paths(m, side_input_model_path)
       model = self._model_handler.load_model()
       end_time = _to_milliseconds(self._clock.time_ns())
       memory_after = _get_current_process_memory_in_bytes()
@@ -1434,10 +1519,15 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     if isinstance(side_input_model_path, str) and side_input_model_path != '':
       model_tag = side_input_model_path
     if self._model_handler.share_model_across_processes():
-      model = multi_process_shared.MultiProcessShared(
-          load, tag=model_tag, always_proxy=True).acquire()
+      models = []
+      for i in range(self._model_handler.model_copies()):
+        models.append(
+            multi_process_shared.MultiProcessShared(
+                load, tag=f'{model_tag}{i}', always_proxy=True).acquire())
+      model_wrapper = _SharedModelWrapper(models, model_tag)
     else:
       model = self._shared_model_handle.acquire(load, tag=model_tag)
+      model_wrapper = _SharedModelWrapper([model], model_tag)
     # since shared_model_handle is shared across threads, the model path
     # might not get updated in the model handler
     # because we directly get cached weak ref model from shared cache, instead
@@ -1445,8 +1535,11 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     if isinstance(side_input_model_path, str):
       self._model_handler.update_model_path(side_input_model_path)
     else:
-      self._model_handler.update_model_paths(self._model, side_input_model_path)
-    return model
+      if self._model is not None:
+        models = self._model.all_models()
+        for m in models:
+          self._model_handler.update_model_paths(m, side_input_model_path)
+    return model_wrapper
 
   def get_metrics_collector(self, prefix: str = ''):
     """
@@ -1476,8 +1569,9 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
   def _run_inference(self, batch, inference_args):
     start_time = _to_microseconds(self._clock.time_ns())
     try:
+      model = self._model.next_model()
       result_generator = self._model_handler.run_inference(
-          batch, self._model, inference_args)
+          batch, model, inference_args)
     except BaseException as e:
       if self._metrics_collector:
         self._metrics_collector.failed_batches_counter.inc()

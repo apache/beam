@@ -155,6 +155,132 @@ class ScaleTo01Test(unittest.TestCase):
           actual_output, equal_to(expected_output, equals_fn=np.array_equal))
 
 
+class ScaleToGaussianTest(unittest.TestCase):
+  def setUp(self) -> None:
+    self.artifact_location = tempfile.mkdtemp()
+
+  def tearDown(self):
+    shutil.rmtree(self.artifact_location)
+
+  def test_gaussian_list_uniform_distribution(self):
+    list_data = [{'x': [1, 2, 3]}, {'x': [4, 5, 6]}]
+    with beam.Pipeline() as p:
+      list_result = (
+          p
+          | "listCreate" >> beam.Create(list_data)
+          | "listMLTransform" >> base.MLTransform(
+              write_artifact_location=self.artifact_location).with_transform(
+                  tft.ScaleToGaussian(columns=['x'])))
+
+      expected_data = [
+          np.array([-1.46385, -0.87831, -0.29277], dtype=np.float32),
+          np.array([0.29277, 0.87831, 1.46385], dtype=np.float32)
+      ]
+      actual_data = (list_result | beam.Map(lambda x: x.x))
+      assert_that(
+          actual_data, equal_to(expected_data, equals_fn=np.array_equal))
+
+  def test_gaussian_list_skewed_distribution(self):
+    list_data = [{'x': [1, 2, 4]}, {'x': [8, 16, 32]}]
+    with beam.Pipeline() as p:
+      list_result = (
+          p
+          | "listCreate" >> beam.Create(list_data)
+          | "listMLTransform" >> base.MLTransform(
+              write_artifact_location=self.artifact_location).with_transform(
+                  tft.ScaleToGaussian(columns=['x'])))
+
+      expected_data = [
+          np.array([-0.87733847, -0.78498703, -0.6002842], dtype=np.float32),
+          np.array([-0.23087855, 0.5079328, 1.9855555], dtype=np.float32)
+      ]
+      actual_data = (list_result | beam.Map(lambda x: x.x))
+      assert_that(actual_data, equal_to(expected_data, equals_fn=np.allclose))
+
+  def test_gaussian_uniform(self):
+    data = [
+        {
+            'x': 1
+        },
+        {
+            'x': 2
+        },
+        {
+            'x': 3
+        },
+        {
+            'x': 4
+        },
+        {
+            'x': 5
+        },
+        {
+            'x': 6
+        },
+    ]
+
+    with beam.Pipeline() as p:
+      result = (
+          p
+          | "Create" >> beam.Create(data)
+          | "MLTransform" >> base.MLTransform(
+              write_artifact_location=self.artifact_location).with_transform(
+                  tft.ScaleToZScore(columns=['x'])))
+      expected_data = [
+          np.array([-1.46385], dtype=np.float32),
+          np.array([-0.87831], dtype=np.float32),
+          np.array([-0.29277], dtype=np.float32),
+          np.array([0.29277], dtype=np.float32),
+          np.array([0.87831], dtype=np.float32),
+          np.array([1.46385], dtype=np.float32),
+      ]
+
+      actual_data = (result | beam.Map(lambda x: x.x))
+      assert_that(
+          actual_data, equal_to(expected_data, equals_fn=np.array_equal))
+
+  def test_gaussian_skewed(self):
+    data = [
+        {
+            'x': 1
+        },
+        {
+            'x': 2
+        },
+        {
+            'x': 4
+        },
+        {
+            'x': 8
+        },
+        {
+            'x': 16
+        },
+        {
+            'x': 32
+        },
+    ]
+
+    with beam.Pipeline() as p:
+      result = (
+          p
+          | "Create" >> beam.Create(data)
+          | "MLTransform" >> base.MLTransform(
+              write_artifact_location=self.artifact_location).with_transform(
+                  tft.ScaleToZScore(columns=['x'])))
+      expected_data = [
+          np.array([-0.87733847], dtype=np.float32),
+          np.array([-0.78498703], dtype=np.float32),
+          np.array([-0.6002842], dtype=np.float32),
+          np.array([-0.23087855], dtype=np.float32),
+          np.array([0.5079328], dtype=np.float32),
+          np.array([1.9855555], dtype=np.float32),
+      ]
+
+      actual_data = (result | beam.Map(lambda x: x.x))
+      assert_that(actual_data, equal_to(expected_data, equals_fn=np.allclose))
+
+
 class BucketizeTest(unittest.TestCase):
   def setUp(self) -> None:
     self.artifact_location = tempfile.mkdtemp()

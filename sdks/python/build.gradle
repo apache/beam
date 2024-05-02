@@ -80,7 +80,7 @@ tasks.register("generateExternalTransformsConfig") {
     exec {
       executable 'sh'
       args '-c', "pip install $PyYaml && " +
-              "python -m apache_beam.yaml.generate_yaml_docs.py --cleanup --generate-config-only"
+              "python gen_xlang_wrappers.py --cleanup --generate-config-only"
     }
   }
 }

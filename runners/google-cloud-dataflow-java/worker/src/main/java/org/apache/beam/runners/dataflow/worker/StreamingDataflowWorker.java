@@ -131,6 +131,7 @@ import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
+import org.apache.beam.sdk.util.construction.CoderTranslation;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
@@ -601,6 +602,8 @@ public class StreamingDataflowWorker {
         "%s cannot be main() class with beam_fn_api enabled",
         StreamingDataflowWorker.class.getSimpleName());
 
+    CoderTranslation.verifyModelCodersRegistered();
+
     LOG.debug("Creating StreamingDataflowWorker from options: {}", options);
     StreamingDataflowWorker worker = StreamingDataflowWorker.fromOptions(options);
 
@@ -609,7 +612,7 @@ public class StreamingDataflowWorker {
     MetricsEnvironment.setProcessWideContainer(new MetricsLogger(null));
 
     if (options.isEnableStreamingEngine()
-        && DataflowRunner.hasExperiment(options, "enable_per_worker_metrics")) {
+        && !DataflowRunner.hasExperiment(options, "disable_per_worker_metrics")) {
       enableBigQueryMetrics();
     }
 

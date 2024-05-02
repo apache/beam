@@ -93,7 +93,7 @@ func (fn *eventTimeFn) OnTimer(ctx context.Context, ts beam.EventTime, sp state.
 	}
 }
 
-// TimersEventTime takes in an impulse transform and produces a pipeline construction
+// timersEventTimePipelineBuilder takes in an impulse transform and produces a pipeline construction
 // function that validates EventTime timers.
 //
 // The impulse is provided outside to swap between a bounded impulse, and

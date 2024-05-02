@@ -40,11 +40,8 @@ public interface StreamingInsertsMetrics {
 
   void updateSuccessfulRpcMetrics(Instant start, Instant end);
 
-  void incrementFailedRows();
-
-  void updateSuccessfulAndFailedRows(int totalRows, int failedRows);
-
-  void updateStreamingInsertsMetrics(@Nullable TableReference tableRef);
+  void updateStreamingInsertsMetrics(
+      @Nullable TableReference tableRef, int totalRows, int failedRows);
 
   /** No-op implementation of {@code StreamingInsertsResults}. */
   class NoOpStreamingInsertsMetrics implements StreamingInsertsMetrics {
@@ -60,13 +57,8 @@ public interface StreamingInsertsMetrics {
     public void updateSuccessfulRpcMetrics(Instant start, Instant end) {}
 
     @Override
-    public void incrementFailedRows() {}
-
-    @Override
-    public void updateSuccessfulAndFailedRows(int totalRows, int failedRows) {}
-
-    @Override
-    public void updateStreamingInsertsMetrics(@Nullable TableReference tableRef) {}
+    public void updateStreamingInsertsMetrics(
+        @Nullable TableReference tableRef, int totalRows, int failedRows) {}
 
     private static NoOpStreamingInsertsMetrics singleton = new NoOpStreamingInsertsMetrics();
 
@@ -87,6 +79,10 @@ public interface StreamingInsertsMetrics {
    */
   @AutoValue
   abstract class StreamingInsertsMetricsImpl implements StreamingInsertsMetrics {
+    static final Histogram LATENCY_HISTOGRAM =
+        BigQuerySinkMetrics.createRPCLatencyHistogram(
+            BigQuerySinkMetrics.RpcMethod.STREAMING_INSERTS);
+
     abstract ConcurrentLinkedQueue<java.time.Duration> rpcLatencies();
 
     abstract ConcurrentLinkedQueue<String> rpcErrorStatus();
@@ -96,10 +92,6 @@ public interface StreamingInsertsMetrics {
 
     abstract AtomicInteger successfulRpcsCount();
 
-    abstract AtomicInteger successfulRowsCount();
-
-    abstract AtomicInteger failedRowsCount();
-
     abstract AtomicBoolean isWritable();
 
     public static StreamingInsertsMetricsImpl create() {
@@ -107,8 +99,6 @@ public interface StreamingInsertsMetrics {
           new ConcurrentLinkedQueue<>(),
           new ConcurrentLinkedQueue<>(),
           new ConcurrentLinkedQueue<>(),
-          new AtomicInteger(),
-          new AtomicInteger(),
           new AtomicInteger(),
           new AtomicBoolean(true));
     }
@@ -139,31 +129,11 @@ public interface StreamingInsertsMetrics {
       }
     }
 
-    /** Increment the failed rows count by one. */
-    @Override
-    public void incrementFailedRows() {
-      if (isWritable().get()) {
-        failedRowsCount().getAndIncrement();
-      }
-    }
-
-    /** Increment the failed rows count, and set the successful rows count. */
-    @Override
-    public void updateSuccessfulAndFailedRows(int totalRows, int failedRows) {
-      if (isWritable().get()) {
-        failedRowsCount().getAndAdd(failedRows);
-        successfulRowsCount().set(totalRows - failedRowsCount().get());
-      }
-    }
-
     /** Record rpc latency histogram metrics. */
     private void recordRpcLatencyMetrics() {
-      Histogram latencyHistogram =
-          BigQuerySinkMetrics.createRPCLatencyHistogram(
-              BigQuerySinkMetrics.RpcMethod.STREAMING_INSERTS);
-      double[] rpcLatencies =
-          rpcLatencies().stream().mapToDouble(duration -> duration.toMillis()).toArray();
-      latencyHistogram.update(rpcLatencies);
+      for (Duration d : rpcLatencies()) {
+        LATENCY_HISTOGRAM.update(d.toMillis());
+      }
     }
 
     /**
@@ -174,7 +144,8 @@ public interface StreamingInsertsMetrics {
      * @param tableRef BigQuery table that was written to, return early if null.
      */
     @Override
-    public void updateStreamingInsertsMetrics(@Nullable TableReference tableRef) {
+    public void updateStreamingInsertsMetrics(
+        @Nullable TableReference tableRef, int totalRows, int failedRows) {
       if (!isWritable().compareAndSet(true, false)) {
         // Metrics have already been exported.
         return;
@@ -221,16 +192,16 @@ public interface StreamingInsertsMetrics {
             .inc(successfulRpcsCount().longValue());
       }
 
-      if (failedRowsCount().get() != 0) {
+      if (failedRows >= 0) {
         BigQuerySinkMetrics.appendRowsRowStatusCounter(
                 BigQuerySinkMetrics.RowStatus.FAILED, BigQuerySinkMetrics.INTERNAL, shortTableId)
-            .inc(failedRowsCount().longValue());
+            .inc(failedRows);
       }
 
-      if (successfulRowsCount().get() != 0) {
+      if (totalRows - failedRows >= 0) {
         BigQuerySinkMetrics.appendRowsRowStatusCounter(
                 BigQuerySinkMetrics.RowStatus.SUCCESSFUL, BigQuerySinkMetrics.OK, shortTableId)
-            .inc(successfulRowsCount().longValue());
+            .inc(totalRows - failedRows);
       }
 
       recordRpcLatencyMetrics();
