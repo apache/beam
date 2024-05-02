@@ -39,7 +39,7 @@ The newer Avro package is known to have breaking changes. If you are affected, y
 &lt;li>Fixed logging issue that caused silecing the pip output when installing of dependencies provided in &lt;code>--requirements_file&lt;/code> (Python).&lt;/li>
 &lt;/ul>
 &lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
-&lt;p>According to git shortlog, the following people contributed to the {$RELEASE_VERSION} release. Thank you to all contributors!&lt;/p>
+&lt;p>According to git shortlog, the following people contributed to the 2.56.0 release. Thank you to all contributors!&lt;/p>
 &lt;p>Abacn&lt;/p>
 &lt;p>Ahmed Abualsaud&lt;/p>
 &lt;p>Andrei Gurau&lt;/p>
@@ -166,7 +166,7 @@ to the &lt;code>getDialect&lt;/code> calls for authenticating with Spanner (Java
 &lt;li>In Python pipelines, when shutting down inactive bundle processors, shutdown logic can overaggressively hold the lock, blocking acceptance of new work. Symptoms of this issue include slowness or stuckness in long-running jobs. Fixed in 2.56.0 (&lt;a href="https://github.com/apache/beam/pull/30679">#30679&lt;/a>).&lt;/li>
 &lt;/ul>
 &lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
-&lt;p>According to git shortlog, the following people contributed to the {$RELEASE_VERSION} release. Thank you to all contributors!&lt;/p>
+&lt;p>According to git shortlog, the following people contributed to the 2.55.0 release. Thank you to all contributors!&lt;/p>
 &lt;p>Ahmed Abualsaud&lt;/p>
 &lt;p>Anand Inguva&lt;/p>
 &lt;p>Andrew Crites&lt;/p>
