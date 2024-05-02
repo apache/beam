@@ -77,7 +77,7 @@ For more information on changes in 2.55.0, check out the [detailed release notes
 
 ## List of Contributors
 
-According to git shortlog, the following people contributed to the {$RELEASE_VERSION} release. Thank you to all contributors!
+According to git shortlog, the following people contributed to the 2.55.0 release. Thank you to all contributors!
 
 Ahmed Abualsaud
 
