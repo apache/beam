@@ -479,6 +479,7 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, em *eng
 	}
 
 	reconcileCoders(coders, comps.GetCoders())
+	reconcileWindowCoders(coders, comps.GetCoders(), comps.GetWindowingStrategies())
 
 	var timerServiceDescriptor *pipepb.ApiServiceDescriptor
 	if len(stg.hasTimers) > 0 {

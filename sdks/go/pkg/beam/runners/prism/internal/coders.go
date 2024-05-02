@@ -187,6 +187,30 @@ func reconcileCoders(bundle, base map[string]*pipepb.Coder) {
 	}
 }
 
+func reconcileWindowCoders(bundle, base map[string]*pipepb.Coder, ws map[string]*pipepb.WindowingStrategy) {
+	for {
+		var comps []string
+		for _, w := range ws {
+			if _, ok := bundle[w.WindowCoderId]; !ok {
+				comps = append(comps, w.WindowCoderId)
+			}
+		}
+		if len(comps) == 0 {
+			return
+		}
+		if len(comps) == 0 {
+			return
+		}
+		for _, ccid := range comps {
+			c, ok := base[ccid]
+			if !ok {
+				panic(fmt.Sprintf("unknown coder id during reconciliation: %v", ccid))
+			}
+			bundle[ccid] = c
+		}
+	}
+}
+
 // pullDecoder return a function that will extract the bytes
 // for the associated coder. Uses a buffer and a TeeReader to extract the original
 // bytes from when decoding elements.

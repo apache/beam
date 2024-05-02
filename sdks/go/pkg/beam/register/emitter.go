@@ -33,7 +33,7 @@ type emit struct {
 	value exec.FullValue
 }
 
-func (e *emit) Init(ctx context.Context, ws []typex.Window, et typex.EventTime) error {
+func (e *emit) Init(ctx context.Context, pn typex.PaneInfo, ws []typex.Window, et typex.EventTime) error {
 	e.ctx = ctx
 	e.ws = ws
 	e.et = et

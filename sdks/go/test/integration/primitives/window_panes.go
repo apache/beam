@@ -16,11 +16,16 @@
 package primitives
 
 import (
+	"context"
+	"fmt"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window/trigger"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/teststream"
@@ -30,6 +35,9 @@ func init() {
 	register.Function3x0(panesFn)
 
 	register.Emitter1[int]()
+
+	register.Function2x0(produceFn)
+	register.Function4x0(getPanes)
 }
 
 // panesFn is DoFn that simply emits the pane timing value.
@@ -52,4 +60,42 @@ func Panes(s beam.Scope) {
 	sums := beam.ParDo(s, panesFn, windowed)
 	sums = beam.WindowInto(s, window.NewGlobalWindows(), sums)
 	passert.Count(s, sums, "number of firings", 3)
+}
+
+func produceFn(_ []byte, emit func(beam.EventTime, int)) {
+	baseT := mtime.Now()
+	for i := 0; i < 10; i++ {
+		emit(baseT.Add(time.Minute), i)
+	}
+}
+
+func Produce(s beam.Scope) beam.PCollection {
+	return beam.ParDo(s, produceFn, beam.Impulse(s))
+
+}
+
+func getPanes(ctx context.Context, pi typex.PaneInfo, _ int, emit func(int)) {
+	log.Output(ctx, log.SevWarn, 0, fmt.Sprintf("got pane %+v", pi))
+	emit(int(pi.Index))
+}
+
+func PanesNonStreaming(s beam.Scope) {
+	c := Produce(s)
+	windowed := beam.WindowInto(
+		s,
+		window.NewFixedWindows(5*time.Minute),
+		c,
+		//beam.Trigger(trigger.AfterEndOfWindow().
+		//	EarlyFiring(
+		//		trigger.Repeat(
+		//			trigger.AfterCount(2),
+		//		),
+		//	),
+		//),
+		//beam.PanesDiscard(),
+	)
+	panes := beam.ParDo(s, getPanes, windowed)
+	paneIdxs := beam.WindowInto(s, window.NewGlobalWindows(), panes)
+	passert.Count(s, paneIdxs, "pane idxs", 10)
+	passert.EqualsList(s, paneIdxs, []int{0, 0, 1, 1, 2, 0, 0, 1, 1, 2})
 }
