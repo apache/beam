@@ -96,7 +96,7 @@ versions denoted `0.x.y`.
 
 ## Releases
 
-### 2.56.0 (TODO)
+### 2.56.0 (2024-05-01)
 Official [source code download](https://downloads.apache.org/beam/2.56.0/apache-beam-2.56.0-source-release.zip).
 [SHA-512](https://downloads.apache.org/beam/2.56.0/apache-beam-2.56.0-source-release.zip.sha512).
 [signature](https://downloads.apache.org/beam/2.56.0/apache-beam-2.56.0-source-release.zip.asc).
