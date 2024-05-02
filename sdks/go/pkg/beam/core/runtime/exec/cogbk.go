@@ -174,6 +174,7 @@ func (f *filterStream) Read() (*FullValue, error) {
 		}
 		v.Timestamp = elm.Timestamp
 		v.Windows = elm.Windows
+		v.Pane = elm.Pane
 		return v, nil
 	}
 }
