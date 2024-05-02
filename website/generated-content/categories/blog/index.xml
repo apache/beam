@@ -1,4 +1,98 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – blog</title><link>/categories/blog/</link><description>Recent content in blog on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Thu, 11 Apr 2024 10:00:00 -0400</lastBuildDate><atom:link href="/categories/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Introducing Beam YAML: Apache Beam's First No-code SDK</title><link>/blog/beam-yaml-release/</link><pubDate>Thu, 11 Apr 2024 10:00:00 -0400</pubDate><guid>/blog/beam-yaml-release/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – blog</title><link>/categories/blog/</link><description>Recent content in blog on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Wed, 01 May 2024 10:00:00 -0400</lastBuildDate><atom:link href="/categories/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.56.0</title><link>/blog/beam-2.56.0/</link><pubDate>Wed, 01 May 2024 10:00:00 -0400</pubDate><guid>/blog/beam-2.56.0/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>We are happy to present the new 2.56.0 release of Beam.
+This release includes both improvements and new functionality.
+See the &lt;a href="/get-started/downloads/#2550-2023-03-25">download page&lt;/a> for this release.&lt;/p>
+&lt;p>For more information on changes in 2.56.0, check out the &lt;a href="https://github.com/apache/beam/milestone/20">detailed release notes&lt;/a>.&lt;/p>
+&lt;h2 id="highlights">Highlights&lt;/h2>
+&lt;ul>
+&lt;li>Added FlinkRunner for Flink 1.17, removed support for Flink 1.12 and 1.13. Previous version of Pipeline running on Flink 1.16 and below can be upgraded to 1.17, if the Pipeline is first updated to Beam 2.56.0 with the same Flink version. After Pipeline runs with Beam 2.56.0, it should be possible to upgrade to FlinkRunner with Flink 1.17. (&lt;a href="https://github.com/apache/beam/issues/29939">#29939&lt;/a>)&lt;/li>
+&lt;/ul>
+&lt;h2 id="ios">I/Os&lt;/h2>
+&lt;ul>
+&lt;li>Upgraded Avro version to 1.11.3, kafka-avro-serializer and kafka-schema-registry-client versions to 7.6.0 (Java) (&lt;a href="https://github.com/apache/beam/pull/30638">#30638&lt;/a>).
+The newer Avro package is known to have breaking changes. If you are affected, you can keep pinned to older Avro versions which are also tested with Beam.&lt;/li>
+&lt;/ul>
+&lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
+&lt;ul>
+&lt;li>Profiling of Cythonized code has been disabled by default. This might improve performance for some Python pipelines (&lt;a href="https://github.com/apache/beam/pull/30938">#30938&lt;/a>).&lt;/li>
+&lt;li>Bigtable enrichment handler now accepts a custom function to build a composite row key. (Python) (&lt;a href="https://github.com/apache/beam/issues/30975">#30974&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="breaking-changes">Breaking Changes&lt;/h2>
+&lt;ul>
+&lt;li>Default consumer polling timeout for KafkaIO.Read was increased from 1 second to 2 seconds. Use KafkaIO.read().withConsumerPollingTimeout(Duration duration) to configure this timeout value when necessary (&lt;a href="https://github.com/apache/beam/issues/30870">#30870&lt;/a>).&lt;/li>
+&lt;li>Python Dataflow users no longer need to manually specify &amp;ndash;streaming for pipelines using unbounded sources such as ReadFromPubSub.&lt;/li>
+&lt;/ul>
+&lt;h2 id="bugfixes">Bugfixes&lt;/h2>
+&lt;ul>
+&lt;li>Fixed locking issue when shutting down inactive bundle processors. Symptoms of this issue include slowness or stuckness in long-running jobs (Python) (&lt;a href="https://github.com/apache/beam/pull/30679">#30679&lt;/a>).&lt;/li>
+&lt;li>Fixed logging issue that caused silecing the pip output when installing of dependencies provided in &lt;code>--requirements_file&lt;/code> (Python).&lt;/li>
+&lt;/ul>
+&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
+&lt;p>According to git shortlog, the following people contributed to the {$RELEASE_VERSION} release. Thank you to all contributors!&lt;/p>
+&lt;p>Abacn&lt;/p>
+&lt;p>Ahmed Abualsaud&lt;/p>
+&lt;p>Andrei Gurau&lt;/p>
+&lt;p>Andrey Devyatkin&lt;/p>
+&lt;p>Aravind Pedapudi&lt;/p>
+&lt;p>Arun Pandian&lt;/p>
+&lt;p>Arvind Ram&lt;/p>
+&lt;p>Bartosz Zablocki&lt;/p>
+&lt;p>Brachi Packter&lt;/p>
+&lt;p>Byron Ellis&lt;/p>
+&lt;p>Chamikara Jayalath&lt;/p>
+&lt;p>Clement DAL PALU&lt;/p>
+&lt;p>Damon&lt;/p>
+&lt;p>Danny McCormick&lt;/p>
+&lt;p>Daria Bezkorovaina&lt;/p>
+&lt;p>Dip Patel&lt;/p>
+&lt;p>Evan Burrell&lt;/p>
+&lt;p>Hai Joey Tran&lt;/p>
+&lt;p>Jack McCluskey&lt;/p>
+&lt;p>Jan Lukavský&lt;/p>
+&lt;p>JayajP&lt;/p>
+&lt;p>Jeff Kinard&lt;/p>
+&lt;p>Julien Tournay&lt;/p>
+&lt;p>Kenneth Knowles&lt;/p>
+&lt;p>Luís Bianchin&lt;/p>
+&lt;p>Maciej Szwaja&lt;/p>
+&lt;p>Melody Shen&lt;/p>
+&lt;p>Oleh Borysevych&lt;/p>
+&lt;p>Pablo Estrada&lt;/p>
+&lt;p>Rebecca Szper&lt;/p>
+&lt;p>Ritesh Ghorse&lt;/p>
+&lt;p>Robert Bradshaw&lt;/p>
+&lt;p>Sam Whittle&lt;/p>
+&lt;p>Sergei Lilichenko&lt;/p>
+&lt;p>Shahar Epstein&lt;/p>
+&lt;p>Shunping Huang&lt;/p>
+&lt;p>Svetak Sundhar&lt;/p>
+&lt;p>Timothy Itodo&lt;/p>
+&lt;p>Veronica Wasson&lt;/p>
+&lt;p>Vitaly Terentyev&lt;/p>
+&lt;p>Vlado Djerek&lt;/p>
+&lt;p>Yi Hu&lt;/p>
+&lt;p>akashorabek&lt;/p>
+&lt;p>bzablocki&lt;/p>
+&lt;p>clmccart&lt;/p>
+&lt;p>damccorm&lt;/p>
+&lt;p>dependabot[bot]&lt;/p>
+&lt;p>dmitryor&lt;/p>
+&lt;p>github-actions[bot]&lt;/p>
+&lt;p>liferoad&lt;/p>
+&lt;p>martin trieu&lt;/p>
+&lt;p>tvalentyn&lt;/p>
+&lt;p>xianhualiu&lt;/p></description></item><item><title>Blog: Introducing Beam YAML: Apache Beam's First No-code SDK</title><link>/blog/beam-yaml-release/</link><pubDate>Thu, 11 Apr 2024 10:00:00 -0400</pubDate><guid>/blog/beam-yaml-release/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -6265,141 +6359,4 @@ Pawel Pasterz, Piotr Szuberski, purbanow, Reuven Lax, rHermes,
 Robert Bradshaw, Robert Burke, Rui Wang, Sam Rohde, Sam Whittle,
 Siyuan Chen, Tim Robertson, Tobiasz Kędzierski, tszerszen,
 Valentyn Tymofieiev, Tyson Hamilton, Udi Meiri, vachan-shetty, Xinyu Liu,
-Yichi Zhang, Yifan Mai, yoshiki.obata, Yueyang Qiu&lt;/p></description></item><item><title>Blog: DataFrame API Preview now Available!</title><link>/blog/dataframe-api-preview-available/</link><pubDate>Wed, 16 Dec 2020 09:09:41 -0800</pubDate><guid>/blog/dataframe-api-preview-available/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>We&amp;rsquo;re excited to announce that a preview of the Beam Python SDK&amp;rsquo;s new DataFrame
-API is now available in &lt;a href="/blog/beam-2.26.0/">Beam
-2.26.0&lt;/a>. Much like &lt;code>SqlTransform&lt;/code>
-(&lt;a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/extensions/sql/SqlTransform.html">Java&lt;/a>,
-&lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.sql.html#apache_beam.transforms.sql.SqlTransform">Python&lt;/a>),
-the DataFrame API gives Beam users a way to express complex
-relational logic much more concisely than previously possible.&lt;/p>
-&lt;h2 id="a-more-expressive-api">A more expressive API&lt;/h2>
-&lt;p>Beam&amp;rsquo;s new DataFrame API aims to be compatible with the well known
-&lt;a href="https://pandas.pydata.org/pandas-docs/stable/index.html">Pandas&lt;/a>
-DataFrame API, with a few caveats detailed below. With this new API a simple
-pipeline that reads NYC taxiride data from a CSV, performs a grouped
-aggregation, and writes the output to CSV, can be expressed very concisely:&lt;/p>
-&lt;pre tabindex="0">&lt;code>from apache_beam.dataframe.io import read_csv
-with beam.Pipeline() as p:
-df = p | read_csv(&amp;#34;gs://apache-beam-samples/nyc_taxi/2019/*.csv&amp;#34;,
-usecols=[&amp;#39;passenger_count&amp;#39; , &amp;#39;DOLocationID&amp;#39;])
-# Count the number of passengers dropped off per LocationID
-agg = df.groupby(&amp;#39;DOLocationID&amp;#39;).sum()
-agg.to_csv(output)
-&lt;/code>&lt;/pre>&lt;p>Compare this to the same logic implemented as a conventional Beam python
-pipeline with a &lt;code>CombinePerKey&lt;/code>:&lt;/p>
-&lt;pre tabindex="0">&lt;code>with beam.Pipeline() as p:
-(p | beam.io.ReadFromText(&amp;#34;gs://apache-beam-samples/nyc_taxi/2019/*.csv&amp;#34;,
-skip_header_lines=1)
-| beam.Map(lambda line: line.split(&amp;#39;,&amp;#39;))
-# Parse CSV, create key - value pairs
-| beam.Map(lambda splits: (int(splits[8] or 0), # DOLocationID
-int(splits[3] or 0))) # passenger_count
-# Sum values per key
-| beam.CombinePerKey(sum)
-| beam.MapTuple(lambda loc_id, pc: f&amp;#39;{loc_id},{pc}&amp;#39;)
-| beam.io.WriteToText(known_args.output))
-&lt;/code>&lt;/pre>&lt;p>The DataFrame example is much easier to quickly inspect and understand, as it
-allows you to concisely express grouped aggregations without using the low-level
-&lt;code>CombinePerKey&lt;/code>.&lt;/p>
-&lt;p>In addition to being more expressive, a pipeline written with the DataFrame API
-can often be more efficient than a conventional Beam pipeline. This is because
-the DataFrame API defers to the very efficient, columnar Pandas implementation
-as much as possible.&lt;/p>
-&lt;h2 id="dataframes-as-a-dsl">DataFrames as a DSL&lt;/h2>
-&lt;p>You may already be aware of &lt;a href="/documentation/dsls/sql/overview/">Beam
-SQL&lt;/a>, which is
-a Domain-Specific Language (DSL) built with Beam&amp;rsquo;s Java SDK. SQL is
-considered a DSL because it&amp;rsquo;s possible to express a full pipeline, including IOs
-and complex operations, entirely with SQL. &lt;/p>
-&lt;p>Similarly, the DataFrame API is a DSL built with the Python SDK. You can see
-that the above example is written without traditional Beam constructs like IOs,
-ParDo, or CombinePerKey. In fact the only traditional Beam type is the Pipeline
-instance! Otherwise this pipeline is written completely using the DataFrame API.
-This is possible because the DataFrame API doesn&amp;rsquo;t just implement Pandas'
-computation operations, it also includes IOs based on the Pandas native
-implementations (&lt;code>pd.read_{csv,parquet,...}&lt;/code> and &lt;code>pd.DataFrame.to_{csv,parquet,...}&lt;/code>).&lt;/p>
-&lt;p>Like SQL, it&amp;rsquo;s also possible to embed the DataFrame API into a larger pipeline
-by using
-&lt;a href="/documentation/programming-guide/#what-is-a-schema">schemas&lt;/a>.
-A schema-aware PCollection can be converted to a DataFrame, processed, and the
-result converted back to another schema-aware PCollection. For example, if you
-wanted to use traditional Beam IOs rather than one of the DataFrame IOs you
-could rewrite the above pipeline like this:&lt;/p>
-&lt;pre tabindex="0">&lt;code>from apache_beam.dataframe.convert import to_dataframe
-from apache_beam.dataframe.convert import to_pcollection
-with beam.Pipeline() as p:
-...
-schema_pc = (p | beam.ReadFromText(..)
-# Use beam.Select to assign a schema
-| beam.Select(DOLocationID=lambda line: int(...),
-passenger_count=lambda line: int(...)))
-df = to_dataframe(schema_pc)
-agg = df.groupby(&amp;#39;DOLocationID&amp;#39;).sum()
-agg_pc = to_pcollection(pc)
-# agg_pc has a schema based on the structure of agg
-(agg_pc | beam.Map(lambda row: f&amp;#39;{row.DOLocationID},{row.passenger_count}&amp;#39;)
-| beam.WriteToText(..))
-&lt;/code>&lt;/pre>&lt;p>It&amp;rsquo;s also possible to use the DataFrame API by passing a function to
-&lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.dataframe.transforms.html#apache_beam.dataframe.transforms.DataframeTransform">&lt;code>DataframeTransform&lt;/code>&lt;/a>:&lt;/p>
-&lt;pre tabindex="0">&lt;code>from apache_beam.dataframe.transforms import DataframeTransform
-with beam.Pipeline() as p:
-...
-| beam.Select(DOLocationID=lambda line: int(..),
-passenger_count=lambda line: int(..))
-| DataframeTransform(lambda df: df.groupby(&amp;#39;DOLocationID&amp;#39;).sum())
-| beam.Map(lambda row: f&amp;#39;{row.DOLocationID},{row.passenger_count}&amp;#39;)
-...
-&lt;/code>&lt;/pre>&lt;h2 id="caveats">Caveats&lt;/h2>
-&lt;p>As hinted above, there are some differences between Beam&amp;rsquo;s DataFrame API and the
-Pandas API. The most significant difference is that the Beam DataFrame API is
-&lt;em>deferred&lt;/em>, just like the rest of the Beam API. This means that you can&amp;rsquo;t
-&lt;code>print()&lt;/code> a DataFrame instance in order to inspect the data, because we haven&amp;rsquo;t
-computed the data yet! The computation doesn&amp;rsquo;t take place until the pipeline is
-&lt;code>run()&lt;/code>. Before that, we only know about the shape/schema of the result (i.e.
-the names and types of the columns), and not the result itself.&lt;/p>
-&lt;p>There are a few common exceptions you will likely see when attempting to use
-certain Pandas operations:&lt;/p>
-&lt;ul>
-&lt;li>&lt;strong>NotImplementedError:&lt;/strong> Indicates this is an operation or argument that we
-haven&amp;rsquo;t had time to look at yet. We&amp;rsquo;ve tried to make as many Pandas operations
-as possible available in the Preview offering of this new API, but there&amp;rsquo;s
-still a long tail of operations to go.&lt;/li>
-&lt;li>&lt;strong>WontImplementError:&lt;/strong> Indicates this is an operation or argument we do not
-intend to support in the near-term because it&amp;rsquo;s incompatible with the Beam
-model. The largest class of operations that raise this error are those that
-are order sensitive (e.g. shift, cummax, cummin, head, tail, etc..). These
-cannot be trivially mapped to Beam because PCollections, representing
-distributed datasets, are unordered. Note that even some of these operations
-&lt;em>may&lt;/em> get implemented in the future - we actually have some ideas for how we
-might support order sensitive operations - but it&amp;rsquo;s a ways off.&lt;/li>
-&lt;/ul>
-&lt;p>Finally, it&amp;rsquo;s important to note that this is a preview of a new feature that
-will get hardened over the next few Beam releases. We would love for you to try
-it out now and give us some feedback, but we do not yet recommend it for use in
-production workloads.&lt;/p>
-&lt;h2 id="how-to-get-involved">How to get involved&lt;/h2>
-&lt;p>The easiest way to get involved with this effort is to try out DataFrames and
-let us know what you think! You can send questions to &lt;a href="mailto:user@beam.apache.org">user@beam.apache.org&lt;/a>, or
-file bug reports and feature requests in &lt;a href="https://issues.apache.org/jira">jira&lt;/a>.
-In particular, it would be really helpful to know if there&amp;rsquo;s an operation we
-haven&amp;rsquo;t implemented yet that you&amp;rsquo;d find useful, so that we can prioritize it.&lt;/p>
-&lt;p>If you&amp;rsquo;d like to learn more about how the DataFrame API works under the hood and
-get involved with the development we recommend you take a look at the
-&lt;a href="https://s.apache.org/beam-dataframes">design doc&lt;/a>
-and our &lt;a href="https://2020.beamsummit.org/sessions/simpler-python-pipelines/">Beam summit
-presentation&lt;/a>.
-From there the best way to help is to knock out some of those not implemented
-operations. We&amp;rsquo;re coordinating that work in
-&lt;a href="https://issues.apache.org/jira/browse/BEAM-9547">BEAM-9547&lt;/a>.&lt;/p></description></item></channel></rss>
+Yichi Zhang, Yifan Mai, yoshiki.obata, Yueyang Qiu&lt;/p></description></item></channel></rss>
