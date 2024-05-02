@@ -207,12 +207,7 @@ final class MutationUtils {
         mutationBuilder.set(columnName).to(row.getInt64(columnName));
         break;
       case FLOAT:
-        @Nullable Float floatValue = row.getFloat(columnName);
-        if (floatValue == null) {
-          mutationBuilder.set(columnName).to(((Double) null));
-        } else {
-          mutationBuilder.set(columnName).to(floatValue);
-        }
+        mutationBuilder.set(columnName).to(row.getFloat(columnName));
         break;
       case DOUBLE:
         mutationBuilder.set(columnName).to(row.getDouble(columnName));
@@ -311,6 +306,8 @@ final class MutationUtils {
         mutationBuilder.set(column).toInt64Array((Iterable<Long>) ((Object) iterable));
         break;
       case FLOAT:
+        mutationBuilder.set(column).toFloat32Array((Iterable<Float>) ((Object) iterable));
+        break;
       case DOUBLE:
         mutationBuilder.set(column).toFloat64Array((Iterable<Double>) ((Object) iterable));
         break;

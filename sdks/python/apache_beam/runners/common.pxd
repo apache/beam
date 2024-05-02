@@ -100,7 +100,9 @@ cdef class PerWindowInvoker(DoFnInvoker):
   cdef dict kwargs_for_process_batch
   cdef list placeholders_for_process_batch
   cdef bint has_windowed_inputs
-  cdef bint cache_globally_windowed_args
+  cdef bint recalculate_window_args
+  cdef bint has_cached_window_args
+  cdef bint has_cached_window_batch_args
   cdef object process_method
   cdef object process_batch_method
   cdef bint is_splittable

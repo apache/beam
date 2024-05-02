@@ -109,7 +109,7 @@ final class GetWorkTimingInfosTracker {
     Instant forwardedByDispatcherTiming =
         getWorkStreamTimings.get(Event.GET_WORK_FORWARDED_BY_DISPATCHER);
     Instant now = Instant.ofEpochMilli(clock.getMillis());
-    if (forwardedByDispatcherTiming != null) {
+    if (forwardedByDispatcherTiming != null && now.isAfter(forwardedByDispatcherTiming)) {
       Duration newDuration = new Duration(forwardedByDispatcherTiming, now);
       aggregatedGetWorkStreamLatencies.compute(
           State.GET_WORK_IN_TRANSIT_TO_USER_WORKER,
@@ -134,22 +134,23 @@ final class GetWorkTimingInfosTracker {
     if (workItemCreationLatency != null) {
       latencyAttributions.add(workItemCreationLatency);
     }
-    if (workItemCreationEndTime.isAfter(workItemLastChunkReceivedByWorkerTime)) {
-      LOG.warn(
-          "Work item creation time {} is after the work received time {}, "
-              + "one or more GetWorkStream timing infos are missing.",
-          workItemCreationEndTime,
-          workItemLastChunkReceivedByWorkerTime);
-      return latencyAttributions;
-    }
-    long totalTransmissionDurationElapsedTime =
-        new Duration(workItemCreationEndTime, workItemLastChunkReceivedByWorkerTime).getMillis();
     long totalSumDurationTimeMills = 0;
     for (SumAndMaxDurations duration : aggregatedGetWorkStreamLatencies.values()) {
       totalSumDurationTimeMills += duration.sum.getMillis();
     }
     final long finalTotalSumDurationTimeMills = totalSumDurationTimeMills;
-
+    long totalTransmissionDurationElapsedTime;
+    if (workItemCreationEndTime.isAfter(workItemLastChunkReceivedByWorkerTime)) {
+      LOG.debug(
+          "Work item creation time {} is after the work received time {}, "
+              + "one or more GetWorkStream timing infos are missing. Using raw times without scaling.",
+          workItemCreationEndTime,
+          workItemLastChunkReceivedByWorkerTime);
+      totalTransmissionDurationElapsedTime = finalTotalSumDurationTimeMills;
+    } else {
+      totalTransmissionDurationElapsedTime =
+          new Duration(workItemCreationEndTime, workItemLastChunkReceivedByWorkerTime).getMillis();
+    }
     aggregatedGetWorkStreamLatencies.forEach(
         (state, duration) -> {
           long scaledDuration =

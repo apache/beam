@@ -80,7 +80,7 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          java-version: 8
+          java-version: 11
           go-version: 1.21
         # :sdks:java:core:test
       - name: Run :sdks:java:core:test
@@ -137,7 +137,7 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          java-version: 8
+          java-version: 11
           go-version: 1.21
       - name: Run WordCount Unix
         uses: ./.github/actions/gradle-command-self-hosted-action
@@ -176,7 +176,7 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          java-version: 8
+          java-version: 11
           go-version: 1.21
       - name: Authenticate on GCP
         uses: google-github-actions/setup-gcloud@v0

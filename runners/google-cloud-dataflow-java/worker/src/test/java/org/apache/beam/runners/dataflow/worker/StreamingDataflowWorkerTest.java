@@ -91,11 +91,11 @@ import java.util.function.Supplier;
 import org.apache.beam.runners.dataflow.internal.CustomSources;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
+import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.CloudObjects;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.runners.dataflow.util.Structs;
-import org.apache.beam.runners.dataflow.worker.options.StreamingDataflowWorkerOptions;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.ShardedKey;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
@@ -773,14 +773,14 @@ public class StreamingDataflowWorkerTest {
     return output.toByteString();
   }
 
-  private StreamingDataflowWorkerOptions createTestingPipelineOptions(String... args) {
+  private DataflowWorkerHarnessOptions createTestingPipelineOptions(String... args) {
     List<String> argsList = Lists.newArrayList(args);
     if (streamingEngine) {
       argsList.add("--experiments=enable_streaming_engine");
     }
-    StreamingDataflowWorkerOptions options =
+    DataflowWorkerHarnessOptions options =
         PipelineOptionsFactory.fromArgs(argsList.toArray(new String[0]))
-            .as(StreamingDataflowWorkerOptions.class);
+            .as(DataflowWorkerHarnessOptions.class);
     options.setAppName("StreamingWorkerHarnessTest");
     options.setJobId("test_job_id");
     options.setProject("test_project");
@@ -792,10 +792,11 @@ public class StreamingDataflowWorkerTest {
 
   private StreamingDataflowWorker makeWorker(
       List<ParallelInstruction> instructions,
-      StreamingDataflowWorkerOptions options,
+      DataflowWorkerHarnessOptions options,
       boolean publishCounters,
       Supplier<Instant> clock,
-      Function<String, ScheduledExecutorService> executorSupplier) {
+      Function<String, ScheduledExecutorService> executorSupplier,
+      int localRetryTimeoutMs) {
     StreamingDataflowWorker worker =
         StreamingDataflowWorker.forTesting(
             computationMap,
@@ -807,7 +808,8 @@ public class StreamingDataflowWorkerTest {
             publishCounters,
             hotKeyLogger,
             clock,
-            executorSupplier);
+            executorSupplier,
+            localRetryTimeoutMs);
     worker.addStateNameMappings(
         ImmutableMap.of(DEFAULT_PARDO_USER_NAME, DEFAULT_PARDO_STATE_FAMILY));
     return worker;
@@ -815,14 +817,38 @@ public class StreamingDataflowWorkerTest {
 
   private StreamingDataflowWorker makeWorker(
       List<ParallelInstruction> instructions,
-      StreamingDataflowWorkerOptions options,
+      DataflowWorkerHarnessOptions options,
+      boolean publishCounters,
+      Supplier<Instant> clock,
+      Function<String, ScheduledExecutorService> executorSupplier) {
+    return makeWorker(instructions, options, publishCounters, clock, executorSupplier, -1);
+  }
+
+  private StreamingDataflowWorker makeWorker(
+      List<ParallelInstruction> instructions,
+      DataflowWorkerHarnessOptions options,
       boolean publishCounters) {
     return makeWorker(
         instructions,
         options,
         publishCounters,
         Instant::now,
-        (threadName) -> Executors.newSingleThreadScheduledExecutor());
+        (threadName) -> Executors.newSingleThreadScheduledExecutor(),
+        -1);
+  }
+
+  private StreamingDataflowWorker makeWorker(
+      List<ParallelInstruction> instructions,
+      DataflowWorkerHarnessOptions options,
+      boolean publishCounters,
+      int localRetryTimeoutMs) {
+    return makeWorker(
+        instructions,
+        options,
+        publishCounters,
+        Instant::now,
+        (threadName) -> Executors.newSingleThreadScheduledExecutor(),
+        localRetryTimeoutMs);
   }
 
   @Test
@@ -1106,7 +1132,7 @@ public class StreamingDataflowWorkerTest {
             makeDoFnInstruction(blockingFn, 0, StringUtf8Coder.of()),
             makeSinkInstruction(StringUtf8Coder.of(), 0));
 
-    StreamingDataflowWorkerOptions options = createTestingPipelineOptions();
+    DataflowWorkerHarnessOptions options = createTestingPipelineOptions();
     options.setNumberOfWorkerHarnessThreads(expectedNumberOfThreads);
 
     StreamingDataflowWorker worker = makeWorker(instructions, options, true /* publishCounters */);
@@ -1218,7 +1244,7 @@ public class StreamingDataflowWorkerTest {
     // Spam worker updates a few times.
     int maxTries = 10;
     while (--maxTries > 0) {
-      worker.reportPeriodicWorkerUpdates();
+      worker.reportPeriodicWorkerUpdatesForTest();
       Uninterruptibles.sleepUninterruptibly(1000, TimeUnit.MILLISECONDS);
     }
 
@@ -1299,6 +1325,7 @@ public class StreamingDataflowWorkerTest {
       // TODO: This test needs to be adapted to work with streamingEngine=true.
       return;
     }
+
     List<ParallelInstruction> instructions =
         Arrays.asList(
             makeSourceInstruction(StringUtf8Coder.of()),
@@ -1353,7 +1380,7 @@ public class StreamingDataflowWorkerTest {
     // Spam worker updates a few times.
     maxTries = 10;
     while (maxTries-- > 0) {
-      worker.reportPeriodicWorkerUpdates();
+      worker.reportPeriodicWorkerUpdatesForTest();
       Uninterruptibles.sleepUninterruptibly(1000, TimeUnit.MILLISECONDS);
     }
 
@@ -2573,7 +2600,7 @@ public class StreamingDataflowWorkerTest {
     List<Integer> finalizeTracker = Lists.newArrayList();
     TestCountingSource.setFinalizeTracker(finalizeTracker);
 
-    StreamingDataflowWorkerOptions options = createTestingPipelineOptions();
+    DataflowWorkerHarnessOptions options = createTestingPipelineOptions();
     options.setWorkerCacheMb(0); // Disable state cache so it doesn't detect retry.
     StreamingDataflowWorker worker =
         makeWorker(makeUnboundedSourcePipeline(), options, false /* publishCounters */);
@@ -3132,9 +3159,9 @@ public class StreamingDataflowWorkerTest {
     StreamingDataflowWorker worker =
         makeWorker(
             instructions,
-            options.as(StreamingDataflowWorkerOptions.class),
-            true /* publishCounters */);
-    worker.setRetryLocallyDelayMs(100);
+            options.as(DataflowWorkerHarnessOptions.class),
+            true /* publishCounters */,
+            100);
     worker.start();
 
     // Three GetData requests
@@ -3292,7 +3319,7 @@ public class StreamingDataflowWorkerTest {
             makeDoFnInstruction(new SlowDoFn(), 0, StringUtf8Coder.of()),
             makeSinkInstruction(StringUtf8Coder.of(), 0));
 
-    StreamingDataflowWorkerOptions options = createTestingPipelineOptions();
+    DataflowWorkerHarnessOptions options = createTestingPipelineOptions();
     options.setActiveWorkRefreshPeriodMillis(100);
     StreamingDataflowWorker worker = makeWorker(instructions, options, true /* publishCounters */);
     worker.start();
@@ -3315,7 +3342,7 @@ public class StreamingDataflowWorkerTest {
             makeDoFnInstruction(blockingFn, 0, StringUtf8Coder.of()),
             makeSinkInstruction(StringUtf8Coder.of(), 0));
 
-    StreamingDataflowWorkerOptions options = createTestingPipelineOptions();
+    DataflowWorkerHarnessOptions options = createTestingPipelineOptions();
     options.setActiveWorkRefreshPeriodMillis(100);
     StreamingDataflowWorker worker = makeWorker(instructions, options, true /* publishCounters */);
     worker.start();
@@ -3417,7 +3444,7 @@ public class StreamingDataflowWorkerTest {
                 new FakeSlowDoFn(clock, Duration.millis(1000)), 0, StringUtf8Coder.of()),
             makeSinkInstruction(StringUtf8Coder.of(), 0));
 
-    StreamingDataflowWorkerOptions options = createTestingPipelineOptions();
+    DataflowWorkerHarnessOptions options = createTestingPipelineOptions();
     options.setActiveWorkRefreshPeriodMillis(100);
     // A single-threaded worker processes work sequentially, leaving a second work item in state
     // QUEUED until the first work item is committed.
@@ -3459,7 +3486,7 @@ public class StreamingDataflowWorkerTest {
                 new FakeSlowDoFn(clock, Duration.millis(1000)), 0, StringUtf8Coder.of()),
             makeSinkInstruction(StringUtf8Coder.of(), 0));
 
-    StreamingDataflowWorkerOptions options = createTestingPipelineOptions();
+    DataflowWorkerHarnessOptions options = createTestingPipelineOptions();
     options.setActiveWorkRefreshPeriodMillis(100);
     StreamingDataflowWorker worker =
         makeWorker(
@@ -3492,7 +3519,7 @@ public class StreamingDataflowWorkerTest {
             makeDoFnInstruction(new ReadingDoFn(), 0, StringUtf8Coder.of()),
             makeSinkInstruction(StringUtf8Coder.of(), 0));
 
-    StreamingDataflowWorkerOptions options = createTestingPipelineOptions();
+    DataflowWorkerHarnessOptions options = createTestingPipelineOptions();
     options.setActiveWorkRefreshPeriodMillis(100);
     StreamingDataflowWorker worker =
         makeWorker(
@@ -3540,7 +3567,7 @@ public class StreamingDataflowWorkerTest {
               clock.sleep(Duration.millis(1000));
               return Windmill.CommitWorkResponse.getDefaultInstance();
             });
-    StreamingDataflowWorkerOptions options = createTestingPipelineOptions();
+    DataflowWorkerHarnessOptions options = createTestingPipelineOptions();
     options.setActiveWorkRefreshPeriodMillis(100);
     StreamingDataflowWorker worker =
         makeWorker(
@@ -3575,7 +3602,7 @@ public class StreamingDataflowWorkerTest {
                 new FakeSlowDoFn(clock, Duration.millis(dofnWaitTimeMs)), 0, StringUtf8Coder.of()),
             makeSinkInstruction(StringUtf8Coder.of(), 0));
 
-    StreamingDataflowWorkerOptions options = createTestingPipelineOptions();
+    DataflowWorkerHarnessOptions options = createTestingPipelineOptions();
     options.setActiveWorkRefreshPeriodMillis(100);
     options.setNumberOfWorkerHarnessThreads(1);
     StreamingDataflowWorker worker =
@@ -3627,7 +3654,7 @@ public class StreamingDataflowWorkerTest {
             makeDoFnInstruction(new SlowDoFn(), 0, StringUtf8Coder.of()),
             makeSinkInstruction(StringUtf8Coder.of(), 0));
 
-    StreamingDataflowWorkerOptions options = createTestingPipelineOptions();
+    DataflowWorkerHarnessOptions options = createTestingPipelineOptions();
     options.setActiveWorkRefreshPeriodMillis(100);
     StreamingDataflowWorker worker = makeWorker(instructions, options, true /* publishCounters */);
     worker.start();
@@ -3663,7 +3690,7 @@ public class StreamingDataflowWorkerTest {
             makeDoFnInstruction(new SlowDoFn(), 0, StringUtf8Coder.of()),
             makeSinkInstruction(StringUtf8Coder.of(), 0));
 
-    StreamingDataflowWorkerOptions options = createTestingPipelineOptions();
+    DataflowWorkerHarnessOptions options = createTestingPipelineOptions();
     options.setActiveWorkRefreshPeriodMillis(10);
     StreamingDataflowWorker worker = makeWorker(instructions, options, true /* publishCounters */);
     worker.start();
@@ -3852,7 +3879,7 @@ public class StreamingDataflowWorkerTest {
             makeSourceInstruction(StringUtf8Coder.of()),
             makeSinkInstruction(StringUtf8Coder.of(), 0));
 
-    StreamingDataflowWorkerOptions options = createTestingPipelineOptions();
+    DataflowWorkerHarnessOptions options = createTestingPipelineOptions();
     options.setStuckCommitDurationMillis(2000);
     StreamingDataflowWorker worker = makeWorker(instructions, options, true /* publishCounters */);
     worker.start();
@@ -3890,11 +3917,11 @@ public class StreamingDataflowWorkerTest {
         Arrays.asList(
             makeSourceInstruction(StringUtf8Coder.of()),
             makeSinkInstruction(StringUtf8Coder.of(), 0));
-    StreamingDataflowWorkerOptions options = createTestingPipelineOptions();
+    DataflowWorkerHarnessOptions options = createTestingPipelineOptions();
     options.setWindmillServiceCommitThreads(configNumCommitThreads);
     StreamingDataflowWorker worker = makeWorker(instructions, options, true /* publishCounters */);
     worker.start();
-    assertEquals(expectedNumCommitThreads, worker.commitThreads.size());
+    assertEquals(expectedNumCommitThreads, worker.numCommitThreads());
     worker.stop();
   }
 

@@ -2,7 +2,8 @@ Prompt:
 Write the Python code to read data from Oracle JDBC using Apache Beam.
 
 Response:
-You can read data from an Oracle Java Database Connectivity (JDBC) enabled database using the Apache Beam [JdbcIO connector](https://beam.apache.org/releases/pydoc/current/apache_beam.io.jdbc.html).
+Your Apache Beam pipeline can read data from an Oracle Java Database Connectivity (JDBC) enabled database using the [JdbcIO connector](https://beam.apache.org/releases/pydoc/current/apache_beam.io.jdbc.html).
+
 ```python
 import logging
 import apache_beam as beam
@@ -70,6 +71,6 @@ if __name__ == "__main__":
     run()
 ```
 
-The `JdbcOptions` class is a custom class that extends the `PipelineOptions` object. It is used to parse pipeline options from command-line arguments. This code uses [pipeline options](https://beam.apache.org/documentation/patterns/pipeline-options/).
+The `JdbcOptions` class is a custom class that extends the `PipelineOptions` object. This code uses [pipeline options](https://beam.apache.org/documentation/patterns/pipeline-options/) to parse command line arguments.
 
-A Beam pipeline is created using the `JdbcOptions` class and the [ReadFromJdbc transform](https://beam.apache.org/releases/pydoc/current/apache_beam.io.jdbc.html#apache_beam.io.jdbc.ReadFromJdbc) is used to read data from the database via JDBC.
+The code creates an Apache Beam pipeline using the `JdbcOptions` class to set the JDBC connection information and the [`ReadFromJdbc` transform](https://beam.apache.org/releases/pydoc/current/apache_beam.io.jdbc.html#apache_beam.io.jdbc.ReadFromJdbc) to read data from the database via JDBC.

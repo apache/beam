@@ -50,6 +50,7 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Redistribute;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
@@ -766,6 +767,69 @@ public final class TransformTranslator {
     };
   }
 
+  private static <K, V, W extends BoundedWindow>
+      TransformEvaluator<Redistribute.RedistributeByKey<K, V>> redistributeByKey() {
+    return new TransformEvaluator<Redistribute.RedistributeByKey<K, V>>() {
+      @Override
+      public void evaluate(
+          Redistribute.RedistributeByKey<K, V> transform, EvaluationContext context) {
+        @SuppressWarnings("unchecked")
+        JavaRDD<WindowedValue<KV<K, V>>> inRDD =
+            ((BoundedDataset<KV<K, V>>) context.borrowDataset(transform)).getRDD();
+        @SuppressWarnings("unchecked")
+        final WindowingStrategy<?, W> windowingStrategy =
+            (WindowingStrategy<?, W>) context.getInput(transform).getWindowingStrategy();
+        final KvCoder<K, V> coder = (KvCoder<K, V>) context.getInput(transform).getCoder();
+        @SuppressWarnings("unchecked")
+        final WindowFn<Object, W> windowFn = (WindowFn<Object, W>) windowingStrategy.getWindowFn();
+
+        final WindowedValue.WindowedValueCoder<KV<K, V>> wvCoder =
+            WindowedValue.FullWindowedValueCoder.of(coder, windowFn.windowCoder());
+
+        JavaRDD<WindowedValue<KV<K, V>>> reshuffled =
+            GroupCombineFunctions.reshuffle(inRDD, wvCoder);
+
+        context.putDataset(transform, new BoundedDataset<>(reshuffled));
+      }
+
+      @Override
+      public String toNativeString() {
+        return "repartition(...)";
+      }
+    };
+  }
+
+  private static <T, W extends BoundedWindow>
+      TransformEvaluator<Redistribute.RedistributeArbitrarily<T>> redistributeArbitrarily() {
+    return new TransformEvaluator<Redistribute.RedistributeArbitrarily<T>>() {
+      @Override
+      public void evaluate(
+          Redistribute.RedistributeArbitrarily<T> transform, EvaluationContext context) {
+        @SuppressWarnings("unchecked")
+        JavaRDD<WindowedValue<T>> inRDD =
+            ((BoundedDataset<T>) context.borrowDataset(transform)).getRDD();
+        @SuppressWarnings("unchecked")
+        final WindowingStrategy<?, W> windowingStrategy =
+            (WindowingStrategy<?, W>) context.getInput(transform).getWindowingStrategy();
+        final Coder<T> coder = context.getInput(transform).getCoder();
+        @SuppressWarnings("unchecked")
+        final WindowFn<Object, W> windowFn = (WindowFn<Object, W>) windowingStrategy.getWindowFn();
+
+        final WindowedValue.WindowedValueCoder<T> wvCoder =
+            WindowedValue.FullWindowedValueCoder.of(coder, windowFn.windowCoder());
+
+        JavaRDD<WindowedValue<T>> reshuffled = GroupCombineFunctions.reshuffle(inRDD, wvCoder);
+
+        context.putDataset(transform, new BoundedDataset<>(reshuffled));
+      }
+
+      @Override
+      public String toNativeString() {
+        return "repartition(...)";
+      }
+    };
+  }
+
   private static @Nullable Partitioner getPartitioner(EvaluationContext context) {
     Long bundleSize =
         context.getSerializableOptions().get().as(SparkPipelineOptions.class).getBundleSize();
@@ -788,6 +852,8 @@ public final class TransformTranslator {
     EVALUATORS.put(PTransformTranslation.CREATE_VIEW_TRANSFORM_URN, createPCollView());
     EVALUATORS.put(PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN, window());
     EVALUATORS.put(PTransformTranslation.RESHUFFLE_URN, reshuffle());
+    EVALUATORS.put(PTransformTranslation.REDISTRIBUTE_ARBITRARILY_URN, redistributeArbitrarily());
+    EVALUATORS.put(PTransformTranslation.REDISTRIBUTE_BY_KEY_URN, redistributeByKey());
   }
 
   private static @Nullable TransformEvaluator<?> getTranslator(PTransform<?, ?> transform) {

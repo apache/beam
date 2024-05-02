@@ -93,7 +93,8 @@ ReadFromKafkaSchema = typing.NamedTuple(
      ('value_deserializer', str), ('start_read_time', typing.Optional[int]),
      ('max_num_records', typing.Optional[int]),
      ('max_read_time', typing.Optional[int]),
-     ('commit_offset_in_finalize', bool), ('timestamp_policy', str)])
+     ('commit_offset_in_finalize', bool), ('timestamp_policy', str),
+     ('consumer_polling_timeout', typing.Optional[int])])
 
 
 def default_io_expansion_service(append_args=None):
@@ -134,6 +135,7 @@ class ReadFromKafka(ExternalTransform):
       max_read_time=None,
       commit_offset_in_finalize=False,
       timestamp_policy=processing_time_policy,
+      consumer_polling_timeout=2,
       with_metadata=False,
       expansion_service=None,
   ):
@@ -159,6 +161,10 @@ class ReadFromKafka(ExternalTransform):
     :param commit_offset_in_finalize: Whether to commit offsets when finalizing.
     :param timestamp_policy: The built-in timestamp policy which is used for
         extracting timestamp from KafkaRecord.
+    :param consumer_polling_timeout: Kafka client polling request
+        timeout time in seconds. A lower timeout optimizes for latency. Increase                                   
+        the timeout if the consumer is not fetching any records. Default is 2
+        seconds.
     :param with_metadata: whether the returned PCollection should contain
         Kafka related metadata or not. If False (default), elements of the
         returned PCollection will be of type 'bytes' if True, elements of the
@@ -186,7 +192,8 @@ class ReadFromKafka(ExternalTransform):
                 max_read_time=max_read_time,
                 start_read_time=start_read_time,
                 commit_offset_in_finalize=commit_offset_in_finalize,
-                timestamp_policy=timestamp_policy)),
+                timestamp_policy=timestamp_policy,
+                consumer_polling_timeout=consumer_polling_timeout)),
         expansion_service or default_io_expansion_service())
 
 

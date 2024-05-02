@@ -208,6 +208,9 @@ tasks.rat {
 
     // DuetAI training prompts
     "learning/prompts/**/*.md",
+
+    // Ignore terraform lock files
+    "**/.terraform.lock.hcl"
   )
 
   // Add .gitignore excludes to the Apache Rat exclusion list. We re-create the behavior
@@ -303,6 +306,7 @@ tasks.register("javaPreCommit") {
   dependsOn(":sdks:java:io:synthetic:build")
   dependsOn(":sdks:java:io:xml:build")
   dependsOn(":sdks:java:javadoc:allJavadoc")
+  dependsOn(":sdks:java:managed:build")
   dependsOn(":sdks:java:testing:expansion-service:build")
   dependsOn(":sdks:java:testing:jpms-tests:build")
   dependsOn(":sdks:java:testing:load-tests:build")
@@ -504,6 +508,7 @@ tasks.register("python38PostCommit") {
   dependsOn(":sdks:python:test-suites:dataflow:py38:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py38:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py38:hdfsIntegrationTest")
+  dependsOn(":sdks:python:test-suites:direct:py38:azureIntegrationTest")
   dependsOn(":sdks:python:test-suites:portable:py38:postCommitPy38")
   // TODO: https://github.com/apache/beam/issues/22651
   // The default container uses Python 3.8. The goal here is to
@@ -516,7 +521,6 @@ tasks.register("python38PostCommit") {
 tasks.register("python39PostCommit") {
   dependsOn(":sdks:python:test-suites:dataflow:py39:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py39:postCommitIT")
-  dependsOn(":sdks:python:test-suites:direct:py39:hdfsIntegrationTest")
   dependsOn(":sdks:python:test-suites:portable:py39:postCommitPy39")
   // TODO (https://github.com/apache/beam/issues/23966)
   // Move this to Python 3.10 test suite once tfx-bsl has python 3.10 wheel.
@@ -526,7 +530,6 @@ tasks.register("python39PostCommit") {
 tasks.register("python310PostCommit") {
   dependsOn(":sdks:python:test-suites:dataflow:py310:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py310:postCommitIT")
-  dependsOn(":sdks:python:test-suites:direct:py310:hdfsIntegrationTest")
   dependsOn(":sdks:python:test-suites:portable:py310:postCommitPy310")
 }
 

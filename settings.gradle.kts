@@ -24,7 +24,7 @@ pluginManagement {
 }
 
 plugins {
-  id("com.gradle.enterprise") version "3.15.1"
+  id("com.gradle.enterprise") version "3.17.2"
   id("com.gradle.common-custom-user-data-gradle-plugin") version "1.12.1"
 }
 
@@ -81,6 +81,7 @@ include(":examples:java:cdap:hubspot")
 include(":examples:java:cdap:salesforce")
 include(":examples:java:cdap:servicenow")
 include(":examples:java:cdap:zendesk")
+include(":examples:java:webapis")
 include(":examples:kotlin")
 include(":examples:multi-language")
 include(":learning")
@@ -120,14 +121,6 @@ include(":runners:core-java")
 include(":runners:direct-java")
 include(":runners:extensions-java:metrics")
 /* Begin Flink Runner related settings */
-// Flink 1.12
-include(":runners:flink:1.12")
-include(":runners:flink:1.12:job-server")
-include(":runners:flink:1.12:job-server-container")
-// Flink 1.13
-include(":runners:flink:1.13")
-include(":runners:flink:1.13:job-server")
-include(":runners:flink:1.13:job-server-container")
 // Flink 1.14
 include(":runners:flink:1.14")
 include(":runners:flink:1.14:job-server")
@@ -140,6 +133,10 @@ include(":runners:flink:1.15:job-server-container")
 include(":runners:flink:1.16")
 include(":runners:flink:1.16:job-server")
 include(":runners:flink:1.16:job-server-container")
+// Flink 1.17
+include(":runners:flink:1.17")
+include(":runners:flink:1.17:job-server")
+include(":runners:flink:1.17:job-server-container")
 /* End Flink Runner related settings */
 include(":runners:twister2")
 include(":runners:google-cloud-dataflow-java")
@@ -183,6 +180,7 @@ include(":sdks:java:extensions:google-cloud-platform-core")
 include(":sdks:java:extensions:jackson")
 include(":sdks:java:extensions:join-library")
 include(":sdks:java:extensions:ml")
+include(":sdks:java:extensions:ordered")
 include(":sdks:java:extensions:protobuf")
 include(":sdks:java:extensions:python")
 include(":sdks:java:extensions:sbe")
@@ -351,3 +349,7 @@ include("sdks:java:io:kafka:kafka-100")
 findProject(":sdks:java:io:kafka:kafka-100")?.name = "kafka-100"
 include("sdks:java:io:kafka:kafka-01103")
 findProject(":sdks:java:io:kafka:kafka-01103")?.name = "kafka-01103"
+include("sdks:java:managed")
+findProject(":sdks:java:managed")?.name = "managed"
+include("sdks:java:io:iceberg")
+findProject(":sdks:java:io:iceberg")?.name = "iceberg"

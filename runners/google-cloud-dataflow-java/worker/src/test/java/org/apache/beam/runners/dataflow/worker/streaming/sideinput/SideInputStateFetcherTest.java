@@ -32,7 +32,7 @@ import java.io.Closeable;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
+import org.apache.beam.runners.dataflow.options.DataflowStreamingPipelineOptions;
 import org.apache.beam.runners.dataflow.worker.MetricTrackingWindmillServerStub;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.sdk.coders.Coder;
@@ -84,7 +84,7 @@ public class SideInputStateFetcherTest {
     SideInputStateFetcher fetcher =
         new SideInputStateFetcher(
             server::getSideInputData,
-            PipelineOptionsFactory.as(DataflowPipelineDebugOptions.class));
+            PipelineOptionsFactory.as(DataflowStreamingPipelineOptions.class));
 
     ByteStringOutputStream stream = new ByteStringOutputStream();
     ListCoder.of(StringUtf8Coder.of())
@@ -155,7 +155,7 @@ public class SideInputStateFetcherTest {
     SideInputStateFetcher fetcher =
         new SideInputStateFetcher(
             server::getSideInputData,
-            PipelineOptionsFactory.as(DataflowPipelineDebugOptions.class));
+            PipelineOptionsFactory.as(DataflowStreamingPipelineOptions.class));
 
     ByteStringOutputStream stream = new ByteStringOutputStream();
     ListCoder.of(VoidCoder.of())
@@ -314,7 +314,7 @@ public class SideInputStateFetcherTest {
     SideInputStateFetcher fetcher =
         new SideInputStateFetcher(
             server::getSideInputData,
-            PipelineOptionsFactory.as(DataflowPipelineDebugOptions.class));
+            PipelineOptionsFactory.as(DataflowStreamingPipelineOptions.class));
 
     ByteString encodedIterable = ByteString.EMPTY;
 

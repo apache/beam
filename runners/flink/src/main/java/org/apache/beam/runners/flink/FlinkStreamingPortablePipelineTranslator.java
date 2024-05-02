@@ -145,6 +145,17 @@ public class FlinkStreamingPortablePipelineTranslator
     StreamExecutionEnvironment executionEnvironment =
         FlinkExecutionEnvironments.createStreamExecutionEnvironment(
             pipelineOptions, filesToStage, confDir);
+    return createTranslationContext(jobInfo, pipelineOptions, executionEnvironment);
+  }
+
+  /**
+   * Creates a streaming translation context. The resulting Flink execution dag will live in the
+   * given {@link StreamExecutionEnvironment}.
+   */
+  public StreamingTranslationContext createTranslationContext(
+      JobInfo jobInfo,
+      FlinkPipelineOptions pipelineOptions,
+      StreamExecutionEnvironment executionEnvironment) {
     return new StreamingTranslationContext(jobInfo, pipelineOptions, executionEnvironment);
   }
 
@@ -204,7 +215,7 @@ public class FlinkStreamingPortablePipelineTranslator
     }
   }
 
-  interface PTransformTranslator<T> {
+  public interface PTransformTranslator<T> {
     void translate(String id, RunnerApi.Pipeline pipeline, T t);
   }
 
@@ -216,7 +227,12 @@ public class FlinkStreamingPortablePipelineTranslator
   private final Map<String, PTransformTranslator<StreamingTranslationContext>>
       urnToTransformTranslator;
 
-  FlinkStreamingPortablePipelineTranslator() {
+  public FlinkStreamingPortablePipelineTranslator() {
+    this(ImmutableMap.of());
+  }
+
+  public FlinkStreamingPortablePipelineTranslator(
+      Map<String, PTransformTranslator<StreamingTranslationContext>> extraTranslations) {
     ImmutableMap.Builder<String, PTransformTranslator<StreamingTranslationContext>> translatorMap =
         ImmutableMap.builder();
     translatorMap.put(PTransformTranslation.FLATTEN_TRANSFORM_URN, this::translateFlatten);
@@ -224,6 +240,10 @@ public class FlinkStreamingPortablePipelineTranslator
     translatorMap.put(PTransformTranslation.IMPULSE_TRANSFORM_URN, this::translateImpulse);
     translatorMap.put(ExecutableStage.URN, this::translateExecutableStage);
     translatorMap.put(PTransformTranslation.RESHUFFLE_URN, this::translateReshuffle);
+    translatorMap.put(
+        PTransformTranslation.REDISTRIBUTE_BY_KEY_URN, this::translateRedistributeByKey);
+    translatorMap.put(
+        PTransformTranslation.REDISTRIBUTE_ARBITRARILY_URN, this::translateRedistributeArbitrarily);
 
     // TODO Legacy transforms which need to be removed
     // Consider removing now that timers are supported
@@ -233,6 +253,8 @@ public class FlinkStreamingPortablePipelineTranslator
 
     // For testing only
     translatorMap.put(PTransformTranslation.TEST_STREAM_TRANSFORM_URN, this::translateTestStream);
+
+    translatorMap.putAll(extraTranslations);
 
     this.urnToTransformTranslator = translatorMap.build();
   }
@@ -278,6 +300,24 @@ public class FlinkStreamingPortablePipelineTranslator
       String id, RunnerApi.Pipeline pipeline, StreamingTranslationContext context) {
     RunnerApi.PTransform transform = pipeline.getComponents().getTransformsOrThrow(id);
     DataStream<WindowedValue<KV<K, V>>> inputDataStream =
+        context.getDataStreamOrThrow(Iterables.getOnlyElement(transform.getInputsMap().values()));
+    context.addDataStream(
+        Iterables.getOnlyElement(transform.getOutputsMap().values()), inputDataStream.rebalance());
+  }
+
+  private <K, V> void translateRedistributeByKey(
+      String id, RunnerApi.Pipeline pipeline, StreamingTranslationContext context) {
+    RunnerApi.PTransform transform = pipeline.getComponents().getTransformsOrThrow(id);
+    DataStream<WindowedValue<KV<K, V>>> inputDataStream =
+        context.getDataStreamOrThrow(Iterables.getOnlyElement(transform.getInputsMap().values()));
+    context.addDataStream(
+        Iterables.getOnlyElement(transform.getOutputsMap().values()), inputDataStream.rebalance());
+  }
+
+  private <T> void translateRedistributeArbitrarily(
+      String id, RunnerApi.Pipeline pipeline, StreamingTranslationContext context) {
+    RunnerApi.PTransform transform = pipeline.getComponents().getTransformsOrThrow(id);
+    DataStream<WindowedValue<T>> inputDataStream =
         context.getDataStreamOrThrow(Iterables.getOnlyElement(transform.getInputsMap().values()));
     context.addDataStream(
         Iterables.getOnlyElement(transform.getOutputsMap().values()), inputDataStream.rebalance());

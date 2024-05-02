@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-# cython: profile=True
 # cython: language_level=3
 
 """State sampler for tracking time spent in execution steps.

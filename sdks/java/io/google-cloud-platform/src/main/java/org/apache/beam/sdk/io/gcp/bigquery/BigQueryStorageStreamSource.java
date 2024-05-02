@@ -165,6 +165,7 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
 
     // Values used for progress reporting.
     private boolean splitPossible = true;
+    private boolean splitAllowed = true;
     private double fractionConsumed;
     private double progressAtResponseStart;
     private double progressAtResponseEnd;
@@ -199,6 +200,8 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
       this.parseFn = source.parseFn;
       this.storageClient = source.bqServices.getStorageClient(options);
       this.tableSchema = fromJsonString(source.jsonTableSchema, TableSchema.class);
+      // number of stream determined from server side for storage read api v2
+      this.splitAllowed = !options.getEnableStorageReadApiV2();
       this.fractionConsumed = 0d;
       this.progressAtResponseStart = 0d;
       this.progressAtResponseEnd = 0d;
@@ -235,7 +238,11 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
     private synchronized boolean readNextRecord() throws IOException {
       Iterator<ReadRowsResponse> responseIterator = this.responseIterator;
       while (reader.readyForNextReadResponse()) {
-        if (!responseIterator.hasNext()) {
+        // hasNext call has internal retry. Record throttling metrics after called
+        boolean hasNext = responseIterator.hasNext();
+        storageClient.reportPendingMetrics();
+
+        if (!hasNext) {
           fractionConsumed = 1d;
           return false;
         }
@@ -341,7 +348,7 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
         return null;
       }
 
-      if (!splitPossible) {
+      if (!splitPossible || !splitAllowed) {
         return null;
       }
 
@@ -382,6 +389,7 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
           // the SplitReadStream validation logic depends. Removing it will cause incorrect
           // split operations to succeed.
           newResponseIterator.hasNext();
+          storageClient.reportPendingMetrics();
         } catch (FailedPreconditionException e) {
           // The current source has already moved past the split point, so this split attempt
           // is unsuccessful.

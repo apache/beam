@@ -365,10 +365,11 @@ if __name__ == '__main__':
           'cloudpickle~=2.2.1',
           'fastavro>=0.23.6,<2',
           'fasteners>=0.3,<1.0',
-          'grpcio>=1.33.1,!=1.48.0,<2',
+          'grpcio>=1.33.1,<2,!=1.48.0,!=1.59.*,!=1.60.*,!=1.61.*,!=1.62.0,!=1.62.1',  # pylint: disable=line-too-long
           'hdfs>=2.1.0,<3.0.0',
           'httplib2>=0.8,<0.23.0',
-          'js2py>=0.74,<1',
+          # https://github.com/PiotrDabkowski/Js2Py/issues/317
+          'js2py>=0.74,<1; python_version<"3.12"',
           'jsonschema>=4.0.0,<5.0.0',
           'jsonpickle>=3.0.0,<4.0.0',
           # numpy can have breaking changes in minor versions.
@@ -392,6 +393,7 @@ if __name__ == '__main__':
           'pydot>=1.2.0,<2',
           'python-dateutil>=2.8.0,<3',
           'pytz>=2018.3',
+          'redis>=5.0.0,<6',
           'regex>=2020.6.8',
           'requests>=2.24.0,<3.0.0',
           'typing-extensions>=3.7.0',
@@ -426,11 +428,11 @@ if __name__ == '__main__':
               'pytest-xdist>=2.5.0,<4',
               'pytest-timeout>=2.1.0,<3',
               'scikit-learn>=0.20.0',
-              'sqlalchemy>=1.3,<2.0',
+              'sqlalchemy>=1.3,<3.0',
               'psycopg2-binary>=2.8.5,<3.0.0',
               'testcontainers[mysql]>=3.0.3,<4.0.0',
               'cryptography>=41.0.2',
-              'hypothesis>5.0.0,<=7.0.0',
+              'hypothesis>5.0.0,<7.0.0',
           ],
           'gcp': [
               'cachetools>=3.1.0,<6',
@@ -440,7 +442,7 @@ if __name__ == '__main__':
               # Until this issue is closed
               # https://github.com/googleapis/google-cloud-python/issues/10566
               'google-auth>=1.18.0,<3',
-              'google-auth-httplib2>=0.1.0,<0.2.0',
+              'google-auth-httplib2>=0.1.0,<0.3.0',
               'google-cloud-datastore>=2.0.0,<3',
               'google-cloud-pubsub>=2.1.0,<3',
               'google-cloud-pubsublite>=1.2.0,<2',

@@ -39,8 +39,9 @@ with beam.Pipeline(options=options) as p:
         | "Log Data" >> Map(logging.info))
 
 ```
+
 Response:
-This code uses the Apache Beam [SpannerIO connector](https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.spanner.html) to read data from a [Cloud Spanner](https://cloud.google.com/spanner) table `example_row` from database `your-database-id` in instance `your-instance-id`. The values `your-database-id`, `your-instance-id`, and `your-project-id` are provided as command-line arguments.
+This code uses the Apache Beam [SpannerIO connector](https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.spanner.html) to read data from a [Cloud Spanner](https://cloud.google.com/spanner) table `example_row` from the database `your-database-id` in the instance `your-instance-id`. The values `your-database-id`, `your-instance-id`, and `your-project-id` are provided as command-line arguments.
 
 ```python
 class SpannerOptions(PipelineOptions):
@@ -64,6 +65,7 @@ class SpannerOptions(PipelineOptions):
 
 options = SpannerOptions()
 ```
+
 This code uses [pipeline options](https://beam.apache.org/documentation/patterns/pipeline-options/) to parse command-line arguments. The `SpannerOptions` class defines the command-line arguments `project_id`, `instance_id`, and `database_id`, which are used to configure the `ReadFromSpanner` transform.
 
 ```python
@@ -71,11 +73,13 @@ class ExampleRow(NamedTuple):
     id: int
     name: str
 ```
-This code defines a `NamedTuple` object `ExampleRow` that represents a Cloud Spanner row. The `NamedTuple` object has the fields `id` and `name`, which represent a Cloud Spanner row. The `NamedTuple` object is used as a row type in the `ReadFromSpanner` transform.
+
+This code defines a `NamedTuple` object `ExampleRow` that represents a Cloud Spanner row. The `NamedTuple` object includes the fields `id` and `name`, serving as attributes for a Cloud Spanner row. The `ReadFromSpanner` transform uses this object as a row type.
 
 ```python
  coders.registry.register_coder(ExampleRow, coders.RowCoder)
 ```
+
 Registering a coder for `NamedTuple` is required to use `NamedTuple` as a row type. For more information about how to register a coder for a custom type, see [Data encoding and type safety](https://beam.apache.org/documentation/programming-guide/#data-encoding-and-type-safety).
 
 ```python
@@ -91,6 +95,4 @@ output = (p | "Read from table" >> ReadFromSpanner(
 
 The `ReadFromSpanner` transform returns a `PCollection` of `NamedTuple` objects, each representing a Cloud Spanner row. For more information about this row object, see [ReadFromSpanner transform](https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.spanner.html#apache_beam.io.gcp.spanner.ReadFromSpanner).
 
-The data from a Cloud Spanner row is logged to the console.
-
-
+The Apache Beam pipeline logs the data from a Cloud Spanner row to the console.

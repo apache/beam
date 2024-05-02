@@ -1419,6 +1419,23 @@ public class BigtableIO {
       }
     }
 
+    @Teardown
+    public void tearDown() throws IOException {
+      // in case of exception in processElement, finishBundle will not be called
+      // cleanup resources allocated in startBundle
+      try {
+        if (bigtableWriter != null) {
+          bigtableWriter.close();
+          bigtableWriter = null;
+        }
+      } finally {
+        if (serviceEntry != null) {
+          serviceEntry.close();
+          serviceEntry = null;
+        }
+      }
+    }
+
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       config.populateDisplayData(builder);
@@ -2030,6 +2047,9 @@ public class BigtableIO {
   public abstract static class ReadChangeStream
       extends PTransform<PBegin, PCollection<KV<ByteString, ChangeStreamMutation>>> {
 
+    private static final Duration DEFAULT_BACKLOG_REPLICATION_ADJUSTMENT =
+        Duration.standardSeconds(30);
+
     static ReadChangeStream create() {
       BigtableConfig config = BigtableConfig.builder().setValidate(true).build();
       BigtableConfig metadataTableconfig = BigtableConfig.builder().setValidate(true).build();
@@ -2057,6 +2077,8 @@ public class BigtableIO {
     abstract @Nullable String getMetadataTableId();
 
     abstract @Nullable Boolean getCreateOrUpdateMetadataTable();
+
+    abstract @Nullable Duration getBacklogReplicationAdjustment();
 
     abstract ReadChangeStream.Builder toBuilder();
 
@@ -2242,6 +2264,26 @@ public class BigtableIO {
       return toBuilder().setCreateOrUpdateMetadataTable(shouldCreate).build();
     }
 
+    /**
+     * Returns a new {@link BigtableIO.ReadChangeStream} that overrides the replication delay
+     * adjustment duration with the provided duration.
+     *
+     * <p>Backlog is calculated for each partition using watermarkLag * throughput. Replication
+     * delay holds back the watermark for each partition. This can cause the backlog to stay
+     * persistently above dataflow's downscaling threshold (10 seconds) even when a pipeline is
+     * caught up.
+     *
+     * <p>This adjusts the backlog downward to account for this. For unreplicated instances it can
+     * be set to zero to upscale as quickly as possible.
+     *
+     * <p>Optional: defaults to 30 seconds.
+     *
+     * <p>Does not modify this object.
+     */
+    public ReadChangeStream withBacklogReplicationAdjustment(Duration adjustment) {
+      return toBuilder().setBacklogReplicationAdjustment(adjustment).build();
+    }
+
     @Override
     public PCollection<KV<ByteString, ChangeStreamMutation>> expand(PBegin input) {
       checkArgument(
@@ -2295,6 +2337,10 @@ public class BigtableIO {
       if (getCreateOrUpdateMetadataTable() != null) {
         shouldCreateOrUpdateMetadataTable = getCreateOrUpdateMetadataTable();
       }
+      Duration backlogReplicationAdjustment = getBacklogReplicationAdjustment();
+      if (backlogReplicationAdjustment == null) {
+        backlogReplicationAdjustment = DEFAULT_BACKLOG_REPLICATION_ADJUSTMENT;
+      }
 
       ActionFactory actionFactory = new ActionFactory();
       ChangeStreamMetrics metrics = new ChangeStreamMetrics();
@@ -2339,7 +2385,8 @@ public class BigtableIO {
       DetectNewPartitionsDoFn detectNewPartitionsDoFn =
           new DetectNewPartitionsDoFn(getEndTime(), actionFactory, daoFactory, metrics);
       ReadChangeStreamPartitionDoFn readChangeStreamPartitionDoFn =
-          new ReadChangeStreamPartitionDoFn(daoFactory, actionFactory, metrics);
+          new ReadChangeStreamPartitionDoFn(
+              daoFactory, actionFactory, metrics, backlogReplicationAdjustment);
 
       PCollection<KV<ByteString, ChangeStreamRecord>> readChangeStreamOutput =
           input
@@ -2379,6 +2426,8 @@ public class BigtableIO {
           ExistingPipelineOptions existingPipelineOptions);
 
       abstract ReadChangeStream.Builder setCreateOrUpdateMetadataTable(boolean shouldCreate);
+
+      abstract ReadChangeStream.Builder setBacklogReplicationAdjustment(Duration adjustment);
 
       abstract ReadChangeStream build();
     }

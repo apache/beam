@@ -34,6 +34,7 @@ import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.flink.translation.functions.FlinkAssignWindows;
+import org.apache.beam.runners.flink.translation.functions.ImpulseSourceFunction;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.DoFnOperator;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.KvToByteBufferKeySelector;
@@ -161,6 +162,11 @@ class FlinkStreamingTransformTranslators {
         new CreateViewStreamingTranslator());
 
     TRANSLATORS.put(PTransformTranslation.RESHUFFLE_URN, new ReshuffleTranslatorStreaming());
+    TRANSLATORS.put(
+        PTransformTranslation.REDISTRIBUTE_BY_KEY_URN, new RedistributeByKeyTranslatorStreaming());
+    TRANSLATORS.put(
+        PTransformTranslation.REDISTRIBUTE_ARBITRARILY_URN,
+        new RedistributeArbitrarilyTranslatorStreaming());
     TRANSLATORS.put(PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN, new GroupByKeyTranslator());
     TRANSLATORS.put(
         PTransformTranslation.COMBINE_PER_KEY_TRANSFORM_URN, new CombinePerKeyTranslator());
@@ -308,27 +314,27 @@ class FlinkStreamingTransformTranslators {
               WindowedValue.getFullCoder(ByteArrayCoder.of(), GlobalWindow.Coder.INSTANCE),
               context.getPipelineOptions());
 
-      FlinkBoundedSource<byte[]> impulseSource;
-      WatermarkStrategy<WindowedValue<byte[]>> watermarkStrategy;
+      final SingleOutputStreamOperator<WindowedValue<byte[]>> impulseOperator;
       if (context.isStreaming()) {
         long shutdownAfterIdleSourcesMs =
             context
                 .getPipelineOptions()
                 .as(FlinkPipelineOptions.class)
                 .getShutdownSourcesAfterIdleMs();
-        impulseSource = FlinkSource.unboundedImpulse(shutdownAfterIdleSourcesMs);
-        watermarkStrategy = WatermarkStrategy.forMonotonousTimestamps();
+        impulseOperator =
+            context
+                .getExecutionEnvironment()
+                .addSource(new ImpulseSourceFunction(shutdownAfterIdleSourcesMs), "Impulse")
+                .returns(typeInfo);
       } else {
-        impulseSource = FlinkSource.boundedImpulse();
-        watermarkStrategy = WatermarkStrategy.noWatermarks();
+        FlinkBoundedSource<byte[]> impulseSource = FlinkSource.boundedImpulse();
+        impulseOperator =
+            context
+                .getExecutionEnvironment()
+                .fromSource(impulseSource, WatermarkStrategy.noWatermarks(), "Impulse")
+                .returns(typeInfo);
       }
-      SingleOutputStreamOperator<WindowedValue<byte[]>> source =
-          context
-              .getExecutionEnvironment()
-              .fromSource(impulseSource, watermarkStrategy, "Impulse")
-              .returns(typeInfo);
-
-      context.setOutputDataStream(context.getOutput(transform), source);
+      context.setOutputDataStream(context.getOutput(transform), impulseOperator);
     }
   }
 
@@ -915,6 +921,38 @@ class FlinkStreamingTransformTranslators {
         FlinkStreamingTranslationContext context) {
 
       DataStream<WindowedValue<KV<K, InputT>>> inputDataSet =
+          context.getInputDataStream(context.getInput(transform));
+
+      context.setOutputDataStream(context.getOutput(transform), inputDataSet.rebalance());
+    }
+  }
+
+  private static class RedistributeByKeyTranslatorStreaming<K, InputT>
+      extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<
+          PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, InputT>>>> {
+
+    @Override
+    public void translateNode(
+        PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, InputT>>> transform,
+        FlinkStreamingTranslationContext context) {
+
+      DataStream<WindowedValue<KV<K, InputT>>> inputDataSet =
+          context.getInputDataStream(context.getInput(transform));
+
+      context.setOutputDataStream(context.getOutput(transform), inputDataSet.rebalance());
+    }
+  }
+
+  private static class RedistributeArbitrarilyTranslatorStreaming<InputT>
+      extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<
+          PTransform<PCollection<InputT>, PCollection<InputT>>> {
+
+    @Override
+    public void translateNode(
+        PTransform<PCollection<InputT>, PCollection<InputT>> transform,
+        FlinkStreamingTranslationContext context) {
+
+      DataStream<WindowedValue<InputT>> inputDataSet =
           context.getInputDataStream(context.getInput(transform));
 
       context.setOutputDataStream(context.getOutput(transform), inputDataSet.rebalance());
