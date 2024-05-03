@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.managed;
 
+import static org.apache.beam.sdk.managed.ManagedTransformConstants.MAPPINGS;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
@@ -176,6 +177,7 @@ public class ManagedSchemaTransformProvider
 
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
+      System.out.println("CONFIG: " + underlyingTransformConfig);
       return input.apply(underlyingTransformProvider.from(underlyingTransformConfig));
     }
 
@@ -202,7 +204,22 @@ public class ManagedSchemaTransformProvider
   static Row getRowConfig(ManagedConfig config, Schema transformSchema) {
     // May return an empty row (perhaps the underlying transform doesn't have any required
     // parameters)
-    return YamlUtils.toBeamRow(config.resolveUnderlyingConfig(), transformSchema, false);
+    String yamlConfig = config.resolveUnderlyingConfig();
+    Map<String, Object> configMap = YamlUtils.yamlStringToMap(yamlConfig);
+
+    Map<String, String> mapping = MAPPINGS.get(config.getTransformIdentifier());
+    if (mapping != null && configMap != null) {
+      Map<String, Object> remappedConfig = new HashMap<>();
+
+      for (Map.Entry<String, Object> entry : configMap.entrySet()) {
+        String key =
+            mapping.containsKey(entry.getKey()) ? mapping.get(entry.getKey()) : entry.getKey();
+        remappedConfig.put(key, entry.getValue());
+      }
+      configMap = remappedConfig;
+    }
+
+    return YamlUtils.toBeamRow(configMap, transformSchema, false);
   }
 
   Map<String, SchemaTransformProvider> getAllProviders() {
