@@ -36,7 +36,7 @@ class ScopeTest(unittest.TestCase):
     scope = Scope(
         beam.pvalue.PBegin(p), {},
         spec['transforms'],
-        yaml_transform.ProviderSet(yaml_provider.standard_providers()), {})
+        yaml_provider.standard_providers(), {})
     return scope, spec
 
   def test_get_pcollection_input(self):
