@@ -918,6 +918,7 @@ func (n *ProcessSizedElementsAndRestrictions) newSplitResult(ctx context.Context
 		Elm2:      size,
 		Timestamp: n.elm.Timestamp,
 		Windows:   w,
+		Pane:      n.elm.Pane,
 	}, nil
 }
 

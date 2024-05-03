@@ -388,7 +388,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		bdID := bundleDescriptorID(msg.GetProcessBundleDescriptorId())
 
 		// TODO(lostluck): 2023/03/29 fix debug level logging to be flagged.
-		// log.Debugf(ctx, "PB [%v]: %v", instID, msg)
+		log.Debugf(ctx, "PB [%v]: %v", instID, msg)
 		plan, err := c.getOrCreatePlan(bdID)
 
 		// Make the plan active.
