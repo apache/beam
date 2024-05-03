@@ -28,7 +28,6 @@ from typing import Iterable
 from typing import List
 from typing import Mapping
 from typing import Set
-from typing import Tuple
 
 import yaml
 from yaml.loader import SafeLoader
@@ -179,46 +178,6 @@ class SafeLineLoader(SafeLoader):
       return getattr(obj, '_line_', 'unknown')
 
 
-class ProviderSet:
-  def __init__(self, providers: Mapping[str, Iterable[yaml_provider.Provider]]):
-    self._providers = providers
-    self._original_providers = set(p for ps in providers.values() for p in ps)
-    self._expanded: Set[yaml_provider.Provider] = set()
-
-  def __contains__(self, key: str):
-    return key in self._providers
-
-  def __getitem__(self, key: str) -> Iterable[yaml_provider.Provider]:
-    return self._providers[key]
-
-  def items(self) -> Iterable[Tuple[str, Iterable[yaml_provider.Provider]]]:
-    return self._providers.items()
-
-  def use(self, provider):
-    underlying_provider = provider.underlying_provider()
-    if provider not in self._original_providers:
-      return
-    if underlying_provider in self._expanded:
-      return
-    self._expanded.add(underlying_provider)
-
-    # For every original provider, see if it can also be implemented in terms
-    # of this provider.
-    # This is useful because providers often vend everything that's been linked
-    # in, and we'd like to minimize provider boundary crossings.
-    # We do this lazily rather than when constructing the provider set to avoid
-    # instantiating every possible provider.
-    for other_provider in self._original_providers:
-      new_provider = other_provider.with_underlying_provider(
-          underlying_provider)
-      if new_provider is not None:
-        for t in new_provider.provided_transforms():
-          existing_providers = set(
-              p.underlying_provider() for p in self._providers[t])
-          if new_provider.underlying_provider() not in existing_providers:
-            self._providers[t].append(new_provider)
-
-
 class LightweightScope(object):
   def __init__(self, transforms):
     self._transforms = transforms
@@ -261,7 +220,7 @@ class Scope(LightweightScope):
       root,
       inputs: Mapping[str, Any],
       transforms: Iterable[dict],
-      providers: ProviderSet,
+      providers: Mapping[str, Iterable[yaml_provider.Provider]],
       input_providers: Iterable[yaml_provider.Provider]):
     super().__init__(transforms)
     self.root = root
@@ -412,7 +371,6 @@ class Scope(LightweightScope):
         if pcoll in providers_by_input
     ]
     provider = self.best_provider(spec, input_providers)
-    self.providers.use(provider)
 
     config = SafeLineLoader.strip_metadata(spec.get('config', {}))
     if not isinstance(config, dict):
@@ -551,7 +509,9 @@ def expand_composite_transform(spec, scope):
           for (key, value) in empty_if_explicitly_empty(spec['input']).items()
       },
       spec['transforms'],
-      scope.providers,
+      yaml_provider.merge_providers(
+          yaml_provider.parse_providers(spec.get('providers', [])),
+          scope.providers),
       scope.input_providers)
 
   class CompositePTransform(beam.PTransform):
@@ -1052,7 +1012,7 @@ class YamlTransform(beam.PTransform):
             root,
             pcolls,
             transforms=[self._spec],
-            providers=ProviderSet(self._providers),
+            providers=self._providers,
             input_providers={
                 pcoll: python_provider
                 for pcoll in pcolls.values()
