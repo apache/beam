@@ -519,12 +519,14 @@ func (n *ProcessSizedElementsAndRestrictions) ProcessElement(ctx context.Context
 			Elm2:      userElm.Elm2,
 			Timestamp: elm.Timestamp,
 			Windows:   elm.Windows,
+			Pane:      elm.Pane,
 		}
 	} else {
 		mainIn.Key = FullValue{
 			Elm:       elm.Elm.(*FullValue).Elm,
 			Timestamp: elm.Timestamp,
 			Windows:   elm.Windows,
+			Pane:      elm.Pane,
 		}
 	}
 
@@ -574,7 +576,7 @@ func (n *ProcessSizedElementsAndRestrictions) ProcessElement(ctx context.Context
 
 			key := &mainIn.Key
 			w := elm.Windows[i]
-			wElm := FullValue{Elm: key.Elm, Elm2: key.Elm2, Timestamp: key.Timestamp, Windows: []typex.Window{w}}
+			wElm := FullValue{Elm: key.Elm, Elm2: key.Elm2, Timestamp: key.Timestamp, Windows: []typex.Window{w}, Pane: elm.Pane}
 
 			n.currW = i
 			n.rt = rt
