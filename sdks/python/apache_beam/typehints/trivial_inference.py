@@ -143,8 +143,6 @@ class FrameState(object):
     return FrameState(self.f, self.vars, self.stack, self.kw_names)
 
   def const_type(self, i):
-    print(self.co.co_consts)
-    print(self.co.co_consts[i])
     return Const(self.co.co_consts[i])
 
   def get_closure(self, i):

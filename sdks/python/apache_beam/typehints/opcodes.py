@@ -205,8 +205,8 @@ def store_subscr(unused_state, unused_args):
 
 
 def binary_slice(state, args):
-  end = state.stack.pop()
-  start = state.stack.pop()
+  _ = state.stack.pop()
+  _ = state.stack.pop()
   base = Const.unwrap(state.stack.pop())
   if base is str:
     out = base
@@ -465,7 +465,7 @@ load_fast_check = load_fast
 
 def load_fast_and_clear(state, arg):
   state.stack.append(state.vars[arg])
-  state.vars[arg] = None
+  del state.vars[arg]
 
 
 def store_fast(state, arg):
