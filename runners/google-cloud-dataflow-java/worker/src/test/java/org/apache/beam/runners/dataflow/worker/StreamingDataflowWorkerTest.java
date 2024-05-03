@@ -72,6 +72,7 @@ import java.util.Optional;
 import java.util.PriorityQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
@@ -84,10 +85,10 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.internal.CustomSources;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
@@ -273,10 +274,10 @@ public class StreamingDataflowWorkerTest {
   WorkUnitClient mockWorkUnitClient = mock(WorkUnitClient.class);
   HotKeyLogger hotKeyLogger = mock(HotKeyLogger.class);
 
-  private AtomicReference<ComputationStateCache> computationStateCache = new AtomicReference<>();
+  private @Nullable ComputationStateCache computationStateCache = null;
   private final FakeWindmillServer server =
       new FakeWindmillServer(
-          errorCollector, computationId -> computationStateCache.get().get(computationId));
+          errorCollector, computationId -> computationStateCache.get(computationId));
 
   public StreamingDataflowWorkerTest(Boolean streamingEngine) {
     this.streamingEngine = streamingEngine;
@@ -303,7 +304,7 @@ public class StreamingDataflowWorkerTest {
 
   @After
   public void cleanUp() {
-    Optional.ofNullable(computationStateCache.get())
+    Optional.ofNullable(computationStateCache)
         .ifPresent(ComputationStateCache::closeAndInvalidateAll);
   }
 
@@ -805,9 +806,30 @@ public class StreamingDataflowWorkerTest {
       Supplier<Instant> clock,
       Function<String, ScheduledExecutorService> executorSupplier,
       int localRetryTimeoutMs) {
+    return makeWorker(
+        ImmutableMap.of(),
+        instructions,
+        options,
+        publishCounters,
+        clock,
+        executorSupplier,
+        localRetryTimeoutMs);
+  }
+
+  private StreamingDataflowWorker makeWorker(
+      Map<String, String> stateNameMappings,
+      List<ParallelInstruction> instructions,
+      DataflowWorkerHarnessOptions options,
+      boolean publishCounters,
+      Supplier<Instant> clock,
+      Function<String, ScheduledExecutorService> executorSupplier,
+      int localRetryTimeoutMs) {
+    ConcurrentMap<String, String> stateNameMap = new ConcurrentHashMap<>();
+    stateNameMap.putAll(stateNameMappings);
+    stateNameMap.putAll(ImmutableMap.of(DEFAULT_PARDO_USER_NAME, DEFAULT_PARDO_STATE_FAMILY));
     StreamingDataflowWorker worker =
         StreamingDataflowWorker.forTesting(
-            computationStateCache,
+            stateNameMap,
             server,
             Collections.singletonList(defaultMapTask(instructions)),
             IntrinsicMapTaskExecutorFactory.defaultFactory(),
@@ -818,8 +840,7 @@ public class StreamingDataflowWorkerTest {
             clock,
             executorSupplier,
             localRetryTimeoutMs);
-    worker.addStateNameMappings(
-        ImmutableMap.of(DEFAULT_PARDO_USER_NAME, DEFAULT_PARDO_STATE_FAMILY));
+    this.computationStateCache = worker.getComputationStateCache();
     return worker;
   }
 
@@ -837,6 +858,21 @@ public class StreamingDataflowWorkerTest {
       DataflowWorkerHarnessOptions options,
       boolean publishCounters) {
     return makeWorker(
+        instructions,
+        options,
+        publishCounters,
+        Instant::now,
+        (threadName) -> Executors.newSingleThreadScheduledExecutor(),
+        -1);
+  }
+
+  private StreamingDataflowWorker makeWorker(
+      List<ParallelInstruction> instructions,
+      DataflowWorkerHarnessOptions options,
+      boolean publishCounters,
+      Map<String, String> stateNameMap) {
+    return makeWorker(
+        stateNameMap,
         instructions,
         options,
         publishCounters,
@@ -1597,10 +1633,11 @@ public class StreamingDataflowWorkerTest {
             makeSinkInstruction(groupedCoder, 1));
 
     StreamingDataflowWorker worker =
-        makeWorker(instructions, createTestingPipelineOptions(), false /* publishCounters */);
-    Map<String, String> nameMap = new HashMap<>();
-    nameMap.put("MergeWindowsStep", "MergeWindows");
-    worker.addStateNameMappings(nameMap);
+        makeWorker(
+            instructions,
+            createTestingPipelineOptions(),
+            false /* publishCounters */,
+            ImmutableMap.of("MergeWindowsStep", "MergeWindows"));
     worker.start();
 
     server
@@ -1884,10 +1921,11 @@ public class StreamingDataflowWorkerTest {
             makeSinkInstruction(groupedCoder, 2));
 
     StreamingDataflowWorker worker =
-        makeWorker(instructions, createTestingPipelineOptions(), false /* publishCounters */);
-    Map<String, String> nameMap = new HashMap<>();
-    nameMap.put("MergeWindowsStep", "MergeWindows");
-    worker.addStateNameMappings(nameMap);
+        makeWorker(
+            instructions,
+            createTestingPipelineOptions(),
+            false /* publishCounters */,
+            ImmutableMap.of("MergeWindowsStep", "MergeWindows"));
     worker.start();
 
     server
@@ -2180,10 +2218,11 @@ public class StreamingDataflowWorkerTest {
             makeSinkInstruction(groupedCoder, 1));
 
     StreamingDataflowWorker worker =
-        makeWorker(instructions, createTestingPipelineOptions(), false /* publishCounters */);
-    Map<String, String> nameMap = new HashMap<>();
-    nameMap.put("MergeWindowsStep", "MergeWindows");
-    worker.addStateNameMappings(nameMap);
+        makeWorker(
+            instructions,
+            createTestingPipelineOptions(),
+            false /* publishCounters */,
+            ImmutableMap.of("MergeWindowsStep", "MergeWindows"));
     worker.start();
 
     // Respond to any GetData requests with empty state.

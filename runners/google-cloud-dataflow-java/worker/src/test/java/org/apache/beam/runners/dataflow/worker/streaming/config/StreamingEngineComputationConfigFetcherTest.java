@@ -34,7 +34,6 @@ import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import org.apache.beam.runners.dataflow.worker.WorkUnitClient;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
@@ -44,20 +43,19 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
-public class StreamingEngineConfigFetcherTest {
+public class StreamingEngineComputationConfigFetcherTest {
   private final WorkUnitClient mockDataflowServiceClient = mock(WorkUnitClient.class);
-  private StreamingEngineConfigFetcher streamingEngineConfigLoader;
+  private StreamingEngineComputationConfigFetcher streamingEngineConfigLoader;
 
-  private StreamingEngineConfigFetcher createConfigLoader(
+  private StreamingEngineComputationConfigFetcher createConfigLoader(
       boolean waitForInitialConfig,
       long globalConfigRefreshPeriod,
-      Consumer<StreamingPipelineConfig> onPipelineConfig) {
-    return StreamingEngineConfigFetcher.forTesting(
+      Consumer<StreamingEnginePipelineConfig> onPipelineConfig) {
+    return StreamingEngineComputationConfigFetcher.forTesting(
         !waitForInitialConfig,
         globalConfigRefreshPeriod,
         mockDataflowServiceClient,
         ignored -> Executors.newSingleThreadScheduledExecutor(),
-        Function.identity(),
         onPipelineConfig);
   }
 
@@ -73,7 +71,7 @@ public class StreamingEngineConfigFetcherTest {
             .setJobId("job")
             .setStreamingConfigTask(new StreamingConfigTask().setMaxWorkItemCommitBytes(10L));
     CountDownLatch waitForInitialConfig = new CountDownLatch(1);
-    Set<StreamingPipelineConfig> receivedPipelineConfig = new HashSet<>();
+    Set<StreamingEnginePipelineConfig> receivedPipelineConfig = new HashSet<>();
     when(mockDataflowServiceClient.getGlobalStreamingConfigWorkItem())
         .thenReturn(Optional.of(initialConfig));
     streamingEngineConfigLoader =
@@ -94,7 +92,7 @@ public class StreamingEngineConfigFetcherTest {
     asyncStartConfigLoader.join();
     assertThat(receivedPipelineConfig)
         .containsExactly(
-            StreamingPipelineConfig.builder()
+            StreamingEnginePipelineConfig.builder()
                 .setMaxWorkItemCommitBytes(
                     initialConfig.getStreamingConfigTask().getMaxWorkItemCommitBytes())
                 .build());
@@ -115,7 +113,7 @@ public class StreamingEngineConfigFetcherTest {
             .setJobId("job")
             .setStreamingConfigTask(new StreamingConfigTask().setMaxWorkItemCommitBytes(100L));
     CountDownLatch numExpectedRefreshes = new CountDownLatch(3);
-    Set<StreamingPipelineConfig> receivedPipelineConfig = new HashSet<>();
+    Set<StreamingEnginePipelineConfig> receivedPipelineConfig = new HashSet<>();
     when(mockDataflowServiceClient.getGlobalStreamingConfigWorkItem())
         .thenReturn(Optional.of(firstConfig))
         .thenReturn(Optional.of(secondConfig))
@@ -136,15 +134,15 @@ public class StreamingEngineConfigFetcherTest {
     asyncStartConfigLoader.join();
     assertThat(receivedPipelineConfig)
         .containsExactly(
-            StreamingPipelineConfig.builder()
+            StreamingEnginePipelineConfig.builder()
                 .setMaxWorkItemCommitBytes(
                     firstConfig.getStreamingConfigTask().getMaxWorkItemCommitBytes())
                 .build(),
-            StreamingPipelineConfig.builder()
+            StreamingEnginePipelineConfig.builder()
                 .setMaxWorkItemCommitBytes(
                     secondConfig.getStreamingConfigTask().getMaxWorkItemCommitBytes())
                 .build(),
-            StreamingPipelineConfig.builder()
+            StreamingEnginePipelineConfig.builder()
                 .setMaxWorkItemCommitBytes(
                     thirdConfig.getStreamingConfigTask().getMaxWorkItemCommitBytes())
                 .build());
@@ -152,7 +150,7 @@ public class StreamingEngineConfigFetcherTest {
 
   @Test
   public void testGetComputationConfig() throws IOException {
-    Set<StreamingPipelineConfig> receivedPipelineConfig = new HashSet<>();
+    Set<StreamingEnginePipelineConfig> receivedPipelineConfig = new HashSet<>();
     streamingEngineConfigLoader =
         createConfigLoader(/* waitForInitialConfig= */ false, 0, receivedPipelineConfig::add);
     String computationId = "computationId";
@@ -179,12 +177,12 @@ public class StreamingEngineConfigFetcherTest {
     assertTrue(actualPipelineConfig.isPresent());
     assertThat(receivedPipelineConfig)
         .containsExactly(
-            StreamingPipelineConfig.builder().setComputationConfig(pipelineConfig).build());
+            StreamingEnginePipelineConfig.builder().setComputationConfig(pipelineConfig).build());
   }
 
   @Test
   public void testGetComputationConfig_noComputationPresent() throws IOException {
-    Set<StreamingPipelineConfig> receivedPipelineConfig = new HashSet<>();
+    Set<StreamingEnginePipelineConfig> receivedPipelineConfig = new HashSet<>();
     streamingEngineConfigLoader =
         createConfigLoader(/* waitForInitialConfig= */ false, 0, receivedPipelineConfig::add);
     when(mockDataflowServiceClient.getStreamingConfigWorkItem(anyString()))

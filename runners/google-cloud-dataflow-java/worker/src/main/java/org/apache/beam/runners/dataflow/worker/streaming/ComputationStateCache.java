@@ -25,21 +25,24 @@ import java.io.PrintWriter;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 import javax.annotation.concurrent.ThreadSafe;
+import org.apache.beam.runners.dataflow.worker.apiary.FixMultiOutputInfosOnParDoInstructions;
 import org.apache.beam.runners.dataflow.worker.status.StatusDataProvider;
 import org.apache.beam.runners.dataflow.worker.streaming.config.ComputationConfig;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheLoader;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.LoadingCache;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,35 +56,86 @@ public final class ComputationStateCache implements StatusDataProvider {
 
   private final LoadingCache<String, ComputationState> computationCache;
 
-  private ComputationStateCache(LoadingCache<String, ComputationState> computationCache) {
+  /**
+   * Fix up MapTask representation because MultiOutputInfos are missing from system generated
+   * ParDoInstructions.
+   */
+  private final Function<MapTask, MapTask> fixMultiOutputInfosOnParDoInstructions;
+
+  private ComputationStateCache(
+      LoadingCache<String, ComputationState> computationCache,
+      Function<MapTask, MapTask> fixMultiOutputInfosOnParDoInstructions) {
     this.computationCache = computationCache;
+    this.fixMultiOutputInfosOnParDoInstructions = fixMultiOutputInfosOnParDoInstructions;
   }
 
   public static ComputationStateCache create(
       ComputationConfig.Fetcher computationConfigFetcher,
       BoundedQueueExecutor workUnitExecutor,
-      Function<String, WindmillStateCache.ForComputation> perComputationStateCacheViewFactory) {
+      Function<String, WindmillStateCache.ForComputation> perComputationStateCacheViewFactory,
+      IdGenerator idGenerator) {
+    Function<MapTask, MapTask> fixMultiOutputInfosOnParDoInstructions =
+        new FixMultiOutputInfosOnParDoInstructions(idGenerator);
+    ConcurrentMap<String, String> stateNameMap = new ConcurrentHashMap<>();
     return new ComputationStateCache(
         CacheBuilder.newBuilder()
             .build(
-                new CacheLoader<String, ComputationState>() {
-                  @Override
-                  public ComputationState load(String computationId) {
-                    // LoadingCache load(K key) will throw an exception if we return null here,
-                    // throw ComputationStateNotFoundException to represent semantics better.
-                    ComputationConfig computationConfig =
-                        computationConfigFetcher
-                            .getConfig(computationId)
-                            .orElseThrow(
-                                () -> new ComputationStateNotFoundException(computationId));
-                    return new ComputationState(
-                        computationId,
-                        computationConfig.mapTask(),
-                        workUnitExecutor,
-                        computationConfig.userTransformToStateFamilyName(),
-                        perComputationStateCacheViewFactory.apply(computationId));
-                  }
-                }));
+                newComputationStateCacheLoader(
+                    computationConfigFetcher,
+                    workUnitExecutor,
+                    perComputationStateCacheViewFactory,
+                    fixMultiOutputInfosOnParDoInstructions,
+                    stateNameMap)),
+        fixMultiOutputInfosOnParDoInstructions);
+  }
+
+  @VisibleForTesting
+  public static ComputationStateCache forTesting(
+      ComputationConfig.Fetcher computationConfigFetcher,
+      BoundedQueueExecutor workUnitExecutor,
+      Function<String, WindmillStateCache.ForComputation> perComputationStateCacheViewFactory,
+      IdGenerator idGenerator,
+      ConcurrentMap<String, String> stateNameMap) {
+    Function<MapTask, MapTask> fixMultiOutputInfosOnParDoInstructions =
+        new FixMultiOutputInfosOnParDoInstructions(idGenerator);
+    return new ComputationStateCache(
+        CacheBuilder.newBuilder()
+            .build(
+                newComputationStateCacheLoader(
+                    computationConfigFetcher,
+                    workUnitExecutor,
+                    perComputationStateCacheViewFactory,
+                    fixMultiOutputInfosOnParDoInstructions,
+                    stateNameMap)),
+        fixMultiOutputInfosOnParDoInstructions);
+  }
+
+  private static CacheLoader<String, ComputationState> newComputationStateCacheLoader(
+      ComputationConfig.Fetcher computationConfigFetcher,
+      BoundedQueueExecutor workUnitExecutor,
+      Function<String, WindmillStateCache.ForComputation> perComputationStateCacheViewFactory,
+      Function<MapTask, MapTask> fixMultiOutputInfosOnParDoInstructions,
+      ConcurrentMap<String, String> stateNameMap) {
+    return new CacheLoader<String, ComputationState>() {
+      @Override
+      public ComputationState load(String computationId) {
+        // LoadingCache load(K key) will throw an exception if we return null here,
+        // throw ComputationStateNotFoundException to represent semantics better.
+        ComputationConfig computationConfig =
+            computationConfigFetcher
+                .getConfig(computationId)
+                .orElseThrow(() -> new ComputationStateNotFoundException(computationId));
+        stateNameMap.putAll(computationConfig.stateNameMap());
+        return new ComputationState(
+            computationId,
+            fixMultiOutputInfosOnParDoInstructions.apply(computationConfig.mapTask()),
+            workUnitExecutor,
+            !computationConfig.userTransformToStateFamilyName().isEmpty()
+                ? computationConfig.userTransformToStateFamilyName()
+                : stateNameMap,
+            perComputationStateCacheViewFactory.apply(computationId));
+      }
+    };
   }
 
   /**
@@ -93,7 +147,14 @@ public final class ComputationStateCache implements StatusDataProvider {
     try {
       return Optional.ofNullable(computationCache.get(computationId));
     } catch (ExecutionException | ComputationStateNotFoundException e) {
-      LOG.warn("Error occurred fetching computation for computationId={}", computationId, e);
+      if (e.getCause() instanceof ComputationStateNotFoundException) {
+        LOG.error(
+            "Trying to fetch unknown computation={}, known computations are {}.",
+            computationId,
+            ImmutableSet.copyOf(computationCache.asMap().keySet()));
+      } else {
+        LOG.warn("Error occurred fetching computation for computationId={}", computationId, e);
+      }
     }
 
     return Optional.empty();
@@ -108,10 +169,6 @@ public final class ComputationStateCache implements StatusDataProvider {
     return computationCache.asMap().values().stream().collect(toImmutableList());
   }
 
-  public ImmutableSet<String> getAllComputationIds() {
-    return ImmutableSet.copyOf(computationCache.asMap().keySet());
-  }
-
   /** Returns the current active {@link GetWorkBudget} across all known computations. */
   public GetWorkBudget totalCurrentActiveGetWorkBudget() {
     return computationCache.asMap().values().stream()
@@ -121,21 +178,14 @@ public final class ComputationStateCache implements StatusDataProvider {
 
   @VisibleForTesting
   public void loadCacheForTesting(
-      List<MapTask> mapTasks,
-      BoundedQueueExecutor workUnitExecutor,
-      Function<String, WindmillStateCache.ForComputation> forComputationStateCacheFactory) {
+      List<MapTask> mapTasks, Function<MapTask, ComputationState> createComputationStateFn) {
     Map<String, ComputationState> computationStates =
         mapTasks.stream()
+            .map(fixMultiOutputInfosOnParDoInstructions)
             .map(
                 mapTask -> {
                   LOG.info("Adding config for {}: {}", mapTask.getSystemName(), mapTask);
-                  String computationId = mapTask.getStageName();
-                  return new ComputationState(
-                      computationId,
-                      mapTask,
-                      workUnitExecutor,
-                      ImmutableMap.of(),
-                      forComputationStateCacheFactory.apply(computationId));
+                  return createComputationStateFn.apply(mapTask);
                 })
             .collect(toConcurrentMap(ComputationState::getComputationId, Function.identity()));
     computationCache.putAll(computationStates);

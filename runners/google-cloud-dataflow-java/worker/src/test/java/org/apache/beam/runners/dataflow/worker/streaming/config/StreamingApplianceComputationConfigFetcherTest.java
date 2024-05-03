@@ -27,12 +27,8 @@ import static org.mockito.Mockito.when;
 
 import com.google.api.services.dataflow.model.MapTask;
 import java.io.IOException;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
-import java.util.function.Consumer;
-import java.util.function.Function;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
@@ -42,7 +38,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
-public class StreamingApplianceConfigFetcherTest {
+public class StreamingApplianceComputationConfigFetcherTest {
   private final WindmillServerStub mockWindmillServer = mock(WindmillServerStub.class);
 
   @Test
@@ -57,49 +53,68 @@ public class StreamingApplianceConfigFetcherTest {
                 .setUserName("userName2")
                 .setSystemName("userName2")
                 .build());
+    String serializedMapTask =
+        Transport.getJsonFactory()
+            .toString(
+                new MapTask()
+                    .setSystemName("systemName")
+                    .setStageName("stageName")
+                    .setInstructions(ImmutableList.of()));
     Windmill.GetConfigResponse getConfigResponse =
         Windmill.GetConfigResponse.newBuilder()
             .addAllNameMap(nameMapEntries)
-            .addCloudWorks(
-                Transport.getJsonFactory()
-                    .toString(
-                        new MapTask()
-                            .setSystemName("systemName")
-                            .setStageName("stageName")
-                            .setInstructions(ImmutableList.of())))
+            .addComputationConfigMap(
+                Windmill.GetConfigResponse.ComputationConfigMapEntry.newBuilder()
+                    .setComputationId("systemName")
+                    .setComputationConfig(
+                        Windmill.ComputationConfig.newBuilder()
+                            .addTransformUserNameToStateFamily(
+                                Windmill.ComputationConfig.TransformUserNameToStateFamilyEntry
+                                    .newBuilder()
+                                    .setStateFamily("stateFamilyName")
+                                    .setTransformUserName("transformUserName")
+                                    .build())
+                            .build())
+                    .build())
+            .addCloudWorks(serializedMapTask)
             .build();
-    StreamingPipelineConfig expectedConfig =
-        StreamingPipelineConfig.builder()
-            .setUserStepToStateFamilyNameMap(
-                nameMapEntries.stream()
-                    .collect(
-                        toMap(
-                            Windmill.GetConfigResponse.NameMapEntry::getUserName,
-                            Windmill.GetConfigResponse.NameMapEntry::getSystemName)))
-            .build();
-    Set<StreamingPipelineConfig> configs = new HashSet<>();
-    StreamingApplianceConfigFetcher configLoader =
-        createStreamingApplianceConfigLoader(configs::add);
+    ComputationConfig expectedConfig =
+        ComputationConfig.create(
+            Transport.getJsonFactory().fromString(serializedMapTask, MapTask.class),
+            getConfigResponse.getComputationConfigMapList().stream()
+                .map(Windmill.GetConfigResponse.ComputationConfigMapEntry::getComputationConfig)
+                .flatMap(
+                    computationConfig ->
+                        computationConfig.getTransformUserNameToStateFamilyList().stream())
+                .collect(
+                    toMap(
+                        Windmill.ComputationConfig.TransformUserNameToStateFamilyEntry
+                            ::getTransformUserName,
+                        Windmill.ComputationConfig.TransformUserNameToStateFamilyEntry
+                            ::getStateFamily)),
+            nameMapEntries.stream()
+                .collect(
+                    toMap(
+                        Windmill.GetConfigResponse.NameMapEntry::getUserName,
+                        Windmill.GetConfigResponse.NameMapEntry::getSystemName)));
+    StreamingApplianceComputationConfigFetcher configLoader =
+        createStreamingApplianceConfigLoader();
     when(mockWindmillServer.getConfig(any())).thenReturn(getConfigResponse);
     Optional<ComputationConfig> config = configLoader.getConfig("someComputationId");
     assertTrue(config.isPresent());
-    assertThat(configs).containsExactly(expectedConfig);
+    assertThat(config.get()).isEqualTo(expectedConfig);
   }
 
   @Test
   public void testGetComputationConfig_whenNoConfigReturned() {
-    Set<StreamingPipelineConfig> configs = new HashSet<>();
-    StreamingApplianceConfigFetcher configLoader =
-        createStreamingApplianceConfigLoader(configs::add);
+    StreamingApplianceComputationConfigFetcher configLoader =
+        createStreamingApplianceConfigLoader();
     when(mockWindmillServer.getConfig(any())).thenReturn(null);
     Optional<ComputationConfig> configResponse = configLoader.getConfig("someComputationId");
     assertFalse(configResponse.isPresent());
-    assertThat(configs).isEmpty();
   }
 
-  private StreamingApplianceConfigFetcher createStreamingApplianceConfigLoader(
-      Consumer<StreamingPipelineConfig> onConfigResponse) {
-    return new StreamingApplianceConfigFetcher(
-        mockWindmillServer, onConfigResponse, Function.identity());
+  private StreamingApplianceComputationConfigFetcher createStreamingApplianceConfigLoader() {
+    return new StreamingApplianceComputationConfigFetcher(mockWindmillServer);
   }
 }

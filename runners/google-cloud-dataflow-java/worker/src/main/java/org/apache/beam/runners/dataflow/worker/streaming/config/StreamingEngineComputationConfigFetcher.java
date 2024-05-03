@@ -27,6 +27,7 @@ import com.google.api.services.dataflow.model.StreamingConfigTask;
 import com.google.api.services.dataflow.model.WorkItem;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -54,61 +55,55 @@ import org.slf4j.LoggerFactory;
 
 @Internal
 @ThreadSafe
-public final class StreamingEngineConfigFetcher implements ComputationConfig.Fetcher {
-  private static final Logger LOG = LoggerFactory.getLogger(StreamingEngineConfigFetcher.class);
+public final class StreamingEngineComputationConfigFetcher implements ComputationConfig.Fetcher {
+  private static final Logger LOG =
+      LoggerFactory.getLogger(StreamingEngineComputationConfigFetcher.class);
   private static final String GLOBAL_PIPELINE_CONFIG_REFRESHER = "GlobalPipelineConfigRefresher";
 
   private final long globalConfigRefreshPeriodMillis;
   private final WorkUnitClient dataflowServiceClient;
   private final ScheduledExecutorService globalConfigRefresher;
-  private final Consumer<StreamingPipelineConfig> onStreamingConfig;
+  private final Consumer<StreamingEnginePipelineConfig> onStreamingConfig;
   private final AtomicBoolean hasReceivedGlobalConfig;
-  private final Function<MapTask, MapTask> fixMapTaskMultiOutputInfoFn;
 
-  private StreamingEngineConfigFetcher(
+  private StreamingEngineComputationConfigFetcher(
       boolean hasReceivedGlobalConfig,
       long globalConfigRefreshPeriodMillis,
       WorkUnitClient dataflowServiceClient,
       ScheduledExecutorService globalConfigRefresher,
-      Consumer<StreamingPipelineConfig> onStreamingConfig,
-      Function<MapTask, MapTask> fixMapTaskMultiOutputInfoFn) {
+      Consumer<StreamingEnginePipelineConfig> onStreamingConfig) {
     this.globalConfigRefreshPeriodMillis = globalConfigRefreshPeriodMillis;
     this.dataflowServiceClient = dataflowServiceClient;
     this.globalConfigRefresher = globalConfigRefresher;
     this.onStreamingConfig = onStreamingConfig;
     this.hasReceivedGlobalConfig = new AtomicBoolean(hasReceivedGlobalConfig);
-    this.fixMapTaskMultiOutputInfoFn = fixMapTaskMultiOutputInfoFn;
   }
 
-  public static StreamingEngineConfigFetcher create(
+  public static StreamingEngineComputationConfigFetcher create(
       long globalConfigRefreshPeriodMillis,
       WorkUnitClient dataflowServiceClient,
-      Function<MapTask, MapTask> fixMapTaskMultiOutputInfoFn,
-      Consumer<StreamingPipelineConfig> onStreamingConfig) {
-    return new StreamingEngineConfigFetcher(
+      Consumer<StreamingEnginePipelineConfig> onStreamingConfig) {
+    return new StreamingEngineComputationConfigFetcher(
         /* hasReceivedGlobalConfig= */ false,
         globalConfigRefreshPeriodMillis,
         dataflowServiceClient,
         Executors.newSingleThreadScheduledExecutor(
             new ThreadFactoryBuilder().setNameFormat(GLOBAL_PIPELINE_CONFIG_REFRESHER).build()),
-        onStreamingConfig,
-        fixMapTaskMultiOutputInfoFn);
+        onStreamingConfig);
   }
 
-  public static StreamingEngineConfigFetcher forTesting(
+  public static StreamingEngineComputationConfigFetcher forTesting(
       boolean hasReceivedGlobalConfig,
       long globalConfigRefreshPeriodMillis,
       WorkUnitClient dataflowServiceClient,
       Function<String, ScheduledExecutorService> executorSupplier,
-      Function<MapTask, MapTask> fixMapTaskMultiOutputInfoFn,
-      Consumer<StreamingPipelineConfig> onStreamingConfig) {
-    return new StreamingEngineConfigFetcher(
+      Consumer<StreamingEnginePipelineConfig> onStreamingConfig) {
+    return new StreamingEngineComputationConfigFetcher(
         hasReceivedGlobalConfig,
         globalConfigRefreshPeriodMillis,
         dataflowServiceClient,
         executorSupplier.apply(GLOBAL_PIPELINE_CONFIG_REFRESHER),
-        onStreamingConfig,
-        fixMapTaskMultiOutputInfoFn);
+        onStreamingConfig);
   }
 
   private static BackOff defaultConfigBackoff() {
@@ -120,11 +115,10 @@ public final class StreamingEngineConfigFetcher implements ComputationConfig.Fet
   }
 
   private MapTask createMapTask(StreamingComputationConfig computationConfig) {
-    return fixMapTaskMultiOutputInfoFn.apply(
-        new MapTask()
-            .setSystemName(computationConfig.getSystemName())
-            .setStageName(computationConfig.getStageName())
-            .setInstructions(computationConfig.getInstructions()));
+    return new MapTask()
+        .setSystemName(computationConfig.getSystemName())
+        .setStageName(computationConfig.getStageName())
+        .setInstructions(computationConfig.getInstructions());
   }
 
   @Override
@@ -139,11 +133,18 @@ public final class StreamingEngineConfigFetcher implements ComputationConfig.Fet
         !computationId.isEmpty(),
         "computationId is empty. Cannot fetch computation config without a computationId.");
     return getComputationConfigInternal(computationId)
-        .flatMap(StreamingPipelineConfig::computationConfig)
-        .map(
-            config ->
-                ComputationConfig.create(
-                    createMapTask(config), config.getTransformUserNameToStateFamily()));
+        .flatMap(
+            config -> {
+              Map<String, String> stateNameMap = config.userStepToStateFamilyNameMap();
+              return config
+                  .computationConfig()
+                  .map(
+                      computationConfig ->
+                          ComputationConfig.create(
+                              createMapTask(computationConfig),
+                              computationConfig.getTransformUserNameToStateFamily(),
+                              stateNameMap));
+            });
   }
 
   @Override
@@ -187,7 +188,7 @@ public final class StreamingEngineConfigFetcher implements ComputationConfig.Fet
       // Get the initial global configuration. This will initialize the windmillServer stub.
       while (true) {
         LOG.info("Sending request to get initial global configuration for this worker.");
-        Optional<StreamingPipelineConfig> globalConfig = getGlobalConfig();
+        Optional<StreamingEnginePipelineConfig> globalConfig = getGlobalConfig();
         if (globalConfig.isPresent()) {
           onStreamingConfig.accept(globalConfig.get());
           hasReceivedGlobalConfig.compareAndSet(false, true);
@@ -200,17 +201,18 @@ public final class StreamingEngineConfigFetcher implements ComputationConfig.Fet
     LOG.info("Initial global configuration received, harness is now ready");
   }
 
-  private Optional<StreamingPipelineConfig> getComputationConfigInternal(String computationId) {
-    Optional<StreamingPipelineConfig> streamingConfig = getConfigInternal(computationId);
+  private Optional<StreamingEnginePipelineConfig> getComputationConfigInternal(
+      String computationId) {
+    Optional<StreamingEnginePipelineConfig> streamingConfig = getConfigInternal(computationId);
     streamingConfig.ifPresent(onStreamingConfig);
     return streamingConfig;
   }
 
-  private Optional<StreamingPipelineConfig> getGlobalConfig() {
+  private Optional<StreamingEnginePipelineConfig> getGlobalConfig() {
     return getConfigInternal(null);
   }
 
-  private Optional<StreamingPipelineConfig> getConfigInternal(@Nullable String computation) {
+  private Optional<StreamingEnginePipelineConfig> getConfigInternal(@Nullable String computation) {
     BackOff backoff = defaultConfigBackoff();
     while (true) {
       try {
@@ -238,7 +240,7 @@ public final class StreamingEngineConfigFetcher implements ComputationConfig.Fet
    *
    * @throws IOException if the RPC fails.
    */
-  private Optional<StreamingPipelineConfig> getConfigFromDataflowService(
+  private Optional<StreamingEnginePipelineConfig> getConfigFromDataflowService(
       @Nullable String computation) throws IOException {
     Optional<WorkItem> workItem =
         computation == null
@@ -252,7 +254,7 @@ public final class StreamingEngineConfigFetcher implements ComputationConfig.Fet
     StreamingConfigTask config = workItem.get().getStreamingConfigTask();
     Preconditions.checkState(config != null);
 
-    StreamingPipelineConfig.Builder streamingConfig = StreamingPipelineConfig.builder();
+    StreamingEnginePipelineConfig.Builder streamingConfig = StreamingEnginePipelineConfig.builder();
 
     if (config.getUserStepToStateFamilyNameMap() != null) {
       streamingConfig.setUserStepToStateFamilyNameMap(config.getUserStepToStateFamilyNameMap());

@@ -21,10 +21,9 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect
 
 import com.google.api.services.dataflow.model.MapTask;
 import java.io.IOException;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Consumer;
-import java.util.function.Function;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetConfigResponse;
@@ -42,22 +41,16 @@ import org.slf4j.LoggerFactory;
 /** Fetches computation config from Streaming Appliance. */
 @Internal
 @ThreadSafe
-public final class StreamingApplianceConfigFetcher implements ComputationConfig.Fetcher {
+public final class StreamingApplianceComputationConfigFetcher implements ComputationConfig.Fetcher {
 
-  private static final Logger LOG = LoggerFactory.getLogger(StreamingApplianceConfigFetcher.class);
+  private static final Logger LOG =
+      LoggerFactory.getLogger(StreamingApplianceComputationConfigFetcher.class);
 
   private final WindmillServerStub windmillServer;
-  private final Consumer<StreamingPipelineConfig> onPipelineConfig;
   private final ConcurrentHashMap<String, String> systemNameToComputationIdMap;
-  private final Function<MapTask, MapTask> fixMapTaskMultiOutputInfoFn;
 
-  public StreamingApplianceConfigFetcher(
-      WindmillServerStub windmillServer,
-      Consumer<StreamingPipelineConfig> onPipelineConfig,
-      Function<MapTask, MapTask> fixMapTaskMultiOutputInfoFn) {
+  public StreamingApplianceComputationConfigFetcher(WindmillServerStub windmillServer) {
     this.windmillServer = windmillServer;
-    this.onPipelineConfig = onPipelineConfig;
-    this.fixMapTaskMultiOutputInfoFn = fixMapTaskMultiOutputInfoFn;
     this.systemNameToComputationIdMap = new ConcurrentHashMap<>();
   }
 
@@ -83,9 +76,7 @@ public final class StreamingApplianceConfigFetcher implements ComputationConfig.
   /** Deserialize {@link MapTask} and populate MultiOutputInfos in MapTask. */
   private Optional<MapTask> deserializeAndFixMapTask(String serializedMapTask) {
     try {
-      return Optional.of(
-          fixMapTaskMultiOutputInfoFn.apply(
-              Transport.getJsonFactory().fromString(serializedMapTask, MapTask.class)));
+      return Optional.of(Transport.getJsonFactory().fromString(serializedMapTask, MapTask.class));
     } catch (IOException e) {
       LOG.warn("Parsing MapTask failed: {}", serializedMapTask, e);
     }
@@ -111,24 +102,19 @@ public final class StreamingApplianceConfigFetcher implements ComputationConfig.
       systemNameToComputationIdMap.put(entry.getSystemName(), entry.getComputationId());
     }
 
-    onPipelineConfig.accept(
-        StreamingPipelineConfig.builder()
-            .setUserStepToStateFamilyNameMap(
-                response.getNameMapList().stream()
-                    .collect(
-                        toImmutableMap(NameMapEntry::getUserName, NameMapEntry::getSystemName)))
-            .build());
-
     return createComputationConfig(
         // We are only fetching the config for 1 computation, so we should only be getting that
         // computation back.
         Iterables.getOnlyElement(response.getCloudWorksList()),
-        transformUserNameToStateFamilyByComputationId(response));
+        transformUserNameToStateFamilyByComputationId(response),
+        response.getNameMapList().stream()
+            .collect(toImmutableMap(NameMapEntry::getUserName, NameMapEntry::getSystemName)));
   }
 
   private Optional<ComputationConfig> createComputationConfig(
       String serializedMapTask,
-      Table<String, String, String> transformUserNameToStateFamilyByComputationId) {
+      Table<String, String, String> transformUserNameToStateFamilyByComputationId,
+      Map<String, String> stateNameMap) {
     return deserializeAndFixMapTask(serializedMapTask)
         .map(
             mapTask -> {
@@ -136,7 +122,9 @@ public final class StreamingApplianceConfigFetcher implements ComputationConfig.
                   systemNameToComputationIdMap.getOrDefault(
                       mapTask.getSystemName(), mapTask.getSystemName());
               return ComputationConfig.create(
-                  mapTask, transformUserNameToStateFamilyByComputationId.row(computationId));
+                  mapTask,
+                  transformUserNameToStateFamilyByComputationId.row(computationId),
+                  stateNameMap);
             });
   }
 }

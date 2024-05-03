@@ -28,7 +28,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
@@ -40,11 +39,9 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
 import org.apache.beam.runners.core.metrics.MetricsLogger;
 import org.apache.beam.runners.dataflow.DataflowRunner;
@@ -52,7 +49,6 @@ import org.apache.beam.runners.dataflow.internal.CustomSources;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.CloudObjects;
-import org.apache.beam.runners.dataflow.worker.apiary.FixMultiOutputInfosOnParDoInstructions;
 import org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.graph.Edges.Edge;
@@ -75,9 +71,9 @@ import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.streaming.Work.State;
 import org.apache.beam.runners.dataflow.worker.streaming.WorkHeartbeatResponseProcessor;
 import org.apache.beam.runners.dataflow.worker.streaming.config.ComputationConfig;
-import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingApplianceConfigFetcher;
-import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingEngineConfigFetcher;
-import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingPipelineConfig;
+import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingApplianceComputationConfigFetcher;
+import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingEngineComputationConfigFetcher;
+import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingEnginePipelineConfig;
 import org.apache.beam.runners.dataflow.worker.streaming.harness.StreamingCounters;
 import org.apache.beam.runners.dataflow.worker.streaming.harness.StreamingWorkerStatusPages;
 import org.apache.beam.runners.dataflow.worker.streaming.harness.StreamingWorkerStatusReporter;
@@ -177,13 +173,6 @@ public class StreamingDataflowWorker {
   private static final IdGenerator ID_GENERATOR = IdGenerators.decrementingLongs();
 
   /**
-   * Fix up MapTask representation because MultiOutputInfos are missing from system generated
-   * ParDoInstructions.
-   */
-  private static final Function<MapTask, MapTask> FIX_MULTI_OUTPUT_INFOS_ON_PAR_DO_INSTRUCTIONS =
-      new FixMultiOutputInfosOnParDoInstructions(ID_GENERATOR);
-
-  /**
    * Function which converts map tasks to their network representation for execution.
    *
    * <ul>
@@ -212,10 +201,7 @@ public class StreamingDataflowWorker {
   // discarded by Dataflow service and calling commitCallback is best-effort.
   private final Cache<Long, Runnable> commitCallbacks =
       CacheBuilder.newBuilder().expireAfterWrite(5L, TimeUnit.MINUTES).build();
-  // Map of user state names to system state names.
-  // TODO(drieber): obsolete stateNameMap. Use transformUserNameToStateFamily in
-  // ComputationState instead.
-  private final ConcurrentMap<String, String> stateNameMap;
+
   private final BoundedQueueExecutor workUnitExecutor;
   private final WindmillServerStub windmillServer;
   private final Thread dispatchThread;
@@ -256,7 +242,6 @@ public class StreamingDataflowWorker {
   private StreamingDataflowWorker(
       WindmillServerStub windmillServer,
       long clientId,
-      ConcurrentMap<String, String> stateNameMap,
       ComputationConfig.Fetcher configFetcher,
       ComputationStateCache computationStateCache,
       ConcurrentMap<String, StageInfo> stageInfoMap,
@@ -274,7 +259,6 @@ public class StreamingDataflowWorker {
       AtomicInteger maxWorkItemCommitBytes,
       GrpcWindmillStreamFactory windmillStreamFactory,
       Function<String, ScheduledExecutorService> executorSupplier) {
-    this.stateNameMap = stateNameMap;
     this.configFetcher = configFetcher;
     this.computationStateCache = computationStateCache;
     this.stageInfoMap = stageInfoMap;
@@ -403,7 +387,6 @@ public class StreamingDataflowWorker {
     long clientId = clientIdGenerator.nextLong();
     MemoryMonitor memoryMonitor = MemoryMonitor.fromOptions(options);
     ConcurrentMap<String, StageInfo> stageInfo = new ConcurrentHashMap<>();
-    ConcurrentMap<String, String> stateNameMap = new ConcurrentHashMap<>();
     StreamingCounters streamingCounters = StreamingCounters.create();
     WorkUnitClient dataflowServiceClient = new DataflowWorkUnitClient(options, LOG);
     BoundedQueueExecutor workExecutor = createWorkUnitExecutor(options);
@@ -424,7 +407,6 @@ public class StreamingDataflowWorker {
         createConfigFetcherAndWindmillClient(
             options,
             dataflowServiceClient,
-            stateNameMap,
             dispatcherClient,
             maxWorkItemCommitBytes,
             windmillStreamFactory);
@@ -433,7 +415,8 @@ public class StreamingDataflowWorker {
         ComputationStateCache.create(
             configFetcherAndWindmillClient.getLeft(),
             workExecutor,
-            windmillStateCache::forComputation);
+            windmillStateCache::forComputation,
+            ID_GENERATOR);
 
     // If WindmillServerStub is not present, it is a Streaming Engine job. We now have all the
     // components created to initialize the GrpcWindmillServer.
@@ -478,7 +461,6 @@ public class StreamingDataflowWorker {
     return new StreamingDataflowWorker(
         windmillServer,
         clientId,
-        stateNameMap,
         configFetcherAndWindmillClient.getLeft(),
         computationStateCache,
         stageInfo,
@@ -502,7 +484,6 @@ public class StreamingDataflowWorker {
       createConfigFetcherAndWindmillClient(
           DataflowWorkerHarnessOptions options,
           WorkUnitClient dataflowServiceClient,
-          ConcurrentMap<String, String> stateNameMap,
           GrpcDispatcherClient dispatcherClient,
           AtomicInteger maxWorkItemCommitBytes,
           GrpcWindmillStreamFactory windmillStreamFactory) {
@@ -510,25 +491,18 @@ public class StreamingDataflowWorker {
     @Nullable WindmillServerStub windmillServer = null;
     if (options.isEnableStreamingEngine()) {
       configFetcher =
-          StreamingEngineConfigFetcher.create(
+          StreamingEngineComputationConfigFetcher.create(
               options.getGlobalConfigRefreshPeriod().getMillis(),
               dataflowServiceClient,
-              FIX_MULTI_OUTPUT_INFOS_ON_PAR_DO_INSTRUCTIONS,
               config ->
                   onPipelineConfig(
                       config,
-                      stateNameMap,
                       dispatcherClient::consumeWindmillDispatcherEndpoints,
                       maxWorkItemCommitBytes));
     } else {
       windmillServer =
           createWindmillServerStub(options, windmillStreamFactory, dispatcherClient, ignored -> {});
-      configFetcher =
-          new StreamingApplianceConfigFetcher(
-              windmillServer,
-              config ->
-                  onPipelineConfig(config, stateNameMap, ignored -> {}, maxWorkItemCommitBytes),
-              FIX_MULTI_OUTPUT_INFOS_ON_PAR_DO_INSTRUCTIONS);
+      configFetcher = new StreamingApplianceComputationConfigFetcher(windmillServer);
     }
 
     return Pair.of(configFetcher, Optional.ofNullable(windmillServer));
@@ -536,7 +510,7 @@ public class StreamingDataflowWorker {
 
   @VisibleForTesting
   static StreamingDataflowWorker forTesting(
-      AtomicReference<ComputationStateCache> computationStateCacheRef,
+      ConcurrentMap<String, String> stateNameMap,
       WindmillServerStub windmillServer,
       List<MapTask> mapTasks,
       DataflowMapTaskExecutorFactory mapTaskExecutorFactory,
@@ -548,38 +522,34 @@ public class StreamingDataflowWorker {
       Function<String, ScheduledExecutorService> executorSupplier,
       int localRetryTimeoutMs) {
     ConcurrentMap<String, StageInfo> stageInfo = new ConcurrentHashMap<>();
-    ConcurrentMap<String, String> stateNameMap = new ConcurrentHashMap<>();
     AtomicInteger maxWorkItemCommitBytes = new AtomicInteger(Integer.MAX_VALUE);
     BoundedQueueExecutor workExecutor = createWorkUnitExecutor(options);
     WindmillStateCache stateCache = WindmillStateCache.ofSizeMbs(options.getWorkerCacheMb());
     ComputationConfig.Fetcher configFetcher =
         options.isEnableStreamingEngine()
-            ? StreamingEngineConfigFetcher.forTesting(
+            ? StreamingEngineComputationConfigFetcher.forTesting(
                 /* hasReceivedGlobalConfig= */ true,
                 options.getGlobalConfigRefreshPeriod().getMillis(),
                 workUnitClient,
                 executorSupplier,
-                FIX_MULTI_OUTPUT_INFOS_ON_PAR_DO_INSTRUCTIONS,
                 config ->
                     onPipelineConfig(
                         config,
-                        stateNameMap,
                         windmillServer::setWindmillServiceEndpoints,
                         maxWorkItemCommitBytes))
-            : new StreamingApplianceConfigFetcher(
-                windmillServer,
-                config ->
-                    onPipelineConfig(config, stateNameMap, ignored -> {}, maxWorkItemCommitBytes),
-                FIX_MULTI_OUTPUT_INFOS_ON_PAR_DO_INSTRUCTIONS);
+            : new StreamingApplianceComputationConfigFetcher(windmillServer);
     ComputationStateCache computationStateCache =
-        ComputationStateCache.create(configFetcher, workExecutor, stateCache::forComputation);
+        ComputationStateCache.forTesting(
+            configFetcher, workExecutor, stateCache::forComputation, ID_GENERATOR, stateNameMap);
     computationStateCache.loadCacheForTesting(
-        mapTasks.stream()
-            .map(FIX_MULTI_OUTPUT_INFOS_ON_PAR_DO_INSTRUCTIONS)
-            .collect(Collectors.toList()),
-        workExecutor,
-        stateCache::forComputation);
-    computationStateCacheRef.set(computationStateCache);
+        mapTasks,
+        mapTask ->
+            new ComputationState(
+                mapTask.getStageName(),
+                mapTask,
+                workExecutor,
+                stateNameMap,
+                stateCache.forComputation(mapTask.getStageName())));
     MemoryMonitor memoryMonitor = MemoryMonitor.fromOptions(options);
     StreamingCounters streamingCounters = StreamingCounters.create();
     FailureTracker failureTracker =
@@ -613,7 +583,6 @@ public class StreamingDataflowWorker {
     return new StreamingDataflowWorker(
         windmillServer,
         1L,
-        stateNameMap,
         configFetcher,
         computationStateCache,
         stageInfo,
@@ -634,11 +603,9 @@ public class StreamingDataflowWorker {
   }
 
   private static void onPipelineConfig(
-      StreamingPipelineConfig config,
-      Map<String, String> stateNameMap,
+      StreamingEnginePipelineConfig config,
       Consumer<ImmutableSet<HostAndPort>> consumeWindmillServiceEndpoints,
       AtomicInteger maxWorkItemCommitBytes) {
-    stateNameMap.putAll(config.userStepToStateFamilyNameMap());
     if (config.maxWorkItemCommitBytes() != maxWorkItemCommitBytes.get()) {
       LOG.info("Setting maxWorkItemCommitBytes to {}", maxWorkItemCommitBytes);
       maxWorkItemCommitBytes.set((int) config.maxWorkItemCommitBytes());
@@ -808,10 +775,6 @@ public class StreamingDataflowWorker {
     BigQuerySinkMetrics.setSupportStreamingInsertsMetrics(true);
   }
 
-  void addStateNameMappings(Map<String, String> nameMap) {
-    stateNameMap.putAll(nameMap);
-  }
-
   @VisibleForTesting
   void setMaxWorkItemCommitBytes(int maxWorkItemCommitBytes) {
     if (maxWorkItemCommitBytes != this.maxWorkItemCommitBytes.get()) {
@@ -828,6 +791,11 @@ public class StreamingDataflowWorker {
   @VisibleForTesting
   int numCommitThreads() {
     return workCommitter.parallelism();
+  }
+
+  @VisibleForTesting
+  ComputationStateCache getComputationStateCache() {
+    return computationStateCache;
   }
 
   @SuppressWarnings("FutureReturnValueIgnored")
@@ -902,10 +870,6 @@ public class StreamingDataflowWorker {
         final String computationId = computationWork.getComputationId();
         Optional<ComputationState> maybeComputationState = computationStateCache.get(computationId);
         if (!maybeComputationState.isPresent()) {
-          LOG.warn(
-              "Received work for unknown computation: {}. Known computations are {}",
-              computationId,
-              computationStateCache.getAllComputationIds());
           continue;
         }
 
@@ -1128,9 +1092,12 @@ public class StreamingDataflowWorker {
                 streamingCounters.pendingDeltaCounters(),
                 computationId,
                 readerCache,
-                !computationState.getTransformUserNameToStateFamily().isEmpty()
-                    ? computationState.getTransformUserNameToStateFamily()
-                    : stateNameMap,
+                //                !computationState.getTransformUserNameToStateFamily().isEmpty()
+                //                    ?
+                computationState.getTransformUserNameToStateFamily()
+                //                    :
+                //                    computationStateCache.getReadOnlyStateNameMap()
+                ,
                 stateCache.forComputation(computationId),
                 stageInfo.metricsContainerRegistry(),
                 executionStateTracker,

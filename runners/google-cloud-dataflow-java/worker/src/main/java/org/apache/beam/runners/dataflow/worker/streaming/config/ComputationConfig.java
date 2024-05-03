@@ -30,17 +30,22 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 public abstract class ComputationConfig {
 
   public static ComputationConfig create(
-      MapTask mapTask, @Nullable Map<String, String> userTransformToStateFamilyName) {
+      MapTask mapTask,
+      @Nullable Map<String, String> userTransformToStateFamilyName,
+      Map<String, String> stateNameMap) {
     return new AutoValue_ComputationConfig(
         mapTask,
         Optional.ofNullable(userTransformToStateFamilyName)
             .map(ImmutableMap::copyOf)
-            .orElseGet(ImmutableMap::of));
+            .orElseGet(ImmutableMap::of),
+        ImmutableMap.copyOf(stateNameMap));
   }
 
   public abstract MapTask mapTask();
 
   public abstract ImmutableMap<String, String> userTransformToStateFamilyName();
+
+  public abstract ImmutableMap<String, String> stateNameMap();
 
   /** Interface to fetch configurations for a specific computation. */
   @FunctionalInterface

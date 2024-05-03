@@ -29,12 +29,12 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPor
 
 @AutoValue
 @Internal
-public abstract class StreamingPipelineConfig {
+public abstract class StreamingEnginePipelineConfig {
 
   private static final long DEFAULT_MAX_WORK_ITEM_COMMIT_BYTES = 180 << 20;
 
-  public static StreamingPipelineConfig.Builder builder() {
-    return new AutoValue_StreamingPipelineConfig.Builder()
+  public static StreamingEnginePipelineConfig.Builder builder() {
+    return new AutoValue_StreamingEnginePipelineConfig.Builder()
         .setMaxWorkItemCommitBytes(DEFAULT_MAX_WORK_ITEM_COMMIT_BYTES)
         .setComputationConfig(null)
         .setUserStepToStateFamilyNameMap(new HashMap<>())
@@ -59,6 +59,6 @@ public abstract class StreamingPipelineConfig {
 
     public abstract Builder setWindmillServiceEndpoints(ImmutableSet<HostAndPort> value);
 
-    public abstract StreamingPipelineConfig build();
+    public abstract StreamingEnginePipelineConfig build();
   }
 }

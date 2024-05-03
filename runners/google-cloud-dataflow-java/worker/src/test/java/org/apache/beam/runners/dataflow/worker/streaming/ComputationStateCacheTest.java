@@ -31,11 +31,14 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import org.apache.beam.runners.dataflow.worker.streaming.config.ComputationConfig;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
+import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
@@ -52,6 +55,7 @@ public class ComputationStateCacheTest {
   private final WindmillStateCache.ForComputation stateCache =
       mock(WindmillStateCache.ForComputation.class);
   private final ComputationConfig.Fetcher configFetcher = mock(ComputationConfig.Fetcher.class);
+  private final ConcurrentMap<String, String> stateNameMap = new ConcurrentHashMap<>();
   private ComputationStateCache computationStateCache;
 
   private static Work createWork(long workToken, long cacheToken) {
@@ -70,8 +74,14 @@ public class ComputationStateCacheTest {
 
   @Before
   public void setUp() {
+    stateNameMap.clear();
     computationStateCache =
-        ComputationStateCache.create(configFetcher, workExecutor, ignored -> stateCache);
+        ComputationStateCache.forTesting(
+            configFetcher,
+            workExecutor,
+            ignored -> stateCache,
+            IdGenerators.decrementingLongs(),
+            stateNameMap);
   }
 
   @Test
@@ -81,7 +91,7 @@ public class ComputationStateCacheTest {
     Map<String, String> userTransformToStateFamilyName =
         ImmutableMap.of("userTransformName", "stateFamilyName");
     ComputationConfig computationConfig =
-        ComputationConfig.create(mapTask, userTransformToStateFamilyName);
+        ComputationConfig.create(mapTask, userTransformToStateFamilyName, ImmutableMap.of());
     when(configFetcher.getConfig(eq(computationId))).thenReturn(Optional.of(computationConfig));
     computationStateCache.get(computationId);
     Optional<ComputationState> computationState = computationStateCache.get(computationId);
@@ -99,7 +109,7 @@ public class ComputationStateCacheTest {
     Map<String, String> userTransformToStateFamilyName =
         ImmutableMap.of("userTransformName", "stateFamilyName");
     ComputationConfig computationConfig =
-        ComputationConfig.create(mapTask, userTransformToStateFamilyName);
+        ComputationConfig.create(mapTask, userTransformToStateFamilyName, ImmutableMap.of());
     when(configFetcher.getConfig(eq(computationId))).thenReturn(Optional.of(computationConfig));
     Optional<ComputationState> computationState = computationStateCache.get(computationId);
     assertTrue(computationState.isPresent());
@@ -125,13 +135,57 @@ public class ComputationStateCacheTest {
   }
 
   @Test
+  public void testGet_usesUserTransformToStateFamilyNameIfNotEmpty() {
+    String computationId = "computationId";
+    MapTask mapTask = new MapTask().setStageName("stageName").setSystemName("systemName");
+    Map<String, String> userTransformToStateFamilyName =
+        ImmutableMap.of("userTransformName", "stateFamilyName");
+    ComputationConfig computationConfig =
+        ComputationConfig.create(
+            mapTask, userTransformToStateFamilyName, ImmutableMap.of("stateName1", "stateName"));
+    when(configFetcher.getConfig(eq(computationId))).thenReturn(Optional.of(computationConfig));
+    Optional<ComputationState> computationState = computationStateCache.get(computationId);
+    assertTrue(computationState.isPresent());
+    assertThat(computationState.get().getComputationId()).isEqualTo(computationId);
+    assertThat(computationState.get().getMapTask()).isEqualTo(mapTask);
+    assertThat(computationState.get().getTransformUserNameToStateFamily())
+        .isEqualTo(userTransformToStateFamilyName);
+  }
+
+  @Test
+  public void testGet_defaultsToStateNameMapWhenUserTransformToStateFamilyNameEmpty() {
+    String computationId = "computationId";
+    MapTask mapTask = new MapTask().setStageName("stageName").setSystemName("systemName");
+    ComputationConfig computationConfig =
+        ComputationConfig.create(
+            mapTask, ImmutableMap.of(), ImmutableMap.of("stateName1", "stateName"));
+    when(configFetcher.getConfig(eq(computationId))).thenReturn(Optional.of(computationConfig));
+    Optional<ComputationState> computationState = computationStateCache.get(computationId);
+    assertTrue(computationState.isPresent());
+    assertThat(computationState.get().getComputationId()).isEqualTo(computationId);
+    assertThat(computationState.get().getMapTask()).isEqualTo(mapTask);
+    assertThat(computationState.get().getTransformUserNameToStateFamily()).isEqualTo(stateNameMap);
+  }
+
+  @Test
+  public void testGet_buildsStateNameMap() {
+    String computationId = "computationId";
+    MapTask mapTask = new MapTask().setStageName("stageName").setSystemName("systemName");
+    Map<String, String> stateNameMap = ImmutableMap.of("stateName1", "stateName");
+    ComputationConfig computationConfig = ComputationConfig.create(mapTask, null, stateNameMap);
+    when(configFetcher.getConfig(eq(computationId))).thenReturn(Optional.of(computationConfig));
+    computationStateCache.get(computationId);
+    assertThat(this.stateNameMap).containsExactlyEntriesIn(stateNameMap);
+  }
+
+  @Test
   public void testGetIfPresent_computationStateCached() {
     String computationId = "computationId";
     MapTask mapTask = new MapTask().setStageName("stageName").setSystemName("systemName");
     Map<String, String> userTransformToStateFamilyName =
         ImmutableMap.of("userTransformName", "stateFamilyName");
     ComputationConfig computationConfig =
-        ComputationConfig.create(mapTask, userTransformToStateFamilyName);
+        ComputationConfig.create(mapTask, userTransformToStateFamilyName, ImmutableMap.of());
     when(configFetcher.getConfig(eq(computationId))).thenReturn(Optional.of(computationConfig));
     computationStateCache.get(computationId);
     Optional<ComputationState> computationState = computationStateCache.getIfPresent(computationId);
@@ -158,7 +212,7 @@ public class ComputationStateCacheTest {
     Map<String, String> userTransformToStateFamilyName =
         ImmutableMap.of("userTransformName", "stateFamilyName");
     ComputationConfig computationConfig =
-        ComputationConfig.create(mapTask, userTransformToStateFamilyName);
+        ComputationConfig.create(mapTask, userTransformToStateFamilyName, ImmutableMap.of());
     when(configFetcher.getConfig(eq(computationId1))).thenReturn(Optional.of(computationConfig));
     when(configFetcher.getConfig(eq(computationId2))).thenReturn(Optional.of(computationConfig));
 
@@ -177,32 +231,13 @@ public class ComputationStateCacheTest {
   }
 
   @Test
-  public void testGetAllComputationIds() {
-    String computationId1 = "computationId1";
-    String computationId2 = "computationId2";
-    MapTask mapTask = new MapTask().setStageName("stageName").setSystemName("systemName");
-    Map<String, String> userTransformToStateFamilyName =
-        ImmutableMap.of("userTransformName", "stateFamilyName");
-    ComputationConfig computationConfig =
-        ComputationConfig.create(mapTask, userTransformToStateFamilyName);
-    when(configFetcher.getConfig(eq(computationId1))).thenReturn(Optional.of(computationConfig));
-    when(configFetcher.getConfig(eq(computationId2))).thenReturn(Optional.of(computationConfig));
-
-    computationStateCache.get(computationId1);
-    computationStateCache.get(computationId2);
-    Set<String> computationIds = ImmutableSet.of(computationId1, computationId2);
-    assertThat(computationIds)
-        .containsExactlyElementsIn(computationStateCache.getAllComputationIds());
-  }
-
-  @Test
   public void testTotalCurrentActiveGetWorkBudget() {
     String computationId = "computationId";
     MapTask mapTask = new MapTask().setStageName("stageName").setSystemName("systemName");
     Map<String, String> userTransformToStateFamilyName =
         ImmutableMap.of("userTransformName", "stateFamilyName");
     ComputationConfig computationConfig =
-        ComputationConfig.create(mapTask, userTransformToStateFamilyName);
+        ComputationConfig.create(mapTask, userTransformToStateFamilyName, ImmutableMap.of());
     when(configFetcher.getConfig(eq(computationId))).thenReturn(Optional.of(computationConfig));
     Optional<ComputationState> maybeComputationState = computationStateCache.get(computationId);
     assertTrue(maybeComputationState.isPresent());
