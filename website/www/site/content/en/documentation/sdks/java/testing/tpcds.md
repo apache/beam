@@ -138,7 +138,7 @@ When running via Gradle, the following two parameters control the execution:
 
     -P tpcds.runner
 	The Gradle project name of the runner, such as ":runners:spark:3" or
-	":runners:flink:1.13. The project names can be found in the root
+	":runners:flink:1.17. The project names can be found in the root
         `settings.gradle.kts`.
 
 Test data has to be generated before running a suite and stored to accessible file system. The query results will be written into output files.
