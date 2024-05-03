@@ -225,6 +225,7 @@ class _DeferrredDataframeOutputChecker(doctest.OutputChecker):
 
   def fix(self, want, got):
     if 'DeferredBase' in got:
+
       try:
         to_compute = {
             m.group(0): self._env._all_frames[int(m.group(1))]

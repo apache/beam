@@ -483,6 +483,7 @@ class DoctestTest(unittest.TestCase):
         report=True,
         wont_implement_ok={
             'pandas.core.series.Series.__array__': ['*'],
+            'pandas.core.series.Series.argsort': ['*'],
             'pandas.core.series.Series.array': ['*'],
             'pandas.core.series.Series.cummax': ['*'],
             'pandas.core.series.Series.cummin': ['*'],
@@ -513,6 +514,7 @@ class DoctestTest(unittest.TestCase):
                 "s.nsmallest(3, keep='last')",
             ],
             'pandas.core.series.Series.pop': ['*'],
+            'pandas.core.series.Series.ravel': ['*'],
             'pandas.core.series.Series.searchsorted': ['*'],
             'pandas.core.series.Series.shift': [
                 'df.shift(periods=3)',
@@ -520,6 +522,7 @@ class DoctestTest(unittest.TestCase):
             ],
             'pandas.core.series.Series.take': ['*'],
             'pandas.core.series.Series.to_dict': ['*'],
+            'pandas.core.series.Series.to_string': ['*'],
             'pandas.core.series.Series.unique': ['*'],
             'pandas.core.series.Series.unstack': ['*'],
             'pandas.core.series.Series.values': ['*'],
