@@ -434,6 +434,8 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
           print('(' + co.co_varnames[arg] + ')', end=' ')
         elif op in dis.hascompare:
           if (sys.version_info.major, sys.version_info.minor) >= (3, 12):
+            # In 3.12 this arg was bit-shifted. Shifting it back avoids an
+            # out-of-index.
             arg = arg >> 4
           print('(' + dis.cmp_op[arg] + ')', end=' ')
         elif op in dis.hasfree:
@@ -660,12 +662,13 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
       returns.add(state.const_type(arg))
       state = None
     elif opname == 'CALL_INTRINSIC_1':
-      int_op = intrinsic_one_ops.int_one_ops[arg]
+      # Introduced in 3.12. The arg is an index into a table of
+      # operations reproduced in INT_ONE_OPS. Not all ops are
+      # relevant for our type checking infrastructure.
+      int_op = intrinsic_one_ops.INT_ONE_OPS[arg]
       if debug:
         print("Executing intrinsic one op", int_op.__name__.upper())
       int_op(state, arg)
-    elif opname == 'CALL_INTRINSIC_2':
-      pass
 
     else:
       raise TypeInferenceError('unable to handle %s' % opname)

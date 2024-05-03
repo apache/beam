@@ -389,6 +389,12 @@ def load_attr(state, arg):
   CPython so that's okay.
   """
   if (sys.version_info.major, sys.version_info.minor) >= (3, 12):
+    # Load attribute's arg was bit-shifted in 3.12 to also allow for
+    # adding extra information to the stack based on the lower byte,
+    # so we have to adjust it back.
+    #
+    # See https://docs.python.org/3/library/dis.html#opcode-LOAD_ATTR
+    # for more information.
     arg = arg >> 1
   o = state.stack.pop()
   name = state.get_name(arg)

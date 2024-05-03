@@ -18,8 +18,7 @@
 """Defines the actions intrinsic bytecodes have on the frame.
 
 Each function here corresponds to a bytecode documented in
-https://docs.python.org/2/library/dis.html or
-https://docs.python.org/3/library/dis.html. The first argument is a (mutable)
+https://docs.python.org/3/library/dis.html . The first argument is a (mutable)
 FrameState object, the second the integer opcode argument.
 
 Bytecodes with more complicated behavior (e.g. modifying the program counter)
@@ -82,7 +81,10 @@ def intrinsic_typealias(state, arg):
   pass
 
 
-int_one_ops = [
+# The order of operations in the table of the intrinsic one operations is
+# defined in https://docs.python.org/3/library/dis.html#opcode-CALL_INTRINSIC_1
+# and may change between minor versions.
+INT_ONE_OPS = tuple([
     intrinsic_1_invalid,
     intrinsic_print,
     intrinsic_import_star,
@@ -95,4 +97,4 @@ int_one_ops = [
     intrinsic_typevartuple,
     intrinsic_subscript_generic,
     intrinsic_typealias
-]
+])
