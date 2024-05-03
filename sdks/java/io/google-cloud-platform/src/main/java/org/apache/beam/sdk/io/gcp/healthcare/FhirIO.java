@@ -1080,7 +1080,7 @@ public class FhirIO {
     public Write.Result expand(PCollection<String> input) {
       checkState(
           input.isBounded() == IsBounded.BOUNDED,
-          "FhirIO.Import should only be used on bounded PCollections as it is"
+          "FhirIO.Import should only be used on bounded PCollections as it is "
               + "intended for batch use only.");
 
       // fall back on pipeline's temp location.

@@ -14,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# cython: profile=True
 # cython: language_level=3
 
 """Worker operations executor.
@@ -24,6 +23,8 @@ For internal use only; no backwards-compatibility guarantees.
 
 # pytype: skip-file
 
+import collections
+import copy
 import logging
 import sys
 import threading
@@ -43,6 +44,7 @@ from apache_beam.coders import coders
 from apache_beam.internal import util
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.portability import common_urns
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.pvalue import TaggedOutput
 from apache_beam.runners.sdf_utils import NoOpWatermarkEstimatorProvider
 from apache_beam.runners.sdf_utils import RestrictionTrackerView
@@ -52,6 +54,7 @@ from apache_beam.runners.sdf_utils import ThreadsafeRestrictionTracker
 from apache_beam.runners.sdf_utils import ThreadsafeWatermarkEstimator
 from apache_beam.transforms import DoFn
 from apache_beam.transforms import core
+from apache_beam.transforms import environments
 from apache_beam.transforms import userstate
 from apache_beam.transforms.core import RestrictionProvider
 from apache_beam.transforms.core import WatermarkEstimatorProvider
@@ -758,9 +761,16 @@ class PerWindowInvoker(DoFnInvoker):
       self.current_window_index = None
       self.stop_window_index = None
 
-    # Flag to cache additional arguments on the first element if all
-    # inputs are within the global window.
-    self.cache_globally_windowed_args = not self.has_windowed_inputs
+    # TODO(https://github.com/apache/beam/issues/28776): Remove caching after
+    # fully rolling out.
+    # If true, always recalculate window args. If false, has_cached_window_args
+    # and has_cached_window_batch_args will be set to true if the corresponding
+    # self.args_for_process,have been updated and should be reused directly.
+    self.recalculate_window_args = (
+        self.has_windowed_inputs or 'disable_global_windowed_args_caching' in
+        RuntimeValueProvider.experiments)
+    self.has_cached_window_args = False
+    self.has_cached_window_batch_args = False
 
     # Try to prepare all the arguments that can just be filled in
     # without any additional work. in the process function.
@@ -922,31 +932,23 @@ class PerWindowInvoker(DoFnInvoker):
                                  additional_kwargs,
                                 ):
     # type: (...) -> Optional[SplitResultResidual]
-
-    if self.has_windowed_inputs:
-      assert len(windowed_value.windows) <= 1
-      window, = windowed_value.windows
-      side_inputs = [si[window] for si in self.side_inputs]
-      side_inputs.extend(additional_args)
-      args_for_process, kwargs_for_process = util.insert_values_in_args(
-          self.args_for_process, self.kwargs_for_process,
-          side_inputs)
-    elif self.cache_globally_windowed_args:
-      # Attempt to cache additional args if all inputs are globally
-      # windowed inputs when processing the first element.
-      self.cache_globally_windowed_args = False
-
-      # Fill in sideInputs if they are globally windowed
-      global_window = GlobalWindow()
-      self.args_for_process, self.kwargs_for_process = (
-          util.insert_values_in_args(
-              self.args_for_process, self.kwargs_for_process,
-              [si[global_window] for si in self.side_inputs]))
+    if self.has_cached_window_args:
       args_for_process, kwargs_for_process = (
           self.args_for_process, self.kwargs_for_process)
     else:
-      args_for_process, kwargs_for_process = (
-          self.args_for_process, self.kwargs_for_process)
+      if self.has_windowed_inputs:
+        assert len(windowed_value.windows) <= 1
+        window, = windowed_value.windows
+      else:
+        window = GlobalWindow()
+      side_inputs = [si[window] for si in self.side_inputs]
+      side_inputs.extend(additional_args)
+      args_for_process, kwargs_for_process = util.insert_values_in_args(
+          self.args_for_process, self.kwargs_for_process, side_inputs)
+      if not self.recalculate_window_args:
+        self.args_for_process, self.kwargs_for_process = (
+            args_for_process, kwargs_for_process)
+        self.has_cached_window_args = True
 
     # Extract key in the case of a stateful DoFn. Note that in the case of a
     # stateful DoFn, we set during __init__ self.has_windowed_inputs to be
@@ -1028,42 +1030,37 @@ class PerWindowInvoker(DoFnInvoker):
   ):
     # type: (...) -> Optional[SplitResultResidual]
 
-    if self.has_windowed_inputs:
-      assert isinstance(windowed_batch, HomogeneousWindowedBatch)
-      assert len(windowed_batch.windows) <= 1
-
-      window, = windowed_batch.windows
-      side_inputs = [si[window] for si in self.side_inputs]
-      side_inputs.extend(additional_args)
-      (args_for_process_batch,
-       kwargs_for_process_batch) = util.insert_values_in_args(
-           self.args_for_process_batch,
-           self.kwargs_for_process_batch,
-           side_inputs)
-    elif self.cache_globally_windowed_args:
-      # Attempt to cache additional args if all inputs are globally
-      # windowed inputs when processing the first element.
-      self.cache_globally_windowed_args = False
-
-      # Fill in sideInputs if they are globally windowed
-      global_window = GlobalWindow()
-      self.args_for_process_batch, self.kwargs_for_process_batch = (
-          util.insert_values_in_args(
-              self.args_for_process_batch, self.kwargs_for_process_batch,
-              [si[global_window] for si in self.side_inputs]))
+    if self.has_cached_window_batch_args:
       args_for_process_batch, kwargs_for_process_batch = (
           self.args_for_process_batch, self.kwargs_for_process_batch)
     else:
+      if self.has_windowed_inputs:
+        assert isinstance(windowed_batch, HomogeneousWindowedBatch)
+        assert len(windowed_batch.windows) <= 1
+        window, = windowed_batch.windows
+      else:
+        window = GlobalWindow()
+      side_inputs = [si[window] for si in self.side_inputs]
+      side_inputs.extend(additional_args)
       args_for_process_batch, kwargs_for_process_batch = (
-          self.args_for_process_batch, self.kwargs_for_process_batch)
+          util.insert_values_in_args(
+              self.args_for_process_batch,
+              self.kwargs_for_process_batch,
+              side_inputs,
+          )
+      )
+      if not self.recalculate_window_args:
+        self.args_for_process_batch, self.kwargs_for_process_batch = (
+            args_for_process_batch, kwargs_for_process_batch)
+        self.has_cached_window_batch_args = True
 
     for i, p in self.placeholders_for_process_batch:
       if core.DoFn.ElementParam == p:
         args_for_process_batch[i] = windowed_batch.values
       elif core.DoFn.KeyParam == p:
         raise NotImplementedError(
-            "https://github.com/apache/beam/issues/21653: "
-            "Per-key process_batch")
+            'https://github.com/apache/beam/issues/21653: Per-key process_batch'
+        )
       elif core.DoFn.WindowParam == p:
         args_for_process_batch[i] = window
       elif core.DoFn.TimestampParam == p:
@@ -1081,6 +1078,9 @@ class PerWindowInvoker(DoFnInvoker):
             "Per-key process_batch")
 
     kwargs_for_process_batch = kwargs_for_process_batch or {}
+
+    if additional_kwargs:
+      kwargs_for_process_batch.update(additional_kwargs)
 
     self.output_handler.handle_process_batch_outputs(
         windowed_batch,
@@ -1568,8 +1568,8 @@ class _OutputHandler(OutputHandler):
                tagged_receivers,  # type: Mapping[Optional[str], Receiver]
                per_element_output_counter,
                output_batch_converter, # type: Optional[BatchConverter]
-               process_yields_batches, # type: bool,
-               process_batch_yields_elements, # type: bool,
+               process_yields_batches, # type: bool
+               process_batch_yields_elements, # type: bool
                ):
     """Initializes ``_OutputHandler``.
 
@@ -1941,3 +1941,73 @@ def validate_pipeline_graph(pipeline_proto):
 
   for t in pipeline_proto.root_transform_ids:
     validate_transform(t)
+
+
+def merge_common_environments(pipeline_proto, inplace=False):
+  def dep_key(dep):
+    if dep.type_urn == common_urns.artifact_types.FILE.urn:
+      payload = beam_runner_api_pb2.ArtifactFilePayload.FromString(
+          dep.type_payload)
+      if payload.sha256:
+        type_info = 'sha256', payload.sha256
+      else:
+        type_info = 'path', payload.path
+    elif dep.type_urn == common_urns.artifact_types.URL.urn:
+      payload = beam_runner_api_pb2.ArtifactUrlPayload.FromString(
+          dep.type_payload)
+      if payload.sha256:
+        type_info = 'sha256', payload.sha256
+      else:
+        type_info = 'url', payload.url
+    else:
+      type_info = dep.type_urn, dep.type_payload
+    return type_info, dep.role_urn, dep.role_payload
+
+  def base_env_key(env):
+    return (
+        env.urn,
+        env.payload,
+        tuple(sorted(env.capabilities)),
+        tuple(sorted(env.resource_hints.items())),
+        tuple(sorted(dep_key(dep) for dep in env.dependencies)))
+
+  def env_key(env):
+    return tuple(
+        sorted(
+            base_env_key(e)
+            for e in environments.expand_anyof_environments(env)))
+
+  canonical_environments = collections.defaultdict(list)
+  for env_id, env in pipeline_proto.components.environments.items():
+    canonical_environments[env_key(env)].append(env_id)
+
+  if len(canonical_environments) == len(pipeline_proto.components.environments):
+    # All environments are already sufficiently distinct.
+    return pipeline_proto
+
+  environment_remappings = {
+      e: es[0]
+      for es in canonical_environments.values() for e in es
+  }
+
+  if not inplace:
+    pipeline_proto = copy.copy(pipeline_proto)
+
+  for t in pipeline_proto.components.transforms.values():
+    if t.environment_id not in pipeline_proto.components.environments:
+      # TODO(https://github.com/apache/beam/issues/30876): Remove this
+      #  workaround.
+      continue
+    if t.environment_id:
+      t.environment_id = environment_remappings[t.environment_id]
+  for w in pipeline_proto.components.windowing_strategies.values():
+    if w.environment_id not in pipeline_proto.components.environments:
+      # TODO(https://github.com/apache/beam/issues/30876): Remove this
+      #  workaround.
+      continue
+    if w.environment_id:
+      w.environment_id = environment_remappings[w.environment_id]
+  for e in set(pipeline_proto.components.environments.keys()) - set(
+      environment_remappings.values()):
+    del pipeline_proto.components.environments[e]
+  return pipeline_proto

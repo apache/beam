@@ -238,7 +238,11 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
     private synchronized boolean readNextRecord() throws IOException {
       Iterator<ReadRowsResponse> responseIterator = this.responseIterator;
       while (reader.readyForNextReadResponse()) {
-        if (!responseIterator.hasNext()) {
+        // hasNext call has internal retry. Record throttling metrics after called
+        boolean hasNext = responseIterator.hasNext();
+        storageClient.reportPendingMetrics();
+
+        if (!hasNext) {
           fractionConsumed = 1d;
           return false;
         }
@@ -385,6 +389,7 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
           // the SplitReadStream validation logic depends. Removing it will cause incorrect
           // split operations to succeed.
           newResponseIterator.hasNext();
+          storageClient.reportPendingMetrics();
         } catch (FailedPreconditionException e) {
           // The current source has already moved past the split point, so this split attempt
           // is unsuccessful.

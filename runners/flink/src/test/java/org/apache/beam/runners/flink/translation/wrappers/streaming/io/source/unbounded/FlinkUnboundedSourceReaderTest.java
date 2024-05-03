@@ -256,6 +256,18 @@ public class FlinkUnboundedSourceReaderTest
   }
 
   @Test
+  public void testWatermarkOnNoSplits() throws Exception {
+    ManuallyTriggeredScheduledExecutorService executor =
+        new ManuallyTriggeredScheduledExecutorService();
+    try (FlinkUnboundedSourceReader<KV<Integer, Integer>> reader =
+        (FlinkUnboundedSourceReader<KV<Integer, Integer>>) createReader(executor, -1L)) {
+      reader.start();
+      reader.notifyNoMoreSplits();
+      assertEquals(InputStatus.END_OF_INPUT, reader.pollNext(null));
+    }
+  }
+
+  @Test
   public void testPendingBytesMetric() throws Exception {
     ManuallyTriggeredScheduledExecutorService executor =
         new ManuallyTriggeredScheduledExecutorService();
@@ -279,6 +291,40 @@ public class FlinkUnboundedSourceReaderTest
       // have 2 splits,
       // the expected value is the magic number 14 here.
       assertEquals(14L, pendingBytesGauge.getValue().longValue());
+    }
+  }
+
+  @Test
+  public void testCheckMarksFinalized() throws Exception {
+
+    final int numSplits = 2;
+    final int numRecordsPerSplit = 10;
+
+    List<FlinkSourceSplit<KV<Integer, Integer>>> splits =
+        createSplits(numSplits, numRecordsPerSplit, 0);
+    RecordsValidatingOutput validatingOutput = new RecordsValidatingOutput(splits);
+    // Create a reader, take a snapshot.
+    try (SourceReader<
+            WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>,
+            FlinkSourceSplit<KV<Integer, Integer>>>
+        reader = createReader()) {
+      List<Integer> finalizeTracker = new ArrayList<>();
+      TestCountingSource.setFinalizeTracker(finalizeTracker);
+      pollAndValidate(reader, splits, validatingOutput, numSplits * numRecordsPerSplit / 2);
+      assertTrue(finalizeTracker.isEmpty());
+      reader.snapshotState(0L);
+      // notifyCheckpointComplete is normally called by the SourceOperator
+      reader.notifyCheckpointComplete(0L);
+      // every split should be finalized
+      assertEquals(numSplits, finalizeTracker.size());
+      pollAndValidate(reader, splits, validatingOutput, numSplits);
+      // no notifyCheckpointComplete here, assume the checkpoint failed
+      reader.snapshotState(1L);
+      pollAndValidate(reader, splits, validatingOutput, numSplits);
+      reader.snapshotState(2L);
+      reader.notifyCheckpointComplete(2L);
+      // 2 * numSplits more should be finalized
+      assertEquals(3 * numSplits, finalizeTracker.size());
     }
   }
 

@@ -161,8 +161,10 @@ class Enrichment(beam.PTransform[beam.PCollection[InputT],
         throttler=self._throttler)
 
     # EnrichmentSourceHandler returns a tuple of (request,response).
-    return fetched_data | beam.Map(
-        lambda x: self._join_fn(x[0]._asdict(), x[1]._asdict()))
+    return (
+        fetched_data
+        | "enrichment_join" >>
+        beam.Map(lambda x: self._join_fn(x[0]._asdict(), x[1]._asdict())))
 
   def with_redis_cache(
       self,

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.util.construction;
 
+import static org.apache.beam.model.pipeline.v1.ExternalTransforms.ExpansionMethods.Enum.SCHEMA_TRANSFORM;
 import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
@@ -30,6 +31,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.ServiceLoader;
 import java.util.Set;
+import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardPTransforms;
@@ -100,6 +102,7 @@ public class PTransformTranslation {
   public static final String CONFIG_ROW_KEY = "config_row";
 
   public static final String CONFIG_ROW_SCHEMA_KEY = "config_row_schema";
+  public static final String SCHEMATRANSFORM_URN_KEY = "schematransform_urn";
 
   // DeprecatedPrimitives
   /**
@@ -508,6 +511,14 @@ public class PTransformTranslation {
             transformBuilder.setEnvironmentId(
                 components.getEnvironmentIdFor(appliedPTransform.getResourceHints()));
           }
+        }
+
+        if (spec.getUrn().equals(BeamUrns.getUrn(SCHEMA_TRANSFORM))) {
+          transformBuilder.putAnnotations(
+              SCHEMATRANSFORM_URN_KEY,
+              ByteString.copyFromUtf8(
+                  ExternalTransforms.SchemaTransformPayload.parseFrom(spec.getPayload())
+                      .getIdentifier()));
         }
       }
 

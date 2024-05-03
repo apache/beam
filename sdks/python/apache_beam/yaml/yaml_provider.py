@@ -47,6 +47,8 @@ import apache_beam.io
 import apache_beam.transforms.util
 from apache_beam.portability.api import schema_pb2
 from apache_beam.runners import pipeline_context
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 from apache_beam.transforms import external
 from apache_beam.transforms import window
 from apache_beam.transforms.fully_qualified_named_transform import FullyQualifiedNamedTransform
@@ -78,6 +80,13 @@ class Provider:
   def description(self, type):
     return None
 
+  def __repr__(self):
+    ts = ','.join(sorted(self.provided_transforms()))
+    return f'{self.__class__.__name__}[{ts}]'
+
+  def to_json(self):
+    return {'type': self.__class__.__name__}
+
   def requires_inputs(self, typ: str, args: Mapping[str, Any]) -> bool:
     """Returns whether this transform requires inputs.
 
@@ -104,6 +113,16 @@ class Provider:
     provider that should actually be used for affinity checking.
     """
     return self
+
+  def with_underlying_provider(self, provider):
+    """Returns a provider that vends as many transforms of this provider as
+    possible but uses the given underlying provider.
+
+    This is used to try to minimize the number of distinct environments that
+    are used as many providers implicitly or explicitly link in many common
+    transforms.
+    """
+    return None
 
   def affinity(self, other: "Provider"):
     """Returns a value approximating how good it would be for this provider
@@ -151,6 +170,17 @@ class ExternalProvider(Provider):
 
   def provided_transforms(self):
     return self._urns.keys()
+
+  def with_underlying_provider(self, other_provider):
+    if not isinstance(other_provider, ExternalProvider):
+      return
+
+    all_urns = set(other_provider.schema_transforms().keys()).union(
+        set(other_provider._urns.values()))
+    for name, urn in self._urns.items():
+      if urn in all_urns and name not in other_provider._urns:
+        other_provider._urns[name] = urn
+    return other_provider
 
   def schema_transforms(self):
     if callable(self._service):
@@ -518,6 +548,15 @@ class SqlBackedProvider(Provider):
   def underlying_provider(self):
     return self.sql_provider()
 
+  def with_underlying_provider(self, other_provider):
+    new_sql_provider = self.sql_provider().with_underlying_provider(
+        other_provider)
+    if new_sql_provider is None:
+      new_sql_provider = other_provider
+    if new_sql_provider and 'Sql' in set(
+        new_sql_provider.provided_transforms()):
+      return SqlBackedProvider(self._transforms, new_sql_provider)
+
   def to_json(self):
     return {'type': "SqlBackedProvider"}
 
@@ -554,6 +593,15 @@ def dicts_to_rows(o):
 
 
 class YamlProviders:
+  class AssertEqual(beam.PTransform):
+    def __init__(self, elements):
+      self._elements = elements
+
+    def expand(self, pcoll):
+      return assert_that(
+          pcoll | beam.Map(lambda row: beam.Row(**row._asdict())),
+          equal_to(dicts_to_rows(self._elements)))
+
   @staticmethod
   def create(elements: Iterable[Any], reshuffle: Optional[bool] = True):
     """Creates a collection containing a specified set of elements.
@@ -626,6 +674,10 @@ class YamlProviders:
 
     can be used to access the transform
     `apache_beam.pkg.mod.SomeClass(1, 'foo', baz=3)`.
+
+    See also the documentation on
+    [Inlining
+    Python](https://beam.apache.org/documentation/sdks/yaml-inline-python/).
 
     Args:
         constructor: Fully qualified name of a callable used to construct the
@@ -806,6 +858,7 @@ class YamlProviders:
   @staticmethod
   def create_builtin_provider():
     return InlineProvider({
+        'AssertEqual': YamlProviders.AssertEqual,
         'Create': YamlProviders.create,
         'LogForTesting': YamlProviders.log_for_testing,
         'PyTransform': YamlProviders.fully_qualified_named_transform,
@@ -859,15 +912,15 @@ def create_java_builtin_provider():
   # where possible.  This would also require extra care in skipping these
   # common transforms when doing the provider affinity analysis.
 
-  def java_window_into(java_provider, **config):
-    """Parses the config into a WindowingStrategy and invokes the Java class.
+  def java_window_into(java_provider, windowing):
+    """Use the `windowing` WindowingStrategy and invokes the Java class.
 
     Though it would not be that difficult to implement this in Java as well,
     we prefer to implement it exactly once for consistency (especially as
     it evolves).
     """
     windowing_strategy = YamlProviders.WindowInto._parse_window_spec(
-        config).get_windowing(None)
+        windowing).get_windowing(None)
     # No context needs to be preserved for the basic WindowFns.
     empty_context = pipeline_context.PipelineContext()
     return java_provider.create_transform(
@@ -991,7 +1044,12 @@ class PypiExpansionService:
 
 @ExternalProvider.register_provider_type('renaming')
 class RenamingProvider(Provider):
-  def __init__(self, transforms, mappings, underlying_provider, defaults=None):
+  def __init__(
+      self,
+      transforms: Mapping[str, str],
+      mappings: Mapping[str, Mapping[str, str]],
+      underlying_provider: Provider,
+      defaults: Optional[Mapping[str, Mapping[str, Any]]] = None):
     if isinstance(underlying_provider, dict):
       underlying_provider = ExternalProvider.provider_from_spec(
           underlying_provider)
@@ -1035,9 +1093,15 @@ class RenamingProvider(Provider):
     missing = set(self._mappings[type].values()) - set(
         underlying_schema_fields.keys())
     if missing:
-      raise ValueError(
-          f"Mapping destinations {missing} for {type} are not in the "
-          f"underlying config schema {list(underlying_schema_fields.keys())}")
+      if 'kwargs' in underlying_schema_fields.keys():
+        # These are likely passed by keyword argument dict rather than missing.
+        for field_name in missing:
+          underlying_schema_fields[field_name] = schema_pb2.Field(
+              name=field_name, type=typing_to_runner_api(Any))
+      else:
+        raise ValueError(
+            f"Mapping destinations {missing} for {type} are not in the "
+            f"underlying config schema {list(underlying_schema_fields.keys())}")
 
     def with_name(
         original: schema_pb2.Field, new_name: str) -> schema_pb2.Field:
@@ -1087,6 +1151,23 @@ class RenamingProvider(Provider):
   def underlying_provider(self):
     return self._underlying_provider.underlying_provider()
 
+  def with_underlying_provider(self, other_provider):
+    new_underlying_provider = (
+        self._underlying_provider.with_underlying_provider(other_provider))
+    if new_underlying_provider:
+      provided = set(new_underlying_provider.provided_transforms())
+      new_transforms = {
+          alias: actual
+          for alias,
+          actual in self._transforms.items() if actual in provided
+      }
+      if new_transforms:
+        return RenamingProvider(
+            new_transforms,
+            self._mappings,
+            new_underlying_provider,
+            self._defaults)
+
   def cache_artifacts(self):
     self._underlying_provider.cache_artifacts()
 
@@ -1121,6 +1202,7 @@ def merge_providers(*provider_sets):
 def standard_providers():
   from apache_beam.yaml.yaml_combine import create_combine_providers
   from apache_beam.yaml.yaml_mapping import create_mapping_providers
+  from apache_beam.yaml.yaml_join import create_join_providers
   from apache_beam.yaml.yaml_io import io_providers
   with open(os.path.join(os.path.dirname(__file__),
                          'standard_providers.yaml')) as fin:
@@ -1131,5 +1213,6 @@ def standard_providers():
       create_java_builtin_provider(),
       create_mapping_providers(),
       create_combine_providers(),
+      create_join_providers(),
       io_providers(),
       parse_providers(standard_providers))

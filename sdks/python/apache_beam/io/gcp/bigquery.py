@@ -140,15 +140,15 @@ events of different types to different tables, and the table names are
 computed at pipeline runtime, one may do something like the following::
 
     with Pipeline() as p:
-      elements = (p | beam.Create([
+      elements = (p | 'Create elements' >> beam.Create([
         {'type': 'error', 'timestamp': '12:34:56', 'message': 'bad'},
         {'type': 'user_log', 'timestamp': '12:34:59', 'query': 'flu symptom'},
       ]))
 
-      table_names = (p | beam.Create([
+      table_names = (p | 'Create table_names' >> beam.Create([
         ('error', 'my_project:dataset1.error_table_for_today'),
         ('user_log', 'my_project:dataset1.query_table_for_today'),
-      ])
+      ]))
 
       table_names_dict = beam.pvalue.AsDict(table_names)
 
@@ -1098,7 +1098,16 @@ class _CustomBigQueryStorageSource(BoundedSource):
     bq = bigquery_tools.BigQueryWrapper.from_pipeline_options(
         self.pipeline_options)
     if self.table_reference is not None:
-      return self._get_table_size(bq, self.table_reference)
+      table_ref = self.table_reference
+      if (isinstance(self.table_reference, vp.ValueProvider) and
+          self.table_reference.is_accessible()):
+        table_ref = bigquery_tools.parse_table_reference(
+            self.table_reference.get(), project=self._get_project())
+      elif isinstance(self.table_reference, vp.ValueProvider):
+        # Size estimation is best effort. We return None as we have
+        # no access to the table that we're querying.
+        return None
+      return self._get_table_size(bq, table_ref)
     elif self.query is not None and self.query.is_accessible():
       query_job_name = bigquery_tools.generate_bq_job_name(
           self._job_name,

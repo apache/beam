@@ -96,10 +96,32 @@ versions denoted `0.x.y`.
 
 ## Releases
 
+### 2.56.0 (2024-05-01)
+Official [source code download](https://downloads.apache.org/beam/2.56.0/apache-beam-2.56.0-source-release.zip).
+[SHA-512](https://downloads.apache.org/beam/2.56.0/apache-beam-2.56.0-source-release.zip.sha512).
+[signature](https://downloads.apache.org/beam/2.56.0/apache-beam-2.56.0-source-release.zip.asc).
+
+[Release notes](https://github.com/apache/beam/releases/tag/v2.56.0)
+
+### 2.55.1 (2024-03-25)
+Official [source code download](https://archive.apache.org/dist/beam/2.55.1/apache-beam-2.55.1-source-release.zip).
+[SHA-512](https://archive.apache.org/dist/beam/2.55.1/apache-beam-2.55.1-source-release.zip.sha512).
+[signature](https://archive.apache.org/dist/beam/2.55.1/apache-beam-2.55.1-source-release.zip.asc).
+
+[Release notes](https://github.com/apache/beam/releases/tag/v2.55.1)
+
+### 2.55.0 (2024-03-25)
+Official [source code download](https://archive.apache.org/dist/beam/2.55.0/apache-beam-2.55.0-source-release.zip).
+[SHA-512](https://archive.apache.org/dist/beam/2.55.0/apache-beam-2.55.0-source-release.zip.sha512).
+[signature](https://archive.apache.org/dist/beam/2.55.0/apache-beam-2.55.0-source-release.zip.asc).
+
+[Release notes](https://github.com/apache/beam/releases/tag/v2.55.0)
+[Blog post](/blog/beam-2.55.0).
+
 ### 2.54.0 (2024-02-14)
-Official [source code download](https://downloads.apache.org/beam/2.54.0/apache-beam-2.54.0-source-release.zip).
-[SHA-512](https://downloads.apache.org/beam/2.54.0/apache-beam-2.54.0-source-release.zip.sha512).
-[signature](https://downloads.apache.org/beam/2.54.0/apache-beam-2.54.0-source-release.zip.asc).
+Official [source code download](https://archive.apache.org/dist/beam/2.54.0/apache-beam-2.54.0-source-release.zip).
+[SHA-512](https://archive.apache.org/dist/beam/2.54.0/apache-beam-2.54.0-source-release.zip.sha512).
+[signature](https://archive.apache.org/dist/beam/2.54.0/apache-beam-2.54.0-source-release.zip.asc).
 
 [Release notes](https://github.com/apache/beam/releases/tag/v2.54.0)
 [Blog post](/blog/beam-2.54.0).

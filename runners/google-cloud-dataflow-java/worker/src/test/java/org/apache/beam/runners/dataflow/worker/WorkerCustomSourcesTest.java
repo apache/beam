@@ -645,10 +645,10 @@ public class WorkerCustomSourcesTest {
         numReadOnThisIteration++;
       }
       Instant afterReading = Instant.now();
-      long maxReadSec = debugOptions.getUnboundedReaderMaxReadTimeSec();
+      long maxReadMs = debugOptions.getUnboundedReaderMaxReadTimeMs();
       assertThat(
-          new Duration(beforeReading, afterReading).getStandardSeconds(),
-          lessThanOrEqualTo(maxReadSec + 1));
+          new Duration(beforeReading, afterReading).getMillis(),
+          lessThanOrEqualTo(maxReadMs + 1000L));
       assertThat(
           numReadOnThisIteration, lessThanOrEqualTo(debugOptions.getUnboundedReaderMaxElements()));
 
@@ -948,7 +948,8 @@ public class WorkerCustomSourcesTest {
             "computationId",
             new ReaderCache(Duration.standardMinutes(1), Runnable::run),
             /*stateNameMap=*/ ImmutableMap.of(),
-            new WindmillStateCache(options.getWorkerCacheMb()).forComputation("computationId"),
+            WindmillStateCache.ofSizeMbs(options.getWorkerCacheMb())
+                .forComputation("computationId"),
             StreamingStepMetricsContainer.createRegistry(),
             new DataflowExecutionStateTracker(
                 ExecutionStateSampler.newForTest(),

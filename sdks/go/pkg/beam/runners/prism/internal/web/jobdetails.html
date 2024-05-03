@@ -18,6 +18,7 @@ limitations under the License. See accompanying LICENSE file.
     <meta http-equiv="X-UA-Compatible" content="ie=edge" />
     <title>{{.JobID}} - {{ .JobName }} - Job Details - Beam Prism</title>
     <link rel="stylesheet" href="/assets/style.css" />
+    <script src="/assets/job-action.js"></script>
     {{/*
     <meta http-equiv="refresh" content="10"> refresh page every 10 seconds */}}
 </head>
@@ -27,7 +28,12 @@ limitations under the License. See accompanying LICENSE file.
         <header>
             <a class="logo" href="/">Job Details - Beam Prism</a>
             <div>{{.JobID}} - {{ .JobName }}</div>
-            <div>{{.State}}</div>
+            <div class="job-action {{.State}}">
+                <button class="cancel"
+                        onclick="if (jobManager !== null) { jobManager.cancel('{{.JobID}}') }"
+                >Cancel</button>
+            </div>
+            <div class="job-state">{{.State}}</div>
         </header>
         <section class="container">
             {{ if .Error}}<div class="child">{{.Error}}</div>{{end}}

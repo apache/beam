@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.util.construction;
 
+import com.fasterxml.jackson.core.Version;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -25,6 +26,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -51,6 +53,7 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannelBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
@@ -458,5 +461,60 @@ public class TransformUpgrader implements AutoCloseable {
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
+  }
+
+  @SuppressWarnings({
+    "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+  })
+  private static Version getVersionFromStr(String version) {
+    String[] versionParts = Splitter.onPattern("\\.").splitToList(version).toArray(new String[0]);
+    if (versionParts.length < 2) {
+      throw new IllegalArgumentException(
+          "Expected the version string to start with `<major>.<minor>` "
+              + "but received "
+              + version);
+    }
+
+    // Concatenating patch and suffix to determine the correct patch version.
+    String patchAndSuffix =
+        versionParts.length == 2
+            ? ""
+            : String.join(".", Arrays.copyOfRange(versionParts, 2, versionParts.length));
+    StringBuilder patchVersionBuilder = new StringBuilder();
+    for (int i = 0; i < patchAndSuffix.length(); i++) {
+      if (Character.isDigit(patchAndSuffix.charAt(i))) {
+        patchVersionBuilder.append(patchAndSuffix.charAt(i));
+      } else {
+        break;
+      }
+    }
+    String patchVersion = patchVersionBuilder.toString();
+    if (patchVersion.isEmpty()) {
+      patchVersion = "0";
+    }
+    return new Version(
+        Integer.parseInt(versionParts[0]),
+        Integer.parseInt(versionParts[1]),
+        Integer.parseInt(patchVersion),
+        null,
+        null,
+        null);
+  }
+
+  /**
+   * Compares two Beam versions. Expects the versions to be in the format
+   * <major>.<minor>.<patch><suffix>. <patch> and <suffix> are optional. Version numbers should be
+   * integers. When comparing suffix will be ignored.
+   *
+   * @param firstVersion first version to compare.
+   * @param secondVersion second version to compare.
+   * @return a negative number of first version is smaller than the second, a positive number if the
+   *     first version is larger than the second, 0 if versions are equal.
+   */
+  public static int compareVersions(String firstVersion, String secondVersion) {
+    if (firstVersion.equals(secondVersion)) {
+      return 0;
+    }
+    return getVersionFromStr(firstVersion).compareTo(getVersionFromStr(secondVersion));
   }
 }

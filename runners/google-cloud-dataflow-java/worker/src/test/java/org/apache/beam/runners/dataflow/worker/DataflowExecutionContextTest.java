@@ -30,9 +30,12 @@ import java.util.IntSummaryStatistics;
 import java.util.Map;
 import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
+import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
+import org.apache.beam.runners.dataflow.worker.BatchModeExecutionContext.BatchModeExecutionState;
 import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext.StreamingModeExecutionState;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.NoopProfileScope;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Stopwatch;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -123,9 +126,13 @@ public class DataflowExecutionContextTest {
 
   @Test
   public void testDataflowExecutionStateTrackerRecordsActiveMessageMetadata() throws IOException {
+    DataflowWorkerHarnessOptions options =
+        PipelineOptionsFactory.fromArgs("--experiments=enable_streaming_engine")
+            .as(DataflowWorkerHarnessOptions.class);
+    options.setStreaming(true);
     DataflowExecutionContext.DataflowExecutionStateTracker tracker =
         new DataflowExecutionContext.DataflowExecutionStateTracker(
-            ExecutionStateSampler.instance(), null, null, PipelineOptionsFactory.create(), "");
+            ExecutionStateSampler.instance(), null, null, options, "");
     StreamingModeExecutionState state =
         new StreamingModeExecutionState(
             NameContextsForTests.nameContextForTest(),
@@ -137,7 +144,8 @@ public class DataflowExecutionContextTest {
 
     // After entering a process state, we should have an active message tracked.
     ActiveMessageMetadata expectedMetadata =
-        ActiveMessageMetadata.create(NameContextsForTests.nameContextForTest().userName(), 1l);
+        ActiveMessageMetadata.create(
+            NameContextsForTests.nameContextForTest().userName(), Stopwatch.createStarted());
     assertTrue(tracker.getActiveMessageMetadata().isPresent());
     Assert.assertEquals(
         expectedMetadata.userStepName(), tracker.getActiveMessageMetadata().get().userStepName());
@@ -151,9 +159,14 @@ public class DataflowExecutionContextTest {
   @Test
   public void testDataflowExecutionStateTrackerRecordsCompletedProcessingTimes()
       throws IOException {
+    DataflowWorkerHarnessOptions options =
+        PipelineOptionsFactory.fromArgs("--experiments=enable_streaming_engine")
+            .as(DataflowWorkerHarnessOptions.class);
+    options.setStreaming(true);
+
     DataflowExecutionContext.DataflowExecutionStateTracker tracker =
         new DataflowExecutionContext.DataflowExecutionStateTracker(
-            ExecutionStateSampler.instance(), null, null, PipelineOptionsFactory.create(), "");
+            ExecutionStateSampler.instance(), null, null, options, "");
 
     // Enter a processing state
     StreamingModeExecutionState state =
@@ -179,9 +192,45 @@ public class DataflowExecutionContextTest {
         new HashSet<>(Arrays.asList(NameContextsForTests.nameContextForTest().userName())),
         gotProcessingTimes.keySet());
     ActiveMessageMetadata expectedMetadata =
-        ActiveMessageMetadata.create(NameContextsForTests.nameContextForTest().userName(), 1l);
+        ActiveMessageMetadata.create(
+            NameContextsForTests.nameContextForTest().userName(), Stopwatch.createStarted());
     assertTrue(tracker.getActiveMessageMetadata().isPresent());
     Assert.assertEquals(
         expectedMetadata.userStepName(), tracker.getActiveMessageMetadata().get().userStepName());
+  }
+
+  @Test
+  public void testDataflowExecutionStateTrackerDoesNotRecordCompletedProcessingTimesForBatch()
+      throws IOException {
+    DataflowExecutionContext.DataflowExecutionStateTracker tracker =
+        new DataflowExecutionContext.DataflowExecutionStateTracker(
+            ExecutionStateSampler.instance(), null, null, PipelineOptionsFactory.create(), "");
+
+    // Enter a processing state
+    BatchModeExecutionState state =
+        new BatchModeExecutionState(
+            NameContextsForTests.nameContextForTest(),
+            "testState",
+            null /* requestingStepName */,
+            null /* inputIndex */,
+            null /* metricsContainer */,
+            NoopProfileScope.NOOP);
+    tracker.enterState(state);
+    // Enter a new processing state
+    BatchModeExecutionState newState =
+        new BatchModeExecutionState(
+            NameContextsForTests.nameContextForTest(),
+            "testState2",
+            null /* requestingStepName */,
+            null /* inputIndex */,
+            null /* metricsContainer */,
+            NoopProfileScope.NOOP);
+    tracker.enterState(newState);
+
+    // The first completed state should be recorded and the new state should be active.
+    Map<String, IntSummaryStatistics> gotProcessingTimes = tracker.getProcessingTimesByStepCopy();
+    Assert.assertEquals(0, gotProcessingTimes.size());
+    Assert.assertEquals(0, gotProcessingTimes.keySet().size());
+    assertFalse(tracker.getActiveMessageMetadata().isPresent());
   }
 }
