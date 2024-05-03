@@ -112,12 +112,13 @@ public class DataflowWorkerLoggingHandler extends Handler {
   DataflowWorkerLoggingHandler(Supplier<OutputStream> factory, long sizeLimit) throws IOException {
     this.setFormatter(new SimpleFormatter());
     this.outputStreamFactory = factory;
-    this.generatorFactory = new ObjectMapper()
-        // Required to avoid flushing to the file in the middle of a log message and potentially
-        // breaking its JSON formatting, if the first part is read from the file before the rest
-        // of the message:
-        .disable(SerializationFeature.FLUSH_AFTER_WRITE_VALUE)
-        .getFactory();
+    this.generatorFactory =
+        new ObjectMapper()
+            // Required to avoid flushing to the file in the middle of a log message and potentially
+            // breaking its JSON formatting, if the first part is read from the file before the rest
+            // of the message:
+            .disable(SerializationFeature.FLUSH_AFTER_WRITE_VALUE)
+            .getFactory();
     this.sizeLimit = sizeLimit < 1 ? Long.MAX_VALUE : sizeLimit;
     createOutputStream();
   }
