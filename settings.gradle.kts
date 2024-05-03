@@ -24,7 +24,7 @@ pluginManagement {
 }
 
 plugins {
-  id("com.gradle.enterprise") version "3.15.1"
+  id("com.gradle.enterprise") version "3.17.2"
   id("com.gradle.common-custom-user-data-gradle-plugin") version "1.12.1"
 }
 
@@ -152,6 +152,7 @@ include(":runners:java-job-service")
 include(":runners:jet")
 include(":runners:local-java")
 include(":runners:portability:java")
+include(":runners:prism")
 include(":runners:spark:3")
 include(":runners:spark:3:job-server")
 include(":runners:spark:3:job-server:container")

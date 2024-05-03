@@ -16,18 +16,6 @@
  * limitations under the License.
  */
 
-resource "helm_release" "strimzi-helm-release" {
-  name             = var.name
-  namespace        = var.namespace
-  create_namespace = true
-  repository       = var.chart_repository
-  chart            = var.chart_name
-  version          = var.chart_version
-
-  wait = false
-
-  set {
-    name  = "watchAnyNamespace"
-    value = "true"
-  }
-}
+allows_iap_ingress_cidr_range = "35.235.240.0/20"
+kafka_proxy_version           = "v0.3.8"
+machine_type                  = "n1-standard-1"

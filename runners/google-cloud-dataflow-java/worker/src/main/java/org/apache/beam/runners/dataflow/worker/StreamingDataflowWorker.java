@@ -612,7 +612,7 @@ public class StreamingDataflowWorker {
     MetricsEnvironment.setProcessWideContainer(new MetricsLogger(null));
 
     if (options.isEnableStreamingEngine()
-        && DataflowRunner.hasExperiment(options, "enable_per_worker_metrics")) {
+        && !DataflowRunner.hasExperiment(options, "disable_per_worker_metrics")) {
       enableBigQueryMetrics();
     }
 

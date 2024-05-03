@@ -15,19 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.it.neo4j;
 
-resource "helm_release" "strimzi-helm-release" {
-  name             = var.name
-  namespace        = var.namespace
-  create_namespace = true
-  repository       = var.chart_repository
-  chart            = var.chart_name
-  version          = var.chart_version
-
-  wait = false
-
-  set {
-    name  = "watchAnyNamespace"
-    value = "true"
-  }
-}
+public interface DatabaseWaitOption {}

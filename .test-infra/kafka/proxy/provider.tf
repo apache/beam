@@ -16,18 +16,7 @@
  * limitations under the License.
  */
 
-resource "helm_release" "strimzi-helm-release" {
-  name             = var.name
-  namespace        = var.namespace
-  create_namespace = true
-  repository       = var.chart_repository
-  chart            = var.chart_name
-  version          = var.chart_version
-
-  wait = false
-
-  set {
-    name  = "watchAnyNamespace"
-    value = "true"
-  }
+// Setup Google Cloud provider
+provider "google" {
+  project = var.project
 }
