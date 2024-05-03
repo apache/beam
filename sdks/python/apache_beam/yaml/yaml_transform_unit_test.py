@@ -23,7 +23,6 @@ import apache_beam as beam
 from apache_beam.yaml import YamlTransform
 from apache_beam.yaml import yaml_provider
 from apache_beam.yaml.yaml_provider import InlineProvider
-from apache_beam.yaml.yaml_transform import ProviderSet
 from apache_beam.yaml.yaml_transform import SafeLineLoader
 from apache_beam.yaml.yaml_transform import Scope
 from apache_beam.yaml.yaml_transform import chain_as_composite
@@ -120,7 +119,7 @@ class MainTest(unittest.TestCase):
         beam.pvalue.PBegin(p),
         inputs,
         spec['transforms'],
-        ProviderSet(yaml_provider.standard_providers()), {})
+        yaml_provider.standard_providers(), {})
     return scope, spec
 
   def test_pipeline_as_composite_with_type_transforms(self):

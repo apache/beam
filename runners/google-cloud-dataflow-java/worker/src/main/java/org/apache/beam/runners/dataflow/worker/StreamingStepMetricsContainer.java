@@ -171,7 +171,7 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
   }
 
   public Iterable<CounterUpdate> extractUpdates() {
-    return counterUpdates().append(distributionUpdates());
+    return counterUpdates().append(distributionUpdates()).append(gaugeUpdates());
   }
 
   private FluentIterable<CounterUpdate> counterUpdates() {
@@ -192,6 +192,22 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
 
                 return MetricsToCounterUpdateConverter.fromCounter(
                     MetricKey.create(stepName, entry.getKey()), false, value);
+              }
+            })
+        .filter(Predicates.notNull());
+  }
+
+  private FluentIterable<CounterUpdate> gaugeUpdates() {
+    return FluentIterable.from(gauges.entries())
+        .transform(
+            new Function<Entry<MetricName, GaugeCell>, CounterUpdate>() {
+              @Override
+              public @Nullable CounterUpdate apply(
+                  @Nonnull Map.Entry<MetricName, GaugeCell> entry) {
+                long value = entry.getValue().getCumulative().value();
+                org.joda.time.Instant timestamp = entry.getValue().getCumulative().timestamp();
+                return MetricsToCounterUpdateConverter.fromGauge(
+                    MetricKey.create(stepName, entry.getKey()), value, timestamp);
               }
             })
         .filter(Predicates.notNull());
