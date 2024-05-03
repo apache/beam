@@ -127,6 +127,8 @@
 
 ## Known Issues
 
+* The beam interactive runner does not correctly run on flink, and support for Flink 1.17 may not be propogated to all non-Java contexts.
+
 # [2.55.1] - 2024-04-08
 
 ## Bugfixes
