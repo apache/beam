@@ -47,7 +47,7 @@ to this, the necessary dependencies must be configured.</p><p>When running via G
 
 -P tpcds.runner
 The Gradle project name of the runner, such as &quot;:runners:spark:3&quot; or
-&quot;:runners:flink:1.13. The project names can be found in the root
+&quot;:runners:flink:1.17. The project names can be found in the root
     `settings.gradle.kts`.
 </code></pre><p>Test data has to be generated before running a suite and stored to accessible file system. The query results will be written into output files.</p><h3 id=common-configuration-parameters>Common configuration parameters</h3><p>Scale factor size of input dataset (1GB / 10GB / 100GB / 1000GB):</p><pre><code>--dataSize=&lt;1GB|10GB|100GB|1000GB&gt;
 </code></pre><p>Path to input datasets directory:</p><pre><code>--dataDirectory=&lt;path to dir&gt;
