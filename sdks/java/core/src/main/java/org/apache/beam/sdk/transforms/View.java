@@ -298,7 +298,7 @@ public class View {
               materializationInput,
               (TypeDescriptorSupplier<T>) inputCoder::getEncodedTypeDescriptor,
               materializationInput.getWindowingStrategy());
-      input.apply(CreatePCollectionView.of(view));
+      materializationInput.apply(CreatePCollectionView.of(view));
       return view;
     }
 
