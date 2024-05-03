@@ -589,6 +589,8 @@ class DoctestTest(unittest.TestCase):
                 # Differs in LSB on jenkins.
                 "s1.cov(s2)",
             ],
+            # Test framework doesn't materialze DeferredIndex.
+            'pandas.core.series.Series.keys': ['s.keys()'],
             # Skipped idxmax/idxmin due an issue with the test framework
             'pandas.core.series.Series.idxmin': ['s.idxmin()'],
             'pandas.core.series.Series.idxmax': ['s.idxmax()'],
@@ -614,6 +616,18 @@ class DoctestTest(unittest.TestCase):
                 's'
             ],
             'pandas.core.series.Series.resample': ['df'],
+            # Fails when result is a singleton:
+            # https://github.com/apache/beam/issues/28559
+            'pandas.core.series.Series.kurt': [
+                'df.kurt(axis=None).round(6)',
+                's.kurt()'
+            ],
+            # Fails when result is a singleton:
+            # https://github.com/apache/beam/issues/28559
+            'pandas.core.series.Series.sem': [
+                'df.sem().round(6)',
+                's.sem().round(6)'
+            ],
         })
     self.assertEqual(result.failed, 0)
 
