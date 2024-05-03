@@ -804,14 +804,34 @@ class DoctestTest(unittest.TestCase):
         use_beam=False,
         verbose=True,
         wont_implement_ok={
+            '*' : [
+                # resample is WontImpl.
+                "ser.resample('MS').count()",
+                "ser.resample('MS').median()",
+                "ser.resample('MS').sem()",
+                "ser.resample('MS').size()",
+            ],
+            'pandas.core.groupby.groupby.BaseGroupBy.indices': ['*'],
+            'pandas.core.groupby.groupby.GroupBy.bfill': ['*'],
+            'pandas.core.groupby.groupby.GroupBy.bfill': ['*'],
+            'pandas.core.groupby.groupby.GroupBy.ffill': ['*'],
+            'pandas.core.groupby.groupby.GroupBy.diff': ['*'],
             'pandas.core.groupby.groupby.GroupBy.first': ['*'],
             'pandas.core.groupby.groupby.GroupBy.head': ['*'],
             'pandas.core.groupby.groupby.GroupBy.last': ['*'],
+            'pandas.core.groupby.groupby.GroupBy.ohlc': ['*'],
+            'pandas.core.groupby.groupby.GroupBy.pct_change': ['*'],
             'pandas.core.groupby.groupby.GroupBy.tail': ['*'],
             'pandas.core.groupby.groupby.GroupBy.nth': ['*'],
             'pandas.core.groupby.groupby.GroupBy.cumcount': ['*'],
+            'pandas.core.groupby.groupby.GroupBy.cummax': ['*'],
+            'pandas.core.groupby.groupby.GroupBy.cummin': ['*'],
+            'pandas.core.groupby.groupby.GroupBy.cumprod': ['*'],
+            'pandas.core.groupby.groupby.GroupBy.cumsum': ['*'],
+            'pandas.core.groupby.groupby.GroupBy.plot': ['*'],
             'pandas.core.groupby.groupby.GroupBy.resample': ['*'],
             'pandas.core.groupby.groupby.GroupBy.rolling': ['*'],
+            'pandas.core.groupby.groupby.GroupBy.shift': ['*'],
         },
         not_implemented_ok={
             'pandas.core.groupby.groupby.GroupBy.first': ['*'],
@@ -824,6 +844,12 @@ class DoctestTest(unittest.TestCase):
             ],
         },
         skip={
+            # New test that didn't pass on Pandas 1.5.x.
+            'pandas.core.groupby.groupby.BaseGroupBy.__iter__': ['*'],
+            # Not implemented; some tests also use resample (won't implement)
+            'pandas.core.groupby.groupby.BaseGroupBy.get_group': ['*'],
+            'pandas.core.groupby.groupby.BaseGroupBy.groups': ['*'],
+            # uses resample, which is WontImplement atm.
             # Uses iloc to mutate a DataFrame
             'pandas.core.groupby.groupby.GroupBy.resample': [
                 'df.iloc[2, 0] = 5',
@@ -843,9 +869,10 @@ class DoctestTest(unittest.TestCase):
         pd.core.groupby.generic,
         use_beam=False,
         wont_implement_ok={
-            # Returns an array by default, not a Series. WontImplement
-            # (non-deferred)
-            'pandas.core.groupby.generic.SeriesGroupBy.unique': ['*'],
+            '*' : [
+                # resample is WontImpl.
+                "ser.resample('MS').nunique()",
+            ],
             # TODO: Is take actually deprecated?
             'pandas.core.groupby.generic.DataFrameGroupBy.take': ['*'],
             'pandas.core.groupby.generic.SeriesGroupBy.take': ['*'],
@@ -862,6 +889,9 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.groupby.generic.DataFrameGroupBy.diff': ['*'],
             'pandas.core.groupby.generic.SeriesGroupBy.diff': ['*'],
             'pandas.core.groupby.generic.DataFrameGroupBy.hist': ['*'],
+            'pandas.core.groupby.generic.SeriesGroupBy.hist': ['*'],
+            'pandas.core.groupby.generic.DataFrameGroupBy.plot': ['*'],
+            'pandas.core.groupby.generic.SeriesGroupBy.plot': ['*'],
             'pandas.core.groupby.generic.DataFrameGroupBy.fillna': [
                 'df.fillna(method=\'ffill\')',
                 'df.fillna(method="ffill")',
@@ -875,6 +905,7 @@ class DoctestTest(unittest.TestCase):
                 'df.fillna(method="ffill")',
                 'df.fillna(value=values, limit=1)',
             ],
+            'pandas.core.groupby.generic.SeriesGroupBy.plot': ['*'],
             'pandas.core.groupby.groupby.GroupBy.tail': ['*'],
         },
         not_implemented_ok={
@@ -904,6 +935,9 @@ class DoctestTest(unittest.TestCase):
             # Skipped idxmax/idxmin due an issue with the test framework
             'pandas.core.groupby.generic.SeriesGroupBy.idxmin': ['s.idxmin()'],
             'pandas.core.groupby.generic.SeriesGroupBy.idxmax': ['s.idxmax()'],
+            # Order-sensitive operations. TODO: Return a better error message.
+            'pandas.core.groupby.generic.SeriesGroupBy.is_monotonic_increasing': ['*'],  # pylint: disable=line-too-long
+            'pandas.core.groupby.generic.SeriesGroupBy.is_monotonic_decreasing': ['*'],  # pylint: disable=line-too-long
             # Uses as_index, which is currently not_implemented
             'pandas.core.groupby.generic.DataFrameGroupBy.value_counts': [
                 "df.groupby('gender', as_index=False).value_counts()",
@@ -926,6 +960,9 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.groupby.generic.DataFrameGroupBy.transform': ['*'],
             # These examples rely on grouping by a list
             'pandas.core.groupby.generic.SeriesGroupBy.transform': ['*'],
+            # Returns an array by default, not a Series. WontImplement
+            # (non-deferred)
+            'pandas.core.groupby.generic.SeriesGroupBy.unique': ['*'],
         },
     )
     self.assertEqual(result.failed, 0)
