@@ -1024,6 +1024,7 @@ class DoctestTest(unittest.TestCase):
             'pivot': ['*'],
             'to_datetime': ['s.head()'],
             'to_pickle': ['*'],
+            'unique': ['pd.unique(pd.Series([("a", "b"), ("b", "a"), ("a", "c"), ("b", "a")]).values)'],  # pylint: disable=line-too-long
             'melt': [
                 "pd.melt(df, id_vars=['A'], value_vars=['B'])",
                 "pd.melt(df, id_vars=['A'], value_vars=['B', 'C'])",
