@@ -246,10 +246,11 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
       Iterator<ReadRowsResponse> responseIterator = this.responseIterator;
       while (reader.readyForNextReadResponse()) {
         boolean previous = splitAllowed;
+        // disallow splitAtFraction (where it also calls hasNext) when iterator busy
         splitAllowed = false;
-        // hasNext call has internal retry. Record throttling metrics after called
         boolean hasNext = responseIterator.hasNext();
         splitAllowed = previous;
+        // hasNext call has internal retry. Record throttling metrics after called
         storageClient.reportPendingMetrics();
 
         if (!hasNext) {
