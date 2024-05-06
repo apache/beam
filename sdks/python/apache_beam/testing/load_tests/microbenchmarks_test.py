@@ -54,6 +54,7 @@ import time
 
 from apache_beam.testing.load_tests.load_test import LoadTest
 from apache_beam.tools import fn_api_runner_microbenchmark
+from apache_beam.tools import map_fn_microbenchmark
 from apache_beam.tools import teststream_microbenchmark
 from apache_beam.transforms.util import _BatchSizeEstimator
 
@@ -90,6 +91,19 @@ class MicroBenchmarksLoadTest(LoadTest):
         'fn_api_runner_microbenchmark_runtime_sec': time.perf_counter() - start,
         'fn_api_runner_microbenchmark_fixed_cost_ms': a * 1000,
         'fn_api_runner_microbenchmark_per_element_cost_ms': b * 1000,
+    }
+
+  def _run_map_fn_microbenchmark(self):
+    start = time.perf_counter()
+    result = map_fn_microbenchmark.run_benchmark(verbose=False)
+    sizes = list(result[0].values())[0]
+    costs = list(result[1].values())[0]
+    a, b = _BatchSizeEstimator.linear_regression_no_numpy(sizes, costs)
+
+    return {
+        'map_fn_microbenchmark_runtime_sec': time.perf_counter() - start,
+        'map_fn_microbenchmark_fixed_cost_ms': a * 1000,
+        'map_fn_microbenchmark_per_element_cost_ms': b * 1000,
     }
 
 
