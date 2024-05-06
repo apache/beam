@@ -378,7 +378,9 @@ public class FlinkExecutionEnvironments {
       if (options.getUnalignedCheckpointEnabled()) {
         flinkStreamEnv.getCheckpointConfig().enableUnalignedCheckpoints();
       }
-      flinkStreamEnv.getCheckpointConfig().setForceUnalignedCheckpoints(options.getForceUnalignedCheckpointEnabled());
+      flinkStreamEnv
+          .getCheckpointConfig()
+          .setForceUnalignedCheckpoints(options.getForceUnalignedCheckpointEnabled());
 
       long minPauseBetweenCheckpoints = options.getMinPauseBetweenCheckpoints();
       if (minPauseBetweenCheckpoints != -1) {

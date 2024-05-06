@@ -127,10 +127,11 @@ public interface FlinkPipelineOptions
 
   void setFinishBundleBeforeCheckpointing(boolean finishBundleBeforeCheckpointing);
 
-  @Description("If set, Unaligned checkpoints contain in-flight data (i.e., data stored in buffers) as part of the " +
-      "checkpoint state, allowing checkpoint barriers to overtake these buffers. Thus, the checkpoint duration " +
-      "becomes independent of the current throughput as checkpoint barriers are effectively not embedded into the " +
-      "stream of data anymore")
+  @Description(
+      "If set, Unaligned checkpoints contain in-flight data (i.e., data stored in buffers) as part of the "
+          + "checkpoint state, allowing checkpoint barriers to overtake these buffers. Thus, the checkpoint duration "
+          + "becomes independent of the current throughput as checkpoint barriers are effectively not embedded into the "
+          + "stream of data anymore")
   @Default.Boolean(false)
   boolean getUnalignedCheckpointEnabled();
 
