@@ -23,7 +23,7 @@ cost should be 1-2 microseconds.
 
 This executes the same codepaths that are run on the Fn API (and Dataflow)
 workers, but is generally easier to run (locally) and more stable.  It does
-not, on the other hand, excercise any non-trivial amount of IO (e.g. shuffle).
+not, on the other hand, exercise any non-trivial amount of IO (e.g. shuffle).
 
 Run as
 
@@ -32,41 +32,100 @@ Run as
 
 # pytype: skip-file
 
+import argparse
 import logging
-import time
-
-from scipy import stats
 
 import apache_beam as beam
 from apache_beam.tools import utils
+from apache_beam.transforms.window import FixedWindows
 
 
-def run_benchmark(num_maps=100, num_runs=10, num_elements_step=1000):
-  timings = {}
-  for run in range(num_runs):
-    num_elements = num_elements_step * run + 1
-    start = time.time()
+def map_pipeline(num_elements, num_maps=100):
+  def _pipeline_runner():
     with beam.Pipeline() as p:
       pc = p | beam.Create(list(range(num_elements)))
       for ix in range(num_maps):
         pc = pc | 'Map%d' % ix >> beam.FlatMap(lambda x: (None, ))
-    timings[num_elements] = time.time() - start
-    print(
-        "%6d element%s %g sec" % (
-            num_elements,
-            " " if num_elements == 1 else "s",
-            timings[num_elements]))
 
-  print()
-  # pylint: disable=unused-variable
-  gradient, intercept, r_value, p_value, std_err = stats.linregress(
-      *list(zip(*list(timings.items()))))
-  print("Fixed cost  ", intercept)
-  print("Per-element ", gradient / num_maps)
-  print("R^2         ", r_value**2)
+  return _pipeline_runner
+
+
+def map_with_global_side_input_pipeline(num_elements, num_maps=100):
+  def add(element, side_input):
+    return element + side_input
+
+  def _pipeline_runner():
+    with beam.Pipeline() as p:
+      side = p | 'CreateSide' >> beam.Create([1])
+      pc = p | 'CreateMain' >> beam.Create(list(range(num_elements)))
+      for ix in range(num_maps):
+        pc = pc | 'Map%d' % ix >> beam.Map(add, beam.pvalue.AsSingleton(side))
+
+  return _pipeline_runner
+
+
+def map_with_fixed_window_side_input_pipeline(num_elements, num_maps=100):
+  def add(element, side_input):
+    return element + side_input
+
+  def _pipeline_runner():
+    with beam.Pipeline() as p:
+      side = p | 'CreateSide' >> beam.Create(
+          [1]) | 'WindowSide' >> beam.WindowInto(FixedWindows(1000))
+      pc = p | 'CreateMain' >> beam.Create(list(range(
+          num_elements))) | 'WindowMain' >> beam.WindowInto(FixedWindows(1000))
+      for ix in range(num_maps):
+        pc = pc | 'Map%d' % ix >> beam.Map(add, beam.pvalue.AsSingleton(side))
+
+  return _pipeline_runner
+
+
+def run_benchmark(
+    starting_point=1,
+    num_runs=10,
+    num_elements_step=100,
+    verbose=True,
+    profile_filename_base=None,
+):
+  suite = [
+      utils.BenchmarkConfig(
+          map_with_fixed_window_side_input_pipeline,
+          starting_point * 1000,
+          num_runs,
+      ),
+      utils.LinearRegressionBenchmarkConfig(
+          map_pipeline, starting_point, num_elements_step, num_runs),
+      utils.BenchmarkConfig(
+          map_with_global_side_input_pipeline,
+          starting_point * 1000,
+          num_runs,
+      ),
+      utils.BenchmarkConfig(
+          map_with_global_side_input_pipeline_uncached,
+          starting_point * 1000,
+          num_runs,
+      ),
+  ]
+  return utils.run_benchmarks(
+      suite, verbose=verbose, profile_filename_base=profile_filename_base)
 
 
 if __name__ == '__main__':
   logging.basicConfig()
   utils.check_compiled('apache_beam.runners.common')
-  run_benchmark()
+
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--num_runs', default=10, type=int)
+  parser.add_argument('--starting_point', default=1, type=int)
+  parser.add_argument('--increment', default=100, type=int)
+  parser.add_argument('--verbose', default=True, type=bool)
+  parser.add_argument('--profile_filename_base', default=None, type=str)
+  options = parser.parse_args()
+
+  run_benchmark(
+      options.starting_point,
+      options.num_runs,
+      options.increment,
+      options.verbose,
+      options.profile_filename_base,
+  )
