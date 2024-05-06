@@ -20,5 +20,5 @@
 # https://github.com/aws/aws-sam-cli/issues/3661
 markupsafe==2.0.1
 influxdb==5.3.0
-Jinja2==2.11.3
+Jinja2==3.1.4
 prettytable==0.7.2
