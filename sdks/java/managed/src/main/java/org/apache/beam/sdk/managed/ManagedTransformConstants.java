@@ -26,8 +26,9 @@ public class ManagedTransformConstants {
   public static final String ICEBERG_WRITE =
       "beam:schematransform:org.apache.beam:iceberg_write:v1";
   public static final String KAFKA_READ = "beam:schematransform:org.apache.beam:kafka_read:v1";
+  public static final String KAFKA_WRITE = "beam:schematransform:org.apache.beam:kafka_write:v1";
 
-  public static final Map<String, String> KAFKA_READ_MAPPINGS =
+  private static final Map<String, String> KAFKA_READ_MAPPINGS =
       ImmutableMap.<String, String>builder()
           .put("topic", "topic")
           .put("bootstrap_servers", "bootstrapServers")
@@ -40,11 +41,26 @@ public class ManagedTransformConstants {
           .put("message_name", "messageName")
           .build();
 
+  private static final Map<String, String> KAFKA_WRITE_MAPPINGS =
+      ImmutableMap.<String, String>builder()
+          .put("topic", "topic")
+          .put("bootstrap_servers", "bootstrapServers")
+          .put("producer_config_updates", "producerConfigUpdates")
+          .put("data_format", "format")
+          .put("file_descriptor_path", "fileDescriptorPath")
+          .put("message_name", "messageName")
+          .build();
+
   // Configuration parameter names exposed via the Managed interface may differ from the parameter
   // names in the
   // actual SchemaTransform implementation.
   // Any naming differences should be laid out here so that we can remap the keys before building
   // the transform
+  // Mappings don't need to include ALL underlying parameter names, as we may not want to expose
+  // every single parameter through the Managed interface
   public static final Map<String, Map<String, String>> MAPPINGS =
-      ImmutableMap.of(KAFKA_READ, KAFKA_READ_MAPPINGS);
+      ImmutableMap.<String, Map<String, String>>builder()
+          .put(KAFKA_READ, KAFKA_READ_MAPPINGS)
+          .put(KAFKA_WRITE, KAFKA_WRITE_MAPPINGS)
+          .build();
 }

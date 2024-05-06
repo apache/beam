@@ -177,7 +177,6 @@ public class ManagedSchemaTransformProvider
 
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
-      System.out.println("CONFIG: " + underlyingTransformConfig);
       return input.apply(underlyingTransformProvider.from(underlyingTransformConfig));
     }
 
@@ -207,14 +206,18 @@ public class ManagedSchemaTransformProvider
     String yamlConfig = config.resolveUnderlyingConfig();
     Map<String, Object> configMap = YamlUtils.yamlStringToMap(yamlConfig);
 
+    // The config Row object will be used to build the underlying SchemaTransform.
+    // If a mapping for the SchemaTransform exists, we use it to update parameter names to align
+    // with the underlying config schema
     Map<String, String> mapping = MAPPINGS.get(config.getTransformIdentifier());
     if (mapping != null && configMap != null) {
       Map<String, Object> remappedConfig = new HashMap<>();
-
       for (Map.Entry<String, Object> entry : configMap.entrySet()) {
-        String key =
-            mapping.containsKey(entry.getKey()) ? mapping.get(entry.getKey()) : entry.getKey();
-        remappedConfig.put(key, entry.getValue());
+        String paramName = entry.getKey();
+        if (mapping.containsKey(paramName)) {
+          paramName = mapping.get(paramName);
+        }
+        remappedConfig.put(paramName, entry.getValue());
       }
       configMap = remappedConfig;
     }
