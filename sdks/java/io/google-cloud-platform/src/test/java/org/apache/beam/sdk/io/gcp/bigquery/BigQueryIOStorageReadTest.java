@@ -1464,7 +1464,7 @@ public class BigQueryIOStorageReadTest {
     // wait until thread proceed
     latch.await();
 
-    // Beam does not split storage read api v2 stream
+    // SplitAfFraction rejected while response iterator busy
     assertNull(reader.splitAtFraction(0.5));
     t.interrupt();
   }
