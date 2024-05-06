@@ -34,3 +34,7 @@ class IntrinsicOneOpsTest(unittest.TestCase):
       for fn in intrinsic_one_ops.INT_ONE_OPS:
         beam_order.append(fn.__name__.upper())
       self.assertListEqual(dis_order, beam_order)
+
+
+if __name__ == '__main__':
+  unittest.main()
