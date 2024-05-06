@@ -30,7 +30,7 @@ class IntrinsicOneOpsTest(unittest.TestCase):
   def testOperationsOrder(self):
     if sys.version_info >= (3, 12):
       dis_order = dis.__dict__['_intrinsic_1_descs']
-      beam_order = list()
+      beam_order = []
       for fn in intrinsic_one_ops.INT_ONE_OPS:
         beam_order.append(fn.__name__.upper())
       self.assertListEqual(dis_order, beam_order)
