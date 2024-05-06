@@ -385,15 +385,13 @@ class BeamDataframeDoctestRunner(doctest.DocTestRunner):
   def _is_wont_implement_ok(self, example, test):
     always_wont_implement = self._wont_implement_ok.get('*', [])
     return any(
-        wont_implement(example)
-        for wont_implement in (
+        wont_implement(example) for wont_implement in (
             self._wont_implement_ok.get(test.name, []) + always_wont_implement))
 
   def _is_not_implemented_ok(self, example, test):
     always_not_impl = self._not_implemented_ok.get('*', [])
     return any(
-        not_implemented(example)
-        for not_implemented in (
+        not_implemented(example) for not_implemented in (
             self._not_implemented_ok.get(test.name, []) + always_not_impl))
 
   def run(self, test, **kwargs):

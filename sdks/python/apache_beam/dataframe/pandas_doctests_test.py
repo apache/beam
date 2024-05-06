@@ -726,7 +726,7 @@ class DoctestTest(unittest.TestCase):
 
             # Beam doesn't have a deferred version of PeriodIndex.
             # PeriodIndex instance is created in the test scenario.
-            'pandas.core.indexes.accessors.PeriodProperties.end_time' : ['*'],
+            'pandas.core.indexes.accessors.PeriodProperties.end_time': ['*'],
             'pandas.core.indexes.accessors.TimedeltaProperties.components': [
                 '*'
             ],
@@ -756,7 +756,8 @@ class DoctestTest(unittest.TestCase):
             '*': [
                 "ser = pd.Series(pd.to_timedelta([1, 2, 3], unit='d'))",
                 "tdelta_idx = pd.to_timedelta([1, 2, 3], unit='D')",
-                'tdelta_idx = pd.to_timedelta(["0 days", "10 days", "20 days"])',
+                'tdelta_idx = pd.to_timedelta(["0 days", "10 days", "20 days"])',  # pylint: disable=line-too-long
+
                 "tdelta_idx",
                 "tdelta_idx.inferred_freq",
                 "tdelta_idx.mean()",
@@ -780,7 +781,7 @@ class DoctestTest(unittest.TestCase):
             '*': [
                 "ser = pd.Series(pd.to_timedelta([1, 2, 3], unit='d'))",
                 "tdelta_idx = pd.to_timedelta([1, 2, 3], unit='D')",
-                'tdelta_idx = pd.to_timedelta(["0 days", "10 days", "20 days"])'],
+                'tdelta_idx = pd.to_timedelta(["0 days", "10 days", "20 days"])'],  # pylint: disable=line-too-long
             # Verifies index version of this method
             'pandas.core.arrays.datetimes.DatetimeArray.to_period': [
                 'df.index.to_period("M")'
@@ -821,7 +822,7 @@ class DoctestTest(unittest.TestCase):
         use_beam=False,
         verbose=True,
         wont_implement_ok={
-            '*' : [
+            '*': [
                 # resample is WontImpl.
                 "ser.resample('MS').count()",
                 "ser.resample('MS').median()",
@@ -829,7 +830,6 @@ class DoctestTest(unittest.TestCase):
                 "ser.resample('MS').size()",
             ],
             'pandas.core.groupby.groupby.BaseGroupBy.indices': ['*'],
-            'pandas.core.groupby.groupby.GroupBy.bfill': ['*'],
             'pandas.core.groupby.groupby.GroupBy.bfill': ['*'],
             'pandas.core.groupby.groupby.GroupBy.ffill': ['*'],
             'pandas.core.groupby.groupby.GroupBy.diff': ['*'],
@@ -922,7 +922,6 @@ class DoctestTest(unittest.TestCase):
                 'df.fillna(method="ffill")',
                 'df.fillna(value=values, limit=1)',
             ],
-            'pandas.core.groupby.generic.SeriesGroupBy.plot': ['*'],
             'pandas.core.groupby.groupby.GroupBy.tail': ['*'],
         },
         not_implemented_ok={
