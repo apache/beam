@@ -80,7 +80,6 @@ public class FlinkPortableClientEntryPoint {
   private FlinkJobServerDriver jobServer;
   private Thread jobServerThread;
   private DetachedJobInvokerFactory jobInvokerFactory;
-  private int jobPort = 0; // pick any free port
 
   public FlinkPortableClientEntryPoint(String driverCmd) {
     Preconditions.checkState(
@@ -96,7 +95,7 @@ public class FlinkPortableClientEntryPoint {
     FlinkPortableClientEntryPoint runner =
         new FlinkPortableClientEntryPoint(configuration.driverCmd);
     try {
-      runner.startJobService();
+      runner.startJobService(configuration);
       runner.runDriverProgram();
     } catch (Exception e) {
       throw new RuntimeException(String.format("Job %s failed.", configuration.driverCmd), e);
@@ -107,7 +106,8 @@ public class FlinkPortableClientEntryPoint {
     LOG.info("Job submitted successfully.");
   }
 
-  private static class EntryPointConfiguration {
+  private static class EntryPointConfiguration
+      extends FlinkJobServerDriver.FlinkServerConfiguration {
     @Option(
         name = "--driver-cmd",
         required = true,
@@ -127,16 +127,16 @@ public class FlinkPortableClientEntryPoint {
       parser.printUsage(System.err);
       throw new IllegalArgumentException("Unable to parse command line arguments.", e);
     }
+    configuration.setPort(0);
+    configuration.setArtifactPort(0);
+    configuration.setExpansionPort(0);
     return configuration;
   }
 
-  private void startJobService() throws Exception {
+  private void startJobService(FlinkJobServerDriver.FlinkServerConfiguration configuration)
+      throws Exception {
     jobInvokerFactory = new DetachedJobInvokerFactory();
-    jobServer =
-        FlinkJobServerDriver.fromConfig(
-            FlinkJobServerDriver.parseArgs(
-                new String[] {"--job-port=" + jobPort, "--artifact-port=0", "--expansion-port=0"}),
-            jobInvokerFactory);
+    jobServer = FlinkJobServerDriver.fromConfig(configuration, jobInvokerFactory);
     jobServerThread = new Thread(jobServer);
     jobServerThread.start();
 
