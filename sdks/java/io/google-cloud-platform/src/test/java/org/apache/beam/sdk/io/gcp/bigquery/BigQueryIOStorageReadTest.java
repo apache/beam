@@ -1386,6 +1386,10 @@ public class BigQueryIOStorageReadTest {
     }
   }
 
+  /**
+   * A mock response that stuck indefinitely when the returned iterator's hasNext get called,
+   * intended to simulate server side issue.
+   */
   static class StuckResponse extends ArrayList<ReadRowsResponse> {
 
     private CountDownLatch latch;
@@ -1434,8 +1438,6 @@ public class BigQueryIOStorageReadTest {
     StorageClient fakeStorageClient = mock(StorageClient.class);
     when(fakeStorageClient.readRows(expectedRequest, ""))
         .thenReturn(new FakeBigQueryServerStream<>(new StuckResponse(latch)));
-
-    // new StuckIteratorList<Void>()
 
     BigQueryStorageStreamSource<TableRow> streamSource =
         BigQueryStorageStreamSource.create(

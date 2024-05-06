@@ -249,8 +249,8 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
         splitAllowed = false;
         // hasNext call has internal retry. Record throttling metrics after called
         boolean hasNext = responseIterator.hasNext();
-        storageClient.reportPendingMetrics();
         splitAllowed = previous;
+        storageClient.reportPendingMetrics();
 
         if (!hasNext) {
           fractionConsumed = 1d;
