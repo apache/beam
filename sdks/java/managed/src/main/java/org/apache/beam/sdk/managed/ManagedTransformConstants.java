@@ -20,7 +20,23 @@ package org.apache.beam.sdk.managed;
 import java.util.Map;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
-/** This class contains constants for supported managed transform identifiers. */
+/**
+ * This class contains constants for supported managed transforms, including:
+ *
+ * <ul>
+ *   <li>Identifiers of supported transforms
+ *   <li>Configuration parameter renaming
+ * </ul>
+ *
+ * <p>Configuration parameter names exposed via Managed interface may differ from the parameter
+ * names in the underlying SchemaTransform implementation.
+ *
+ * <p>Any naming differences are laid out in {@link ManagedTransformConstants#MAPPINGS} to update
+ * the configuration object before it's used to build the underlying transform.
+ *
+ * <p>Mappings don't need to include ALL underlying parameter names, as we may not want to expose
+ * every single parameter through the Managed interface.
+ */
 public class ManagedTransformConstants {
   public static final String ICEBERG_READ = "beam:schematransform:org.apache.beam:iceberg_read:v1";
   public static final String ICEBERG_WRITE =
@@ -51,13 +67,6 @@ public class ManagedTransformConstants {
           .put("message_name", "messageName")
           .build();
 
-  // Configuration parameter names exposed via the Managed interface may differ from the parameter
-  // names in the
-  // actual SchemaTransform implementation.
-  // Any naming differences should be laid out here so that we can remap the keys before building
-  // the transform
-  // Mappings don't need to include ALL underlying parameter names, as we may not want to expose
-  // every single parameter through the Managed interface
   public static final Map<String, Map<String, String>> MAPPINGS =
       ImmutableMap.<String, Map<String, String>>builder()
           .put(KAFKA_READ, KAFKA_READ_MAPPINGS)
