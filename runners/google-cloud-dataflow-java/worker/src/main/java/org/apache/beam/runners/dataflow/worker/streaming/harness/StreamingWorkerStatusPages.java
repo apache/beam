@@ -131,7 +131,7 @@ public final class StreamingWorkerStatusPages {
             workUnitExecutor,
             currentActiveCommitBytes,
             getDataStatusProvider,
-            computationStateCache::getAllComputations));
+            computationStateCache::getAllPresentComputations));
     statusPages.addStatusDataProvider(
         "exception", "Last Exception", new LastExceptionDataProvider());
     statusPages.addStatusDataProvider("cache", "State Cache", stateCache);

@@ -341,7 +341,7 @@ public class StreamingDataflowWorker {
             clock,
             options.getActiveWorkRefreshPeriodMillis(),
             stuckCommitDurationMillis,
-            computationStateCache::getAllComputations,
+            computationStateCache::getAllPresentComputations,
             sampler,
             metricTrackingWindmillServer::refreshActiveWork,
             executorSupplier.apply("RefreshWork"));
@@ -502,7 +502,7 @@ public class StreamingDataflowWorker {
     } else {
       windmillServer =
           createWindmillServerStub(options, windmillStreamFactory, dispatcherClient, ignored -> {});
-      configFetcher = new StreamingApplianceComputationConfigFetcher(windmillServer);
+      configFetcher = new StreamingApplianceComputationConfigFetcher(windmillServer::getConfig);
     }
 
     return Pair.of(configFetcher, Optional.ofNullable(windmillServer));
@@ -537,7 +537,7 @@ public class StreamingDataflowWorker {
                         config,
                         windmillServer::setWindmillServiceEndpoints,
                         maxWorkItemCommitBytes))
-            : new StreamingApplianceComputationConfigFetcher(windmillServer);
+            : new StreamingApplianceComputationConfigFetcher(windmillServer::getConfig);
     ComputationStateCache computationStateCache =
         ComputationStateCache.forTesting(
             configFetcher, workExecutor, stateCache::forComputation, ID_GENERATOR, stateNameMap);
@@ -813,7 +813,8 @@ public class StreamingDataflowWorker {
     activeWorkRefresher.start();
   }
 
-  public void startStatusPages() {
+  /** Starts the status page server for debugging. May be omitted for lighter weight testing. */
+  private void startStatusPages() {
     statusPages.start(options);
   }
 
@@ -1092,12 +1093,7 @@ public class StreamingDataflowWorker {
                 streamingCounters.pendingDeltaCounters(),
                 computationId,
                 readerCache,
-                //                !computationState.getTransformUserNameToStateFamily().isEmpty()
-                //                    ?
-                computationState.getTransformUserNameToStateFamily()
-                //                    :
-                //                    computationStateCache.getReadOnlyStateNameMap()
-                ,
+                computationState.getTransformUserNameToStateFamily(),
                 stateCache.forComputation(computationId),
                 stageInfo.metricsContainerRegistry(),
                 executionStateTracker,

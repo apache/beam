@@ -17,16 +17,14 @@
  */
 package org.apache.beam.runners.dataflow.worker.streaming.config;
 
-import com.google.api.services.dataflow.model.StreamingComputationConfig;
 import com.google.auto.value.AutoValue;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPort;
 
+/** Global pipeline config for pipelines running in Streaming Engine mode. */
 @AutoValue
 @Internal
 public abstract class StreamingEnginePipelineConfig {
@@ -36,7 +34,6 @@ public abstract class StreamingEnginePipelineConfig {
   public static StreamingEnginePipelineConfig.Builder builder() {
     return new AutoValue_StreamingEnginePipelineConfig.Builder()
         .setMaxWorkItemCommitBytes(DEFAULT_MAX_WORK_ITEM_COMMIT_BYTES)
-        .setComputationConfig(null)
         .setUserStepToStateFamilyNameMap(new HashMap<>())
         .setWindmillServiceEndpoints(ImmutableSet.of());
   }
@@ -45,8 +42,6 @@ public abstract class StreamingEnginePipelineConfig {
 
   public abstract Map<String, String> userStepToStateFamilyNameMap();
 
-  public abstract Optional<StreamingComputationConfig> computationConfig();
-
   public abstract ImmutableSet<HostAndPort> windmillServiceEndpoints();
 
   @AutoValue.Builder
@@ -54,8 +49,6 @@ public abstract class StreamingEnginePipelineConfig {
     public abstract Builder setMaxWorkItemCommitBytes(long value);
 
     public abstract Builder setUserStepToStateFamilyNameMap(Map<String, String> value);
-
-    public abstract Builder setComputationConfig(@Nullable StreamingComputationConfig value);
 
     public abstract Builder setWindmillServiceEndpoints(ImmutableSet<HostAndPort> value);
 

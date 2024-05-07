@@ -26,9 +26,9 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetConfigRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetConfigResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetConfigResponse.NameMapEntry;
-import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
@@ -46,17 +46,18 @@ public final class StreamingApplianceComputationConfigFetcher implements Computa
   private static final Logger LOG =
       LoggerFactory.getLogger(StreamingApplianceComputationConfigFetcher.class);
 
-  private final WindmillServerStub windmillServer;
+  private final ApplianceComputationConfigFetcher applianceComputationConfigFetcher;
   private final ConcurrentHashMap<String, String> systemNameToComputationIdMap;
 
-  public StreamingApplianceComputationConfigFetcher(WindmillServerStub windmillServer) {
-    this.windmillServer = windmillServer;
+  public StreamingApplianceComputationConfigFetcher(
+      ApplianceComputationConfigFetcher applianceComputationConfigFetcher) {
+    this.applianceComputationConfigFetcher = applianceComputationConfigFetcher;
     this.systemNameToComputationIdMap = new ConcurrentHashMap<>();
   }
 
+  /** Returns a {@code Table<ComputationId, TransformUserName, StateFamilyName>} */
   private static Table<String, String, String> transformUserNameToStateFamilyByComputationId(
       Windmill.GetConfigResponse response) {
-    // a row in the table is <ComputationId, TransformUserName, StateFamilyName>
     Table<String, String, String> computationIdTransformUserNameStateFamilyNameTable =
         HashBasedTable.create();
     for (Windmill.GetConfigResponse.ComputationConfigMapEntry computationConfig :
@@ -74,7 +75,7 @@ public final class StreamingApplianceComputationConfigFetcher implements Computa
   }
 
   /** Deserialize {@link MapTask} and populate MultiOutputInfos in MapTask. */
-  private Optional<MapTask> deserializeAndFixMapTask(String serializedMapTask) {
+  private Optional<MapTask> deserializeMapTask(String serializedMapTask) {
     try {
       return Optional.of(Transport.getJsonFactory().fromString(serializedMapTask, MapTask.class));
     } catch (IOException e) {
@@ -84,14 +85,14 @@ public final class StreamingApplianceComputationConfigFetcher implements Computa
   }
 
   @Override
-  public Optional<ComputationConfig> getConfig(String computationId) {
+  public Optional<ComputationConfig> fetchConfig(String computationId) {
     Preconditions.checkArgument(
         !computationId.isEmpty(),
         "computationId is empty. Cannot fetch computation config without a computationId.");
 
     GetConfigResponse response =
-        windmillServer.getConfig(
-            Windmill.GetConfigRequest.newBuilder().addComputations(computationId).build());
+        applianceComputationConfigFetcher.fetchConfig(
+            GetConfigRequest.newBuilder().addComputations(computationId).build());
 
     if (response == null) {
       return Optional.empty();
@@ -115,7 +116,7 @@ public final class StreamingApplianceComputationConfigFetcher implements Computa
       String serializedMapTask,
       Table<String, String, String> transformUserNameToStateFamilyByComputationId,
       Map<String, String> stateNameMap) {
-    return deserializeAndFixMapTask(serializedMapTask)
+    return deserializeMapTask(serializedMapTask)
         .map(
             mapTask -> {
               String computationId =
@@ -126,5 +127,10 @@ public final class StreamingApplianceComputationConfigFetcher implements Computa
                   transformUserNameToStateFamilyByComputationId.row(computationId),
                   stateNameMap);
             });
+  }
+
+  @FunctionalInterface
+  public interface ApplianceComputationConfigFetcher {
+    GetConfigResponse fetchConfig(GetConfigRequest getConfigRequest);
   }
 }

@@ -43,7 +43,9 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBui
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheLoader;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.LoadingCache;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.UncheckedExecutionException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,6 +56,7 @@ public final class ComputationStateCache implements StatusDataProvider {
 
   private static final Logger LOG = LoggerFactory.getLogger(ComputationStateCache.class);
 
+  private final ConcurrentMap<String, String> globalUsernameToStateFamilyNameMap;
   private final LoadingCache<String, ComputationState> computationCache;
 
   /**
@@ -64,9 +67,11 @@ public final class ComputationStateCache implements StatusDataProvider {
 
   private ComputationStateCache(
       LoadingCache<String, ComputationState> computationCache,
-      Function<MapTask, MapTask> fixMultiOutputInfosOnParDoInstructions) {
+      Function<MapTask, MapTask> fixMultiOutputInfosOnParDoInstructions,
+      ConcurrentMap<String, String> globalUsernameToStateFamilyNameMap) {
     this.computationCache = computationCache;
     this.fixMultiOutputInfosOnParDoInstructions = fixMultiOutputInfosOnParDoInstructions;
+    this.globalUsernameToStateFamilyNameMap = globalUsernameToStateFamilyNameMap;
   }
 
   public static ComputationStateCache create(
@@ -76,17 +81,35 @@ public final class ComputationStateCache implements StatusDataProvider {
       IdGenerator idGenerator) {
     Function<MapTask, MapTask> fixMultiOutputInfosOnParDoInstructions =
         new FixMultiOutputInfosOnParDoInstructions(idGenerator);
-    ConcurrentMap<String, String> stateNameMap = new ConcurrentHashMap<>();
+    ConcurrentMap<String, String> globalUsernameToStateFamilyNameMap = new ConcurrentHashMap<>();
     return new ComputationStateCache(
         CacheBuilder.newBuilder()
             .build(
-                newComputationStateCacheLoader(
-                    computationConfigFetcher,
-                    workUnitExecutor,
-                    perComputationStateCacheViewFactory,
-                    fixMultiOutputInfosOnParDoInstructions,
-                    stateNameMap)),
-        fixMultiOutputInfosOnParDoInstructions);
+                new CacheLoader<String, ComputationState>() {
+                  @Override
+                  public ComputationState load(String computationId) {
+                    // LoadingCache load(K key) will throw an exception if we return null here,
+                    // throw ComputationStateNotFoundException to represent semantics better.
+                    ComputationConfig computationConfig =
+                        computationConfigFetcher
+                            .fetchConfig(computationId)
+                            .orElseThrow(
+                                () -> new ComputationStateNotFoundException(computationId));
+                    globalUsernameToStateFamilyNameMap.putAll(computationConfig.stateNameMap());
+                    Map<String, String> transformUserNameToStateFamilyForComputation =
+                        !computationConfig.userTransformToStateFamilyName().isEmpty()
+                            ? computationConfig.userTransformToStateFamilyName()
+                            : globalUsernameToStateFamilyNameMap;
+                    return new ComputationState(
+                        computationId,
+                        fixMultiOutputInfosOnParDoInstructions.apply(computationConfig.mapTask()),
+                        workUnitExecutor,
+                        transformUserNameToStateFamilyForComputation,
+                        perComputationStateCacheViewFactory.apply(computationId));
+                  }
+                }),
+        fixMultiOutputInfosOnParDoInstructions,
+        globalUsernameToStateFamilyNameMap);
   }
 
   @VisibleForTesting
@@ -95,47 +118,20 @@ public final class ComputationStateCache implements StatusDataProvider {
       BoundedQueueExecutor workUnitExecutor,
       Function<String, WindmillStateCache.ForComputation> perComputationStateCacheViewFactory,
       IdGenerator idGenerator,
-      ConcurrentMap<String, String> stateNameMap) {
-    Function<MapTask, MapTask> fixMultiOutputInfosOnParDoInstructions =
-        new FixMultiOutputInfosOnParDoInstructions(idGenerator);
-    return new ComputationStateCache(
-        CacheBuilder.newBuilder()
-            .build(
-                newComputationStateCacheLoader(
-                    computationConfigFetcher,
-                    workUnitExecutor,
-                    perComputationStateCacheViewFactory,
-                    fixMultiOutputInfosOnParDoInstructions,
-                    stateNameMap)),
-        fixMultiOutputInfosOnParDoInstructions);
+      ConcurrentMap<String, String> globalUsernameToStateFamilyNameMap) {
+    ComputationStateCache cache =
+        create(
+            computationConfigFetcher,
+            workUnitExecutor,
+            perComputationStateCacheViewFactory,
+            idGenerator);
+    cache.globalUsernameToStateFamilyNameMap.putAll(globalUsernameToStateFamilyNameMap);
+    return cache;
   }
 
-  private static CacheLoader<String, ComputationState> newComputationStateCacheLoader(
-      ComputationConfig.Fetcher computationConfigFetcher,
-      BoundedQueueExecutor workUnitExecutor,
-      Function<String, WindmillStateCache.ForComputation> perComputationStateCacheViewFactory,
-      Function<MapTask, MapTask> fixMultiOutputInfosOnParDoInstructions,
-      ConcurrentMap<String, String> stateNameMap) {
-    return new CacheLoader<String, ComputationState>() {
-      @Override
-      public ComputationState load(String computationId) {
-        // LoadingCache load(K key) will throw an exception if we return null here,
-        // throw ComputationStateNotFoundException to represent semantics better.
-        ComputationConfig computationConfig =
-            computationConfigFetcher
-                .getConfig(computationId)
-                .orElseThrow(() -> new ComputationStateNotFoundException(computationId));
-        stateNameMap.putAll(computationConfig.stateNameMap());
-        return new ComputationState(
-            computationId,
-            fixMultiOutputInfosOnParDoInstructions.apply(computationConfig.mapTask()),
-            workUnitExecutor,
-            !computationConfig.userTransformToStateFamilyName().isEmpty()
-                ? computationConfig.userTransformToStateFamilyName()
-                : stateNameMap,
-            perComputationStateCacheViewFactory.apply(computationId));
-      }
-    };
+  @VisibleForTesting
+  ImmutableMap<String, String> getGlobalUsernameToStateFamilyNameMap() {
+    return ImmutableMap.copyOf(globalUsernameToStateFamilyNameMap);
   }
 
   /**
@@ -146,8 +142,11 @@ public final class ComputationStateCache implements StatusDataProvider {
   public Optional<ComputationState> get(String computationId) {
     try {
       return Optional.ofNullable(computationCache.get(computationId));
-    } catch (ExecutionException | ComputationStateNotFoundException e) {
-      if (e.getCause() instanceof ComputationStateNotFoundException) {
+    } catch (UncheckedExecutionException
+        | ExecutionException
+        | ComputationStateNotFoundException e) {
+      if (e.getCause() instanceof ComputationStateNotFoundException
+          || e instanceof ComputationStateNotFoundException) {
         LOG.error(
             "Trying to fetch unknown computation={}, known computations are {}.",
             computationId,
@@ -164,8 +163,8 @@ public final class ComputationStateCache implements StatusDataProvider {
     return Optional.ofNullable(computationCache.getIfPresent(computationId));
   }
 
-  /** Returns a read-only view of all computations. */
-  public ImmutableList<ComputationState> getAllComputations() {
+  /** Returns a read-only view of all computations that have been fetched by the worker. */
+  public ImmutableList<ComputationState> getAllPresentComputations() {
     return computationCache.asMap().values().stream().collect(toImmutableList());
   }
 
@@ -202,7 +201,7 @@ public final class ComputationStateCache implements StatusDataProvider {
   @Override
   public void appendSummaryHtml(PrintWriter writer) {
     writer.println("<h1>Specs</h1>");
-    for (ComputationState computationState : getAllComputations()) {
+    for (ComputationState computationState : getAllPresentComputations()) {
       writer.println("<h3>" + computationState.getComputationId() + "</h3>");
       writer.print("<script>document.write(JSON.stringify(");
       writer.print(computationState.getMapTask().toString());

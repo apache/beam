@@ -36,6 +36,7 @@ import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 import org.apache.beam.runners.dataflow.worker.WorkUnitClient;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.Duration;
 import org.junit.After;
 import org.junit.Test;
@@ -45,7 +46,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class StreamingEngineComputationConfigFetcherTest {
   private final WorkUnitClient mockDataflowServiceClient = mock(WorkUnitClient.class);
-  private StreamingEngineComputationConfigFetcher streamingEngineConfigLoader;
+  private StreamingEngineComputationConfigFetcher streamingEngineConfigFetcher;
 
   private StreamingEngineComputationConfigFetcher createConfigLoader(
       boolean waitForInitialConfig,
@@ -61,7 +62,7 @@ public class StreamingEngineComputationConfigFetcherTest {
 
   @After
   public void cleanUp() {
-    streamingEngineConfigLoader.stop();
+    streamingEngineConfigFetcher.stop();
   }
 
   @Test
@@ -74,7 +75,7 @@ public class StreamingEngineComputationConfigFetcherTest {
     Set<StreamingEnginePipelineConfig> receivedPipelineConfig = new HashSet<>();
     when(mockDataflowServiceClient.getGlobalStreamingConfigWorkItem())
         .thenReturn(Optional.of(initialConfig));
-    streamingEngineConfigLoader =
+    streamingEngineConfigFetcher =
         createConfigLoader(
             /* waitForInitialConfig= */ true,
             0,
@@ -86,7 +87,7 @@ public class StreamingEngineComputationConfigFetcherTest {
                 throw new RuntimeException(e);
               }
             });
-    Thread asyncStartConfigLoader = new Thread(streamingEngineConfigLoader::start);
+    Thread asyncStartConfigLoader = new Thread(streamingEngineConfigFetcher::start);
     asyncStartConfigLoader.start();
     waitForInitialConfig.countDown();
     asyncStartConfigLoader.join();
@@ -119,7 +120,7 @@ public class StreamingEngineComputationConfigFetcherTest {
         .thenReturn(Optional.of(secondConfig))
         .thenReturn(Optional.of(thirdConfig));
 
-    streamingEngineConfigLoader =
+    streamingEngineConfigFetcher =
         createConfigLoader(
             /* waitForInitialConfig= */ true,
             Duration.millis(100).getMillis(),
@@ -128,7 +129,7 @@ public class StreamingEngineComputationConfigFetcherTest {
               numExpectedRefreshes.countDown();
             });
 
-    Thread asyncStartConfigLoader = new Thread(streamingEngineConfigLoader::start);
+    Thread asyncStartConfigLoader = new Thread(streamingEngineConfigFetcher::start);
     asyncStartConfigLoader.start();
     numExpectedRefreshes.await();
     asyncStartConfigLoader.join();
@@ -150,9 +151,8 @@ public class StreamingEngineComputationConfigFetcherTest {
 
   @Test
   public void testGetComputationConfig() throws IOException {
-    Set<StreamingEnginePipelineConfig> receivedPipelineConfig = new HashSet<>();
-    streamingEngineConfigLoader =
-        createConfigLoader(/* waitForInitialConfig= */ false, 0, receivedPipelineConfig::add);
+    streamingEngineConfigFetcher =
+        createConfigLoader(/* waitForInitialConfig= */ false, 0, ignored -> {});
     String computationId = "computationId";
     String stageName = "stageName";
     String systemName = "systemName";
@@ -172,23 +172,26 @@ public class StreamingEngineComputationConfigFetcherTest {
     when(mockDataflowServiceClient.getStreamingConfigWorkItem(anyString()))
         .thenReturn(Optional.of(workItem));
     Optional<ComputationConfig> actualPipelineConfig =
-        streamingEngineConfigLoader.getConfig(computationId);
+        streamingEngineConfigFetcher.fetchConfig(computationId);
 
     assertTrue(actualPipelineConfig.isPresent());
-    assertThat(receivedPipelineConfig)
-        .containsExactly(
-            StreamingEnginePipelineConfig.builder().setComputationConfig(pipelineConfig).build());
+    assertThat(actualPipelineConfig.get())
+        .isEqualTo(
+            ComputationConfig.create(
+                StreamingEngineComputationConfigFetcher.createMapTask(pipelineConfig),
+                ImmutableMap.of(),
+                ImmutableMap.of()));
   }
 
   @Test
   public void testGetComputationConfig_noComputationPresent() throws IOException {
     Set<StreamingEnginePipelineConfig> receivedPipelineConfig = new HashSet<>();
-    streamingEngineConfigLoader =
+    streamingEngineConfigFetcher =
         createConfigLoader(/* waitForInitialConfig= */ false, 0, receivedPipelineConfig::add);
     when(mockDataflowServiceClient.getStreamingConfigWorkItem(anyString()))
         .thenReturn(Optional.empty());
     Optional<ComputationConfig> pipelineConfig =
-        streamingEngineConfigLoader.getConfig("someComputationId");
+        streamingEngineConfigFetcher.fetchConfig("someComputationId");
     assertFalse(pipelineConfig.isPresent());
     assertThat(receivedPipelineConfig).isEmpty();
   }

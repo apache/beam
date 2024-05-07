@@ -100,7 +100,7 @@ public class StreamingApplianceComputationConfigFetcherTest {
     StreamingApplianceComputationConfigFetcher configLoader =
         createStreamingApplianceConfigLoader();
     when(mockWindmillServer.getConfig(any())).thenReturn(getConfigResponse);
-    Optional<ComputationConfig> config = configLoader.getConfig("someComputationId");
+    Optional<ComputationConfig> config = configLoader.fetchConfig("someComputationId");
     assertTrue(config.isPresent());
     assertThat(config.get()).isEqualTo(expectedConfig);
   }
@@ -110,11 +110,11 @@ public class StreamingApplianceComputationConfigFetcherTest {
     StreamingApplianceComputationConfigFetcher configLoader =
         createStreamingApplianceConfigLoader();
     when(mockWindmillServer.getConfig(any())).thenReturn(null);
-    Optional<ComputationConfig> configResponse = configLoader.getConfig("someComputationId");
+    Optional<ComputationConfig> configResponse = configLoader.fetchConfig("someComputationId");
     assertFalse(configResponse.isPresent());
   }
 
   private StreamingApplianceComputationConfigFetcher createStreamingApplianceConfigLoader() {
-    return new StreamingApplianceComputationConfigFetcher(mockWindmillServer);
+    return new StreamingApplianceComputationConfigFetcher(mockWindmillServer::getConfig);
   }
 }

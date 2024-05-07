@@ -54,6 +54,6 @@ public abstract class ComputationConfig {
 
     default void stop() {}
 
-    Optional<ComputationConfig> getConfig(String computationId);
+    Optional<ComputationConfig> fetchConfig(String computationId);
   }
 }
