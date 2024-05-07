@@ -50,7 +50,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.Ge
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCachingStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
-import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemProcessor;
+import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemScheduler;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudgetDistributor;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudgetRefresher;
@@ -84,7 +84,7 @@ public final class StreamingEngineClient {
   private final AtomicBoolean started;
   private final JobHeader jobHeader;
   private final GrpcWindmillStreamFactory streamFactory;
-  private final WorkItemProcessor workItemProcessor;
+  private final WorkItemScheduler workItemScheduler;
   private final ChannelCachingStubFactory channelCachingStubFactory;
   private final GrpcDispatcherClient dispatcherClient;
   private final AtomicBoolean isBudgetRefreshPaused;
@@ -108,7 +108,7 @@ public final class StreamingEngineClient {
       GetWorkBudget totalGetWorkBudget,
       AtomicReference<StreamingEngineConnectionState> connections,
       GrpcWindmillStreamFactory streamFactory,
-      WorkItemProcessor workItemProcessor,
+      WorkItemScheduler workItemScheduler,
       ChannelCachingStubFactory channelCachingStubFactory,
       GetWorkBudgetDistributor getWorkBudgetDistributor,
       GrpcDispatcherClient dispatcherClient,
@@ -118,7 +118,7 @@ public final class StreamingEngineClient {
     this.jobHeader = jobHeader;
     this.started = new AtomicBoolean();
     this.streamFactory = streamFactory;
-    this.workItemProcessor = workItemProcessor;
+    this.workItemScheduler = workItemScheduler;
     this.connections = connections;
     this.channelCachingStubFactory = channelCachingStubFactory;
     this.dispatcherClient = dispatcherClient;
@@ -177,7 +177,7 @@ public final class StreamingEngineClient {
       JobHeader jobHeader,
       GetWorkBudget totalGetWorkBudget,
       GrpcWindmillStreamFactory streamingEngineStreamFactory,
-      WorkItemProcessor processWorkItem,
+      WorkItemScheduler processWorkItem,
       ChannelCachingStubFactory channelCachingStubFactory,
       GetWorkBudgetDistributor getWorkBudgetDistributor,
       GrpcDispatcherClient dispatcherClient,
@@ -206,7 +206,7 @@ public final class StreamingEngineClient {
       GetWorkBudget totalGetWorkBudget,
       AtomicReference<StreamingEngineConnectionState> connections,
       GrpcWindmillStreamFactory streamFactory,
-      WorkItemProcessor processWorkItem,
+      WorkItemScheduler processWorkItem,
       ChannelCachingStubFactory stubFactory,
       GetWorkBudgetDistributor getWorkBudgetDistributor,
       GrpcDispatcherClient dispatcherClient,
@@ -428,7 +428,7 @@ public final class StreamingEngineClient {
                 .build(),
             GetWorkBudget.noBudget(),
             streamFactory,
-            workItemProcessor,
+            workItemScheduler,
             workCommitterFactory,
             heartbeatResponseProcessor);
     windmillStreamSender.startStreams();

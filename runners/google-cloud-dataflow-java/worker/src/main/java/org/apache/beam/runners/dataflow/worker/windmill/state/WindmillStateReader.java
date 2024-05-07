@@ -39,6 +39,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.KeyTokenInvalidException;
 import org.apache.beam.runners.dataflow.worker.WindmillTimeUtils;
 import org.apache.beam.runners.dataflow.worker.WorkItemCancelledException;
+import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataResponse;
@@ -81,37 +82,37 @@ public class WindmillStateReader {
    * Ideal maximum bytes in a TagBag response. However, Windmill will always return at least one
    * value if possible irrespective of this limit.
    */
-  public static final long INITIAL_MAX_BAG_BYTES = 8L << 20; // 8MB
+  @VisibleForTesting static final long INITIAL_MAX_BAG_BYTES = 8L << 20; // 8MB
 
-  public static final long CONTINUATION_MAX_BAG_BYTES = 32L << 20; // 32MB
+  @VisibleForTesting static final long CONTINUATION_MAX_BAG_BYTES = 32L << 20; // 32MB
 
   /**
    * Ideal maximum bytes in a TagMultimapFetchResponse response. However, Windmill will always
    * return at least one value if possible irrespective of this limit.
    */
-  public static final long INITIAL_MAX_MULTIMAP_BYTES = 8L << 20; // 8MB
+  @VisibleForTesting static final long INITIAL_MAX_MULTIMAP_BYTES = 8L << 20; // 8MB
 
-  public static final long CONTINUATION_MAX_MULTIMAP_BYTES = 32L << 20; // 32MB
+  @VisibleForTesting static final long CONTINUATION_MAX_MULTIMAP_BYTES = 32L << 20; // 32MB
 
   /**
    * Ideal maximum bytes in a TagSortedList response. However, Windmill will always return at least
    * one value if possible irrespective of this limit.
    */
-  public static final long MAX_ORDERED_LIST_BYTES = 8L << 20; // 8MB
+  @VisibleForTesting static final long MAX_ORDERED_LIST_BYTES = 8L << 20; // 8MB
 
   /**
    * Ideal maximum bytes in a tag-value prefix response. However, Windmill will always return at
    * least one value if possible irrespective of this limit.
    */
-  public static final long MAX_TAG_VALUE_PREFIX_BYTES = 8L << 20; // 8MB
+  @VisibleForTesting static final long MAX_TAG_VALUE_PREFIX_BYTES = 8L << 20; // 8MB
 
   /**
    * Ideal maximum bytes in a KeyedGetDataResponse. However, Windmill will always return at least
    * one value if possible irrespective of this limit.
    */
-  public static final long MAX_KEY_BYTES = 16L << 20; // 16MB
+  @VisibleForTesting static final long MAX_KEY_BYTES = 16L << 20; // 16MB
 
-  public static final long MAX_CONTINUATION_KEY_BYTES = 72L << 20; // 72MB
+  @VisibleForTesting static final long MAX_CONTINUATION_KEY_BYTES = 72L << 20; // 72MB
   @VisibleForTesting final ConcurrentLinkedQueue<StateTag<?>> pendingLookups;
   private final ByteString key;
   private final long shardingKey;
@@ -125,7 +126,7 @@ public class WindmillStateReader {
   private long bytesRead = 0L;
   private final Supplier<Boolean> workItemIsFailed;
 
-  public WindmillStateReader(
+  private WindmillStateReader(
       Function<KeyedGetDataRequest, Optional<KeyedGetDataResponse>> fetchStateFromWindmillFn,
       ByteString key,
       long shardingKey,
@@ -150,6 +151,19 @@ public class WindmillStateReader {
       long workToken) {
     return new WindmillStateReader(
         fetchStateFromWindmillFn, key, shardingKey, workToken, () -> null, () -> Boolean.FALSE);
+  }
+
+  public static WindmillStateReader forWork(Work work) {
+    return new WindmillStateReader(
+        work::fetchKeyedState,
+        work.getWorkItem().getKey(),
+        work.getWorkItem().getShardingKey(),
+        work.getWorkItem().getWorkToken(),
+        () -> {
+          work.setState(Work.State.READING);
+          return () -> work.setState(Work.State.PROCESSING);
+        },
+        work::isFailed);
   }
 
   private <FutureT> Future<FutureT> stateFuture(StateTag<?> stateTag, @Nullable Coder<?> coder) {

@@ -20,6 +20,7 @@ package org.apache.beam.runners.dataflow.worker.windmill.work;
 import java.util.Collection;
 import java.util.function.Consumer;
 import javax.annotation.CheckReturnValue;
+import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.sdk.annotations.Internal;
@@ -27,19 +28,22 @@ import org.apache.beam.sdk.annotations.Internal;
 @FunctionalInterface
 @CheckReturnValue
 @Internal
-public interface WorkItemProcessor {
+public interface WorkItemScheduler {
   /**
-   * Receives and processes {@link WorkItem}(s) wrapped in its {@link WorkProcessingContext}
-   * processing context.
+   * Schedule {@link WorkItem}(s).
    *
-   * @param workProcessingContext context for processing {@link WorkItem}.
+   * @param workItem {@link WorkItem} to be processed.
+   * @param watermarks processing watermarks for the workItem.
+   * @param processingContext for processing the workItem.
    * @param ackWorkItemQueued Called after an attempt to queue the work item for processing. Used to
    *     free up pending budget.
    * @param getWorkStreamLatencies Latencies per processing stage for the WorkItem for reporting
    *     back to Streaming Engine backend.
    */
-  void processWork(
-      WorkProcessingContext workProcessingContext,
+  void scheduleWork(
+      WorkItem workItem,
+      Work.Watermarks watermarks,
+      Work.ProcessingContext.WithProcessWorkFn processingContext,
       Consumer<WorkItem> ackWorkItemQueued,
       Collection<LatencyAttribution> getWorkStreamLatencies);
 }

@@ -40,7 +40,6 @@ import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream;
-import org.apache.beam.runners.dataflow.worker.windmill.work.WorkProcessingContext;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.Instant;
@@ -66,24 +65,19 @@ public class StreamingApplianceWorkCommitterTest {
     when(getDataStream.requestKeyedData(anyString(), any()))
         .thenReturn(Windmill.KeyedGetDataResponse.getDefaultInstance());
     return Work.create(
-        WorkProcessingContext.builder()
-            .setWorkItem(
-                Windmill.WorkItem.newBuilder()
-                    .setKey(ByteString.EMPTY)
-                    .setWorkToken(workToken)
-                    .setCacheToken(1L)
-                    .setShardingKey(2L)
-                    .build())
+        Windmill.WorkItem.newBuilder()
+            .setKey(ByteString.EMPTY)
+            .setWorkToken(workToken)
+            .setCacheToken(1L)
+            .setShardingKey(2L)
+            .build(),
+        Work.createWatermarks().setInputDataWatermark(Instant.EPOCH).build(),
+        Work.createProcessingContext("computationId", getDataStream::requestKeyedData)
+            .setProcessWorkFn(processWorkFn)
             .setWorkCommitter(workCommitter::commit)
-            .setComputationId("computation")
-            .setInputDataWatermark(Instant.EPOCH)
-            .setKeyedDataFetcher(
-                request ->
-                    Optional.ofNullable(getDataStream.requestKeyedData("computationId", request)))
             .build(),
         Instant::now,
-        Collections.emptyList(),
-        processWorkFn);
+        Collections.emptyList());
   }
 
   private static ComputationState createComputationState(String computationId) {

@@ -36,7 +36,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -53,7 +52,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.Commit;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
-import org.apache.beam.runners.dataflow.worker.windmill.work.WorkProcessingContext;
 import org.apache.beam.runners.direct.Clock;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.HashBasedTable;
@@ -121,24 +119,19 @@ public class DispatchedActiveWorkRefresherTest {
     when(getDataStream.requestKeyedData(anyString(), any()))
         .thenReturn(Windmill.KeyedGetDataResponse.getDefaultInstance());
     return Work.create(
-        WorkProcessingContext.builder()
-            .setWorkItem(
-                Windmill.WorkItem.newBuilder()
-                    .setKey(ByteString.EMPTY)
-                    .setShardingKey(workIds)
-                    .setWorkToken(workIds)
-                    .setCacheToken(workIds)
-                    .build())
+        Windmill.WorkItem.newBuilder()
+            .setKey(ByteString.EMPTY)
+            .setShardingKey(workIds)
+            .setWorkToken(workIds)
+            .setCacheToken(workIds)
+            .build(),
+        Work.createWatermarks().setInputDataWatermark(Instant.EPOCH).build(),
+        Work.createProcessingContext("computationId", getDataStream::requestKeyedData)
+            .setProcessWorkFn(processWork)
             .setWorkCommitter(workCommitter::commit)
-            .setComputationId("computation")
-            .setInputDataWatermark(Instant.EPOCH)
-            .setKeyedDataFetcher(
-                request ->
-                    Optional.ofNullable(getDataStream.requestKeyedData("computationId", request)))
             .build(),
         DispatchedActiveWorkRefresherTest.A_LONG_TIME_AGO,
-        ImmutableList.of(),
-        processWork);
+        ImmutableList.of());
   }
 
   @Test

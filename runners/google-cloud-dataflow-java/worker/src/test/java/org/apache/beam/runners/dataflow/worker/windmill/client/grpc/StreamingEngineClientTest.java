@@ -52,7 +52,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommi
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCachingStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannelFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.testing.FakeWindmillStubFactory;
-import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemProcessor;
+import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemScheduler;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudgetDistributor;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Server;
@@ -118,8 +118,12 @@ public class StreamingEngineClientTest {
   private GetWorkerMetadataTestStub fakeGetWorkerMetadataStub;
   private StreamingEngineClient streamingEngineClient;
 
-  private static WorkItemProcessor noOpProcessWorkItemFn() {
-    return (workProcessingContext, ackWorkItemQueued, getWorkStreamLatencies) -> {};
+  private static WorkItemScheduler noOpProcessWorkItemFn() {
+    return (workItem,
+        watermarks,
+        processingContext,
+        ackWorkItemQueued,
+        getWorkStreamLatencies) -> {};
   }
 
   private static GetWorkRequest getWorkRequest(long items, long bytes) {
@@ -170,13 +174,13 @@ public class StreamingEngineClientTest {
   private StreamingEngineClient newStreamingEngineClient(
       GetWorkBudget getWorkBudget,
       GetWorkBudgetDistributor getWorkBudgetDistributor,
-      WorkItemProcessor workItemProcessor) {
+      WorkItemScheduler workItemScheduler) {
     return StreamingEngineClient.forTesting(
         JOB_HEADER,
         getWorkBudget,
         connections,
         streamFactory,
-        workItemProcessor,
+        workItemScheduler,
         stubFactory,
         getWorkBudgetDistributor,
         dispatcherClient,

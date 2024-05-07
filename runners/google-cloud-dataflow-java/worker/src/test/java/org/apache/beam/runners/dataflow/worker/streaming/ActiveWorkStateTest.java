@@ -44,7 +44,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.Commit;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
-import org.apache.beam.runners.dataflow.worker.windmill.work.WorkProcessingContext;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -76,31 +75,31 @@ public class ActiveWorkStateTest {
     when(getDataStream.requestKeyedData(anyString(), any()))
         .thenReturn(Windmill.KeyedGetDataResponse.getDefaultInstance());
     return Work.create(
-        createWorkProcessingContext(workItem), Instant::now, Collections.emptyList(), unused -> {});
+        workItem,
+        Work.createWatermarks().setInputDataWatermark(Instant.EPOCH).build(),
+        createWorkProcessingContext(),
+        Instant::now,
+        Collections.emptyList());
   }
 
   private static Work expiredWork(Windmill.WorkItem workItem) {
     return Work.create(
-        createWorkProcessingContext(workItem),
+        workItem,
+        Work.createWatermarks().setInputDataWatermark(Instant.EPOCH).build(),
+        createWorkProcessingContext(),
         () -> Instant.EPOCH,
-        Collections.emptyList(),
-        unused -> {});
+        Collections.emptyList());
   }
 
-  private static WorkProcessingContext createWorkProcessingContext(Windmill.WorkItem workItem) {
+  private static Work.ProcessingContext createWorkProcessingContext() {
     WorkCommitter workCommitter = mock(WorkCommitter.class);
     doNothing().when(workCommitter).commit(any(Commit.class));
     WindmillStream.GetDataStream getDataStream = mock(WindmillStream.GetDataStream.class);
     when(getDataStream.requestKeyedData(anyString(), any()))
         .thenReturn(Windmill.KeyedGetDataResponse.getDefaultInstance());
-    return WorkProcessingContext.builder()
-        .setWorkItem(workItem)
+    return Work.createProcessingContext("computationId", getDataStream::requestKeyedData)
         .setWorkCommitter(workCommitter::commit)
-        .setComputationId("computation")
-        .setInputDataWatermark(Instant.EPOCH)
-        .setKeyedDataFetcher(
-            request ->
-                Optional.ofNullable(getDataStream.requestKeyedData("computationId", request)))
+        .setProcessWorkFn(unused -> {})
         .build();
   }
 
