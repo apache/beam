@@ -146,7 +146,10 @@ public class ManagedSchemaTransformProvider
     SchemaTransformProvider schemaTransformProvider =
         Preconditions.checkNotNull(
             schemaTransformProviders.get(managedConfig.getTransformIdentifier()),
-            "Could not find transform with identifier %s, or it may not be supported",
+            "Could not find a transform with the identifier "
+                + "%s. This could be either due to the dependency with the "
+                + "transform not being available in the classpath or due to "
+                + "the specified transform not being supported.",
             managedConfig.getTransformIdentifier());
 
     return new ManagedSchemaTransform(managedConfig, schemaTransformProvider);

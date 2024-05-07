@@ -373,7 +373,7 @@ tasks.register("validatesRunnerSickbay", Test) {
   }
 }
 
-// Generates :runners:flink:1.17:runQuickstartJavaFlinkLocal
+// Generates :runners:flink:1.18:runQuickstartJavaFlinkLocal
 createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner: 'FlinkLocal')
 
 tasks.register("examplesIntegrationTest", Test) {
