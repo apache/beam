@@ -412,7 +412,7 @@ if __name__ == '__main__':
               # https://github.com/sphinx-doc/sphinx/issues/9727
               'docutils==0.17.1',
               'jinja2>=3.0,<3.1',
-              'pandas<2.1.0',
+              'pandas<2.2.0',
           ],
           'test': [
               'docstring-parser>=0.15,<1.0',
