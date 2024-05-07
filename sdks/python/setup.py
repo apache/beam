@@ -167,7 +167,7 @@ else:
 # Exclude 1.5.0 and 1.5.1 because of
 # https://github.com/pandas-dev/pandas/issues/45725
 dataframe_dependency = [
-    'pandas>=1.4.3,!=1.5.0,!=1.5.1,<2.1;python_version>="3.8"',
+    'pandas>=1.4.3,!=1.5.0,!=1.5.1,<2.2;python_version>="3.8"',
 ]
 
 
@@ -420,7 +420,7 @@ if __name__ == '__main__':
               'jinja2>=3.0,<3.1',
               'joblib>=1.0.1',
               'mock>=1.0.1,<6.0.0',
-              'pandas<2.1.0',
+              'pandas<2.2.0',
               'parameterized>=0.7.1,<0.10.0',
               'pyhamcrest>=1.9,!=1.10.0,<3.0.0',
               'pyyaml>=3.12,<7.0.0',

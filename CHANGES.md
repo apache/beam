@@ -57,6 +57,7 @@
 
 ## Highlights
 
+* Added FlinkRunner for Flink 1.18. ([#30789](https://github.com/apache/beam/issues/30789))
 * New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
 * New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
 
@@ -103,7 +104,6 @@
 
 ## I/Os
 
-* Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Upgraded Avro version to 1.11.3, kafka-avro-serializer and kafka-schema-registry-client versions to 7.6.0 (Java) ([#30638](https://github.com/apache/beam/pull/30638)).
   The newer Avro package is known to have breaking changes. If you are affected, you can keep pinned to older Avro versions which are also tested with Beam.
 * Iceberg read/write support is available through the new Managed I/O Java API ([#30830](https://github.com/apache/beam/pull/30830)).
