@@ -27,13 +27,13 @@ from apache_beam.typehints import intrinsic_one_ops
 
 
 class IntrinsicOneOpsTest(unittest.TestCase):
-  def testOperationsOrder(self):
+  def test_unary_intrinsic_ops_are_in_the_same_order_as_in_cpython(self):
     if sys.version_info >= (3, 12):
       dis_order = dis.__dict__['_intrinsic_1_descs']
-      beam_order = []
+      beam_ops = [fn.__name_upper() for fn in intrinsic_one_ops.INT_ONE_OPS]
       for fn in intrinsic_one_ops.INT_ONE_OPS:
-        beam_order.append(fn.__name__.upper())
-      self.assertListEqual(dis_order, beam_order)
+        beam_ops.append(fn.__name__.upper())
+      self.assertListEqual(dis_order, beam_ops)
 
 
 if __name__ == '__main__':
