@@ -258,7 +258,7 @@ public class EvenGetWorkBudgetDistributorTest {
                     .setWorkerId("worker")
                     .build())
             .build(),
-        (workProcessingContext, ackQueuedWorkItem, getWorkStreamLatencies) -> {},
+        (workItem, watermarks, processingContext, ackWorkItemQueued, getWorkStreamLatencies) -> {},
         ignored -> mock(WorkCommitter.class),
         ignored -> {});
   }

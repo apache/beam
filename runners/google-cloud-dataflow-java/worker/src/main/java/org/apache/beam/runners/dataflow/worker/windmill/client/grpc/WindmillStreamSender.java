@@ -32,7 +32,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.Ge
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.StreamingEngineThrottleTimers;
-import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemProcessor;
+import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemScheduler;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers;
@@ -72,7 +72,7 @@ public class WindmillStreamSender {
       GetWorkRequest getWorkRequest,
       AtomicReference<GetWorkBudget> getWorkBudget,
       GrpcWindmillStreamFactory streamingEngineStreamFactory,
-      WorkItemProcessor workItemProcessor,
+      WorkItemScheduler workItemScheduler,
       Function<CommitWorkStream, WorkCommitter> workCommitterFactory,
       Consumer<List<Windmill.ComputationHeartbeatResponse>> heartbeatResponseProcessor) {
     this.started = new AtomicBoolean(false);
@@ -107,7 +107,7 @@ public class WindmillStreamSender {
                     streamingEngineThrottleTimers.getWorkThrottleTimer(),
                     getDataStream,
                     workCommitter,
-                    workItemProcessor));
+                    workItemScheduler));
   }
 
   public static WindmillStreamSender create(
@@ -115,7 +115,7 @@ public class WindmillStreamSender {
       GetWorkRequest getWorkRequest,
       GetWorkBudget getWorkBudget,
       GrpcWindmillStreamFactory streamingEngineStreamFactory,
-      WorkItemProcessor workItemProcessor,
+      WorkItemScheduler workItemScheduler,
       Function<CommitWorkStream, WorkCommitter> workCommitterFactory,
       Consumer<List<Windmill.ComputationHeartbeatResponse>> heartbeatResponseProcessor) {
     return new WindmillStreamSender(
@@ -123,7 +123,7 @@ public class WindmillStreamSender {
         getWorkRequest,
         new AtomicReference<>(getWorkBudget),
         streamingEngineStreamFactory,
-        workItemProcessor,
+        workItemScheduler,
         workCommitterFactory,
         heartbeatResponseProcessor);
   }

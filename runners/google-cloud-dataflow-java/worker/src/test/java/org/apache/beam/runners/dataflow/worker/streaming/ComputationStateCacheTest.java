@@ -64,9 +64,14 @@ public class ComputationStateCacheTest {
             .setWorkToken(workToken)
             .setCacheToken(cacheToken)
             .build(),
+        Work.createWatermarks().setInputDataWatermark(Instant.now()).build(),
+        Work.createProcessingContext(
+                "computationId", (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance())
+            .setWorkCommitter(ignored -> {})
+            .setProcessWorkFn(ignored -> {})
+            .build(),
         Instant::now,
-        Collections.emptyList(),
-        unused -> {});
+        Collections.emptyList());
   }
 
   @Before

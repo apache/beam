@@ -74,7 +74,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
@@ -102,7 +101,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.Commit;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
-import org.apache.beam.runners.dataflow.worker.windmill.work.WorkProcessingContext;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -992,17 +990,14 @@ public class WorkerCustomSourcesTest {
         .thenReturn(Windmill.KeyedGetDataResponse.getDefaultInstance());
     Work dummyWork =
         Work.create(
-            WorkProcessingContext.builder()
-                .setWorkItem(workItem)
+            workItem,
+            Work.createWatermarks().setInputDataWatermark(Instant.EPOCH).build(),
+            Work.createProcessingContext("computationId", getDataStream::requestKeyedData)
                 .setWorkCommitter(workCommitter::commit)
-                .setKeyedDataFetcher(
-                    request ->
-                        Optional.ofNullable(
-                            getDataStream.requestKeyedData("computationId", request)))
+                .setProcessWorkFn(unused -> {})
                 .build(),
             Instant::now,
-            Collections.emptyList(),
-            unused -> {});
+            Collections.emptyList());
 
     context.start(
         "key",

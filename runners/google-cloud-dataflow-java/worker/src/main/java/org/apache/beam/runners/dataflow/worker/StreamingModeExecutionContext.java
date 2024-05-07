@@ -47,6 +47,7 @@ import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext.Ste
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.ProfileScope;
+import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInput;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputState;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
@@ -199,6 +200,24 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
             synchronizedProcessingTime);
       }
     }
+  }
+
+  public void start(
+      @Nullable Object key,
+      Work work,
+      WindmillStateReader stateReader,
+      SideInputStateFetcher sideInputStateFetcher,
+      Windmill.WorkItemCommitRequest.Builder outputBuilder) {
+    start(
+        key,
+        work.getWorkItem(),
+        work.watermarks().inputDataWatermark(),
+        work.watermarks().outputDataWatermark(),
+        work.watermarks().synchronizedProcessingTime(),
+        stateReader,
+        sideInputStateFetcher,
+        outputBuilder,
+        work::isFailed);
   }
 
   @Override
