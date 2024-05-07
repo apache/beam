@@ -69,7 +69,7 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          python-version: 3.8
+          python-version: default
       - name: Prepare test arguments
         uses: ./.github/actions/test-arguments-action
         with:
