@@ -63,6 +63,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Range;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Futures;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.SettableFuture;
+import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.joda.time.Instant;
 
 /**
@@ -82,37 +83,71 @@ public class WindmillStateReader {
    * Ideal maximum bytes in a TagBag response. However, Windmill will always return at least one
    * value if possible irrespective of this limit.
    */
+<<<<<<< HEAD
   @VisibleForTesting static final long INITIAL_MAX_BAG_BYTES = 8L << 20; // 8MB
 
   @VisibleForTesting static final long CONTINUATION_MAX_BAG_BYTES = 32L << 20; // 32MB
+=======
+  @VisibleForTesting
+  static final long INITIAL_MAX_BAG_BYTES = 8L << 20; // 8MB
+
+  @VisibleForTesting
+  static final long CONTINUATION_MAX_BAG_BYTES = 32L << 20; // 32MB
+>>>>>>> 210910851ac (address cl comments)
 
   /**
    * Ideal maximum bytes in a TagMultimapFetchResponse response. However, Windmill will always
    * return at least one value if possible irrespective of this limit.
    */
+<<<<<<< HEAD
   @VisibleForTesting static final long INITIAL_MAX_MULTIMAP_BYTES = 8L << 20; // 8MB
 
   @VisibleForTesting static final long CONTINUATION_MAX_MULTIMAP_BYTES = 32L << 20; // 32MB
+=======
+  @VisibleForTesting
+  static final long INITIAL_MAX_MULTIMAP_BYTES = 8L << 20; // 8MB
+
+  @VisibleForTesting
+  static final long CONTINUATION_MAX_MULTIMAP_BYTES = 32L << 20; // 32MB
+>>>>>>> 210910851ac (address cl comments)
 
   /**
    * Ideal maximum bytes in a TagSortedList response. However, Windmill will always return at least
    * one value if possible irrespective of this limit.
    */
+<<<<<<< HEAD
   @VisibleForTesting static final long MAX_ORDERED_LIST_BYTES = 8L << 20; // 8MB
+=======
+  @VisibleForTesting
+  static final long MAX_ORDERED_LIST_BYTES = 8L << 20; // 8MB
+>>>>>>> 210910851ac (address cl comments)
 
   /**
    * Ideal maximum bytes in a tag-value prefix response. However, Windmill will always return at
    * least one value if possible irrespective of this limit.
    */
+<<<<<<< HEAD
   @VisibleForTesting static final long MAX_TAG_VALUE_PREFIX_BYTES = 8L << 20; // 8MB
+=======
+  @VisibleForTesting
+  static final long MAX_TAG_VALUE_PREFIX_BYTES = 8L << 20; // 8MB
+>>>>>>> 210910851ac (address cl comments)
 
   /**
    * Ideal maximum bytes in a KeyedGetDataResponse. However, Windmill will always return at least
    * one value if possible irrespective of this limit.
    */
+<<<<<<< HEAD
   @VisibleForTesting static final long MAX_KEY_BYTES = 16L << 20; // 16MB
 
   @VisibleForTesting static final long MAX_CONTINUATION_KEY_BYTES = 72L << 20; // 72MB
+=======
+  @VisibleForTesting
+  static final long MAX_KEY_BYTES = 16L << 20; // 16MB
+
+  @VisibleForTesting
+  static final long MAX_CONTINUATION_KEY_BYTES = 72L << 20; // 72MB
+>>>>>>> 210910851ac (address cl comments)
   @VisibleForTesting final ConcurrentLinkedQueue<StateTag<?>> pendingLookups;
   private final ByteString key;
   private final long shardingKey;
