@@ -91,10 +91,11 @@ def _fix_xlang_instant_coding():
 
 def run(argv=None):
   known_args, pipeline_args = _configure_parser(argv)
+  pipeline_template = _pipeline_spec_from_args(known_args)
   pipeline_yaml = (  # keep formatting
       jinja2.Environment(
           undefined=jinja2.StrictUndefined, loader=_BeamFileIOLoader())
-      .from_string(_pipeline_spec_from_args(known_args))
+      .from_string(pipeline_template)
       .render(**known_args.jinja_variables or {}))
   pipeline_spec = yaml.load(pipeline_yaml, Loader=yaml_transform.SafeLineLoader)
 
@@ -105,7 +106,10 @@ def run(argv=None):
             pickle_library='cloudpickle',
             **yaml_transform.SafeLineLoader.strip_metadata(pipeline_spec.get(
                 'options', {}))),
-        display_data={'yaml': pipeline_yaml}) as p:
+        display_data={'yaml': pipeline_yaml,
+                      'yaml_jinja_template': pipeline_template,
+                      'yaml_jinja_variables': json.dumps(
+                          known_args.jinja_variables)}) as p:
       print("Building pipeline...")
       yaml_transform.expand_pipeline(
           p, pipeline_spec, validate_schema=known_args.json_schema_validation)
