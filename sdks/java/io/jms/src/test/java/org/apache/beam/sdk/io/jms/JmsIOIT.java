@@ -169,7 +169,7 @@ public class JmsIOIT implements Serializable {
   public void setup() throws Exception {
     if (OPTIONS.isLocalJmsBrokerEnabled()) {
       this.commonJms.startBroker();
-      connectionFactory = this.commonJms.getConnectionFactory();
+      connectionFactory = this.commonJms.createConnectionFactory();
       connectionFactoryClass = this.commonJms.getConnectionFactoryClass();
       // use a small number of record for local integration test
       OPTIONS.setNumberOfRecords(10000);

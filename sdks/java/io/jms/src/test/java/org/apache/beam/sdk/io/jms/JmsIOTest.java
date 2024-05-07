@@ -50,6 +50,7 @@ import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Proxy;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -65,6 +66,9 @@ import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.jms.BytesMessage;
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
@@ -95,6 +99,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableBiFunction;
+import org.apache.beam.sdk.util.ThrowingSupplier;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
 import org.apache.qpid.jms.JmsAcknowledgeCallback;
@@ -119,51 +124,101 @@ import org.slf4j.LoggerFactory;
 })
 public class JmsIOTest {
 
+  // convenient typedefs and a helper conversion function
+  private interface ThrowingSerializableSupplier<T> extends ThrowingSupplier<T>, Serializable {}
+
+  private interface SerializableSupplier<T> extends Serializable, Supplier<T> {}
+
+  private static <T> SerializableSupplier<T> toSerializableSupplier(
+      ThrowingSerializableSupplier<T> throwingSerializableSupplier) {
+    return () -> {
+      try {
+        return throwingSerializableSupplier.get();
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+    };
+  }
+
   private static final Logger LOG = LoggerFactory.getLogger(JmsIOTest.class);
   private final RetryConfiguration retryConfiguration =
       RetryConfiguration.create(1, Duration.standardSeconds(1), null);
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
-  @Parameterized.Parameters(name = "with client class {3}")
+  private static Stream<List<Object>> connectionFactoriesParams() {
+    return Stream.of(
+        Arrays.asList(
+            "vm://localhost", 5672, "jms.sendAcksAsync=false", ActiveMQConnectionFactory.class),
+        Arrays.asList(
+            "amqp://localhost", 5672, "jms.forceAsyncAcks=false", JmsConnectionFactory.class));
+  }
+
+  @Parameterized.Parameters(name = "with client class {3}, use supplier? {4}")
   public static Collection<Object[]> connectionFactories() {
-    return Arrays.asList(
-        new Object[] {
-          "vm://localhost", 5672, "jms.sendAcksAsync=false", ActiveMQConnectionFactory.class
-        },
-        new Object[] {
-          "amqp://localhost", 5672, "jms.forceAsyncAcks=false", JmsConnectionFactory.class
-        });
+    // Every test param list will be exploded into two with a different boolean flag attached, this
+    // way we test two kinds of JmsIOs - one that uses ConnectionFactory directly and the other that
+    // uses a supplier - depending on the value of that flag
+    return Stream.of(true, false)
+        .flatMap(
+            useSupplier ->
+                connectionFactoriesParams()
+                    .map(
+                        paramList -> {
+                          Object[] params = paramList.toArray(new Object[paramList.size() + 1]);
+                          params[params.length - 1] = useSupplier;
+                          return params;
+                        }))
+        .collect(Collectors.toList());
   }
 
   private final CommonJms commonJms;
-  private ConnectionFactory connectionFactory;
-  private Class<? extends ConnectionFactory> connectionFactoryClass;
-  private ConnectionFactory connectionFactoryWithSyncAcksAndWithoutPrefetch;
+  private final Class<? extends ConnectionFactory> connectionFactoryClass;
+  private final ConnectionFactory connectionFactory;
+  private final ConnectionFactory connectionFactoryWithSyncAcksAndWithoutPrefetch;
+  private final SerializableSupplier<ConnectionFactory> connectionFactorySupplier;
+  private final SerializableSupplier<ConnectionFactory>
+      connectionFactoryWithSyncAcksAndWithoutPrefetchSupplier;
+  private final boolean useSupplier;
 
   public JmsIOTest(
       String brokerUrl,
       Integer brokerPort,
       String forceAsyncAcksParam,
-      Class<? extends ConnectionFactory> connectionFactoryClass) {
+      Class<? extends ConnectionFactory> connectionFactoryClass,
+      boolean useSupplier)
+      throws InvocationTargetException,
+          NoSuchMethodException,
+          InstantiationException,
+          IllegalAccessException {
     this.commonJms =
         new CommonJms(brokerUrl, brokerPort, forceAsyncAcksParam, connectionFactoryClass);
+    this.connectionFactoryClass = connectionFactoryClass;
+    this.useSupplier = useSupplier;
+    connectionFactory = commonJms.createConnectionFactory();
+    connectionFactoryWithSyncAcksAndWithoutPrefetch =
+        commonJms.createConnectionFactoryWithSyncAcksAndWithoutPrefetch();
+
+    if (useSupplier) {
+      // the suppliers will instantiate a new CF each time they're invoked
+      connectionFactorySupplier = toSerializableSupplier(commonJms::createConnectionFactory);
+      connectionFactoryWithSyncAcksAndWithoutPrefetchSupplier =
+          toSerializableSupplier(commonJms::createConnectionFactoryWithSyncAcksAndWithoutPrefetch);
+    } else {
+      // just return memoized instances
+      connectionFactorySupplier = () -> connectionFactory;
+      connectionFactoryWithSyncAcksAndWithoutPrefetchSupplier =
+          () -> connectionFactoryWithSyncAcksAndWithoutPrefetch;
+    }
   }
 
   @Before
-  public void beforeEeach() throws Exception {
+  public void beforeEach() throws Exception {
     this.commonJms.startBroker();
-    connectionFactory = this.commonJms.getConnectionFactory();
-    connectionFactoryClass = this.commonJms.getConnectionFactoryClass();
-    connectionFactoryWithSyncAcksAndWithoutPrefetch =
-        this.commonJms.getConnectionFactoryWithSyncAcksAndWithoutPrefetch();
   }
 
   @After
   public void tearDown() throws Exception {
     this.commonJms.stopBroker();
-    connectionFactory = null;
-    connectionFactoryClass = null;
-    connectionFactoryWithSyncAcksAndWithoutPrefetch = null;
   }
 
   private void runPipelineExpectingJmsConnectException(String innerMessage) {
@@ -175,9 +230,20 @@ public class JmsIOTest {
     }
   }
 
+  private <T> JmsIO.Read<T> withConnectionFactory(
+      JmsIO.Read<T> read, SerializableSupplier<ConnectionFactory> connectionFactorySupplier) {
+    if (useSupplier) {
+      read = read.withConnectionFactorySupplier(connectionFactorySupplier);
+    } else {
+      read = read.withConnectionFactory(connectionFactorySupplier.get());
+    }
+
+    return read;
+  }
+
   @Test
   public void testAuthenticationRequired() {
-    pipeline.apply(JmsIO.read().withConnectionFactory(connectionFactory).withQueue(QUEUE));
+    pipeline.apply(withConnectionFactory(JmsIO.read(), connectionFactorySupplier).withQueue(QUEUE));
     String errorMessage =
         this.connectionFactoryClass == ActiveMQConnectionFactory.class
             ? "User name [null] or password is invalid."
@@ -188,8 +254,7 @@ public class JmsIOTest {
   @Test
   public void testAuthenticationWithBadPassword() {
     pipeline.apply(
-        JmsIO.read()
-            .withConnectionFactory(connectionFactory)
+        withConnectionFactory(JmsIO.read(), connectionFactorySupplier)
             .withQueue(QUEUE)
             .withUsername(USERNAME)
             .withPassword("BAD"));
@@ -221,8 +286,7 @@ public class JmsIOTest {
     // read from the queue
     PCollection<JmsRecord> output =
         pipeline.apply(
-            JmsIO.read()
-                .withConnectionFactory(connectionFactory)
+            withConnectionFactory(JmsIO.read(), connectionFactorySupplier)
                 .withQueue(QUEUE)
                 .withUsername(USERNAME)
                 .withPassword(PASSWORD)
@@ -266,8 +330,7 @@ public class JmsIOTest {
     // read from the queue
     PCollection<String> output =
         pipeline.apply(
-            JmsIO.<String>readMessage()
-                .withConnectionFactory(connectionFactory)
+            withConnectionFactory(JmsIO.<String>readMessage(), connectionFactorySupplier)
                 .withQueue(QUEUE)
                 .withUsername(USERNAME)
                 .withPassword(PASSWORD)
@@ -295,8 +358,7 @@ public class JmsIOTest {
     connection.close();
 
     JmsIO.Read spec =
-        JmsIO.read()
-            .withConnectionFactory(connectionFactoryWithSyncAcksAndWithoutPrefetch)
+        withConnectionFactory(JmsIO.read(), connectionFactoryWithSyncAcksAndWithoutPrefetchSupplier)
             .withUsername(USERNAME)
             .withPassword(PASSWORD)
             .withQueue(QUEUE);
@@ -548,8 +610,7 @@ public class JmsIOTest {
     connection.close();
 
     JmsIO.Read spec =
-        JmsIO.read()
-            .withConnectionFactory(connectionFactoryWithSyncAcksAndWithoutPrefetch)
+        withConnectionFactory(JmsIO.read(), connectionFactoryWithSyncAcksAndWithoutPrefetchSupplier)
             .withUsername(USERNAME)
             .withPassword(PASSWORD)
             .withQueue(QUEUE);
@@ -558,11 +619,12 @@ public class JmsIOTest {
     return reader;
   }
 
-  private Function<?, ?> getJmsMessageAck(Class connectorClass) {
+  private Function<Message, Message> getJmsMessageAck(Class connectorClass) {
     final int delay = 10;
     return connectorClass == JmsConnectionFactory.class
-        ? (JmsTextMessage message) -> {
-          final JmsAcknowledgeCallback originalCallback = message.getAcknowledgeCallback();
+        ? (Message message) -> {
+          JmsTextMessage jmsTextMessage = (JmsTextMessage) message;
+          final JmsAcknowledgeCallback originalCallback = jmsTextMessage.getAcknowledgeCallback();
           JmsAcknowledgeCallback jmsAcknowledgeCallbackMock =
               Mockito.mock(JmsAcknowledgeCallback.class);
           try {
@@ -577,12 +639,13 @@ public class JmsIOTest {
           } catch (JMSException exception) {
             LOG.error("An exception occurred while adding 10s delay", exception);
           }
-          message.setAcknowledgeCallback(jmsAcknowledgeCallbackMock);
+          jmsTextMessage.setAcknowledgeCallback(jmsAcknowledgeCallbackMock);
           return message;
         }
-        : (ActiveMQMessage message) -> {
-          final Callback originalCallback = message.getAcknowledgeCallback();
-          message.setAcknowledgeCallback(
+        : (Message message) -> {
+          ActiveMQMessage activeMQMessage = (ActiveMQMessage) message;
+          final Callback originalCallback = activeMQMessage.getAcknowledgeCallback();
+          activeMQMessage.setAcknowledgeCallback(
               () -> {
                 Thread.sleep(delay);
                 originalCallback.execute();
@@ -618,20 +681,22 @@ public class JmsIOTest {
     session.close();
     connection.close();
 
-    Function jmsMessageAck = getJmsMessageAck(this.connectionFactoryClass);
+    Function<Message, Message> jmsMessageAck = getJmsMessageAck(this.connectionFactoryClass);
 
     // create a JmsIO.Read with a decorated ConnectionFactory which will introduce a delay in
     // sending
     // acknowledgements - this should help uncover threading issues around checkpoint management.
-    JmsIO.Read spec =
-        JmsIO.read()
-            .withConnectionFactory(
-                withSlowAcks(connectionFactoryWithSyncAcksAndWithoutPrefetch, jmsMessageAck))
+    JmsIO.Read<JmsRecord> spec =
+        withConnectionFactory(
+                JmsIO.read(),
+                withSlowAcks(
+                    connectionFactoryWithSyncAcksAndWithoutPrefetchSupplier, jmsMessageAck))
             .withUsername(USERNAME)
             .withPassword(PASSWORD)
             .withQueue(QUEUE);
-    JmsIO.UnboundedJmsSource source = new JmsIO.UnboundedJmsSource(spec);
-    JmsIO.UnboundedJmsReader reader = source.createReader(PipelineOptionsFactory.create(), null);
+    JmsIO.UnboundedJmsSource<JmsRecord> source = new JmsIO.UnboundedJmsSource<>(spec);
+    JmsIO.UnboundedJmsReader<JmsRecord> reader =
+        source.createReader(PipelineOptionsFactory.create(), null);
 
     // start the reader and move to the first record
     assertTrue(reader.start());
@@ -678,8 +743,7 @@ public class JmsIOTest {
   @Test
   public void testDefaultAutoscaler() throws IOException {
     JmsIO.Read spec =
-        JmsIO.read()
-            .withConnectionFactory(connectionFactory)
+        withConnectionFactory(JmsIO.read(), connectionFactorySupplier)
             .withUsername(USERNAME)
             .withPassword(PASSWORD)
             .withQueue(QUEUE);
@@ -700,8 +764,7 @@ public class JmsIOTest {
     AutoScaler autoScaler = mock(DefaultAutoscaler.class);
     when(autoScaler.getTotalBacklogBytes()).thenReturn(excpectedTotalBacklogBytes);
     JmsIO.Read spec =
-        JmsIO.read()
-            .withConnectionFactory(connectionFactory)
+        withConnectionFactory(JmsIO.read(), connectionFactorySupplier)
             .withUsername(USERNAME)
             .withPassword(PASSWORD)
             .withQueue(QUEUE)
@@ -723,8 +786,7 @@ public class JmsIOTest {
   public void testCloseWithTimeout() throws IOException {
     Duration closeTimeout = Duration.millis(2000L);
     JmsIO.Read spec =
-        JmsIO.read()
-            .withConnectionFactory(connectionFactory)
+        withConnectionFactory(JmsIO.read(), connectionFactorySupplier)
             .withUsername(USERNAME)
             .withPassword(PASSWORD)
             .withQueue(QUEUE)
@@ -778,8 +840,7 @@ public class JmsIOTest {
     connection.close();
 
     JmsIO.Read spec =
-        JmsIO.read()
-            .withConnectionFactory(connectionFactoryWithSyncAcksAndWithoutPrefetch)
+        withConnectionFactory(JmsIO.read(), connectionFactoryWithSyncAcksAndWithoutPrefetchSupplier)
             .withUsername(USERNAME)
             .withPassword(PASSWORD)
             .withQueue(QUEUE);
@@ -1037,6 +1098,11 @@ public class JmsIOTest {
                                 MessageConsumer.class,
                                 "receiveNoWait",
                                 resultTransformer))));
+  }
+
+  private <T extends Message> SerializableSupplier<ConnectionFactory> withSlowAcks(
+      SerializableSupplier<ConnectionFactory> factorySupplier, Function<T, T> resultTransformer) {
+    return () -> withSlowAcks(factorySupplier.get(), resultTransformer);
   }
 
   /*

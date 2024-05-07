@@ -30,8 +30,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
@@ -193,6 +195,8 @@ public class JmsIO {
   @AutoValue
   public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>> {
 
+    private @Nullable transient ConnectionFactory connectionFactory;
+
     /**
      * NB: According to http://docs.oracle.com/javaee/1.4/api/javax/jms/ConnectionFactory.html "It
      * is expected that JMS providers will provide the tools an administrator needs to create and
@@ -201,9 +205,21 @@ public class JmsIO {
      * they can be stored in all JNDI naming contexts. In addition, it is recommended that these
      * implementations follow the JavaBeansTM design patterns."
      *
-     * <p>So, a {@link ConnectionFactory} implementation is serializable.
+     * <p>So, a {@link ConnectionFactory} implementation should be serializable.
      */
-    abstract @Nullable ConnectionFactory getConnectionFactory();
+    @Nullable ConnectionFactory getConnectionFactory() {
+      if (connectionFactory == null) {
+        connectionFactory =
+            Optional.ofNullable(getConnectionFactorySupplier()).map(Supplier::get).orElse(null);
+      }
+      return connectionFactory;
+    }
+
+    /**
+     * In case the {@link ConnectionFactory} is not serializable it can be constructed separately on
+     * each worker from scratch by providing a {@link Supplier} instead of a ready-made object
+     */
+    abstract @Nullable Supplier<ConnectionFactory> getConnectionFactorySupplier();
 
     abstract @Nullable String getQueue();
 
@@ -233,7 +249,8 @@ public class JmsIO {
 
     @AutoValue.Builder
     abstract static class Builder<T> {
-      abstract Builder<T> setConnectionFactory(ConnectionFactory connectionFactory);
+      abstract Builder<T> setConnectionFactorySupplier(
+          Supplier<ConnectionFactory> connectionFactorySupplier);
 
       abstract Builder<T> setQueue(String queue);
 
@@ -277,7 +294,30 @@ public class JmsIO {
      */
     public Read<T> withConnectionFactory(ConnectionFactory connectionFactory) {
       checkArgument(connectionFactory != null, "connectionFactory can not be null");
-      return builder().setConnectionFactory(connectionFactory).build();
+      return builder()
+          .setConnectionFactorySupplier(
+              (Serializable & Supplier<ConnectionFactory>) () -> connectionFactory)
+          .build();
+    }
+
+    /**
+     * Specify a JMS connection factory supplier to connect to the JMS broker. Use this method in
+     * case your {@link ConnectionFactory} objects are themselves not serializable, but you can
+     * recreate them as needed with a {@link Supplier}
+     *
+     * <p>For instance:
+     *
+     * <pre>
+     * {@code pipeline.apply(JmsIO.read().withConnectionFactorySupplier(() -> new MyJmsConnectionFactory());}
+     * </pre>
+     *
+     * @param connectionFactorySupplier a {@link Supplier} that creates a {@link ConnectionFactory}
+     * @return The corresponding {@link JmsIO.Read}
+     */
+    public Read<T> withConnectionFactorySupplier(
+        Supplier<ConnectionFactory> connectionFactorySupplier) {
+      checkArgument(connectionFactorySupplier != null, "connectionFactorySupplier cannot be null");
+      return builder().setConnectionFactorySupplier(connectionFactorySupplier).build();
     }
 
     /**
@@ -426,7 +466,9 @@ public class JmsIO {
 
     @Override
     public PCollection<T> expand(PBegin input) {
-      checkArgument(getConnectionFactory() != null, "withConnectionFactory() is required");
+      checkArgument(
+          getConnectionFactorySupplier() != null,
+          "Either withConnectionFactory() or withConnectionFactorySupplier() is required");
       checkArgument(
           getQueue() != null || getTopic() != null,
           "Either withQueue() or withTopic() is required");
@@ -1013,11 +1055,13 @@ public class JmsIO {
       checkArgument(getConnectionFactory() != null, "withConnectionFactory() is required");
       checkArgument(
           getTopicNameMapper() != null || getQueue() != null || getTopic() != null,
-          "Either withTopicNameMapper(topicNameMapper), withQueue(queue), or withTopic(topic) is required");
+          "Either withTopicNameMapper(topicNameMapper), withQueue(queue), or withTopic(topic) is"
+              + " required");
       boolean exclusiveTopicQueue = isExclusiveTopicQueue();
       checkArgument(
           exclusiveTopicQueue,
-          "Only one of withQueue(queue), withTopic(topic), or withTopicNameMapper(function) must be set.");
+          "Only one of withQueue(queue), withTopic(topic), or withTopicNameMapper(function) must be"
+              + " set.");
       checkArgument(getValueMapper() != null, "withValueMapper() is required");
 
       return input.apply(new Writer<>(this));

@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.jms;
 
 import java.io.Serializable;
+import java.lang.reflect.InvocationTargetException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -50,9 +51,7 @@ public class CommonJms implements Serializable {
   private final String forceAsyncAcksParam;
   private transient BrokerService broker;
 
-  protected ConnectionFactory connectionFactory;
-  protected final Class<? extends ConnectionFactory> connectionFactoryClass;
-  protected ConnectionFactory connectionFactoryWithSyncAcksAndWithoutPrefetch;
+  private final Class<? extends ConnectionFactory> connectionFactoryClass;
 
   public CommonJms(
       String brokerUrl,
@@ -91,13 +90,24 @@ public class CommonJms implements Serializable {
 
     broker.start();
     broker.waitUntilStarted();
+  }
 
-    // create JMS connection factory
-    connectionFactory = connectionFactoryClass.getConstructor(String.class).newInstance(brokerUrl);
-    connectionFactoryWithSyncAcksAndWithoutPrefetch =
-        connectionFactoryClass
-            .getConstructor(String.class)
-            .newInstance(brokerUrl + BROKER_WITHOUT_PREFETCH_PARAM + forceAsyncAcksParam);
+  ConnectionFactory createConnectionFactory()
+      throws NoSuchMethodException,
+          InvocationTargetException,
+          InstantiationException,
+          IllegalAccessException {
+    return connectionFactoryClass.getConstructor(String.class).newInstance(brokerUrl);
+  }
+
+  ConnectionFactory createConnectionFactoryWithSyncAcksAndWithoutPrefetch()
+      throws NoSuchMethodException,
+          InvocationTargetException,
+          InstantiationException,
+          IllegalAccessException {
+    return connectionFactoryClass
+        .getConstructor(String.class)
+        .newInstance(brokerUrl + BROKER_WITHOUT_PREFETCH_PARAM + forceAsyncAcksParam);
   }
 
   void stopBroker() throws Exception {
@@ -108,14 +118,6 @@ public class CommonJms implements Serializable {
 
   Class<? extends ConnectionFactory> getConnectionFactoryClass() {
     return this.connectionFactoryClass;
-  }
-
-  ConnectionFactory getConnectionFactory() {
-    return this.connectionFactory;
-  }
-
-  ConnectionFactory getConnectionFactoryWithSyncAcksAndWithoutPrefetch() {
-    return this.connectionFactoryWithSyncAcksAndWithoutPrefetch;
   }
 
   /** A test class that maps a {@link javax.jms.BytesMessage} into a {@link String}. */
