@@ -16,6 +16,7 @@
 #
 
 import argparse
+import contextlib
 import json
 
 import jinja2
@@ -26,9 +27,6 @@ from apache_beam.io.filesystems import FileSystems
 from apache_beam.typehints.schemas import LogicalType
 from apache_beam.typehints.schemas import MillisInstant
 from apache_beam.yaml import yaml_transform
-
-# Workaround for https://github.com/apache/beam/issues/28151.
-LogicalType.register_logical_type(MillisInstant)
 
 
 def _configure_parser(argv):
@@ -79,6 +77,18 @@ class _BeamFileIOLoader(jinja2.BaseLoader):
     return source, path, lambda: True
 
 
+@contextlib.contextmanager
+def _fix_xlang_instant_coding():
+  # Scoped workaround for https://github.com/apache/beam/issues/28151.
+  old_registry = LogicalType._known_logical_types
+  LogicalType._known_logical_types = old_registry.copy()
+  try:
+    LogicalType.register_logical_type(MillisInstant)
+    yield
+  finally:
+    LogicalType._known_logical_types = old_registry
+
+
 def run(argv=None):
   known_args, pipeline_args = _configure_parser(argv)
   pipeline_yaml = (  # keep formatting
@@ -88,17 +98,18 @@ def run(argv=None):
       .render(**known_args.jinja_variables or {}))
   pipeline_spec = yaml.load(pipeline_yaml, Loader=yaml_transform.SafeLineLoader)
 
-  with beam.Pipeline(  # linebreak for better yapf formatting
-      options=beam.options.pipeline_options.PipelineOptions(
-          pipeline_args,
-          pickle_library='cloudpickle',
-          **yaml_transform.SafeLineLoader.strip_metadata(pipeline_spec.get(
-              'options', {}))),
-      display_data={'yaml': pipeline_yaml}) as p:
-    print("Building pipeline...")
-    yaml_transform.expand_pipeline(
-        p, pipeline_spec, validate_schema=known_args.json_schema_validation)
-    print("Running pipeline...")
+  with _fix_xlang_instant_coding():
+    with beam.Pipeline(  # linebreak for better yapf formatting
+        options=beam.options.pipeline_options.PipelineOptions(
+            pipeline_args,
+            pickle_library='cloudpickle',
+            **yaml_transform.SafeLineLoader.strip_metadata(pipeline_spec.get(
+                'options', {}))),
+        display_data={'yaml': pipeline_yaml}) as p:
+      print("Building pipeline...")
+      yaml_transform.expand_pipeline(
+          p, pipeline_spec, validate_schema=known_args.json_schema_validation)
+      print("Running pipeline...")
 
 
 if __name__ == '__main__':
