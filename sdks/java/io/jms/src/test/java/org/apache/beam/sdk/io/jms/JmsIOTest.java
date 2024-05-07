@@ -241,6 +241,17 @@ public class JmsIOTest {
     return read;
   }
 
+  private <T> JmsIO.Write<T> withConnectionFactory(
+      JmsIO.Write<T> write, SerializableSupplier<ConnectionFactory> connectionFactorySupplier) {
+    if (useSupplier) {
+      write = write.withConnectionFactorySupplier(connectionFactorySupplier);
+    } else {
+      write = write.withConnectionFactory(connectionFactorySupplier.get());
+    }
+
+    return write;
+  }
+
   @Test
   public void testAuthenticationRequired() {
     pipeline.apply(withConnectionFactory(JmsIO.read(), connectionFactorySupplier).withQueue(QUEUE));
@@ -387,8 +398,7 @@ public class JmsIOTest {
     pipeline
         .apply(Create.of(data))
         .apply(
-            JmsIO.<String>write()
-                .withConnectionFactory(connectionFactory)
+            withConnectionFactory(JmsIO.<String>write(), connectionFactorySupplier)
                 .withValueMapper(new TextMessageMapper())
                 .withRetryConfiguration(retryConfiguration)
                 .withQueue(QUEUE)
@@ -419,8 +429,7 @@ public class JmsIOTest {
         pipeline
             .apply(Create.of(data))
             .apply(
-                JmsIO.<String>write()
-                    .withConnectionFactory(connectionFactory)
+                withConnectionFactory(JmsIO.<String>write(), connectionFactorySupplier)
                     .withValueMapper(new TextMessageMapperWithError())
                     .withRetryConfiguration(retryConfiguration)
                     .withQueue(QUEUE)
@@ -459,8 +468,7 @@ public class JmsIOTest {
     pipeline
         .apply(Create.of(data))
         .apply(
-            JmsIO.<TestEvent>write()
-                .withConnectionFactory(connectionFactory)
+            withConnectionFactory(JmsIO.<TestEvent>write(), connectionFactorySupplier)
                 .withUsername(USERNAME)
                 .withPassword(PASSWORD)
                 .withRetryConfiguration(retryConfiguration)
@@ -885,8 +893,7 @@ public class JmsIOTest {
     RetryConfiguration retryPolicy =
         RetryConfiguration.create(5, Duration.standardSeconds(15), null);
     JmsIO.Write<String> publisher =
-        JmsIO.<String>write()
-            .withConnectionFactory(connectionFactory)
+        withConnectionFactory(JmsIO.<String>write(), connectionFactorySupplier)
             .withRetryConfiguration(retryPolicy)
             .withQueue(QUEUE)
             .withUsername(USERNAME)
@@ -912,8 +919,7 @@ public class JmsIOTest {
         pipeline
             .apply(Create.of(data))
             .apply(
-                JmsIO.<String>write()
-                    .withConnectionFactory(connectionFactory)
+                withConnectionFactory(JmsIO.<String>write(), connectionFactorySupplier)
                     .withValueMapper(new TextMessageMapperWithErrorCounter())
                     .withRetryConfiguration(retryPolicy)
                     .withQueue(QUEUE)
@@ -950,8 +956,7 @@ public class JmsIOTest {
         pipeline
             .apply(Create.of(data))
             .apply(
-                JmsIO.<String>write()
-                    .withConnectionFactory(connectionFactory)
+                withConnectionFactory(JmsIO.<String>write(), connectionFactorySupplier)
                     .withValueMapper(
                         (SerializableBiFunction<String, Session, Message>)
                             (s, session) -> {
@@ -1007,8 +1012,7 @@ public class JmsIOTest {
         pipeline
             .apply(Create.of(data))
             .apply(
-                JmsIO.<String>write()
-                    .withConnectionFactory(connectionFactory)
+                withConnectionFactory(JmsIO.<String>write(), connectionFactorySupplier)
                     .withValueMapper(new TextMessageMapperWithErrorAndCounter())
                     .withRetryConfiguration(retryConfiguration)
                     .withQueue(QUEUE)
@@ -1044,8 +1048,7 @@ public class JmsIOTest {
         pipeline
             .apply(Create.of(data))
             .apply(
-                JmsIO.<String>write()
-                    .withConnectionFactory(connectionFactory)
+                withConnectionFactory(JmsIO.<String>write(), connectionFactorySupplier)
                     .withValueMapper(new TextMessageMapper())
                     .withTopic(TOPIC)
                     .withUsername(USERNAME)

@@ -830,7 +830,18 @@ public class JmsIO {
   public abstract static class Write<EventT>
       extends PTransform<PCollection<EventT>, WriteJmsResult<EventT>> {
 
-    abstract @Nullable ConnectionFactory getConnectionFactory();
+    private @Nullable transient ConnectionFactory connectionFactory;
+
+    @Nullable ConnectionFactory getConnectionFactory() {
+      if (connectionFactory == null) {
+        connectionFactory =
+            Optional.ofNullable(getConnectionFactorySupplier()).map(Supplier::get).orElse(null);
+      }
+
+      return connectionFactory;
+    }
+
+    abstract @Nullable Supplier<ConnectionFactory> getConnectionFactorySupplier();
 
     abstract @Nullable String getQueue();
 
@@ -850,7 +861,8 @@ public class JmsIO {
 
     @AutoValue.Builder
     abstract static class Builder<EventT> {
-      abstract Builder<EventT> setConnectionFactory(ConnectionFactory connectionFactory);
+      abstract Builder<EventT> setConnectionFactorySupplier(
+          Supplier<ConnectionFactory> connectionFactory);
 
       abstract Builder<EventT> setQueue(String queue);
 
@@ -886,7 +898,30 @@ public class JmsIO {
      */
     public Write<EventT> withConnectionFactory(ConnectionFactory connectionFactory) {
       checkArgument(connectionFactory != null, "connectionFactory can not be null");
-      return builder().setConnectionFactory(connectionFactory).build();
+      return builder()
+          .setConnectionFactorySupplier(
+              (Serializable & Supplier<ConnectionFactory>) () -> connectionFactory)
+          .build();
+    }
+
+    /**
+     * Specify a JMS connection factory supplier to connect to the JMS broker. Use this method in
+     * case your {@link ConnectionFactory} objects are themselves not serializable, but you can
+     * recreate them as needed with a {@link Supplier}
+     *
+     * <p>For instance:
+     *
+     * <pre>
+     * {@code pipeline.apply(JmsIO.write().withConnectionFactorySupplier(() -> new MyJmsConnectionFactory());}
+     * </pre>
+     *
+     * @param connectionFactorySupplier a {@link Supplier} that creates a {@link ConnectionFactory}
+     * @return The corresponding {@link JmsIO.Write}
+     */
+    public Write<EventT> withConnectionFactorySupplier(
+        Supplier<ConnectionFactory> connectionFactorySupplier) {
+      checkArgument(connectionFactorySupplier != null, "connectionFactorySupplier can not be null");
+      return builder().setConnectionFactorySupplier(connectionFactorySupplier).build();
     }
 
     /**
@@ -1052,7 +1087,9 @@ public class JmsIO {
 
     @Override
     public WriteJmsResult<EventT> expand(PCollection<EventT> input) {
-      checkArgument(getConnectionFactory() != null, "withConnectionFactory() is required");
+      checkArgument(
+          getConnectionFactorySupplier() != null,
+          "Either withConnectionFactory() or withConnectionFactorySupplier() is required");
       checkArgument(
           getTopicNameMapper() != null || getQueue() != null || getTopic() != null,
           "Either withTopicNameMapper(topicNameMapper), withQueue(queue), or withTopic(topic) is"
