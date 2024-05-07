@@ -57,6 +57,7 @@
 
 ## Highlights
 
+* Added FlinkRunner for Flink 1.18. ([#30789](https://github.com/apache/beam/issues/30789))
 * New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
 * New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
 
