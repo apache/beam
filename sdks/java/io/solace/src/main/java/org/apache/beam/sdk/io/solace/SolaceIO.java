@@ -28,6 +28,7 @@ import com.solacesystems.jcsmp.Queue;
 import com.solacesystems.jcsmp.Topic;
 import java.io.IOException;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.solace.broker.SempClientFactory;
@@ -50,7 +51,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A {@link PTransform} to read and write from/to Solace.
+ * A {@link PTransform} to read and write from/to Solace event broker.
+ *
+ * <p>Note: this API is beta and subject to change.
  *
  * <h2>Authentication</h2>
  *
@@ -259,6 +262,7 @@ import org.slf4j.LoggerFactory;
  *
  * }</pre>
  */
+@Internal
 public class SolaceIO {
 
   public static final SerializableFunction<Solace.Record, Instant> SENDER_TIMESTAMP_FUNCTION =
