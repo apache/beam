@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: IcebergIO Unit Tests
+name: PreCommit Java IcebergIO Direct
 
 on:
   push:
@@ -21,13 +21,19 @@ on:
     branches: ['master', 'release-*']
     paths:
       - "sdks/java/io/iceberg/**"
-      - ".github/workflows/IO_Iceberg.yml"
+      - "sdks/java/io/managed/**"
+      - "sdks/java/expansion-service/**"
+      - "sdks/java/io/expansion-service/**"
+      - ".github/workflows/beam_PreCommit_Java_Iceberg_IO_Direct.yml"
   pull_request_target:
     branches: ['master', 'release-*']
     paths:
       - "sdks/java/io/iceberg/**"
+      - "sdks/java/io/managed/**"
+      - "sdks/java/expansion-service/**"
+      - "sdks/java/io/expansion-service/**"
       - 'release/trigger_all_tests.json'
-      - '.github/trigger_files/IO_Iceberg.json'
+      - '.github/trigger_files/beam_PreCommit_Java_Iceberg_IO_Direct.json'
   issue_comment:
     types: [created]
   schedule:
@@ -61,19 +67,19 @@ env:
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
 jobs:
-  IO_Iceberg:
+  beam_PreCommit_Java_Iceberg_IO_Direct:
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     strategy:
       matrix:
-        job_name: ["IO_Iceberg"]
-        job_phrase: ["Run IcebergIO Unit Tests"]
+        job_name: ["beam_PreCommit_Java_Iceberg_IO_Direct"]
+        job_phrase: ["Run Java_Iceberg_IO_Direct PreCommit"]
     timeout-minutes: 60
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
-      github.event.comment.body == 'Run IcebergIO Unit Tests'
+      github.event.comment.body == 'Run Java_Iceberg_IO_Direct PreCommit'
     runs-on: [self-hosted, ubuntu-20.04, main]
     steps:
       - uses: actions/checkout@v4
@@ -88,7 +94,7 @@ jobs:
       - name: run IcebergIO build script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:java:io:iceberg:build
+          gradle-command: :sdks:java:io:iceberg:build :sdks:java:io:iceberg:integrationTest
           arguments: |
             -PdisableSpotlessCheck=true \
             -PdisableCheckStyle=true \

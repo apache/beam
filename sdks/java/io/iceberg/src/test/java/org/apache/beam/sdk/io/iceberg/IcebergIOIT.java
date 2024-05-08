@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
@@ -24,27 +27,37 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.AppendFiles;
 import org.apache.iceberg.CatalogUtil;
+import org.apache.iceberg.CombinedScanTask;
+import org.apache.iceberg.FileScanTask;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Table;
+import org.apache.iceberg.TableScan;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.data.GenericRecord;
 import org.apache.iceberg.data.Record;
+import org.apache.iceberg.data.parquet.GenericParquetReaders;
 import org.apache.iceberg.data.parquet.GenericParquetWriter;
+import org.apache.iceberg.encryption.InputFilesDecryptor;
 import org.apache.iceberg.hadoop.HadoopCatalog;
+import org.apache.iceberg.io.CloseableIterable;
 import org.apache.iceberg.io.DataWriter;
+import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.io.OutputFile;
 import org.apache.iceberg.parquet.Parquet;
 import org.junit.BeforeClass;
@@ -58,10 +71,10 @@ public class IcebergIOIT implements Serializable {
 
   public interface IcebergIOTestPipelineOptions extends GcpOptions {
     @Description("Number of records that will be written and/or read by the test")
-    @Default.Long(1000) // deliberately small so no-args execution is quick
-    Long getNumRecords();
+    @Default.Integer(1000) // deliberately small so no-args execution is quick
+    Integer getNumRecords();
 
-    void setNumRecords(Long numRecords);
+    void setNumRecords(Integer numRecords);
 
     @Description("Number of shards in the test table")
     @Default.Integer(10)
@@ -104,6 +117,19 @@ public class IcebergIOIT implements Serializable {
   static final Schema ICEBERG_SCHEMA =
       SchemaAndRowConversions.beamSchemaToIcebergSchema(BEAM_SCHEMA);
 
+  Map<String, Object> getValues(int num) {
+    String strNum = Integer.toString(num);
+    return ImmutableMap.<String, Object>builder()
+        .put("int", num)
+        .put("float", Float.valueOf(strNum))
+        .put("double", Double.valueOf(strNum))
+        .put("long", Long.valueOf(strNum))
+        .put("str", strNum)
+        .put("bool", num % 2 == 0)
+        .put("bytes", ByteBuffer.wrap(new byte[] {(byte) num}))
+        .build();
+  }
+
   /**
    * Populates the Iceberg table according to the configuration specified in {@link
    * IcebergIOTestPipelineOptions}. Returns a {@link List<Row>} of expected elements.
@@ -113,7 +139,7 @@ public class IcebergIOIT implements Serializable {
     long maxRecordsPerShard = Math.round(Math.ceil(recordsPerShardFraction));
 
     AppendFiles appendFiles = table.newAppend();
-    List<Row> expectedRows = new ArrayList<>(options.getNumRecords().intValue());
+    List<Row> expectedRows = new ArrayList<>(options.getNumRecords());
     int totalRecords = 0;
     for (int shardNum = 0; shardNum < options.getNumShards(); ++shardNum) {
       String filepath = table.location() + "/" + UUID.randomUUID();
@@ -129,17 +155,8 @@ public class IcebergIOIT implements Serializable {
       for (int recordNum = 0;
           recordNum < maxRecordsPerShard && totalRecords < options.getNumRecords();
           ++recordNum, ++totalRecords) {
-        String strRecordNum = Integer.toString(recordNum);
-        Map<String, Object> values =
-            ImmutableMap.<String, Object>builder()
-                .put("int", recordNum)
-                .put("float", Float.valueOf(strRecordNum))
-                .put("double", Double.valueOf(strRecordNum))
-                .put("long", Long.valueOf(strRecordNum))
-                .put("str", strRecordNum)
-                .put("bool", recordNum % 2 == 0)
-                .put("bytes", ByteBuffer.wrap(new byte[] {(byte) recordNum}))
-                .build();
+        Map<String, Object> values = getValues(recordNum);
+
         GenericRecord rec = GenericRecord.create(ICEBERG_SCHEMA).copy(values);
         writer.write(rec);
 
@@ -170,7 +187,7 @@ public class IcebergIOIT implements Serializable {
 
     List<Row> expectedRows = populateTable(table);
 
-    // Read with Dataflow
+    // Read with Beam
     IcebergCatalogConfig catalogConfig =
         IcebergCatalogConfig.builder()
             .setName("hadoop")
@@ -182,5 +199,68 @@ public class IcebergIOIT implements Serializable {
 
     PAssert.that(output).containsInAnyOrder(expectedRows);
     readPipeline.run().waitUntilFinish();
+  }
+
+  /**
+   * Test of a predetermined moderate number of records written to Iceberg using a Beam pipeline,
+   * then read directly using Iceberg API.
+   */
+  @Test
+  public void testWrite() {
+    String warehouseLocation =
+        options.getTempLocation() + "/IcebergIOIT/testWrite/" + UUID.randomUUID();
+
+    Catalog catalog = new HadoopCatalog(catalogHadoopConf, warehouseLocation);
+    TableIdentifier tableId =
+        TableIdentifier.of("default", "table" + Long.toString(UUID.randomUUID().hashCode(), 16));
+    Table table = catalog.createTable(tableId, ICEBERG_SCHEMA);
+
+    List<Record> inputRecords =
+        IntStream.range(0, options.getNumRecords())
+            .boxed()
+            .map(i -> GenericRecord.create(ICEBERG_SCHEMA).copy(getValues(i)))
+            .collect(Collectors.toList());
+
+    List<Row> inputRows =
+        inputRecords.stream()
+            .map(record -> SchemaAndRowConversions.recordToRow(BEAM_SCHEMA, record))
+            .collect(Collectors.toList());
+
+    // Write with Beam
+    IcebergCatalogConfig catalogConfig =
+        IcebergCatalogConfig.builder()
+            .setName("hadoop")
+            .setIcebergCatalogType(CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
+            .setWarehouseLocation(warehouseLocation)
+            .build();
+
+    PCollection<Row> input = writePipeline.apply(Create.of(inputRows)).setRowSchema(BEAM_SCHEMA);
+    input.apply(IcebergIO.writeRows(catalogConfig).to(tableId));
+
+    writePipeline.run().waitUntilFinish();
+
+    // Read back and check records are correct
+    TableScan tableScan = table.newScan().project(ICEBERG_SCHEMA);
+    List<Record> writtenRecords = new ArrayList<>();
+    for (CombinedScanTask task : tableScan.planTasks()) {
+      InputFilesDecryptor decryptor = new InputFilesDecryptor(task, table.io(), table.encryption());
+      for (FileScanTask fileTask : task.files()) {
+        InputFile inputFile = decryptor.getInputFile(fileTask);
+        CloseableIterable<Record> iterable =
+            Parquet.read(inputFile)
+                .split(fileTask.start(), fileTask.length())
+                .project(ICEBERG_SCHEMA)
+                .createReaderFunc(
+                    fileSchema -> GenericParquetReaders.buildReader(ICEBERG_SCHEMA, fileSchema))
+                .filter(fileTask.residual())
+                .build();
+
+        for (Record rec : iterable) {
+          writtenRecords.add(rec);
+        }
+      }
+    }
+
+    assertThat(inputRecords, containsInAnyOrder(writtenRecords.toArray()));
   }
 }
