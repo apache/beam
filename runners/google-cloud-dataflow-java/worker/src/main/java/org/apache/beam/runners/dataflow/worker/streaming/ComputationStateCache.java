@@ -56,7 +56,7 @@ public final class ComputationStateCache implements StatusDataProvider {
 
   private static final Logger LOG = LoggerFactory.getLogger(ComputationStateCache.class);
 
-  private final ConcurrentMap<String, String> globalUsernameToStateFamilyNameMap;
+  private final ConcurrentMap<String, String> pipelineUserNameToStateFamilyNameMap;
   private final LoadingCache<String, ComputationState> computationCache;
 
   /**
@@ -68,10 +68,10 @@ public final class ComputationStateCache implements StatusDataProvider {
   private ComputationStateCache(
       LoadingCache<String, ComputationState> computationCache,
       Function<MapTask, MapTask> fixMultiOutputInfosOnParDoInstructions,
-      ConcurrentMap<String, String> globalUsernameToStateFamilyNameMap) {
+      ConcurrentMap<String, String> pipelineUserNameToStateFamilyNameMap) {
     this.computationCache = computationCache;
     this.fixMultiOutputInfosOnParDoInstructions = fixMultiOutputInfosOnParDoInstructions;
-    this.globalUsernameToStateFamilyNameMap = globalUsernameToStateFamilyNameMap;
+    this.pipelineUserNameToStateFamilyNameMap = pipelineUserNameToStateFamilyNameMap;
   }
 
   public static ComputationStateCache create(
@@ -81,7 +81,7 @@ public final class ComputationStateCache implements StatusDataProvider {
       IdGenerator idGenerator) {
     Function<MapTask, MapTask> fixMultiOutputInfosOnParDoInstructions =
         new FixMultiOutputInfosOnParDoInstructions(idGenerator);
-    ConcurrentMap<String, String> globalUsernameToStateFamilyNameMap = new ConcurrentHashMap<>();
+    ConcurrentMap<String, String> pipelineUserNameToStateFamilyNameMap = new ConcurrentHashMap<>();
     return new ComputationStateCache(
         CacheBuilder.newBuilder()
             .build(
@@ -95,11 +95,11 @@ public final class ComputationStateCache implements StatusDataProvider {
                             .fetchConfig(computationId)
                             .orElseThrow(
                                 () -> new ComputationStateNotFoundException(computationId));
-                    globalUsernameToStateFamilyNameMap.putAll(computationConfig.stateNameMap());
+                    pipelineUserNameToStateFamilyNameMap.putAll(computationConfig.stateNameMap());
                     Map<String, String> transformUserNameToStateFamilyForComputation =
                         !computationConfig.userTransformToStateFamilyName().isEmpty()
                             ? computationConfig.userTransformToStateFamilyName()
-                            : globalUsernameToStateFamilyNameMap;
+                            : pipelineUserNameToStateFamilyNameMap;
                     return new ComputationState(
                         computationId,
                         fixMultiOutputInfosOnParDoInstructions.apply(computationConfig.mapTask()),
@@ -109,7 +109,7 @@ public final class ComputationStateCache implements StatusDataProvider {
                   }
                 }),
         fixMultiOutputInfosOnParDoInstructions,
-        globalUsernameToStateFamilyNameMap);
+        pipelineUserNameToStateFamilyNameMap);
   }
 
   @VisibleForTesting
@@ -118,20 +118,20 @@ public final class ComputationStateCache implements StatusDataProvider {
       BoundedQueueExecutor workUnitExecutor,
       Function<String, WindmillStateCache.ForComputation> perComputationStateCacheViewFactory,
       IdGenerator idGenerator,
-      ConcurrentMap<String, String> globalUsernameToStateFamilyNameMap) {
+      ConcurrentMap<String, String> pipelineUserNameToStateFamilyNameMap) {
     ComputationStateCache cache =
         create(
             computationConfigFetcher,
             workUnitExecutor,
             perComputationStateCacheViewFactory,
             idGenerator);
-    cache.globalUsernameToStateFamilyNameMap.putAll(globalUsernameToStateFamilyNameMap);
+    cache.pipelineUserNameToStateFamilyNameMap.putAll(pipelineUserNameToStateFamilyNameMap);
     return cache;
   }
 
   @VisibleForTesting
   ImmutableMap<String, String> getGlobalUsernameToStateFamilyNameMap() {
-    return ImmutableMap.copyOf(globalUsernameToStateFamilyNameMap);
+    return ImmutableMap.copyOf(pipelineUserNameToStateFamilyNameMap);
   }
 
   /**

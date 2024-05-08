@@ -157,8 +157,7 @@ public final class StreamingEngineComputationConfigFetcher implements Computatio
     }
   }
 
-  private static Optional<StreamingEnginePipelineConfig> createPipelineConfig(
-      StreamingConfigTask config) {
+  private static StreamingEnginePipelineConfig createPipelineConfig(StreamingConfigTask config) {
     StreamingEnginePipelineConfig.Builder pipelineConfig = StreamingEnginePipelineConfig.builder();
     if (config.getUserStepToStateFamilyNameMap() != null) {
       pipelineConfig.setUserStepToStateFamilyNameMap(config.getUserStepToStateFamilyNameMap());
@@ -188,7 +187,7 @@ public final class StreamingEngineComputationConfigFetcher implements Computatio
       pipelineConfig.setMaxWorkItemCommitBytes(config.getMaxWorkItemCommitBytes().intValue());
     }
 
-    return Optional.of(pipelineConfig.build());
+    return pipelineConfig.build();
   }
 
   private static Optional<ComputationConfig> createComputationConfig(StreamingConfigTask config) {
@@ -274,7 +273,7 @@ public final class StreamingEngineComputationConfigFetcher implements Computatio
 
   private Optional<StreamingEnginePipelineConfig> fetchGlobalConfig() {
     return fetchConfigWithRetry(dataflowServiceClient::getGlobalStreamingConfigWorkItem)
-        .flatMap(StreamingEngineComputationConfigFetcher::createPipelineConfig);
+        .map(StreamingEngineComputationConfigFetcher::createPipelineConfig);
   }
 
   @FunctionalInterface

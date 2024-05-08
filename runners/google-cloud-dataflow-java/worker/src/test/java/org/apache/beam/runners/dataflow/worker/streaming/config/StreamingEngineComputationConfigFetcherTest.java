@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker.streaming.config;
 
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -42,13 +43,15 @@ import org.junit.After;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.internal.stubbing.answers.Returns;
 
 @RunWith(JUnit4.class)
 public class StreamingEngineComputationConfigFetcherTest {
-  private final WorkUnitClient mockDataflowServiceClient = mock(WorkUnitClient.class);
+  private final WorkUnitClient mockDataflowServiceClient =
+      mock(WorkUnitClient.class, new Returns(Optional.empty()));
   private StreamingEngineComputationConfigFetcher streamingEngineConfigFetcher;
 
-  private StreamingEngineComputationConfigFetcher createConfigLoader(
+  private StreamingEngineComputationConfigFetcher createConfigFetcher(
       boolean waitForInitialConfig,
       long globalConfigRefreshPeriod,
       Consumer<StreamingEnginePipelineConfig> onPipelineConfig) {
@@ -76,7 +79,7 @@ public class StreamingEngineComputationConfigFetcherTest {
     when(mockDataflowServiceClient.getGlobalStreamingConfigWorkItem())
         .thenReturn(Optional.of(initialConfig));
     streamingEngineConfigFetcher =
-        createConfigLoader(
+        createConfigFetcher(
             /* waitForInitialConfig= */ true,
             0,
             config -> {
@@ -118,10 +121,15 @@ public class StreamingEngineComputationConfigFetcherTest {
     when(mockDataflowServiceClient.getGlobalStreamingConfigWorkItem())
         .thenReturn(Optional.of(firstConfig))
         .thenReturn(Optional.of(secondConfig))
-        .thenReturn(Optional.of(thirdConfig));
+        // ConfigFetcher should still fetch subsequent configs on error.
+        .thenThrow(new IOException("something bad happened."))
+        .thenReturn(Optional.of(thirdConfig))
+        // ConfigFetcher should not do anything with a config that doesn't contain a
+        // StreamingConfigTask.
+        .thenReturn(Optional.of(new WorkItem().setJobId("jobId")));
 
     streamingEngineConfigFetcher =
-        createConfigLoader(
+        createConfigFetcher(
             /* waitForInitialConfig= */ true,
             Duration.millis(100).getMillis(),
             config -> {
@@ -152,7 +160,7 @@ public class StreamingEngineComputationConfigFetcherTest {
   @Test
   public void testGetComputationConfig() throws IOException {
     streamingEngineConfigFetcher =
-        createConfigLoader(/* waitForInitialConfig= */ false, 0, ignored -> {});
+        createConfigFetcher(/* waitForInitialConfig= */ false, 0, ignored -> {});
     String computationId = "computationId";
     String stageName = "stageName";
     String systemName = "systemName";
@@ -187,12 +195,26 @@ public class StreamingEngineComputationConfigFetcherTest {
   public void testGetComputationConfig_noComputationPresent() throws IOException {
     Set<StreamingEnginePipelineConfig> receivedPipelineConfig = new HashSet<>();
     streamingEngineConfigFetcher =
-        createConfigLoader(/* waitForInitialConfig= */ false, 0, receivedPipelineConfig::add);
+        createConfigFetcher(/* waitForInitialConfig= */ false, 0, receivedPipelineConfig::add);
     when(mockDataflowServiceClient.getStreamingConfigWorkItem(anyString()))
         .thenReturn(Optional.empty());
     Optional<ComputationConfig> pipelineConfig =
         streamingEngineConfigFetcher.fetchConfig("someComputationId");
     assertFalse(pipelineConfig.isPresent());
     assertThat(receivedPipelineConfig).isEmpty();
+  }
+
+  @Test
+  public void testGetComputationConfig_fetchConfigFromDataflowError() throws IOException {
+    Set<StreamingEnginePipelineConfig> receivedPipelineConfig = new HashSet<>();
+    streamingEngineConfigFetcher =
+        createConfigFetcher(/* waitForInitialConfig= */ false, 0, receivedPipelineConfig::add);
+    RuntimeException e = new RuntimeException("something bad happened.");
+    when(mockDataflowServiceClient.getStreamingConfigWorkItem(anyString())).thenThrow(e);
+    Throwable fetchConfigError =
+        assertThrows(
+            RuntimeException.class,
+            () -> streamingEngineConfigFetcher.fetchConfig("someComputationId"));
+    assertThat(fetchConfigError).isSameInstanceAs(e);
   }
 }

@@ -20,6 +20,7 @@ package org.apache.beam.runners.dataflow.worker.streaming.config;
 import static com.google.common.truth.Truth.assertThat;
 import static java.util.stream.Collectors.toMap;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -28,6 +29,7 @@ import static org.mockito.Mockito.when;
 import com.google.api.services.dataflow.model.MapTask;
 import java.io.IOException;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
@@ -112,6 +114,26 @@ public class StreamingApplianceComputationConfigFetcherTest {
     when(mockWindmillServer.getConfig(any())).thenReturn(null);
     Optional<ComputationConfig> configResponse = configLoader.fetchConfig("someComputationId");
     assertFalse(configResponse.isPresent());
+  }
+
+  @Test
+  public void testGetComputationConfig_errorOnNoComputationConfig() {
+    StreamingApplianceComputationConfigFetcher configLoader =
+        createStreamingApplianceConfigLoader();
+    when(mockWindmillServer.getConfig(any()))
+        .thenReturn(Windmill.GetConfigResponse.newBuilder().build());
+    assertThrows(NoSuchElementException.class, () -> configLoader.fetchConfig("someComputationId"));
+  }
+
+  @Test
+  public void testGetComputationConfig_onFetchConfigError() {
+    StreamingApplianceComputationConfigFetcher configLoader =
+        createStreamingApplianceConfigLoader();
+    RuntimeException e = new RuntimeException("something bad happened.");
+    when(mockWindmillServer.getConfig(any())).thenThrow(e);
+    Throwable fetchConfigError =
+        assertThrows(RuntimeException.class, () -> configLoader.fetchConfig("someComputationId"));
+    assertThat(fetchConfigError).isSameInstanceAs(e);
   }
 
   private StreamingApplianceComputationConfigFetcher createStreamingApplianceConfigLoader() {
