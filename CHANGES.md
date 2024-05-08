@@ -71,6 +71,7 @@
 * BigQuery per-worker metrics are reported by default for Streaming Dataflow Jobs (Java) ([#31015](https://github.com/apache/beam/pull/31015))
 * Beam YAML now supports the jinja templating syntax.
   Template variables can be passed with the (json-formatted) `--jinja_variables` flag.
+* DataFrame API now supports pandas 2.1.x and adds 12 more string functions for Series.([#31185](https://github.com/apache/beam/pull/31185)).
 
 ## Breaking Changes
 
