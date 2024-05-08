@@ -163,13 +163,10 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      - name: Install python
-        uses: actions/setup-python@v5
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
         with:
           python-version: ${{ matrix.python }}
-      - name: Install go
-        uses: actions/setup-go@v5
-        with:
           go-version: default
       - name: Download source from artifacts
         uses: actions/download-artifact@v4
