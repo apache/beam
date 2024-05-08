@@ -24,6 +24,8 @@
 plugins { id 'org.apache.beam.module' }
 applyPythonNature()
 
+def posargs = project.findProperty("posargs") ?: ""
+
 toxTask "docs", "docs"
 assemble.dependsOn docs
 
@@ -32,6 +34,9 @@ task preCommitPyCommon() {
 
 task linter {}
 check.dependsOn linter
+
+toxTask "formatter", "py3-yapf-check"
+check.dependsOn formatter
 
 toxTask "lint", "lint", "${posargs}"
 linter.dependsOn lint
