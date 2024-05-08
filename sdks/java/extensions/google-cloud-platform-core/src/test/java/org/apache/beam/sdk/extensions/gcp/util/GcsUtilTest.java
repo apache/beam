@@ -965,7 +965,7 @@ public class GcsUtilTest {
     GcsOptions pipelineOptions = gcsOptionsWithTestCredential();
     GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
     GoogleCloudStorageReadOptions readOptions =
-        GoogleCloudStorageReadOptions.builder().setFastFailOnNotFoundEnabled(false).build();
+        GoogleCloudStorageReadOptions.builder().setFastFailOnNotFound(false).build();
     SeekableByteChannel channel =
         gcsUtil.open(GcsPath.fromComponents("testbucket", "testobject"), readOptions);
     channel.close();
@@ -983,7 +983,7 @@ public class GcsUtilTest {
             .setProjectId("my_project")
             .build());
     GoogleCloudStorageReadOptions readOptions =
-        GoogleCloudStorageReadOptions.builder().setFastFailOnNotFoundEnabled(true).build();
+        GoogleCloudStorageReadOptions.builder().setFastFailOnNotFound(true).build();
     assertThrows(
         IOException.class,
         () -> gcsUtil.open(GcsPath.fromComponents("testbucket", "testbucket"), readOptions));

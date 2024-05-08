@@ -20,7 +20,10 @@ package org.apache.beam.sdk.io.iceberg;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
@@ -31,7 +34,10 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.iceberg.*;
+import org.apache.iceberg.AppendFiles;
+import org.apache.iceberg.CatalogUtil;
+import org.apache.iceberg.Schema;
+import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.data.GenericRecord;
@@ -51,12 +57,6 @@ import org.junit.runners.JUnit4;
 public class IcebergIOIT implements Serializable {
 
   public interface IcebergIOTestPipelineOptions extends GcpOptions {
-    @Description("Size of each record in bytes (for tests that vary record size)")
-    @Default.Integer(100) // deliberately small so no-args execution is quick
-    Integer getBytesPerRecord();
-
-    void setBytesPerRecord(Integer bytesPerRecord);
-
     @Description("Number of records that will be written and/or read by the test")
     @Default.Long(1000) // deliberately small so no-args execution is quick
     Long getNumRecords();
@@ -76,10 +76,18 @@ public class IcebergIOIT implements Serializable {
 
   static IcebergIOTestPipelineOptions options;
 
+  static Configuration catalogHadoopConf;
+
   @BeforeClass
   public static void beforeClass() {
     PipelineOptionsFactory.register(IcebergIOTestPipelineOptions.class);
     options = TestPipeline.testingPipelineOptions().as(IcebergIOTestPipelineOptions.class);
+
+    catalogHadoopConf = new Configuration();
+    catalogHadoopConf.set("fs.gs.project.id", options.getProject());
+    catalogHadoopConf.set("fs.gs.auth.type", "SERVICE_ACCOUNT_JSON_KEYFILE");
+    catalogHadoopConf.set(
+        "fs.gs.auth.service.account.json.keyfile", System.getenv("GOOGLE_APPLICATION_CREDENTIALS"));
   }
 
   static final org.apache.beam.sdk.schemas.Schema BEAM_SCHEMA =
@@ -152,11 +160,6 @@ public class IcebergIOIT implements Serializable {
    */
   @Test
   public void testRead() throws Exception {
-    Configuration catalogHadoopConf = new Configuration();
-    catalogHadoopConf.set("fs.gs.project.id", options.getProject());
-    catalogHadoopConf.set("fs.gs.auth.type", "SERVICE_ACCOUNT_JSON_KEYFILE");
-    catalogHadoopConf.set(
-        "fs.gs.auth.service.account.json.keyfile", System.getenv("GOOGLE_APPLICATION_CREDENTIALS"));
     String warehouseLocation =
         options.getTempLocation() + "/IcebergIOIT/testRead/" + UUID.randomUUID();
 
