@@ -20,10 +20,12 @@ package org.apache.beam.sdk.io.solace.broker;
 import com.solacesystems.jcsmp.BytesXMLMessage;
 import com.solacesystems.jcsmp.FlowReceiver;
 import com.solacesystems.jcsmp.JCSMPException;
+import com.solacesystems.jcsmp.StaleSessionException;
 import com.solacesystems.jcsmp.impl.flow.FlowHandle;
 import java.io.IOException;
 import org.apache.beam.sdk.io.solace.RetryCallableManager;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class SolaceMessageReceiver implements MessageReceiver {
 
@@ -37,6 +39,10 @@ public class SolaceMessageReceiver implements MessageReceiver {
 
   @Override
   public void start() {
+    startFlowReceiver();
+  }
+
+  private void startFlowReceiver() {
     retryCallableManager.retryCallable(
         () -> {
           flowReceiver.start();
@@ -52,8 +58,19 @@ public class SolaceMessageReceiver implements MessageReceiver {
 
   @Override
   public BytesXMLMessage receive() throws IOException {
+    return receive(0, null);
+  }
+
+  private BytesXMLMessage receive(int count, @Nullable Exception lastException) throws IOException {
+    if (count >= 2) {
+      throw new IOException(
+          "SolaceIO: tried to pull messages " + (count + 1) + " times, aborting.", lastException);
+    }
     try {
       return flowReceiver.receive(DEFAULT_ADVANCE_TIMEOUT_IN_MILLIS);
+    } catch (StaleSessionException e) {
+      startFlowReceiver();
+      return receive(count + 1, e);
     } catch (JCSMPException e) {
       throw new IOException(e);
     }
