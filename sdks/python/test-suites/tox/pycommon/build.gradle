@@ -24,8 +24,17 @@
 plugins { id 'org.apache.beam.module' }
 applyPythonNature()
 
-toxTask "docs", "py38-docs"
+toxTask "docs", "docs"
 assemble.dependsOn docs
 
 task preCommitPyCommon() {
 }
+
+task linter {}
+check.dependsOn lint
+
+toxTask "lint", "lint", "${posargs}"
+linter.dependsOn lint
+
+toxTask "mypy", "mypy", "${posargs}"
+linter.dependsOn mypy
