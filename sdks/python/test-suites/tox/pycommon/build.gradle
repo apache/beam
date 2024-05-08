@@ -31,7 +31,7 @@ task preCommitPyCommon() {
 }
 
 task linter {}
-check.dependsOn lint
+check.dependsOn linter
 
 toxTask "lint", "lint", "${posargs}"
 linter.dependsOn lint
