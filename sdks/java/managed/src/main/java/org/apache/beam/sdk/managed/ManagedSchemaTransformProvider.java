@@ -207,7 +207,7 @@ public class ManagedSchemaTransformProvider
     Map<String, Object> configMap = YamlUtils.yamlStringToMap(yamlConfig);
 
     // The config Row object will be used to build the underlying SchemaTransform.
-    // If a mapping for the SchemaTransform exists, we use it to update parameter names to align
+    // If a mapping for the SchemaTransform exists, we use it to update parameter names and align
     // with the underlying config schema
     Map<String, String> mapping = MAPPINGS.get(config.getTransformIdentifier());
     if (mapping != null && configMap != null) {
