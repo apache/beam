@@ -1,3 +1,5 @@
+import groovy.json.JsonOutput
+
 import java.util.stream.Collectors
 
 /*
@@ -55,9 +57,13 @@ dependencies {
     implementation library.java.hadoop_common
 
     testImplementation library.java.hadoop_client
+    testImplementation library.java.bigdataoss_gcs_connector
+    testImplementation library.java.bigdataoss_gcsio
+    testImplementation library.java.bigdataoss_util_hadoop
     testImplementation "org.apache.iceberg:iceberg-gcp:$iceberg_version"
     testImplementation "org.apache.iceberg:iceberg-data:$iceberg_version"
     testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+    testImplementation project(":sdks:java:extensions:google-cloud-platform-core")
     testImplementation library.java.junit
     testRuntimeOnly library.java.slf4j_jdk14
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
@@ -88,4 +94,25 @@ hadoopVersions.each { kv ->
         classpath = configurations."hadoopVersion$kv.key" + sourceSets.test.runtimeClasspath
         include '**/*Test.class'
     }
+}
+
+task integrationTest(type: Test, dependsOn: processTestResources) {
+    group = "Verification"
+    def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+    def gcpTempLocation = project.findProperty('gcpTempLocation') ?: 'gs://temp-storage-for-end-to-end-tests'
+    systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+//            "--runner=DataflowRunner",
+//            "--region=us-central1",
+"--project=${gcpProject}",
+"--tempLocation=${gcpTempLocation}",
+    ])
+
+    // Disable Gradle cache: these ITs interact with live service that should always be considered "out of date"
+    outputs.upToDateWhen { false }
+
+    include '**/*IT.class'
+
+    maxParallelForks 4
+    classpath = sourceSets.test.runtimeClasspath
+    testClassesDirs = sourceSets.test.output.classesDirs
 }

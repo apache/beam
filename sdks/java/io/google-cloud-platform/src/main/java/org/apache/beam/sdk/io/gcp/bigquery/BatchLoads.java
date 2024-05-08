@@ -123,7 +123,7 @@ class BatchLoads<DestinationT, ElementT>
   // If user triggering is supplied, we will trigger the file write after this many bytes are
   // written.
   static final int DEFAULT_FILE_TRIGGERING_BYTE_COUNT =
-      AsyncWriteChannelOptions.UPLOAD_CHUNK_SIZE_DEFAULT; // 64MiB as of now
+      AsyncWriteChannelOptions.DEFAULT.getUploadChunkSize(); // 64MiB as of now
 
   // If using auto-sharding for unbounded data, we batch the records before triggering file write
   // to avoid generating too many small files.

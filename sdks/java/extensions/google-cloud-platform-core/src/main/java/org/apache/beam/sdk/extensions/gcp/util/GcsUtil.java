@@ -619,7 +619,16 @@ public class GcsUtil {
 
   GoogleCloudStorage createGoogleCloudStorage(
       GoogleCloudStorageOptions options, Storage storage, Credentials credentials) {
-    return new GoogleCloudStorageImpl(options, storage, credentials);
+    try {
+      return GoogleCloudStorageImpl.builder()
+          .setOptions(options)
+          .setCredentials(credentials)
+          .setHttpTransport(storage.getRequestFactory().getTransport())
+          .setHttpRequestInitializer(storage.getRequestFactory().getInitializer())
+          .build();
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   /**
