@@ -47,8 +47,6 @@ class SchemaAndRowConversions {
           .put(Schema.FieldType.BYTES, Types.BinaryType.get())
           .build();
 
-  private SchemaAndRowConversions() {}
-
   public static Schema.FieldType icebergTypeToBeamFieldType(final Type type) {
     switch (type.typeId()) {
       case BOOLEAN:
