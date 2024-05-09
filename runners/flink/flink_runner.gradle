@@ -332,6 +332,9 @@ def createValidatesRunnerTask(Map m) {
           // FlinkBatchExecutionInternalTimeService does not support timer registration on timer firing.
           excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testOnTimerTimestampSkew'
         }
+        // Extremely flaky: https://github.com/apache/beam/issues/19814
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInProcessElementStateful'
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInStartBundleStateful'
       }
     }
   }
