@@ -206,6 +206,7 @@ class TrivialInferenceTest(unittest.TestCase):
     self.assertReturnType(
         typehints.List[int],
         lambda xs: [x for x in xs], [typehints.Tuple[int, int, int]])
+
     self.assertReturnType(
         typehints.List[typehints.Union[int, float]],
         lambda xs: [x for x in xs], [typehints.Tuple[int, float]])

@@ -26,23 +26,9 @@ applyPythonNature()
 // Required to setup a Python 3 virtualenv and task names.
 pythonVersion = '3.8'
 
-toxTask "formatter", "py3-yapf-check"
-check.dependsOn formatter
-
-// TODO(BEAM-12000): Move tasks that aren't specific to 3.8 to Py 3.9.
 def posargs = project.findProperty("posargs") ?: ""
 
-task lint {}
-check.dependsOn lint
-
-toxTask "lintPy38", "py38-lint", "${posargs}"
-lint.dependsOn lintPy38
-
-toxTask "mypyPy38", "py38-mypy", "${posargs}"
-lint.dependsOn mypyPy38
-
 apply from: "../common.gradle"
-
 
 toxTask "testPy38CloudCoverage", "py38-cloudcoverage", "${posargs}"
 test.dependsOn "testPy38CloudCoverage"

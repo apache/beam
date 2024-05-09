@@ -16,30 +16,13 @@
  * limitations under the License.
  */
 
-/**
- * Unit tests for commont Python components.
- */
-
-// TODO(https://github.com/apache/beam/issues/20209): See if we can avoid hardcoding python version here.
-plugins { id 'org.apache.beam.module' }
+plugins {
+  id 'base'
+  id 'org.apache.beam.module'
+}
+applyDockerNature()
 applyPythonNature()
 
-def posargs = project.findProperty("posargs") ?: ""
+pythonVersion = '3.12'
 
-toxTask "docs", "docs"
-assemble.dependsOn docs
-
-task preCommitPyCommon() {
-}
-
-task linter {}
-check.dependsOn linter
-
-toxTask "formatter", "py3-yapf-check"
-check.dependsOn formatter
-
-toxTask "lint", "lint", "${posargs}"
-linter.dependsOn lint
-
-toxTask "mypy", "mypy", "${posargs}"
-linter.dependsOn mypy
+apply from: "../common.gradle"
