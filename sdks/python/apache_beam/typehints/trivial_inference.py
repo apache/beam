@@ -359,6 +359,7 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
       dis.dis(f)
   from . import opcodes
   simple_ops = dict((k.upper(), v) for k, v in opcodes.__dict__.items())
+  from . import intrinsic_one_ops
 
   co = f.__code__
   code = co.co_code
@@ -432,6 +433,10 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
         elif op in dis.haslocal:
           print('(' + co.co_varnames[arg] + ')', end=' ')
         elif op in dis.hascompare:
+          if (sys.version_info.major, sys.version_info.minor) >= (3, 12):
+            # In 3.12 this arg was bit-shifted. Shifting it back avoids an
+            # out-of-index.
+            arg = arg >> 4
           print('(' + dis.cmp_op[arg] + ')', end=' ')
         elif op in dis.hasfree:
           if free is None:
@@ -578,7 +583,13 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
       state = None
     elif opname in ('POP_JUMP_IF_TRUE', 'POP_JUMP_IF_FALSE'):
       state.stack.pop()
-      jmp = arg * jump_multiplier
+      # The arg was changed to be a relative delta instead of an absolute
+      # in 3.11, and became a full instruction instead of a
+      # pseudo-instruction in 3.12
+      if (sys.version_info.major, sys.version_info.minor) >= (3, 12):
+        jmp = pc + arg * jump_multiplier
+      else:
+        jmp = arg * jump_multiplier
       jmp_state = state.copy()
     elif opname in ('POP_JUMP_FORWARD_IF_TRUE', 'POP_JUMP_FORWARD_IF_FALSE'):
       state.stack.pop()
@@ -608,6 +619,10 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
       state.stack.pop()
     elif opname == 'FOR_ITER':
       jmp = pc + arg * jump_multiplier
+      if sys.version_info >= (3, 12):
+        # The jump is relative to the next instruction after a cache call,
+        # so jump 4 more bytes.
+        jmp += 4
       jmp_state = state.copy()
       jmp_state.stack.pop()
       state.stack.append(element_type(state.stack[-1]))
@@ -641,6 +656,19 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
       # No-op introduced in 3.11. Without handling this some
       # instructions have functionally > 2 byte size.
       pass
+    elif opname == 'RETURN_CONST':
+      # Introduced in 3.12. Handles returning constants directly
+      # instead of having a LOAD_CONST before a RETURN_VALUE.
+      returns.add(state.const_type(arg))
+      state = None
+    elif opname == 'CALL_INTRINSIC_1':
+      # Introduced in 3.12. The arg is an index into a table of
+      # operations reproduced in INT_ONE_OPS. Not all ops are
+      # relevant for our type checking infrastructure.
+      int_op = intrinsic_one_ops.INT_ONE_OPS[arg]
+      if debug:
+        print("Executing intrinsic one op", int_op.__name__.upper())
+      int_op(state, arg)
 
     else:
       raise TypeInferenceError('unable to handle %s' % opname)
