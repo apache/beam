@@ -217,7 +217,7 @@ public class IcebergIOIT implements Serializable {
             .build();
 
     PCollectionRowTuple output =
-        PCollectionRowTupl e.empty(readPipeline)
+        PCollectionRowTuple.empty(readPipeline)
             .apply(Managed.read(Managed.ICEBERG).withConfig(config));
 
     PAssert.that(output.get("output")).containsInAnyOrder(expectedRows);
