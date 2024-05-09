@@ -20,6 +20,8 @@ package org.apache.beam.sdk.io.iceberg;
 import static org.apache.iceberg.types.Types.NestedField.required;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.nio.ByteBuffer;
 import org.apache.beam.sdk.schemas.Schema;
@@ -222,5 +224,45 @@ public class SchemaAndRowConversionsTest {
 
     @Test
     public void testList() throws Exception {}
+  }
+
+  @RunWith(JUnit4.class)
+  public static class SchemaTests {
+    static final Schema BEAM_SCHEMA =
+        Schema.builder()
+            .addInt32Field("int")
+            .addFloatField("float")
+            .addDoubleField("double")
+            .addInt64Field("long")
+            .addStringField("str")
+            .addBooleanField("bool")
+            .addByteArrayField("bytes")
+            .build();
+
+    static final org.apache.iceberg.Schema ICEBERG_SCHEMA =
+        new org.apache.iceberg.Schema(
+            Types.NestedField.required(1, "int", Types.IntegerType.get()),
+            Types.NestedField.required(2, "float", Types.FloatType.get()),
+            Types.NestedField.required(3, "double", Types.DoubleType.get()),
+            Types.NestedField.required(4, "long", Types.LongType.get()),
+            Types.NestedField.required(5, "str", Types.StringType.get()),
+            Types.NestedField.required(6, "bool", Types.BooleanType.get()),
+            Types.NestedField.required(7, "bytes", Types.BinaryType.get()));
+
+    @Test
+    public void testBeamSchemaToIcebergSchema() {
+      org.apache.iceberg.Schema convertedIcebergSchema =
+          SchemaAndRowConversions.beamSchemaToIcebergSchema(BEAM_SCHEMA);
+
+      assertTrue(convertedIcebergSchema.sameSchema(ICEBERG_SCHEMA));
+    }
+
+    @Test
+    public void testIcebergSchemaToBeamSchema() {
+      Schema convertedBeamSchema =
+          SchemaAndRowConversions.icebergSchemaToBeamSchema(ICEBERG_SCHEMA);
+
+      assertEquals(BEAM_SCHEMA, convertedBeamSchema);
+    }
   }
 }

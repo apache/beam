@@ -20,14 +20,17 @@ package org.apache.beam.sdk.io.iceberg;
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
 import java.nio.ByteBuffer;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.data.GenericRecord;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.types.Type;
 import org.apache.iceberg.types.Types;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 
@@ -35,7 +38,16 @@ class SchemaAndRowConversions {
 
   private SchemaAndRowConversions() {}
 
-  public static final String ICEBERG_TYPE_OPTION_NAME = "icebergTypeID";
+  static final Map<Schema.FieldType, Type> BEAM_TYPES_TO_ICEBERG_TYPES =
+      ImmutableMap.<Schema.FieldType, Type>builder()
+          .put(Schema.FieldType.BOOLEAN, Types.BooleanType.get())
+          .put(Schema.FieldType.INT32, Types.IntegerType.get())
+          .put(Schema.FieldType.INT64, Types.LongType.get())
+          .put(Schema.FieldType.FLOAT, Types.FloatType.get())
+          .put(Schema.FieldType.DOUBLE, Types.DoubleType.get())
+          .put(Schema.FieldType.STRING, Types.StringType.get())
+          .put(Schema.FieldType.BYTES, Types.BinaryType.get())
+          .build();
 
   public static Schema.FieldType icebergTypeToBeamFieldType(final Type type) {
     switch (type.typeId()) {
@@ -76,11 +88,6 @@ class SchemaAndRowConversions {
 
   public static Schema.Field icebergFieldToBeamField(final Types.NestedField field) {
     return Schema.Field.of(field.name(), icebergTypeToBeamFieldType(field.type()))
-        .withOptions(
-            Schema.Options.builder()
-                .setOption(
-                    ICEBERG_TYPE_OPTION_NAME, Schema.FieldType.STRING, field.type().typeId().name())
-                .build())
         .withNullable(field.isOptional());
   }
 
@@ -101,13 +108,11 @@ class SchemaAndRowConversions {
   }
 
   public static Types.NestedField beamFieldToIcebergField(int fieldId, final Schema.Field field) {
-    String typeId = field.getOptions().getValue(ICEBERG_TYPE_OPTION_NAME, String.class);
-    if (typeId != null) {
+    @Nullable Type icebergType = BEAM_TYPES_TO_ICEBERG_TYPES.get(field.getType());
+
+    if (icebergType != null) {
       return Types.NestedField.of(
-          fieldId,
-          field.getType().getNullable(),
-          field.getName(),
-          Types.fromPrimitiveString(typeId));
+          fieldId, field.getType().getNullable(), field.getName(), icebergType);
     } else {
       return Types.NestedField.of(
           fieldId, field.getType().getNullable(), field.getName(), Types.StringType.get());

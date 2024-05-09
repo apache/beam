@@ -21,13 +21,19 @@ on:
     branches: ['master', 'release-*']
     paths:
       - "sdks/java/io/iceberg/**"
-      - ".github/workflows/IO_Iceberg.yml"
+      - "sdks/java/io/managed/**"
+      - "sdks/java/expansion-service/**"
+      - "sdks/java/io/expansion-service/**"
+      - ".github/workflows/IO_Iceberg_Unit_Tests.yml"
   pull_request_target:
     branches: ['master', 'release-*']
     paths:
       - "sdks/java/io/iceberg/**"
+      - "sdks/java/io/managed/**"
+      - "sdks/java/expansion-service/**"
+      - "sdks/java/io/expansion-service/**"
       - 'release/trigger_all_tests.json'
-      - '.github/trigger_files/IO_Iceberg.json'
+      - '.github/trigger_files/IO_Iceberg_Unit_Tests.json'
   issue_comment:
     types: [created]
   schedule:
@@ -61,11 +67,11 @@ env:
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
 jobs:
-  IO_Iceberg:
+  IO_Iceberg_Unit_Tests:
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     strategy:
       matrix:
-        job_name: ["IO_Iceberg"]
+        job_name: ["IO_Iceberg_Unit_Tests"]
         job_phrase: ["Run IcebergIO Unit Tests"]
     timeout-minutes: 60
     if: |
@@ -88,7 +94,7 @@ jobs:
       - name: run IcebergIO build script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:java:io:iceberg:build
+          gradle-command: :sdks:java:io:iceberg:build :sdks:java:io:iceberg:integrationTest
           arguments: |
             -PdisableSpotlessCheck=true \
             -PdisableCheckStyle=true \
