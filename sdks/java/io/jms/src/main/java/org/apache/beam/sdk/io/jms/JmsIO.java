@@ -219,7 +219,7 @@ public class JmsIO {
      * In case the {@link ConnectionFactory} is not serializable it can be constructed separately on
      * each worker from scratch by providing a {@link Supplier} instead of a ready-made object
      */
-    abstract @Nullable Supplier<ConnectionFactory> getConnectionFactorySupplier();
+    abstract @Nullable Supplier<? extends ConnectionFactory> getConnectionFactorySupplier();
 
     abstract @Nullable String getQueue();
 
@@ -250,7 +250,7 @@ public class JmsIO {
     @AutoValue.Builder
     abstract static class Builder<T> {
       abstract Builder<T> setConnectionFactorySupplier(
-          Supplier<ConnectionFactory> connectionFactorySupplier);
+          Supplier<? extends ConnectionFactory> connectionFactorySupplier);
 
       abstract Builder<T> setQueue(String queue);
 
@@ -315,7 +315,7 @@ public class JmsIO {
      * @return The corresponding {@link JmsIO.Read}
      */
     public Read<T> withConnectionFactorySupplier(
-        Supplier<ConnectionFactory> connectionFactorySupplier) {
+        Supplier<? extends ConnectionFactory> connectionFactorySupplier) {
       checkArgument(connectionFactorySupplier != null, "connectionFactorySupplier cannot be null");
       return builder().setConnectionFactorySupplier(connectionFactorySupplier).build();
     }
@@ -841,7 +841,7 @@ public class JmsIO {
       return connectionFactory;
     }
 
-    abstract @Nullable Supplier<ConnectionFactory> getConnectionFactorySupplier();
+    abstract @Nullable Supplier<? extends ConnectionFactory> getConnectionFactorySupplier();
 
     abstract @Nullable String getQueue();
 
@@ -862,7 +862,7 @@ public class JmsIO {
     @AutoValue.Builder
     abstract static class Builder<EventT> {
       abstract Builder<EventT> setConnectionFactorySupplier(
-          Supplier<ConnectionFactory> connectionFactory);
+          Supplier<? extends ConnectionFactory> connectionFactory);
 
       abstract Builder<EventT> setQueue(String queue);
 
@@ -919,7 +919,7 @@ public class JmsIO {
      * @return The corresponding {@link JmsIO.Write}
      */
     public Write<EventT> withConnectionFactorySupplier(
-        Supplier<ConnectionFactory> connectionFactorySupplier) {
+        Supplier<? extends ConnectionFactory> connectionFactorySupplier) {
       checkArgument(connectionFactorySupplier != null, "connectionFactorySupplier can not be null");
       return builder().setConnectionFactorySupplier(connectionFactorySupplier).build();
     }
