@@ -36,6 +36,8 @@ import org.joda.time.DateTimeZone;
 
 class SchemaAndRowConversions {
 
+  private SchemaAndRowConversions() {}
+
   static final Map<Schema.FieldType, Type> BEAM_TYPES_TO_ICEBERG_TYPES =
       ImmutableMap.<Schema.FieldType, Type>builder()
           .put(Schema.FieldType.BOOLEAN, Types.BooleanType.get())

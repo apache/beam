@@ -71,7 +71,7 @@ public class IcebergIOIT implements Serializable {
 
   public interface IcebergIOTestPipelineOptions extends GcpOptions {
     @Description("Number of records that will be written and/or read by the test")
-    @Default.Integer(1000) // deliberately small so no-args execution is quick
+    @Default.Integer(1000)
     Integer getNumRecords();
 
     void setNumRecords(Integer numRecords);
