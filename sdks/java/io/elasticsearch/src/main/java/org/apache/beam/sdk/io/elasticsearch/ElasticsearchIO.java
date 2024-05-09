@@ -2876,11 +2876,7 @@ public class ElasticsearchIO {
                   elasticResponseExceptionMessage);
           responses =
               inputEntries.stream()
-                  .map(
-                      doc ->
-                          Document.create()
-                              .withHasError(true)
-                              .withResponseItemJson(errorJsonMessage))
+                  .map(doc -> doc.withHasError(true).withResponseItemJson(errorJsonMessage))
                   .collect(Collectors.toList());
         } else {
           responses =
