@@ -23,14 +23,13 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import com.google.api.services.dataflow.model.CounterUpdate;
 import com.google.api.services.dataflow.model.MapTask;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
@@ -222,7 +221,6 @@ public class StreamingDataflowWorker {
   // Limit on bytes sinked (committed) in a work item.
   private final long maxSinkBytes; // = MAX_SINK_BYTES unless disabled in options.
   private final ReaderCache readerCache;
-  private final CompletableFuture<Void> isDoneFuture;
   private final Function<MapTask, MutableNetwork<Node, Edge>> mapTaskToNetwork;
   private final ReaderRegistry readerRegistry = ReaderRegistry.defaultRegistry();
   private final SinkRegistry sinkRegistry = SinkRegistry.defaultRegistry();
@@ -239,7 +237,7 @@ public class StreamingDataflowWorker {
   private final WorkFailureProcessor workFailureProcessor;
   private final StreamingCounters streamingCounters;
 
-  private StreamingDataflowWorker(
+  StreamingDataflowWorker(
       WindmillServerStub windmillServer,
       long clientId,
       ComputationConfig.Fetcher configFetcher,
@@ -289,7 +287,6 @@ public class StreamingDataflowWorker {
             : StreamingApplianceWorkCommitter.create(
                 windmillServer::commitWork, this::onCompleteCommit);
 
-    this.isDoneFuture = new CompletableFuture<>();
     this.workUnitExecutor = workUnitExecutor;
 
     maxSinkBytes =
@@ -510,7 +507,7 @@ public class StreamingDataflowWorker {
 
   @VisibleForTesting
   static StreamingDataflowWorker forTesting(
-      ConcurrentMap<String, String> stateNameMap,
+      Map<String, String> prePopulatedStateNameMappings,
       WindmillServerStub windmillServer,
       List<MapTask> mapTasks,
       DataflowMapTaskExecutorFactory mapTaskExecutorFactory,
@@ -520,9 +517,10 @@ public class StreamingDataflowWorker {
       HotKeyLogger hotKeyLogger,
       Supplier<Instant> clock,
       Function<String, ScheduledExecutorService> executorSupplier,
-      int localRetryTimeoutMs) {
+      int localRetryTimeoutMs,
+      int maxWorkItemCommitBytesOverrides) {
     ConcurrentMap<String, StageInfo> stageInfo = new ConcurrentHashMap<>();
-    AtomicInteger maxWorkItemCommitBytes = new AtomicInteger(Integer.MAX_VALUE);
+    AtomicInteger maxWorkItemCommitBytes = new AtomicInteger(maxWorkItemCommitBytesOverrides);
     BoundedQueueExecutor workExecutor = createWorkUnitExecutor(options);
     WindmillStateCache stateCache = WindmillStateCache.ofSizeMbs(options.getWorkerCacheMb());
     ComputationConfig.Fetcher configFetcher =
@@ -538,6 +536,8 @@ public class StreamingDataflowWorker {
                         windmillServer::setWindmillServiceEndpoints,
                         maxWorkItemCommitBytes))
             : new StreamingApplianceComputationConfigFetcher(windmillServer::getConfig);
+    ConcurrentMap<String, String> stateNameMap =
+        new ConcurrentHashMap<>(prePopulatedStateNameMappings);
     ComputationStateCache computationStateCache =
         ComputationStateCache.forTesting(
             configFetcher, workExecutor, stateCache::forComputation, ID_GENERATOR, stateNameMap);
@@ -580,6 +580,7 @@ public class StreamingDataflowWorker {
             executorSupplier,
             options.getWindmillHarnessUpdateReportingPeriod().getMillis(),
             options.getPerWorkerMetricsUpdateReportingPeriodMillis());
+
     return new StreamingDataflowWorker(
         windmillServer,
         1L,
@@ -776,14 +777,6 @@ public class StreamingDataflowWorker {
   }
 
   @VisibleForTesting
-  void setMaxWorkItemCommitBytes(int maxWorkItemCommitBytes) {
-    if (maxWorkItemCommitBytes != this.maxWorkItemCommitBytes.get()) {
-      LOG.info("Setting maxWorkItemCommitBytes to {}", maxWorkItemCommitBytes);
-      this.maxWorkItemCommitBytes.set(maxWorkItemCommitBytes);
-    }
-  }
-
-  @VisibleForTesting
   public boolean workExecutorIsEmpty() {
     return workUnitExecutor.executorQueueIsEmpty();
   }
@@ -839,14 +832,6 @@ public class StreamingDataflowWorker {
     } catch (Exception e) {
       LOG.warn("Exception while shutting down: ", e);
     }
-    setIsDone();
-  }
-
-  // null is the only value of type Void, but findbugs thinks
-  // it violates the contract of CompletableFuture.complete
-  @SuppressFBWarnings("NP_NONNULL_PARAM_VIOLATION")
-  private void setIsDone() {
-    isDoneFuture.complete(null);
   }
 
   private void dispatchLoop() {

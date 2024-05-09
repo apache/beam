@@ -206,9 +206,8 @@ public class StreamingEngineComputationConfigFetcherTest {
 
   @Test
   public void testGetComputationConfig_fetchConfigFromDataflowError() throws IOException {
-    Set<StreamingEnginePipelineConfig> receivedPipelineConfig = new HashSet<>();
     streamingEngineConfigFetcher =
-        createConfigFetcher(/* waitForInitialConfig= */ false, 0, receivedPipelineConfig::add);
+        createConfigFetcher(/* waitForInitialConfig= */ false, 0, ignored -> {});
     RuntimeException e = new RuntimeException("something bad happened.");
     when(mockDataflowServiceClient.getStreamingConfigWorkItem(anyString())).thenThrow(e);
     Throwable fetchConfigError =
