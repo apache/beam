@@ -473,6 +473,7 @@ tasks.register("pythonPreCommit") {
   dependsOn(":sdks:python:test-suites:tox:py39:preCommitPy39")
   dependsOn(":sdks:python:test-suites:tox:py310:preCommitPy310")
   dependsOn(":sdks:python:test-suites:tox:py311:preCommitPy311")
+  dependsOn(":sdks:python:test-suites:tox:py312:preCommitPy312")
 }
 
 tasks.register("pythonPreCommitIT") {
