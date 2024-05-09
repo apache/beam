@@ -316,10 +316,13 @@ class BatchElementsTest(unittest.TestCase):
       res = (
           p
           | beam.Create(range(1, 8), reshuffle=False)
-          | beam.Map(lambda t: window.TimestampedValue('a'*t, t))
+          | beam.Map(lambda t: window.TimestampedValue('a' * t, t))
           | beam.WindowInto(window.FixedWindows(3))
           | util.BatchElements(
-              min_batch_size=11, max_batch_size=11, element_size_fn=len, clock=FakeClock())
+              min_batch_size=11,
+              max_batch_size=11,
+              element_size_fn=len,
+              clock=FakeClock())
           | beam.Map(lambda batch: ''.join(batch)))
       assert_that(
           res,
