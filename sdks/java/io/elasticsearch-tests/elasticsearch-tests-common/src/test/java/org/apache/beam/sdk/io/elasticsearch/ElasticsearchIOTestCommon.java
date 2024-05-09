@@ -448,27 +448,28 @@ class ElasticsearchIOTestCommon implements Serializable {
 
   void testWriteWithElasticClientResponseException() throws Exception {
     Write write =
-            ElasticsearchIO.write()
-                    .withConnectionConfiguration(connectionConfiguration)
-                    .withMaxBatchSize(1000L)
-                    .withMaxBatchSizeBytes(Long.MAX_VALUE) // Max long number to make sure it flushes 2 docs.
-                    .withThrowWriteErrors(false)
-                    .withIdFn(new ExtractValueFn("id"));
+        ElasticsearchIO.write()
+            .withConnectionConfiguration(connectionConfiguration)
+            .withMaxBatchSize(1000L)
+            .withMaxBatchSizeBytes(
+                Long.MAX_VALUE) // Max long number to make sure it flushes 2 docs.
+            .withThrowWriteErrors(false)
+            .withIdFn(new ExtractValueFn("id"));
 
     List<String> data =
-            ElasticsearchIOTestUtils.createDocuments(
-                    2, ElasticsearchIOTestUtils.InjectionMode.INJECT_ONE_ID_TOO_LONG_DOC_AT_THE_END);
+        ElasticsearchIOTestUtils.createDocuments(
+            2, ElasticsearchIOTestUtils.InjectionMode.INJECT_ONE_ID_TOO_LONG_DOC_AT_THE_END);
 
     PCollectionTuple outputs = pipeline.apply(Create.of(data)).apply(write);
     PCollection<String> success =
-            outputs
-                    .get(Write.SUCCESSFUL_WRITES)
-                    .apply("Convert success to input ID", MapElements.via(mapToInputIdString));
+        outputs
+            .get(Write.SUCCESSFUL_WRITES)
+            .apply("Convert success to input ID", MapElements.via(mapToInputIdString));
 
     PCollection<String> fail =
-            outputs
-                    .get(Write.FAILED_WRITES)
-                    .apply("Convert fails to input ID", MapElements.via(mapToInputIdString));
+        outputs
+            .get(Write.FAILED_WRITES)
+            .apply("Convert fails to input ID", MapElements.via(mapToInputIdString));
 
     Set<String> validIds = new HashSet<>();
     validIds.add("0");

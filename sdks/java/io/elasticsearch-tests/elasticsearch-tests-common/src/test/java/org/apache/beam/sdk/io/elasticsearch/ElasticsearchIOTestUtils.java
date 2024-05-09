@@ -345,14 +345,16 @@ class ElasticsearchIOTestUtils {
           && INVALID_DOCS_IDS.contains(i)) {
         data.add(String.format("{\"scientist\";\"%s\", \"id\":%s}", FAMOUS_SCIENTISTS[index], i));
       }
-      // insert 1 id too long doc at the end. It should trigger org.elasticsearch.client.ResponseException.
-      else if (InjectionMode.INJECT_ONE_ID_TOO_LONG_DOC_AT_THE_END.equals(injectionMode) && i == numDocs - 1) {
-        data.add(index,
-                String.format(
-                        "{\"scientist\":\"%s\", \"id\":%s, \"@timestamp\" : \"%s\"}",
-                        FAMOUS_SCIENTISTS[index], INVALID_LONG_ID, baseDateTime.plusSeconds(index)));
-      }
-      else {
+      // insert 1 id too long doc at the end. It should trigger
+      // org.elasticsearch.client.ResponseException.
+      else if (InjectionMode.INJECT_ONE_ID_TOO_LONG_DOC_AT_THE_END.equals(injectionMode)
+          && i == numDocs - 1) {
+        data.add(
+            index,
+            String.format(
+                "{\"scientist\":\"%s\", \"id\":%s, \"@timestamp\" : \"%s\"}",
+                FAMOUS_SCIENTISTS[index], INVALID_LONG_ID, baseDateTime.plusSeconds(index)));
+      } else {
         data.add(
             String.format(
                 "{\"scientist\":\"%s\", \"id\":%s, \"@timestamp\" : \"%s\"}",
@@ -536,16 +538,16 @@ class ElasticsearchIOTestUtils {
       };
 
   static SimpleFunction<Document, String> mapToInputIdString =
-          new SimpleFunction<Document, String>() {
-            @Override
-            public String apply(Document document) {
-              try {
-                // Account for intentionally invalid input json docs
-                String fixedJson = document.getInputDoc().replaceAll(";", ":");
-                return MAPPER.readTree(fixedJson).path("id").asText();
-              } catch (JsonProcessingException e) {
-                return "-1";
-              }
-            }
-          };
+      new SimpleFunction<Document, String>() {
+        @Override
+        public String apply(Document document) {
+          try {
+            // Account for intentionally invalid input json docs
+            String fixedJson = document.getInputDoc().replaceAll(";", ":");
+            return MAPPER.readTree(fixedJson).path("id").asText();
+          } catch (JsonProcessingException e) {
+            return "-1";
+          }
+        }
+      };
 }
