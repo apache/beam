@@ -50,10 +50,13 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.Vi
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @AutoService(SchemaTransformProvider.class)
 public class ManagedSchemaTransformProvider
     extends TypedSchemaTransformProvider<ManagedSchemaTransformProvider.ManagedConfig> {
+  private static final Logger LOG = LoggerFactory.getLogger(ManagedSchemaTransformProvider.class);
 
   @Override
   public String identifier() {
@@ -177,6 +180,11 @@ public class ManagedSchemaTransformProvider
 
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
+      LOG.debug(
+          "Building transform \"{}\" with Row configuration: {}",
+          underlyingTransformProvider.identifier(),
+          underlyingTransformConfig);
+
       return input.apply(underlyingTransformProvider.from(underlyingTransformConfig));
     }
 
