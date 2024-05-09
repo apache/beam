@@ -30,6 +30,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
+import org.apache.beam.sdk.managed.Managed;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -37,6 +38,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.hadoop.conf.Configuration;
@@ -60,9 +62,11 @@ import org.apache.iceberg.io.DataWriter;
 import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.io.OutputFile;
 import org.apache.iceberg.parquet.Parquet;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -91,6 +95,12 @@ public class IcebergIOIT implements Serializable {
 
   static Configuration catalogHadoopConf;
 
+  @Rule public TestName testName = new TestName();
+
+  private String warehouseLocation;
+
+  private TableIdentifier tableId;
+
   @BeforeClass
   public static void beforeClass() {
     PipelineOptionsFactory.register(IcebergIOTestPipelineOptions.class);
@@ -101,6 +111,18 @@ public class IcebergIOIT implements Serializable {
     catalogHadoopConf.set("fs.gs.auth.type", "SERVICE_ACCOUNT_JSON_KEYFILE");
     catalogHadoopConf.set(
         "fs.gs.auth.service.account.json.keyfile", System.getenv("GOOGLE_APPLICATION_CREDENTIALS"));
+  }
+
+  @Before
+  public void setUp() {
+    warehouseLocation =
+        String.format(
+            "%s/IcebergIOIT/%s/%s",
+            options.getTempLocation(), testName.getMethodName(), UUID.randomUUID());
+
+    tableId =
+        TableIdentifier.of(
+            testName.getMethodName(), "table" + Long.toString(UUID.randomUUID().hashCode(), 16));
   }
 
   static final org.apache.beam.sdk.schemas.Schema BEAM_SCHEMA =
@@ -177,27 +199,28 @@ public class IcebergIOIT implements Serializable {
    */
   @Test
   public void testRead() throws Exception {
-    String warehouseLocation =
-        options.getTempLocation() + "/IcebergIOIT/testRead/" + UUID.randomUUID();
-
     Catalog catalog = new HadoopCatalog(catalogHadoopConf, warehouseLocation);
-    TableIdentifier tableId =
-        TableIdentifier.of("default", "table" + Long.toString(UUID.randomUUID().hashCode(), 16));
     Table table = catalog.createTable(tableId, ICEBERG_SCHEMA);
 
     List<Row> expectedRows = populateTable(table);
 
-    // Read with Beam
-    IcebergCatalogConfig catalogConfig =
-        IcebergCatalogConfig.builder()
-            .setName("hadoop")
-            .setIcebergCatalogType(CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
-            .setWarehouseLocation(warehouseLocation)
+    Map<String, Object> config =
+        ImmutableMap.<String, Object>builder()
+            .put("table", tableId.toString())
+            .put(
+                "catalog_config",
+                ImmutableMap.<String, String>builder()
+                    .put("catalog_name", "hadoop")
+                    .put("catalog_type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
+                    .put("warehouse_location", warehouseLocation)
+                    .build())
             .build();
 
-    PCollection<Row> output = readPipeline.apply(IcebergIO.readRows(catalogConfig).from(tableId));
+    PCollectionRowTuple output =
+        PCollectionRowTupl e.empty(readPipeline)
+            .apply(Managed.read(Managed.ICEBERG).withConfig(config));
 
-    PAssert.that(output).containsInAnyOrder(expectedRows);
+    PAssert.that(output.get("output")).containsInAnyOrder(expectedRows);
     readPipeline.run().waitUntilFinish();
   }
 
@@ -207,12 +230,7 @@ public class IcebergIOIT implements Serializable {
    */
   @Test
   public void testWrite() {
-    String warehouseLocation =
-        options.getTempLocation() + "/IcebergIOIT/testWrite/" + UUID.randomUUID();
-
     Catalog catalog = new HadoopCatalog(catalogHadoopConf, warehouseLocation);
-    TableIdentifier tableId =
-        TableIdentifier.of("default", "table" + Long.toString(UUID.randomUUID().hashCode(), 16));
     Table table = catalog.createTable(tableId, ICEBERG_SCHEMA);
 
     List<Record> inputRecords =
@@ -227,15 +245,20 @@ public class IcebergIOIT implements Serializable {
             .collect(Collectors.toList());
 
     // Write with Beam
-    IcebergCatalogConfig catalogConfig =
-        IcebergCatalogConfig.builder()
-            .setName("hadoop")
-            .setIcebergCatalogType(CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
-            .setWarehouseLocation(warehouseLocation)
+    Map<String, Object> config =
+        ImmutableMap.<String, Object>builder()
+            .put("table", tableId.toString())
+            .put(
+                "catalog_config",
+                ImmutableMap.<String, String>builder()
+                    .put("catalog_name", "hadoop")
+                    .put("catalog_type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
+                    .put("warehouse_location", warehouseLocation)
+                    .build())
             .build();
 
     PCollection<Row> input = writePipeline.apply(Create.of(inputRows)).setRowSchema(BEAM_SCHEMA);
-    input.apply(IcebergIO.writeRows(catalogConfig).to(tableId));
+    PCollectionRowTuple.of("input", input).apply(Managed.write(Managed.ICEBERG).withConfig(config));
 
     writePipeline.run().waitUntilFinish();
 
