@@ -57,6 +57,7 @@ class ElasticsearchIOTestUtils {
   static final String ELASTICSEARCH_PASSWORD = "superSecure";
   static final String ELASTIC_UNAME = "elastic";
   static final Set<Integer> INVALID_DOCS_IDS = new HashSet<>(Arrays.asList(6, 7));
+  static final String INVALID_LONG_ID = new String(new char[513]).replace('\0', '2');
   static final String ALIAS_SUFFIX = "-aliased";
 
   static final String[] FAMOUS_SCIENTISTS = {
@@ -80,7 +81,8 @@ class ElasticsearchIOTestUtils {
   /** Enumeration that specifies whether to insert malformed documents. */
   public enum InjectionMode {
     INJECT_SOME_INVALID_DOCS,
-    DO_NOT_INJECT_INVALID_DOCS
+    DO_NOT_INJECT_INVALID_DOCS,
+    INJECT_ONE_ID_TOO_LONG_DOC_AT_THE_END
   }
 
   /** Deletes the given index synchronously. */
@@ -342,7 +344,15 @@ class ElasticsearchIOTestUtils {
       if (InjectionMode.INJECT_SOME_INVALID_DOCS.equals(injectionMode)
           && INVALID_DOCS_IDS.contains(i)) {
         data.add(String.format("{\"scientist\";\"%s\", \"id\":%s}", FAMOUS_SCIENTISTS[index], i));
-      } else {
+      }
+      // insert 1 id too long doc at the end. It should trigger org.elasticsearch.client.ResponseException.
+      else if (InjectionMode.INJECT_ONE_ID_TOO_LONG_DOC_AT_THE_END.equals(injectionMode) && i == numDocs - 1) {
+        data.add(index,
+                String.format(
+                        "{\"scientist\":\"%s\", \"id\":%s, \"@timestamp\" : \"%s\"}",
+                        FAMOUS_SCIENTISTS[index], INVALID_LONG_ID, baseDateTime.plusSeconds(index)));
+      }
+      else {
         data.add(
             String.format(
                 "{\"scientist\":\"%s\", \"id\":%s, \"@timestamp\" : \"%s\"}",
@@ -524,4 +534,18 @@ class ElasticsearchIOTestUtils {
           }
         }
       };
+
+  static SimpleFunction<Document, String> mapToInputIdString =
+          new SimpleFunction<Document, String>() {
+            @Override
+            public String apply(Document document) {
+              try {
+                // Account for intentionally invalid input json docs
+                String fixedJson = document.getInputDoc().replaceAll(";", ":");
+                return MAPPER.readTree(fixedJson).path("id").asText();
+              } catch (JsonProcessingException e) {
+                return "-1";
+              }
+            }
+          };
 }

@@ -25,16 +25,7 @@ import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.Read;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.RetryConfiguration.DEFAULT_RETRY_PREDICATE;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.Write;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.getBackendVersion;
-import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.FAMOUS_SCIENTISTS;
-import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.INVALID_DOCS_IDS;
-import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.NUM_SCIENTISTS;
-import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.SCRIPT_SOURCE;
-import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.countByMatch;
-import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.countByScientistName;
-import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.flushAndRefreshAllIndices;
-import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.insertTestDocuments;
-import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.mapToInputId;
-import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.refreshIndexAndGetCurrentNumDocs;
+import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.*;
 import static org.apache.beam.sdk.testing.SourceTestUtils.readFromSource;
 import static org.apache.beam.sdk.values.TypeDescriptors.integers;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -56,12 +47,7 @@ import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
@@ -457,6 +443,40 @@ class ElasticsearchIOTestCommon implements Serializable {
     PAssert.that(success).containsInAnyOrder(successfulIds);
     PAssert.that(fail).empty();
 
+    pipeline.run();
+  }
+
+  void testWriteWithElasticClientResponseException() throws Exception {
+    Write write =
+            ElasticsearchIO.write()
+                    .withConnectionConfiguration(connectionConfiguration)
+                    .withMaxBatchSize(1000L)
+                    .withMaxBatchSizeBytes(Long.MAX_VALUE) // Max long number to make sure it flushes 2 docs.
+                    .withThrowWriteErrors(false)
+                    .withIdFn(new ExtractValueFn("id"));
+
+    List<String> data =
+            ElasticsearchIOTestUtils.createDocuments(
+                    2, ElasticsearchIOTestUtils.InjectionMode.INJECT_ONE_ID_TOO_LONG_DOC_AT_THE_END);
+
+    PCollectionTuple outputs = pipeline.apply(Create.of(data)).apply(write);
+    PCollection<String> success =
+            outputs
+                    .get(Write.SUCCESSFUL_WRITES)
+                    .apply("Convert success to input ID", MapElements.via(mapToInputIdString));
+
+    PCollection<String> fail =
+            outputs
+                    .get(Write.FAILED_WRITES)
+                    .apply("Convert fails to input ID", MapElements.via(mapToInputIdString));
+
+    Set<String> validIds = new HashSet<>();
+    validIds.add("0");
+    PAssert.that(success).containsInAnyOrder(validIds);
+
+    PAssert.that(fail).containsInAnyOrder(INVALID_LONG_ID);
+
+    // how to force two docs into one batch flush and fail together?
     pipeline.run();
   }
 

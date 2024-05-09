@@ -2874,6 +2874,7 @@ public class ElasticsearchIO {
               String.format(
                   "{\"message\":\"org.elasticsearch.client.ResponseException was thrown in batch flush: %s\"}",
                   elasticResponseExceptionMessage);
+
           responses =
               inputEntries.stream()
                   .map(doc -> doc.withHasError(true).withResponseItemJson(errorJsonMessage))
