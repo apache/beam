@@ -33,6 +33,9 @@ import org.apache.activemq.security.SimpleAuthenticationPlugin;
 import org.apache.activemq.store.memory.MemoryPersistenceAdapter;
 import org.apache.activemq.transport.TransportFactory;
 import org.apache.activemq.transport.amqp.AmqpTransportFactory;
+import org.apache.beam.sdk.util.ThrowingSupplier;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers;
 
 /**
  * A common test fixture to create a broker and connection factories for {@link JmsIOIT} & {@link
@@ -40,6 +43,22 @@ import org.apache.activemq.transport.amqp.AmqpTransportFactory;
  */
 public class CommonJms implements Serializable {
   private static final String BROKER_WITHOUT_PREFETCH_PARAM = "?jms.prefetchPolicy.all=0&";
+
+  // convenient typedefs and a helper conversion function
+  public interface ThrowingSerializableSupplier<T> extends ThrowingSupplier<T>, Serializable {}
+
+  public interface SerializableSupplier<T> extends Serializable, Supplier<T> {}
+
+  public static <T> SerializableSupplier<T> toSerializableSupplier(
+      ThrowingSerializableSupplier<T> throwingSerializableSupplier) {
+    return () -> {
+      try {
+        return throwingSerializableSupplier.get();
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+    };
+  }
 
   static final String USERNAME = "test_user";
   static final String PASSWORD = "test_password";
@@ -49,19 +68,31 @@ public class CommonJms implements Serializable {
   private final String brokerUrl;
   private final Integer brokerPort;
   private final String forceAsyncAcksParam;
+  private final boolean useSupplier;
   private transient BrokerService broker;
 
   private final Class<? extends ConnectionFactory> connectionFactoryClass;
+  private final SerializableSupplier<ConnectionFactory> memoizedConnectionFactorySupplier;
+  private final SerializableSupplier<ConnectionFactory>
+      memoizedConnectionFactoryWithSyncAcksAndWithoutPrefetchSupplier;
 
   public CommonJms(
       String brokerUrl,
       Integer brokerPort,
       String forceAsyncAcksParam,
+      boolean useSupplier,
       Class<? extends ConnectionFactory> connectionFactoryClass) {
     this.brokerUrl = brokerUrl;
     this.brokerPort = brokerPort;
     this.forceAsyncAcksParam = forceAsyncAcksParam;
     this.connectionFactoryClass = connectionFactoryClass;
+    this.useSupplier = useSupplier;
+    this.memoizedConnectionFactorySupplier =
+        Suppliers.memoize(toSerializableSupplier(this::createConnectionFactory))::get;
+    this.memoizedConnectionFactoryWithSyncAcksAndWithoutPrefetchSupplier =
+        Suppliers.memoize(
+                toSerializableSupplier(this::createConnectionFactoryWithSyncAcksAndWithoutPrefetch))
+            ::get;
   }
 
   void startBroker() throws Exception {
@@ -120,6 +151,38 @@ public class CommonJms implements Serializable {
     return this.connectionFactoryClass;
   }
 
+  private SerializableSupplier<ConnectionFactory> selectDynamicOrMemoizedSupplier(
+      SerializableSupplier<ConnectionFactory> dynamicSupplier,
+      SerializableSupplier<ConnectionFactory> memoizedSupplier) {
+    if (useSupplier) {
+      // the supplier will instantiate a new CF each time it's invoked
+      return dynamicSupplier;
+    } else {
+      // or it will just return the memoized instance
+      return memoizedSupplier;
+    }
+  }
+
+  public SerializableSupplier<ConnectionFactory> getConnectionFactorySupplier() {
+    return selectDynamicOrMemoizedSupplier(
+        toSerializableSupplier(this::createConnectionFactory), memoizedConnectionFactorySupplier);
+  }
+
+  public SerializableSupplier<ConnectionFactory>
+      getConnectionFactoryWithSyncAcksAndWithoutPrefetchSupplier() {
+    return selectDynamicOrMemoizedSupplier(
+        toSerializableSupplier(this::createConnectionFactoryWithSyncAcksAndWithoutPrefetch),
+        memoizedConnectionFactoryWithSyncAcksAndWithoutPrefetchSupplier);
+  }
+
+  public ConnectionFactory getConnectionFactory() {
+    return memoizedConnectionFactorySupplier.get();
+  }
+
+  public ConnectionFactory getConnectionFactoryWithSyncAcksAndWithoutPrefetch() {
+    return memoizedConnectionFactoryWithSyncAcksAndWithoutPrefetchSupplier.get();
+  }
+
   /** A test class that maps a {@link javax.jms.BytesMessage} into a {@link String}. */
   public static class BytesMessageToStringMessageMapper implements JmsIO.MessageMapper<String> {
 
@@ -131,5 +194,29 @@ public class CommonJms implements Serializable {
 
       return new String(bytes, StandardCharsets.UTF_8);
     }
+  }
+
+  public <T> JmsIO.Read<T> withConnectionFactory(
+      JmsIO.Read<T> read, SerializableSupplier<ConnectionFactory> connectionFactorySupplier) {
+    if (useSupplier) {
+      read = read.withConnectionFactorySupplier(connectionFactorySupplier);
+    } else {
+      // unwrap the memoized CF from the supplier and pass it as-is to the connector
+      read = read.withConnectionFactory(connectionFactorySupplier.get());
+    }
+
+    return read;
+  }
+
+  public <T> JmsIO.Write<T> withConnectionFactory(
+      JmsIO.Write<T> write, SerializableSupplier<ConnectionFactory> connectionFactorySupplier) {
+    if (useSupplier) {
+      write = write.withConnectionFactorySupplier(connectionFactorySupplier);
+    } else {
+      // unwrap the memoized CF from the supplier and pass it as-is to the connector
+      write = write.withConnectionFactory(connectionFactorySupplier.get());
+    }
+
+    return write;
   }
 }

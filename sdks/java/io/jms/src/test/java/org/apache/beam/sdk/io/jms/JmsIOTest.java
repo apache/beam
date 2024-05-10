@@ -50,7 +50,6 @@ import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Proxy;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -66,7 +65,6 @@ import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.jms.BytesMessage;
@@ -99,7 +97,6 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableBiFunction;
-import org.apache.beam.sdk.util.ThrowingSupplier;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
 import org.apache.qpid.jms.JmsAcknowledgeCallback;
@@ -123,22 +120,6 @@ import org.slf4j.LoggerFactory;
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class JmsIOTest {
-
-  // convenient typedefs and a helper conversion function
-  private interface ThrowingSerializableSupplier<T> extends ThrowingSupplier<T>, Serializable {}
-
-  private interface SerializableSupplier<T> extends Serializable, Supplier<T> {}
-
-  private static <T> SerializableSupplier<T> toSerializableSupplier(
-      ThrowingSerializableSupplier<T> throwingSerializableSupplier) {
-    return () -> {
-      try {
-        return throwingSerializableSupplier.get();
-      } catch (Exception e) {
-        throw new RuntimeException(e);
-      }
-    };
-  }
 
   private static final Logger LOG = LoggerFactory.getLogger(JmsIOTest.class);
   private final RetryConfiguration retryConfiguration =
@@ -175,40 +156,26 @@ public class JmsIOTest {
   private final Class<? extends ConnectionFactory> connectionFactoryClass;
   private final ConnectionFactory connectionFactory;
   private final ConnectionFactory connectionFactoryWithSyncAcksAndWithoutPrefetch;
-  private final SerializableSupplier<ConnectionFactory> connectionFactorySupplier;
-  private final SerializableSupplier<ConnectionFactory>
+  private final CommonJms.SerializableSupplier<ConnectionFactory> connectionFactorySupplier;
+  private final CommonJms.SerializableSupplier<ConnectionFactory>
       connectionFactoryWithSyncAcksAndWithoutPrefetchSupplier;
-  private final boolean useSupplier;
 
   public JmsIOTest(
       String brokerUrl,
       Integer brokerPort,
       String forceAsyncAcksParam,
       Class<? extends ConnectionFactory> connectionFactoryClass,
-      boolean useSupplier)
-      throws InvocationTargetException,
-          NoSuchMethodException,
-          InstantiationException,
-          IllegalAccessException {
+      boolean useSupplier) {
     this.commonJms =
-        new CommonJms(brokerUrl, brokerPort, forceAsyncAcksParam, connectionFactoryClass);
+        new CommonJms(
+            brokerUrl, brokerPort, forceAsyncAcksParam, useSupplier, connectionFactoryClass);
     this.connectionFactoryClass = connectionFactoryClass;
-    this.useSupplier = useSupplier;
-    connectionFactory = commonJms.createConnectionFactory();
+    connectionFactory = commonJms.getConnectionFactory();
     connectionFactoryWithSyncAcksAndWithoutPrefetch =
-        commonJms.createConnectionFactoryWithSyncAcksAndWithoutPrefetch();
-
-    if (useSupplier) {
-      // the suppliers will instantiate a new CF each time they're invoked
-      connectionFactorySupplier = toSerializableSupplier(commonJms::createConnectionFactory);
-      connectionFactoryWithSyncAcksAndWithoutPrefetchSupplier =
-          toSerializableSupplier(commonJms::createConnectionFactoryWithSyncAcksAndWithoutPrefetch);
-    } else {
-      // just return memoized instances
-      connectionFactorySupplier = () -> connectionFactory;
-      connectionFactoryWithSyncAcksAndWithoutPrefetchSupplier =
-          () -> connectionFactoryWithSyncAcksAndWithoutPrefetch;
-    }
+        commonJms.getConnectionFactoryWithSyncAcksAndWithoutPrefetch();
+    connectionFactorySupplier = commonJms.getConnectionFactorySupplier();
+    connectionFactoryWithSyncAcksAndWithoutPrefetchSupplier =
+        commonJms.getConnectionFactoryWithSyncAcksAndWithoutPrefetchSupplier();
   }
 
   @Before
@@ -230,31 +197,10 @@ public class JmsIOTest {
     }
   }
 
-  private <T> JmsIO.Read<T> withConnectionFactory(
-      JmsIO.Read<T> read, SerializableSupplier<ConnectionFactory> connectionFactorySupplier) {
-    if (useSupplier) {
-      read = read.withConnectionFactorySupplier(connectionFactorySupplier);
-    } else {
-      read = read.withConnectionFactory(connectionFactorySupplier.get());
-    }
-
-    return read;
-  }
-
-  private <T> JmsIO.Write<T> withConnectionFactory(
-      JmsIO.Write<T> write, SerializableSupplier<ConnectionFactory> connectionFactorySupplier) {
-    if (useSupplier) {
-      write = write.withConnectionFactorySupplier(connectionFactorySupplier);
-    } else {
-      write = write.withConnectionFactory(connectionFactorySupplier.get());
-    }
-
-    return write;
-  }
-
   @Test
   public void testAuthenticationRequired() {
-    pipeline.apply(withConnectionFactory(JmsIO.read(), connectionFactorySupplier).withQueue(QUEUE));
+    pipeline.apply(
+        commonJms.withConnectionFactory(JmsIO.read(), connectionFactorySupplier).withQueue(QUEUE));
     String errorMessage =
         this.connectionFactoryClass == ActiveMQConnectionFactory.class
             ? "User name [null] or password is invalid."
@@ -265,7 +211,8 @@ public class JmsIOTest {
   @Test
   public void testAuthenticationWithBadPassword() {
     pipeline.apply(
-        withConnectionFactory(JmsIO.read(), connectionFactorySupplier)
+        commonJms
+            .withConnectionFactory(JmsIO.read(), connectionFactorySupplier)
             .withQueue(QUEUE)
             .withUsername(USERNAME)
             .withPassword("BAD"));
@@ -297,7 +244,8 @@ public class JmsIOTest {
     // read from the queue
     PCollection<JmsRecord> output =
         pipeline.apply(
-            withConnectionFactory(JmsIO.read(), connectionFactorySupplier)
+            commonJms
+                .withConnectionFactory(JmsIO.read(), connectionFactorySupplier)
                 .withQueue(QUEUE)
                 .withUsername(USERNAME)
                 .withPassword(PASSWORD)
@@ -341,7 +289,8 @@ public class JmsIOTest {
     // read from the queue
     PCollection<String> output =
         pipeline.apply(
-            withConnectionFactory(JmsIO.<String>readMessage(), connectionFactorySupplier)
+            commonJms
+                .withConnectionFactory(JmsIO.<String>readMessage(), connectionFactorySupplier)
                 .withQueue(QUEUE)
                 .withUsername(USERNAME)
                 .withPassword(PASSWORD)
@@ -369,7 +318,9 @@ public class JmsIOTest {
     connection.close();
 
     JmsIO.Read spec =
-        withConnectionFactory(JmsIO.read(), connectionFactoryWithSyncAcksAndWithoutPrefetchSupplier)
+        commonJms
+            .withConnectionFactory(
+                JmsIO.read(), connectionFactoryWithSyncAcksAndWithoutPrefetchSupplier)
             .withUsername(USERNAME)
             .withPassword(PASSWORD)
             .withQueue(QUEUE);
@@ -398,7 +349,8 @@ public class JmsIOTest {
     pipeline
         .apply(Create.of(data))
         .apply(
-            withConnectionFactory(JmsIO.<String>write(), connectionFactorySupplier)
+            commonJms
+                .withConnectionFactory(JmsIO.<String>write(), connectionFactorySupplier)
                 .withValueMapper(new TextMessageMapper())
                 .withRetryConfiguration(retryConfiguration)
                 .withQueue(QUEUE)
@@ -429,7 +381,8 @@ public class JmsIOTest {
         pipeline
             .apply(Create.of(data))
             .apply(
-                withConnectionFactory(JmsIO.<String>write(), connectionFactorySupplier)
+                commonJms
+                    .withConnectionFactory(JmsIO.<String>write(), connectionFactorySupplier)
                     .withValueMapper(new TextMessageMapperWithError())
                     .withRetryConfiguration(retryConfiguration)
                     .withQueue(QUEUE)
@@ -468,7 +421,8 @@ public class JmsIOTest {
     pipeline
         .apply(Create.of(data))
         .apply(
-            withConnectionFactory(JmsIO.<TestEvent>write(), connectionFactorySupplier)
+            commonJms
+                .withConnectionFactory(JmsIO.<TestEvent>write(), connectionFactorySupplier)
                 .withUsername(USERNAME)
                 .withPassword(PASSWORD)
                 .withRetryConfiguration(retryConfiguration)
@@ -618,7 +572,9 @@ public class JmsIOTest {
     connection.close();
 
     JmsIO.Read spec =
-        withConnectionFactory(JmsIO.read(), connectionFactoryWithSyncAcksAndWithoutPrefetchSupplier)
+        commonJms
+            .withConnectionFactory(
+                JmsIO.read(), connectionFactoryWithSyncAcksAndWithoutPrefetchSupplier)
             .withUsername(USERNAME)
             .withPassword(PASSWORD)
             .withQueue(QUEUE);
@@ -695,7 +651,8 @@ public class JmsIOTest {
     // sending
     // acknowledgements - this should help uncover threading issues around checkpoint management.
     JmsIO.Read<JmsRecord> spec =
-        withConnectionFactory(
+        commonJms
+            .withConnectionFactory(
                 JmsIO.read(),
                 withSlowAcks(
                     connectionFactoryWithSyncAcksAndWithoutPrefetchSupplier, jmsMessageAck))
@@ -751,7 +708,8 @@ public class JmsIOTest {
   @Test
   public void testDefaultAutoscaler() throws IOException {
     JmsIO.Read spec =
-        withConnectionFactory(JmsIO.read(), connectionFactorySupplier)
+        commonJms
+            .withConnectionFactory(JmsIO.read(), connectionFactorySupplier)
             .withUsername(USERNAME)
             .withPassword(PASSWORD)
             .withQueue(QUEUE);
@@ -772,7 +730,8 @@ public class JmsIOTest {
     AutoScaler autoScaler = mock(DefaultAutoscaler.class);
     when(autoScaler.getTotalBacklogBytes()).thenReturn(excpectedTotalBacklogBytes);
     JmsIO.Read spec =
-        withConnectionFactory(JmsIO.read(), connectionFactorySupplier)
+        commonJms
+            .withConnectionFactory(JmsIO.read(), connectionFactorySupplier)
             .withUsername(USERNAME)
             .withPassword(PASSWORD)
             .withQueue(QUEUE)
@@ -794,7 +753,8 @@ public class JmsIOTest {
   public void testCloseWithTimeout() throws IOException {
     Duration closeTimeout = Duration.millis(2000L);
     JmsIO.Read spec =
-        withConnectionFactory(JmsIO.read(), connectionFactorySupplier)
+        commonJms
+            .withConnectionFactory(JmsIO.read(), connectionFactorySupplier)
             .withUsername(USERNAME)
             .withPassword(PASSWORD)
             .withQueue(QUEUE)
@@ -848,7 +808,9 @@ public class JmsIOTest {
     connection.close();
 
     JmsIO.Read spec =
-        withConnectionFactory(JmsIO.read(), connectionFactoryWithSyncAcksAndWithoutPrefetchSupplier)
+        commonJms
+            .withConnectionFactory(
+                JmsIO.read(), connectionFactoryWithSyncAcksAndWithoutPrefetchSupplier)
             .withUsername(USERNAME)
             .withPassword(PASSWORD)
             .withQueue(QUEUE);
@@ -893,7 +855,8 @@ public class JmsIOTest {
     RetryConfiguration retryPolicy =
         RetryConfiguration.create(5, Duration.standardSeconds(15), null);
     JmsIO.Write<String> publisher =
-        withConnectionFactory(JmsIO.<String>write(), connectionFactorySupplier)
+        commonJms
+            .withConnectionFactory(JmsIO.<String>write(), connectionFactorySupplier)
             .withRetryConfiguration(retryPolicy)
             .withQueue(QUEUE)
             .withUsername(USERNAME)
@@ -919,7 +882,8 @@ public class JmsIOTest {
         pipeline
             .apply(Create.of(data))
             .apply(
-                withConnectionFactory(JmsIO.<String>write(), connectionFactorySupplier)
+                commonJms
+                    .withConnectionFactory(JmsIO.<String>write(), connectionFactorySupplier)
                     .withValueMapper(new TextMessageMapperWithErrorCounter())
                     .withRetryConfiguration(retryPolicy)
                     .withQueue(QUEUE)
@@ -956,7 +920,8 @@ public class JmsIOTest {
         pipeline
             .apply(Create.of(data))
             .apply(
-                withConnectionFactory(JmsIO.<String>write(), connectionFactorySupplier)
+                commonJms
+                    .withConnectionFactory(JmsIO.<String>write(), connectionFactorySupplier)
                     .withValueMapper(
                         (SerializableBiFunction<String, Session, Message>)
                             (s, session) -> {
@@ -1012,7 +977,8 @@ public class JmsIOTest {
         pipeline
             .apply(Create.of(data))
             .apply(
-                withConnectionFactory(JmsIO.<String>write(), connectionFactorySupplier)
+                commonJms
+                    .withConnectionFactory(JmsIO.<String>write(), connectionFactorySupplier)
                     .withValueMapper(new TextMessageMapperWithErrorAndCounter())
                     .withRetryConfiguration(retryConfiguration)
                     .withQueue(QUEUE)
@@ -1048,7 +1014,8 @@ public class JmsIOTest {
         pipeline
             .apply(Create.of(data))
             .apply(
-                withConnectionFactory(JmsIO.<String>write(), connectionFactorySupplier)
+                commonJms
+                    .withConnectionFactory(JmsIO.<String>write(), connectionFactorySupplier)
                     .withValueMapper(new TextMessageMapper())
                     .withTopic(TOPIC)
                     .withUsername(USERNAME)
@@ -1103,8 +1070,9 @@ public class JmsIOTest {
                                 resultTransformer))));
   }
 
-  private <T extends Message> SerializableSupplier<ConnectionFactory> withSlowAcks(
-      SerializableSupplier<ConnectionFactory> factorySupplier, Function<T, T> resultTransformer) {
+  private <T extends Message> CommonJms.SerializableSupplier<ConnectionFactory> withSlowAcks(
+      CommonJms.SerializableSupplier<ConnectionFactory> factorySupplier,
+      Function<T, T> resultTransformer) {
     return () -> withSlowAcks(factorySupplier.get(), resultTransformer);
   }
 

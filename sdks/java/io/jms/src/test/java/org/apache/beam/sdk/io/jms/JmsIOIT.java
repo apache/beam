@@ -29,9 +29,12 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.Enumeration;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
 import javax.jms.JMSException;
@@ -135,12 +138,25 @@ public class JmsIOIT implements Serializable {
   @Rule public transient TestPipeline pipelineWrite = TestPipeline.create();
   @Rule public transient TestPipeline pipelineRead = TestPipeline.create();
 
-  @Parameterized.Parameters(name = "with client class {3}")
-  public static Collection<Object[]> connectionFactories() {
-    return ImmutableList.of(
-        new Object[] {
-          "vm://localhost", 5672, "jms.sendAcksAsync=false", ActiveMQConnectionFactory.class
-        });
+  @Parameterized.Parameters(name = "with client class {3}, use supplier? {4}")
+  public static Collection<Object[]> testParams() {
+    return Stream.of(true, false)
+        .flatMap(
+            useSupplier ->
+                connectionFactoriesParams()
+                    .map(
+                        cfParams -> {
+                          Object[] params = cfParams.toArray(new Object[cfParams.size() + 1]);
+                          params[params.length - 1] = useSupplier;
+                          return params;
+                        }))
+        .collect(Collectors.toList());
+  }
+
+  public static Stream<List<Object>> connectionFactoriesParams() {
+    return Stream.of(
+        ImmutableList.of(
+            "vm://localhost", 5672, "jms.sendAcksAsync=false", ActiveMQConnectionFactory.class));
     // TODO(https://github.com/apache/beam/issues/26175) Test failure on direct runner due to
     //  JmsIO read on amqp slow on CI (passed locally)
     // new Object[] {
@@ -156,12 +172,14 @@ public class JmsIOIT implements Serializable {
       String brokerUrl,
       Integer brokerPort,
       String forceAsyncAcksParam,
-      Class<? extends ConnectionFactory> connectionFactoryClass) {
+      Class<? extends ConnectionFactory> connectionFactoryClass,
+      boolean useSupplier) {
     this.commonJms =
         new CommonJms(
             OPTIONS.isLocalJmsBrokerEnabled() ? brokerUrl : OPTIONS.getJmsBrokerHost(),
             OPTIONS.isLocalJmsBrokerEnabled() ? brokerPort : OPTIONS.getJmsBrokerPort(),
             forceAsyncAcksParam,
+            useSupplier,
             connectionFactoryClass);
   }
 
@@ -169,7 +187,7 @@ public class JmsIOIT implements Serializable {
   public void setup() throws Exception {
     if (OPTIONS.isLocalJmsBrokerEnabled()) {
       this.commonJms.startBroker();
-      connectionFactory = this.commonJms.createConnectionFactory();
+      connectionFactory = this.commonJms.getConnectionFactory();
       connectionFactoryClass = this.commonJms.getConnectionFactoryClass();
       // use a small number of record for local integration test
       OPTIONS.setNumberOfRecords(10000);
@@ -232,12 +250,13 @@ public class JmsIOIT implements Serializable {
     pipelineRead
         .apply(
             "Read Messages",
-            JmsIO.<String>readMessage()
+            commonJms
+                .withConnectionFactory(
+                    JmsIO.<String>readMessage(), commonJms.getConnectionFactorySupplier())
                 .withQueue(QUEUE)
                 .withUsername(USERNAME)
                 .withPassword(PASSWORD)
                 .withCoder(SerializableCoder.of(String.class))
-                .withConnectionFactory(connectionFactory)
                 .withMessageMapper(getJmsMessageMapper()))
         .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC)))
         .apply("Counting element", ParDo.of(new CountingFn(NAMESPACE, READ_ELEMENT_METRIC_NAME)));
@@ -251,12 +270,13 @@ public class JmsIOIT implements Serializable {
         .apply("Collect write time", ParDo.of(new TimeMonitor<>(NAMESPACE, WRITE_TIME_METRIC)))
         .apply(
             "Publish to Jms Broker",
-            JmsIO.<String>write()
+            commonJms
+                .withConnectionFactory(
+                    JmsIO.<String>write(), commonJms.getConnectionFactorySupplier())
                 .withQueue(QUEUE)
                 .withUsername(USERNAME)
                 .withPassword(PASSWORD)
-                .withValueMapper(new TextMessageMapper())
-                .withConnectionFactory(connectionFactory));
+                .withValueMapper(new TextMessageMapper()));
     return pipelineWrite.run();
   }
 
