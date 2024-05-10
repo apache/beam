@@ -1653,7 +1653,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
 
   static class StorageClientImpl implements StorageClient {
 
-    public final Counter throttlingMsecs =
+    public static final Counter throttlingMsecs =
         Metrics.counter(StorageClientImpl.class, "throttling-msecs");
 
     private transient long unreportedDelay = 0L;
