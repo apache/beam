@@ -68,8 +68,9 @@ class TestPipelineTest(unittest.TestCase):
   def test_create_test_pipeline_options(self):
     test_pipeline = TestPipeline(argv=self.TEST_CASE['options'])
     test_options = PipelineOptions(test_pipeline.get_full_options_as_args())
-    self.assertDictContainsSubset(
-        self.TEST_CASE['expected_dict'], test_options.get_all_options())
+    self.assertLessEqual(
+        self.TEST_CASE['expected_dict'].items(),
+        test_options.get_all_options().items())
 
   EXTRA_OPT_CASES = [{
       'options': {
