@@ -17,10 +17,10 @@
  */
 
 /**
- * Unit tests for commont Python components.
+ * Python gradle tasks that run using a default, typically lowest supported,
+ * Python version.
  */
 
-// TODO(https://github.com/apache/beam/issues/20209): See if we can avoid hardcoding python version here.
 plugins { id 'org.apache.beam.module' }
 applyPythonNature()
 
