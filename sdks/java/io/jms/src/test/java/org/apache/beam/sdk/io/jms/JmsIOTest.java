@@ -65,7 +65,6 @@ import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.jms.BytesMessage;
 import javax.jms.Connection;
@@ -98,6 +97,7 @@ import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableBiFunction;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
 import org.apache.qpid.jms.JmsAcknowledgeCallback;
 import org.apache.qpid.jms.JmsConnectionFactory;
@@ -136,20 +136,10 @@ public class JmsIOTest {
 
   @Parameterized.Parameters(name = "with client class {3}, use supplier? {4}")
   public static Collection<Object[]> connectionFactories() {
-    // Every test param list will be exploded into two with a different boolean flag attached, this
-    // way we test two kinds of JmsIOs - one that uses ConnectionFactory directly and the other that
-    // uses a supplier - depending on the value of that flag
-    return Stream.of(true, false)
-        .flatMap(
-            useSupplier ->
-                connectionFactoriesParams()
-                    .map(
-                        paramList -> {
-                          Object[] params = paramList.toArray(new Object[paramList.size() + 1]);
-                          params[params.length - 1] = useSupplier;
-                          return params;
-                        }))
-        .collect(Collectors.toList());
+    return Suppliers.<Stream<List<Object>>>supplierFunction()
+        .andThen(CommonJms::crossProductWithBoolean)
+        .andThen(CommonJms::collectParams)
+        .apply(JmsIOTest::connectionFactoriesParams);
   }
 
   private final CommonJms commonJms;

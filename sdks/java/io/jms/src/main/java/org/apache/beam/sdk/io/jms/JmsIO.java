@@ -188,12 +188,21 @@ public class JmsIO {
     return new AutoValue_JmsIO_Write.Builder<EventT>().build();
   }
 
+  public interface ConnectionFactoryContainer<T extends ConnectionFactoryContainer<T>> {
+
+    T withConnectionFactory(ConnectionFactory connectionFactory);
+
+    T withConnectionFactorySupplier(
+        Supplier<? extends ConnectionFactory> connectionFactorySupplier);
+  }
+
   /**
    * A {@link PTransform} to read from a JMS destination. See {@link JmsIO} for more information on
    * usage and configuration.
    */
   @AutoValue
-  public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>> {
+  public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>>
+      implements ConnectionFactoryContainer<Read<T>> {
 
     private @Nullable transient ConnectionFactory connectionFactory;
 
@@ -219,7 +228,8 @@ public class JmsIO {
      * In case the {@link ConnectionFactory} is not serializable it can be constructed separately on
      * each worker from scratch by providing a {@link Supplier} instead of a ready-made object
      */
-    abstract @Nullable Supplier<? extends ConnectionFactory> getConnectionFactorySupplier();
+    @Nullable
+    abstract Supplier<? extends ConnectionFactory> getConnectionFactorySupplier();
 
     abstract @Nullable String getQueue();
 
@@ -292,6 +302,7 @@ public class JmsIO {
      * @param connectionFactory The JMS {@link ConnectionFactory}.
      * @return The corresponding {@link JmsIO.Read}.
      */
+    @Override
     public Read<T> withConnectionFactory(ConnectionFactory connectionFactory) {
       checkArgument(connectionFactory != null, "connectionFactory can not be null");
       return builder()
@@ -314,6 +325,7 @@ public class JmsIO {
      * @param connectionFactorySupplier a {@link Supplier} that creates a {@link ConnectionFactory}
      * @return The corresponding {@link JmsIO.Read}
      */
+    @Override
     public Read<T> withConnectionFactorySupplier(
         Supplier<? extends ConnectionFactory> connectionFactorySupplier) {
       checkArgument(connectionFactorySupplier != null, "connectionFactorySupplier cannot be null");
@@ -828,7 +840,8 @@ public class JmsIO {
    */
   @AutoValue
   public abstract static class Write<EventT>
-      extends PTransform<PCollection<EventT>, WriteJmsResult<EventT>> {
+      extends PTransform<PCollection<EventT>, WriteJmsResult<EventT>>
+      implements ConnectionFactoryContainer<Write<EventT>> {
 
     private @Nullable transient ConnectionFactory connectionFactory;
 
@@ -896,6 +909,7 @@ public class JmsIO {
      * @param connectionFactory The JMS {@link ConnectionFactory}.
      * @return The corresponding {@link JmsIO.Read}.
      */
+    @Override
     public Write<EventT> withConnectionFactory(ConnectionFactory connectionFactory) {
       checkArgument(connectionFactory != null, "connectionFactory can not be null");
       return builder()
@@ -918,6 +932,7 @@ public class JmsIO {
      * @param connectionFactorySupplier a {@link Supplier} that creates a {@link ConnectionFactory}
      * @return The corresponding {@link JmsIO.Write}
      */
+    @Override
     public Write<EventT> withConnectionFactorySupplier(
         Supplier<? extends ConnectionFactory> connectionFactorySupplier) {
       checkArgument(connectionFactorySupplier != null, "connectionFactorySupplier can not be null");

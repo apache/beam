@@ -21,7 +21,10 @@ import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.jms.BytesMessage;
 import javax.jms.ConnectionFactory;
 import javax.jms.Message;
@@ -36,6 +39,7 @@ import org.apache.activemq.transport.amqp.AmqpTransportFactory;
 import org.apache.beam.sdk.util.ThrowingSupplier;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 /**
  * A common test fixture to create a broker and connection factories for {@link JmsIOIT} & {@link
@@ -196,27 +200,38 @@ public class CommonJms implements Serializable {
     }
   }
 
-  public <T> JmsIO.Read<T> withConnectionFactory(
-      JmsIO.Read<T> read, SerializableSupplier<ConnectionFactory> connectionFactorySupplier) {
+  public <T extends JmsIO.ConnectionFactoryContainer<T>> T withConnectionFactory(
+      T connectionFactoryContainer,
+      SerializableSupplier<ConnectionFactory> connectionFactorySupplier) {
     if (useSupplier) {
-      read = read.withConnectionFactorySupplier(connectionFactorySupplier);
+      connectionFactoryContainer =
+          connectionFactoryContainer.withConnectionFactorySupplier(connectionFactorySupplier);
     } else {
       // unwrap the memoized CF from the supplier and pass it as-is to the connector
-      read = read.withConnectionFactory(connectionFactorySupplier.get());
+      connectionFactoryContainer =
+          connectionFactoryContainer.withConnectionFactory(connectionFactorySupplier.get());
     }
 
-    return read;
+    return connectionFactoryContainer;
   }
 
-  public <T> JmsIO.Write<T> withConnectionFactory(
-      JmsIO.Write<T> write, SerializableSupplier<ConnectionFactory> connectionFactorySupplier) {
-    if (useSupplier) {
-      write = write.withConnectionFactorySupplier(connectionFactorySupplier);
-    } else {
-      // unwrap the memoized CF from the supplier and pass it as-is to the connector
-      write = write.withConnectionFactory(connectionFactorySupplier.get());
-    }
+  // Every test param list will be exploded into two with a different boolean flag attached, this
+  // way we test two kinds of JmsIOs - one that uses ConnectionFactory directly and the other that
+  // uses a supplier - depending on the value of that flag
+  static Stream<List<Object>> crossProductWithBoolean(Stream<List<Object>> paramListStream) {
+    return paramListStream.flatMap(
+        paramList ->
+            Stream.of(true, false)
+                .map(
+                    booleanFlag -> {
+                      ImmutableList.Builder<Object> builder = new ImmutableList.Builder<>();
+                      builder.addAll(paramList);
+                      builder.add(booleanFlag);
+                      return builder.build();
+                    }));
+  }
 
-    return write;
+  static Collection<Object[]> collectParams(Stream<List<Object>> paramListStream) {
+    return paramListStream.map(l -> l.toArray(new Object[0])).collect(Collectors.toList());
   }
 }

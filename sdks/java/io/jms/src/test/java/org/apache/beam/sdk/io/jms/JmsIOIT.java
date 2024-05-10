@@ -33,7 +33,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
@@ -62,6 +61,7 @@ import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
 import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.qpid.jms.JmsConnectionFactory;
 import org.joda.time.Duration;
@@ -140,17 +140,10 @@ public class JmsIOIT implements Serializable {
 
   @Parameterized.Parameters(name = "with client class {3}, use supplier? {4}")
   public static Collection<Object[]> testParams() {
-    return Stream.of(true, false)
-        .flatMap(
-            useSupplier ->
-                connectionFactoriesParams()
-                    .map(
-                        cfParams -> {
-                          Object[] params = cfParams.toArray(new Object[cfParams.size() + 1]);
-                          params[params.length - 1] = useSupplier;
-                          return params;
-                        }))
-        .collect(Collectors.toList());
+    return Suppliers.<Stream<List<Object>>>supplierFunction()
+        .andThen(CommonJms::crossProductWithBoolean)
+        .andThen(CommonJms::collectParams)
+        .apply(JmsIOIT::connectionFactoriesParams);
   }
 
   public static Stream<List<Object>> connectionFactoriesParams() {
