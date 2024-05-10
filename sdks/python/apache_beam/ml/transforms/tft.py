@@ -652,9 +652,9 @@ class HashStrings(TFTOperation):
     Args:
       columns: A list of the column names to apply the transformation on.
       hash_buckets: the number of buckets to hash the strings into.
-      key: optional. An array of two Python `uint64`. If passed, output will be a
-        deterministic function of `strings` and `key`. Note that hashing will be
-        slower if this value is specified.
+      key: optional. An array of two Python `uint64`. If passed, output will be
+        a deterministic function of `strings` and `key`. Note that hashing will
+        be slower if this value is specified.
       name: optional. A name for this operation.
 
     Raises:
