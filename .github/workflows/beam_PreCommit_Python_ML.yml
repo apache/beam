@@ -13,19 +13,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: PreCommit Python
+name: PreCommit Python ML with optional deps
 on:
   pull_request_target:
     branches: [ "master", "release-*" ]
-    paths: [ "model/**","sdks/python/**","release/**", 'release/trigger_all_tests.json', '.github/trigger_files/beam_PreCommit_Python.json']
+    paths: [ "model/**","sdks/python/**","release/**", 'release/trigger_all_tests.json', '.github/trigger_files/beam_PreCommit_Python_ML.json']
   issue_comment:
     types: [created]
   push:
     tags: ['v*']
     branches: ['master', 'release-*']
-    paths: [ "model/**","sdks/python/**","release/**",".github/workflows/beam_PreCommit_Python.yml"]
+    paths: [ "model/**","sdks/python/**","release/**",".github/workflows/beam_PreCommit_Python_ML.yml"]
   schedule:
-    - cron: '0 3/6 * * *'
+    - cron: '45 2/6 * * *'
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -55,22 +55,22 @@ env:
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
 jobs:
-  beam_PreCommit_Python:
+  beam_PreCommit_Python_ML:
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 180
     strategy:
       fail-fast: false
       matrix:
-        job_name: ['beam_PreCommit_Python']
-        job_phrase: ['Run Python PreCommit']
+        job_name: ['beam_PreCommit_Python_ML']
+        job_phrase: ['Run Python_ML PreCommit']
         python_version: ['3.8','3.9','3.10','3.11']
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
-      startsWith(github.event.comment.body, 'Run Python PreCommit')
+      startsWith(github.event.comment.body, 'Run Python_ML PreCommit')
     steps:
       - uses: actions/checkout@v4
       - name: Setup repository
@@ -93,9 +93,9 @@ jobs:
       - name: Run pythonPreCommit
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:python:test-suites:tox:py${{steps.set_py_ver_clean.outputs.py_ver_clean}}:preCommitPy${{steps.set_py_ver_clean.outputs.py_ver_clean}}
+          gradle-command: :sdks:python:test-suites:tox:py${{steps.set_py_ver_clean.outputs.py_ver_clean}}:testPy${{steps.set_py_ver_clean.outputs.py_ver_clean}}ML
           arguments: |
-            -Pposargs="--ignore=apache_beam/dataframe/ --ignore=apache_beam/ml/ --ignore=apache_beam/examples/ --ignore=apache_beam/runners/ --ignore=apache_beam/transforms/" \
+            -Pposargs=apache_beam/ml/ \
             -PpythonVersion=${{ matrix.python_version }}
       - name: Archive Python Test Results
         uses: actions/upload-artifact@v4
