@@ -237,8 +237,9 @@ public final class BigQueryIOST extends IOStressTestBase {
                 .withAvroFormatFunction(
                     new AvroFormatFn(
                         configuration.numColumns,
-                        !(STORAGE_WRITE_API_METHOD.equalsIgnoreCase(configuration.writeMethod) ||
-                            STORAGE_API_AT_LEAST_ONCE_METHOD.equalsIgnoreCase(configuration.writeMethod))));
+                        !(STORAGE_WRITE_API_METHOD.equalsIgnoreCase(configuration.writeMethod)
+                            || STORAGE_API_AT_LEAST_ONCE_METHOD.equalsIgnoreCase(
+                                configuration.writeMethod))));
         break;
       case JSON:
         writeIO =
