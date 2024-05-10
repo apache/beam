@@ -47,6 +47,7 @@ from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.utils import retry
 from apache_beam.utils.annotations import deprecated
+from apache_beam.metrics.metric import Metrics
 
 __all__ = ['GcsIO', 'create_storage_client']
 
@@ -530,10 +531,22 @@ class GcsIO(object):
         updated.microsecond / 1000000.0)
 
 
+def incrementBucketReadCounterMetric(read):
+  def inner(self,*args,**kwargs):
+    bytesRead = read(self)
+    Metrics.counter(self.__class__, "GCS_read_bytes_counter_" + self._blob.bucket.name).inc(len(bytesRead))
+    return bytesRead
+  return inner
+
 class BeamBlobReader(BlobReader):
+
   def __init__(self, blob, chunk_size=DEFAULT_READ_BUFFER_SIZE):
     super().__init__(blob, chunk_size=chunk_size)
     self.mode = "r"
+
+  @incrementBucketReadCounterMetric
+  def read(self):
+    return super().read()
 
 
 class BeamBlobWriter(BlobWriter):
