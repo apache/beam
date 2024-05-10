@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: PreCommit Python ML with optional deps
+name: PreCommit Python ML tests with ML deps installed
 on:
   pull_request_target:
     branches: [ "master", "release-*" ]
