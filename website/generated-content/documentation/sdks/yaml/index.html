@@ -77,7 +77,7 @@ receives input from the <code>Create</code> transform.</li></ul><h3 id=run-the-p
 </span></span></code></pre></div><h3 id=run-the-pipeline-in-dataflow>Run the pipeline in Dataflow</h3><p>You can submit a YAML pipeline to Dataflow by using the
 <a href=https://cloud.google.com/sdk/gcloud>gcloud CLI</a>. To create a Dataflow job
 from the YAML file, use the
-<a href=https://cloud.google.com/sdk/gcloud/reference/beta/dataflow/yaml/run><code>gcloud beta dataflow yaml run</code></a>
+<a href=https://cloud.google.com/sdk/gcloud/reference/dataflow/yaml/run><code>gcloud dataflow yaml run</code></a>
 command:</p><pre tabindex=0><code>gcloud beta dataflow yaml run $JOB_NAME \
   --yaml-pipeline-file=pipeline.yaml \
   --region=$REGION
