@@ -176,7 +176,7 @@ public class BigQuerySinkMetrics {
     // for specific method
     Counter fineCounter = new DelegatingCounter(metricName, false, true);
     // for overall throttling time, used by runner for scaling decision
-    Counter coarseCounter = BigQueryServicesImpl.StorageClientImpl.throttlingMsecs;
+    Counter coarseCounter = BigQueryServicesImpl.StorageClientImpl.THROTTLING_MSECS;
     return new NestedCounter(
         MetricName.named(METRICS_NAMESPACE, "nested"), fineCounter, coarseCounter);
   }
