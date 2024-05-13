@@ -110,7 +110,6 @@ import org.apache.http.ssl.SSLContexts;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.elasticsearch.client.Request;
 import org.elasticsearch.client.Response;
-import org.elasticsearch.client.ResponseException;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestClientBuilder;
 import org.joda.time.Duration;
@@ -2848,8 +2847,7 @@ public class ElasticsearchIO {
             } else {
               elasticResponseExceptionMessage = ex.getMessage();
             }
-          }
-          else {
+          } else {
             LOG.error("Caught ES timeout, retrying", ex);
           }
         }
