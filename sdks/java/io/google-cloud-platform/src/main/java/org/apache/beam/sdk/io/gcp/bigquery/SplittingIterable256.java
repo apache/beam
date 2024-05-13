@@ -147,7 +147,7 @@ class SplittingIterable256 implements Iterable<SplittingIterable256.Value> {
             break;
           }
         }
-        return new AutoValue_SplittingIterable_256_Value(inserts.build(), timestamps);
+        return new AutoValue_SplittingIterable256_Value(inserts.build(), timestamps);
       }
     };
   }
