@@ -128,7 +128,7 @@ class PrecommitJobBuilder {
 
   private Object createBaseJob(nameSuffix, usesRegionFilter = false) {
     def allowRemotePoll = !usesRegionFilter
-    return scope.job("beam_PreCommit_${nameBase}_${nameSuffix}") {
+    return scope.job("PreCommit_${nameBase}_${nameSuffix}") {
       commonJobProperties.setTopLevelMainJobProperties(delegate,
           'master',
           timeoutMins,

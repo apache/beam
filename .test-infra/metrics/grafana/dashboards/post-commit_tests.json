@@ -161,7 +161,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  DATE_TRUNC('week', build_timestamp) as time,\n  avg(\n  case \n    when build_result = 'SUCCESS' then 1\n    else 0\n  end) as value,\n  substring(job_name from 'beam_#\"%#\"' for '#') as job_name\nFROM\n  jenkins_builds\nWHERE\n  (build_timestamp BETWEEN $__timeFrom() AND $__timeTo())\n  AND (((job_name LIKE 'beam_PostCommit_%')\n  AND NOT (job_name like '%_PR')) OR job_name like '%_Cron')\nGROUP BY\n  time, job_name\norder BY\n  time, job_name\n",
+          "rawSql": "SELECT\n  DATE_TRUNC('week', build_timestamp) as time,\n  avg(\n  case \n    when build_result = 'SUCCESS' then 1\n    else 0\n  end) as value,\n  substring(job_name from 'beam_#\"%#\"' for '#') as job_name\nFROM\n  jenkins_builds\nWHERE\n  (build_timestamp BETWEEN $__timeFrom() AND $__timeTo())\n  AND (((job_name LIKE 'PostCommit_%')\n  AND NOT (job_name like '%_PR')) OR job_name like '%_Cron')\nGROUP BY\n  time, job_name\norder BY\n  time, job_name\n",
           "refId": "A",
           "select": [
             [
@@ -306,7 +306,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  DATE_TRUNC('day', build_timestamp) as time,\n  avg(\n  case \n    when build_result = 'SUCCESS' then 1\n    else 0\n  end) as value,\n  substring(job_name from 'beam_PostCommit_#\"%#\"' for '#') as job_name\nFROM\n  jenkins_builds\nWHERE\n  (build_timestamp BETWEEN $__timeFrom() AND $__timeTo())\n  AND (job_name LIKE 'beam_PostCommit_%')\n  AND NOT (job_name like '%_PR')\nGROUP BY\n  time, job_name\norder BY\n  time, job_name\n",
+          "rawSql": "SELECT\n  DATE_TRUNC('day', build_timestamp) as time,\n  avg(\n  case \n    when build_result = 'SUCCESS' then 1\n    else 0\n  end) as value,\n  substring(job_name from 'PostCommit_#\"%#\"' for '#') as job_name\nFROM\n  jenkins_builds\nWHERE\n  (build_timestamp BETWEEN $__timeFrom() AND $__timeTo())\n  AND (job_name LIKE 'PostCommit_%')\n  AND NOT (job_name like '%_PR')\nGROUP BY\n  time, job_name\norder BY\n  time, job_name\n",
           "refId": "A",
           "select": [
             [
@@ -545,7 +545,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT \n  build_url,\n  job_name,\n  build_id,\n  build_timestamp\nFROM jenkins_builds\nWHERE \n  (build_timestamp BETWEEN $__timeFrom() AND $__timeTo())\n  AND (job_name LIKE 'beam_PostCommit_%')\n  AND NOT (job_name LIKE '%_PR')\n  AND NOT (build_result = 'SUCCESS')\nORDER BY \n  build_timestamp",
+          "rawSql": "SELECT \n  build_url,\n  job_name,\n  build_id,\n  build_timestamp\nFROM jenkins_builds\nWHERE \n  (build_timestamp BETWEEN $__timeFrom() AND $__timeTo())\n  AND (job_name LIKE 'PostCommit_%')\n  AND NOT (job_name LIKE '%_PR')\n  AND NOT (build_result = 'SUCCESS')\nORDER BY \n  build_timestamp",
           "refId": "A",
           "select": [
             [
@@ -662,7 +662,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  build_timestamp as time,\n  build_duration as value,\n  substring(job_name from 'beam_PostCommit_#\"%#\"' for '#') as metric\nFROM\n  jenkins_builds\nWHERE\n  (build_timestamp BETWEEN $__timeFrom() AND $__timeTo())\n  AND (job_name LIKE 'beam_PostCommit_%')\n  AND NOT (job_name LIKE '%_PR')\nORDER BY\n  time, job_name",
+          "rawSql": "SELECT\n  build_timestamp as time,\n  build_duration as value,\n  substring(job_name from 'PostCommit_#\"%#\"' for '#') as metric\nFROM\n  jenkins_builds\nWHERE\n  (build_timestamp BETWEEN $__timeFrom() AND $__timeTo())\n  AND (job_name LIKE 'PostCommit_%')\n  AND NOT (job_name LIKE '%_PR')\nORDER BY\n  time, job_name",
           "refId": "A",
           "select": [
             [

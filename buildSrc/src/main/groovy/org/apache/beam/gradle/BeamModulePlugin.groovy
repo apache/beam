@@ -1248,7 +1248,7 @@ class BeamModulePlugin implements Plugin<Project> {
       // TODO: Figure out whether we should force all dependency conflict resolution
       // to occur in the "shadow" and "shadowTest" configurations.
       project.configurations.all { config ->
-        // When running beam_Dependency_Check, resolutionStrategy should not be used; otherwise
+        // When running Dependency_Check, resolutionStrategy should not be used; otherwise
         // gradle-versions-plugin does not report the latest versions of the dependencies.
         def startTasks = project.gradle.startParameter.taskNames
         def inDependencyUpdates = 'dependencyUpdates' in startTasks || 'runBeamDependencyCheck' in startTasks

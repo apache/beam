@@ -38,7 +38,7 @@ task check {
       def workflow = new org.yaml.snakeyaml.Yaml().load(it.newInputStream())
 
       // additional guards to ensure tests configured in same way
-      if ( fname.startsWith("beam_PreCommit") || fname.startsWith("beam_PostCommit") ) {
+      if ( fname.startsWith("PreCommit") || fname.startsWith("PostCommit") ) {
         List paths
         try {
           paths = workflow.getAt(true).pull_request_target.paths as List
@@ -59,7 +59,7 @@ task check {
         // postcommit should triggered by a specific file so that there is a way to exercise post for open PR
         // TODO(https://github.com/apache/beam/issues/28909)
         //  remove file match trigger once a better trigger (e.g. comment trigger) is implemented
-        if (fname.startsWith("beam_PostCommit")) {
+        if (fname.startsWith("PostCommit")) {
           String triggerFile = '.github/trigger_files/' + fname.take(fname.lastIndexOf('.')) + '.json'
           if (paths != null && !paths.contains(triggerFile)) {
             errors.add("Error validating ${fname}: " +

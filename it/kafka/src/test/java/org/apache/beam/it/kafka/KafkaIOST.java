@@ -62,7 +62,7 @@ import org.junit.Test;
  * KafkaIO stress tests. The test is designed to assess the performance of KafkaIO under various
  * conditions. To run the test, a live remote Kafka broker is required. You can deploy Kafka within
  * a Kubernetes cluster following the example described here: {@link
- * .github/workflows/beam_PerformanceTests_Kafka_IO.yml} If you choose to use Kubernetes, it's
+ * .github/workflows/PerformanceTests_Kafka_IO.yml} If you choose to use Kubernetes, it's
  * important to remember that each pod should have a minimum of 10GB memory allocated. Additionally,
  * when running the test, it's necessary to pass the addresses of Kafka bootstrap servers as an
  * argument.

@@ -278,7 +278,7 @@ The following must be manually done or confirmed:
 - [ ] The `master` branch has the SNAPSHOT/dev version incremented.
 - [ ] The release branch has the SNAPSHOT/dev version to be released.
 - [ ] The Dataflow container image should be modified to the version to be released.
-- [ ] Due to current limitation in the workflow, you must navigate to https://github.com/apache/beam/actions/workflows/beam_Release_NightlySnapshot.yml and click "Run workflow" and select the branch just created (release-2.xx.0) to build a snapshot.
+- [ ] Due to current limitation in the workflow, you must navigate to https://github.com/apache/beam/actions/workflows/Release_NightlySnapshot.yml and click "Run workflow" and select the branch just created (release-2.xx.0) to build a snapshot.
 - [ ] Manually update `CHANGES.md` on `master` by adding a new section for the
   next release
   ([example](https://github.com/apache/beam/commit/96ab1fb3fe07acf7f7dc9d8c829ae36890d1535c)).
@@ -623,7 +623,7 @@ redirects for the 'current' version, merge these PRs in the order listed.  Once
 the PR is merged, the new contents will get picked up automatically and served
 to the Beam website, usually within an hour.  A committer can manually trigger
 the
-[beam_PostCommit_Website_Publish](https://ci-beam.apache.org/job/beam_PostCommit_Website_Publish/)
+[PostCommit_Website_Publish](https://ci-beam.apache.org/job/PostCommit_Website_Publish/)
 task in Jenkins to avoid waiting.
 
 **PR 1: apache/beam-site**
@@ -900,7 +900,7 @@ write to BigQuery, and create a cluster of machines for running containers (for 
 - [ ] Run Java quickstart (wordcount) and mobile game examples with the staged artifacts. The easiest way to do this is by running the tests on GitHub Actions.
 
 - Other manual validation will follow, but this will at least validate that the staged artifacts can be used.
-     * Go to https://github.com/apache/beam/actions/workflows/beam_PostRelease_NightlySnapshot.yml/.
+     * Go to https://github.com/apache/beam/actions/workflows/PostRelease_NightlySnapshot.yml/.
      * Click "Run Workflow".
      * Set `RELEASE` to `2.xx.0`, and set `SNAPSHOT_URL` to point to the staged artifacts in Maven central (https://repository.apache.org/content/repositories/orgapachebeam-NNNN/).
      * Click "Build".
@@ -1326,7 +1326,7 @@ A PR should have already been created (and possibly merged) by github-actions bo
 by looking at open PRs from that bot - https://github.com/apache/beam/pulls/app%2Fgithub-actions
 
 If a PR has not been merged, drive it to completion.
-If no PR was created, triage any failures in https://github.com/apache/beam/actions/workflows/beam_Publish_Website.yml and manually regenerate dependencies,
+If no PR was created, triage any failures in https://github.com/apache/beam/actions/workflows/Publish_Website.yml and manually regenerate dependencies,
 following https://cwiki.apache.org/confluence/display/BEAM/Python+Tips#PythonTips-HowtoupdatedependenciesthatareinstalledinPythoncontainerimages
 
 ### Update the Java starter repo
