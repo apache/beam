@@ -2841,17 +2841,17 @@ public class ElasticsearchIO {
           request.setEntity(requestBody);
           response = restClient.performRequest(request);
           responseEntity = new BufferedHttpEntity(response.getEntity());
-        } catch (ResponseException ex) {
-          if (spec.getThrowWriteErrors()) {
-            throw ex;
-          } else {
-            elasticResponseExceptionMessage = ex.getMessage();
-          }
         } catch (java.io.IOException ex) {
           if (spec.getRetryConfiguration() == null || !isRetryableClientException(ex)) {
-            throw ex;
+            if (spec.getThrowWriteErrors()) {
+              throw ex;
+            } else {
+              elasticResponseExceptionMessage = ex.getMessage();
+            }
           }
-          LOG.error("Caught ES timeout, retrying", ex);
+          else {
+            LOG.error("Caught ES timeout, retrying", ex);
+          }
         }
 
         if (spec.getRetryConfiguration() != null
