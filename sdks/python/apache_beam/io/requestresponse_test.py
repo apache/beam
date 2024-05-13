@@ -18,6 +18,10 @@ import logging
 import time
 import unittest
 
+from tenacity import retry
+from tenacity import retry_if_exception_type
+from tenacity import stop_after_attempt
+
 import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
 
@@ -134,39 +138,32 @@ class TestCaller(unittest.TestCase):
             | RequestResponseIO(caller=caller, repeater=None))
     self.assertRegex(cm.exception.message, 'retries = 0')
 
+  @retry(
+      retry=retry_if_exception_type(IndexError),
+      reraise=True,
+      stop=stop_after_attempt(MAX_TEST_RETRIES))
   def test_default_throttler(self):
-    for i in range(MAX_TEST_RETRIES):
-      try:
-        caller = CallerWithTimeout()
-        throttler = DefaultThrottler(
-            window_ms=10000, bucket_ms=5000, overload_ratio=1)
-        # manually override the number of received requests for testing.
-        throttler.throttler._all_requests.add(time.time() * 1000, 100)
-        test_pipeline = TestPipeline()
-        _ = (
-            test_pipeline
-            | beam.Create(['sample_request'])
-            | RequestResponseIO(caller=caller, throttler=throttler))
-        result = test_pipeline.run()
-        result.wait_until_finish()
-        metrics = result.metrics().query(
-            beam.metrics.MetricsFilter().with_name('throttled_requests'))
-        self.assertEqual(metrics['counters'][0].committed, 1)
-        metrics = result.metrics().query(
-            beam.metrics.MetricsFilter().with_name(
-                'cumulativeThrottlingSeconds'))
-        self.assertGreater(metrics['counters'][0].committed, 0)
-        metrics = result.metrics().query(
-            beam.metrics.MetricsFilter().with_name('responses'))
-        self.assertEqual(metrics['counters'][0].committed, 1)
-      except IndexError:
-        if i != MAX_TEST_RETRIES - 1:
-          _LOGGER.warning(
-              'Retry %s: Metrics were expected but not found' % i + 1)
-          continue
-        raise IndexError('List index out of range. Metrics not found.')
-      else:
-        break
+    caller = CallerWithTimeout()
+    throttler = DefaultThrottler(
+        window_ms=10000, bucket_ms=5000, overload_ratio=1)
+    # manually override the number of received requests for testing.
+    throttler.throttler._all_requests.add(time.time() * 1000, 100)
+    test_pipeline = TestPipeline()
+    _ = (
+        test_pipeline
+        | beam.Create(['sample_request'])
+        | RequestResponseIO(caller=caller, throttler=throttler))
+    result = test_pipeline.run()
+    result.wait_until_finish()
+    metrics = result.metrics().query(
+        beam.metrics.MetricsFilter().with_name('throttled_requests'))
+    self.assertEqual(metrics['counters'][0].committed, 1)
+    metrics = result.metrics().query(
+        beam.metrics.MetricsFilter().with_name('cumulativeThrottlingSeconds'))
+    self.assertGreater(metrics['counters'][0].committed, 0)
+    metrics = result.metrics().query(
+        beam.metrics.MetricsFilter().with_name('responses'))
+    self.assertEqual(metrics['counters'][0].committed, 1)
 
 
 if __name__ == '__main__':
