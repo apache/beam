@@ -133,9 +133,11 @@ class VertexAIModelHandlerJSON(ModelHandler[Any,
     # Check for liveness here but don't try to actually store the endpoint
     # in the class yet
     self.endpoint_name = endpoint_id
+    self.location = location
     self.is_private = private
 
-    _ = self._retrieve_endpoint(self.endpoint_name, self.is_private)
+    _ = self._retrieve_endpoint(
+        self.endpoint_name, self.location, self.is_private)
 
     # Configure AdaptiveThrottler and throttling metrics for client-side
     # throttling behavior.
@@ -147,7 +149,8 @@ class VertexAIModelHandlerJSON(ModelHandler[Any,
         window_ms=1, bucket_ms=1, overload_ratio=2)
 
   def _retrieve_endpoint(
-      self, endpoint_id: str, is_private: bool) -> aiplatform.Endpoint:
+      self, endpoint_id: str, location: str,
+      is_private: bool) -> aiplatform.Endpoint:
     """Retrieves an AI Platform endpoint and queries it for liveness/deployed
     models.
 
@@ -162,10 +165,11 @@ class VertexAIModelHandlerJSON(ModelHandler[Any,
     """
     if is_private:
       endpoint: aiplatform.Endpoint = aiplatform.PrivateEndpoint(
-          endpoint_name=endpoint_id)
+          endpoint_name=endpoint_id, location=location)
       LOGGER.debug("Treating endpoint %s as private", endpoint_id)
     else:
-      endpoint = aiplatform.Endpoint(endpoint_name=endpoint_id)
+      endpoint = aiplatform.Endpoint(
+          endpoint_name=endpoint_id, location=location)
       LOGGER.debug("Treating endpoint %s as public", endpoint_id)
 
     try:
@@ -185,7 +189,8 @@ class VertexAIModelHandlerJSON(ModelHandler[Any,
     """
     # Check to make sure the endpoint is still active since pipeline
     # construction time
-    ep = self._retrieve_endpoint(self.endpoint_name, self.is_private)
+    ep = self._retrieve_endpoint(
+        self.endpoint_name, self.location, self.is_private)
     return ep
 
   @retry.with_exponential_backoff(

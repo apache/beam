@@ -99,6 +99,8 @@ ISORT_EXCLUDED=(
   "process_tfma.py"
   "doctests_test.py"
   "render_test.py"
+  "yaml/main.py"
+  "main_test.py"
 )
 SKIP_PARAM=""
 for file in "${ISORT_EXCLUDED[@]}"; do

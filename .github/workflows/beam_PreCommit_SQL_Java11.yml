@@ -82,8 +82,8 @@ jobs:
         uses: ./.github/actions/setup-environment-action
         with:
           java-version: 11
-          python-version: 3.8
-          go-version: 1.21
+          python-version: default
+          go-version: default
       - name: Install Flutter
         uses: subosito/flutter-action@v2
         with:

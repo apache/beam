@@ -78,8 +78,24 @@ def nop(unused_state, unused_arg):
   pass
 
 
+resume = nop
+
+
 def pop_top(state, unused_arg):
   state.stack.pop()
+
+
+def end_for(state, unused_arg):
+  state.stack.pop()
+  state.stack.pop()
+
+
+def end_send(state, unused_arg):
+  del state.stack[-2]
+
+
+def copy(state, arg):
+  state.stack.append(state.stack[-arg])
 
 
 def rot_n(state, n):
@@ -186,6 +202,31 @@ binary_op = symmetric_binary_op
 def store_subscr(unused_state, unused_args):
   # TODO(robertwb): Update element/value type of iterable/dict.
   pass
+
+
+def binary_slice(state, args):
+  _ = state.stack.pop()
+  _ = state.stack.pop()
+  base = Const.unwrap(state.stack.pop())
+  if base is str:
+    out = base
+  elif isinstance(base, typehints.IndexableTypeConstraint):
+    out = base
+  else:
+    out = element_type(base)
+  state.stack.append(out)
+
+
+def store_slice(state, args):
+  """Clears elements off the stack like it was constructing a 
+  container, but leaves the container type back at stack[-1]
+  since that's all that is relevant for type checking.
+  """
+  _ = state.stack.pop()  # End
+  _ = state.stack.pop()  # Start
+  container = state.stack.pop()  # Container type
+  _ = state.stack.pop()  # Values that would go in container
+  state.stack.append(container)
 
 
 print_item = pop_top
@@ -347,6 +388,14 @@ def load_attr(state, arg):
   Will replace with Any for builtin methods, but these don't have bytecode in
   CPython so that's okay.
   """
+  if (sys.version_info.major, sys.version_info.minor) >= (3, 12):
+    # Load attribute's arg was bit-shifted in 3.12 to also allow for
+    # adding extra information to the stack based on the lower byte,
+    # so we have to adjust it back.
+    #
+    # See https://docs.python.org/3/library/dis.html#opcode-LOAD_ATTR
+    # for more information.
+    arg = arg >> 1
   o = state.stack.pop()
   name = state.get_name(arg)
   state.stack.append(_getattr(o, name))
@@ -417,12 +466,28 @@ def load_fast(state, arg):
   state.stack.append(state.vars[arg])
 
 
+load_fast_check = load_fast
+
+
+def load_fast_and_clear(state, arg):
+  state.stack.append(state.vars[arg])
+  state.vars[arg] = None
+
+
 def store_fast(state, arg):
   state.vars[arg] = state.stack.pop()
 
 
 def delete_fast(state, arg):
   state.vars[arg] = Any  # really an error
+
+
+def swap(state, arg):
+  state.stack[-arg], state.stack[-1] = state.stack[-1], state.stack[-arg]
+
+
+def reraise(state, arg):
+  pass
 
 
 # bpo-43683 Adds GEN_START in Python 3.10, but removed in Python 3.11

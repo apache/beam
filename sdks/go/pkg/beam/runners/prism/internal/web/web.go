@@ -27,6 +27,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"html/template"
+	"io"
 	"net/http"
 	"sort"
 	"strings"
@@ -372,15 +373,36 @@ type jobCancelHandler struct {
 	Jobcli jobpb.JobServiceClient
 }
 
+type cancelJobRequest struct {
+	JobID string `json:"job_id"`
+}
+
 func (h *jobCancelHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	var cancelRequest *jobpb.CancelJobRequest
-	if err := json.NewDecoder(r.Body).Decode(&cancelRequest); err != nil {
-		err = fmt.Errorf("error parsing JSON of request: %w", err)
+	var cancelRequest *cancelJobRequest
+	if r.Method != http.MethodPost {
+		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+		return
+	}
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		err = fmt.Errorf("could not read request body: %w", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if len(body) == 0 {
+		http.Error(w, "empty request body", http.StatusBadRequest)
+		return
+	}
+	if err := json.Unmarshal(body, &cancelRequest); err != nil {
+		err = fmt.Errorf("error parsing JSON: %s of request: %w", body, err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	resp, err := h.Jobcli.Cancel(r.Context(), cancelRequest)
+	// Forward JobId from POST body avoids direct json Unmarshall on composite types containing protobuf message types.
+	resp, err := h.Jobcli.Cancel(r.Context(), &jobpb.CancelJobRequest{
+		JobId: cancelRequest.JobID,
+	})
 	if err != nil {
 		statusCode := status.Code(err)
 		httpCode := http.StatusInternalServerError
@@ -405,10 +427,10 @@ func Initialize(ctx context.Context, port int, jobcli jobpb.JobServiceClient) er
 	mux := http.NewServeMux()
 
 	mux.Handle("/assets/", assetsFs)
+	mux.Handle("/job/cancel/", &jobCancelHandler{Jobcli: jobcli})
 	mux.Handle("/job/", &jobDetailsHandler{Jobcli: jobcli})
 	mux.Handle("/debugz", &debugzHandler{})
 	mux.Handle("/", &jobsConsoleHandler{Jobcli: jobcli})
-	mux.Handle("/job/cancel", &jobCancelHandler{Jobcli: jobcli})
 
 	endpoint := fmt.Sprintf("localhost:%d", port)
 

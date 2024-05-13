@@ -420,7 +420,7 @@ class DataflowRunner(PipelineRunner):
            for pcoll in self.proto_pipeline.components.pcollections.values()):
       if (not options.view_as(StandardOptions).streaming and
           not options.view_as(DebugOptions).lookup_experiment(
-              'allow_unbounded_pcollections_in_batch_mode')):
+              'unsafely_attempt_to_process_unbounded_data_in_batch_mode')):
         _LOGGER.info(
             'Automatically inferring streaming mode '
             'due to unbounded PCollections.')

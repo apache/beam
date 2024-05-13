@@ -133,6 +133,8 @@ pip_dependencies:
     license: "https://github.com/PiotrDabkowski/pyjsparser/blob/master/LICENSE"
   pymongo:
     license: "https://raw.githubusercontent.com/mongodb/mongo-python-driver/master/LICENSE"
+  pyproject_hooks:
+    license: "https://raw.githubusercontent.com/pypa/pyproject-hooks/main/LICENSE"
   python-gflags:
     license: "https://raw.githubusercontent.com/google/python-gflags/master/COPYING"
   pyvcf:

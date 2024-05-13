@@ -302,6 +302,14 @@ public interface BigQueryServices extends Serializable {
     SplitReadStreamResponse splitReadStream(SplitReadStreamRequest request, String fullTableId);
 
     /**
+     * Call this method on Work Item thread to report outstanding metrics.
+     *
+     * <p>Because incrementing metrics is only supported on the execution thread, callback thread
+     * that has pending metrics cannot report it directly.
+     */
+    default void reportPendingMetrics() {}
+
+    /**
      * Close the client object.
      *
      * <p>The override is required since {@link AutoCloseable} allows the close method to raise an

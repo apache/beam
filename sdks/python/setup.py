@@ -167,7 +167,7 @@ else:
 # Exclude 1.5.0 and 1.5.1 because of
 # https://github.com/pandas-dev/pandas/issues/45725
 dataframe_dependency = [
-    'pandas>=1.4.3,!=1.5.0,!=1.5.1,<2.1;python_version>="3.8"',
+    'pandas>=1.4.3,!=1.5.0,!=1.5.1,<2.2;python_version>="3.8"',
 ]
 
 
@@ -406,19 +406,22 @@ if __name__ == '__main__':
       # BEAM-8840: Do NOT use tests_require or setup_requires.
       extras_require={
           'docs': [
+              'jinja2>=3.0,<3.1',
               'Sphinx>=1.5.2,<2.0',
               'docstring-parser>=0.15,<1.0',
               # Pinning docutils as a workaround for Sphinx issue:
               # https://github.com/sphinx-doc/sphinx/issues/9727
               'docutils==0.17.1',
-              'pandas<2.1.0',
+              'jinja2>=3.0,<3.1',
+              'pandas<2.2.0',
           ],
           'test': [
               'docstring-parser>=0.15,<1.0',
               'freezegun>=0.3.12',
+              'jinja2>=3.0,<3.1',
               'joblib>=1.0.1',
               'mock>=1.0.1,<6.0.0',
-              'pandas<2.1.0',
+              'pandas<2.2.0',
               'parameterized>=0.7.1,<0.10.0',
               'pyhamcrest>=1.9,!=1.10.0,<3.0.0',
               'pyyaml>=3.12,<7.0.0',
@@ -496,6 +499,7 @@ if __name__ == '__main__':
           ],
           'yaml': [
               'docstring-parser>=0.15,<1.0',
+              'jinja2>=3.0,<3.1',
               'pyyaml>=3.12,<7.0.0',
               'virtualenv-clone>=0.5,<1.0',
           ] + dataframe_dependency

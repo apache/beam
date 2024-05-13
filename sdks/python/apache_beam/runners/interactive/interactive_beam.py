@@ -405,10 +405,10 @@ class Clusters:
   To configure a pipeline to run on a local FlinkRunner, explicitly set the
   default cluster metadata to None: ib.clusters.set_default_cluster(None).
   """
-  # Explicitly set the Flink version here to ensure compatibility with 2.0
+  # Explicitly set the Flink version here to ensure compatibility with 2.1
   # Dataproc images:
-  # https://cloud.google.com/dataproc/docs/concepts/versioning/dataproc-release-2.0
-  DATAPROC_FLINK_VERSION = '1.12'
+  # https://cloud.google.com/dataproc/docs/concepts/versioning/dataproc-release-2.1
+  DATAPROC_FLINK_VERSION = '1.15'
 
   # The minimum worker number to create a Dataproc cluster.
   DATAPROC_MINIMUM_WORKER_NUM = 2
