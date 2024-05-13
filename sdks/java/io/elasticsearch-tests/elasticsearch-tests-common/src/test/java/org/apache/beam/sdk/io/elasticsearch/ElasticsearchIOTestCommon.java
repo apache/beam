@@ -475,7 +475,7 @@ class ElasticsearchIOTestCommon implements Serializable {
 
     List<String> data =
         ElasticsearchIOTestUtils.createDocuments(
-                numDocs, ElasticsearchIOTestUtils.InjectionMode.INJECT_ONE_ID_TOO_LONG_DOC);
+            numDocs, ElasticsearchIOTestUtils.InjectionMode.INJECT_ONE_ID_TOO_LONG_DOC);
 
     PCollectionTuple outputs = pipeline.apply(Create.of(data)).apply(write);
     PCollection<String> success =
@@ -488,7 +488,8 @@ class ElasticsearchIOTestCommon implements Serializable {
             .get(Write.FAILED_WRITES)
             .apply("Convert fails to input ID", MapElements.via(mapToInputIdString));
 
-    Set<String> failedIds = IntStream.range(0, data.size() - 1).mapToObj(String::valueOf).collect(Collectors.toSet());
+    Set<String> failedIds =
+        IntStream.range(0, data.size() - 1).mapToObj(String::valueOf).collect(Collectors.toSet());
     failedIds.add(INVALID_LONG_ID);
     PAssert.that(success).empty();
     PAssert.that(fail).containsInAnyOrder(failedIds);

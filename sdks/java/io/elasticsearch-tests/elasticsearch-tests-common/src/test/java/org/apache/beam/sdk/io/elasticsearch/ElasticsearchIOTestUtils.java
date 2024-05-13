@@ -344,20 +344,20 @@ class ElasticsearchIOTestUtils {
       if (InjectionMode.INJECT_SOME_INVALID_DOCS.equals(injectionMode)
           && INVALID_DOCS_IDS.contains(i)) {
         data.add(String.format("{\"scientist\";\"%s\", \"id\":%s}", FAMOUS_SCIENTISTS[index], i));
-      }
-      else {
+      } else {
         data.add(
             String.format(
                 "{\"scientist\":\"%s\", \"id\":%s, \"@timestamp\" : \"%s\"}",
                 FAMOUS_SCIENTISTS[index], i, baseDateTime.plusSeconds(i).toString()));
       }
     }
-    // insert 1 additional id too long doc. It should trigger org.elasticsearch.client.ResponseException.
+    // insert 1 additional id too long doc. It should trigger
+    // org.elasticsearch.client.ResponseException.
     if (InjectionMode.INJECT_ONE_ID_TOO_LONG_DOC.equals(injectionMode)) {
       data.add(
-              String.format(
-                      "{\"scientist\":\"invalid_scientist\", \"id\":%s, \"@timestamp\" : \"%s\"}",
-                      INVALID_LONG_ID, baseDateTime));
+          String.format(
+              "{\"scientist\":\"invalid_scientist\", \"id\":%s, \"@timestamp\" : \"%s\"}",
+              INVALID_LONG_ID, baseDateTime));
     }
     return data;
   }
