@@ -28,7 +28,6 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
-import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
@@ -51,20 +50,18 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Duration;
 
 /** This {@link PTransform} manages loads into BigQuery using the Storage API. */
-public class StorageApiLoads<DestinationT, ElementT>
+public class StorageApiLoads_256<DestinationT, ElementT>
     extends PTransform<PCollection<KV<DestinationT, ElementT>>, WriteResult> {
-  final TupleTag<KV<DestinationT, KV<ElementT, StorageApiWritePayload>>>
-      successfulConvertedRowsTag = new TupleTag<>("successfulRows");
+  final TupleTag<KV<DestinationT, StorageApiWritePayload>> successfulConvertedRowsTag =
+      new TupleTag<>("successfulRows");
 
   final TupleTag<BigQueryStorageApiInsertError> failedRowsTag = new TupleTag<>("failedRows");
 
   @Nullable TupleTag<TableRow> successfulWrittenRowsTag;
   private final Coder<DestinationT> destinationCoder;
-  private final Coder<ElementT> elementCoder;
   private final StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations;
 
   private final @Nullable SerializableFunction<ElementT, RowMutationInformation> rowUpdateFn;
-  private final @Nullable SerializableFunction<ElementT, TableRow> formatRecordOnFailureFunction;
   private final CreateDisposition createDisposition;
   private final String kmsKey;
   private final Duration triggeringFrequency;
@@ -82,12 +79,10 @@ public class StorageApiLoads<DestinationT, ElementT>
 
   private final ErrorHandler<BadRecord, ?> badRecordErrorHandler;
 
-  public StorageApiLoads(
+  public StorageApiLoads_256(
       Coder<DestinationT> destinationCoder,
-      Coder<ElementT> elementCoder,
       StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations,
       @Nullable SerializableFunction<ElementT, RowMutationInformation> rowUpdateFn,
-      @Nullable SerializableFunction<ElementT, TableRow> formatRecordOnFailureFunction,
       CreateDisposition createDisposition,
       String kmsKey,
       Duration triggeringFrequency,
@@ -103,10 +98,8 @@ public class StorageApiLoads<DestinationT, ElementT>
       BadRecordRouter badRecordRouter,
       ErrorHandler<BadRecord, ?> badRecordErrorHandler) {
     this.destinationCoder = destinationCoder;
-    this.elementCoder = elementCoder;
     this.dynamicDestinations = dynamicDestinations;
     this.rowUpdateFn = rowUpdateFn;
-    this.formatRecordOnFailureFunction = formatRecordOnFailureFunction;
     this.createDisposition = createDisposition;
     this.kmsKey = kmsKey;
     this.triggeringFrequency = triggeringFrequency;
@@ -135,33 +128,6 @@ public class StorageApiLoads<DestinationT, ElementT>
 
   @Override
   public WriteResult expand(PCollection<KV<DestinationT, ElementT>> input) {
-    if (StreamingOptions.updateCompatibilityVersionLessThan(
-        input.getPipeline().getOptions(), "2.57.0")) {
-      if (formatRecordOnFailureFunction != null) {
-        throw new IllegalArgumentException(
-            "Formatting records on Failure is not supported on Beam Versions Less than 2.57");
-      }
-      StorageApiLoads_256<DestinationT, ElementT> legacy =
-          new StorageApiLoads_256<DestinationT, ElementT>(
-              destinationCoder,
-              dynamicDestinations,
-              rowUpdateFn,
-              createDisposition,
-              kmsKey,
-              triggeringFrequency,
-              bqServices,
-              numShards,
-              allowInconsistentWrites,
-              allowAutosharding,
-              autoUpdateSchema,
-              ignoreUnknownValues,
-              null != successfulWrittenRowsTag,
-              usesCdc,
-              defaultMissingValueInterpretation,
-              badRecordRouter,
-              badRecordErrorHandler);
-      return input.apply(legacy);
-    }
     Coder<StorageApiWritePayload> payloadCoder;
     try {
       payloadCoder =
@@ -169,8 +135,8 @@ public class StorageApiLoads<DestinationT, ElementT>
     } catch (NoSuchSchemaException e) {
       throw new RuntimeException(e);
     }
-    Coder<KV<DestinationT, KV<ElementT, StorageApiWritePayload>>> successCoder =
-        KvCoder.of(destinationCoder, KvCoder.of(elementCoder, payloadCoder));
+    Coder<KV<DestinationT, StorageApiWritePayload>> successCoder =
+        KvCoder.of(destinationCoder, payloadCoder);
     if (allowInconsistentWrites) {
       return expandInconsistent(input, successCoder);
     } else {
@@ -182,14 +148,14 @@ public class StorageApiLoads<DestinationT, ElementT>
 
   public WriteResult expandInconsistent(
       PCollection<KV<DestinationT, ElementT>> input,
-      Coder<KV<DestinationT, KV<ElementT, StorageApiWritePayload>>> successCoder) {
+      Coder<KV<DestinationT, StorageApiWritePayload>> successCoder) {
     PCollection<KV<DestinationT, ElementT>> inputInGlobalWindow =
         input.apply("rewindowIntoGlobal", Window.into(new GlobalWindows()));
 
     PCollectionTuple convertMessagesResult =
         inputInGlobalWindow.apply(
             "Convert",
-            new StorageApiConvertMessages<>(
+            new StorageApiConvertMessages_256<>(
                 dynamicDestinations,
                 bqServices,
                 failedRowsTag,
@@ -197,14 +163,13 @@ public class StorageApiLoads<DestinationT, ElementT>
                 BigQueryStorageApiInsertErrorCoder.of(),
                 successCoder,
                 rowUpdateFn,
-                badRecordRouter,
-                formatRecordOnFailureFunction));
+                badRecordRouter));
     PCollectionTuple writeRecordsResult =
         convertMessagesResult
             .get(successfulConvertedRowsTag)
             .apply(
                 "StorageApiWriteInconsistent",
-                new StorageApiWriteRecordsInconsistent<>(
+                new StorageApiWriteRecordsInconsistent_256<>(
                     dynamicDestinations,
                     bqServices,
                     failedRowsTag,
@@ -216,8 +181,7 @@ public class StorageApiLoads<DestinationT, ElementT>
                     createDisposition,
                     kmsKey,
                     usesCdc,
-                    defaultMissingValueInterpretation,
-                    formatRecordOnFailureFunction));
+                    defaultMissingValueInterpretation));
 
     PCollection<BigQueryStorageApiInsertError> insertErrors =
         PCollectionList.of(convertMessagesResult.get(failedRowsTag))
@@ -245,7 +209,7 @@ public class StorageApiLoads<DestinationT, ElementT>
 
   public WriteResult expandTriggered(
       PCollection<KV<DestinationT, ElementT>> input,
-      Coder<KV<DestinationT, KV<ElementT, StorageApiWritePayload>>> successCoder,
+      Coder<KV<DestinationT, StorageApiWritePayload>> successCoder,
       Coder<StorageApiWritePayload> payloadCoder) {
     // Handle triggered, low-latency loads into BigQuery.
     PCollection<KV<DestinationT, ElementT>> inputInGlobalWindow =
@@ -253,7 +217,7 @@ public class StorageApiLoads<DestinationT, ElementT>
     PCollectionTuple convertMessagesResult =
         inputInGlobalWindow.apply(
             "Convert",
-            new StorageApiConvertMessages<>(
+            new StorageApiConvertMessages_256<>(
                 dynamicDestinations,
                 bqServices,
                 failedRowsTag,
@@ -261,11 +225,9 @@ public class StorageApiLoads<DestinationT, ElementT>
                 BigQueryStorageApiInsertErrorCoder.of(),
                 successCoder,
                 rowUpdateFn,
-                badRecordRouter,
-                formatRecordOnFailureFunction));
+                badRecordRouter));
 
-    PCollection<KV<ShardedKey<DestinationT>, Iterable<KV<ElementT, StorageApiWritePayload>>>>
-        groupedRecords;
+    PCollection<KV<ShardedKey<DestinationT>, Iterable<StorageApiWritePayload>>> groupedRecords;
 
     int maxAppendBytes =
         input
@@ -279,35 +241,27 @@ public class StorageApiLoads<DestinationT, ElementT>
               .get(successfulConvertedRowsTag)
               .apply(
                   "GroupIntoBatches",
-                  GroupIntoBatches.<DestinationT, KV<ElementT, StorageApiWritePayload>>ofByteSize(
+                  GroupIntoBatches.<DestinationT, StorageApiWritePayload>ofByteSize(
                           maxAppendBytes,
-                          (KV<ElementT, StorageApiWritePayload> e) ->
-                              (long) e.getValue().getPayload().length)
+                          (StorageApiWritePayload e) -> (long) e.getPayload().length)
                       .withMaxBufferingDuration(triggeringFrequency)
                       .withShardedKey());
 
     } else {
-      PCollection<KV<ShardedKey<DestinationT>, KV<ElementT, StorageApiWritePayload>>>
-          shardedRecords =
-              createShardedKeyValuePairs(convertMessagesResult)
-                  .setCoder(
-                      KvCoder.of(
-                          ShardedKey.Coder.of(destinationCoder),
-                          KvCoder.of(elementCoder, payloadCoder)));
+      PCollection<KV<ShardedKey<DestinationT>, StorageApiWritePayload>> shardedRecords =
+          createShardedKeyValuePairs(convertMessagesResult)
+              .setCoder(KvCoder.of(ShardedKey.Coder.of(destinationCoder), payloadCoder));
       groupedRecords =
           shardedRecords.apply(
               "GroupIntoBatches",
-              GroupIntoBatches
-                  .<ShardedKey<DestinationT>, KV<ElementT, StorageApiWritePayload>>ofByteSize(
-                      maxAppendBytes,
-                      (KV<ElementT, StorageApiWritePayload> e) ->
-                          (long) e.getValue().getPayload().length)
+              GroupIntoBatches.<ShardedKey<DestinationT>, StorageApiWritePayload>ofByteSize(
+                      maxAppendBytes, (StorageApiWritePayload e) -> (long) e.getPayload().length)
                   .withMaxBufferingDuration(triggeringFrequency));
     }
     PCollectionTuple writeRecordsResult =
         groupedRecords.apply(
             "StorageApiWriteSharded",
-            new StorageApiWritesShardedRecords<>(
+            new StorageApiWritesShardedRecords_256<>(
                 dynamicDestinations,
                 createDisposition,
                 kmsKey,
@@ -319,8 +273,7 @@ public class StorageApiLoads<DestinationT, ElementT>
                 successfulWrittenRowsTag,
                 autoUpdateSchema,
                 ignoreUnknownValues,
-                defaultMissingValueInterpretation,
-                formatRecordOnFailureFunction));
+                defaultMissingValueInterpretation));
 
     PCollection<BigQueryStorageApiInsertError> insertErrors =
         PCollectionList.of(convertMessagesResult.get(failedRowsTag))
@@ -347,7 +300,7 @@ public class StorageApiLoads<DestinationT, ElementT>
         successfulWrittenRows);
   }
 
-  private PCollection<KV<ShardedKey<DestinationT>, KV<ElementT, StorageApiWritePayload>>>
+  private PCollection<KV<ShardedKey<DestinationT>, StorageApiWritePayload>>
       createShardedKeyValuePairs(PCollectionTuple pCollection) {
     return pCollection
         .get(successfulConvertedRowsTag)
@@ -355,8 +308,8 @@ public class StorageApiLoads<DestinationT, ElementT>
             "AddShard",
             ParDo.of(
                 new DoFn<
-                    KV<DestinationT, KV<ElementT, StorageApiWritePayload>>,
-                    KV<ShardedKey<DestinationT>, KV<ElementT, StorageApiWritePayload>>>() {
+                    KV<DestinationT, StorageApiWritePayload>,
+                    KV<ShardedKey<DestinationT>, StorageApiWritePayload>>() {
                   int shardNumber;
 
                   @Setup
@@ -366,10 +319,8 @@ public class StorageApiLoads<DestinationT, ElementT>
 
                   @ProcessElement
                   public void processElement(
-                      @Element KV<DestinationT, KV<ElementT, StorageApiWritePayload>> element,
-                      OutputReceiver<
-                              KV<ShardedKey<DestinationT>, KV<ElementT, StorageApiWritePayload>>>
-                          o) {
+                      @Element KV<DestinationT, StorageApiWritePayload> element,
+                      OutputReceiver<KV<ShardedKey<DestinationT>, StorageApiWritePayload>> o) {
                     DestinationT destination = element.getKey();
                     ByteBuffer buffer = ByteBuffer.allocate(Integer.BYTES);
                     buffer.putInt(++shardNumber % numShards);
@@ -380,14 +331,14 @@ public class StorageApiLoads<DestinationT, ElementT>
 
   public WriteResult expandUntriggered(
       PCollection<KV<DestinationT, ElementT>> input,
-      Coder<KV<DestinationT, KV<ElementT, StorageApiWritePayload>>> successCoder) {
+      Coder<KV<DestinationT, StorageApiWritePayload>> successCoder) {
     PCollection<KV<DestinationT, ElementT>> inputInGlobalWindow =
         input.apply(
             "rewindowIntoGlobal", Window.<KV<DestinationT, ElementT>>into(new GlobalWindows()));
     PCollectionTuple convertMessagesResult =
         inputInGlobalWindow.apply(
             "Convert",
-            new StorageApiConvertMessages<>(
+            new StorageApiConvertMessages_256<>(
                 dynamicDestinations,
                 bqServices,
                 failedRowsTag,
@@ -395,15 +346,14 @@ public class StorageApiLoads<DestinationT, ElementT>
                 BigQueryStorageApiInsertErrorCoder.of(),
                 successCoder,
                 rowUpdateFn,
-                badRecordRouter,
-                formatRecordOnFailureFunction));
+                badRecordRouter));
 
     PCollectionTuple writeRecordsResult =
         convertMessagesResult
             .get(successfulConvertedRowsTag)
             .apply(
                 "StorageApiWriteUnsharded",
-                new StorageApiWriteUnshardedRecords<>(
+                new StorageApiWriteUnshardedRecords_256<>(
                     dynamicDestinations,
                     bqServices,
                     failedRowsTag,
@@ -415,8 +365,7 @@ public class StorageApiLoads<DestinationT, ElementT>
                     createDisposition,
                     kmsKey,
                     usesCdc,
-                    defaultMissingValueInterpretation,
-                    formatRecordOnFailureFunction));
+                    defaultMissingValueInterpretation));
 
     PCollection<BigQueryStorageApiInsertError> insertErrors =
         PCollectionList.of(convertMessagesResult.get(failedRowsTag))
