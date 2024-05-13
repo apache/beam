@@ -121,6 +121,14 @@ include(":runners:core-java")
 include(":runners:direct-java")
 include(":runners:extensions-java:metrics")
 /* Begin Flink Runner related settings */
+/* When updating these versions, please make sure that the following files are updated as well:
+  * FLINK_VERSIONS in .github/actions/setup-default-test-properties/test-properties.json
+  * flink_versions in sdks/go/examples/wasm/README.md
+  * PUBLISHED_FLINK_VERSIONS in sdks/python/apache_beam/options/pipeline_options.py
+  * PUBLISHED_FLINK_VERSIONS in sdks/typescript/src/apache_beam/runners/flink.ts
+  * verify versions in website/www/site/content/en/documentation/runners/flink.md
+  * verify version in sdks/python/apache_beam/runners/interactive/interactive_beam.py
+ */
 // Flink 1.14
 include(":runners:flink:1.14")
 include(":runners:flink:1.14:job-server")
@@ -137,6 +145,10 @@ include(":runners:flink:1.16:job-server-container")
 include(":runners:flink:1.17")
 include(":runners:flink:1.17:job-server")
 include(":runners:flink:1.17:job-server-container")
+// Flink 1.18
+include(":runners:flink:1.18")
+include(":runners:flink:1.18:job-server")
+include(":runners:flink:1.18:job-server-container")
 /* End Flink Runner related settings */
 include(":runners:twister2")
 include(":runners:google-cloud-dataflow-java")

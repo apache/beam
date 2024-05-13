@@ -93,7 +93,7 @@ from the [compatibility table](#flink-version-compatibility) below. For example:
 {{< highlight java >}}
 <dependency>
   <groupId>org.apache.beam</groupId>
-  <artifactId>beam-runners-flink-1.16</artifactId>
+  <artifactId>beam-runners-flink-1.17</artifactId>
   <version>{{< param release_latest >}}</version>
 </dependency>
 {{< /highlight >}}
@@ -328,7 +328,7 @@ To find out which version of Flink is compatible with Beam please see the table 
 </tr>
 <tr>
   <td>1.17.x</td>
-  <td>beam-runners-flink-1.16</td>
+  <td>beam-runners-flink-1.17</td>
   <td>&ge; 2.56.0</td>
 </tr>
 <tr>
