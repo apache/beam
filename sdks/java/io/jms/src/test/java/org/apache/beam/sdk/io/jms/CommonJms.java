@@ -36,6 +36,7 @@ import org.apache.activemq.security.SimpleAuthenticationPlugin;
 import org.apache.activemq.store.memory.MemoryPersistenceAdapter;
 import org.apache.activemq.transport.TransportFactory;
 import org.apache.activemq.transport.amqp.AmqpTransportFactory;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.ThrowingSupplier;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers;
@@ -48,12 +49,12 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 public class CommonJms implements Serializable {
   private static final String BROKER_WITHOUT_PREFETCH_PARAM = "?jms.prefetchPolicy.all=0&";
 
-  // convenient typedefs and a helper conversion function
-  public interface ThrowingSerializableSupplier<T> extends ThrowingSupplier<T>, Serializable {}
+  // convenient typedefs and a helper conversion functions
+  private interface ThrowingSerializableSupplier<T> extends ThrowingSupplier<T>, Serializable {}
 
-  public interface SerializableSupplier<T> extends Serializable, Supplier<T> {}
+  private interface SerializableSupplier<T> extends Serializable, Supplier<T> {}
 
-  public static <T> SerializableSupplier<T> toSerializableSupplier(
+  private static <T> SerializableSupplier<T> toSerializableSupplier(
       ThrowingSerializableSupplier<T> throwingSerializableSupplier) {
     return () -> {
       try {
@@ -64,6 +65,10 @@ public class CommonJms implements Serializable {
     };
   }
 
+  private static <T> SerializableFunction<Void, T> toSerializableFunction(Supplier<T> supplier) {
+    return __ -> supplier.get();
+  }
+
   static final String USERNAME = "test_user";
   static final String PASSWORD = "test_password";
   static final String QUEUE = "test_queue";
@@ -72,31 +77,33 @@ public class CommonJms implements Serializable {
   private final String brokerUrl;
   private final Integer brokerPort;
   private final String forceAsyncAcksParam;
-  private final boolean useSupplier;
+  private final boolean useProviderFn;
   private transient BrokerService broker;
 
   private final Class<? extends ConnectionFactory> connectionFactoryClass;
-  private final SerializableSupplier<ConnectionFactory> memoizedConnectionFactorySupplier;
-  private final SerializableSupplier<ConnectionFactory>
-      memoizedConnectionFactoryWithSyncAcksAndWithoutPrefetchSupplier;
+  private final SerializableFunction<Void, ConnectionFactory> memoizedConnectionFactoryProviderFn;
+  private final SerializableFunction<Void, ConnectionFactory>
+      memoizedConnectionFactoryWithSyncAcksAndWithoutPrefetchProviderFn;
 
   public CommonJms(
       String brokerUrl,
       Integer brokerPort,
       String forceAsyncAcksParam,
-      boolean useSupplier,
+      boolean useProviderFn,
       Class<? extends ConnectionFactory> connectionFactoryClass) {
     this.brokerUrl = brokerUrl;
     this.brokerPort = brokerPort;
     this.forceAsyncAcksParam = forceAsyncAcksParam;
     this.connectionFactoryClass = connectionFactoryClass;
-    this.useSupplier = useSupplier;
-    this.memoizedConnectionFactorySupplier =
-        Suppliers.memoize(toSerializableSupplier(this::createConnectionFactory))::get;
-    this.memoizedConnectionFactoryWithSyncAcksAndWithoutPrefetchSupplier =
-        Suppliers.memoize(
-                toSerializableSupplier(this::createConnectionFactoryWithSyncAcksAndWithoutPrefetch))
-            ::get;
+    this.useProviderFn = useProviderFn;
+    this.memoizedConnectionFactoryProviderFn =
+        toSerializableFunction(
+            Suppliers.memoize(toSerializableSupplier(this::createConnectionFactory)));
+    this.memoizedConnectionFactoryWithSyncAcksAndWithoutPrefetchProviderFn =
+        toSerializableFunction(
+            Suppliers.memoize(
+                toSerializableSupplier(
+                    this::createConnectionFactoryWithSyncAcksAndWithoutPrefetch)));
   }
 
   void startBroker() throws Exception {
@@ -155,36 +162,38 @@ public class CommonJms implements Serializable {
     return this.connectionFactoryClass;
   }
 
-  private SerializableSupplier<ConnectionFactory> selectDynamicOrMemoizedSupplier(
-      SerializableSupplier<ConnectionFactory> dynamicSupplier,
-      SerializableSupplier<ConnectionFactory> memoizedSupplier) {
-    if (useSupplier) {
-      // the supplier will instantiate a new CF each time it's invoked
-      return dynamicSupplier;
+  private SerializableFunction<Void, ConnectionFactory> selectDynamicOrMemoizedProviderFn(
+      SerializableFunction<Void, ConnectionFactory> dynamicProviderFn,
+      SerializableFunction<Void, ConnectionFactory> memoizedProviderFn) {
+    if (useProviderFn) {
+      // the provider function will instantiate a new CF each time it's invoked
+      return dynamicProviderFn;
     } else {
       // or it will just return the memoized instance
-      return memoizedSupplier;
+      return memoizedProviderFn;
     }
   }
 
-  public SerializableSupplier<ConnectionFactory> getConnectionFactorySupplier() {
-    return selectDynamicOrMemoizedSupplier(
-        toSerializableSupplier(this::createConnectionFactory), memoizedConnectionFactorySupplier);
+  public SerializableFunction<Void, ConnectionFactory> getConnectionFactoryProviderFn() {
+    return selectDynamicOrMemoizedProviderFn(
+        toSerializableFunction(toSerializableSupplier(this::createConnectionFactory)),
+        memoizedConnectionFactoryProviderFn);
   }
 
-  public SerializableSupplier<ConnectionFactory>
-      getConnectionFactoryWithSyncAcksAndWithoutPrefetchSupplier() {
-    return selectDynamicOrMemoizedSupplier(
-        toSerializableSupplier(this::createConnectionFactoryWithSyncAcksAndWithoutPrefetch),
-        memoizedConnectionFactoryWithSyncAcksAndWithoutPrefetchSupplier);
+  public SerializableFunction<Void, ConnectionFactory>
+      getConnectionFactoryWithSyncAcksAndWithoutPrefetchProviderFn() {
+    return selectDynamicOrMemoizedProviderFn(
+        toSerializableFunction(
+            toSerializableSupplier(this::createConnectionFactoryWithSyncAcksAndWithoutPrefetch)),
+        memoizedConnectionFactoryWithSyncAcksAndWithoutPrefetchProviderFn);
   }
 
   public ConnectionFactory getConnectionFactory() {
-    return memoizedConnectionFactorySupplier.get();
+    return memoizedConnectionFactoryProviderFn.apply(null);
   }
 
   public ConnectionFactory getConnectionFactoryWithSyncAcksAndWithoutPrefetch() {
-    return memoizedConnectionFactoryWithSyncAcksAndWithoutPrefetchSupplier.get();
+    return memoizedConnectionFactoryWithSyncAcksAndWithoutPrefetchProviderFn.apply(null);
   }
 
   /** A test class that maps a {@link javax.jms.BytesMessage} into a {@link String}. */
@@ -202,14 +211,14 @@ public class CommonJms implements Serializable {
 
   public <T extends JmsIO.ConnectionFactoryContainer<T>> T withConnectionFactory(
       T connectionFactoryContainer,
-      SerializableSupplier<ConnectionFactory> connectionFactorySupplier) {
-    if (useSupplier) {
+      SerializableFunction<Void, ConnectionFactory> connectionFactoryProviderFn) {
+    if (useProviderFn) {
       connectionFactoryContainer =
-          connectionFactoryContainer.withConnectionFactorySupplier(connectionFactorySupplier);
+          connectionFactoryContainer.withConnectionFactoryProviderFn(connectionFactoryProviderFn);
     } else {
-      // unwrap the memoized CF from the supplier and pass it as-is to the connector
+      // unwrap the memoized CF from the provider and pass it as-is to the connector
       connectionFactoryContainer =
-          connectionFactoryContainer.withConnectionFactory(connectionFactorySupplier.get());
+          connectionFactoryContainer.withConnectionFactory(connectionFactoryProviderFn.apply(null));
     }
 
     return connectionFactoryContainer;
@@ -217,7 +226,7 @@ public class CommonJms implements Serializable {
 
   // Every test param list will be exploded into two with a different boolean flag attached, this
   // way we test two kinds of JmsIOs - one that uses ConnectionFactory directly and the other that
-  // uses a supplier - depending on the value of that flag
+  // uses a provider function - depending on the value of that flag
   static Stream<List<Object>> crossProductWithBoolean(Stream<List<Object>> paramListStream) {
     return paramListStream.flatMap(
         paramList ->

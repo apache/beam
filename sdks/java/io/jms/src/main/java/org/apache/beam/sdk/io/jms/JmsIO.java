@@ -33,7 +33,6 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
 import java.util.stream.Stream;
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
@@ -192,8 +191,8 @@ public class JmsIO {
 
     T withConnectionFactory(ConnectionFactory connectionFactory);
 
-    T withConnectionFactorySupplier(
-        Supplier<? extends ConnectionFactory> connectionFactorySupplier);
+    T withConnectionFactoryProviderFn(
+        SerializableFunction<Void, ? extends ConnectionFactory> connectionFactoryProviderFn);
   }
 
   /**
@@ -219,17 +218,21 @@ public class JmsIO {
     @Nullable ConnectionFactory getConnectionFactory() {
       if (connectionFactory == null) {
         connectionFactory =
-            Optional.ofNullable(getConnectionFactorySupplier()).map(Supplier::get).orElse(null);
+            Optional.ofNullable(getConnectionFactoryProviderFn())
+                .map(provider -> provider.apply(null))
+                .orElse(null);
       }
       return connectionFactory;
     }
 
     /**
      * In case the {@link ConnectionFactory} is not serializable it can be constructed separately on
-     * each worker from scratch by providing a {@link Supplier} instead of a ready-made object
+     * each worker from scratch by providing a {@link SerializableFunction} instead of a ready-made
+     * object
      */
     @Nullable
-    abstract Supplier<? extends ConnectionFactory> getConnectionFactorySupplier();
+    abstract SerializableFunction<Void, ? extends ConnectionFactory>
+        getConnectionFactoryProviderFn();
 
     abstract @Nullable String getQueue();
 
@@ -259,8 +262,8 @@ public class JmsIO {
 
     @AutoValue.Builder
     abstract static class Builder<T> {
-      abstract Builder<T> setConnectionFactorySupplier(
-          Supplier<? extends ConnectionFactory> connectionFactorySupplier);
+      abstract Builder<T> setConnectionFactoryProviderFn(
+          SerializableFunction<Void, ? extends ConnectionFactory> connectionFactoryProviderFn);
 
       abstract Builder<T> setQueue(String queue);
 
@@ -305,31 +308,30 @@ public class JmsIO {
     @Override
     public Read<T> withConnectionFactory(ConnectionFactory connectionFactory) {
       checkArgument(connectionFactory != null, "connectionFactory can not be null");
-      return builder()
-          .setConnectionFactorySupplier(
-              (Serializable & Supplier<ConnectionFactory>) () -> connectionFactory)
-          .build();
+      return builder().setConnectionFactoryProviderFn(__ -> connectionFactory).build();
     }
 
     /**
-     * Specify a JMS connection factory supplier to connect to the JMS broker. Use this method in
-     * case your {@link ConnectionFactory} objects are themselves not serializable, but you can
-     * recreate them as needed with a {@link Supplier}
+     * Specify a JMS connection factory provider function to connect to the JMS broker. Use this
+     * method in case your {@link ConnectionFactory} objects are themselves not serializable, but
+     * you can recreate them as needed with a {@link SerializableFunction} provider
      *
      * <p>For instance:
      *
      * <pre>
-     * {@code pipeline.apply(JmsIO.read().withConnectionFactorySupplier(() -> new MyJmsConnectionFactory());}
+     * {@code pipeline.apply(JmsIO.read().withConnectionFactoryProviderFn(() -> new MyJmsConnectionFactory());}
      * </pre>
      *
-     * @param connectionFactorySupplier a {@link Supplier} that creates a {@link ConnectionFactory}
+     * @param connectionFactoryProviderFn a {@link SerializableFunction} that creates a {@link
+     *     ConnectionFactory}
      * @return The corresponding {@link JmsIO.Read}
      */
     @Override
-    public Read<T> withConnectionFactorySupplier(
-        Supplier<? extends ConnectionFactory> connectionFactorySupplier) {
-      checkArgument(connectionFactorySupplier != null, "connectionFactorySupplier cannot be null");
-      return builder().setConnectionFactorySupplier(connectionFactorySupplier).build();
+    public Read<T> withConnectionFactoryProviderFn(
+        SerializableFunction<Void, ? extends ConnectionFactory> connectionFactoryProviderFn) {
+      checkArgument(
+          connectionFactoryProviderFn != null, "connectionFactoryProviderFn cannot be null");
+      return builder().setConnectionFactoryProviderFn(connectionFactoryProviderFn).build();
     }
 
     /**
@@ -479,8 +481,8 @@ public class JmsIO {
     @Override
     public PCollection<T> expand(PBegin input) {
       checkArgument(
-          getConnectionFactorySupplier() != null,
-          "Either withConnectionFactory() or withConnectionFactorySupplier() is required");
+          getConnectionFactoryProviderFn() != null,
+          "Either withConnectionFactory() or withConnectionFactoryProviderFn() is required");
       checkArgument(
           getQueue() != null || getTopic() != null,
           "Either withQueue() or withTopic() is required");
@@ -848,13 +850,16 @@ public class JmsIO {
     @Nullable ConnectionFactory getConnectionFactory() {
       if (connectionFactory == null) {
         connectionFactory =
-            Optional.ofNullable(getConnectionFactorySupplier()).map(Supplier::get).orElse(null);
+            Optional.ofNullable(getConnectionFactoryProviderFn())
+                .map(provider -> provider.apply(null))
+                .orElse(null);
       }
 
       return connectionFactory;
     }
 
-    abstract @Nullable Supplier<? extends ConnectionFactory> getConnectionFactorySupplier();
+    abstract @Nullable SerializableFunction<Void, ? extends ConnectionFactory>
+        getConnectionFactoryProviderFn();
 
     abstract @Nullable String getQueue();
 
@@ -874,8 +879,8 @@ public class JmsIO {
 
     @AutoValue.Builder
     abstract static class Builder<EventT> {
-      abstract Builder<EventT> setConnectionFactorySupplier(
-          Supplier<? extends ConnectionFactory> connectionFactory);
+      abstract Builder<EventT> setConnectionFactoryProviderFn(
+          SerializableFunction<Void, ? extends ConnectionFactory> connectionFactoryProviderFn);
 
       abstract Builder<EventT> setQueue(String queue);
 
@@ -912,31 +917,30 @@ public class JmsIO {
     @Override
     public Write<EventT> withConnectionFactory(ConnectionFactory connectionFactory) {
       checkArgument(connectionFactory != null, "connectionFactory can not be null");
-      return builder()
-          .setConnectionFactorySupplier(
-              (Serializable & Supplier<ConnectionFactory>) () -> connectionFactory)
-          .build();
+      return builder().setConnectionFactoryProviderFn(__ -> connectionFactory).build();
     }
 
     /**
-     * Specify a JMS connection factory supplier to connect to the JMS broker. Use this method in
-     * case your {@link ConnectionFactory} objects are themselves not serializable, but you can
-     * recreate them as needed with a {@link Supplier}
+     * Specify a JMS connection factory provider function to connect to the JMS broker. Use this
+     * method in case your {@link ConnectionFactory} objects are themselves not serializable, but
+     * you can recreate them as needed with a {@link SerializableFunction} provider
      *
      * <p>For instance:
      *
      * <pre>
-     * {@code pipeline.apply(JmsIO.write().withConnectionFactorySupplier(() -> new MyJmsConnectionFactory());}
+     * {@code pipeline.apply(JmsIO.write().withConnectionFactoryProviderFn(() -> new MyJmsConnectionFactory());}
      * </pre>
      *
-     * @param connectionFactorySupplier a {@link Supplier} that creates a {@link ConnectionFactory}
+     * @param connectionFactoryProviderFn a {@link SerializableFunction} that creates a {@link
+     *     ConnectionFactory}
      * @return The corresponding {@link JmsIO.Write}
      */
     @Override
-    public Write<EventT> withConnectionFactorySupplier(
-        Supplier<? extends ConnectionFactory> connectionFactorySupplier) {
-      checkArgument(connectionFactorySupplier != null, "connectionFactorySupplier can not be null");
-      return builder().setConnectionFactorySupplier(connectionFactorySupplier).build();
+    public Write<EventT> withConnectionFactoryProviderFn(
+        SerializableFunction<Void, ? extends ConnectionFactory> connectionFactoryProviderFn) {
+      checkArgument(
+          connectionFactoryProviderFn != null, "connectionFactoryProviderFn can not be null");
+      return builder().setConnectionFactoryProviderFn(connectionFactoryProviderFn).build();
     }
 
     /**
@@ -1103,8 +1107,8 @@ public class JmsIO {
     @Override
     public WriteJmsResult<EventT> expand(PCollection<EventT> input) {
       checkArgument(
-          getConnectionFactorySupplier() != null,
-          "Either withConnectionFactory() or withConnectionFactorySupplier() is required");
+          getConnectionFactoryProviderFn() != null,
+          "Either withConnectionFactory() or withConnectionFactoryProviderFn() is required");
       checkArgument(
           getTopicNameMapper() != null || getQueue() != null || getTopic() != null,
           "Either withTopicNameMapper(topicNameMapper), withQueue(queue), or withTopic(topic) is"

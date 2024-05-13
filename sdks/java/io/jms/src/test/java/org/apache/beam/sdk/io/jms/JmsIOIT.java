@@ -138,7 +138,7 @@ public class JmsIOIT implements Serializable {
   @Rule public transient TestPipeline pipelineWrite = TestPipeline.create();
   @Rule public transient TestPipeline pipelineRead = TestPipeline.create();
 
-  @Parameterized.Parameters(name = "with client class {3}, use supplier? {4}")
+  @Parameterized.Parameters(name = "with client class {3}, use provider function? {4}")
   public static Collection<Object[]> testParams() {
     return Suppliers.<Stream<List<Object>>>supplierFunction()
         .andThen(CommonJms::crossProductWithBoolean)
@@ -166,13 +166,13 @@ public class JmsIOIT implements Serializable {
       Integer brokerPort,
       String forceAsyncAcksParam,
       Class<? extends ConnectionFactory> connectionFactoryClass,
-      boolean useSupplier) {
+      boolean useProviderFn) {
     this.commonJms =
         new CommonJms(
             OPTIONS.isLocalJmsBrokerEnabled() ? brokerUrl : OPTIONS.getJmsBrokerHost(),
             OPTIONS.isLocalJmsBrokerEnabled() ? brokerPort : OPTIONS.getJmsBrokerPort(),
             forceAsyncAcksParam,
-            useSupplier,
+            useProviderFn,
             connectionFactoryClass);
   }
 
@@ -245,7 +245,7 @@ public class JmsIOIT implements Serializable {
             "Read Messages",
             commonJms
                 .withConnectionFactory(
-                    JmsIO.<String>readMessage(), commonJms.getConnectionFactorySupplier())
+                    JmsIO.<String>readMessage(), commonJms.getConnectionFactoryProviderFn())
                 .withQueue(QUEUE)
                 .withUsername(USERNAME)
                 .withPassword(PASSWORD)
@@ -265,7 +265,7 @@ public class JmsIOIT implements Serializable {
             "Publish to Jms Broker",
             commonJms
                 .withConnectionFactory(
-                    JmsIO.<String>write(), commonJms.getConnectionFactorySupplier())
+                    JmsIO.<String>write(), commonJms.getConnectionFactoryProviderFn())
                 .withQueue(QUEUE)
                 .withUsername(USERNAME)
                 .withPassword(PASSWORD)
