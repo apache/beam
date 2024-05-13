@@ -643,7 +643,9 @@ public class Snippets {
 
                       @ProcessElement
                       public void process(ProcessContext c, @Timestamp Instant timestamp) {
-                        Map<String, String> keyMap = c.sideInput(mapIterable[0]);
+                        Iterable<Map<String, String>> si = c.sideInput(mapIterable);
+                        // Take an element from the side input iterable (likely length 1)
+                        Map<String, String> keyMap = si.iterator().next();
                         c.outputWithTimestamp(KV.of(1L, c.element()), Instant.now());
 
                         LOG.info(
