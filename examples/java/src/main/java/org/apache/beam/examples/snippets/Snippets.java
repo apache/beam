@@ -653,7 +653,7 @@ public class Snippets {
                             keyMap.get("Key_A"));
                       }
                     })
-                .withSideInputs(map));
+                .withSideInputs(mapIterable));
 
     p.run();
   }
