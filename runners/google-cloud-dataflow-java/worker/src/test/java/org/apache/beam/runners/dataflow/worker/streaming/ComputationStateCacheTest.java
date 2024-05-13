@@ -253,34 +253,30 @@ public class ComputationStateCacheTest {
     Work work2 = createWork(2, 2);
     Work work3 = createWork(3, 3);
 
-    // Activate 3 Work(s) for computationId
+    // Activate 1 Work for computationId
     Optional<ComputationState> maybeComputationState = computationStateCache.get(computationId);
     assertTrue(maybeComputationState.isPresent());
     ComputationState computationState = maybeComputationState.get();
     ShardedKey shardedKey = ShardedKey.create(ByteString.EMPTY, 1);
     computationState.activateWork(shardedKey, work1);
-    computationState.activateWork(shardedKey, work2);
-    computationState.activateWork(shardedKey, work3);
 
-    // Activate 3 Work(s) for computationId2
+    // Activate 2 Work(s) for computationId2
     Optional<ComputationState> maybeComputationState2 = computationStateCache.get(computationId);
     assertTrue(maybeComputationState2.isPresent());
     ComputationState computationState2 = maybeComputationState2.get();
     ShardedKey shardedKey2 = ShardedKey.create(ByteString.EMPTY, 2);
-    computationState2.activateWork(shardedKey2, work1);
     computationState2.activateWork(shardedKey2, work2);
     computationState2.activateWork(shardedKey2, work3);
 
-    // GetWorkBudget should have 6 items. 3 from computationId, 3 from computationId2.
+    // GetWorkBudget should have 3 items. 1 from computationId, 2 from computationId2.
     assertThat(computationStateCache.totalCurrentActiveGetWorkBudget())
         .isEqualTo(
             GetWorkBudget.builder()
-                .setItems(6)
+                .setItems(3)
                 .setBytes(
-                    ((work1.getWorkItem().getSerializedSize()
-                            + work2.getWorkItem().getSerializedSize()
-                            + work3.getWorkItem().getSerializedSize()))
-                        * 2L)
+                    work1.getWorkItem().getSerializedSize()
+                        + work2.getWorkItem().getSerializedSize()
+                        + work3.getWorkItem().getSerializedSize())
                 .build());
   }
 }
