@@ -454,11 +454,12 @@ class ElasticsearchIOTestCommon implements Serializable {
             .withMaxBatchSizeBytes(
                 Long.MAX_VALUE) // Max long number to make sure it flushes 2 docs.
             .withThrowWriteErrors(false)
-            .withIdFn(new ExtractValueFn("id"));
+            .withIdFn(new ExtractValueFn("id"))
+            .withUseStatefulBatches(true);
 
     List<String> data =
         ElasticsearchIOTestUtils.createDocuments(
-            2, ElasticsearchIOTestUtils.InjectionMode.INJECT_ONE_ID_TOO_LONG_DOC_AT_THE_END);
+                numDocs, ElasticsearchIOTestUtils.InjectionMode.INJECT_ONE_ID_TOO_LONG_DOC);
 
     PCollectionTuple outputs = pipeline.apply(Create.of(data)).apply(write);
     PCollection<String> success =
@@ -471,13 +472,10 @@ class ElasticsearchIOTestCommon implements Serializable {
             .get(Write.FAILED_WRITES)
             .apply("Convert fails to input ID", MapElements.via(mapToInputIdString));
 
-    Set<String> validIds = new HashSet<>();
-    validIds.add("0");
-    PAssert.that(success).containsInAnyOrder(validIds);
-
-    PAssert.that(fail).containsInAnyOrder(INVALID_LONG_ID);
-
-    // how to force two docs into one batch flush and fail together?
+    Set<String> failedIds = IntStream.range(0, data.size() - 1).mapToObj(String::valueOf).collect(Collectors.toSet());
+    failedIds.add(INVALID_LONG_ID);
+    PAssert.that(success).empty();
+    PAssert.that(fail).containsInAnyOrder(failedIds);
     pipeline.run();
   }
 

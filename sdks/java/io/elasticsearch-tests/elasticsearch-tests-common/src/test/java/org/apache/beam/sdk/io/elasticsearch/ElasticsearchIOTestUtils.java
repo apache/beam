@@ -82,7 +82,7 @@ class ElasticsearchIOTestUtils {
   public enum InjectionMode {
     INJECT_SOME_INVALID_DOCS,
     DO_NOT_INJECT_INVALID_DOCS,
-    INJECT_ONE_ID_TOO_LONG_DOC_AT_THE_END
+    INJECT_ONE_ID_TOO_LONG_DOC
   }
 
   /** Deletes the given index synchronously. */
@@ -345,21 +345,19 @@ class ElasticsearchIOTestUtils {
           && INVALID_DOCS_IDS.contains(i)) {
         data.add(String.format("{\"scientist\";\"%s\", \"id\":%s}", FAMOUS_SCIENTISTS[index], i));
       }
-      // insert 1 id too long doc at the end. It should trigger
-      // org.elasticsearch.client.ResponseException.
-      else if (InjectionMode.INJECT_ONE_ID_TOO_LONG_DOC_AT_THE_END.equals(injectionMode)
-          && i == numDocs - 1) {
-        data.add(
-            index,
-            String.format(
-                "{\"scientist\":\"%s\", \"id\":%s, \"@timestamp\" : \"%s\"}",
-                FAMOUS_SCIENTISTS[index], INVALID_LONG_ID, baseDateTime.plusSeconds(index)));
-      } else {
+      else {
         data.add(
             String.format(
                 "{\"scientist\":\"%s\", \"id\":%s, \"@timestamp\" : \"%s\"}",
                 FAMOUS_SCIENTISTS[index], i, baseDateTime.plusSeconds(i).toString()));
       }
+    }
+    // insert 1 additional id too long doc. It should trigger org.elasticsearch.client.ResponseException.
+    if (InjectionMode.INJECT_ONE_ID_TOO_LONG_DOC.equals(injectionMode)) {
+      data.add(
+              String.format(
+                      "{\"scientist\":\"invalid_scientist\", \"id\":%s, \"@timestamp\" : \"%s\"}",
+                      INVALID_LONG_ID, baseDateTime));
     }
     return data;
   }
