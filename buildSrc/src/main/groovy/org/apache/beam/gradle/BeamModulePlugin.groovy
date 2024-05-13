@@ -1135,7 +1135,7 @@ class BeamModulePlugin implements Plugin<Project> {
         //
         // Consider migrating compilation and testing to use JDK 9+ and setting '--release 8' as
         // the default allowing 'applyJavaNature' to override it for the few modules that need JDK 9+
-        // artifacts. See https://stackoverflow.com/a/43103038/468200 for additional details.
+        // artifacts. See https://stackoverflow.com/a/43103038/4368200 for additional details.
         if (JavaVersion.VERSION_1_8.compareTo(JavaVersion.toVersion(project.javaVersion)) == 0
         && JavaVersion.VERSION_1_8.compareTo(JavaVersion.current()) < 0) {
           options.compilerArgs += ['--release', '8']
