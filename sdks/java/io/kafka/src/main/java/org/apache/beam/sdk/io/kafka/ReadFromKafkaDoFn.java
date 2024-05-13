@@ -32,6 +32,7 @@ import org.apache.beam.sdk.io.kafka.KafkaIOUtils.MovingAvg;
 import org.apache.beam.sdk.io.kafka.KafkaUnboundedReader.TimestampPolicyContext;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.metrics.Distribution;
+import org.apache.beam.sdk.metrics.Gauge;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -222,6 +223,9 @@ abstract class ReadFromKafkaDoFn<K, V>
 
   private transient @Nullable LoadingCache<TopicPartition, AverageRecordSize> avgRecordSize;
   private static final long DEFAULT_KAFKA_POLL_TIMEOUT = 2L;
+
+  private HashMap<String, Long> perPartitionBacklogMetrics = new HashMap<String, Long>();;
+
   @VisibleForTesting final long consumerPollingTimeout;
   @VisibleForTesting final DeserializerProvider<K> keyDeserializerProvider;
   @VisibleForTesting final DeserializerProvider<V> valueDeserializerProvider;
@@ -342,6 +346,13 @@ abstract class ReadFromKafkaDoFn<K, V>
     if (!avgRecordSize.asMap().containsKey(kafkaSourceDescriptor.getTopicPartition())) {
       return numRecords;
     }
+    if (offsetEstimatorCache != null) {
+      for (Map.Entry<TopicPartition, KafkaLatestOffsetEstimator> tp :
+          offsetEstimatorCache.entrySet()) {
+        perPartitionBacklogMetrics.put(tp.getKey().toString(), tp.getValue().estimate());
+      }
+    }
+
     return avgRecordSize.get(kafkaSourceDescriptor.getTopicPartition()).getTotalSize(numRecords);
   }
 
@@ -394,6 +405,13 @@ abstract class ReadFromKafkaDoFn<K, V>
         Metrics.distribution(
             METRIC_NAMESPACE,
             RAW_SIZE_METRIC_PREFIX + kafkaSourceDescriptor.getTopicPartition().toString());
+    for (Map.Entry<String, Long> backlogSplit : perPartitionBacklogMetrics.entrySet()) {
+      Gauge backlog =
+          Metrics.gauge(
+              METRIC_NAMESPACE, RAW_SIZE_METRIC_PREFIX + "backlogBytes_" + backlogSplit.getKey());
+      backlog.set(backlogSplit.getValue());
+    }
+
     // Stop processing current TopicPartition when it's time to stop.
     if (checkStopReadingFn != null
         && checkStopReadingFn.apply(kafkaSourceDescriptor.getTopicPartition())) {
