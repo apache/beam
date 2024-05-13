@@ -139,7 +139,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  build_timestamp as time,\n  build_duration as value,\n  substring(job_name from 'beam_PreCommit_#\"%#\"_(Cron|Commit)' for '#') as metric\nFROM\n  jenkins_builds\nWHERE\n  (build_timestamp BETWEEN $__timeFrom() AND $__timeTo())\n  AND build_result = 'SUCCESS'\n  AND ((job_name LIKE 'beam_PreCommit_%_Commit')\n       OR (job_name LIKE 'beam_PreCommit_%_Cron'))\nORDER BY\n  time, metric",
+          "rawSql": "SELECT\n  build_timestamp as time,\n  build_duration as value,\n  substring(job_name from 'PreCommit_#\"%#\"_(Cron|Commit)' for '#') as metric\nFROM\n  jenkins_builds\nWHERE\n  (build_timestamp BETWEEN $__timeFrom() AND $__timeTo())\n  AND build_result = 'SUCCESS'\n  AND ((job_name LIKE 'PreCommit_%_Commit')\n       OR (job_name LIKE 'PreCommit_%_Cron'))\nORDER BY\n  time, metric",
           "refId": "A",
           "select": [
             [
@@ -244,7 +244,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  build_timestamp as time,\n  timing_queuingDurationMillis as value,\n  substring(job_name from 'beam_PreCommit_#\"%#\"_(Cron|Commit|Phrase)' for '#') as metric\nFROM\n  jenkins_builds\nWHERE\n  (build_timestamp BETWEEN $__timeFrom() AND $__timeTo())\n  AND build_result = 'SUCCESS'\n  AND ((job_name LIKE 'beam_PreCommit_%_Commit')\n       OR (job_name LIKE 'beam_PreCommit_%_Cron')\n       OR (job_name LIKE 'beam_PreCommit_%_Phrase'))\nORDER BY\n  time, metric",
+          "rawSql": "SELECT\n  build_timestamp as time,\n  timing_queuingDurationMillis as value,\n  substring(job_name from 'PreCommit_#\"%#\"_(Cron|Commit|Phrase)' for '#') as metric\nFROM\n  jenkins_builds\nWHERE\n  (build_timestamp BETWEEN $__timeFrom() AND $__timeTo())\n  AND build_result = 'SUCCESS'\n  AND ((job_name LIKE 'PreCommit_%_Commit')\n       OR (job_name LIKE 'PreCommit_%_Cron')\n       OR (job_name LIKE 'PreCommit_%_Phrase'))\nORDER BY\n  time, metric",
           "refId": "A",
           "select": [
             [
@@ -354,7 +354,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  DATE_TRUNC('month', build_timestamp) as time,\n  percentile_disc(0.9) within group (order by timing_queuingDurationMillis) as value,\n  substring(job_name from 'beam_PreCommit_#\"%#\"_(Cron|Commit|Phrase)' for '#') as metric\nFROM\n  jenkins_builds\nWHERE\n  (build_timestamp BETWEEN $__timeFrom() AND $__timeTo())\n  AND build_result = 'SUCCESS'\n  AND ((job_name LIKE 'beam_PreCommit_%_Commit')\n       OR (job_name LIKE 'beam_PreCommit_%_Cron')\n       OR (job_name LIKE 'beam_PreCommit_%_Phrase'))\nGROUP BY\n  time, metric\nORDER BY\n  time, metric",
+          "rawSql": "SELECT\n  DATE_TRUNC('month', build_timestamp) as time,\n  percentile_disc(0.9) within group (order by timing_queuingDurationMillis) as value,\n  substring(job_name from 'PreCommit_#\"%#\"_(Cron|Commit|Phrase)' for '#') as metric\nFROM\n  jenkins_builds\nWHERE\n  (build_timestamp BETWEEN $__timeFrom() AND $__timeTo())\n  AND build_result = 'SUCCESS'\n  AND ((job_name LIKE 'PreCommit_%_Commit')\n       OR (job_name LIKE 'PreCommit_%_Cron')\n       OR (job_name LIKE 'PreCommit_%_Phrase'))\nGROUP BY\n  time, metric\nORDER BY\n  time, metric",
           "refId": "A",
           "select": [
             [

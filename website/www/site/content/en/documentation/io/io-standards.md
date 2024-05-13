@@ -1107,7 +1107,7 @@ This guide complements the [Apache Beam I/O transform testing guide](https://bea
 
 I/O unit tests need to efficiently test the functionality of the code. Given that unit tests are expected to be executed many times over multiple test suites (for example, for each Python version) these tests should execute relatively fast and should not have side effects. We recommend trying to achieve 100% code coverage through unit tests.
 
-When possible, unit tests are favored over integration tests due to faster execution time and low resource usage. Additionally, unit tests can be easily included in pre-commit tests suites (for example, Jenkins <strong>beam_PreCommit_*</strong> test suites) hence has a better chance of discovering regressions early. Unit tests are also preferred for error conditions.
+When possible, unit tests are favored over integration tests due to faster execution time and low resource usage. Additionally, unit tests can be easily included in pre-commit tests suites (for example, Jenkins <strong>PreCommit_*</strong> test suites) hence has a better chance of discovering regressions early. Unit tests are also preferred for error conditions.
 
 <div class="table-container-wrapper">
 <table class="table table-bordered table-io-standards">
