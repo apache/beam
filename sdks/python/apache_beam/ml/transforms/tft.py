@@ -666,8 +666,7 @@ class HashStrings(TFTOperation):
 
     if hash_buckets < 1:
       raise ValueError(
-          'number of hash buckets must be positive, got ',
-          hash_buckets)
+          'number of hash buckets must be positive, got ', hash_buckets)
 
     super().__init__(columns)
 
