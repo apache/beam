@@ -25,6 +25,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.kafka.KafkaIO.ReadSourceDescriptors;
@@ -148,6 +150,12 @@ import org.slf4j.LoggerFactory;
 abstract class ReadFromKafkaDoFn<K, V>
     extends DoFn<KafkaSourceDescriptor, KV<KafkaSourceDescriptor, KafkaRecord<K, V>>> {
 
+  private static final int OFFSET_UPDATE_INTERVAL_SECONDS = 1;
+
+  private transient ScheduledExecutorService backlogFetcherThread =
+      Executors.newSingleThreadScheduledExecutor();
+  private Map<String, Object> updatedConsumerConfig;
+
   static <K, V> ReadFromKafkaDoFn<K, V> create(
       ReadSourceDescriptors<K, V> transform,
       TupleTag<KV<KafkaSourceDescriptor, KafkaRecord<K, V>>> recordTag) {
@@ -180,6 +188,7 @@ abstract class ReadFromKafkaDoFn<K, V>
       ReadSourceDescriptors<K, V> transform,
       TupleTag<KV<KafkaSourceDescriptor, KafkaRecord<K, V>>> recordTag) {
     this.consumerConfig = transform.getConsumerConfig();
+    this.updatedConsumerConfig = transform.getConsumerConfig();
     this.offsetConsumerConfig = transform.getOffsetConsumerConfig();
     this.keyDeserializerProvider =
         Preconditions.checkArgumentNotNull(transform.getKeyDeserializerProvider());
@@ -192,6 +201,7 @@ abstract class ReadFromKafkaDoFn<K, V>
     this.checkStopReadingFn = transform.getCheckStopReadingFn();
     this.badRecordRouter = transform.getBadRecordRouter();
     this.recordTag = recordTag;
+    this.backlogFetcherThread = Executors.newSingleThreadScheduledExecutor();
     if (transform.getConsumerPollingTimeout() > 0) {
       this.consumerPollingTimeout = transform.getConsumerPollingTimeout();
     } else {
@@ -221,10 +231,10 @@ abstract class ReadFromKafkaDoFn<K, V>
   private transient @Nullable Deserializer<V> valueDeserializerInstance = null;
   private transient @Nullable Map<TopicPartition, KafkaLatestOffsetEstimator> offsetEstimatorCache;
 
+  private static Map<TopicPartition, Supplier<Long>> backlogMap = new HashMap<>();
+
   private transient @Nullable LoadingCache<TopicPartition, AverageRecordSize> avgRecordSize;
   private static final long DEFAULT_KAFKA_POLL_TIMEOUT = 2L;
-
-  private HashMap<String, Long> perPartitionBacklogMetrics = new HashMap<String, Long>();;
 
   @VisibleForTesting final long consumerPollingTimeout;
   @VisibleForTesting final DeserializerProvider<K> keyDeserializerProvider;
@@ -235,6 +245,19 @@ abstract class ReadFromKafkaDoFn<K, V>
   @VisibleForTesting
   static final String RAW_SIZE_METRIC_PREFIX = KafkaUnboundedReader.RAW_SIZE_METRIC_PREFIX;
 
+  private static Supplier<Long> backlogQuery(
+      Consumer<byte[], byte[]> offsetConsumer, TopicPartition topicPartition) {
+    return Suppliers.memoizeWithExpiration(
+        () -> {
+          synchronized (offsetConsumer) {
+            ConsumerSpEL.evaluateSeek2End(offsetConsumer, topicPartition);
+            return offsetConsumer.position(topicPartition);
+          }
+        },
+        1,
+        TimeUnit.SECONDS);
+  }
+
   /**
    * A {@link GrowableOffsetRangeTracker.RangeEndEstimator} which uses a Kafka {@link Consumer} to
    * fetch backlog.
@@ -244,7 +267,7 @@ abstract class ReadFromKafkaDoFn<K, V>
 
     private final Consumer<byte[], byte[]> offsetConsumer;
     private final TopicPartition topicPartition;
-    private final Supplier<Long> memoizedBacklog;
+    private Supplier<Long> memoizedBacklog;
     private boolean closed;
 
     KafkaLatestOffsetEstimator(
@@ -252,16 +275,8 @@ abstract class ReadFromKafkaDoFn<K, V>
       this.offsetConsumer = offsetConsumer;
       this.topicPartition = topicPartition;
       ConsumerSpEL.evaluateAssign(this.offsetConsumer, ImmutableList.of(this.topicPartition));
-      memoizedBacklog =
-          Suppliers.memoizeWithExpiration(
-              () -> {
-                synchronized (offsetConsumer) {
-                  ConsumerSpEL.evaluateSeek2End(offsetConsumer, topicPartition);
-                  return offsetConsumer.position(topicPartition);
-                }
-              },
-              1,
-              TimeUnit.SECONDS);
+      memoizedBacklog = backlogQuery(this.offsetConsumer, this.topicPartition);
+      backlogMap.put(topicPartition, memoizedBacklog);
     }
 
     @Override
@@ -277,7 +292,9 @@ abstract class ReadFromKafkaDoFn<K, V>
 
     @Override
     public long estimate() {
-      return memoizedBacklog.get();
+      memoizedBacklog = Preconditions.checkStateNotNull(backlogMap.get(topicPartition));
+      Long backlogValue = memoizedBacklog.get();
+      return backlogValue;
     }
 
     public boolean isClosed() {
@@ -287,22 +304,17 @@ abstract class ReadFromKafkaDoFn<K, V>
 
   @GetInitialRestriction
   public OffsetRange initialRestriction(@Element KafkaSourceDescriptor kafkaSourceDescriptor) {
-    Map<String, Object> updatedConsumerConfig =
-        overrideBootstrapServersConfig(consumerConfig, kafkaSourceDescriptor);
-    LOG.info(
-        "Creating Kafka consumer for initial restriction for {}",
-        kafkaSourceDescriptor.getTopicPartition());
+    updatedConsumerConfig = overrideBootstrapServersConfig(consumerConfig, kafkaSourceDescriptor);
+    TopicPartition topicPartition = kafkaSourceDescriptor.getTopicPartition();
+    LOG.info("Creating Kafka consumer for initial restriction for {}", topicPartition);
     try (Consumer<byte[], byte[]> offsetConsumer = consumerFactoryFn.apply(updatedConsumerConfig)) {
-      ConsumerSpEL.evaluateAssign(
-          offsetConsumer, ImmutableList.of(kafkaSourceDescriptor.getTopicPartition()));
+      ConsumerSpEL.evaluateAssign(offsetConsumer, ImmutableList.of(topicPartition));
       long startOffset;
       @Nullable Instant startReadTime = kafkaSourceDescriptor.getStartReadTime();
       if (kafkaSourceDescriptor.getStartReadOffset() != null) {
         startOffset = kafkaSourceDescriptor.getStartReadOffset();
       } else if (startReadTime != null) {
-        startOffset =
-            ConsumerSpEL.offsetForTime(
-                offsetConsumer, kafkaSourceDescriptor.getTopicPartition(), startReadTime);
+        startOffset = ConsumerSpEL.offsetForTime(offsetConsumer, topicPartition, startReadTime);
       } else {
         startOffset = offsetConsumer.position(kafkaSourceDescriptor.getTopicPartition());
       }
@@ -312,9 +324,7 @@ abstract class ReadFromKafkaDoFn<K, V>
       if (kafkaSourceDescriptor.getStopReadOffset() != null) {
         endOffset = kafkaSourceDescriptor.getStopReadOffset();
       } else if (stopReadTime != null) {
-        endOffset =
-            ConsumerSpEL.offsetForTime(
-                offsetConsumer, kafkaSourceDescriptor.getTopicPartition(), stopReadTime);
+        endOffset = ConsumerSpEL.offsetForTime(offsetConsumer, topicPartition, stopReadTime);
       }
 
       return new OffsetRange(startOffset, endOffset);
@@ -346,12 +356,6 @@ abstract class ReadFromKafkaDoFn<K, V>
     if (!avgRecordSize.asMap().containsKey(kafkaSourceDescriptor.getTopicPartition())) {
       return numRecords;
     }
-    if (offsetEstimatorCache != null) {
-      for (Map.Entry<TopicPartition, KafkaLatestOffsetEstimator> tp :
-          offsetEstimatorCache.entrySet()) {
-        perPartitionBacklogMetrics.put(tp.getKey().toString(), tp.getValue().estimate());
-      }
-    }
 
     return avgRecordSize.get(kafkaSourceDescriptor.getTopicPartition()).getTotalSize(numRecords);
   }
@@ -372,7 +376,7 @@ abstract class ReadFromKafkaDoFn<K, V>
     TopicPartition topicPartition = kafkaSourceDescriptor.getTopicPartition();
     KafkaLatestOffsetEstimator offsetEstimator = offsetEstimatorCacheInstance.get(topicPartition);
     if (offsetEstimator == null || offsetEstimator.isClosed()) {
-      Map<String, Object> updatedConsumerConfig =
+      this.updatedConsumerConfig =
           overrideBootstrapServersConfig(consumerConfig, kafkaSourceDescriptor);
 
       LOG.info("Creating Kafka consumer for offset estimation for {}", topicPartition);
@@ -381,6 +385,13 @@ abstract class ReadFromKafkaDoFn<K, V>
           consumerFactoryFn.apply(
               KafkaIOUtils.getOffsetConsumerConfig(
                   "tracker-" + topicPartition, offsetConsumerConfig, updatedConsumerConfig));
+
+      // Insert into backlog map. and update the tracker if the previous one is now closed.
+      if (backlogMap.get(topicPartition) == null
+          || (offsetEstimator != null && offsetEstimator.isClosed())) {
+        Supplier<Long> memoizedBacklog = backlogQuery(offsetConsumer, topicPartition);
+        backlogMap.put(topicPartition, memoizedBacklog);
+      }
       offsetEstimator = new KafkaLatestOffsetEstimator(offsetConsumer, topicPartition);
       offsetEstimatorCacheInstance.put(topicPartition, offsetEstimator);
     }
@@ -405,12 +416,6 @@ abstract class ReadFromKafkaDoFn<K, V>
         Metrics.distribution(
             METRIC_NAMESPACE,
             RAW_SIZE_METRIC_PREFIX + kafkaSourceDescriptor.getTopicPartition().toString());
-    for (Map.Entry<String, Long> backlogSplit : perPartitionBacklogMetrics.entrySet()) {
-      Gauge backlog =
-          Metrics.gauge(
-              METRIC_NAMESPACE, RAW_SIZE_METRIC_PREFIX + "backlogBytes_" + backlogSplit.getKey());
-      backlog.set(backlogSplit.getValue());
-    }
 
     // Stop processing current TopicPartition when it's time to stop.
     if (checkStopReadingFn != null
@@ -420,8 +425,7 @@ abstract class ReadFromKafkaDoFn<K, V>
       tracker.tryClaim(tracker.currentRestriction().getTo() - 1);
       return ProcessContinuation.stop();
     }
-    Map<String, Object> updatedConsumerConfig =
-        overrideBootstrapServersConfig(consumerConfig, kafkaSourceDescriptor);
+    updatedConsumerConfig = overrideBootstrapServersConfig(consumerConfig, kafkaSourceDescriptor);
     // If there is a timestampPolicyFactory, create the TimestampPolicy for current
     // TopicPartition.
     TimestampPolicy<K, V> timestampPolicy = null;
@@ -568,6 +572,7 @@ abstract class ReadFromKafkaDoFn<K, V>
     return new OffsetRange.Coder();
   }
 
+  @SuppressWarnings("FutureReturnValueIgnored")
   @Setup
   public void setup() throws Exception {
     // Start to track record size and offset gap per bundle.
@@ -587,6 +592,52 @@ abstract class ReadFromKafkaDoFn<K, V>
     if (checkStopReadingFn != null) {
       checkStopReadingFn.setup();
     }
+
+    // Start backlog updating thread.
+    this.backlogFetcherThread = Executors.newSingleThreadScheduledExecutor();
+    backlogFetcherThread.scheduleAtFixedRate(
+        this::updateBacklogOffsets, 0, OFFSET_UPDATE_INTERVAL_SECONDS, TimeUnit.SECONDS);
+  }
+
+  private void updateBacklogOffsets() {
+    // OffsetEstimators are cached for each topic-partition because they hold a stateful connection,
+    // so we want to minimize the amount of connections that we start and track with Kafka. Another
+    // point is that it has a memoized backlog, and this should make that more reusable estimations.
+    final Map<TopicPartition, KafkaLatestOffsetEstimator> offsetEstimatorCacheInstance =
+        Preconditions.checkStateNotNull(this.offsetEstimatorCache);
+
+    for (Map.Entry<TopicPartition, KafkaLatestOffsetEstimator> tp :
+        offsetEstimatorCache.entrySet()) {
+      TopicPartition topicPartition = tp.getKey();
+      KafkaLatestOffsetEstimator offsetEstimator = tp.getValue();
+      if (offsetEstimator == null || offsetEstimator.isClosed()) {
+        LOG.info("Creating Kafka consumer for offset estimation for {}", topicPartition);
+        Consumer<byte[], byte[]> offsetConsumer =
+            consumerFactoryFn.apply(
+                KafkaIOUtils.getOffsetConsumerConfig(
+                    "tracker-" + topicPartition, offsetConsumerConfig, updatedConsumerConfig));
+
+        // Insert into backlog map. and update the tracker if the previous one is now closed.
+        if (backlogMap.get(topicPartition) == null || offsetEstimator.isClosed()) {
+          Supplier<Long> memoizedBacklog = backlogQuery(offsetConsumer, topicPartition);
+          backlogMap.put(topicPartition, memoizedBacklog);
+        }
+        offsetEstimator = new KafkaLatestOffsetEstimator(offsetConsumer, topicPartition);
+        offsetEstimatorCacheInstance.put(topicPartition, offsetEstimator);
+      }
+    }
+
+    // Update backlog metrics.
+    Preconditions.checkStateNotNull(this.offsetEstimatorCache);
+    for (TopicPartition topicPartition : offsetEstimatorCache.keySet()) {
+      Preconditions.checkStateNotNull(backlogMap.get(topicPartition));
+      Long backlogValue = backlogMap.get(topicPartition).get();
+      Gauge backlog =
+          Metrics.gauge(
+              METRIC_NAMESPACE,
+              RAW_SIZE_METRIC_PREFIX + "backlogBytes_" + topicPartition.toString());
+      backlog.set(backlogValue);
+    }
   }
 
   @Teardown
@@ -601,6 +652,8 @@ abstract class ReadFromKafkaDoFn<K, V>
     } catch (Exception anyException) {
       LOG.warn("Fail to close resource during finishing bundle.", anyException);
     }
+
+    backlogFetcherThread.shutdown();
 
     if (offsetEstimatorCache != null) {
       offsetEstimatorCache.clear();
