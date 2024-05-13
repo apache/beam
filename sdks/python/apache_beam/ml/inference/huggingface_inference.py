@@ -649,7 +649,7 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
     self._inference_fn = inference_fn
     self._load_pipeline_args = load_pipeline_args if load_pipeline_args else {}
     self._batching_kwargs = {}
-    self._framework = "torch"
+    self._framework = "pt"
     self._env_vars = kwargs.get('env_vars', {})
     if min_batch_size is not None:
       self._batching_kwargs['min_batch_size'] = min_batch_size

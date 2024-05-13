@@ -486,6 +486,25 @@ if __name__ == '__main__':
               # urllib 2.x is a breaking change for the headless chrome tests
               'urllib3<2,>=1.21.1'
           ],
+          # Optional dependencies to unit-test ML functionality.
+          # We don't expect users to install this extra. Users should install
+          # necessary dependencies individually, or we should create targeted
+          # extras. Keeping the bounds open as much as possible so that we
+          # can find out early when using Beam with new versions doesn't work.
+          'ml_test': [
+              'datatable',
+              'embeddings',
+              'onnxruntime',
+              'sentence-transformers',
+              'skl2onnx',
+              'tensorflow',
+              'tensorflow-hub',
+              'tensorflow_transform',
+              'tf2onnx',
+              'torch',
+              'transformers',
+              'xgboost<2.0',  # https://github.com/apache/beam/issues/31252
+          ],
           'aws': ['boto3>=1.9,<2'],
           'azure': [
               'azure-storage-blob>=12.3.2,<13',
