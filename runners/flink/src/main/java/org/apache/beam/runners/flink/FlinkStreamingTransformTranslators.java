@@ -162,6 +162,11 @@ class FlinkStreamingTransformTranslators {
         new CreateViewStreamingTranslator());
 
     TRANSLATORS.put(PTransformTranslation.RESHUFFLE_URN, new ReshuffleTranslatorStreaming());
+    TRANSLATORS.put(
+        PTransformTranslation.REDISTRIBUTE_BY_KEY_URN, new RedistributeByKeyTranslatorStreaming());
+    TRANSLATORS.put(
+        PTransformTranslation.REDISTRIBUTE_ARBITRARILY_URN,
+        new RedistributeArbitrarilyTranslatorStreaming());
     TRANSLATORS.put(PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN, new GroupByKeyTranslator());
     TRANSLATORS.put(
         PTransformTranslation.COMBINE_PER_KEY_TRANSFORM_URN, new CombinePerKeyTranslator());
@@ -916,6 +921,38 @@ class FlinkStreamingTransformTranslators {
         FlinkStreamingTranslationContext context) {
 
       DataStream<WindowedValue<KV<K, InputT>>> inputDataSet =
+          context.getInputDataStream(context.getInput(transform));
+
+      context.setOutputDataStream(context.getOutput(transform), inputDataSet.rebalance());
+    }
+  }
+
+  private static class RedistributeByKeyTranslatorStreaming<K, InputT>
+      extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<
+          PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, InputT>>>> {
+
+    @Override
+    public void translateNode(
+        PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, InputT>>> transform,
+        FlinkStreamingTranslationContext context) {
+
+      DataStream<WindowedValue<KV<K, InputT>>> inputDataSet =
+          context.getInputDataStream(context.getInput(transform));
+
+      context.setOutputDataStream(context.getOutput(transform), inputDataSet.rebalance());
+    }
+  }
+
+  private static class RedistributeArbitrarilyTranslatorStreaming<InputT>
+      extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<
+          PTransform<PCollection<InputT>, PCollection<InputT>>> {
+
+    @Override
+    public void translateNode(
+        PTransform<PCollection<InputT>, PCollection<InputT>> transform,
+        FlinkStreamingTranslationContext context) {
+
+      DataStream<WindowedValue<InputT>> inputDataSet =
           context.getInputDataStream(context.getInput(transform));
 
       context.setOutputDataStream(context.getOutput(transform), inputDataSet.rebalance());

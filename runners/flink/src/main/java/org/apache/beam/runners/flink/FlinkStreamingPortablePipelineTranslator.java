@@ -240,6 +240,10 @@ public class FlinkStreamingPortablePipelineTranslator
     translatorMap.put(PTransformTranslation.IMPULSE_TRANSFORM_URN, this::translateImpulse);
     translatorMap.put(ExecutableStage.URN, this::translateExecutableStage);
     translatorMap.put(PTransformTranslation.RESHUFFLE_URN, this::translateReshuffle);
+    translatorMap.put(
+        PTransformTranslation.REDISTRIBUTE_BY_KEY_URN, this::translateRedistributeByKey);
+    translatorMap.put(
+        PTransformTranslation.REDISTRIBUTE_ARBITRARILY_URN, this::translateRedistributeArbitrarily);
 
     // TODO Legacy transforms which need to be removed
     // Consider removing now that timers are supported
@@ -296,6 +300,24 @@ public class FlinkStreamingPortablePipelineTranslator
       String id, RunnerApi.Pipeline pipeline, StreamingTranslationContext context) {
     RunnerApi.PTransform transform = pipeline.getComponents().getTransformsOrThrow(id);
     DataStream<WindowedValue<KV<K, V>>> inputDataStream =
+        context.getDataStreamOrThrow(Iterables.getOnlyElement(transform.getInputsMap().values()));
+    context.addDataStream(
+        Iterables.getOnlyElement(transform.getOutputsMap().values()), inputDataStream.rebalance());
+  }
+
+  private <K, V> void translateRedistributeByKey(
+      String id, RunnerApi.Pipeline pipeline, StreamingTranslationContext context) {
+    RunnerApi.PTransform transform = pipeline.getComponents().getTransformsOrThrow(id);
+    DataStream<WindowedValue<KV<K, V>>> inputDataStream =
+        context.getDataStreamOrThrow(Iterables.getOnlyElement(transform.getInputsMap().values()));
+    context.addDataStream(
+        Iterables.getOnlyElement(transform.getOutputsMap().values()), inputDataStream.rebalance());
+  }
+
+  private <T> void translateRedistributeArbitrarily(
+      String id, RunnerApi.Pipeline pipeline, StreamingTranslationContext context) {
+    RunnerApi.PTransform transform = pipeline.getComponents().getTransformsOrThrow(id);
+    DataStream<WindowedValue<T>> inputDataStream =
         context.getDataStreamOrThrow(Iterables.getOnlyElement(transform.getInputsMap().values()));
     context.addDataStream(
         Iterables.getOnlyElement(transform.getOutputsMap().values()), inputDataStream.rebalance());
