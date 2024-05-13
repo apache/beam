@@ -2561,7 +2561,7 @@ public class ElasticsearchIO {
      * Whether to throw runtime exceptions when write (IO) errors occur. Especially useful in
      * streaming pipelines where non-transient IO failures will cause infinite retries. If true, a
      * runtime error will be thrown for any error found by {@link ElasticsearchIO#createWriteReport}
-     * and/or org.elasticsearch.client.ResponseException found by in batch flush. If false, a {@link
+     * and/or java.io.IOException (which is what org.elasticsearch.client.ResponseException based on) found by in batch flush. If false, a {@link
      * PCollectionTuple} will be returned with tags {@link Write#SUCCESSFUL_WRITES} and {@link
      * Write#FAILED_WRITES}, each being a {@link PCollection} of {@link Document} representing
      * documents which were written to Elasticsearch without errors and those which failed to write
@@ -2864,13 +2864,13 @@ public class ElasticsearchIO {
         }
 
         List<Document> responses;
-        // If org.elasticsearch.client.ResponseException was thrown, return all input Documents with
+        // If java.io.IOException was thrown, return all input Documents with
         // withHasError(true)
         // so that they could be caught by FAILED_WRITES tag.
         if (elasticResponseExceptionMessage != null) {
           String errorJsonMessage =
               String.format(
-                  "{\"message\":\"org.elasticsearch.client.ResponseException was thrown in batch flush: %s\"}",
+                  "{\"message\":\"java.io.IOException was thrown in batch flush: %s\"}",
                   elasticResponseExceptionMessage);
 
           responses =
