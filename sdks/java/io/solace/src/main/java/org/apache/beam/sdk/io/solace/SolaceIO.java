@@ -118,75 +118,6 @@ import org.slf4j.LoggerFactory;
  * user must ensure that the SEMP API is reachable from the driver program and provide credentials
  * with `read` permission to the {@link Read#withSempClientFactory(SempClientFactory)}.
  *
- * <h3>{@link Read#withSempClientFactory(SempClientFactory)}</h3>
- *
- * <p>The user can specify a factory class that creates a {@link
- * org.apache.beam.sdk.io.solace.broker.SempClient}.
- *
- * <p>An existing implementation of the SempClientFactory includes {@link
- * org.apache.beam.sdk.io.solace.broker.BasicAuthSempClientFactory} which implements the Basic
- * Authentication to Solace.
- *
- * <p>To use it, specify the credentials with the builder methods.
- *
- * <p>The format of the host is `[Protocol://]Host[:Port]`
- *
- * <pre>{@code
- * .withSempClientFactory(
- *         BasicAuthSempClientFactory.builder()
- *                 .host("http://" + options.getSolaceHost() + ":8080")
- *                 .username(options.getSolaceUsername())
- *                 .password(options.getSolacePassword())
- *                 .vpnName(options.getSolaceVpnName())
- *                 .build())
- * }</pre>
- *
- * <h3>{@link Read#withSessionServiceFactory(SessionServiceFactory)}</h3>
- *
- * <p>The user can specify a factory class that creates a {@link SessionService}.
- *
- * <p>An existing implementation of the SempClientFactory includes {@link
- * org.apache.beam.sdk.io.solace.broker.BasicAuthJcsmpSessionService} which implements the Basic
- * Authentication to Solace.
- *
- * <p>To use it, specify the credentials with the builder methods.
- *
- * <p>The format of the host is `[Protocol://]Host[:Port]`
- *
- * <pre>{@code
- * BasicAuthJcsmpSessionServiceFactory.builder()
- *         .host(options.getSolaceHost())
- *         .username(options.getSolaceUsername())
- *         .password(options.getSolacePassword())
- *         .vpnName(options.getSolaceVpnName())
- *         .build()));
- * }</pre>
- *
- * <h3>{@link Read#withMaxNumConnections(Integer)}</h3>
- *
- * <p>Optional. Sets the maximum number of connections to the broker. The actual number of sessions
- * is determined by this and the number set by the runner. If not set, the number of sessions is
- * determined by the runner. The number of connections created follows this logic:
- * `numberOfConnections = min(maxNumConnections, desiredNumberOfSplits)`, where the
- * `desiredNumberOfSplits` is set by the runner.
- *
- * <h3>{@link Read#withDeduplicateRecords(boolean)}</h3>
- *
- * <p>Optional, default: true. Set to deduplicate messages based on the {@link
- * BytesXMLMessage#getApplicationMessageId()} of the incoming {@link BytesXMLMessage}. If the field
- * is null, then the {@link BytesXMLMessage#getReplicationGroupMessageId()} will be used, which is
- * always set by Solace.
- *
- * <h3>{@link Read#withTimestampFn(SerializableFunction)}</h3>
- *
- * <p>The timestamp function, used for estimating the watermark, mapping the record T to an {@link
- * Instant}
- *
- * <p>Optional when using the no-arg {@link SolaceIO#read()} method. Defaults to {@link
- * SolaceIO#SENDER_TIMESTAMP_FUNCTION}. When using the {@link SolaceIO#read(TypeDescriptor,
- * SerializableFunction, SerializableFunction)} method, the function mapping from T to {@link
- * Instant} has to be passed as an argument.
- *
  * <h3>Usage example</h3>
  *
  * <h4>The no-arg {@link SolaceIO#read()} method</h4>
@@ -357,8 +288,13 @@ public class SolaceIO {
     }
 
     /**
-     * Set the timestamp function. This serializable has to output an {@link Instant}. This will be
-     * used to calculate watermark and define record's timestamp.
+     * The timestamp function, used for estimating the watermark, mapping the record T to an {@link
+     * Instant}
+     *
+     * <p>Optional when using the no-arg {@link SolaceIO#read()} method. Defaults to {@link
+     * SolaceIO#SENDER_TIMESTAMP_FUNCTION}. When using the {@link SolaceIO#read(TypeDescriptor,
+     * SerializableFunction, SerializableFunction)} method, the function mapping from T to {@link
+     * Instant} has to be passed as an argument.
      */
     public Read<T> withTimestampFn(SerializableFunction<T, Instant> timestampFn) {
       checkState(
@@ -369,16 +305,21 @@ public class SolaceIO {
     }
 
     /**
-     * Maximum number of read connections created to Solace cluster. This is optional, leave out to
-     * let the Runner decide.
+     * Optional. Sets the maximum number of connections to the broker. The actual number of sessions
+     * is determined by this and the number set by the runner. If not set, the number of sessions is
+     * determined by the runner. The number of connections created follows this logic:
+     * `numberOfConnections = min(maxNumConnections, desiredNumberOfSplits)`, where the
+     * `desiredNumberOfSplits` is set by the runner.
      */
     public Read<T> withMaxNumConnections(Integer maxNumConnections) {
       return toBuilder().setMaxNumConnections(maxNumConnections).build();
     }
 
     /**
-     * Set if the read records should be deduplicated. True by default. It will use the
-     * `applicationMessageId` attribute to identify duplicates.
+     * Optional, default: true. Set to deduplicate messages based on the {@link
+     * BytesXMLMessage#getApplicationMessageId()} of the incoming {@link BytesXMLMessage}. If the
+     * field is null, then the {@link BytesXMLMessage#getReplicationGroupMessageId()} will be used,
+     * which is always set by Solace.
      */
     public Read<T> withDeduplicateRecords(boolean deduplicateRecords) {
       return toBuilder().setDeduplicateRecords(deduplicateRecords).build();
@@ -397,6 +338,24 @@ public class SolaceIO {
      *   <li>query for metadata such as access-type of a Queue,
      *   <li>requesting creation of new Queues.
      * </ul>
+     *
+     * <p>An existing implementation of the SempClientFactory includes {@link
+     * org.apache.beam.sdk.io.solace.broker.BasicAuthSempClientFactory} which implements the Basic
+     * Authentication to Solace.
+     *
+     * <p>To use it, specify the credentials with the builder methods.
+     *
+     * <p>The format of the host is `[Protocol://]Host[:Port]`
+     *
+     * <pre>{@code
+     * .withSempClientFactory(
+     *         BasicAuthSempClientFactory.builder()
+     *                 .host("http://" + options.getSolaceHost() + ":8080")
+     *                 .username(options.getSolaceUsername())
+     *                 .password(options.getSolacePassword())
+     *                 .vpnName(options.getSolaceVpnName())
+     *                 .build())
+     * }</pre>
      */
     public Read<T> withSempClientFactory(SempClientFactory sempClientFactory) {
       checkState(sempClientFactory != null, "SolaceIO.Read: sempClientFactory must not be null.");
@@ -416,6 +375,23 @@ public class SolaceIO {
      *   <li>close the connection,
      *   <li>create a {@link org.apache.beam.sdk.io.solace.broker.MessageReceiver}.
      * </ul>
+     *
+     * <p>An existing implementation of the SempClientFactory includes {@link
+     * org.apache.beam.sdk.io.solace.broker.BasicAuthJcsmpSessionService} which implements the Basic
+     * Authentication to Solace. *
+     *
+     * <p>To use it, specify the credentials with the builder methods. *
+     *
+     * <p>The format of the host is `[Protocol://]Host[:Port]` *
+     *
+     * <pre>{@code
+     * BasicAuthJcsmpSessionServiceFactory.builder()
+     *         .host(options.getSolaceHost())
+     *         .username(options.getSolaceUsername())
+     *         .password(options.getSolacePassword())
+     *         .vpnName(options.getSolaceVpnName())
+     *         .build()));
+     * }</pre>
      */
     public Read<T> withSessionServiceFactory(SessionServiceFactory sessionServiceFactory) {
       checkState(
