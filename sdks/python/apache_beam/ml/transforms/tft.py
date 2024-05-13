@@ -645,7 +645,7 @@ class HashStrings(TFTOperation):
       self,
       columns: List[str],
       hash_buckets: int,
-      key: Optional[Iterable[int]] = None,
+      key: Optional[Tuple[int, int]] = None,
       name: Optional[str] = None):
     '''Hashes strings into the provided number of buckets.
     
