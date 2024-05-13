@@ -466,9 +466,9 @@ class ElasticsearchIOTestCommon implements Serializable {
     Write write =
         ElasticsearchIO.write()
             .withConnectionConfiguration(connectionConfiguration)
-            .withMaxBatchSize(1000L)
+            .withMaxBatchSize(numDocs + 1)
             .withMaxBatchSizeBytes(
-                Long.MAX_VALUE) // Max long number to make sure it flushes 2 docs.
+                Long.MAX_VALUE) // Max long number to make sure all docs are flushed in one batch.
             .withThrowWriteErrors(false)
             .withIdFn(new ExtractValueFn("id"))
             .withUseStatefulBatches(true);
