@@ -40,8 +40,10 @@
 </span></span></span><span class=line><span class=cl><span class=c1></span>    <span class=c1>// Run in debug mode to see the output.
 </span></span></span><span class=line><span class=cl><span class=c1></span>    <span class=n>Pipeline</span> <span class=n>p</span> <span class=o>=</span> <span class=n>Pipeline</span><span class=o>.</span><span class=na>create</span><span class=o>();</span>
 </span></span><span class=line><span class=cl>
-</span></span><span class=line><span class=cl>    <span class=c1>// Create a side input that updates each second.
-</span></span></span><span class=line><span class=cl><span class=c1></span>    <span class=n>PCollectionView</span><span class=o>&lt;</span><span class=n>Map</span><span class=o>&lt;</span><span class=n>String</span><span class=o>,</span> <span class=n>String</span><span class=o>&gt;&gt;</span> <span class=n>map</span> <span class=o>=</span>
+</span></span><span class=line><span class=cl>    <span class=c1>// Create a side input that updates every 5 seconds.
+</span></span></span><span class=line><span class=cl><span class=c1></span>    <span class=c1>// View as an iterable, not singleton, so that if we happen to trigger more
+</span></span></span><span class=line><span class=cl><span class=c1></span>    <span class=c1>// than once before Latest.globally is computed we can handle both elements.
+</span></span></span><span class=line><span class=cl><span class=c1></span>    <span class=n>PCollectionView</span><span class=o>&lt;</span><span class=n>Iterable</span><span class=o>&lt;</span><span class=n>Map</span><span class=o>&lt;</span><span class=n>String</span><span class=o>,</span> <span class=n>String</span><span class=o>&gt;&gt;&gt;</span> <span class=n>mapIterable</span> <span class=o>=</span>
 </span></span><span class=line><span class=cl>        <span class=n>p</span><span class=o>.</span><span class=na>apply</span><span class=o>(</span><span class=n>GenerateSequence</span><span class=o>.</span><span class=na>from</span><span class=o>(</span><span class=n>0</span><span class=o>).</span><span class=na>withRate</span><span class=o>(</span><span class=n>1</span><span class=o>,</span> <span class=n>Duration</span><span class=o>.</span><span class=na>standardSeconds</span><span class=o>(</span><span class=n>5L</span><span class=o>)))</span>
 </span></span><span class=line><span class=cl>            <span class=o>.</span><span class=na>apply</span><span class=o>(</span>
 </span></span><span class=line><span class=cl>                <span class=n>ParDo</span><span class=o>.</span><span class=na>of</span><span class=o>(</span>
@@ -62,7 +64,7 @@
 </span></span><span class=line><span class=cl>                    <span class=o>.</span><span class=na>triggering</span><span class=o>(</span><span class=n>Repeatedly</span><span class=o>.</span><span class=na>forever</span><span class=o>(</span><span class=n>AfterProcessingTime</span><span class=o>.</span><span class=na>pastFirstElementInPane</span><span class=o>()))</span>
 </span></span><span class=line><span class=cl>                    <span class=o>.</span><span class=na>discardingFiredPanes</span><span class=o>())</span>
 </span></span><span class=line><span class=cl>            <span class=o>.</span><span class=na>apply</span><span class=o>(</span><span class=n>Latest</span><span class=o>.</span><span class=na>globally</span><span class=o>())</span>
-</span></span><span class=line><span class=cl>            <span class=o>.</span><span class=na>apply</span><span class=o>(</span><span class=n>View</span><span class=o>.</span><span class=na>asSingleton</span><span class=o>());</span>
+</span></span><span class=line><span class=cl>            <span class=o>.</span><span class=na>apply</span><span class=o>(</span><span class=n>View</span><span class=o>.</span><span class=na>asIterable</span><span class=o>());</span>
 </span></span><span class=line><span class=cl>
 </span></span><span class=line><span class=cl>    <span class=c1>// Consume side input. GenerateSequence generates test data.
 </span></span></span><span class=line><span class=cl><span class=c1></span>    <span class=c1>// Use a real source (like PubSubIO or KafkaIO) in production.
@@ -75,7 +77,9 @@
 </span></span><span class=line><span class=cl>
 </span></span><span class=line><span class=cl>                      <span class=nd>@ProcessElement</span>
 </span></span><span class=line><span class=cl>                      <span class=kd>public</span> <span class=kt>void</span> <span class=nf>process</span><span class=o>(</span><span class=n>ProcessContext</span> <span class=n>c</span><span class=o>,</span> <span class=nd>@Timestamp</span> <span class=n>Instant</span> <span class=n>timestamp</span><span class=o>)</span> <span class=o>{</span>
-</span></span><span class=line><span class=cl>                        <span class=n>Map</span><span class=o>&lt;</span><span class=n>String</span><span class=o>,</span> <span class=n>String</span><span class=o>&gt;</span> <span class=n>keyMap</span> <span class=o>=</span> <span class=n>c</span><span class=o>.</span><span class=na>sideInput</span><span class=o>(</span><span class=n>map</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>                        <span class=n>Iterable</span><span class=o>&lt;</span><span class=n>Map</span><span class=o>&lt;</span><span class=n>String</span><span class=o>,</span> <span class=n>String</span><span class=o>&gt;&gt;</span> <span class=n>si</span> <span class=o>=</span> <span class=n>c</span><span class=o>.</span><span class=na>sideInput</span><span class=o>(</span><span class=n>mapIterable</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>                        <span class=c1>// Take an element from the side input iterable (likely length 1)
+</span></span></span><span class=line><span class=cl><span class=c1></span>                        <span class=n>Map</span><span class=o>&lt;</span><span class=n>String</span><span class=o>,</span> <span class=n>String</span><span class=o>&gt;</span> <span class=n>keyMap</span> <span class=o>=</span> <span class=n>si</span><span class=o>.</span><span class=na>iterator</span><span class=o>().</span><span class=na>next</span><span class=o>();</span>
 </span></span><span class=line><span class=cl>                        <span class=n>c</span><span class=o>.</span><span class=na>outputWithTimestamp</span><span class=o>(</span><span class=n>KV</span><span class=o>.</span><span class=na>of</span><span class=o>(</span><span class=n>1L</span><span class=o>,</span> <span class=n>c</span><span class=o>.</span><span class=na>element</span><span class=o>()),</span> <span class=n>Instant</span><span class=o>.</span><span class=na>now</span><span class=o>());</span>
 </span></span><span class=line><span class=cl>
 </span></span><span class=line><span class=cl>                        <span class=n>LOG</span><span class=o>.</span><span class=na>info</span><span class=o>(</span>
@@ -85,7 +89,7 @@
 </span></span><span class=line><span class=cl>                            <span class=n>keyMap</span><span class=o>.</span><span class=na>get</span><span class=o>(</span><span class=s>&#34;Key_A&#34;</span><span class=o>));</span>
 </span></span><span class=line><span class=cl>                      <span class=o>}</span>
 </span></span><span class=line><span class=cl>                    <span class=o>})</span>
-</span></span><span class=line><span class=cl>                <span class=o>.</span><span class=na>withSideInputs</span><span class=o>(</span><span class=n>map</span><span class=o>));</span>
+</span></span><span class=line><span class=cl>                <span class=o>.</span><span class=na>withSideInputs</span><span class=o>(</span><span class=n>mapIterable</span><span class=o>));</span>
 </span></span><span class=line><span class=cl>
 </span></span><span class=line><span class=cl>    <span class=n>p</span><span class=o>.</span><span class=na>run</span><span class=o>();</span>
 </span></span><span class=line><span class=cl>  <span class=o>}</span>
