@@ -112,12 +112,12 @@ import org.slf4j.LoggerFactory;
   // errorprone is released (2.11.0)
   "unused"
 })
-public class StorageApiWritesShardedRecords_256<DestinationT extends @NonNull Object, ElementT>
+public class StorageApiWritesShardedRecords256<DestinationT extends @NonNull Object, ElementT>
     extends PTransform<
         PCollection<KV<ShardedKey<DestinationT>, Iterable<StorageApiWritePayload>>>,
         PCollectionTuple> {
   private static final Logger LOG =
-      LoggerFactory.getLogger(StorageApiWritesShardedRecords_256.class);
+      LoggerFactory.getLogger(StorageApiWritesShardedRecords256.class);
   private static final Duration DEFAULT_STREAM_IDLE_TIME = Duration.standardHours(1);
 
   private final StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations;
@@ -210,7 +210,7 @@ public class StorageApiWritesShardedRecords_256<DestinationT extends @NonNull Ob
         });
   }
 
-  public StorageApiWritesShardedRecords_256(
+  public StorageApiWritesShardedRecords256(
       StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations,
       CreateDisposition createDisposition,
       String kmsKey,
@@ -552,8 +552,8 @@ public class StorageApiWritesShardedRecords_256<DestinationT extends @NonNull Ob
       // Each ProtoRows object contains at most 1MB of rows.
       // TODO: Push messageFromTableRow up to top level. That we we cans skip TableRow entirely if
       // already proto or already schema.
-      Iterable<SplittingIterable_256.Value> messages =
-          new SplittingIterable_256(
+      Iterable<SplittingIterable256.Value> messages =
+          new SplittingIterable256(
               element.getValue(),
               splitSize,
               (fields, ignore) -> appendClientInfo.get().encodeUnknownFields(fields, ignore),
@@ -823,7 +823,7 @@ public class StorageApiWritesShardedRecords_256<DestinationT extends @NonNull Ob
               1000,
               BigQuerySinkMetrics.throttledTimeCounter(BigQuerySinkMetrics.RpcMethod.APPEND_ROWS));
       int numAppends = 0;
-      for (SplittingIterable_256.Value splitValue : messages) {
+      for (SplittingIterable256.Value splitValue : messages) {
         // Handle the case of a row that is too large.
         if (splitValue.getProtoRows().getSerializedSize() >= maxRequestSize) {
           if (splitValue.getProtoRows().getSerializedRowsCount() > 1) {

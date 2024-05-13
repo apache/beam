@@ -45,7 +45,7 @@ import org.joda.time.Instant;
 /**
  * A transform that converts messages to protocol buffers in preparation for writing to BigQuery.
  */
-public class StorageApiConvertMessages_256<DestinationT, ElementT>
+public class StorageApiConvertMessages256<DestinationT, ElementT>
     extends PTransform<PCollection<KV<DestinationT, ElementT>>, PCollectionTuple> {
   private final StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations;
   private final BigQueryServices bqServices;
@@ -57,7 +57,7 @@ public class StorageApiConvertMessages_256<DestinationT, ElementT>
   private final @Nullable SerializableFunction<ElementT, RowMutationInformation> rowMutationFn;
   private final BadRecordRouter badRecordRouter;
 
-  public StorageApiConvertMessages_256(
+  public StorageApiConvertMessages256(
       StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations,
       BigQueryServices bqServices,
       TupleTag<BigQueryStorageApiInsertError> failedWritesTag,

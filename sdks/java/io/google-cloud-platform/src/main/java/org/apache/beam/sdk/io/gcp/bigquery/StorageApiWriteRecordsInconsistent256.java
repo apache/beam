@@ -36,7 +36,7 @@ import org.apache.beam.sdk.values.TupleTagList;
  * writes, use {@link StorageApiWritesShardedRecords} or {@link StorageApiWriteUnshardedRecords}.
  */
 @SuppressWarnings("FutureReturnValueIgnored")
-public class StorageApiWriteRecordsInconsistent_256<DestinationT, ElementT>
+public class StorageApiWriteRecordsInconsistent256<DestinationT, ElementT>
     extends PTransform<PCollection<KV<DestinationT, StorageApiWritePayload>>, PCollectionTuple> {
   private final StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations;
   private final BigQueryServices bqServices;
@@ -52,7 +52,7 @@ public class StorageApiWriteRecordsInconsistent_256<DestinationT, ElementT>
   private final boolean usesCdc;
   private final AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation;
 
-  public StorageApiWriteRecordsInconsistent_256(
+  public StorageApiWriteRecordsInconsistent256(
       StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations,
       BigQueryServices bqServices,
       TupleTag<BigQueryStorageApiInsertError> failedRowsTag,
@@ -92,7 +92,7 @@ public class StorageApiWriteRecordsInconsistent_256<DestinationT, ElementT>
         input.apply(
             "Write Records",
             ParDo.of(
-                    new StorageApiWriteUnshardedRecords_256.WriteRecordsDoFn<>(
+                    new StorageApiWriteUnshardedRecords256.WriteRecordsDoFn<>(
                         operationName,
                         dynamicDestinations,
                         bqServices,

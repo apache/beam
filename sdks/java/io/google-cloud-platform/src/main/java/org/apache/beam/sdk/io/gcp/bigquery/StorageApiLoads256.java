@@ -50,7 +50,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Duration;
 
 /** This {@link PTransform} manages loads into BigQuery using the Storage API. */
-public class StorageApiLoads_256<DestinationT, ElementT>
+public class StorageApiLoads256<DestinationT, ElementT>
     extends PTransform<PCollection<KV<DestinationT, ElementT>>, WriteResult> {
   final TupleTag<KV<DestinationT, StorageApiWritePayload>> successfulConvertedRowsTag =
       new TupleTag<>("successfulRows");
@@ -79,7 +79,7 @@ public class StorageApiLoads_256<DestinationT, ElementT>
 
   private final ErrorHandler<BadRecord, ?> badRecordErrorHandler;
 
-  public StorageApiLoads_256(
+  public StorageApiLoads256(
       Coder<DestinationT> destinationCoder,
       StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations,
       @Nullable SerializableFunction<ElementT, RowMutationInformation> rowUpdateFn,
@@ -155,7 +155,7 @@ public class StorageApiLoads_256<DestinationT, ElementT>
     PCollectionTuple convertMessagesResult =
         inputInGlobalWindow.apply(
             "Convert",
-            new StorageApiConvertMessages_256<>(
+            new StorageApiConvertMessages256<>(
                 dynamicDestinations,
                 bqServices,
                 failedRowsTag,
@@ -169,7 +169,7 @@ public class StorageApiLoads_256<DestinationT, ElementT>
             .get(successfulConvertedRowsTag)
             .apply(
                 "StorageApiWriteInconsistent",
-                new StorageApiWriteRecordsInconsistent_256<>(
+                new StorageApiWriteRecordsInconsistent256<>(
                     dynamicDestinations,
                     bqServices,
                     failedRowsTag,
@@ -217,7 +217,7 @@ public class StorageApiLoads_256<DestinationT, ElementT>
     PCollectionTuple convertMessagesResult =
         inputInGlobalWindow.apply(
             "Convert",
-            new StorageApiConvertMessages_256<>(
+            new StorageApiConvertMessages256<>(
                 dynamicDestinations,
                 bqServices,
                 failedRowsTag,
@@ -261,7 +261,7 @@ public class StorageApiLoads_256<DestinationT, ElementT>
     PCollectionTuple writeRecordsResult =
         groupedRecords.apply(
             "StorageApiWriteSharded",
-            new StorageApiWritesShardedRecords_256<>(
+            new StorageApiWritesShardedRecords256<>(
                 dynamicDestinations,
                 createDisposition,
                 kmsKey,
@@ -338,7 +338,7 @@ public class StorageApiLoads_256<DestinationT, ElementT>
     PCollectionTuple convertMessagesResult =
         inputInGlobalWindow.apply(
             "Convert",
-            new StorageApiConvertMessages_256<>(
+            new StorageApiConvertMessages256<>(
                 dynamicDestinations,
                 bqServices,
                 failedRowsTag,
@@ -353,7 +353,7 @@ public class StorageApiLoads_256<DestinationT, ElementT>
             .get(successfulConvertedRowsTag)
             .apply(
                 "StorageApiWriteUnsharded",
-                new StorageApiWriteUnshardedRecords_256<>(
+                new StorageApiWriteUnshardedRecords256<>(
                     dynamicDestinations,
                     bqServices,
                     failedRowsTag,

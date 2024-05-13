@@ -36,7 +36,7 @@ import org.joda.time.Instant;
  * parameter controls how many rows are batched into a single ProtoRows object before we move on to
  * the next one.
  */
-class SplittingIterable_256 implements Iterable<SplittingIterable_256.Value> {
+class SplittingIterable256 implements Iterable<SplittingIterable256.Value> {
   @AutoValue
   abstract static class Value {
     abstract ProtoRows getProtoRows();
@@ -60,7 +60,7 @@ class SplittingIterable_256 implements Iterable<SplittingIterable_256.Value> {
 
   private final Instant elementsTimestamp;
 
-  public SplittingIterable_256(
+  public SplittingIterable256(
       Iterable<StorageApiWritePayload> underlying,
       long splitSize,
       ConvertUnknownFields unknownFieldsToMessage,

@@ -141,8 +141,8 @@ public class StorageApiLoads<DestinationT, ElementT>
         throw new IllegalArgumentException(
             "Formatting records on Failure is not supported on Beam Versions Less than 2.57");
       }
-      StorageApiLoads_256<DestinationT, ElementT> legacy =
-          new StorageApiLoads_256<DestinationT, ElementT>(
+      StorageApiLoads256<DestinationT, ElementT> legacy =
+          new StorageApiLoads256<DestinationT, ElementT>(
               destinationCoder,
               dynamicDestinations,
               rowUpdateFn,

@@ -95,10 +95,10 @@ import org.slf4j.LoggerFactory;
  * a finalize/commit operation at the end.
  */
 @SuppressWarnings({"FutureReturnValueIgnored"})
-public class StorageApiWriteUnshardedRecords_256<DestinationT, ElementT>
+public class StorageApiWriteUnshardedRecords256<DestinationT, ElementT>
     extends PTransform<PCollection<KV<DestinationT, StorageApiWritePayload>>, PCollectionTuple> {
   private static final Logger LOG =
-      LoggerFactory.getLogger(StorageApiWriteUnshardedRecords_256.class);
+      LoggerFactory.getLogger(StorageApiWriteUnshardedRecords256.class);
 
   private final StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations;
   private final BigQueryServices bqServices;
@@ -160,7 +160,7 @@ public class StorageApiWriteUnshardedRecords_256<DestinationT, ElementT>
         });
   }
 
-  public StorageApiWriteUnshardedRecords_256(
+  public StorageApiWriteUnshardedRecords256(
       StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations,
       BigQueryServices bqServices,
       TupleTag<BigQueryStorageApiInsertError> failedRowsTag,
