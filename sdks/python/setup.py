@@ -490,14 +490,15 @@ if __name__ == '__main__':
           # We don't expect users to install this extra. Users should install
           # necessary dependencies individually, or we should create targeted
           # extras. Keeping the bounds open as much as possible so that we
-          # can find out early when using Beam with new versions doesn't work.
+          # can find out early when Beam doesn't work with new versions.
           'ml_test': [
               'datatable',
               'embeddings',
               'onnxruntime',
               'sentence-transformers',
               'skl2onnx',
-              'tensorflow',
+              # https://github.com/apache/beam/issues/31294
+              'tensorflow<2.16.0',
               'tensorflow-hub',
               # https://github.com/tensorflow/transform/issues/313
               'tensorflow-transform;python_version<"3.11"',
