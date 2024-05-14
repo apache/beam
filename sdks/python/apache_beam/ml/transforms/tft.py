@@ -364,6 +364,42 @@ class ApplyBuckets(TFTOperation):
 
 
 @register_input_dtype(float)
+class ApplyBucketsWithInterpolation(TFTOperation):
+  def __init__(
+      self,
+      columns: List[str],
+      bucket_boundaries: Iterable[Union[int, float]],
+      name: Optional[str] = None):
+    """ Interpolates values within the provided buckest and then normalizes to
+    [0, 1].
+    
+    Input values are bucketized based on the provided boundaries such that the
+    input is mapped to a positive index i for which bucket_boundaries[i-1] <=
+    element < bucket_boundaries[i], if it exists. The values are then
+    normalized to the range [0,1] within the bucket, with NaN values being
+    mapped to 0.5.
+
+    Args:
+      columns: A list of column names to apply the transformation on.
+      bucket_boundaries: A rank 2 Tensor or list representing the bucket
+        boundaries sorted in ascending order.
+      name: (Optional) A string that specifies the name of the operation.
+    """
+    super().__init__(columns)
+    self.bucket_boundaries = [bucket_boundaries]
+    self.name = name
+
+  def apply_transform(
+      self, data: common_types.TensorType,
+      output_column_name: str) -> Dict[str, common_types.TensorType]:
+    output = {
+        output_column_name: tft.apply_buckets_with_interpolation(
+            x=data, bucket_boundaries=self.bucket_boundaries, name=self.name)
+    }
+    return output
+
+
+@register_input_dtype(float)
 class Bucketize(TFTOperation):
   def __init__(
       self,
