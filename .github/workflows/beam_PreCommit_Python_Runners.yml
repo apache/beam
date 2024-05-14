@@ -95,7 +95,8 @@ jobs:
         with:
           gradle-command: :sdks:python:test-suites:tox:py${{steps.set_py_ver_clean.outputs.py_ver_clean}}:preCommitPy${{steps.set_py_ver_clean.outputs.py_ver_clean}}
           arguments: |
-            -Pposargs=apache_beam/runners/
+            -Pposargs=apache_beam/runners/ \
+            -PpythonVersion=${{ matrix.python_version }}
       - name: Archive Python Test Results
         uses: actions/upload-artifact@v4
         if: failure()
