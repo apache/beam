@@ -376,8 +376,12 @@ tasks.register("validatesRunnerSickbay", Test) {
   }
 }
 
-// Generates :runners:flink:1.17:runQuickstartJavaFlinkLocal
-createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner: 'FlinkLocal')
+if (project.ext.flink_major == project.ext.latestFlinkVersion) {
+  // TODO(yathu) support running validation on all supported Flink versions
+  // currently maven-archetype Flink profile pinned to single Flink version
+  // Generates :runners:flink:<latestFlinkVersion>:runQuickstartJavaFlinkLocal
+  createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner: 'FlinkLocal')
+}
 
 tasks.register("examplesIntegrationTest", Test) {
   group = "Verification"
