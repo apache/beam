@@ -135,33 +135,6 @@ public class StorageApiLoads<DestinationT, ElementT>
 
   @Override
   public WriteResult expand(PCollection<KV<DestinationT, ElementT>> input) {
-    if (StreamingOptions.updateCompatibilityVersionLessThan(
-        input.getPipeline().getOptions(), "2.57.0")) {
-      if (formatRecordOnFailureFunction != null) {
-        throw new IllegalArgumentException(
-            "Formatting records on Failure is not supported on Beam Versions Less than 2.57");
-      }
-      StorageApiLoads256<DestinationT, ElementT> legacy =
-          new StorageApiLoads256<DestinationT, ElementT>(
-              destinationCoder,
-              dynamicDestinations,
-              rowUpdateFn,
-              createDisposition,
-              kmsKey,
-              triggeringFrequency,
-              bqServices,
-              numShards,
-              allowInconsistentWrites,
-              allowAutosharding,
-              autoUpdateSchema,
-              ignoreUnknownValues,
-              null != successfulWrittenRowsTag,
-              usesCdc,
-              defaultMissingValueInterpretation,
-              badRecordRouter,
-              badRecordErrorHandler);
-      return input.apply(legacy);
-    }
     Coder<StorageApiWritePayload> payloadCoder;
     try {
       payloadCoder =
