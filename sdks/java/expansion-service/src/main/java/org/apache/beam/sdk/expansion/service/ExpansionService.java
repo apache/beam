@@ -271,7 +271,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
         }
       } catch (Exception e) {
         throw new RuntimeException(
-            String.format("Failed to build transform %s from spec %s", spec.getUrn(), spec), e);
+            String.format("Failed to build transform %s from spec %s: %s", spec.getUrn(), spec, e.getMessage()), e);
       }
     }
 
@@ -305,7 +305,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
                 ExternalConfigurationPayload.parseFrom(spec.getPayload()), configClass));
       } catch (Exception e) {
         throw new RuntimeException(
-            String.format("Failed to build transform from spec %s", spec), e);
+            String.format("Failed to build transform from spec %s: %s", spec, e.getMessage()), e);
       }
     }
 
