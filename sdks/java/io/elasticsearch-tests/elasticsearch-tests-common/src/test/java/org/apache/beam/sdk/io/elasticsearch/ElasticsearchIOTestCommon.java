@@ -497,7 +497,7 @@ class ElasticsearchIOTestCommon implements Serializable {
     PAssert.that(success).empty();
     PAssert.that(fail).containsInAnyOrder(failedIds);
 
-    // Verify response item contains the responding message.
+    // Verify response item contains the corresponding error message.
     PCollection<Document> failDocs =
         outputs
             .get(Write.FAILED_WRITES)
