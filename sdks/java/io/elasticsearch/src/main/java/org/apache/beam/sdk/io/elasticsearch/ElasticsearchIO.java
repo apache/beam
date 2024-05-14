@@ -110,6 +110,7 @@ import org.apache.http.ssl.SSLContexts;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.elasticsearch.client.Request;
 import org.elasticsearch.client.Response;
+import org.elasticsearch.client.ResponseException;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestClientBuilder;
 import org.joda.time.Duration;
@@ -2789,6 +2790,13 @@ public class ElasticsearchIO {
         // RestClient#performRequest only throws wrapped IOException so we must inspect the
         // exception cause to determine if the exception is likely transient i.e. retryable or
         // not.
+
+        // Retry for 500-range response code except for 501.
+        if (t.getCause() instanceof ResponseException) {
+          ResponseException ex = (ResponseException) t.getCause();
+          int statusCode = ex.getResponse().getStatusLine().getStatusCode();
+          return statusCode >= 500 && statusCode != 501;
+        }
         return t.getCause() instanceof ConnectTimeoutException
             || t.getCause() instanceof SocketTimeoutException
             || t.getCause() instanceof ConnectionClosedException
