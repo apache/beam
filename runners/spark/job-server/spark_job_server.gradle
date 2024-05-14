@@ -203,13 +203,12 @@ def portableValidatesRunnerTask(String name, boolean streaming, boolean docker, 
         excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
         excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
         excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
-        // TODO(https://github.com/apache/beam/issues/31231)
-        excludeTestsMatching 'org.apache.beam.sdk.transforms.RedistributeTest.testRedistributePreservesMetadata'
       }
       testFilter = {
         // TODO (https://github.com/apache/beam/issues/20189)
         excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenWithDifferentInputAndOutputCoders2'
-
+        // TODO(https://github.com/apache/beam/issues/31231)
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.RedistributeTest.testRedistributePreservesMetadata'
         for (String test : sickbayTests) {
           excludeTestsMatching test
         }
