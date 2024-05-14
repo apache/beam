@@ -2561,11 +2561,11 @@ public class ElasticsearchIO {
      * Whether to throw runtime exceptions when write (IO) errors occur. Especially useful in
      * streaming pipelines where non-transient IO failures will cause infinite retries. If true, a
      * runtime error will be thrown for any error found by {@link ElasticsearchIO#createWriteReport}
-     * and/or java.io.IOException (which is what org.elasticsearch.client.ResponseException based on) found by in batch flush. If false, a {@link
-     * PCollectionTuple} will be returned with tags {@link Write#SUCCESSFUL_WRITES} and {@link
-     * Write#FAILED_WRITES}, each being a {@link PCollection} of {@link Document} representing
-     * documents which were written to Elasticsearch without errors and those which failed to write
-     * due to errors, respectively.
+     * and/or java.io.IOException (which is what org.elasticsearch.client.ResponseException based
+     * on) found by in batch flush. If false, a {@link PCollectionTuple} will be returned with tags
+     * {@link Write#SUCCESSFUL_WRITES} and {@link Write#FAILED_WRITES}, each being a {@link
+     * PCollection} of {@link Document} representing documents which were written to Elasticsearch
+     * without errors and those which failed to write due to errors, respectively.
      *
      * @param throwWriteErrors whether to surface write errors as runtime exceptions or return them
      *     in a {@link PCollection}

@@ -34,9 +34,9 @@ import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.coun
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.countByScientistName;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.flushAndRefreshAllIndices;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.insertTestDocuments;
+import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.mapToInputDoc;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.mapToInputId;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.mapToInputIdString;
-import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.mapToInputDoc;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.refreshIndexAndGetCurrentNumDocs;
 import static org.apache.beam.sdk.testing.SourceTestUtils.readFromSource;
 import static org.apache.beam.sdk.values.TypeDescriptors.integers;
@@ -482,17 +482,17 @@ class ElasticsearchIOTestCommon implements Serializable {
 
     // The whole batch should fail and direct to tag FAILED_WRITES because of one invalid doc.
     PCollection<String> success =
-            outputs
-                    .get(Write.SUCCESSFUL_WRITES)
-                    .apply("Convert success to input ID", MapElements.via(mapToInputIdString));
+        outputs
+            .get(Write.SUCCESSFUL_WRITES)
+            .apply("Convert success to input ID", MapElements.via(mapToInputIdString));
 
     PCollection<String> fail =
-            outputs
-                    .get(Write.FAILED_WRITES)
-                    .apply("Convert fails to input ID", MapElements.via(mapToInputIdString));
+        outputs
+            .get(Write.FAILED_WRITES)
+            .apply("Convert fails to input ID", MapElements.via(mapToInputIdString));
 
     Set<String> failedIds =
-            IntStream.range(0, data.size() - 1).mapToObj(String::valueOf).collect(Collectors.toSet());
+        IntStream.range(0, data.size() - 1).mapToObj(String::valueOf).collect(Collectors.toSet());
     failedIds.add(INVALID_LONG_ID);
     PAssert.that(success).empty();
     PAssert.that(fail).containsInAnyOrder(failedIds);
@@ -1397,7 +1397,8 @@ class ElasticsearchIOTestCommon implements Serializable {
     };
   }
 
-  SerializableFunction<Iterable<Document>, Void> responseItemJsonSubstringValidator(String responseItemContainString) {
+  SerializableFunction<Iterable<Document>, Void> responseItemJsonSubstringValidator(
+      String responseItemContainString) {
     return input -> {
       for (Document d : input) {
         assertTrue(d.getResponseItemJson().contains(responseItemContainString));
