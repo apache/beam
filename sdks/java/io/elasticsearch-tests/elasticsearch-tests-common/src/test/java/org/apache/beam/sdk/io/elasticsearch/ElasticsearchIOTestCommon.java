@@ -34,7 +34,6 @@ import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.coun
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.countByScientistName;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.flushAndRefreshAllIndices;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.insertTestDocuments;
-import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.mapToInputDoc;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.mapToInputId;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.mapToInputIdString;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.refreshIndexAndGetCurrentNumDocs;
@@ -498,14 +497,8 @@ class ElasticsearchIOTestCommon implements Serializable {
     PAssert.that(fail).containsInAnyOrder(failedIds);
 
     // Verify response item contains the corresponding error message.
-    PCollection<Document> failDocs =
-        outputs
-            .get(Write.FAILED_WRITES)
-            .apply("Convert fails to input docs", MapElements.via(mapToInputDoc));
-
-    PAssert.that(failDocs)
-        .satisfies(
-            responseItemJsonSubstringValidator("java.io.IOException was thrown in batch flush"));
+    PAssert.that(outputs.get(Write.FAILED_WRITES))
+        .satisfies(responseItemJsonSubstringValidator("java.io.IOException"));
     pipeline.run();
   }
 

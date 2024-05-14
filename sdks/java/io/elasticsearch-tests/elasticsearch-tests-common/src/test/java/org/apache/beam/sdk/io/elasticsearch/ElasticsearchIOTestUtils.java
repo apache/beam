@@ -548,11 +548,4 @@ class ElasticsearchIOTestUtils {
           }
         }
       };
-  static SimpleFunction<Document, Document> mapToInputDoc =
-      new SimpleFunction<Document, Document>() {
-        @Override
-        public Document apply(Document document) {
-          return document;
-        };
-      };
 }
