@@ -3061,32 +3061,13 @@ class BeamModulePlugin implements Plugin<Project> {
       }
       project.ext.toxTask = { name, tox_env, posargs='' ->
         project.tasks.register(name) {
-          dependsOn setupVirtualenv
-          dependsOn ':sdks:python:sdist'
-          if (project.hasProperty('useWheelDistribution')) {
-            def pythonVersionNumber  = project.ext.pythonVersion.replace('.', '')
-            dependsOn ":sdks:python:bdistPy${pythonVersionNumber}linux"
-            doLast {
-              project.copy { from project.pythonSdkDeps; into copiedSrcRoot }
-              def copiedPyRoot = "${copiedSrcRoot}/sdks/python"
-              def collection = project.fileTree(project.project(':sdks:python').buildDir){
-                include "**/apache_beam-*cp${pythonVersionNumber}*manylinux*.whl"
-              }
-              String packageFilename = collection.singleFile.toString()
-              project.exec {
-                executable 'sh'
-                args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $tox_env ${packageFilename} '$posargs' "
-              }
-            }
-          } else {
-            // tox task will run in editable mode, which is configured in the tox.ini file.
-            doLast {
-              project.copy { from project.pythonSdkDeps; into copiedSrcRoot }
-              def copiedPyRoot = "${copiedSrcRoot}/sdks/python"
-              project.exec {
-                executable 'sh'
-                args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $tox_env '$posargs'"
-              }
+          // tox tasks run in ediable mode and create their own venv.
+          doLast {
+            project.copy { from project.pythonSdkDeps; into copiedSrcRoot }
+            def copiedPyRoot = "${copiedSrcRoot}/sdks/python"
+            project.exec {
+              executable 'sh'
+              args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $tox_env '$posargs'"
             }
           }
           inputs.files project.pythonSdkDeps
