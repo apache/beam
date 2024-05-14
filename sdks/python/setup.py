@@ -499,7 +499,8 @@ if __name__ == '__main__':
               'skl2onnx',
               'tensorflow',
               'tensorflow-hub',
-              'tensorflow_transform',
+              # https://github.com/tensorflow/transform/issues/313
+              'tensorflow-transform;python_version<"3.11"',
               'tf2onnx',
               'torch',
               'transformers',
