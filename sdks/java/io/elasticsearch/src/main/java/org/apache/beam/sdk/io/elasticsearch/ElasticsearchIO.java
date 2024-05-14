@@ -2861,6 +2861,7 @@ public class ElasticsearchIO {
         }
 
         if (spec.getRetryConfiguration() != null
+            && elasticResponseExceptionMessage == null
             && (response == null
                 || responseEntity == null
                 || spec.getRetryConfiguration().getRetryPredicate().test(responseEntity))) {
