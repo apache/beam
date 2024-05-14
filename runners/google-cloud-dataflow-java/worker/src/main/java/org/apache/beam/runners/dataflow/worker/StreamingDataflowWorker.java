@@ -31,7 +31,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -211,8 +210,6 @@ public class StreamingDataflowWorker {
   private final long clientId;
   private final MetricTrackingWindmillServerStub metricTrackingWindmillServer;
 
-  private final java.util.concurrent.ConcurrentLinkedQueue<CounterUpdate> pendingMonitoringInfos =
-      new ConcurrentLinkedQueue<>();
   // Map from stage name to StageInfo containing metrics container registry and per stage counters.
   private final ConcurrentMap<String, StageInfo> stageInfoMap;
 
@@ -1218,9 +1215,6 @@ public class StreamingDataflowWorker {
       } catch (Exception e) {
         LOG.error(e.toString());
       }
-
-      Iterables.addAll(
-          this.pendingMonitoringInfos, executionState.workExecutor().extractMetricUpdates());
 
       commitCallbacks.putAll(executionState.context().flushState());
 
