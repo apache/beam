@@ -125,7 +125,7 @@ public class GrpcDispatcherClient {
     return dispatcherStubs.get().hasInitializedEndpoints();
   }
 
-  synchronized void consumeWindmillDispatcherEndpoints(
+  public synchronized void consumeWindmillDispatcherEndpoints(
       ImmutableSet<HostAndPort> dispatcherEndpoints) {
     ImmutableSet<HostAndPort> currentDispatcherEndpoints =
         dispatcherStubs.get().dispatcherEndpoints();

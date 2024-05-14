@@ -61,7 +61,7 @@ public interface WorkExecutor extends AutoCloseable {
   }
 
   @Override
-  default void close() throws Exception {
+  default void close() {
     // By default, nothing to close or shut down.
   }
 

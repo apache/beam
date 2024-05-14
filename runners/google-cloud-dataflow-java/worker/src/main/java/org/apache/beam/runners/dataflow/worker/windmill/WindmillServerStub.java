@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill;
 
-import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.Set;
 import org.apache.beam.runners.dataflow.worker.status.StatusDataProvider;
@@ -39,7 +38,7 @@ public abstract class WindmillServerStub implements StatusDataProvider {
    * subsequent calls, if endpoints are different from previous values new stubs are created,
    * replacing the previous ones.
    */
-  public abstract void setWindmillServiceEndpoints(Set<HostAndPort> endpoints) throws IOException;
+  public abstract void setWindmillServiceEndpoints(Set<HostAndPort> endpoints);
 
   /*
    * Returns the windmill service endpoints set by setWindmillServiceEndpoints
