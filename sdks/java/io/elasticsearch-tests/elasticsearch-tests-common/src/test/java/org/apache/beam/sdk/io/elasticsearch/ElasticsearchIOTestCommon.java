@@ -503,7 +503,9 @@ class ElasticsearchIOTestCommon implements Serializable {
             .get(Write.FAILED_WRITES)
             .apply("Convert fails to input docs", MapElements.via(mapToInputDoc));
 
-    PAssert.that(failDocs).satisfies(responseItemJsonSubstringValidator("java.io.IOException"));
+    PAssert.that(failDocs)
+        .satisfies(
+            responseItemJsonSubstringValidator("java.io.IOException was thrown in batch flush"));
     pipeline.run();
   }
 
