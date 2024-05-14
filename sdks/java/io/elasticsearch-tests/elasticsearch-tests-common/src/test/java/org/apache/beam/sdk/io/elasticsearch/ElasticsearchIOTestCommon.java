@@ -1398,10 +1398,10 @@ class ElasticsearchIOTestCommon implements Serializable {
   }
 
   SerializableFunction<Iterable<Document>, Void> responseItemJsonSubstringValidator(
-      String responseItemContainString) {
+      String responseItemSubstring) {
     return input -> {
       for (Document d : input) {
-        assertTrue(d.getResponseItemJson().contains(responseItemContainString));
+        assertTrue(d.getResponseItemJson().contains(responseItemSubstring));
       }
       return null;
     };
