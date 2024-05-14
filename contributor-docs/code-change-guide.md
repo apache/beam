@@ -29,7 +29,7 @@ The guide contains the following sections:
   repository, including steps for setting up your [Gradle project](#gradle-quick-start) and
   for verifying the configuration of your [develoment environment](#environment-setup).
 
-- **[Java Guide](#java-development-guide)**: Guidance for setting up a Java environment, 
+- **[Java Guide](#java-development-guide)**: Guidance for setting up a Java environment,
   running and writing integration tests, and running a pipeline with modified
   Beam code.
 
