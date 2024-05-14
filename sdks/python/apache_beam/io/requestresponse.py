@@ -28,6 +28,7 @@ from datetime import timedelta
 from typing import Any
 from typing import Dict
 from typing import Generic
+from typing import List
 from typing import Optional
 from typing import Tuple
 from typing import TypeVar
@@ -477,55 +478,68 @@ class _RedisCaller(Caller):
     self.client = redis.Redis(self.host, self.port, **self.kwargs)
 
   def __call__(self, element, *args, **kwargs):
+    are_batched_requests = isinstance(element, List)
     if self.mode == _RedisMode.READ:
-      cache_request = self.source_caller.get_cache_key(element)
-      # check if the caller is a enrichment handler. EnrichmentHandler
-      # provides the request format for cache.
-      if cache_request:
-        encoded_request = self.request_coder.encode(cache_request)
+      return self._read_cache(element, are_batched_requests)
+    else:
+      return self._write_cache(element, are_batched_requests)
+
+  def __exit__(self, exc_type, exc_val, exc_tb):
+    self.client.close()
+
+  def _read_cache(self, request, are_batched_requests: bool):
+    requests = [request] if not are_batched_requests else request
+    responses = []
+    for req in requests:
+      cache_key = self.source_caller.get_cache_key(req)
+      if cache_key:
+        encoded_request = self.request_coder.encode(cache_key)
       else:
-        encoded_request = self.request_coder.encode(element)
+        encoded_request = self.request_coder.encode(req)
 
       encoded_response = self.client.get(encoded_request)
       if not encoded_response:
         # no cache entry present for this request.
-        return element, None
+        responses.append((req, None))
+        continue
 
       if self.response_coder is None:
         try:
           response_dict = json.loads(encoded_response.decode('utf-8'))
           response = beam.Row(**response_dict)
+          responses.append((req, response))
         except Exception:
           _LOGGER.warning(
-              'cannot decode response from redis cache for %s.' % element)
-          return element, None
+              'cannot decode response from redis cache for %s.' % req)
+          responses.append((req, None))
       else:
         response = self.response_coder.decode(encoded_response)
-      return element, response
-    else:
-      cache_request = self.source_caller.get_cache_key(element[0])
+        responses.append((req, response))
+    return responses if are_batched_requests else responses[0]
+
+  def _write_cache(self, request, are_batched_requests):
+    requests = [request] if not are_batched_requests else request
+    for req in requests:
+      cache_request = self.source_caller.get_cache_key(req[0])
       if cache_request:
         encoded_request = self.request_coder.encode(cache_request)
       else:
-        encoded_request = self.request_coder.encode(element[0])
+        encoded_request = self.request_coder.encode(req[0])
       if self.response_coder is None:
         try:
-          encoded_response = json.dumps(element[1]._asdict()).encode('utf-8')
+          encoded_response = json.dumps(req[1]._asdict()).encode('utf-8')
         except Exception:
           _LOGGER.warning(
               'cannot encode response %s for %s to store in '
-              'redis cache.' % (element[1], element[0]))
-          return element
+              'redis cache.' % (req[1], req[0]))
+          continue
       else:
-        encoded_response = self.response_coder.encode(element[1])
+        encoded_response = self.response_coder.encode(req[1])
       # Write to cache with TTL. Set nx to True to prevent overwriting for the
       # same key.
       self.client.set(
           encoded_request, encoded_response, self.time_to_live, nx=True)
-      return element
-
-  def __exit__(self, exc_type, exc_val, exc_tb):
-    self.client.close()
+    return request
 
 
 class _ReadFromRedis(beam.PTransform[beam.PCollection[RequestT],
