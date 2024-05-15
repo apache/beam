@@ -44,36 +44,48 @@ project.tasks.register("preCommitPyCoverage") {
 // e.g. pyarrow and pandas also run on PreCommit Dataframe and Coverage
 project.tasks.register("postCommitPyDep") {}
 
-// Create a test task for each supported major version of pyarrow
+// Create a test task for supported major versions of pyarrow
+// We should have a test for the lowest supported version and
+// For versions that we would like to prioritize for testing,
+// for example versions released in a timeframe of last 1-2 years.
+
 toxTask "testPy38pyarrow-3", "py38-pyarrow-3", "${posargs}"
 test.dependsOn "testPy38pyarrow-3"
 postCommitPyDep.dependsOn "testPy38pyarrow-3"
-
-toxTask "testPy38pyarrow-4", "py38-pyarrow-4", "${posargs}"
-test.dependsOn "testPy38pyarrow-4"
-postCommitPyDep.dependsOn "testPy38pyarrow-4"
-
-toxTask "testPy38pyarrow-5", "py38-pyarrow-5", "${posargs}"
-test.dependsOn "testPy38pyarrow-5"
-postCommitPyDep.dependsOn "testPy38pyarrow-5"
-
-toxTask "testPy38pyarrow-6", "py38-pyarrow-6", "${posargs}"
-test.dependsOn "testPy38pyarrow-6"
-postCommitPyDep.dependsOn "testPy38pyarrow-6"
-
-toxTask "testPy38pyarrow-7", "py38-pyarrow-7", "${posargs}"
-test.dependsOn "testPy38pyarrow-7"
-postCommitPyDep.dependsOn "testPy38pyarrow-7"
-
-toxTask "testPy38pyarrow-8", "py38-pyarrow-8", "${posargs}"
-test.dependsOn "testPy38pyarrow-8"
-postCommitPyDep.dependsOn "testPy38pyarrow-8"
 
 toxTask "testPy38pyarrow-9", "py38-pyarrow-9", "${posargs}"
 test.dependsOn "testPy38pyarrow-9"
 postCommitPyDep.dependsOn "testPy38pyarrow-9"
 
-// Create a test task for each minor version of pandas
+toxTask "testPy38pyarrow-10", "py38-pyarrow-10", "${posargs}"
+test.dependsOn "testPy38pyarrow-10"
+postCommitPyDep.dependsOn "testPy38pyarrow-10"
+
+toxTask "testPy38pyarrow-11", "py38-pyarrow-11", "${posargs}"
+test.dependsOn "testPy38pyarrow-11"
+postCommitPyDep.dependsOn "testPy38pyarrow-11"
+
+toxTask "testPy38pyarrow-12", "py38-pyarrow-12", "${posargs}"
+test.dependsOn "testPy38pyarrow-12"
+postCommitPyDep.dependsOn "testPy38pyarrow-12"
+
+toxTask "testPy38pyarrow-13", "py38-pyarrow-13", "${posargs}"
+test.dependsOn "testPy38pyarrow-13"
+postCommitPyDep.dependsOn "testPy38pyarrow-13"
+
+toxTask "testPy38pyarrow-14", "py38-pyarrow-14", "${posargs}"
+test.dependsOn "testPy38pyarrow-14"
+postCommitPyDep.dependsOn "testPy38pyarrow-14"
+
+toxTask "testPy38pyarrow-15", "py38-pyarrow-15", "${posargs}"
+test.dependsOn "testPy38pyarrow-15"
+postCommitPyDep.dependsOn "testPy38pyarrow-15"
+
+toxTask "testPy38pyarrow-16", "py38-pyarrow-16", "${posargs}"
+test.dependsOn "testPy38pyarrow-16"
+postCommitPyDep.dependsOn "testPy38pyarrow-16"
+
+// Create a test task for each supported minor version of pandas
 toxTask "testPy38pandas-14", "py38-pandas-14", "${posargs}"
 test.dependsOn "testPy38pandas-14"
 postCommitPyDep.dependsOn "testPy38pandas-14"
@@ -86,6 +98,17 @@ toxTask "testPy38pandas-20", "py38-pandas-20", "${posargs}"
 test.dependsOn "testPy38pandas-20"
 postCommitPyDep.dependsOn "testPy38pandas-20"
 
+// TODO(https://github.com/apache/beam/issues/31192): Add below suites
+// after dependency compat tests suite switches to Python 3.9 or we add
+// Python 2.2 support.
+
+// toxTask "testPy39pandas-21", "py39-pandas-21", "${posargs}"
+// test.dependsOn "testPy39pandas-21"
+// postCommitPyDep.dependsOn "testPy39pandas-21"
+
+// toxTask "testPy39pandas-22", "py39-pandas-22", "${posargs}"
+// test.dependsOn "testPy39pandas-22"
+// postCommitPyDep.dependsOn "testPy39pandas-22"
 
 // TODO(https://github.com/apache/beam/issues/30908): Revise what are we testing
 
