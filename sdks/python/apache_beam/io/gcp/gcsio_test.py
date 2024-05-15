@@ -562,8 +562,8 @@ class TestGCSIO(unittest.TestCase):
     # Headers are specified as the third argument of google.cloud._http.JSONConnection._do_request
     actual_headers = call_args[2]
     beam_user_agent = "apache-beam/%s (GPN:Beam)" % beam_version.__version__
-    assert (beam_user_agent in actual_headers['User-Agent'])
-    assert (actual_headers['x-goog-custom-audit-job'], 'test-job-name')
+    self.assertIn(beam_user_agent, actual_headers['User-Agent'])
+    self.assertEqual(actual_headers['x-goog-custom-audit-job'], 'test-job-name')
 
 
 if __name__ == '__main__':
