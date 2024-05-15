@@ -16,28 +16,34 @@
 #
 import unittest
 
-from apache_beam.transforms.enrichment_handlers.vertex_ai_feature_store_it_test import ValidateResponse
-
 import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.transforms.enrichment import Enrichment
-from apache_beam.transforms.enrichment_handlers.bigquery import \
-  BigQueryEnrichmentHandler
+
+# pylint: disable=ungrouped-imports
+try:
+  from apache_beam.transforms.enrichment import Enrichment
+  from apache_beam.transforms.enrichment_handlers.bigquery import \
+    BigQueryEnrichmentHandler
+  from apache_beam.transforms.enrichment_handlers.vertex_ai_feature_store_it_test import \
+    ValidateResponse
+except ImportError:
+  raise unittest.SkipTest(
+      'Google Cloud BigQuery dependencies are not installed.')
 
 
 def query_fn(row: beam.Row):
   query = (
       "SELECT * FROM "
       "`google.com:clouddfe.my_ecommerce.product_details`"
-      " WHERE id = '{}'".format(row.id))
+      " WHERE id = '{}'".format(row.id))  # type: ignore[attr-defined]
   return query
 
 
 def condition_value_fn(row: beam.Row):
-  return [row.id]
+  return [row.id]  # type: ignore[attr-defined]
 
 
-class TestBigQueryEnrichment(unittest.TestCase):
+class TestBigQueryEnrichmentIT(unittest.TestCase):
   def setUp(self) -> None:
     self.project = 'google.com:clouddfe'
     self.query_template = (

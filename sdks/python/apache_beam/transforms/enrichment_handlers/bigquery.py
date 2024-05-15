@@ -16,29 +16,69 @@
 #
 from typing import Any
 from typing import Callable
+from typing import Dict
 from typing import List
 from typing import Mapping
 from typing import Optional
 from typing import Union
 
-from apache_beam.pvalue import Row
 from google.cloud import bigquery
 
 import apache_beam as beam
+from apache_beam.pvalue import Row
 from apache_beam.transforms.enrichment import EnrichmentSourceHandler
 
 QueryFn = Callable[[beam.Row], str]
 ConditionValueFn = Callable[[beam.Row], List[Any]]
 
 
+def _validate_batch_query_fn(query_fn, min_batch_size, max_batch_size):
+  if query_fn and min_batch_size and max_batch_size:
+    raise ValueError(
+        "Please provide exactly one of `query_fn` or "
+        "(`min_batch_size` and `max_batch_size`)")
+
+
+def _validate_bigquery_metadata(
+    table_name, row_restriction_template, fields, condition_value_fn, query_fn):
+  if query_fn and bool(table_name or row_restriction_template or fields or
+                       condition_value_fn):
+    raise ValueError(
+        "Please provide either `query_fn` or the parameters "
+        "`table_name`, `row_restriction_template`, and `fields` "
+        "together.")
+  elif not query_fn and not (table_name and row_restriction_template and
+                             (fields or condition_value_fn)):
+    raise ValueError(
+        "Please provide either `query_fn` or the parameters "
+        "`table_name`, `row_restriction_template`, and"
+        "`fields/condition_value_fn` together.")
+  if (fields and condition_value_fn) or (not fields and not condition_value_fn):
+    raise ValueError(
+        "Please provide exactly one of `fields` or "
+        "`condition_value_fn`")
+
+
 class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, List[Row]],
                                                         Union[Row, List[Row]]]):
+  """Enrichment handler for Google Cloud BigQuery.
+
+  Use this handler with :class:`apache_beam.transforms.enrichment.Enrichment`
+  transform.
+
+  This handler pulls data from BigQuery per element by default. To change this
+  behavior, set the `min_batch_size` and `max_batch_size` parameters.
+  These min and max values for batch size are sent to the
+  :class:`apache_beam.transforms.utils.BatchElements` transform.
+
+  NOTE: Elements cannot be batched when using the `query_fn` parameter.
+  """
   def __init__(
       self,
       project: str,
       *,
-      table_name: Optional[str] = "",
-      row_restriction_template: Optional[str] = "",
+      table_name: str = "",
+      row_restriction_template: str = "",
       fields: Optional[List[str]] = None,
       column_names: Optional[List[str]] = None,
       condition_value_fn: Optional[ConditionValueFn] = None,
@@ -47,21 +87,14 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, List[Row]],
       max_batch_size: Optional[int] = None,
       **kwargs,
   ):
-    """BigQuery handler for
-    :class:`apache_beam.transforms.enrichment.Enrichment` transform.
-
-    Example Usage::
+    """
+    Example Usage:
       handler = BigQueryEnrichmentHandler(project=project_name,
-        row_restriction="id='{}'",
-
-        table_name='project.dataset.table',
-
-        fields=fields,
-
-        min_batch_size=2,
-
-        max_batch_size=100,
-      )
+                                          row_restriction="id='{}'",
+                                          table_name='project.dataset.table',
+                                          fields=fields,
+                                          min_batch_size=2,
+                                          max_batch_size=100)
 
     Args:
       project: Google Cloud project ID for the BigQuery table.
@@ -95,12 +128,19 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, List[Row]],
       * If `query_fn` is provided, it overrides the default query construction.
       * Ensure appropriate permissions are granted for BigQuery access.
     """
+    _validate_bigquery_metadata(
+        table_name,
+        row_restriction_template,
+        fields,
+        condition_value_fn,
+        query_fn)
+    _validate_batch_query_fn(query_fn, min_batch_size, max_batch_size)
     self.project = project
     self.column_names = column_names
     self.select_fields = ",".join(column_names) if column_names else '*'
     self.row_restriction_template = row_restriction_template
     self.table_name = table_name
-    self.fields = fields
+    self.fields = fields if fields else []
     self.condition_value_fn = condition_value_fn
     self.query_fn = query_fn
     self.query_template = (
@@ -108,11 +148,10 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, List[Row]],
         (self.select_fields, self.table_name, self.row_restriction_template))
     self.kwargs = kwargs
     self._batching_kwargs = {}
-    if not query_fn:
-      if min_batch_size is not None:
-        self._batching_kwargs['min_batch_size'] = min_batch_size
-      if max_batch_size is not None:
-        self._batching_kwargs['max_batch_size'] = max_batch_size
+    if min_batch_size is not None:
+      self._batching_kwargs['min_batch_size'] = min_batch_size
+    if max_batch_size is not None:
+      self._batching_kwargs['max_batch_size'] = max_batch_size
 
   def __enter__(self):
     self.client = bigquery.Client(project=self.project, **self.kwargs)
@@ -132,7 +171,7 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, List[Row]],
     if isinstance(request, List):
       values = []
       responses = []
-      requests_map = {}
+      requests_map: Dict[Any, Any] = {}
       batch_size = len(request)
       raw_query = self.query_template
       if batch_size > 1:
@@ -173,16 +212,15 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, List[Row]],
   def __exit__(self, exc_type, exc_val, exc_tb):
     self.client.close()
 
-  def get_cache_key(
-      self, request: Union[beam.Row, List[beam.Row]]) -> Union[str, List[str]]:
+  def get_cache_key(self, request: Union[beam.Row, List[beam.Row]]):
     key = ";".join(["%s"] * len(self.fields))
-    if self._batching_kwargs:
+    if isinstance(request, List):
       cache_keys = []
       for req in request:
         req_dict = req._asdict()
         key = ";".join(["%s"] * len(self.fields))
         cache_keys.extend([key % req_dict[field] for field in self.fields])
-        return cache_keys
+      return cache_keys
     else:
       req_dict = request._asdict()
       return key % (req_dict.get(field) for field in self.fields)
