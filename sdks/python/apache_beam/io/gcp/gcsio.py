@@ -99,16 +99,23 @@ def get_or_create_default_gcs_bucket(options):
         bucket_name, project, location=region)
 
 
-def create_storage_client(credentials, pipeline_options):
+def create_storage_client(pipeline_options, use_credentials=True):
   """Create a GCS client for Beam via GCS Client Library.
 
   Args:
-    credentials(apache_beam.internal.gcp.auth._ApitoolsCredentialsAdapter): an instance to hold credentials info
-    pipeline_options(apache_beam.options.pipeline_options.PipelineOptions): the options of the pipeline
+    pipeline_options(apache_beam.options.pipeline_options.PipelineOptions):
+      the options of the pipeline
+    use_credentials(bool): whether to retrieve credentials from pipeline
+      options or not
 
   Returns:
     A google.cloud.storage.client.Client instance
   """
+  if use_credentials:
+    credentials = auth.get_service_credentials(pipeline_options)
+  else:
+    credentials = None
+
   if credentials:
     google_cloud_options = pipeline_options.view_as(GoogleCloudOptions)
     from google.api_core import client_info
@@ -135,9 +142,7 @@ class GcsIO(object):
         pipeline_options = PipelineOptions()
       elif isinstance(pipeline_options, dict):
         pipeline_options = PipelineOptions.from_dictionary(pipeline_options)
-      storage_client = create_storage_client(
-          credentials=auth.get_service_credentials(pipeline_options),
-          pipeline_options=pipeline_options)
+      storage_client = create_storage_client(pipeline_options)
     self.client = storage_client
     self._rewrite_cb = None
     self.bucket_to_project_number = {}

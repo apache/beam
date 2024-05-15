@@ -22,9 +22,10 @@ import logging
 import os
 import unittest
 from datetime import datetime
-from apache_beam import version as beam_version
 
 import mock
+
+from apache_beam import version as beam_version
 
 # pylint: disable=wrong-import-order, wrong-import-position
 
@@ -559,7 +560,8 @@ class TestGCSIO(unittest.TestCase):
     mock_do_request.assert_called_once()
     call_args = mock_do_request.call_args[0]
 
-    # Headers are specified as the third argument of google.cloud._http.JSONConnection._do_request
+    # Headers are specified as the third argument of
+    # google.cloud._http.JSONConnection._do_request
     actual_headers = call_args[2]
     beam_user_agent = "apache-beam/%s (GPN:Beam)" % beam_version.__version__
     self.assertIn(beam_user_agent, actual_headers['User-Agent'])
