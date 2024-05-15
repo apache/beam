@@ -1164,7 +1164,7 @@ def _sanitize_java_traceback(s):
   for p in traceback_lines:
     without_java_traceback = re.sub(
         fr'\n{p}$', '', without_java_traceback, flags=re.M)
-  # If what's left is substantially smaller, append it to the end for better
+  # If what's left is substantially smaller, duplicate it at the end for better
   # visibility.
   if len(without_java_traceback) < len(s) / 2:
     return s + '\n\n' + without_java_traceback.strip()
