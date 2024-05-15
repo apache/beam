@@ -47,7 +47,7 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.utils import retry
 from apache_beam.utils.annotations import deprecated
 
-__all__ = ['GcsIO']
+__all__ = ['GcsIO', 'create_storage_client']
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -99,6 +99,25 @@ def get_or_create_default_gcs_bucket(options):
         bucket_name, project, location=region)
 
 
+def create_storage_client(credentials, pipeline_options):
+  """Create a GCS client for Beam via GCS Client Library."""
+  if credentials:
+    google_cloud_options = pipeline_options.view_as(GoogleCloudOptions)
+    from google.api_core import client_info
+    beam_client_info = client_info.ClientInfo(
+        user_agent="apache-beam/%s (GPN:Beam)" % beam_version.__version__)
+    return storage.Client(
+        credentials=credentials.get_google_auth_credentials(),
+        project=google_cloud_options.project,
+        client_info=beam_client_info,
+        extra_headers={
+            "x-goog-custom-audit-job": google_cloud_options.job_name
+            if google_cloud_options.job_name is not None else "UNKNOWN"
+        })
+  else:
+    return storage.Client.create_anonymous_client()
+
+
 class GcsIO(object):
   """Google Cloud Storage I/O client."""
   def __init__(self, storage_client=None, pipeline_options=None):
@@ -108,17 +127,9 @@ class GcsIO(object):
         pipeline_options = PipelineOptions()
       elif isinstance(pipeline_options, dict):
         pipeline_options = PipelineOptions.from_dictionary(pipeline_options)
-      credentials = auth.get_service_credentials(pipeline_options)
-      if credentials:
-        storage_client = storage.Client(
-            credentials=credentials.get_google_auth_credentials(),
-            project=pipeline_options.view_as(GoogleCloudOptions).project,
-            extra_headers={
-                "User-Agent": "apache-beam/%s (GPN:Beam)" %
-                beam_version.__version__
-            })
-      else:
-        storage_client = storage.Client.create_anonymous_client()
+      storage_client = create_storage_client(
+          credentials=auth.get_service_credentials(pipeline_options),
+          pipeline_options=pipeline_options)
     self.client = storage_client
     self._rewrite_cb = None
     self.bucket_to_project_number = {}
