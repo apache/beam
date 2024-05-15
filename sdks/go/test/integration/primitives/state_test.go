@@ -27,6 +27,11 @@ func TestValueState(t *testing.T) {
 	ptest.BuildAndRun(t, ValueStateParDo)
 }
 
+func TestValueState_Bytes(t *testing.T) {
+	integration.CheckFilters(t)
+	ptest.BuildAndRun(t, ValueStateParDo_Bytes)
+}
+
 func TestValueStateWindowed(t *testing.T) {
 	integration.CheckFilters(t)
 	ptest.BuildAndRun(t, ValueStateParDoWindowed)

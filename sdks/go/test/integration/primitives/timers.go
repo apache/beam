@@ -170,8 +170,18 @@ type processingTimeFn struct {
 }
 
 func (fn *processingTimeFn) ProcessElement(sp state.Provider, tp timers.Provider, key string, value int, emit func(string, int)) {
+	// Sets a processing time callback to occur.
 	fn.Callback.Set(tp, time.Now().Add(9*time.Second))
-	fn.MyValue.Write(sp, 0)
+
+	// Only write to the state if we haven't done so already.
+	// Writing blind would reset the state, and cause duplicated outputs.
+	_, ok, err := fn.MyValue.Read(sp)
+	if err != nil {
+		panic(err)
+	}
+	if !ok {
+		fn.MyValue.Write(sp, 0)
+	}
 }
 
 func (fn *processingTimeFn) OnTimer(ctx context.Context, ts beam.EventTime, sp state.Provider, tp timers.Provider, key string, timer timers.Context, emit func(string, int)) {
@@ -219,8 +229,8 @@ func timersProcessingTimePipelineBuilder(makeImp func(s beam.Scope) beam.PCollec
 		offset := 5000
 		timerOutput := 4093
 
-		numKeys := 1
-		numDuplicateTimers := 4
+		numKeys := 40
+		numDuplicateTimers := 15
 
 		for key := 0; key < numKeys; key++ {
 			k := strconv.Itoa(key)
@@ -239,7 +249,7 @@ func timersProcessingTimePipelineBuilder(makeImp func(s beam.Scope) beam.PCollec
 			Offset:      offset,
 			TimerOutput: timerOutput,
 			Callback:    timers.InProcessingTime("Callback"),
-			MyValue:     state.MakeValueState[int]("MyKey"),
+			MyValue:     state.MakeValueState[int]("MyValue"),
 			Cap:         numDuplicateTimers, // Syncs the cycles to the number of duplicate keyed inputs.
 		}, keyed)
 		// We GroupByKey here so input to passert is blocked until teststream advances time to Infinity.

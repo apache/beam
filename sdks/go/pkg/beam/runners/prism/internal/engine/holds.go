@@ -46,6 +46,15 @@ func (h *mtimeHeap) Pop() any {
 	return x
 }
 
+func (h *mtimeHeap) Remove(toRemove mtime.Time) {
+	for i, v := range *h {
+		if v == toRemove {
+			heap.Remove(h, i)
+			return
+		}
+	}
+}
+
 // holdTracker track the watermark holds for a stage.
 //
 // Timers hold back the watermark until they fire, but multiple
@@ -89,8 +98,7 @@ func (ht *holdTracker) Drop(hold mtime.Time, v int) {
 // Add a hold a number of times to heap. If the hold time isn't already present in the heap, it is added.
 func (ht *holdTracker) Add(hold mtime.Time, v int) {
 	// Mark the hold in the heap.
-	ht.counts[hold] = ht.counts[hold] + v
-
+	ht.counts[hold] += v
 	if len(ht.counts) != len(ht.heap) {
 		// Since there's a difference, the hold should not be in the heap, so we add it.
 		heap.Push(&ht.heap, hold)

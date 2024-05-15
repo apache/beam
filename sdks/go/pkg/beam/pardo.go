@@ -100,6 +100,7 @@ func TryParDo(s Scope, dofn any, col PCollection, opts ...Option) ([]PCollection
 			if ct := ps.CoderType(); ct != nil {
 				sT := typex.New(ps.CoderType())
 				c, err := inferCoder(sT)
+				// 			fmt.Println("CCCCCC", c, graphx.UserStateCoderID(ps))
 				if err != nil {
 					return nil, addParDoCtx(err, s)
 				}

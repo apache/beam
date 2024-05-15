@@ -57,7 +57,10 @@ func (s *stateProvider) ReadValueState(userStateID string) (any, []state.Transac
 			return nil, nil, err
 		}
 		dec := MakeElementDecoder(coder.SkipW(s.codersByKey[userStateID]))
-		resp, err := dec.Decode(rw)
+		var buf bytes.Buffer
+		tee := io.TeeReader(rw, &buf)
+		resp, err := dec.Decode(tee)
+		// fmt.Println("CCCCCC -  read", s.codersByKey[userStateID], userStateID, buf.Bytes())
 		if err != nil && err != io.EOF {
 			return nil, nil, err
 		}
@@ -92,12 +95,15 @@ func (s *stateProvider) WriteValueState(val state.Transaction) error {
 	if err != nil {
 		return err
 	}
+	var buf bytes.Buffer
+	mw := io.MultiWriter(ap, &buf)
 	fv := FullValue{Elm: val.Val}
 	enc := MakeElementEncoder(coder.SkipW(s.codersByKey[val.Key]))
-	err = enc.Encode(&fv, ap)
+	err = enc.Encode(&fv, mw)
 	if err != nil {
 		return err
 	}
+	// fmt.Println("CCCCCC - write", s.codersByKey[val.Key], val.Key, buf.Bytes())
 
 	// Any transactions before a set don't matter
 	s.transactionsByKey[val.Key] = []state.Transaction{val}

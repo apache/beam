@@ -117,6 +117,8 @@ func TestStatefulStages(t *testing.T) {
 		{pipeline: primitives.SetStateParDoClear},
 		{pipeline: primitives.TimersEventTimeBounded},
 		{pipeline: primitives.TimersEventTimeUnbounded},
+		{pipeline: primitives.ValueStateParDo_Bytes},
+		// {pipeline: primitives.ValueStateParDo_Row},
 	}
 
 	configs := []struct {
@@ -240,9 +242,9 @@ func TestProcessingTime(t *testing.T) {
 		OneElementPerKey, OneKeyPerBundle bool
 	}{
 		{"Greedy", false, false},
-		// {"AllElementsPerKey", false, true},
-		// {"OneElementPerKey", true, false},
-		// {"OneElementPerBundle", true, true},
+		{"AllElementsPerKey", false, true},
+		{"OneElementPerKey", true, false},
+		{"OneElementPerBundle", true, true},
 	}
 	for _, config := range configs {
 		for _, test := range tests {
