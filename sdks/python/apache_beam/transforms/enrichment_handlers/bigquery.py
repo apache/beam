@@ -22,6 +22,7 @@ from typing import Mapping
 from typing import Optional
 from typing import Union
 
+from google.api_core.exceptions import BadRequest
 from google.cloud import bigquery
 
 import apache_beam as beam
@@ -53,7 +54,8 @@ def _validate_bigquery_metadata(
         "Please provide either `query_fn` or the parameters "
         "`table_name`, `row_restriction_template`, and"
         "`fields/condition_value_fn` together.")
-  if (fields and condition_value_fn) or (not fields and not condition_value_fn):
+  if not query_fn and ((fields and condition_value_fn) or
+                       (not fields and not condition_value_fn)):
     raise ValueError(
         "Please provide exactly one of `fields` or "
         "`condition_value_fn`")
@@ -163,11 +165,15 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, List[Row]],
         return [dict(row.items()) for row in results]
       else:
         return [dict(row.items()) for row in results][0]
-    except RuntimeError:
-      raise RuntimeError("Could not complete the query request: %s" % query)
+    except BadRequest as e:
+      raise BadRequest(
+          f'Could not execute the query: {query}. Please check if '
+          f'the query is properly formatted and the BigQuery '
+          f'table exists. {e}')
+    except RuntimeError as e:
+      raise RuntimeError(f"Could not complete the query request: {query}. {e}")
 
   def __call__(self, request: Union[beam.Row, List[beam.Row]], *args, **kwargs):
-    # raise ValueError(type(request))
     if isinstance(request, List):
       values = []
       responses = []
@@ -181,9 +187,14 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, List[Row]],
             self.row_restriction_template, batched_condition_template)
       for req in request:
         request_dict = req._asdict()
-        current_values = (
-            self.condition_value_fn(req) if self.condition_value_fn else
-            [request_dict.get(field) for field in self.fields])
+        try:
+          current_values = (
+              self.condition_value_fn(req) if self.condition_value_fn else
+              [request_dict[field] for field in self.fields])
+        except KeyError as e:
+          raise KeyError(
+              "Make sure the values passed in `fields` are the "
+              "keys in the input `beam.Row`." + str(e))
         values.extend(current_values)
         requests_map.update((val, req) for val in current_values)
       query = raw_query.format(*values)
@@ -213,17 +224,34 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, List[Row]],
     self.client.close()
 
   def get_cache_key(self, request: Union[beam.Row, List[beam.Row]]):
-    key = ";".join(["%s"] * len(self.fields))
     if isinstance(request, List):
       cache_keys = []
       for req in request:
         req_dict = req._asdict()
-        key = ";".join(["%s"] * len(self.fields))
-        cache_keys.extend([key % req_dict[field] for field in self.fields])
+        current_values = (
+            self.condition_value_fn(req) if self.condition_value_fn else
+            [req_dict[field] for field in self.fields])
+        key = ";".join(["%s"] * len(current_values))
+        try:
+          cache_keys.extend([key % tuple(current_values)])
+        except KeyError as e:
+          raise KeyError(
+              "Make sure the values passed in `fields` are the "
+              "keys in the input `beam.Row`." + str(e))
       return cache_keys
     else:
       req_dict = request._asdict()
-      return key % (req_dict.get(field) for field in self.fields)
+      try:
+        current_values = (
+            self.condition_value_fn(request) if self.condition_value_fn else
+            [req_dict[field] for field in self.fields])
+        key = ";".join(["%s"] * len(current_values))
+        cache_key = key % tuple(current_values)
+      except KeyError as e:
+        raise KeyError(
+            "Make sure the values passed in `fields` are the "
+            "keys in the input `beam.Row`." + str(e))
+      return cache_key
 
   def batch_elements_kwargs(self) -> Mapping[str, Any]:
     """Returns a kwargs suitable for `beam.BatchElements`."""

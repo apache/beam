@@ -19,13 +19,11 @@ from datetime import timedelta
 from typing import Any
 from typing import Callable
 from typing import Dict
-from typing import Mapping
 from typing import Optional
 from typing import TypeVar
 from typing import Union
 
 import apache_beam as beam
-from apache_beam import BatchElements
 from apache_beam.coders import coders
 from apache_beam.io.requestresponse import DEFAULT_CACHE_ENTRY_TTL_SEC
 from apache_beam.io.requestresponse import DEFAULT_TIMEOUT_SECS
@@ -84,12 +82,6 @@ def cross_join(left: Dict[str, Any], right: Dict[str, Any]) -> beam.Row:
   return beam.Row(**left)
 
 
-class FlattenBatch(beam.DoFn):
-  def process(self, elements, *args, **kwargs):
-    for element in elements:
-      yield element
-
-
 class EnrichmentSourceHandler(Caller[InputT, OutputT]):
   """Wrapper class for `apache_beam.io.requestresponse.Caller`.
 
@@ -107,10 +99,6 @@ class EnrichmentSourceHandler(Caller[InputT, OutputT]):
     is returned here.
     """
     return "request: %s" % request
-
-  def batch_elements_kwargs(self) -> Mapping[str, Any]:
-    """Returns a kwargs suitable for `beam.BatchElements`."""
-    return {}
 
 
 class Enrichment(beam.PTransform[beam.PCollection[InputT],
@@ -155,7 +143,6 @@ class Enrichment(beam.PTransform[beam.PCollection[InputT],
     self._timeout = timeout
     self._repeater = repeater
     self._throttler = throttler
-    self._batching_kwargs = self._source_handler.batch_elements_kwargs()
 
   def expand(self,
              input_row: beam.PCollection[InputT]) -> beam.PCollection[OutputT]:
@@ -166,22 +153,16 @@ class Enrichment(beam.PTransform[beam.PCollection[InputT],
     if self._cache:
       self._cache.request_coder = request_coder
 
-    input_data = input_row
-    if self._batching_kwargs:
-      input_data = input_row | BatchElements(**self._batching_kwargs)
-
-    fetched_data = input_data | RequestResponseIO(
-        caller=self._source_handler,
-        timeout=self._timeout,
-        repeater=self._repeater,
-        cache=self._cache,
-        throttler=self._throttler)
+    fetched_data = (
+        input_row
+        | "Enrichment-RRIO" >> RequestResponseIO(
+            caller=self._source_handler,
+            timeout=self._timeout,
+            repeater=self._repeater,
+            cache=self._cache,
+            throttler=self._throttler))
 
     # EnrichmentSourceHandler returns a tuple of (request,response).
-    # if batching is enabled then handle accordingly
-    if self._batching_kwargs:
-      fetched_data = fetched_data | "Flatten" >> beam.ParDo(FlattenBatch())
-
     return (
         fetched_data
         | "enrichment_join" >>
