@@ -495,10 +495,8 @@ class DataflowApplicationClient(object):
 
     if self.google_cloud_options.no_auth:
       credentials = None
-      storage_credentials = None
     else:
       credentials = get_service_credentials(options)
-      storage_credentials = credentials.get_google_auth_credentials()
 
     http_client = get_new_http()
     self._client = dataflow.DataflowV1b3(
@@ -507,7 +505,7 @@ class DataflowApplicationClient(object):
         get_credentials=(not self.google_cloud_options.no_auth),
         http=http_client,
         response_encoding=get_response_encoding())
-    self._storage_client = create_storage_client(storage_credentials, options)
+    self._storage_client = create_storage_client(credentials, options)
     self._sdk_image_overrides = self._get_sdk_image_overrides(options)
 
   def _get_sdk_image_overrides(self, pipeline_options):

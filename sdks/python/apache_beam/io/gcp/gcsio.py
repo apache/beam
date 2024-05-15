@@ -100,7 +100,15 @@ def get_or_create_default_gcs_bucket(options):
 
 
 def create_storage_client(credentials, pipeline_options):
-  """Create a GCS client for Beam via GCS Client Library."""
+  """Create a GCS client for Beam via GCS Client Library.
+
+  Args:
+    credentials(_ApitoolsCredentialsAdapter): an instance to hold credentials info
+    pipeline_options(PipelineOptions): the options of the pipeline
+
+  Returns:
+    A google.cloud.storage.client.Client instance
+  """
   if credentials:
     google_cloud_options = pipeline_options.view_as(GoogleCloudOptions)
     from google.api_core import client_info
