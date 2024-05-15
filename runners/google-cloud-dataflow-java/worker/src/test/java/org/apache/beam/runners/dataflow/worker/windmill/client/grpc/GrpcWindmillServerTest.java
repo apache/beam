@@ -28,12 +28,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1ImplBase;
@@ -630,20 +625,47 @@ public class GrpcWindmillServerTest {
     };
   }
 
-  @Test
-  public void testStreamingCommit() throws Exception {
+  private void commitWorkTestHelper(
+      CommitWorkStream stream,
+      ConcurrentHashMap<Long, WorkItemCommitRequest> requestsForService,
+      int requestIdStart,
+      int numRequests)
+      throws InterruptedException {
     List<WorkItemCommitRequest> commitRequestList = new ArrayList<>();
     List<CountDownLatch> latches = new ArrayList<>();
-    Map<Long, WorkItemCommitRequest> commitRequests = new ConcurrentHashMap<>();
-    for (int i = 0; i < 500; ++i) {
+    for (int i = 0; i < numRequests; ++i) {
       // Build some requests of varying size with a few big ones.
-      WorkItemCommitRequest request = makeCommitRequest(i, i * (i < 480 ? 8 : 128));
+      WorkItemCommitRequest request =
+          makeCommitRequest(i + requestIdStart, i * (i < numRequests * .9 ? 8 : 128));
       commitRequestList.add(request);
-      commitRequests.put((long) i, request);
+      requestsForService.put((long) i + requestIdStart, request);
       latches.add(new CountDownLatch(1));
     }
     Collections.shuffle(commitRequestList);
+    try (CommitWorkStream.RequestBatcher batcher = stream.batcher()) {
+      for (int i = 0; i < commitRequestList.size(); ) {
+        final CountDownLatch latch = latches.get(i);
+        if (batcher.commitWorkItem(
+            "computation",
+            commitRequestList.get(i),
+            (CommitStatus status) -> {
+              assertEquals(status, CommitStatus.OK);
+              latch.countDown();
+            })) {
+          i++;
+        } else {
+          batcher.flush();
+        }
+      }
+    }
+    for (CountDownLatch latch : latches) {
+      assertTrue(latch.await(1, TimeUnit.MINUTES));
+    }
+  }
 
+  @Test
+  public void testStreamingCommit() throws Exception {
+    ConcurrentHashMap<Long, WorkItemCommitRequest> commitRequests = new ConcurrentHashMap<>();
     serviceRegistry.addService(
         new CloudWindmillServiceV1Alpha1ImplBase() {
           @Override
@@ -655,26 +677,45 @@ public class GrpcWindmillServerTest {
 
     // Make the commit requests, waiting for each of them to be verified and acknowledged.
     CommitWorkStream stream = client.commitWorkStream();
-    for (int i = 0; i < commitRequestList.size(); ) {
-      final CountDownLatch latch = latches.get(i);
-      if (stream.commitWorkItem(
-          "computation",
-          commitRequestList.get(i),
-          (CommitStatus status) -> {
-            assertEquals(status, CommitStatus.OK);
-            latch.countDown();
-          })) {
-        i++;
-      } else {
-        stream.flush();
-      }
-    }
-    stream.flush();
+    commitWorkTestHelper(stream, commitRequests, 0, 500);
     stream.close();
-    for (CountDownLatch latch : latches) {
-      assertTrue(latch.await(1, TimeUnit.MINUTES));
-    }
     assertTrue(stream.awaitTermination(30, TimeUnit.SECONDS));
+  }
+
+  @Test
+  public void testStreamingCommitManyThreads() throws Exception {
+    ConcurrentHashMap<Long, WorkItemCommitRequest> commitRequests = new ConcurrentHashMap<>();
+    serviceRegistry.addService(
+        new CloudWindmillServiceV1Alpha1ImplBase() {
+          @Override
+          public StreamObserver<StreamingCommitWorkRequest> commitWorkStream(
+              StreamObserver<StreamingCommitResponse> responseObserver) {
+            return getTestCommitStreamObserver(responseObserver, commitRequests);
+          }
+        });
+    ScheduledExecutorService executor = Executors.newScheduledThreadPool(10);
+    // Make the commit requests, waiting for each of them to be verified and acknowledged.
+    CommitWorkStream stream = client.commitWorkStream();
+    List<Future<?>> futures = new ArrayList<>();
+    for (int i = 0; i < 10; ++i) {
+      final int startRequestId = i * 50;
+      futures.add(
+          executor.submit(
+              () -> {
+                try {
+                  commitWorkTestHelper(stream, commitRequests, startRequestId, 50);
+                } catch (InterruptedException e) {
+                  throw new RuntimeException(e);
+                }
+              }));
+    }
+    // Surface any exceptions that might be thrown by submitting by blocking on the future.
+    for (Future<?> f : futures) {
+      f.get();
+    }
+    stream.close();
+    assertTrue(stream.awaitTermination(30, TimeUnit.SECONDS));
+    executor.shutdown();
   }
 
   @Test
@@ -739,21 +780,22 @@ public class GrpcWindmillServerTest {
 
     // Make the commit requests, waiting for each of them to be verified and acknowledged.
     CommitWorkStream stream = client.commitWorkStream();
-    for (int i = 0; i < commitRequestList.size(); ) {
-      final CountDownLatch latch = latches.get(i);
-      if (stream.commitWorkItem(
-          "computation",
-          commitRequestList.get(i),
-          (CommitStatus status) -> {
-            assertEquals(status, CommitStatus.OK);
-            latch.countDown();
-          })) {
-        i++;
-      } else {
-        stream.flush();
+    try (CommitWorkStream.RequestBatcher batcher = stream.batcher()) {
+      for (int i = 0; i < commitRequestList.size(); ) {
+        final CountDownLatch latch = latches.get(i);
+        if (batcher.commitWorkItem(
+            "computation",
+            commitRequestList.get(i),
+            (CommitStatus status) -> {
+              assertEquals(status, CommitStatus.OK);
+              latch.countDown();
+            })) {
+          i++;
+        } else {
+          batcher.flush();
+        }
       }
     }
-    stream.flush();
 
     long deadline = System.currentTimeMillis() + 60_000; // 1 min
     while (true) {

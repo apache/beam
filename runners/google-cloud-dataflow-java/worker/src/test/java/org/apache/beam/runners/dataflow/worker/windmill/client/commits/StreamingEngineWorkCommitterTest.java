@@ -33,7 +33,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -249,15 +249,20 @@ public class StreamingEngineWorkCommitterTest {
         () ->
             new CommitWorkStream() {
               @Override
-              public boolean commitWorkItem(
-                  String computation,
-                  WorkItemCommitRequest request,
-                  Consumer<Windmill.CommitStatus> onDone) {
-                return false;
-              }
+              public RequestBatcher batcher() {
+                return new RequestBatcher() {
+                  @Override
+                  public boolean commitWorkItem(
+                      String computation,
+                      WorkItemCommitRequest request,
+                      Consumer<Windmill.CommitStatus> onDone) {
+                    return false;
+                  }
 
-              @Override
-              public void flush() {}
+                  @Override
+                  public void flush() {}
+                };
+              }
 
               @Override
               public void close() {}
@@ -303,6 +308,41 @@ public class StreamingEngineWorkCommitterTest {
 
     for (Commit commit : commits) {
       assertTrue(commit.work().isFailed());
+    }
+  }
+
+  @Test
+  public void testMultipleCommitSendersSingleStream() {
+    commitWorkStreamFactory =
+        WindmillStreamPool.create(
+                1, Duration.standardMinutes(1), fakeWindmillServer::commitWorkStream)
+            ::getCloseableStream;
+    Set<CompleteCommit> completeCommits = Collections.newSetFromMap(new ConcurrentHashMap<>());
+    workCommitter =
+        StreamingEngineWorkCommitter.create(commitWorkStreamFactory, 5, completeCommits::add);
+    List<Commit> commits = new ArrayList<>();
+    for (int i = 1; i <= 500; i++) {
+      Work work = createMockWork(i, ignored -> {});
+      WorkItemCommitRequest commitRequest =
+          WorkItemCommitRequest.newBuilder()
+              .setKey(work.getWorkItem().getKey())
+              .setShardingKey(work.getWorkItem().getShardingKey())
+              .setWorkToken(work.getWorkItem().getWorkToken())
+              .setCacheToken(work.getWorkItem().getCacheToken())
+              .build();
+      commits.add(Commit.create(commitRequest, createComputationState("computationId-" + i), work));
+    }
+
+    workCommitter.start();
+    commits.parallelStream().forEach(workCommitter::commit);
+    Map<Long, WorkItemCommitRequest> committed =
+        fakeWindmillServer.waitForAndGetCommits(commits.size());
+
+    for (Commit commit : commits) {
+      WorkItemCommitRequest request = committed.get(commit.work().getWorkItem().getWorkToken());
+      assertNotNull(request);
+      assertThat(request).isEqualTo(commit.request());
+      assertThat(completeCommits).contains(asCompleteCommit(commit, Windmill.CommitStatus.OK));
     }
   }
 }
