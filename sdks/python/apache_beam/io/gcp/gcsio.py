@@ -103,8 +103,8 @@ def create_storage_client(credentials, pipeline_options):
   """Create a GCS client for Beam via GCS Client Library.
 
   Args:
-    credentials(_ApitoolsCredentialsAdapter): an instance to hold credentials info
-    pipeline_options(PipelineOptions): the options of the pipeline
+    credentials(apache_beam.internal.gcp.auth._ApitoolsCredentialsAdapter): an instance to hold credentials info
+    pipeline_options(apache_beam.options.pipeline_options.PipelineOptions): the options of the pipeline
 
   Returns:
     A google.cloud.storage.client.Client instance
