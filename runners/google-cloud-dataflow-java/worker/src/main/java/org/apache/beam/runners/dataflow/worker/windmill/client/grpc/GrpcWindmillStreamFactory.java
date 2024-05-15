@@ -76,12 +76,18 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
   private final Supplier<BackOff> grpcBackOff;
   private final Set<AbstractWindmillStream<?, ?>> streamRegistry;
   private final AtomicLong streamIdGenerator;
+  // If true, then active work refreshes will be sent as KeyedGetDataRequests. Otherwise, use the
+  // newer ComputationHeartbeatRequests.
+  private final boolean sendKeyedGetDataRequests;
+  private final Consumer<List<ComputationHeartbeatResponse>> processHeartbeatResponses;
 
   GrpcWindmillStreamFactory(
       JobHeader jobHeader,
       int logEveryNStreamFailures,
       int streamingRpcBatchLimit,
       int windmillMessagesBetweenIsReadyChecks,
+      boolean sendKeyedGetDataRequests,
+      Consumer<List<ComputationHeartbeatResponse>> processHeartbeatResponses,
       Supplier<Duration> maxBackOffSupplier) {
     this.jobHeader = jobHeader;
     this.logEveryNStreamFailures = logEveryNStreamFailures;
@@ -96,6 +102,8 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
                     .withMaxBackoff(maxBackOffSupplier.get())
                     .backoff());
     this.streamRegistry = ConcurrentHashMap.newKeySet();
+    this.sendKeyedGetDataRequests = sendKeyedGetDataRequests;
+    this.processHeartbeatResponses = processHeartbeatResponses;
     this.streamIdGenerator = new AtomicLong();
   }
 
@@ -109,7 +117,9 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         .setWindmillMessagesBetweenIsReadyChecks(DEFAULT_WINDMILL_MESSAGES_BETWEEN_IS_READY_CHECKS)
         .setMaxBackOffSupplier(() -> DEFAULT_MAX_BACKOFF)
         .setLogEveryNStreamFailures(DEFAULT_LOG_EVERY_N_STREAM_FAILURES)
-        .setStreamingRpcBatchLimit(DEFAULT_STREAMING_RPC_BATCH_LIMIT);
+        .setStreamingRpcBatchLimit(DEFAULT_STREAMING_RPC_BATCH_LIMIT)
+        .setSendKeyedGetDataRequests(true)
+        .setProcessHeartbeatResponses(ignored -> {});
   }
 
   private static <T extends AbstractStub<T>> T withDefaultDeadline(T stub) {
@@ -156,10 +166,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
   }
 
   public GetDataStream createGetDataStream(
-      CloudWindmillServiceV1Alpha1Stub stub,
-      ThrottleTimer getDataThrottleTimer,
-      boolean sendKeyedGetDataRequests,
-      Consumer<List<ComputationHeartbeatResponse>> processHeartbeatResponses) {
+      CloudWindmillServiceV1Alpha1Stub stub, ThrottleTimer getDataThrottleTimer) {
     return GrpcGetDataStream.create(
         responseObserver -> withDefaultDeadline(stub).getDataStream(responseObserver),
         grpcBackOff.get(),
@@ -172,11 +179,6 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         streamingRpcBatchLimit,
         sendKeyedGetDataRequests,
         processHeartbeatResponses);
-  }
-
-  public GetDataStream createGetDataStream(
-      CloudWindmillServiceV1Alpha1Stub stub, ThrottleTimer getDataThrottleTimer) {
-    return createGetDataStream(stub, getDataThrottleTimer, false, (response) -> {});
   }
 
   public CommitWorkStream createCommitWorkStream(
@@ -259,6 +261,11 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
     Builder setWindmillMessagesBetweenIsReadyChecks(int windmillMessagesBetweenIsReadyChecks);
 
     Builder setMaxBackOffSupplier(Supplier<Duration> maxBackOff);
+
+    Builder setSendKeyedGetDataRequests(boolean sendKeyedGetDataRequests);
+
+    Builder setProcessHeartbeatResponses(
+        Consumer<List<ComputationHeartbeatResponse>> processHeartbeatResponses);
 
     GrpcWindmillStreamFactory build();
   }
