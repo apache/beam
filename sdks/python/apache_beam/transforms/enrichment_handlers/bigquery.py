@@ -68,6 +68,15 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, List[Row]],
   Use this handler with :class:`apache_beam.transforms.enrichment.Enrichment`
   transform.
 
+  To use this handler you need either of the following combinations:
+    * `table_name`, `row_restriction_template`, `fields`
+    * `table_name`, `row_restriction_template`, `condition_value_fn`
+    * `query_fn`
+
+  By default, the handler pulls all columns from the BigQuery table.
+  To override this, use the `column_name` parameter to specify a list of column
+  names to fetch.
+
   This handler pulls data from BigQuery per element by default. To change this
   behavior, set the `min_batch_size` and `max_batch_size` parameters.
   These min and max values for batch size are sent to the
@@ -103,20 +112,18 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, List[Row]],
       table_name (str): Fully qualified BigQuery table name
         in the format `project.dataset.table`.
       row_restriction_template (str): A template string for the `WHERE` clause
-        in the BigQuery query with placeholders to dynamically filter rows
-        based on input data.
+        in the BigQuery query with placeholders (`{}`) to dynamically filter
+        rows based on input data.
       fields: (Optional[List[str]]) List of field names present in the input
         `beam.Row`. These are used to construct the WHERE clause
         (if `condition_value_fn` is not provided).
       column_names: (Optional[List[str]]) Names of columns to select from the
         BigQuery table. If not provided, all columns (`*`) are selected.
-      condition_value_fn: (Optional[Callable[[beam.Row], str]]) A function
-        that takes a `beam.Row` and returns a string value to be used in the
-        `WHERE` clause of the BigQuery query.
+      condition_value_fn: (Optional[Callable[[beam.Row], Any]]) A function
+        that takes a `beam.Row` and returns a list of value to populate in the
+        placeholder `{}` of `WHERE` clause in the query.
       query_fn: (Optional[Callable[[beam.Row], str]]) A function that takes a
         `beam.Row` and returns a complete BigQuery SQL query string.
-        If provided, it overrides the default query construction that use
-        `fields`, `column_names`, and `condition_value_fn`.
       min_batch_size: (Optional[int]) Minimum number of rows to batch together
         when querying BigQuery.
       max_batch_size: (Optional[int]) Maximum number of rows to batch together.

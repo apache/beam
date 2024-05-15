@@ -43,7 +43,7 @@ _LOGGER = logging.getLogger(__name__)
 def query_fn(row: beam.Row):
   query = (
       "SELECT * FROM "
-      "`google.com:clouddfe.my_ecommerce.product_details`"
+      "`apache-beam-testing.my_ecommerce.product_details`"
       " WHERE id = '{}'".format(row.id))  # type: ignore[attr-defined]
   return query
 
@@ -55,13 +55,9 @@ def condition_value_fn(row: beam.Row):
 @pytest.mark.uses_testcontainer
 class TestBigQueryEnrichmentIT(unittest.TestCase):
   def setUp(self) -> None:
-    self.project = 'google.com:clouddfe'
-    self.query_template = (
-        "SELECT * FROM "
-        "`google.com:clouddfe.my_ecommerce.product_details`"
-        " WHERE id = '{}'")
+    self.project = 'apache-beam-testing'
     self.condition_template = "id = '{}'"
-    self.table_name = "`google.com:clouddfe.my_ecommerce.product_details`"
+    self.table_name = "`apache-beam-testing.my_ecommerce.product_details`"
     self.retries = 3
     self._start_container()
 
