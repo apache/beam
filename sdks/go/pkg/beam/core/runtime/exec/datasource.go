@@ -149,6 +149,7 @@ func (n *DataSource) process(ctx context.Context, data func(bcr *byteCountReader
 				// Returning splitSuccess means we've split, and aren't consuming the remaining buffer.
 				// We mark the PTransform done to ignore further data.
 				splitPrimaryComplete[e.PtransformID] = true
+				err = nil // Reset the error for timer handling.
 			} else if err != nil && err != io.EOF {
 				return errors.Wrapf(err, "source failed processing data")
 			}
