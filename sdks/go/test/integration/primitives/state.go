@@ -545,7 +545,7 @@ func (f *genValueStateFn[T]) ProcessElement(s state.Provider, c T, w int, emit f
 		panic(err)
 	}
 
-	prnt := fmt.Sprintf("%v: %v, %s", c, i, j)
+	prnt := fmt.Sprintf("%v: %v, %v", c, i, j)
 	fmt.Println("XXXXX", ok, prnt)
 	// Only emit if we have written out before, but include the latest count.
 	if ok {

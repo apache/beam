@@ -36,3 +36,8 @@ func TestTimers_ProcessingTime_Infinity(t *testing.T) {
 	integration.CheckFilters(t)
 	ptest.BuildAndRun(t, TimersProcessingTimeTestStream_Infinity)
 }
+
+func TestTimers_ProcessingTime_Bounded(t *testing.T) {
+	integration.CheckFilters(t)
+	ptest.BuildAndRun(t, TimersProcessingTime_Bounded)
+}

@@ -17,6 +17,7 @@ package primitives
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -161,8 +162,9 @@ func init() {
 }
 
 type processingTimeFn struct {
-	Callback timers.ProcessingTime
-	MyValue  state.Value[int]
+	Callback  timers.ProcessingTime
+	MyValue   state.Value[int]
+	Emissions state.Value[int]
 
 	Offset      int
 	TimerOutput int
@@ -180,7 +182,9 @@ func (fn *processingTimeFn) ProcessElement(sp state.Provider, tp timers.Provider
 		panic(err)
 	}
 	if !ok {
-		fn.MyValue.Write(sp, 0)
+		if err := fn.MyValue.Write(sp, 0); err != nil {
+			panic(err)
+		}
 	}
 }
 
@@ -198,8 +202,19 @@ func (fn *processingTimeFn) OnTimer(ctx context.Context, ts beam.EventTime, sp s
 			}
 			emit(key, read)
 			if read < fn.Cap-1 {
-				fn.MyValue.Write(sp, read+1)
+				if err := fn.MyValue.Write(sp, read+1); err != nil {
+					panic(err)
+				}
 				fn.Callback.Set(tp, time.Now().Add(9*time.Second))
+			}
+			if num, _, err := fn.Emissions.Read(sp); err != nil {
+				panic(err)
+			} else if num == fn.Cap {
+				panic(fmt.Sprintf("cap reached! This shouldn't be possible. key %v, num: %v, cap %v read %v", key, num, fn.Cap, read))
+			} else {
+				if err := fn.Emissions.Write(sp, num+1); err != nil {
+					panic(err)
+				}
 			}
 		default:
 			panic("unexpected timer tag: " + timer.Family + " tag:" + timer.Tag + " want: \"\", for key:" + key)
@@ -229,7 +244,7 @@ func timersProcessingTimePipelineBuilder(makeImp func(s beam.Scope) beam.PCollec
 		offset := 5000
 		timerOutput := 4093
 
-		numKeys := 40
+		numKeys := 100
 		numDuplicateTimers := 15
 
 		for key := 0; key < numKeys; key++ {

@@ -343,7 +343,6 @@ func (em *ElementManager) Bundles(ctx context.Context, nextBundID func() string)
 			for stageID := range advanced {
 				ss := em.stages[stageID]
 				watermark, ready, ptimeEventsReady := ss.bundleReady(em, emNow)
-				//fmt.Println("ptimeEventsReady ", ss.ID, ptimeEventsReady, "now", emNow, "watermark", watermark, "watermarkReady", ready)
 				if ready {
 					bundleID, ok, reschedule := ss.startEventTimeBundle(watermark, nextBundID)
 					// Handle the reschedule even when there's no bundle.
@@ -365,9 +364,6 @@ func (em *ElementManager) Bundles(ctx context.Context, nextBundID func() string)
 					}
 				}
 				if ptimeEventsReady {
-					//		fmt.Println("what's firing next?", ss.ID, "now", emNow, ss.processingTimeTimers.toFire)
-					// Queue up elements!
-					// TODO impose processing strategy limits.
 					bundleID, ok, reschedule := ss.startProcessingTimeBundle(em, emNow, nextBundID)
 					// Handle the reschedule even when there's no bundle.
 					if reschedule {
@@ -418,6 +414,11 @@ func (em *ElementManager) checkForQuiescence(advanced set[string]) {
 			slog.Int("refreshCount", len(em.watermarkRefreshes)),
 			slog.Int64("pendingElementCount", v),
 		)
+		return
+	}
+	if em.testStreamHandler == nil && len(em.processTimeEvents.events) > 0 {
+		// If there's no test stream involved, and processing time events exist, then
+		// it's only a matter of time.
 		return
 	}
 	// The job has quiesced!
@@ -767,12 +768,10 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 			stage.watermarkHolds.Drop(h, -c)
 		}
 	}
-	//fmt.Println("QQQQQ persistbundle", rb.StageID, rb.BundleID, "drop holds", stage.inprogressHoldsByBundle[rb.BundleID])
 	for hold, v := range stage.inprogressHoldsByBundle[rb.BundleID] {
 		stage.watermarkHolds.Drop(hold, v)
 	}
 	delete(stage.inprogressHoldsByBundle, rb.BundleID)
-	//fmt.Println("QQQQQ persistbundle", rb.StageID, rb.BundleID, "post drop holds", stage.watermarkHolds.counts)
 
 	// If there are estimated output watermarks, set the estimated
 	// output watermark for the stage.
@@ -869,7 +868,6 @@ func (em *ElementManager) triageTimers(d TentativeData, inputInfo PColInfo, stag
 		for _, v := range pendingProcessingTimers {
 			count += stage.processingTimeTimers.Persist(v.firing, v.timer, changedHolds)
 		}
-		//	fmt.Println("PERSISTED ", pendingProcessingTimers)
 		em.addPending(count)
 		stage.mu.Unlock()
 	}
@@ -914,7 +912,6 @@ func (em *ElementManager) addRefreshAndClearBundle(stageID, bundID string, ptRef
 	defer em.refreshCond.L.Unlock()
 	delete(em.inprogressBundles, bundID)
 	em.watermarkRefreshes.insert(stageID)
-	//fmt.Println("addRefreshAndClearBundle stage", stageID, "due to", bundID, ptRefreshes, "inEmAlready", em.processTimeEvents.events)
 	for t := range ptRefreshes {
 		em.processTimeEvents.Schedule(t, stageID)
 	}
@@ -1000,7 +997,7 @@ type stageState struct {
 	sideInputs map[LinkID]map[typex.Window][][]byte // side input data for this stage, from {tid, inputID} -> window
 
 	// Fields for stateful stages which need to be per key.
-	pendingByKeys          keyedElements                                    // pending input elements by Key, if stateful.
+	pendingByKeys          map[string]*dataAndTimers                        // pending input elements by Key, if stateful.
 	inprogressKeys         set[string]                                      // all keys that are assigned to bundles.
 	inprogressKeysByBundle map[string]set[string]                           // bundle to key assignments.
 	state                  map[LinkID]map[typex.Window]map[string]StateData // state data for this stage, from {tid, stateID} -> window -> userKey
@@ -1064,20 +1061,38 @@ func (ss *stageState) AddPending(newPending []element) int {
 	ss.mu.Lock()
 	defer ss.mu.Unlock()
 	if ss.stateful {
-		changedHolds := map[mtime.Time]int{}
 		if ss.pendingByKeys == nil {
 			ss.pendingByKeys = map[string]*dataAndTimers{}
 		}
 		count := 0
 		for _, e := range newPending {
+			count++
 			if len(e.keyBytes) == 0 {
 				panic(fmt.Sprintf("zero length key: %v %v", ss.ID, ss.inputID))
 			}
-			count += ss.pendingByKeys.AddElement(changedHolds, e)
-		}
-		//		fmt.Println("QQQQQ AddPending changedHolds", changedHolds)
-		for hold, v := range changedHolds {
-			ss.watermarkHolds.Add(hold, v)
+			dnt, ok := ss.pendingByKeys[string(e.keyBytes)]
+			if !ok {
+				dnt = &dataAndTimers{
+					timers: map[timerKey]timerTimes{},
+				}
+				ss.pendingByKeys[string(e.keyBytes)] = dnt
+			}
+			dnt.elements.Push(e)
+
+			if e.IsTimer() {
+				if lastSet, ok := dnt.timers[timerKey{family: e.family, tag: e.tag, window: e.window}]; ok {
+					// existing timer!
+					// don't increase the count this time, as "this" timer is already pending.
+					count--
+					// clear out the existing hold for accounting purposes.
+					ss.watermarkHolds.Drop(lastSet.hold, 1)
+				}
+				// Update the last set time on the timer.
+				dnt.timers[timerKey{family: e.family, tag: e.tag, window: e.window}] = timerTimes{firing: e.timestamp, hold: e.holdTimestamp}
+
+				// Mark the hold in the heap.
+				ss.watermarkHolds.Add(e.holdTimestamp, 1)
+			}
 		}
 		return count
 	}
@@ -1085,94 +1100,6 @@ func (ss *stageState) AddPending(newPending []element) int {
 	ss.pending = append(ss.pending, newPending...)
 	heap.Init(&ss.pending)
 	return len(newPending)
-}
-
-// keyedElements stores elements bucketed by their key. This simplifies ensuring that
-// in a stateful transform, a given key is only being processed by a single bundle at a time.
-type keyedElements map[string]*dataAndTimers
-
-func (ke keyedElements) AddElement(holds map[mtime.Time]int, e element) int {
-	dnt, ok := ke[string(e.keyBytes)]
-	if !ok {
-		dnt = &dataAndTimers{
-			timers: map[timerKey]timerTimes{},
-		}
-		ke[string(e.keyBytes)] = dnt
-	}
-	return dnt.AddElement(holds, e)
-}
-
-func (ke keyedElements) Merge(holds *holdTracker, o keyedElements) int {
-	var count int
-	for k, ov := range o {
-		v, ok := ke[k]
-		if !ok {
-			ke[k] = ov
-			continue
-		}
-		count += v.Merge(holds, ov)
-		ke[k] = v
-	}
-	return count
-}
-
-func (ke keyedElements) String() string {
-	var b strings.Builder
-	b.WriteString("keyedElems[")
-	for k, v := range ke {
-		b.WriteRune('\n')
-		b.WriteRune('\t')
-		b.WriteString(k)
-		b.WriteRune(':')
-		b.WriteString(fmt.Sprintf("%+v", v))
-		b.WriteRune(',')
-	}
-	b.WriteString("]")
-	return b.String()
-}
-
-// AddElement pushes the element onto the queue and handles timer uniqueness for the key, including
-// addressing any watermark holds of the timer.
-//
-// Returns adjustments to the pending count.
-func (dnt *dataAndTimers) AddElement(holds map[mtime.Time]int, e element) int {
-	dnt.elements.Push(e)
-	count := 1
-	if e.IsTimer() {
-		if lastSet, ok := dnt.timers[timerKey{family: e.family, tag: e.tag, window: e.window}]; ok {
-			// existing timer!
-			// don't increase the count this time, as "this" timer is already pending.
-			count--
-			// clear out the existing hold for accounting purposes.
-			holds[lastSet.hold] -= 1
-			//	fmt.Println("ZZZZZZ dropping old hold", lastSet.hold, "for", e)
-		}
-		// Update the last set time on the timer.
-		dnt.timers[timerKey{family: e.family, tag: e.tag, window: e.window}] = timerTimes{firing: e.timestamp, hold: e.holdTimestamp}
-
-		// Mark the hold in the heap.
-		holds[e.holdTimestamp] += 1
-		//fmt.Println("ZZZZZZ addHold for ", e)
-	}
-	return count
-}
-
-func (dnt *dataAndTimers) Merge(holds *holdTracker, o *dataAndTimers) int {
-	count := len(o.elements)
-	dnt.elements = append(dnt.elements, o.elements...)
-	heap.Init(&dnt.elements)
-	for tk, ot := range o.timers {
-		ct, ok := dnt.timers[tk]
-		if !ok {
-			dnt.timers[tk] = ot
-			continue
-		}
-		count-- // subtract the timer from the count, since we aren't adding any.
-		holds.Drop(ct.hold, 1)
-		// For timers, keep any existing holds, or last sets, since there's only
-		// one timer per key anyway. Extra timers will be garbage collected in later processing.
-	}
-	return count
 }
 
 // AddPendingSide adds elements to be consumed as side inputs.
@@ -1350,7 +1277,6 @@ keysPerBundle:
 	}
 
 	bundID := ss.makeInProgressBundle(genBundID, toProcess, minTs, newKeys, holdsInBundle)
-	//fmt.Println("QQQQ eventTimeBundle stage", ss.ID, "bundle", bundID, "holds", holdsInBundle, "newKeys", newKeys, "holdsInStage", ss.watermarkHolds.counts, "state", ss.state, "elements", toProcess)
 	return bundID, true, stillSchedulable
 }
 
@@ -1372,17 +1298,14 @@ func (ss *stageState) startProcessingTimeBundle(em *ElementManager, emNow mtime.
 	var notYet []fireElement
 
 	nextTime := ss.processingTimeTimers.Peek()
-	blockedOnKey := set[string]{}
 	keyCounts := map[string]int{}
 	newKeys := set[string]{}
 
 	for nextTime <= emNow {
-		// fmt.Println("top of the loop", nextTime, "now", emNow, ss.processingTimeTimers.order, ss.processingTimeTimers.toFire)
 		elems := ss.processingTimeTimers.FireAt(nextTime)
 		for _, e := range elems {
 			// Check if we're already executing this timer's key.
 			if ss.inprogressKeys.present(string(e.keyBytes)) {
-				blockedOnKey.insert(string(e.keyBytes))
 				notYet = append(notYet, fireElement{firing: nextTime, timer: e})
 				continue
 			}
@@ -1406,7 +1329,6 @@ func (ss *stageState) startProcessingTimeBundle(em *ElementManager, emNow mtime.
 
 			// We're going to process this timer!
 			toProcess = append(toProcess, e)
-			//		fmt.Println("startProcessingTimeBundle: nextTime", nextTime, "emNow", emNow, "timer", e)
 		}
 
 		nextTime = ss.processingTimeTimers.Peek()
@@ -1415,16 +1337,13 @@ func (ss *stageState) startProcessingTimeBundle(em *ElementManager, emNow mtime.
 			break
 		}
 	}
-	//	fmt.Println("out of the loop", nextTime, "now", emNow, ss.processingTimeTimers.order, ss.processingTimeTimers.toFire)
 
-	// Reschedule
-	//	fmt.Println("QQQQQ NOT YET; now", emNow, "dropping", notYet, "processing", toProcess, "curCounts", ss.watermarkHolds.counts)
+	// Reschedule unfired timers.
 	notYetHolds := map[mtime.Time]int{}
 	for _, v := range notYet {
 		ss.processingTimeTimers.Persist(v.firing, v.timer, notYetHolds)
 		em.processTimeEvents.Schedule(v.firing, ss.ID)
 	}
-	// fmt.Println("post-reschedule", nextTime, "now", emNow, "order", ss.processingTimeTimers.order, "toFire", ss.processingTimeTimers.toFire, "emProcTime", em.processTimeEvents)
 
 	// Add a refresh if there are still processing time events to process.
 	stillSchedulable := (nextTime < emNow && nextTime != mtime.MaxTimestamp || len(notYet) > 0)
@@ -1434,7 +1353,6 @@ func (ss *stageState) startProcessingTimeBundle(em *ElementManager, emNow mtime.
 		return "", false, stillSchedulable
 	}
 	bundID := ss.makeInProgressBundle(genBundID, toProcess, minTs, newKeys, holdsInBundle)
-	// fmt.Println("QQQQQ processingTimeBundle", ss.ID, bundID, toProcess, holdsInBundle, "rejected holds", notYetHolds, "stillSchedulable", stillSchedulable)
 	return bundID, true, stillSchedulable
 }
 
@@ -1465,7 +1383,6 @@ func (ss *stageState) makeInProgressBundle(genBundID func() string, toProcess []
 	ss.inprogressKeysByBundle[bundID] = newKeys
 	ss.inprogressKeys.merge(newKeys)
 	ss.inprogressHoldsByBundle[bundID] = holdsInBundle
-	// fmt.Println("QQQQQ makeInProgressBundle", ss.ID, bundID, "add holds", holdsInBundle)
 	return bundID
 }
 
@@ -1600,12 +1517,6 @@ func (ss *stageState) updateWatermarks(em *ElementManager) set[string] {
 func (ss *stageState) bundleReady(em *ElementManager, emNow mtime.Time) (mtime.Time, bool, bool) {
 	ss.mu.Lock()
 	defer ss.mu.Unlock()
-
-	// TODO Move handling ProcessingTime bundle fireing *HERE* to avoid nonsense against normal eventtime handling.
-	// Specifically, have the override here (is data ready at this time?)
-	// And in startBundle pull out that data.
-	// Or I add a new ready based on processing time signal that this returns, that is independently checked
-	// for sending.
 
 	ptimeEventsReady := ss.processingTimeTimers.Peek() <= emNow || emNow == mtime.MaxTimestamp
 
