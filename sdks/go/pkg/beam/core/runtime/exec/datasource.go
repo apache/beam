@@ -145,17 +145,19 @@ func (n *DataSource) process(ctx context.Context, data func(bcr *byteCountReader
 				r.Reset(e.Data)
 				err = data(&bcr, e.PtransformID)
 			}
-			if len(e.Timers) > 0 {
-				r.Reset(e.Timers)
-				err = timer(&bcr, e.PtransformID, e.TimerFamilyID)
-			}
-
 			if err == errSplitSuccess {
 				// Returning splitSuccess means we've split, and aren't consuming the remaining buffer.
 				// We mark the PTransform done to ignore further data.
 				splitPrimaryComplete[e.PtransformID] = true
 			} else if err != nil && err != io.EOF {
-				return errors.Wrap(err, "source failed")
+				return errors.Wrapf(err, "source failed processing data")
+			}
+			if len(e.Timers) > 0 {
+				r.Reset(e.Timers)
+				err = timer(&bcr, e.PtransformID, e.TimerFamilyID)
+			}
+			if err != nil && err != io.EOF {
+				return errors.Wrap(err, "source failed processing timers")
 			}
 			// io.EOF means the reader successfully drained.
 			// We're ready for a new buffer.
