@@ -88,7 +88,7 @@
 
 ## Bugfixes
 
-* Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Improve handling of 'not found' BigQuery dataset/table errors with appropriate retry policy [#31226](https://github.com/apache/beam/issues/31226)
 
 ## Security Fixes
 * Fixed (CVE-YYYY-NNNN)[https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN] (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).
