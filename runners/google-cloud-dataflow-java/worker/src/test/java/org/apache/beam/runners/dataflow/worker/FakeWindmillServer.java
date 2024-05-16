@@ -380,7 +380,7 @@ public final class FakeWindmillServer extends WindmillServerStub {
             }
           }
 
-          List<RequestAndDone> requests = new ArrayList<>();
+          final List<RequestAndDone> requests = new ArrayList<>();
 
           @Override
           public boolean commitWorkItem(
@@ -400,6 +400,7 @@ public final class FakeWindmillServer extends WindmillServerStub {
             commitsToOffer.getOrDefault(builder.build());
 
             requests.add(new RequestAndDone(request, onDone));
+            flush();
             return true;
           }
 
@@ -409,8 +410,7 @@ public final class FakeWindmillServer extends WindmillServerStub {
               if (dropStreamingCommits) {
                 droppedStreamingCommits.put(elem.request.getWorkToken(), elem.onDone);
                 // Return true to indicate the request was accepted even if we are dropping the
-                // commit
-                // to simulate a dropped commit.
+                // commit to simulate a dropped commit.
                 continue;
               }
 
@@ -447,7 +447,7 @@ public final class FakeWindmillServer extends WindmillServerStub {
 
   public void waitForEmptyWorkQueue() {
     while (!workToOffer.isEmpty()) {
-      Uninterruptibles.sleepUninterruptibly(1000, TimeUnit.MILLISECONDS);
+      Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
     }
   }
 
@@ -457,7 +457,7 @@ public final class FakeWindmillServer extends WindmillServerStub {
     Instant waitStart = Instant.now();
     while (commitsReceived.size() < commitsRequested + numCommits
         && Instant.now().isBefore(waitStart.plus(timeout))) {
-      Uninterruptibles.sleepUninterruptibly(1000, TimeUnit.MILLISECONDS);
+      Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
     }
     commitsRequested += numCommits;
     return commitsReceived;
@@ -465,9 +465,9 @@ public final class FakeWindmillServer extends WindmillServerStub {
 
   public Map<Long, WorkItemCommitRequest> waitForAndGetCommits(int numCommits) {
     LOG.debug("waitForAndGetCommitsRequest: {}", numCommits);
-    int maxTries = 10;
+    int maxTries = 100;
     while (maxTries-- > 0 && commitsReceived.size() < commitsRequested + numCommits) {
-      Uninterruptibles.sleepUninterruptibly(1000, TimeUnit.MILLISECONDS);
+      Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
     }
 
     assertFalse(
@@ -476,7 +476,7 @@ public final class FakeWindmillServer extends WindmillServerStub {
             + " more commits beyond "
             + commitsRequested
             + " commits already seen, but after 10s have only seen "
-            + commitsReceived
+            + commitsReceived.size()
             + ". Exceptions seen: "
             + exceptions,
         commitsReceived.size() < commitsRequested + numCommits);

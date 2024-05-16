@@ -104,14 +104,15 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
 
   @Override
   public void stop() {
-    if (!commitSenders.isTerminated() || !commitSenders.isShutdown()) {
-      commitSenders.shutdown();
+    if (!commitSenders.isTerminated()) {
+      commitSenders.shutdownNow();
       try {
         commitSenders.awaitTermination(10, TimeUnit.SECONDS);
       } catch (InterruptedException e) {
-        LOG.warn("Could not shut down commitSenders gracefully, forcing shutdown.", e);
+        LOG.warn(
+            "Commit senders didn't complete shutdown within 10 seconds, continuing to drain queue",
+            e);
       }
-      commitSenders.shutdownNow();
     }
     drainCommitQueue();
   }
@@ -143,12 +144,10 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
             // Block until we have a commit or are shutting down.
             initialCommit = commitQueue.take();
           } catch (InterruptedException e) {
-            continue;
+            return;
           }
         }
-        if (initialCommit == null) {
-          return;
-        }
+        Preconditions.checkNotNull(initialCommit);
 
         if (initialCommit.work().isFailed()) {
           onCommitComplete.accept(CompleteCommit.forFailedWork(initialCommit));
@@ -165,8 +164,7 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
                   "Initial commit on flushed stream should always be accepted.");
             }
             // Batch additional commits to the stream and possibly make an un-batched commit the
-            // next
-            // initial commit.
+            // next initial commit.
             initialCommit = expandBatch(batcher);
           }
         } catch (Exception e) {
@@ -216,8 +214,7 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
           commit = commitQueue.poll();
         }
       } catch (InterruptedException e) {
-        // Continue processing until !running.get()
-        continue;
+        return null;
       }
 
       if (commit == null) {

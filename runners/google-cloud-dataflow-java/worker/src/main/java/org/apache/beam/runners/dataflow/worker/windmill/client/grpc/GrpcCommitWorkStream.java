@@ -55,7 +55,6 @@ public final class GrpcCommitWorkStream
   private final JobHeader jobHeader;
   private final ThrottleTimer commitWorkThrottleTimer;
   private final int streamingRpcBatchLimit;
-  private Batcher batcher = new Batcher();
 
   private GrpcCommitWorkStream(
       Function<StreamObserver<StreamingCommitResponse>, StreamObserver<StreamingCommitWorkRequest>>
@@ -117,7 +116,7 @@ public final class GrpcCommitWorkStream
     send(StreamingCommitWorkRequest.newBuilder().setHeader(jobHeader).build());
     try (Batcher resendBatcher = new Batcher()) {
       for (Map.Entry<Long, PendingRequest> entry : pending.entrySet()) {
-        if (!resendBatcher.canAccept(entry.getValue())) {
+        if (!resendBatcher.canAccept(entry.getValue().getBytes())) {
           resendBatcher.flush();
         }
         resendBatcher.add(entry.getKey(), entry.getValue());
@@ -131,7 +130,7 @@ public final class GrpcCommitWorkStream
    */
   @Override
   public CommitWorkStream.RequestBatcher batcher() {
-    return batcher;
+    return new Batcher();
   }
 
   @Override
@@ -310,10 +309,10 @@ public final class GrpcCommitWorkStream
     @Override
     public boolean commitWorkItem(
         String computation, WorkItemCommitRequest commitRequest, Consumer<CommitStatus> onDone) {
-      PendingRequest request = new PendingRequest(computation, commitRequest, onDone);
-      if (!canAccept(request)) {
+      if (!canAccept(commitRequest.getSerializedSize() + computation.length())) {
         return false;
       }
+      PendingRequest request = new PendingRequest(computation, commitRequest, onDone);
       add(idGenerator.incrementAndGet(), request);
       return true;
     }
@@ -327,15 +326,15 @@ public final class GrpcCommitWorkStream
     }
 
     void add(long id, PendingRequest request) {
-      assert (canAccept(request));
+      assert (canAccept(request.getBytes()));
       queuedBytes += request.getBytes();
       queue.put(id, request);
     }
 
-    private boolean canAccept(PendingRequest request) {
+    private boolean canAccept(long requestBytes) {
       return queue.isEmpty()
           || (queue.size() < streamingRpcBatchLimit
-              && (request.getBytes() + queuedBytes) < AbstractWindmillStream.RPC_STREAM_CHUNK_SIZE);
+              && (requestBytes + queuedBytes) < AbstractWindmillStream.RPC_STREAM_CHUNK_SIZE);
     }
   }
 }
