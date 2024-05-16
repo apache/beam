@@ -1003,12 +1003,14 @@ public class BigQueryServicesImpl implements BigQueryServices {
             }
             String errorReason = errorInfo.getReason();
 
-            // Return errors so that we can handle even NotFound and AccessDenied with the retry policy
+            // Return errors so that we can handle even NotFound and AccessDenied with the retry
+            // policy
             if (ApiErrorExtractor.INSTANCE.itemNotFound(e)
                 || ApiErrorExtractor.INSTANCE.accessDenied(e)) {
               LOG.warn("Ignore the error: " + e.getMessage());
               List<TableDataInsertAllResponse.InsertErrors> errors = new ArrayList<>();
-              TableDataInsertAllResponse.InsertErrors errorDetail = new TableDataInsertAllResponse.InsertErrors();
+              TableDataInsertAllResponse.InsertErrors errorDetail =
+                  new TableDataInsertAllResponse.InsertErrors();
               ErrorProto errorProto = new ErrorProto();
               errorProto.setReason(errorReason);
               errorProto.setMessage("Item not found or access denied: " + e.getMessage());

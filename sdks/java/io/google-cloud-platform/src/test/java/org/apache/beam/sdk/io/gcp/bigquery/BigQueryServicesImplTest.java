@@ -1623,51 +1623,55 @@ public class BigQueryServicesImplTest {
 
   @Test
   public void testInsertAllHandlesNotFoundAndAccessDenied() throws Exception {
-      TableReference ref =
-          new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table");
-      List<FailsafeValueInSingleWindow<TableRow, TableRow>> rows = new ArrayList<>();
-      rows.add(wrapValue(new TableRow()));
+    TableReference ref =
+        new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table");
+    List<FailsafeValueInSingleWindow<TableRow, TableRow>> rows = new ArrayList<>();
+    rows.add(wrapValue(new TableRow()));
 
-      // Mock responses for NotFound and AccessDenied errors
-      setupMockResponses(
-          response -> {
-              when(response.getStatusCode()).thenReturn(404); // NotFound
-              when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
-              when(response.getContent())
-                  .thenReturn(toStream(errorWithReasonAndStatus("notFound", 404)));
-          },
-          response -> {
-              when(response.getStatusCode()).thenReturn(403); // AccessDenied
-              when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
-              when(response.getContent())
-                  .thenReturn(toStream(errorWithReasonAndStatus("accessDenied", 403)));
-          });
+    // Mock responses for NotFound and AccessDenied errors
+    setupMockResponses(
+        response -> {
+          when(response.getStatusCode()).thenReturn(404); // NotFound
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getContent())
+              .thenReturn(toStream(errorWithReasonAndStatus("notFound", 404)));
+        },
+        response -> {
+          when(response.getStatusCode()).thenReturn(403); // AccessDenied
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getContent())
+              .thenReturn(toStream(errorWithReasonAndStatus("accessDenied", 403)));
+        });
 
-      DatasetServiceImpl dataService =
-          new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
+    DatasetServiceImpl dataService =
+        new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
 
-      List<ValueInSingleWindow<TableRow>> failedInserts = Lists.newArrayList();
-      dataService.insertAll(
-          ref,
-          rows,
-          null,
-          BackOffAdapter.toGcpBackOff(TEST_BACKOFF.backoff()),
-          TEST_BACKOFF,
-          new MockSleeper(),
-          InsertRetryPolicy.alwaysRetry(),
-          failedInserts,
-          ErrorContainer.TABLE_ROW_ERROR_CONTAINER,
-          false,
-          false,
-          false,
-          null);
+    List<ValueInSingleWindow<TableRow>> failedInserts = Lists.newArrayList();
+    dataService.insertAll(
+        ref,
+        rows,
+        null,
+        BackOffAdapter.toGcpBackOff(TEST_BACKOFF.backoff()),
+        TEST_BACKOFF,
+        new MockSleeper(),
+        InsertRetryPolicy.alwaysRetry(),
+        failedInserts,
+        ErrorContainer.TABLE_ROW_ERROR_CONTAINER,
+        false,
+        false,
+        false,
+        null);
 
-      // Verify that the errors were handled and returned correctly
-      assertEquals(2, failedInserts.size());
-      assertEquals("Item not found or access denied: notFound", failedInserts.get(0).getValue().get("error").toString());
-      assertEquals("Item not found or access denied: accessDenied", failedInserts.get(1).getValue().get("error").toString());
+    // Verify that the errors were handled and returned correctly
+    assertEquals(2, failedInserts.size());
+    assertEquals(
+        "Item not found or access denied: notFound",
+        failedInserts.get(0).getValue().get("error").toString());
+    assertEquals(
+        "Item not found or access denied: accessDenied",
+        failedInserts.get(1).getValue().get("error").toString());
 
-      verifyAllResponsesAreRead();
+    verifyAllResponsesAreRead();
   }
 
   @Test
