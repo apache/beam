@@ -273,8 +273,9 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
     request.setUnsuccessfulResponseHandler(loggingHttpBackOffHandler);
     request.setIOExceptionHandler(loggingHttpBackOffHandler);
 
-    if (this.httpHeaders != null)
+    if (this.httpHeaders != null) {
       request.getHeaders().putAll(this.httpHeaders);
+    }
 
     // Set response initializer
     if (responseInterceptor != null) {

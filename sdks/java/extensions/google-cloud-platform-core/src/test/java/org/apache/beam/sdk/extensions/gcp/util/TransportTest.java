@@ -53,23 +53,22 @@ public class TransportTest {
     // "test-app apache-beam/2.57.0.dev (GPN:Beam) Google-API-Java-Client/2.0.0"
     // For a valid user-agent string, a comment like "(GPN:Beam)" cannot be the first token.
     // https://www.rfc-editor.org/rfc/rfc7231#section-5.5.3
-    assertThat(Arrays.asList(request.getHeaders().getUserAgent().split(" "))
-            .indexOf("test-app"),
+    assertThat(
+        Arrays.asList(request.getHeaders().getUserAgent().split(" ")).indexOf("test-app"),
         greaterThanOrEqualTo(0));
 
     assertThat(
         Arrays.asList(request.getHeaders().getUserAgent().split(" "))
-            .indexOf(String.format("apache-beam/%s",
-                ReleaseInfo.getReleaseInfo().getSdkVersion())),
+            .indexOf(String.format("apache-beam/%s", ReleaseInfo.getReleaseInfo().getSdkVersion())),
         greaterThan(0));
 
     assertThat(
-        Arrays.asList(request.getHeaders().getUserAgent().split(" "))
-            .indexOf("(GPN:Beam)"),
+        Arrays.asList(request.getHeaders().getUserAgent().split(" ")).indexOf("(GPN:Beam)"),
         greaterThan(0));
 
     // there should be one and only one custom audit entry for job name
-    assertEquals(request.getHeaders().getHeaderStringValues("x-goog-custom-audit-job"),
+    assertEquals(
+        request.getHeaders().getHeaderStringValues("x-goog-custom-audit-job"),
         Collections.singletonList("test-job"));
   }
 }

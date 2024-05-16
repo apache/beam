@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.gcp.util;
 
-import static com.google.common.base.Strings.isNullOrEmpty;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings.isNullOrEmpty;
 
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.http.HttpRequestInitializer;
@@ -96,18 +96,18 @@ public class Transport {
   public static Storage.Builder newStorageClient(GcsOptions options) {
     String jobName = Optional.ofNullable(options.getJobName()).orElse("UNKNOWN");
 
-    String applicationName = String.format(
-        "%sapache-beam/%s (GPN:Beam)",
-        isNullOrEmpty(options.getAppName()) ? "" : options.getAppName() + " ",
-        ReleaseInfo.getReleaseInfo().getSdkVersion()
-    );
+    String applicationName =
+        String.format(
+            "%sapache-beam/%s (GPN:Beam)",
+            isNullOrEmpty(options.getAppName()) ? "" : options.getAppName() + " ",
+            ReleaseInfo.getReleaseInfo().getSdkVersion());
 
     String servicePath = options.getGcsEndpoint();
 
     // Do not log the code 404. Code up the stack will deal with 404's if needed,
     // and logging it by default clutters the output during file staging.
-    RetryHttpRequestInitializer retryHttpRequestInitializer = new RetryHttpRequestInitializer(
-        ImmutableList.of(404), new UploadIdResponseInterceptor());
+    RetryHttpRequestInitializer retryHttpRequestInitializer =
+        new RetryHttpRequestInitializer(ImmutableList.of(404), new UploadIdResponseInterceptor());
 
     // Set custom audit info in request headers
     retryHttpRequestInitializer.setHttpHeaders(ImmutableMap.of("x-goog-custom-audit-job", jobName));
@@ -117,8 +117,7 @@ public class Transport {
                 getTransport(),
                 getJsonFactory(),
                 chainHttpRequestInitializer(
-                    options.getGcpCredential(),
-                    retryHttpRequestInitializer))
+                    options.getGcpCredential(), retryHttpRequestInitializer))
             .setApplicationName(applicationName)
             .setGoogleClientRequestInitializer(options.getGoogleApiTrace());
     if (servicePath != null) {
