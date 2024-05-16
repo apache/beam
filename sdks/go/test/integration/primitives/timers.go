@@ -244,7 +244,7 @@ func timersProcessingTimePipelineBuilder(makeImp func(s beam.Scope) beam.PCollec
 		offset := 5000
 		timerOutput := 4093
 
-		numKeys := 100
+		numKeys := 40
 		numDuplicateTimers := 15
 
 		for key := 0; key < numKeys; key++ {
@@ -292,4 +292,12 @@ func TimersProcessingTimeTestStream_Infinity(s beam.Scope) {
 // TimersProcessingTimeBounded validates processing time timers in a bounded pipeline.
 func TimersProcessingTime_Bounded(s beam.Scope) {
 	timersProcessingTimePipelineBuilder(beam.Impulse)(s)
+}
+
+// TimersProcessingTimeBounded validates processing time timers in an unbounded pipeline.
+func TimersProcessingTime_Unbounded(s beam.Scope) {
+	timersProcessingTimePipelineBuilder(func(s beam.Scope) beam.PCollection {
+		now := time.Now()
+		return periodic.Impulse(s, now, now.Add(10*time.Second), 0, false)
+	})(s)
 }

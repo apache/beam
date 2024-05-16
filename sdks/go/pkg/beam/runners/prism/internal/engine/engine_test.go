@@ -233,18 +233,19 @@ func TestProcessingTime(t *testing.T) {
 	tests := []struct {
 		pipeline func(s beam.Scope)
 	}{
-		//{pipeline: primitives.TimersProcessingTimeTestStream_Infinity},
+		{pipeline: primitives.TimersProcessingTimeTestStream_Infinity},
 		{pipeline: primitives.TimersProcessingTime_Bounded},
+		{pipeline: primitives.TimersProcessingTime_Unbounded},
 	}
 
 	configs := []struct {
 		name                              string
 		OneElementPerKey, OneKeyPerBundle bool
 	}{
-		// {"Greedy", false, false},
-		// {"AllElementsPerKey", false, true},
+		{"Greedy", false, false},
+		{"AllElementsPerKey", false, true},
 		{"OneElementPerKey", true, false},
-		// {"OneElementPerBundle", true, true},
+		// {"OneElementPerBundle", true, true}, // Reveals flaky behavior
 	}
 	for _, config := range configs {
 		for _, test := range tests {
