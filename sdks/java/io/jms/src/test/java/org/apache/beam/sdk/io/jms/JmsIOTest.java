@@ -159,7 +159,7 @@ public class JmsIOTest {
       boolean useProviderFn) {
     this.commonJms =
         new CommonJms(
-            brokerUrl, brokerPort, forceAsyncAcksParam, useProviderFn, connectionFactoryClass);
+            brokerUrl, brokerPort, forceAsyncAcksParam, connectionFactoryClass, useProviderFn);
     this.connectionFactoryClass = connectionFactoryClass;
     connectionFactory = commonJms.getConnectionFactory();
     connectionFactoryWithSyncAcksAndWithoutPrefetch =

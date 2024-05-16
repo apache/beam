@@ -89,8 +89,9 @@ public class CommonJms implements Serializable {
       String brokerUrl,
       Integer brokerPort,
       String forceAsyncAcksParam,
-      boolean useProviderFn,
-      Class<? extends ConnectionFactory> connectionFactoryClass) {
+      Class<? extends ConnectionFactory> connectionFactoryClass,
+      boolean useProviderFn) {
+
     this.brokerUrl = brokerUrl;
     this.brokerPort = brokerPort;
     this.forceAsyncAcksParam = forceAsyncAcksParam;
@@ -135,13 +136,17 @@ public class CommonJms implements Serializable {
   }
 
   ConnectionFactory createConnectionFactory()
-      throws NoSuchMethodException, InvocationTargetException, InstantiationException,
+      throws NoSuchMethodException,
+          InvocationTargetException,
+          InstantiationException,
           IllegalAccessException {
     return connectionFactoryClass.getConstructor(String.class).newInstance(brokerUrl);
   }
 
   ConnectionFactory createConnectionFactoryWithSyncAcksAndWithoutPrefetch()
-      throws NoSuchMethodException, InvocationTargetException, InstantiationException,
+      throws NoSuchMethodException,
+          InvocationTargetException,
+          InstantiationException,
           IllegalAccessException {
     return connectionFactoryClass
         .getConstructor(String.class)

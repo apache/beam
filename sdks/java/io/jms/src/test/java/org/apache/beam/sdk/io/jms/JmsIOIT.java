@@ -172,8 +172,8 @@ public class JmsIOIT implements Serializable {
             OPTIONS.isLocalJmsBrokerEnabled() ? brokerUrl : OPTIONS.getJmsBrokerHost(),
             OPTIONS.isLocalJmsBrokerEnabled() ? brokerPort : OPTIONS.getJmsBrokerPort(),
             forceAsyncAcksParam,
-            useProviderFn,
-            connectionFactoryClass);
+            connectionFactoryClass,
+            useProviderFn);
   }
 
   @Before
