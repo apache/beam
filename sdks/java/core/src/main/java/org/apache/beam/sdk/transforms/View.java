@@ -286,12 +286,19 @@ public class View {
     }
 
     private PCollectionView<List<T>> expandWithoutRandomAccess(PCollection<T> input) {
+      Coder<T> inputCoder = input.getCoder();
+      // HACK to work around https://github.com/apache/beam/issues/20873:
+      // There are bugs in "composite" vs "primitive" transform distinction
+      // in TransformHierachy. This noop transform works around them and should be zero
+      // cost.
+      PCollection<T> materializationInput =
+          input.apply(MapElements.via(new SimpleFunction<T, T>(x -> x) {}));
       PCollectionView<List<T>> view =
           PCollectionViews.listView(
-              input,
-              (TypeDescriptorSupplier<T>) input.getCoder()::getEncodedTypeDescriptor,
-              input.getWindowingStrategy());
-      input.apply(CreatePCollectionView.of(view));
+              materializationInput,
+              (TypeDescriptorSupplier<T>) inputCoder::getEncodedTypeDescriptor,
+              materializationInput.getWindowingStrategy());
+      materializationInput.apply(CreatePCollectionView.of(view));
       return view;
     }
 

@@ -30,11 +30,14 @@ For more information on changes in 2.56.0, check out the [detailed release notes
 ## Highlights
 
 * Added FlinkRunner for Flink 1.17, removed support for Flink 1.12 and 1.13. Previous version of Pipeline running on Flink 1.16 and below can be upgraded to 1.17, if the Pipeline is first updated to Beam 2.56.0 with the same Flink version. After Pipeline runs with Beam 2.56.0, it should be possible to upgrade to FlinkRunner with Flink 1.17. ([#29939](https://github.com/apache/beam/issues/29939))
+* New Managed I/O Java API ([#30830](https://github.com/apache/beam/pull/30830)).
+* New Ordered Processing PTransform added for processing order-sensitive stateful data ([#30735](https://github.com/apache/beam/pull/30735)).
 
 ## I/Os
 
 * Upgraded Avro version to 1.11.3, kafka-avro-serializer and kafka-schema-registry-client versions to 7.6.0 (Java) ([#30638](https://github.com/apache/beam/pull/30638)).
   The newer Avro package is known to have breaking changes. If you are affected, you can keep pinned to older Avro versions which are also tested with Beam.
+* Iceberg read/write support is available through the new Managed I/O Java API ([#30830](https://github.com/apache/beam/pull/30830)).
 
 ## New Features / Improvements
 
@@ -53,7 +56,7 @@ For more information on changes in 2.56.0, check out the [detailed release notes
 
 ## List of Contributors
 
-According to git shortlog, the following people contributed to the {$RELEASE_VERSION} release. Thank you to all contributors!
+According to git shortlog, the following people contributed to the 2.56.0 release. Thank you to all contributors!
 
 Abacn
 

@@ -70,6 +70,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PCollectionViews.HasDefaultValue;
+import org.apache.beam.sdk.values.PCollectionViews.IterableBackedListViewFn;
 import org.apache.beam.sdk.values.PCollectionViews.IterableViewFn;
 import org.apache.beam.sdk.values.PCollectionViews.IterableViewFn2;
 import org.apache.beam.sdk.values.PCollectionViews.ListViewFn;
@@ -354,7 +355,8 @@ public class IsmSideInputReader implements SideInputReader {
                   if (viewFn instanceof IterableViewFn
                       || viewFn instanceof IterableViewFn2
                       || viewFn instanceof ListViewFn
-                      || viewFn instanceof ListViewFn2) {
+                      || viewFn instanceof ListViewFn2
+                      || viewFn instanceof IterableBackedListViewFn) {
                     @SuppressWarnings("unchecked")
                     ViewT viewT = (ViewT) getListForWindow(tag, window);
                     return viewT;

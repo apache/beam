@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.managed;
 
+import static org.apache.beam.sdk.managed.ManagedTransformConstants.MAPPINGS;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
@@ -49,10 +50,13 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.Vi
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @AutoService(SchemaTransformProvider.class)
 public class ManagedSchemaTransformProvider
     extends TypedSchemaTransformProvider<ManagedSchemaTransformProvider.ManagedConfig> {
+  private static final Logger LOG = LoggerFactory.getLogger(ManagedSchemaTransformProvider.class);
 
   @Override
   public String identifier() {
@@ -146,7 +150,10 @@ public class ManagedSchemaTransformProvider
     SchemaTransformProvider schemaTransformProvider =
         Preconditions.checkNotNull(
             schemaTransformProviders.get(managedConfig.getTransformIdentifier()),
-            "Could not find transform with identifier %s, or it may not be supported",
+            "Could not find a transform with the identifier "
+                + "%s. This could be either due to the dependency with the "
+                + "transform not being available in the classpath or due to "
+                + "the specified transform not being supported.",
             managedConfig.getTransformIdentifier());
 
     return new ManagedSchemaTransform(managedConfig, schemaTransformProvider);
@@ -176,6 +183,11 @@ public class ManagedSchemaTransformProvider
 
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
+      LOG.debug(
+          "Building transform \"{}\" with Row configuration: {}",
+          underlyingTransformProvider.identifier(),
+          underlyingTransformConfig);
+
       return input.apply(underlyingTransformProvider.from(underlyingTransformConfig));
     }
 
@@ -202,7 +214,26 @@ public class ManagedSchemaTransformProvider
   static Row getRowConfig(ManagedConfig config, Schema transformSchema) {
     // May return an empty row (perhaps the underlying transform doesn't have any required
     // parameters)
-    return YamlUtils.toBeamRow(config.resolveUnderlyingConfig(), transformSchema, false);
+    String yamlConfig = config.resolveUnderlyingConfig();
+    Map<String, Object> configMap = YamlUtils.yamlStringToMap(yamlConfig);
+
+    // The config Row object will be used to build the underlying SchemaTransform.
+    // If a mapping for the SchemaTransform exists, we use it to update parameter names and align
+    // with the underlying config schema
+    Map<String, String> mapping = MAPPINGS.get(config.getTransformIdentifier());
+    if (mapping != null && configMap != null) {
+      Map<String, Object> remappedConfig = new HashMap<>();
+      for (Map.Entry<String, Object> entry : configMap.entrySet()) {
+        String paramName = entry.getKey();
+        if (mapping.containsKey(paramName)) {
+          paramName = mapping.get(paramName);
+        }
+        remappedConfig.put(paramName, entry.getValue());
+      }
+      configMap = remappedConfig;
+    }
+
+    return YamlUtils.toBeamRow(configMap, transformSchema, false);
   }
 
   Map<String, SchemaTransformProvider> getAllProviders() {

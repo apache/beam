@@ -373,8 +373,12 @@ type jobCancelHandler struct {
 	Jobcli jobpb.JobServiceClient
 }
 
+type cancelJobRequest struct {
+	JobID string `json:"job_id"`
+}
+
 func (h *jobCancelHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	var cancelRequest *jobpb.CancelJobRequest
+	var cancelRequest *cancelJobRequest
 	if r.Method != http.MethodPost {
 		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 		return
@@ -395,7 +399,10 @@ func (h *jobCancelHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := h.Jobcli.Cancel(r.Context(), cancelRequest)
+	// Forward JobId from POST body avoids direct json Unmarshall on composite types containing protobuf message types.
+	resp, err := h.Jobcli.Cancel(r.Context(), &jobpb.CancelJobRequest{
+		JobId: cancelRequest.JobID,
+	})
 	if err != nil {
 		statusCode := status.Code(err)
 		httpCode := http.StatusInternalServerError

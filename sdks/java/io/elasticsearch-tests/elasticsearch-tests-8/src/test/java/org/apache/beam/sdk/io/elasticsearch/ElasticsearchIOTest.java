@@ -310,4 +310,10 @@ public class ElasticsearchIOTest implements Serializable {
     elasticsearchIOTestCommon.setPipeline(pipeline);
     elasticsearchIOTestCommon.testWriteWindowPreservation();
   }
+
+  @Test
+  public void testWriteWithClientResponseException() throws Exception {
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testWriteWithElasticClientResponseException();
+  }
 }

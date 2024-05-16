@@ -20,12 +20,14 @@ package org.apache.beam.runners.dataflow.worker.streaming;
 import com.google.api.services.dataflow.model.MapTask;
 import java.io.PrintWriter;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
+import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -38,7 +40,7 @@ import org.joda.time.Instant;
  * <p>This class is synchronized, but only used from the dispatch and commit threads, so should not
  * be heavily contended. Still, blocking work should not be done by it.
  */
-public class ComputationState implements AutoCloseable {
+public class ComputationState {
   private final String computationId;
   private final MapTask mapTask;
   private final ImmutableMap<String, String> transformUserNameToStateFamily;
@@ -74,8 +76,20 @@ public class ComputationState implements AutoCloseable {
     return transformUserNameToStateFamily;
   }
 
-  public ConcurrentLinkedQueue<ExecutionState> getExecutionStateQueue() {
-    return executionStateQueue;
+  /**
+   * Cache the {@link ExecutionState} so that it can be re-used in future {@link
+   * #acquireExecutionState()} calls.
+   */
+  public void releaseExecutionState(ExecutionState executionState) {
+    executionStateQueue.offer(executionState);
+  }
+
+  /**
+   * Returns {@link ExecutionState} that was previously offered in {@link
+   * #releaseExecutionState(ExecutionState)} or {@link Optional#empty()} if one does not exist.
+   */
+  public Optional<ExecutionState> acquireExecutionState() {
+    return Optional.ofNullable(executionStateQueue.poll());
   }
 
   /**
@@ -134,12 +148,15 @@ public class ComputationState implements AutoCloseable {
     return activeWorkState.getKeyHeartbeats(refreshDeadline, sampler);
   }
 
+  public GetWorkBudget getActiveWorkBudget() {
+    return activeWorkState.currentActiveWorkBudget();
+  }
+
   public void printActiveWork(PrintWriter writer) {
     activeWorkState.printActiveWork(writer, Instant.now());
   }
 
-  @Override
-  public void close() throws Exception {
+  public final void close() {
     @Nullable ExecutionState executionState;
     while ((executionState = executionStateQueue.poll()) != null) {
       executionState.workExecutor().close();

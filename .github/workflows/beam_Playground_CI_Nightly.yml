@@ -64,10 +64,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
-      - name: Install Python 3.8
-        uses: actions/setup-python@v5
         with:
-          python-version: '3.8'
+          python-version: default
       - name: Install requirements
         run: |
           cd $BEAM_ROOT_DIR/playground/infrastructure

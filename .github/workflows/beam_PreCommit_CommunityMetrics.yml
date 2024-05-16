@@ -81,7 +81,7 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          java-version: 8
+          java-version: default
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
       - name: Remove default github maven configuration

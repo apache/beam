@@ -50,7 +50,7 @@ public class WindmillServerBase extends WindmillServerStub {
   }
 
   @Override
-  public void setWindmillServiceEndpoints(Set<HostAndPort> endpoints) throws IOException {
+  public void setWindmillServiceEndpoints(Set<HostAndPort> endpoints) {
     // This class is used for windmill appliance and local runner tests.
   }
 

@@ -1,3 +1,5 @@
+import groovy.json.JsonOutput
+
 import java.util.stream.Collectors
 
 /*
@@ -38,7 +40,6 @@ hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}
 def iceberg_version = "1.4.2"
 def parquet_version = "1.12.0"
 def orc_version = "1.9.2"
-def hive_version = "3.1.3"
 
 dependencies {
     implementation library.java.vendored_guava_32_1_2_jre
@@ -55,9 +56,13 @@ dependencies {
     implementation library.java.hadoop_common
 
     testImplementation library.java.hadoop_client
+    testImplementation library.java.bigdataoss_gcsio
+    testImplementation "com.google.cloud.bigdataoss:gcs-connector:hadoop2-2.2.16"
+    testImplementation "com.google.cloud.bigdataoss:util-hadoop:hadoop2-2.2.16"
     testImplementation "org.apache.iceberg:iceberg-gcp:$iceberg_version"
     testImplementation "org.apache.iceberg:iceberg-data:$iceberg_version"
     testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+    testImplementation project(":sdks:java:extensions:google-cloud-platform-core")
     testImplementation library.java.junit
     testRuntimeOnly library.java.slf4j_jdk14
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
@@ -88,4 +93,23 @@ hadoopVersions.each { kv ->
         classpath = configurations."hadoopVersion$kv.key" + sourceSets.test.runtimeClasspath
         include '**/*Test.class'
     }
+}
+
+task integrationTest(type: Test, dependsOn: processTestResources) {
+    group = "Verification"
+    def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+    def gcpTempLocation = project.findProperty('gcpTempLocation') ?: 'gs://temp-storage-for-end-to-end-tests'
+    systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+        "--project=${gcpProject}",
+        "--tempLocation=${gcpTempLocation}",
+    ])
+
+    // Disable Gradle cache: these ITs interact with live service that should always be considered "out of date"
+    outputs.upToDateWhen { false }
+
+    include '**/*IT.class'
+
+    maxParallelForks 4
+    classpath = sourceSets.test.runtimeClasspath
+    testClassesDirs = sourceSets.test.output.classesDirs
 }

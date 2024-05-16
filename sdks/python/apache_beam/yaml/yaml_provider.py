@@ -80,13 +80,6 @@ class Provider:
   def description(self, type):
     return None
 
-  def __repr__(self):
-    ts = ','.join(sorted(self.provided_transforms()))
-    return f'{self.__class__.__name__}[{ts}]'
-
-  def to_json(self):
-    return {'type': self.__class__.__name__}
-
   def requires_inputs(self, typ: str, args: Mapping[str, Any]) -> bool:
     """Returns whether this transform requires inputs.
 
@@ -113,16 +106,6 @@ class Provider:
     provider that should actually be used for affinity checking.
     """
     return self
-
-  def with_underlying_provider(self, provider):
-    """Returns a provider that vends as many transforms of this provider as
-    possible but uses the given underlying provider.
-
-    This is used to try to minimize the number of distinct environments that
-    are used as many providers implicitly or explicitly link in many common
-    transforms.
-    """
-    return None
 
   def affinity(self, other: "Provider"):
     """Returns a value approximating how good it would be for this provider
@@ -170,17 +153,6 @@ class ExternalProvider(Provider):
 
   def provided_transforms(self):
     return self._urns.keys()
-
-  def with_underlying_provider(self, other_provider):
-    if not isinstance(other_provider, ExternalProvider):
-      return
-
-    all_urns = set(other_provider.schema_transforms().keys()).union(
-        set(other_provider._urns.values()))
-    for name, urn in self._urns.items():
-      if urn in all_urns and name not in other_provider._urns:
-        other_provider._urns[name] = urn
-    return other_provider
 
   def schema_transforms(self):
     if callable(self._service):
@@ -547,15 +519,6 @@ class SqlBackedProvider(Provider):
 
   def underlying_provider(self):
     return self.sql_provider()
-
-  def with_underlying_provider(self, other_provider):
-    new_sql_provider = self.sql_provider().with_underlying_provider(
-        other_provider)
-    if new_sql_provider is None:
-      new_sql_provider = other_provider
-    if new_sql_provider and 'Sql' in set(
-        new_sql_provider.provided_transforms()):
-      return SqlBackedProvider(self._transforms, new_sql_provider)
 
   def to_json(self):
     return {'type': "SqlBackedProvider"}
@@ -1044,12 +1007,7 @@ class PypiExpansionService:
 
 @ExternalProvider.register_provider_type('renaming')
 class RenamingProvider(Provider):
-  def __init__(
-      self,
-      transforms: Mapping[str, str],
-      mappings: Mapping[str, Mapping[str, str]],
-      underlying_provider: Provider,
-      defaults: Optional[Mapping[str, Mapping[str, Any]]] = None):
+  def __init__(self, transforms, mappings, underlying_provider, defaults=None):
     if isinstance(underlying_provider, dict):
       underlying_provider = ExternalProvider.provider_from_spec(
           underlying_provider)
@@ -1150,23 +1108,6 @@ class RenamingProvider(Provider):
 
   def underlying_provider(self):
     return self._underlying_provider.underlying_provider()
-
-  def with_underlying_provider(self, other_provider):
-    new_underlying_provider = (
-        self._underlying_provider.with_underlying_provider(other_provider))
-    if new_underlying_provider:
-      provided = set(new_underlying_provider.provided_transforms())
-      new_transforms = {
-          alias: actual
-          for alias,
-          actual in self._transforms.items() if actual in provided
-      }
-      if new_transforms:
-        return RenamingProvider(
-            new_transforms,
-            self._mappings,
-            new_underlying_provider,
-            self._defaults)
 
   def cache_artifacts(self):
     self._underlying_provider.cache_artifacts()

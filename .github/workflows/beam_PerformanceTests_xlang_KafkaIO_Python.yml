@@ -72,7 +72,7 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          python-version: 3.8
+          python-version: default
       - name: Authenticate on GCP
         id: auth
         uses: google-github-actions/auth@v1
