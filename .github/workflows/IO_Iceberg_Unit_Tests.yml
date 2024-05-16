@@ -91,8 +91,8 @@ jobs:
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
-      - name: hello
-        id: Authenticate on GCP
+      - name: Authenticate on GCP
+        id: auth
         uses: google-github-actions/auth@v1
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
