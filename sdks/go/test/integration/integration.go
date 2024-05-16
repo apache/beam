@@ -155,6 +155,10 @@ var prismFilters = []string{
 	// OOMs currently only lead to heap dumps on Dataflow runner
 	"TestOomParDo",
 
+	// Prism is not being consistent with length prefixed coders (shared between state value type and key type)
+	// TODO file a bug.
+	"TestValueState_Row",
+
 	// The prism runner does not support processing time timers https://github.com/apache/beam/issues/29772.
 	"TestTimers_ProcessingTime.*",
 }

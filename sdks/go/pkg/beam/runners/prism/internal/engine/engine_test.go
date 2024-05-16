@@ -117,6 +117,8 @@ func TestStatefulStages(t *testing.T) {
 		{pipeline: primitives.SetStateParDoClear},
 		{pipeline: primitives.TimersEventTimeBounded},
 		{pipeline: primitives.TimersEventTimeUnbounded},
+		{pipeline: primitives.ValueStateParDo_Bytes},
+		// {pipeline: primitives.ValueStateParDo_Row}, TODO: Fix a bug in how prism handles length prefixed coders.
 	}
 
 	configs := []struct {

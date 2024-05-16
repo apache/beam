@@ -79,7 +79,7 @@ func (f *valueStateFn) ProcessElement(s state.Provider, w string, c int) string 
 	return fmt.Sprintf("%s: %v, %s", w, i, j)
 }
 
-func pairWithOne(w string, emit func(string, int)) {
+func pairWithOne(w beam.T, emit func(beam.T, int)) {
 	emit(w, 1)
 }
 
@@ -519,4 +519,86 @@ func SetStateParDoClear(s beam.Scope) {
 	keyed := beam.ParDo(s, pairWithOne, in)
 	counts := beam.ParDo(s, &setStateClearFn{State1: state.MakeSetState[string]("key1")}, keyed)
 	passert.Equals(s, counts, "apple: [apple]", "pear: [pear]", "peach: [peach]", "apple: [apple1 apple2 apple3]", "apple: []", "pear: [pear1 pear2 pear3]")
+}
+
+// genValueStateFn uses Go generics to dictate the type of State2.
+type genValueStateFn[T any] struct {
+	State1 state.Value[int]
+	State2 state.Value[T]
+}
+
+func (f *genValueStateFn[T]) ProcessElement(s state.Provider, c T, w int, emit func(string)) {
+	i, ok, err := f.State1.Read(s)
+	if err != nil {
+		panic(err)
+	}
+	if !ok {
+		i = 1
+	}
+	err = f.State1.Write(s, i+1)
+	if err != nil {
+		panic(err)
+	}
+
+	j, ok, err := f.State2.Read(s)
+	if err != nil {
+		panic(err)
+	}
+
+	prnt := fmt.Sprintf("%v: %v, %v", c, i, j)
+	// Only emit if we have written out before, but include the latest count.
+	if ok {
+		emit(prnt)
+	}
+	err = f.State2.Write(s, c)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func regGenValueState[T any]() {
+	register.DoFn4x0[state.Provider, T, int, func(string)](&genValueStateFn[T]{})
+}
+
+// fruit is a vanilla struct that beam will row encode.
+type fruit struct {
+	Name string
+}
+
+func (f *fruit) String() string {
+	return f.Name
+}
+
+func init() {
+	regGenValueState[[]byte]() // validate byte slice usage.
+	regGenValueState[fruit]()  // validate row struct default encoding usage.
+}
+
+func ValueStateParDo_Bytes(s beam.Scope) {
+	apple := []byte("apple")
+	pear := []byte("pear")
+
+	peach := []byte("peach")
+
+	in := beam.Create(s, apple, pear, peach, apple, apple, pear)
+	keyed := beam.ParDo(s, pairWithOne, in)
+	counts := beam.ParDo(s, &genValueStateFn[[]byte]{}, keyed)
+	passert.Equals(s, counts,
+		fmt.Sprintf("%v: 2, %v", apple, apple),
+		fmt.Sprintf("%v: 3, %v", apple, apple),
+		fmt.Sprintf("%v: 2, %v", pear, pear))
+}
+
+func ValueStateParDo_Row(s beam.Scope) {
+	apple := fruit{"apple"}
+	pear := fruit{"pear"}
+	peach := fruit{"peach"}
+
+	in := beam.Create(s, apple, pear, peach, apple, apple, pear)
+	keyed := beam.ParDo(s, pairWithOne, in)
+	counts := beam.ParDo(s, &genValueStateFn[fruit]{}, keyed)
+	passert.Equals(s, counts,
+		fmt.Sprintf("%v: 2, %v", apple, apple),
+		fmt.Sprintf("%v: 3, %v", apple, apple),
+		fmt.Sprintf("%v: 2, %v", pear, pear))
 }
