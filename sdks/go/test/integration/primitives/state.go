@@ -546,7 +546,6 @@ func (f *genValueStateFn[T]) ProcessElement(s state.Provider, c T, w int, emit f
 	}
 
 	prnt := fmt.Sprintf("%v: %v, %v", c, i, j)
-	fmt.Println("XXXXX", ok, prnt)
 	// Only emit if we have written out before, but include the latest count.
 	if ok {
 		emit(prnt)
@@ -585,9 +584,9 @@ func ValueStateParDo_Bytes(s beam.Scope) {
 	keyed := beam.ParDo(s, pairWithOne, in)
 	counts := beam.ParDo(s, &genValueStateFn[[]byte]{}, keyed)
 	passert.Equals(s, counts,
-		fmt.Sprintf("%v: 2, %s", apple, string(apple)),
-		fmt.Sprintf("%v: 3, %s", apple, string(apple)),
-		fmt.Sprintf("%v: 2, %s", pear, string(pear)))
+		fmt.Sprintf("%v: 2, %v", apple, apple),
+		fmt.Sprintf("%v: 3, %v", apple, apple),
+		fmt.Sprintf("%v: 2, %v", pear, pear))
 }
 
 func ValueStateParDo_Row(s beam.Scope) {

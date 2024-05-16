@@ -87,12 +87,7 @@ func (ht *holdTracker) Drop(hold mtime.Time, v int) {
 		panic(fmt.Sprintf("prism error: negative watermark hold count %v for time %v", n, hold))
 	}
 	delete(ht.counts, hold)
-	for i, h := range ht.heap {
-		if hold == h {
-			heap.Remove(&ht.heap, i)
-			break
-		}
-	}
+	ht.heap.Remove(hold)
 }
 
 // Add a hold a number of times to heap. If the hold time isn't already present in the heap, it is added.
