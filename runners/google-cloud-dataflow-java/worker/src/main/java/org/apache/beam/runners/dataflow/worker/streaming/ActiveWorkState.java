@@ -124,8 +124,7 @@ public final class ActiveWorkState {
                     .setWorkToken(work.getWorkItem().getWorkToken())
                     .setCacheToken(work.getWorkItem().getCacheToken())
                     .addAllLatencyAttribution(
-                        work.getLatencyAttributions(
-                            /* isHeartbeat= */ true, work.getLatencyTrackingId(), sampler))
+                        work.getLatencyAttributions(/* isHeartbeat= */ true, sampler))
                     .build());
   }
 

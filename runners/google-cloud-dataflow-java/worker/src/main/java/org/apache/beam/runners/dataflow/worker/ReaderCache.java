@@ -39,7 +39,7 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-class ReaderCache {
+public class ReaderCache {
 
   private static final Logger LOG = LoggerFactory.getLogger(ReaderCache.class);
   private final Executor invalidationExecutor;
