@@ -1006,7 +1006,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
             // Return errors so that we can handle even NotFound and AccessDenied with the retry policy
             if (ApiErrorExtractor.INSTANCE.itemNotFound(e)
                 || ApiErrorExtractor.INSTANCE.accessDenied(e)) {
-              LOG.warn("Ignore the error: ", e.getMessage());
+              LOG.warn("Ignore the error: " + e.getMessage());
               List<TableDataInsertAllResponse.InsertErrors> errors = new ArrayList<>();
               TableDataInsertAllResponse.InsertErrors errorDetail = new TableDataInsertAllResponse.InsertErrors();
               ErrorProto errorProto = new ErrorProto();
