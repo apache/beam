@@ -96,11 +96,6 @@ def run_benchmark(
     starting_point=1, num_runs=10, num_elements_step=100, verbose=True, profile_filename_base=None,
 ):
   suite = [
-      utils.BenchmarkConfig(
-          map_with_fixed_window_side_input_pipeline,
-          starting_point * 1000,
-          num_runs,
-      ),
       utils.LinearRegressionBenchmarkConfig(
           map_pipeline, starting_point, num_elements_step, num_runs
       ),
@@ -110,7 +105,7 @@ def run_benchmark(
           num_runs,
       ),
       utils.BenchmarkConfig(
-          map_with_global_side_input_pipeline_uncached,
+          map_with_fixed_window_side_input_pipeline,
           starting_point * 1000,
           num_runs,
       ),
