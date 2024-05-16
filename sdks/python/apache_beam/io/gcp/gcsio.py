@@ -104,12 +104,12 @@ def create_storage_client(pipeline_options, use_credentials=True):
 
   Args:
     pipeline_options(apache_beam.options.pipeline_options.PipelineOptions):
-      the options of the pipeline
-    use_credentials(bool): whether to retrieve credentials from pipeline
-      options or not
+      the options of the pipeline.
+    use_credentials(bool): whether to create an authenticated client based
+      on pipeline options or an anonymous client.
 
   Returns:
-    A google.cloud.storage.client.Client instance
+    A google.cloud.storage.client.Client instance.
   """
   if use_credentials:
     credentials = auth.get_service_credentials(pipeline_options)
@@ -127,7 +127,7 @@ def create_storage_client(pipeline_options, use_credentials=True):
         client_info=beam_client_info,
         extra_headers={
             "x-goog-custom-audit-job": google_cloud_options.job_name
-            if google_cloud_options.job_name is not None else "UNKNOWN"
+            if google_cloud_options.job_name else "UNKNOWN"
         })
   else:
     return storage.Client.create_anonymous_client()
