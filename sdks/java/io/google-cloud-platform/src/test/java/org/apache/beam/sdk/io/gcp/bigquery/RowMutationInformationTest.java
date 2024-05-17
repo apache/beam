@@ -103,4 +103,30 @@ public class RowMutationInformationTest {
         "changeSequenceNumber: 0/1//3 does not match expected pattern: ^([0-9A-Fa-f]{1,16})(/([0-9A-Fa-f]{1,16})){0,3}$",
         error.getMessage());
   }
+
+  @Test
+  public void givenSingleSegmentTooLarge_throws() {
+    IllegalArgumentException error =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                RowMutationInformation.of(
+                    RowMutationInformation.MutationType.UPSERT, "12345678901234567"));
+    assertEquals(
+        "changeSequenceNumber: 12345678901234567 does not match expected pattern: ^([0-9A-Fa-f]{1,16})(/([0-9A-Fa-f]{1,16})){0,3}$",
+        error.getMessage());
+  }
+
+  @Test
+  public void givenAddlSegmentTooLarge_throws() {
+    IllegalArgumentException error =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                RowMutationInformation.of(
+                    RowMutationInformation.MutationType.UPSERT, "0/12345678901234567"));
+    assertEquals(
+        "changeSequenceNumber: 0/12345678901234567 does not match expected pattern: ^([0-9A-Fa-f]{1,16})(/([0-9A-Fa-f]{1,16})){0,3}$",
+        error.getMessage());
+  }
 }
