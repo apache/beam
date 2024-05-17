@@ -71,6 +71,7 @@
 * Beam YAML now supports the jinja templating syntax.
   Template variables can be passed with the (json-formatted) `--jinja_variables` flag.
 * DataFrame API now supports pandas 2.1.x and adds 12 more string functions for Series.([#31185](https://github.com/apache/beam/pull/31185)).
+* Added BigQuery handler for enrichment transform (Python) ([#31295](https://github.com/apache/beam/pull/31295))
 
 ## Breaking Changes
 
