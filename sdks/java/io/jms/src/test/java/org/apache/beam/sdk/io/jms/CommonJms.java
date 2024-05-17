@@ -21,10 +21,7 @@ import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import javax.jms.BytesMessage;
 import javax.jms.ConnectionFactory;
 import javax.jms.Message;
@@ -39,8 +36,6 @@ import org.apache.activemq.transport.amqp.AmqpTransportFactory;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.ThrowingSupplier;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 /**
  * A common test fixture to create a broker and connection factories for {@link JmsIOIT} & {@link
@@ -50,7 +45,7 @@ public class CommonJms implements Serializable {
   private static final String BROKER_WITHOUT_PREFETCH_PARAM = "?jms.prefetchPolicy.all=0&";
 
   // convenient typedefs and a helper conversion functions
-  private interface ThrowingSerializableSupplier<T> extends ThrowingSupplier<T>, Serializable {}
+  interface ThrowingSerializableSupplier<T> extends ThrowingSupplier<T>, Serializable {}
 
   private interface SerializableSupplier<T> extends Serializable, Supplier<T> {}
 
@@ -69,6 +64,11 @@ public class CommonJms implements Serializable {
     return __ -> supplier.get();
   }
 
+  static <T> SerializableFunction<Void, T> toSerializableFunction(
+      ThrowingSerializableSupplier<T> supplier) {
+    return toSerializableFunction(toSerializableSupplier(supplier));
+  }
+
   static final String USERNAME = "test_user";
   static final String PASSWORD = "test_password";
   static final String QUEUE = "test_queue";
@@ -77,34 +77,19 @@ public class CommonJms implements Serializable {
   private final String brokerUrl;
   private final Integer brokerPort;
   private final String forceAsyncAcksParam;
-  private final boolean useProviderFn;
   private transient BrokerService broker;
 
-  private final Class<? extends ConnectionFactory> connectionFactoryClass;
-  private final SerializableFunction<Void, ConnectionFactory> memoizedConnectionFactoryProviderFn;
-  private final SerializableFunction<Void, ConnectionFactory>
-      memoizedConnectionFactoryWithSyncAcksAndWithoutPrefetchProviderFn;
+  protected final Class<? extends ConnectionFactory> connectionFactoryClass;
 
   public CommonJms(
       String brokerUrl,
       Integer brokerPort,
       String forceAsyncAcksParam,
-      Class<? extends ConnectionFactory> connectionFactoryClass,
-      boolean useProviderFn) {
-
+      Class<? extends ConnectionFactory> connectionFactoryClass) {
     this.brokerUrl = brokerUrl;
     this.brokerPort = brokerPort;
     this.forceAsyncAcksParam = forceAsyncAcksParam;
     this.connectionFactoryClass = connectionFactoryClass;
-    this.useProviderFn = useProviderFn;
-    this.memoizedConnectionFactoryProviderFn =
-        toSerializableFunction(
-            Suppliers.memoize(toSerializableSupplier(this::createConnectionFactory)));
-    this.memoizedConnectionFactoryWithSyncAcksAndWithoutPrefetchProviderFn =
-        toSerializableFunction(
-            Suppliers.memoize(
-                toSerializableSupplier(
-                    this::createConnectionFactoryWithSyncAcksAndWithoutPrefetch)));
   }
 
   void startBroker() throws Exception {
@@ -136,17 +121,13 @@ public class CommonJms implements Serializable {
   }
 
   ConnectionFactory createConnectionFactory()
-      throws NoSuchMethodException,
-          InvocationTargetException,
-          InstantiationException,
+      throws NoSuchMethodException, InvocationTargetException, InstantiationException,
           IllegalAccessException {
     return connectionFactoryClass.getConstructor(String.class).newInstance(brokerUrl);
   }
 
   ConnectionFactory createConnectionFactoryWithSyncAcksAndWithoutPrefetch()
-      throws NoSuchMethodException,
-          InvocationTargetException,
-          InstantiationException,
+      throws NoSuchMethodException, InvocationTargetException, InstantiationException,
           IllegalAccessException {
     return connectionFactoryClass
         .getConstructor(String.class)
@@ -163,40 +144,6 @@ public class CommonJms implements Serializable {
     return this.connectionFactoryClass;
   }
 
-  private SerializableFunction<Void, ConnectionFactory> selectDynamicOrMemoizedProviderFn(
-      SerializableFunction<Void, ConnectionFactory> dynamicProviderFn,
-      SerializableFunction<Void, ConnectionFactory> memoizedProviderFn) {
-    if (useProviderFn) {
-      // the provider function will instantiate a new CF each time it's invoked
-      return dynamicProviderFn;
-    } else {
-      // or it will just return the memoized instance
-      return memoizedProviderFn;
-    }
-  }
-
-  public SerializableFunction<Void, ConnectionFactory> getConnectionFactoryProviderFn() {
-    return selectDynamicOrMemoizedProviderFn(
-        toSerializableFunction(toSerializableSupplier(this::createConnectionFactory)),
-        memoizedConnectionFactoryProviderFn);
-  }
-
-  public SerializableFunction<Void, ConnectionFactory>
-      getConnectionFactoryWithSyncAcksAndWithoutPrefetchProviderFn() {
-    return selectDynamicOrMemoizedProviderFn(
-        toSerializableFunction(
-            toSerializableSupplier(this::createConnectionFactoryWithSyncAcksAndWithoutPrefetch)),
-        memoizedConnectionFactoryWithSyncAcksAndWithoutPrefetchProviderFn);
-  }
-
-  public ConnectionFactory getConnectionFactory() {
-    return memoizedConnectionFactoryProviderFn.apply(null);
-  }
-
-  public ConnectionFactory getConnectionFactoryWithSyncAcksAndWithoutPrefetch() {
-    return memoizedConnectionFactoryWithSyncAcksAndWithoutPrefetchProviderFn.apply(null);
-  }
-
   /** A test class that maps a {@link javax.jms.BytesMessage} into a {@link String}. */
   public static class BytesMessageToStringMessageMapper implements JmsIO.MessageMapper<String> {
 
@@ -208,40 +155,5 @@ public class CommonJms implements Serializable {
 
       return new String(bytes, StandardCharsets.UTF_8);
     }
-  }
-
-  public <T extends JmsIO.ConnectionFactoryContainer<T>> T withConnectionFactory(
-      T connectionFactoryContainer,
-      SerializableFunction<Void, ConnectionFactory> connectionFactoryProviderFn) {
-    if (useProviderFn) {
-      connectionFactoryContainer =
-          connectionFactoryContainer.withConnectionFactoryProviderFn(connectionFactoryProviderFn);
-    } else {
-      // unwrap the memoized CF from the provider and pass it as-is to the connector
-      connectionFactoryContainer =
-          connectionFactoryContainer.withConnectionFactory(connectionFactoryProviderFn.apply(null));
-    }
-
-    return connectionFactoryContainer;
-  }
-
-  // Every test param list will be exploded into two with a different boolean flag attached, this
-  // way we test two kinds of JmsIOs - one that uses ConnectionFactory directly and the other that
-  // uses a provider function - depending on the value of that flag
-  static Stream<List<Object>> crossProductWithBoolean(Stream<List<Object>> paramListStream) {
-    return paramListStream.flatMap(
-        paramList ->
-            Stream.of(true, false)
-                .map(
-                    booleanFlag -> {
-                      ImmutableList.Builder<Object> builder = new ImmutableList.Builder<>();
-                      builder.addAll(paramList);
-                      builder.add(booleanFlag);
-                      return builder.build();
-                    }));
-  }
-
-  static Collection<Object[]> collectParams(Stream<List<Object>> paramListStream) {
-    return paramListStream.map(l -> l.toArray(new Object[0])).collect(Collectors.toList());
   }
 }

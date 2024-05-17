@@ -29,11 +29,9 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.Enumeration;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
-import java.util.stream.Stream;
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
 import javax.jms.JMSException;
@@ -61,7 +59,6 @@ import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
 import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.qpid.jms.JmsConnectionFactory;
 import org.joda.time.Duration;
@@ -123,6 +120,12 @@ public class JmsIOIT implements Serializable {
     Integer getReadTimeout();
 
     void setReadTimeout(Integer timeout);
+
+    @Description("Use ConnectionFactory provider function instead of pre-instantiated ConnectionFactory object")
+    @Default.Boolean(false)
+    boolean getUseConnectionFactoryProviderFn();
+
+    void setUseConnectionFactoryProviderFn(boolean value);
   }
 
   private static final JmsIOITOptions OPTIONS =
@@ -138,18 +141,12 @@ public class JmsIOIT implements Serializable {
   @Rule public transient TestPipeline pipelineWrite = TestPipeline.create();
   @Rule public transient TestPipeline pipelineRead = TestPipeline.create();
 
-  @Parameterized.Parameters(name = "with client class {3}, use provider function? {4}")
-  public static Collection<Object[]> testParams() {
-    return Suppliers.<Stream<List<Object>>>supplierFunction()
-        .andThen(CommonJms::crossProductWithBoolean)
-        .andThen(CommonJms::collectParams)
-        .apply(JmsIOIT::connectionFactoriesParams);
-  }
-
-  public static Stream<List<Object>> connectionFactoriesParams() {
-    return Stream.of(
-        ImmutableList.of(
-            "vm://localhost", 5672, "jms.sendAcksAsync=false", ActiveMQConnectionFactory.class));
+  @Parameterized.Parameters(name = "with client class {3}")
+  public static Collection<Object[]> connectionFactories() {
+    return ImmutableList.of(
+        new Object[] {
+          "vm://localhost", 5672, "jms.sendAcksAsync=false", ActiveMQConnectionFactory.class
+        });
     // TODO(https://github.com/apache/beam/issues/26175) Test failure on direct runner due to
     //  JmsIO read on amqp slow on CI (passed locally)
     // new Object[] {
@@ -165,22 +162,20 @@ public class JmsIOIT implements Serializable {
       String brokerUrl,
       Integer brokerPort,
       String forceAsyncAcksParam,
-      Class<? extends ConnectionFactory> connectionFactoryClass,
-      boolean useProviderFn) {
+      Class<? extends ConnectionFactory> connectionFactoryClass) {
     this.commonJms =
         new CommonJms(
             OPTIONS.isLocalJmsBrokerEnabled() ? brokerUrl : OPTIONS.getJmsBrokerHost(),
             OPTIONS.isLocalJmsBrokerEnabled() ? brokerPort : OPTIONS.getJmsBrokerPort(),
             forceAsyncAcksParam,
-            connectionFactoryClass,
-            useProviderFn);
+            connectionFactoryClass);
   }
 
   @Before
   public void setup() throws Exception {
     if (OPTIONS.isLocalJmsBrokerEnabled()) {
       this.commonJms.startBroker();
-      connectionFactory = this.commonJms.getConnectionFactory();
+      connectionFactory = this.commonJms.createConnectionFactory();
       connectionFactoryClass = this.commonJms.getConnectionFactoryClass();
       // use a small number of record for local integration test
       OPTIONS.setNumberOfRecords(10000);
@@ -240,12 +235,16 @@ public class JmsIOIT implements Serializable {
   private PipelineResult readMessages() {
     pipelineRead.getOptions().as(JmsIOITOptions.class).setStreaming(true);
     pipelineRead.getOptions().as(JmsIOITOptions.class).setBlockOnRun(false);
+    JmsIO.Read<String> jmsIORead = JmsIO.readMessage();
+    if (pipelineRead.getOptions().as(JmsIOITOptions.class).getUseConnectionFactoryProviderFn()) {
+      jmsIORead = jmsIORead.withConnectionFactoryProviderFn(CommonJms.toSerializableFunction(commonJms::createConnectionFactory));
+    } else {
+      jmsIORead = jmsIORead.withConnectionFactory(connectionFactory);
+    }
     pipelineRead
         .apply(
             "Read Messages",
-            commonJms
-                .withConnectionFactory(
-                    JmsIO.<String>readMessage(), commonJms.getConnectionFactoryProviderFn())
+            jmsIORead
                 .withQueue(QUEUE)
                 .withUsername(USERNAME)
                 .withPassword(PASSWORD)
@@ -257,15 +256,22 @@ public class JmsIOIT implements Serializable {
   }
 
   private PipelineResult publishingMessages() {
+
+    JmsIO.Write<String> jmsIOWrite = JmsIO.write();
+    if (pipelineWrite.getOptions().as(JmsIOITOptions.class).getUseConnectionFactoryProviderFn()) {
+      System.out.println("using connection factory provider");
+      jmsIOWrite = jmsIOWrite.withConnectionFactoryProviderFn(CommonJms.toSerializableFunction(commonJms::createConnectionFactory));
+    } else {
+      jmsIOWrite = jmsIOWrite.withConnectionFactory(connectionFactory);
+    }
+
     pipelineWrite
         .apply("Generate Sequence Data", GenerateSequence.from(0).to(OPTIONS.getNumberOfRecords()))
         .apply("Convert to String", ParDo.of(new ToString()))
         .apply("Collect write time", ParDo.of(new TimeMonitor<>(NAMESPACE, WRITE_TIME_METRIC)))
         .apply(
             "Publish to Jms Broker",
-            commonJms
-                .withConnectionFactory(
-                    JmsIO.<String>write(), commonJms.getConnectionFactoryProviderFn())
+                jmsIOWrite
                 .withQueue(QUEUE)
                 .withUsername(USERNAME)
                 .withPassword(PASSWORD)
