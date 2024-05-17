@@ -505,7 +505,7 @@ To run an integration test on the Dataflow Runner, follow these steps:
 
   ```
   cd sdks/python
-  pip install build && python -m build –sdist
+  pip install build && python -m build --sdist
   ```
   The tarball file is generated in the `sdks/python/sdist/` directory.
 
@@ -570,7 +570,7 @@ You can use the [official Beam SDK container image](https://gcr.io/apache-beam-t
 
 To run your pipeline with modified beam code, follow these steps:
 
-1. Build the Beam SDK tarball. Under `sdks/python`, run `python -m build –sdist`. For more details,
+1. Build the Beam SDK tarball. Under `sdks/python`, run `python -m build --sdist`. For more details,
   see [Run an integration test](#run-an-integration-test) on this page.
 
 2. Install the Apache Beam Python SDK in your Python virtual environment with the necessary
