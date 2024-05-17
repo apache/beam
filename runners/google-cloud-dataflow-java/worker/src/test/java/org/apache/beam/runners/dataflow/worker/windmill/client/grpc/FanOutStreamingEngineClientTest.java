@@ -74,7 +74,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
-public class StreamingEngineClientTest {
+public class FanOutStreamingEngineClientTest {
   private static final WindmillServiceAddress DEFAULT_WINDMILL_SERVICE_ADDRESS =
       WindmillServiceAddress.create(HostAndPort.fromParts(WindmillChannelFactory.LOCALHOST, 443));
   private static final ImmutableMap<String, WorkerMetadataResponse.Endpoint> DEFAULT =
@@ -114,7 +114,7 @@ public class StreamingEngineClientTest {
   private Server fakeStreamingEngineServer;
   private CountDownLatch getWorkerMetadataReady;
   private GetWorkerMetadataTestStub fakeGetWorkerMetadataStub;
-  private StreamingEngineClient streamingEngineClient;
+  private FanOutStreamingEngineClient fanOutStreamingEngineClient;
 
   private static WorkItemProcessor noOpProcessWorkItemFn() {
     return (computation,
@@ -165,16 +165,16 @@ public class StreamingEngineClientTest {
 
   @After
   public void cleanUp() {
-    Preconditions.checkNotNull(streamingEngineClient).finish();
+    Preconditions.checkNotNull(fanOutStreamingEngineClient).finish();
     fakeStreamingEngineServer.shutdownNow();
     stubFactory.shutdown();
   }
 
-  private StreamingEngineClient newStreamingEngineClient(
+  private FanOutStreamingEngineClient newStreamingEngineClient(
       GetWorkBudget getWorkBudget,
       GetWorkBudgetDistributor getWorkBudgetDistributor,
       WorkItemProcessor workItemProcessor) {
-    return StreamingEngineClient.forTesting(
+    return FanOutStreamingEngineClient.forTesting(
         JOB_HEADER,
         getWorkBudget,
         connections,
@@ -195,7 +195,7 @@ public class StreamingEngineClientTest {
     TestGetWorkBudgetDistributor getWorkBudgetDistributor =
         spy(new TestGetWorkBudgetDistributor(numBudgetDistributionsExpected));
 
-    streamingEngineClient =
+    fanOutStreamingEngineClient =
         newStreamingEngineClient(
             GetWorkBudget.builder().setItems(items).setBytes(bytes).build(),
             getWorkBudgetDistributor,
@@ -246,7 +246,7 @@ public class StreamingEngineClientTest {
   public void testScheduledBudgetRefresh() throws InterruptedException {
     TestGetWorkBudgetDistributor getWorkBudgetDistributor =
         spy(new TestGetWorkBudgetDistributor(2));
-    streamingEngineClient =
+    fanOutStreamingEngineClient =
         newStreamingEngineClient(
             GetWorkBudget.builder().setItems(1L).setBytes(1L).build(),
             getWorkBudgetDistributor,
@@ -269,7 +269,7 @@ public class StreamingEngineClientTest {
     int metadataCount = 2;
     TestGetWorkBudgetDistributor getWorkBudgetDistributor =
         spy(new TestGetWorkBudgetDistributor(metadataCount));
-    streamingEngineClient =
+    fanOutStreamingEngineClient =
         newStreamingEngineClient(
             GetWorkBudget.builder().setItems(1).setBytes(1).build(),
             getWorkBudgetDistributor,
@@ -359,7 +359,7 @@ public class StreamingEngineClientTest {
 
     TestGetWorkBudgetDistributor getWorkBudgetDistributor =
         spy(new TestGetWorkBudgetDistributor(workerMetadataResponses.size()));
-    streamingEngineClient =
+    fanOutStreamingEngineClient =
         newStreamingEngineClient(
             GetWorkBudget.builder().setItems(1).setBytes(1).build(),
             getWorkBudgetDistributor,

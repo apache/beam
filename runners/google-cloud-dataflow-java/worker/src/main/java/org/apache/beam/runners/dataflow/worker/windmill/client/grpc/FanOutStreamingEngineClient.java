@@ -26,14 +26,18 @@ import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.Random;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import javax.annotation.CheckReturnValue;
 import javax.annotation.concurrent.ThreadSafe;
+import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
@@ -50,6 +54,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudge
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudgetDistributor;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudgetRefresher;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.util.MoreFutures;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers;
@@ -63,16 +68,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Client for StreamingEngine. Given a {@link GetWorkBudget}, divides the budget and starts the
- * {@link WindmillStream.GetWorkStream}(s).
+ * Client for StreamingEngine that manages fan out. Given a {@link GetWorkBudget}, divides the
+ * budget and starts the {@link WindmillStream.GetWorkStream}(s).
  */
 @Internal
 @CheckReturnValue
 @ThreadSafe
-public final class StreamingEngineClient {
-  private static final Logger LOG = LoggerFactory.getLogger(StreamingEngineClient.class);
+public final class FanOutStreamingEngineClient {
+  private static final Logger LOG = LoggerFactory.getLogger(FanOutStreamingEngineClient.class);
   private static final String PUBLISH_NEW_WORKER_METADATA_THREAD = "PublishNewWorkerMetadataThread";
   private static final String CONSUME_NEW_WORKER_METADATA_THREAD = "ConsumeNewWorkerMetadataThread";
+  private static final String STREAM_MANAGER_THREAD = "WindmillStreamManager";
 
   private final AtomicBoolean started;
   private final JobHeader jobHeader;
@@ -86,6 +92,7 @@ public final class StreamingEngineClient {
   private final ThrottleTimer getWorkerMetadataThrottleTimer;
   private final ExecutorService newWorkerMetadataPublisher;
   private final ExecutorService newWorkerMetadataConsumer;
+  private final ExecutorService windmillStreamManager;
   private final long clientId;
   private final Supplier<GetWorkerMetadataStream> getWorkerMetadataStream;
   private final Queue<WindmillEndpoints> newWindmillEndpoints;
@@ -94,7 +101,7 @@ public final class StreamingEngineClient {
   private final AtomicReference<StreamingEngineConnectionState> connections;
 
   @SuppressWarnings("FutureReturnValueIgnored")
-  private StreamingEngineClient(
+  private FanOutStreamingEngineClient(
       JobHeader jobHeader,
       GetWorkBudget totalGetWorkBudget,
       AtomicReference<StreamingEngineConnectionState> connections,
@@ -138,6 +145,9 @@ public final class StreamingEngineClient {
                         // Run this on a separate thread than the grpc stream thread.
                         newWorkerMetadataPublisher.submit(
                             () -> newWindmillEndpoints.add(endpoints))));
+    this.windmillStreamManager =
+        Executors.newCachedThreadPool(
+            new ThreadFactoryBuilder().setNameFormat(STREAM_MANAGER_THREAD).build());
   }
 
   private static ExecutorService singleThreadedExecutorServiceOf(String threadName) {
@@ -154,13 +164,13 @@ public final class StreamingEngineClient {
   }
 
   /**
-   * Creates an instance of {@link StreamingEngineClient} and starts the {@link
+   * Creates an instance of {@link FanOutStreamingEngineClient} and starts the {@link
    * GetWorkerMetadataStream} with an RPC to the StreamingEngine backend. {@link
    * GetWorkerMetadataStream} will populate {@link #connections} when a response is received.
    *
    * @implNote Does not block the calling thread.
    */
-  public static StreamingEngineClient create(
+  public static FanOutStreamingEngineClient create(
       JobHeader jobHeader,
       GetWorkBudget totalGetWorkBudget,
       GrpcWindmillStreamFactory streamingEngineStreamFactory,
@@ -168,8 +178,8 @@ public final class StreamingEngineClient {
       ChannelCachingStubFactory channelCachingStubFactory,
       GetWorkBudgetDistributor getWorkBudgetDistributor,
       GrpcDispatcherClient dispatcherClient) {
-    StreamingEngineClient streamingEngineClient =
-        new StreamingEngineClient(
+    FanOutStreamingEngineClient fanOutStreamingEngineClient =
+        new FanOutStreamingEngineClient(
             jobHeader,
             totalGetWorkBudget,
             new AtomicReference<>(StreamingEngineConnectionState.EMPTY),
@@ -179,12 +189,12 @@ public final class StreamingEngineClient {
             getWorkBudgetDistributor,
             dispatcherClient,
             new Random().nextLong());
-    streamingEngineClient.start();
-    return streamingEngineClient;
+    fanOutStreamingEngineClient.start();
+    return fanOutStreamingEngineClient;
   }
 
   @VisibleForTesting
-  static StreamingEngineClient forTesting(
+  static FanOutStreamingEngineClient forTesting(
       JobHeader jobHeader,
       GetWorkBudget totalGetWorkBudget,
       AtomicReference<StreamingEngineConnectionState> connections,
@@ -194,8 +204,8 @@ public final class StreamingEngineClient {
       GetWorkBudgetDistributor getWorkBudgetDistributor,
       GrpcDispatcherClient dispatcherClient,
       long clientId) {
-    StreamingEngineClient streamingEngineClient =
-        new StreamingEngineClient(
+    FanOutStreamingEngineClient fanOutStreamingEngineClient =
+        new FanOutStreamingEngineClient(
             jobHeader,
             totalGetWorkBudget,
             connections,
@@ -205,8 +215,8 @@ public final class StreamingEngineClient {
             getWorkBudgetDistributor,
             dispatcherClient,
             clientId);
-    streamingEngineClient.start();
-    return streamingEngineClient;
+    fanOutStreamingEngineClient.start();
+    return fanOutStreamingEngineClient;
   }
 
   private void start() {
@@ -248,15 +258,17 @@ public final class StreamingEngineClient {
     ImmutableMap<Endpoint, WindmillConnection> newWindmillConnections =
         createNewWindmillConnections(newWindmillEndpoints.windmillEndpoints());
 
+    CompletableFuture<Void> closeStaleStreams = closeStaleStreams(newWindmillConnections.values());
+
     StreamingEngineConnectionState newConnectionsState =
         StreamingEngineConnectionState.builder()
             .setWindmillConnections(newWindmillConnections)
-            .setWindmillStreams(
-                closeStaleStreamsAndCreateNewStreams(newWindmillConnections.values()))
+            .setWindmillStreams(createAndStartNewStreams(newWindmillConnections.values()).join())
             .setGlobalDataStreams(
                 createNewGlobalDataStreams(newWindmillEndpoints.globalDataEndpoints()))
             .build();
 
+    closeStaleStreams.join();
     LOG.info(
         "Setting new connections: {}. Previous connections: {}.",
         newConnectionsState,
@@ -303,28 +315,59 @@ public final class StreamingEngineClient {
                         endpoint, WindmillConnection.from(endpoint, this::createWindmillStub))));
   }
 
-  private synchronized ImmutableMap<WindmillConnection, WindmillStreamSender>
-      closeStaleStreamsAndCreateNewStreams(Collection<WindmillConnection> newWindmillConnections) {
+  /** Close the streams that are no longer valid in parallel. */
+  private synchronized CompletableFuture<Void> closeStaleStreams(
+      Collection<WindmillConnection> newWindmillConnections) {
+    ImmutableMap<WindmillConnection, WindmillStreamSender> currentStreams =
+        connections.get().windmillStreams();
+    return CompletableFuture.allOf(
+        currentStreams.entrySet().stream()
+            .filter(
+                connectionAndStream ->
+                    !newWindmillConnections.contains(connectionAndStream.getKey()))
+            .map(
+                entry ->
+                    CompletableFuture.runAsync(
+                        () -> {
+                          entry.getValue().closeAllStreams();
+                          entry
+                              .getKey()
+                              .directEndpoint()
+                              .ifPresent(channelCachingStubFactory::remove);
+                        },
+                        windmillStreamManager))
+            .toArray(CompletableFuture[]::new));
+  }
+
+  private synchronized CompletableFuture<ImmutableMap<WindmillConnection, WindmillStreamSender>>
+      createAndStartNewStreams(Collection<WindmillConnection> newWindmillConnections) {
     ImmutableMap<WindmillConnection, WindmillStreamSender> currentStreams =
         connections.get().windmillStreams();
 
-    // Close the streams that are no longer valid.
-    currentStreams.entrySet().stream()
-        .filter(
-            connectionAndStream -> !newWindmillConnections.contains(connectionAndStream.getKey()))
-        .forEach(
-            entry -> {
-              entry.getValue().closeAllStreams();
-              entry.getKey().directEndpoint().ifPresent(channelCachingStubFactory::remove);
-            });
+    CompletionStage<List<Pair<WindmillConnection, WindmillStreamSender>>>
+        connectionAndSenderFuture =
+            MoreFutures.allAsList(
+                newWindmillConnections.stream()
+                    .map(
+                        connection ->
+                            MoreFutures.supplyAsync(
+                                () ->
+                                    Pair.of(
+                                        connection,
+                                        Optional.ofNullable(currentStreams.get(connection))
+                                            .orElseGet(
+                                                () ->
+                                                    createAndStartWindmillStreamSenderFor(
+                                                        connection))),
+                                windmillStreamManager))
+                    .collect(Collectors.toList()));
 
-    return newWindmillConnections.stream()
-        .collect(
-            toImmutableMap(
-                Function.identity(),
-                newConnection ->
-                    Optional.ofNullable(currentStreams.get(newConnection))
-                        .orElseGet(() -> createAndStartWindmillStreamSenderFor(newConnection))));
+    return connectionAndSenderFuture
+        .thenApply(
+            connectionsAndSenders ->
+                connectionsAndSenders.stream()
+                    .collect(toImmutableMap(Pair::getLeft, Pair::getRight)))
+        .toCompletableFuture();
   }
 
   private ImmutableMap<String, Supplier<GetDataStream>> createNewGlobalDataStreams(
