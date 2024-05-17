@@ -37,7 +37,6 @@ class TestBigQueryEnrichment(unittest.TestCase):
       ("table", "", ["id"], condition_value_fn, None, 2, 10),
       ("table", "id='{}'", ["id"], condition_value_fn, None, 2, 10),
       ("table", "id='{}'", ["id"], None, query_fn, 2, 10),
-      ("", "", None, None, query_fn, 2, 10),
   ])
   def test_valid_params(
       self,
@@ -53,7 +52,6 @@ class TestBigQueryEnrichment(unittest.TestCase):
     TC 2: Either of `row_restriction template` or `query_fn` is not provided.
     TC 3: Both `fields` and `condition_value_fn` are provided.
     TC 4: Query construction details are provided along with `query_fn`.
-    TC 5: Batch size is provided with `query_fn`.
     """
     with self.assertRaises(ValueError):
       _ = BigQueryEnrichmentHandler(

@@ -33,13 +33,6 @@ QueryFn = Callable[[beam.Row], str]
 ConditionValueFn = Callable[[beam.Row], List[Any]]
 
 
-def _validate_batch_query_fn(query_fn, min_batch_size, max_batch_size):
-  if query_fn and min_batch_size and max_batch_size:
-    raise ValueError(
-        "Please provide exactly one of `query_fn` or "
-        "(`min_batch_size` and `max_batch_size`)")
-
-
 def _validate_bigquery_metadata(
     table_name, row_restriction_template, fields, condition_value_fn, query_fn):
   if query_fn:
@@ -94,8 +87,8 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, List[Row]],
       column_names: Optional[List[str]] = None,
       condition_value_fn: Optional[ConditionValueFn] = None,
       query_fn: Optional[QueryFn] = None,
-      min_batch_size: Optional[int] = None,
-      max_batch_size: Optional[int] = None,
+      min_batch_size: int = 1,
+      max_batch_size: int = 10000,
       **kwargs,
   ):
     """
@@ -143,7 +136,6 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, List[Row]],
         fields,
         condition_value_fn,
         query_fn)
-    _validate_batch_query_fn(query_fn, min_batch_size, max_batch_size)
     self.project = project
     self.column_names = column_names
     self.select_fields = ",".join(column_names) if column_names else '*'
@@ -158,10 +150,8 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, List[Row]],
     self.kwargs = kwargs
     self._batching_kwargs = {}
     if not query_fn:
-      self._batching_kwargs['min_batch_size'] = (
-          min_batch_size if min_batch_size else 1)
-      self._batching_kwargs['max_batch_size'] = (
-          max_batch_size if max_batch_size else 10000)
+      self._batching_kwargs['min_batch_size'] = min_batch_size
+      self._batching_kwargs['max_batch_size'] = max_batch_size
 
   def __enter__(self):
     self.client = bigquery.Client(project=self.project, **self.kwargs)
