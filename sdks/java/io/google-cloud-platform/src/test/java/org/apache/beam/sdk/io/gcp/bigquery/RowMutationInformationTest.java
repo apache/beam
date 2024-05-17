@@ -21,9 +21,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 
-import java.nio.charset.StandardCharsets;
-import org.apache.commons.codec.binary.Hex;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -64,16 +61,6 @@ public class RowMutationInformationTest {
             IllegalArgumentException.class,
             () -> RowMutationInformation.of(RowMutationInformation.MutationType.UPSERT, -1L));
     assertEquals("sequenceNumber must be non-negative", error.getMessage());
-  }
-
-  @Ignore("waiting for feedback from BigQuery service on this currently failing case")
-  @Test
-  public void givenInstant_SQN_encodesAndInstantiates() {
-    String sqn = Hex.encodeHexString("2024-04-30 11:19:44 UTC".getBytes(StandardCharsets.UTF_8));
-    RowMutationInformation got =
-        RowMutationInformation.of(RowMutationInformation.MutationType.UPSERT, sqn);
-    assertNotNull(got.getChangeSequenceNumber());
-    assertEquals("323032342d30342d33302031313a31393a343420555443", got.getChangeSequenceNumber());
   }
 
   @Test
