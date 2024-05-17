@@ -94,7 +94,9 @@ ReadFromKafkaSchema = typing.NamedTuple(
      ('max_num_records', typing.Optional[int]),
      ('max_read_time', typing.Optional[int]),
      ('commit_offset_in_finalize', bool), ('timestamp_policy', str),
-     ('consumer_polling_timeout', typing.Optional[int])])
+     ('consumer_polling_timeout', typing.Optional[int]),
+     ('redistribute', typing.Optional[bool]),
+     ('num_shards', typing.Optional[int])])
 
 
 def default_io_expansion_service(append_args=None):
@@ -138,6 +140,8 @@ class ReadFromKafka(ExternalTransform):
       consumer_polling_timeout=2,
       with_metadata=False,
       expansion_service=None,
+      redistribute=False,
+      num_shards=0,
   ):
     """
     Initializes a read operation from Kafka.
@@ -173,6 +177,7 @@ class ReadFromKafka(ExternalTransform):
         Java Kafka Reader reads keys and values as 'byte[]'.
     :param expansion_service: The address (host:port) of the ExpansionService.
     """
+    print("xxx constructor")
     if timestamp_policy not in [ReadFromKafka.processing_time_policy,
                                 ReadFromKafka.create_time_policy,
                                 ReadFromKafka.log_append_time]:
@@ -193,7 +198,9 @@ class ReadFromKafka(ExternalTransform):
                 start_read_time=start_read_time,
                 commit_offset_in_finalize=commit_offset_in_finalize,
                 timestamp_policy=timestamp_policy,
-                consumer_polling_timeout=consumer_polling_timeout)),
+                consumer_polling_timeout=consumer_polling_timeout),
+                redistribute=redistribute,
+                num_shards=num_shards),
         expansion_service or default_io_expansion_service())
 
 

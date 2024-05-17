@@ -45,6 +45,8 @@ from apache_beam.runners.portability import portable_runner_test
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms.sql import SqlTransform
+import traceback
+
 
 # Run as
 #
@@ -252,7 +254,11 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
                 'LongDeserializer',
                 commit_offset_in_finalize=True,
                 timestamp_policy=ReadFromKafka.create_time_policy,
+                redistribute=False,
+                num_shards=0,
                 expansion_service=self.get_expansion_service()))
+    print("xxx, ", ctx.exception)
+    print(traceback.format_exc())
     self.assertTrue(
         'No resolvable bootstrap urls given in bootstrap.servers' in str(
             ctx.exception),

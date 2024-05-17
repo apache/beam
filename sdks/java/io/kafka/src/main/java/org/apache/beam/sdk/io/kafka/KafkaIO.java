@@ -75,6 +75,7 @@ import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Redistribute;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
@@ -588,6 +589,8 @@ public class KafkaIO {
         .setDynamicRead(false)
         .setTimestampPolicyFactory(TimestampPolicyFactory.withProcessingTime())
         .setConsumerPollingTimeout(2L)
+        .setRedistributed(false)
+        .setNumShards(0)
         .build();
   }
 
@@ -687,6 +690,12 @@ public class KafkaIO {
     public abstract boolean isDynamicRead();
 
     @Pure
+    public abstract boolean isRedistributed();
+
+    @Pure
+    public abstract int getNumShards();
+
+    @Pure
     public abstract @Nullable Duration getWatchTopicPartitionDuration();
 
     @Pure
@@ -744,6 +753,10 @@ public class KafkaIO {
       abstract Builder<K, V> setDynamicRead(boolean dynamicRead);
 
       abstract Builder<K, V> setWatchTopicPartitionDuration(Duration duration);
+
+      abstract Builder<K, V> setRedistributed(boolean withRedistribute);
+
+      abstract Builder<K, V> setNumShards(int numShards);
 
       abstract Builder<K, V> setTimestampPolicyFactory(
           TimestampPolicyFactory<K, V> timestampPolicyFactory);
@@ -840,6 +853,9 @@ public class KafkaIO {
         } else {
           builder.setConsumerPollingTimeout(2L);
         }
+
+        builder.setNumShards(config.numShards); // this is null for some reason
+        builder.setRedistributed(config.redistribute);
       }
 
       private static <T> Coder<T> resolveCoder(Class<Deserializer<T>> deserializer) {
@@ -904,6 +920,8 @@ public class KafkaIO {
         private Boolean commitOffsetInFinalize;
         private Long consumerPollingTimeout;
         private String timestampPolicy;
+        private Integer numShards;
+        private Boolean redistribute;
 
         public void setConsumerConfig(Map<String, String> consumerConfig) {
           this.consumerConfig = consumerConfig;
@@ -947,6 +965,14 @@ public class KafkaIO {
 
         public void setConsumerPollingTimeout(Long consumerPollingTimeout) {
           this.consumerPollingTimeout = consumerPollingTimeout;
+        }
+
+        public void setNumShards(Integer numShards) {
+          this.numShards = numShards;
+        }
+
+        public void setRedistribute(Boolean redistribute) {
+          this.redistribute = redistribute;
         }
       }
     }
@@ -993,6 +1019,24 @@ public class KafkaIO {
           (getTopics() == null || getTopics().isEmpty()) && getTopicPattern() == null,
           "Only one of topics, topicPartitions or topicPattern can be set");
       return toBuilder().setTopicPartitions(ImmutableList.copyOf(topicPartitions)).build();
+    }
+
+    /**
+     * Sets redistribute transform that hints to the runner to try to redistribute the work evenly.
+     */
+    public Read<K, V> withRedistribute() {
+      if (getNumShards() == 0 && isRedistributed()) {
+        LOG.warn(
+            "This will redistribute the load across the same number of shards as the Kafka source.");
+      }
+      return toBuilder().setRedistributed(true).build();
+    }
+
+    public Read<K, V> withNumShards(int numShards) {
+      checkState(
+          isRedistributed(),
+          "withNumShards is ignored if withRedistribute() is not enabled on the transform.");
+      return toBuilder().setNumShards(numShards).build();
     }
 
     /**
@@ -1606,6 +1650,24 @@ public class KafkaIO {
                   .withMaxNumRecords(kafkaRead.getMaxNumRecords());
         }
 
+        if (kafkaRead.isRedistributed()) {
+          if (kafkaRead.isCommitOffsetsInFinalizeEnabled()) {
+            LOG.warn(
+                "Both isRedistributeEnabled and isCommitOffsetsInFinalizeEnabled are enabled, isRedistributeEnabled will take precendence");
+          }
+          PCollection<KafkaRecord<K, V>> output = input.getPipeline().apply(transform);
+          if (kafkaRead.getNumShards() == 0) {
+            return output.apply(
+                "Insert Redistribute",
+                Redistribute.<KafkaRecord<K, V>>arbitrarily().withAllowDuplicates(true));
+          } else {
+            return output.apply(
+                "Insert Redistribute with Shards",
+                Redistribute.<KafkaRecord<K, V>>arbitrarily()
+                    .withAllowDuplicates(true)
+                    .withNumBuckets(kafkaRead.getNumShards()));
+          }
+        }
         return input.getPipeline().apply(transform);
       }
     }
@@ -1625,6 +1687,7 @@ public class KafkaIO {
                 .withKeyDeserializerProvider(kafkaRead.getKeyDeserializerProvider())
                 .withValueDeserializerProvider(kafkaRead.getValueDeserializerProvider())
                 .withManualWatermarkEstimator()
+                .withRedistributeEnabled()
                 .withTimestampPolicyFactory(kafkaRead.getTimestampPolicyFactory())
                 .withCheckStopReadingFn(kafkaRead.getCheckStopReadingFn())
                 .withConsumerPollingTimeout(kafkaRead.getConsumerPollingTimeout());
@@ -1637,6 +1700,12 @@ public class KafkaIO {
         if (kafkaRead.getBadRecordErrorHandler() != null) {
           readTransform =
               readTransform.withBadRecordErrorHandler(kafkaRead.getBadRecordErrorHandler());
+        }
+        if (kafkaRead.isRedistributed()) {
+          readTransform = readTransform.withRedistributeEnabled();
+        }
+        if (kafkaRead.getNumShards() > 0) {
+          readTransform = readTransform.withNumShards(kafkaRead.getNumShards());
         }
         PCollection<KafkaSourceDescriptor> output;
         if (kafkaRead.isDynamicRead()) {
@@ -1666,6 +1735,21 @@ public class KafkaIO {
                   .getPipeline()
                   .apply(Impulse.create())
                   .apply(ParDo.of(new GenerateKafkaSourceDescriptor(kafkaRead)));
+        }
+        if (kafkaRead.isRedistributed()) {
+          PCollection<KafkaRecord<K, V>> pcol =
+              output.apply(readTransform).setCoder(KafkaRecordCoder.of(keyCoder, valueCoder));
+          if (kafkaRead.getNumShards() == 0) {
+            return pcol.apply(
+                "Insert Redistribute",
+                Redistribute.<KafkaRecord<K, V>>arbitrarily().withAllowDuplicates(true));
+          } else {
+            return pcol.apply(
+                "Insert Redistribute with Shards",
+                Redistribute.<KafkaRecord<K, V>>arbitrarily()
+                    .withAllowDuplicates(true)
+                    .withNumBuckets(kafkaRead.getNumShards()));
+          }
         }
         return output.apply(readTransform).setCoder(KafkaRecordCoder.of(keyCoder, valueCoder));
       }
@@ -2059,6 +2143,12 @@ public class KafkaIO {
     abstract boolean isCommitOffsetEnabled();
 
     @Pure
+    abstract boolean isRedistributeEnabled();
+
+    @Pure
+    abstract int getNumShards();
+
+    @Pure
     abstract @Nullable TimestampPolicyFactory<K, V> getTimestampPolicyFactory();
 
     @Pure
@@ -2124,6 +2214,10 @@ public class KafkaIO {
 
       abstract ReadSourceDescriptors.Builder<K, V> setBounded(boolean bounded);
 
+      abstract ReadSourceDescriptors.Builder<K, V> setRedistributeEnabled(boolean withRedistribute);
+
+      abstract ReadSourceDescriptors.Builder<K, V> setNumShards(int numShards);
+
       abstract ReadSourceDescriptors<K, V> build();
     }
 
@@ -2136,6 +2230,8 @@ public class KafkaIO {
           .setBadRecordRouter(BadRecordRouter.THROWING_ROUTER)
           .setBadRecordErrorHandler(new ErrorHandler.DefaultErrorHandler<>())
           .setConsumerPollingTimeout(2L)
+          .setRedistributeEnabled(false)
+          .setNumShards(0)
           .build()
           .withProcessingTime()
           .withMonotonicallyIncreasingWatermarkEstimator();
@@ -2293,6 +2389,15 @@ public class KafkaIO {
     public ReadSourceDescriptors<K, V> withProcessingTime() {
       return withExtractOutputTimestampFn(
           ReadSourceDescriptors.ExtractOutputTimestampFns.useProcessingTime());
+    }
+
+    /** Enable Redistribute. */
+    public ReadSourceDescriptors<K, V> withRedistributeEnabled() {
+      return toBuilder().setRedistributeEnabled(true).build();
+    }
+
+    public ReadSourceDescriptors<K, V> withNumShards(int numShards) {
+      return toBuilder().setNumShards(numShards).build();
     }
 
     /** Use the creation time of {@link KafkaRecord} as the output timestamp. */
@@ -2485,6 +2590,13 @@ public class KafkaIO {
         }
       }
 
+      if (isRedistributeEnabled()) {
+        if (getNumShards() == 0) {
+          LOG.warn(
+              "This will redistribute the load across the same number of shards as the Kafka source.");
+        }
+      }
+
       if (getConsumerConfig().get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG) == null) {
         LOG.warn(
             "The bootstrapServers is not set. It must be populated through the KafkaSourceDescriptor during runtime otherwise the pipeline will fail.");
@@ -2515,7 +2627,8 @@ public class KafkaIO {
                             .getSchemaRegistry()
                             .getSchemaCoder(KafkaSourceDescriptor.class),
                         recordCoder));
-        if (isCommitOffsetEnabled() && !configuredKafkaCommit()) {
+        // add branch here.
+        if (isCommitOffsetEnabled() && !configuredKafkaCommit() && !isRedistributeEnabled()) {
           outputWithDescriptor =
               outputWithDescriptor
                   .apply(Reshuffle.viaRandomKey())
@@ -2526,6 +2639,7 @@ public class KafkaIO {
                               .getSchemaRegistry()
                               .getSchemaCoder(KafkaSourceDescriptor.class),
                           recordCoder));
+
           PCollection<Void> unused = outputWithDescriptor.apply(new KafkaCommitOffset<K, V>(this));
           unused.setCoder(VoidCoder.of());
         }

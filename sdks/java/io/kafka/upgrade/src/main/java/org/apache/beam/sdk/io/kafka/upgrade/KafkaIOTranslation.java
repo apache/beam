@@ -27,6 +27,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -98,6 +99,8 @@ public class KafkaIOTranslation {
             .addNullableLogicalTypeField("stop_read_time", new NanosInstant())
             .addBooleanField("is_commit_offset_finalize_enabled")
             .addBooleanField("is_dynamic_read")
+            .addBooleanField("is_redistributed")
+            .addInt64Field("num_shards")
             .addNullableLogicalTypeField("watch_topic_partition_duration", new NanosDuration())
             .addByteArrayField("timestamp_policy_factory")
             .addNullableMapField("offset_consumer_config", FieldType.STRING, FieldType.BYTES)
@@ -166,6 +169,7 @@ public class KafkaIOTranslation {
       if (transform.getWatermarkFn() != null) {
         fieldValues.put("watermark_fn", toByteArray(transform.getWatermarkFn()));
       }
+      fieldValues.put("num_shards", transform.getNumShards());
       fieldValues.put("max_num_records", transform.getMaxNumRecords());
       if (transform.getMaxReadTime() != null) {
         fieldValues.put("max_read_time", transform.getMaxReadTime());
@@ -215,6 +219,9 @@ public class KafkaIOTranslation {
                 + " is not supported yet.");
       }
 
+      fieldValues.put("is_redistributed", transform.isRedistributed());
+      fieldValues.put("num_shards", Long.valueOf(transform.getNumShards()));
+      System.out.println("xxx expansion service" + Arrays.toString(fieldValues.entrySet().toArray()));
       return Row.withSchema(schema).withFieldValues(fieldValues).build();
     }
 
@@ -325,6 +332,12 @@ public class KafkaIOTranslation {
         if (maxNumRecords != null) {
           transform = transform.withMaxNumRecords(maxNumRecords);
         }
+        Boolean isRedistributed = configRow.getBoolean("is_redistributed");
+        if (isRedistributed != null && isRedistributed) {
+          transform = transform.withRedistribute();
+          int numShards = configRow.getValue("num_shards");
+          transform = transform.withNumShards(numShards);
+        }
         Duration maxReadTime = configRow.getValue("max_read_time");
         if (maxReadTime != null) {
           transform =
@@ -398,6 +411,7 @@ public class KafkaIOTranslation {
                       fromByteArray(checkStopReadinfFn));
         }
 
+        // System.out.println("xxx expansion service" + Arrays.toString(fieldValues.entrySet().toArray()));
         return transform;
       } catch (InvalidClassException e) {
         throw new RuntimeException(e);
@@ -499,6 +513,7 @@ public class KafkaIOTranslation {
       }
 
       fieldValues.put("eos", writeRecordsTransform.isEOS());
+
       fieldValues.put("num_shards", writeRecordsTransform.getNumShards());
 
       if (writeRecordsTransform.getSinkGroupId() != null) {

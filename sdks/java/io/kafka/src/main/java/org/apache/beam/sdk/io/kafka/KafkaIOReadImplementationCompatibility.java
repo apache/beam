@@ -119,6 +119,18 @@ class KafkaIOReadImplementationCompatibility {
         return Long.valueOf(2);
       }
     },
+    NUM_SHARDS {
+      @Override
+      Object getDefaultValue() {
+        return Integer.valueOf(0);
+      }
+    },
+    REDISTRIBUTED {
+      @Override
+      Object getDefaultValue() {
+        return false;
+      }
+    },
     ;
 
     private final @NonNull ImmutableSet<KafkaIOReadImplementation> supportedImplementations;
