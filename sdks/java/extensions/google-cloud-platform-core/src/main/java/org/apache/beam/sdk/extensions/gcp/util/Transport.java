@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.gcp.util;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings.isNullOrEmpty;
+
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.http.HttpTransport;
@@ -31,9 +33,12 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.file.Paths;
 import java.security.GeneralSecurityException;
+import java.util.Optional;
 import org.apache.beam.sdk.extensions.gcp.auth.NullCredentialInitializer;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
+import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
 /** Helpers for cloud communication. */
 public class Transport {
@@ -89,20 +94,31 @@ public class Transport {
 
   /** Returns a Cloud Storage client builder using the specified {@link GcsOptions}. */
   public static Storage.Builder newStorageClient(GcsOptions options) {
-    String applicationNameSuffix = " (GPN:Beam)";
+    String jobName = Optional.ofNullable(options.getJobName()).orElse("UNKNOWN");
+
+    String applicationName =
+        String.format(
+            "%sapache-beam/%s (GPN:Beam)",
+            isNullOrEmpty(options.getAppName()) ? "" : options.getAppName() + " ",
+            ReleaseInfo.getReleaseInfo().getSdkVersion());
+
     String servicePath = options.getGcsEndpoint();
+
+    // Do not log the code 404. Code up the stack will deal with 404's if needed,
+    // and logging it by default clutters the output during file staging.
+    RetryHttpRequestInitializer retryHttpRequestInitializer =
+        new RetryHttpRequestInitializer(ImmutableList.of(404), new UploadIdResponseInterceptor());
+
+    // Set custom audit info in request headers
+    retryHttpRequestInitializer.setHttpHeaders(ImmutableMap.of("x-goog-custom-audit-job", jobName));
+
     Storage.Builder storageBuilder =
         new Storage.Builder(
                 getTransport(),
                 getJsonFactory(),
                 chainHttpRequestInitializer(
-                    options.getGcpCredential(),
-                    // Do not log the code 404. Code up the stack will deal with 404's if needed,
-                    // and
-                    // logging it by default clutters the output during file staging.
-                    new RetryHttpRequestInitializer(
-                        ImmutableList.of(404), new UploadIdResponseInterceptor())))
-            .setApplicationName(options.getAppName() + applicationNameSuffix)
+                    options.getGcpCredential(), retryHttpRequestInitializer))
+            .setApplicationName(applicationName)
             .setGoogleClientRequestInitializer(options.getGoogleApiTrace());
     if (servicePath != null) {
       ApiComponents components = apiComponentsFromUrl(servicePath);
