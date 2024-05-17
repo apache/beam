@@ -553,6 +553,11 @@ public class TableRowToStorageApiProto {
     }
   }
 
+  /**
+   * Forwards {@param changeSequenceNum} to {@link #messageFromTableRow(SchemaInformation,
+   * Descriptor, TableRow, boolean, boolean, TableRow, String, String)} via {@link
+   * Long#toHexString}.
+   */
   public static DynamicMessage messageFromTableRow(
       SchemaInformation schemaInformation,
       Descriptor descriptor,

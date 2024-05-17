@@ -143,6 +143,10 @@ public class BeamRowToStorageApiProto {
                   ((EnumerationType) logicalType).toString((EnumerationType.Value) value))
           .build();
 
+  /**
+   * Forwards (@param changeSequenceNum) to {@link #messageFromBeamRow(Descriptor, Row, String,
+   * String)} via {@link Long#toHexString}.
+   */
   public static DynamicMessage messageFromBeamRow(
       Descriptor descriptor, Row row, @Nullable String changeType, long changeSequenceNum) {
     return messageFromBeamRow(descriptor, row, changeType, Long.toHexString(changeSequenceNum));

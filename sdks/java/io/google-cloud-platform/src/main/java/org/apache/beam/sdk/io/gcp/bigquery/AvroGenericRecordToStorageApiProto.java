@@ -162,6 +162,10 @@ public class AvroGenericRecordToStorageApiProto {
     return builder.build();
   }
 
+  /**
+   * Forwards {@param changeSequenceNum} to {@link #messageFromGenericRecord(Descriptor,
+   * GenericRecord, String, String)} via {@link Long#toHexString}.
+   */
   public static DynamicMessage messageFromGenericRecord(
       Descriptor descriptor,
       GenericRecord record,
