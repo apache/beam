@@ -82,14 +82,76 @@ dependencies {
     testRuntimeOnly library.java.slf4j_simple
 }
 
-tasks.register("GCSPerformanceTest", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'FileBasedIOLT', ['configuration':'large','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp'])
-tasks.register("BigTablePerformanceTest", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'BigTableIOLT', ['configuration':'large','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp'])
-tasks.register("BigTableStressTestMedium", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'BigTableIOST', ['configuration':'medium','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp'])
-tasks.register("BigTableStressTestLarge", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'BigTableIOST', ['configuration':'large','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp'])
-tasks.register("BigQueryPerformanceTest", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'BigQueryIOLT', ['configuration':'medium','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp'])
-tasks.register("BigQueryStressTestMedium", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'BigQueryIOST', ['configuration':'medium','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp'])
-tasks.register("BigQueryStressTestLarge", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'BigQueryIOST', ['configuration':'large','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp'])
-tasks.register("BigQueryStorageApiStreamingPerformanceTest", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'BigQueryStreamingLT', ['configuration':'large', 'project':'apache-beam-testing', 'artifactBucket':'io-performance-temp'])
-tasks.register("PubSubPerformanceTest", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'PubSubIOLT', ['configuration':'large','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp'])
-tasks.register("WordCountIntegrationTest", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'WordCountIT', ['project':'apache-beam-testing', 'artifactBucket':'io-performance-temp'])
-
+tasks.register(
+        "GCSPerformanceTest", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'FileBasedIOLT',
+        ['configuration':'large','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp']
+        + System.properties
+)
+tasks.register(
+        "BigTablePerformanceTest", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'BigTableIOLT',
+        ['configuration':'large', 'project':'apache-beam-testing', 'artifactBucket':'io-performance-temp']
+        + System.properties
+)
+tasks.register(
+        "BigQueryPerformanceTest", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'BigQueryIOLT',
+        ['configuration':'medium', 'project':'apache-beam-testing', 'artifactBucket':'io-performance-temp']
+        + System.properties
+)
+tasks.register(
+        "BigQueryStressTestMedium", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'BigQueryIOST',
+        ['configuration':'medium', 'project':'apache-beam-testing', 'artifactBucket':'io-performance-temp']
+        + System.properties
+)
+tasks.register(
+        "BigQueryStressTestLarge", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'BigQueryIOST',
+        ['configuration':'large', 'project':'apache-beam-testing', 'artifactBucket':'io-performance-temp']
+        + System.properties
+)
+tasks.register(
+        "BigQueryStorageApiStreamingPerformanceTest", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'BigQueryStreamingLT',
+        ['configuration':'large', 'project':'apache-beam-testing', 'artifactBucket':'io-performance-temp']
+        + System.properties
+)
+tasks.register(
+        "PubsubLoadTestMedium", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'PubsubIOLT',
+        ['configuration':'medium', 'project':'apache-beam-testing', 'artifactBucket':'io-performance-temp']
+        + System.properties
+)
+tasks.register(
+        "PubsubLoadTestLarge", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'PubsubIOLT',
+        ['configuration':'large', 'project':'apache-beam-testing', 'artifactBucket':'io-performance-temp']
+                + System.properties
+)
+tasks.register(
+        "WordCountIntegrationTest", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'WordCountIT',
+        ['project':'apache-beam-testing', 'artifactBucket':'io-performance-temp']
+        + System.properties
+)
+tasks.register(
+        "BigTableStressTestMedium", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'BigTableIOST',
+        ['configuration':'medium','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp']
+        + System.properties
+)
+tasks.register(
+        "BigTableStressTestLarge", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'BigTableIOST',
+        ['configuration':'large','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp']
+        + System.properties
+)
+tasks.register(
+        "SpannerStressTestMedium", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'SpannerIOST',
+        ['configuration':'medium','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp']
+        + System.properties
+)
+tasks.register(
+        "SpannerStressTestLarge", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'SpannerIOST',
+        ['configuration':'large','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp']
+        + System.properties
+)
+tasks.register(
+        "PubSubStressTestMedium", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'PubSubIOST',
+        ['configuration':'medium','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp']
+        + System.properties)
+tasks.register(
+        "PubSubStressTestLarge", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'PubSubIOST',
+        ['configuration':'large','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp']
+        + System.properties)

@@ -47,6 +47,8 @@ import apache_beam.io
 import apache_beam.transforms.util
 from apache_beam.portability.api import schema_pb2
 from apache_beam.runners import pipeline_context
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 from apache_beam.transforms import external
 from apache_beam.transforms import window
 from apache_beam.transforms.fully_qualified_named_transform import FullyQualifiedNamedTransform
@@ -554,6 +556,15 @@ def dicts_to_rows(o):
 
 
 class YamlProviders:
+  class AssertEqual(beam.PTransform):
+    def __init__(self, elements):
+      self._elements = elements
+
+    def expand(self, pcoll):
+      return assert_that(
+          pcoll | beam.Map(lambda row: beam.Row(**row._asdict())),
+          equal_to(dicts_to_rows(self._elements)))
+
   @staticmethod
   def create(elements: Iterable[Any], reshuffle: Optional[bool] = True):
     """Creates a collection containing a specified set of elements.
@@ -810,6 +821,7 @@ class YamlProviders:
   @staticmethod
   def create_builtin_provider():
     return InlineProvider({
+        'AssertEqual': YamlProviders.AssertEqual,
         'Create': YamlProviders.create,
         'LogForTesting': YamlProviders.log_for_testing,
         'PyTransform': YamlProviders.fully_qualified_named_transform,
@@ -863,15 +875,15 @@ def create_java_builtin_provider():
   # where possible.  This would also require extra care in skipping these
   # common transforms when doing the provider affinity analysis.
 
-  def java_window_into(java_provider, **config):
-    """Parses the config into a WindowingStrategy and invokes the Java class.
+  def java_window_into(java_provider, windowing):
+    """Use the `windowing` WindowingStrategy and invokes the Java class.
 
     Though it would not be that difficult to implement this in Java as well,
     we prefer to implement it exactly once for consistency (especially as
     it evolves).
     """
     windowing_strategy = YamlProviders.WindowInto._parse_window_spec(
-        config).get_windowing(None)
+        windowing).get_windowing(None)
     # No context needs to be preserved for the basic WindowFns.
     empty_context = pipeline_context.PipelineContext()
     return java_provider.create_transform(
@@ -1131,6 +1143,7 @@ def merge_providers(*provider_sets):
 def standard_providers():
   from apache_beam.yaml.yaml_combine import create_combine_providers
   from apache_beam.yaml.yaml_mapping import create_mapping_providers
+  from apache_beam.yaml.yaml_join import create_join_providers
   from apache_beam.yaml.yaml_io import io_providers
   with open(os.path.join(os.path.dirname(__file__),
                          'standard_providers.yaml')) as fin:
@@ -1141,5 +1154,6 @@ def standard_providers():
       create_java_builtin_provider(),
       create_mapping_providers(),
       create_combine_providers(),
+      create_join_providers(),
       io_providers(),
       parse_providers(standard_providers))

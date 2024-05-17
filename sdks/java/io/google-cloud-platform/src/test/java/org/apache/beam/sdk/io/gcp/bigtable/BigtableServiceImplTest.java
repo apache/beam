@@ -811,7 +811,7 @@ public class BigtableServiceImplTest {
    */
   @Test
   public void testWrite() throws IOException {
-    doReturn(mockBatcher).when(mockBigtableDataClient).newBulkMutationBatcher(any());
+    doReturn(mockBatcher).when(mockBigtableDataClient).newBulkMutationBatcher((String) any());
     SettableApiFuture<Void> fakeFuture = SettableApiFuture.create();
     when(mockBatcher.closeAsync()).thenReturn(fakeFuture);
     ArgumentCaptor<RowMutationEntry> captor = ArgumentCaptor.forClass(RowMutationEntry.class);

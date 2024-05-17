@@ -17,8 +17,8 @@
  */
 package org.apache.beam.it.kafka;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertTrue;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.io.IOException;
@@ -29,27 +29,27 @@ import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import org.apache.beam.it.common.PipelineLauncher;
 import org.apache.beam.it.common.PipelineOperator;
 import org.apache.beam.it.common.TestProperties;
 import org.apache.beam.it.gcp.IOStressTestBase;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
+import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.io.synthetic.SyntheticSourceOptions;
+import org.apache.beam.sdk.io.synthetic.SyntheticUnboundedSource;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.PeriodicImpulse;
-import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Longs;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -132,6 +132,15 @@ public final class KafkaIOST extends IOStressTestBase {
     // Use streaming pipeline to write and read records
     writePipeline.getOptions().as(StreamingOptions.class).setStreaming(true);
     readPipeline.getOptions().as(StreamingOptions.class).setStreaming(true);
+
+    if (configuration.exportMetricsToInfluxDB) {
+      configuration.influxHost =
+          TestProperties.getProperty("influxHost", "", TestProperties.Type.PROPERTY);
+      configuration.influxDatabase =
+          TestProperties.getProperty("influxDatabase", "", TestProperties.Type.PROPERTY);
+      configuration.influxMeasurement =
+          TestProperties.getProperty("influxMeasurement", "", TestProperties.Type.PROPERTY);
+    }
   }
 
   private static final Map<String, Configuration> TEST_CONFIGS_PRESET;
@@ -142,11 +151,11 @@ public final class KafkaIOST extends IOStressTestBase {
           ImmutableMap.of(
               "medium",
               Configuration.fromJsonString(
-                  "{\"rowsPerSecond\":25000,\"minutes\":30,\"pipelineTimeout\":60,\"runner\":\"DataflowRunner\"}",
+                  "{\"rowsPerSecond\":10000,\"numRecords\":1000000,\"valueSizeBytes\":1000,\"minutes\":20,\"pipelineTimeout\":60,\"runner\":\"DataflowRunner\"}",
                   Configuration.class),
               "large",
               Configuration.fromJsonString(
-                  "{\"rowsPerSecond\":25000,\"minutes\":130,\"pipelineTimeout\":300,\"runner\":\"DataflowRunner\"}",
+                  "{\"rowsPerSecond\":50000,\"numRecords\":5000000,\"valueSizeBytes\":1000,\"minutes\":60,\"pipelineTimeout\":240,\"runner\":\"DataflowRunner\"}",
                   Configuration.class));
     } catch (IOException e) {
       throw new RuntimeException(e);
@@ -173,10 +182,6 @@ public final class KafkaIOST extends IOStressTestBase {
           pipelineOperator.waitUntilDone(
               createConfig(readInfo, Duration.ofMinutes(configuration.pipelineTimeout)));
       assertNotEquals(PipelineOperator.Result.LAUNCH_FAILED, readResult);
-      // streaming read pipeline does not end itself
-      assertEquals(
-          PipelineLauncher.JobState.RUNNING,
-          pipelineLauncher.getJobStatus(project, region, readInfo.jobId()));
 
       // Delete topic after test run
       adminClient.deleteTopics(Collections.singleton(kafkaTopic));
@@ -193,7 +198,10 @@ public final class KafkaIOST extends IOStressTestBase {
               region,
               readInfo.jobId(),
               getBeamMetricsName(PipelineMetricsType.COUNTER, READ_ELEMENT_METRIC_NAME));
-      assertEquals(writeNumRecords, readNumRecords, 0);
+
+      // Assert that readNumRecords equals or greater than writeNumRecords since there might be
+      // duplicates when testing big amount of data
+      assertTrue(readNumRecords >= writeNumRecords);
     } finally {
       // clean up pipelines
       if (pipelineLauncher.getJobStatus(project, region, writeInfo.jobId())
@@ -233,34 +241,25 @@ public final class KafkaIOST extends IOStressTestBase {
    * dynamically over time, with options to use configurable parameters.
    */
   private PipelineLauncher.LaunchInfo generateDataAndWrite() throws IOException {
-    // The PeriodicImpulse source will generate an element every this many millis:
-    int fireInterval = 1;
-    // Each element from PeriodicImpulse will fan out to this many elements:
     int startMultiplier =
         Math.max(configuration.rowsPerSecond, DEFAULT_ROWS_PER_SECOND) / DEFAULT_ROWS_PER_SECOND;
-    long stopAfterMillis =
-        org.joda.time.Duration.standardMinutes(configuration.minutes).getMillis();
-    long totalRows = startMultiplier * stopAfterMillis / fireInterval;
     List<LoadPeriod> loadPeriods =
         getLoadPeriods(configuration.minutes, DEFAULT_LOAD_INCREASE_ARRAY);
 
     PCollection<byte[]> source =
         writePipeline
-            .apply(
-                PeriodicImpulse.create()
-                    .stopAfter(org.joda.time.Duration.millis(stopAfterMillis - 1))
-                    .withInterval(org.joda.time.Duration.millis(fireInterval)))
+            .apply(Read.from(new SyntheticUnboundedSource(configuration)))
             .apply(
                 "Extract values",
                 MapElements.into(TypeDescriptor.of(byte[].class))
-                    .via(instant -> Longs.toByteArray(instant.getMillis() % totalRows)));
+                    .via(kv -> Objects.requireNonNull(kv).getValue()));
+
     if (startMultiplier > 1) {
       source =
           source
               .apply(
                   "One input to multiple outputs",
                   ParDo.of(new MultiplierDoFn<>(startMultiplier, loadPeriods)))
-              .apply("Reshuffle fanout", Reshuffle.viaRandomKey())
               .apply("Counting element", ParDo.of(new CountingFn<>(WRITE_ELEMENT_METRIC_NAME)));
     }
     source.apply(
@@ -329,7 +328,7 @@ public final class KafkaIOST extends IOStressTestBase {
      * Determines whether to use Dataflow runner v2. If set to true, it uses SDF mode for reading
      * from Kafka. Otherwise, Unbounded mode will be used.
      */
-    @JsonProperty public boolean useDataflowRunnerV2 = true;
+    @JsonProperty public boolean useDataflowRunnerV2 = false;
 
     /** Number of workers for the pipeline. */
     @JsonProperty public int numWorkers = 20;
@@ -354,7 +353,7 @@ public final class KafkaIOST extends IOStressTestBase {
      * InfluxDB and displayed using Grafana. If set to false, metrics will be exported to BigQuery
      * and displayed with Looker Studio.
      */
-    @JsonProperty public boolean exportMetricsToInfluxDB = false;
+    @JsonProperty public boolean exportMetricsToInfluxDB = true;
 
     /** InfluxDB measurement to publish results to. * */
     @JsonProperty public String influxMeasurement = KafkaIOST.class.getName();

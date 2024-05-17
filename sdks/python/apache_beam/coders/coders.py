@@ -242,9 +242,10 @@ class Coder(object):
     return self.__dict__
 
   def to_type_hint(self):
-    raise NotImplementedError(
-        'https://github.com/apache/beam/issues/18490: %s' %
-        self.__class__.__name__)
+    # TODO: After https://github.com/apache/beam/issues/18490 we should be
+    # able to infer the type hint rather than require every subclass define
+    # it
+    raise NotImplementedError
 
   @classmethod
   def from_type_hint(cls, unused_typehint, unused_registry):
@@ -1481,6 +1482,9 @@ class LengthPrefixCoder(FastCoder):
 
   def __hash__(self):
     return hash((type(self), self._value_coder))
+
+  def to_type_hint(length_prefix_coder):
+    return length_prefix_coder.value_coder().to_type_hint()
 
 
 Coder.register_structured_urn(

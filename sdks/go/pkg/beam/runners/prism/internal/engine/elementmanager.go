@@ -27,6 +27,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
@@ -153,7 +154,8 @@ type Config struct {
 type ElementManager struct {
 	config Config
 
-	stages map[string]*stageState // The state for each stage.
+	impulses set[string]            // List of impulse stages.
+	stages   map[string]*stageState // The state for each stage.
 
 	consumers     map[string][]string // Map from pcollectionID to stageIDs that consumes them as primary input.
 	sideConsumers map[string][]LinkID // Map from pcollectionID to the stage+transform+input that consumes them as side input.
@@ -254,6 +256,14 @@ func (em *ElementManager) Impulse(stageID string) {
 		em.addPending(count)
 	}
 	refreshes := stage.updateWatermarks(em)
+
+	// Since impulses are synthetic, we need to simulate them properly
+	// if a pipeline is only test stream driven.
+	if em.impulses == nil {
+		em.impulses = refreshes
+	} else {
+		em.impulses.merge(refreshes)
+	}
 	em.addRefreshes(refreshes)
 }
 
@@ -286,6 +296,13 @@ func (em *ElementManager) Bundles(ctx context.Context, nextBundID func() string)
 	// Watermark evaluation goroutine.
 	go func() {
 		defer close(runStageCh)
+
+		// If we have a test stream, clear out existing refreshes, so the test stream can
+		// insert any elements it needs.
+		if em.testStreamHandler != nil {
+			em.watermarkRefreshes = singleSet(em.testStreamHandler.ID)
+		}
+
 		for {
 			em.refreshCond.L.Lock()
 			// If there are no watermark refreshes available, we wait until there are.
@@ -370,7 +387,13 @@ func (em *ElementManager) checkForQuiescence(advanced set[string]) {
 		nextEvent.Execute(em)
 		// Decrement pending for the event being processed.
 		em.addPending(-1)
-		return
+		// If there are refreshes scheduled, then test stream permitted execution to continue.
+		// Note: it's a prism bug if test stream never causes a refresh to occur for a given event.
+		// It's not correct to move to the next event if no refreshes would occur.
+		if len(em.watermarkRefreshes) > 0 {
+			return
+		}
+		// If there are no refreshes,  then there's no mechanism to make progress, so it's time to fast fail.
 	}
 
 	v := em.livePending.Load()
@@ -391,7 +414,7 @@ func (em *ElementManager) checkForQuiescence(advanced set[string]) {
 		outW := ss.OutputWatermark()
 		upPCol, upW := ss.UpstreamWatermark()
 		upS := em.pcolParents[upPCol]
-		stageState = append(stageState, fmt.Sprintln(id, "watermark in", inW, "out", outW, "upstream", upW, "from", upS, "pending", ss.pending, "byKey", ss.pendingByKeys, "inprogressKeys", ss.inprogressKeys, "byBundle", ss.inprogressKeysByBundle, "holds", ss.watermarkHoldHeap, "holdCounts", ss.watermarkHoldsCounts))
+		stageState = append(stageState, fmt.Sprintln(id, "watermark in", inW, "out", outW, "upstream", upW, "from", upS, "pending", ss.pending, "byKey", ss.pendingByKeys, "inprogressKeys", ss.inprogressKeys, "byBundle", ss.inprogressKeysByBundle, "holds", ss.watermarkHolds.heap, "holdCounts", ss.watermarkHolds.counts))
 	}
 	panic(fmt.Sprintf("nothing in progress and no refreshes with non zero pending elements: %v\n%v", v, strings.Join(stageState, "")))
 }
@@ -532,12 +555,26 @@ func (em *ElementManager) StateForBundle(rb RunBundle) TentativeData {
 	return ret
 }
 
+// Residual represents the unprocessed portion of a single element to be rescheduled for processing later.
+type Residual struct {
+	Element []byte
+	Delay   time.Duration // The relative time delay.
+	Bounded bool          // Whether this element is finite or not.
+}
+
+// Residuals is used to specify process continuations within a bundle.
+type Residuals struct {
+	Data                 []Residual
+	TransformID, InputID string                // Prism only allows one SDF at the root of a bundledescriptor so there should only be one each.
+	MinOutputWatermarks  map[string]mtime.Time // Output watermarks (technically per Residual, but aggregated here until it makes a difference.)
+}
+
 // reElementResiduals extracts the windowed value header from residual bytes, and explodes them
 // back out to their windows.
-func reElementResiduals(residuals [][]byte, inputInfo PColInfo, rb RunBundle) []element {
+func reElementResiduals(residuals []Residual, inputInfo PColInfo, rb RunBundle) []element {
 	var unprocessedElements []element
 	for _, residual := range residuals {
-		buf := bytes.NewBuffer(residual)
+		buf := bytes.NewBuffer(residual.Element)
 		ws, et, pn, err := exec.DecodeWindowedValueHeader(inputInfo.WDec, buf)
 		if err != nil {
 			if err == io.EOF {
@@ -583,7 +620,7 @@ func reElementResiduals(residuals [][]byte, inputInfo PColInfo, rb RunBundle) []
 //
 // PersistBundle takes in the stage ID, ID of the bundle associated with the pending
 // input elements, and the committed output elements.
-func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PColInfo, d TentativeData, inputInfo PColInfo, residuals [][]byte, estimatedOWM map[string]mtime.Time) {
+func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PColInfo, d TentativeData, inputInfo PColInfo, residuals Residuals) {
 	for output, data := range d.Raw {
 		info := col2Coders[output]
 		var newPending []element
@@ -641,44 +678,16 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 		}
 	}
 
-	// Process each timer family in the order we received them, so we can filter to the last one.
-	// Since we're process each timer family individually, use a unique key for each userkey, tag, window.
-	// The last timer set for each combination is the next one we're keeping.
-	type timerKey struct {
-		key string
-		tag string
-		win typex.Window
-	}
-
-	var pendingTimers []element
-	for tentativeKey, timers := range d.timers {
-		keyToTimers := map[timerKey]element{}
-		for _, t := range timers {
-			key, tag, elms := decodeTimer(inputInfo.KeyDec, true, t)
-			for _, e := range elms {
-				keyToTimers[timerKey{key: string(key), tag: tag, win: e.window}] = e
-			}
-			if len(elms) == 0 {
-				// TODO(lostluck): Determine best way to mark clear a timer cleared.
-				continue
-			}
-		}
-
-		for _, elm := range keyToTimers {
-			elm.transform = tentativeKey.Transform
-			elm.family = tentativeKey.Family
-			pendingTimers = append(pendingTimers, elm)
-		}
-	}
-
 	stage := em.stages[rb.StageID]
-	if len(pendingTimers) > 0 {
-		count := stage.AddPending(pendingTimers)
-		em.addPending(count)
-	}
+
+	// Triage timers into their time domains for scheduling.
+	// EventTime timers are handled with normal elements,
+	// ProcessingTime timers need to be scheduled into the processing time based queue.
+	em.triageTimers(d, inputInfo, stage)
 
 	// Return unprocessed to this stage's pending
-	unprocessedElements := reElementResiduals(residuals, inputInfo, rb)
+	unprocessedElements := reElementResiduals(residuals.Data, inputInfo, rb)
+
 	// Add unprocessed back to the pending stack.
 	if len(unprocessedElements) > 0 {
 		count := stage.AddPending(unprocessedElements)
@@ -697,26 +706,15 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 	delete(stage.inprogressKeysByBundle, rb.BundleID)
 
 	for hold, v := range stage.inprogressHoldsByBundle[rb.BundleID] {
-		n := stage.watermarkHoldsCounts[hold] - v
-		if n == 0 {
-			delete(stage.watermarkHoldsCounts, hold)
-			for i, h := range stage.watermarkHoldHeap {
-				if hold == h {
-					heap.Remove(&stage.watermarkHoldHeap, i)
-					break
-				}
-			}
-		} else {
-			stage.watermarkHoldsCounts[hold] = n
-		}
+		stage.watermarkHolds.Drop(hold, v)
 	}
 	delete(stage.inprogressHoldsByBundle, rb.BundleID)
 
 	// If there are estimated output watermarks, set the estimated
 	// output watermark for the stage.
-	if len(estimatedOWM) > 0 {
+	if len(residuals.MinOutputWatermarks) > 0 {
 		estimate := mtime.MaxTimestamp
-		for _, t := range estimatedOWM {
+		for _, t := range residuals.MinOutputWatermarks {
 			estimate = mtime.Min(estimate, t)
 		}
 		stage.estimatedOutput = estimate
@@ -745,6 +743,45 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 	em.addRefreshAndClearBundle(stage.ID, rb.BundleID)
 }
 
+// triageTimers prepares received timers for eventual firing, as well as rebasing processing time timers as needed.
+func (em *ElementManager) triageTimers(d TentativeData, inputInfo PColInfo, stage *stageState) {
+	// Process each timer family in the order we received them, so we can filter to the last one.
+	// Since we're process each timer family individually, use a unique key for each userkey, tag, window.
+	// The last timer set for each combination is the next one we're keeping.
+	type timerKey struct {
+		key string
+		tag string
+		win typex.Window
+	}
+
+	var pendingEventTimers []element
+	for tentativeKey, timers := range d.timers {
+		keyToTimers := map[timerKey]element{}
+		for _, t := range timers {
+			key, tag, elms := decodeTimer(inputInfo.KeyDec, true, t)
+			for _, e := range elms {
+				keyToTimers[timerKey{key: string(key), tag: tag, win: e.window}] = e
+			}
+			if len(elms) == 0 {
+				// TODO(lostluck): Determine best way to mark clear a timer cleared.
+				continue
+			}
+		}
+
+		for _, elm := range keyToTimers {
+			elm.transform = tentativeKey.Transform
+			elm.family = tentativeKey.Family
+
+			pendingEventTimers = append(pendingEventTimers, elm)
+		}
+	}
+
+	if len(pendingEventTimers) > 0 {
+		count := stage.AddPending(pendingEventTimers)
+		em.addPending(count)
+	}
+}
+
 // FailBundle clears the extant data allowing the execution to shut down.
 func (em *ElementManager) FailBundle(rb RunBundle) {
 	stage := em.stages[rb.StageID]
@@ -758,11 +795,11 @@ func (em *ElementManager) FailBundle(rb RunBundle) {
 
 // ReturnResiduals is called after a successful split, so the remaining work
 // can be re-assigned to a new bundle.
-func (em *ElementManager) ReturnResiduals(rb RunBundle, firstRsIndex int, inputInfo PColInfo, residuals [][]byte) {
+func (em *ElementManager) ReturnResiduals(rb RunBundle, firstRsIndex int, inputInfo PColInfo, residuals Residuals) {
 	stage := em.stages[rb.StageID]
 
 	stage.splitBundle(rb, firstRsIndex)
-	unprocessedElements := reElementResiduals(residuals, inputInfo, rb)
+	unprocessedElements := reElementResiduals(residuals.Data, inputInfo, rb)
 	if len(unprocessedElements) > 0 {
 		slog.Debug("ReturnResiduals: unprocessed elements", "bundle", rb, "count", len(unprocessedElements))
 		count := stage.AddPending(unprocessedElements)
@@ -870,8 +907,7 @@ type stageState struct {
 	// We track the count of timers with the same hold, and clear it from
 	// the map and heap when the count goes to zero.
 	// This avoids scanning the heap to remove or access a hold for each element.
-	watermarkHoldsCounts    map[mtime.Time]int
-	watermarkHoldHeap       holdHeap
+	watermarkHolds          *holdTracker
 	inprogressHoldsByBundle map[string]map[mtime.Time]int // bundle to associated holds.
 }
 
@@ -892,37 +928,15 @@ type dataAndTimers struct {
 	timers   map[timerKey]timerTimes
 }
 
-// holdHeap orders holds based on their timestamps
-// so we can always find the minimum timestamp of pending holds.
-type holdHeap []mtime.Time
-
-func (h holdHeap) Len() int           { return len(h) }
-func (h holdHeap) Less(i, j int) bool { return h[i] < h[j] }
-func (h holdHeap) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
-
-func (h *holdHeap) Push(x any) {
-	// Push and Pop use pointer receivers because they modify the slice's length,
-	// not just its contents.
-	*h = append(*h, x.(mtime.Time))
-}
-
-func (h *holdHeap) Pop() any {
-	old := *h
-	n := len(old)
-	x := old[n-1]
-	*h = old[0 : n-1]
-	return x
-}
-
 // makeStageState produces an initialized stageState.
 func makeStageState(ID string, inputIDs, outputIDs []string, sides []LinkID) *stageState {
 	ss := &stageState{
-		ID:                   ID,
-		outputIDs:            outputIDs,
-		sides:                sides,
-		strat:                defaultStrat{},
-		state:                map[LinkID]map[typex.Window]map[string]StateData{},
-		watermarkHoldsCounts: map[mtime.Time]int{},
+		ID:             ID,
+		outputIDs:      outputIDs,
+		sides:          sides,
+		strat:          defaultStrat{},
+		state:          map[LinkID]map[typex.Window]map[string]StateData{},
+		watermarkHolds: newHoldTracker(),
 
 		input:           mtime.MinTimestamp,
 		output:          mtime.MinTimestamp,
@@ -968,29 +982,13 @@ func (ss *stageState) AddPending(newPending []element) int {
 					// don't increase the count this time, as "this" timer is already pending.
 					count--
 					// clear out the existing hold for accounting purposes.
-					v := ss.watermarkHoldsCounts[lastSet.hold] - 1
-					if v == 0 {
-						delete(ss.watermarkHoldsCounts, lastSet.hold)
-						for i, hold := range ss.watermarkHoldHeap {
-							if hold == lastSet.hold {
-								heap.Remove(&ss.watermarkHoldHeap, i)
-								break
-							}
-						}
-					} else {
-						ss.watermarkHoldsCounts[lastSet.hold] = v
-					}
+					ss.watermarkHolds.Drop(lastSet.hold, 1)
 				}
 				// Update the last set time on the timer.
 				dnt.timers[timerKey{family: e.family, tag: e.tag, window: e.window}] = timerTimes{firing: e.timestamp, hold: e.holdTimestamp}
 
 				// Mark the hold in the heap.
-				ss.watermarkHoldsCounts[e.holdTimestamp] = ss.watermarkHoldsCounts[e.holdTimestamp] + 1
-
-				if len(ss.watermarkHoldsCounts) != len(ss.watermarkHoldHeap) {
-					// The hold should not be in the heap, so we add it.
-					heap.Push(&ss.watermarkHoldHeap, e.holdTimestamp)
-				}
+				ss.watermarkHolds.Add(e.holdTimestamp, 1)
 			}
 		}
 		return count
@@ -1260,10 +1258,7 @@ func (ss *stageState) updateWatermarks(em *ElementManager) set[string] {
 	defer ss.mu.Unlock()
 
 	minPending := ss.minPendingTimestampLocked()
-	minWatermarkHold := mtime.MaxTimestamp
-	if ss.watermarkHoldHeap.Len() > 0 {
-		minWatermarkHold = ss.watermarkHoldHeap[0]
-	}
+	minWatermarkHold := ss.watermarkHolds.Min()
 
 	// PCollection watermarks are based on their parents's output watermark.
 	_, newIn := ss.UpstreamWatermark()

@@ -69,7 +69,7 @@ func RunPipeline(j *jobservices.Job) {
 	j.SendMsg("running " + j.String())
 	j.Running()
 
-	if err := executePipeline(j.RootCtx, wks, j); err != nil {
+	if err := executePipeline(j.RootCtx, wks, j); err != nil && !errors.Is(err, jobservices.ErrCancel) {
 		j.Failed(err)
 		return
 	}

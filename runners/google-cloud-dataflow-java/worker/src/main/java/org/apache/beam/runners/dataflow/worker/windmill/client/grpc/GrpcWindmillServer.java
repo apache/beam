@@ -55,7 +55,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.CommitWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
-import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.RemoteWindmillStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.StreamingEngineThrottleTimers;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemReceiver;
@@ -149,19 +148,11 @@ public final class GrpcWindmillServer extends WindmillServerStub {
   public static GrpcWindmillServer create(
       DataflowWorkerHarnessOptions workerOptions,
       GrpcWindmillStreamFactory grpcWindmillStreamFactory,
-      Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses)
-      throws IOException {
-
+      GrpcDispatcherClient dispatcherClient,
+      Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses) {
     GrpcWindmillServer grpcWindmillServer =
         new GrpcWindmillServer(
-            workerOptions,
-            grpcWindmillStreamFactory,
-            GrpcDispatcherClient.create(
-                new RemoteWindmillStubFactory(
-                    workerOptions.getWindmillServiceRpcChannelAliveTimeoutSec(),
-                    workerOptions.getGcpCredential(),
-                    workerOptions.getUseWindmillIsolatedChannels())),
-            processHeartbeatResponses);
+            workerOptions, grpcWindmillStreamFactory, dispatcherClient, processHeartbeatResponses);
     if (workerOptions.getWindmillServiceEndpoint() != null) {
       grpcWindmillServer.configureWindmillServiceEndpoints();
     } else if (!workerOptions.isEnableStreamingEngine()

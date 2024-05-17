@@ -292,6 +292,43 @@ class ScaleTo01(TFTOperation):
 
 
 @register_input_dtype(float)
+class ScaleToGaussian(TFTOperation):
+  def __init__(
+      self,
+      columns: List[str],
+      elementwise: bool = False,
+      name: Optional[str] = None):
+    """
+    This operation scales the given input column values to an approximately 
+    normal distribution with mean 0 and variance of 1. The Gaussian
+    transformation is only applied if the column has long tails;
+    otherwise, the transformation is the same as normalizing to z scores.
+
+    For more information, see: 
+    https://www.tensorflow.org/tfx/transform/api_docs/python/tft/scale_to_gaussian
+
+    Args:
+      columns: A list of column names to apply the transformation on.
+      elementwise: If True, the transformation is applied elementwise.
+        Otherwise, the transformation is applied on the entire column.
+      name: A name for the operation (optional).
+
+    """
+    super().__init__(columns)
+    self.elementwise = elementwise
+    self.name = name
+
+  def apply_transform(
+      self, data: common_types.TensorType,
+      output_column_name: str) -> Dict[str, common_types.TensorType]:
+    output_dict = {
+        output_column_name: tft.scale_to_gaussian(
+            x=data, elementwise=self.elementwise, name=self.name)
+    }
+    return output_dict
+
+
+@register_input_dtype(float)
 class ApplyBuckets(TFTOperation):
   def __init__(
       self,
@@ -575,7 +612,7 @@ class BagOfWords(TFTOperation):
     self.split_string_by_delimiter = split_string_by_delimiter
     self.key_vocab_filename = key_vocab_filename
     if compute_word_count:
-      self.compute_word_count_fn = count_unqiue_words
+      self.compute_word_count_fn = count_unique_words
     else:
       self.compute_word_count_fn = lambda *args, **kwargs: None
 
@@ -597,6 +634,72 @@ class BagOfWords(TFTOperation):
     return {output_col_name: output}
 
 
-def count_unqiue_words(
+def count_unique_words(
     data: tf.SparseTensor, output_vocab_name: Optional[str]) -> None:
   tft.count_per_key(data, key_vocabulary_filename=output_vocab_name)
+
+
+@register_input_dtype(str)
+class HashStrings(TFTOperation):
+  def __init__(
+      self,
+      columns: List[str],
+      hash_buckets: int,
+      key: Optional[Tuple[int, int]] = None,
+      name: Optional[str] = None):
+    '''Hashes strings into the provided number of buckets.
+    
+    Args:
+      columns: A list of the column names to apply the transformation on.
+      hash_buckets: the number of buckets to hash the strings into.
+      key: optional. An array of two Python `uint64`. If passed, output will be
+        a deterministic function of `strings` and `key`. Note that hashing will
+        be slower if this value is specified.
+      name: optional. A name for this operation.
+
+    Raises:
+      ValueError if `hash_buckets` is not a positive and non-zero integer.
+    '''
+    self.hash_buckets = hash_buckets
+    self.key = key
+    self.name = name
+
+    if hash_buckets < 1:
+      raise ValueError(
+          'number of hash buckets must be positive, got ', hash_buckets)
+
+    super().__init__(columns)
+
+  def apply_transform(
+      self, data: common_types.TensorType,
+      output_col_name: str) -> Dict[str, common_types.TensorType]:
+    output_dict = {
+        output_col_name: tft.hash_strings(
+            strings=data,
+            hash_buckets=self.hash_buckets,
+            key=self.key,
+            name=self.name)
+    }
+    return output_dict
+
+
+@register_input_dtype(str)
+class DeduplicateTensorPerRow(TFTOperation):
+  def __init__(self, columns: List[str], name: Optional[str] = None):
+    """ Deduplicates each row (0th dimension) of the provided tensor.
+
+    Args:
+      columns: A list of the columns to apply the transformation on.
+      name: optional. A name for this operation. 
+    """
+    self.name = name
+    super().__init__(columns)
+
+  def apply_transform(
+      self, data: common_types.TensorType,
+      output_col_name: str) -> Dict[str, common_types.TensorType]:
+    output_dict = {
+        output_col_name: tft.deduplicate_tensor_per_row(
+            input_tensor=data, name=self.name)
+    }
+    return output_dict

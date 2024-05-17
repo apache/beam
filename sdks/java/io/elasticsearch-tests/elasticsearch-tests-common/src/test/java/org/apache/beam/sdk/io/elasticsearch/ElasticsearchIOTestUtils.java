@@ -29,6 +29,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.IOException;
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -56,6 +57,7 @@ class ElasticsearchIOTestUtils {
   static final String ELASTICSEARCH_PASSWORD = "superSecure";
   static final String ELASTIC_UNAME = "elastic";
   static final Set<Integer> INVALID_DOCS_IDS = new HashSet<>(Arrays.asList(6, 7));
+  static final String INVALID_LONG_ID = new String(new char[513]).replace('\0', '2');
   static final String ALIAS_SUFFIX = "-aliased";
 
   static final String[] FAMOUS_SCIENTISTS = {
@@ -79,7 +81,8 @@ class ElasticsearchIOTestUtils {
   /** Enumeration that specifies whether to insert malformed documents. */
   public enum InjectionMode {
     INJECT_SOME_INVALID_DOCS,
-    DO_NOT_INJECT_INVALID_DOCS
+    DO_NOT_INJECT_INVALID_DOCS,
+    INJECT_ONE_ID_TOO_LONG_DOC
   }
 
   /** Deletes the given index synchronously. */
@@ -334,6 +337,7 @@ class ElasticsearchIOTestUtils {
   static List<String> createDocuments(long numDocs, InjectionMode injectionMode) {
 
     ArrayList<String> data = new ArrayList<>();
+    LocalDateTime baseDateTime = LocalDateTime.now();
     for (int i = 0; i < numDocs; i++) {
       int index = i % FAMOUS_SCIENTISTS.length;
       // insert 2 malformed documents
@@ -341,8 +345,19 @@ class ElasticsearchIOTestUtils {
           && INVALID_DOCS_IDS.contains(i)) {
         data.add(String.format("{\"scientist\";\"%s\", \"id\":%s}", FAMOUS_SCIENTISTS[index], i));
       } else {
-        data.add(String.format("{\"scientist\":\"%s\", \"id\":%s}", FAMOUS_SCIENTISTS[index], i));
+        data.add(
+            String.format(
+                "{\"scientist\":\"%s\", \"id\":%s, \"@timestamp\" : \"%s\"}",
+                FAMOUS_SCIENTISTS[index], i, baseDateTime.plusSeconds(i).toString()));
       }
+    }
+    // insert 1 additional id too long doc. It should trigger
+    // org.elasticsearch.client.ResponseException.
+    if (InjectionMode.INJECT_ONE_ID_TOO_LONG_DOC.equals(injectionMode)) {
+      data.add(
+          String.format(
+              "{\"scientist\":\"invalid_scientist\", \"id\":%s, \"@timestamp\" : \"%s\"}",
+              INVALID_LONG_ID, baseDateTime));
     }
     return data;
   }
@@ -516,6 +531,20 @@ class ElasticsearchIOTestUtils {
             return MAPPER.readTree(fixedJson).path("id").asInt();
           } catch (JsonProcessingException e) {
             return -1;
+          }
+        }
+      };
+
+  static SimpleFunction<Document, String> mapToInputIdString =
+      new SimpleFunction<Document, String>() {
+        @Override
+        public String apply(Document document) {
+          try {
+            // Account for intentionally invalid input json docs
+            String fixedJson = document.getInputDoc().replaceAll(";", ":");
+            return MAPPER.readTree(fixedJson).path("id").asText();
+          } catch (JsonProcessingException e) {
+            return "-1";
           }
         }
       };

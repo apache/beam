@@ -54,14 +54,5 @@ These examples leverage the built-in mapping transforms including `MapToFields`,
 These examples leverage the built-in `Combine` transform for performing simple
 aggregations including sum, mean, count, etc.
 
-These examples are experimental and require that
-`yaml_experimental_features: Combine` be specified under the `options` tag, or
-by passing `--yaml_experimental_features=Combine` to the command to run the
-pipeline. i.e.
-```
-python -m apache_beam.yaml.main \
-  --pipeline_spec_file=/path/to/example.yaml \
-  --yaml_experimental_features=Combine
-```
 More information can be found about aggregation transforms
 [here](https://beam.apache.org/documentation/sdks/yaml-combine/).

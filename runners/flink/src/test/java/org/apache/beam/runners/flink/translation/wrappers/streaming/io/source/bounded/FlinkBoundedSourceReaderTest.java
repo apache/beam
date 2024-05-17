@@ -147,6 +147,7 @@ public class FlinkBoundedSourceReaderTest
       long idleTimeoutMs,
       @Nullable Function<WindowedValue<KV<Integer, Integer>>, Long> timestampExtractor,
       TestMetricGroup testMetricGroup) {
+
     FlinkPipelineOptions pipelineOptions = FlinkPipelineOptions.defaults();
     pipelineOptions.setShutdownSourcesAfterIdleMs(idleTimeoutMs);
     SourceReaderContext mockContext = createSourceReaderContext(testMetricGroup);

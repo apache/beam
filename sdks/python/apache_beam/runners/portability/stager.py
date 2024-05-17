@@ -791,6 +791,7 @@ class Stager(object):
               Stager._get_python_executable(),
               '-m',
               'build',
+              '--no-isolation',  # Otherwise, we need internet access to PyPI.
               '--sdist',
               '--outdir',
               temp_dir,

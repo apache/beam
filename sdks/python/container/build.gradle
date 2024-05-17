@@ -21,7 +21,7 @@ applyGoNature()
 
 description = "Apache Beam :: SDKs :: Python :: Container"
 int min_python_version=8
-int max_python_version=11
+int max_python_version=12
 
 configurations {
   sdkSourceTarball
@@ -38,10 +38,9 @@ goBuild {
 }
 
 tasks.register("buildAll") {
-  dependsOn ':sdks:python:container:py38:docker'
-  dependsOn ':sdks:python:container:py39:docker'
-  dependsOn ':sdks:python:container:py310:docker'
-  dependsOn ':sdks:python:container:py311:docker'
+  for(int ver=min_python_version; ver<=max_python_version; ++ver) {
+      dependsOn ':sdks:python:container:py3' + ver + ':docker'
+  }
 }
 
 for(int i=min_python_version; i<=max_python_version; ++i) {
@@ -68,17 +67,15 @@ for(int i=min_python_version; i<=max_python_version; ++i) {
 }
 
 tasks.register("pushAll") {
-  dependsOn ':sdks:python:container:push38'
-  dependsOn ':sdks:python:container:push39'
-  dependsOn ':sdks:python:container:push310'
-  dependsOn ':sdks:python:container:push311'
+  for(int ver=min_python_version; ver<=max_python_version; ++ver) {
+      dependsOn ':sdks:python:container:push3' + ver
+  }
 }
 
 tasks.register("generatePythonRequirementsAll") {
-  dependsOn ':sdks:python:container:py38:generatePythonRequirements'
-  dependsOn ':sdks:python:container:py39:generatePythonRequirements'
-  dependsOn ':sdks:python:container:py310:generatePythonRequirements'
-  dependsOn ':sdks:python:container:py311:generatePythonRequirements'
+  for(int ver=min_python_version; ver<=max_python_version; ++ver) {
+      dependsOn ':sdks:python:container:py3' + ver + ':generatePythonRequirements'
+  }
 }
 
 artifacts {

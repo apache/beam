@@ -24,7 +24,7 @@ pluginManagement {
 }
 
 plugins {
-  id("com.gradle.enterprise") version "3.15.1"
+  id("com.gradle.enterprise") version "3.17.2"
   id("com.gradle.common-custom-user-data-gradle-plugin") version "1.12.1"
 }
 
@@ -121,14 +121,14 @@ include(":runners:core-java")
 include(":runners:direct-java")
 include(":runners:extensions-java:metrics")
 /* Begin Flink Runner related settings */
-// Flink 1.12
-include(":runners:flink:1.12")
-include(":runners:flink:1.12:job-server")
-include(":runners:flink:1.12:job-server-container")
-// Flink 1.13
-include(":runners:flink:1.13")
-include(":runners:flink:1.13:job-server")
-include(":runners:flink:1.13:job-server-container")
+/* When updating these versions, please make sure that the following files are updated as well:
+  * FLINK_VERSIONS in .github/actions/setup-default-test-properties/test-properties.json
+  * flink_versions in sdks/go/examples/wasm/README.md
+  * PUBLISHED_FLINK_VERSIONS in sdks/python/apache_beam/options/pipeline_options.py
+  * PUBLISHED_FLINK_VERSIONS in sdks/typescript/src/apache_beam/runners/flink.ts
+  * verify versions in website/www/site/content/en/documentation/runners/flink.md
+  * verify version in sdks/python/apache_beam/runners/interactive/interactive_beam.py
+ */
 // Flink 1.14
 include(":runners:flink:1.14")
 include(":runners:flink:1.14:job-server")
@@ -141,6 +141,14 @@ include(":runners:flink:1.15:job-server-container")
 include(":runners:flink:1.16")
 include(":runners:flink:1.16:job-server")
 include(":runners:flink:1.16:job-server-container")
+// Flink 1.17
+include(":runners:flink:1.17")
+include(":runners:flink:1.17:job-server")
+include(":runners:flink:1.17:job-server-container")
+// Flink 1.18
+include(":runners:flink:1.18")
+include(":runners:flink:1.18:job-server")
+include(":runners:flink:1.18:job-server-container")
 /* End Flink Runner related settings */
 include(":runners:twister2")
 include(":runners:google-cloud-dataflow-java")
@@ -152,6 +160,7 @@ include(":runners:java-job-service")
 include(":runners:jet")
 include(":runners:local-java")
 include(":runners:portability:java")
+include(":runners:prism")
 include(":runners:spark:3")
 include(":runners:spark:3:job-server")
 include(":runners:spark:3:job-server:container")
@@ -184,6 +193,7 @@ include(":sdks:java:extensions:google-cloud-platform-core")
 include(":sdks:java:extensions:jackson")
 include(":sdks:java:extensions:join-library")
 include(":sdks:java:extensions:ml")
+include(":sdks:java:extensions:ordered")
 include(":sdks:java:extensions:protobuf")
 include(":sdks:java:extensions:python")
 include(":sdks:java:extensions:sbe")
@@ -288,6 +298,7 @@ include(":sdks:python:container:py38")
 include(":sdks:python:container:py39")
 include(":sdks:python:container:py310")
 include(":sdks:python:container:py311")
+include(":sdks:python:container:py312")
 include(":sdks:python:expansion-service-container")
 include(":sdks:python:test-suites:dataflow")
 include(":sdks:python:test-suites:dataflow:py38")
@@ -352,3 +363,7 @@ include("sdks:java:io:kafka:kafka-100")
 findProject(":sdks:java:io:kafka:kafka-100")?.name = "kafka-100"
 include("sdks:java:io:kafka:kafka-01103")
 findProject(":sdks:java:io:kafka:kafka-01103")?.name = "kafka-01103"
+include("sdks:java:managed")
+findProject(":sdks:java:managed")?.name = "managed"
+include("sdks:java:io:iceberg")
+findProject(":sdks:java:io:iceberg")?.name = "iceberg"

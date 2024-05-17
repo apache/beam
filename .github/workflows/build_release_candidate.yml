@@ -89,8 +89,8 @@ jobs:
         run: git config credential.helper store
       - name: Stage Java Artifacts into Maven
         run: ./gradlew publish -Psigning.gnupg.keyName=${{steps.import_gpg.outputs.fingerprint}} -PisRelease --no-daemon --no-parallel
-        
-      
+
+
   stage_java_source:
     if: ${{github.event.inputs.STAGE_JAVA_SOURCE == 'yes'}}
     runs-on: ubuntu-latest
@@ -153,8 +153,8 @@ jobs:
 
             svn add --force .
             svn status
-            svn commit -m "Staging Java artifacts for Apache Beam ${{ github.event.inputs.RELEASE }} RC${{ github.event.inputs.RC }}" --non-interactive --username "${{ github.event.inputs.APACHE_ID }}" --password "${{ github.event.inputs.APACHE_PASSWORD }}" 
-        
+            svn commit -m "Staging Java artifacts for Apache Beam ${{ github.event.inputs.RELEASE }} RC${{ github.event.inputs.RC }}" --non-interactive --username "${{ github.event.inputs.APACHE_ID }}" --password "${{ github.event.inputs.APACHE_PASSWORD }}"
+
   stage_python_artifacts:
     if: ${{github.event.inputs.STAGE_PYTHON_ARTIFACTS == 'yes'}}
     runs-on: ubuntu-latest
@@ -179,7 +179,7 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          python-version: 3.8
+          python-version: default
       - name: Import GPG key
         id: import_gpg
         uses: crazy-max/ghaction-import-gpg@111c56156bcc6918c056dbef52164cfa583dc549
@@ -204,7 +204,7 @@ jobs:
 
           git fetch --all --tags --prune
           RELEASE_COMMIT=$(git rev-list -n 1 "tags/${RC_TAG}")
-          
+
           python "${SCRIPT_DIR}/download_github_actions_artifacts.py" \
             --github-token-var GITHUB_TOKEN \
             --repo-url "apache/beam" \
@@ -212,31 +212,31 @@ jobs:
             --release-commit "${RELEASE_COMMIT}" \
             --artifacts_dir "${RELEASE_DIR}/python" \
             --yes True
-        
+
           cd "${RELEASE_DIR}"/python
           ls
 
-          echo "------Checking Hash Value for apache-beam-${RELEASE}.tar.gz-----"
-          sha512sum -c "apache-beam-${RELEASE}.tar.gz.sha512"
-        
-          echo "------Signing Source Release apache-beam-${RELEASE}.tar.gz------"
-          gpg --local-user "${{steps.import_gpg.outputs.name}}" --armor --detach-sig "apache-beam-${RELEASE}.tar.gz"
-        
+          echo "------Checking Hash Value for apache_beam-${RELEASE}.tar.gz-----"
+          sha512sum -c "apache_beam-${RELEASE}.tar.gz.sha512"
+
+          echo "------Signing Source Release apache_beam-${RELEASE}.tar.gz------"
+          gpg --local-user "${{steps.import_gpg.outputs.name}}" --armor --detach-sig "apache_beam-${RELEASE}.tar.gz"
+
           for artifact in *.whl; do
             echo "----------Checking Hash Value for ${artifact} wheel-----------"
             sha512sum -c "${artifact}.sha512"
           done
-        
+
           for artifact in *.whl; do
             echo "------------------Signing ${artifact} wheel-------------------"
             gpg --local-user "${{steps.import_gpg.outputs.name}}" --armor --batch --yes --detach-sig "${artifact}"
           done
-        
+
           cd ..
           svn add --force python
           svn status
           svn commit -m "Staging Python artifacts for Apache Beam ${RELEASE} RC${RC_NUM}" --non-interactive --username "${{ github.event.inputs.APACHE_ID }}" --password "${{ github.event.inputs.APACHE_PASSWORD }}"
-        
+
 
   stage_docker:
     if: ${{github.event.inputs.STAGE_DOCKER_ARTIFACTS == 'yes'}}
@@ -343,6 +343,10 @@ jobs:
         working-directory: beam
         run: |
             ./gradlew :sdks:java:javadoc:aggregateJavadoc -PisRelease --no-daemon --no-parallel
+      - name: Build YAML Docs
+        working-directory: beam
+        run: |
+            ./gradlew :sdks:python:generateYamlDocs -PisRelease
       - name: Add canonical link into javadocs
         uses: cicirello/javadoc-cleanup@v1
         with:
@@ -352,25 +356,32 @@ jobs:
         working-directory: beam-site
         run: |
             git checkout -b $BRANCH_NAME release-docs
-             
+
             echo "..........Copying generated javadoc into beam-site.........."
             cp -r ${BEAM_ROOT_DIR}/sdks/java/javadoc/build/docs/javadoc/ javadoc/${{ github.event.inputs.RELEASE }}
             # Update current symlink to point to the latest release
             unlink javadoc/current
             ln -s ${{ github.event.inputs.RELEASE }} javadoc/current
-             
+
             echo "............Copying generated pydoc into beam-site.........."
             cp -r ${BEAM_ROOT_DIR}/sdks/python/target/docs/_build pydoc/${{  github.event.inputs.RELEASE }}
             # Update current symlink to point to the latest release
             unlink pydoc/current
             ln -s ${{ github.event.inputs.RELEASE }} pydoc/current
-             
+
             echo "............Copying generated typedoc into beam-site.........."
             mkdir -p typedoc
             cp -r ${BEAM_ROOT_DIR}/sdks/typescript/docs typedoc/${{ github.event.inputs.RELEASE }}
             # Update current symlink to point to the latest release
             unlink typedoc/current | true
             ln -s ${{ github.event.inputs.RELEASE }} typedoc/current
+
+            echo "............Copying generated yamldoc into beam-site.........."
+            mkdir -p yamldoc/${{ github.event.inputs.RELEASE }}
+            cp -r ${BEAM_ROOT_DIR}/sdks/python/build/yaml-ref.html yamldoc/${{ github.event.inputs.RELEASE }}/index.html
+            # Update current symlink to point to the latest release
+            unlink yamldoc/current | true
+            ln -s ${{ github.event.inputs.RELEASE }} yamldoc/current
       - name: Create commit on beam-site branch
         working-directory: beam
         run: |

@@ -82,13 +82,13 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          java-version: 8
-          python-version: 3.8
+          java-version: default
+          python-version: default
       - name: Run preCommitPyCoverage
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:test-suites:tox:py38:preCommitPyCoverage
-      - uses: codecov/codecov-action@v4
+      - uses: codecov/codecov-action@v3
         with:
           flags: python
           directory: sdks/python

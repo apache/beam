@@ -28,8 +28,10 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.io.range.OffsetRange;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -173,7 +175,7 @@ public class View {
    * <p>Some runners may require that the view fits in memory.
    */
   public static <T> AsList<T> asList() {
-    return new AsList<>();
+    return new AsList<>(null);
   }
 
   /**
@@ -235,7 +237,33 @@ public class View {
    */
   @Internal
   public static class AsList<T> extends PTransform<PCollection<T>, PCollectionView<List<T>>> {
-    private AsList() {}
+    private final @Nullable Boolean withRandomAccess;
+
+    private AsList(@Nullable Boolean withRandomAccess) {
+      this.withRandomAccess = withRandomAccess;
+    }
+
+    /**
+     * Returns a PCollection view like this one, but whose resulting list will have RandomAccess
+     * (aka fast indexing).
+     *
+     * <p>A veiw with random access will be much more expensive to compute and iterate over, but
+     * will have a faster get() method.
+     */
+    public AsList<T> withRandomAccess() {
+      return withRandomAccess(true);
+    }
+
+    /**
+     * Returns a PCollection view like this one, but whose resulting list will have RandomAccess
+     * (aka fast indexing) according to the input parameter.
+     *
+     * <p>A veiw with random access will be much more expensive to compute and iterate over, but
+     * will have a faster get() method.
+     */
+    public AsList<T> withRandomAccess(boolean withRandomAccess) {
+      return new AsList<>(withRandomAccess);
+    }
 
     @Override
     public PCollectionView<List<T>> expand(PCollection<T> input) {
@@ -244,7 +272,37 @@ public class View {
       } catch (IllegalStateException e) {
         throw new IllegalStateException("Unable to create a side-input view from input", e);
       }
+      boolean explicitWithRandomAccess =
+          withRandomAccess != null
+              ? withRandomAccess
+              : StreamingOptions.updateCompatibilityVersionLessThan(
+                  input.getPipeline().getOptions(), "2.57.0");
+      if (explicitWithRandomAccess
+          || !(input.getWindowingStrategy().getWindowFn() instanceof GlobalWindows)) {
+        return expandWithRandomAccess(input);
+      } else {
+        return expandWithoutRandomAccess(input);
+      }
+    }
 
+    private PCollectionView<List<T>> expandWithoutRandomAccess(PCollection<T> input) {
+      Coder<T> inputCoder = input.getCoder();
+      // HACK to work around https://github.com/apache/beam/issues/20873:
+      // There are bugs in "composite" vs "primitive" transform distinction
+      // in TransformHierachy. This noop transform works around them and should be zero
+      // cost.
+      PCollection<T> materializationInput =
+          input.apply(MapElements.via(new SimpleFunction<T, T>(x -> x) {}));
+      PCollectionView<List<T>> view =
+          PCollectionViews.listView(
+              materializationInput,
+              (TypeDescriptorSupplier<T>) inputCoder::getEncodedTypeDescriptor,
+              materializationInput.getWindowingStrategy());
+      materializationInput.apply(CreatePCollectionView.of(view));
+      return view;
+    }
+
+    private PCollectionView<List<T>> expandWithRandomAccess(PCollection<T> input) {
       /**
        * The materialized format uses {@link Materializations#MULTIMAP_MATERIALIZATION_URN multimap}
        * access pattern where the key is a position and the index of the value in the iterable is a
@@ -266,7 +324,7 @@ public class View {
                       BigEndianLongCoder.of(),
                       ValueOrMetadataCoder.create(inputCoder, OffsetRange.Coder.of())));
       PCollectionView<List<T>> view =
-          PCollectionViews.listView(
+          PCollectionViews.listViewWithRandomAccess(
               materializationInput,
               (TypeDescriptorSupplier<T>) inputCoder::getEncodedTypeDescriptor,
               materializationInput.getWindowingStrategy());

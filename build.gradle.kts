@@ -208,6 +208,9 @@ tasks.rat {
 
     // DuetAI training prompts
     "learning/prompts/**/*.md",
+
+    // Ignore terraform lock files
+    "**/.terraform.lock.hcl"
   )
 
   // Add .gitignore excludes to the Apache Rat exclusion list. We re-create the behavior
@@ -303,6 +306,7 @@ tasks.register("javaPreCommit") {
   dependsOn(":sdks:java:io:synthetic:build")
   dependsOn(":sdks:java:io:xml:build")
   dependsOn(":sdks:java:javadoc:allJavadoc")
+  dependsOn(":sdks:java:managed:build")
   dependsOn(":sdks:java:testing:expansion-service:build")
   dependsOn(":sdks:java:testing:jpms-tests:build")
   dependsOn(":sdks:java:testing:load-tests:build")
@@ -324,11 +328,6 @@ tasks.register("javaioPreCommit") {
   dependsOn(":sdks:java:io:clickhouse:build")
   dependsOn(":sdks:java:io:debezium:expansion-service:build")
   dependsOn(":sdks:java:io:debezium:build")
-  dependsOn(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-5:build")
-  dependsOn(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-6:build")
-  dependsOn(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-7:build")
-  dependsOn(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-8:build")
-  dependsOn(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-common:build")
   dependsOn(":sdks:java:io:elasticsearch:build")
   dependsOn(":sdks:java:io:file-schema-transform:build")
   dependsOn(":sdks:java:io:google-ads:build")
@@ -404,6 +403,7 @@ tasks.register("javaHadoopVersionsTest") {
   dependsOn(":sdks:java:io:hadoop-file-system:hadoopVersionsTest")
   dependsOn(":sdks:java:io:hadoop-format:hadoopVersionsTest")
   dependsOn(":sdks:java:io:hcatalog:hadoopVersionsTest")
+  dependsOn(":sdks:java:io:iceberg:hadoopVersionsTest")
   dependsOn(":sdks:java:io:parquet:hadoopVersionsTest")
   dependsOn(":sdks:java:extensions:sorter:hadoopVersionsTest")
   dependsOn(":runners:spark:3:hadoopVersionsTest")
@@ -492,12 +492,11 @@ tasks.register("pythonDockerBuildPreCommit") {
 }
 
 tasks.register("pythonLintPreCommit") {
-  // TODO(https://github.com/apache/beam/issues/20209): Find a better way to specify lint and formatter tasks without hardcoding py version.
-  dependsOn(":sdks:python:test-suites:tox:py38:lint")
+  dependsOn(":sdks:python:test-suites:tox:pycommon:linter")
 }
 
 tasks.register("pythonFormatterPreCommit") {
-  dependsOn("sdks:python:test-suites:tox:py38:formatter")
+  dependsOn("sdks:python:test-suites:tox:pycommon:formatter")
 }
 
 tasks.register("python38PostCommit") {

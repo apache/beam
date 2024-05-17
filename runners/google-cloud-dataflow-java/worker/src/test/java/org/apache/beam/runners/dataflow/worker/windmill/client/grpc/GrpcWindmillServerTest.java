@@ -17,11 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
 import java.io.InputStream;
 import java.io.SequenceInputStream;
@@ -82,6 +78,7 @@ import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ClientCall;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ClientInterceptor;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ClientInterceptors;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Deadline;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.MethodDescriptor;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Server;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Status;
@@ -211,7 +208,7 @@ public class GrpcWindmillServerTest {
 
     this.client =
         GrpcWindmillServer.newApplianceTestInstance(
-            inprocessChannel, new FakeWindmillStubFactory(() -> inprocessChannel));
+            inprocessChannel, new FakeWindmillStubFactory(() -> (ManagedChannel) inprocessChannel));
 
     Windmill.GetWorkResponse response1 = client.getWork(GetWorkRequest.getDefaultInstance());
     Windmill.GetWorkResponse response2 = client.getWork(GetWorkRequest.getDefaultInstance());
@@ -1199,6 +1196,51 @@ public class GrpcWindmillServerTest {
     assertEquals(
         Math.min(34, (long) (elapsedTime * (130.0 / sumDurations))),
         latencies.get(State.GET_WORK_IN_TRANSIT_TO_USER_WORKER).getTotalDurationMillis());
+  }
+
+  @Test
+  public void testGetWorkTimingInfosTracker_ClockSkew() throws Exception {
+    int skewMicros = 50 * 1000;
+    GetWorkTimingInfosTracker tracker = new GetWorkTimingInfosTracker(() -> 50);
+    List<GetWorkStreamTimingInfo> infos = new ArrayList<>();
+    for (int i = 0; i <= 3; i++) {
+      infos.add(
+          GetWorkStreamTimingInfo.newBuilder()
+              .setEvent(Event.GET_WORK_CREATION_START)
+              .setTimestampUsec(skewMicros)
+              .build());
+      infos.add(
+          GetWorkStreamTimingInfo.newBuilder()
+              .setEvent(Event.GET_WORK_CREATION_END)
+              .setTimestampUsec(10000 + skewMicros)
+              .build());
+      infos.add(
+          GetWorkStreamTimingInfo.newBuilder()
+              .setEvent(Event.GET_WORK_RECEIVED_BY_DISPATCHER)
+              .setTimestampUsec((i + 11) * 1000 + skewMicros)
+              .build());
+      infos.add(
+          GetWorkStreamTimingInfo.newBuilder()
+              .setEvent(Event.GET_WORK_FORWARDED_BY_DISPATCHER)
+              .setTimestampUsec((i + 16) * 1000 + skewMicros)
+              .build());
+      tracker.addTimingInfo(infos);
+      infos.clear();
+    }
+    // durations for each chunk:
+    // GET_WORK_IN_WINDMILL_WORKER: 10, 10, 10, 10
+    // GET_WORK_IN_TRANSIT_TO_DISPATCHER: 1, 2, 3, 4 -> sum to 10
+    // GET_WORK_IN_TRANSIT_TO_USER_WORKER: not observed due to skew
+    Map<State, LatencyAttribution> latencies = new HashMap<>();
+    List<LatencyAttribution> attributions = tracker.getLatencyAttributions();
+    assertEquals(2, attributions.size());
+    for (LatencyAttribution attribution : attributions) {
+      latencies.put(attribution.getState(), attribution);
+    }
+    assertEquals(10L, latencies.get(State.GET_WORK_IN_WINDMILL_WORKER).getTotalDurationMillis());
+    assertEquals(
+        4L, latencies.get(State.GET_WORK_IN_TRANSIT_TO_DISPATCHER).getTotalDurationMillis());
+    assertNull(latencies.get(State.GET_WORK_IN_TRANSIT_TO_USER_WORKER));
   }
 
   class ResponseErrorInjector<Stream extends StreamObserver> {

@@ -23,7 +23,7 @@ limitations under the License.
   <tr>
     <td>
       <a>
-      {{< button-pydoc path="apache_beam.transforms" class="Enrichment" >}}
+      {{< button-pydoc path="apache_beam.transforms.enrichment" class="Enrichment" >}}
       </a>
    </td>
   </tr>
@@ -32,35 +32,22 @@ limitations under the License.
 
 The enrichment transform lets you dynamically enrich data in a pipeline by doing a key-value lookup to a remote service. The transform uses [`RequestResponeIO`](https://beam.apache.org/releases/pydoc/current/apache_beam.io.requestresponseio.html#apache_beam.io.requestresponseio.RequestResponseIO) internally. This feature uses client-side throttling to ensure that the remote service isn't overloaded with requests. If service-side errors occur, like `TooManyRequests` and `Timeout` exceptions, it retries the requests by using exponential backoff.
 
-In Apache Beam 2.54.0 and later versions, the transform includes a built-in enrichment handler for [Bigtable](https://cloud.google.com/bigtable/docs/overview).
+This transform is available in Apache Beam 2.54.0 and later versions.
 
-## Use Bigtable to enrich data
+## Examples
 
-The following example demonstrates how to create a pipeline that use the enrichment transform with [`BigTableEnrichmentHandler`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.enrichment_handlers.bigtable.html#apache_beam.transforms.enrichment_handlers.bigtable.BigTableEnrichmentHandler).
+The following examples demonstrate how to create a pipeline that use the enrichment transform to enrich data from external services.
 
-The data stored in the Bigtable cluster uses the following format:
-
-|  Row key  |  product:product_id  |  product:product_name  |  product:product_stock  |
-|:---------:|:--------------------:|:----------------------:|:-----------------------:|
-|     1     |          1           |        pixel 5         |            2            |
-|     2     |          2           |        pixel 6         |            4            |
-|     3     |          3           |        pixel 7         |           20            |
-|     4     |          4           |        pixel 8         |           10            |
-
-
-{{< highlight language="py" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/enrichment.py" enrichment_with_bigtable >}}
-{{</ highlight >}}
-
-{{< paragraph class="notebook-skip" >}}
-Output:
-{{< /paragraph >}}
-{{< highlight class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/enrichment_test.py" enrichment_with_bigtable >}}
-{{< /highlight >}}
+{{< table >}}
+| Service                            | Example                                                                                                                                                                      |
+|:-----------------------------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Cloud Bigtable                     | [Enrichment with Bigtable](/documentation/transforms/python/elementwise/enrichment-bigtable/#example)                                                                        |
+| Vertex AI Feature Store            | [Enrichment with Vertex AI Feature Store](/documentation/transforms/python/elementwise/enrichment-vertexai/#example-1-enrichment-with-vertex-ai-feature-store)               |
+| Vertex AI Feature Store (Legacy)   | [Enrichment with Legacy Vertex AI Feature Store](/documentation/transforms/python/elementwise/enrichment-vertexai/#example-2-enrichment-with-vertex-ai-feature-store-legacy) |
+{{< /table >}}
 
 ## Related transforms
 
 Not applicable.
 
-{{< button-pydoc path="apache_beam.transforms" class="Enrichment" >}}
+{{< button-pydoc path="apache_beam.transforms.enrichment" class="Enrichment" >}}

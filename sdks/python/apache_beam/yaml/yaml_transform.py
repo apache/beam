@@ -491,7 +491,7 @@ def expand_leaf_transform(spec, scope):
     return {f'out{ix}': pcoll for (ix, pcoll) in enumerate(outputs)}
   elif isinstance(outputs, beam.PCollection):
     return {'out': outputs}
-  elif outputs is None:
+  elif outputs is None or isinstance(outputs, beam.pvalue.PDone):
     return {}
   else:
     raise ValueError(
@@ -518,10 +518,13 @@ def expand_composite_transform(spec, scope):
     @staticmethod
     def expand(inputs):
       inner_scope.compute_all()
-      return {
-          key: inner_scope.get_pcollection(value)
-          for (key, value) in spec['output'].items()
-      }
+      if '__implicit_outputs__' in spec['output']:
+        return inner_scope.get_outputs(spec['output']['__implicit_outputs__'])
+      else:
+        return {
+            key: inner_scope.get_pcollection(value)
+            for (key, value) in spec['output'].items()
+        }
 
   if 'name' not in spec:
     spec['name'] = 'Composite'
@@ -596,7 +599,7 @@ def chain_as_composite(spec):
         for (key, value) in composite_spec['output'].items()
     }
   else:
-    composite_spec['output'] = last_transform
+    composite_spec['output'] = {'__implicit_outputs__': last_transform}
   if 'name' not in composite_spec:
     composite_spec['name'] = 'Chain'
   composite_spec['type'] = 'composite'
@@ -917,8 +920,12 @@ def preprocess(spec, verbose=False, known_transforms=None):
             f'for type {spec["type"]} for {identify_object(spec)}')
     return spec
 
-  def preprocess_langauges(spec):
-    if spec['type'] in ('Filter', 'MapToFields', 'Combine', 'AssignTimestamps'):
+  def preprocess_languages(spec):
+    if spec['type'] in ('AssignTimestamps',
+                        'Combine',
+                        'Filter',
+                        'MapToFields',
+                        'Partition'):
       language = spec.get('config', {}).get('language', 'generic')
       new_type = spec['type'] + '-' + language
       if known_transforms and new_type not in known_transforms:
@@ -935,7 +942,7 @@ def preprocess(spec, verbose=False, known_transforms=None):
       ensure_transforms_have_types,
       normalize_mapping,
       normalize_combine,
-      preprocess_langauges,
+      preprocess_languages,
       ensure_transforms_have_providers,
       preprocess_source_sink,
       preprocess_chain,

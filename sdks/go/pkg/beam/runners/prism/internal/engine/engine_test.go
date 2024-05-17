@@ -186,6 +186,11 @@ func TestTestStream(t *testing.T) {
 		{pipeline: primitives.TestStreamTwoFloat64Sequences},
 		{pipeline: primitives.TestStreamTwoInt64Sequences},
 		{pipeline: primitives.TestStreamTwoUserTypeSequences},
+
+		{pipeline: primitives.TestStreamSimple},
+		{pipeline: primitives.TestStreamSimple_InfinityDefault},
+		{pipeline: primitives.TestStreamToGBK},
+		{pipeline: primitives.TestStreamTimersEventTime},
 	}
 
 	configs := []struct {

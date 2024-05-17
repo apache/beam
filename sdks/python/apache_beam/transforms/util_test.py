@@ -299,15 +299,40 @@ class BatchElementsTest(unittest.TestCase):
       res = (
           p
           | beam.Create([
-              'a', 'a', 'aaaaaaaaaa',  # First batch.
-              'aaaaaa', 'aaaaa',       # Second batch.
-              'a', 'aaaaaaa', 'a', 'a' # Third batch.
+              'a', 'a',                # First batch.
+              'aaaaaaaaaa',            # Second batch.
+              'aaaaa', 'aaaaa',        # Third batch.
+              'a', 'aaaaaaa', 'a', 'a' # Fourth batch.
               ], reshuffle=False)
           | util.BatchElements(
               min_batch_size=10, max_batch_size=10, element_size_fn=len)
           | beam.Map(lambda batch: ''.join(batch))
           | beam.Map(len))
-      assert_that(res, equal_to([12, 11, 10]))
+      assert_that(res, equal_to([2, 10, 10, 10]))
+
+  def test_sized_windowed_batches(self):
+    # Assumes a single bundle, in order...
+    with TestPipeline() as p:
+      res = (
+          p
+          | beam.Create(range(1, 8), reshuffle=False)
+          | beam.Map(lambda t: window.TimestampedValue('a' * t, t))
+          | beam.WindowInto(window.FixedWindows(3))
+          | util.BatchElements(
+              min_batch_size=11,
+              max_batch_size=11,
+              element_size_fn=len,
+              clock=FakeClock())
+          | beam.Map(lambda batch: ''.join(batch)))
+      assert_that(
+          res,
+          equal_to([
+              'a' * (1+2), # Elements in [1, 3)
+              'a' * (3+4), # Elements in [3, 6)
+              'a' * 5,
+              'a' * 6, # Elements in [6, 9)
+              'a' * 7,
+          ]))
 
   def test_target_duration(self):
     clock = FakeClock()
@@ -1785,6 +1810,35 @@ class RegexTest(unittest.TestCase):
           "The", "quick", "brown", "fox", "jumps", "over", "the", "lazy", "dog"
       ]]
       assert_that(result, equal_to(expected_result))
+
+
+class WaitOnTest(unittest.TestCase):
+  def test_find(self):
+    # We need shared reference that survives pickling.
+    def increment_global_counter():
+      try:
+        value = getattr(beam, '_WAIT_ON_TEST_COUNTER', 0)
+        return value
+      finally:
+        setattr(beam, '_WAIT_ON_TEST_COUNTER', value + 1)
+
+    def record(tag):
+      return f'Record({tag})' >> beam.Map(
+          lambda x: (x[0], tag, increment_global_counter()))
+
+    with TestPipeline() as p:
+      start = p | beam.Create([(None, ), (None, )])
+      x = start | record('x')
+      y = start | 'WaitForX' >> util.WaitOn(x) | record('y')
+      z = start | 'WaitForY' >> util.WaitOn(y) | record('z')
+      result = x | 'WaitForYZ' >> util.WaitOn(y, z) | record('result')
+      assert_that(x, equal_to([(None, 'x', 0), (None, 'x', 1)]), label='x')
+      assert_that(y, equal_to([(None, 'y', 2), (None, 'y', 3)]), label='y')
+      assert_that(z, equal_to([(None, 'z', 4), (None, 'z', 5)]), label='z')
+      assert_that(
+          result,
+          equal_to([(None, 'result', 6), (None, 'result', 7)]),
+          label='result')
 
 
 if __name__ == '__main__':

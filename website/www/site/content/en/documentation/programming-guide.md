@@ -2153,6 +2153,14 @@ students = ...
 {{< code_sample "sdks/typescript/test/docs/programming_guide.ts" model_multiple_pcollections_partition >}}
 {{< /highlight >}}
 
+{{< highlight yaml >}}
+{{< code_sample "sdks/python/apache_beam/yaml/programming_guide_test.py" model_multiple_pcollections_partition >}}
+{{< /highlight >}}
+
+{{< paragraph class="language-yaml">}}
+Note that in Beam YAML, `PCollections` are partitioned via string rather than integer values.
+{{< /paragraph >}}
+
 ### 4.3. Requirements for writing user code for Beam transforms {#requirements-for-writing-user-code-for-beam-transforms}
 
 When you build user code for a Beam transform, you should keep in mind the
@@ -2414,6 +2422,14 @@ from `apply`). If you want to have multiple outputs, emit an object with distinc
 properties in your `ParDo` operation and follow this operation with a `Split`
 to break it into multiple `PCollection`s.
 {{< /paragraph >}}
+
+{{< paragraph class="language-yaml">}}
+In Beam YAML, one obtains multiple outputs by emitting all outputs to a single
+`PCollection`, possibly with an extra field, and then using `Partition` to
+split this single `PCollection` into multiple distinct `PCollection`
+outputs.
+{{< /paragraph >}}
+
 
 #### 4.5.1. Tags for multiple outputs {#output-tags}
 

@@ -87,6 +87,7 @@ jobs:
         with:
           cluster_name: io-datastores
           k8s_namespace: ${{ matrix.job_name }}-${{ github.run_id }}
+          remove_finalizer:  memsqlclusters.memsql.com/sdb-cluster
       - name: Install Singlestore operator
         run: | 
           kubectl apply -f ${{github.workspace}}/.test-infra/kubernetes/singlestore/sdb-rbac.yaml

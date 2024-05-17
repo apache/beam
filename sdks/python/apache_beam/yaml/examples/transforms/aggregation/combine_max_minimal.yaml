@@ -44,9 +44,6 @@ pipeline:
           amount: max
     - type: LogForTesting
 
-options:
-  yaml_experimental_features: Combine
-
 # Expected:
 #  Row(produce='🥕', amount=3)
 #  Row(produce='🍆', amount=1)

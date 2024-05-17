@@ -62,6 +62,7 @@ from apache_beam.portability.api import beam_provision_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners import runner
 from apache_beam.runners.common import group_by_key_input_visitor
+from apache_beam.runners.common import merge_common_environments
 from apache_beam.runners.common import validate_pipeline_graph
 from apache_beam.runners.portability import portable_metrics
 from apache_beam.runners.portability.fn_api_runner import execution
@@ -221,7 +222,8 @@ class FnApiRunner(runner.PipelineRunner):
     ]
     if direct_options.direct_embed_docker_python:
       pipeline_proto = self.embed_default_docker_image(pipeline_proto)
-    pipeline_proto = self.resolve_any_environments(pipeline_proto)
+    pipeline_proto = merge_common_environments(
+        self.resolve_any_environments(pipeline_proto))
     stage_context, stages = self.create_stages(pipeline_proto)
     return self.run_stages(stage_context, stages)
 
