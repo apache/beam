@@ -19,10 +19,13 @@ package org.apache.beam.sdk.extensions.gcp.options;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThrows;
 
 import com.google.api.services.cloudresourcemanager.CloudResourceManager;
 import com.google.api.services.storage.model.Bucket;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.Random;
 import org.apache.beam.sdk.extensions.gcp.util.GcsUtil;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -54,18 +57,22 @@ public class GcpOptionsIT {
     GcsOptions gcsOptions = options.as(GcsOptions.class);
     GcsUtil gcsUtil = gcsOptions.getGcsUtil();
 
+    Random rand = new Random();
+    // Add a random number to the prefix to avoid collision if multiple test instances
+    // are run at the same time. To avoid too many dangling buckets if bucket removal fails,
+    // we limit the max number of possible bucket names in this test to 1000.
     String tempLocation =
         GcpOptions.GcpTempLocationFactory.tryCreateDefaultBucketWithPrefix(
-            options, crmClient, "gcp-options-it-");
+            options, crmClient, "gcp-options-it-" + rand.nextInt(1000) + "-");
 
     GcsPath gcsPath = GcsPath.fromUri(tempLocation);
-    System.out.println(gcsPath);
-
     Bucket bucket = gcsUtil.getBucket(gcsPath);
     assertNotNull(bucket);
     // verify the soft delete policy is disabled
     assertEquals(bucket.getSoftDeletePolicy().getRetentionDurationSeconds(), Long.valueOf(0L));
 
     gcsUtil.removeBucket(bucket);
+
+    assertThrows(FileNotFoundException.class, () -> gcsUtil.getBucket(gcsPath));
   }
 }
