@@ -199,6 +199,7 @@ ignore_identifiers = [
   'apache_beam.transforms.ptransform.PTransformWithSideInputs',
   'apache_beam.transforms.trigger._ParallelTriggerFn',
   'apache_beam.transforms.trigger.InMemoryUnmergedState',
+  'apache_beam.transforms.utils.BatchElements',
   'apache_beam.typehints.typehints.AnyTypeConstraint',
   'apache_beam.typehints.typehints.CompositeTypeHint',
   'apache_beam.typehints.typehints.TypeConstraint',

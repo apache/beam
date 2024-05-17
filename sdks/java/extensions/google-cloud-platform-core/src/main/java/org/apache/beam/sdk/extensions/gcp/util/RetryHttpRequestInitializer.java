@@ -32,6 +32,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -208,6 +209,8 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
 
   private Set<Integer> ignoredResponseCodes = new HashSet<>(DEFAULT_IGNORED_RESPONSE_CODES);
 
+  private Map<String, String> httpHeaders = null;
+
   public RetryHttpRequestInitializer() {
     this(Collections.emptyList());
   }
@@ -270,6 +273,10 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
     request.setUnsuccessfulResponseHandler(loggingHttpBackOffHandler);
     request.setIOExceptionHandler(loggingHttpBackOffHandler);
 
+    if (this.httpHeaders != null) {
+      request.getHeaders().putAll(this.httpHeaders);
+    }
+
     // Set response initializer
     if (responseInterceptor != null) {
       request.setResponseInterceptor(responseInterceptor);
@@ -283,5 +290,9 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
   /** @param writeTimeout in milliseconds. */
   public void setWriteTimeout(int writeTimeout) {
     this.writeTimeout = writeTimeout;
+  }
+
+  public void setHttpHeaders(Map<String, String> httpHeaders) {
+    this.httpHeaders = httpHeaders;
   }
 }

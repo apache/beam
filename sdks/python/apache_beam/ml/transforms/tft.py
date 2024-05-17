@@ -681,3 +681,25 @@ class HashStrings(TFTOperation):
             name=self.name)
     }
     return output_dict
+
+
+@register_input_dtype(str)
+class DeduplicateTensorPerRow(TFTOperation):
+  def __init__(self, columns: List[str], name: Optional[str] = None):
+    """ Deduplicates each row (0th dimension) of the provided tensor.
+
+    Args:
+      columns: A list of the columns to apply the transformation on.
+      name: optional. A name for this operation. 
+    """
+    self.name = name
+    super().__init__(columns)
+
+  def apply_transform(
+      self, data: common_types.TensorType,
+      output_col_name: str) -> Dict[str, common_types.TensorType]:
+    output_dict = {
+        output_col_name: tft.deduplicate_tensor_per_row(
+            input_tensor=data, name=self.name)
+    }
+    return output_dict

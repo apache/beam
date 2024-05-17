@@ -60,6 +60,7 @@ public class BigQueryIOTranslationTest {
     READ_TRANSFORM_SCHEMA_MAPPING.put("getQueryPriority", "query_priority");
     READ_TRANSFORM_SCHEMA_MAPPING.put("getQueryLocation", "query_location");
     READ_TRANSFORM_SCHEMA_MAPPING.put("getQueryTempDataset", "query_temp_dataset");
+    READ_TRANSFORM_SCHEMA_MAPPING.put("getQueryTempProject", "query_temp_project");
     READ_TRANSFORM_SCHEMA_MAPPING.put("getMethod", "method");
     READ_TRANSFORM_SCHEMA_MAPPING.put("getFormat", "format");
     READ_TRANSFORM_SCHEMA_MAPPING.put("getSelectedFields", "selected_fields");
