@@ -42,23 +42,23 @@ def _validate_batch_query_fn(query_fn, min_batch_size, max_batch_size):
 
 def _validate_bigquery_metadata(
     table_name, row_restriction_template, fields, condition_value_fn, query_fn):
-  if query_fn and bool(table_name or row_restriction_template or fields or
-                       condition_value_fn):
-    raise ValueError(
-        "Please provide either `query_fn` or the parameters "
-        "`table_name`, `row_restriction_template`, and `fields` "
-        "together.")
-  elif not query_fn and not (table_name and row_restriction_template and
-                             (fields or condition_value_fn)):
-    raise ValueError(
-        "Please provide either `query_fn` or the parameters "
-        "`table_name`, `row_restriction_template`, and"
-        "`fields/condition_value_fn` together.")
-  if not query_fn and ((fields and condition_value_fn) or
-                       (not fields and not condition_value_fn)):
-    raise ValueError(
-        "Please provide exactly one of `fields` or "
-        "`condition_value_fn`")
+  if query_fn:
+    if bool(table_name or row_restriction_template or fields or
+            condition_value_fn):
+      raise ValueError(
+          "Please provide either `query_fn` or the parameters `table_name`, "
+          "`row_restriction_template`, and `fields/condition_value_fn` "
+          "together.")
+  else:
+    if not (table_name and row_restriction_template):
+      raise ValueError(
+          "Please provide either `query_fn` or the parameters "
+          "`table_name`, `row_restriction_template` together.")
+    if ((fields and condition_value_fn) or
+        (not fields and not condition_value_fn)):
+      raise ValueError(
+          "Please provide exactly one of `fields` or "
+          "`condition_value_fn`")
 
 
 class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, List[Row]],
@@ -94,8 +94,8 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, List[Row]],
       column_names: Optional[List[str]] = None,
       condition_value_fn: Optional[ConditionValueFn] = None,
       query_fn: Optional[QueryFn] = None,
-      min_batch_size: Optional[int] = None,
-      max_batch_size: Optional[int] = None,
+      min_batch_size: int = 1,
+      max_batch_size: int = 10000,
       **kwargs,
   ):
     """
@@ -124,17 +124,17 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, List[Row]],
         placeholder `{}` of `WHERE` clause in the query.
       query_fn: (Optional[Callable[[beam.Row], str]]) A function that takes a
         `beam.Row` and returns a complete BigQuery SQL query string.
-      min_batch_size: (Optional[int]) Minimum number of rows to batch together
-        when querying BigQuery.
-      max_batch_size: (Optional[int]) Maximum number of rows to batch together.
+      min_batch_size (int): Minimum number of rows to batch together when
+        querying BigQuery. Defaults to 1 if `query_fn` is not specified.
+      max_batch_size (int): Maximum number of rows to batch together.
+        Defaults to 10,000 if `query_fn` is not specified.
       **kwargs: Additional keyword arguments to pass to `bigquery.Client`.
 
     Note:
-      * `min_batch_size` and `max_batch_size` won't have any effect if the
+      * `min_batch_size` and `max_batch_size` cannot be defined if the
         `query_fn` is provided.
       * Either `fields` or `condition_value_fn` must be provided for query
         construction if `query_fn` is not provided.
-      * If `query_fn` is provided, it overrides the default query construction.
       * Ensure appropriate permissions are granted for BigQuery access.
     """
     _validate_bigquery_metadata(
@@ -157,9 +157,8 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, List[Row]],
         (self.select_fields, self.table_name, self.row_restriction_template))
     self.kwargs = kwargs
     self._batching_kwargs = {}
-    if min_batch_size is not None:
+    if not query_fn:
       self._batching_kwargs['min_batch_size'] = min_batch_size
-    if max_batch_size is not None:
       self._batching_kwargs['max_batch_size'] = max_batch_size
 
   def __enter__(self):
@@ -235,11 +234,11 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, List[Row]],
       cache_keys = []
       for req in request:
         req_dict = req._asdict()
-        current_values = (
-            self.condition_value_fn(req) if self.condition_value_fn else
-            [req_dict[field] for field in self.fields])
-        key = ";".join(["%s"] * len(current_values))
         try:
+          current_values = (
+              self.condition_value_fn(req) if self.condition_value_fn else
+              [req_dict[field] for field in self.fields])
+          key = ";".join(["%s"] * len(current_values))
           cache_keys.extend([key % tuple(current_values)])
         except KeyError as e:
           raise KeyError(
