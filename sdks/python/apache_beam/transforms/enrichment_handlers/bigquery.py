@@ -94,8 +94,8 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, List[Row]],
       column_names: Optional[List[str]] = None,
       condition_value_fn: Optional[ConditionValueFn] = None,
       query_fn: Optional[QueryFn] = None,
-      min_batch_size: int = 1,
-      max_batch_size: int = 10000,
+      min_batch_size: Optional[int] = None,
+      max_batch_size: Optional[int] = None,
       **kwargs,
   ):
     """
@@ -158,8 +158,10 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, List[Row]],
     self.kwargs = kwargs
     self._batching_kwargs = {}
     if not query_fn:
-      self._batching_kwargs['min_batch_size'] = min_batch_size
-      self._batching_kwargs['max_batch_size'] = max_batch_size
+      self._batching_kwargs['min_batch_size'] = (
+          min_batch_size if min_batch_size else 1)
+      self._batching_kwargs['max_batch_size'] = (
+          max_batch_size if max_batch_size else 10000)
 
   def __enter__(self):
     self.client = bigquery.Client(project=self.project, **self.kwargs)
