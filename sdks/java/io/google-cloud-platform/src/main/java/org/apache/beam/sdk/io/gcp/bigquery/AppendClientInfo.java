@@ -145,7 +145,7 @@ abstract class AppendClientInfo {
             true,
             null,
             null,
-            -1);
+            null);
     return msg.toByteString();
   }
 
