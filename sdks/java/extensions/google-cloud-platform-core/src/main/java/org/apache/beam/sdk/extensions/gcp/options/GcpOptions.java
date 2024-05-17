@@ -393,13 +393,36 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
       return tempLocation;
     }
 
+    @VisibleForTesting
+    static ImmutableList<String> getDefaultBucketNameStubs(
+        PipelineOptions options, CloudResourceManager crmClient, String bucketNamePrefix) {
+      GcsOptions gcsOptions = options.as(GcsOptions.class);
+
+      final String projectId = gcsOptions.getProject();
+      checkArgument(!isNullOrEmpty(projectId), "--project is a required option.");
+
+      long projectNumber = 0L;
+      try {
+        projectNumber = getProjectNumber(projectId, crmClient);
+      } catch (IOException e) {
+        throw new RuntimeException("Unable to verify project with ID " + projectId, e);
+      }
+
+      String region = DEFAULT_REGION;
+      if (!isNullOrEmpty(gcsOptions.getZone())) {
+        region = getRegionFromZone(gcsOptions.getZone());
+      }
+
+      return ImmutableList.of(bucketNamePrefix, region, String.valueOf(projectNumber));
+    }
+
     /**
      * Creates a default bucket or verifies the existence and proper access control of an existing
      * default bucket. Returns the location if successful.
      */
     @VisibleForTesting
     static String tryCreateDefaultBucket(PipelineOptions options, CloudResourceManager crmClient) {
-      return tryCreateDefaultBucketWithPrefix(options, crmClient, "dataflow-staging-");
+      return tryCreateDefaultBucketWithPrefix(options, crmClient, "dataflow-staging");
     }
 
     @VisibleForTesting
@@ -411,22 +434,11 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
           isNullOrEmpty(gcsOptions.getDataflowKmsKey()),
           "Cannot create a default bucket when --dataflowKmsKey is set.");
 
-      final String projectId = gcsOptions.getProject();
-      checkArgument(!isNullOrEmpty(projectId), "--project is a required option.");
-
-      // Look up the project number, to create a default bucket with a stable
-      // name with no special characters.
-      long projectNumber = 0L;
-      try {
-        projectNumber = getProjectNumber(projectId, crmClient);
-      } catch (IOException e) {
-        throw new RuntimeException("Unable to verify project with ID " + projectId, e);
-      }
-      String region = DEFAULT_REGION;
-      if (!isNullOrEmpty(gcsOptions.getZone())) {
-        region = getRegionFromZone(gcsOptions.getZone());
-      }
-      final String bucketName = bucketNamePrefix + region + "-" + projectNumber;
+      final List<String> bucketNameStubs =
+          getDefaultBucketNameStubs(options, crmClient, bucketNamePrefix);
+      final String region = bucketNameStubs.get(1);
+      final long projectNumber = Long.parseLong(bucketNameStubs.get(2));
+      final String bucketName = String.join("-", bucketNameStubs);
       LOG.info("No tempLocation specified, attempting to use default bucket: {}", bucketName);
 
       // Disable soft delete policy for a bucket.
@@ -441,7 +453,7 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
       // Always try to create the bucket before checking access, so that we do not
       // race with other pipelines that may be attempting to do the same thing.
       try {
-        gcsOptions.getGcsUtil().createBucket(projectId, bucket);
+        gcsOptions.getGcsUtil().createBucket(gcsOptions.getProject(), bucket);
       } catch (FileAlreadyExistsException e) {
         LOG.debug("Bucket '{}'' already exists, verifying access.", bucketName);
       } catch (IOException e) {

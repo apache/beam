@@ -58,12 +58,28 @@ public class GcpOptionsIT {
     GcsUtil gcsUtil = gcsOptions.getGcsUtil();
 
     Random rand = new Random();
+    String bucketNamePrefix = "gcp-options-it-" + rand.nextInt(1);
+
+    String bucketName =
+        String.join(
+            "-",
+            GcpOptions.GcpTempLocationFactory.getDefaultBucketNameStubs(
+                options, crmClient, bucketNamePrefix));
+
+    // remove existing default bucket if any
+    try {
+      Bucket oldBucket = gcsUtil.getBucket(GcsPath.fromUri("gs://" + bucketName));
+      gcsUtil.removeBucket(oldBucket);
+    } catch (FileNotFoundException e) {
+      // the bucket to be created does not exist, which is good news
+    }
+
     // Add a random number to the prefix to avoid collision if multiple test instances
     // are run at the same time. To avoid too many dangling buckets if bucket removal fails,
     // we limit the max number of possible bucket names in this test to 1000.
     String tempLocation =
         GcpOptions.GcpTempLocationFactory.tryCreateDefaultBucketWithPrefix(
-            options, crmClient, "gcp-options-it-" + rand.nextInt(1000) + "-");
+            options, crmClient, bucketNamePrefix);
 
     GcsPath gcsPath = GcsPath.fromUri(tempLocation);
     Bucket bucket = gcsUtil.getBucket(gcsPath);
@@ -72,7 +88,6 @@ public class GcpOptionsIT {
     assertEquals(bucket.getSoftDeletePolicy().getRetentionDurationSeconds(), Long.valueOf(0L));
 
     gcsUtil.removeBucket(bucket);
-
     assertThrows(FileNotFoundException.class, () -> gcsUtil.getBucket(gcsPath));
   }
 }
