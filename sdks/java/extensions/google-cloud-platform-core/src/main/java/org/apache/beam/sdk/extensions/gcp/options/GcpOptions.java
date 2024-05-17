@@ -27,6 +27,7 @@ import com.google.api.client.util.Sleeper;
 import com.google.api.services.cloudresourcemanager.CloudResourceManager;
 import com.google.api.services.cloudresourcemanager.model.Project;
 import com.google.api.services.storage.model.Bucket;
+import com.google.api.services.storage.model.Bucket.SoftDeletePolicy;
 import com.google.auth.Credentials;
 import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.cloud.hadoop.util.ChainingHttpRequestInitializer;
@@ -398,6 +399,12 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
      */
     @VisibleForTesting
     static String tryCreateDefaultBucket(PipelineOptions options, CloudResourceManager crmClient) {
+      return tryCreateDefaultBucketWithPrefix(options, crmClient, "dataflow-staging-");
+    }
+
+    @VisibleForTesting
+    static String tryCreateDefaultBucketWithPrefix(
+        PipelineOptions options, CloudResourceManager crmClient, String bucketNamePrefix) {
       GcsOptions gcsOptions = options.as(GcsOptions.class);
 
       checkArgument(
@@ -419,9 +426,18 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
       if (!isNullOrEmpty(gcsOptions.getZone())) {
         region = getRegionFromZone(gcsOptions.getZone());
       }
-      final String bucketName = "dataflow-staging-" + region + "-" + projectNumber;
+      final String bucketName = bucketNamePrefix + region + "-" + projectNumber;
       LOG.info("No tempLocation specified, attempting to use default bucket: {}", bucketName);
-      Bucket bucket = new Bucket().setName(bucketName).setLocation(region);
+
+      // Disable soft delete policy for a bucket.
+      // Reference: https://cloud.google.com/storage/docs/soft-delete
+      SoftDeletePolicy softDeletePolicy = new SoftDeletePolicy().setRetentionDurationSeconds(0L);
+
+      Bucket bucket =
+          new Bucket()
+              .setName(bucketName)
+              .setLocation(region)
+              .setSoftDeletePolicy(softDeletePolicy);
       // Always try to create the bucket before checking access, so that we do not
       // race with other pipelines that may be attempting to do the same thing.
       try {
