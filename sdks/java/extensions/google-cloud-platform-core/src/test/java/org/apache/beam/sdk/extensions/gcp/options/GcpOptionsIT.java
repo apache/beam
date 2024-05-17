@@ -58,7 +58,10 @@ public class GcpOptionsIT {
     GcsUtil gcsUtil = gcsOptions.getGcsUtil();
 
     Random rand = new Random();
-    String bucketNamePrefix = "gcp-options-it-" + rand.nextInt(1);
+    // Add a random number to the prefix to avoid collision if multiple test instances
+    // are run at the same time. To avoid too many dangling buckets if bucket removal fails,
+    // we limit the max number of possible bucket names in this test to 1000.
+    String bucketNamePrefix = "gcp-options-it-" + rand.nextInt(1000);
 
     String bucketName =
         String.join(
@@ -74,9 +77,6 @@ public class GcpOptionsIT {
       // the bucket to be created does not exist, which is good news
     }
 
-    // Add a random number to the prefix to avoid collision if multiple test instances
-    // are run at the same time. To avoid too many dangling buckets if bucket removal fails,
-    // we limit the max number of possible bucket names in this test to 1000.
     String tempLocation =
         GcpOptions.GcpTempLocationFactory.tryCreateDefaultBucketWithPrefix(
             options, crmClient, bucketNamePrefix);
