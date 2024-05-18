@@ -178,7 +178,10 @@ public class BigQuerySinkMetrics {
     // for overall throttling time, used by runner for scaling decision
     Counter coarseCounter = BigQueryServicesImpl.StorageClientImpl.THROTTLING_MSECS;
     return new NestedCounter(
-        MetricName.named(METRICS_NAMESPACE, "nested"), fineCounter, coarseCounter);
+        MetricName.named(
+            METRICS_NAMESPACE, metricName.getName() + coarseCounter.getName().getName()),
+        fineCounter,
+        coarseCounter);
   }
 
   /**

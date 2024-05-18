@@ -264,11 +264,12 @@ public class BigQueryUtilTest {
     ReadableCounter counter2 = new ReadableCounter(name2);
     NestedCounter nested =
         new NestedCounter(MetricName.named(this.getClass(), "nested"), counter1, counter2);
+    counter1.inc();
     nested.inc();
     nested.inc(10);
     nested.dec();
     nested.dec(2);
-    assertEquals(8, counter1.getValue());
+    assertEquals(9, counter1.getValue());
     assertEquals(8, counter2.getValue());
   }
 }

@@ -168,7 +168,9 @@ public class BigQuerySinkMetricsTest {
     Counter appendRowsThrottleCounter =
         BigQuerySinkMetrics.throttledTimeCounter(BigQuerySinkMetrics.RpcMethod.APPEND_ROWS);
     appendRowsThrottleCounter.inc(1);
-    assertThat(appendRowsThrottleCounter.getName().getName(), equalTo("nested"));
+    assertThat(
+        appendRowsThrottleCounter.getName().getName(),
+        equalTo("ThrottledTime*rpc_method:APPEND_ROWS;throttling-msecs"));
 
     // check that both sub-counters have been incremented
     MetricName counterName =
