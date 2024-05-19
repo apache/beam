@@ -39,6 +39,7 @@ _LOGGER = logging.getLogger(__name__)
 try:
   from apache_beam.io.hadoopfilesystem import HadoopFileSystem
 except ModuleNotFoundError:
+  # optional file system packages are not installed.
   pass
 except ImportError as e:
   _LOGGER.warning("Failed to import HadoopFileSystem; loading of this filesystem will be skipped.", e)
@@ -48,6 +49,7 @@ try:
 except ModuleNotFoundError:
   pass
 except ImportError as e:
+  # optional file system packages are installed but failed to load.
   _LOGGER.warning("Failed to import LocalFileSystem; loading of this filesystem will be skipped.", e)
 
 try:
