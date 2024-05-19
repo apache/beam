@@ -43,7 +43,9 @@ except ModuleNotFoundError:
   pass
 except ImportError as e:
   _LOGGER.warning(
-      "Failed to import HadoopFileSystem; loading of this filesystem will be skipped.",
+      'Failed to import HadoopFileSystem; '
+      'loading of this filesystem will be skipped. '
+      'Error details: %s',
       e)
 
 try:
@@ -53,7 +55,9 @@ except ModuleNotFoundError:
 except ImportError as e:
   # optional file system packages are installed but failed to load.
   _LOGGER.warning(
-      "Failed to import LocalFileSystem; loading of this filesystem will be skipped.",
+      'Failed to import LocalFileSystem; '
+      'loading of this filesystem will be skipped. '
+      'Error details: %s',
       e)
 
 try:
@@ -62,7 +66,9 @@ except ModuleNotFoundError:
   pass
 except ImportError as e:
   _LOGGER.warning(
-      "Failed to import GCSFileSystem; loading of this filesystem will be skipped.",
+      'Failed to import GCSFileSystem; '
+      'loading of this filesystem will be skipped. '
+      'Error details: %s',
       e)
 
 try:
@@ -71,7 +77,9 @@ except ModuleNotFoundError:
   pass
 except ImportError as e:
   _LOGGER.warning(
-      "Failed to import S3FileSystem; loading of this filesystem will be skipped.",
+      'Failed to import S3FileSystem; '
+      'loading of this filesystem will be skipped. '
+      'Error details: %s',
       e)
 
 try:
@@ -80,7 +88,9 @@ except ModuleNotFoundError:
   pass
 except ImportError as e:
   _LOGGER.warning(
-      "Failed to import BlobStorageFileSystem; loading of this filesystem will be skipped.",
+      'Failed to import BlobStorageFileSystem; '
+      'loading of this filesystem will be skipped. '
+      'Error details: %s',
       e)
 
 # pylint: enable=wrong-import-position, unused-import
