@@ -42,7 +42,9 @@ except ModuleNotFoundError:
   # optional file system packages are not installed.
   pass
 except ImportError as e:
-  _LOGGER.warning("Failed to import HadoopFileSystem; loading of this filesystem will be skipped.", e)
+  _LOGGER.warning(
+      "Failed to import HadoopFileSystem; loading of this filesystem will be skipped.",
+      e)
 
 try:
   from apache_beam.io.localfilesystem import LocalFileSystem
@@ -50,28 +52,36 @@ except ModuleNotFoundError:
   pass
 except ImportError as e:
   # optional file system packages are installed but failed to load.
-  _LOGGER.warning("Failed to import LocalFileSystem; loading of this filesystem will be skipped.", e)
+  _LOGGER.warning(
+      "Failed to import LocalFileSystem; loading of this filesystem will be skipped.",
+      e)
 
 try:
   from apache_beam.io.gcp.gcsfilesystem import GCSFileSystem
 except ModuleNotFoundError:
   pass
 except ImportError as e:
-  _LOGGER.warning("Failed to import GCSFileSystem; loading of this filesystem will be skipped.", e)
+  _LOGGER.warning(
+      "Failed to import GCSFileSystem; loading of this filesystem will be skipped.",
+      e)
 
 try:
   from apache_beam.io.aws.s3filesystem import S3FileSystem
 except ModuleNotFoundError:
   pass
 except ImportError as e:
-  _LOGGER.warning("Failed to import S3FileSystem; loading of this filesystem will be skipped.", e)
+  _LOGGER.warning(
+      "Failed to import S3FileSystem; loading of this filesystem will be skipped.",
+      e)
 
 try:
   from apache_beam.io.azure.blobstoragefilesystem import BlobStorageFileSystem
 except ModuleNotFoundError:
   pass
 except ImportError as e:
-  _LOGGER.warning("Failed to import BlobStorageFileSystem; loading of this filesystem will be skipped.", e)
+  _LOGGER.warning(
+      "Failed to import BlobStorageFileSystem; loading of this filesystem will be skipped.",
+      e)
 
 # pylint: enable=wrong-import-position, unused-import
 
