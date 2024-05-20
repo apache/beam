@@ -108,7 +108,6 @@ public class IcebergIOIT implements Serializable {
 
     catalogHadoopConf = new Configuration();
     catalogHadoopConf.set("fs.gs.project.id", options.getProject());
-    catalogHadoopConf.set("fs.gs.auth.type", "SERVICE_ACCOUNT_JSON_KEYFILE");
     catalogHadoopConf.set(
         "fs.gs.auth.service.account.json.keyfile", System.getenv("GOOGLE_APPLICATION_CREDENTIALS"));
   }
