@@ -825,7 +825,8 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
     }
 
     boolean useAlts = options.as(ExpansionServiceOptions.class).getUseAltsServer();
-    ServerBuilder serverBuilder = useAlts ? AltsServerBuilder.forPort(port) : ServerBuilder.forPort(port);
+    ServerBuilder serverBuilder =
+        useAlts ? AltsServerBuilder.forPort(port) : ServerBuilder.forPort(port);
 
     if (useAlts) {
       LOG.info("Running with Google ALTS authentication.");
