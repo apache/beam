@@ -651,9 +651,19 @@ class BigQueryWrapper(object):
           job_reference.projectId, job_reference.jobId, job_reference.location)
       logging.info('Job %s status: %s', job.id, job.status.state)
       if job.status.state == 'DONE' and job.status.errorResult:
-        raise RuntimeError(
-            'BigQuery job {} failed. Error Result: {}'.format(
-                job_reference.jobId, job.status.errorResult))
+        if 'Retrying may solve the problem.' in job.status.errorResult.message:
+          logging.info(
+              'BigQuery job %s failed but can be retried. '
+              'Error Result: %s',
+              job_reference.jobId,
+              job.status.errorResult)
+          time.sleep(sleep_duration_sec)
+          if max_retries != 0 and retry >= max_retries:
+            raise RuntimeError('The maximum number of retries has been reached')
+        else:
+          raise RuntimeError(
+              'BigQuery job {} failed. Error Result: {}'.format(
+                  job_reference.jobId, job.status.errorResult))
       elif job.status.state == 'DONE':
         return True
       else:
