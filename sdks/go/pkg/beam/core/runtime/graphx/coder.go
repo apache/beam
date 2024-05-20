@@ -16,6 +16,7 @@
 package graphx
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -26,8 +27,10 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/protox"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/encoding/prototext"
 )
 
 const (
@@ -286,6 +289,7 @@ func (b *CoderUnmarshaller) makeCoder(id string, c *pipepb.Coder) (*coder.Coder,
 			cc := &coder.Coder{Kind: coder.Custom, T: t, Custom: custom}
 			return cc, nil
 		case urnBytesCoder, urnStringCoder: // implicitly length prefixed types.
+			log.Warnf(context.TODO(), "length prefix byte or string coder! id: %v raw: %v sub: %v", id, prototext.Format(c), prototext.Format(sub))
 			return b.makeCoder(components[0], sub)
 		default:
 			// Handle Length prefixing dictated by the runner.
