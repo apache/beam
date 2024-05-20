@@ -97,7 +97,7 @@ public abstract class IcebergSchemaTransformCatalogConfig {
           CatalogUtil.ICEBERG_CATALOG_TYPE_REST);
 
   public void validate() {
-    if (Strings.isNullOrEmpty(getCatalogType())) {
+    if (!Strings.isNullOrEmpty(getCatalogType())) {
       checkArgument(
           VALID_CATALOG_TYPES.contains(Preconditions.checkArgumentNotNull(getCatalogType())),
           "Invalid catalog type. Please pick one of %s",
