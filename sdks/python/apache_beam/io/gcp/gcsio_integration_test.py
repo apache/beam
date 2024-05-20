@@ -36,8 +36,8 @@ import mock
 import pytest
 
 from apache_beam.io.filesystems import FileSystems
-from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.options.pipeline_options import GoogleCloudOptions
+from apache_beam.testing.test_pipeline import TestPipeline
 
 try:
   from apache_beam.io.gcp import gcsio
@@ -155,8 +155,9 @@ class GcsIOIntegrationTest(unittest.TestCase):
     import random
     from hashlib import md5
     # Add a random number to avoid collision if multiple test instances
-    # are run at the same time. To avoid too many dangling buckets if bucket removal fails,
-    # we limit the max number of possible bucket names in this test to 1000.
+    # are run at the same time. To avoid too many dangling buckets if bucket
+    # removal fails, we limit the max number of possible bucket names in this
+    # test to 1000.
     overridden_bucket_name = 'gcsio-it-%d-%s-%s' % (
         random.randint(0, 999),
         google_cloud_options.region,
@@ -172,8 +173,8 @@ class GcsIOIntegrationTest(unittest.TestCase):
     bucket = gcsio.get_or_create_default_gcs_bucket(google_cloud_options)
     self.assertIsNotNone(bucket)
 
-    # verify soft delete policy is disabled by default in the default bucket after
-    # creation
+    # verify soft delete policy is disabled by default in the default bucket
+    # after creation
     self.assertEqual(bucket.soft_delete_policy.retention_duration_seconds, 0)
     bucket.delete()
 

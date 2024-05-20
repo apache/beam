@@ -595,7 +595,8 @@ class TestGCSIO(unittest.TestCase):
 
     import json
     request_data_json = json.loads(actual_request_data)
-    # verify soft delete policy is disabled by default in the bucket creation request
+    # verify soft delete policy is disabled by default in the bucket creation
+    # request
     self.assertEqual(
         request_data_json['softDeletePolicy']['retentionDurationSeconds'], 0)
 

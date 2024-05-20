@@ -173,7 +173,8 @@ class GcsIO(object):
 
     try:
       bucket = self.client.bucket(bucket_name)
-      bucket.soft_delete_policy.retention_duration_seconds = soft_delete_retention_duration_seconds
+      bucket.soft_delete_policy.retention_duration_seconds = (
+          soft_delete_retention_duration_seconds)
       bucket = self.client.create_bucket(
           bucket_or_name=bucket,
           project=project,
