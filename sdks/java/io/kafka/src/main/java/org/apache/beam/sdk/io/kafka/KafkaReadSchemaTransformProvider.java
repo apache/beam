@@ -211,7 +211,7 @@ public class KafkaReadSchemaTransformProvider
         beamSchema = Schema.builder().addField("payload", Schema.FieldType.BYTES).build();
         valueMapper = getRawBytesToRowFunction(beamSchema);
       } else if ("PROTO".equals(format)) {
-        String fileDescriptorPath = checkArgumentNotNull(configuration.getFileDescriptorPath());
+        String fileDescriptorPath = configuration.getFileDescriptorPath();
         String messageName = checkArgumentNotNull(configuration.getMessageName());
         if (fileDescriptorPath != null) {
           beamSchema = ProtoByteUtils.getBeamSchemaFromProto(fileDescriptorPath, messageName);
