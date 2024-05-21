@@ -38,10 +38,10 @@ on:
         description: Whether to stage the python artifacts into https://dist.apache.org/repos/dist/dev/beam/
         required: true
         default: 'no'
-      CREATE_BEAM_SITE_PR:
-        description: Whether to create the documentation update PR against apache/beam-site.
-        required: true
-        default: 'no'
+    #  CREATE_BEAM_SITE_PR:
+    #    description: Whether to create the documentation update PR against apache/beam-site.
+    #    required: true
+    #    default: 'no'
       BUILD_AND_STAGE_PRISM:
         description: Whether to build signed Prism artifacts and stage them in the draft release.
         required: true
@@ -287,7 +287,7 @@ jobs:
         run: ./gradlew :pushAllDockerImages -PisRelease -Pdocker-pull-licenses -Pprune-images -Pdocker-tag=${{ github.event.inputs.RELEASE }}rc${{ github.event.inputs.RC }} -Pjava11Home=${{steps.export-java11.outputs.JAVA11_HOME}} --no-daemon --no-parallel
 
   beam_site_pr:
-    if: ${{github.event.inputs.CREATE_BEAM_SITE_PR == 'yes'}}
+    if: ${{github.event.inputs.STAGE_PYTHON_ARTIFACTS == 'yes'}}
     # Note: if this ever changes to self-hosted, remove the "Remove default github maven configuration" step
     runs-on: ubuntu-latest
     env:
