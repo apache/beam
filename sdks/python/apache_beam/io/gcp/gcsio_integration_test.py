@@ -172,6 +172,7 @@ class GcsIOIntegrationTest(unittest.TestCase):
 
     bucket = gcsio.get_or_create_default_gcs_bucket(google_cloud_options)
     self.assertIsNotNone(bucket)
+    self.assertEqual(bucket.name, overridden_bucket_name)
 
     # verify soft delete policy is disabled by default in the default bucket
     # after creation
