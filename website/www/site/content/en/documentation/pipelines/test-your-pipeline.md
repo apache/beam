@@ -107,8 +107,8 @@ Any Java code that uses `PAssert` must link in `JUnit` and `Hamcrest`. If you're
 {{< highlight java >}}
 <dependency>
     <groupId>org.hamcrest</groupId>
-    <artifactId>hamcrest-all</artifactId>
-    <version>1.3</version>
+    <artifactId>hamcrest</artifactId>
+    <version>2.2</version>
     <scope>test</scope>
 </dependency>
 {{< /highlight >}}

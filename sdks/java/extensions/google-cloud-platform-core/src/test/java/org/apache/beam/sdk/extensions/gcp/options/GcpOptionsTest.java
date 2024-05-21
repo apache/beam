@@ -21,10 +21,13 @@ import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.api.services.cloudresourcemanager.CloudResourceManager;
@@ -56,6 +59,7 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestRule;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
@@ -230,6 +234,14 @@ public class GcpOptionsTest {
 
       String bucket = GcpTempLocationFactory.tryCreateDefaultBucket(options, mockCrmClient);
       assertEquals("gs://dataflow-staging-us-north1-1/temp/", bucket);
+
+      ArgumentCaptor<Bucket> bucketArg = ArgumentCaptor.forClass(Bucket.class);
+      verify(mockGcsUtil, times(1)).createBucket(anyString(), bucketArg.capture());
+
+      // verify that the soft delete policy is disabled in the default bucket
+      assertEquals(
+          bucketArg.getValue().getSoftDeletePolicy().getRetentionDurationSeconds(),
+          Long.valueOf(0L));
     }
 
     @Test

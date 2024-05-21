@@ -112,8 +112,7 @@ public final class StreamingApplianceWorkCommitter implements WorkCommitter {
       try {
         commit = commitQueue.take();
       } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        continue;
+        return;
       }
       while (commit != null) {
         ComputationState computationState = commit.computationState();
