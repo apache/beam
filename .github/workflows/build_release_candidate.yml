@@ -513,6 +513,7 @@ jobs:
             fi
           done
           cd $ROOT
+          echo `which jq`
 
           # svn co https://dist.apache.org/repos/dist/dev/beam
           # mkdir -p "${SVN_ARTIFACTS_DIR}"
