@@ -466,7 +466,7 @@ jobs:
 
           echo "got all targets"
           # Turn the newline separated list into an array.
-          IFS=$'\n' read -d '' -r -a OS_ARCH_ARRAY <<<"$GO_ALL_TARGETS"
+          IFS=$'\n' read -d '' -r OS_ARCH_ARRAY <<<"$GO_ALL_TARGETS"
 
           echo "split all targets"
           # Declare which supported pairs we want to build.
