@@ -412,6 +412,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: "v${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
+          repository: apache/beam
       - name: Mask Apache Password
         run: |
           # Workaround for Actions bug - https://github.com/actions/runner/issues/643
@@ -449,10 +452,12 @@ jobs:
         run: |
           # Store a reference so we can get back to the start.
           ROOT_DIR=`pwd`
+          echo $ROOT_DIR
           # Navigate to the prism command directory.
           cd beam/sdks/go/cmd/prism
           # Store a reference to where we're building from.
           BUILD_DIR=`pwd`
+          echo $BUILD_DIR
 
           # Only build supported Go platforms
           GO_ALL_TARGETS=$(go tool dist list)
