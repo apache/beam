@@ -42,6 +42,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.apache.beam.sdk.extensions.gcp.auth.CredentialFactory;
@@ -49,6 +50,7 @@ import org.apache.beam.sdk.extensions.gcp.auth.GcpCredentialFactory;
 import org.apache.beam.sdk.extensions.gcp.auth.NullCredentialInitializer;
 import org.apache.beam.sdk.extensions.gcp.storage.PathValidator;
 import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
+import org.apache.beam.sdk.extensions.gcp.util.GcsUtil;
 import org.apache.beam.sdk.extensions.gcp.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
@@ -390,7 +392,39 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
               e);
         }
       }
+
+      if (isSoftDeletePolicyEnabled(options, tempLocation)) {
+        LOG.warn(
+            String.format(
+                "The bucket of gcpTempLocation %s has soft delete policy enabled."
+                    + " Dataflow jobs use Cloud Storage to store temporary files during pipeline"
+                    + " execution. To avoid being billed for unnecessary storage costs, turn off the soft"
+                    + " delete feature on buckets that your Dataflow jobs use for temporary storage."
+                    + " For more information, see"
+                    + " https://cloud.google.com/storage/docs/use-soft-delete#remove-soft-delete-policy.",
+                tempLocation));
+      }
+
       return tempLocation;
+    }
+
+    @VisibleForTesting
+    static boolean isSoftDeletePolicyEnabled(PipelineOptions options, String tempLocation) {
+      GcsOptions gcsOptions = options.as(GcsOptions.class);
+      GcsUtil gcsUtil = gcsOptions.getGcsUtil();
+      try {
+        SoftDeletePolicy policy =
+            Objects.requireNonNull(gcsUtil.getBucket(GcsPath.fromUri(tempLocation)))
+                .getSoftDeletePolicy();
+        if (policy != null && policy.getRetentionDurationSeconds() > 0) {
+          return true;
+        }
+      } catch (Exception e) {
+        LOG.warn(
+            String.format(
+                "Failed to access bucket for gcpTempLocation: %s.%nCaused by %s", tempLocation, e));
+      }
+      return false;
     }
 
     @VisibleForTesting
