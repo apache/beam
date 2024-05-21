@@ -64,7 +64,6 @@ _LOGGER = logging.getLogger(__name__)
 _DEFAULT_SIZE_FLUSH_THRESHOLD = 10 << 20  # 10MB
 _DEFAULT_TIME_FLUSH_THRESHOLD_MS = 0  # disable time-based flush by default
 _FLUSH_MAX_SIZE = (2 << 30) - 100  # 2GB less some overhead, protobuf/grpc limit
-
 # Keep a set of completed instructions to discard late received data. The set
 # can have up to _MAX_CLEANED_INSTRUCTIONS items. See _GrpcDataChannel.
 _MAX_CLEANED_INSTRUCTIONS = 10000
@@ -148,14 +147,26 @@ class SizeBasedBufferingClosableOutputStream(ClosableOutputStream):
   def flush(self):
     # type: () -> None
     if self._flush_callback:
-      if self.size() > _FLUSH_MAX_SIZE:
+      size = self.size()
+      if size > _FLUSH_MAX_SIZE:
         raise ValueError(
-            f'Buffer size {self.size()} exceeds GRPC limit {_FLUSH_MAX_SIZE}. '
+            f'Buffer size {size} exceeds GRPC limit {_FLUSH_MAX_SIZE}. '
             'This is likely due to a single element that is too large. '
             'To resolve, prefer multiple small elements over single large '
             'elements in PCollections. If needed, store large blobs in '
             'external storage systems, and use PCollections to pass their '
             'metadata, or use a custom coder that reduces the element\'s size.')
+      if size > 536870912:
+        _LOGGER.warning(
+            f'Data output stream buffer size {size} exceeds 512 MB. '
+            'This is likely due to a large element in a PCollection. '
+            'Large elements increase pipeline RAM requirements and '
+            'can cause runtime errors. '
+            'Prefer multiple small elements over single large '
+            'elements in PCollections. If needed, store large blobs in '
+            'external storage systems, and use PCollections to pass their '
+            'metadata, or use a custom coder that reduces the element\'s size.')
+
       self._flush_callback(self.get())
       self._clear()
 
