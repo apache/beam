@@ -23,7 +23,6 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -37,9 +36,8 @@ import org.apache.beam.sdk.values.TupleTagList;
  * writes, use {@link StorageApiWritesShardedRecords} or {@link StorageApiWriteUnshardedRecords}.
  */
 @SuppressWarnings("FutureReturnValueIgnored")
-public class StorageApiWriteRecordsInconsistent<DestinationT, ElementT>
-    extends PTransform<
-        PCollection<KV<DestinationT, KV<ElementT, StorageApiWritePayload>>>, PCollectionTuple> {
+public class StorageApiWriteRecordsInconsistent256<DestinationT, ElementT>
+    extends PTransform<PCollection<KV<DestinationT, StorageApiWritePayload>>, PCollectionTuple> {
   private final StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations;
   private final BigQueryServices bqServices;
   private final TupleTag<BigQueryStorageApiInsertError> failedRowsTag;
@@ -53,9 +51,8 @@ public class StorageApiWriteRecordsInconsistent<DestinationT, ElementT>
   private final @Nullable String kmsKey;
   private final boolean usesCdc;
   private final AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation;
-  private final @Nullable SerializableFunction<ElementT, TableRow> formatRecordOnFailureFunction;
 
-  public StorageApiWriteRecordsInconsistent(
+  public StorageApiWriteRecordsInconsistent256(
       StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations,
       BigQueryServices bqServices,
       TupleTag<BigQueryStorageApiInsertError> failedRowsTag,
@@ -67,8 +64,7 @@ public class StorageApiWriteRecordsInconsistent<DestinationT, ElementT>
       BigQueryIO.Write.CreateDisposition createDisposition,
       @Nullable String kmsKey,
       boolean usesCdc,
-      AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation,
-      @Nullable SerializableFunction<ElementT, TableRow> formatRecordOnFailureFunction) {
+      AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation) {
     this.dynamicDestinations = dynamicDestinations;
     this.bqServices = bqServices;
     this.failedRowsTag = failedRowsTag;
@@ -81,12 +77,10 @@ public class StorageApiWriteRecordsInconsistent<DestinationT, ElementT>
     this.kmsKey = kmsKey;
     this.usesCdc = usesCdc;
     this.defaultMissingValueInterpretation = defaultMissingValueInterpretation;
-    this.formatRecordOnFailureFunction = formatRecordOnFailureFunction;
   }
 
   @Override
-  public PCollectionTuple expand(
-      PCollection<KV<DestinationT, KV<ElementT, StorageApiWritePayload>>> input) {
+  public PCollectionTuple expand(PCollection<KV<DestinationT, StorageApiWritePayload>> input) {
     String operationName = input.getName() + "/" + getName();
     BigQueryOptions bigQueryOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
     // Append records to the Storage API streams.
@@ -98,7 +92,7 @@ public class StorageApiWriteRecordsInconsistent<DestinationT, ElementT>
         input.apply(
             "Write Records",
             ParDo.of(
-                    new StorageApiWriteUnshardedRecords.WriteRecordsDoFn<>(
+                    new StorageApiWriteUnshardedRecords256.WriteRecordsDoFn<>(
                         operationName,
                         dynamicDestinations,
                         bqServices,
@@ -114,8 +108,7 @@ public class StorageApiWriteRecordsInconsistent<DestinationT, ElementT>
                         createDisposition,
                         kmsKey,
                         usesCdc,
-                        defaultMissingValueInterpretation,
-                        formatRecordOnFailureFunction))
+                        defaultMissingValueInterpretation))
                 .withOutputTags(finalizeTag, tupleTagList)
                 .withSideInputs(dynamicDestinations.getSideInputs()));
     result.get(failedRowsTag).setCoder(failedRowsCoder);

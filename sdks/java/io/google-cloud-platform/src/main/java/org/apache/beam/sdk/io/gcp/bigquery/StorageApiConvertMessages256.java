@@ -45,31 +45,27 @@ import org.joda.time.Instant;
 /**
  * A transform that converts messages to protocol buffers in preparation for writing to BigQuery.
  */
-public class StorageApiConvertMessages<DestinationT, ElementT>
+public class StorageApiConvertMessages256<DestinationT, ElementT>
     extends PTransform<PCollection<KV<DestinationT, ElementT>>, PCollectionTuple> {
   private final StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations;
   private final BigQueryServices bqServices;
   private final TupleTag<BigQueryStorageApiInsertError> failedWritesTag;
-  private final TupleTag<KV<DestinationT, KV<ElementT, StorageApiWritePayload>>>
-      successfulWritesTag;
+  private final TupleTag<KV<DestinationT, StorageApiWritePayload>> successfulWritesTag;
   private final Coder<BigQueryStorageApiInsertError> errorCoder;
-  private final Coder<KV<DestinationT, KV<ElementT, StorageApiWritePayload>>> successCoder;
+  private final Coder<KV<DestinationT, StorageApiWritePayload>> successCoder;
 
   private final @Nullable SerializableFunction<ElementT, RowMutationInformation> rowMutationFn;
   private final BadRecordRouter badRecordRouter;
 
-  private final @Nullable SerializableFunction<ElementT, TableRow> formatRecordOnFailureFunction;
-
-  public StorageApiConvertMessages(
+  public StorageApiConvertMessages256(
       StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations,
       BigQueryServices bqServices,
       TupleTag<BigQueryStorageApiInsertError> failedWritesTag,
-      TupleTag<KV<DestinationT, KV<ElementT, StorageApiWritePayload>>> successfulWritesTag,
+      TupleTag<KV<DestinationT, StorageApiWritePayload>> successfulWritesTag,
       Coder<BigQueryStorageApiInsertError> errorCoder,
-      Coder<KV<DestinationT, KV<ElementT, StorageApiWritePayload>>> successCoder,
+      Coder<KV<DestinationT, StorageApiWritePayload>> successCoder,
       @Nullable SerializableFunction<ElementT, RowMutationInformation> rowMutationFn,
-      BadRecordRouter badRecordRouter,
-      @Nullable SerializableFunction<ElementT, TableRow> formatRecordOnFailureFunction) {
+      BadRecordRouter badRecordRouter) {
     this.dynamicDestinations = dynamicDestinations;
     this.bqServices = bqServices;
     this.failedWritesTag = failedWritesTag;
@@ -78,7 +74,6 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
     this.successCoder = successCoder;
     this.rowMutationFn = rowMutationFn;
     this.badRecordRouter = badRecordRouter;
-    this.formatRecordOnFailureFunction = formatRecordOnFailureFunction;
   }
 
   @Override
@@ -97,8 +92,7 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
                         successfulWritesTag,
                         rowMutationFn,
                         badRecordRouter,
-                        input.getCoder(),
-                        formatRecordOnFailureFunction))
+                        input.getCoder()))
                 .withOutputTags(
                     successfulWritesTag,
                     TupleTagList.of(ImmutableList.of(failedWritesTag, BAD_RECORD_TAG)))
@@ -110,31 +104,26 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
   }
 
   public static class ConvertMessagesDoFn<DestinationT extends @NonNull Object, ElementT>
-      extends DoFn<
-          KV<DestinationT, ElementT>, KV<DestinationT, KV<ElementT, StorageApiWritePayload>>> {
+      extends DoFn<KV<DestinationT, ElementT>, KV<DestinationT, StorageApiWritePayload>> {
     private final StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations;
     private TwoLevelMessageConverterCache<DestinationT, ElementT> messageConverters;
     private final BigQueryServices bqServices;
     private final TupleTag<BigQueryStorageApiInsertError> failedWritesTag;
-    private final TupleTag<KV<DestinationT, KV<ElementT, StorageApiWritePayload>>>
-        successfulWritesTag;
+    private final TupleTag<KV<DestinationT, StorageApiWritePayload>> successfulWritesTag;
     private final @Nullable SerializableFunction<ElementT, RowMutationInformation> rowMutationFn;
     private final BadRecordRouter badRecordRouter;
     Coder<KV<DestinationT, ElementT>> elementCoder;
     private transient @Nullable DatasetService datasetServiceInternal = null;
-
-    private final @Nullable SerializableFunction<ElementT, TableRow> formatRecordOnFailureFunction;
 
     ConvertMessagesDoFn(
         StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations,
         BigQueryServices bqServices,
         String operationName,
         TupleTag<BigQueryStorageApiInsertError> failedWritesTag,
-        TupleTag<KV<DestinationT, KV<ElementT, StorageApiWritePayload>>> successfulWritesTag,
+        TupleTag<KV<DestinationT, StorageApiWritePayload>> successfulWritesTag,
         @Nullable SerializableFunction<ElementT, RowMutationInformation> rowMutationFn,
         BadRecordRouter badRecordRouter,
-        Coder<KV<DestinationT, ElementT>> elementCoder,
-        @Nullable SerializableFunction<ElementT, TableRow> formatRecordOnFailureFunction) {
+        Coder<KV<DestinationT, ElementT>> elementCoder) {
       this.dynamicDestinations = dynamicDestinations;
       this.messageConverters = new TwoLevelMessageConverterCache<>(operationName);
       this.bqServices = bqServices;
@@ -143,7 +132,6 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
       this.rowMutationFn = rowMutationFn;
       this.badRecordRouter = badRecordRouter;
       this.elementCoder = elementCoder;
-      this.formatRecordOnFailureFunction = formatRecordOnFailureFunction;
     }
 
     private DatasetService getDatasetService(PipelineOptions pipelineOptions) throws IOException {
@@ -189,16 +177,11 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
             messageConverter
                 .toMessage(element.getValue(), rowMutationInformation)
                 .withTimestamp(timestamp);
-        o.get(successfulWritesTag)
-            .output(KV.of(element.getKey(), KV.of(element.getValue(), payload)));
+        o.get(successfulWritesTag).output(KV.of(element.getKey(), payload));
       } catch (TableRowToStorageApiProto.SchemaConversionException conversionException) {
         TableRow tableRow;
         try {
-          if (formatRecordOnFailureFunction != null) {
-            tableRow = formatRecordOnFailureFunction.apply(element.getValue());
-          } else {
-            tableRow = messageConverter.toTableRow(element.getValue());
-          }
+          tableRow = messageConverter.toTableRow(element.getValue());
         } catch (Exception e) {
           badRecordRouter.route(o, element, elementCoder, e, "Unable to convert value to TableRow");
           return;

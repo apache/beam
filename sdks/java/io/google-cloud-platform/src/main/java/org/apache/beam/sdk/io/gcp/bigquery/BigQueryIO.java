@@ -104,6 +104,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.PassThroughThenCleanup.CleanupOperati
 import org.apache.beam.sdk.io.gcp.bigquery.PassThroughThenCleanup.ContextContainer;
 import org.apache.beam.sdk.io.gcp.bigquery.RowWriterFactory.OutputType;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
@@ -3838,12 +3839,41 @@ public class BigQueryIO {
         if (numShards == 0) {
           enableAutoSharding = true;
         }
+        if (StreamingOptions.updateCompatibilityVersionLessThan(
+            input.getPipeline().getOptions(), "2.57.0")) {
+          if (getFormatRecordOnFailureFunction() != null) {
+            throw new IllegalArgumentException(
+                "Formatting records on Failure is not supported on Beam Versions Less than 2.57");
+          }
+          StorageApiLoads256<DestinationT, T> legacy =
+              new StorageApiLoads256<DestinationT, T>(
+                  destinationCoder,
+                  storageApiDynamicDestinations,
+                  getRowMutationInformationFn(),
+                  getCreateDisposition(),
+                  getKmsKey(),
+                  getStorageApiTriggeringFrequency(bqOptions),
+                  getBigQueryServices(),
+                  getStorageApiNumStreams(bqOptions),
+                  method == Method.STORAGE_API_AT_LEAST_ONCE,
+                  enableAutoSharding,
+                  getAutoSchemaUpdate(),
+                  getIgnoreUnknownValues(),
+                  getPropagateSuccessfulStorageApiWrites(),
+                  getRowMutationInformationFn() != null,
+                  getDefaultMissingValueInterpretation(),
+                  getBadRecordRouter(),
+                  getBadRecordErrorHandler());
+          return input.apply("StorageApiLoads", legacy);
+        }
 
         StorageApiLoads<DestinationT, T> storageApiLoads =
             new StorageApiLoads<>(
                 destinationCoder,
+                elementCoder,
                 storageApiDynamicDestinations,
                 getRowMutationInformationFn(),
+                getFormatRecordOnFailureFunction(),
                 getCreateDisposition(),
                 getKmsKey(),
                 getStorageApiTriggeringFrequency(bqOptions),

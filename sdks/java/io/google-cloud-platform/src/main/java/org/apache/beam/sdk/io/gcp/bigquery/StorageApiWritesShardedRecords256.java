@@ -79,7 +79,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Max;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
@@ -113,11 +112,12 @@ import org.slf4j.LoggerFactory;
   // errorprone is released (2.11.0)
   "unused"
 })
-public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object, ElementT>
+public class StorageApiWritesShardedRecords256<DestinationT extends @NonNull Object, ElementT>
     extends PTransform<
-        PCollection<KV<ShardedKey<DestinationT>, Iterable<KV<ElementT, StorageApiWritePayload>>>>,
+        PCollection<KV<ShardedKey<DestinationT>, Iterable<StorageApiWritePayload>>>,
         PCollectionTuple> {
-  private static final Logger LOG = LoggerFactory.getLogger(StorageApiWritesShardedRecords.class);
+  private static final Logger LOG =
+      LoggerFactory.getLogger(StorageApiWritesShardedRecords256.class);
   private static final Duration DEFAULT_STREAM_IDLE_TIME = Duration.standardHours(1);
 
   private final StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations;
@@ -129,8 +129,6 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
   private final boolean autoUpdateSchema;
   private final boolean ignoreUnknownValues;
   private final AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation;
-
-  private final @Nullable SerializableFunction<ElementT, TableRow> formatRecordOnFailureFunction;
 
   private final Duration streamIdleTime = DEFAULT_STREAM_IDLE_TIME;
   private final TupleTag<BigQueryStorageApiInsertError> failedRowsTag;
@@ -150,18 +148,12 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
     long tryIteration = 0;
     ProtoRows protoRows;
 
-    List<ElementT> originalElements;
-
     List<org.joda.time.Instant> timestamps;
 
     AppendRowsContext(
-        ShardedKey<DestinationT> key,
-        ProtoRows protoRows,
-        List<ElementT> originalElements,
-        List<org.joda.time.Instant> timestamps) {
+        ShardedKey<DestinationT> key, ProtoRows protoRows, List<org.joda.time.Instant> timestamps) {
       this.key = key;
       this.protoRows = protoRows;
-      this.originalElements = originalElements;
       this.timestamps = timestamps;
     }
 
@@ -218,7 +210,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
         });
   }
 
-  public StorageApiWritesShardedRecords(
+  public StorageApiWritesShardedRecords256(
       StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations,
       CreateDisposition createDisposition,
       String kmsKey,
@@ -230,8 +222,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
       @Nullable TupleTag<TableRow> successfulRowsTag,
       boolean autoUpdateSchema,
       boolean ignoreUnknownValues,
-      AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation,
-      @Nullable SerializableFunction<ElementT, TableRow> formatRecordOnFailureFunction) {
+      AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation) {
     this.dynamicDestinations = dynamicDestinations;
     this.createDisposition = createDisposition;
     this.kmsKey = kmsKey;
@@ -244,13 +235,11 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
     this.autoUpdateSchema = autoUpdateSchema;
     this.ignoreUnknownValues = ignoreUnknownValues;
     this.defaultMissingValueInterpretation = defaultMissingValueInterpretation;
-    this.formatRecordOnFailureFunction = formatRecordOnFailureFunction;
   }
 
   @Override
   public PCollectionTuple expand(
-      PCollection<KV<ShardedKey<DestinationT>, Iterable<KV<ElementT, StorageApiWritePayload>>>>
-          input) {
+      PCollection<KV<ShardedKey<DestinationT>, Iterable<StorageApiWritePayload>>> input) {
     BigQueryOptions bigQueryOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
     final long splitSize = bigQueryOptions.getStorageApiAppendThresholdBytes();
     final long maxRequestSize = bigQueryOptions.getStorageWriteApiMaxRequestSize();
@@ -304,8 +293,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
 
   class WriteRecordsDoFn
       extends DoFn<
-          KV<ShardedKey<DestinationT>, Iterable<KV<ElementT, StorageApiWritePayload>>>,
-          KV<String, Operation>> {
+          KV<ShardedKey<DestinationT>, Iterable<StorageApiWritePayload>>, KV<String, Operation>> {
     private final Counter recordsAppended =
         Metrics.counter(WriteRecordsDoFn.class, "recordsAppended");
     private final Counter streamsCreated =
@@ -440,8 +428,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
     public void process(
         ProcessContext c,
         final PipelineOptions pipelineOptions,
-        @Element
-            KV<ShardedKey<DestinationT>, Iterable<KV<ElementT, StorageApiWritePayload>>> element,
+        @Element KV<ShardedKey<DestinationT>, Iterable<StorageApiWritePayload>> element,
         @Timestamp org.joda.time.Instant elementTs,
         final @AlwaysFetched @StateId("streamName") ValueState<String> streamName,
         final @AlwaysFetched @StateId("streamOffset") ValueState<Long> streamOffset,
@@ -565,8 +552,8 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
       // Each ProtoRows object contains at most 1MB of rows.
       // TODO: Push messageFromTableRow up to top level. That we we cans skip TableRow entirely if
       // already proto or already schema.
-      Iterable<SplittingIterable.Value<ElementT>> messages =
-          new SplittingIterable<ElementT>(
+      Iterable<SplittingIterable256.Value> messages =
+          new SplittingIterable256(
               element.getValue(),
               splitSize,
               (fields, ignore) -> appendClientInfo.get().encodeUnknownFields(fields, ignore),
@@ -585,8 +572,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
               },
               autoUpdateSchema,
               ignoreUnknownValues,
-              elementTs,
-              formatRecordOnFailureFunction);
+              elementTs);
 
       // Initialize stream names and offsets for all contexts. This will be called initially, but
       // will also be called if we roll over to a new stream on a retry.
@@ -686,14 +672,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
               for (int failedIndex : failedRowIndices) {
                 // Convert the message to a TableRow and send it to the failedRows collection.
                 ByteString protoBytes = failedContext.protoRows.getSerializedRows(failedIndex);
-                TableRow failedRow;
-                if (formatRecordOnFailureFunction != null) {
-                  failedRow =
-                      formatRecordOnFailureFunction.apply(
-                          failedContext.originalElements.get(failedIndex));
-                } else {
-                  failedRow = appendClientInfo.get().toTableRow(protoBytes);
-                }
+                TableRow failedRow = appendClientInfo.get().toTableRow(protoBytes);
                 org.joda.time.Instant timestamp = failedContext.timestamps.get(failedIndex);
                 o.get(failedRowsTag)
                     .outputWithTimestamp(
@@ -844,7 +823,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
               1000,
               BigQuerySinkMetrics.throttledTimeCounter(BigQuerySinkMetrics.RpcMethod.APPEND_ROWS));
       int numAppends = 0;
-      for (SplittingIterable.Value<ElementT> splitValue : messages) {
+      for (SplittingIterable256.Value splitValue : messages) {
         // Handle the case of a row that is too large.
         if (splitValue.getProtoRows().getSerializedSize() >= maxRequestSize) {
           if (splitValue.getProtoRows().getSerializedRowsCount() > 1) {
@@ -860,13 +839,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
           for (int i = 0; i < splitValue.getProtoRows().getSerializedRowsCount(); ++i) {
             ByteString rowBytes = splitValue.getProtoRows().getSerializedRows(i);
             org.joda.time.Instant timestamp = splitValue.getTimestamps().get(i);
-            TableRow failedRow;
-            if (formatRecordOnFailureFunction != null) {
-              failedRow =
-                  formatRecordOnFailureFunction.apply(splitValue.getOriginalElements().get(i));
-            } else {
-              failedRow = appendClientInfo.get().toTableRow(rowBytes);
-            }
+            TableRow failedRow = appendClientInfo.get().toTableRow(rowBytes);
             o.get(failedRowsTag)
                 .outputWithTimestamp(
                     new BigQueryStorageApiInsertError(
@@ -885,10 +858,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
           // RetryManager
           AppendRowsContext context =
               new AppendRowsContext(
-                  element.getKey(),
-                  splitValue.getProtoRows(),
-                  splitValue.getOriginalElements(),
-                  splitValue.getTimestamps());
+                  element.getKey(), splitValue.getProtoRows(), splitValue.getTimestamps());
           contexts.add(context);
           retryManager.addOperation(runOperation, onError, onSuccess, context);
           recordsAppended.inc(splitValue.getProtoRows().getSerializedRowsCount());
