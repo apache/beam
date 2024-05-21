@@ -42,6 +42,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServicesImpl.DatasetServiceImpl;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.NestedCounter;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -211,5 +214,62 @@ public class BigQueryUtilTest {
     verifyInsertAll(5);
     // Each of the 25 rows has 1 byte for length and 30 bytes: '{"f":[{"v":"foo"},{"v":1234}]}'
     assertEquals("Incorrect byte count", 25L * 31L, totalBytes);
+  }
+
+  static class ReadableCounter implements Counter {
+
+    private MetricName name;
+    private long value;
+
+    public ReadableCounter(MetricName name) {
+      this.name = name;
+      this.value = 0;
+    }
+
+    public long getValue() {
+      return value;
+    }
+
+    @Override
+    public void inc() {
+      ++value;
+    }
+
+    @Override
+    public void inc(long n) {
+      value += n;
+    }
+
+    @Override
+    public void dec() {
+      --value;
+    }
+
+    @Override
+    public void dec(long n) {
+      value -= n;
+    }
+
+    @Override
+    public MetricName getName() {
+      return name;
+    }
+  }
+
+  @Test
+  public void testNestedCounter() {
+    MetricName name1 = MetricName.named(this.getClass(), "metric1");
+    MetricName name2 = MetricName.named(this.getClass(), "metric2");
+    ReadableCounter counter1 = new ReadableCounter(name1);
+    ReadableCounter counter2 = new ReadableCounter(name2);
+    NestedCounter nested =
+        new NestedCounter(MetricName.named(this.getClass(), "nested"), counter1, counter2);
+    counter1.inc();
+    nested.inc();
+    nested.inc(10);
+    nested.dec();
+    nested.dec(2);
+    assertEquals(9, counter1.getValue());
+    assertEquals(8, counter2.getValue());
   }
 }
