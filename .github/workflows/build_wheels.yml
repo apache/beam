@@ -267,7 +267,7 @@ jobs:
       name: Set up QEMU
     - name: Install cibuildwheel
       # note: sync cibuildwheel version with gradle task sdks:python:bdistPy* steps
-      run: pip install cibuildwheel==2.9.0
+      run: pip install cibuildwheel==2.17.0 setuptools
     - name: Build wheel
       working-directory: apache-beam-source
       env:
