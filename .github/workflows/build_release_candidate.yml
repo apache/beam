@@ -42,6 +42,10 @@ on:
         description: Whether to create the documentation update PR against apache/beam-site.
         required: true
         default: 'no'
+      BUILD_AND_STAGE_PRISM:
+        description: Whether to build signed Prism artifacts and stage them in the draft release.
+        required: true
+        default: 'no'
 
 env:
   GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
@@ -401,3 +405,118 @@ jobs:
           PR_BODY: "Content generated from https://github.com/apache/beam/tree/${{ env.RC_TAG }}."
         run: |
             gh pr create -t "$PR_TITLE" -b "$PR_BODY" --base release-docs
+
+  build_and_stage_prism:
+    if: ${{github.event.inputs.BUILD_AND_STAGE_PRISM == 'yes'}}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Mask Apache Password
+        run: |
+          # Workaround for Actions bug - https://github.com/actions/runner/issues/643
+          APACHE_PASS=$(jq -r '.inputs.APACHE_PASSWORD' $GITHUB_EVENT_PATH)
+          echo "::add-mask::$APACHE_PASS"
+      - name: Mask apache id/password
+        run: |
+          if [ "${{ github.event.inputs.APACHE_ID }}" == "" ]
+          then
+            echo "Must provide an apache id to stage artifacts to https://dist.apache.org/repos/dist/dev/beam/"
+          fi
+          if [ "${{ github.event.inputs.APACHE_PASSWORD }}" == "" ]
+          then
+            echo "Must provide an apache password to stage artifacts to https://dist.apache.org/repos/dist/dev/beam/"
+          fi
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache-dependency-path: |
+             sdks/go.sum
+      - name: Import GPG key
+        id: import_gpg
+        uses: crazy-max/ghaction-import-gpg@111c56156bcc6918c056dbef52164cfa583dc549
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+      - name: Build prism artifacts
+        env:
+          RC_TAG: "v${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
+          GIT_REPO_BASE_URL: https://github.com/apache/beam
+          RELEASE_DIR: "beam/${{ github.event.inputs.RELEASE }}"
+          RELEASE: "${{ github.event.inputs.RELEASE }}"
+          SCRIPT_DIR: release/src/main/scripts
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SVN_ARTIFACTS_DIR: "beam/${{ github.event.inputs.RELEASE }}/prism"
+        run: |
+          # Store a reference so we can get back to the start.
+          ROOT_DIR=`pwd`
+          # Navigate to the prism command directory.
+          cd beam/sdks/go/cmd/prism
+          # Store a reference to where we're building from.
+          BUILD_DIR=`pwd`
+
+          # Only build supported Go platforms
+          GO_ALL_TARGETS=$(go tool dist list)
+
+          # Turn the newline separated list into an array.
+          IFS=$'\n' read -d '' -r -a OS_ARCH_ARRAY <<<"$GO_ALL_TARGETS"
+
+          # Declare which supported pairs we want to build.
+          # Only build for a platform if both the OS and Architecture are on this list.
+          declare -A TARGET_OSES=( 
+           ["linux"]=1  ["windows"]=1  ["darwin"]=1
+          )
+
+          declare -A TARGET_ARCHS=(
+           ["arm64"]=1  ["amd64"]=1
+          )
+          OUTPUT_DIR="BUILDS"
+          mkdir -p $OUTPUT_DIR
+          
+          # Loop through and build desired set from allowed types.
+          for OS_ARCH in "${OS_ARCH_ARRAY[@]}"; do
+            # Extract the OS and architecture from the pair
+            OS=$(echo "$OS_ARCH" | cut -f1 -d'/')
+            ARCH=$(echo "$OS_ARCH" | cut -f2 -d'/')
+
+            if !  [[ -n "${TARGET_OSES[$OS]}" ]]; then
+              continue 
+            fi
+            if ! [[ -n "${TARGET_ARCHS[$ARCH]}" ]]; then
+              continue
+            fi
+
+            TARGET_DIR="$OUTPUT_DIR/$OS/$ARCH"
+            TARGET_NAME="$NAME-$VERSION-$OS-$ARCH"
+            mkdir -p "$TARGET_DIR"
+            OUTPUT_FILE="$TARGET_DIR/$TARGET_NAME"
+            if GOOS=$OS GOARCH=$ARCH CGO_ENABLED=0 go build -trimpath -o "$OUTPUT_FILE" . > /dev/null 2>&1; then
+              cd $TARGET_DIR
+              # Extract real output name. Windows builds automatically have .exe added. 
+              ARTIFACT=`ls`
+              echo "target built  - $OS - $ARCH"
+              # Sign and hash
+              gpg --local-user "${{steps.import_gpg.outputs.name}}" --armor --batch --yes --detach-sig $ARTIFACT
+              sha512sum $ARTIFACT > "${ARTIFACT}.sha512"
+
+              ZIP_NAME="$TARGET_NAME.zip"
+              zip -r $ZIP_NAME .
+
+              #TODO move zip to release directory? debug output for now.
+              echo `ls`
+
+              # Return to our root build dir.
+              cd $BUILD_DIR
+            else
+              echo "target failed - $OS - $ARCH"
+              rm -f "$OUTPUT_FILE"
+              exit 1 # Do not continue action
+            fi
+          done
+          cd $ROOT
+
+          # svn co https://dist.apache.org/repos/dist/dev/beam
+          # mkdir -p "${SVN_ARTIFACTS_DIR}"
+          # cd ..
+          # svn add --force prism
+          # svn status
+          # svn commit -m "Staging Prism artifacts for Apache Beam ${RELEASE} RC${RC_NUM}" --non-interactive --username "${{ github.event.inputs.APACHE_ID }}" --password "${{ github.event.inputs.APACHE_PASSWORD }}"
