@@ -454,7 +454,7 @@ jobs:
           ROOT_DIR=`pwd`
           echo $ROOT_DIR
           # Navigate to the prism command directory.
-          cd beam/sdks/go/cmd/prism
+          cd sdks/go/cmd/prism
           # Store a reference to where we're building from.
           BUILD_DIR=`pwd`
           echo $BUILD_DIR
@@ -518,6 +518,8 @@ jobs:
             fi
           done
           cd $ROOT
+          # Get out of the checked out repo.
+          cd .. 
           echo `which jq`
 
           # svn co https://dist.apache.org/repos/dist/dev/beam
