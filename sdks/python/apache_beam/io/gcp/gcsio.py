@@ -145,6 +145,7 @@ class GcsIO(object):
       elif isinstance(pipeline_options, dict):
         pipeline_options = PipelineOptions.from_dictionary(pipeline_options)
       storage_client = create_storage_client(pipeline_options)
+    self.enable_read_bucket_metric = pipeline_options.get_all_options()['enable_bucket_read_metric_counter']
     self.client = storage_client
     self._rewrite_cb = None
     self.bucket_to_project_number = {}
@@ -214,7 +215,7 @@ class GcsIO(object):
 
     if mode == 'r' or mode == 'rb':
       blob = bucket.blob(blob_name)
-      return BeamBlobReader(blob, chunk_size=read_buffer_size)
+      return BeamBlobReader(blob, chunk_size=read_buffer_size, enable_read_bucket_metric=self.enable_read_bucket_metric)
     elif mode == 'w' or mode == 'wb':
       blob = bucket.blob(blob_name)
       return BeamBlobWriter(blob, mime_type)
@@ -531,20 +532,22 @@ class GcsIO(object):
         updated.microsecond / 1000000.0)
 
 
-def incrementBucketReadCounterMetric(read):
+def increment_bucket_read_counter_metric(read):
   def inner(self,*args,**kwargs):
     bytesRead = read(self)
-    Metrics.counter(self.__class__, "GCS_read_bytes_counter_" + self._blob.bucket.name).inc(len(bytesRead))
+    if self.enable_read_bucket_metric:
+      Metrics.counter(self.__class__, "GCS_read_bytes_counter_" + self._blob.bucket.name).inc(len(bytesRead))
     return bytesRead
   return inner
 
 class BeamBlobReader(BlobReader):
 
-  def __init__(self, blob, chunk_size=DEFAULT_READ_BUFFER_SIZE):
+  def __init__(self, blob, chunk_size=DEFAULT_READ_BUFFER_SIZE, enable_read_bucket_metric=False):
     super().__init__(blob, chunk_size=chunk_size)
+    self.enable_read_bucket_metric = enable_read_bucket_metric
     self.mode = "r"
 
-  @incrementBucketReadCounterMetric
+  @increment_bucket_read_counter_metric
   def read(self):
     return super().read()
 

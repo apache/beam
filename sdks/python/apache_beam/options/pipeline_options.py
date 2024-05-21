@@ -900,6 +900,10 @@ class GoogleCloudOptions(PipelineOptions):
             'Controls the OAuth scopes that will be requested when creating '
             'GCP credentials. Note: If set programmatically, must be set as a '
             'list of strings'))
+    parser.add_argument(
+        '--enable_bucket_read_metric_counter',
+        action='store_true',
+        help='Create metrics reporting the approximate number of bytes read per bucket.')
 
   def _create_default_gcs_bucket(self):
     try:
