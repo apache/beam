@@ -17,10 +17,12 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.client;
 
+import java.io.Closeable;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import javax.annotation.concurrent.NotThreadSafe;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
@@ -68,21 +70,34 @@ public interface WindmillStream {
   /** Interface for streaming CommitWorkRequests to Windmill. */
   @ThreadSafe
   interface CommitWorkStream extends WindmillStream {
+    @NotThreadSafe
+    interface RequestBatcher extends Closeable {
+      /**
+       * Commits a work item and running onDone when the commit has been processed by the server.
+       * Returns true if the request was accepted. If false is returned the stream should be flushed
+       * and the request recommitted.
+       *
+       * <p>onDone will be called with the status of the commit.
+       */
+      boolean commitWorkItem(
+          String computation,
+          Windmill.WorkItemCommitRequest request,
+          Consumer<Windmill.CommitStatus> onDone);
+
+      /** Flushes any pending work items to the wire. */
+      void flush();
+
+      @Override
+      default void close() {
+        flush();
+      }
+    }
 
     /**
-     * Commits a work item and running onDone when the commit has been processed by the server.
-     * Returns true if the request was accepted. If false is returned the stream should be flushed
-     * and the request recommitted.
-     *
-     * <p>onDone will be called with the status of the commit.
+     * Returns a builder that can be used for sending requests. Each builder is not thread-safe but
+     * different builders for the same stream may be used simultaneously.
      */
-    boolean commitWorkItem(
-        String computation,
-        Windmill.WorkItemCommitRequest request,
-        Consumer<Windmill.CommitStatus> onDone);
-
-    /** Flushes any pending work items to the wire. */
-    void flush();
+    RequestBatcher batcher();
   }
 
   /** Interface for streaming GetWorkerMetadata requests to Windmill. */

@@ -155,7 +155,6 @@ public class StreamingDataflowWorker {
   // Maximum number of threads for processing.  Currently each thread processes one key at a time.
   static final int MAX_PROCESSING_THREADS = 300;
   static final long THREAD_EXPIRATION_TIME_SEC = 60;
-  static final int NUM_COMMIT_STREAMS = 1;
   static final int GET_WORK_STREAM_TIMEOUT_MINUTES = 3;
   static final Duration COMMIT_STREAM_TIMEOUT = Duration.standardMinutes(1);
 
@@ -280,7 +279,7 @@ public class StreamingDataflowWorker {
         windmillServiceEnabled
             ? StreamingEngineWorkCommitter.create(
                 WindmillStreamPool.create(
-                        NUM_COMMIT_STREAMS, COMMIT_STREAM_TIMEOUT, windmillServer::commitWorkStream)
+                        numCommitThreads, COMMIT_STREAM_TIMEOUT, windmillServer::commitWorkStream)
                     ::getCloseableStream,
                 numCommitThreads,
                 this::onCompleteCommit)
