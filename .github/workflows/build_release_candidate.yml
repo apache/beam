@@ -484,47 +484,39 @@ jobs:
           echo "build directory made"
           
           # Loop through and build desired set from allowed types.
-          for OS_ARCH in "${OS_ARCH_ARRAY[@]}"; do
-            # Extract the OS and architecture from the pair
-            OS=$(echo "$OS_ARCH" | cut -f1 -d'/')
-            ARCH=$(echo "$OS_ARCH" | cut -f2 -d'/')
+          for OS in linux windows darwin; do
+            for ARCH in amd64 arm64; do
 
-            if !  [[ -n "${TARGET_OSES[$OS]}" ]]; then
-              continue 
-            fi
-            if ! [[ -n "${TARGET_ARCHS[$ARCH]}" ]]; then
-              continue
-            fi
+              TARGET_DIR="$OUTPUT_DIR/$OS/$ARCH"
+              TARGET_NAME="$NAME-$VERSION-$OS-$ARCH"
 
-            TARGET_DIR="$OUTPUT_DIR/$OS/$ARCH"
-            TARGET_NAME="$NAME-$VERSION-$OS-$ARCH"
+              echo "building $TARGET_NAME"
 
-            echo "building $TARGET_NAME"
+              mkdir -p "$TARGET_DIR"
+              OUTPUT_FILE="$TARGET_DIR/$TARGET_NAME"
+              if GOOS=$OS GOARCH=$ARCH CGO_ENABLED=0 go build -trimpath -o "$OUTPUT_FILE" . > /dev/null 2>&1; then
+                cd $TARGET_DIR
+                # Extract real output name. Windows builds automatically have .exe added. 
+                ARTIFACT=`ls`
+                echo "target built  - $OS - $ARCH"
+                # Sign and hash
+                gpg --local-user "${{steps.import_gpg.outputs.name}}" --armor --batch --yes --detach-sig $ARTIFACT
+                sha512sum $ARTIFACT > "${ARTIFACT}.sha512"
 
-            mkdir -p "$TARGET_DIR"
-            OUTPUT_FILE="$TARGET_DIR/$TARGET_NAME"
-            if GOOS=$OS GOARCH=$ARCH CGO_ENABLED=0 go build -trimpath -o "$OUTPUT_FILE" . > /dev/null 2>&1; then
-              cd $TARGET_DIR
-              # Extract real output name. Windows builds automatically have .exe added. 
-              ARTIFACT=`ls`
-              echo "target built  - $OS - $ARCH"
-              # Sign and hash
-              gpg --local-user "${{steps.import_gpg.outputs.name}}" --armor --batch --yes --detach-sig $ARTIFACT
-              sha512sum $ARTIFACT > "${ARTIFACT}.sha512"
+                ZIP_NAME="$TARGET_NAME.zip"
+                zip -r $ZIP_NAME .
 
-              ZIP_NAME="$TARGET_NAME.zip"
-              zip -r $ZIP_NAME .
+                #TODO move zip to release directory? debug output for now.
+                echo `ls`
 
-              #TODO move zip to release directory? debug output for now.
-              echo `ls`
-
-              # Return to our root build dir.
-              cd $BUILD_DIR
-            else
-              echo "target failed - $OS - $ARCH"
-              rm -f "$OUTPUT_FILE"
-              exit 1 # Do not continue action
-            fi
+                # Return to our root build dir.
+                cd $BUILD_DIR
+              else
+                echo "target failed - $OS - $ARCH"
+                rm -f "$OUTPUT_FILE"
+                exit 1 # Do not continue action
+              fi
+            done
           done
           cd $ROOT
           # Get out of the checked out repo.
