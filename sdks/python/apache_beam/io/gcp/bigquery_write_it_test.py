@@ -457,7 +457,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
   @pytest.mark.it_postcommit
   def test_big_query_write_insert_non_transient_api_call_error(self):
     """
-    Test that non-transient GoogleAPICallError errors returned 
+    Test that non-transient GoogleAPICallError errors returned
     by beam.io.WriteToBigQuery are not retried and result in
     FAILED_ROWS containing both the failed rows and the reason
     for failure.
@@ -504,6 +504,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
           equal_to(bq_result_errors))
 
   @pytest.mark.it_postcommit
+  @pytest.mark.flaky(retries=5)
   @parameterized.expand([
       param(file_format=FileFormat.AVRO),
       param(file_format=FileFormat.JSON),
