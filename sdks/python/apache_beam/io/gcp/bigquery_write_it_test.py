@@ -57,6 +57,16 @@ except ImportError:
 _LOGGER = logging.getLogger(__name__)
 
 
+def conditional_pytest_retry_decorator():
+  def decorator(func):
+    try:
+      return pytest.mark.flaky(retries=5)(func)
+    except ImportError:
+      return func
+
+  return decorator
+
+
 class BigQueryWriteIntegrationTests(unittest.TestCase):
   BIG_QUERY_DATASET_ID = 'python_write_to_table_'
 
@@ -504,7 +514,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
           equal_to(bq_result_errors))
 
   @pytest.mark.it_postcommit
-  @pytest.mark.flaky(retries=5)
+  @conditional_pytest_retry_decorator()
   @parameterized.expand([
       param(file_format=FileFormat.AVRO),
       param(file_format=FileFormat.JSON),
