@@ -464,11 +464,11 @@ jobs:
           # Only build supported Go platforms
           GO_ALL_TARGETS=$(go tool dist list)
 
-          echo `got all targets`
+          echo "got all targets"
           # Turn the newline separated list into an array.
           IFS=$'\n' read -d '' -r -a OS_ARCH_ARRAY <<<"$GO_ALL_TARGETS"
 
-          echo `split all targets`
+          echo "split all targets"
           # Declare which supported pairs we want to build.
           # Only build for a platform if both the OS and Architecture are on this list.
           declare -A TARGET_OSES=( 
@@ -481,7 +481,7 @@ jobs:
           OUTPUT_DIR="BUILDS"
           mkdir -p $OUTPUT_DIR
 
-          echo `build directory made`
+          echo "build directory made"
           
           # Loop through and build desired set from allowed types.
           for OS_ARCH in "${OS_ARCH_ARRAY[@]}"; do
@@ -499,7 +499,7 @@ jobs:
             TARGET_DIR="$OUTPUT_DIR/$OS/$ARCH"
             TARGET_NAME="$NAME-$VERSION-$OS-$ARCH"
 
-            echo `building $TARGET_NAME`
+            echo "building $TARGET_NAME"
 
             mkdir -p "$TARGET_DIR"
             OUTPUT_FILE="$TARGET_DIR/$TARGET_NAME"
