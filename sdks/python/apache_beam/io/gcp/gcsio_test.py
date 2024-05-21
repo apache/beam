@@ -567,6 +567,39 @@ class TestGCSIO(unittest.TestCase):
     self.assertIn(beam_user_agent, actual_headers['User-Agent'])
     self.assertEqual(actual_headers['x-goog-custom-audit-job'], 'test-job-name')
 
+  @mock.patch('google.cloud._http.JSONConnection._do_request')
+  @mock.patch('apache_beam.internal.gcp.auth.get_service_credentials')
+  def test_create_default_bucket(
+      self, mock_get_service_credentials, mock_do_request):
+    from apache_beam.internal.gcp.auth import _ApitoolsCredentialsAdapter
+    mock_get_service_credentials.return_value = _ApitoolsCredentialsAdapter(
+        _make_credentials("test-project"))
+
+    gcs = gcsio.GcsIO(pipeline_options={"job_name": "test-job-name"})
+    # no HTTP request when initializing GcsIO
+    mock_do_request.assert_not_called()
+
+    import requests
+    response = requests.Response()
+    response.status_code = 200
+    mock_do_request.return_value = response
+
+    # The function of create_bucket() is supposed to send only one HTTP request
+    gcs.create_bucket("test-bucket", "test-project")
+    mock_do_request.assert_called_once()
+    call_args = mock_do_request.call_args[0]
+
+    # Request data is specified as the fourth argument of
+    # google.cloud._http.JSONConnection._do_request
+    actual_request_data = call_args[3]
+
+    import json
+    request_data_json = json.loads(actual_request_data)
+    # verify soft delete policy is disabled by default in the bucket creation
+    # request
+    self.assertEqual(
+        request_data_json['softDeletePolicy']['retentionDurationSeconds'], 0)
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
