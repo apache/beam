@@ -422,7 +422,7 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
       } catch (Exception e) {
         LOG.warn(
             String.format(
-                "Failed to access bucket for gcpTempLocation: %s.\nCaused by %s", tempLocation, e));
+                "Failed to access bucket for gcpTempLocation: %s.%nCaused by %s", tempLocation, e));
       }
       return false;
     }
