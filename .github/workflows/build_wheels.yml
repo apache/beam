@@ -274,7 +274,6 @@ jobs:
         CIBW_BUILD: ${{ matrix.os_python.python }}
         # TODO: https://github.com/apache/beam/issues/23048
         CIBW_SKIP: "*-musllinux_*"
-        CIBW_ENVIRONMENT: "SETUPTOOLS_USE_DISTUTILS=stdlib"
         CIBW_BEFORE_BUILD: pip install cython==0.29.36 numpy --config-settings=setup-args="-Dallow-noblas=true" && pip install --upgrade setuptools
       run: cibuildwheel --print-build-identifiers && cibuildwheel --output-dir wheelhouse
       shell: bash
@@ -301,7 +300,6 @@ jobs:
         CIBW_BUILD: ${{ matrix.os_python.python }}
         # TODO: https://github.com/apache/beam/issues/23048
         CIBW_SKIP: "*-musllinux_*"
-        CIBW_ENVIRONMENT: "SETUPTOOLS_USE_DISTUTILS=stdlib"
         CIBW_BEFORE_BUILD: pip install cython==0.29.36 numpy --config-settings=setup-args="-Dallow-noblas=true" && pip install --upgrade setuptools
       run: cibuildwheel --print-build-identifiers && cibuildwheel --output-dir wheelhouse
       shell: bash

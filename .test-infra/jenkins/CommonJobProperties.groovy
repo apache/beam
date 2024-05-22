@@ -101,9 +101,6 @@ class CommonJobProperties {
       environmentVariables {
         // Set SPARK_LOCAL_IP for spark tests.
         env('SPARK_LOCAL_IP', '127.0.0.1')
-        // Set SETUPTOOLS_USE_DISTUTILS to workaround issue with setuptools
-        // 50.0 and Ubuntu executors (BEAM-10841)
-        env('SETUPTOOLS_USE_DISTUTILS', 'stdlib')
       }
       credentialsBinding {
         string("CODECOV_TOKEN", "beam-codecov-token")

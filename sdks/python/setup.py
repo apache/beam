@@ -383,7 +383,9 @@ if __name__ == '__main__':
           'pytz>=2018.3',
           'redis>=5.0.0,<6',
           'regex>=2020.6.8',
-          'requests>=2.24.0,<3.0.0,!=2.32.0,!=2.32.1',
+          # unblock tests until new version of `docker` is released.
+          # https://github.com/docker/docker-py/pull/3257
+          'requests>=2.24.0,<3.0.0,!=2.32.*',
           'typing-extensions>=3.7.0',
           'zstandard>=0.18.0,<1',
           # Dynamic dependencies must be specified in a separate list, otherwise
