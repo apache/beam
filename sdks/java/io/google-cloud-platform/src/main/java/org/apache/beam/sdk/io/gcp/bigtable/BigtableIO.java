@@ -57,7 +57,6 @@ import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.UniqueIdGenerator;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.action.ActionFactory;
-import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.BigtableChangeStreamAccessor;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.BigtableClientOverride;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.DaoFactory;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTableAdminDao;
@@ -2057,6 +2056,7 @@ public class BigtableIO {
       return new AutoValue_BigtableIO_ReadChangeStream.Builder()
           .setBigtableConfig(config)
           .setMetadataTableBigtableConfig(metadataTableconfig)
+          .setValidateConfig(true)
           .build();
     }
 
@@ -2079,6 +2079,8 @@ public class BigtableIO {
     abstract @Nullable Boolean getCreateOrUpdateMetadataTable();
 
     abstract @Nullable Duration getBacklogReplicationAdjustment();
+
+    abstract @Nullable Boolean getValidateConfig();
 
     abstract ReadChangeStream.Builder toBuilder();
 
@@ -2284,25 +2286,99 @@ public class BigtableIO {
       return toBuilder().setBacklogReplicationAdjustment(adjustment).build();
     }
 
+    /**
+     * Disables validation that the table being read and the metadata table exists, and that the app
+     * profile used is single cluster and single row transcation enabled. Set this option if the
+     * caller does not have additional Bigtable permissions to validate the configurations.
+     */
+    public ReadChangeStream withoutValidation() {
+      BigtableConfig config = getBigtableConfig();
+      BigtableConfig metadataTableConfig = getMetadataTableBigtableConfig();
+      return toBuilder()
+          .setBigtableConfig(config.withValidate(false))
+          .setMetadataTableBigtableConfig(metadataTableConfig.withValidate(false))
+          .setValidateConfig(false)
+          .build();
+    }
+
+    @Override
+    public void validate(PipelineOptions options) {
+      BigtableServiceFactory factory = new BigtableServiceFactory();
+      if (getBigtableConfig().getValidate()) {
+        validateTableExists(factory, getBigtableConfig(), options);
+      }
+      if (getMetadataTableBigtableConfig().getValidate()) {
+        validateMetadataTableExists(factory, getMetadataTableBigtableConfig(), options);
+      }
+    }
+
+    // Validate the change stream table exists.
+    private void validateTableExists(
+        BigtableServiceFactory factory, BigtableConfig config, PipelineOptions options) {
+      try {
+        checkArgument(
+            factory.checkTableExists(config, options, getTableId()),
+            "Change Stream table %s does not exist",
+            getTableId());
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+    }
+
+    // Validate the metadata table exists.
+    private void validateMetadataTableExists(
+        BigtableServiceFactory factory, BigtableConfig config, PipelineOptions options) {
+      try {
+        checkArgument(
+            factory.checkTableExists(config, options, getMetadataTableId()),
+            "Metadata table %s does not exist",
+            getTableId());
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+    }
+
+    // Validate the app profile is single cluster and allows single row transactions.
+    private void validateAppProfileCorrect(
+        MetadataTableAdminDao metadataTableAdminDao, String appProfileId) {
+      checkArgument(metadataTableAdminDao != null);
+      checkArgument(
+          metadataTableAdminDao.isAppProfileSingleClusterAndTransactional(appProfileId),
+          "App profile id '"
+              + appProfileId
+              + "' provided to access metadata table needs to use single-cluster routing policy"
+              + " and allow single-row transactions.");
+    }
+
+    // Update metadata table schema if allowed and required.
+    private void updateMetadataTableIfRequired(
+        MetadataTableAdminDao metadataTableAdminDao, String metadataTableId) {
+      boolean shouldCreateOrUpdateMetadataTable = true;
+      if (getCreateOrUpdateMetadataTable() != null) {
+        shouldCreateOrUpdateMetadataTable = getCreateOrUpdateMetadataTable();
+      }
+      // Only try to create or update metadata table if option is set to true. Otherwise, just
+      // check if the table exists.
+      if (shouldCreateOrUpdateMetadataTable && metadataTableAdminDao.createMetadataTable()) {
+        LOG.info("Created metadata table: " + metadataTableId);
+      }
+    }
+
     @Override
     public PCollection<KV<ByteString, ChangeStreamMutation>> expand(PBegin input) {
       checkArgument(
           getBigtableConfig() != null,
           "BigtableIO ReadChangeStream is missing required configurations fields.");
-      checkArgument(
-          getBigtableConfig().getProjectId() != null, "Missing required projectId field.");
-      checkArgument(
-          getBigtableConfig().getInstanceId() != null, "Missing required instanceId field.");
+      getBigtableConfig().validate();
       checkArgument(getTableId() != null, "Missing required tableId field.");
 
       BigtableConfig bigtableConfig = getBigtableConfig();
-      if (getBigtableConfig().getAppProfileId() == null
-          || getBigtableConfig().getAppProfileId().get().isEmpty()) {
+      if (bigtableConfig.getAppProfileId() == null
+          || bigtableConfig.getAppProfileId().get().isEmpty()) {
         bigtableConfig = bigtableConfig.withAppProfileId(StaticValueProvider.of("default"));
       }
 
       BigtableConfig metadataTableConfig = getMetadataTableBigtableConfig();
-      String metadataTableId = getMetadataTableId();
       if (metadataTableConfig.getProjectId() == null
           || metadataTableConfig.getProjectId().get().isEmpty()) {
         metadataTableConfig = metadataTableConfig.withProjectId(bigtableConfig.getProjectId());
@@ -2311,6 +2387,7 @@ public class BigtableIO {
           || metadataTableConfig.getInstanceId().get().isEmpty()) {
         metadataTableConfig = metadataTableConfig.withInstanceId(bigtableConfig.getInstanceId());
       }
+      String metadataTableId = getMetadataTableId();
       if (metadataTableId == null || metadataTableId.isEmpty()) {
         metadataTableId = MetadataTableAdminDao.DEFAULT_METADATA_TABLE_NAME;
       }
@@ -2333,10 +2410,6 @@ public class BigtableIO {
         existingPipelineOptions = ExistingPipelineOptions.FAIL_IF_EXISTS;
       }
 
-      boolean shouldCreateOrUpdateMetadataTable = true;
-      if (getCreateOrUpdateMetadataTable() != null) {
-        shouldCreateOrUpdateMetadataTable = getCreateOrUpdateMetadataTable();
-      }
       Duration backlogReplicationAdjustment = getBacklogReplicationAdjustment();
       if (backlogReplicationAdjustment == null) {
         backlogReplicationAdjustment = DEFAULT_BACKLOG_REPLICATION_ADJUSTMENT;
@@ -2348,31 +2421,15 @@ public class BigtableIO {
           new DaoFactory(
               bigtableConfig, metadataTableConfig, getTableId(), metadataTableId, changeStreamName);
 
+      boolean validateConfig = true;
+      if (getValidateConfig() != null) {
+        validateConfig = getValidateConfig();
+      }
       try {
-        MetadataTableAdminDao metadataTableAdminDao = daoFactory.getMetadataTableAdminDao();
-        checkArgument(metadataTableAdminDao != null);
-        checkArgument(
-            metadataTableAdminDao.isAppProfileSingleClusterAndTransactional(
-                metadataTableConfig.getAppProfileId().get()),
-            "App profile id '"
-                + metadataTableConfig.getAppProfileId().get()
-                + "' provided to access metadata table needs to use single-cluster routing policy"
-                + " and allow single-row transactions.");
-
-        // Only try to create or update metadata table if option is set to true. Otherwise, just
-        // check if the table exists.
-        if (shouldCreateOrUpdateMetadataTable && metadataTableAdminDao.createMetadataTable()) {
-          LOG.info("Created metadata table: " + metadataTableAdminDao.getTableId());
-        }
-        checkArgument(
-            metadataTableAdminDao.doesMetadataTableExist(),
-            "Metadata table does not exist: " + metadataTableAdminDao.getTableId());
-
-        try (BigtableChangeStreamAccessor bigtableChangeStreamAccessor =
-            BigtableChangeStreamAccessor.getOrCreate(bigtableConfig)) {
-          checkArgument(
-              bigtableChangeStreamAccessor.getTableAdminClient().exists(getTableId()),
-              "Change Stream table does not exist");
+        if (validateConfig) {
+          updateMetadataTableIfRequired(daoFactory.getMetadataTableAdminDao(), metadataTableId);
+          validateAppProfileCorrect(
+              daoFactory.getMetadataTableAdminDao(), metadataTableConfig.getAppProfileId().get());
         }
       } catch (Exception e) {
         throw new RuntimeException(e);
@@ -2428,6 +2485,8 @@ public class BigtableIO {
       abstract ReadChangeStream.Builder setCreateOrUpdateMetadataTable(boolean shouldCreate);
 
       abstract ReadChangeStream.Builder setBacklogReplicationAdjustment(Duration adjustment);
+
+      abstract ReadChangeStream.Builder setValidateConfig(boolean validateConfig);
 
       abstract ReadChangeStream build();
     }
