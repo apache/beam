@@ -77,7 +77,7 @@ public final class GrpcDirectGetWorkStream
   private final AtomicReference<GetWorkBudget> nextBudgetAdjustment;
   private final AtomicReference<GetWorkBudget> pendingResponseBudget;
   private final GetWorkRequest request;
-  private final WorkItemScheduler workItemSchedulerFn;
+  private final WorkItemScheduler workItemScheduler;
   private final ThrottleTimer getWorkThrottleTimer;
   private final Supplier<GetDataStream> getDataStream;
   private final Supplier<WorkCommitter> workCommitter;
@@ -102,12 +102,12 @@ public final class GrpcDirectGetWorkStream
       ThrottleTimer getWorkThrottleTimer,
       Supplier<GetDataStream> getDataStream,
       Supplier<WorkCommitter> workCommitter,
-      WorkItemScheduler workItemSchedulerFn) {
+      WorkItemScheduler workItemScheduler) {
     super(
         startGetWorkRpcFn, backoff, streamObserverFactory, streamRegistry, logEveryNStreamFailures);
     this.request = request;
     this.getWorkThrottleTimer = getWorkThrottleTimer;
-    this.workItemSchedulerFn = workItemSchedulerFn;
+    this.workItemScheduler = workItemScheduler;
     this.workItemBuffers = new ConcurrentHashMap<>();
     // Use the same GetDataStream and CommitWorkStream instances to process all the work in this
     // stream.
@@ -131,7 +131,7 @@ public final class GrpcDirectGetWorkStream
       ThrottleTimer getWorkThrottleTimer,
       Supplier<GetDataStream> getDataStream,
       Supplier<WorkCommitter> workCommitter,
-      WorkItemScheduler workItemSchedulerFn) {
+      WorkItemScheduler workItemScheduler) {
     GrpcDirectGetWorkStream getWorkStream =
         new GrpcDirectGetWorkStream(
             startGetWorkRpcFn,
@@ -143,9 +143,17 @@ public final class GrpcDirectGetWorkStream
             getWorkThrottleTimer,
             getDataStream,
             workCommitter,
-            workItemSchedulerFn);
+            workItemScheduler);
     getWorkStream.startStream();
     return getWorkStream;
+  }
+
+  private static Work.Watermarks createWatermarks(WorkItem workItem, ComputationMetadata metadata) {
+    return Work.createWatermarks()
+        .setInputDataWatermark(metadata.inputDataWatermark())
+        .setOutputDataWatermark(workItem.getOutputDataWatermark())
+        .setSynchronizedProcessingTime(metadata.synchronizedProcessingTime())
+        .build();
   }
 
   private synchronized GetWorkBudget getThenResetBudgetAdjustment() {
@@ -301,9 +309,9 @@ public final class GrpcDirectGetWorkStream
       try {
         WorkItem workItem = WorkItem.parseFrom(data.newInput());
         updatePendingResponseBudget(1, workItem.getSerializedSize());
-        workItemSchedulerFn.scheduleWork(
+        workItemScheduler.scheduleWork(
             workItem,
-            createWatermarks(workItem),
+            createWatermarks(workItem, Preconditions.checkNotNull(metadata)),
             createProcessingContext(Preconditions.checkNotNull(metadata.computationId())),
             // After the work item is successfully queued or dropped by ActiveWorkState, remove it
             // from the pendingResponseBudget.
@@ -320,15 +328,6 @@ public final class GrpcDirectGetWorkStream
       return Work.createProcessingContext(computationId, getDataStream.get()::requestKeyedData)
           .setWorkCommitter(workCommitter.get()::commit)
           .setGetDataStream(getDataStream.get());
-    }
-
-    private Work.Watermarks createWatermarks(WorkItem workItem) {
-      Preconditions.checkNotNull(metadata);
-      return Work.createWatermarks()
-          .setInputDataWatermark(metadata.inputDataWatermark())
-          .setOutputDataWatermark(workItem.getOutputDataWatermark())
-          .setSynchronizedProcessingTime(metadata.synchronizedProcessingTime())
-          .build();
     }
   }
 }

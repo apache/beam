@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
@@ -106,13 +107,22 @@ public class GrpcDispatcherClient {
 
   /** Will block the calling thread until the initial endpoints are present. */
   CloudWindmillMetadataServiceV1Alpha1Stub getWindmillMetadataServiceStubBlocking() {
-    try {
-      onInitializedEndpoints.await();
-    } catch (InterruptedException e) {
-      LOG.error(
-          "Interrupted while waiting for initial Windmill Service endpoints. "
-              + "These endpoints are required to do any pipeline processing.",
-          e);
+    boolean initialized = false;
+    long secondsWaited = 0;
+    while (!initialized) {
+      LOG.info(
+          "Blocking until Windmill Service endpoint has been set. "
+              + "Currently waited for [{}] seconds.",
+          secondsWaited);
+      try {
+        initialized = onInitializedEndpoints.await(10, TimeUnit.SECONDS);
+        secondsWaited += 10;
+      } catch (InterruptedException e) {
+        LOG.error(
+            "Interrupted while waiting for initial Windmill Service endpoints. "
+                + "These endpoints are required to do any pipeline processing.",
+            e);
+      }
     }
 
     ImmutableList<CloudWindmillMetadataServiceV1Alpha1Stub> windmillMetadataServiceStubs =

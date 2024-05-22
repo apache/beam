@@ -22,12 +22,14 @@ import java.util.Optional;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.dataflow.worker.DataflowWorkExecutor;
 import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @AutoValue
-public abstract class ExecutionState {
+@Internal
+public abstract class ExecutionState implements AutoCloseable {
   private static final Logger LOG = LoggerFactory.getLogger(ExecutionState.class);
 
   public static ExecutionState.Builder builder() {
@@ -42,6 +44,11 @@ public abstract class ExecutionState {
 
   public abstract ExecutionStateTracker executionStateTracker();
 
+  /**
+   * Callers should only invoke close() when execution of work fails. Once closed, the instance
+   * cannot be reused.
+   */
+  @Override
   public final void close() {
     context().invalidateCache();
     try {

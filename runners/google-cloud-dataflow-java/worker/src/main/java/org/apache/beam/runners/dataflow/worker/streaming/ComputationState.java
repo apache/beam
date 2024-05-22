@@ -47,7 +47,7 @@ public class ComputationState {
   private final ActiveWorkState activeWorkState;
   private final BoundedQueueExecutor executor;
   private final ConcurrentLinkedQueue<ExecutionState> executionStateQueue;
-  private final String sourceBytesProcessCounter;
+  private final String sourceBytesProcessCounterName;
 
   public ComputationState(
       String computationId,
@@ -63,7 +63,8 @@ public class ComputationState {
     this.transformUserNameToStateFamily = ImmutableMap.copyOf(transformUserNameToStateFamily);
     this.executionStateQueue = new ConcurrentLinkedQueue<>();
     this.activeWorkState = ActiveWorkState.create(computationStateCache);
-    this.sourceBytesProcessCounter = "dataflow_source_bytes_processed-" + mapTask.getSystemName();
+    this.sourceBytesProcessCounterName =
+        "dataflow_source_bytes_processed-" + mapTask.getSystemName();
   }
 
   public String getComputationId() {
@@ -163,8 +164,8 @@ public class ComputationState {
     activeWorkState.printActiveWork(writer, Instant.now());
   }
 
-  public String getSourceBytesProcessCounter() {
-    return sourceBytesProcessCounter;
+  public String sourceBytesProcessCounterName() {
+    return sourceBytesProcessCounterName;
   }
 
   public final void close() {

@@ -38,7 +38,6 @@ import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillMetadataServiceV1Alpha1Grpc;
@@ -110,8 +109,6 @@ public class StreamingEngineClientTest {
   private final GrpcDispatcherClient dispatcherClient =
       GrpcDispatcherClient.forTesting(
           stubFactory, new ArrayList<>(), new ArrayList<>(), new HashSet<>());
-  private final AtomicReference<StreamingEngineConnectionState> connections =
-      new AtomicReference<>(StreamingEngineConnectionState.EMPTY);
 
   private Server fakeStreamingEngineServer;
   private CountDownLatch getWorkerMetadataReady;
@@ -178,7 +175,6 @@ public class StreamingEngineClientTest {
     return StreamingEngineClient.forTesting(
         JOB_HEADER,
         getWorkBudget,
-        connections,
         streamFactory,
         workItemScheduler,
         stubFactory,
@@ -219,7 +215,8 @@ public class StreamingEngineClientTest {
     fakeGetWorkerMetadataStub.injectWorkerMetadata(firstWorkerMetadata);
     waitForWorkerMetadataToBeConsumed(getWorkBudgetDistributor);
 
-    StreamingEngineConnectionState currentConnections = connections.get();
+    StreamingEngineConnectionState currentConnections =
+        streamingEngineClient.getCurrentConnections();
 
     assertEquals(2, currentConnections.windmillConnections().size());
     assertEquals(2, currentConnections.windmillStreams().size());
@@ -309,11 +306,12 @@ public class StreamingEngineClientTest {
     fakeGetWorkerMetadataStub.injectWorkerMetadata(firstWorkerMetadata);
     fakeGetWorkerMetadataStub.injectWorkerMetadata(secondWorkerMetadata);
     waitForWorkerMetadataToBeConsumed(getWorkBudgetDistributor);
-    StreamingEngineConnectionState currentConnections = connections.get();
+    StreamingEngineConnectionState currentConnections =
+        streamingEngineClient.getCurrentConnections();
     assertEquals(1, currentConnections.windmillConnections().size());
     assertEquals(1, currentConnections.windmillStreams().size());
     Set<String> workerTokens =
-        connections.get().windmillConnections().values().stream()
+        streamingEngineClient.getCurrentConnections().windmillConnections().values().stream()
             .map(WindmillConnection::backendWorkerToken)
             .filter(Optional::isPresent)
             .map(Optional::get)

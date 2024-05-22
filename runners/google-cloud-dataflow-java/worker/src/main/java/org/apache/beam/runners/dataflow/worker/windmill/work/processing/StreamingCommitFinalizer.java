@@ -39,7 +39,7 @@ final class StreamingCommitFinalizer {
     this.workExecutor = workExecutor;
   }
 
-  public static StreamingCommitFinalizer create(BoundedQueueExecutor workExecutor) {
+  static StreamingCommitFinalizer create(BoundedQueueExecutor workExecutor) {
     return new StreamingCommitFinalizer(
         CacheBuilder.newBuilder().expireAfterWrite(DEFAULT_CACHE_ENTRY_EXPIRY).build(),
         workExecutor);

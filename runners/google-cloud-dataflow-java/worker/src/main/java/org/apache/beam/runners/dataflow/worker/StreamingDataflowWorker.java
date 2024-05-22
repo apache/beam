@@ -81,7 +81,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.Channe
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.IsolationChannel;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.StreamingWorkScheduler;
-import org.apache.beam.runners.dataflow.worker.windmill.work.processing.StreamingWorkSchedulerFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.FailureTracker;
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.StreamingApplianceFailureTracker;
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.StreamingEngineFailureTracker;
@@ -133,7 +132,7 @@ public class StreamingDataflowWorker {
    * readers to stop producing more. This can be disabled with 'disable_limiting_bundle_sink_bytes'
    * experiment.
    */
-  static final int MAX_SINK_BYTES = 10_000_000;
+  public static final int MAX_SINK_BYTES = 10_000_000;
 
   private static final Logger LOG = LoggerFactory.getLogger(StreamingDataflowWorker.class);
   /** The idGenerator to generate unique id globally. */
@@ -289,7 +288,7 @@ public class StreamingDataflowWorker {
     this.memoryMonitor = memoryMonitor;
 
     this.streamingWorkScheduler =
-        StreamingWorkSchedulerFactory.createStreamingWorkScheduler(
+        StreamingWorkScheduler.create(
             options,
             clock,
             readerCache,

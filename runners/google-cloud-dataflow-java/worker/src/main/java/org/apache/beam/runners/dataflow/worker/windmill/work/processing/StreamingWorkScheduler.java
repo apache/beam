@@ -24,33 +24,37 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.DataflowMapTaskExecutor;
+import org.apache.beam.runners.dataflow.worker.DataflowMapTaskExecutorFactory;
 import org.apache.beam.runners.dataflow.worker.DataflowWorkExecutor;
 import org.apache.beam.runners.dataflow.worker.HotKeyLogger;
+import org.apache.beam.runners.dataflow.worker.ReaderCache;
 import org.apache.beam.runners.dataflow.worker.WorkItemCancelledException;
 import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingMDC;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.ExecutionState;
 import org.apache.beam.runners.dataflow.worker.streaming.KeyCommitTooLargeException;
-import org.apache.beam.runners.dataflow.worker.streaming.ShardedKey;
 import org.apache.beam.runners.dataflow.worker.streaming.StageInfo;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.streaming.harness.StreamingCounters;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
+import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ElementCounter;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputObjectAndByteCounter;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.Commit;
+import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReader;
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.FailureTracker;
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.WorkFailureProcessor;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
@@ -108,8 +112,45 @@ public final class StreamingWorkScheduler {
     this.maxWorkItemCommitBytes = maxWorkItemCommitBytes;
   }
 
-  private static ShardedKey createShardedKey(Work work) {
-    return ShardedKey.create(work.getWorkItem().getKey(), work.getWorkItem().getShardingKey());
+  public static StreamingWorkScheduler create(
+      DataflowWorkerHarnessOptions options,
+      Supplier<Instant> clock,
+      ReaderCache readerCache,
+      DataflowMapTaskExecutorFactory mapTaskExecutorFactory,
+      BoundedQueueExecutor workExecutor,
+      Function<String, WindmillStateCache.ForComputation> stateCacheFactory,
+      Function<Windmill.GlobalDataRequest, Windmill.GlobalData> fetchGlobalDataFn,
+      FailureTracker failureTracker,
+      WorkFailureProcessor workFailureProcessor,
+      StreamingCounters streamingCounters,
+      HotKeyLogger hotKeyLogger,
+      DataflowExecutionStateSampler sampler,
+      AtomicInteger maxWorkItemCommitBytes,
+      IdGenerator idGenerator,
+      ConcurrentMap<String, StageInfo> stageInfoMap) {
+    ExecutionStateFactory executionStateFactory =
+        new ExecutionStateFactory(
+            options,
+            mapTaskExecutorFactory,
+            readerCache,
+            stateCacheFactory,
+            sampler,
+            streamingCounters.pendingDeltaCounters(),
+            idGenerator);
+
+    return new StreamingWorkScheduler(
+        options,
+        clock,
+        executionStateFactory,
+        new SideInputStateFetcher(fetchGlobalDataFn, options),
+        failureTracker,
+        workFailureProcessor,
+        StreamingCommitFinalizer.create(workExecutor),
+        streamingCounters,
+        hotKeyLogger,
+        stageInfoMap,
+        sampler,
+        maxWorkItemCommitBytes);
   }
 
   private static long computeShuffleBytesRead(Windmill.WorkItem workItem) {
@@ -178,7 +219,6 @@ public final class StreamingWorkScheduler {
       Windmill.WorkItem workItem,
       Work.Watermarks watermarks,
       Work.ProcessingContext.WithProcessWorkFn processingContext,
-      Consumer<Windmill.WorkItem> ackWorkItemQueued,
       Collection<Windmill.LatencyAttribution> getWorkStreamLatencies) {
     Work scheduledWork =
         Work.create(
@@ -188,22 +228,6 @@ public final class StreamingWorkScheduler {
             clock,
             getWorkStreamLatencies);
     computationState.activateWork(scheduledWork);
-    ackWorkItemQueued.accept(workItem);
-  }
-
-  public void scheduleWork(
-      ComputationState computationState,
-      Windmill.WorkItem workItem,
-      Work.Watermarks watermarks,
-      Work.ProcessingContext.WithProcessWorkFn processingContext,
-      Collection<Windmill.LatencyAttribution> getWorkStreamLatencies) {
-    scheduleWork(
-        computationState,
-        workItem,
-        watermarks,
-        processingContext,
-        ignored -> {},
-        getWorkStreamLatencies);
   }
 
   /**
@@ -262,7 +286,7 @@ public final class StreamingWorkScheduler {
           t,
           invalidWork ->
               computationState.completeWorkAndScheduleNextWorkForKey(
-                  createShardedKey(invalidWork), invalidWork.id()));
+                  invalidWork.getShardedKey(), invalidWork.id()));
     } finally {
       // Update total processing time counters. Updating in finally clause ensures that
       // work items causing exceptions are also accounted in time spent.
@@ -383,7 +407,7 @@ public final class StreamingWorkScheduler {
       try {
         long sourceBytesProcessed =
             computeSourceBytesProcessed(
-                executionState.workExecutor(), computationState.getSourceBytesProcessCounter());
+                executionState.workExecutor(), computationState.sourceBytesProcessCounterName());
         outputBuilder.setSourceBytesProcessed(sourceBytesProcessed);
       } catch (Exception e) {
         LOG.error(e.toString());

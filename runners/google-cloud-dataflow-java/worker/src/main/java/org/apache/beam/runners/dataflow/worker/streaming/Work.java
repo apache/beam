@@ -63,6 +63,7 @@ import org.joda.time.Instant;
 @NotThreadSafe
 @Internal
 public class Work implements Runnable {
+  private final ShardedKey shardedKey;
   private final WorkItem workItem;
   private final ProcessingContext processingContext;
   private final Watermarks watermarks;
@@ -79,6 +80,7 @@ public class Work implements Runnable {
       Watermarks watermarks,
       ProcessingContext processingContext,
       Supplier<Instant> clock) {
+    this.shardedKey = ShardedKey.create(workItem.getKey(), workItem.getShardingKey());
     this.workItem = workItem;
     this.processingContext = processingContext;
     this.watermarks = watermarks;
@@ -159,6 +161,10 @@ public class Work implements Runnable {
 
   public WorkItem getWorkItem() {
     return workItem;
+  }
+
+  public ShardedKey getShardedKey() {
+    return shardedKey;
   }
 
   public Optional<KeyedGetDataResponse> fetchKeyedState(KeyedGetDataRequest keyedGetDataRequest) {

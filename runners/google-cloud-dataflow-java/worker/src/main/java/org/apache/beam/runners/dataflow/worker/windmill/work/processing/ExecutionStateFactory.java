@@ -33,6 +33,7 @@ import org.apache.beam.runners.dataflow.worker.IntrinsicMapTaskExecutorFactory;
 import org.apache.beam.runners.dataflow.worker.ReaderCache;
 import org.apache.beam.runners.dataflow.worker.ReaderRegistry;
 import org.apache.beam.runners.dataflow.worker.SinkRegistry;
+import org.apache.beam.runners.dataflow.worker.StreamingDataflowWorker;
 import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext;
 import org.apache.beam.runners.dataflow.worker.WindmillKeyedWorkItem;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
@@ -54,7 +55,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.graph.MutableNetwork;
@@ -66,14 +66,7 @@ import org.slf4j.LoggerFactory;
  * Factory class for generating {@link
  * org.apache.beam.runners.dataflow.worker.streaming.ExecutionState} instances.
  */
-public final class ExecutionStateFactory {
-  /**
-   * Sinks are marked 'full' in {@link StreamingModeExecutionContext} once the amount of data sinked
-   * (across all the sinks, if there are more than one) reaches this limit. This serves as hint for
-   * readers to stop producing more. This can be disabled with 'disable_limiting_bundle_sink_bytes'
-   * experiment.
-   */
-  @VisibleForTesting public static final int MAX_SINK_BYTES = 10_000_000;
+final class ExecutionStateFactory {
 
   private static final Logger LOG = LoggerFactory.getLogger(ExecutionStateFactory.class);
   private static final String DISABLE_SINK_BYTE_LIMIT_EXPERIMENT =
@@ -122,7 +115,7 @@ public final class ExecutionStateFactory {
     this.maxSinkBytes =
         hasExperiment(options, DISABLE_SINK_BYTE_LIMIT_EXPERIMENT)
             ? Long.MAX_VALUE
-            : MAX_SINK_BYTES;
+            : StreamingDataflowWorker.MAX_SINK_BYTES;
   }
 
   private static Nodes.ParallelInstructionNode extractReadNode(
@@ -209,7 +202,7 @@ public final class ExecutionStateFactory {
           readCoder,
           readOperation,
           mapTaskExecutor,
-          computationState.getSourceBytesProcessCounter());
+          computationState.sourceBytesProcessCounterName());
     }
 
     ExecutionState.Builder executionStateBuilder =
