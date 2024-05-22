@@ -460,24 +460,6 @@ jobs:
           echo $BUILD_DIR
 
           echo `which go`
-
-          # Only build supported Go platforms
-          GO_ALL_TARGETS=$(go tool dist list)
-
-          echo "got all targets"
-          # Turn the newline separated list into an array.
-          IFS=$'\n' read -d '' -r OS_ARCH_ARRAY <<<"$GO_ALL_TARGETS"
-
-          echo "split all targets"
-          # Declare which supported pairs we want to build.
-          # Only build for a platform if both the OS and Architecture are on this list.
-          declare -A TARGET_OSES=( 
-           ["linux"]=1  ["windows"]=1  ["darwin"]=1
-          )
-
-          declare -A TARGET_ARCHS=(
-           ["arm64"]=1  ["amd64"]=1
-          )
           OUTPUT_DIR="BUILDS"
           mkdir -p $OUTPUT_DIR
 
@@ -486,7 +468,6 @@ jobs:
           # Loop through and build desired set from allowed types.
           for OS in linux windows darwin; do
             for ARCH in amd64 arm64; do
-
               TARGET_DIR="$OUTPUT_DIR/$OS/$ARCH"
               TARGET_NAME="$NAME-$VERSION-$OS-$ARCH"
 
