@@ -447,7 +447,7 @@ jobs:
           RELEASE_DIR: "beam/${{ github.event.inputs.RELEASE }}"
           RELEASE: "${{ github.event.inputs.RELEASE }}"
           SCRIPT_DIR: release/src/main/scripts
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.USER_TOKEN }}
           SVN_ARTIFACTS_DIR: "beam/${{ github.event.inputs.RELEASE }}/prism"
         run: |
           # Store a reference so we can get back to the start.
