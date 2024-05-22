@@ -517,7 +517,7 @@ jobs:
 
           echo "release id $GH_RELEASE_ID for tag $RC_TAG"
 
-          gh release list
+          gh release list -R apache/beam
 
           # svn co https://dist.apache.org/repos/dist/dev/beam
           # mkdir -p "${SVN_ARTIFACTS_DIR}"
