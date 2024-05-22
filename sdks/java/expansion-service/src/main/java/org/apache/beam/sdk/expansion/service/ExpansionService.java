@@ -829,7 +829,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
         useAlts ? AltsServerBuilder.forPort(port) : ServerBuilder.forPort(port);
 
     if (useAlts) {
-      LOG.info("Running with Google ALTS authentication.");
+      LOG.info("Running with gRPC ALTS authentication.");
     }
 
     serverBuilder.addService(service).addService(new ArtifactRetrievalService());

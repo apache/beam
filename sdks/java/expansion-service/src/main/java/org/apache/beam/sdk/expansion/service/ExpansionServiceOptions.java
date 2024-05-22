@@ -58,7 +58,7 @@ public interface ExpansionServiceOptions extends PipelineOptions {
 
   void setExpansionServiceConfig(ExpansionServiceConfig configFile);
 
-  @Description("Starts an Expansion Service with support for Google ALTS authentication")
+  @Description("Starts an Expansion Service with support for gRPC ALTS authentication.")
   @Default.Boolean(false)
   boolean getUseAltsServer();
 
