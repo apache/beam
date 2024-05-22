@@ -45,7 +45,10 @@ on:
       BUILD_AND_STAGE_PRISM:
         description: Whether to build signed Prism artifacts and stage them in the draft release.
         required: true
-        default: 'no'
+        default: |
+           {python: "no",
+            prism: "no",
+            create_beam_site: "no"}'
 
 env:
   GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
@@ -407,7 +410,7 @@ jobs:
             gh pr create -t "$PR_TITLE" -b "$PR_BODY" --base release-docs
 
   build_and_stage_prism:
-    if: ${{github.event.inputs.BUILD_AND_STAGE_PRISM == 'yes'}}
+    if: ${{ fromJson(github.event.inputs.BUILD_AND_STAGE_PRISM).prism == 'yes'}}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
