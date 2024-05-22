@@ -133,6 +133,20 @@ public class SortValues<PrimaryKeyT, SecondaryKeyT, ValueT>
     return getSecondaryKeyValueCoder(inputCoder).getValueCoder();
   }
 
+  private static <T> T elementOf(Coder<T> coder, byte[] bytes) throws CoderException {
+    if (coder instanceof ByteArrayCoder) {
+      return (T) bytes;
+    }
+    return CoderUtils.decodeFromByteArray(coder, bytes);
+  }
+
+  private static <T> byte[] bytesOf(Coder<T> coder, T element) throws CoderException {
+    if (element instanceof byte[]) {
+      return (byte[]) element;
+    }
+    return CoderUtils.encodeToByteArray(coder, element);
+  }
+
   private static class SortValuesDoFn<PrimaryKeyT, SecondaryKeyT, ValueT>
       extends DoFn<
           KV<PrimaryKeyT, Iterable<KV<SecondaryKeyT, ValueT>>>,
@@ -156,66 +170,14 @@ public class SortValues<PrimaryKeyT, SecondaryKeyT, ValueT>
 
       try {
         Sorter sorter = BufferedExternalSorter.create(sorterOptions);
-
-        final ThrowingFunction<KV<SecondaryKeyT, ValueT>, KV<byte[], byte[]>> toBytesKvFn =
-            new KvByteTranslator().toBytesKvFn;
-
         for (KV<SecondaryKeyT, ValueT> record : records) {
-          sorter.add(toBytesKvFn.apply(record));
+          sorter.add(
+              KV.of(bytesOf(keyCoder, record.getKey()), bytesOf(valueCoder, record.getValue())));
         }
 
         c.output(KV.of(c.element().getKey(), new DecodingIterable(sorter.sort())));
       } catch (IOException e) {
         throw new RuntimeException(e);
-      }
-    }
-
-    @FunctionalInterface
-    private interface ThrowingFunction<FromT, ToT> {
-      ToT apply(FromT t) throws IOException, CoderException;
-    }
-
-    private class KvByteTranslator {
-      final ThrowingFunction<KV<SecondaryKeyT, ValueT>, KV<byte[], byte[]>> toBytesKvFn;
-      final ThrowingFunction<KV<byte[], byte[]>, KV<SecondaryKeyT, ValueT>> fromBytesKvFn;
-
-      KvByteTranslator() {
-        if (keyCoder instanceof ByteArrayCoder && valueCoder instanceof ByteArrayCoder) {
-          toBytesKvFn = (kv) -> (KV<byte[], byte[]>) kv;
-          fromBytesKvFn = (kv) -> (KV<SecondaryKeyT, ValueT>) kv;
-        } else if (keyCoder instanceof ByteArrayCoder) {
-          toBytesKvFn =
-              (kv) ->
-                  KV.of(
-                      (byte[]) kv.getKey(),
-                      CoderUtils.encodeToByteArray(valueCoder, kv.getValue()));
-          fromBytesKvFn =
-              (kv) ->
-                  KV.of(
-                      (SecondaryKeyT) kv.getKey(),
-                      CoderUtils.decodeFromByteArray(valueCoder, kv.getValue()));
-        } else if (valueCoder instanceof ByteArrayCoder) {
-          toBytesKvFn =
-              (kv) ->
-                  KV.of(
-                      CoderUtils.encodeToByteArray(keyCoder, kv.getKey()), (byte[]) kv.getValue());
-          fromBytesKvFn =
-              (kv) ->
-                  KV.of(
-                      CoderUtils.decodeFromByteArray(keyCoder, kv.getKey()),
-                      (ValueT) kv.getValue());
-        } else {
-          toBytesKvFn =
-              (kv) ->
-                  KV.of(
-                      CoderUtils.encodeToByteArray(keyCoder, kv.getKey()),
-                      CoderUtils.encodeToByteArray(valueCoder, kv.getValue()));
-          fromBytesKvFn =
-              (kv) ->
-                  KV.of(
-                      CoderUtils.decodeFromByteArray(keyCoder, kv.getKey()),
-                      CoderUtils.decodeFromByteArray(valueCoder, kv.getValue()));
-        }
       }
     }
 
@@ -235,11 +197,9 @@ public class SortValues<PrimaryKeyT, SecondaryKeyT, ValueT>
 
     private class DecodingIterator implements Iterator<KV<SecondaryKeyT, ValueT>> {
       final Iterator<KV<byte[], byte[]>> iterator;
-      final ThrowingFunction<KV<byte[], byte[]>, KV<SecondaryKeyT, ValueT>> fromBytesKvFn;
 
       DecodingIterator(Iterator<KV<byte[], byte[]>> iterator) {
         this.iterator = iterator;
-        this.fromBytesKvFn = new KvByteTranslator().fromBytesKvFn;
       }
 
       @Override
@@ -251,7 +211,9 @@ public class SortValues<PrimaryKeyT, SecondaryKeyT, ValueT>
       public KV<SecondaryKeyT, ValueT> next() {
         KV<byte[], byte[]> next = iterator.next();
         try {
-          return fromBytesKvFn.apply(next);
+          SecondaryKeyT secondaryKey = elementOf(keyCoder, next.getKey());
+          ValueT value = elementOf(valueCoder, next.getValue());
+          return KV.of(secondaryKey, value);
         } catch (IOException e) {
           throw new RuntimeException(e);
         }
