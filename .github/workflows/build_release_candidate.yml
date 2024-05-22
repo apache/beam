@@ -28,18 +28,18 @@ on:
       STAGE:
         description: |
           Configure which actions this workflow should perform, by setting the desired fields to "yes".
-
+          --
           java_artifacts: publish java artifacts to https://repository.apache.org/#stagingRepositories
-
+          --
           java_source: java source into https://dist.apache.org/repos/dist/dev/beam/
-
+          --
           docker_artifacts: stage SDK docker images to docker hub Apache organization
-
+          --
           python_artifacts: stage the python artifacts into https://dist.apache.org/repos/dist/dev/beam/
-
+          --
           beam_site: create the documentation update PR against apache/beam-site.
-
-          prism: build and upload the artifacts to the 
+          --
+          prism: build and upload the artifacts to the release for this tag 
         required: true
         default: |
            {java_artifacts: "no",
