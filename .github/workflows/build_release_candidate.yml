@@ -469,7 +469,7 @@ jobs:
           for OS in linux windows darwin; do
             for ARCH in amd64 arm64; do
               TARGET_DIR="$OUTPUT_DIR/$OS/$ARCH"
-              TARGET_NAME="$NAME-$VERSION-$OS-$ARCH"
+              TARGET_NAME="prism-$RELEASE-$OS-$ARCH"
 
               echo "building $TARGET_NAME"
 
