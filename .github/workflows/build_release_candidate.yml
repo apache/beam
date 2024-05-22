@@ -509,7 +509,7 @@ jobs:
            -H "X-GitHub-Api-Version: 2022-11-28" \
            /repos/apache/beam/releases | jq '.[] | select(.tag_name | contains("$RC_TAG")) .id'`
 
-          echo "release id $GH_RELEASE_ID"
+          echo "release id $GH_RELEASE_ID for tag $RC_TAG"
 
           # svn co https://dist.apache.org/repos/dist/dev/beam
           # mkdir -p "${SVN_ARTIFACTS_DIR}"
