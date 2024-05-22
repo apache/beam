@@ -19,38 +19,34 @@ on:
       APACHE_PASSWORD:
         description: Your Apache password. Required if you want to stage artifacts into https://dist.apache.org/repos/dist/dev/beam/
         required: false
-      BEAM_SITE_TOKEN:
-        description:  Github Personal Access Token with apache/beam-site repo permission if you want to create the beam-site docs PR. See https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens.
+      REPO_TOKEN:
+        description: |
+          Github Personal Access Token with repo permissions if you want to create the beam-site docs PR,
+          create a draft release, or upload prism artifacts to that release.
+          See https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens.
         default: ''
-      PUBLISH_JAVA_ARTIFACTS:
-        description: Whether to publish java artifacts to https://repository.apache.org/#stagingRepositories (yes/no)
-        required: true
-        default: 'no'
-      STAGE_JAVA_SOURCE:
-        description: Whether to stage the java source into https://dist.apache.org/repos/dist/dev/beam/
-        required: true
-        default: 'no'
-      STAGE_DOCKER_ARTIFACTS:
-        description: Whether to stage SDK docker images to docker hub Apache organization
-        required: true
-        default: 'no'
-      STAGE_PYTHON_ARTIFACTS:
-        description: Whether to stage the python artifacts into https://dist.apache.org/repos/dist/dev/beam/
-        required: true
-        default: 'no'
-    #  CREATE_BEAM_SITE_PR:
-    #    description: Whether to create the documentation update PR against apache/beam-site.
-    #    required: true
-    #    default: 'no'
-      BUILD_AND_STAGE_PRISM:
-        description: Whether to build signed Prism artifacts and stage them in the draft release.
+      STAGE:
+        description: |
+          Configure which actions this workflow should perform, by setting the desired fields to "yes".
+
+          java_artifacts: publish java artifacts to https://repository.apache.org/#stagingRepositories
+
+          java_source: java source into https://dist.apache.org/repos/dist/dev/beam/
+
+          docker_artifacts: stage SDK docker images to docker hub Apache organization
+
+          python_artifacts: stage the python artifacts into https://dist.apache.org/repos/dist/dev/beam/
+
+          beam_site: create the documentation update PR against apache/beam-site.
+
+          prism: build and upload the artifacts to the 
         required: true
         default: |
-           {publish_java: "no",
-            stage_java_source: "no",
-            stage_docker: "no",
-            stage_python: "no",
-            create_beam_site: "no",
+           {java_artifacts: "no",
+            java_source: "no",
+            docker_artifacts: "no",
+            python_artifacts: "no",
+            beam_site: "no",
             prism: "no"}'
 
 env:
@@ -60,7 +56,7 @@ env:
 
 jobs:
   publish_java_artifacts:
-    if: ${{github.event.inputs.PUBLISH_JAVA_ARTIFACTS == 'yes'}}
+    if:  ${{ fromJson(github.event.inputs.STAGE).java_artifacts == 'yes'}}
     runs-on: [self-hosted, ubuntu-20.04, main]
     steps:
       - name: Checkout
@@ -102,7 +98,7 @@ jobs:
 
 
   stage_java_source:
-    if: ${{github.event.inputs.STAGE_JAVA_SOURCE == 'yes'}}
+    if:  ${{ fromJson(github.event.inputs.STAGE).java_source == 'yes'}}
     runs-on: ubuntu-latest
     steps:
       - name: Mask Apache Password
@@ -166,7 +162,7 @@ jobs:
             svn commit -m "Staging Java artifacts for Apache Beam ${{ github.event.inputs.RELEASE }} RC${{ github.event.inputs.RC }}" --non-interactive --username "${{ github.event.inputs.APACHE_ID }}" --password "${{ github.event.inputs.APACHE_PASSWORD }}"
 
   stage_python_artifacts:
-    if: ${{github.event.inputs.STAGE_PYTHON_ARTIFACTS == 'yes'}}
+    if:  ${{ fromJson(github.event.inputs.STAGE).python_artifacts == 'yes'}}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -249,7 +245,7 @@ jobs:
 
 
   stage_docker:
-    if: ${{github.event.inputs.STAGE_DOCKER_ARTIFACTS == 'yes'}}
+    if:  ${{ fromJson(github.event.inputs.STAGE).docker_artifacts == 'yes'}}
     # Note: if this ever changes to self-hosted, remove the "Remove default github maven configuration" step
     runs-on: ubuntu-latest
     steps:
@@ -293,7 +289,7 @@ jobs:
         run: ./gradlew :pushAllDockerImages -PisRelease -Pdocker-pull-licenses -Pprune-images -Pdocker-tag=${{ github.event.inputs.RELEASE }}rc${{ github.event.inputs.RC }} -Pjava11Home=${{steps.export-java11.outputs.JAVA11_HOME}} --no-daemon --no-parallel
 
   beam_site_pr:
-    if: ${{github.event.inputs.STAGE_PYTHON_ARTIFACTS == 'yes'}}
+    if:  ${{ fromJson(github.event.inputs.STAGE).beam_site_pr == 'yes'}}
     # Note: if this ever changes to self-hosted, remove the "Remove default github maven configuration" step
     runs-on: ubuntu-latest
     env:
@@ -313,7 +309,7 @@ jobs:
         with:
           repository: apache/beam-site
           path: beam-site
-          token: ${{ github.event.inputs.BEAM_SITE_TOKEN }}
+          token: ${{ github.event.inputs.REPO_TOKEN }}
           ref: release-docs
       - name: Install Python 3.8
         uses: actions/setup-python@v5
@@ -406,14 +402,14 @@ jobs:
       - name: Create beam-site PR
         working-directory: beam-site
         env:
-          GH_TOKEN: ${{ github.event.inputs.BEAM_SITE_TOKEN }}
+          GH_TOKEN: ${{ github.event.inputs.REPO_TOKEN }}
           PR_TITLE: "Publish docs for ${{ github.event.inputs.RELEASE }} release"
           PR_BODY: "Content generated from https://github.com/apache/beam/tree/${{ env.RC_TAG }}."
         run: |
             gh pr create -t "$PR_TITLE" -b "$PR_BODY" --base release-docs
 
   build_and_stage_prism:
-    if: ${{ fromJson(github.event.inputs.BUILD_AND_STAGE_PRISM).prism == 'yes'}}
+    if: ${{ fromJson(github.event.inputs.STAGE).prism == 'yes'}}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -453,7 +449,7 @@ jobs:
           RELEASE_DIR: "beam/${{ github.event.inputs.RELEASE }}"
           RELEASE: "${{ github.event.inputs.RELEASE }}"
           SCRIPT_DIR: release/src/main/scripts
-          GH_TOKEN: ${{ github.event.inputs.BEAM_SITE_TOKEN  }}
+          GH_TOKEN: ${{ github.event.inputs.REPO_TOKEN  }}
           SVN_ARTIFACTS_DIR: "beam/${{ github.event.inputs.RELEASE }}/prism"
         run: |
           # Store a reference so we can get back to the start.
