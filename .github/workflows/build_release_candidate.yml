@@ -46,9 +46,12 @@ on:
         description: Whether to build signed Prism artifacts and stage them in the draft release.
         required: true
         default: |
-           {python: "no",
-            prism: "no",
-            create_beam_site: "no"}'
+           {publish_java: "no",
+            stage_java_source: "no",
+            stage_docker: "no",
+            stage_python: "no",
+            create_beam_site: "no",
+            prism: "no"}'
 
 env:
   GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
@@ -450,7 +453,7 @@ jobs:
           RELEASE_DIR: "beam/${{ github.event.inputs.RELEASE }}"
           RELEASE: "${{ github.event.inputs.RELEASE }}"
           SCRIPT_DIR: release/src/main/scripts
-          GH_TOKEN: ${{ secrets.USER_TOKEN }}
+          GH_TOKEN: ${{ github.event.inputs.BEAM_SITE_TOKEN }}
           SVN_ARTIFACTS_DIR: "beam/${{ github.event.inputs.RELEASE }}/prism"
         run: |
           # Store a reference so we can get back to the start.
