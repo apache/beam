@@ -453,7 +453,7 @@ jobs:
           RELEASE_DIR: "beam/${{ github.event.inputs.RELEASE }}"
           RELEASE: "${{ github.event.inputs.RELEASE }}"
           SCRIPT_DIR: release/src/main/scripts
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.event.inputs.BEAM_SITE_TOKEN  }}
           SVN_ARTIFACTS_DIR: "beam/${{ github.event.inputs.RELEASE }}/prism"
         run: |
           # Store a reference so we can get back to the start.
@@ -470,6 +470,13 @@ jobs:
           mkdir -p $OUTPUT_DIR
 
           echo "build directory made"
+
+          export GH_RELEASE_ID=`gh api \
+           -H "Accept: application/vnd.github+json" \
+           -H "X-GitHub-Api-Version: 2022-11-28" \
+           /repos/apache/beam/releases | jq '.[] | select(.tag_name | contains(env.RC_TAG)) .id'`
+
+          echo "with gh release id $GH_RELEASE_ID for tag $RC_TAG"
           
           # Loop through and build desired set from allowed types.
           for OS in linux windows darwin; do
@@ -496,6 +503,16 @@ jobs:
                 #TODO move zip to release directory? debug output for now.
                 echo `ls`
 
+
+                # Time to upload to the release!
+                # TODO automatically clobber existing binaries.
+                gh api \
+                --method POST
+                -H "Accept: application/vnd.github+json" \
+                -H "X-GitHub-Api-Version: 2022-11-28" \
+                /repos/apache/beam/release/$GH_RELEASE_ID/assets?name=$ZIP_NAME \
+                  -f "@$ZIP_NAME"
+
                 # Return to our root build dir.
                 cd $BUILD_DIR
               else
@@ -509,20 +526,6 @@ jobs:
           # Get out of the checked out repo.
           cd .. 
 
-          export GH_RELEASE_ID=`gh api \
-           -H "Accept: application/vnd.github+json" \
-           -H "X-GitHub-Api-Version: 2022-11-28" \
-           /repos/apache/beam/releases | jq '.[] | select(.tag_name | contains(env.RC_TAG)) .id'`
-
-          echo "with gh release id $GH_RELEASE_ID for tag $RC_TAG"
-
-          export GH_RELEASE_ID=`curl -L \
-           -H "Accept: application/vnd.github+json" \
-           -H "Authorization: Bearer $GH_TOKEN" \
-           -H "X-GitHub-Api-Version: 2022-11-28" \
-            https://api.github.com/repos/apache/beam/releases | jq '.[] | select(.tag_name | contains(env.RC_TAG)) .id'`
-
-          echo "with curl release id $GH_RELEASE_ID for tag $RC_TAG"
 
           # svn co https://dist.apache.org/repos/dist/dev/beam
           # mkdir -p "${SVN_ARTIFACTS_DIR}"
