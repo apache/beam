@@ -1274,4 +1274,18 @@ public class TestPOJOs {
               Schema.Field.nullable("str", FieldType.STRING)
                   .withDescription("a simple string that is part of this field"))
           .build();
+
+  @DefaultSchema(JavaFieldSchema.class)
+  public static class GenericPOJO<T> {
+    public @Nullable T t;
+
+    @SchemaCreate
+    public GenericPOJO(@Nullable T t) {
+      this.t = t;
+    }
+  }
+
+  public static Schema genericPOJOSchema(FieldType tFieldType) {
+    return Schema.builder().addNullableField("t", tFieldType).build();
+  }
 }

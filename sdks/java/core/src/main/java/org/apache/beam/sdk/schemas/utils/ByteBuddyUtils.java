@@ -153,7 +153,7 @@ public class ByteBuddyUtils {
     private static boolean overridePackage(@Nullable String targetPackage) {
       return targetPackage != null && !targetPackage.startsWith("java.");
     }
-  };
+  }
 
   static class IfNullElse implements StackManipulation {
     private final StackManipulation readValue;
@@ -361,8 +361,8 @@ public class ByteBuddyUtils {
     }
 
     @Override
-    protected Type convertMap(TypeDescriptor<?> type) {
-      return Map.class;
+    protected Type convertMap(TypeDescriptor type) {
+      return returnRawTypes ? Map.class : type.getSupertype(Map.class).getType();
     }
 
     @Override
@@ -395,11 +395,19 @@ public class ByteBuddyUtils {
       return returnRawTypes ? type.getRawType() : type.getType();
     }
 
+    public static TypeDescriptor primitiveToWrapper(TypeDescriptor typeDescriptor) {
+      Class cls = typeDescriptor.getRawType();
+      if (cls.isPrimitive()) {
+        return TypeDescriptor.of(ClassUtils.primitiveToWrapper(cls));
+      } else {
+        return typeDescriptor;
+      }
+    }
+
     @SuppressWarnings("unchecked")
     private <ElementT> TypeDescriptor<Collection<ElementT>> createCollectionType(
         TypeDescriptor<?> componentType) {
-      TypeDescriptor wrappedComponentType =
-          TypeDescriptor.of(ClassUtils.primitiveToWrapper(componentType.getRawType()));
+      TypeDescriptor wrappedComponentType = primitiveToWrapper(componentType);
       return new TypeDescriptor<Collection<ElementT>>() {}.where(
           new TypeParameter<ElementT>() {}, wrappedComponentType);
     }
@@ -407,8 +415,7 @@ public class ByteBuddyUtils {
     @SuppressWarnings("unchecked")
     private <ElementT> TypeDescriptor<Iterable<ElementT>> createIterableType(
         TypeDescriptor<?> componentType) {
-      TypeDescriptor wrappedComponentType =
-          TypeDescriptor.of(ClassUtils.primitiveToWrapper(componentType.getRawType()));
+      TypeDescriptor wrappedComponentType = primitiveToWrapper(componentType);
       return new TypeDescriptor<Iterable<ElementT>>() {}.where(
           new TypeParameter<ElementT>() {}, wrappedComponentType);
     }

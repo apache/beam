@@ -71,18 +71,19 @@ import org.checkerframework.checker.nullness.qual.Nullable;
   "rawtypes"
 })
 public class AutoValueUtils {
-  public static Class getBaseAutoValueClass(Class<?> clazz) {
+  public static TypeDescriptor getBaseAutoValueClass(TypeDescriptor typeDescriptor) {
     // AutoValue extensions may be nested
-    while (clazz != null && clazz.getName().contains("AutoValue_")) {
-      clazz = clazz.getSuperclass();
+    while (typeDescriptor != null && typeDescriptor.getRawType().getName().contains("AutoValue_")) {
+      typeDescriptor = typeDescriptor.getSupertype(typeDescriptor.getRawType().getSuperclass());
     }
-    return clazz;
+    return typeDescriptor;
   }
 
-  private static Class getAutoValueGenerated(Class<?> clazz) {
-    String generatedClassName = getAutoValueGeneratedName(clazz.getName());
+  private static <T> TypeDescriptor<? extends T> getAutoValueGenerated(
+      TypeDescriptor<T> typeDescriptor) {
+    String generatedClassName = getAutoValueGeneratedName(typeDescriptor.getRawType().getName());
     try {
-      return Class.forName(generatedClassName);
+      return typeDescriptor.getSubtype((Class<? extends T>) Class.forName(generatedClassName));
     } catch (ClassNotFoundException e) {
       throw new IllegalStateException("AutoValue generated class not found: " + generatedClassName);
     }
@@ -121,19 +122,22 @@ public class AutoValueUtils {
    * Try to find an accessible constructor for creating an AutoValue class. Otherwise return null.
    */
   public static @Nullable SchemaUserTypeCreator getConstructorCreator(
-      Class<?> clazz, Schema schema, FieldValueTypeSupplier fieldValueTypeSupplier) {
-    Class<?> generatedClass = getAutoValueGenerated(clazz);
-    List<FieldValueTypeInformation> schemaTypes = fieldValueTypeSupplier.get(clazz, schema);
+      TypeDescriptor<?> typeDescriptor,
+      Schema schema,
+      FieldValueTypeSupplier fieldValueTypeSupplier) {
+    TypeDescriptor<?> generatedTypeDescriptor = getAutoValueGenerated(typeDescriptor);
+    List<FieldValueTypeInformation> schemaTypes =
+        fieldValueTypeSupplier.get(typeDescriptor, schema);
     Optional<Constructor<?>> constructor =
-        Arrays.stream(generatedClass.getDeclaredConstructors())
+        Arrays.stream(generatedTypeDescriptor.getRawType().getDeclaredConstructors())
             .filter(c -> !Modifier.isPrivate(c.getModifiers()))
-            .filter(c -> matchConstructor(c, schemaTypes))
+            .filter(c -> matchConstructor(generatedTypeDescriptor, c, schemaTypes))
             .findAny();
     return constructor
         .map(
             c ->
                 JavaBeanUtils.getConstructorCreator(
-                    generatedClass,
+                    generatedTypeDescriptor,
                     c,
                     schema,
                     fieldValueTypeSupplier,
@@ -142,7 +146,9 @@ public class AutoValueUtils {
   }
 
   private static boolean matchConstructor(
-      Constructor<?> constructor, List<FieldValueTypeInformation> getterTypes) {
+      TypeDescriptor typeDescriptor,
+      Constructor<?> constructor,
+      List<FieldValueTypeInformation> getterTypes) {
     if (constructor.getParameters().length != getterTypes.size()) {
       return false;
     }
@@ -158,7 +164,8 @@ public class AutoValueUtils {
     // Verify that constructor parameters match (name and type) the inferred schema.
     for (Parameter parameter : constructor.getParameters()) {
       FieldValueTypeInformation type = typeMap.get(parameter.getName());
-      if (type == null || type.getRawType() != parameter.getType()) {
+      if (type == null
+          || !type.getType().equals(typeDescriptor.resolveType(parameter.getParameterizedType()))) {
         valid = false;
         break;
       }
@@ -187,8 +194,10 @@ public class AutoValueUtils {
    * Try to find an accessible builder class for creating an AutoValue class. Otherwise return null.
    */
   public static @Nullable SchemaUserTypeCreator getBuilderCreator(
-      Class<?> clazz, Schema schema, FieldValueTypeSupplier fieldValueTypeSupplier) {
-    Class<?> builderClass = getAutoValueGeneratedBuilder(clazz);
+      TypeDescriptor<?> typeDescriptor,
+      Schema schema,
+      FieldValueTypeSupplier fieldValueTypeSupplier) {
+    Class<?> builderClass = getAutoValueGeneratedBuilder(typeDescriptor.getRawType());
     if (builderClass == null) {
       return null;
     }
@@ -196,12 +205,13 @@ public class AutoValueUtils {
     Map<String, FieldValueTypeInformation> setterTypes =
         ReflectUtils.getMethods(builderClass).stream()
             .filter(ReflectUtils::isSetter)
-            .map(FieldValueTypeInformation::forSetter)
+            .map(m -> FieldValueTypeInformation.forSetter(typeDescriptor, m))
             .collect(Collectors.toMap(FieldValueTypeInformation::getName, Function.identity()));
 
     List<FieldValueTypeInformation> setterMethods =
         Lists.newArrayList(); // The builder methods to call in order.
-    List<FieldValueTypeInformation> schemaTypes = fieldValueTypeSupplier.get(clazz, schema);
+    List<FieldValueTypeInformation> schemaTypes =
+        fieldValueTypeSupplier.get(typeDescriptor, schema);
     for (FieldValueTypeInformation type : schemaTypes) {
       String autoValueFieldName = ReflectUtils.stripGetterPrefix(type.getMethod().getName());
 

@@ -48,10 +48,13 @@ public class RowWithGetters extends Row {
   private @Nullable Map<Integer, @Nullable Object> cache = null;
 
   RowWithGetters(
-      Schema schema, Factory<List<FieldValueGetter>> getterFactory, Object getterTarget) {
+      TypeDescriptor getterTargetType,
+      Schema schema,
+      Factory<List<FieldValueGetter>> getterFactory,
+      Object getterTarget) {
     super(schema);
     this.getterTarget = getterTarget;
-    this.getters = getterFactory.create(getterTarget.getClass(), schema);
+    this.getters = getterFactory.create(getterTargetType, schema);
   }
 
   @Override

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.schemas;
 
+import static org.apache.beam.sdk.schemas.utils.SchemaTestUtils.assertSchemaEquivalent;
 import static org.apache.beam.sdk.schemas.utils.SchemaTestUtils.equivalentTo;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.ANNOTATED_SIMPLE_POJO_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.CASE_FORMAT_POJO_SCHEMA;
@@ -34,6 +35,7 @@ import static org.apache.beam.sdk.schemas.utils.TestPOJOs.POJO_WITH_NESTED_ARRAY
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.PRIMITIVE_ARRAY_POJO_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.SIMPLE_POJO_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.SIMPLE_POJO_WITH_DESCRIPTION_SCHEMA;
+import static org.apache.beam.sdk.schemas.utils.TestPOJOs.genericPOJOSchema;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertArrayEquals;
@@ -56,6 +58,7 @@ import org.apache.beam.sdk.schemas.utils.SchemaTestUtils;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.AnnotatedSimplePojo;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.FirstCircularNestedPOJO;
+import org.apache.beam.sdk.schemas.utils.TestPOJOs.GenericPOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.NestedArrayPOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.NestedArraysPOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.NestedMapPOJO;
@@ -76,9 +79,11 @@ import org.apache.beam.sdk.schemas.utils.TestPOJOs.StaticCreationSimplePojo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Streams;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Ints;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
@@ -180,6 +185,10 @@ public class JavaFieldSchemaTest {
         .build();
   }
 
+  private static Row createGenericRow(FieldType tFieldType, Object tFieldValue) {
+    return Row.withSchema(genericPOJOSchema(tFieldType)).withFieldValue("t", tFieldValue).build();
+  }
+
   @Test
   public void testSchema() throws NoSuchSchemaException {
     SchemaRegistry registry = SchemaRegistry.createDefault();
@@ -187,14 +196,9 @@ public class JavaFieldSchemaTest {
     SchemaTestUtils.assertSchemaEquivalent(SIMPLE_POJO_SCHEMA, schema);
   }
 
-  @Test
-  public void testToRow() throws NoSuchSchemaException {
-    SchemaRegistry registry = SchemaRegistry.createDefault();
-    SimplePOJO pojo = createSimple("string");
-    Row row = registry.getToRowFunction(SimplePOJO.class).apply(pojo);
-
+  private static void verifySimpleRow(String expectedStrField, Row row) {
     assertEquals(12, row.getFieldCount());
-    assertEquals("string", row.getString("str"));
+    assertEquals(expectedStrField, row.getString("str"));
     assertEquals((byte) 1, (Object) row.getByte("aByte"));
     assertEquals((short) 2, (Object) row.getInt16("aShort"));
     assertEquals((int) 3, (Object) row.getInt32("anInt"));
@@ -208,13 +212,8 @@ public class JavaFieldSchemaTest {
     assertEquals("stringbuilder", row.getString("stringBuilder"));
   }
 
-  @Test
-  public void testFromRow() throws NoSuchSchemaException {
-    SchemaRegistry registry = SchemaRegistry.createDefault();
-    Row row = createSimpleRow("string");
-
-    SimplePOJO pojo = registry.getFromRowFunction(SimplePOJO.class).apply(row);
-    assertEquals("string", pojo.str);
+  private static void verifySimplePOJO(String expectedStrField, SimplePOJO pojo) {
+    assertEquals(expectedStrField, pojo.str);
     assertEquals((byte) 1, pojo.aByte);
     assertEquals((short) 2, pojo.aShort);
     assertEquals((int) 3, pojo.anInt);
@@ -226,6 +225,23 @@ public class JavaFieldSchemaTest {
     assertEquals(BYTE_BUFFER, pojo.byteBuffer);
     assertEquals(BigDecimal.ONE, pojo.bigDecimal);
     assertEquals("stringbuilder", pojo.stringBuilder.toString());
+  }
+
+  @Test
+  public void testToRow() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    SimplePOJO pojo = createSimple("string");
+    Row row = registry.getToRowFunction(SimplePOJO.class).apply(pojo);
+    verifySimpleRow("string", row);
+  }
+
+  @Test
+  public void testFromRow() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Row row = createSimpleRow("string");
+
+    SimplePOJO pojo = registry.getFromRowFunction(SimplePOJO.class).apply(row);
+    verifySimplePOJO("string", pojo);
   }
 
   @Test
@@ -780,5 +796,119 @@ public class JavaFieldSchemaTest {
         "Message should suggest which class has circular schema reference.",
         thrown.getMessage(),
         containsString("TestPOJOs$FirstCircularNestedPOJO"));
+  }
+
+  @Test
+  public void testGenericPOJOSchema() throws Exception {
+    Schema actual =
+        SchemaRegistry.createDefault()
+            .getSchema(new TypeDescriptor<GenericPOJO<GenericPOJO<SimplePOJO>>>() {});
+    Schema expected =
+        genericPOJOSchema(FieldType.row(genericPOJOSchema(FieldType.row(SIMPLE_POJO_SCHEMA))));
+    assertSchemaEquivalent(expected, actual);
+  }
+
+  @Test
+  public void testGenericPOJOToRow() throws Exception {
+    Row row =
+        SchemaRegistry.createDefault()
+            .getToRowFunction(new TypeDescriptor<GenericPOJO<GenericPOJO<SimplePOJO>>>() {})
+            .apply(new GenericPOJO<>(new GenericPOJO<>(createSimple("string"))));
+
+    verifySimpleRow("string", row.getRow("t").getRow("t"));
+  }
+
+  @Test
+  public void testGenericPOJOFromRow() throws Exception {
+    FieldType innerGenericPOJOFieldType =
+        FieldType.row(genericPOJOSchema(FieldType.row(SIMPLE_POJO_SCHEMA)));
+    GenericPOJO<GenericPOJO<SimplePOJO>> actualPOJO =
+        SchemaRegistry.createDefault()
+            .getFromRowFunction(new TypeDescriptor<GenericPOJO<GenericPOJO<SimplePOJO>>>() {})
+            .apply(
+                createGenericRow(
+                    innerGenericPOJOFieldType,
+                    createGenericRow(
+                        FieldType.row(SIMPLE_POJO_SCHEMA), createSimpleRow("string"))));
+
+    verifySimplePOJO("string", actualPOJO.t.t);
+  }
+
+  @Test
+  public void testGenericPOJOSchemaMapToRow() throws Exception {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Row row =
+        registry
+            .getToRowFunction(
+                new TypeDescriptor<GenericPOJO<Map<String, GenericPOJO<String>>>>() {})
+            .apply(
+                new GenericPOJO<>(
+                    ImmutableMap.<String, GenericPOJO<String>>builder()
+                        .put("k1", new GenericPOJO<>("v1"))
+                        .put("k2", new GenericPOJO<>("v2"))
+                        .build()));
+
+    assertEquals("v1", row.<String, Row>getMap("t").get("k1").getString("t"));
+    assertEquals("v2", row.<String, Row>getMap("t").get("k2").getString("t"));
+  }
+
+  @Test
+  public void testGenericPOJOSchemaMapFromRow() throws Exception {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Schema.FieldType mapValueFieldType =
+        Schema.FieldType.row(genericPOJOSchema(Schema.FieldType.STRING));
+    GenericPOJO<Map<String, GenericPOJO<String>>> actual =
+        registry
+            .getFromRowFunction(
+                new TypeDescriptor<GenericPOJO<Map<String, GenericPOJO<String>>>>() {})
+            .apply(
+                createGenericRow(
+                    Schema.FieldType.map(Schema.FieldType.STRING, mapValueFieldType),
+                    ImmutableMap.<String, Row>builder()
+                        .put("k1", createGenericRow(Schema.FieldType.STRING, "v1"))
+                        .put("k2", createGenericRow(Schema.FieldType.STRING, "v2"))
+                        .build()));
+
+    assertEquals("v1", actual.t.get("k1").t);
+    assertEquals("v2", actual.t.get("k2").t);
+  }
+
+  @Test
+  public void testGenericBeamSchemaIterableToRow() throws Exception {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Row row =
+        registry
+            .getToRowFunction(new TypeDescriptor<GenericPOJO<Iterable<GenericPOJO<String>>>>() {})
+            .apply(
+                new GenericPOJO<>(
+                    ImmutableList.<GenericPOJO<String>>builder()
+                        .add(new GenericPOJO<>("v1"))
+                        .add(new GenericPOJO<>("v2"))
+                        .build()));
+
+    Row[] rows = Streams.stream(row.<Row>getIterable("t")).toArray(Row[]::new);
+
+    assertEquals("v1", rows[0].getString("t"));
+    assertEquals("v2", rows[1].getString("t"));
+  }
+
+  @Test
+  public void testGenericBeamSchemaIterableFromRow() throws Exception {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Schema.FieldType elementFieldType =
+        Schema.FieldType.row(genericPOJOSchema(Schema.FieldType.STRING));
+    GenericPOJO<Iterable<GenericPOJO<String>>> actual =
+        registry
+            .getFromRowFunction(new TypeDescriptor<GenericPOJO<Iterable<GenericPOJO<String>>>>() {})
+            .apply(
+                createGenericRow(
+                    Schema.FieldType.array(elementFieldType),
+                    ImmutableList.<Row>builder()
+                        .add(createGenericRow(Schema.FieldType.STRING, "v1"))
+                        .add(createGenericRow(Schema.FieldType.STRING, "v2"))
+                        .build()));
+    GenericPOJO<String>[] pojos = Streams.stream(actual.t).toArray(GenericPOJO[]::new);
+    assertEquals("v1", pojos[0].t);
+    assertEquals("v2", pojos[1].t);
   }
 }

@@ -1397,4 +1397,39 @@ public class TestJavaBeans {
               Schema.Field.nullable("value", FieldType.FLOAT)
                   .withDescription("This value is the value stored in the object as a float."))
           .build();
+
+  @DefaultSchema(JavaBeanSchema.class)
+  public static class GenericBean<T> {
+    @Nullable private T t;
+
+    @Nullable
+    public T getT() {
+      return t;
+    }
+
+    public void setT(@Nullable T t) {
+      this.t = t;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      GenericBean<?> that = (GenericBean<?>) o;
+      return Objects.equals(t, that.t);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hashCode(t);
+    }
+  }
+
+  public static Schema genericBeanSchema(FieldType genericFieldType) {
+    return Schema.builder().addNullableField("t", genericFieldType).build();
+  }
 }

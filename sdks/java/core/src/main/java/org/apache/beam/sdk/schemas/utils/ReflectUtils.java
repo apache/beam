@@ -63,6 +63,18 @@ public class ReflectUtils {
     }
   }
 
+  /** Represents a type descriptor and a schema. */
+  @AutoValue
+  public abstract static class TypeDescriptorWithSchema {
+    public abstract TypeDescriptor<?> getTypeDescriptor();
+
+    public abstract Schema getSchema();
+
+    public static TypeDescriptorWithSchema create(TypeDescriptor<?> typeDescriptor, Schema schema) {
+      return new AutoValue_ReflectUtils_TypeDescriptorWithSchema(typeDescriptor, schema);
+    }
+  }
+
   private static final Map<Class<?>, List<Method>> DECLARED_METHODS = Maps.newConcurrentMap();
   private static final Map<Class<?>, Method> ANNOTATED_CONSTRUCTORS = Maps.newConcurrentMap();
   private static final Map<Class<?>, List<Field>> DECLARED_FIELDS = Maps.newConcurrentMap();

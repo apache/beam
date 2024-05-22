@@ -19,6 +19,7 @@ package org.apache.beam.sdk.schemas;
 
 import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -39,4 +40,10 @@ public interface FieldValueGetter<ObjectT, ValueT> extends Serializable {
   }
 
   String name();
+
+  static TypeDescriptor<?> resolveGetterType(FieldValueGetter<?, ?> getterInstance) {
+
+    return TypeDescriptor.of(getterInstance.getClass())
+        .resolveType(TypeDescriptor.of(FieldValueGetter.class).getTypeParameter("ValueT"));
+  }
 }

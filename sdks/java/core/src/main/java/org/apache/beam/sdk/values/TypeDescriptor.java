@@ -190,6 +190,10 @@ public abstract class TypeDescriptor<T> implements Serializable {
     return new SimpleTypeDescriptor<>(token.getSupertype(superclass));
   }
 
+  public final TypeDescriptor<? extends T> getSubtype(Class<? extends T> subclass) {
+    return new SimpleTypeDescriptor<>(token.getSubtype(subclass));
+  }
+
   /** Returns true if this type is known to be an array type. */
   public final boolean isArray() {
     return token.isArray();

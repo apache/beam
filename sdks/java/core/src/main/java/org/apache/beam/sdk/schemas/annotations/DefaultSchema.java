@@ -100,8 +100,7 @@ public @interface DefaultSchema {
 
                 try {
                   return new ProviderAndDescriptor(
-                      providerClass.getDeclaredConstructor().newInstance(),
-                      TypeDescriptor.of(clazz));
+                      providerClass.getDeclaredConstructor().newInstance(), typeDescriptor);
                 } catch (NoSuchMethodException
                     | InstantiationException
                     | IllegalAccessException
