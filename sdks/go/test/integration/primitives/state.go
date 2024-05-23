@@ -16,6 +16,9 @@
 package primitives
 
 import (
+	"bytes"
+	"context"
+	"crypto/rand"
 	"fmt"
 	"sort"
 	"strconv"
@@ -25,8 +28,12 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/state"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/periodic"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
 )
 
 func init() {
@@ -79,7 +86,7 @@ func (f *valueStateFn) ProcessElement(s state.Provider, w string, c int) string 
 	return fmt.Sprintf("%s: %v, %s", w, i, j)
 }
 
-func pairWithOne(w string, emit func(string, int)) {
+func pairWithOne(w beam.T, emit func(beam.T, int)) {
 	emit(w, 1)
 }
 
@@ -519,4 +526,167 @@ func SetStateParDoClear(s beam.Scope) {
 	keyed := beam.ParDo(s, pairWithOne, in)
 	counts := beam.ParDo(s, &setStateClearFn{State1: state.MakeSetState[string]("key1")}, keyed)
 	passert.Equals(s, counts, "apple: [apple]", "pear: [pear]", "peach: [peach]", "apple: [apple1 apple2 apple3]", "apple: []", "pear: [pear1 pear2 pear3]")
+}
+
+// genValueStateFn uses Go generics to dictate the type of State2.
+type genValueStateFn[T any] struct {
+	State1 state.Value[int64]
+	State2 state.Value[T]
+}
+
+func (f *genValueStateFn[T]) ProcessElement(s state.Provider, c T, w int, emit func(string)) {
+	i, ok, err := f.State1.Read(s)
+	if err != nil {
+		panic(err)
+	}
+	if !ok {
+		i = 1
+	}
+	err = f.State1.Write(s, i+1)
+	if err != nil {
+		panic(err)
+	}
+
+	j, ok, err := f.State2.Read(s)
+	if err != nil {
+		panic(err)
+	}
+
+	prnt := fmt.Sprintf("%v: %v, %v", c, i, j)
+	// Only emit if we have written out before, but include the latest count.
+	if ok {
+		emit(prnt)
+	}
+	err = f.State2.Write(s, c)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func regGenValueState[T any]() {
+	register.DoFn4x0[state.Provider, T, int, func(string)](&genValueStateFn[T]{})
+}
+
+// fruit is a vanilla struct that beam will row encode.
+type fruit struct {
+	Name string
+}
+
+func (f *fruit) String() string {
+	return f.Name
+}
+
+func init() {
+	regGenValueState[[]byte]() // validate byte slice usage.
+	regGenValueState[fruit]()  // validate row struct default encoding usage.
+}
+
+func ValueStateParDo_Bytes(s beam.Scope) {
+	apple := []byte("apple")
+	pear := []byte("pear")
+
+	peach := []byte("peach")
+
+	in := beam.Create(s, apple, pear, peach, apple, apple, pear)
+	keyed := beam.ParDo(s, pairWithOne, in)
+	counts := beam.ParDo(s, &genValueStateFn[[]byte]{}, keyed)
+	passert.Equals(s, counts,
+		fmt.Sprintf("%v: 2, %v", apple, apple),
+		fmt.Sprintf("%v: 3, %v", apple, apple),
+		fmt.Sprintf("%v: 2, %v", pear, pear))
+}
+
+func ValueStateParDo_Row(s beam.Scope) {
+	apple := fruit{"apple"}
+	pear := fruit{"pear"}
+	peach := fruit{"peach"}
+
+	in := beam.Create(s, apple, pear, peach, apple, apple, pear)
+	keyed := beam.ParDo(s, pairWithOne, in)
+	counts := beam.ParDo(s, &genValueStateFn[fruit]{}, keyed)
+	passert.Equals(s, counts,
+		fmt.Sprintf("%v: 2, %v", apple, apple),
+		fmt.Sprintf("%v: 3, %v", apple, apple),
+		fmt.Sprintf("%v: 2, %v", pear, pear))
+}
+
+type byteCheckingStateFn struct {
+	Value        state.Value[int64]
+	EncodedLen   state.Value[int]
+	EncodedLen64 state.Value[int64]
+	UnderTest    state.Value[[]byte]
+}
+
+func init() {
+	register.DoFn5x0[context.Context, state.Provider, int, int64, func(int, int)](&byteCheckingStateFn{})
+}
+
+func (f *byteCheckingStateFn) StartBundle(ctx context.Context, _ func(int, int)) {
+	log.Infof(ctx, "bundle started")
+}
+
+func (f *byteCheckingStateFn) ProcessElement(ctx context.Context, sp state.Provider, k int, v int64, emit func(int, int)) {
+	prevValue, ok, err := f.Value.Read(sp)
+	if err != nil {
+		panic(err)
+	}
+	if !ok {
+		prevValue = -1
+	}
+	if err := f.Value.Write(sp, v); err != nil {
+		panic(err)
+	}
+	if prevValue >= v {
+		log.Warnf(ctx, "previous value >= current value: %v >= %v", prevValue, v)
+	}
+
+	prevSlice, ok, err := f.UnderTest.Read(sp)
+	if err != nil {
+		panic(err)
+	}
+	if ok {
+		emit(k, 1)
+		intLen, intLenOK, err := f.EncodedLen.Read(sp)
+		if err != nil {
+			panic(err)
+		}
+		intLen64, intLen64OK, err := f.EncodedLen64.Read(sp)
+		if err != nil {
+			panic(err)
+		}
+		log.Infof(ctx, "sequence %v (prev %v) stored int %v %v , int64 %v %v, slice len %v: %v", v, prevValue, intLen, intLenOK, intLen64, intLen64OK, len(prevSlice), prevSlice)
+
+		if intLen != int(intLen64) {
+			log.Warnf(ctx, "sequence %v (prev %v) stored int %v != int64 %v", v, prevValue, intLen, intLen64)
+		}
+		if intLen != len(prevSlice) {
+			log.Warnf(ctx, "sequence %v (prev %v) stored int %v != slice len %v", v, prevValue, intLen, len(prevSlice))
+		}
+	}
+
+	base := make([]byte, 4096)
+	rand.Read(base)
+
+	slice := bytes.Repeat(base, int(v))
+	if err := f.UnderTest.Write(sp, slice); err != nil {
+		panic(err)
+	}
+	if err := f.EncodedLen.Write(sp, len(slice)); err != nil {
+		panic(err)
+	}
+	if err := f.EncodedLen64.Write(sp, int64(len(slice))); err != nil {
+		panic(err)
+	}
+}
+
+func ValueStateParDo_Bytes_Extended(s beam.Scope) {
+	now := time.Now()
+	def := beam.Create(s, periodic.NewSequenceDefinition(time.Now(), now.Add(1*time.Minute), 5*time.Second))
+	seq := periodic.Sequence(s, def)
+
+	keyed := beam.AddFixedKey(s, seq)
+	values := beam.ParDo(s, &byteCheckingStateFn{}, keyed)
+	wValues := beam.WindowInto(s, window.NewFixedWindows(time.Minute), values)
+	sums := stats.SumPerKey(s, wValues)
+	debug.Print(s, sums)
 }

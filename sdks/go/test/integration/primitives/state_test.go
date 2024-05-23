@@ -71,3 +71,18 @@ func TestSetStateClear(t *testing.T) {
 	integration.CheckFilters(t)
 	ptest.BuildAndRun(t, SetStateParDoClear)
 }
+
+func TestValueState_Bytes(t *testing.T) {
+	integration.CheckFilters(t)
+	ptest.BuildAndRun(t, ValueStateParDo_Bytes)
+}
+
+func TestValueState_Row(t *testing.T) {
+	integration.CheckFilters(t)
+	ptest.BuildAndRun(t, ValueStateParDo_Row)
+}
+
+func TestValueState_Extended(t *testing.T) {
+	integration.CheckFilters(t)
+	ptest.BuildAndRun(t, ValueStateParDo_Bytes_Extended)
+}

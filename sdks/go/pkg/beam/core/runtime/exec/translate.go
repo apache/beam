@@ -584,17 +584,17 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 								}
 								stateIDToKeyCoder[key] = kc
 							}
-							sid := StreamID{
-								Port:         Port{URL: b.desc.GetStateApiServiceDescriptor().GetUrl()},
-								PtransformID: id.to,
-							}
-
-							ec, wc, err := b.makeCoderForPCollection(input[0])
-							if err != nil {
-								return nil, err
-							}
-							n.UState = NewUserStateAdapter(sid, coder.NewW(ec, wc), stateIDToCoder, stateIDToKeyCoder, stateIDToCombineFn)
 						}
+						sid := StreamID{
+							Port:         Port{URL: b.desc.GetStateApiServiceDescriptor().GetUrl()},
+							PtransformID: id.to,
+						}
+
+						ec, wc, err := b.makeCoderForPCollection(input[0])
+						if err != nil {
+							return nil, err
+						}
+						n.UState = NewUserStateAdapter(sid, coder.NewW(ec, wc), stateIDToCoder, stateIDToKeyCoder, stateIDToCombineFn)
 					}
 
 					if len(userTimers) > 0 {
