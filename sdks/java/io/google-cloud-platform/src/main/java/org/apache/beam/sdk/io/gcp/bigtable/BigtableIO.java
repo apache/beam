@@ -2305,41 +2305,19 @@ public class BigtableIO {
     public void validate(PipelineOptions options) {
       BigtableServiceFactory factory = new BigtableServiceFactory();
       if (getBigtableConfig().getValidate()) {
-        validateTableExists(factory, getBigtableConfig(), options);
-      }
-      if (getMetadataTableBigtableConfig().getValidate()) {
-        validateMetadataTableExists(factory, getMetadataTableBigtableConfig(), options);
-      }
-    }
-
-    // Validate the change stream table exists.
-    private void validateTableExists(
-        BigtableServiceFactory factory, BigtableConfig config, PipelineOptions options) {
-      try {
-        checkArgument(
-            factory.checkTableExists(config, options, getTableId()),
-            "Change Stream table %s does not exist",
-            getTableId());
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
-    }
-
-    // Validate the metadata table exists.
-    private void validateMetadataTableExists(
-        BigtableServiceFactory factory, BigtableConfig config, PipelineOptions options) {
-      try {
-        checkArgument(
-            factory.checkTableExists(config, options, getMetadataTableId()),
-            "Metadata table %s does not exist",
-            getTableId());
-      } catch (IOException e) {
-        throw new RuntimeException(e);
+        try {
+          checkArgument(
+              factory.checkTableExists(getBigtableConfig(), options, getTableId()),
+              "Change Stream table %s does not exist",
+              getTableId());
+        } catch (IOException e) {
+          throw new RuntimeException(e);
+        }
       }
     }
 
     // Validate the app profile is single cluster and allows single row transactions.
-    private void validateAppProfileCorrect(
+    private void validateAppProfile(
         MetadataTableAdminDao metadataTableAdminDao, String appProfileId) {
       checkArgument(metadataTableAdminDao != null);
       checkArgument(
@@ -2351,7 +2329,7 @@ public class BigtableIO {
     }
 
     // Update metadata table schema if allowed and required.
-    private void updateMetadataTableIfRequired(
+    private void createOrUpdateMetadataTable(
         MetadataTableAdminDao metadataTableAdminDao, String metadataTableId) {
       boolean shouldCreateOrUpdateMetadataTable = true;
       if (getCreateOrUpdateMetadataTable() != null) {
@@ -2421,15 +2399,25 @@ public class BigtableIO {
           new DaoFactory(
               bigtableConfig, metadataTableConfig, getTableId(), metadataTableId, changeStreamName);
 
-      boolean validateConfig = true;
-      if (getValidateConfig() != null) {
-        validateConfig = getValidateConfig();
-      }
+      // Validate the configuration is correct before creating the pipeline, if required.
       try {
+        MetadataTableAdminDao metadataTableAdminDao = daoFactory.getMetadataTableAdminDao();
+        boolean validateConfig = true;
+        if (getValidateConfig() != null) {
+          validateConfig = getValidateConfig();
+        }
+        // Validate app profile and create metadata table if validate is required.
         if (validateConfig) {
-          updateMetadataTableIfRequired(daoFactory.getMetadataTableAdminDao(), metadataTableId);
-          validateAppProfileCorrect(
-              daoFactory.getMetadataTableAdminDao(), metadataTableConfig.getAppProfileId().get());
+          createOrUpdateMetadataTable(metadataTableAdminDao, metadataTableId);
+          validateAppProfile(metadataTableAdminDao, metadataTableConfig.getAppProfileId().get());
+        }
+        // Validate metadata table if validate is required. We validate metadata table after
+        // createOrUpdateMetadataTable because if the metadata doesn't exist, we have to run
+        // createOrUpdateMetadataTable to create the metadata table.
+        if (metadataTableConfig.getValidate()) {
+          checkArgument(
+              metadataTableAdminDao.doesMetadataTableExist(),
+              "Metadata table does not exist: " + metadataTableAdminDao.getTableId());
         }
       } catch (Exception e) {
         throw new RuntimeException(e);
