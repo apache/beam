@@ -490,6 +490,7 @@ class DataflowApplicationClient(object):
     self.google_cloud_options = options.view_as(GoogleCloudOptions)
     self._enable_caching = self.google_cloud_options.enable_artifact_caching
     self._enable_bucket_read_metric_counter = self.google_cloud_options.enable_bucket_read_metric_counter
+    self._enable_bucket_write_metric_counter = self.google_cloud_options.enable_bucket_write_metric_counter
     self._root_staging_location = (
         root_staging_location or self.google_cloud_options.staging_location)
     self.environment_version = _FNAPI_ENVIRONMENT_MAJOR_VERSION

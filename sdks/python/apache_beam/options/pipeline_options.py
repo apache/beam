@@ -904,6 +904,10 @@ class GoogleCloudOptions(PipelineOptions):
         '--enable_bucket_read_metric_counter',
         action='store_true',
         help='Create metrics reporting the approximate number of bytes read per bucket.')
+    parser.add_argument(
+        '--enable_bucket_write_metric_counter',
+        action='store_true',
+        help='Create metrics reporting the approximate number of bytes written per bucket.')
 
   def _create_default_gcs_bucket(self):
     try:

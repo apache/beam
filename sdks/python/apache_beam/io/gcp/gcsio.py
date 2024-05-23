@@ -146,6 +146,7 @@ class GcsIO(object):
         pipeline_options = PipelineOptions.from_dictionary(pipeline_options)
       storage_client = create_storage_client(pipeline_options)
     self.enable_read_bucket_metric = pipeline_options.get_all_options()['enable_bucket_read_metric_counter']
+    self.enable_write_bucket_metric = pipeline_options.get_all_options()['enable_bucket_write_metric_counter']
     self.client = storage_client
     self._rewrite_cb = None
     self.bucket_to_project_number = {}
@@ -218,7 +219,7 @@ class GcsIO(object):
       return BeamBlobReader(blob, chunk_size=read_buffer_size, enable_read_bucket_metric=self.enable_read_bucket_metric)
     elif mode == 'w' or mode == 'wb':
       blob = bucket.blob(blob_name)
-      return BeamBlobWriter(blob, mime_type)
+      return BeamBlobWriter(blob, mime_type, enable_write_bucket_metric=self.enable_write_bucket_metric)
     else:
       raise ValueError('Invalid file open mode: %s.' % mode)
 
@@ -551,10 +552,17 @@ class BeamBlobReader(BlobReader):
   def read(self):
     return super().read()
 
+def increment_bucket_write_counter_metric(function):
+  def inner(self,*args):
+    bytesWritten = function(self, *args)
+    if self.enable_write_bucket_metric:
+      Metrics.counter(self.__class__, "GCS_write_bytes_counter_" + self._blob.bucket.name).inc(bytesWritten)
+    return bytesWritten
+  return inner
 
 class BeamBlobWriter(BlobWriter):
   def __init__(
-      self, blob, content_type, chunk_size=16 * 1024 * 1024, ignore_flush=True):
+      self, blob, content_type, chunk_size=16 * 1024 * 1024, ignore_flush=True, enable_write_bucket_metric=False):
     super().__init__(
         blob,
         content_type=content_type,
@@ -562,3 +570,8 @@ class BeamBlobWriter(BlobWriter):
         ignore_flush=ignore_flush,
         retry=DEFAULT_RETRY)
     self.mode = "w"
+    self.enable_write_bucket_metric = enable_write_bucket_metric
+
+  @increment_bucket_write_counter_metric
+  def write(self, b):
+    return super().write(b)
