@@ -24,7 +24,7 @@ limitations under the License.
      src="/images/blog/beam-badge-image-scaled.png"
      alt="Quest image">
 
-We’re excited to announce the release of the [“Getting Started with Apache Beam” quest](https://www.cloudskillsboost.google/quests/310), a series of four online labs that venture into different Apache Beam concepts. When you complete all four labs, you’ll earn a Google Cloud badge that you can share on platforms like LinkedIn. Earning this badge should take less than seven hours total, and signing up for the quest costs $20 (there are often free specials for people who attend Beam events, such as [Meetups](https://www.meetup.com/topics/apache-beam/), [Beam Summit](https://beamsummit.org/), and [Beam College](https://beamcollege.dev/)).
+We’re excited to announce the release of the [“Getting Started with Apache Beam” quest](https://www.cloudskillsboost.google/course_templates/724), a series of four online labs that venture into different Apache Beam concepts. When you complete all four labs, you’ll earn a Google Cloud badge that you can share on platforms like LinkedIn. Earning this badge should take less than seven hours total, and signing up for the quest costs $20 (there are often free specials for people who attend Beam events, such as [Meetups](https://www.meetup.com/topics/apache-beam/), [Beam Summit](https://beamsummit.org/), and [Beam College](https://beamcollege.dev/)).
 
 > *"I really like the workshop to be honest. I learnt a lot from doing those labs. I would suggest we offer that for any new members to Beam"* -- Shunping Huang, Software Engineer
 

@@ -15,19 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.extensions.ordered')
 
-description = "Apache Beam :: SDKs :: Java :: Extensions :: Ordered"
+def basePath = '../../job-server'
 
-dependencies {
-    implementation project(path: ":sdks:java:core", configuration: "shadow")
-    implementation library.java.slf4j_api
-    implementation library.java.joda_time
-    implementation library.java.commons_lang3
-    implementation library.java.vendored_guava_32_1_2_jre
-    testImplementation library.java.junit
-    testImplementation library.java.hamcrest
-    testImplementation project(path: ':sdks:java:core')
-    testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+project.ext {
+  // Look for the source code in the parent module
+  main_source_dirs = ["$basePath/src/main/java"]
+  test_source_dirs = ["$basePath/src/test/java"]
+  main_resources_dirs = ["$basePath/src/main/resources"]
+  test_resources_dirs = ["$basePath/src/test/resources"]
+  archives_base_name = 'beam-runners-flink-1.18-job-server'
 }
+
+// Load the main build script which contains all build logic.
+apply from: "$basePath/flink_job_server.gradle"
