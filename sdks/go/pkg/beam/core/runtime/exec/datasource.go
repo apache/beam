@@ -163,6 +163,7 @@ func (n *DataSource) process(ctx context.Context, data func(bcr *byteCountReader
 			// io.EOF means the reader successfully drained.
 			// We're ready for a new buffer.
 		case <-ctx.Done():
+		  n.waitingForRunnerToSendData.Store(true)
 			return nil
 		}
 	}
