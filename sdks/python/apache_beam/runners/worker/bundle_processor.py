@@ -944,6 +944,8 @@ class BundleProcessor(object):
     self.data_channel_factory = data_channel_factory
     self.data_sampler = data_sampler
     self.current_instruction_id = None  # type: Optional[str]
+    # Represents whether the SDK is ready to receive more data from the Runner.
+    self.waiting_for_runner_to_send_data = False
 
     _verify_descriptor_created_in_a_compatible_env(process_bundle_descriptor)
     # There is no guarantee that the runner only set
@@ -1098,10 +1100,15 @@ class BundleProcessor(object):
           self.ops[transform_id].add_timer_info(timer_family_id, timer_info)
 
       # Process data and timer inputs
+      # We are ready to receive data from the Runner.
+      self.waiting_for_runner_to_send_data = True
       for data_channel, expected_inputs in data_channels.items():
         for element in data_channel.input_elements(instruction_id,
                                                    expected_inputs):
-          if isinstance(element, beam_fn_api_pb2.Elements.Timers):
+        # Since we have received an element, we are no longer ready to receive
+        # more data.
+        self.waiting_for_runner_to_send_data = False
+        if isinstance(element, beam_fn_api_pb2.Elements.Timers):
             timer_coder_impl = (
                 self.timers_info[(
                     element.transform_id,
@@ -1112,6 +1119,8 @@ class BundleProcessor(object):
           elif isinstance(element, beam_fn_api_pb2.Elements.Data):
             input_op_by_transform_id[element.transform_id].process_encoded(
                 element.data)
+        # Since we have processed this element, we are now ready to recieve the next one.
+        self.waiting_for_runner_to_send_data = True
 
       # Finish all operations.
       for op in self.ops.values():

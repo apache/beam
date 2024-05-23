@@ -756,7 +756,8 @@ class SdkWorker(object):
             monitoring_data={
                 SHORT_ID_CACHE.get_short_id(info): info.payload
                 for info in monitoring_infos
-            }))
+            },
+        waiting_for_runner_to_send_data=processor.waiting_for_runner_to_send_data))
 
   def finalize_bundle(
       self,
