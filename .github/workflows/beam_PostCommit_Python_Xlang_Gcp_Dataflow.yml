@@ -75,7 +75,7 @@ jobs:
         with:
           python-version: |
             3.8
-            3.11
+            3.12
       - name: run PostCommit Python Xlang Gcp Dataflow script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
