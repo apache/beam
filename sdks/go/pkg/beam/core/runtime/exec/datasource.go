@@ -63,6 +63,11 @@ type DataSource struct {
 
 	// Whether the downstream transform only iterates a GBK coder once.
 	singleIterate bool
+
+	// state of the SDK with respect to the status of its data channel. If it is true, then the SDK
+  // is waiting for data to be sent to it. If it is false, then the SDK is not ready to take any
+  // data. This signal will only be interpreted by the Runner for sending large elements.
+  waitingForRunnerToSendData atomic.Bool
 }
 
 // InitSplittable initializes the SplittableUnit channel from the output unit,
@@ -125,9 +130,16 @@ func (n *DataSource) process(ctx context.Context, data func(bcr *byteCountReader
 	bcr := byteCountReader{reader: &r, count: &byteCount}
 
 	for {
+	  // The SDK is currently waiting for the Runner to send data for it to be
+    // processed. Hence, the boolean is marked as true.
+    n.waitingForRunnerToSendData.Store(true)
 		var err error
 		select {
 		case e, ok := <-elms:
+		  // Upon receiving some item from the Runner, the SDK is busy. Hence, the
+		  // boolean is marked as false as it is not waiting for the Runner to send
+		  // it anything.
+      n.waitingForRunnerToSendData.Store(false)
 			// Channel closed, so time to exit
 			if !ok {
 				return nil
@@ -429,6 +441,9 @@ type ProgressReportSnapshot struct {
 	Count    int64
 
 	pcol PCollectionSnapshot
+	// Represents if the SDK is waiting for the Runner to send it data. This
+	// signal is interpreted by the Runner during shuffling of large elements.
+	WaitingForRunnerToSendData bool
 }
 
 // Progress returns a snapshot of the source's progress.
@@ -441,13 +456,15 @@ func (n *DataSource) Progress() ProgressReportSnapshot {
 	// The count is the number of "completely processed elements"
 	// which matches the index of the currently processing element.
 	c := n.index
+	// Retrieve the signal from the Data source.
+	waitingForRunnerToSendData := n.waitingForRunnerToSendData.Load()
 	n.mu.Unlock()
 	// Do not sent negative progress reports, index is initialized to 0.
 	if c < 0 {
 		c = 0
 	}
 	pcol.ElementCount = c
-	return ProgressReportSnapshot{ID: n.SID.PtransformID, Name: n.Name, Count: c, pcol: pcol}
+	return ProgressReportSnapshot{ID: n.SID.PtransformID, Name: n.Name, Count: c, pcol: pcol, WaitingForRunnerToSendData: waitingForRunnerToSendData}
 }
 
 // getProcessContinuation retrieves a ProcessContinuation that may be returned by

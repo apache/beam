@@ -503,6 +503,8 @@ message ProcessBundleProgressResponse {
   // as the MonitoringInfo could be reconstructed fully by overwriting its
   // payload field with the bytes specified here.
   map<string, bytes> monitoring_data = 5;
+  // Indicates if the SDK is waiting for the Runner to send data to it.
+  optional bool waiting_for_runner_to_send_data = 6;
 
   reserved 1, 2, 4;
 }
