@@ -34,6 +34,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
+import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespace;
@@ -88,6 +89,7 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
+@NotThreadSafe
 public class StreamingModeExecutionContext extends DataflowExecutionContext<StepContext> {
 
   private static final Logger LOG = LoggerFactory.getLogger(StreamingModeExecutionContext.class);
@@ -152,37 +154,22 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
 
   public void start(
       @Nullable Object key,
-      Windmill.WorkItem work,
-      Instant inputDataWatermark,
-      @Nullable Instant outputDataWatermark,
-      @Nullable Instant synchronizedProcessingTime,
+      Work work,
       WindmillStateReader stateReader,
       SideInputStateFetcher sideInputStateFetcher,
-      Windmill.WorkItemCommitRequest.Builder outputBuilder,
-      @Nullable Supplier<Boolean> workFailed) {
+      Windmill.WorkItemCommitRequest.Builder outputBuilder) {
     this.key = key;
-    this.work = work;
-    this.workIsFailed = (workFailed != null) ? workFailed : () -> Boolean.FALSE;
+    this.work = work.getWorkItem();
+    this.workIsFailed = work::isFailed;
     this.computationKey =
-        WindmillComputationKey.create(computationId, work.getKey(), work.getShardingKey());
+        WindmillComputationKey.create(
+            computationId, work.getWorkItem().getKey(), work.getWorkItem().getShardingKey());
     this.sideInputStateFetcher = sideInputStateFetcher;
     this.outputBuilder = outputBuilder;
     this.sideInputCache.clear();
     clearSinkFullHint();
 
-    Instant processingTime = Instant.now();
-    // Ensure that the processing time is greater than any fired processing time
-    // timers.  Otherwise, a trigger could ignore the timer and orphan the window.
-    for (Windmill.Timer timer : work.getTimers().getTimersList()) {
-      if (timer.getType() == Windmill.Timer.Type.REALTIME) {
-        Instant inferredFiringTime =
-            WindmillTimeUtils.windmillToHarnessTimestamp(timer.getTimestamp())
-                .plus(Duration.millis(1));
-        if (inferredFiringTime.isAfter(processingTime)) {
-          processingTime = inferredFiringTime;
-        }
-      }
-    }
+    Instant processingTime = computeProcessingTime(work.getWorkItem().getTimers().getTimersList());
 
     Collection<? extends StepContext> stepContexts = getAllStepContexts();
     if (!stepContexts.isEmpty()) {
@@ -193,31 +180,33 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       for (StepContext stepContext : stepContexts) {
         stepContext.start(
             stateReader,
-            inputDataWatermark,
+            work.watermarks().inputDataWatermark(),
             processingTime,
             cacheForKey,
-            outputDataWatermark,
-            synchronizedProcessingTime);
+            work.watermarks().outputDataWatermark(),
+            work.watermarks().synchronizedProcessingTime());
       }
     }
   }
 
-  public void start(
-      @Nullable Object key,
-      Work work,
-      WindmillStateReader stateReader,
-      SideInputStateFetcher sideInputStateFetcher,
-      Windmill.WorkItemCommitRequest.Builder outputBuilder) {
-    start(
-        key,
-        work.getWorkItem(),
-        work.watermarks().inputDataWatermark(),
-        work.watermarks().outputDataWatermark(),
-        work.watermarks().synchronizedProcessingTime(),
-        stateReader,
-        sideInputStateFetcher,
-        outputBuilder,
-        work::isFailed);
+  /**
+   * Ensure that the processing time is greater than any fired processing time timers. Otherwise, a
+   * trigger could ignore the timer and orphan the window.
+   */
+  private static Instant computeProcessingTime(List<Windmill.Timer> timers) {
+    Instant processingTime = Instant.now();
+    for (Windmill.Timer timer : timers) {
+      if (timer.getType() == Windmill.Timer.Type.REALTIME) {
+        Instant inferredFiringTime =
+            WindmillTimeUtils.windmillToHarnessTimestamp(timer.getTimestamp())
+                .plus(Duration.millis(1));
+        if (inferredFiringTime.isAfter(processingTime)) {
+          processingTime = inferredFiringTime;
+        }
+      }
+    }
+
+    return processingTime;
   }
 
   @Override
@@ -667,6 +656,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     }
   }
 
+  @NotThreadSafe
   class StepContext extends DataflowExecutionContext.DataflowStepContext
       implements StreamingModeStepContext {
 
@@ -687,8 +677,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     private NavigableSet<TimerData> modifiedUserProcessingTimersOrdered = null;
     private NavigableSet<TimerData> modifiedUserSynchronizedProcessingTimersOrdered = null;
     // A list of timer keys that were modified by user processing earlier in this bundle. This
-    // serves a tombstone, so
-    // that we know not to fire any bundle timers that were modified.
+    // serves a tombstone, so that we know not to fire any bundle timers that were modified.
     private Table<String, StateNamespace, TimerData> modifiedUserTimerKeys = null;
 
     public StepContext(DataflowOperationContext operationContext) {

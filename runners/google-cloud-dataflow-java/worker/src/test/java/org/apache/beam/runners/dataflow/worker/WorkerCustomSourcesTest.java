@@ -93,6 +93,7 @@ import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.NoopProfileScope;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
+import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
 import org.apache.beam.runners.dataflow.worker.testing.TestCountingSource;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.NativeReaderIterator;
@@ -101,6 +102,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.Commit;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
+import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReader;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -145,6 +147,8 @@ import org.junit.runners.JUnit4;
 public class WorkerCustomSourcesTest {
   @Rule public ExpectedException expectedException = ExpectedException.none();
   @Rule public ExpectedLogs logged = ExpectedLogs.none(WorkerCustomSources.class);
+
+  private static final String COMPUTATION_ID = "computationId";
 
   private DataflowPipelineOptions options;
 
@@ -192,6 +196,18 @@ public class WorkerCustomSourcesTest {
           contains(valueInGlobalWindow(0L + 2 * i), valueInGlobalWindow(1L + 2 * i)));
       assertTrue(bundle.getSource().getMetadata().getEstimatedSizeBytes() > 0);
     }
+  }
+
+  private static Work createMockWork(Windmill.WorkItem workItem, Work.Watermarks watermarks) {
+    return Work.create(
+        workItem,
+        watermarks,
+        Work.createProcessingContext(
+                COMPUTATION_ID, (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance())
+            .setWorkCommitter(ignored -> {})
+            .setProcessWorkFnAndBuild(ignored -> {}),
+        Instant::now,
+        Collections.emptyList());
   }
 
   private static class SourceProducingSubSourcesInSplit extends MockSource {
@@ -587,7 +603,7 @@ public class WorkerCustomSourcesTest {
     StreamingModeExecutionContext context =
         new StreamingModeExecutionContext(
             counterSet,
-            "computationId",
+            COMPUTATION_ID,
             readerCache,
             /*stateNameMap=*/ ImmutableMap.of(),
             /*stateCache=*/ null,
@@ -613,20 +629,18 @@ public class WorkerCustomSourcesTest {
       // Initialize streaming context with state from previous iteration.
       context.start(
           "key",
-          Windmill.WorkItem.newBuilder()
-              .setKey(ByteString.copyFromUtf8("0000000000000001")) // key is zero-padded index.
-              .setWorkToken(i) // Must be increasing across activations for cache to be used.
-              .setCacheToken(1)
-              .setSourceState(
-                  Windmill.SourceState.newBuilder().setState(state).build()) // Source state.
-              .build(),
-          new Instant(0), // input watermark
-          null, // output watermark
-          null, // synchronized processing time
-          null, // StateReader
-          null, // StateFetcher
-          Windmill.WorkItemCommitRequest.newBuilder(),
-          null);
+          createMockWork(
+              Windmill.WorkItem.newBuilder()
+                  .setKey(ByteString.copyFromUtf8("0000000000000001")) // key is zero-padded index.
+                  .setWorkToken(i) // Must be increasing across activations for cache to be used.
+                  .setCacheToken(1)
+                  .setSourceState(
+                      Windmill.SourceState.newBuilder().setState(state).build()) // Source state.
+                  .build(),
+              Work.createWatermarks().setInputDataWatermark(new Instant(0)).build()),
+          mock(WindmillStateReader.class),
+          mock(SideInputStateFetcher.class),
+          Windmill.WorkItemCommitRequest.newBuilder());
 
       @SuppressWarnings({"unchecked", "rawtypes"})
       NativeReader<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>> reader =
@@ -953,11 +967,10 @@ public class WorkerCustomSourcesTest {
     StreamingModeExecutionContext context =
         new StreamingModeExecutionContext(
             counterSet,
-            "computationId",
+            COMPUTATION_ID,
             new ReaderCache(Duration.standardMinutes(1), Runnable::run),
             /*stateNameMap=*/ ImmutableMap.of(),
-            WindmillStateCache.ofSizeMbs(options.getWorkerCacheMb())
-                .forComputation("computationId"),
+            WindmillStateCache.ofSizeMbs(options.getWorkerCacheMb()).forComputation(COMPUTATION_ID),
             StreamingStepMetricsContainer.createRegistry(),
             new DataflowExecutionStateTracker(
                 ExecutionStateSampler.newForTest(),
@@ -991,24 +1004,19 @@ public class WorkerCustomSourcesTest {
     Work dummyWork =
         Work.create(
             workItem,
-            Work.createWatermarks().setInputDataWatermark(Instant.EPOCH).build(),
-            Work.createProcessingContext("computationId", getDataStream::requestKeyedData)
+            Work.createWatermarks().setInputDataWatermark(new Instant(0)).build(),
+            Work.createProcessingContext(COMPUTATION_ID, getDataStream::requestKeyedData)
                 .setWorkCommitter(workCommitter::commit)
                 .setProcessWorkFn(unused -> {})
                 .build(),
             Instant::now,
             Collections.emptyList());
-
     context.start(
         "key",
-        workItem,
-        new Instant(0), // input watermark
-        null, // output watermark
-        null, // synchronized processing time
-        null, // StateReader
-        null, // StateFetcher
-        Windmill.WorkItemCommitRequest.newBuilder(),
-        dummyWork::isFailed);
+        dummyWork,
+        mock(WindmillStateReader.class),
+        mock(SideInputStateFetcher.class),
+        Windmill.WorkItemCommitRequest.newBuilder());
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     NativeReader<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>> reader =
