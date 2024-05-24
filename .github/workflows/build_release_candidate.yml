@@ -463,8 +463,11 @@ jobs:
           mkdir -p $OUTPUT_DIR
           echo "OUTPUT_DIR=$OUTPUT_DIR"
 
+          # TODO remove existing output directory contents.
+
           # Navigate to the prism command directory.
           cd sdks/go/cmd/prism
+
           # Store a reference to where we're building from.
           BUILD_DIR=`pwd`
 
@@ -480,6 +483,7 @@ jobs:
           echo "with gh release id $GH_RELEASE_ID for tag $RC_TAG"
 
           echo "............Build and stage prism artifacts in the Github Release $GH_RELEASE_ID for tag $RC_TAG.........."
+          
           
           # Loop through and build desired set from allowed types.
           for OS in linux windows darwin; do
