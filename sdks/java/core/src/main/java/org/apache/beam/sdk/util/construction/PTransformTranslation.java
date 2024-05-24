@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.util.construction;
 
 import static org.apache.beam.model.pipeline.v1.ExternalTransforms.ExpansionMethods.Enum.SCHEMA_TRANSFORM;
+import static org.apache.beam.model.pipeline.v1.ExternalTransforms.Annotations;
 import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
@@ -101,13 +102,6 @@ public class PTransformTranslation {
   // Required runner implemented transforms. These transforms should never specify an environment.
   public static final ImmutableSet<String> RUNNER_IMPLEMENTED_TRANSFORMS =
       ImmutableSet.of(GROUP_BY_KEY_TRANSFORM_URN, IMPULSE_TRANSFORM_URN);
-
-  public static final String CONFIG_ROW_KEY = "config_row";
-
-  public static final String CONFIG_ROW_SCHEMA_KEY = "config_row_schema";
-  public static final String SCHEMATRANSFORM_URN_KEY = "schematransform_urn";
-  public static final String MANAGED_UNDERLYING_TRANSFORM_URN_KEY =
-      "managed_underlying_transform_urn";
 
   // DeprecatedPrimitives
   /**
@@ -531,7 +525,8 @@ public class PTransformTranslation {
               ExternalTransforms.SchemaTransformPayload.parseFrom(spec.getPayload());
           String identifier = payload.getIdentifier();
           transformBuilder.putAnnotations(
-              SCHEMATRANSFORM_URN_KEY, ByteString.copyFromUtf8(identifier));
+              BeamUrns.getConstant(Annotations.Enum.SCHEMATRANSFORM_URN_KEY),
+              ByteString.copyFromUtf8(identifier));
           if (identifier.equals(MANAGED_TRANSFORM_URN)) {
             Schema configSchema =
                 SchemaTranslation.schemaFromProto(payload.getConfigurationSchema());
@@ -541,7 +536,7 @@ public class PTransformTranslation {
                 Objects.firstNonNull(
                     configRow.getString("transform_identifier"), "unknown_identifier");
             transformBuilder.putAnnotations(
-                MANAGED_UNDERLYING_TRANSFORM_URN_KEY,
+                BeamUrns.getConstant(Annotations.Enum.MANAGED_UNDERLYING_TRANSFORM_URN_KEY),
                 ByteString.copyFromUtf8(underlyingIdentifier));
           }
         }
@@ -563,12 +558,12 @@ public class PTransformTranslation {
       }
       if (configRow != null) {
         transformBuilder.putAnnotations(
-            CONFIG_ROW_KEY,
+            BeamUrns.getConstant(Annotations.Enum.CONFIG_ROW_KEY),
             ByteString.copyFrom(
                 CoderUtils.encodeToByteArray(RowCoder.of(configRow.getSchema()), configRow)));
 
         transformBuilder.putAnnotations(
-            CONFIG_ROW_SCHEMA_KEY,
+            BeamUrns.getConstant(Annotations.Enum.CONFIG_ROW_SCHEMA_KEY),
             ByteString.copyFrom(
                 SchemaTranslation.schemaToProto(configRow.getSchema(), true).toByteArray()));
       }

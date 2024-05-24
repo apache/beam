@@ -111,6 +111,15 @@ message BuilderMethod {
   bytes payload = 3;
 }
 
+message Annotations {
+  enum Enum {
+    CONFIG_ROW_KEY = 0 [(org.apache.beam.model.pipeline.v1.beam_constant) = "config_row"];
+    CONFIG_ROW_SCHEMA_KEY = 1 [(org.apache.beam.model.pipeline.v1.beam_constant) = "config_row_schema"];
+    SCHEMATRANSFORM_URN_KEY = 2 [(org.apache.beam.model.pipeline.v1.beam_constant) = "schematransform_urn"];
+    MANAGED_UNDERLYING_TRANSFORM_URN_KEY = 3 [(org.apache.beam.model.pipeline.v1.beam_constant) = "managed_underlying_transform_urn"];
+  }
+}
+
 // Payload for a Schema-aware PTransform.
 // This is a transform that is aware of its input and output PCollection schemas
 // and is configured using Beam Schema-compatible parameters.
