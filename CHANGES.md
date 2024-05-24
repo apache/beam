@@ -57,8 +57,8 @@
 
 ## Highlights
 
-* New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
-* New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
+* Apache Beam adds Python 3.12 support ([#29149](https://github.com/apache/beam/issues/29149)).
+* Added FlinkRunner for Flink 1.18 ([#30789](https://github.com/apache/beam/issues/30789)).
 
 ## I/Os
 

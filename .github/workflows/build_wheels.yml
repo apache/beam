@@ -48,7 +48,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       EVENT_NAME: ${{ github.event_name }}
-      PY_VERSIONS_FULL: "cp38-* cp39-* cp310-* cp311-*"
+      PY_VERSIONS_FULL: "cp38-* cp39-* cp310-* cp311-* cp312-*"
     outputs:
       gcp-variables-set: ${{ steps.check_gcp_variables.outputs.gcp-variables-set }}
       py-versions-full: ${{ steps.set-py-versions.outputs.py-versions-full }}
@@ -267,14 +267,13 @@ jobs:
       name: Set up QEMU
     - name: Install cibuildwheel
       # note: sync cibuildwheel version with gradle task sdks:python:bdistPy* steps
-      run: pip install cibuildwheel==2.9.0
+      run: pip install cibuildwheel==2.17.0 setuptools
     - name: Build wheel
       working-directory: apache-beam-source
       env:
         CIBW_BUILD: ${{ matrix.os_python.python }}
         # TODO: https://github.com/apache/beam/issues/23048
         CIBW_SKIP: "*-musllinux_*"
-        CIBW_ENVIRONMENT: "SETUPTOOLS_USE_DISTUTILS=stdlib"
         CIBW_BEFORE_BUILD: pip install cython==0.29.36 numpy --config-settings=setup-args="-Dallow-noblas=true" && pip install --upgrade setuptools
       run: cibuildwheel --print-build-identifiers && cibuildwheel --output-dir wheelhouse
       shell: bash
@@ -301,7 +300,6 @@ jobs:
         CIBW_BUILD: ${{ matrix.os_python.python }}
         # TODO: https://github.com/apache/beam/issues/23048
         CIBW_SKIP: "*-musllinux_*"
-        CIBW_ENVIRONMENT: "SETUPTOOLS_USE_DISTUTILS=stdlib"
         CIBW_BEFORE_BUILD: pip install cython==0.29.36 numpy --config-settings=setup-args="-Dallow-noblas=true" && pip install --upgrade setuptools
       run: cibuildwheel --print-build-identifiers && cibuildwheel --output-dir wheelhouse
       shell: bash

@@ -54,7 +54,7 @@ jobs:
       matrix:
         job_name: [beam_Python_ValidatesContainer_Dataflow_ARM]
         job_phrase: [Run Python ValidatesContainer Dataflow ARM]
-        python_version: ['3.8','3.9','3.10','3.11']
+        python_version: ['3.8','3.9','3.10','3.11','3.12']
     if: |
       github.event_name == 'push' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
@@ -99,7 +99,7 @@ jobs:
         id: run_script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:python:test-suites:dataflow:py${{steps.set_py_ver_clean.outputs.py_ver_clean}}:validatesContainerARM 
+          gradle-command: :sdks:python:test-suites:dataflow:py${{steps.set_py_ver_clean.outputs.py_ver_clean}}:validatesContainerARM
           arguments: |
             -PpythonVersion=${{ matrix.python_version }} \
             -Pcontainer-architecture-list=arm64,amd64 \
