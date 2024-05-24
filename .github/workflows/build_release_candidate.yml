@@ -492,7 +492,7 @@ jobs:
           for OS in linux windows darwin; do
             for ARCH in amd64 arm64; do
               TARGET_DIR="$OUTPUT_DIR/$OS/$ARCH"
-              TARGET_NAME="apache-beam-$RELEASE-prism-$OS-$ARCH"
+              TARGET_NAME="apache_beam-$RELEASE-prism-$OS-$ARCH"
 
               mkdir -p "$TARGET_DIR"
               OUTPUT_FILE="$TARGET_DIR/$TARGET_NAME"
