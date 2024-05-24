@@ -476,7 +476,7 @@ jobs:
 
           # Remove existing prism contents from the repo.
           cd $OUTPUT_DIR
-          rm -r .* 
+          rm -r .
           cd $ROOT_DIR
 
           # Navigate to the prism command directory.
