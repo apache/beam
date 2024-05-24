@@ -34,7 +34,6 @@ import pytest
 import pytz
 from parameterized import param
 from parameterized import parameterized
-
 from tenacity import retry
 from tenacity import stop_after_attempt
 
