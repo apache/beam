@@ -523,23 +523,11 @@ jobs:
               fi
             done
           done
-          echo "...........Prism builds done..........."
-          echo `pwd`
-          cd $ROOT
-          echo "beam root directory?"
-          echo `pwd`
-          echo `ls`
+          echo "...........Prism builds done!..........."
+          cd $ROOT_DIR
+          cd $RELEASE_DIR
 
-          cd beam
-          echo "beam SVN directory?"
-          echo `ls`
-
-          # Get into the dev repo for the release.
-          cd $RELEASE
-
-          echo "...........Adding SVN to dev repo..........."
-          echo `pwd`
-          echo `ls`
+          echo "...........Adding to the dev Apache SVN repo..........."
 
           svn add --force prism
           svn status
