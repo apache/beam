@@ -684,6 +684,9 @@ public class ProcessBundleHandler {
       }
     }
 
+    response.setWaitingForRunnerToSendData(
+        bundleProcessor.getInboundObserver().isWaitingForRunnerToSendData().get());
+
     return BeamFnApi.InstructionResponse.newBuilder().setProcessBundleProgress(response);
   }
 

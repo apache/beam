@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.sdk.coders.Coder;
@@ -78,6 +79,8 @@ public class BeamFnDataInboundObserver implements CloseableFnDataReceiver<BeamFn
   private final int totalNumEndpoints;
   private int numEndpointsThatAreIncomplete;
 
+  private AtomicBoolean waitingForRunnerToSendData;
+
   private BeamFnDataInboundObserver(
       List<DataEndpoint<?>> dataEndpoints, List<TimerEndpoint<?>> timerEndpoints) {
     this.transformIdToDataEndpoint = new HashMap<>();
@@ -110,6 +113,10 @@ public class BeamFnDataInboundObserver implements CloseableFnDataReceiver<BeamFn
     queue.cancel(CloseException.INSTANCE);
   }
 
+  public AtomicBoolean isWaitingForRunnerToSendData() {
+    return waitingForRunnerToSendData;
+  }
+
   /**
    * Uses the callers thread to process all elements received until we receive the end of the stream
    * from the upstream producer for all endpoints specified.
@@ -119,7 +126,11 @@ public class BeamFnDataInboundObserver implements CloseableFnDataReceiver<BeamFn
   public void awaitCompletion() throws Exception {
     try {
       while (true) {
+        // The SDK is available to process data right before it is ready to take elements off the queue.
+        waitingForRunnerToSendData.set(true);
         BeamFnApi.Elements elements = queue.take();
+        // The SDK is now no longer available to receive more data, so we set it to false.
+        waitingForRunnerToSendData.set(false);
         if (multiplexElements(elements)) {
           return;
         }
@@ -128,6 +139,7 @@ public class BeamFnDataInboundObserver implements CloseableFnDataReceiver<BeamFn
       queue.cancel(e);
       throw e;
     } finally {
+      waitingForRunnerToSendData.set(true);
       close();
     }
   }
