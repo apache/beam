@@ -47,12 +47,13 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.joda.time.Duration;
 
 /** This {@link PTransform} manages loads into BigQuery using the Storage API. */
 public class StorageApiLoads<DestinationT, ElementT>
     extends PTransform<PCollection<KV<DestinationT, ElementT>>, WriteResult> {
-  final TupleTag<KV<DestinationT, KV<ElementT, StorageApiWritePayload>>>
+  final TupleTag<KV<DestinationT, StorageApiWritePayload<ElementT>>>
       successfulConvertedRowsTag = new TupleTag<>("successfulRows");
 
   final TupleTag<BigQueryStorageApiInsertError> failedRowsTag = new TupleTag<>("failedRows");
@@ -134,15 +135,17 @@ public class StorageApiLoads<DestinationT, ElementT>
 
   @Override
   public WriteResult expand(PCollection<KV<DestinationT, ElementT>> input) {
-    Coder<StorageApiWritePayload> payloadCoder;
+    Coder<StorageApiWritePayload<ElementT>> payloadCoder;
     try {
       payloadCoder =
-          input.getPipeline().getSchemaRegistry().getSchemaCoder(StorageApiWritePayload.class);
+          input.getPipeline().getSchemaRegistry().getSchemaCoder(
+              new TypeDescriptor<StorageApiWritePayload<ElementT>>() {
+              });
     } catch (NoSuchSchemaException e) {
       throw new RuntimeException(e);
     }
-    Coder<KV<DestinationT, KV<ElementT, StorageApiWritePayload>>> successCoder =
-        KvCoder.of(destinationCoder, KvCoder.of(elementCoder, payloadCoder));
+    Coder<KV<DestinationT,StorageApiWritePayload<ElementT>>> successCoder =
+        KvCoder.of(destinationCoder, payloadCoder);
     if (allowInconsistentWrites) {
       return expandInconsistent(input, successCoder);
     } else {
@@ -154,7 +157,7 @@ public class StorageApiLoads<DestinationT, ElementT>
 
   public WriteResult expandInconsistent(
       PCollection<KV<DestinationT, ElementT>> input,
-      Coder<KV<DestinationT, KV<ElementT, StorageApiWritePayload>>> successCoder) {
+      Coder<KV<DestinationT, StorageApiWritePayload<ElementT>>> successCoder) {
     PCollection<KV<DestinationT, ElementT>> inputInGlobalWindow =
         input.apply("rewindowIntoGlobal", Window.into(new GlobalWindows()));
 
@@ -217,8 +220,8 @@ public class StorageApiLoads<DestinationT, ElementT>
 
   public WriteResult expandTriggered(
       PCollection<KV<DestinationT, ElementT>> input,
-      Coder<KV<DestinationT, KV<ElementT, StorageApiWritePayload>>> successCoder,
-      Coder<StorageApiWritePayload> payloadCoder) {
+      Coder<KV<DestinationT, StorageApiWritePayload<ElementT>>> successCoder,
+      Coder<StorageApiWritePayload<ElementT>> payloadCoder) {
     // Handle triggered, low-latency loads into BigQuery.
     PCollection<KV<DestinationT, ElementT>> inputInGlobalWindow =
         input.apply("rewindowIntoGlobal", Window.into(new GlobalWindows()));
@@ -236,7 +239,7 @@ public class StorageApiLoads<DestinationT, ElementT>
                 badRecordRouter,
                 formatRecordOnFailureFunction));
 
-    PCollection<KV<ShardedKey<DestinationT>, Iterable<KV<ElementT, StorageApiWritePayload>>>>
+    PCollection<KV<ShardedKey<DestinationT>, Iterable<StorageApiWritePayload<ElementT>>>>
         groupedRecords;
 
     int maxAppendBytes =
@@ -251,29 +254,29 @@ public class StorageApiLoads<DestinationT, ElementT>
               .get(successfulConvertedRowsTag)
               .apply(
                   "GroupIntoBatches",
-                  GroupIntoBatches.<DestinationT, KV<ElementT, StorageApiWritePayload>>ofByteSize(
+                  GroupIntoBatches.<DestinationT, StorageApiWritePayload<ElementT>>ofByteSize(
                           maxAppendBytes,
-                          (KV<ElementT, StorageApiWritePayload> e) ->
-                              (long) e.getValue().getPayload().length)
+                          (StorageApiWritePayload<ElementT> e) ->
+                              (long) e.getPayload().length)
                       .withMaxBufferingDuration(triggeringFrequency)
                       .withShardedKey());
 
     } else {
-      PCollection<KV<ShardedKey<DestinationT>, KV<ElementT, StorageApiWritePayload>>>
+      PCollection<KV<ShardedKey<DestinationT>, StorageApiWritePayload<ElementT>>>
           shardedRecords =
               createShardedKeyValuePairs(convertMessagesResult)
                   .setCoder(
                       KvCoder.of(
                           ShardedKey.Coder.of(destinationCoder),
-                          KvCoder.of(elementCoder, payloadCoder)));
+                          payloadCoder));
       groupedRecords =
           shardedRecords.apply(
               "GroupIntoBatches",
               GroupIntoBatches
-                  .<ShardedKey<DestinationT>, KV<ElementT, StorageApiWritePayload>>ofByteSize(
+                  .<ShardedKey<DestinationT>, StorageApiWritePayload<ElementT>>ofByteSize(
                       maxAppendBytes,
-                      (KV<ElementT, StorageApiWritePayload> e) ->
-                          (long) e.getValue().getPayload().length)
+                      (StorageApiWritePayload<ElementT> e) ->
+                          (long) e.getPayload().length)
                   .withMaxBufferingDuration(triggeringFrequency));
     }
     PCollectionTuple writeRecordsResult =
@@ -319,7 +322,7 @@ public class StorageApiLoads<DestinationT, ElementT>
         successfulWrittenRows);
   }
 
-  private PCollection<KV<ShardedKey<DestinationT>, KV<ElementT, StorageApiWritePayload>>>
+  private PCollection<KV<ShardedKey<DestinationT>,StorageApiWritePayload<ElementT>>>
       createShardedKeyValuePairs(PCollectionTuple pCollection) {
     return pCollection
         .get(successfulConvertedRowsTag)
@@ -327,8 +330,8 @@ public class StorageApiLoads<DestinationT, ElementT>
             "AddShard",
             ParDo.of(
                 new DoFn<
-                    KV<DestinationT, KV<ElementT, StorageApiWritePayload>>,
-                    KV<ShardedKey<DestinationT>, KV<ElementT, StorageApiWritePayload>>>() {
+                    KV<DestinationT, StorageApiWritePayload<ElementT>>,
+                    KV<ShardedKey<DestinationT>, StorageApiWritePayload<ElementT>>>() {
                   int shardNumber;
 
                   @Setup
@@ -352,7 +355,7 @@ public class StorageApiLoads<DestinationT, ElementT>
 
   public WriteResult expandUntriggered(
       PCollection<KV<DestinationT, ElementT>> input,
-      Coder<KV<DestinationT, KV<ElementT, StorageApiWritePayload>>> successCoder) {
+      Coder<KV<DestinationT, StorageApiWritePayload<ElementT>>> successCoder) {
     PCollection<KV<DestinationT, ElementT>> inputInGlobalWindow =
         input.apply(
             "rewindowIntoGlobal", Window.<KV<DestinationT, ElementT>>into(new GlobalWindows()));

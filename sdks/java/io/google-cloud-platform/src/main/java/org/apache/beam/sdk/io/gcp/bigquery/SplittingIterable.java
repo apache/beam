@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
+import org.apache.beam.sdk.io.gcp.bigquery.SplittingIterable.Value;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TimestampedValue;
@@ -39,7 +40,7 @@ import org.joda.time.Instant;
  * parameter controls how many rows are batched into a single ProtoRows object before we move on to
  * the next one.
  */
-class SplittingIterable<ElementT> implements Iterable<SplittingIterable.Value<ElementT>> {
+class SplittingIterable<ElementT> implements Iterable<Value<ElementT>> {
   @AutoValue
   abstract static class Value<ElementT> {
     abstract ProtoRows getProtoRows();
@@ -54,7 +55,7 @@ class SplittingIterable<ElementT> implements Iterable<SplittingIterable.Value<El
         throws TableRowToStorageApiProto.SchemaConversionException;
   }
 
-  private final Iterable<KV<ElementT, StorageApiWritePayload>> underlying;
+  private final Iterable<StorageApiWritePayload<ElementT>> underlying;
   private final long splitSize;
 
   private final ConvertUnknownFields unknownFieldsToMessage;
@@ -68,7 +69,7 @@ class SplittingIterable<ElementT> implements Iterable<SplittingIterable.Value<El
   @Nullable SerializableFunction<ElementT, TableRow> formatRecordOnFailureFunction;
 
   public SplittingIterable(
-      Iterable<KV<ElementT, StorageApiWritePayload>> underlying,
+      Iterable<StorageApiWritePayload<ElementT>> underlying,
       long splitSize,
       ConvertUnknownFields unknownFieldsToMessage,
       Function<ByteString, TableRow> protoToTableRow,
@@ -91,7 +92,7 @@ class SplittingIterable<ElementT> implements Iterable<SplittingIterable.Value<El
   @Override
   public Iterator<Value<ElementT>> iterator() {
     return new Iterator<Value<ElementT>>() {
-      final Iterator<KV<ElementT, StorageApiWritePayload>> underlyingIterator =
+      final Iterator<StorageApiWritePayload<ElementT>> underlyingIterator =
           underlying.iterator();
 
       @Override
@@ -110,8 +111,7 @@ class SplittingIterable<ElementT> implements Iterable<SplittingIterable.Value<El
         List<ElementT> originalElements = new ArrayList<>();
         long bytesSize = 0;
         while (underlyingIterator.hasNext()) {
-          KV<ElementT, StorageApiWritePayload> underlyingKV = underlyingIterator.next();
-          StorageApiWritePayload payload = underlyingKV.getValue();
+          StorageApiWritePayload<ElementT> payload = underlyingIterator.next();
           ByteString byteString = ByteString.copyFrom(payload.getPayload());
           if (autoUpdateSchema) {
             try {
@@ -130,7 +130,7 @@ class SplittingIterable<ElementT> implements Iterable<SplittingIterable.Value<El
                   // Reconstitute the TableRow and send it to the failed-rows consumer.
                   TableRow tableRow;
                   if (formatRecordOnFailureFunction != null) {
-                    tableRow = formatRecordOnFailureFunction.apply(underlyingKV.getKey());
+                    tableRow = formatRecordOnFailureFunction.apply(payload.originalElement());
                   } else {
                     tableRow = protoToTableRow.apply(byteString);
                   }
@@ -154,7 +154,7 @@ class SplittingIterable<ElementT> implements Iterable<SplittingIterable.Value<El
             }
           }
           inserts.addSerializedRows(byteString);
-          originalElements.add(underlyingKV.getKey());
+          originalElements.add(payload.originalElement());
           Instant timestamp = payload.getTimestamp();
           if (timestamp == null) {
             timestamp = elementsTimestamp;

@@ -39,7 +39,7 @@ import org.apache.beam.sdk.values.TupleTagList;
 @SuppressWarnings("FutureReturnValueIgnored")
 public class StorageApiWriteRecordsInconsistent<DestinationT, ElementT>
     extends PTransform<
-        PCollection<KV<DestinationT, KV<ElementT, StorageApiWritePayload>>>, PCollectionTuple> {
+        PCollection<KV<DestinationT, StorageApiWritePayload<ElementT>>>, PCollectionTuple> {
   private final StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations;
   private final BigQueryServices bqServices;
   private final TupleTag<BigQueryStorageApiInsertError> failedRowsTag;
@@ -86,7 +86,7 @@ public class StorageApiWriteRecordsInconsistent<DestinationT, ElementT>
 
   @Override
   public PCollectionTuple expand(
-      PCollection<KV<DestinationT, KV<ElementT, StorageApiWritePayload>>> input) {
+      PCollection<KV<DestinationT, StorageApiWritePayload<ElementT>>> input) {
     String operationName = input.getName() + "/" + getName();
     BigQueryOptions bigQueryOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
     // Append records to the Storage API streams.

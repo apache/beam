@@ -99,7 +99,7 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings({"FutureReturnValueIgnored"})
 public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
     extends PTransform<
-        PCollection<KV<DestinationT, KV<ElementT, StorageApiWritePayload>>>, PCollectionTuple> {
+        PCollection<KV<DestinationT, StorageApiWritePayload<ElementT>>>, PCollectionTuple> {
   private static final Logger LOG = LoggerFactory.getLogger(StorageApiWriteUnshardedRecords.class);
 
   private final StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations;
@@ -195,7 +195,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
 
   @Override
   public PCollectionTuple expand(
-      PCollection<KV<DestinationT, KV<ElementT, StorageApiWritePayload>>> input) {
+      PCollection<KV<DestinationT, StorageApiWritePayload<ElementT>>> input) {
     String operationName = input.getName() + "/" + getName();
     BigQueryOptions options = input.getPipeline().getOptions().as(BigQueryOptions.class);
     org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument(
@@ -246,7 +246,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
   }
 
   static class WriteRecordsDoFn<DestinationT extends @NonNull Object, ElementT>
-      extends DoFn<KV<DestinationT, KV<ElementT, StorageApiWritePayload>>, KV<String, String>> {
+      extends DoFn<KV<DestinationT, StorageApiWritePayload<ElementT>>, KV<String, String>> {
     private final Counter forcedFlushes = Metrics.counter(WriteRecordsDoFn.class, "forcedFlushes");
     private final TupleTag<KV<String, String>> finalizeTag;
     private final TupleTag<BigQueryStorageApiInsertError> failedRowsTag;
@@ -551,12 +551,11 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       }
 
       void addMessage(
-          KV<ElementT, StorageApiWritePayload> originalAndPayload,
+          StorageApiWritePayload<ElementT> payload,
           org.joda.time.Instant elementTs,
           OutputReceiver<BigQueryStorageApiInsertError> failedRowsReceiver)
           throws Exception {
         maybeTickleCache();
-        StorageApiWritePayload payload = originalAndPayload.getValue();
         ByteString payloadBytes = ByteString.copyFrom(payload.getPayload());
         if (autoUpdateSchema) {
           if (appendClientInfo == null) {
@@ -588,7 +587,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
           }
         }
         pendingMessages.add(payloadBytes);
-        originalMessages.add(originalAndPayload.getKey());
+        originalMessages.add(payload.originalElement());
         org.joda.time.Instant timestamp = payload.getTimestamp();
         pendingTimestamps.add(timestamp != null ? timestamp : elementTs);
       }
@@ -1088,7 +1087,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
     public void process(
         ProcessContext c,
         PipelineOptions pipelineOptions,
-        @Element KV<DestinationT, KV<ElementT, StorageApiWritePayload>> element,
+        @Element KV<DestinationT, StorageApiWritePayload<ElementT>> element,
         @Timestamp org.joda.time.Instant elementTs,
         MultiOutputReceiver o)
         throws Exception {
@@ -1116,7 +1115,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       flushIfNecessary(failedRowsReceiver, successfulRowsReceiver);
       state.addMessage(element.getValue(), elementTs, failedRowsReceiver);
       ++numPendingRecords;
-      numPendingRecordBytes += element.getValue().getValue().getPayload().length;
+      numPendingRecordBytes += element.getValue().getPayload().length;
     }
 
     @FinishBundle

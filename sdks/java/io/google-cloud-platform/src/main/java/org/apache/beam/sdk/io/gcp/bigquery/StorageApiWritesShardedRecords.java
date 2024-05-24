@@ -115,7 +115,7 @@ import org.slf4j.LoggerFactory;
 })
 public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object, ElementT>
     extends PTransform<
-        PCollection<KV<ShardedKey<DestinationT>, Iterable<KV<ElementT, StorageApiWritePayload>>>>,
+        PCollection<KV<ShardedKey<DestinationT>, Iterable<StorageApiWritePayload<ElementT>>>>,
         PCollectionTuple> {
   private static final Logger LOG = LoggerFactory.getLogger(StorageApiWritesShardedRecords.class);
   private static final Duration DEFAULT_STREAM_IDLE_TIME = Duration.standardHours(1);
@@ -249,7 +249,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
 
   @Override
   public PCollectionTuple expand(
-      PCollection<KV<ShardedKey<DestinationT>, Iterable<KV<ElementT, StorageApiWritePayload>>>>
+      PCollection<KV<ShardedKey<DestinationT>, Iterable<StorageApiWritePayload<ElementT>>>>
           input) {
     BigQueryOptions bigQueryOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
     final long splitSize = bigQueryOptions.getStorageApiAppendThresholdBytes();
@@ -304,7 +304,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
 
   class WriteRecordsDoFn
       extends DoFn<
-          KV<ShardedKey<DestinationT>, Iterable<KV<ElementT, StorageApiWritePayload>>>,
+          KV<ShardedKey<DestinationT>, Iterable<StorageApiWritePayload<ElementT>>>,
           KV<String, Operation>> {
     private final Counter recordsAppended =
         Metrics.counter(WriteRecordsDoFn.class, "recordsAppended");
@@ -441,7 +441,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
         ProcessContext c,
         final PipelineOptions pipelineOptions,
         @Element
-            KV<ShardedKey<DestinationT>, Iterable<KV<ElementT, StorageApiWritePayload>>> element,
+            KV<ShardedKey<DestinationT>, Iterable<StorageApiWritePayload<ElementT>>> element,
         @Timestamp org.joda.time.Instant elementTs,
         final @AlwaysFetched @StateId("streamName") ValueState<String> streamName,
         final @AlwaysFetched @StateId("streamOffset") ValueState<Long> streamOffset,

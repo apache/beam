@@ -30,7 +30,7 @@ import org.joda.time.Instant;
 /** Class used to wrap elements being sent to the Storage API sinks. */
 @AutoValue
 @DefaultSchema(AutoValueSchema.class)
-public abstract class StorageApiWritePayload {
+public abstract class StorageApiWritePayload<ElementT> {
   @SuppressWarnings("mutable")
   public abstract byte[] getPayload();
 
@@ -39,34 +39,38 @@ public abstract class StorageApiWritePayload {
 
   public abstract @Nullable Instant getTimestamp();
 
+  public abstract @Nullable ElementT originalElement();
+
   @AutoValue.Builder
-  public abstract static class Builder {
-    public abstract Builder setPayload(byte[] value);
+  public abstract static class Builder<ElementT> {
+    public abstract Builder<ElementT> setPayload(byte[] value);
 
-    public abstract Builder setUnknownFieldsPayload(@Nullable byte[] value);
+    public abstract Builder<ElementT> setUnknownFieldsPayload(@Nullable byte[] value);
 
-    public abstract Builder setTimestamp(@Nullable Instant value);
+    public abstract Builder<ElementT> setTimestamp(@Nullable Instant value);
 
-    public abstract StorageApiWritePayload build();
+    public abstract Builder<ElementT> setOriginalElement(@Nullable ElementT originalElement);
+
+    public abstract StorageApiWritePayload<ElementT> build();
   }
 
-  public abstract Builder toBuilder();
+  public abstract Builder<ElementT> toBuilder();
 
   @SuppressWarnings("nullness")
-  static StorageApiWritePayload of(byte[] payload, @Nullable TableRow unknownFields)
+  static <ElementT> StorageApiWritePayload<ElementT> of(byte[] payload, @Nullable TableRow unknownFields)
       throws IOException {
     @Nullable byte[] unknownFieldsPayload = null;
     if (unknownFields != null) {
       unknownFieldsPayload = CoderUtils.encodeToByteArray(TableRowJsonCoder.of(), unknownFields);
     }
-    return new AutoValue_StorageApiWritePayload.Builder()
+    return new AutoValue_StorageApiWritePayload<ElementT>.Builder()
         .setPayload(payload)
         .setUnknownFieldsPayload(unknownFieldsPayload)
         .setTimestamp(null)
         .build();
   }
 
-  public StorageApiWritePayload withTimestamp(Instant instant) {
+  public StorageApiWritePayload<ElementT> withTimestamp(Instant instant) {
     return toBuilder().setTimestamp(instant).build();
   }
 
