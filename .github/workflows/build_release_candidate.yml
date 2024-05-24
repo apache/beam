@@ -37,7 +37,7 @@ on:
           --
           python_artifacts: stage the python artifacts into https://dist.apache.org/repos/dist/dev/beam/
           --
-          beam_site: create the documentation update PR against apache/beam-site.
+          beam_site_pr: create the documentation update PR against apache/beam-site.
           --
           prism: build and upload the artifacts to the release for this tag 
         required: true
@@ -46,7 +46,7 @@ on:
             java_source: "no",
             docker_artifacts: "no",
             python_artifacts: "no",
-            beam_site: "no",
+            beam_site_pr: "no",
             prism: "no"}
 
 env:
