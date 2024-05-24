@@ -24,7 +24,7 @@ import (
 	"sort"
 	"sync"
 	"time"
-
+	"sync/atomic"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/ioutilx"
