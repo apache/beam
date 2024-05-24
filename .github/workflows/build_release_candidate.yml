@@ -474,9 +474,9 @@ jobs:
           mkdir -p $OUTPUT_DIR
           echo "OUTPUT_DIR=$OUTPUT_DIR"
 
-          # Remove existing prism contents from the repo.
+          # Remove existing prism contents from the svn repo.
           cd $OUTPUT_DIR
-          rm -r *
+          rm -rf *
           cd $ROOT_DIR
 
           # Navigate to the prism command directory.
