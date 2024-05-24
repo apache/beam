@@ -22,7 +22,6 @@ import static org.apache.beam.model.pipeline.v1.ExternalTransforms.ExpansionMeth
 import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
-import com.facebook.presto.hadoop.$internal.com.google.common.base.Objects;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
@@ -60,6 +59,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSortedSet;
@@ -533,7 +533,7 @@ public class PTransformTranslation {
             Row configRow =
                 RowCoder.of(configSchema).decode(payload.getConfigurationRow().newInput());
             String underlyingIdentifier =
-                Objects.firstNonNull(
+                MoreObjects.firstNonNull(
                     configRow.getString("transform_identifier"), "unknown_identifier");
             transformBuilder.putAnnotations(
                 BeamUrns.getConstant(Annotations.Enum.MANAGED_UNDERLYING_TRANSFORM_URN_KEY),
