@@ -1105,10 +1105,10 @@ class BundleProcessor(object):
       for data_channel, expected_inputs in data_channels.items():
         for element in data_channel.input_elements(instruction_id,
                                                    expected_inputs):
-        # Since we have received an element, we are no longer ready to receive
-        # more data.
-        self.waiting_for_runner_to_send_data = False
-        if isinstance(element, beam_fn_api_pb2.Elements.Timers):
+          # Since we have received an element, we are no longer ready to receive
+          # more data.
+          self.waiting_for_runner_to_send_data = False
+          if isinstance(element, beam_fn_api_pb2.Elements.Timers):
             timer_coder_impl = (
                 self.timers_info[(
                     element.transform_id,
@@ -1119,8 +1119,8 @@ class BundleProcessor(object):
           elif isinstance(element, beam_fn_api_pb2.Elements.Data):
             input_op_by_transform_id[element.transform_id].process_encoded(
                 element.data)
-        # Since we have processed this element, we are now ready to recieve the next one.
-        self.waiting_for_runner_to_send_data = True
+          # Since we have processed this element, we are now ready to recieve the next one.
+          self.waiting_for_runner_to_send_data = True
 
       # Finish all operations.
       for op in self.ops.values():
@@ -1139,6 +1139,7 @@ class BundleProcessor(object):
               self.requires_finalization())
 
     finally:
+      self.waiting_for_runner_to_send_data = True
       # Ensure any in-flight split attempts complete.
       with self.splitting_lock:
         self.current_instruction_id = None
