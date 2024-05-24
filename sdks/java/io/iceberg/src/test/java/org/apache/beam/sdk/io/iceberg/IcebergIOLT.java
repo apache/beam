@@ -29,7 +29,9 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.*;
+import org.apache.beam.sdk.transforms.Count;
+import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
@@ -66,7 +68,7 @@ public class IcebergIOLT implements Serializable {
   /** Options for Iceberg IO load test. */
   @AutoValue
   abstract static class TestConfiguration {
-    /** Number of rows to generate */
+    /** Number of rows to generate. */
     abstract Long numRows();
 
     /** Data shape: The number of fields per row. */
