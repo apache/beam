@@ -2288,8 +2288,11 @@ public class BigtableIO {
 
     /**
      * Disables validation that the table being read and the metadata table exists, and that the app
-     * profile used is single cluster and single row transcation enabled. Set this option if the
+     * profile used is single cluster and single row transaction enabled. Set this option if the
      * caller does not have additional Bigtable permissions to validate the configurations.
+     * <b>NOTE</b> this also disabled creating or updating the metadata table because that also
+     * requires additional permissions, essentially setting {@link #withCreateOrUpdateMetadataTable}
+     * to false.
      */
     public ReadChangeStream withoutValidation() {
       BigtableConfig config = getBigtableConfig();
@@ -2344,13 +2347,13 @@ public class BigtableIO {
 
     @Override
     public PCollection<KV<ByteString, ChangeStreamMutation>> expand(PBegin input) {
+      BigtableConfig bigtableConfig = getBigtableConfig();
       checkArgument(
-          getBigtableConfig() != null,
+          bigtableConfig != null,
           "BigtableIO ReadChangeStream is missing required configurations fields.");
-      getBigtableConfig().validate();
+      bigtableConfig.validate();
       checkArgument(getTableId() != null, "Missing required tableId field.");
 
-      BigtableConfig bigtableConfig = getBigtableConfig();
       if (bigtableConfig.getAppProfileId() == null
           || bigtableConfig.getAppProfileId().get().isEmpty()) {
         bigtableConfig = bigtableConfig.withAppProfileId(StaticValueProvider.of("default"));
