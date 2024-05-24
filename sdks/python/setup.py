@@ -490,7 +490,7 @@ if __name__ == '__main__':
               'skl2onnx',
               # Support TF 2.16.0: https://github.com/apache/beam/issues/31294
               # Once TF version is unpinned, also don't restrict Python version.
-              'tensorflow<2.16.0;python_version<"3.11"',
+              'tensorflow<2.16.0;python_version<"3.12"',
               'tensorflow-hub',
               # https://github.com/tensorflow/transform/issues/313
               'tensorflow-transform;python_version<"3.11"',
