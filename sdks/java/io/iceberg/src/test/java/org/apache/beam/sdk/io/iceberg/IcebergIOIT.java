@@ -70,9 +70,7 @@ import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Integration tests for {@link IcebergIO} source and sink.
- */
+/** Integration tests for {@link IcebergIO} source and sink. */
 @RunWith(JUnit4.class)
 public class IcebergIOIT implements Serializable {
 
