@@ -421,6 +421,7 @@ if __name__ == '__main__':
               'pytest-xdist>=2.5.0,<4',
               'pytest-timeout>=2.1.0,<3',
               'scikit-learn>=0.20.0',
+              'setuptools',
               'sqlalchemy>=1.3,<3.0',
               'psycopg2-binary>=2.8.5,<3.0.0',
               'testcontainers[mysql]>=3.0.3,<4.0.0',
@@ -487,8 +488,9 @@ if __name__ == '__main__':
               'onnxruntime',
               'sentence-transformers',
               'skl2onnx',
-              # https://github.com/apache/beam/issues/31294
-              'tensorflow<2.16.0',
+              # Support TF 2.16.0: https://github.com/apache/beam/issues/31294
+              # Once TF version is unpinned, also don't restrict Python version.
+              'tensorflow<2.16.0;python_version<"3.12"',
               'tensorflow-hub',
               # https://github.com/tensorflow/transform/issues/313
               'tensorflow-transform;python_version<"3.11"',
@@ -525,6 +527,7 @@ if __name__ == '__main__':
           'Programming Language :: Python :: 3.9',
           'Programming Language :: Python :: 3.10',
           'Programming Language :: Python :: 3.11',
+          'Programming Language :: Python :: 3.12',
           # When updating version classifiers, also update version warnings
           # above and in apache_beam/__init__.py.
           'Topic :: Software Development :: Libraries',
