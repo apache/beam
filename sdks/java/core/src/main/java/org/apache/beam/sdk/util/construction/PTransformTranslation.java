@@ -21,6 +21,7 @@ import static org.apache.beam.model.pipeline.v1.ExternalTransforms.ExpansionMeth
 import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
+import com.facebook.presto.hadoop.$internal.com.google.common.base.Objects;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
@@ -43,6 +44,7 @@ import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -94,6 +96,7 @@ public class PTransformTranslation {
   public static final String MAP_WINDOWS_TRANSFORM_URN = "beam:transform:map_windows:v1";
   public static final String MERGE_WINDOWS_TRANSFORM_URN = "beam:transform:merge_windows:v1";
   public static final String TO_STRING_TRANSFORM_URN = "beam:transform:to_string:v1";
+  public static final String MANAGED_TRANSFORM_URN = "beam:transform:managed:v1";
 
   // Required runner implemented transforms. These transforms should never specify an environment.
   public static final ImmutableSet<String> RUNNER_IMPLEMENTED_TRANSFORMS =
@@ -103,6 +106,8 @@ public class PTransformTranslation {
 
   public static final String CONFIG_ROW_SCHEMA_KEY = "config_row_schema";
   public static final String SCHEMATRANSFORM_URN_KEY = "schematransform_urn";
+  public static final String MANAGED_UNDERLYING_TRANSFORM_URN_KEY =
+      "managed_underlying_transform_urn";
 
   // DeprecatedPrimitives
   /**
@@ -522,11 +527,23 @@ public class PTransformTranslation {
         }
 
         if (spec.getUrn().equals(BeamUrns.getUrn(SCHEMA_TRANSFORM))) {
+          ExternalTransforms.SchemaTransformPayload payload =
+              ExternalTransforms.SchemaTransformPayload.parseFrom(spec.getPayload());
+          String identifier = payload.getIdentifier();
           transformBuilder.putAnnotations(
-              SCHEMATRANSFORM_URN_KEY,
-              ByteString.copyFromUtf8(
-                  ExternalTransforms.SchemaTransformPayload.parseFrom(spec.getPayload())
-                      .getIdentifier()));
+              SCHEMATRANSFORM_URN_KEY, ByteString.copyFromUtf8(identifier));
+          if (identifier.equals(MANAGED_TRANSFORM_URN)) {
+            Schema configSchema =
+                SchemaTranslation.schemaFromProto(payload.getConfigurationSchema());
+            Row configRow =
+                RowCoder.of(configSchema).decode(payload.getConfigurationRow().newInput());
+            String underlyingIdentifier =
+                Objects.firstNonNull(
+                    configRow.getString("transform_identifier"), "unknown_identifier");
+            transformBuilder.putAnnotations(
+                MANAGED_UNDERLYING_TRANSFORM_URN_KEY,
+                ByteString.copyFromUtf8(underlyingIdentifier));
+          }
         }
       }
 
