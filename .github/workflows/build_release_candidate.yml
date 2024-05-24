@@ -451,6 +451,17 @@ jobs:
           GH_TOKEN: ${{ github.event.inputs.REPO_TOKEN  }}
           SVN_ARTIFACTS_DIR: "beam/${{ github.event.inputs.RELEASE }}/prism"
         run: |
+          # TODO stop the action if a non-prerelease release exists
+          # TODO create the draft release automatically if none exist.
+          # TODO update the draft release's RC tag to current.
+
+          export GH_RELEASE_ID=`gh api \
+           -H "Accept: application/vnd.github+json" \
+           -H "X-GitHub-Api-Version: 2022-11-28" \
+           /repos/apache/beam/releases | jq '.[] | select(.tag_name | contains(env.RC_TAG)) .id'`
+
+          echo "with gh release id $GH_RELEASE_ID for tag $RC_TAG"
+
           # Store a reference so we can get back to the start.
           ROOT_DIR=`pwd`
           echo "ROOT_DIR=$ROOT_DIR"
@@ -463,24 +474,16 @@ jobs:
           mkdir -p $OUTPUT_DIR
           echo "OUTPUT_DIR=$OUTPUT_DIR"
 
-          # TODO remove existing output directory contents.
+          # Remove existing prism contents from the repo.
+          cd $OUTPUT_DIR
+          rm -r .* 
+          cd $ROOT_DIR
 
           # Navigate to the prism command directory.
           cd sdks/go/cmd/prism
 
           # Store a reference to where we're building from.
           BUILD_DIR=`pwd`
-
-          # TODO stop the action if a non-prerelease release exists
-          # TODO create the draft release automatically if none exist.
-          # TODO update the draft release's RC tag to current.
-
-          export GH_RELEASE_ID=`gh api \
-           -H "Accept: application/vnd.github+json" \
-           -H "X-GitHub-Api-Version: 2022-11-28" \
-           /repos/apache/beam/releases | jq '.[] | select(.tag_name | contains(env.RC_TAG)) .id'`
-
-          echo "with gh release id $GH_RELEASE_ID for tag $RC_TAG"
 
           echo "............Build and stage prism artifacts in the Github Release $GH_RELEASE_ID for tag $RC_TAG.........."
           
@@ -511,8 +514,6 @@ jobs:
                 
                 # Remove the binary from the release directory
                 rm $ARTIFACT
-                echo `pwd`
-                echo `ls`
                 
                 # Return to our root build dir.
                 cd $BUILD_DIR
@@ -527,8 +528,8 @@ jobs:
           cd $ROOT_DIR
           cd $RELEASE_DIR
 
-          echo "...........Adding to the dev Apache SVN repo..........."
+          echo "...........Adding prism artifacts to the Dev Apache SVN repo..........."
 
           svn add --force prism
           svn status
-          # svn commit -m "Staging Prism artifacts for Apache Beam ${RELEASE} RC${RC_NUM}" --non-interactive --username "${{ github.event.inputs.APACHE_ID }}" --password "${{ github.event.inputs.APACHE_PASSWORD }}"
+          svn commit -m "Staging Prism artifacts for Apache Beam ${RELEASE} RC${RC_NUM}" --non-interactive --username "${{ github.event.inputs.APACHE_ID }}" --password "${{ github.event.inputs.APACHE_PASSWORD }}"
