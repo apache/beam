@@ -420,7 +420,6 @@ if __name__ == '__main__':
               'pytest>=7.1.2,<8.0',
               'pytest-xdist>=2.5.0,<4',
               'pytest-timeout>=2.1.0,<3',
-              'pytest-retry>=1.6.3,<1.7.0;python_version>"3.8"',
               'scikit-learn>=0.20.0',
               'setuptools',
               'sqlalchemy>=1.3,<3.0',

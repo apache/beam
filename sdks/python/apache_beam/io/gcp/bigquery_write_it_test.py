@@ -35,6 +35,9 @@ import pytz
 from parameterized import param
 from parameterized import parameterized
 
+from tenacity import retry
+from tenacity import stop_after_attempt
+
 import apache_beam as beam
 from apache_beam.io.gcp.bigquery import BigQueryWriteFn
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
@@ -55,16 +58,6 @@ except ImportError:
 # pylint: enable=wrong-import-order, wrong-import-position
 
 _LOGGER = logging.getLogger(__name__)
-
-
-def conditional_pytest_retry_decorator():
-  def decorator(func):
-    try:
-      return pytest.mark.flaky(retries=5)(func)
-    except ImportError:
-      return func
-
-  return decorator
 
 
 class BigQueryWriteIntegrationTests(unittest.TestCase):
@@ -514,7 +507,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
           equal_to(bq_result_errors))
 
   @pytest.mark.it_postcommit
-  @conditional_pytest_retry_decorator()
+  @retry(reraise=True, stop=stop_after_attempt(3))
   @parameterized.expand([
       param(file_format=FileFormat.AVRO),
       param(file_format=FileFormat.JSON),
