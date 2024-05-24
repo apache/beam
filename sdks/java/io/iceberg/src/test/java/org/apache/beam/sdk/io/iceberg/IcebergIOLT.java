@@ -51,6 +51,9 @@ import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+/**
+ * Load tests for {@link IcebergIO} source and sink.
+ */
 @RunWith(JUnit4.class)
 public class IcebergIOLT implements Serializable {
   private static final Map<String, TestConfiguration> TEST_CONFIGS =
