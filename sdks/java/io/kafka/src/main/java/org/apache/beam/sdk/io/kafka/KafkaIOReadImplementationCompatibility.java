@@ -119,13 +119,19 @@ class KafkaIOReadImplementationCompatibility {
         return Long.valueOf(2);
       }
     },
-    NUM_SHARDS {
+    REDISTRIBUTE_NUM_KEYS {
       @Override
       Object getDefaultValue() {
         return Integer.valueOf(0);
       }
     },
     REDISTRIBUTED {
+      @Override
+      Object getDefaultValue() {
+        return false;
+      }
+    },
+    ALLOW_DUPLICATES {
       @Override
       Object getDefaultValue() {
         return false;

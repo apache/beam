@@ -388,7 +388,7 @@ public class KafkaIOTest {
       @Nullable Integer maxNumRecords,
       @Nullable SerializableFunction<KV<Integer, Long>, Instant> timestampFn,
       @Nullable Boolean redistribute,
-      @Nullable Integer numShards) {
+      @Nullable Integer numKeys) {
 
     List<String> topics = ImmutableList.of("topic_a", "topic_b");
 
@@ -410,8 +410,8 @@ public class KafkaIOTest {
     }
 
     if (redistribute) {
-      if (numShards != null) {
-        reader = reader.withRedistribute().withNumShards(numShards);
+      if (numKeys != null) {
+        reader = reader.withRedistribute().withRedistributeNumKeys(numKeys);
       }
       reader = reader.withRedistribute();
     }
@@ -625,7 +625,10 @@ public class KafkaIOTest {
   }
 
   @Test
-  public void testRiskyConfigurationWarnsProperlyWithNumShardsNotSet() {
+  public void testCommitOffsetsInFinalizeAndRedistributeErrors() {
+    thrown.expect(Exception.class);
+    thrown.expectMessage("commitOffsetsInFinalize() can't be enabled with isRedistributed");
+
     int numElements = 1000;
 
     PCollection<Long> input =
@@ -637,14 +640,11 @@ public class KafkaIOTest {
             .apply(Values.create());
 
     addCountingAsserts(input, numElements);
-
-    kafkaIOExpectedLogs.verifyWarn(
-        "This will redistribute the load across the same number of shards as the Kafka source.");
     p.run();
   }
 
   @Test
-  public void testNumShardsIgnoredWithRedistributeNotEnabled() {
+  public void testNumKeysIgnoredWithRedistributeNotEnabled() {
     int numElements = 1000;
 
     PCollection<Long> input =
@@ -657,22 +657,6 @@ public class KafkaIOTest {
 
     addCountingAsserts(input, numElements);
 
-    p.run();
-  }
-
-  @Test
-  public void testCommitOffsetWithRedistribute() {
-    int numElements = 1000;
-
-    PCollection<Long> input =
-        p.apply(
-                mkKafkaReadTransform(numElements, numElements, new ValueAsTimestampFn(), true, 10)
-                    .withConsumerConfigUpdates(
-                        ImmutableMap.of(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, true))
-                    .withoutMetadata())
-            .apply(Values.create());
-
-    addCountingAsserts(input, numElements);
     p.run();
   }
 
