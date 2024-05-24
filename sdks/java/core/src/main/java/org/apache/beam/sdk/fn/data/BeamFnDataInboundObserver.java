@@ -96,6 +96,7 @@ public class BeamFnDataInboundObserver implements CloseableFnDataReceiver<BeamFn
     this.queue = new CancellableQueue<>(100);
     this.totalNumEndpoints = dataEndpoints.size() + timerEndpoints.size();
     this.numEndpointsThatAreIncomplete = totalNumEndpoints;
+    this.waitingForRunnerToSendData = new AtomicBoolean(true);
   }
 
   @Override
