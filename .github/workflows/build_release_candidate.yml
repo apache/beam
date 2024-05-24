@@ -496,7 +496,7 @@ jobs:
 
               mkdir -p "$TARGET_DIR"
               OUTPUT_FILE="$TARGET_DIR/$TARGET_NAME"
-              if GOOS=$OS GOARCH=$ARCH CGO_ENABLED=0 go build -trimpath -o "$OUTPUT_FILE" . > /dev/null 2>&1; then
+              if GOOS=$OS GOARCH=$ARCH CGO_ENABLED=0 go build -trimpath -buildvcs=false -o "$OUTPUT_FILE" . > /dev/null 2>&1; then
                 cd $TARGET_DIR
                 # Extract real output name. Windows builds automatically have .exe added. 
                 ARTIFACT=`ls`
