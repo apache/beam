@@ -28,17 +28,17 @@ on:
       STAGE:
         description: |
           Configure which actions this workflow should perform, by setting the desired fields to "yes".
-          --
+          <br/>
           java_artifacts: publish java artifacts to https://repository.apache.org/#stagingRepositories
-          --
+          <br/>
           java_source: java source into https://dist.apache.org/repos/dist/dev/beam/
-          --
+          <br/>
           docker_artifacts: stage SDK docker images to docker hub Apache organization
-          --
+          <br/>
           python_artifacts: stage the python artifacts into https://dist.apache.org/repos/dist/dev/beam/
-          --
+          <br/>
           beam_site: create the documentation update PR against apache/beam-site.
-          --
+          <br/>
           prism: build and upload the artifacts to the release for this tag 
         required: true
         default: |
@@ -448,24 +448,27 @@ jobs:
           GIT_REPO_BASE_URL: https://github.com/apache/beam
           RELEASE_DIR: "beam/${{ github.event.inputs.RELEASE }}"
           RELEASE: "${{ github.event.inputs.RELEASE }}"
-          SCRIPT_DIR: release/src/main/scripts
           GH_TOKEN: ${{ github.event.inputs.REPO_TOKEN  }}
           SVN_ARTIFACTS_DIR: "beam/${{ github.event.inputs.RELEASE }}/prism"
         run: |
           # Store a reference so we can get back to the start.
           ROOT_DIR=`pwd`
-          echo $ROOT_DIR
+
+          svn co https://dist.apache.org/repos/dist/dev/beam
+          mkdir -p "${SVN_ARTIFACTS_DIR}"
+
           # Navigate to the prism command directory.
           cd sdks/go/cmd/prism
           # Store a reference to where we're building from.
           BUILD_DIR=`pwd`
-          echo $BUILD_DIR
 
-          echo `which go`
-          OUTPUT_DIR="BUILDS"
+          OUTPUT_DIR=$ROOT_DIR/$SVN_ARTIFACTS_DIR
           mkdir -p $OUTPUT_DIR
 
-          echo "build directory made"
+          # TODO stop the action if a non-prerelease release exists
+          # TODO create the draft release automatically if none exist.
+          # TODO update the draft release's RC tag to current.
+
 
           export GH_RELEASE_ID=`gh api \
            -H "Accept: application/vnd.github+json" \
@@ -473,14 +476,14 @@ jobs:
            /repos/apache/beam/releases | jq '.[] | select(.tag_name | contains(env.RC_TAG)) .id'`
 
           echo "with gh release id $GH_RELEASE_ID for tag $RC_TAG"
+
+          echo "............Build and stage prism artifacts in the Github Release $GH_RELEASE_ID for tag $RC_TAG.........."
           
           # Loop through and build desired set from allowed types.
           for OS in linux windows darwin; do
             for ARCH in amd64 arm64; do
               TARGET_DIR="$OUTPUT_DIR/$OS/$ARCH"
-              TARGET_NAME="prism-$RELEASE-$OS-$ARCH"
-
-              echo "building $TARGET_NAME"
+              TARGET_NAME="apache-beam-$RELEASE-prism-$OS-$ARCH"
 
               mkdir -p "$TARGET_DIR"
               OUTPUT_FILE="$TARGET_DIR/$TARGET_NAME"
@@ -488,37 +491,44 @@ jobs:
                 cd $TARGET_DIR
                 # Extract real output name. Windows builds automatically have .exe added. 
                 ARTIFACT=`ls`
-                echo "target built  - $OS - $ARCH"
+                echo "target built - $ARTIFACT"
+
+                ZIP_NAME="$ARTIFACT.zip"
+                zip -r $ZIP_NAME $ARTIFACT
+
                 # Sign and hash
-                gpg --local-user "${{steps.import_gpg.outputs.name}}" --armor --batch --yes --detach-sig $ARTIFACT
-                sha512sum $ARTIFACT > "${ARTIFACT}.sha512"
+                gpg --local-user "${{steps.import_gpg.outputs.name}}" --armor --batch --yes --detach-sig $ZIP_NAME
+                sha512sum $ZIP_NAME > "${ZIP_NAME}.sha512"
 
-                ZIP_NAME="$TARGET_NAME.zip"
-                zip -r $ZIP_NAME .
-
-                #TODO move zip to release directory? debug output for now.
                 echo `ls`
 
-                # Time to upload to the release!
-                gh release upload $RC_TAG $ZIP_NAME --clobber
-
+                # Upload to the release.
+                gh release upload $RC_TAG $ZIP_NAME ${ZIP_NAME}.sha512 ${ZIP_NAME}.asc --clobber
+                
+                # Remove the binary from the release directory
+                rm $ARTIFACT
+                echo `pwd`
+                echo `ls`
+                
                 # Return to our root build dir.
                 cd $BUILD_DIR
               else
-                echo "target failed - $OS - $ARCH"
+                echo "target failed for $OS - $ARCH"
                 rm -f "$OUTPUT_FILE"
                 exit 1 # Do not continue action
               fi
             done
           done
+          echo "-------Prism builds done------"
+          echo `pwd`
           cd $ROOT
-          # Get out of the checked out repo.
-          cd .. 
+          # Get into the dev repo for the release.
+          cd $RELEASE_DIR
 
+          echo "-------Adding SVN to dev repo------"
+          echo `pwd`
+          echo `ls`
 
-          # svn co https://dist.apache.org/repos/dist/dev/beam
-          # mkdir -p "${SVN_ARTIFACTS_DIR}"
-          # cd ..
-          # svn add --force prism
-          # svn status
+          svn add --force prism
+          svn status
           # svn commit -m "Staging Prism artifacts for Apache Beam ${RELEASE} RC${RC_NUM}" --non-interactive --username "${{ github.event.inputs.APACHE_ID }}" --password "${{ github.event.inputs.APACHE_PASSWORD }}"
