@@ -487,6 +487,7 @@ public class Environments {
     capabilities.add(BeamUrns.getUrn(SplittableParDoComponents.TRUNCATE_SIZED_RESTRICTION));
     capabilities.add(BeamUrns.getUrn(Primitives.TO_STRING));
     capabilities.add(BeamUrns.getUrn(StandardProtocols.Enum.DATA_SAMPLING));
+    capabilities.add(BeamUrns.getUrn(StandardProtocols.Enum.SDK_DATA_CHANNEL_STATUS_SIGNAL));
     return capabilities.build();
   }
 
