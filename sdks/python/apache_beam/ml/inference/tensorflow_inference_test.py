@@ -127,7 +127,7 @@ class TFRunInferenceTest(unittest.TestCase):
 
   def test_predict_tensor_with_batch_size(self):
     model = _create_mult2_model()
-    model_path = os.path.join(self.tmpdir, 'mult2')
+    model_path = os.path.join(self.tmpdir, 'mult2.keras')
     tf.keras.models.save_model(model, model_path)
     with TestPipeline() as pipeline:
 
@@ -172,7 +172,7 @@ class TFRunInferenceTest(unittest.TestCase):
 
   def test_predict_tensor_with_large_model(self):
     model = _create_mult2_model()
-    model_path = os.path.join(self.tmpdir, 'mult2')
+    model_path = os.path.join(self.tmpdir, 'mult2.keras')
     tf.keras.models.save_model(model, model_path)
     with TestPipeline() as pipeline:
 
@@ -218,7 +218,7 @@ class TFRunInferenceTest(unittest.TestCase):
 
   def test_predict_numpy_with_batch_size(self):
     model = _create_mult2_model()
-    model_path = os.path.join(self.tmpdir, 'mult2_numpy')
+    model_path = os.path.join(self.tmpdir, 'mult2_numpy.keras')
     tf.keras.models.save_model(model, model_path)
     with TestPipeline() as pipeline:
 
@@ -260,7 +260,7 @@ class TFRunInferenceTest(unittest.TestCase):
 
   def test_predict_numpy_with_large_model(self):
     model = _create_mult2_model()
-    model_path = os.path.join(self.tmpdir, 'mult2_numpy')
+    model_path = os.path.join(self.tmpdir, 'mult2_numpy.keras')
     tf.keras.models.save_model(model, model_path)
     with TestPipeline() as pipeline:
 
