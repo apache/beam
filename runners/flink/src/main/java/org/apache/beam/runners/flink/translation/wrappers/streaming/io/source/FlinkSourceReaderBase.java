@@ -338,13 +338,14 @@ public abstract class FlinkSourceReaderBase<T, OutputT>
       return outputForSplit;
     }
 
-    public boolean startOrAdvance() throws IOException {
+    public boolean startOrAdvance(ReaderOutput<OutputT> output) throws IOException {
       if (started) {
+        // associate output with the split
+        getAndMaybeCreateSplitOutput(output);
         return invocationUtil.invokeAdvance(reader);
-      } else {
-        started = true;
-        return invocationUtil.invokeStart(reader);
       }
+      started = true;
+      return invocationUtil.invokeStart(reader);
     }
 
     public @Nullable SourceOutput<OutputT> sourceOutput() {
