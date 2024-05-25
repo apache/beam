@@ -65,7 +65,7 @@ class FakeTFTensorModel:
 
 
 def _create_mult2_model():
-  inputs = tf.keras.Input(shape=(3))
+  inputs = tf.keras.Input(shape=(3, ))
   outputs = tf.keras.layers.Lambda(lambda x: x * 2, dtype='float32')(inputs)
   return tf.keras.Model(inputs=inputs, outputs=outputs)
 
