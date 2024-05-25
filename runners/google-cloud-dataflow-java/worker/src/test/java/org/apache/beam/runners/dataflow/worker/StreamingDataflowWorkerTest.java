@@ -100,7 +100,9 @@ import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.runners.dataflow.util.Structs;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationStateCache;
+import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
 import org.apache.beam.runners.dataflow.worker.streaming.ShardedKey;
+import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
 import org.apache.beam.runners.dataflow.worker.testing.RestoreDataflowLoggingMDC;
@@ -313,31 +315,39 @@ public class StreamingDataflowWorkerTest {
         .ifPresent(ComputationStateCache::closeAndInvalidateAll);
   }
 
-  static Work createMockWork(long workToken, String computationId) {
-    return createMockWork(workToken, computationId, ignored -> {});
+  private static ExecutableWork createMockWork(
+      ShardedKey shardedKey, long workToken, String computationId) {
+    return createMockWork(shardedKey, workToken, computationId, ignored -> {});
   }
 
-  static Work createMockWork(long workToken, Consumer<Work> processWorkFn) {
-    return createMockWork(workToken, "computationId", processWorkFn);
+  private static ExecutableWork createMockWork(
+      ShardedKey shardedKey, long workToken, Consumer<Work> processWorkFn) {
+    return createMockWork(shardedKey, workToken, "computationId", processWorkFn);
   }
 
-  static Work createMockWork(long workToken, String computationId, Consumer<Work> processWorkFn) {
+  private static ExecutableWork createMockWork(
+      ShardedKey shardedKey, long workToken, String computationId, Consumer<Work> processWorkFn) {
     WorkCommitter workCommitter = mock(WorkCommitter.class);
     doNothing().when(workCommitter).commit(any(Commit.class));
     WindmillStream.GetDataStream getDataStream = mock(WindmillStream.GetDataStream.class);
     when(getDataStream.requestKeyedData(anyString(), any()))
         .thenReturn(Windmill.KeyedGetDataResponse.getDefaultInstance());
     SideInputStateFetcher sideInputStateFetcher = mock(SideInputStateFetcher.class);
-    ;
-    return Work.create(
-        Windmill.WorkItem.newBuilder().setKey(ByteString.EMPTY).setWorkToken(workToken).build(),
-        Work.createWatermarks().setInputDataWatermark(Instant.EPOCH).build(),
-        Work.createProcessingContext(computationId, getDataStream::requestKeyedData)
-            .setWorkCommitter(workCommitter::commit)
-            .setProcessWorkFn(processWorkFn)
-            .build(),
-        Instant::now,
-        Collections.emptyList());
+
+    return ExecutableWork.create(
+        Work.create(
+            Windmill.WorkItem.newBuilder()
+                .setKey(shardedKey.key())
+                .setShardingKey(shardedKey.shardingKey())
+                .setWorkToken(workToken)
+                .build(),
+            Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
+            Work.createProcessingContext(computationId, getDataStream::requestKeyedData)
+                .setWorkCommitter(workCommitter::commit)
+                .build(),
+            Instant::now,
+            Collections.emptyList()),
+        processWorkFn);
   }
 
   private byte[] intervalWindowBytes(IntervalWindow window) throws Exception {
@@ -2746,25 +2756,25 @@ public class StreamingDataflowWorkerTest {
             null);
 
     ShardedKey key1 = ShardedKey.create(ByteString.copyFromUtf8("key1"), 1);
-    ShardedKey key2 = ShardedKey.create(ByteString.copyFromUtf8("key2"), 2);
 
-    Work m1 = createMockWork(1, computationId);
-    assertTrue(computationState.activateWork(key1, m1));
+    ExecutableWork m1 = createMockWork(key1, 1, computationId);
+    assertTrue(computationState.activateWork(m1));
     Mockito.verify(mockExecutor).execute(m1, m1.getWorkItem().getSerializedSize());
     computationState.completeWorkAndScheduleNextWorkForKey(key1, m1.id());
     Mockito.verifyNoMoreInteractions(mockExecutor);
 
     // Verify work queues.
-    Work m2 = createMockWork(2, computationId);
-    assertTrue(computationState.activateWork(key1, m2));
+    ExecutableWork m2 = createMockWork(key1, 2, computationId);
+    assertTrue(computationState.activateWork(m2));
     Mockito.verify(mockExecutor).execute(m2, m2.getWorkItem().getSerializedSize());
-    Work m3 = createMockWork(3, computationId);
-    assertTrue(computationState.activateWork(key1, m3));
+    ExecutableWork m3 = createMockWork(key1, 3, computationId);
+    assertTrue(computationState.activateWork(m3));
     Mockito.verifyNoMoreInteractions(mockExecutor);
 
     // Verify another key is a separate queue.
-    Work m4 = createMockWork(4, computationId);
-    assertTrue(computationState.activateWork(key2, m4));
+    ShardedKey key2 = ShardedKey.create(ByteString.copyFromUtf8("key2"), 2);
+    ExecutableWork m4 = createMockWork(key2, 4, computationId);
+    assertTrue(computationState.activateWork(m4));
     Mockito.verify(mockExecutor).execute(m4, m4.getWorkItem().getSerializedSize());
     computationState.completeWorkAndScheduleNextWorkForKey(key2, m4.id());
     Mockito.verifyNoMoreInteractions(mockExecutor);
@@ -2775,10 +2785,10 @@ public class StreamingDataflowWorkerTest {
     Mockito.verifyNoMoreInteractions(mockExecutor);
 
     // Verify duplicate work dropped.
-    Work m5 = createMockWork(5, computationId);
-    computationState.activateWork(key1, m5);
+    ExecutableWork m5 = createMockWork(key1, 5, computationId);
+    computationState.activateWork(m5);
     Mockito.verify(mockExecutor).execute(m5, m5.getWorkItem().getSerializedSize());
-    assertFalse(computationState.activateWork(key1, m5));
+    assertFalse(computationState.activateWork(m5));
     Mockito.verifyNoMoreInteractions(mockExecutor);
     computationState.completeWorkAndScheduleNextWorkForKey(key1, m5.id());
     Mockito.verifyNoMoreInteractions(mockExecutor);
@@ -2799,29 +2809,30 @@ public class StreamingDataflowWorkerTest {
     ShardedKey key1Shard1 = ShardedKey.create(ByteString.copyFromUtf8("key1"), 1);
     ShardedKey key1Shard2 = ShardedKey.create(ByteString.copyFromUtf8("key1"), 2);
 
-    Work m1 = createMockWork(1, computationId);
-    assertTrue(computationState.activateWork(key1Shard1, m1));
+    ExecutableWork m1 = createMockWork(key1Shard1, 1, computationId);
+    assertTrue(computationState.activateWork(m1));
     Mockito.verify(mockExecutor).execute(m1, m1.getWorkItem().getSerializedSize());
     computationState.completeWorkAndScheduleNextWorkForKey(key1Shard1, m1.id());
     Mockito.verifyNoMoreInteractions(mockExecutor);
 
     // Verify work queues.
-    Work m2 = createMockWork(2, computationId);
-    assertTrue(computationState.activateWork(key1Shard1, m2));
+    ExecutableWork m2 = createMockWork(key1Shard1, 2, computationId);
+    assertTrue(computationState.activateWork(m2));
     Mockito.verify(mockExecutor).execute(m2, m2.getWorkItem().getSerializedSize());
-    Work m3 = createMockWork(3, computationId);
-    assertTrue(computationState.activateWork(key1Shard1, m3));
+    ExecutableWork m3 = createMockWork(key1Shard1, 3, computationId);
+    assertTrue(computationState.activateWork(m3));
     Mockito.verifyNoMoreInteractions(mockExecutor);
 
     // Verify a different shard of key is a separate queue.
-    Work m4 = createMockWork(3, computationId);
-    assertFalse(computationState.activateWork(key1Shard1, m4));
+    ExecutableWork m4 = createMockWork(key1Shard1, 3, computationId);
+    assertFalse(computationState.activateWork(m4));
     Mockito.verifyNoMoreInteractions(mockExecutor);
-    assertTrue(computationState.activateWork(key1Shard2, m4));
-    Mockito.verify(mockExecutor).execute(m4, m4.getWorkItem().getSerializedSize());
+    ExecutableWork m4Shard2 = createMockWork(key1Shard2, 3, computationId);
+    assertTrue(computationState.activateWork(m4Shard2));
+    Mockito.verify(mockExecutor).execute(m4Shard2, m4Shard2.getWorkItem().getSerializedSize());
 
     // Verify duplicate work dropped
-    assertFalse(computationState.activateWork(key1Shard2, m4));
+    assertFalse(computationState.activateWork(m4Shard2));
     computationState.completeWorkAndScheduleNextWorkForKey(key1Shard2, m4.id());
     Mockito.verifyNoMoreInteractions(mockExecutor);
   }
@@ -2867,11 +2878,11 @@ public class StreamingDataflowWorkerTest {
           }
         };
 
-    Work m2 = createMockWork(2, sleepProcessWorkFn);
-    Work m3 = createMockWork(3, sleepProcessWorkFn);
+    ExecutableWork m2 = createMockWork(key1Shard1, 2, sleepProcessWorkFn);
+    ExecutableWork m3 = createMockWork(key1Shard1, 3, sleepProcessWorkFn);
 
-    assertTrue(computationState.activateWork(key1Shard1, m2));
-    assertTrue(computationState.activateWork(key1Shard1, m3));
+    assertTrue(computationState.activateWork(m2));
+    assertTrue(computationState.activateWork(m3));
     executor.execute(m2, m2.getWorkItem().getSerializedSize());
 
     executor.execute(m3, m3.getWorkItem().getSerializedSize());
@@ -2908,7 +2919,7 @@ public class StreamingDataflowWorkerTest {
     ComputationState computationState =
         new ComputationState(
             "computation",
-            defaultMapTask(Arrays.asList(makeSourceInstruction(StringUtf8Coder.of()))),
+            defaultMapTask(Collections.singletonList(makeSourceInstruction(StringUtf8Coder.of()))),
             executor,
             ImmutableMap.of(),
             null);
@@ -2926,21 +2937,21 @@ public class StreamingDataflowWorkerTest {
           }
         };
 
-    Work m2 = createMockWork(2, sleepProcessWorkFn);
+    ExecutableWork m2 = createMockWork(key1Shard1, 2, sleepProcessWorkFn);
 
-    Work m3 = createMockWork(3, sleepProcessWorkFn);
+    ExecutableWork m3 = createMockWork(key1Shard1, 3, sleepProcessWorkFn);
 
-    Work m4 = createMockWork(4, sleepProcessWorkFn);
+    ExecutableWork m4 = createMockWork(key1Shard1, 4, sleepProcessWorkFn);
     assertEquals(0, executor.activeCount());
 
-    assertTrue(computationState.activateWork(key1Shard1, m2));
+    assertTrue(computationState.activateWork(m2));
     // activate work starts executing work if no other work is queued for that shard
     executor.execute(m2, m2.getWorkItem().getSerializedSize());
     processStart1.await();
     assertEquals(2, executor.activeCount());
 
-    assertTrue(computationState.activateWork(key1Shard1, m3));
-    assertTrue(computationState.activateWork(key1Shard1, m4));
+    assertTrue(computationState.activateWork(m3));
+    assertTrue(computationState.activateWork(m4));
     executor.execute(m3, m3.getWorkItem().getSerializedSize());
     processStart2.await();
 
@@ -2977,7 +2988,7 @@ public class StreamingDataflowWorkerTest {
     ComputationState computationState =
         new ComputationState(
             "computation",
-            defaultMapTask(Arrays.asList(makeSourceInstruction(StringUtf8Coder.of()))),
+            defaultMapTask(Collections.singletonList(makeSourceInstruction(StringUtf8Coder.of()))),
             executor,
             ImmutableMap.of(),
             null);
@@ -2994,23 +3005,23 @@ public class StreamingDataflowWorkerTest {
           }
         };
 
-    Work m2 = createMockWork(2, sleepProcessWorkFn);
+    ExecutableWork m2 = createMockWork(key1Shard1, 2, sleepProcessWorkFn);
 
-    Work m3 = createMockWork(3, sleepProcessWorkFn);
+    ExecutableWork m3 = createMockWork(key1Shard1, 3, sleepProcessWorkFn);
 
-    Work m4 = createMockWork(4, sleepProcessWorkFn);
+    ExecutableWork m4 = createMockWork(key1Shard1, 4, sleepProcessWorkFn);
     assertEquals(0, executor.bytesOutstanding());
 
     long bytes = m2.getWorkItem().getSerializedSize();
-    assertTrue(computationState.activateWork(key1Shard1, m2));
+    assertTrue(computationState.activateWork(m2));
     // activate work starts executing work if no other work is queued for that shard
     bytes += m2.getWorkItem().getSerializedSize();
     executor.execute(m2, m2.getWorkItem().getSerializedSize());
     processStart1.await();
     assertEquals(bytes, executor.bytesOutstanding());
 
-    assertTrue(computationState.activateWork(key1Shard1, m3));
-    assertTrue(computationState.activateWork(key1Shard1, m4));
+    assertTrue(computationState.activateWork(m3));
+    assertTrue(computationState.activateWork(m4));
 
     bytes += m3.getWorkItem().getSerializedSize();
     executor.execute(m3, m3.getWorkItem().getSerializedSize());
@@ -3050,7 +3061,7 @@ public class StreamingDataflowWorkerTest {
     ComputationState computationState =
         new ComputationState(
             "computation",
-            defaultMapTask(Arrays.asList(makeSourceInstruction(StringUtf8Coder.of()))),
+            defaultMapTask(Collections.singletonList(makeSourceInstruction(StringUtf8Coder.of()))),
             executor,
             ImmutableMap.of(),
             null);
@@ -3067,21 +3078,21 @@ public class StreamingDataflowWorkerTest {
           }
         };
 
-    Work m2 = createMockWork(2, sleepProcessWorkFn);
+    ExecutableWork m2 = createMockWork(key1Shard1, 2, sleepProcessWorkFn);
 
-    Work m3 = createMockWork(3, sleepProcessWorkFn);
+    ExecutableWork m3 = createMockWork(key1Shard1, 3, sleepProcessWorkFn);
 
-    Work m4 = createMockWork(4, sleepProcessWorkFn);
+    ExecutableWork m4 = createMockWork(key1Shard1, 4, sleepProcessWorkFn);
     assertEquals(0, executor.elementsOutstanding());
 
-    assertTrue(computationState.activateWork(key1Shard1, m2));
+    assertTrue(computationState.activateWork(m2));
     // activate work starts executing work if no other work is queued for that shard
     executor.execute(m2, m2.getWorkItem().getSerializedSize());
     processStart1.await();
     assertEquals(2, executor.elementsOutstanding());
 
-    assertTrue(computationState.activateWork(key1Shard1, m3));
-    assertTrue(computationState.activateWork(key1Shard1, m4));
+    assertTrue(computationState.activateWork(m3));
+    assertTrue(computationState.activateWork(m4));
 
     executor.execute(m3, m3.getWorkItem().getSerializedSize());
     processStart2.await();
@@ -3413,9 +3424,8 @@ public class StreamingDataflowWorkerTest {
     Work work =
         Work.create(
             Windmill.WorkItem.newBuilder().setKey(ByteString.EMPTY).setWorkToken(1L).build(),
-            Work.createWatermarks().setInputDataWatermark(Instant.EPOCH).build(),
+            Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
             Work.createProcessingContext("computationId", getDataStream::requestKeyedData)
-                .setProcessWorkFn(unused -> {})
                 .setWorkCommitter(workCommitter::commit)
                 .build(),
             clock,

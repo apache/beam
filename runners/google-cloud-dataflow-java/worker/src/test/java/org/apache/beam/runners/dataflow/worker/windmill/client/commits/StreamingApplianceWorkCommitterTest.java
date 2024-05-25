@@ -36,6 +36,7 @@ import java.util.function.Consumer;
 import org.apache.beam.runners.dataflow.worker.FakeWindmillServer;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.ShardedKey;
+import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
@@ -58,7 +59,7 @@ public class StreamingApplianceWorkCommitterTest {
   private FakeWindmillServer fakeWindmillServer;
   private StreamingApplianceWorkCommitter workCommitter;
 
-  private static Work createMockWork(long workToken, Consumer<Work> processWorkFn) {
+  private static Work createMockWork(long workToken) {
     WorkCommitter workCommitter = mock(WorkCommitter.class);
     doNothing().when(workCommitter).commit(any(Commit.class));
     WindmillStream.GetDataStream getDataStream = mock(WindmillStream.GetDataStream.class);
@@ -71,9 +72,8 @@ public class StreamingApplianceWorkCommitterTest {
             .setCacheToken(1L)
             .setShardingKey(2L)
             .build(),
-        Work.createWatermarks().setInputDataWatermark(Instant.EPOCH).build(),
+        Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
         Work.createProcessingContext("computationId", getDataStream::requestKeyedData)
-            .setProcessWorkFn(processWorkFn)
             .setWorkCommitter(workCommitter::commit)
             .build(),
         Instant::now,
@@ -112,7 +112,7 @@ public class StreamingApplianceWorkCommitterTest {
     workCommitter = createWorkCommitter(completeCommits::add);
     List<Commit> commits = new ArrayList<>();
     for (int i = 1; i <= 5; i++) {
-      Work work = createMockWork(i, ignored -> {});
+      Work work = createMockWork(i);
       Windmill.WorkItemCommitRequest commitRequest =
           Windmill.WorkItemCommitRequest.newBuilder()
               .setKey(work.getWorkItem().getKey())

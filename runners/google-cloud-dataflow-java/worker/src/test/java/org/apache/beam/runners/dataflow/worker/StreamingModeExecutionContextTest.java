@@ -56,6 +56,7 @@ import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.NoopProfileScope;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.ProfileScope;
+import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
@@ -124,14 +125,14 @@ public class StreamingModeExecutionContextTest {
             Long.MAX_VALUE);
   }
 
-  private static Work createMockWork(Windmill.WorkItem workItem, Work.Watermarks watermarks) {
+  private static Work createMockWork(Windmill.WorkItem workItem, Watermarks watermarks) {
     return Work.create(
         workItem,
         watermarks,
         Work.createProcessingContext(
                 COMPUTATION_ID, (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance())
             .setWorkCommitter(ignored -> {})
-            .setProcessWorkFnAndBuild(ignored -> {}),
+            .build(),
         Instant::now,
         Collections.emptyList());
   }
@@ -150,7 +151,7 @@ public class StreamingModeExecutionContextTest {
         "key",
         createMockWork(
             Windmill.WorkItem.newBuilder().setKey(ByteString.EMPTY).setWorkToken(17L).build(),
-            Work.createWatermarks().setInputDataWatermark(new Instant(1000)).build()),
+            Watermarks.builder().setInputDataWatermark(new Instant(1000)).build()),
         stateReader,
         sideInputStateFetcher,
         outputBuilder);
@@ -199,7 +200,7 @@ public class StreamingModeExecutionContextTest {
         "key",
         createMockWork(
             workItemBuilder.build(),
-            Work.createWatermarks().setInputDataWatermark(new Instant(1000)).build()),
+            Watermarks.builder().setInputDataWatermark(new Instant(1000)).build()),
         stateReader,
         sideInputStateFetcher,
         outputBuilder);

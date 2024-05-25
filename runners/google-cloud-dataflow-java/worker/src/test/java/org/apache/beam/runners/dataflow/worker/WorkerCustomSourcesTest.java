@@ -92,6 +92,7 @@ import org.apache.beam.runners.dataflow.worker.WorkerCustomSources.SplittableOnl
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.NoopProfileScope;
+import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
 import org.apache.beam.runners.dataflow.worker.testing.TestCountingSource;
@@ -198,14 +199,14 @@ public class WorkerCustomSourcesTest {
     }
   }
 
-  private static Work createMockWork(Windmill.WorkItem workItem, Work.Watermarks watermarks) {
+  private static Work createMockWork(Windmill.WorkItem workItem, Watermarks watermarks) {
     return Work.create(
         workItem,
         watermarks,
         Work.createProcessingContext(
                 COMPUTATION_ID, (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance())
             .setWorkCommitter(ignored -> {})
-            .setProcessWorkFnAndBuild(ignored -> {}),
+            .build(),
         Instant::now,
         Collections.emptyList());
   }
@@ -637,7 +638,7 @@ public class WorkerCustomSourcesTest {
                   .setSourceState(
                       Windmill.SourceState.newBuilder().setState(state).build()) // Source state.
                   .build(),
-              Work.createWatermarks().setInputDataWatermark(new Instant(0)).build()),
+              Watermarks.builder().setInputDataWatermark(new Instant(0)).build()),
           mock(WindmillStateReader.class),
           mock(SideInputStateFetcher.class),
           Windmill.WorkItemCommitRequest.newBuilder());
@@ -687,7 +688,7 @@ public class WorkerCustomSourcesTest {
       assertNotNull(
           readerCache.acquireReader(
               context.getComputationKey(),
-              context.getWork().getCacheToken(),
+              context.getWorkItem().getCacheToken(),
               context.getWorkToken() + 1));
       assertEquals(7L, context.getBacklogBytes());
     }
@@ -1004,10 +1005,9 @@ public class WorkerCustomSourcesTest {
     Work dummyWork =
         Work.create(
             workItem,
-            Work.createWatermarks().setInputDataWatermark(new Instant(0)).build(),
+            Watermarks.builder().setInputDataWatermark(new Instant(0)).build(),
             Work.createProcessingContext(COMPUTATION_ID, getDataStream::requestKeyedData)
                 .setWorkCommitter(workCommitter::commit)
-                .setProcessWorkFn(unused -> {})
                 .build(),
             Instant::now,
             Collections.emptyList());

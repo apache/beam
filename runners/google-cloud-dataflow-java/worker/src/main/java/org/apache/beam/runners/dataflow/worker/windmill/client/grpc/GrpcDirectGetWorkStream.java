@@ -28,6 +28,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.WindmillTimeUtils;
+import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationWorkItemMetadata;
@@ -148,8 +149,8 @@ public final class GrpcDirectGetWorkStream
     return getWorkStream;
   }
 
-  private static Work.Watermarks createWatermarks(WorkItem workItem, ComputationMetadata metadata) {
-    return Work.createWatermarks()
+  private static Watermarks createWatermarks(WorkItem workItem, ComputationMetadata metadata) {
+    return Watermarks.builder()
         .setInputDataWatermark(metadata.inputDataWatermark())
         .setOutputDataWatermark(workItem.getOutputDataWatermark())
         .setSynchronizedProcessingTime(metadata.synchronizedProcessingTime())
@@ -324,10 +325,11 @@ public final class GrpcDirectGetWorkStream
       data = ByteString.EMPTY;
     }
 
-    private Work.ProcessingContext.WithProcessWorkFn createProcessingContext(String computationId) {
+    private Work.ProcessingContext createProcessingContext(String computationId) {
       return Work.createProcessingContext(computationId, getDataStream.get()::requestKeyedData)
           .setWorkCommitter(workCommitter.get()::commit)
-          .setGetDataStream(getDataStream.get());
+          .setGetDataStream(getDataStream.get())
+          .build();
     }
   }
 }

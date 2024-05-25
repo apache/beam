@@ -56,22 +56,23 @@ public class ComputationStateCacheTest {
   private final ComputationConfig.Fetcher configFetcher = mock(ComputationConfig.Fetcher.class);
   private ComputationStateCache computationStateCache;
 
-  private static Work createWork(long workToken, long cacheToken) {
-    return Work.create(
-        Windmill.WorkItem.newBuilder()
-            .setKey(ByteString.copyFromUtf8(""))
-            .setShardingKey(1)
-            .setWorkToken(workToken)
-            .setCacheToken(cacheToken)
-            .build(),
-        Work.createWatermarks().setInputDataWatermark(Instant.now()).build(),
-        Work.createProcessingContext(
-                "computationId", (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance())
-            .setWorkCommitter(ignored -> {})
-            .setProcessWorkFn(ignored -> {})
-            .build(),
-        Instant::now,
-        Collections.emptyList());
+  private static ExecutableWork createWork(ShardedKey shardedKey, long workToken, long cacheToken) {
+    return ExecutableWork.create(
+        Work.create(
+            Windmill.WorkItem.newBuilder()
+                .setKey(shardedKey.key())
+                .setShardingKey(shardedKey.shardingKey())
+                .setWorkToken(workToken)
+                .setCacheToken(cacheToken)
+                .build(),
+            Watermarks.builder().setInputDataWatermark(Instant.now()).build(),
+            Work.createProcessingContext(
+                    "computationId", (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance())
+                .setWorkCommitter(ignored -> {})
+                .build(),
+            Instant::now,
+            Collections.emptyList()),
+        ignored -> {});
   }
 
   @Before
@@ -254,24 +255,25 @@ public class ComputationStateCacheTest {
         ComputationConfig.create(mapTask, userTransformToStateFamilyName, ImmutableMap.of());
     when(configFetcher.fetchConfig(eq(computationId))).thenReturn(Optional.of(computationConfig));
     when(configFetcher.fetchConfig(eq(computationId2))).thenReturn(Optional.of(computationConfig));
-    Work work1 = createWork(1, 1);
-    Work work2 = createWork(2, 2);
-    Work work3 = createWork(3, 3);
+    ShardedKey shardedKey = ShardedKey.create(ByteString.EMPTY, 1);
+    ShardedKey shardedKey2 = ShardedKey.create(ByteString.EMPTY, 2);
+
+    ExecutableWork work1 = createWork(shardedKey, 1, 1);
+    ExecutableWork work2 = createWork(shardedKey2, 2, 2);
+    ExecutableWork work3 = createWork(shardedKey2, 3, 3);
 
     // Activate 1 Work for computationId
     Optional<ComputationState> maybeComputationState = computationStateCache.get(computationId);
     assertTrue(maybeComputationState.isPresent());
     ComputationState computationState = maybeComputationState.get();
-    ShardedKey shardedKey = ShardedKey.create(ByteString.EMPTY, 1);
-    computationState.activateWork(shardedKey, work1);
+    computationState.activateWork(work1);
 
     // Activate 2 Work(s) for computationId2
     Optional<ComputationState> maybeComputationState2 = computationStateCache.get(computationId);
     assertTrue(maybeComputationState2.isPresent());
     ComputationState computationState2 = maybeComputationState2.get();
-    ShardedKey shardedKey2 = ShardedKey.create(ByteString.EMPTY, 2);
-    computationState2.activateWork(shardedKey2, work2);
-    computationState2.activateWork(shardedKey2, work3);
+    computationState2.activateWork(work2);
+    computationState2.activateWork(work3);
 
     // GetWorkBudget should have 3 items. 1 from computationId, 2 from computationId2.
     assertThat(computationStateCache.totalCurrentActiveGetWorkBudget())

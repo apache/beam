@@ -21,7 +21,6 @@ import java.time.Duration;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
 import org.slf4j.Logger;
@@ -57,15 +56,15 @@ final class StreamingCommitFinalizer {
    * Calls callbacks for WorkItem to mark that commit has been persisted (finalized) to the backing
    * state store and to checkpoint the source.
    */
-  void finalizeCommits(Windmill.WorkItem work) {
-    for (long callbackId : work.getSourceState().getFinalizeIdsList()) {
-      @Nullable Runnable callback = onCommitFinalizedCache.getIfPresent(callbackId);
+  void finalizeCommits(Iterable<Long> finalizeIds) {
+    for (long finalizeId : finalizeIds) {
+      @Nullable Runnable callback = onCommitFinalizedCache.getIfPresent(finalizeId);
       // NOTE: It is possible the same callback id may be removed twice if
       // windmill restarts.
       // TODO: It is also possible for an earlier finalized id to be lost.
       // We should automatically discard all older callbacks for the same computation and key.
       if (callback != null) {
-        onCommitFinalizedCache.invalidate(callbackId);
+        onCommitFinalizedCache.invalidate(finalizeId);
         workExecutor.forceExecute(
             () -> {
               try {

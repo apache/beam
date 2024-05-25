@@ -45,7 +45,7 @@ import org.apache.beam.runners.dataflow.worker.graph.Nodes;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.Node;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
-import org.apache.beam.runners.dataflow.worker.streaming.ExecutionState;
+import org.apache.beam.runners.dataflow.worker.streaming.ComputationWorkExecutor;
 import org.apache.beam.runners.dataflow.worker.streaming.StageInfo;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.MapTaskExecutor;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputObjectAndByteCounter;
@@ -62,13 +62,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Factory class for generating {@link
- * org.apache.beam.runners.dataflow.worker.streaming.ExecutionState} instances.
- */
-final class ExecutionStateFactory {
+/** Factory class for generating {@link ComputationWorkExecutor} instances. */
+final class ComputationWorkExecutorFactory {
 
-  private static final Logger LOG = LoggerFactory.getLogger(ExecutionStateFactory.class);
+  private static final Logger LOG = LoggerFactory.getLogger(ComputationWorkExecutorFactory.class);
   private static final String DISABLE_SINK_BYTE_LIMIT_EXPERIMENT =
       "disable_limiting_bundle_sink_bytes";
 
@@ -94,7 +91,7 @@ final class ExecutionStateFactory {
   private final long maxSinkBytes;
   private final IdGenerator idGenerator;
 
-  ExecutionStateFactory(
+  ComputationWorkExecutorFactory(
       DataflowWorkerHarnessOptions options,
       DataflowMapTaskExecutorFactory mapTaskExecutorFactory,
       ReaderCache readerCache,
@@ -169,7 +166,7 @@ final class ExecutionStateFactory {
     return readOperation;
   }
 
-  ExecutionState createExecutionState(
+  ComputationWorkExecutor createComputationWorkExecutor(
       StageInfo stageInfo, ComputationState computationState, String workLatencyTrackingId) {
     MapTask mapTask = computationState.getMapTask();
     MutableNetwork<Node, Edge> mapTaskNetwork = mapTaskToNetwork.apply(mapTask);
@@ -205,8 +202,8 @@ final class ExecutionStateFactory {
           computationState.sourceBytesProcessCounterName());
     }
 
-    ExecutionState.Builder executionStateBuilder =
-        ExecutionState.builder()
+    ComputationWorkExecutor.Builder executionStateBuilder =
+        ComputationWorkExecutor.builder()
             .setWorkExecutor(mapTaskExecutor)
             .setContext(context)
             .setExecutionStateTracker(executionStateTracker);

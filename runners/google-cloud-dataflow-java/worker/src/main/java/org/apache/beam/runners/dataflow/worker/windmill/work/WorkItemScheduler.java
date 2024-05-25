@@ -20,6 +20,7 @@ package org.apache.beam.runners.dataflow.worker.windmill.work;
 import java.util.Collection;
 import java.util.function.Consumer;
 import javax.annotation.CheckReturnValue;
+import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
@@ -42,8 +43,8 @@ public interface WorkItemScheduler {
    */
   void scheduleWork(
       WorkItem workItem,
-      Work.Watermarks watermarks,
-      Work.ProcessingContext.WithProcessWorkFn processingContext,
+      Watermarks watermarks,
+      Work.ProcessingContext processingContext,
       Consumer<WorkItem> ackWorkItemQueued,
       Collection<LatencyAttribution> getWorkStreamLatencies);
 }

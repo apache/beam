@@ -48,6 +48,7 @@ import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext.Ste
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.ProfileScope;
+import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInput;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputState;
@@ -59,6 +60,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Timer;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateInternals;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReader;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.metrics.MetricsContainer;
@@ -85,20 +87,30 @@ import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** {@link DataflowExecutionContext} for use in streaming mode. */
+/**
+ * {@link DataflowExecutionContext} for use in streaming mode. Contains cached readers and Beam
+ * state pertaining to a processing its owning computation. Can be reused across processing
+ * different WorkItems for the same computation.
+ */
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 @NotThreadSafe
+@Internal
 public class StreamingModeExecutionContext extends DataflowExecutionContext<StepContext> {
-
   private static final Logger LOG = LoggerFactory.getLogger(StreamingModeExecutionContext.class);
+
   private final String computationId;
-  private final Map<TupleTag<?>, Map<BoundedWindow, SideInput<?>>> sideInputCache;
-  // Per-key cache of active Reader objects in use by this process.
   private final ImmutableMap<String, String> stateNameMap;
   private final WindmillStateCache.ForComputation stateCache;
   private final ReaderCache readerCache;
+
+  /**
+   * Used to fetched cache side inputs for processing a single WorkItem. Should be cleared before
+   * processing a different WorkItem.
+   */
+  private final Map<TupleTag<?>, Map<BoundedWindow, SideInput<?>>> sideInputCache;
+
   /**
    * The current user-facing key for this execution context.
    *
@@ -110,13 +122,12 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
    */
   private @Nullable Object key = null;
 
-  private Windmill.WorkItem work;
+  private Work work;
   private WindmillComputationKey computationKey;
   private SideInputStateFetcher sideInputStateFetcher;
   private Windmill.WorkItemCommitRequest.Builder outputBuilder;
   private UnboundedSource.UnboundedReader<?> activeReader;
   private volatile long backlogBytes;
-  private Supplier<Boolean> workIsFailed;
 
   public StreamingModeExecutionContext(
       CounterFactory counterFactory,
@@ -140,16 +151,15 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     this.stateNameMap = ImmutableMap.copyOf(stateNameMap);
     this.stateCache = stateCache;
     this.backlogBytes = UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN;
-    this.workIsFailed = () -> Boolean.FALSE;
   }
 
   @VisibleForTesting
-  public long getBacklogBytes() {
+  public final long getBacklogBytes() {
     return backlogBytes;
   }
 
   public boolean workIsFailed() {
-    return workIsFailed.get();
+    return Optional.ofNullable(work).map(Work::isFailed).orElse(false);
   }
 
   public void start(
@@ -159,11 +169,8 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       SideInputStateFetcher sideInputStateFetcher,
       Windmill.WorkItemCommitRequest.Builder outputBuilder) {
     this.key = key;
-    this.work = work.getWorkItem();
-    this.workIsFailed = work::isFailed;
-    this.computationKey =
-        WindmillComputationKey.create(
-            computationId, work.getWorkItem().getKey(), work.getWorkItem().getShardingKey());
+    this.work = work;
+    this.computationKey = WindmillComputationKey.create(computationId, work.getShardedKey());
     this.sideInputStateFetcher = sideInputStateFetcher;
     this.outputBuilder = outputBuilder;
     this.sideInputCache.clear();
@@ -176,15 +183,9 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       // This must be only created once for the workItem as token validation will fail if the same
       // work token is reused.
       WindmillStateCache.ForKey cacheForKey =
-          stateCache.forKey(getComputationKey(), getWork().getCacheToken(), getWorkToken());
+          stateCache.forKey(getComputationKey(), getWorkItem().getCacheToken(), getWorkToken());
       for (StepContext stepContext : stepContexts) {
-        stepContext.start(
-            stateReader,
-            work.watermarks().inputDataWatermark(),
-            processingTime,
-            cacheForKey,
-            work.watermarks().outputDataWatermark(),
-            work.watermarks().synchronizedProcessingTime());
+        stepContext.start(stateReader, processingTime, cacheForKey, work.watermarks());
       }
     }
   }
@@ -293,15 +294,15 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
   }
 
   public Iterable<Windmill.GlobalDataId> getSideInputNotifications() {
-    return work.getGlobalDataIdNotificationsList();
+    return work.getWorkItem().getGlobalDataIdNotificationsList();
   }
 
   private List<Timer> getFiredTimers() {
-    return work.getTimers().getTimersList();
+    return work.getWorkItem().getTimers().getTimersList();
   }
 
   public @Nullable ByteString getSerializedKey() {
-    return work == null ? null : work.getKey();
+    return work == null ? null : work.getWorkItem().getKey();
   }
 
   public WindmillComputationKey getComputationKey() {
@@ -309,11 +310,11 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
   }
 
   public long getWorkToken() {
-    return work.getWorkToken();
+    return work.getWorkItem().getWorkToken();
   }
 
-  public Windmill.WorkItem getWork() {
-    return work;
+  public Windmill.WorkItem getWorkItem() {
+    return work.getWorkItem();
   }
 
   public Windmill.WorkItemCommitRequest.Builder getOutputBuilder() {
@@ -326,7 +327,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
    */
   public UnboundedSource.UnboundedReader<?> getCachedReader() {
     return readerCache.acquireReader(
-        getComputationKey(), getWork().getCacheToken(), getWork().getWorkToken());
+        getComputationKey(), getWorkItem().getCacheToken(), getWorkItem().getWorkToken());
   }
 
   public void setActiveReader(UnboundedSource.UnboundedReader<?> reader) {
@@ -347,14 +348,14 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
         }
       }
       activeReader = null;
-      stateCache.invalidate(key, getWork().getShardingKey());
+      stateCache.invalidate(key, getWorkItem().getShardingKey());
     }
   }
 
   public UnboundedSource.CheckpointMark getReaderCheckpoint(
       Coder<? extends UnboundedSource.CheckpointMark> coder) {
     try {
-      ByteString state = work.getSourceState().getState();
+      ByteString state = work.getWorkItem().getSourceState().getState();
       if (state.isEmpty()) {
         return null;
       }
@@ -412,7 +413,10 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       outputBuilder.setSourceBacklogBytes(backlogBytes);
 
       readerCache.cacheReader(
-          getComputationKey(), getWork().getCacheToken(), getWork().getWorkToken(), activeReader);
+          getComputationKey(),
+          getWorkItem().getCacheToken(),
+          getWorkItem().getWorkToken(),
+          activeReader);
       activeReader = null;
     }
     return callbacks;
@@ -691,17 +695,15 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     /** Update the {@code stateReader} used by this {@code StepContext}. */
     public void start(
         WindmillStateReader stateReader,
-        Instant inputDataWatermark,
         Instant processingTime,
         WindmillStateCache.ForKey cacheForKey,
-        @Nullable Instant outputDataWatermark,
-        @Nullable Instant synchronizedProcessingTime) {
+        Watermarks watermarks) {
       this.stateInternals =
           new WindmillStateInternals<>(
               key,
               stateFamily,
               stateReader,
-              work.getIsNewKey(),
+              work.getWorkItem().getIsNewKey(),
               cacheForKey.forFamily(stateFamily),
               scopedReadStateSupplier);
 
@@ -709,20 +711,16 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
           new WindmillTimerInternals(
               stateFamily,
               WindmillNamespacePrefix.SYSTEM_NAMESPACE_PREFIX,
-              inputDataWatermark,
               processingTime,
-              outputDataWatermark,
-              synchronizedProcessingTime,
+              watermarks,
               td -> {});
 
       this.userTimerInternals =
           new WindmillTimerInternals(
               stateFamily,
               WindmillNamespacePrefix.USER_NAMESPACE_PREFIX,
-              inputDataWatermark,
               processingTime,
-              outputDataWatermark,
-              synchronizedProcessingTime,
+              watermarks,
               this::onUserTimerModified);
 
       this.cachedFiredSystemTimers = null;

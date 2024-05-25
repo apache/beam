@@ -78,8 +78,6 @@ public final class StreamingEngineClient {
   private static final Logger LOG = LoggerFactory.getLogger(StreamingEngineClient.class);
   private static final String PUBLISH_NEW_WORKER_METADATA_THREAD = "PublishNewWorkerMetadataThread";
   private static final String CONSUME_NEW_WORKER_METADATA_THREAD = "ConsumeNewWorkerMetadataThread";
-
-  private final AtomicBoolean started;
   private final JobHeader jobHeader;
   private final GrpcWindmillStreamFactory streamFactory;
   private final WorkItemScheduler workItemScheduler;
@@ -100,6 +98,8 @@ public final class StreamingEngineClient {
   /** Writes are guarded by synchronization, reads are lock free. */
   private final AtomicReference<StreamingEngineConnectionState> connections;
 
+  private volatile boolean started;
+
   @SuppressWarnings("FutureReturnValueIgnored")
   private StreamingEngineClient(
       JobHeader jobHeader,
@@ -113,7 +113,7 @@ public final class StreamingEngineClient {
       Function<WindmillStream.CommitWorkStream, WorkCommitter> workCommitterFactory,
       Consumer<List<Windmill.ComputationHeartbeatResponse>> heartbeatResponseProcessor) {
     this.jobHeader = jobHeader;
-    this.started = new AtomicBoolean();
+    this.started = false;
     this.streamFactory = streamFactory;
     this.workItemScheduler = workItemScheduler;
     this.connections = new AtomicReference<>(StreamingEngineConnectionState.EMPTY);
@@ -219,12 +219,14 @@ public final class StreamingEngineClient {
     return streamingEngineClient;
   }
 
+  @SuppressWarnings("ReturnValueIgnored")
   public synchronized void start() {
-    Preconditions.checkState(!started.get(), "StreamingEngineClient cannot start twice.");
-    startGetWorkerMetadataStream();
+    Preconditions.checkState(!started, "StreamingEngineClient cannot start twice.");
+    // Starts the stream, this value is memoized.
+    getWorkerMetadataStream.get();
     startWorkerMetadataConsumer();
     getWorkBudgetRefresher.start();
-    started.set(true);
+    started = true;
   }
 
   public ImmutableSet<HostAndPort> currentWindmillEndpoints() {
@@ -267,8 +269,9 @@ public final class StreamingEngineClient {
         });
   }
 
+  @VisibleForTesting
   public synchronized void finish() {
-    Preconditions.checkState(started.get(), "StreamingEngineClient never started.");
+    Preconditions.checkState(started, "StreamingEngineClient never started.");
     getWorkerMetadataStream.get().close();
     getWorkBudgetRefresher.stop();
     newWorkerMetadataPublisher.shutdownNow();
@@ -316,15 +319,6 @@ public final class StreamingEngineClient {
     return connections.get().windmillStreams().values().stream()
         .map(WindmillStreamSender::getCurrentActiveCommitBytes)
         .reduce(0L, Long::sum);
-  }
-
-  /** Starts {@link GetWorkerMetadataStream}. */
-  @SuppressWarnings({
-    "ReturnValueIgnored", // starts the stream, this value is memoized.
-  })
-  private void startGetWorkerMetadataStream() {
-    started.set(true);
-    getWorkerMetadataStream.get();
   }
 
   @VisibleForTesting

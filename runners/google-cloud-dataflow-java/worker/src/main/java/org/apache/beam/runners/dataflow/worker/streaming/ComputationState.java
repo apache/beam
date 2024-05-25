@@ -46,7 +46,7 @@ public class ComputationState {
   private final ImmutableMap<String, String> transformUserNameToStateFamily;
   private final ActiveWorkState activeWorkState;
   private final BoundedQueueExecutor executor;
-  private final ConcurrentLinkedQueue<ExecutionState> executionStateQueue;
+  private final ConcurrentLinkedQueue<ComputationWorkExecutor> computationWorkExecutors;
   private final String sourceBytesProcessCounterName;
 
   public ComputationState(
@@ -61,7 +61,7 @@ public class ComputationState {
     this.mapTask = mapTask;
     this.executor = executor;
     this.transformUserNameToStateFamily = ImmutableMap.copyOf(transformUserNameToStateFamily);
-    this.executionStateQueue = new ConcurrentLinkedQueue<>();
+    this.computationWorkExecutors = new ConcurrentLinkedQueue<>();
     this.activeWorkState = ActiveWorkState.create(computationStateCache);
     this.sourceBytesProcessCounterName =
         "dataflow_source_bytes_processed-" + mapTask.getSystemName();
@@ -80,19 +80,20 @@ public class ComputationState {
   }
 
   /**
-   * Cache the {@link ExecutionState} so that it can be re-used in future {@link
-   * #acquireExecutionState()} calls.
+   * Cache the {@link ComputationWorkExecutor} so that it can be re-used in future {@link
+   * #acquireComputationWorkExecutor()} calls.
    */
-  public void releaseExecutionState(ExecutionState executionState) {
-    executionStateQueue.offer(executionState);
+  public void releaseComputationWorkExecutor(ComputationWorkExecutor computationWorkExecutor) {
+    computationWorkExecutors.offer(computationWorkExecutor);
   }
 
   /**
-   * Returns {@link ExecutionState} that was previously offered in {@link
-   * #releaseExecutionState(ExecutionState)} or {@link Optional#empty()} if one does not exist.
+   * Returns {@link ComputationWorkExecutor} that was previously offered in {@link
+   * #releaseComputationWorkExecutor(ComputationWorkExecutor)} or {@link Optional#empty()} if one
+   * does not exist.
    */
-  public Optional<ExecutionState> acquireExecutionState() {
-    return Optional.ofNullable(executionStateQueue.poll());
+  public Optional<ComputationWorkExecutor> acquireComputationWorkExecutor() {
+    return Optional.ofNullable(computationWorkExecutors.poll());
   }
 
   /**
@@ -100,8 +101,8 @@ public class ComputationState {
    * Work} if there is no active {@link Work} for the {@link ShardedKey} already processing. Returns
    * whether the {@link Work} will be activated, either immediately or sometime in the future.
    */
-  public boolean activateWork(ShardedKey shardedKey, Work work) {
-    switch (activeWorkState.activateWorkForKey(shardedKey, work)) {
+  public boolean activateWork(ExecutableWork executableWork) {
+    switch (activeWorkState.activateWorkForKey(executableWork)) {
       case DUPLICATE:
         // Fall through intentionally. Work was not and will not be activated in these cases.
       case STALE:
@@ -110,18 +111,13 @@ public class ComputationState {
         return true;
       case EXECUTE:
         {
-          execute(work);
+          execute(executableWork);
           return true;
         }
       default:
         // This will never happen, the switch is exhaustive.
         throw new IllegalStateException("Unrecognized ActivateWorkResult");
     }
-  }
-
-  public boolean activateWork(Work work) {
-    return activateWork(
-        ShardedKey.create(work.getWorkItem().getKey(), work.getWorkItem().getShardingKey()), work);
   }
 
   public void failWork(Multimap<Long, WorkId> failedWork) {
@@ -142,12 +138,12 @@ public class ComputationState {
         stuckCommitDeadline, this::completeWorkAndScheduleNextWorkForKey);
   }
 
-  private void execute(Work work) {
-    executor.execute(work, work.getWorkItem().getSerializedSize());
+  private void execute(ExecutableWork executableWork) {
+    executor.execute(executableWork, executableWork.work().getWorkItem().getSerializedSize());
   }
 
-  private void forceExecute(Work work) {
-    executor.forceExecute(work, work.getWorkItem().getSerializedSize());
+  private void forceExecute(ExecutableWork executableWork) {
+    executor.forceExecute(executableWork, executableWork.work().getWorkItem().getSerializedSize());
   }
 
   /** Gets HeartbeatRequests for any work started before refreshDeadline. */
@@ -169,10 +165,10 @@ public class ComputationState {
   }
 
   public final void close() {
-    @Nullable ExecutionState executionState;
-    while ((executionState = executionStateQueue.poll()) != null) {
-      executionState.workExecutor().close();
+    @Nullable ComputationWorkExecutor computationWorkExecutor;
+    while ((computationWorkExecutor = computationWorkExecutors.poll()) != null) {
+      computationWorkExecutor.closeWorkExecutor();
     }
-    executionStateQueue.clear();
+    computationWorkExecutors.clear();
   }
 }

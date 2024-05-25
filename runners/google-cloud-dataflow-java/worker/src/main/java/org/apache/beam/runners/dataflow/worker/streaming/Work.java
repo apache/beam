@@ -36,7 +36,6 @@ import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
 import org.apache.beam.runners.dataflow.worker.ActiveMessageMetadata;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
-import org.apache.beam.runners.dataflow.worker.WindmillTimeUtils;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution;
@@ -50,7 +49,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.commits.Commit;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReader;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -62,7 +60,7 @@ import org.joda.time.Instant;
  */
 @NotThreadSafe
 @Internal
-public class Work implements Runnable {
+public class Work {
   private final ShardedKey shardedKey;
   private final WorkItem workItem;
   private final ProcessingContext processingContext;
@@ -107,10 +105,6 @@ public class Work implements Runnable {
     return work;
   }
 
-  public static Watermarks.Builder createWatermarks() {
-    return Watermarks.builder();
-  }
-
   public static ProcessingContext.Builder createProcessingContext(
       String computationId,
       BiFunction<String, KeyedGetDataRequest, KeyedGetDataResponse> getKeyedDataFn) {
@@ -152,11 +146,6 @@ public class Work implements Runnable {
       latencyAttribution.addActiveLatencyBreakdown(stepBuilder.build());
     }
     return latencyAttribution;
-  }
-
-  @Override
-  public void run() {
-    processingContext.processWorkFn().accept(this);
   }
 
   public WorkItem getWorkItem() {
@@ -323,48 +312,6 @@ public class Work implements Runnable {
   }
 
   @AutoValue
-  public abstract static class Watermarks {
-
-    private static Watermarks.Builder builder() {
-      return new AutoValue_Work_Watermarks.Builder();
-    }
-
-    public abstract Instant inputDataWatermark();
-
-    public abstract @Nullable Instant synchronizedProcessingTime();
-
-    public abstract @Nullable Instant outputDataWatermark();
-
-    @AutoValue.Builder
-    public abstract static class Builder {
-      private static boolean hasValidOutputDataWatermark(Watermarks watermarks) {
-        @Nullable Instant outputDataWatermark = watermarks.outputDataWatermark();
-        return outputDataWatermark == null
-            || !outputDataWatermark.isAfter(watermarks.inputDataWatermark());
-      }
-
-      public abstract Builder setInputDataWatermark(Instant value);
-
-      public abstract Builder setSynchronizedProcessingTime(@Nullable Instant value);
-
-      public abstract Builder setOutputDataWatermark(@Nullable Instant value);
-
-      public final Builder setOutputDataWatermark(long outputDataWatermark) {
-        return setOutputDataWatermark(
-            WindmillTimeUtils.windmillToHarnessWatermark(outputDataWatermark));
-      }
-
-      abstract Watermarks autoBuild();
-
-      public final Watermarks build() {
-        Watermarks watermarks = autoBuild();
-        Preconditions.checkState(hasValidOutputDataWatermark(watermarks));
-        return watermarks;
-      }
-    }
-  }
-
-  @AutoValue
   public abstract static class ProcessingContext {
 
     private static ProcessingContext.Builder builder(
@@ -378,9 +325,6 @@ public class Work implements Runnable {
 
     /** Computation that the {@link Work} belongs to. */
     public abstract String computationId();
-
-    /** Process WorkItem (execute user code). */
-    abstract Consumer<Work> processWorkFn();
 
     /**
      * {@link WindmillStream.GetDataStream} that connects to the backend Windmill worker handling
@@ -397,15 +341,9 @@ public class Work implements Runnable {
 
     public abstract Optional<WindmillStream.GetDataStream> getDataStream();
 
-    public interface WithProcessWorkFn {
-      ProcessingContext setProcessWorkFnAndBuild(Consumer<Work> value);
-    }
-
     @AutoValue.Builder
-    public abstract static class Builder implements WithProcessWorkFn {
+    public abstract static class Builder {
       abstract Builder setComputationId(String value);
-
-      public abstract Builder setProcessWorkFn(Consumer<Work> value);
 
       abstract Builder setKeyedDataFetcher(
           Function<KeyedGetDataRequest, Optional<KeyedGetDataResponse>> value);
@@ -415,11 +353,6 @@ public class Work implements Runnable {
       public abstract Builder setGetDataStream(@Nullable WindmillStream.GetDataStream value);
 
       public abstract ProcessingContext build();
-
-      @Override
-      public final ProcessingContext setProcessWorkFnAndBuild(Consumer<Work> value) {
-        return setProcessWorkFn(value).build();
-      }
     }
   }
 }

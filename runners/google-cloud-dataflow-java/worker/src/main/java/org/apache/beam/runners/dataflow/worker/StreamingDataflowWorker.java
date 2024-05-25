@@ -48,6 +48,7 @@ import org.apache.beam.runners.dataflow.worker.status.WorkerStatusPages;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationStateCache;
 import org.apache.beam.runners.dataflow.worker.streaming.StageInfo;
+import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.streaming.WorkHeartbeatResponseProcessor;
 import org.apache.beam.runners.dataflow.worker.streaming.config.ComputationConfig;
@@ -155,7 +156,6 @@ public class StreamingDataflowWorker {
   private final Thread dispatchThread;
   private final AtomicBoolean running = new AtomicBoolean();
   private final DataflowWorkerHarnessOptions options;
-  private final boolean windmillServiceEnabled;
   private final long clientId;
   private final MetricTrackingWindmillServerStub metricTrackingWindmillServer;
   private final MemoryMonitor memoryMonitor;
@@ -196,7 +196,9 @@ public class StreamingDataflowWorker {
             Duration.standardSeconds(options.getReaderCacheTimeoutSec()),
             Executors.newCachedThreadPool());
     this.options = options;
-    this.windmillServiceEnabled = options.isEnableStreamingEngine();
+
+    boolean windmillServiceEnabled = options.isEnableStreamingEngine();
+
     int numCommitThreads = 1;
     if (windmillServiceEnabled && options.getWindmillServiceCommitThreads() > 0) {
       numCommitThreads = options.getWindmillServiceCommitThreads();
@@ -789,8 +791,8 @@ public class StreamingDataflowWorker {
         final ComputationState computationState = maybeComputationState.get();
         final Instant inputDataWatermark =
             WindmillTimeUtils.windmillToHarnessWatermark(computationWork.getInputDataWatermark());
-        Work.Watermarks.Builder watermarks =
-            Work.createWatermarks()
+        Watermarks.Builder watermarks =
+            Watermarks.builder()
                 .setInputDataWatermark(Preconditions.checkNotNull(inputDataWatermark))
                 .setSynchronizedProcessingTime(
                     WindmillTimeUtils.windmillToHarnessWatermark(
@@ -803,7 +805,8 @@ public class StreamingDataflowWorker {
               watermarks.setOutputDataWatermark(workItem.getOutputDataWatermark()).build(),
               Work.createProcessingContext(
                       computationId, metricTrackingWindmillServer::getStateData)
-                  .setWorkCommitter(workCommitter::commit),
+                  .setWorkCommitter(workCommitter::commit)
+                  .build(),
               /* getWorkStreamLatencies= */ Collections.emptyList());
         }
       }
@@ -832,7 +835,7 @@ public class StreamingDataflowWorker {
                             streamingWorkScheduler.scheduleWork(
                                 computationState,
                                 workItem,
-                                Work.createWatermarks()
+                                Watermarks.builder()
                                     .setInputDataWatermark(inputDataWatermark)
                                     .setSynchronizedProcessingTime(synchronizedProcessingTime)
                                     .setOutputDataWatermark(workItem.getOutputDataWatermark())
@@ -840,7 +843,8 @@ public class StreamingDataflowWorker {
                                 Work.createProcessingContext(
                                         computationState.getComputationId(),
                                         metricTrackingWindmillServer::getStateData)
-                                    .setWorkCommitter(workCommitter::commit),
+                                    .setWorkCommitter(workCommitter::commit)
+                                    .build(),
                                 getWorkStreamLatencies);
                           }));
       try {

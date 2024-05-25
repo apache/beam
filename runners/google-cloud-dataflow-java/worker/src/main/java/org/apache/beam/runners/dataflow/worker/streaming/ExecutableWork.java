@@ -15,20 +15,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker.windmill.work.processing;
+package org.apache.beam.runners.dataflow.worker.streaming;
 
 import com.google.auto.value.AutoValue;
+import java.util.function.Consumer;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 
-/** Value class that represents the result of executing user DoFns. */
+/** {@link Work} instance and a processing function used to process the work. */
 @AutoValue
-abstract class ExecuteWorkResult {
-  static ExecuteWorkResult create(
-      Windmill.WorkItemCommitRequest.Builder commitWorkRequest, long stateBytesRead) {
-    return new AutoValue_ExecuteWorkResult(commitWorkRequest, stateBytesRead);
+public abstract class ExecutableWork implements Runnable {
+
+  public static ExecutableWork create(Work work, Consumer<Work> executeWorkFn) {
+    return new AutoValue_ExecutableWork(work, executeWorkFn);
   }
 
-  abstract Windmill.WorkItemCommitRequest.Builder commitWorkRequest();
+  public abstract Work work();
 
-  abstract long stateBytesRead();
+  abstract Consumer<Work> executeWorkFn();
+
+  @Override
+  public void run() {
+    executeWorkFn().accept(work());
+  }
+
+  public final WorkId id() {
+    return work().id();
+  }
+
+  public final Windmill.WorkItem getWorkItem() {
+    return work().getWorkItem();
+  }
 }
