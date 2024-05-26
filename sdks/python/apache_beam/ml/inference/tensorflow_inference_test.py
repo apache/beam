@@ -146,6 +146,7 @@ class TFRunInferenceTest(unittest.TestCase):
       model_handler = TFModelHandlerTensor(
           model_uri=model_path,
           inference_fn=fake_batching_inference_fn,
+          load_model_args={'safe_mode': False},
           min_batch_size=2,
           max_batch_size=2)
       examples = [
@@ -193,6 +194,7 @@ class TFRunInferenceTest(unittest.TestCase):
       model_handler = TFModelHandlerTensor(
           model_uri=model_path,
           inference_fn=fake_batching_inference_fn,
+          load_model_args={'safe_mode': False},
           large_model=True)
       examples = [
           tf.convert_to_tensor(numpy.array([1.1, 2.2, 3.3], dtype='float32')),
@@ -237,6 +239,7 @@ class TFRunInferenceTest(unittest.TestCase):
       model_handler = TFModelHandlerNumpy(
           model_uri=model_path,
           inference_fn=fake_batching_inference_fn,
+          load_model_args={'safe_mode': False},
           min_batch_size=2,
           max_batch_size=2)
       examples = [
@@ -280,6 +283,7 @@ class TFRunInferenceTest(unittest.TestCase):
 
       model_handler = TFModelHandlerNumpy(
           model_uri=model_path,
+          load_model_args={'safe_mode': False},
           inference_fn=fake_inference_fn,
           large_model=True)
       examples = [
