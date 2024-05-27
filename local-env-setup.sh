@@ -55,7 +55,7 @@ if [ "$kernelname" = "Linux" ]; then
         exit
     fi
 
-    for ver in 3.8 3.9 3.10 3.11 3.12 3 do
+    for ver in 3.8 3.9 3.10 3.11 3.12 3; do
         apt install --yes python$ver-venv
     done
 
