@@ -506,7 +506,6 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
           equal_to(bq_result_errors))
 
   @pytest.mark.it_postcommit
-  @retry(reraise=True, stop=stop_after_attempt(3))
   @parameterized.expand([
       param(file_format=FileFormat.AVRO),
       param(file_format=FileFormat.JSON),
@@ -514,6 +513,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
   ])
   @mock.patch(
       "apache_beam.io.gcp.bigquery_file_loads._MAXIMUM_SOURCE_URIS", new=1)
+  @retry(reraise=True, stop=stop_after_attempt(3))
   def test_big_query_write_temp_table_append_schema_update(self, file_format):
     """
     Test that nested schema update options and schema relaxation
