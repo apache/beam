@@ -28,7 +28,7 @@ import org.apache.flink.metrics.groups.OperatorIOMetricGroup;
 import org.apache.flink.metrics.groups.SourceReaderMetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 
-public class SourceTestCompat {
+public class SourceTestMetrics {
 
   /** A MetricGroup implementation which records the registered gauge. */
   public static class TestMetricGroup extends UnregisteredMetricsGroup

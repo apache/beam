@@ -108,6 +108,11 @@ Should be called before running the tests.
   <td>Default: <code>[auto]</code></td>
 </tr>
 <tr>
+  <td><code>forceUnalignedCheckpointEnabled</code></td>
+  <td>Forces unaligned checkpoints, particularly allowing them for iterative jobs.</td>
+  <td>Default: <code>false</code></td>
+</tr>
+<tr>
   <td><code>jobCheckIntervalInSecs</code></td>
   <td>Set job check interval in seconds under detached mode in method waitUntilFinish, by default it is 5 seconds</td>
   <td>Default: <code>5</code></td>
@@ -201,5 +206,10 @@ Should be called before running the tests.
   <td><code>stateBackendStoragePath</code></td>
   <td>State backend path to persist state backend data. Used to initialize state backend.</td>
   <td></td>
+</tr>
+<tr>
+  <td><code>unalignedCheckpointEnabled</code></td>
+  <td>If set, Unaligned checkpoints contain in-flight data (i.e., data stored in buffers) as part of the checkpoint state, allowing checkpoint barriers to overtake these buffers. Thus, the checkpoint duration becomes independent of the current throughput as checkpoint barriers are effectively not embedded into the stream of data anymore</td>
+  <td>Default: <code>false</code></td>
 </tr>
 </table>
