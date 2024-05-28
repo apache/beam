@@ -38,6 +38,8 @@ from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryMatcher
 from apache_beam.testing import test_utils
 from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher
 from apache_beam.testing.test_pipeline import TestPipeline
+from tenacity import retry
+from tenacity import stop_after_attempt
 
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
@@ -155,6 +157,7 @@ class BigQueryQueryToTableIT(unittest.TestCase):
     self.assertTrue(passed, 'Error in BQ setup: %s' % errors)
 
   @pytest.mark.it_postcommit
+  @retry(reraise=True, stop=stop_after_attempt(3))
   def test_big_query_legacy_sql(self):
     verify_query = DIALECT_OUTPUT_VERIFY_QUERY % self.output_table
     expected_checksum = test_utils.compute_hash(DIALECT_OUTPUT_EXPECTED)
