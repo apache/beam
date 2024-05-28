@@ -18,6 +18,8 @@ name: IcebergIO Integration Tests
 on:
   schedule:
     - cron: '15 4/6 * * *'
+  pull_request_target:
+    paths: [ 'release/trigger_all_tests.json', '.github/trigger_files/IO_Iceberg_Integration_Tests.json' ]
   workflow_dispatch:
 
 # Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
