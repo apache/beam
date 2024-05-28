@@ -458,7 +458,7 @@ func (n *DataSource) Progress() ProgressReportSnapshot {
 		c = 0
 	}
 	pcol.ElementCount = c
-	return ProgressReportSnapshot{ID: n.SID.PtransformID, Name: n.Name, Count: c, pcol: pcol, consumingReceivedData: consumingReceivedData}
+	return ProgressReportSnapshot{ID: n.SID.PtransformID, Name: n.Name, Count: c, pcol: pcol, ConsumingReceivedData: consumingReceivedData}
 }
 
 // getProcessContinuation retrieves a ProcessContinuation that may be returned by
