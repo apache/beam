@@ -113,9 +113,13 @@ message BuilderMethod {
 
 message Annotations {
   enum Enum {
+    // The annotation key for the encoded configuration Row used to build a transform
     CONFIG_ROW_KEY = 0 [(org.apache.beam.model.pipeline.v1.beam_constant) = "config_row"];
+    // The annotation key for the configuration Schema used to decode the configuration Row
     CONFIG_ROW_SCHEMA_KEY = 1 [(org.apache.beam.model.pipeline.v1.beam_constant) = "config_row_schema"];
+    // If ths transform is a SchemaTransform, this is the annotation key for the SchemaTransform's URN
     SCHEMATRANSFORM_URN_KEY = 2 [(org.apache.beam.model.pipeline.v1.beam_constant) = "schematransform_urn"];
+    // If the transform is a ManagedSchemaTransform, this is the annotation key for the underlying SchemaTransform's URN
     MANAGED_UNDERLYING_TRANSFORM_URN_KEY = 3 [(org.apache.beam.model.pipeline.v1.beam_constant) = "managed_underlying_transform_urn"];
   }
 }

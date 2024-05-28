@@ -59,7 +59,6 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSortedSet;
@@ -532,9 +531,13 @@ public class PTransformTranslation {
                 SchemaTranslation.schemaFromProto(payload.getConfigurationSchema());
             Row configRow =
                 RowCoder.of(configSchema).decode(payload.getConfigurationRow().newInput());
-            String underlyingIdentifier =
-                MoreObjects.firstNonNull(
-                    configRow.getString("transform_identifier"), "unknown_identifier");
+            String underlyingIdentifier = configRow.getString("transform_identifier");
+            if (underlyingIdentifier == null) {
+              throw new IllegalStateException(
+                  String.format(
+                      "Encountered a Managed Transform that has an empty \"transform_identifier\": \n%s",
+                      configRow));
+            }
             transformBuilder.putAnnotations(
                 BeamUrns.getConstant(Annotations.Enum.MANAGED_UNDERLYING_TRANSFORM_URN_KEY),
                 ByteString.copyFromUtf8(underlyingIdentifier));

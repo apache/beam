@@ -121,6 +121,7 @@ dependencies {
   shadowTest library.java.jamm
   testRuntimeOnly library.java.slf4j_jdk14
   testImplementation "com.github.stefanbirkner:system-rules:1.19.0"
+  testImplementation project(":sdks:java:managed")
 }
 
 project.tasks.compileTestJava {

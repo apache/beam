@@ -17,6 +17,11 @@
  */
 package org.apache.beam.sdk.util.construction;
 
+import static org.apache.beam.model.pipeline.v1.ExternalTransforms.Annotations.Enum.CONFIG_ROW_KEY;
+import static org.apache.beam.model.pipeline.v1.ExternalTransforms.Annotations.Enum.CONFIG_ROW_SCHEMA_KEY;
+import static org.apache.beam.model.pipeline.v1.ExternalTransforms.Annotations.Enum.MANAGED_UNDERLYING_TRANSFORM_URN_KEY;
+import static org.apache.beam.model.pipeline.v1.ExternalTransforms.Annotations.Enum.SCHEMATRANSFORM_URN_KEY;
+import static org.apache.beam.sdk.util.construction.PTransformTranslation.MANAGED_TRANSFORM_URN;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 
@@ -32,10 +37,17 @@ import java.util.Map;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.managed.ManagedSchemaTransformProvider;
+import org.apache.beam.sdk.providers.GenerateSequenceSchemaTransformProvider;
 import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.schemas.SchemaTranslation;
+import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
+import org.apache.beam.sdk.schemas.utils.YamlUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -43,17 +55,11 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
-import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PBegin;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
-import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.sdk.values.PValues;
-import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.values.*;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -66,7 +72,7 @@ import org.junit.runners.Parameterized.Parameters;
 public class PTransformTranslationTest {
 
   @Parameters(name = "{index}: {0}")
-  public static Iterable<ToAndFromProtoSpec> data() {
+  public static Iterable<ToAndFromProtoSpec> data() throws CoderException {
     // This pipeline exists for construction, not to run any test.
     // TODO: Leaf node with understood payload - i.e. validate payloads
     ToAndFromProtoSpec readLeaf = ToAndFromProtoSpec.leaf(read(TestPipeline.create()));
@@ -78,7 +84,12 @@ public class PTransformTranslationTest {
     ToAndFromProtoSpec compositeRead =
         ToAndFromProtoSpec.composite(
             generateSequence(compositeReadPipeline),
-            ToAndFromProtoSpec.leaf(read(compositeReadPipeline)));
+            ToAndFromProtoSpec.leaf(read(compositeReadPipeline)),
+            Collections.emptyMap());
+
+    TestPipeline compositeManagedReadPipeline = TestPipeline.create();
+    ToAndFromProtoSpec compositeManagedRead =
+        managedGenerateSequenceSpec(compositeManagedReadPipeline);
 
     ToAndFromProtoSpec rawLeafNullSpec =
         ToAndFromProtoSpec.leaf(rawPTransformWithNullSpec(TestPipeline.create()));
@@ -87,6 +98,7 @@ public class PTransformTranslationTest {
         .add(readLeaf)
         .add(readMultipleInAndOut)
         .add(compositeRead)
+        .add(compositeManagedRead)
         .add(rawLeafNullSpec)
         // TODO: Composite with multiple children
         // TODO: Composite with a composite child
@@ -97,20 +109,26 @@ public class PTransformTranslationTest {
   abstract static class ToAndFromProtoSpec {
     public static ToAndFromProtoSpec leaf(AppliedPTransform<?, ?, ?> transform) {
       return new AutoValue_PTransformTranslationTest_ToAndFromProtoSpec(
-          transform, Collections.emptyList());
+          transform, Collections.emptyList(), Collections.emptyMap());
     }
 
     public static ToAndFromProtoSpec composite(
-        AppliedPTransform<?, ?, ?> topLevel, ToAndFromProtoSpec spec, ToAndFromProtoSpec... specs) {
+        AppliedPTransform<?, ?, ?> topLevel,
+        ToAndFromProtoSpec spec,
+        Map<String, ByteString> annotations,
+        ToAndFromProtoSpec... specs) {
       List<ToAndFromProtoSpec> childSpecs = new ArrayList<>();
       childSpecs.add(spec);
       childSpecs.addAll(Arrays.asList(specs));
-      return new AutoValue_PTransformTranslationTest_ToAndFromProtoSpec(topLevel, childSpecs);
+      return new AutoValue_PTransformTranslationTest_ToAndFromProtoSpec(
+          topLevel, childSpecs, annotations);
     }
 
     abstract AppliedPTransform<?, ?, ?> getTransform();
 
     abstract Collection<ToAndFromProtoSpec> getChildren();
+
+    abstract Map<String, ByteString> getAnnotations();
   }
 
   @Parameter(0)
@@ -126,6 +144,7 @@ public class PTransformTranslationTest {
     assertThat(converted.getInputsCount(), equalTo(spec.getTransform().getInputs().size()));
     assertThat(converted.getOutputsCount(), equalTo(spec.getTransform().getOutputs().size()));
     assertThat(converted.getSubtransformsCount(), equalTo(spec.getChildren().size()));
+    assertThat(converted.getAnnotationsMap(), equalTo(spec.getAnnotations()));
 
     assertThat(converted.getUniqueName(), equalTo(spec.getTransform().getFullName()));
     for (PValue inputValue : spec.getTransform().getInputs().values()) {
@@ -172,6 +191,57 @@ public class PTransformTranslationTest {
         sequence,
         ResourceHints.create(),
         pipeline);
+  }
+
+  private static ToAndFromProtoSpec managedGenerateSequenceSpec(Pipeline pipeline)
+      throws CoderException {
+    GenerateSequenceSchemaTransformProvider generateProvider =
+        new GenerateSequenceSchemaTransformProvider();
+    ManagedSchemaTransformProvider managedProvider =
+        new ManagedSchemaTransformProvider(Arrays.asList(generateProvider.identifier()));
+    Map<String, Object> config =
+        ImmutableMap.<String, Object>builder().put("start", 0L).put("end", 10L).build();
+    Row managedConfigRow =
+        Row.withSchema(managedProvider.configurationSchema())
+            .withFieldValue("transform_identifier", generateProvider.identifier())
+            .withFieldValue("config", YamlUtils.yamlStringFromMap(config))
+            .build();
+    SchemaTransform generateSequenceST = managedProvider.from(managedConfigRow);
+    PCollection<Row> pcollection =
+        PCollectionRowTuple.empty(pipeline)
+            .apply(generateSequenceST)
+            .get(GenerateSequenceSchemaTransformProvider.OUTPUT_ROWS_TAG);
+
+    AppliedPTransform<?, ?, ?> managedGenerateSequence =
+        AppliedPTransform.of(
+            "Managed Count",
+            PValues.expandInput(pipeline.begin()),
+            PValues.expandOutput(pcollection),
+            generateSequenceST,
+            ResourceHints.create(),
+            pipeline);
+
+    return ToAndFromProtoSpec.composite(
+        managedGenerateSequence,
+        ToAndFromProtoSpec.leaf(read(pipeline)),
+        ImmutableMap.<String, ByteString>builder()
+            .put(
+                BeamUrns.getConstant(SCHEMATRANSFORM_URN_KEY),
+                ByteString.copyFromUtf8(MANAGED_TRANSFORM_URN))
+            .put(
+                BeamUrns.getConstant(MANAGED_UNDERLYING_TRANSFORM_URN_KEY),
+                ByteString.copyFromUtf8(generateProvider.identifier()))
+            .put(
+                BeamUrns.getConstant(CONFIG_ROW_KEY),
+                ByteString.copyFrom(
+                    CoderUtils.encodeToByteArray(
+                        RowCoder.of(managedConfigRow.getSchema()), managedConfigRow)))
+            .put(
+                BeamUrns.getConstant(CONFIG_ROW_SCHEMA_KEY),
+                ByteString.copyFrom(
+                    SchemaTranslation.schemaToProto(managedConfigRow.getSchema(), true)
+                        .toByteArray()))
+            .build());
   }
 
   private static AppliedPTransform<?, ?, ?> read(Pipeline pipeline) {
