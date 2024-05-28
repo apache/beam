@@ -746,10 +746,13 @@ class SdkWorker(object):
           instruction_id=instruction_id, error=traceback.format_exc())
     if processor:
       monitoring_infos = processor.monitoring_infos()
+      waiting_for_runner_to_send_data = \
+        processor.waiting_for_runner_to_send_data
     else:
       # Return an empty response if we aren't running. This can happen
       # if the ProcessBundleRequest has not started or already finished.
       monitoring_infos = []
+      waiting_for_runner_to_send_data = False
     return beam_fn_api_pb2.InstructionResponse(
         instruction_id=instruction_id,
         process_bundle_progress=beam_fn_api_pb2.ProcessBundleProgressResponse(
@@ -758,8 +761,7 @@ class SdkWorker(object):
                 SHORT_ID_CACHE.get_short_id(info): info.payload
                 for info in monitoring_infos
             },
-            waiting_for_runner_to_send_data=processor.
-            waiting_for_runner_to_send_data))
+            waiting_for_runner_to_send_data=waiting_for_runner_to_send_data))
 
   def finalize_bundle(
       self,
