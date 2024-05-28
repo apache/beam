@@ -31,6 +31,9 @@ import unittest
 import pytest
 from hamcrest.core.core.allof import all_of
 
+from tenacity import retry
+from tenacity import stop_after_attempt
+
 from apache_beam.io.gcp import big_query_query_to_table_pipeline
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.io.gcp.internal.clients import bigquery
@@ -38,8 +41,6 @@ from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryMatcher
 from apache_beam.testing import test_utils
 from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher
 from apache_beam.testing.test_pipeline import TestPipeline
-from tenacity import retry
-from tenacity import stop_after_attempt
 
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
