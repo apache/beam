@@ -281,15 +281,10 @@ def _as_callable_for_pcoll(
         list(input_schema.keys()), fn_spec, msg, language, input_schema)
 
 
-def _as_callable(
-    original_fields, expr, transform_name, language, input_schema=None):
+def _as_callable(original_fields, expr, transform_name, language, input_schema):
 
   # Extract original type from upstream pcoll when doing simple mappings
-  if input_schema is None:
-    input_schema = {}
-  original_type = input_schema.get(transform_name, None)
-  if expr in original_fields:
-    original_type = input_schema.get(expr, None)
+  original_type = input_schema.get(str(expr), None)
 
   # TODO(yaml): support an imports parameter
   # TODO(yaml): support a requirements parameter (possibly at a higher level)
