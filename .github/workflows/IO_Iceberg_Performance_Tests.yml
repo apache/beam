@@ -51,6 +51,7 @@ env:
 jobs:
   IO_Iceberg_Performance_Tests:
     if: |
+      github.event_name == 'pull_request_target' ||
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run IcebergIO Performance Test'
