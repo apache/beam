@@ -760,7 +760,7 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 	}
 	delete(stage.inprogressKeysByBundle, rb.BundleID)
 
-	// Add new holds.
+	// Adjust holds as needed.
 	for h, c := range newHolds {
 		if c > 0 {
 			stage.watermarkHolds.Add(h, c)
@@ -925,8 +925,6 @@ func (em *ElementManager) refreshWatermarks() set[string] {
 	// Need to have at least one refresh signal.
 	nextUpdates := set[string]{}
 	refreshed := set[string]{}
-	// Use a single consolidated processing time during a given refresh for consistency.
-
 	var i int
 	for stageID := range em.watermarkRefreshes {
 		// clear out old one.
@@ -936,7 +934,6 @@ func (em *ElementManager) refreshWatermarks() set[string] {
 
 		refreshes := ss.updateWatermarks(em)
 		nextUpdates.merge(refreshes)
-
 		// cap refreshes incrementally.
 		if i < 10 {
 			i++

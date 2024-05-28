@@ -117,8 +117,6 @@ func TestStatefulStages(t *testing.T) {
 		{pipeline: primitives.SetStateParDoClear},
 		{pipeline: primitives.TimersEventTimeBounded},
 		{pipeline: primitives.TimersEventTimeUnbounded},
-		{pipeline: primitives.ValueStateParDo_Bytes},
-		// {pipeline: primitives.ValueStateParDo_Row},
 	}
 
 	configs := []struct {

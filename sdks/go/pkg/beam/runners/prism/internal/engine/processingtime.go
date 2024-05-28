@@ -20,24 +20,21 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 )
 
+// Notes on Processing Time handling:
+//
 // ProcessingTime events (processingTime timers, process continuations, triggers) necessarily need to operate on a global queue.
 // However, PT timers are per key+family+tag, and may be overwritten by subsequent elements.
 // So, similarly to event time timers, we need to manage a "last set" queue, and to manage the holds.
 // This implies they should probably be handled by state, instead of globally.
 // In reality, it's probably going to be "both", a global PT event queue, and per stage state.
 //
-// Also, in principle, timers would be how to implement the related features, so getting those right will simplify their handling.
+// In principle, timers would be how to implement the related features, so getting those right will simplify their handling.
 // Test stream is already central, but doesn't set events, it controls their execution.
-// But it would be easier to just *start* with ProcessContinuation handling, which may inform handling time.
 //
-// Currently, the ElementManager doesn't retain any data itself, nor really should it.
-// So it should not hold material data about what is being triggered.
-// It should really only contain which stage state should be triggered via watermark refresh.
-// Watermark refreshes should also receive a current ProcessingTime so they can then trigger
-// their own events.
+// The ElementManager doesn't retain any data itself, so it should not hold material data about what is being triggered.
+// The ElementManager should  only contain which stage state should be triggered when in a time domain.
 //
 // ProcessContinuations count as pending events, and must be drained accordingly before time expires.
-//
 //
 // A stage may trigger on multiple ticks.
 // It's up to a stage to schedule additional work on those notices.
