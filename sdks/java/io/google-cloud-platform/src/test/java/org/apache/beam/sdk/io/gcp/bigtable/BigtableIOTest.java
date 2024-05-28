@@ -1846,6 +1846,16 @@ public class BigtableIOTest {
       }
       return currentRow;
     }
+
+    @Override
+    public Duration getAttemptTimeout() {
+      return Duration.millis(100);
+    }
+
+    @Override
+    public Duration getOperationTimeout() {
+      return Duration.millis(1000);
+    }
   }
 
   /** A {@link FakeBigtableReader} implementation that throw exceptions at given stage. */
