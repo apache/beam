@@ -39,6 +39,7 @@ from apache_beam.typehints import row_type
 from apache_beam.typehints import schemas
 from apache_beam.typehints import trivial_inference
 from apache_beam.typehints import typehints
+from apache_beam.typehints.native_type_compatibility import convert_to_beam_type
 from apache_beam.typehints.row_type import RowTypeConstraint
 from apache_beam.typehints.schemas import named_fields_from_element_type
 from apache_beam.utils import python_callable
@@ -276,12 +277,19 @@ def _as_callable_for_pcoll(
   if isinstance(fn_spec, str) and fn_spec in input_schema:
     return lambda row: getattr(row, fn_spec)
   else:
-    return _as_callable(list(input_schema.keys()), fn_spec, msg, language)
+    return _as_callable(
+        list(input_schema.keys()), fn_spec, msg, language, input_schema)
 
 
-def _as_callable(original_fields, expr, transform_name, language):
+def _as_callable(
+    original_fields, expr, transform_name, language, input_schema=None):
+
+  # Extract original type from upstream pcoll when doing simple mappings
+  if input_schema is None:
+    input_schema = {}
+  original_type = input_schema.get(transform_name, None)
   if expr in original_fields:
-    return expr
+    original_type = input_schema.get(expr, None)
 
   # TODO(yaml): support an imports parameter
   # TODO(yaml): support a requirements parameter (possibly at a higher level)
@@ -313,6 +321,15 @@ def _as_callable(original_fields, expr, transform_name, language):
       result = func(row)
       if not validator(result):
         raise TypeError(f'{result} violates schema {explicit_type}')
+      return result
+
+    return checking_func
+
+  elif original_type:
+
+    @beam.typehints.with_output_types(convert_to_beam_type(original_type))
+    def checking_func(row):
+      result = func(row)
       return result
 
     return checking_func
@@ -554,7 +571,8 @@ def _PyJsMapToFields(pcoll, language='generic', **mapping_args):
 
   return pcoll | beam.Select(
       **{
-          name: _as_callable(original_fields, expr, name, language)
+          name: _as_callable(
+              original_fields, expr, name, language, input_schema)
           for (name, expr) in fields.items()
       })
 
