@@ -127,7 +127,8 @@ public class BeamFnDataInboundObserver implements CloseableFnDataReceiver<BeamFn
   public void awaitCompletion() throws Exception {
     try {
       while (true) {
-        // The SDK is available to process data right before it is ready to take elements off the queue.
+        // The SDK is available to process data right before it is ready to take elements off the
+        // queue.
         waitingForRunnerToSendData.set(true);
         BeamFnApi.Elements elements = queue.take();
         // The SDK is now no longer available to receive more data, so we set it to false.

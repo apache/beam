@@ -61,6 +61,7 @@ dependencies {
   }
   implementation library.java.kafka_clients
   implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(path: ":runners:google-cloud-dataflow-java")
   implementation project(":sdks:java:extensions:avro")
   implementation project(":sdks:java:extensions:google-cloud-platform-core")
   implementation project(":sdks:java:extensions:python")

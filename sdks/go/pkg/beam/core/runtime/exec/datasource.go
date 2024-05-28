@@ -19,18 +19,18 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io"
-	"math"
-	"sort"
-	"sync"
-	"time"
-	"sync/atomic"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/ioutilx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	"golang.org/x/exp/maps"
+	"io"
+	"math"
+	"sort"
+	"sync"
+	"sync/atomic"
+	"time"
 )
 
 // DataSource is a Root execution unit.
@@ -65,9 +65,9 @@ type DataSource struct {
 	singleIterate bool
 
 	// state of the SDK with respect to the status of its data channel. If it is true, then the SDK
-  // is waiting for data to be sent to it. If it is false, then the SDK is not ready to take any
-  // data. This signal will only be interpreted by the Runner for sending large elements.
-  waitingForRunnerToSendData atomic.Bool
+	// is waiting for data to be sent to it. If it is false, then the SDK is not ready to take any
+	// data. This signal will only be interpreted by the Runner for sending large elements.
+	waitingForRunnerToSendData atomic.Bool
 }
 
 // InitSplittable initializes the SplittableUnit channel from the output unit,
@@ -130,16 +130,16 @@ func (n *DataSource) process(ctx context.Context, data func(bcr *byteCountReader
 	bcr := byteCountReader{reader: &r, count: &byteCount}
 
 	for {
-	  // The SDK is currently waiting for the Runner to send data for it to be
-    // processed. Hence, the boolean is marked as true.
-    n.waitingForRunnerToSendData.Store(true)
+		// The SDK is currently waiting for the Runner to send data for it to be
+		// processed. Hence, the boolean is marked as true.
+		n.waitingForRunnerToSendData.Store(true)
 		var err error
 		select {
 		case e, ok := <-elms:
-		  // Upon receiving some item from the Runner, the SDK is busy. Hence, the
-		  // boolean is marked as false as it is not waiting for the Runner to send
-		  // it anything.
-      n.waitingForRunnerToSendData.Store(false)
+			// Upon receiving some item from the Runner, the SDK is busy. Hence, the
+			// boolean is marked as false as it is not waiting for the Runner to send
+			// it anything.
+			n.waitingForRunnerToSendData.Store(false)
 			// Channel closed, so time to exit
 			if !ok {
 				return nil
@@ -163,7 +163,7 @@ func (n *DataSource) process(ctx context.Context, data func(bcr *byteCountReader
 			// io.EOF means the reader successfully drained.
 			// We're ready for a new buffer.
 		case <-ctx.Done():
-		  n.waitingForRunnerToSendData.Store(true)
+			n.waitingForRunnerToSendData.Store(true)
 			return nil
 		}
 	}
