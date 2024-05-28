@@ -121,7 +121,8 @@ public class JmsIOIT implements Serializable {
 
     void setReadTimeout(Integer timeout);
 
-    @Description("Use ConnectionFactory provider function instead of pre-instantiated ConnectionFactory object")
+    @Description(
+        "Use ConnectionFactory provider function instead of pre-instantiated ConnectionFactory object")
     @Default.Boolean(false)
     boolean getUseConnectionFactoryProviderFn();
 
@@ -237,7 +238,9 @@ public class JmsIOIT implements Serializable {
     pipelineRead.getOptions().as(JmsIOITOptions.class).setBlockOnRun(false);
     JmsIO.Read<String> jmsIORead = JmsIO.readMessage();
     if (pipelineRead.getOptions().as(JmsIOITOptions.class).getUseConnectionFactoryProviderFn()) {
-      jmsIORead = jmsIORead.withConnectionFactoryProviderFn(CommonJms.toSerializableFunction(commonJms::createConnectionFactory));
+      jmsIORead =
+          jmsIORead.withConnectionFactoryProviderFn(
+              CommonJms.toSerializableFunction(commonJms::createConnectionFactory));
     } else {
       jmsIORead = jmsIORead.withConnectionFactory(connectionFactory);
     }
@@ -259,8 +262,9 @@ public class JmsIOIT implements Serializable {
 
     JmsIO.Write<String> jmsIOWrite = JmsIO.write();
     if (pipelineWrite.getOptions().as(JmsIOITOptions.class).getUseConnectionFactoryProviderFn()) {
-      System.out.println("using connection factory provider");
-      jmsIOWrite = jmsIOWrite.withConnectionFactoryProviderFn(CommonJms.toSerializableFunction(commonJms::createConnectionFactory));
+      jmsIOWrite =
+          jmsIOWrite.withConnectionFactoryProviderFn(
+              CommonJms.toSerializableFunction(commonJms::createConnectionFactory));
     } else {
       jmsIOWrite = jmsIOWrite.withConnectionFactory(connectionFactory);
     }
@@ -271,7 +275,7 @@ public class JmsIOIT implements Serializable {
         .apply("Collect write time", ParDo.of(new TimeMonitor<>(NAMESPACE, WRITE_TIME_METRIC)))
         .apply(
             "Publish to Jms Broker",
-                jmsIOWrite
+            jmsIOWrite
                 .withQueue(QUEUE)
                 .withUsername(USERNAME)
                 .withPassword(PASSWORD)
