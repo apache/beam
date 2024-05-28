@@ -174,8 +174,8 @@ class SdkHarness(object):
       data_sampler=None,  # type: Optional[data_sampler.DataSampler]
       # Unrecoverable SDK harness initialization error (if any)
       # that should be reported to the runner when proocessing the first bundle.
-      deferred_exception=None, # type: Optional[Exception]
-      runner_capabilities=frozenset(), # type: FrozenSet[str]
+      deferred_exception=None,  # type: Optional[Exception]
+      runner_capabilities=frozenset(),  # type: FrozenSet[str]
   ):
     # type: (...) -> None
     self._alive = True
@@ -639,6 +639,7 @@ class BundleProcessorCache(object):
 
 
 class SdkWorker(object):
+
   def __init__(
       self,
       bundle_processor_cache,  # type: BundleProcessorCache
@@ -757,7 +758,8 @@ class SdkWorker(object):
                 SHORT_ID_CACHE.get_short_id(info): info.payload
                 for info in monitoring_infos
             },
-        waiting_for_runner_to_send_data=processor.waiting_for_runner_to_send_data))
+            waiting_for_runner_to_send_data=processor.
+            waiting_for_runner_to_send_data))
 
   def finalize_bundle(
       self,
@@ -1156,6 +1158,7 @@ class GlobalCachingStateHandler(CachingStateHandler):
    If activated but no cache token is supplied, caching is done at the bundle
    level.
   """
+
   def __init__(
       self,
       global_state_cache,  # type: StateCache
@@ -1292,10 +1295,11 @@ class GlobalCachingStateHandler(CachingStateHandler):
       if not continuation_token:
         break
 
-  def _get_raw(self,
+  def _get_raw(
+      self,
       state_key,  # type: beam_fn_api_pb2.StateKey
       continuation_token  # type: Optional[bytes]
-               ):
+  ):
     # type: (...) -> Tuple[coder_impl.create_InputStream, Optional[bytes]]
 
     """Call underlying get_raw with performance statistics and detection."""
