@@ -114,7 +114,7 @@ INFO:root:{"element": 3}
 You can submit a YAML pipeline to Dataflow by using the
 [gcloud CLI](https://cloud.google.com/sdk/gcloud). To create a Dataflow job
 from the YAML file, use the
-[`gcloud beta dataflow yaml run`](https://cloud.google.com/sdk/gcloud/reference/beta/dataflow/yaml/run)
+[`gcloud dataflow yaml run`](https://cloud.google.com/sdk/gcloud/reference/dataflow/yaml/run)
 command:
 
 ```

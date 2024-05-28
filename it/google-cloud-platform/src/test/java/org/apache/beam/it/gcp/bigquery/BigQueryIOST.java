@@ -83,6 +83,7 @@ public final class BigQueryIOST extends IOStressTestBase {
 
   private static final String READ_ELEMENT_METRIC_NAME = "read_count";
   private static final String STORAGE_WRITE_API_METHOD = "STORAGE_WRITE_API";
+  private static final String STORAGE_API_AT_LEAST_ONCE_METHOD = "STORAGE_API_AT_LEAST_ONCE";
 
   private static BigQueryResourceManager resourceManager;
   private static String tableName;
@@ -191,6 +192,20 @@ public final class BigQueryIOST extends IOStressTestBase {
     runTest();
   }
 
+  @Test
+  public void testAvroStorageAPIAtLeastOnce() throws IOException {
+    configuration.writeFormat = WriteFormat.AVRO.name();
+    configuration.writeMethod = STORAGE_API_AT_LEAST_ONCE_METHOD;
+    runTest();
+  }
+
+  @Test
+  public void testJsonStorageAPIAtLeastOnce() throws IOException {
+    configuration.writeFormat = WriteFormat.JSON.name();
+    configuration.writeMethod = STORAGE_API_AT_LEAST_ONCE_METHOD;
+    runTest();
+  }
+
   /**
    * Runs a stress test for BigQueryIO based on the specified configuration parameters. The method
    * initializes the stress test by determining the WriteFormat, configuring the BigQueryIO. Write
@@ -222,7 +237,9 @@ public final class BigQueryIOST extends IOStressTestBase {
                 .withAvroFormatFunction(
                     new AvroFormatFn(
                         configuration.numColumns,
-                        !(STORAGE_WRITE_API_METHOD.equalsIgnoreCase(configuration.writeMethod))));
+                        !(STORAGE_WRITE_API_METHOD.equalsIgnoreCase(configuration.writeMethod)
+                            || STORAGE_API_AT_LEAST_ONCE_METHOD.equalsIgnoreCase(
+                                configuration.writeMethod))));
         break;
       case JSON:
         writeIO =
@@ -305,9 +322,12 @@ public final class BigQueryIOST extends IOStressTestBase {
             getBeamMetricsName(PipelineMetricsType.COUNTER, READ_ELEMENT_METRIC_NAME));
     Long rowCount = resourceManager.getRowCount(tableName);
 
-    // Assert that numRecords equals or greater than rowCount since there might be
-    // duplicates when testing big amount of data
-    assertTrue(numRecords >= rowCount);
+    // Depending on writing method there might be duplicates on different sides (read or write).
+    if (configuration.writeMethod.equals(STORAGE_API_AT_LEAST_ONCE_METHOD)) {
+      assertTrue(rowCount >= numRecords);
+    } else {
+      assertTrue(numRecords >= rowCount);
+    }
 
     // export metrics
     MetricsConfiguration metricsConfig =

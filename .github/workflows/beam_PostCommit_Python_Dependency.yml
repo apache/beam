@@ -82,6 +82,7 @@ jobs:
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:test-suites:tox:py38:postCommitPyDep
+          arguments: -PuseWheelDistribution
       - name: Archive Python Test Results
         uses: actions/upload-artifact@v4
         if: failure()

@@ -969,6 +969,8 @@ public class BigQueryIO {
 
       abstract Builder<T> setQueryTempDataset(String queryTempDataset);
 
+      abstract Builder<T> setQueryTempProject(String queryTempProject);
+
       abstract Builder<T> setMethod(TypedRead.Method method);
 
       abstract Builder<T> setFormat(DataFormat method);
@@ -1028,6 +1030,8 @@ public class BigQueryIO {
     abstract @Nullable String getQueryLocation();
 
     abstract @Nullable String getQueryTempDataset();
+
+    abstract @Nullable String getQueryTempProject();
 
     public abstract TypedRead.Method getMethod();
 
@@ -1109,6 +1113,7 @@ public class BigQueryIO {
                 MoreObjects.firstNonNull(getQueryPriority(), QueryPriority.BATCH),
                 getQueryLocation(),
                 getQueryTempDataset(),
+                getQueryTempProject(),
                 getKmsKey());
       }
       return sourceDef;
@@ -1124,6 +1129,7 @@ public class BigQueryIO {
           MoreObjects.firstNonNull(getQueryPriority(), QueryPriority.BATCH),
           getQueryLocation(),
           getQueryTempDataset(),
+          getQueryTempProject(),
           getKmsKey(),
           getFormat(),
           getParseFn(),
@@ -1203,12 +1209,16 @@ public class BigQueryIO {
               // The temp table is only used for dataset and project id validation, not for table
               // name
               // validation
+              String project = getQueryTempProject();
+              if (project == null) {
+                project =
+                    bqOptions.getBigQueryProject() == null
+                        ? bqOptions.getProject()
+                        : bqOptions.getBigQueryProject();
+              }
               TableReference tempTable =
                   new TableReference()
-                      .setProjectId(
-                          bqOptions.getBigQueryProject() == null
-                              ? bqOptions.getProject()
-                              : bqOptions.getBigQueryProject())
+                      .setProjectId(project)
                       .setDatasetId(getQueryTempDataset())
                       .setTableId("dummy table");
               BigQueryHelpers.verifyDatasetPresence(datasetService, tempTable);
@@ -1602,12 +1612,16 @@ public class BigQueryIO {
               String jobUuid = c.getJobId();
 
               Optional<String> queryTempDataset = Optional.ofNullable(getQueryTempDataset());
-
+              String project = getQueryTempProject();
+              if (project == null) {
+                project =
+                    options.getBigQueryProject() == null
+                        ? options.getProject()
+                        : options.getBigQueryProject();
+              }
               TableReference tempTable =
                   createTempTableReference(
-                      options.getBigQueryProject() == null
-                          ? options.getProject()
-                          : options.getBigQueryProject(),
+                      project,
                       BigQueryResourceNaming.createJobIdPrefix(
                           options.getJobName(), jobUuid, JobType.QUERY),
                       queryTempDataset);
@@ -2030,6 +2044,15 @@ public class BigQueryIO {
      */
     public TypedRead<T> withQueryTempDataset(String queryTempDatasetRef) {
       return toBuilder().setQueryTempDataset(queryTempDatasetRef).build();
+    }
+
+    /** See {@link #withQueryTempDataset(String)}. */
+    public TypedRead<T> withQueryTempProjectAndDataset(
+        String queryTempProjectRef, String queryTempDatasetRef) {
+      return toBuilder()
+          .setQueryTempProject(queryTempProjectRef)
+          .setQueryTempDataset(queryTempDatasetRef)
+          .build();
     }
 
     /** See {@link Method}. */

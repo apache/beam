@@ -15,6 +15,7 @@
 # limitations under the License.
 
 import re
+import sys
 import unittest
 import warnings
 from typing import Dict
@@ -1447,6 +1448,9 @@ class DeferredFrameTest(_AbstractFrameTest):
     s = pd.Series(np.arange(1.0, 5.0), index=index)
     self._run_test(lambda s: s.unstack(level=0), s)
 
+  @unittest.skipIf(
+      sys.version_info >= (3, 12) and PD_VERSION < (2, 3),
+      'https://github.com/pandas-dev/pandas/issues/58604')
   def test_unstack_pandas_example3(self):
     index = self._unstack_get_categorical_index()
     s = pd.Series(np.arange(1.0, 5.0), index=index)

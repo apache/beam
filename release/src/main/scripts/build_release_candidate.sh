@@ -348,7 +348,7 @@ if [[ $confirmation = "y" ]]; then
   cd ${BEAM_ROOT_DIR}
   RELEASE_COMMIT=$(git rev-list -n 1 "tags/${RC_TAG}")
   # TODO(https://github.com/apache/beam/issues/20209): Don't hardcode py version in this file.
-  cd sdks/python && tox -e py38-docs
+  cd sdks/python && tox -e docs
   GENERATED_PYDOC=~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_PYTHON_DOC}/${BEAM_ROOT_DIR}/sdks/python/target/docs/_build
   rm -rf ${GENERATED_PYDOC}/.doctrees
 

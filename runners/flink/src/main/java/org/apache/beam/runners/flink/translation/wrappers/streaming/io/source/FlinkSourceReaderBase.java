@@ -38,7 +38,6 @@ import javax.annotation.Nonnull;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.metrics.FlinkMetricContainerWithoutAccumulator;
 import org.apache.beam.runners.flink.metrics.ReaderInvocationUtil;
-import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.compat.FlinkSourceCompat;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.UnboundedSource;
@@ -124,7 +123,7 @@ public abstract class FlinkSourceReaderBase<T, OutputT>
         pipelineOptions.as(FlinkPipelineOptions.class).getShutdownSourcesAfterIdleMs();
     this.idleTimeoutFuture = new CompletableFuture<>();
     this.idleTimeoutCountingDown = false;
-    this.numRecordsInCounter = FlinkSourceCompat.getNumRecordsInCounter(context);
+    this.numRecordsInCounter = context.metricGroup().getIOMetricGroup().getNumRecordsInCounter();
     FlinkMetricContainerWithoutAccumulator metricsContainer =
         new FlinkMetricContainerWithoutAccumulator(context.metricGroup());
     this.invocationUtil = new ReaderInvocationUtil<>(stepName, pipelineOptions, metricsContainer);
@@ -339,13 +338,14 @@ public abstract class FlinkSourceReaderBase<T, OutputT>
       return outputForSplit;
     }
 
-    public boolean startOrAdvance() throws IOException {
+    public boolean startOrAdvance(ReaderOutput<OutputT> output) throws IOException {
       if (started) {
+        // associate output with the split
+        getAndMaybeCreateSplitOutput(output);
         return invocationUtil.invokeAdvance(reader);
-      } else {
-        started = true;
-        return invocationUtil.invokeStart(reader);
       }
+      started = true;
+      return invocationUtil.invokeStart(reader);
     }
 
     public @Nullable SourceOutput<OutputT> sourceOutput() {

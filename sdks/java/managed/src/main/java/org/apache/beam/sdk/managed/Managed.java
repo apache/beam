@@ -17,9 +17,6 @@
  */
 package org.apache.beam.sdk.managed;
 
-import static org.apache.beam.sdk.managed.ManagedTransformConstants.ICEBERG_READ;
-import static org.apache.beam.sdk.managed.ManagedTransformConstants.ICEBERG_WRITE;
-
 import com.google.auto.value.AutoValue;
 import java.util.ArrayList;
 import java.util.List;
@@ -80,12 +77,19 @@ public class Managed {
 
   // TODO: Dynamically generate a list of supported transforms
   public static final String ICEBERG = "iceberg";
+  public static final String KAFKA = "kafka";
 
   // Supported SchemaTransforms
   public static final Map<String, String> READ_TRANSFORMS =
-      ImmutableMap.<String, String>builder().put(ICEBERG, ICEBERG_READ).build();
+      ImmutableMap.<String, String>builder()
+          .put(ICEBERG, ManagedTransformConstants.ICEBERG_READ)
+          .put(KAFKA, ManagedTransformConstants.KAFKA_READ)
+          .build();
   public static final Map<String, String> WRITE_TRANSFORMS =
-      ImmutableMap.<String, String>builder().put(ICEBERG, ICEBERG_WRITE).build();
+      ImmutableMap.<String, String>builder()
+          .put(ICEBERG, ManagedTransformConstants.ICEBERG_WRITE)
+          .put(KAFKA, ManagedTransformConstants.KAFKA_WRITE)
+          .build();
 
   /**
    * Instantiates a {@link Managed.ManagedTransform} transform for the specified source. The

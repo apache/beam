@@ -12,44 +12,102 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
+# Beam code change guide
+
 Last Updated: Apr 18, 2024
 
-This guide is for Beam users and developers changing and testing Beam code.
+This guide is for Beam users and developers who want to change or test Beam code.
 Specifically, this guide provides information about:
 
-1. Testing code changes locally
+- Testing code changes locally
 
-2. Building Beam artifacts with modified Beam code and using the modified code for pipelines
+- Building Beam artifacts with modified Beam code and using the modified code for pipelines
 
-# Repository structure
+The guide contains the following sections:
 
-The Apache Beam GitHub repository (Beam repo) is, for the most part, a "mono repo":
-it contains everything in the Beam project, including the SDK, test
+- **[Repository structure](#repository-structure)**: A description of the Apache Beam GitHub
+  repository, including steps for setting up your [Gradle project](#gradle-quick-start) and
+  for verifying the configuration of your [develoment environment](#environment-setup).
+
+- **[Java Guide](#java-development-guide)**: Guidance for setting up a Java environment,
+  running and writing integration tests, and running a pipeline with modified
+  Beam code.
+
+- **[Python Guide](#python-development-guide)**: Guidance for configuring your console
+  for Python development, running unit and integration tests, and running a pipeline
+  with modified Beam code.
+
+## Repository structure
+
+The Apache Beam GitHub repository (Beam repo) is, for the most part, a "mono repo".
+It contains everything in the Beam project, including the SDK, test
 infrastructure, dashboards, the [Beam website](https://beam.apache.org),
-the [Beam Playground](https://play.beam.apache.org), and so on.
+and the [Beam Playground](https://play.beam.apache.org).
 
-## Gradle quick start
+### Code paths
 
-The Beam repo is a single Gradle project that contains all components, including Python,
-Go, the website, etc. It is useful to familiarize yourself with the Gradle project structure:
-https://docs.gradle.org/current/userguide/multi_project_builds.html
+The following example code paths in the Beam repo are relevant for SDK development.
 
-### Gradle key concepts
+#### Java
+
+Java code paths are mainly found in two directories: `sdks/java` and `runners`.
+The following list provides notes about the contents of these directories and
+some of the subdirectories.
+
+* `sdks/java` - Java SDK
+  * `sdks/java/core` - Java core
+  * `sdks/java/harness` - SDK harness (entrypoint of SDK container)
+
+* `runners` - Java runner supports, including the following items:
+  * `runners/direct-java` - Java direct runner
+  * `runners/flink-java` - Java Flink runner
+  * `runners/google-cloud-dataflow-java` - Dataflow runner (job submission, translation, and so on)
+    * `runners/google-cloud-dataflow-java/worker` - Worker for Dataflow jobs that don't use Runner v2
+
+#### Non-Java SDKs
+
+For SDKs in other languages, the `sdks/LANG` directory contains the relevant files.
+The following list provides notes about the contents of some of the subdirectories.
+
+* `sdks/python` - Setup file and scripts to trigger test-suites
+  * `sdks/python/apache_beam` - The Beam package
+    * `sdks/python/apache_beam/runners/worker` - SDK worker harness entrypoint and state sampler
+    * `sdks/python/apache_beam/io` - I/O connectors
+    * `sdks/python/apache_beam/transforms` - Most core components
+    * `sdks/python/apache_beam/ml` - Beam ML code
+    * `sdks/python/apache_beam/runners` - Runner implementations and wrappers
+    * ...
+
+* `sdks/go` - Go SDK
+
+* `.github/workflow` - GitHub action workflows, such as the tests that run during a pull request. Most
+  workflows run a single Gradle command. To learn which command to run locally during development,
+  during tests, check which command is running.
+
+### Gradle quick start
+
+The Beam repo is a single Gradle project that contains all components, including Java, Python,
+Go, and the website. Before you begin development, familiarize yourself with the Gradle
+project structure by reviewing
+[Structuring Projects with Gradle](https://docs.gradle.org/current/userguide/multi_project_builds.html)
+in the Gradle documentation.
+
+#### Gradle key concepts
 
 Grade uses the following key concepts:
 
 * **project**: a folder that contains the `build.gradle` file
 * **task**: an action defined in the `build.gradle` file
-* **plugin**: runs in the project's `build.gradle` and contains predefined tasks and hierarchies
+* **plugin**: predefined tasks and hierarchies; runs in the project's `build.gradle` file
 
-For example, common tasks for a Java project or subproject include:
+Common tasks for a Java project or subproject include:
 
-- `compileJava`
-- `compileTestJava`
-- `test`
-- `integrationTest`
+- `compileJava` - compiles the Java source files
+- `compileTestJava` - compiles the Java test source files
+- `test` - runs unit tests
+- `integrationTest` - runs integration tests
 
-To run a Gradle task, the command is `./gradlew -p <project path> <task>` or `./gradlew :project:path:task_name`. For example:
+To run a Gradle task, use the command `./gradlew -p <PROJECT_PATH> <TASK>` or the command `./gradlew :<PROJECT>:<PATH>:<TASK>`. For example:
 
 ```
 ./gradlew -p sdks/java/core compileJava
@@ -57,11 +115,19 @@ To run a Gradle task, the command is `./gradlew -p <project path> <task>` or `./
 ./gradlew :sdks:java:harness:test
 ```
 
-### Gradle project configuration: Beam specific
+#### Beam-specific Gradle project configuration
 
-* A **huge** plugin `buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin` manages everything.
+For Apache Beam, one plugin manages everything: `buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin`.
+The `BeamModulePlugin` is used for the following tasks:
 
-In each java project or subproject, the `build.gradle` file starts with:
+* Manage Java dependencies
+* Configure projects such as Java, Python, Go, Proto, Docker, Grpc, and Avro
+  * For Java, use `applyJavaNature`; for Python, use `applyPythonNature`
+  * Define common custom tasks for each type of project
+    * `test`: run Java unit tests
+    * `spotlessApply`: format Java code
+
+In every Java project or subproject, the `build.gradle` file starts with the following code:
 
 ```groovy
 
@@ -70,98 +136,69 @@ apply plugin: 'org.apache.beam.module'
 applyJavaNature( ... )
 ```
 
-Relevant usage of `BeamModulePlugin` includes:
-* Manage Java dependencies
-* Configure projects (Java, Python, Go, Proto, Docker, Grpc, Avro, an so on)
-  * Java -> `applyJavaNature`; Python -> `applyPythonNature`, and so on
-  * Define common custom tasks for each type of project
-    * `test`: run Java unit tests
-    * `spotlessApply`: format java code
+### Environment setup
 
-## Code paths
+To set up a local development environment, first review the [Contribution guide](../CONTRIBUTING.md).
+If you plan to use Dataflow, you need to set up `gcloud` credentials. To set up `gcloud` credentials, see
+[Create a Dataflow pipeline using Java](https://cloud.google.com/dataflow/docs/quickstarts/create-pipeline-java)
+in the Google Cloud documentation.
 
-The following are example code paths relevant for SDK development:
+Depending on the languages involved, your `PATH` file needs to have the following elements configured.
 
-Java code paths are mainly found in two directories:
-
-* `sdks/java` Java SDK
-  * `sdks/java/core` Java core
-  * `sdks/java/harness` SDK harness (entrypoint of SDK container)
-
-* `runners` Java runner supports. For example,
-  * `runners/direct-java` Java direct runner
-  * `runners/flink-java` Java Flink runner
-  * `runners/google-cloud-dataflow-java` Dataflow runner (job submission, translation, etc)
-    * `runners/google-cloud-dataflow-java/worker` Worker on Dataflow legacy runner
-
-For SDKS in other language, all relevant files are in `sdks/LANG`, for example,
-
-* `sdks/python` contains the setup file and scripts to trigger test-suites
-  * `sdks/python/apache_beam` actual beam package
-    * `sdks/python/apache_beam/runners/worker` SDK worker harness entrypoint, state sampler
-    * `sdks/python/apache_beam/io` I/O connectors
-    * `sdks/python/apache_beam/transforms` most "core" components
-    * `sdks/python/apache_beam/ml` Beam ML
-    * `sdks/python/apache_beam/runners` runner implementations and wrappers
-    * ...
-
-* `sdks/go` Go SDK
-
-* `.github/workflow` GitHub action workflows (for example, tests run under PR). Most
-  workflows run a single Gradle command. Check which command is running for
-  a test so that you can run the same command locally during development.
-
-## Environment setup
-
-To set up local development environments, first see the [Contributing guide](../CONTRIBUTING.md) .
-If you plan to use Dataflow, see the [Google Cloud documentation](https://cloud.google.com/dataflow/docs/quickstarts/create-pipeline-java) to setup `gcloud` credentials.
-
-To check if your environment is set up, follow these steps:
-
-Depending on the languages involved, your `PATH` needs to have the following elements configured.
-
-* A Java environment (any supported Java version, Java8 preferably as of 2024).
+* A Java environment that uses a supported Java version, preferably Java 8.
   * This environment is needed for all development, because Beam is a Gradle project that uses JVM.
-  * Recommended: Use [sdkman](https://sdkman.io/install) to manage Java versions.
-* A Python environment (any supported Python version)
-  * Needed for Python SDK development
-  * Recommended: Use [`pyenv`](https://github.com/pyenv/pyenv) and
-    a [virtual environment](https://docs.python.org/3/library/venv.html) to manage Python versions.
-* A Go environment. Install the latest Go version.
-  * Needed for Go SDK development and SDK container change (for all SDKs), because
-  the container entrypoint scripts are written in Go.
-* A Docker environment.
-  * Needed for SDK container changes, some cross-language functionality (if you run a
-    SDK container image; not required since Beam 2.53.0), portable runners (using job server), etc.
+  * Recommended: To manage Java versions, use [sdkman](https://sdkman.io/install).
 
-For example:
+* A Python environment that uses any supported Python version.
+  * This environment is needed for Python SDK development.
+  * Recommended: To manage Python versions, use [`pyenv`](https://github.com/pyenv/pyenv) and
+    a [virtual environment](https://docs.python.org/3/library/venv.html).
+
+* A Go environment that uses latest Go version.
+  * This environment is needed for Go SDK development.
+  * This environment is also needed for SDK container changes for all SDKs, because
+    the container entrypoint scripts are written in Go.
+
+* A Docker environment. This environment is needed for the following tasks:
+  * SDK container changes.
+  * Some cross-language functionality (if you run an SDK container image; not required in Beam 2.53.0 and later verions).
+  * Portable runners, such as using job server.
+
+The following list provides examples of when you need specific environemnts.
+
 - When you test the code change in `sdks/java/io/google-cloud-platform`, you need a Java environment.
 - When you test the code change in `sdks/java/harness`, you need a Java environment, a Go
   environment, and Docker environment. You need the Docker environment to compile and build the Java SDK harness container image.
 - When you test the code change in `sdks/python/apache_beam`, you need a Python environment.
 
-# Java guide
-This section provides guidance for setting up your Java environment.
-## IDE (IntelliJ) setup
+## Java development guide
 
-1. From IntelliJ, open `/beam` (**Important:** Open the repository root directory, instead of
+This section provides guidance for setting up your environment to modify or test Java code.
+
+### IDE (IntelliJ) setup
+
+To set up IntelliJ, follow these steps. The IDE isn't required for changing the code and testing.
+You can run tests can by using a Gradle command line, as described in the Console setup section.
+
+1. From IntelliJ, open `/beam` (**Important:** Open the repository root directory, not
   `sdks/java`).
 
 2. Wait for indexing. Indexing might take a few minutes.
 
-If the prerequisites are met, the environment set up is complete, because Gradle is a self-contained build tool.
+Because Gradle is a self-contained build tool, if the prerequisites are met, the environment setup is complete.
 
-To verify whether the load is successful, find the file `examples/java/build.gradle`. Next to the wordCount task,
-a **Run** button is present. Click **Run**. The wordCount example compiles and runs.
+To verify whether the load is successful, follow these steps:
+
+1. Find the file `examples/java/build.gradle`.
+2. Next to the wordCount task, a **Run** button is present. Click **Run**. The wordCount example compiles and runs.
 
 <img width="631" alt="image" src="https://github.com/apache/beam/assets/8010435/f5203e8e-0f9c-4eaa-895b-e16f68a808a2">
 
-**Note:** The IDE is not required for changing the code and testing.
-You can run tests can by using a Gradle command line, as described in the Console (shell) setup section.
+### Console setup
 
-## Console (shell) setup
-
-To run tests by using the Gradle command line, in the command-line environment, run the following command:
+To run tests by using the Gradle command line (shell), in the command-line environment, run the following command.
+This command compiles the Apache Beam SDK, the WordCount pipeline, and a Hello-world program for
+data processing. It then runs the pipeline on the Direct Runner.
 
 ```shell
 $ cd beam
@@ -211,16 +248,11 @@ chanced: 1
 ...
 ```
 
-*What does this command do?*
+### Run a unit test
 
-This command compiles the beam SDK and the WordCount pipeline, a Hello-world program for
-data processing, then runs the pipeline on the Direct Runner.
+This section explains how to run unit tests locally after you make a code change in the Java SDK, for example, in `sdks/java/io/jdbc`.
 
-## Run a unit test
-
-This section explains how to run unit tests locally after you make a code change in the Java SDK (for example, in `sdks/java/io/jdbc`).
-
-Tests are under the `src/test/java` folder of each project. Unit tests have the filename `.../**Test.java`. Integration tests have the filename `.../**IT.java`.
+Tests are stored in the `src/test/java` folder of each project. Unit tests have the filename `.../**Test.java`. Integration tests have the filename `.../**IT.java`.
 
 * To run all unit tests under a project, use the following command:
   ```
@@ -229,59 +261,67 @@ Tests are under the `src/test/java` folder of each project. Unit tests have the 
   Find the  JUnit report in an HTML file in the file path `<invoked_project>/build/reports/tests/test/index.html`.
 
 * To run a specific test, use the following commands:
+
   ```
   ./gradlew :sdks:java:harness:test --tests org.apache.beam.fn.harness.CachesTest
   ./gradlew :sdks:java:harness:test --tests *CachesTest
   ./gradlew :sdks:java:harness:test --tests *CachesTest.testClearableCache
   ```
 
-* To run tests using IntelliJ, click the ticks to run a whole test class or a specific test. You can set breakpoints to debug the test.
+* To run tests using IntelliJ, click the ticks to run either a whole test class or a specific test. To debug the test, set breakpoints.
+
   <img width="452" alt="image" src="https://github.com/apache/beam/assets/8010435/7ae2a65c-a104-48a2-8bad-ff8c52dd1943">
 
-* These steps don't apply to `sdks:java:core` tests. Instead, invoke the unit tests by using `:runners:direct-java:needsRunnerTest`. Java core doesn't depend on a runner. Therefore, unit tests that run a pipeline require the Direct Runner.
-
+* These steps don't apply to `sdks:java:core` tests. To invoke those unit tests, use the command `:runners:direct-java:needsRunnerTest`. Java core doesn't depend on a runner. Therefore, unit tests that run a pipeline require the Direct Runner.
 
 To run integration tests, use the Direct Runner.
 
-## Run integration tests (*IT.java)
+### Run integration tests
 
-Integration tests use [`TestPipeline`](https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/testing/TestPipeline.java). Set options by using `TestPipelineOptions`.
+Integration tests have the filename `.../**IT.java`. They use [`TestPipeline`](https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/testing/TestPipeline.java). Set options by using `TestPipelineOptions`.
 
 Integration tests differ from standard pipelines in the following ways:
-* By default, they block on run (on TestDataflowRunner).
+
+* By default, they block on run (on `TestDataflowRunner`).
 * They have a default timeout of 15 minutes.
 * The pipeline options are set in the system property `beamTestPipelineOptions`.
 
-Note the final difference, because you need to configure the test by setting `-DbeamTestPipelineOptions=[...]`. This property is where you set the runner to use.
+To configure the test, you need to set the property `-DbeamTestPipelineOptions=[...]`. This property sets the runner that the test uses.
 
-The following example demonstrates how to run an integration test by using the command line. This example includes the options required to run the pipeline on the Dataflow runner:
+The following example demonstrates how to run an integration test by using the command line. This example includes the options required to run the pipeline on the Dataflow runner.
+
 ```
 -DbeamTestPipelineOptions='["--runner=TestDataflowRunner","--project=mygcpproject","--region=us-central1","--stagingLocation=gs://mygcsbucket/path"]'
 ```
 
-### Write an integration test
+#### Write integration tests
 
 To set up a `TestPipeline` object in an integration test, use the following code:
-  ```java
 
-  @Rule public TestPipeline pipelineWrite = TestPipeline.create();
+```java
+@Rule public TestPipeline pipelineWrite = TestPipeline.create();
 
-  @Test
-  public void testSomething() {
-    pipeline.apply(...);
+@Test
+public void testSomething() {
+  pipeline.apply(...);
 
-    pipeline.run().waitUntilFinish();
-  }
-  ```
+  pipeline.run().waitUntilFinish();
+}
+```
 
 The task that runs the test needs to specify the runner. The following examples demonstrate how to specify the runner:
-  * To run a Google Cloud I/O integration test on the Direct Runner, use `:sdks:java:io:google-cloud-platform:integrationTest`
-  * To run integration tests on the standard Dataflow runner, use `:runners:google-cloud-dataflow-java:googleCloudPlatformLegacyWorkerIntegrationTest`
-  * To run integration test on Dataflow runner v2, use `:runners:google-cloud-dataflow-java:googleCloudPlatformRunnerV2IntegrationTest`
+
+* To run a Google Cloud I/O integration test on the Direct Runner, use the
+  command `:sdks:java:io:google-cloud-platform:integrationTest`.
+* To run integration tests on the standard Dataflow runner, use the command
+  `:runners:google-cloud-dataflow-java:googleCloudPlatformLegacyWorkerIntegrationTest`.
+* To run integration test on Dataflow runner v2, use the command
+  `:runners:google-cloud-dataflow-java:googleCloudPlatformRunnerV2IntegrationTest`.
 
 To see how to run your workflow locally, refer to the Gradle command that the GitHub Action workflow runs.
 
-Example invocation:
+The following commands demonstrate an example invocation:
+
 ```
 ./gradlew :runners:google-cloud-dataflow-java:examplesJavaRunnerV2IntegrationTest \
 -PdisableSpotlessCheck=true -PdisableCheckStyle=true -PskipCheckerFramework \
@@ -289,95 +329,129 @@ Example invocation:
 -PgcsTempRoot=gs://<your_gcs_bucket>/tmp
 ```
 
-## Run your pipeline with modified beam code
+### Run your pipeline with modified beam code
 
-To apple code changes to your pipeline, we recommend that you start with a separate branch.
+To apply code changes to your pipeline, we recommend that you start with a separate branch.
 
-* If you're making a pull request or want to test a change with the dev branch, start from Beam HEAD ([master](https://github.com/apache/beam/tree/master)).
+* If you're making a pull request or want to test a change with the dev branch, start from
+  Beam HEAD ([master](https://github.com/apache/beam/tree/master)).
 
-* If you're making a patch on released Beam (2._xx_.0), start from a tag (for example, [v2.55.0](https://github.com/apache/beam/tree/v2.55.0)), then in the Beam repo, compile the project involving the code change with the following command. This example modifies `sdks/java/io/kafka`.
+* If you're making a patch on released Beam (2._xx_.0), start from a tag, such as
+  [v2.55.0](https://github.com/apache/beam/tree/v2.55.0). Then, in the Beam repo,
+  use the following command to compile the project that includes the code change.
+  This example modifies `sdks/java/io/kafka`.
 
   ```
   ./gradlew -Ppublishing -p sdks/java/io/kafka publishToMavenLocal
   ```
-  By default, this command publishes the artifact with modified code to the Maven Local repository (`~/.m2/repository`). The change is picked up when the user pipeline runs.
+  By default, this command publishes the artifact with modified code to the Maven Local
+  repository (`~/.m2/repository`). The change is picked up when the user pipeline runs.
 
-If your code change is made in a development branch, such as on Beam master or a PR, instead of on a release tag, the artifact is produced under version `2.xx.0-SNAPSHOT`. You need to make additional configurations in your pipeline project in order to pick up this dependency. The following examples provide guidance for making configurations in Maven and Gradle.
+If your code change is made in a development branch, such as on Beam master or a PR, the
+artifact is produced under version `2.xx.0-SNAPSHOT` instead of on a release tag. To pick
+up this dependency, you need to make additional configurations in your pipeline project.
+The following examples provide guidance for making configurations in Maven and Gradle.
 
-* Follow these steps for Maven projects.
-  1. Recommended: Use the WordCount `maven-archetype` as a template to set up your project (https://beam.apache.org/get-started/quickstart-java/).
-  2. To add a snapshot repository, include the following elements:
+Follow these steps for Maven projects.
+
+1. Recommended: Use the WordCount `maven-archetype` as a template to set up your project (https://beam.apache.org/get-started/quickstart-java/).
+
+2. To add a snapshot repository, include the following elements:
     ```xml
     <repository>
       <id>Maven-Snapshot</id>
       <name>maven snapshot repository</name>
       <url>https://repository.apache.org/content/groups/snapshots/</url>
     </repository>
-  3. In the `pom.xml` file, modify the value of `beam.version`:
+    ```
+
+3. In the `pom.xml` file, modify the value of `beam.version`:
     ```xml
     <properties>
     <beam.version>2.XX.0-SNAPSHOT</beam.version>
     ```
 
-* Follow these steps for Gradle projects.
-  1. In the `build.gradle` file, add the following code:
+Follow these steps for Gradle projects.
+
+1. In the `build.gradle` file, add the following code:
+
     ```groovy
     repositories {
     maven { url "https://repository.apache.org/content/groups/snapshots" }
     }
     ```
-  2. Set the beam dependency versions to the following value: `2.XX.0-SNAPSHOT`.
 
-This configuration directs the build system to download Beam nightly builds from the Maven Snapshot Repository. The local build that you edited isn't downloaded. You don't need to build all Beam artifacts locally. If you do need to build all Beam artifacts locally, use the following command for all projects `./gradlew -Ppublishing  publishToMavenLocal`.
+2. Set the Beam dependency versions to the following value: `2.XX.0-SNAPSHOT`.
+
+This configuration directs the build system to download Beam nightly builds from the Maven
+Snapshot Repository. The local build that you edited isn't downloaded. You usually don't
+need to build all Beam artifacts locally. If you do need to build all Beam artifacts locally,
+use the following command for all projects `./gradlew -Ppublishing  publishToMavenLocal`.
 
 The following situations require additional consideration.
 
-* If you're using the standard Dataflow runner (not Runner v2), and the worker harness has changed, do the following:
-  1. Use the following command to compile `dataflowWorkerJar`:
+If you're using the standard Dataflow runner (not Runner v2), and the worker harness has changed, do the following:
+
+1. Use the following command to compile `dataflowWorkerJar`:
+
     ```
     ./gradlew :runners:google-cloud-dataflow-java:worker:shadowJar
     ```
     The jar is located in the build output.
-  2. Use the following command to pass `pipelineOption`:
+
+2. Use the following command to pass `pipelineOption`:
+
     ```
     --dataflowWorkerJar=/.../beam-runners-google-cloud-dataflow-java-legacy-worker-2.XX.0-SNAPSHOT.jar
     ```
 
-* If you're using Dataflow Runner v2 and `sdks/java/harness` or its dependency (like `sdks/java/core`) have changed, do the following:
-  1. Use the following command to build the SDK harness container:
+If you're using Dataflow Runner v2 and `sdks/java/harness` or its dependencies (like `sdks/java/core`) have changed, do the following:
+
+1. Use the following command to build the SDK harness container:
+
     ```shell
     ./gradlew :sdks:java:container:java8:docker # java8, java11, java17, etc
   docker tag apache/beam_java8_sdk:2.49.0.dev \
     "us.gcr.io/apache-beam-testing/beam_java11_sdk:2.49.0-custom"  # change to your container registry
   docker push "us.gcr.io/apache-beam-testing/beam_java11_sdk:2.49.0-custom"
     ```
-  2. Run the pipeline with the following options:
+
+2. Run the pipeline with the following options:
+
   ```
   --experiments=use_runner_v2 \
   --sdkContainerImage="us.gcr.io/apache-beam-testing/beam_java11_sdk:2.49.0-custom"
   ```
 
-# Python guide
+## Python guide
 
-The Beam Python SDK is distributed as a single wheel, which is more straightforward than the Java SDK. Python development is consequently less complicated.
+The Beam Python SDK is distributed as a single wheel, which is more straightforward than the Java SDK.
 
-## Console (shell) setup
+### Console setup
 
-These instructions explain how to configure your console. In this example, the working directory is set to `sdks/python`.
+These instructions explain how to configure your console (shell) for Python development. In this example, the working directory is set to `sdks/python`.
 
 1. Recommended: Install the Python interpreter by using `pyenv`. Use the following commands:
-  a. install prerequisites
-  b. `curl https://pyenv.run | bash`
-  c. `pyenv install 3.X` (a supported Python version, refer to python_version in [project property](https://github.com/apache/beam/blob/master/gradle.properties)
+
+  1. `install prerequisites`
+  2. `curl https://pyenv.run | bash`
+  3. `pyenv install 3.X` (a supported Python version; see `python_version` in [project property](https://github.com/apache/beam/blob/master/gradle.properties)
+
 2. Use the following commands to set up and activate the virtual environment:
-  a. `pyenv virtualenv 3.X ENV_NAME`
-  b. `pyenv activate ENV_NAME`
+
+  1. `pyenv virtualenv 3.X ENV_NAME`
+  2. `pyenv activate ENV_NAME`
+
 3. Install the `apache_beam` package in editable mode:
   `pip install -e .[gcp, test]`
+
 4. For development that uses an SDK container image, do the following:
-  a. Install Docker Desktop
-  b. Install Go
-5. If you're going to submit PRs, precommit the hook for Python code changes (nobody likes lint failures!!):
+
+  1. Install Docker Desktop.
+  2. Install Go.
+
+5. If you're going to submit PRs, use the following command to precommit the hook for Python code changes (nobody likes lint failures!!):
+
   ```shell
   # enable pre-commit
   (env) $ pip install pre-commit
@@ -387,30 +461,33 @@ These instructions explain how to configure your console. In this example, the w
   (env) $ pre-commit uninstall
   ```
 
-## Run a unit test
+### Run a unit test
 
-**Note** Although the tests can be triggered with a Gradle command, that method sets up a fresh `virtualenv` and installs dependencies before each run, which takes minutes. Therefore, it's useful to have a persistent `virtualenv`.
+Although the tests can be triggered with a Gradle command, that method sets up a new `virtualenv` and installs dependencies before each run, which takes minutes. Therefore, it's useful to have a persistent `virtualenv`.
 
-Unit tests have the filename `**_test.py`. Integration tests have the filename `**_it_test.py`.
+Unit tests have the filename `**_test.py`.
 
-* To run all tests in a file, use the following command:
+To run all tests in a file, use the following command:
 
 ```shell
 pytest -v  apache_beam/io/textio_test.py
 ```
 
-* To run all tests in a class, use the following command:
+To run all tests in a class, use the following command:
 
 ```shell
 pytest -v  apache_beam/io/textio_test.py::TextSourceTest
 ```
 
-* To run a specific test, use the following command:
+To run a specific test, use the following command:
+
 ```shell
 pytest -v  apache_beam/io/textio_test.py::TextSourceTest::test_progress
 ```
 
-## Run an integration test
+### Run an integration test
+
+Integration tests have the filename `**_it_test.py`.
 
 To run an integration test on the Direct Runner, use the following command:
 
@@ -420,17 +497,20 @@ python -m pytest -o log_cli=True -o log_level=Info \
   --test-pipeline-options='--runner=TestDirectRunner’
 ```
 
-If you are preparing a PR, add tests paths [here](https://github.com/apache/beam/blob/2012107a0fa2bb3fedf1b5aedcb49445534b2dad/sdks/python/test-suites/direct/common.gradle#L44) for test-suites to run in PostCommit Python.
+If you're preparing a PR, for test-suites to run in PostCommit Python, add tests paths under [`batchTests`](https://github.com/apache/beam/blob/2012107a0fa2bb3fedf1b5aedcb49445534b2dad/sdks/python/test-suites/direct/common.gradle#L44) in the `common.gradle` file.
 
 To run an integration test on the Dataflow Runner, follow these steps:
-  1. To build the SDK tarball, use the following command:
+
+1. To build the SDK tarball, use the following command:
+
   ```
   cd sdks/python
-  pip install build && python -m build –sdist
+  pip install build && python -m build --sdist
   ```
   The tarball file is generated in the `sdks/python/sdist/` directory.
 
-  2. Use the `--test-pipeline-options` parameter to specify the tarball file. Use the location `--sdk_location=dist/apache-beam-2.53.0.dev0.tar.gz`. The following example shows the complete command:
+2. To specify the tarball file, use the `--test-pipeline-options` parameter. Use the location `--sdk_location=dist/apache-beam-2.53.0.dev0.tar.gz`. The following example shows the complete command:
+
   ```shell
   python -m pytest -o log_cli=True -o log_level=Info \
   apache_beam/ml/inference/pytorch_inference_it_test.py::PyTorchInference \
@@ -440,10 +520,11 @@ To run an integration test on the Dataflow Runner, follow these steps:
                            --region=us-central1’
   ```
 
-  3. If you are preparing a PR, to include integration tests in the Python PostCommit test suite's Dataflow task, use the marker `@pytest.mark.it_postcommit`.
+3. If you're preparing a PR, to include integration tests in the Python PostCommit test
+   suite's Dataflow task, use the marker `@pytest.mark.it_postcommit`.
 
 
-### Build containers for modified SDK code
+#### Build containers for modified SDK code
 
 To build containers for modified SDK code, follow these steps.
 
@@ -466,11 +547,11 @@ python -m pytest  -o log_cli=True -o log_level=Info \
                            --region=us-central1’
 ```
 
-### Specify additional test dependencies
+#### Specify additional test dependencies
 
-This section explains how to specify additional test dependencies.
+This section provides two options for specifying additional test dependencies.
 
-Option 1: Use the `--requirements_file` options. The following example demonstrates how to use this option:
+Use the `--requirements_file` options. The following example demonstrates how to use the `--requirements_file` options:
 
 ```shell
 python -m pytest  -o log_cli=True -o log_level=Info \
@@ -482,30 +563,32 @@ python -m pytest  -o log_cli=True -o log_level=Info \
                            –requirements_file=requirements.txt’
 ```
 
-Option 2: If you're using the Dataflow runner, use [custom containers](https://cloud.google.com/dataflow/docs/guides/using-custom-containers).
+If you're using the Dataflow runner, use [custom containers](https://cloud.google.com/dataflow/docs/guides/using-custom-containers).
+You can use the [official Beam SDK container image](https://gcr.io/apache-beam-testing/beam-sdk) as a base and then apply your changes.
 
-It is convenient to use the [official Beam SDK container image](https://gcr.io/apache-beam-testing/beam-sdk) as a base and then apply your changes.
-
-## Run your pipeline with modified beam code
+### Run your pipeline with modified beam code
 
 To run your pipeline with modified beam code, follow these steps:
 
-1. Build the Beam SDK tarball as described previously (under `sdks/python`, run `python -m build –sdist`).
+1. Build the Beam SDK tarball. Under `sdks/python`, run `python -m build --sdist`. For more details,
+  see [Run an integration test](#run-an-integration-test) on this page.
 
-2. Install the Beam SDK in your Python virtual environment with the necessary extensions, for example `pip install /path/to/apache-beam.tar.gz[gcp]`.
+2. Install the Apache Beam Python SDK in your Python virtual environment with the necessary
+  extensions. Use a command similar to the following example: `pip install /path/to/apache-beam.tar.gz[gcp]`.
 
 3. Initiate your Python script. To run your pipeline, use a command similar to the following example:
+
   ```shell
   python my_pipeline.py --runner=DataflowRunner --sdk_location=/path/to/apache-beam.tar.gz --project=my_project --region=us-central1 --temp_location=gs://my-bucket/temp ...
   ```
 
 Tips for using the Dataflow runner:
 
-* The Python worker installs the Apache Beam SDK before processing work items. Therefore, you don't usually need to provide a custom worker container. If your Google Cloud VM doesn't have internet access and transient dependencies are changed from the officially released container images, you do need to provide a custom worker container. In this case, see the section "Build containers for modified SDK code."
+* The Python worker installs the Apache Beam SDK before processing work items. Therefore, you don't usually need to provide a custom worker container. If your Google Cloud VM doesn't have internet access and transient dependencies are changed from the officially released container images, you do need to provide a custom worker container. In this case, see [Build containers for modified SDK code](#build-containers-for-modified-sdk-code) on this page.
 
-* Installing the Beam Python SDK from source can be slow (3.5 minutes for  a`n1-standard-1` machine). As an alternative, if the host machine uses amd64 architecture, you can build a wheel instead of a tarball by using a command similar to `./gradle :sdks:python:bdistPy311linux` (for Python 3.11). Pass the built wheel using the `--sdk_location` option. That installation completes in seconds.
+* Installing the Beam Python SDK from source can be slow (3.5 minutes for  a`n1-standard-1` machine). As an alternative, if the host machine uses amd64 architecture, you can build a wheel instead of a tarball by using a command similar to `./gradle :sdks:python:bdistPy311linux` (for Python 3.11). To pass the built wheel, use the `--sdk_location` option. That installation completes in seconds.
 
-### Caveat - `save_main_session`
+#### Caveat - `save_main_session`
 
 * `NameError` when running `DoFn` on remote runner
 * Global imports, functions, and variables in main pipeline module are not serialized by default
@@ -515,9 +598,9 @@ Tips for using the Dataflow runner:
 
 <!-- # Cross-language Guide -->
 
-# Appendix
+## Appendix
 
-## Directories of snapshot builds
+### Directories of snapshot builds
 
 * https://repository.apache.org/content/groups/snapshots/org/apache/beam/ Java SDK build (nightly)
 * https://gcr.io/apache-beam-testing/beam-sdk Beam SDK container build (Java, Python, Go, every 4 hrs)

@@ -652,6 +652,17 @@ public class GcsUtil {
     createBucket(projectId, bucket, createBackOff(), Sleeper.DEFAULT);
   }
 
+  /** Get the {@link Bucket} from Cloud Storage path or propagates an exception. */
+  @Nullable
+  public Bucket getBucket(GcsPath path) throws IOException {
+    return getBucket(path, createBackOff(), Sleeper.DEFAULT);
+  }
+
+  /** Remove an empty {@link Bucket} in Cloud Storage or propagates an exception. */
+  public void removeBucket(Bucket bucket) throws IOException {
+    removeBucket(bucket, createBackOff(), Sleeper.DEFAULT);
+  }
+
   /**
    * Returns whether the GCS bucket exists. This will return false if the bucket is inaccessible due
    * to permissions.
@@ -750,6 +761,40 @@ public class GcsUtil {
               "Error while attempting to create bucket gs://%s for project %s",
               bucket.getName(), projectId),
           e);
+    }
+  }
+
+  @VisibleForTesting
+  void removeBucket(Bucket bucket, BackOff backoff, Sleeper sleeper) throws IOException {
+    Storage.Buckets.Delete getBucket = storageClient.buckets().delete(bucket.getName());
+
+    try {
+      ResilientOperation.retry(
+          getBucket::execute,
+          backoff,
+          new RetryDeterminer<IOException>() {
+            @Override
+            public boolean shouldRetry(IOException e) {
+              if (errorExtractor.itemNotFound(e) || errorExtractor.accessDenied(e)) {
+                return false;
+              }
+              return RetryDeterminer.SOCKET_ERRORS.shouldRetry(e);
+            }
+          },
+          IOException.class,
+          sleeper);
+    } catch (GoogleJsonResponseException e) {
+      if (errorExtractor.accessDenied(e)) {
+        throw new AccessDeniedException(bucket.getName(), null, e.getMessage());
+      }
+      if (errorExtractor.itemNotFound(e)) {
+        throw new FileNotFoundException(e.getMessage());
+      }
+      throw e;
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new IOException(
+          String.format("Error while attempting to remove bucket gs://%s", bucket.getName()), e);
     }
   }
 

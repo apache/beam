@@ -151,11 +151,10 @@ public class KafkaReadSchemaTransformProvider
         }
       };
     }
-
-    if (format.equals("RAW")) {
+    if ("RAW".equals(format)) {
       beamSchema = Schema.builder().addField("payload", Schema.FieldType.BYTES).build();
       valueMapper = getRawBytesToRowFunction(beamSchema);
-    } else if (format.equals("PROTO")) {
+    } else if ("PROTO".equals(format)) {
       String fileDescriptorPath = configuration.getFileDescriptorPath();
       String messageName = configuration.getMessageName();
       if (fileDescriptorPath != null) {
@@ -165,7 +164,7 @@ public class KafkaReadSchemaTransformProvider
         beamSchema = ProtoByteUtils.getBeamSchemaFromProtoSchema(inputSchema, messageName);
         valueMapper = ProtoByteUtils.getProtoBytesToRowFromSchemaFunction(inputSchema, messageName);
       }
-    } else if (format.equals("JSON")) {
+    } else if ("JSON".equals(format)) {
       beamSchema = JsonUtils.beamSchemaFromJsonSchema(inputSchema);
       valueMapper = JsonUtils.getJsonBytesToRowFunction(beamSchema);
     } else {

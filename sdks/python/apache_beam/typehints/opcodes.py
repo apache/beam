@@ -471,7 +471,7 @@ load_fast_check = load_fast
 
 def load_fast_and_clear(state, arg):
   state.stack.append(state.vars[arg])
-  del state.vars[arg]
+  state.vars[arg] = None
 
 
 def store_fast(state, arg):
