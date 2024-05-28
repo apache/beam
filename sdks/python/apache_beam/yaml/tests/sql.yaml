@@ -49,6 +49,7 @@ pipelines:
 
             - type: Sql
               config:
+                dialect: X
                 query:
                   "SELECT a, sum(b) as s FROM PCOLLECTION GROUP BY a"
 
