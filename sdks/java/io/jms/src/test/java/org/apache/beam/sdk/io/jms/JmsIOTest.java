@@ -1082,9 +1082,6 @@ public class JmsIOTest {
     assertNull(consumer.receiveNoWait());
   }
 
-  @Test
-  public void testConnectionFactoryProviderFn() throws Exception {}
-
   private int count(String queue) throws Exception {
     Connection connection = connectionFactory.createConnection(USERNAME, PASSWORD);
     connection.start();
