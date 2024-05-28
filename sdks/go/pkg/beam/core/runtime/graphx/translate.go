@@ -112,6 +112,7 @@ func goCapabilities() []string {
 		URNBaseVersionGo,
 		URNToString,
 		URNDataSampling,
+		URNSDKDataChannelStatusSignal,
 	}
 	return append(capabilities, knownStandardCoders()...)
 }
