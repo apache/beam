@@ -18,6 +18,8 @@ name: IcebergIO Performance Tests
 on:
   schedule:
     - cron: '10 10/12 * * *'
+  pull_request_target:
+    paths: [ '.github/trigger_files/IO_Iceberg_Performance_Tests.json' ]
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
