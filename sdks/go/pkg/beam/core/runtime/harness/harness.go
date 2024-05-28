@@ -552,8 +552,8 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 			InstructionId: string(instID),
 			Response: &fnpb.InstructionResponse_ProcessBundleProgress{
 				ProcessBundleProgress: &fnpb.ProcessBundleProgressResponse{
-					MonitoringData:             pylds,
-					MonitoringInfos:            mons,
+					MonitoringData:        pylds,
+					MonitoringInfos:       mons,
 					ConsumingReceivedData: &ConsumingReceivedData,
 				},
 			},

@@ -65,7 +65,7 @@ type DataSource struct {
 	// Whether the downstream transform only iterates a GBK coder once.
 	singleIterate bool
 
-  // represents if the SDK is consuming received data.
+	// represents if the SDK is consuming received data.
 	consumingReceivedData atomic.Bool
 }
 
@@ -157,7 +157,7 @@ func (n *DataSource) process(ctx context.Context, data func(bcr *byteCountReader
 			// io.EOF means the reader successfully drained.
 			// We're ready for a new buffer.
 		case <-ctx.Done():
-		  // now that it is done processing received data, we set it to false.
+			// now that it is done processing received data, we set it to false.
 			n.consumingReceivedData.Store(false)
 			return nil
 		}
@@ -436,7 +436,7 @@ type ProgressReportSnapshot struct {
 	ID, Name string
 	Count    int64
 
-	pcol PCollectionSnapshot
+	pcol                  PCollectionSnapshot
 	ConsumingReceivedData bool
 }
 
