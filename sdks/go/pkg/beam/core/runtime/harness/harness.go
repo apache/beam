@@ -546,7 +546,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 			}
 		}
 
-		mons, pylds, WaitingForRunnerToSendData := monitoring(plan, store, c.runnerCapabilities[URNMonitoringInfoShortID])
+		mons, pylds, ConsumingReceivedData := monitoring(plan, store, c.runnerCapabilities[URNMonitoringInfoShortID])
 
 		return &fnpb.InstructionResponse{
 			InstructionId: string(instID),
@@ -554,7 +554,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 				ProcessBundleProgress: &fnpb.ProcessBundleProgressResponse{
 					MonitoringData:             pylds,
 					MonitoringInfos:            mons,
-					WaitingForRunnerToSendData: &WaitingForRunnerToSendData,
+					ConsumingReceivedData: &ConsumingReceivedData,
 				},
 			},
 		}

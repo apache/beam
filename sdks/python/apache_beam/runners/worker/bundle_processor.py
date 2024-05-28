@@ -956,8 +956,8 @@ class BundleProcessor(object):
     self.data_channel_factory = data_channel_factory
     self.data_sampler = data_sampler
     self.current_instruction_id = None  # type: Optional[str]
-    # Represents whether the SDK is ready to receive more data from the Runner.
-    self.waiting_for_runner_to_send_data = False
+    # Represents whether the SDK is consuming received data.
+    self.consuming_received_data = False
 
     _verify_descriptor_created_in_a_compatible_env(process_bundle_descriptor)
     # There is no guarantee that the runner only set
@@ -1113,13 +1113,13 @@ class BundleProcessor(object):
 
       # Process data and timer inputs
       # We are ready to receive data from the Runner.
-      self.waiting_for_runner_to_send_data = True
+      self.consuming_received_data = False
       for data_channel, expected_inputs in data_channels.items():
         for element in data_channel.input_elements(instruction_id,
                                                    expected_inputs):
           # Since we have received an element, we are no longer ready to receive
           # more data.
-          self.waiting_for_runner_to_send_data = False
+          self.consuming_received_data = True
           if isinstance(element, beam_fn_api_pb2.Elements.Timers):
             timer_coder_impl = (
                 self.timers_info[(
@@ -1133,7 +1133,7 @@ class BundleProcessor(object):
                 element.data)
           # Since we have processed this element, we are now ready to
           # recieve the next one.
-          self.waiting_for_runner_to_send_data = True
+          self.consuming_received_data = False
 
       # Finish all operations.
       for op in self.ops.values():
@@ -1152,7 +1152,7 @@ class BundleProcessor(object):
               self.requires_finalization())
 
     finally:
-      self.waiting_for_runner_to_send_data = True
+      self.consuming_received_data = False
       # Ensure any in-flight split attempts complete.
       with self.splitting_lock:
         self.current_instruction_id = None

@@ -65,10 +65,8 @@ type DataSource struct {
 	// Whether the downstream transform only iterates a GBK coder once.
 	singleIterate bool
 
-	// state of the SDK with respect to the status of its data channel. If it is true, then the SDK
-	// is waiting for data to be sent to it. If it is false, then the SDK is not blocked on the Runner
-	// to make progress. This signal will only be interpreted by the Runner for sending large elements.
-	waitingForRunnerToSendData atomic.Bool
+  // represents if the SDK is consuming received data.
+	consumingReceivedData atomic.Bool
 }
 
 // InitSplittable initializes the SplittableUnit channel from the output unit,
@@ -131,11 +129,11 @@ func (n *DataSource) process(ctx context.Context, data func(bcr *byteCountReader
 	bcr := byteCountReader{reader: &r, count: &byteCount}
 
 	for {
-		n.waitingForRunnerToSendData.Store(true)
+		n.consumingReceivedData.Store(false)
 		var err error
 		select {
 		case e, ok := <-elms:
-			n.waitingForRunnerToSendData.Store(false)
+			n.consumingReceivedData.Store(true)
 			// Channel closed, so time to exit
 			if !ok {
 				return nil
@@ -159,7 +157,8 @@ func (n *DataSource) process(ctx context.Context, data func(bcr *byteCountReader
 			// io.EOF means the reader successfully drained.
 			// We're ready for a new buffer.
 		case <-ctx.Done():
-			n.waitingForRunnerToSendData.Store(true)
+		  // now that it is done processing received data, we set it to false.
+			n.consumingReceivedData.Store(false)
 			return nil
 		}
 	}
@@ -438,7 +437,7 @@ type ProgressReportSnapshot struct {
 	Count    int64
 
 	pcol PCollectionSnapshot
-	WaitingForRunnerToSendData bool
+	ConsumingReceivedData bool
 }
 
 // Progress returns a snapshot of the source's progress.
@@ -452,14 +451,14 @@ func (n *DataSource) Progress() ProgressReportSnapshot {
 	// which matches the index of the currently processing element.
 	c := n.index
 	// Retrieve the signal from the Data source.
-	waitingForRunnerToSendData := n.waitingForRunnerToSendData.Load()
+	consumingReceivedData := n.consumingReceivedData.Load()
 	n.mu.Unlock()
 	// Do not sent negative progress reports, index is initialized to 0.
 	if c < 0 {
 		c = 0
 	}
 	pcol.ElementCount = c
-	return ProgressReportSnapshot{ID: n.SID.PtransformID, Name: n.Name, Count: c, pcol: pcol, WaitingForRunnerToSendData: waitingForRunnerToSendData}
+	return ProgressReportSnapshot{ID: n.SID.PtransformID, Name: n.Name, Count: c, pcol: pcol, consumingReceivedData: consumingReceivedData}
 }
 
 // getProcessContinuation retrieves a ProcessContinuation that may be returned by

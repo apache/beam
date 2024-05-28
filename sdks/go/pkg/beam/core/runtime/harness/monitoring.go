@@ -247,5 +247,5 @@ func monitoring(p *exec.Plan, store *metrics.Store, supportShortID bool) ([]*pip
 				Payload: payload,
 			})
 	}
-	return monitoringInfo, payloads, snapshot.Source.WaitingForRunnerToSendData
+	return monitoringInfo, payloads, snapshot.Source.ConsumingReceivedData
 }

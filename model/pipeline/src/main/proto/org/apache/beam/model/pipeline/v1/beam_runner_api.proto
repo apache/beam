@@ -1673,11 +1673,9 @@ message StandardProtocols {
     // `enable_data_sampling` experiment.
     DATA_SAMPLING = 8 [(beam_urn) = "beam:protocol:data_sampling:v1"];
 
-    // Indicates that this SDK supplies signals related to its data channel's readiness
-    // to accept data from the Runner. This is crucial in cases where SDK iteration over large elements in shuffle is slow, as
-    // the signal can be understood by the Runner to see if it needs to continue waiting or exit.
-    SDK_DATA_CHANNEL_STATUS_SIGNAL = 9
-    [(beam_urn) = "beam:protocol:sdk_data_channel_status_signal:v1"];
+    // Indicates if the SDK is currently consuming received data.
+    SDK_CONSUMING_RECEIVED_DATA = 9
+    [(beam_urn) = "beam:protocol:sdk_consuming_received_data:v1"];
   }
 }
 

@@ -74,7 +74,7 @@ const (
 	URNWorkerStatus               = "beam:protocol:worker_status:v1"
 	URNMonitoringInfoShortID      = "beam:protocol:monitoring_info_short_ids:v1"
 	URNDataSampling               = "beam:protocol:data_sampling:v1"
-	URNSDKDataChannelStatusSignal = "beam:protocol:sdk_data_channel_status_signal:v1"
+	URNSDKConsumingReceivedData = "beam:protocol:sdk_consuming_received_data:v1"
 
 	URNRequiresSplittableDoFn     = "beam:requirement:pardo:splittable_dofn:v1"
 	URNRequiresBundleFinalization = "beam:requirement:pardo:finalization:v1"
@@ -112,7 +112,7 @@ func goCapabilities() []string {
 		URNBaseVersionGo,
 		URNToString,
 		URNDataSampling,
-		URNSDKDataChannelStatusSignal,
+		URNSDKConsumingReceivedData,
 	}
 	return append(capabilities, knownStandardCoders()...)
 }

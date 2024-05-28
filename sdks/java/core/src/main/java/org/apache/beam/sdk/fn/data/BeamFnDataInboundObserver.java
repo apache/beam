@@ -79,7 +79,7 @@ public class BeamFnDataInboundObserver implements CloseableFnDataReceiver<BeamFn
   private final int totalNumEndpoints;
   private int numEndpointsThatAreIncomplete;
 
-  private AtomicBoolean waitingForRunnerToSendData;
+  private AtomicBoolean consumingReceivedData;
 
   private BeamFnDataInboundObserver(
       List<DataEndpoint<?>> dataEndpoints, List<TimerEndpoint<?>> timerEndpoints) {
@@ -96,7 +96,7 @@ public class BeamFnDataInboundObserver implements CloseableFnDataReceiver<BeamFn
     this.queue = new CancellableQueue<>(100);
     this.totalNumEndpoints = dataEndpoints.size() + timerEndpoints.size();
     this.numEndpointsThatAreIncomplete = totalNumEndpoints;
-    this.waitingForRunnerToSendData = new AtomicBoolean(true);
+    this.consumingReceivedData = new AtomicBoolean(false);
   }
 
   @Override
@@ -114,8 +114,8 @@ public class BeamFnDataInboundObserver implements CloseableFnDataReceiver<BeamFn
     queue.cancel(CloseException.INSTANCE);
   }
 
-  public AtomicBoolean isWaitingForRunnerToSendData() {
-    return waitingForRunnerToSendData;
+  public AtomicBoolean isConsumingReceivedData() {
+    return consumingReceivedData;
   }
 
   /**
@@ -129,10 +129,10 @@ public class BeamFnDataInboundObserver implements CloseableFnDataReceiver<BeamFn
       while (true) {
         // The SDK is available to process data right before it is ready to take elements off the
         // queue.
-        waitingForRunnerToSendData.set(true);
+        consumingReceivedData.set(false);
         BeamFnApi.Elements elements = queue.take();
         // The SDK is now no longer available to receive more data, so we set it to false.
-        waitingForRunnerToSendData.set(false);
+        consumingReceivedData.set(true);
         if (multiplexElements(elements)) {
           return;
         }
@@ -141,7 +141,7 @@ public class BeamFnDataInboundObserver implements CloseableFnDataReceiver<BeamFn
       queue.cancel(e);
       throw e;
     } finally {
-      waitingForRunnerToSendData.set(true);
+      consumingReceivedData.set(false);
       close();
     }
   }
