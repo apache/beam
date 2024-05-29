@@ -685,7 +685,7 @@ public class ProcessBundleHandler {
     }
 
     response.setConsumingReceivedData(
-        bundleProcessor.getInboundObserver().isConsumingReceivedData().get());
+        bundleProcessor.getInboundObserver().isConsumingReceivedData());
 
     return BeamFnApi.InstructionResponse.newBuilder().setProcessBundleProgress(response);
   }

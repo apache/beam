@@ -114,8 +114,8 @@ public class BeamFnDataInboundObserver implements CloseableFnDataReceiver<BeamFn
     queue.cancel(CloseException.INSTANCE);
   }
 
-  public AtomicBoolean isConsumingReceivedData() {
-    return consumingReceivedData;
+  public boolean isConsumingReceivedData() {
+    return consumingReceivedData.get();
   }
 
   /**
@@ -127,11 +127,11 @@ public class BeamFnDataInboundObserver implements CloseableFnDataReceiver<BeamFn
   public void awaitCompletion() throws Exception {
     try {
       while (true) {
-        // The SDK is available to process data right before it is ready to take elements off the
-        // queue.
+        // The SDK indicates it has consumed all the received data before it attempts to take
+        // more elements off the queue.
         consumingReceivedData.set(false);
         BeamFnApi.Elements elements = queue.take();
-        // The SDK is now no longer available to receive more data, so we set it to false.
+        // The SDK is no longer blocked on receiving more data from the Runner.
         consumingReceivedData.set(true);
         if (multiplexElements(elements)) {
           return;

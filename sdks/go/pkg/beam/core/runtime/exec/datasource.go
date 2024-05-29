@@ -437,7 +437,7 @@ type ProgressReportSnapshot struct {
 	Count    int64
 
 	pcol                  PCollectionSnapshot
-	ConsumingReceivedData bool
+	consumingReceivedData bool
 }
 
 // Progress returns a snapshot of the source's progress.
@@ -458,7 +458,7 @@ func (n *DataSource) Progress() ProgressReportSnapshot {
 		c = 0
 	}
 	pcol.ElementCount = c
-	return ProgressReportSnapshot{ID: n.SID.PtransformID, Name: n.Name, Count: c, pcol: pcol, ConsumingReceivedData: consumingReceivedData}
+	return ProgressReportSnapshot{ID: n.SID.PtransformID, Name: n.Name, Count: c, pcol: pcol, consumingReceivedData: consumingReceivedData}
 }
 
 // getProcessContinuation retrieves a ProcessContinuation that may be returned by
