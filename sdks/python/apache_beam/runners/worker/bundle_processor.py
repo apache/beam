@@ -1118,8 +1118,8 @@ class BundleProcessor(object):
           elif isinstance(element, beam_fn_api_pb2.Elements.Data):
             input_op_by_transform_id[element.transform_id].process_encoded(
                 element.data)
-          # Since we have received a bundle of elements and are consuming it.
-          self.consuming_received_data = True
+          # We are done consuming the bundle.
+          self.consuming_received_data = False
 
       # Finish all operations.
       for op in self.ops.values():
@@ -1138,8 +1138,7 @@ class BundleProcessor(object):
               self.requires_finalization())
 
     finally:
-      # Since we have received a bundle of elements and are consuming it.
-      self.consuming_received_data = True
+      self.consuming_received_data = False
       # Ensure any in-flight split attempts complete.
       with self.splitting_lock:
         self.current_instruction_id = None
