@@ -758,8 +758,8 @@ class SdkWorker(object):
             monitoring_data={
                 SHORT_ID_CACHE.get_short_id(info): info.payload
                 for info in monitoring_infos
-            }),
-            consuming_received_data=consuming_received_data)
+            },
+            consuming_received_data=consuming_received_data))
 
   def finalize_bundle(
       self,
