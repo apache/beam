@@ -285,6 +285,8 @@ def _as_callable(original_fields, expr, transform_name, language, input_schema):
 
   # Extract original type from upstream pcoll when doing simple mappings
   original_type = input_schema.get(str(expr), None)
+  if expr in original_fields:
+    language = "python"
 
   # TODO(yaml): support an imports parameter
   # TODO(yaml): support a requirements parameter (possibly at a higher level)
