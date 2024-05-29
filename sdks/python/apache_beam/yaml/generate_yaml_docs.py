@@ -28,6 +28,18 @@ from apache_beam.yaml import json_utils
 from apache_beam.yaml import yaml_provider
 
 
+def _singular(name):
+  # Simply removing an 's' (or 'es', or 'ies', ...) may result in surprising
+  # manglings. Better to play it safe and leave a correctly-spelled plural
+  # than a botched singular in our examples configs.
+  return {
+      'args': 'arg',
+      'attributes': 'attribute',
+      'elements': 'element',
+      'fields': 'field',
+  }.get(name, name)
+
+
 def _fake_value(name, beam_type):
   type_info = beam_type.WhichOneof("type_info")
   if type_info == "atomic_type":
@@ -38,9 +50,17 @@ def _fake_value(name, beam_type):
     else:
       return name
   elif type_info == "array_type":
-    return [_fake_value(name, beam_type.array_type.element_type), '...']
+    return [
+        _fake_value(_singular(name), beam_type.array_type.element_type),
+        _fake_value(_singular(name), beam_type.array_type.element_type),
+        '...'
+    ]
   elif type_info == "iterable_type":
-    return [_fake_value(name, beam_type.iterable_type.element_type), '...']
+    return [
+        _fake_value(_singular(name), beam_type.iterable_type.element_type),
+        _fake_value(_singular(name), beam_type.iterable_type.element_type),
+        '...'
+    ]
   elif type_info == "map_type":
     if beam_type.map_type.key_type.atomic_type == schema_pb2.STRING:
       return {

@@ -557,7 +557,30 @@ def dicts_to_rows(o):
 
 class YamlProviders:
   class AssertEqual(beam.PTransform):
-    def __init__(self, elements):
+    """Asserts that the input contains exactly the elements provided.
+
+    This is primarily used for testing; it will cause the entire pipeline to
+    fail if the input to this transform is not exactly the set of `elements`
+    given in the config parameter.
+
+    As with Create, YAML/JSON-style mappings are interpreted as Beam rows,
+    e.g.::
+
+        type: AssertEqual
+        input: SomeTransform
+        config:
+          elements:
+             - {a: 0, b: "foo"}
+             - {a: 1, b: "bar"}
+
+    would ensure that `SomeTransform` produced exactly two elements with values
+    `(a=0, b="foo")` and `(a=1, b="bar")` respectively.
+
+    Args:
+        elements: The set of elements that should belong to the PCollection.
+            YAML/JSON-style mappings will be interpreted as Beam rows.
+    """
+    def __init__(self, elements: Iterable[Any]):
       self._elements = elements
 
     def expand(self, pcoll):
