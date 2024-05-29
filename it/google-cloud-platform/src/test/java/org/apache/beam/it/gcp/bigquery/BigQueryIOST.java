@@ -171,7 +171,7 @@ public final class BigQueryIOST extends IOStressTestBase {
                   Configuration.class),
               "large",
               Configuration.fromJsonString(
-                  "{\"numColumns\":10,\"rowsPerSecond\":50000,\"minutes\":60,\"numRecords\":5000000,\"valueSizeBytes\":1000,\"pipelineTimeout\":120,\"runner\":\"DataflowRunner\"}",
+                  "{\"numColumns\":10,\"rowsPerSecond\":50000,\"minutes\":60,\"numRecords\":20000000,\"valueSizeBytes\":1000,\"pipelineTimeout\":120,\"runner\":\"DataflowRunner\"}",
                   Configuration.class));
     } catch (IOException e) {
       throw new RuntimeException(e);
@@ -234,6 +234,7 @@ public final class BigQueryIOST extends IOStressTestBase {
         writeIO =
             BigQueryIO.<byte[]>write()
                 .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
+                .withSuccessfulInsertsPropagation(false)
                 .withAvroFormatFunction(
                     new AvroFormatFn(
                         configuration.numColumns,
