@@ -747,12 +747,12 @@ class SdkWorker(object):
           instruction_id=instruction_id, error=traceback.format_exc())
     if processor:
       monitoring_infos = processor.monitoring_infos()
-      consuming_received_data = None
+      consuming_received_data = processor.consuming_received_data
     else:
       # Return an empty response if we aren't running. This can happen
       # if the ProcessBundleRequest has not started or already finished.
       monitoring_infos = []
-      consuming_received_data = processor.consuming_received_data
+      consuming_received_data = None
     return beam_fn_api_pb2.InstructionResponse(
         instruction_id=instruction_id,
         process_bundle_progress=beam_fn_api_pb2.ProcessBundleProgressResponse(
