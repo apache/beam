@@ -337,16 +337,16 @@ class ApplyBuckets(TFTOperation):
       name: Optional[str] = None):
     """
     This functions is used to map the element to a positive index i for
-    which bucket_boundaries[i-1] <= element < bucket_boundaries[i],
-    if it exists. If input < bucket_boundaries[0], then element is
-    mapped to 0. If element >= bucket_boundaries[-1], then element is
+    which `bucket_boundaries[i-1] <= element < bucket_boundaries[i]`,
+    if it exists. If `input < bucket_boundaries[0]`, then element is
+    mapped to 0. If `element >= bucket_boundaries[-1]`, then element is
     mapped to len(bucket_boundaries). NaNs are mapped to
     len(bucket_boundaries).
 
     Args:
       columns: A list of column names to apply the transformation on.
-      bucket_boundaries: A rank 2 Tensor or list representing the bucket
-        boundaries sorted in ascending order.
+      bucket_boundaries: An iterable of ints or floats representing the bucket
+        boundaries orted in ascending order.
       name: (Optional) A string that specifies the name of the operation.
     """
     super().__init__(columns)
@@ -384,7 +384,7 @@ class ApplyBucketsWithInterpolation(TFTOperation):
 
     Args:
       columns: A list of column names to apply the transformation on.
-      bucket_boundaries: A rank 2 Tensor or list representing the bucket
+      bucket_boundaries: An iterable of ints or floats representing the bucket
         boundaries sorted in ascending order.
       name: (Optional) A string that specifies the name of the operation.
     """
