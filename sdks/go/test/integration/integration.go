@@ -292,6 +292,7 @@ var dataflowFilters = []string{
 	"TestDrain",
 	// Timers
 	"TestTimers_ProcessingTime_Infinity", // Uses test stream.
+	"TestTimers_ProcessingTime_Bounded",  // Dataflow ignores processing time timers in batch.
 }
 
 // CheckFilters checks if an integration test is filtered to be skipped, either
