@@ -34,6 +34,7 @@ import java.net.URL;
 import java.nio.file.Paths;
 import java.security.GeneralSecurityException;
 import java.util.Optional;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.gcp.auth.NullCredentialInitializer;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.util.ReleaseInfo;
@@ -94,8 +95,6 @@ public class Transport {
 
   /** Returns a Cloud Storage client builder using the specified {@link GcsOptions}. */
   public static Storage.Builder newStorageClient(GcsOptions options) {
-    String jobName = Optional.ofNullable(options.getJobName()).orElse("UNKNOWN");
-
     String applicationName =
         String.format(
             "%sapache-beam/%s (GPN:Beam)",
@@ -104,20 +103,9 @@ public class Transport {
 
     String servicePath = options.getGcsEndpoint();
 
-    // Do not log the code 404. Code up the stack will deal with 404's if needed,
-    // and logging it by default clutters the output during file staging.
-    RetryHttpRequestInitializer retryHttpRequestInitializer =
-        new RetryHttpRequestInitializer(ImmutableList.of(404), new UploadIdResponseInterceptor());
-
-    // Set custom audit info in request headers
-    retryHttpRequestInitializer.setHttpHeaders(ImmutableMap.of("x-goog-custom-audit-job", jobName));
-
     Storage.Builder storageBuilder =
         new Storage.Builder(
-                getTransport(),
-                getJsonFactory(),
-                chainHttpRequestInitializer(
-                    options.getGcpCredential(), retryHttpRequestInitializer))
+                getTransport(), getJsonFactory(), httpRequestInitializerFromOptions(options))
             .setApplicationName(applicationName)
             .setGoogleClientRequestInitializer(options.getGoogleApiTrace());
     if (servicePath != null) {
@@ -129,14 +117,31 @@ public class Transport {
     return storageBuilder;
   }
 
-  private static HttpRequestInitializer chainHttpRequestInitializer(
-      Credentials credential, HttpRequestInitializer httpRequestInitializer) {
+  private static HttpRequestInitializer httpRequestInitializerFromOptions(GcsOptions options) {
+    // Do not log the code 404. Code up the stack will deal with 404's if needed,
+    // and logging it by default clutters the output during file staging.
+    RetryHttpRequestInitializer retryHttpRequestInitializer =
+        new RetryHttpRequestInitializer(ImmutableList.of(404), new UploadIdResponseInterceptor());
+
+    // Set custom audit info in request headers
+    String jobName = Optional.ofNullable(options.getJobName()).orElse("UNKNOWN");
+    retryHttpRequestInitializer.setHttpHeaders(ImmutableMap.of("x-goog-custom-audit-job", jobName));
+
+    @Nullable Integer readTimeout = options.getGcsHttpRequestReadTimeout();
+    if (readTimeout != null) {
+      retryHttpRequestInitializer.setReadTimeout(readTimeout);
+    }
+    @Nullable Integer writeTimeout = options.getGcsHttpRequestWriteTimeout();
+    if (writeTimeout != null) {
+      retryHttpRequestInitializer.setWriteTimeout(writeTimeout);
+    }
+    Credentials credential = options.getGcpCredential();
     if (credential == null) {
       return new ChainingHttpRequestInitializer(
-          new NullCredentialInitializer(), httpRequestInitializer);
+          new NullCredentialInitializer(), retryHttpRequestInitializer);
     } else {
       return new ChainingHttpRequestInitializer(
-          new HttpCredentialsAdapter(credential), httpRequestInitializer);
+          new HttpCredentialsAdapter(credential), retryHttpRequestInitializer);
     }
   }
 }
