@@ -1123,7 +1123,7 @@ class BundleProcessor(object):
       for data_channel, expected_inputs in data_channels.items():
         for element in data_channel.input_elements(instruction_id,
                                                    expected_inputs):
-          # Since we have received an element and are consuming it.
+          # Since we have received a bundle of elements and are consuming it.
           self.consuming_received_data = True
           if isinstance(element, beam_fn_api_pb2.Elements.Timers):
             timer_coder_impl = (
@@ -1136,7 +1136,7 @@ class BundleProcessor(object):
           elif isinstance(element, beam_fn_api_pb2.Elements.Data):
             input_op_by_transform_id[element.transform_id].process_encoded(
                 element.data)
-          # Since we have processed this element, we are now ready to
+          # Since we have processed this bundle, we are now ready to
           # recieve the next one.
           self.consuming_received_data = False
 
