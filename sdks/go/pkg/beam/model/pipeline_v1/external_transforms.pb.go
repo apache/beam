@@ -365,6 +365,10 @@ func (x *BuilderMethod) GetPayload() []byte {
 	return nil
 }
 
+// Payload for a Schema-aware PTransform.
+// This is a transform that is aware of its input and output PCollection schemas
+// and is configured using Beam Schema-compatible parameters.
+// The information available in the payload can be used to instantiate the schema-aware transform.
 type SchemaTransformPayload struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache

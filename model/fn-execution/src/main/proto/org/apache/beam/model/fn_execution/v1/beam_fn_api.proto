@@ -503,6 +503,11 @@ message ProcessBundleProgressResponse {
   // as the MonitoringInfo could be reconstructed fully by overwriting its
   // payload field with the bytes specified here.
   map<string, bytes> monitoring_data = 5;
+  // Indicates that the SDK is still busy consuming the data that as already
+  // been received on the data channel. If this is set, a runner may abstain
+  // from sending further data on the data channel until this field becomes
+  // unset. This field is currently used during shuffle reads on large elements.
+  optional bool consuming_received_data = 6;
 
   reserved 1, 2, 4;
 }
