@@ -23,6 +23,7 @@ import (
 	"math"
 	"sort"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
@@ -63,6 +64,9 @@ type DataSource struct {
 
 	// Whether the downstream transform only iterates a GBK coder once.
 	singleIterate bool
+
+	// represents if the SDK is consuming received data.
+	consumingReceivedData atomic.Bool
 }
 
 // InitSplittable initializes the SplittableUnit channel from the output unit,
@@ -125,9 +129,11 @@ func (n *DataSource) process(ctx context.Context, data func(bcr *byteCountReader
 	bcr := byteCountReader{reader: &r, count: &byteCount}
 
 	for {
+		n.consumingReceivedData.Store(false)
 		var err error
 		select {
 		case e, ok := <-elms:
+			n.consumingReceivedData.Store(true)
 			// Channel closed, so time to exit
 			if !ok {
 				return nil
@@ -151,6 +157,8 @@ func (n *DataSource) process(ctx context.Context, data func(bcr *byteCountReader
 			// io.EOF means the reader successfully drained.
 			// We're ready for a new buffer.
 		case <-ctx.Done():
+			// now that it is done processing received data, we set it to false.
+			n.consumingReceivedData.Store(false)
 			return nil
 		}
 	}
@@ -428,7 +436,8 @@ type ProgressReportSnapshot struct {
 	ID, Name string
 	Count    int64
 
-	pcol PCollectionSnapshot
+	pcol                  PCollectionSnapshot
+	ConsumingReceivedData bool
 }
 
 // Progress returns a snapshot of the source's progress.
@@ -441,13 +450,15 @@ func (n *DataSource) Progress() ProgressReportSnapshot {
 	// The count is the number of "completely processed elements"
 	// which matches the index of the currently processing element.
 	c := n.index
+	// Retrieve the signal from the Data source.
+	consumingReceivedData := n.consumingReceivedData.Load()
 	n.mu.Unlock()
 	// Do not sent negative progress reports, index is initialized to 0.
 	if c < 0 {
 		c = 0
 	}
 	pcol.ElementCount = c
-	return ProgressReportSnapshot{ID: n.SID.PtransformID, Name: n.Name, Count: c, pcol: pcol}
+	return ProgressReportSnapshot{ID: n.SID.PtransformID, Name: n.Name, Count: c, pcol: pcol, ConsumingReceivedData: consumingReceivedData}
 }
 
 // getProcessContinuation retrieves a ProcessContinuation that may be returned by
