@@ -197,6 +197,7 @@ class Environment(object):
 
   @classmethod
   def register_urn(cls, urn, parameter_type, constructor=None):
+
     def register(constructor):
       if isinstance(constructor, type):
         constructor.from_runner_api_parameter = register(
@@ -286,6 +287,7 @@ class Environment(object):
 @Environment.register_urn(common_urns.environments.DEFAULT.urn, None)
 class DefaultEnvironment(Environment):
   """Used as a stub when context is missing a default environment."""
+
   def to_runner_api_parameter(self, context):
     return common_urns.environments.DEFAULT.urn, None
 
@@ -616,6 +618,7 @@ def resolve_anyof_environment(env_proto, *preferred_types):
 
 @Environment.register_urn(python_urns.EMBEDDED_PYTHON, None)
 class EmbeddedPythonEnvironment(Environment):
+
   def to_runner_api_parameter(self, context):
     # type: (PipelineContext) -> Tuple[str, None]
     return python_urns.EMBEDDED_PYTHON, None
@@ -648,6 +651,7 @@ class EmbeddedPythonEnvironment(Environment):
 
 @Environment.register_urn(python_urns.EMBEDDED_PYTHON_GRPC, bytes)
 class EmbeddedPythonGrpcEnvironment(Environment):
+
   def __init__(
       self,
       state_cache_size=None,
@@ -755,6 +759,7 @@ class EmbeddedPythonGrpcEnvironment(Environment):
 @Environment.register_urn(python_urns.EMBEDDED_PYTHON_LOOPBACK, None)
 class PythonLoopbackEnvironment(EmbeddedPythonEnvironment):
   """Used as a stub when the loopback worker has not yet been started."""
+
   def to_runner_api_parameter(self, context):
     # type: (PipelineContext) -> Tuple[str, None]
     return python_urns.EMBEDDED_PYTHON_LOOPBACK, None
@@ -835,6 +840,7 @@ class SubprocessSDKEnvironment(Environment):
     common_urns.environments.ANYOF.urn,
     beam_runner_api_pb2.AnyOfEnvironmentPayload)
 class AnyOfEnvironment(Environment):
+
   def __init__(self, environments):
     self._environments = environments
 

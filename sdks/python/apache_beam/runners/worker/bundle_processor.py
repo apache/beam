@@ -150,6 +150,7 @@ class RunnerIOOperation(operations.Operation):
 class DataOutputOperation(RunnerIOOperation):
   """A sink-like operation that gathers outputs to be sent back to the runner.
   """
+
   def set_output_stream(self, output_stream):
     # type: (data_plane.ClosableOutputStream) -> None
     self.output_stream = output_stream
@@ -291,6 +292,7 @@ class DataInputOperation(RunnerIOOperation):
       total_buffer_size,
       allowed_split_points=(),
       try_split=lambda fraction: None):
+
     def is_valid_split_point(index):
       return not allowed_split_points or index in allowed_split_points
 
@@ -513,6 +515,7 @@ class StateBackedSideInputMap(object):
 
 
 class ReadModifyWriteRuntimeState(userstate.ReadModifyWriteRuntimeState):
+
   def __init__(self, underlying_bag_state):
     self._underlying_bag_state = underlying_bag_state
 
@@ -534,6 +537,7 @@ class ReadModifyWriteRuntimeState(userstate.ReadModifyWriteRuntimeState):
 
 
 class CombiningValueRuntimeState(userstate.CombiningValueRuntimeState):
+
   def __init__(self, underlying_bag_state, combinefn):
     # type: (userstate.AccumulatingRuntimeState, core.CombineFn) -> None
     self._combinefn = combinefn
@@ -584,6 +588,7 @@ class _ConcatIterable(object):
 
   Unlike itertools.chain, this allows reiteration.
   """
+
   def __init__(self, first, second):
     # type: (Iterable[Any], Iterable[Any]) -> None
     self.first = first
@@ -762,6 +767,7 @@ class OutputTimer(userstate.BaseTimer):
 
 class TimerInfo(object):
   """A data class to store information related to a timer."""
+
   def __init__(self, timer_coder_impl, output_stream=None):
     self.timer_coder_impl = timer_coder_impl
     self.output_stream = output_stream
@@ -1112,13 +1118,12 @@ class BundleProcessor(object):
           self.ops[transform_id].add_timer_info(timer_family_id, timer_info)
 
       # Process data and timer inputs
-      # We are ready to receive data from the Runner.
+      # We are currently not consuming received data.
       self.consuming_received_data = False
       for data_channel, expected_inputs in data_channels.items():
         for element in data_channel.input_elements(instruction_id,
                                                    expected_inputs):
-          # Since we have received an element, we are no longer ready to receive
-          # more data.
+          # Since we have received an element and are consuming it.
           self.consuming_received_data = True
           if isinstance(element, beam_fn_api_pb2.Elements.Timers):
             timer_coder_impl = (
@@ -1571,7 +1576,9 @@ def create_dofn_javasdk(
     common_urns.sdf_components.PAIR_WITH_RESTRICTION.urn,
     beam_runner_api_pb2.ParDoPayload)
 def create_pair_with_restriction(*args):
+
   class PairWithRestriction(beam.DoFn):
+
     def __init__(self, fn, restriction_provider, watermark_estimator_provider):
       self.restriction_provider = restriction_provider
       self.watermark_estimator_provider = watermark_estimator_provider
@@ -1594,7 +1601,9 @@ def create_pair_with_restriction(*args):
     common_urns.sdf_components.SPLIT_AND_SIZE_RESTRICTIONS.urn,
     beam_runner_api_pb2.ParDoPayload)
 def create_split_and_size_restrictions(*args):
+
   class SplitAndSizeRestrictions(beam.DoFn):
+
     def __init__(self, fn, restriction_provider, watermark_estimator_provider):
       self.restriction_provider = restriction_provider
       self.watermark_estimator_provider = watermark_estimator_provider
@@ -1617,7 +1626,9 @@ def create_split_and_size_restrictions(*args):
     common_urns.sdf_components.TRUNCATE_SIZED_RESTRICTION.urn,
     beam_runner_api_pb2.ParDoPayload)
 def create_truncate_sized_restriction(*args):
+
   class TruncateAndSizeRestriction(beam.DoFn):
+
     def __init__(self, fn, restriction_provider, watermark_estimator_provider):
       self.restriction_provider = restriction_provider
 
@@ -1836,7 +1847,9 @@ def create_assign_windows(
     parameter,  # type: beam_runner_api_pb2.WindowingStrategy
     consumers  # type: Dict[str, List[operations.Operation]]
 ):
+
   class WindowIntoDoFn(beam.DoFn):
+
     def __init__(self, windowing):
       self.windowing = windowing
 
@@ -2015,6 +2028,7 @@ def create_map_windows(
   window_mapping_fn = pickler.loads(mapping_fn_spec.payload)
 
   class MapWindows(beam.DoFn):
+
     def process(self, element):
       key, window = element
       return [(key, window_mapping_fn(window))]
@@ -2036,6 +2050,7 @@ def create_merge_windows(
   window_fn = pickler.loads(mapping_fn_spec.payload)
 
   class MergeWindows(beam.DoFn):
+
     def process(self, element):
       nonce, windows = element
 
@@ -2074,7 +2089,9 @@ def create_to_string_fn(
     mapping_fn_spec,  # type: beam_runner_api_pb2.FunctionSpec
     consumers  # type: Dict[str, List[operations.Operation]]
 ):
+
   class ToString(beam.DoFn):
+
     def process(self, element):
       key, value = element
       return [(key, str(value))]
