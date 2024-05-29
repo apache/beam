@@ -28,6 +28,7 @@ import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -164,10 +165,11 @@ public class ComputationState {
     return sourceBytesProcessCounterName;
   }
 
+  @VisibleForTesting
   public final void close() {
     @Nullable ComputationWorkExecutor computationWorkExecutor;
     while ((computationWorkExecutor = computationWorkExecutors.poll()) != null) {
-      computationWorkExecutor.closeWorkExecutor();
+      computationWorkExecutor.invalidate();
     }
     computationWorkExecutors.clear();
   }

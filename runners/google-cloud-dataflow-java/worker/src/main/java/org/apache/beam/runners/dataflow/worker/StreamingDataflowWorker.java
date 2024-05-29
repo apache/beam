@@ -740,7 +740,8 @@ public class StreamingDataflowWorker {
     statusPages.start(options);
   }
 
-  public void stop() {
+  @VisibleForTesting
+  void stop() {
     try {
       configFetcher.stop();
 

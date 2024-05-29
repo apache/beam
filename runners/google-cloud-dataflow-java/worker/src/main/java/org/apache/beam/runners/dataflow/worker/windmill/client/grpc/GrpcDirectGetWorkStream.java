@@ -328,7 +328,6 @@ public final class GrpcDirectGetWorkStream
     private Work.ProcessingContext createProcessingContext(String computationId) {
       return Work.createProcessingContext(computationId, getDataStream.get()::requestKeyedData)
           .setWorkCommitter(workCommitter.get()::commit)
-          .setGetDataStream(getDataStream.get())
           .build();
     }
   }

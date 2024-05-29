@@ -19,15 +19,12 @@ package org.apache.beam.runners.dataflow.worker.windmill.work.refresh;
 
 import static com.google.common.truth.Truth.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 import com.google.api.services.dataflow.model.MapTask;
 import com.google.common.truth.Correspondence;
@@ -50,9 +47,6 @@ import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
-import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream;
-import org.apache.beam.runners.dataflow.worker.windmill.client.commits.Commit;
-import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.direct.Clock;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
@@ -116,11 +110,6 @@ public class DispatchedActiveWorkRefresherTest {
 
   private ExecutableWork createOldWork(
       ShardedKey shardedKey, int workIds, Consumer<Work> processWork) {
-    WorkCommitter workCommitter = mock(WorkCommitter.class);
-    doNothing().when(workCommitter).commit(any(Commit.class));
-    WindmillStream.GetDataStream getDataStream = mock(WindmillStream.GetDataStream.class);
-    when(getDataStream.requestKeyedData(anyString(), any()))
-        .thenReturn(Windmill.KeyedGetDataResponse.getDefaultInstance());
     return ExecutableWork.create(
         Work.create(
             Windmill.WorkItem.newBuilder()
@@ -130,8 +119,9 @@ public class DispatchedActiveWorkRefresherTest {
                 .setCacheToken(workIds)
                 .build(),
             Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
-            Work.createProcessingContext("computationId", getDataStream::requestKeyedData)
-                .setWorkCommitter(workCommitter::commit)
+            Work.createProcessingContext(
+                    "computationId", (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance())
+                .setWorkCommitter(ignored -> {})
                 .build(),
             DispatchedActiveWorkRefresherTest.A_LONG_TIME_AGO,
             ImmutableList.of()),

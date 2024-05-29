@@ -21,11 +21,6 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitStatus.OK;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 import com.google.api.services.dataflow.model.MapTask;
 import java.io.IOException;
@@ -52,7 +47,6 @@ import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.client.CloseableStream;
-import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.CommitWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamPool;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
@@ -77,11 +71,6 @@ public class StreamingEngineWorkCommitterTest {
   private Supplier<CloseableStream<CommitWorkStream>> commitWorkStreamFactory;
 
   private static Work createMockWork(long workToken) {
-    WorkCommitter workCommitter = mock(WorkCommitter.class);
-    doNothing().when(workCommitter).commit(any(Commit.class));
-    WindmillStream.GetDataStream getDataStream = mock(WindmillStream.GetDataStream.class);
-    when(getDataStream.requestKeyedData(anyString(), any()))
-        .thenReturn(Windmill.KeyedGetDataResponse.getDefaultInstance());
     return Work.create(
         Windmill.WorkItem.newBuilder()
             .setKey(ByteString.EMPTY)
@@ -90,8 +79,12 @@ public class StreamingEngineWorkCommitterTest {
             .setShardingKey(2L)
             .build(),
         Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
-        Work.createProcessingContext("computationId", getDataStream::requestKeyedData)
-            .setWorkCommitter(workCommitter::commit)
+        Work.createProcessingContext(
+                "computationId", (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance())
+            .setWorkCommitter(
+                ignored -> {
+                  throw new UnsupportedOperationException();
+                })
             .build(),
         Instant::now,
         Collections.emptyList());

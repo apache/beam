@@ -84,10 +84,6 @@ public abstract class ComputationWorkExecutor {
    */
   public final void invalidate() {
     context().invalidateCache();
-    closeWorkExecutor();
-  }
-
-  public final void closeWorkExecutor() {
     try {
       workExecutor().close();
     } catch (Exception e) {

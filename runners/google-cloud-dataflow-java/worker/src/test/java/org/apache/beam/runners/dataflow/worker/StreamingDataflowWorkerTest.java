@@ -33,13 +33,11 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.atLeastOnce;
-import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -104,7 +102,6 @@ import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
 import org.apache.beam.runners.dataflow.worker.streaming.ShardedKey;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
-import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
 import org.apache.beam.runners.dataflow.worker.testing.RestoreDataflowLoggingMDC;
 import org.apache.beam.runners.dataflow.worker.testing.TestCountingSource;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
@@ -129,9 +126,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Timer;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Timer.Type;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WatermarkHold;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
-import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream;
-import org.apache.beam.runners.dataflow.worker.windmill.client.commits.Commit;
-import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.CollectionCoder;
@@ -327,13 +321,6 @@ public class StreamingDataflowWorkerTest {
 
   private static ExecutableWork createMockWork(
       ShardedKey shardedKey, long workToken, String computationId, Consumer<Work> processWorkFn) {
-    WorkCommitter workCommitter = mock(WorkCommitter.class);
-    doNothing().when(workCommitter).commit(any(Commit.class));
-    WindmillStream.GetDataStream getDataStream = mock(WindmillStream.GetDataStream.class);
-    when(getDataStream.requestKeyedData(anyString(), any()))
-        .thenReturn(Windmill.KeyedGetDataResponse.getDefaultInstance());
-    SideInputStateFetcher sideInputStateFetcher = mock(SideInputStateFetcher.class);
-
     return ExecutableWork.create(
         Work.create(
             Windmill.WorkItem.newBuilder()
@@ -342,8 +329,9 @@ public class StreamingDataflowWorkerTest {
                 .setWorkToken(workToken)
                 .build(),
             Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
-            Work.createProcessingContext(computationId, getDataStream::requestKeyedData)
-                .setWorkCommitter(workCommitter::commit)
+            Work.createProcessingContext(
+                    computationId, (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance())
+                .setWorkCommitter(ignored -> {})
                 .build(),
             Instant::now,
             Collections.emptyList()),
@@ -3416,17 +3404,13 @@ public class StreamingDataflowWorkerTest {
   @Test
   public void testLatencyAttributionProtobufsPopulated() {
     FakeClock clock = new FakeClock();
-    WorkCommitter workCommitter = mock(WorkCommitter.class);
-    doNothing().when(workCommitter).commit(any(Commit.class));
-    WindmillStream.GetDataStream getDataStream = mock(WindmillStream.GetDataStream.class);
-    when(getDataStream.requestKeyedData(anyString(), any()))
-        .thenReturn(Windmill.KeyedGetDataResponse.getDefaultInstance());
     Work work =
         Work.create(
             Windmill.WorkItem.newBuilder().setKey(ByteString.EMPTY).setWorkToken(1L).build(),
             Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
-            Work.createProcessingContext("computationId", getDataStream::requestKeyedData)
-                .setWorkCommitter(workCommitter::commit)
+            Work.createProcessingContext(
+                    "computationId", (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance())
+                .setWorkCommitter(ignored -> {})
                 .build(),
             clock,
             Collections.emptyList());

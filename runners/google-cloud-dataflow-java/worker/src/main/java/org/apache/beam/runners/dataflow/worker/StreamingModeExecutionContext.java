@@ -159,7 +159,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
   }
 
   public boolean workIsFailed() {
-    return Optional.ofNullable(work).map(Work::isFailed).orElse(false);
+    return work.isFailed();
   }
 
   public void start(
@@ -302,7 +302,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
   }
 
   public @Nullable ByteString getSerializedKey() {
-    return work == null ? null : work.getWorkItem().getKey();
+    return work.getWorkItem().getKey();
   }
 
   public WindmillComputationKey getComputationKey() {

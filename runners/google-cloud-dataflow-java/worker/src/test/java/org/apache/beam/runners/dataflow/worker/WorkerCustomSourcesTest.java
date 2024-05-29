@@ -49,11 +49,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 import com.google.api.services.dataflow.model.ApproximateReportedProgress;
 import com.google.api.services.dataflow.model.DataflowPackage;
@@ -99,9 +95,6 @@ import org.apache.beam.runners.dataflow.worker.testing.TestCountingSource;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.NativeReaderIterator;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
-import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream;
-import org.apache.beam.runners.dataflow.worker.windmill.client.commits.Commit;
-import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReader;
 import org.apache.beam.sdk.Pipeline;
@@ -997,17 +990,13 @@ public class WorkerCustomSourcesTest {
             .setSourceState(
                 Windmill.SourceState.newBuilder().setState(state).build()) // Source state.
             .build();
-    WorkCommitter workCommitter = mock(WorkCommitter.class);
-    doNothing().when(workCommitter).commit(any(Commit.class));
-    WindmillStream.GetDataStream getDataStream = mock(WindmillStream.GetDataStream.class);
-    when(getDataStream.requestKeyedData(anyString(), any()))
-        .thenReturn(Windmill.KeyedGetDataResponse.getDefaultInstance());
     Work dummyWork =
         Work.create(
             workItem,
             Watermarks.builder().setInputDataWatermark(new Instant(0)).build(),
-            Work.createProcessingContext(COMPUTATION_ID, getDataStream::requestKeyedData)
-                .setWorkCommitter(workCommitter::commit)
+            Work.createProcessingContext(
+                    COMPUTATION_ID, (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance())
+                .setWorkCommitter(ignored -> {})
                 .build(),
             Instant::now,
             Collections.emptyList());

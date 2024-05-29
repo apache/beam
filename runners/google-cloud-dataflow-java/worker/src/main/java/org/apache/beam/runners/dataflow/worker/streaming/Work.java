@@ -31,7 +31,6 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
 import org.apache.beam.runners.dataflow.worker.ActiveMessageMetadata;
@@ -44,7 +43,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribut
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution.ActiveLatencyBreakdown.Distribution;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
-import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.Commit;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReader;
@@ -326,10 +324,7 @@ public class Work {
     /** Computation that the {@link Work} belongs to. */
     public abstract String computationId();
 
-    /**
-     * {@link WindmillStream.GetDataStream} that connects to the backend Windmill worker handling
-     * the {@link WorkItem}.
-     */
+    /** Handles GetData requests to streaming backend. */
     public abstract Function<KeyedGetDataRequest, Optional<KeyedGetDataResponse>>
         keyedDataFetcher();
 
@@ -339,8 +334,6 @@ public class Work {
      */
     public abstract Consumer<Commit> workCommitter();
 
-    public abstract Optional<WindmillStream.GetDataStream> getDataStream();
-
     @AutoValue.Builder
     public abstract static class Builder {
       abstract Builder setComputationId(String value);
@@ -349,8 +342,6 @@ public class Work {
           Function<KeyedGetDataRequest, Optional<KeyedGetDataResponse>> value);
 
       public abstract Builder setWorkCommitter(Consumer<Commit> value);
-
-      public abstract Builder setGetDataStream(@Nullable WindmillStream.GetDataStream value);
 
       public abstract ProcessingContext build();
     }

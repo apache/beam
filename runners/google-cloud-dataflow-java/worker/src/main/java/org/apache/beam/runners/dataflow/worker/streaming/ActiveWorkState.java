@@ -76,8 +76,8 @@ public final class ActiveWorkState {
 
   /**
    * Current budget that is being processed or queued on the user worker. Incremented when work is
-   * activated in {@link #activateWorkForKey(ShardedKey, ExecutableWork)}, and decremented when work
-   * is completed in {@link #completeWorkAndGetNextWorkForKey(ShardedKey, WorkId)}.
+   * activated in {@link #activateWorkForKey(ExecutableWork)}, and decremented when work is
+   * completed in {@link #completeWorkAndGetNextWorkForKey(ShardedKey, WorkId)}.
    */
   private final AtomicReference<GetWorkBudget> activeGetWorkBudget;
 

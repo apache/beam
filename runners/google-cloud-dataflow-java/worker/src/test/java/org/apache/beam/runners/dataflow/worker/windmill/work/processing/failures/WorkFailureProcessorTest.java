@@ -18,11 +18,6 @@
 package org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -39,9 +34,6 @@ import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
-import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream;
-import org.apache.beam.runners.dataflow.worker.windmill.client.commits.Commit;
-import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.joda.time.Duration;
@@ -88,17 +80,13 @@ public class WorkFailureProcessorTest {
   }
 
   private static ExecutableWork createWork(Supplier<Instant> clock, Consumer<Work> processWorkFn) {
-    WorkCommitter workCommitter = mock(WorkCommitter.class);
-    doNothing().when(workCommitter).commit(any(Commit.class));
-    WindmillStream.GetDataStream getDataStream = mock(WindmillStream.GetDataStream.class);
-    when(getDataStream.requestKeyedData(anyString(), any()))
-        .thenReturn(Windmill.KeyedGetDataResponse.getDefaultInstance());
     return ExecutableWork.create(
         Work.create(
             Windmill.WorkItem.newBuilder().setKey(ByteString.EMPTY).setWorkToken(1L).build(),
             Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
-            Work.createProcessingContext("computationId", getDataStream::requestKeyedData)
-                .setWorkCommitter(workCommitter::commit)
+            Work.createProcessingContext(
+                    "computationId", (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance())
+                .setWorkCommitter(ignored -> {})
                 .build(),
             clock,
             new ArrayList<>()),
@@ -111,22 +99,22 @@ public class WorkFailureProcessorTest {
 
   @Test
   public void logAndProcessFailure_doesNotRetryKeyTokenInvalidException() {
-    Set<Work> executeWork = new HashSet<>();
-    ExecutableWork work = createWork(executeWork::add);
+    Set<Work> executedWork = new HashSet<>();
+    ExecutableWork work = createWork(executedWork::add);
     WorkFailureProcessor workFailureProcessor =
         createWorkFailureProcessor(streamingEngineFailureReporter());
     Set<Work> invalidWork = new HashSet<>();
     workFailureProcessor.logAndProcessFailure(
         DEFAULT_COMPUTATION_ID, work, new KeyTokenInvalidException("key"), invalidWork::add);
 
-    assertThat(executeWork).isEmpty();
+    assertThat(executedWork).isEmpty();
     assertThat(invalidWork).containsExactly(work.work());
   }
 
   @Test
   public void logAndProcessFailure_doesNotRetryWhenWorkItemCancelled() {
-    Set<Work> executeWork = new HashSet<>();
-    ExecutableWork work = createWork(executeWork::add);
+    Set<Work> executedWork = new HashSet<>();
+    ExecutableWork work = createWork(executedWork::add);
     WorkFailureProcessor workFailureProcessor =
         createWorkFailureProcessor(streamingEngineFailureReporter());
     Set<Work> invalidWork = new HashSet<>();
@@ -136,50 +124,50 @@ public class WorkFailureProcessorTest {
         new WorkItemCancelledException(work.getWorkItem().getShardingKey()),
         invalidWork::add);
 
-    assertThat(executeWork).isEmpty();
+    assertThat(executedWork).isEmpty();
     assertThat(invalidWork).containsExactly(work.work());
   }
 
   @Test
   public void logAndProcessFailure_doesNotRetryOOM() {
-    Set<Work> executeWork = new HashSet<>();
-    ExecutableWork work = createWork(executeWork::add);
+    Set<Work> executedWork = new HashSet<>();
+    ExecutableWork work = createWork(executedWork::add);
     WorkFailureProcessor workFailureProcessor =
         createWorkFailureProcessor(streamingEngineFailureReporter());
     Set<Work> invalidWork = new HashSet<>();
     workFailureProcessor.logAndProcessFailure(
         DEFAULT_COMPUTATION_ID, work, new OutOfMemoryError(), invalidWork::add);
 
-    assertThat(executeWork).isEmpty();
+    assertThat(executedWork).isEmpty();
     assertThat(invalidWork).containsExactly(work.work());
   }
 
   @Test
   public void logAndProcessFailure_doesNotRetryWhenFailureReporterMarksAsNonRetryable() {
-    Set<Work> executeWork = new HashSet<>();
-    ExecutableWork work = createWork(executeWork::add);
+    Set<Work> executedWork = new HashSet<>();
+    ExecutableWork work = createWork(executedWork::add);
     WorkFailureProcessor workFailureProcessor =
         createWorkFailureProcessor(streamingApplianceFailureReporter(true));
     Set<Work> invalidWork = new HashSet<>();
     workFailureProcessor.logAndProcessFailure(
         DEFAULT_COMPUTATION_ID, work, new RuntimeException(), invalidWork::add);
 
-    assertThat(executeWork).isEmpty();
+    assertThat(executedWork).isEmpty();
     assertThat(invalidWork).containsExactly(work.work());
   }
 
   @Test
   public void logAndProcessFailure_doesNotRetryAfterLocalRetryTimeout() {
-    Set<Work> executeWork = new HashSet<>();
+    Set<Work> executedWork = new HashSet<>();
     ExecutableWork veryOldWork =
-        createWork(() -> Instant.now().minus(Duration.standardDays(30)), executeWork::add);
+        createWork(() -> Instant.now().minus(Duration.standardDays(30)), executedWork::add);
     WorkFailureProcessor workFailureProcessor =
         createWorkFailureProcessor(streamingEngineFailureReporter());
     Set<Work> invalidWork = new HashSet<>();
     workFailureProcessor.logAndProcessFailure(
         DEFAULT_COMPUTATION_ID, veryOldWork, new RuntimeException(), invalidWork::add);
 
-    assertThat(executeWork).isEmpty();
+    assertThat(executedWork).isEmpty();
     assertThat(invalidWork).contains(veryOldWork.work());
   }
 
