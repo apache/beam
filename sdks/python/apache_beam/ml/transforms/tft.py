@@ -346,7 +346,7 @@ class ApplyBuckets(TFTOperation):
     Args:
       columns: A list of column names to apply the transformation on.
       bucket_boundaries: An iterable of ints or floats representing the bucket
-        boundaries orted in ascending order.
+        boundaries. Must be sorted in ascending order.
       name: (Optional) A string that specifies the name of the operation.
     """
     super().__init__(columns)
