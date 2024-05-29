@@ -39,7 +39,7 @@ import (
 )
 
 func compareProgressReportSnapshots(expected ProgressReportSnapshot, got ProgressReportSnapshot) bool {
-  return expected.Name == got.Name && expected.ID == got.ID && expected.Count == got.Count && expected.pcol == got.pcol
+	return expected.Name == got.Name && expected.ID == got.ID && expected.Count == got.Count && expected.pcol == got.pcol
 }
 
 func TestDataSource_PerElement(t *testing.T) {
@@ -1121,7 +1121,6 @@ func quickTestSnapshot(source *DataSource, count int64) ProgressReportSnapshot {
 		},
 	}
 }
-
 
 func validateSource(t *testing.T, out *CaptureNode, source *DataSource, expected []FullValue) {
 	t.Helper()
