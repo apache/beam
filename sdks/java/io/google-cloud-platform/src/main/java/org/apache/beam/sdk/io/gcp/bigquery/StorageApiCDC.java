@@ -36,6 +36,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
  */
 
 import java.util.Set;
+import java.util.regex.Pattern;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 
 /** Constants and variables for CDC support. */
@@ -43,4 +44,12 @@ public class StorageApiCDC {
   public static final String CHANGE_SQN_COLUMN = "_CHANGE_SEQUENCE_NUMBER";
   public static final String CHANGE_TYPE_COLUMN = "_CHANGE_TYPE";
   public static final Set<String> COLUMNS = ImmutableSet.of(CHANGE_TYPE_COLUMN, CHANGE_SQN_COLUMN);
+
+  /**
+   * Expected valid pattern for a {@link #CHANGE_SQN_COLUMN} value for use with BigQuery's {@code
+   * _CHANGE_SEQUENCE_NUMBER} format. See {@link
+   * RowMutationInformation#of(RowMutationInformation.MutationType, String)} for more details.
+   */
+  public static final Pattern EXPECTED_SQN_PATTERN =
+      Pattern.compile("^([0-9A-Fa-f]{1,16})(/([0-9A-Fa-f]{1,16})){0,3}$");
 }

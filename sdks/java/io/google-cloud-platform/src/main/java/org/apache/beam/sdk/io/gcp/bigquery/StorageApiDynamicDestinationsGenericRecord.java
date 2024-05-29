@@ -81,14 +81,13 @@ class StorageApiDynamicDestinationsGenericRecord<T, DestinationT extends @NonNul
     @Override
     @SuppressWarnings("nullness")
     public StorageApiWritePayload toMessage(
-        T element, @javax.annotation.Nullable RowMutationInformation rowMutationInformation)
-        throws Exception {
+        T element, @Nullable RowMutationInformation rowMutationInformation) throws Exception {
       String changeType = null;
-      long changeSequenceNum = -1;
+      String changeSequenceNum = null;
       Descriptor descriptorToUse = descriptor;
       if (rowMutationInformation != null) {
         changeType = rowMutationInformation.getMutationType().toString();
-        changeSequenceNum = rowMutationInformation.getSequenceNumber();
+        changeSequenceNum = rowMutationInformation.getChangeSequenceNumber();
         descriptorToUse = cdcDescriptor;
       }
       Message msg =
