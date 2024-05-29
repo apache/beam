@@ -19,6 +19,8 @@ package org.apache.beam.sdk.io.gcp.bigtable;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.MoreExecutors.directExecutor;
 
+
+import com.google.api.gax.rpc.ServerStream;
 import com.google.api.core.ApiFuture;
 import com.google.api.gax.batching.Batcher;
 import com.google.api.gax.batching.BatchingException;
@@ -137,6 +139,10 @@ class BigtableServiceImpl implements BigtableService {
 
     private Row currentRow;
 
+    private ServerStream<Row> stream;
+
+    private boolean exhausted;
+
     @VisibleForTesting
     BigtableReaderImpl(
         BigtableDataClient client,
@@ -168,11 +174,10 @@ class BigtableServiceImpl implements BigtableService {
         query.filter(Filters.FILTERS.fromProto(rowFilter));
       }
       try {
-        results =
-            client
-                .readRowsCallable(new BigtableRowProtoAdapter())
-                .call(query, GrpcCallContext.createDefault())
-                .iterator();
+        stream = client
+            .readRowsCallable(new BigtableRowProtoAdapter())
+            .call(query, GrpcCallContext.createDefault());
+        results = stream.iterator();
         serviceCallMetric.call("ok");
       } catch (StatusRuntimeException e) {
         serviceCallMetric.call(e.getStatus().getCode().toString());
@@ -187,6 +192,7 @@ class BigtableServiceImpl implements BigtableService {
         currentRow = results.next();
         return true;
       }
+      exhausted = true;
       return false;
     }
 
@@ -196,6 +202,14 @@ class BigtableServiceImpl implements BigtableService {
         throw new NoSuchElementException();
       }
       return currentRow;
+    }
+
+    @Override
+    public void close() {
+      if (!exhausted) {
+        stream.cancel();
+        exhausted = true;
+      }
     }
   }
 
@@ -294,6 +308,10 @@ class BigtableServiceImpl implements BigtableService {
       this.refillSegmentWaterMark =
           Math.max(1, (int) (request.getRowsLimit() * WATERMARK_PERCENTAGE));
     }
+
+    @Override
+    public void close() {}
+
 
     @Override
     public boolean start() throws IOException {
