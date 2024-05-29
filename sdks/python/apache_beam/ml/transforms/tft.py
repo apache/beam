@@ -374,10 +374,13 @@ class ApplyBucketsWithInterpolation(TFTOperation):
     [0, 1].
     
     Input values are bucketized based on the provided boundaries such that the
-    input is mapped to a positive index i for which bucket_boundaries[i-1] <=
-    element < bucket_boundaries[i], if it exists. The values are then
+    input is mapped to a positive index i for which `bucket_boundaries[i-1] <=
+    element < bucket_boundaries[i]`, if it exists. The values are then
     normalized to the range [0,1] within the bucket, with NaN values being
     mapped to 0.5.
+
+    For more information, see:
+    https://www.tensorflow.org/tfx/transform/api_docs/python/tft/apply_buckets_with_interpolation
 
     Args:
       columns: A list of column names to apply the transformation on.
