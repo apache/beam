@@ -1105,7 +1105,7 @@ class BundleProcessor(object):
       for data_channel, expected_inputs in data_channels.items():
         for element in data_channel.input_elements(instruction_id,
                                                    expected_inputs):
-          # Since we have received a bundle of elements and are consuming it.
+          # Since we have received a set of elements and are consuming it.
           self.consuming_received_data = True
           if isinstance(element, beam_fn_api_pb2.Elements.Timers):
             timer_coder_impl = (
@@ -1118,7 +1118,7 @@ class BundleProcessor(object):
           elif isinstance(element, beam_fn_api_pb2.Elements.Data):
             input_op_by_transform_id[element.transform_id].process_encoded(
                 element.data)
-          # We are done consuming the bundle.
+          # We are done consuming the set of elements.
           self.consuming_received_data = False
 
       # Finish all operations.
@@ -1283,7 +1283,7 @@ class BeamTransformFactory(object):
   """Factory for turning transform_protos into executable operations."""
   def __init__(self,
                runner_capabilities,  # type: FrozenSet[str]
-               descriptor,  # type: beam_fn_api_pb2.ProcessBundleDescriptorf
+               descriptor,  # type: beam_fn_api_pb2.ProcessBundleDescriptor
                data_channel_factory,  # type: data_plane.DataChannelFactory
                counter_factory,  # type: counters.CounterFactory
                state_sampler,  # type: statesampler.StateSampler
