@@ -920,7 +920,7 @@ def preprocess(spec, verbose=False, known_transforms=None):
             f'for type {spec["type"]} for {identify_object(spec)}')
     return spec
 
-  def preprocess_langauges(spec):
+  def preprocess_languages(spec):
     if spec['type'] in ('AssignTimestamps',
                         'Combine',
                         'Filter',
@@ -942,7 +942,7 @@ def preprocess(spec, verbose=False, known_transforms=None):
       ensure_transforms_have_types,
       normalize_mapping,
       normalize_combine,
-      preprocess_langauges,
+      preprocess_languages,
       ensure_transforms_have_providers,
       preprocess_source_sink,
       preprocess_chain,

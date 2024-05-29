@@ -30,15 +30,21 @@ t.describe 'Run Apache Beam Java SDK Quickstart - Flink Local'
 
   t.intent 'Runs the WordCount Code with Flink Local runner'
     // Run the wordcount example with the flink local runner
-    t.run """mvn compile exec:java -q \
-      -Dmaven.wagon.http.retryHandler.class=default \
-      -Dmaven.wagon.http.retryHandler.count=5 \
-      -Dmaven.wagon.http.pool=false \
-      -Dmaven.wagon.httpconnectionManager.ttlSeconds=120 \
-      -Dhttp.keepAlive=false \
-      -Dexec.mainClass=org.apache.beam.examples.WordCount \
-      -Dexec.args="--inputFile=pom.xml --output=counts \
-      --runner=FlinkRunner" -Pflink-runner"""
+
+    // Retrieve classpath
+    def deps = t.run """mvn compile dependency:build-classpath -q \
+        -Dmdep.outputFile=/dev/stdout \
+        -Dmaven.wagon.http.retryHandler.class=default \
+        -Dmaven.wagon.http.retryHandler.count=5 \
+        -Dmaven.wagon.http.pool=false \
+        -Dmaven.wagon.httpconnectionManager.ttlSeconds=120 \
+        -Dhttp.keepAlive=false \
+        -Pflink-runner"""
+
+    def cp = "target/classes:${deps}"
+    t.run """mvn exec:exec -q -Dexec.executable=java \
+      -Dexec.args="-cp ${cp} org.apache.beam.examples.WordCount \
+      --inputFile=pom.xml --output=counts --runner=FlinkRunner" """
 
     // Verify text from the pom.xml input file
     String result = t.run "grep Foundation counts*"

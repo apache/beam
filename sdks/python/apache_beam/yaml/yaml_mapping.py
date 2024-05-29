@@ -529,7 +529,7 @@ def normalize_fields(pcoll, fields, drop=(), append=False, language='generic'):
 
   if append:
     return input_schema, {
-        **{name: name
+        **{name: f'`{name}`' if language in ['sql', 'calcite'] else name
            for name in input_schema.keys() if name not in drop},
         **fields
     }
@@ -575,10 +575,10 @@ def _SqlMapToFieldsTransform(pcoll, sql_transform_constructor, **mapping_args):
     elif 'expression' in v:
       return v['expression']
     else:
-      raise ValueError("Only expressions allowed in SQL at {name}.")
+      raise ValueError(f"Only expressions allowed in SQL at {name}.")
 
   selects = [
-      f'({extract_expr(name, expr)}) AS {name}'
+      f'({extract_expr(name, expr)}) AS `{name}`'
       for (name, expr) in fields.items()
   ]
   query = "SELECT " + ", ".join(selects) + " FROM PCOLLECTION"

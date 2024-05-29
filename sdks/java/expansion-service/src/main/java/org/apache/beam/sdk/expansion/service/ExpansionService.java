@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.expansion.service;
 
+import static org.apache.beam.model.pipeline.v1.ExternalTransforms.ExpansionMethods.Enum.SCHEMA_TRANSFORM;
+import static org.apache.beam.sdk.schemas.transforms.SchemaTransformTranslation.SchemaTransformPayloadTranslator;
 import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
 import static org.apache.beam.sdk.util.construction.PTransformTranslation.READ_TRANSFORM_URN;
 
@@ -41,6 +43,7 @@ import org.apache.beam.model.expansion.v1.ExpansionApi.DiscoverSchemaTransformRe
 import org.apache.beam.model.expansion.v1.ExpansionApi.DiscoverSchemaTransformResponse;
 import org.apache.beam.model.expansion.v1.ExpansionApi.SchemaTransformConfig;
 import org.apache.beam.model.expansion.v1.ExpansionServiceGrpc;
+import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms.ExpansionMethods;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms.ExternalConfigurationPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -68,6 +71,7 @@ import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.util.construction.BeamUrns;
 import org.apache.beam.sdk.util.construction.Environments;
 import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.util.construction.PTransformTranslation.TransformPayloadTranslator;
@@ -81,8 +85,10 @@ import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Server;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ServerBuilder;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.alts.AltsServerBuilder;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.CaseFormat;
@@ -170,6 +176,9 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
                     + translator
                     + " to the Expansion Service since it did not produce a unique URN.");
             continue;
+          } else if (urn.equals(BeamUrns.getUrn(SCHEMA_TRANSFORM))
+              && translator instanceof SchemaTransformPayloadTranslator) {
+            urn = ((SchemaTransformPayloadTranslator) translator).provider().identifier();
           }
         } catch (Exception e) {
           LOG.info(
@@ -263,7 +272,10 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
         }
       } catch (Exception e) {
         throw new RuntimeException(
-            String.format("Failed to build transform %s from spec %s", spec.getUrn(), spec), e);
+            String.format(
+                "Failed to build transform %s from spec %s: %s",
+                spec.getUrn(), spec, e.getMessage()),
+            e);
       }
     }
 
@@ -297,7 +309,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
                 ExternalConfigurationPayload.parseFrom(spec.getPayload()), configClass));
       } catch (Exception e) {
         throw new RuntimeException(
-            String.format("Failed to build transform from spec %s", spec), e);
+            String.format("Failed to build transform from spec %s: %s", spec, e.getMessage()), e);
       }
     }
 
@@ -584,17 +596,28 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
 
     String urn = request.getTransform().getSpec().getUrn();
 
-    TransformProvider transformProvider = null;
-    if (getUrn(ExpansionMethods.Enum.JAVA_CLASS_LOOKUP).equals(urn)) {
-      AllowList allowList =
-          pipelineOptions.as(ExpansionServiceOptions.class).getJavaClassLookupAllowlist();
-      assert allowList != null;
-      transformProvider = new JavaClassLookupTransformProvider(allowList);
-    } else if (getUrn(ExpansionMethods.Enum.SCHEMA_TRANSFORM).equals(urn)) {
-      transformProvider = ExpansionServiceSchemaTransformProvider.of();
-    } else {
-      transformProvider = getRegisteredTransforms().get(urn);
-      if (transformProvider == null) {
+    TransformProvider transformProvider = getRegisteredTransforms().get(urn);
+    if (transformProvider == null) {
+      if (getUrn(ExpansionMethods.Enum.JAVA_CLASS_LOOKUP).equals(urn)) {
+        AllowList allowList =
+            pipelineOptions.as(ExpansionServiceOptions.class).getJavaClassLookupAllowlist();
+        assert allowList != null;
+        transformProvider = new JavaClassLookupTransformProvider(allowList);
+      } else if (getUrn(SCHEMA_TRANSFORM).equals(urn)) {
+        try {
+          String underlyingIdentifier =
+              ExternalTransforms.SchemaTransformPayload.parseFrom(
+                      request.getTransform().getSpec().getPayload())
+                  .getIdentifier();
+          transformProvider = getRegisteredTransforms().get(underlyingIdentifier);
+        } catch (InvalidProtocolBufferException e) {
+          throw new RuntimeException(e);
+        }
+        transformProvider =
+            transformProvider != null
+                ? transformProvider
+                : ExpansionServiceSchemaTransformProvider.of();
+      } else {
         throw new UnsupportedOperationException(
             "Unknown urn: " + request.getTransform().getSpec().getUrn());
       }
@@ -804,8 +827,15 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
       System.out.println("\nDid not find any registered transforms or SchemaTransforms.\n");
     }
 
+    boolean useAlts = options.as(ExpansionServiceOptions.class).getUseAltsServer();
     ServerBuilder serverBuilder =
-        ServerBuilder.forPort(port).addService(service).addService(new ArtifactRetrievalService());
+        useAlts ? AltsServerBuilder.forPort(port) : ServerBuilder.forPort(port);
+
+    if (useAlts) {
+      LOG.info("Running with gRPC ALTS authentication.");
+    }
+
+    serverBuilder.addService(service).addService(new ArtifactRetrievalService());
     if (options.as(ExpansionServiceOptions.class).getAlsoStartLoopbackWorker()) {
       serverBuilder.addService(new ExternalWorkerService(options));
     }

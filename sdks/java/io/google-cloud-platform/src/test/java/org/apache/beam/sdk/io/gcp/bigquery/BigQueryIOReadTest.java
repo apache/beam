@@ -301,7 +301,16 @@ public class BigQueryIOReadTest implements Serializable {
 
   private void checkTypedReadQueryObject(
       BigQueryIO.TypedRead<?> read, String query, String kmsKey, String tempDataset) {
-    checkTypedReadQueryObjectWithValidate(read, query, kmsKey, tempDataset, true);
+    checkTypedReadQueryObjectWithValidate(read, query, kmsKey, tempDataset, null, true);
+  }
+
+  private void checkTypedReadQueryObject(
+      BigQueryIO.TypedRead<?> read,
+      String query,
+      String kmsKey,
+      String tempDataset,
+      String tempProject) {
+    checkTypedReadQueryObjectWithValidate(read, query, kmsKey, tempDataset, tempProject, true);
   }
 
   private void checkReadTableObjectWithValidate(
@@ -325,11 +334,13 @@ public class BigQueryIOReadTest implements Serializable {
       String query,
       String kmsKey,
       String tempDataset,
+      String tempProject,
       boolean validate) {
     assertNull(read.getTable());
     assertEquals(query, read.getQuery().get());
     assertEquals(kmsKey, read.getKmsKey());
     assertEquals(tempDataset, read.getQueryTempDataset());
+    assertEquals(tempProject, read.getQueryTempProject());
     assertEquals(validate, read.getValidate());
   }
 
@@ -394,6 +405,16 @@ public class BigQueryIOReadTest implements Serializable {
             .withKmsKey("kms_key")
             .withQueryTempDataset("temp_dataset");
     checkTypedReadQueryObject(read, "foo_query", "kms_key", "temp_dataset");
+  }
+
+  @Test
+  public void testBuildQueryBasedTypedReadSourceWithTempProject() {
+    BigQueryIO.TypedRead<?> read =
+        BigQueryIO.readTableRows()
+            .fromQuery("foo_query")
+            .withKmsKey("kms_key")
+            .withQueryTempProjectAndDataset("temp_project", "temp_dataset");
+    checkTypedReadQueryObject(read, "foo_query", "kms_key", "temp_dataset", "temp_project");
   }
 
   @Test
@@ -911,6 +932,7 @@ public class BigQueryIOReadTest implements Serializable {
                 QueryPriority.BATCH,
                 null,
                 null,
+                null,
                 null)
             .toSource(stepUuid, TableRowJsonCoder.of(), datumReaderFactoryFn, false);
 
@@ -987,6 +1009,7 @@ public class BigQueryIOReadTest implements Serializable {
                 QueryPriority.BATCH,
                 null,
                 null,
+                null,
                 null)
             .toSource(stepUuid, TableRowJsonCoder.of(), datumReaderFactoryFn, false);
 
@@ -1057,6 +1080,7 @@ public class BigQueryIOReadTest implements Serializable {
                 true /* flattenResults */,
                 true /* useLegacySql */,
                 QueryPriority.BATCH,
+                null,
                 null,
                 null,
                 null)

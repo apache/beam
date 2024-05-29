@@ -369,6 +369,10 @@ message StandardPTransforms {
     // Represents the GroupIntoBatches.WithShardedKey operation.
     // Payload: GroupIntoBatchesPayload
     GROUP_INTO_BATCHES_WITH_SHARDED_KEY = 6 [(beam_urn) = "beam:transform:group_into_batches_with_sharded_key:v1"];
+
+    REDISTRIBUTE_BY_KEY = 8 [(beam_urn) = "beam:transform:redistribute_by_key:v1"];
+
+    REDISTRIBUTE_ARBITRARILY = 9 [(beam_urn) = "beam:transform:redistribute_arbitrarily:v1"];
   }
   // Payload for all of these: CombinePayload
   enum CombineComponents {
@@ -811,6 +815,10 @@ message GroupIntoBatchesPayload {
 
   // (Optional) Max duration a batch is allowed to be cached in states.
   int64 max_buffering_duration_millis = 2;
+}
+
+message RedistributePayload {
+  bool allow_duplicates = 1;
 }
 
 // A coder, the binary format for serialization and deserialization of data in

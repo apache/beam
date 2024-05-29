@@ -363,6 +363,39 @@ public class ViewTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
+  public void testListWithRandomAccessSideInput() {
+
+    final PCollectionView<List<Integer>> view =
+        pipeline
+            .apply("CreateSideInput", Create.of(11, 13, 17, 23))
+            .apply(View.<Integer>asList().withRandomAccess());
+
+    PCollection<Integer> output =
+        pipeline
+            .apply("CreateMainInput", Create.of(29, 31))
+            .apply(
+                "OutputSideInputs",
+                ParDo.of(
+                        new DoFn<Integer, Integer>() {
+                          @ProcessElement
+                          public void processElement(ProcessContext c) {
+                            checkArgument(c.sideInput(view).size() == 4);
+                            checkArgument(
+                                c.sideInput(view).get(0).equals(c.sideInput(view).get(0)));
+                            for (Integer i : c.sideInput(view)) {
+                              c.output(i);
+                            }
+                          }
+                        })
+                    .withSideInputs(view));
+
+    PAssert.that(output).containsInAnyOrder(11, 13, 17, 23, 11, 13, 17, 23);
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category(ValidatesRunner.class)
   public void testWindowedListSideInput() {
 
     final PCollectionView<List<Integer>> view =

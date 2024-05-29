@@ -46,5 +46,13 @@ dependencies {
     testImplementation project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntimeMigration")
 }
 
-tasks.register("KafkaStressTestMedium", IoPerformanceTestUtilities.IoPerformanceTest, project, 'kafka', 'KafkaIOST', ['configuration':'medium','bootstrapServers':System.getProperty("bootstrapServers"),'useDataflowRunnerV2':System.getProperty("useDataflowRunnerV2"),'project':'apache-beam-testing', 'artifactBucket':'io-performance-temp'])
-tasks.register("KafkaStressTestLarge", IoPerformanceTestUtilities.IoPerformanceTest, project, 'kafka', 'KafkaIOST', ['configuration':'large','bootstrapServers':System.getProperty("bootstrapServers"),'useDataflowRunnerV2':System.getProperty("useDataflowRunnerV2"),'project':'apache-beam-testing', 'artifactBucket':'io-performance-temp'])
+tasks.register(
+        "KafkaStressTestMedium", IoPerformanceTestUtilities.IoPerformanceTest, project, 'kafka', 'KafkaIOST',
+        ['configuration':'medium','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp']
+        + System.properties
+)
+tasks.register(
+        "KafkaStressTestLarge", IoPerformanceTestUtilities.IoPerformanceTest, project, 'kafka', 'KafkaIOST',
+        ['configuration':'large','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp']
+        + System.properties
+)

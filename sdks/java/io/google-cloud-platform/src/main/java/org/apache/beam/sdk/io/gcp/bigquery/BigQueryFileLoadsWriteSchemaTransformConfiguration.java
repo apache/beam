@@ -20,9 +20,6 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import com.google.auto.value.AutoValue;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
-import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * Configuration for writing to BigQuery.
@@ -42,12 +39,6 @@ public abstract class BigQueryFileLoadsWriteSchemaTransformConfiguration {
     return new AutoValue_BigQueryFileLoadsWriteSchemaTransformConfiguration.Builder();
   }
 
-  private static final AutoValueSchema AUTO_VALUE_SCHEMA = new AutoValueSchema();
-  private static final TypeDescriptor<BigQueryFileLoadsWriteSchemaTransformConfiguration>
-      TYPE_DESCRIPTOR = TypeDescriptor.of(BigQueryFileLoadsWriteSchemaTransformConfiguration.class);
-  private static final SerializableFunction<BigQueryFileLoadsWriteSchemaTransformConfiguration, Row>
-      ROW_SERIALIZABLE_FUNCTION = AUTO_VALUE_SCHEMA.toRowFunction(TYPE_DESCRIPTOR);
-
   /**
    * Writes to the given table specification. See {@link BigQueryIO.Write#to(String)}} for the
    * expected format.
@@ -59,11 +50,6 @@ public abstract class BigQueryFileLoadsWriteSchemaTransformConfiguration {
 
   /** Specifies what to do with existing data in the table, in case the table already exists. */
   public abstract String getWriteDisposition();
-
-  /** Serializes configuration to a {@link Row}. */
-  Row toBeamRow() {
-    return ROW_SERIALIZABLE_FUNCTION.apply(this);
-  }
 
   @AutoValue.Builder
   public abstract static class Builder {

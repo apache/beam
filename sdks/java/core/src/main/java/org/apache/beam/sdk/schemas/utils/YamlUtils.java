@@ -20,6 +20,7 @@ package org.apache.beam.sdk.schemas.utils;
 import static org.apache.beam.sdk.values.Row.toRow;
 
 import java.math.BigDecimal;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -147,14 +148,27 @@ public class YamlUtils {
   }
 
   @SuppressWarnings("nullness")
-  public static Row toBeamRow(Map<String, Object> yamlMap, Schema rowSchema, boolean toCamelCase) {
+  public static Row toBeamRow(
+      @Nullable Map<String, Object> map, Schema rowSchema, boolean toCamelCase) {
+    if (map == null || map.isEmpty()) {
+      List<Field> requiredFields =
+          rowSchema.getFields().stream()
+              .filter(field -> !field.getType().getNullable())
+              .collect(Collectors.toList());
+      if (requiredFields.isEmpty()) {
+        return Row.nullRow(rowSchema);
+      } else {
+        throw new IllegalArgumentException(
+            String.format(
+                "Received an empty Map, but output schema contains required fields: %s",
+                requiredFields));
+      }
+    }
     return rowSchema.getFields().stream()
         .map(
             field ->
                 toBeamValue(
-                    field,
-                    yamlMap.get(maybeGetSnakeCase(field.getName(), toCamelCase)),
-                    toCamelCase))
+                    field, map.get(maybeGetSnakeCase(field.getName(), toCamelCase)), toCamelCase))
         .collect(toRow(rowSchema));
   }
 
@@ -167,5 +181,12 @@ public class YamlUtils {
       return "";
     }
     return new Yaml().dumpAsMap(map);
+  }
+
+  public static Map<String, Object> yamlStringToMap(@Nullable String yaml) {
+    if (yaml == null || yaml.isEmpty()) {
+      return Collections.emptyMap();
+    }
+    return new Yaml().load(yaml);
   }
 }

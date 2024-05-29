@@ -31,16 +31,19 @@ import javax.annotation.Nonnull;
  * specified index. There cannot be "gaps" in field numbers, or schema inference will fail. If used,
  * all fields (or getters in the case of a bean) must be annotated.
  *
+ * <p>The annotation takes a String as an argument, but this has to be an Integer-parsable String.
+ * Otherwise the pipeline will throw a RuntimeException.
+ *
  * <p>For example, say we have a Java POJO with a field that we want in our schema but under a
  * different name:
  *
  * <pre><code>
  *  {@literal @}DefaultSchema(JavaFieldSchema.class)
  *   class MyClass {
- *     {@literal @}SchemaFieldNumber(1)
+ *     {@literal @}SchemaFieldNumber("1")
  *     public String user;
  *
- *    {@literal @}SchemaFieldNumber(0)
+ *    {@literal @}SchemaFieldNumber("0")
  *     public int ageInYears;
  *   }
  * </code></pre>

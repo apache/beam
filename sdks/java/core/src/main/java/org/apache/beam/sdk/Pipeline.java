@@ -49,6 +49,7 @@ import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler;
 import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler.BadRecordErrorHandler;
 import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.util.UserCodeException;
+import org.apache.beam.sdk.util.construction.CoderTranslation;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
@@ -524,6 +525,7 @@ public class Pipeline {
   private final List<ErrorHandler<?, ?>> errorHandlers = new ArrayList<>();
 
   private Pipeline(TransformHierarchy transforms, PipelineOptions options) {
+    CoderTranslation.verifyModelCodersRegistered();
     this.transforms = transforms;
     this.defaultOptions = options;
   }

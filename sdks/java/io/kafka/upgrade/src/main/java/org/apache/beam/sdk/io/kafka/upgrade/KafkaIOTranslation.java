@@ -40,6 +40,7 @@ import org.apache.beam.sdk.io.kafka.KafkaIO.WriteRecords;
 import org.apache.beam.sdk.io.kafka.KafkaIOUtils;
 import org.apache.beam.sdk.io.kafka.TimestampPolicyFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -51,6 +52,7 @@ import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler;
 import org.apache.beam.sdk.util.construction.PTransformTranslation.TransformPayloadTranslator;
 import org.apache.beam.sdk.util.construction.SdkComponents;
 import org.apache.beam.sdk.util.construction.TransformPayloadTranslatorRegistrar;
+import org.apache.beam.sdk.util.construction.TransformUpgrader;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -102,6 +104,7 @@ public class KafkaIOTranslation {
             .addNullableByteArrayField("key_deserializer_provider")
             .addNullableByteArrayField("value_deserializer_provider")
             .addNullableByteArrayField("check_stop_reading_fn")
+            .addNullableInt64Field("consumer_polling_timeout")
             .build();
 
     @Override
@@ -173,7 +176,7 @@ public class KafkaIOTranslation {
       if (transform.getStopReadTime() != null) {
         fieldValues.put("stop_read_time", transform.getStopReadTime());
       }
-
+      fieldValues.put("consumer_polling_timeout", transform.getConsumerPollingTimeout());
       fieldValues.put(
           "is_commit_offset_finalize_enabled", transform.isCommitOffsetsInFinalizeEnabled());
       fieldValues.put("is_dynamic_read", transform.isDynamicRead());
@@ -217,6 +220,13 @@ public class KafkaIOTranslation {
 
     @Override
     public Read<?, ?> fromConfigRow(Row configRow, PipelineOptions options) {
+      String updateCompatibilityBeamVersion =
+          options.as(StreamingOptions.class).getUpdateCompatibilityVersion();
+      // We need to set a default 'updateCompatibilityBeamVersion' here since this PipelineOption
+      // is not correctly passed in for pipelines that use Beam 2.55.0.
+      // This is fixed for Beam 2.56.0 and later.
+      updateCompatibilityBeamVersion =
+          (updateCompatibilityBeamVersion != null) ? updateCompatibilityBeamVersion : "2.55.0";
       try {
         Read<?, ?> transform = KafkaIO.read();
 
@@ -319,6 +329,15 @@ public class KafkaIOTranslation {
         if (maxReadTime != null) {
           transform =
               transform.withMaxReadTime(org.joda.time.Duration.millis(maxReadTime.toMillis()));
+        }
+        if (TransformUpgrader.compareVersions(updateCompatibilityBeamVersion, "2.56.0") < 0) {
+          // set to current default
+          transform = transform.withConsumerPollingTimeout(2L);
+        } else {
+          Long consumerPollingTimeout = configRow.getInt64("consumer_polling_timeout");
+          if (consumerPollingTimeout != null) {
+            transform = transform.withConsumerPollingTimeout(consumerPollingTimeout);
+          }
         }
         Instant startReadTime = configRow.getValue("start_read_time");
         if (startReadTime != null) {

@@ -48,7 +48,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       EVENT_NAME: ${{ github.event_name }}
-      PY_VERSIONS_FULL: "cp38-* cp39-* cp310-* cp311-*"
+      PY_VERSIONS_FULL: "cp38-* cp39-* cp310-* cp311-* cp312-*"
     outputs:
       gcp-variables-set: ${{ steps.check_gcp_variables.outputs.gcp-variables-set }}
       py-versions-full: ${{ steps.set-py-versions.outputs.py-versions-full }}
@@ -123,7 +123,8 @@ jobs:
         run: tar -xzvf dist/$(ls dist | grep .tar.gz | head -n 1)
       - name: Rename source directory
         working-directory: ./sdks/python
-        run: mv $(ls | grep apache-beam) apache-beam-source
+        # https://github.com/pypa/setuptools/issues/4300 changed naming. Match both old and new names.
+        run: mv $(ls | grep "apache-beam-\|apache_beam-") apache-beam-source
       - name: Upload source as artifact
         # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
         uses: actions/upload-artifact@v3
@@ -166,7 +167,8 @@ jobs:
       - name: Rename RC source directory
         if: steps.is_rc.outputs.is_rc == 1
         working-directory: ./sdks/python
-        run: mv $(ls | grep apache-beam) apache-beam-source-rc
+        # https://github.com/pypa/setuptools/issues/4300 changed naming. Match both old and new names.
+        run: mv $(ls | grep "apache-beam-\|apache_beam-") apache-beam-source-rc
       - name: Upload RC source as artifact
         if: steps.is_rc.outputs.is_rc == 1
         # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
@@ -233,7 +235,9 @@ jobs:
       matrix:
         os_python: [
           {"os": "ubuntu-latest", "python": "${{ needs.check_env_variables.outputs.py-versions-full }}" },
-          {"os": "macos-latest", "python": "${{ needs.check_env_variables.outputs.py-versions-test }}" },
+          # Temporarily pin to macos-13 because macos-latest breaks this build
+          # TODO(https://github.com/apache/beam/issues/31114)
+          {"os": "macos-13", "python": "${{ needs.check_env_variables.outputs.py-versions-test }}" },
           {"os": "windows-latest", "python": "${{ needs.check_env_variables.outputs.py-versions-test }}" },
         ]
         arch: [auto]
@@ -263,14 +267,13 @@ jobs:
       name: Set up QEMU
     - name: Install cibuildwheel
       # note: sync cibuildwheel version with gradle task sdks:python:bdistPy* steps
-      run: pip install cibuildwheel==2.9.0
+      run: pip install cibuildwheel==2.17.0 setuptools
     - name: Build wheel
       working-directory: apache-beam-source
       env:
         CIBW_BUILD: ${{ matrix.os_python.python }}
         # TODO: https://github.com/apache/beam/issues/23048
         CIBW_SKIP: "*-musllinux_*"
-        CIBW_ENVIRONMENT: "SETUPTOOLS_USE_DISTUTILS=stdlib"
         CIBW_BEFORE_BUILD: pip install cython==0.29.36 numpy --config-settings=setup-args="-Dallow-noblas=true" && pip install --upgrade setuptools
       run: cibuildwheel --print-build-identifiers && cibuildwheel --output-dir wheelhouse
       shell: bash
@@ -297,7 +300,6 @@ jobs:
         CIBW_BUILD: ${{ matrix.os_python.python }}
         # TODO: https://github.com/apache/beam/issues/23048
         CIBW_SKIP: "*-musllinux_*"
-        CIBW_ENVIRONMENT: "SETUPTOOLS_USE_DISTUTILS=stdlib"
         CIBW_BEFORE_BUILD: pip install cython==0.29.36 numpy --config-settings=setup-args="-Dallow-noblas=true" && pip install --upgrade setuptools
       run: cibuildwheel --print-build-identifiers && cibuildwheel --output-dir wheelhouse
       shell: bash
@@ -326,7 +328,9 @@ jobs:
     if: needs.check_env_variables.outputs.gcp-variables-set == 'true' && github.event_name != 'pull_request'
     strategy:
       matrix:
-        os : [ubuntu-latest, macos-latest, windows-latest]
+        # Temporarily pin to macos-13 because macos-latest breaks this build
+        # TODO(https://github.com/apache/beam/issues/31114)
+        os : [ubuntu-latest, macos-13, windows-latest]
         arch: [auto]
         include:
           - os: "ubuntu-latest"

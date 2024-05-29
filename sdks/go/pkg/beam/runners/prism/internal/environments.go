@@ -164,7 +164,7 @@ func dockerEnvironment(ctx context.Context, logger *slog.Logger, dp *pipepb.Dock
 	containerID := ccr.ID
 	logger = logger.With("container", containerID)
 
-	if err := cli.ContainerStart(ctx, containerID, container.StartOptions{}); err != nil {
+	if err := cli.ContainerStart(ctx, containerID, dtyp.ContainerStartOptions{}); err != nil {
 		cli.Close()
 		return fmt.Errorf("unable to start container image %v with docker for env %v, err: %w", dp.GetContainerImage(), wk.Env, err)
 	}
@@ -189,7 +189,7 @@ func dockerEnvironment(ctx context.Context, logger *slog.Logger, dp *pipepb.Dock
 		case resp := <-statusCh:
 			logger.Info("docker container has self terminated", "status_code", resp.StatusCode)
 
-			rc, err := cli.ContainerLogs(ctx, containerID, container.LogsOptions{Details: true, ShowStdout: true, ShowStderr: true})
+			rc, err := cli.ContainerLogs(ctx, containerID, dtyp.ContainerLogsOptions{Details: true, ShowStdout: true, ShowStderr: true})
 			if err != nil {
 				logger.Error("docker container logs error", "error", err)
 			}

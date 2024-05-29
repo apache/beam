@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQuerySinkMetrics;
+import org.apache.beam.sdk.metrics.LabeledMetricNameUtils;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.util.HistogramData;
 
@@ -40,6 +41,20 @@ import org.apache.beam.sdk.util.HistogramData;
  * converting metrics from {@link BigQuerySinkMetrics} with this converter.
  */
 public class MetricsToPerStepNamespaceMetricsConverter {
+
+  private static Optional<LabeledMetricNameUtils.ParsedMetricName> getParsedMetricName(
+      MetricName metricName,
+      Map<MetricName, LabeledMetricNameUtils.ParsedMetricName> parsedPerWorkerMetricsCache) {
+    Optional<LabeledMetricNameUtils.ParsedMetricName> parsedMetricName =
+        Optional.ofNullable(parsedPerWorkerMetricsCache.get(metricName));
+    if (!parsedMetricName.isPresent()) {
+      parsedMetricName = LabeledMetricNameUtils.parseMetricName(metricName.getName());
+      parsedMetricName.ifPresent(
+          parsedName -> parsedPerWorkerMetricsCache.put(metricName, parsedName));
+    }
+    return parsedMetricName;
+  }
+
   /**
    * @param metricName The {@link MetricName} that represents this counter.
    * @param value The counter value.
@@ -47,12 +62,14 @@ public class MetricsToPerStepNamespaceMetricsConverter {
    *     returns an empty optional
    */
   private static Optional<MetricValue> convertCounterToMetricValue(
-      MetricName metricName, Long value) {
+      MetricName metricName,
+      Long value,
+      Map<MetricName, LabeledMetricNameUtils.ParsedMetricName> parsedPerWorkerMetricsCache) {
     if (value == 0 || !metricName.getNamespace().equals(BigQuerySinkMetrics.METRICS_NAMESPACE)) {
       return Optional.empty();
     }
 
-    return BigQuerySinkMetrics.parseMetricName(metricName.getName())
+    return getParsedMetricName(metricName, parsedPerWorkerMetricsCache)
         .filter(labeledName -> !labeledName.getBaseName().isEmpty())
         .map(
             labeledName ->
@@ -99,13 +116,15 @@ public class MetricsToPerStepNamespaceMetricsConverter {
    *     Otherwise returns an empty optional.
    */
   private static Optional<MetricValue> convertHistogramToMetricValue(
-      MetricName metricName, LockFreeHistogram.Snapshot inputHistogram) {
+      MetricName metricName,
+      LockFreeHistogram.Snapshot inputHistogram,
+      Map<MetricName, LabeledMetricNameUtils.ParsedMetricName> parsedPerWorkerMetricsCache) {
     if (inputHistogram.totalCount() == 0L) {
       return Optional.empty();
     }
 
-    Optional<BigQuerySinkMetrics.ParsedMetricName> labeledName =
-        BigQuerySinkMetrics.parseMetricName(metricName.getName());
+    Optional<LabeledMetricNameUtils.ParsedMetricName> labeledName =
+        getParsedMetricName(metricName, parsedPerWorkerMetricsCache);
     if (!labeledName.isPresent() || labeledName.get().getBaseName().isEmpty()) {
       return Optional.empty();
     }
@@ -129,6 +148,7 @@ public class MetricsToPerStepNamespaceMetricsConverter {
           new Base2Exponent().setNumberOfBuckets(numberOfBuckets).setScale(buckets.getScale());
       outputHistogram.setBucketOptions(new BucketOptions().setExponential(expoenntialOptions));
     } else {
+      parsedPerWorkerMetricsCache.remove(metricName);
       return Optional.empty();
     }
 
@@ -160,6 +180,8 @@ public class MetricsToPerStepNamespaceMetricsConverter {
    * @param stepName The unfused stage that these metrics are associated with.
    * @param counters Counter updates to convert.
    * @param histograms Histogram updates to convert.
+   * @param parsedPerWorkerMetricsCache cache of previously converted {@code ParsedMetricName}. The
+   *     cache will be updated to include all valid metric names in counters and histograms.
    * @return Collection of {@code PerStepNamespaceMetrics} that represent these metric updates. Each
    *     {@code PerStepNamespaceMetrics} contains a list of {@code MetricUpdates} for a {unfused
    *     stage, metrics namespace} pair.
@@ -167,13 +189,15 @@ public class MetricsToPerStepNamespaceMetricsConverter {
   public static Collection<PerStepNamespaceMetrics> convert(
       String stepName,
       Map<MetricName, Long> counters,
-      Map<MetricName, LockFreeHistogram.Snapshot> histograms) {
+      Map<MetricName, LockFreeHistogram.Snapshot> histograms,
+      Map<MetricName, LabeledMetricNameUtils.ParsedMetricName> parsedPerWorkerMetricsCache) {
 
     Map<String, PerStepNamespaceMetrics> metricsByNamespace = new HashMap<>();
     for (Entry<MetricName, Long> entry : counters.entrySet()) {
       MetricName metricName = entry.getKey();
 
-      Optional<MetricValue> metricValue = convertCounterToMetricValue(metricName, entry.getValue());
+      Optional<MetricValue> metricValue =
+          convertCounterToMetricValue(metricName, entry.getValue(), parsedPerWorkerMetricsCache);
       if (!metricValue.isPresent()) {
         continue;
       }
@@ -195,7 +219,7 @@ public class MetricsToPerStepNamespaceMetricsConverter {
     for (Entry<MetricName, LockFreeHistogram.Snapshot> entry : histograms.entrySet()) {
       MetricName metricName = entry.getKey();
       Optional<MetricValue> metricValue =
-          convertHistogramToMetricValue(metricName, entry.getValue());
+          convertHistogramToMetricValue(metricName, entry.getValue(), parsedPerWorkerMetricsCache);
       if (!metricValue.isPresent()) {
         continue;
       }

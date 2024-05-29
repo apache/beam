@@ -197,6 +197,8 @@ def portableValidatesRunnerTask(String name, boolean streaming, boolean checkpoi
     testFilter: {
       // Flink reshuffle override does not preserve all metadata
       excludeTestsMatching 'org.apache.beam.sdk.transforms.ReshuffleTest.testReshufflePreservesMetadata'
+      // TODO(https://github.com/apache/beam/issues/31231)
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.RedistributeTest.testRedistributePreservesMetadata'
       // TODO(https://github.com/apache/beam/issues/20269)
       excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenWithDifferentInputAndOutputCoders2'
       // TODO(https://github.com/apache/beam/issues/20843)

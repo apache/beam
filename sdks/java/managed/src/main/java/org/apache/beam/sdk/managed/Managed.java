@@ -25,6 +25,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.utils.YamlUtils;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
@@ -36,8 +37,8 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
  *
  * <h3>Available transforms</h3>
  *
- * <p>This API currently supports two operations: {@link Read} and {@link Write}. Each one
- * enumerates the available transforms in a {@code TRANSFORMS} map.
+ * <p>This API currently supports two operations: {@link Managed#read} and {@link Managed#write}.
+ * Each one enumerates the available transforms in a {@code TRANSFORMS} map.
  *
  * <h3>Building a Managed turnkey transform</h3>
  *
@@ -48,7 +49,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
  * <pre>{@code
  * PCollectionRowTuple output = PCollectionRowTuple.empty(pipeline).apply(
  *       Managed.read(ICEBERG)
- *           .withConfig(ImmutableMap.<String, Map>.builder()
+ *           .withConfig(ImmutableMap.<String, Object>.builder()
  *               .put("foo", "abc")
  *               .put("bar", 123)
  *               .build()));
@@ -76,26 +77,29 @@ public class Managed {
 
   // TODO: Dynamically generate a list of supported transforms
   public static final String ICEBERG = "iceberg";
+  public static final String KAFKA = "kafka";
 
+  // Supported SchemaTransforms
   public static final Map<String, String> READ_TRANSFORMS =
       ImmutableMap.<String, String>builder()
-          .put(ICEBERG, "beam:schematransform:org.apache.beam:iceberg_read:v1")
+          .put(ICEBERG, ManagedTransformConstants.ICEBERG_READ)
+          .put(KAFKA, ManagedTransformConstants.KAFKA_READ)
           .build();
   public static final Map<String, String> WRITE_TRANSFORMS =
       ImmutableMap.<String, String>builder()
-          .put(ICEBERG, "beam:schematransform:org.apache.beam:iceberg_write:v1")
+          .put(ICEBERG, ManagedTransformConstants.ICEBERG_WRITE)
+          .put(KAFKA, ManagedTransformConstants.KAFKA_WRITE)
           .build();
 
   /**
-   * Instantiates a {@link Managed.Read} transform for the specified source. The supported managed
-   * sources are:
+   * Instantiates a {@link Managed.ManagedTransform} transform for the specified source. The
+   * supported managed sources are:
    *
    * <ul>
    *   <li>{@link Managed#ICEBERG} : Read from Apache Iceberg
    * </ul>
    */
   public static ManagedTransform read(String source) {
-
     return new AutoValue_Managed_ManagedTransform.Builder()
         .setIdentifier(
             Preconditions.checkNotNull(
@@ -108,8 +112,8 @@ public class Managed {
   }
 
   /**
-   * Instantiates a {@link Managed.Write} transform for the specified sink. The supported managed
-   * sinks are:
+   * Instantiates a {@link Managed.ManagedTransform} transform for the specified sink. The supported
+   * managed sinks are:
    *
    * <ul>
    *   <li>{@link Managed#ICEBERG} : Write to Apache Iceberg
@@ -128,10 +132,11 @@ public class Managed {
   }
 
   @AutoValue
-  public abstract static class ManagedTransform extends SchemaTransform {
+  public abstract static class ManagedTransform
+      extends PTransform<PCollectionRowTuple, PCollectionRowTuple> {
     abstract String getIdentifier();
 
-    abstract @Nullable String getConfig();
+    abstract @Nullable Map<String, Object> getConfig();
 
     abstract @Nullable String getConfigUrl();
 
@@ -144,7 +149,7 @@ public class Managed {
     abstract static class Builder {
       abstract Builder setIdentifier(String identifier);
 
-      abstract Builder setConfig(@Nullable String config);
+      abstract Builder setConfig(@Nullable Map<String, Object> config);
 
       abstract Builder setConfigUrl(@Nullable String configUrl);
 
@@ -161,7 +166,7 @@ public class Managed {
      * SchemaTransformProvider#configurationSchema()}) to see which parameters are available.
      */
     public ManagedTransform withConfig(Map<String, Object> config) {
-      return toBuilder().setConfig(YamlUtils.yamlStringFromMap(config)).build();
+      return toBuilder().setConfig(config).build();
     }
 
     /**
@@ -182,7 +187,7 @@ public class Managed {
       ManagedSchemaTransformProvider.ManagedConfig managedConfig =
           ManagedSchemaTransformProvider.ManagedConfig.builder()
               .setTransformIdentifier(getIdentifier())
-              .setConfig(getConfig())
+              .setConfig(YamlUtils.yamlStringFromMap(getConfig()))
               .setConfigUrl(getConfigUrl())
               .build();
 

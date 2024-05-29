@@ -37,6 +37,9 @@ spec:
       type: loadbalancer
       tls: false
       configuration:
+        finalizers:
+        - gke.networking.io/l4-ilb-v1
+        - service.kubernetes.io/load-balancer-cleanup
         bootstrap:
           annotations:
             cloud.google.com/load-balancer-type: "Internal"

@@ -27,6 +27,7 @@ import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.Write;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.getBackendVersion;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.FAMOUS_SCIENTISTS;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.INVALID_DOCS_IDS;
+import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.INVALID_LONG_ID;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.NUM_SCIENTISTS;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.SCRIPT_SOURCE;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.countByMatch;
@@ -34,6 +35,7 @@ import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.coun
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.flushAndRefreshAllIndices;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.insertTestDocuments;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.mapToInputId;
+import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.mapToInputIdString;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.refreshIndexAndGetCurrentNumDocs;
 import static org.apache.beam.sdk.testing.SourceTestUtils.readFromSource;
 import static org.apache.beam.sdk.values.TypeDescriptors.integers;
@@ -235,17 +237,36 @@ class ElasticsearchIOTestCommon implements Serializable {
     pipeline.run();
   }
 
+  /** Point in Time search is currently available for Elasticsearch version 8+. */
+  void testReadPIT() throws Exception {
+    if (!useAsITests) {
+      ElasticsearchIOTestUtils.insertTestDocuments(connectionConfiguration, numDocs, restClient);
+    }
+
+    PCollection<String> output =
+        pipeline.apply(
+            ElasticsearchIO.read()
+                .withConnectionConfiguration(connectionConfiguration)
+                .withPointInTimeSearch());
+    PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(numDocs);
+    pipeline.run();
+  }
+
   void testReadWithQueryString() throws Exception {
-    testReadWithQueryInternal(Read::withQuery);
+    testReadWithQueryInternal(Read::withQuery, true);
+  }
+
+  void testReadWithQueryAndPIT() throws Exception {
+    testReadWithQueryInternal(Read::withQuery, false);
   }
 
   void testReadWithQueryValueProvider() throws Exception {
     testReadWithQueryInternal(
-        (read, query) -> read.withQuery(ValueProvider.StaticValueProvider.of(query)));
+        (read, query) -> read.withQuery(ValueProvider.StaticValueProvider.of(query)), true);
   }
 
-  private void testReadWithQueryInternal(BiFunction<Read, String, Read> queryConfigurer)
-      throws IOException {
+  private void testReadWithQueryInternal(
+      BiFunction<Read, String, Read> queryConfigurer, boolean useScrollAPI) throws IOException {
     if (!useAsITests) {
       ElasticsearchIOTestUtils.insertTestDocuments(connectionConfiguration, numDocs, restClient);
     }
@@ -257,13 +278,15 @@ class ElasticsearchIOTestCommon implements Serializable {
             + "    \"scientist\" : {\n"
             + "      \"query\" : \"Einstein\"\n"
             + "    }\n"
-            + "  }\n"
+            + "   }\n"
             + "  }\n"
             + "}";
 
     Read read = ElasticsearchIO.read().withConnectionConfiguration(connectionConfiguration);
 
     read = queryConfigurer.apply(read, query);
+
+    read = useScrollAPI ? read : read.withPointInTimeSearch();
 
     PCollection<String> output = pipeline.apply(read);
 
@@ -436,6 +459,46 @@ class ElasticsearchIOTestCommon implements Serializable {
     PAssert.that(success).containsInAnyOrder(successfulIds);
     PAssert.that(fail).empty();
 
+    pipeline.run();
+  }
+
+  void testWriteWithElasticClientResponseException() throws Exception {
+    Write write =
+        ElasticsearchIO.write()
+            .withConnectionConfiguration(connectionConfiguration)
+            .withMaxBatchSize(numDocs + 1)
+            .withMaxBatchSizeBytes(
+                Long.MAX_VALUE) // Max long number to make sure all docs are flushed in one batch.
+            .withThrowWriteErrors(false)
+            .withIdFn(new ExtractValueFn("id"))
+            .withUseStatefulBatches(true);
+
+    List<String> data =
+        ElasticsearchIOTestUtils.createDocuments(
+            numDocs, ElasticsearchIOTestUtils.InjectionMode.INJECT_ONE_ID_TOO_LONG_DOC);
+
+    PCollectionTuple outputs = pipeline.apply(Create.of(data)).apply(write);
+
+    // The whole batch should fail and direct to tag FAILED_WRITES because of one invalid doc.
+    PCollection<String> success =
+        outputs
+            .get(Write.SUCCESSFUL_WRITES)
+            .apply("Convert success to input ID", MapElements.via(mapToInputIdString));
+
+    PCollection<String> fail =
+        outputs
+            .get(Write.FAILED_WRITES)
+            .apply("Convert fails to input ID", MapElements.via(mapToInputIdString));
+
+    Set<String> failedIds =
+        IntStream.range(0, data.size() - 1).mapToObj(String::valueOf).collect(Collectors.toSet());
+    failedIds.add(INVALID_LONG_ID);
+    PAssert.that(success).empty();
+    PAssert.that(fail).containsInAnyOrder(failedIds);
+
+    // Verify response item contains the corresponding error message.
+    PAssert.that(outputs.get(Write.FAILED_WRITES))
+        .satisfies(responseItemJsonSubstringValidator("java.io.IOException"));
     pipeline.run();
   }
 
@@ -1324,6 +1387,16 @@ class ElasticsearchIOTestCommon implements Serializable {
         } catch (JsonProcessingException e) {
           throw new RuntimeException(e);
         }
+      }
+      return null;
+    };
+  }
+
+  SerializableFunction<Iterable<Document>, Void> responseItemJsonSubstringValidator(
+      String responseItemSubstring) {
+    return input -> {
+      for (Document d : input) {
+        assertTrue(d.getResponseItemJson().contains(responseItemSubstring));
       }
       return null;
     };

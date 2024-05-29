@@ -664,6 +664,13 @@ class LogicalTypeRegistry(object):
   def get_logical_type_by_language_type(self, representation_type):
     return self.by_language_type.get(representation_type, None)
 
+  def copy(self):
+    copy = LogicalTypeRegistry()
+    copy.by_urn.update(self.by_urn)
+    copy.by_logical_type.update(self.by_logical_type)
+    copy.by_language_type.update(self.by_language_type)
+    return copy
+
 
 LanguageT = TypeVar('LanguageT')
 RepresentationT = TypeVar('RepresentationT')

@@ -46,6 +46,11 @@ except ImportError:
 _LOGGER = logging.getLogger(__name__)
 
 
+def _row_key_fn(request: beam.Row) -> bytes:
+  row_key = str(request.product_id)  # type: ignore[attr-defined]
+  return row_key.encode(encoding='utf-8')
+
+
 class ValidateResponse(beam.DoFn):
   """ValidateResponse validates if a PCollection of `beam.Row`
   has the required fields."""
@@ -425,6 +430,29 @@ class TestBigTableEnrichment(unittest.TestCase):
                   expected_fields,
                   expected_enriched_fields)))
     BigTableEnrichmentHandler.__call__ = actual
+
+  def test_bigtable_enrichment_with_lambda(self):
+    expected_fields = [
+        'sale_id', 'customer_id', 'product_id', 'quantity', 'product'
+    ]
+    expected_enriched_fields = {
+        'product': ['product_id', 'product_name', 'product_stock'],
+    }
+    bigtable = BigTableEnrichmentHandler(
+        project_id=self.project_id,
+        instance_id=self.instance_id,
+        table_id=self.table_id,
+        row_key_fn=_row_key_fn)
+    with TestPipeline(is_integration_test=True) as test_pipeline:
+      _ = (
+          test_pipeline
+          | "Create" >> beam.Create(self.req)
+          | "Enrich W/ BigTable" >> Enrichment(bigtable)
+          | "Validate Response" >> beam.ParDo(
+              ValidateResponse(
+                  len(expected_fields),
+                  expected_fields,
+                  expected_enriched_fields)))
 
 
 if __name__ == '__main__':

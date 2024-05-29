@@ -92,7 +92,7 @@ public class KafkaIOReadImplementationCompatibilityTest {
   @Test
   public void testPrimitiveKafkaIOReadPropertiesDefaultValueExistence() {
     for (KafkaIOReadProperties properties : KafkaIOReadProperties.values()) {
-      if (properties.getGetterMethod().getReturnType().isPrimitive()) {
+      if (KafkaIOReadProperties.findGetterMethod(properties).getReturnType().isPrimitive()) {
         assertThat(
             "KafkaIOReadProperties." + properties + " should have a default value!",
             properties.getDefaultValue(),
