@@ -1577,17 +1577,21 @@ public class TableRowToStorageApiProtoTest {
 
   @Test
   public void testIgnoreUnknownNestedField() throws Exception {
+    TableRow rowNoFWithUnknowns = new TableRow();
+    rowNoFWithUnknowns.putAll(BASE_TABLE_ROW_NO_F);
+    rowNoFWithUnknowns.set("unknown", "foobar");
+    TableRow rowWithFWithUnknowns = new TableRow();
+    List<TableCell> cellsWithUnknowns = Lists.newArrayList(BASE_TABLE_ROW.getF());
+    cellsWithUnknowns.add(new TableCell().setV("foobar"));
+    rowWithFWithUnknowns.setF(cellsWithUnknowns);
+    // Nested records with no unknowns should not show up
     TableRow rowNoF = new TableRow();
     rowNoF.putAll(BASE_TABLE_ROW_NO_F);
-    rowNoF.set("unknown", "foobar");
-    TableRow rowWithF = new TableRow();
-    List<TableCell> cells = Lists.newArrayList(BASE_TABLE_ROW.getF());
-    cells.add(new TableCell().setV("foobar"));
-    rowWithF.setF(cells);
     TableRow topRow =
         new TableRow()
-            .set("nestedValueNoF1", rowNoF)
-            .set("nestedValue1", rowWithF)
+            .set("nestedValueNoF1", rowNoFWithUnknowns)
+            .set("nestedValue1", rowWithFWithUnknowns)
+            .set("nestedValueNoF2", rowNoF)
             .set("unknowntop", "foobar");
 
     Descriptor descriptor =

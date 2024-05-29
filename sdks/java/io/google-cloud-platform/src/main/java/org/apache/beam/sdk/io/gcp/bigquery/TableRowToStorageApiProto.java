@@ -524,6 +524,15 @@ public class TableRowToStorageApiProto {
         if (value != null) {
           builder.setField(fieldDescriptor, value);
         }
+        // For STRUCT fields, we add a placeholder to unknownFields using the getNestedUnknown
+        // supplier (in case we encounter unknown nested fields). If the placeholder comes out
+        // to be empty, we should clean it up
+        if (fieldSchemaInformation.getType().equals(TableFieldSchema.Type.STRUCT)
+            && unknownFields != null
+            && unknownFields.get(entry.getKey().toLowerCase()) instanceof Map
+            && ((Map<?, ?>) unknownFields.get(entry.getKey().toLowerCase())).isEmpty()) {
+          unknownFields.remove(entry.getKey().toLowerCase());
+        }
       } catch (Exception e) {
         throw new SchemaDoesntMatchException(
             "Problem converting field "
