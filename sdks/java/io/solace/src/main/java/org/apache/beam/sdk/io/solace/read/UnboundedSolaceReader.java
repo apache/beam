@@ -27,7 +27,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.io.solace.broker.MessageReceiver;
@@ -71,7 +70,7 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
   @Override
   public boolean start() {
     populateSession();
-    populateMessageReceiver();
+    populateMessageConsumer();
     return advance();
   }
 
@@ -84,13 +83,14 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
     }
   }
 
-  private void populateMessageReceiver() {
+  private void populateMessageConsumer() {
     if (messageReceiver == null) {
       messageReceiver = checkNotNull(sessionService).createReceiver();
       messageReceiver.start();
     }
-    if (messageReceiver != null && messageReceiver.isClosed()) {
-      checkNotNull(messageReceiver).start();
+    MessageReceiver receiver = checkNotNull(messageReceiver);
+    if (receiver.isClosed()) {
+      receiver.start();
     }
   }
 
@@ -131,15 +131,14 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
 
   @Override
   public UnboundedSource.CheckpointMark getCheckpointMark() {
-    List<Long> ackQueue = new ArrayList<>();
+    List<BytesXMLMessage> ackQueue = new ArrayList<>();
     while (!elementsToCheckpoint.isEmpty()) {
       BytesXMLMessage msg = elementsToCheckpoint.poll();
       if (msg != null) {
-        ackQueue.add(msg.getMessageIdLong());
+        ackQueue.add(msg);
       }
     }
-    return new SolaceCheckpointMark(
-        active, ackQueue, new AtomicReference<>(checkNotNull(messageReceiver)));
+    return new SolaceCheckpointMark(active, ackQueue);
   }
 
   @Override

@@ -30,7 +30,6 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.solace.data.Solace.Destination;
-import org.apache.beam.sdk.io.solace.data.Solace.DestinationType;
 import org.apache.beam.sdk.io.solace.data.Solace.Record;
 import org.checkerframework.checker.nullness.qual.NonNull;
 
@@ -88,8 +87,8 @@ public class SolaceRecordCoder extends CustomCoder<Record> {
               .setName(destinationName)
               .setType(
                   Objects.equals(destinationType, "QUEUE")
-                      ? DestinationType.QUEUE
-                      : DestinationType.TOPIC)
+                      ? Solace.DestinationType.QUEUE
+                      : Solace.DestinationType.TOPIC)
               .build());
     }
     return builder

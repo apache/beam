@@ -17,21 +17,17 @@
  */
 package org.apache.beam.sdk.io.solace.read;
 
-import java.io.IOException;
+import com.solacesystems.jcsmp.BytesXMLMessage;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
-import org.apache.beam.sdk.io.solace.broker.MessageReceiver;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Checkpoint for an unbounded Solace source. Consists of the Solace messages waiting to be
@@ -40,38 +36,27 @@ import org.slf4j.LoggerFactory;
 @Internal
 @DefaultCoder(AvroCoder.class)
 public class SolaceCheckpointMark implements UnboundedSource.CheckpointMark {
-  private static final Logger LOG = LoggerFactory.getLogger(SolaceCheckpointMark.class);
   private transient AtomicBoolean activeReader;
-  private ArrayDeque<Long> ackQueue;
-  private AtomicReference<MessageReceiver> sessionServiceRef;
+  private transient ArrayDeque<BytesXMLMessage> ackQueue;
 
   @SuppressWarnings("initialization") // Avro will set the fields by breaking abstraction
   private SolaceCheckpointMark() {}
 
-  public SolaceCheckpointMark(
-      AtomicBoolean activeReader,
-      List<Long> ackQueue,
-      AtomicReference<MessageReceiver> messageReceiverRef) {
+  public SolaceCheckpointMark(AtomicBoolean activeReader, List<BytesXMLMessage> ackQueue) {
     this.activeReader = activeReader;
     this.ackQueue = new ArrayDeque<>(ackQueue);
-    this.sessionServiceRef = messageReceiverRef;
   }
 
   @Override
-  public void finalizeCheckpoint() throws IOException {
+  public void finalizeCheckpoint() {
     if (activeReader == null || !activeReader.get() || ackQueue == null) {
       return;
     }
-    MessageReceiver receiver = sessionServiceRef.get();
-    if (receiver == null) {
-      LOG.warn(
-          "SolaceIO: MessageReceiver is null, can't ack messages. They will" + " be redelivered.");
-      return;
-    }
+
     while (ackQueue.size() > 0) {
-      Long ackId = ackQueue.poll();
-      if (ackId != null) {
-        receiver.ack(ackId);
+      BytesXMLMessage msg = ackQueue.poll();
+      if (msg != null) {
+        msg.ackMessage();
       }
     }
   }
@@ -90,8 +75,8 @@ public class SolaceCheckpointMark implements UnboundedSource.CheckpointMark {
     SolaceCheckpointMark that = (SolaceCheckpointMark) o;
     // Needed to convert to ArrayList because ArrayDeque.equals checks only for reference, not
     // content.
-    ArrayList<Long> ackList = new ArrayList<>(ackQueue);
-    ArrayList<Long> thatAckList = new ArrayList<>(that.ackQueue);
+    ArrayList<BytesXMLMessage> ackList = new ArrayList<>(ackQueue);
+    ArrayList<BytesXMLMessage> thatAckList = new ArrayList<>(that.ackQueue);
     return Objects.equals(activeReader, that.activeReader) && Objects.equals(ackList, thatAckList);
   }
 

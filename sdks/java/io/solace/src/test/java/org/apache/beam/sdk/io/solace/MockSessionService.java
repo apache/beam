@@ -30,21 +30,21 @@ public class MockSessionService implements SessionService {
   private final SerializableFunction<Integer, BytesXMLMessage> getRecordFn;
   private final AtomicInteger ackCounter;
   private MessageReceiver messageReceiver = null;
-  private final int minMessagesReceived;
+  private final int isEndOfStreamAfterCount;
 
   public MockSessionService(
-      SerializableFunction<Integer, BytesXMLMessage> getRecordFn, int minMessagesReceived) {
+      SerializableFunction<Integer, BytesXMLMessage> getRecordFn, int isEndOfStreamAfterCount) {
     this.getRecordFn = getRecordFn;
-    this.minMessagesReceived = minMessagesReceived;
+    this.isEndOfStreamAfterCount = isEndOfStreamAfterCount;
     this.ackCounter = new AtomicInteger();
   }
 
   public MockSessionService(
       SerializableFunction<Integer, BytesXMLMessage> getRecordFn,
       AtomicInteger ackCounter,
-      int minMessagesReceived) {
+      int isEndOfStreamAfterCount) {
     this.getRecordFn = getRecordFn;
-    this.minMessagesReceived = minMessagesReceived;
+    this.isEndOfStreamAfterCount = isEndOfStreamAfterCount;
     this.ackCounter = ackCounter;
   }
 
@@ -59,7 +59,7 @@ public class MockSessionService implements SessionService {
   @Override
   public MessageReceiver createReceiver() {
     if (messageReceiver == null) {
-      messageReceiver = new MockReceiver(getRecordFn, ackCounter, minMessagesReceived);
+      messageReceiver = new MockReceiver(getRecordFn, ackCounter, isEndOfStreamAfterCount);
     }
     return messageReceiver;
   }
@@ -71,15 +71,15 @@ public class MockSessionService implements SessionService {
     private final AtomicInteger receiveCounter = new AtomicInteger();
     private final AtomicInteger ackCounter;
     private final SerializableFunction<Integer, BytesXMLMessage> getRecordFn;
-    private final int minMessagesReceived;
+    private final int isEndOfStreamAfterCount;
 
     public MockReceiver(
         SerializableFunction<Integer, BytesXMLMessage> getRecordFn,
         AtomicInteger ackCounter,
-        int minMessagesReceived) {
+        int isEndOfStreamAfterCount) {
       this.getRecordFn = getRecordFn;
       this.ackCounter = ackCounter;
-      this.minMessagesReceived = minMessagesReceived;
+      this.isEndOfStreamAfterCount = isEndOfStreamAfterCount;
     }
 
     @Override
@@ -102,7 +102,7 @@ public class MockSessionService implements SessionService {
 
     @Override
     public boolean isEOF() {
-      return receiveCounter.get() >= minMessagesReceived;
+      return receiveCounter.get() >= isEndOfStreamAfterCount;
     }
   }
 }

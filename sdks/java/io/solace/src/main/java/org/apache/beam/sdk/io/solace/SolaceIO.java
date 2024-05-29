@@ -205,7 +205,7 @@ public class SolaceIO {
           return Instant.now();
         }
       };
-  private static final boolean DEFAULT_DEDUPLICATE_RECORDS = true;
+  private static final boolean DEFAULT_DEDUPLICATE_RECORDS = false;
 
   /** Get a {@link Topic} object from the topic name. */
   static Topic topicFromName(String topicName) {
@@ -316,7 +316,7 @@ public class SolaceIO {
     }
 
     /**
-     * Optional, default: true. Set to deduplicate messages based on the {@link
+     * Optional, default: false. Set to deduplicate messages based on the {@link
      * BytesXMLMessage#getApplicationMessageId()} of the incoming {@link BytesXMLMessage}. If the
      * field is null, then the {@link BytesXMLMessage#getReplicationGroupMessageId()} will be used,
      * which is always set by Solace.

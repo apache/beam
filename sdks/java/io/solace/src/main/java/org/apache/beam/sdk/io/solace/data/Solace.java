@@ -31,8 +31,8 @@ import org.slf4j.LoggerFactory;
 /**
  * A record to be written to a Solace topic.
  *
- * <p>You need to transform to {@link Record} to be able to write to Solace. For that, you can use
- * the {@link Record.Builder} provided with this class.
+ * <p>You need to transform to {@link Solace.Record} to be able to write to Solace. For that, you
+ * can use the {@link Solace.Record.Builder} provided with this class.
  *
  * <p>For instance, to create a record, use the following code:
  *

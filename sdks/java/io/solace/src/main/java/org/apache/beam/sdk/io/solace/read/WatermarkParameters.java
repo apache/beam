@@ -17,12 +17,11 @@
  */
 package org.apache.beam.sdk.io.solace.read;
 
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
-
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -73,7 +72,7 @@ public abstract class WatermarkParameters<T> implements Serializable {
    * extract the event time.
    */
   public static <T> WatermarkParameters<T> create(SerializableFunction<T, Instant> timestampFn) {
-    checkArgument(timestampFn != null, "timestampFn function is null");
+    Preconditions.checkArgument(timestampFn != null, "timestampFn function is null");
     return WatermarkParameters.<T>builder().setTimestampFn(timestampFn).build();
   }
 
@@ -82,7 +81,8 @@ public abstract class WatermarkParameters<T> implements Serializable {
    * watermark idle duration threshold is {@link #STANDARD_WATERMARK_IDLE_DURATION_THRESHOLD}.
    */
   public WatermarkParameters<T> withWatermarkIdleDurationThreshold(Duration idleDurationThreshold) {
-    checkArgument(idleDurationThreshold != null, "watermark idle duration threshold is null");
+    Preconditions.checkArgument(
+        idleDurationThreshold != null, "watermark idle duration threshold is null");
     return toBuilder().setWatermarkIdleDurationThreshold(idleDurationThreshold).build();
   }
 }
