@@ -370,7 +370,7 @@ class ApplyBucketsWithInterpolation(TFTOperation):
       columns: List[str],
       bucket_boundaries: Iterable[Union[int, float]],
       name: Optional[str] = None):
-    """ Interpolates values within the provided buckest and then normalizes to
+    """Interpolates values within the provided buckets and then normalizes to
     [0, 1].
     
     Input values are bucketized based on the provided boundaries such that the
