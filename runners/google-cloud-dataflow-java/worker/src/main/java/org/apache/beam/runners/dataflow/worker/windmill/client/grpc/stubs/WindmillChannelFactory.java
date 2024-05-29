@@ -62,24 +62,26 @@ public final class WindmillChannelFactory {
             windmillServiceAddress.gcpServiceAddress(), windmillServiceRpcChannelTimeoutSec);
         // switch is exhaustive will never happen.
       case AUTHENTICATED_GCP_SERVICE_ADDRESS:
-        return remoteDirectChannel(
-            windmillServiceAddress.authenticatedGcpServiceAddress(),
-            windmillServiceRpcChannelTimeoutSec);
+        return remoteDirectChannel(windmillServiceAddress.authenticatedGcpServiceAddress());
       default:
         throw new UnsupportedOperationException(
-            "Only IPV6, GCP_SERVICE_ADDRESS, AUTHENTICATED_GCP_SERVICE_ADDRESS are supported WindmillServiceAddresses.");
+            "Only IPV6, GCP_SERVICE_ADDRESS, and AUTHENTICATED_GCP_SERVICE_ADDRESS "
+                + "are supported WindmillServiceAddress types.");
     }
   }
 
-  static ManagedChannel remoteDirectChannel(
-      AuthenticatedGcpServiceAddress authenticatedGcpServiceAddress,
-      int windmillServiceRpcChannelTimeoutSec) {
-    return withDefaultChannelOptions(
-            AltsChannelBuilder.forAddress(
-                    authenticatedGcpServiceAddress.gcpServiceAddress().getHost(),
-                    authenticatedGcpServiceAddress.gcpServiceAddress().getPort())
-                .overrideAuthority(authenticatedGcpServiceAddress.authenticatingService()),
-            windmillServiceRpcChannelTimeoutSec)
+  /**
+   * Create a channel with ALTS credentials.
+   *
+   * @implNote Does not use {@link #withDefaultChannelOptions(ForwardingChannelBuilder2, int)}, as
+   *     heartbeats and opening/closing the stream are managed manually.
+   */
+  private static ManagedChannel remoteDirectChannel(
+      AuthenticatedGcpServiceAddress authenticatedGcpServiceAddress) {
+    return AltsChannelBuilder.forAddress(
+            authenticatedGcpServiceAddress.gcpServiceAddress().getHost(),
+            authenticatedGcpServiceAddress.gcpServiceAddress().getPort())
+        .overrideAuthority(authenticatedGcpServiceAddress.authenticatingService())
         .build();
   }
 

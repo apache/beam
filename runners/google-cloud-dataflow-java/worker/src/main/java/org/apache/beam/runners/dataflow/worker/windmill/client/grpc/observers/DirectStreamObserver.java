@@ -52,7 +52,7 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
   @GuardedBy("lock")
   private int messagesSinceReady = 0;
 
-  public DirectStreamObserver(
+  DirectStreamObserver(
       Phaser phaser,
       CallStreamObserver<T> outboundObserver,
       long deadlineSeconds,

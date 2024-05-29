@@ -120,7 +120,7 @@ public class WindmillStreamPoolTest {
 
     TestWindmillStream stream = streamPool.getStream();
     assertEquals(NEW_STREAM_HOLDS, holds.get(stream).holds);
-    assertTrue(streamData.stream.closed);
+    assertTrue(streamData.stream.isClosed());
     assertEquals(1, streams.size());
     assertEquals(1, holds.size());
   }
@@ -171,7 +171,7 @@ public class WindmillStreamPoolTest {
     TestWindmillStream newStream = streamPool.getStream();
 
     assertNotSame(expiredStreamData.stream, newStream);
-    assertFalse(expiredStreamData.stream.closed);
+    assertFalse(expiredStreamData.stream.isClosed());
     assertEquals(notDrained - 1, expiredStreamData.holds);
     assertEquals(2, holds.size());
     assertEquals(1, streams.size());
@@ -196,7 +196,7 @@ public class WindmillStreamPoolTest {
     holds.get(stream).holds = 1;
     streamPool.releaseStream(stream);
     assertFalse(holds.containsKey(stream));
-    assertTrue(stream.closed);
+    assertTrue(stream.isClosed());
   }
 
   @Test
@@ -215,7 +215,7 @@ public class WindmillStreamPoolTest {
     TestWindmillStream stream = streamPool.getStream();
     streamPool.releaseStream(stream);
     assertTrue(holds.containsKey(stream));
-    assertFalse(stream.closed);
+    assertFalse(stream.isClosed());
   }
 
   @Test
@@ -239,6 +239,11 @@ public class WindmillStreamPoolTest {
     @Override
     public void close() {
       closed = true;
+    }
+
+    @Override
+    public boolean isClosed() {
+      return closed;
     }
 
     @Override

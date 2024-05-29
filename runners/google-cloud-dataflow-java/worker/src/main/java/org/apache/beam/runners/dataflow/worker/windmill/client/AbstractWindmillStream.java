@@ -153,7 +153,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   protected final void send(RequestT request) {
     lastSendTimeMs.set(Instant.now().getMillis());
     synchronized (this) {
-      if (streamClosed.get()) {
+      if (isClosed()) {
         throw new IllegalStateException("Send called on a client closed stream.");
       }
 
@@ -253,6 +253,11 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   @Override
   public final Instant startTime() {
     return new Instant(startTimeMs.get());
+  }
+
+  @Override
+  public boolean isClosed() {
+    return clientClosed.get() || streamClosed.get();
   }
 
   private class ResponseObserver implements StreamObserver<ResponseT> {

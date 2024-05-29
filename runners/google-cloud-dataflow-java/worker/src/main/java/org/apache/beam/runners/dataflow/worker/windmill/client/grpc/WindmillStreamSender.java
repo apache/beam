@@ -83,7 +83,7 @@ public class WindmillStreamSender {
     this.commitWorkStream =
         Suppliers.memoize(
             () ->
-                streamingEngineStreamFactory.createCommitWorkStream(
+                streamingEngineStreamFactory.createDirectCommitWorkStream(
                     stub, streamingEngineThrottleTimers.commitWorkThrottleTimer()));
     this.getWorkStream =
         Suppliers.memoize(

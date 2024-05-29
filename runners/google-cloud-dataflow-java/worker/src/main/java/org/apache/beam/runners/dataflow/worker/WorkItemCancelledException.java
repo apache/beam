@@ -22,8 +22,12 @@ package org.apache.beam.runners.dataflow.worker;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class WorkItemCancelledException extends RuntimeException {
-  public WorkItemCancelledException(long sharding_key) {
-    super("Work item cancelled for key " + sharding_key);
+  public WorkItemCancelledException(long shardedKey) {
+    super("Work item cancelled for key " + shardedKey);
+  }
+
+  public WorkItemCancelledException(String shardedKeys) {
+    super("Work item cancelled for keys " + shardedKeys);
   }
 
   /** Returns whether an exception was caused by a {@link WorkItemCancelledException}. */

@@ -145,13 +145,46 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         responseObserver -> withDefaultDeadline(stub).getWorkStream(responseObserver),
         request,
         grpcBackOff.get(),
-        newStreamObserverFactory(),
+        StreamObserverFactory.simple(),
         streamRegistry,
         logEveryNStreamFailures,
         getWorkThrottleTimer,
         getDataStream,
         commitWorkStream,
         workItemProcessor);
+  }
+
+  public CommitWorkStream createDirectCommitWorkStream(
+      CloudWindmillServiceV1Alpha1Stub stub, ThrottleTimer commitWorkThrottleTimer) {
+    return GrpcCommitWorkStream.create(
+        responseObserver -> withDefaultDeadline(stub).commitWorkStream(responseObserver),
+        grpcBackOff.get(),
+        StreamObserverFactory.simple(),
+        streamRegistry,
+        logEveryNStreamFailures,
+        commitWorkThrottleTimer,
+        jobHeader,
+        streamIdGenerator,
+        streamingRpcBatchLimit);
+  }
+
+  public GetDataStream createGetDirectDataStream(
+      CloudWindmillServiceV1Alpha1Stub stub,
+      ThrottleTimer getDataThrottleTimer,
+      boolean sendKeyedGetDataRequests,
+      Consumer<List<ComputationHeartbeatResponse>> processHeartbeatResponses) {
+    return GrpcGetDataStream.create(
+        responseObserver -> withDefaultDeadline(stub).getDataStream(responseObserver),
+        grpcBackOff.get(),
+        StreamObserverFactory.simple(),
+        streamRegistry,
+        logEveryNStreamFailures,
+        getDataThrottleTimer,
+        jobHeader,
+        streamIdGenerator,
+        streamingRpcBatchLimit,
+        sendKeyedGetDataRequests,
+        processHeartbeatResponses);
   }
 
   public GetDataStream createGetDataStream(

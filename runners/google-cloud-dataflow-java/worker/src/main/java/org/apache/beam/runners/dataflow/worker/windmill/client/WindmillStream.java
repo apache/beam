@@ -41,6 +41,8 @@ public interface WindmillStream {
   /** Returns when the stream was opened. */
   Instant startTime();
 
+  boolean isClosed();
+
   /** Handle representing a stream of GetWork responses. */
   @ThreadSafe
   interface GetWorkStream extends WindmillStream {

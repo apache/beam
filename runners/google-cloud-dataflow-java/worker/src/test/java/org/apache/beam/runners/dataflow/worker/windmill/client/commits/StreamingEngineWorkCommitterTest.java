@@ -50,6 +50,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.Co
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamPool;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.After;
@@ -249,6 +250,8 @@ public class StreamingEngineWorkCommitterTest {
     Supplier<CommitWorkStream> fakeCommitWorkStream =
         () ->
             new CommitWorkStream() {
+              boolean closed = false;
+
               @Override
               public RequestBatcher batcher() {
                 return new RequestBatcher() {
@@ -266,7 +269,14 @@ public class StreamingEngineWorkCommitterTest {
               }
 
               @Override
-              public void close() {}
+              public void close() {
+                closed = true;
+              }
+
+              @Override
+              public boolean isClosed() {
+                return closed;
+              }
 
               @Override
               public boolean awaitTermination(int time, TimeUnit unit) {
@@ -345,5 +355,51 @@ public class StreamingEngineWorkCommitterTest {
       assertThat(request).isEqualTo(commit.request());
       assertThat(completeCommits).contains(asCompleteCommit(commit, Windmill.CommitStatus.OK));
     }
+  }
+
+  @Test
+  public void testCommit_failedCommit() {
+    Set<CompleteCommit> completeCommits = new HashSet<>();
+    workCommitter = createWorkCommitter(completeCommits::add);
+    workCommitter = createWorkCommitter(completeCommits::add);
+    Work work = createMockWork(1, ignored -> {});
+    work.setFailed();
+    WorkItemCommitRequest commitRequest =
+        WorkItemCommitRequest.newBuilder()
+            .setKey(work.getWorkItem().getKey())
+            .setShardingKey(work.getWorkItem().getShardingKey())
+            .setWorkToken(work.getWorkItem().getWorkToken())
+            .setCacheToken(work.getWorkItem().getCacheToken())
+            .build();
+    Commit commit = Commit.create(commitRequest, createComputationState("computationId"), work);
+    workCommitter.start();
+    workCommitter.commit(commit);
+    workCommitter.stop();
+    assertThat(completeCommits).hasSize(1);
+    CompleteCommit completeCommit = Iterables.getOnlyElement(completeCommits);
+    assertThat(completeCommit.status()).isEqualTo(Windmill.CommitStatus.ABORTED);
+    assertTrue(work.isFailed());
+  }
+
+  @Test
+  public void testCommit_afterShutdown() {
+    Set<CompleteCommit> completeCommits = new HashSet<>();
+    workCommitter = createWorkCommitter(completeCommits::add);
+    workCommitter.start();
+    workCommitter.stop();
+    Work work = createMockWork(1, ignored -> {});
+    WorkItemCommitRequest commitRequest =
+        WorkItemCommitRequest.newBuilder()
+            .setKey(work.getWorkItem().getKey())
+            .setShardingKey(work.getWorkItem().getShardingKey())
+            .setWorkToken(work.getWorkItem().getWorkToken())
+            .setCacheToken(work.getWorkItem().getCacheToken())
+            .build();
+    Commit commit = Commit.create(commitRequest, createComputationState("computationId"), work);
+    workCommitter.commit(commit);
+    assertThat(completeCommits).hasSize(1);
+    CompleteCommit completeCommit = Iterables.getOnlyElement(completeCommits);
+    assertThat(completeCommit.status()).isEqualTo(Windmill.CommitStatus.ABORTED);
+    assertTrue(work.isFailed());
   }
 }

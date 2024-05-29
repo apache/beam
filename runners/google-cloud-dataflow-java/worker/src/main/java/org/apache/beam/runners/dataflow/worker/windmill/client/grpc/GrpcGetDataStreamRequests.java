@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalDataRequest;
@@ -69,6 +70,10 @@ final class GrpcGetDataStreamRequests {
       return id;
     }
 
+    ComputationOrGlobalDataRequest getDataRequest() {
+      return dataRequest;
+    }
+
     long byteSize() {
       return dataRequest.serializedSize();
     }
@@ -97,10 +102,6 @@ final class GrpcGetDataStreamRequests {
     private long byteSize = 0;
     private boolean finalized = false;
 
-    CountDownLatch getLatch() {
-      return sent;
-    }
-
     List<QueuedRequest> requests() {
       return requests;
     }
@@ -113,7 +114,7 @@ final class GrpcGetDataStreamRequests {
       return finalized;
     }
 
-    void markFinalized() {
+    void finalizeBatch() {
       finalized = true;
     }
 
@@ -122,11 +123,17 @@ final class GrpcGetDataStreamRequests {
       byteSize += request.byteSize();
     }
 
-    void countDown() {
+    void notifySent() {
       sent.countDown();
     }
 
-    void await() throws InterruptedException {
+    /** Wait for given seconds until the batch has been sent. */
+    boolean waitForSend(int seconds) throws InterruptedException {
+      return sent.await(seconds, TimeUnit.SECONDS);
+    }
+
+    /** Wait indefinitely until the batch has been sent. */
+    void waitUntilSent() throws InterruptedException {
       sent.await();
     }
   }

@@ -20,6 +20,7 @@ package org.apache.beam.runners.dataflow.worker.windmill.client.commits;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -52,6 +53,7 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
   private final AtomicLong activeCommitBytes;
   private final Consumer<CompleteCommit> onCommitComplete;
   private final int numCommitSenders;
+  private final AtomicBoolean isShutdown;
 
   private StreamingEngineWorkCommitter(
       Supplier<CloseableStream<CommitWorkStream>> commitWorkStreamFactory,
@@ -72,6 +74,7 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
     this.activeCommitBytes = new AtomicLong();
     this.onCommitComplete = onCommitComplete;
     this.numCommitSenders = numCommitSenders;
+    this.isShutdown = new AtomicBoolean(false);
   }
 
   public static StreamingEngineWorkCommitter create(
@@ -85,7 +88,7 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
   @Override
   @SuppressWarnings("FutureReturnValueIgnored")
   public void start() {
-    if (!commitSenders.isShutdown()) {
+    if (!commitSenders.isShutdown() && !isShutdown.get()) {
       for (int i = 0; i < numCommitSenders; i++) {
         commitSenders.submit(this::streamingCommitLoop);
       }
@@ -94,7 +97,12 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
 
   @Override
   public void commit(Commit commit) {
-    commitQueue.put(commit);
+    if (commit.work().isFailed() || isShutdown.get()) {
+      LOG.debug("Trying to queue a stale commit, failing commit={}.", commit);
+      failCommit(commit);
+    } else {
+      commitQueue.put(commit);
+    }
   }
 
   @Override
@@ -104,17 +112,21 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
 
   @Override
   public void stop() {
-    if (!commitSenders.isTerminated()) {
-      commitSenders.shutdownNow();
-      try {
-        commitSenders.awaitTermination(10, TimeUnit.SECONDS);
-      } catch (InterruptedException e) {
-        LOG.warn(
-            "Commit senders didn't complete shutdown within 10 seconds, continuing to drain queue",
-            e);
+    if (isShutdown.compareAndSet(false, true)) {
+      if (!commitSenders.isTerminated()) {
+        commitSenders.shutdownNow();
+        try {
+          commitSenders.awaitTermination(10, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+          LOG.warn(
+              "Commit senders didn't complete shutdown within 10 seconds, continuing to drain queue",
+              e);
+        }
       }
+      // Drain the commit queue after shutting down the senders to ensure no commits get added to
+      // the queue.
+      drainCommitQueue();
     }
-    drainCommitQueue();
   }
 
   private void drainCommitQueue() {
@@ -172,6 +184,7 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
         }
       }
     } finally {
+      // Fail the commit so it doesn't dangle.
       if (initialCommit != null) {
         failCommit(initialCommit);
       }

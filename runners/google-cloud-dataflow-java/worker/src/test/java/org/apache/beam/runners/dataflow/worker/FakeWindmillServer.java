@@ -284,6 +284,11 @@ public final class FakeWindmillServer extends WindmillServerStub {
       }
 
       @Override
+      public boolean isClosed() {
+        return done.getCount() == 0;
+      }
+
+      @Override
       public Instant startTime() {
         return startTime;
       }
@@ -353,6 +358,11 @@ public final class FakeWindmillServer extends WindmillServerStub {
       @Override
       public boolean awaitTermination(int time, TimeUnit unit) {
         return true;
+      }
+
+      @Override
+      public boolean isClosed() {
+        return false;
       }
 
       @Override
@@ -432,6 +442,11 @@ public final class FakeWindmillServer extends WindmillServerStub {
 
       @Override
       public void close() {}
+
+      @Override
+      public boolean isClosed() {
+        return false;
+      }
 
       @Override
       public boolean awaitTermination(int time, TimeUnit unit) {

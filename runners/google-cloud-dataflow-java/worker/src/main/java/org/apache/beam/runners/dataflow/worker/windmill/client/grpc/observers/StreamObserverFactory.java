@@ -33,6 +33,21 @@ public abstract class StreamObserverFactory {
     return new Direct(deadlineSeconds, messagesBetweenIsReadyChecks);
   }
 
+  /**
+   * Simple {@link StreamObserverFactory} that just delegates the given client factory w/o any added
+   * behavior.
+   */
+  public static StreamObserverFactory simple() {
+    return new StreamObserverFactory() {
+      @Override
+      public <ResponseT, RequestT> StreamObserver<RequestT> from(
+          Function<StreamObserver<ResponseT>, StreamObserver<RequestT>> clientFactory,
+          StreamObserver<ResponseT> responseObserver) {
+        return clientFactory.apply(responseObserver);
+      }
+    };
+  }
+
   public abstract <ResponseT, RequestT> StreamObserver<RequestT> from(
       Function<StreamObserver<ResponseT>, StreamObserver<RequestT>> clientFactory,
       StreamObserver<ResponseT> responseObserver);

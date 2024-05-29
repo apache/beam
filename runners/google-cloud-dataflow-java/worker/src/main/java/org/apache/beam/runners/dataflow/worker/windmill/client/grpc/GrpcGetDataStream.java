@@ -30,10 +30,12 @@ import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.stream.Collectors;
+import javax.annotation.Nullable;
+import org.apache.beam.runners.dataflow.worker.WorkItemCancelledException;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationHeartbeatRequest;
@@ -62,6 +64,7 @@ public final class GrpcGetDataStream
     extends AbstractWindmillStream<StreamingGetDataRequest, StreamingGetDataResponse>
     implements GetDataStream {
   private static final Logger LOG = LoggerFactory.getLogger(GrpcGetDataStream.class);
+  private static final int WAIT_INDEFINITELY = -1;
 
   private final Deque<QueuedBatch> batches;
   private final Map<Long, AppendableInputStream> pending;
@@ -129,6 +132,21 @@ public final class GrpcGetDataStream
     return getDataStream;
   }
 
+  private static String getShardingKeys(QueuedRequest request) {
+    switch (request.getDataRequest().getKind()) {
+      case GLOBAL:
+        return "SIDE_INPUT";
+      case COMPUTATION:
+        return request.getDataRequest().computation().getRequestsList().stream()
+            .map(keyedRequest -> Long.toString(keyedRequest.getShardingKey()))
+            .distinct()
+            .collect(Collectors.joining(","));
+        // this will never happen since the switch is exhaustive.
+      default:
+        throw new UnsupportedOperationException("unknown dataRequest type.");
+    }
+  }
+
   @Override
   protected synchronized void onNewStream() {
     send(StreamingGetDataRequest.newBuilder().setHeader(jobHeader).build());
@@ -180,19 +198,21 @@ public final class GrpcGetDataStream
   public KeyedGetDataResponse requestKeyedData(String computation, KeyedGetDataRequest request) {
     return issueRequest(
         QueuedRequest.forComputation(uniqueId(), computation, request),
-        KeyedGetDataResponse::parseFrom);
+        KeyedGetDataResponse::parseFrom,
+        /* waitForSec= */ 10);
   }
 
   @Override
   public GlobalData requestGlobalData(GlobalDataRequest request) {
-    return issueRequest(QueuedRequest.global(uniqueId(), request), GlobalData::parseFrom);
+    return issueRequest(
+        QueuedRequest.global(uniqueId(), request), GlobalData::parseFrom, WAIT_INDEFINITELY);
   }
 
   @Override
   public void refreshActiveWork(Map<String, List<HeartbeatRequest>> heartbeats) {
     StreamingGetDataRequest.Builder builder = StreamingGetDataRequest.newBuilder();
+    long builderBytes = 0;
     if (sendKeyedGetDataRequests) {
-      long builderBytes = 0;
       for (Map.Entry<String, List<HeartbeatRequest>> entry : heartbeats.entrySet()) {
         for (HeartbeatRequest request : entry.getValue()) {
           // Calculate the bytes with some overhead for proto encoding.
@@ -218,12 +238,8 @@ public final class GrpcGetDataStream
         }
       }
 
-      if (builderBytes > 0) {
-        send(builder.build());
-      }
     } else {
       // No translation necessary, but we must still respect `RPC_STREAM_CHUNK_SIZE`.
-      long builderBytes = 0;
       for (Map.Entry<String, List<HeartbeatRequest>> entry : heartbeats.entrySet()) {
         ComputationHeartbeatRequest.Builder computationHeartbeatBuilder =
             ComputationHeartbeatRequest.newBuilder().setComputationId(entry.getKey());
@@ -244,10 +260,9 @@ public final class GrpcGetDataStream
         }
         builder.addComputationHeartbeatRequest(computationHeartbeatBuilder.build());
       }
-
-      if (builderBytes > 0) {
-        send(builder.build());
-      }
+    }
+    if (builderBytes > 0) {
+      send(builder.build());
     }
   }
 
@@ -287,18 +302,17 @@ public final class GrpcGetDataStream
     writer.append("]");
   }
 
-  private <ResponseT> ResponseT issueRequest(QueuedRequest request, ParseFn<ResponseT> parseFn) {
+  private <ResponseT> ResponseT issueRequest(
+      QueuedRequest request, ParseFn<ResponseT> parseFn, int waitForSec) {
     while (true) {
       request.resetResponseStream();
       try {
-        queueRequestAndWait(request);
+        queueRequestAndWait(request, waitForSec);
         return parseFn.parse(request.getResponseStream());
       } catch (CancellationException e) {
         // Retry issuing the request since the response stream was cancelled.
-        continue;
       } catch (IOException e) {
         LOG.error("Parsing GetData response failed: ", e);
-        continue;
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         throw new RuntimeException(e);
@@ -308,38 +322,37 @@ public final class GrpcGetDataStream
     }
   }
 
-  private void queueRequestAndWait(QueuedRequest request) throws InterruptedException {
+  private void queueRequestAndWait(QueuedRequest request, int waitForSec)
+      throws InterruptedException {
     QueuedBatch batch;
-    boolean responsibleForSend = false;
-    CountDownLatch waitForSendLatch = null;
+    QueuedBatch existingBatch = null;
+    boolean shouldSendBatch = false;
     synchronized (batches) {
       batch = batches.isEmpty() ? null : batches.getLast();
-      if (batch == null
-          || batch.isFinalized()
-          || batch.requests().size() >= streamingRpcBatchLimit
-          || batch.byteSize() + request.byteSize() > AbstractWindmillStream.RPC_STREAM_CHUNK_SIZE) {
+      if (isResponsibleForSend(batch, request)) {
         if (batch != null) {
-          waitForSendLatch = batch.getLatch();
+          existingBatch = batch;
         }
         batch = new QueuedBatch();
         batches.addLast(batch);
-        responsibleForSend = true;
+        shouldSendBatch = true;
       }
       batch.addRequest(request);
     }
-    if (responsibleForSend) {
-      if (waitForSendLatch == null) {
-        // If there was not a previous batch wait a little while to improve
-        // batching.
+
+    if (shouldSendBatch) {
+      if (existingBatch == null) {
+        // This is a new batch wait a little while to improve batching.
         Thread.sleep(1);
       } else {
-        waitForSendLatch.await();
+        // This an existing batch, wait for the previous send to complete.
+        waitForSend(existingBatch, waitForSec);
       }
       // Finalize the batch so that no additional requests will be added.  Leave the batch in the
       // queue so that a subsequent batch will wait for its completion.
       synchronized (batches) {
         verify(batch == batches.peekFirst());
-        batch.markFinalized();
+        batch.finalizeBatch();
       }
       sendBatch(batch.requests());
       synchronized (batches) {
@@ -347,11 +360,45 @@ public final class GrpcGetDataStream
       }
       // Notify all waiters with requests in this batch as well as the sender
       // of the next batch (if one exists).
-      batch.countDown();
+      batch.notifySent();
     } else {
       // Wait for this batch to be sent before parsing the response.
-      batch.await();
+      waitForSend(batch, waitForSec);
     }
+  }
+
+  /**
+   * @implNote This is especially important in fan out/direct path mode to prevent dangling keyed
+   *     GetData RPCs that will hold up the watermark. Streams are explicitly closed on new worker
+   *     metadata and any pending work for closed streams is considered cancelled.
+   */
+  private void waitForSend(QueuedBatch batch, int waitForSec) throws InterruptedException {
+    if (waitForSec == WAIT_INDEFINITELY) {
+      batch.waitUntilSent();
+    } else {
+      // Check every waitForSec seconds to see if the stream has been explicitly closed. If the
+      // stream is still open we try to send again, else throw WorkItemCancelledException, so we
+      // don't retry whatever WorkItem this stream is tied to.
+      boolean sent = false;
+      while (!sent) {
+        if (isClosed()) {
+          String shardedKeyMessage =
+              batch.requests().stream()
+                  .map(GrpcGetDataStream::getShardingKeys)
+                  .distinct()
+                  .collect(Collectors.joining(","));
+          throw new WorkItemCancelledException(shardedKeyMessage);
+        }
+        sent = batch.waitForSend(waitForSec);
+      }
+    }
+  }
+
+  private boolean isResponsibleForSend(@Nullable QueuedBatch batch, QueuedRequest request) {
+    return batch == null
+        || batch.isFinalized()
+        || batch.requests().size() >= streamingRpcBatchLimit
+        || batch.byteSize() + request.byteSize() > AbstractWindmillStream.RPC_STREAM_CHUNK_SIZE;
   }
 
   @SuppressWarnings("NullableProblems")
