@@ -317,8 +317,8 @@ func (em *ElementManager) Bundles(ctx context.Context, nextBundID func() string)
 			ptRefreshed := em.processTimeEvents.AdvanceTo(emNow)
 			em.watermarkRefreshes.merge(ptRefreshed)
 
-			// If there are no watermark refreshes available, we wait until there are.
-			for len(em.watermarkRefreshes)+len(ptRefreshed) == 0 { // TODO Add processing time event condition instead of piggybacking on watermarks?
+			// If there are no watermark refreshes or ready processing time events available, we wait until there are.
+			for len(em.watermarkRefreshes)+len(ptRefreshed) == 0 {
 				// Check to see if we must exit
 				select {
 				case <-ctx.Done():
