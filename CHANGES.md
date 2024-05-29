@@ -62,7 +62,7 @@
 
 ## I/Os
 
-* Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Support for reading from Solace message broker added (Java) ([#31440](https://github.com/apache/beam/issues/31440)).
 
 ## New Features / Improvements
 
