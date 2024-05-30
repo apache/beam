@@ -104,7 +104,7 @@ def validate_generic_expression(
     error_field: str) -> None:
   if not isinstance(expr_dict, dict):
     raise ValueError(
-        f"Ambiguous expression type (perhaps missing quoting?): {expr}")
+        f"Ambiguous expression type (perhaps missing quoting?): {expr_dict}")
   if len(expr_dict) != 1 or 'expression' not in expr_dict:
     raise ValueError(
         "Missing language specification. "
@@ -139,7 +139,7 @@ def validate_generic_expressions(base_type, config, input_pcolls) -> None:
             next(iter(input_pcolls)).element_type)
     ]
   except (TypeError, ValueError):
-    input_fields = ()
+    input_fields = []
 
   if base_type == 'MapToFields':
     for field, value in list(config.get('fields', {}).items()):
