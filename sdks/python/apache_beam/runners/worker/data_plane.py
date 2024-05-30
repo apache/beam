@@ -168,7 +168,8 @@ class SizeBasedBufferingClosableOutputStream(ClosableOutputStream):
           self._large_flush_last_observed_timestamp = time.time()
           _LOGGER.warning(
               'Data output stream buffer size %s exceeds %s bytes. '
-              'This is likely due to a large element in a PCollection. '
+              'This is likely caused by a large element in a PCollection '
+              'that is passed between different fused stages. '
               'Large elements increase pipeline RAM requirements and '
               'can cause runtime errors. '
               'Prefer multiple small elements over single large elements '
