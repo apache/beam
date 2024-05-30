@@ -148,7 +148,7 @@ public class WindmillStateCacheTest {
   @Before
   public void setUp() {
     options = PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
-    cache = WindmillStateCache.ofSizeMbs(400);
+    cache = WindmillStateCache.builder().setSizeMb(400).build();
     assertEquals(0, cache.getWeight());
   }
 
