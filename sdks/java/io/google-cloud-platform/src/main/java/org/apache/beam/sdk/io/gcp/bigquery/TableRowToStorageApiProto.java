@@ -486,8 +486,7 @@ public class TableRowToStorageApiProto {
     DynamicMessage.Builder builder = DynamicMessage.newBuilder(descriptor);
     for (final Map.Entry<String, Object> entry : map.entrySet()) {
       String key = entry.getKey().toLowerCase();
-      @Nullable
-      FieldDescriptor fieldDescriptor = descriptor.findFieldByName(key);
+      @Nullable FieldDescriptor fieldDescriptor = descriptor.findFieldByName(key);
       if (fieldDescriptor == null) {
         if (unknownFields != null) {
           unknownFields.set(key, entry.getValue());
@@ -513,7 +512,9 @@ public class TableRowToStorageApiProto {
               }
               TableRow nestedUnknown = new TableRow();
               if (fieldDescriptor.isRepeated()) {
-                ((List<TableRow>) (unknownFields.computeIfAbsent(key, k -> new ArrayList<TableRow>()))).add(nestedUnknown);
+                ((List<TableRow>)
+                        (unknownFields.computeIfAbsent(key, k -> new ArrayList<TableRow>())))
+                    .add(nestedUnknown);
                 return nestedUnknown;
               }
               return (TableRow) unknownFields.computeIfAbsent(key, k -> nestedUnknown);
