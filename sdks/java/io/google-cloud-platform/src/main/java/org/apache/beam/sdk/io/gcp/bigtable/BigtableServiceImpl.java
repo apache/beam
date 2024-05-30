@@ -23,7 +23,6 @@ import com.google.api.core.ApiFuture;
 import com.google.api.gax.batching.Batcher;
 import com.google.api.gax.batching.BatchingException;
 import com.google.api.gax.grpc.GrpcCallContext;
-import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.ResponseObserver;
 import com.google.api.gax.rpc.StreamController;
@@ -48,8 +47,6 @@ import com.google.cloud.bigtable.data.v2.models.RowAdapter;
 import com.google.cloud.bigtable.data.v2.models.RowMutation;
 import com.google.cloud.bigtable.data.v2.models.RowMutationEntry;
 import com.google.protobuf.ByteString;
-import io.grpc.CallOptions;
-import io.grpc.Deadline;
 import io.grpc.StatusRuntimeException;
 import java.io.IOException;
 import java.util.ArrayDeque;
@@ -108,9 +105,6 @@ class BigtableServiceImpl implements BigtableService {
   BigtableServiceImpl(BigtableDataSettings settings) throws IOException {
     this.projectId = settings.getProjectId();
     this.instanceId = settings.getInstanceId();
-    RetrySettings retry = settings.getStubSettings().readRowsSettings().getRetrySettings();
-    this.readAttemptTimeout = Duration.millis(retry.getInitialRpcTimeout().toMillis());
-    this.readOperationTimeout = Duration.millis(retry.getTotalTimeout().toMillis());
     this.client = BigtableDataClient.create(settings);
     LOG.info("Started Bigtable service with settings {}", settings);
   }
@@ -118,10 +112,6 @@ class BigtableServiceImpl implements BigtableService {
   private final BigtableDataClient client;
   private final String projectId;
   private final String instanceId;
-
-  private final Duration readAttemptTimeout;
-
-  private final Duration readOperationTimeout;
 
   @Override
   public BigtableWriterImpl openForWriting(BigtableWriteOptions writeOptions) {
@@ -145,9 +135,6 @@ class BigtableServiceImpl implements BigtableService {
     private final RowFilter rowFilter;
     private Iterator<Row> results;
 
-    private final Duration attemptTimeout;
-    private final Duration operationTimeout;
-
     private Row currentRow;
 
     @VisibleForTesting
@@ -157,18 +144,13 @@ class BigtableServiceImpl implements BigtableService {
         String instanceId,
         String tableId,
         List<ByteKeyRange> ranges,
-        @Nullable RowFilter rowFilter,
-        Duration attemptTimeout,
-        Duration operationTimeout) {
+        @Nullable RowFilter rowFilter) {
       this.client = client;
       this.projectId = projectId;
       this.instanceId = instanceId;
       this.tableId = tableId;
       this.ranges = ranges;
       this.rowFilter = rowFilter;
-
-      this.attemptTimeout = attemptTimeout;
-      this.operationTimeout = operationTimeout;
     }
 
     @Override
@@ -189,7 +171,7 @@ class BigtableServiceImpl implements BigtableService {
         results =
             client
                 .readRowsCallable(new BigtableRowProtoAdapter())
-                .call(query, createScanCallContext(attemptTimeout, operationTimeout))
+                .call(query, GrpcCallContext.createDefault())
                 .iterator();
         serviceCallMetric.call("ok");
       } catch (StatusRuntimeException e) {
@@ -215,16 +197,6 @@ class BigtableServiceImpl implements BigtableService {
       }
       return currentRow;
     }
-
-    @Override
-    public Duration getAttemptTimeout() {
-      return attemptTimeout;
-    }
-
-    @Override
-    public Duration getOperationTimeout() {
-      return operationTimeout;
-    }
   }
 
   @VisibleForTesting
@@ -238,8 +210,6 @@ class BigtableServiceImpl implements BigtableService {
     private final int refillSegmentWaterMark;
     private final long maxSegmentByteSize;
     private ServiceCallMetric serviceCallMetric;
-    private final Duration attemptTimeout;
-    private final Duration operationTimeout;
 
     private static class UpstreamResults {
       private final List<Row> rows;
@@ -258,9 +228,7 @@ class BigtableServiceImpl implements BigtableService {
         String tableId,
         List<ByteKeyRange> ranges,
         @Nullable RowFilter rowFilter,
-        int maxBufferedElementCount,
-        Duration attemptTimeout,
-        Duration operationTimeout) {
+        int maxBufferedElementCount) {
 
       RowSet.Builder rowSetBuilder = RowSet.newBuilder();
       if (ranges.isEmpty()) {
@@ -292,8 +260,6 @@ class BigtableServiceImpl implements BigtableService {
           filter,
           maxBufferedElementCount,
           maxSegmentByteSize,
-          attemptTimeout,
-          operationTimeout,
           createCallMetric(projectId, instanceId, tableId));
     }
 
@@ -307,8 +273,6 @@ class BigtableServiceImpl implements BigtableService {
         @Nullable RowFilter filter,
         int maxRowsInBuffer,
         long maxSegmentByteSize,
-        Duration attemptTimeout,
-        Duration operationTimeout,
         ServiceCallMetric serviceCallMetric) {
       if (rowSet.equals(rowSet.getDefaultInstanceForType())) {
         rowSet = RowSet.newBuilder().addRowRanges(RowRange.getDefaultInstance()).build();
@@ -329,8 +293,6 @@ class BigtableServiceImpl implements BigtableService {
       // Asynchronously refill buffer when there is 10% of the elements are left
       this.refillSegmentWaterMark =
           Math.max(1, (int) (request.getRowsLimit() * WATERMARK_PERCENTAGE));
-      this.attemptTimeout = attemptTimeout;
-      this.operationTimeout = operationTimeout;
     }
 
     @Override
@@ -426,7 +388,7 @@ class BigtableServiceImpl implements BigtableService {
                   future.set(new UpstreamResults(rows, nextNextRequest));
                 }
               },
-              createScanCallContext(attemptTimeout, operationTimeout));
+              GrpcCallContext.createDefault());
       return future;
     }
 
@@ -480,16 +442,6 @@ class BigtableServiceImpl implements BigtableService {
         throw new NoSuchElementException();
       }
       return currentRow;
-    }
-
-    @Override
-    public Duration getAttemptTimeout() {
-      return attemptTimeout;
-    }
-
-    @Override
-    public Duration getOperationTimeout() {
-      return operationTimeout;
     }
   }
 
@@ -660,9 +612,7 @@ class BigtableServiceImpl implements BigtableService {
           source.getTableId().get(),
           source.getRanges(),
           source.getRowFilter(),
-          source.getMaxBufferElementCount(),
-          readAttemptTimeout,
-          readOperationTimeout);
+          source.getMaxBufferElementCount());
     } else {
       return new BigtableReaderImpl(
           client,
@@ -670,24 +620,8 @@ class BigtableServiceImpl implements BigtableService {
           instanceId,
           source.getTableId().get(),
           source.getRanges(),
-          source.getRowFilter(),
-          readAttemptTimeout,
-          readOperationTimeout);
+          source.getRowFilter());
     }
-  }
-
-  // - per attempt deadlines - veneer doesn't implement deadlines for attempts. To workaround this,
-  //   the timeouts are set per call in the ApiCallContext. However this creates a separate issue of
-  //   over running the operation deadline, so gRPC deadline is also set.
-  private static GrpcCallContext createScanCallContext(
-      Duration attemptTimeout, Duration operationTimeout) {
-    GrpcCallContext ctx = GrpcCallContext.createDefault();
-
-    ctx.withCallOptions(
-        CallOptions.DEFAULT.withDeadline(
-            Deadline.after(operationTimeout.getMillis(), TimeUnit.MILLISECONDS)));
-    ctx.withTimeout(org.threeten.bp.Duration.ofMillis(attemptTimeout.getMillis()));
-    return ctx;
   }
 
   @Override

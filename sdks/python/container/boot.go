@@ -410,10 +410,10 @@ func installSetupPackages(ctx context.Context, logger *tools.Logger, files []str
 		return fmt.Errorf("failed to install workflow: %v", err)
 	}
 	if err := logRuntimeDependencies(ctx, bufLogger); err != nil {
-		logger.Warnf(ctx, "couldn't fetch the runtime python dependencies: %v", err)
+		bufLogger.Printf(ctx, "couldn't fetch the runtime python dependencies: %v", err)
 	}
 	if err := logSubmissionEnvDependencies(ctx, bufLogger, workDir); err != nil {
-		logger.Warnf(ctx, "couldn't fetch the submission environment dependencies: %v", err)
+		bufLogger.Printf(ctx, "couldn't fetch the submission environment dependencies: %v", err)
 	}
 
 	return nil

@@ -932,5 +932,144 @@ class BagOfWordsTest(unittest.TestCase):
     self.assertEqual(expected_data, actual_data)
 
 
+class HashWordsTest(unittest.TestCase):
+  def setUp(self) -> None:
+    self.artifact_location = tempfile.mkdtemp()
+
+  def tearDown(self):
+    shutil.rmtree(self.artifact_location)
+
+  def test_single_bucket(self):
+    list_data = [{'x': 'this is a test string'}]
+    expected_values = [np.array([0])]
+    with beam.Pipeline() as p:
+      list_result = (
+          p
+          | "listCreate" >> beam.Create(list_data)
+          | "listMLTransform" >> base.MLTransform(
+              write_artifact_location=self.artifact_location).with_transform(
+                  tft.HashStrings(columns=['x'], hash_buckets=1)))
+      result = (list_result | beam.Map(lambda x: x.x))
+      assert_that(result, equal_to(expected_values, equals_fn=np.array_equal))
+
+  def test_multi_bucket_one_string(self):
+    list_data = [{'x': 'this is a test string'}]
+    expected_values = [np.array([1])]
+    with beam.Pipeline() as p:
+      list_result = (
+          p
+          | "listCreate" >> beam.Create(list_data)
+          | "listMLTransform" >> base.MLTransform(
+              write_artifact_location=self.artifact_location).with_transform(
+                  tft.HashStrings(columns=['x'], hash_buckets=2)))
+      result = (list_result | beam.Map(lambda x: x.x))
+      assert_that(result, equal_to(expected_values, equals_fn=np.array_equal))
+
+  def test_one_bucket_multi_string(self):
+    list_data = [{'x': ['these', 'are', 'test', 'strings']}]
+    expected_values = [np.array([0, 0, 0, 0])]
+    with beam.Pipeline() as p:
+      list_result = (
+          p
+          | "listCreate" >> beam.Create(list_data)
+          | "listMLTransform" >> base.MLTransform(
+              write_artifact_location=self.artifact_location).with_transform(
+                  tft.HashStrings(columns=['x'], hash_buckets=1)))
+      result = (list_result | beam.Map(lambda x: x.x))
+      assert_that(result, equal_to(expected_values, equals_fn=np.array_equal))
+
+  def test_two_bucket_multi_string(self):
+    list_data = [{'x': ['these', 'are', 'test', 'strings']}]
+    expected_values = [np.array([1, 0, 1, 0])]
+    with beam.Pipeline() as p:
+      list_result = (
+          p
+          | "listCreate" >> beam.Create(list_data)
+          | "listMLTransform" >> base.MLTransform(
+              write_artifact_location=self.artifact_location).with_transform(
+                  tft.HashStrings(
+                      columns=['x'], hash_buckets=2, key=[123, 456])))
+      result = (list_result | beam.Map(lambda x: x.x))
+      assert_that(result, equal_to(expected_values, equals_fn=np.array_equal))
+
+  def test_multi_buckets_multi_string(self):
+    # This is a recreation of one of the TFT test cases from
+    # https://github.com/tensorflow/transform/blob/master/tensorflow_transform/mappers_test.py
+    list_data = [{'x': ['Cake', 'Pie', 'Sundae']}]
+    expected_values = [np.array([6, 5, 6])]
+    with beam.Pipeline() as p:
+      list_result = (
+          p
+          | "listCreate" >> beam.Create(list_data)
+          | "listMLTransform" >> base.MLTransform(
+              write_artifact_location=self.artifact_location).with_transform(
+                  tft.HashStrings(
+                      columns=['x'], hash_buckets=11, key=[123, 456])))
+      result = (list_result | beam.Map(lambda x: x.x))
+      assert_that(result, equal_to(expected_values, equals_fn=np.array_equal))
+
+
+class DeduplicateTensorPerRowTest(unittest.TestCase):
+  def setUp(self) -> None:
+    self.artifact_location = tempfile.mkdtemp()
+
+  def tearDown(self):
+    shutil.rmtree(self.artifact_location)
+
+  def test_deduplicate(self):
+    values = [{
+        'x': [b'a', b'b', b'a', b'b'],
+    }, {
+        'x': [b'b', b'c', b'b', b'c']
+    }]
+
+    expected_output = [np.array([b'a', b'b']), np.array([b'b', b'c'])]
+    with beam.Pipeline() as p:
+      list_result = (
+          p
+          | "listCreate" >> beam.Create(values)
+          | "listMLTransform" >> base.MLTransform(
+              write_artifact_location=self.artifact_location).with_transform(
+                  tft.DeduplicateTensorPerRow(columns=['x'])))
+      result = (list_result | beam.Map(lambda x: x.x))
+      assert_that(result, equal_to(expected_output, equals_fn=np.array_equal))
+
+  def test_deduplicate_no_op(self):
+    values = [{
+        'x': [b'a', b'b'],
+    }, {
+        'x': [b'c', b'd']
+    }]
+
+    expected_output = [np.array([b'a', b'b']), np.array([b'c', b'd'])]
+    with beam.Pipeline() as p:
+      list_result = (
+          p
+          | "listCreate" >> beam.Create(values)
+          | "listMLTransform" >> base.MLTransform(
+              write_artifact_location=self.artifact_location).with_transform(
+                  tft.DeduplicateTensorPerRow(columns=['x'])))
+      result = (list_result | beam.Map(lambda x: x.x))
+      assert_that(result, equal_to(expected_output, equals_fn=np.array_equal))
+
+  def test_deduplicate_different_output_sizes(self):
+    values = [{
+        'x': [b'a', b'b', b'a', b'b'],
+    }, {
+        'x': [b'c', b'a', b'd', b'd']
+    }]
+
+    expected_output = [np.array([b'a', b'b']), np.array([b'c', b'a', b'd'])]
+    with beam.Pipeline() as p:
+      list_result = (
+          p
+          | "listCreate" >> beam.Create(values)
+          | "listMLTransform" >> base.MLTransform(
+              write_artifact_location=self.artifact_location).with_transform(
+                  tft.DeduplicateTensorPerRow(columns=['x'])))
+      result = (list_result | beam.Map(lambda x: x.x))
+      assert_that(result, equal_to(expected_output, equals_fn=np.array_equal))
+
+
 if __name__ == '__main__':
   unittest.main()

@@ -27,6 +27,10 @@ applyJavaNature(
   shadowClosure: {},
 )
 
+shadowJar {
+  mergeServiceFiles()
+}
+
 description = "Apache Beam :: SDKs :: Java :: IO :: Expansion Service"
 ext.summary = "Expansion service serving several Java IOs"
 

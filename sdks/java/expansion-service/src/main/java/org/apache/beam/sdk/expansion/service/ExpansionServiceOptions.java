@@ -58,6 +58,12 @@ public interface ExpansionServiceOptions extends PipelineOptions {
 
   void setExpansionServiceConfig(ExpansionServiceConfig configFile);
 
+  @Description("Starts an Expansion Service with support for gRPC ALTS authentication.")
+  @Default.Boolean(false)
+  boolean getUseAltsServer();
+
+  void setUseAltsServer(boolean useAltsServer);
+
   /**
    * Loads the allow list from {@link #getJavaClassLookupAllowlistFile}, defaulting to an empty
    * {@link JavaClassLookupTransformProvider.AllowList}.

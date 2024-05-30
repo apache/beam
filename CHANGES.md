@@ -57,9 +57,8 @@
 
 ## Highlights
 
-* Added FlinkRunner for Flink 1.18. ([#30789](https://github.com/apache/beam/issues/30789))
-* New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
-* New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
+* Apache Beam adds Python 3.12 support ([#29149](https://github.com/apache/beam/issues/29149)).
+* Added FlinkRunner for Flink 1.18 ([#30789](https://github.com/apache/beam/issues/30789)).
 
 ## I/Os
 
@@ -72,6 +71,8 @@
 * Beam YAML now supports the jinja templating syntax.
   Template variables can be passed with the (json-formatted) `--jinja_variables` flag.
 * DataFrame API now supports pandas 2.1.x and adds 12 more string functions for Series.([#31185](https://github.com/apache/beam/pull/31185)).
+* Added BigQuery handler for enrichment transform (Python) ([#31295](https://github.com/apache/beam/pull/31295))
+* Disable soft delete policy when creating the default bucket for a project (Java) ([#31324](https://github.com/apache/beam/pull/31324)).
 
 ## Breaking Changes
 

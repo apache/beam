@@ -88,6 +88,7 @@ import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Server;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ServerBuilder;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.alts.AltsServerBuilder;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.CaseFormat;
@@ -271,7 +272,10 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
         }
       } catch (Exception e) {
         throw new RuntimeException(
-            String.format("Failed to build transform %s from spec %s", spec.getUrn(), spec), e);
+            String.format(
+                "Failed to build transform %s from spec %s: %s",
+                spec.getUrn(), spec, e.getMessage()),
+            e);
       }
     }
 
@@ -305,7 +309,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
                 ExternalConfigurationPayload.parseFrom(spec.getPayload()), configClass));
       } catch (Exception e) {
         throw new RuntimeException(
-            String.format("Failed to build transform from spec %s", spec), e);
+            String.format("Failed to build transform from spec %s: %s", spec, e.getMessage()), e);
       }
     }
 
@@ -823,8 +827,15 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
       System.out.println("\nDid not find any registered transforms or SchemaTransforms.\n");
     }
 
+    boolean useAlts = options.as(ExpansionServiceOptions.class).getUseAltsServer();
     ServerBuilder serverBuilder =
-        ServerBuilder.forPort(port).addService(service).addService(new ArtifactRetrievalService());
+        useAlts ? AltsServerBuilder.forPort(port) : ServerBuilder.forPort(port);
+
+    if (useAlts) {
+      LOG.info("Running with gRPC ALTS authentication.");
+    }
+
+    serverBuilder.addService(service).addService(new ArtifactRetrievalService());
     if (options.as(ExpansionServiceOptions.class).getAlsoStartLoopbackWorker()) {
       serverBuilder.addService(new ExternalWorkerService(options));
     }
