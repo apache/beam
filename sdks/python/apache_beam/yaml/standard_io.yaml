@@ -39,7 +39,7 @@
         write_disposition: 'write_disposition'
         error_handling: 'error_handling'
         # TODO(https://github.com/apache/beam/issues/30058): Required until autosharding support is fixed
-        num_streams: 'numStreams'
+        num_streams: 'num_streams'
     underlying_provider:
       type: beamJar
       transforms:
@@ -205,7 +205,7 @@
   config:
     mappings:
       'ReadFromJdbc':
-        driver_class_name: 'driverClassName'
+        driver_class_name: 'driver_class_name'
         type: 'jdbc_type'
         url: 'jdbc_url'
         username: 'username'
