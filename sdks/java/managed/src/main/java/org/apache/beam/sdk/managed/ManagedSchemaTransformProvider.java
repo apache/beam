@@ -64,10 +64,25 @@ public class ManagedSchemaTransformProvider
   }
 
   private final Map<String, SchemaTransformProvider> schemaTransformProviders = new HashMap<>();
+  private @Nullable Collection<String> supportedIdentifiers;
 
-  public ManagedSchemaTransformProvider() {}
+  private boolean initialized = false;
+
+  public ManagedSchemaTransformProvider() {
+    this(null);
+  }
 
   ManagedSchemaTransformProvider(@Nullable Collection<String> supportedIdentifiers) {
+    this.supportedIdentifiers = supportedIdentifiers;
+  }
+
+  // We perform initialization separately (after construction) to prevent the
+  // 'ManagedSchemaTransformProvider' from being initialized in a recursive loop
+  // when being loaded using 'AutoValue'.
+  private synchronized void initialize() {
+    if (this.initialized) {
+      return;
+    }
     try {
       for (SchemaTransformProvider schemaTransformProvider :
           ServiceLoader.load(SchemaTransformProvider.class)) {
@@ -78,12 +93,18 @@ public class ManagedSchemaTransformProvider
         }
         if (supportedIdentifiers == null
             || supportedIdentifiers.contains(schemaTransformProvider.identifier())) {
+          if (schemaTransformProvider.identifier().equals("beam:transform:managed:v1")) {
+            // Prevent recursively adding the 'ManagedSchemaTransformProvider'.
+            continue;
+          }
           schemaTransformProviders.put(
               schemaTransformProvider.identifier(), schemaTransformProvider);
         }
       }
     } catch (Exception e) {
       throw new RuntimeException(e.getMessage());
+    } finally {
+      this.initialized = true;
     }
   }
 
@@ -146,6 +167,9 @@ public class ManagedSchemaTransformProvider
 
   @Override
   protected SchemaTransform from(ManagedConfig managedConfig) {
+    if (!this.initialized) {
+      initialize();
+    }
     managedConfig.validate();
     SchemaTransformProvider schemaTransformProvider =
         Preconditions.checkNotNull(
