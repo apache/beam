@@ -81,6 +81,7 @@ import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Redistribute.RedistributeByKey;
+import org.apache.beam.sdk.transforms.Redistribute.RedistributeArbitrarily;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
@@ -592,6 +593,14 @@ public class DataflowPipelineTranslator {
       if (!node.isRootNode()) {
         parents.addFirst(node);
       }
+            PTransform<?, ?> transform = node.getTransform();
+      if (transform != null) {
+        TransformTranslator translator = getTransformTranslator(transform.getClass());
+        if (translator != null) {
+          visitPrimitiveTransform(node);
+          return CompositeBehavior.DO_NOT_ENTER_TRANSFORM;
+        }
+      }
       return CompositeBehavior.ENTER_TRANSFORM;
     }
 
@@ -932,6 +941,41 @@ public class DataflowPipelineTranslator {
             StepTranslationContext stepContext = context.addStep(transform, "GroupByKey");
 
             PCollection<KV<K, V>> input = context.getInput(transform);
+            stepContext.addInput(PropertyNames.PARALLEL_INPUT, input);
+            stepContext.addOutput(PropertyNames.OUTPUT, context.getOutput(transform));
+
+            // Dataflow worker implements reshuffle by reading GBK with ReshuffleTrigger; that is
+            // the only part of
+            // the windowing strategy that should be observed.
+            WindowingStrategy<?, ?> windowingStrategy =
+                input.getWindowingStrategy().withTrigger(new ReshuffleTrigger<>());
+            stepContext.addInput(
+                PropertyNames.SERIALIZED_FN,
+                byteArrayToJsonString(
+                    serializeWindowingStrategy(windowingStrategy, context.getPipelineOptions())));
+
+            // Many group by key options do not apply to redistribute but Dataflow doesn't
+            // understand
+            // that. We set them here to be sure to avoid any complex codepaths
+            stepContext.addInput(PropertyNames.DISALLOW_COMBINER_LIFTING, true);
+            stepContext.addInput(PropertyNames.IS_MERGING_WINDOW_FN, false);
+            stepContext.addInput(PropertyNames.ALLOW_DUPLICATES, transform.getAllowDuplicates());
+          }
+        });
+
+    registerTransformTranslator(
+        RedistributeArbitrarily.class,
+        new TransformTranslator<RedistributeArbitrarily>() {
+          @Override
+          public void translate(RedistributeArbitrarily transform, TranslationContext context) {
+            redistributeArbitrarilyHelper(transform, context);
+          }
+
+          private <T> void redistributeArbitrarilyHelper(
+              RedistributeArbitrarily<T> transform, TranslationContext context) {
+            StepTranslationContext stepContext = context.addStep(transform, "GroupByKey");
+
+            PCollection<T> input = context.getInput(transform);
             stepContext.addInput(PropertyNames.PARALLEL_INPUT, input);
             stepContext.addOutput(PropertyNames.OUTPUT, context.getOutput(transform));
 
