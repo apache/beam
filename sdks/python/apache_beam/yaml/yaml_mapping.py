@@ -84,7 +84,7 @@ def normalize_mapping(spec):
   return spec
 
 
-def is_literal(expr):
+def is_literal(expr: str) -> bool:
   # Some languages have limited integer literal ranges.
   if re.fullmatch(r'-?\d+?', expr) and -1 << 31 < int(expr) < 1 << 31:
     return True
@@ -97,7 +97,10 @@ def is_literal(expr):
 
 
 def validate_generic_expression(
-    expr_dict, input_fields, allow_cmp, error_field):
+    expr_dict: dict,
+    input_fields: Collection[str],
+    allow_cmp: bool,
+    error_field: str) -> None:
   if not isinstance(expr_dict, dict):
     raise ValueError(
         f"Ambiguous expression type (perhaps missing quoting?): {expr}")
@@ -108,7 +111,7 @@ def validate_generic_expression(
         error_field)
   expr = str(expr_dict['expression'])
 
-  def is_atomic(expr):
+  def is_atomic(expr: str):
     return is_literal(expr) or expr in input_fields
 
   if is_atomic(expr):
@@ -126,7 +129,7 @@ def validate_generic_expression(
       f"Missing language specification or unknown input fields: {expr}")
 
 
-def validate_generic_expressions(base_type, config, input_pcolls):
+def validate_generic_expressions(base_type, config, input_pcolls) -> None:
   if not input_pcolls:
     return
   try:
@@ -134,7 +137,7 @@ def validate_generic_expressions(base_type, config, input_pcolls):
         name for (name, _) in named_fields_from_element_type(
             next(iter(input_pcolls)).element_type)
     ]
-  except (TypeError, ValueError) as exn:
+  except (TypeError, ValueError):
     input_fields = ()
 
   if base_type == 'MapToFields':
