@@ -68,6 +68,7 @@
 
 * Added Feast feature store handler for enrichment transform (Python) ([#30957](https://github.com/apache/beam/issues/30964)).
 * BigQuery per-worker metrics are reported by default for Streaming Dataflow Jobs (Java) ([#31015](https://github.com/apache/beam/pull/31015))
+* Adds `inMemory()` variant of Java List and Map side inputs for more efficient lookups when the entire side input fits into memory.
 * Beam YAML now supports the jinja templating syntax.
   Template variables can be passed with the (json-formatted) `--jinja_variables` flag.
 * DataFrame API now supports pandas 2.1.x and adds 12 more string functions for Series.([#31185](https://github.com/apache/beam/pull/31185)).
@@ -77,6 +78,10 @@
   as a python `DoFn.process`, `Map`, or `FlatMap` parameter to invoke a context
   manager per DoFn setup or bundle (analogous to using `setup`/`teardown`
   or `start_bundle`/`finish_bundle` respectively.)
+* Go SDK Prism Runner
+  * Pre-built Prism binaries are now part of the release and are available via the Github release page. ([#29697](https://github.com/apache/beam/issues/29697)).
+  * ProcessingTime is now handled synthetically with TestStream pipelines and Non-TestStream pipelines, for fast test pipeline execution by default. ([#30083](https://github.com/apache/beam/issues/30083)).
+    * Prism does NOT yet support "real time" execution for this release.
 
 ## Breaking Changes
 
