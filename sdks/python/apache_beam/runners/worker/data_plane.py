@@ -128,7 +128,7 @@ class ClosableOutputStream(OutputStream):
 class SizeBasedBufferingClosableOutputStream(ClosableOutputStream):
   """A size-based buffering OutputStream."""
 
-  _large_flush_last_observed_timestamp = 0
+  _large_flush_last_observed_timestamp = 0.0
 
   def __init__(
       self,
