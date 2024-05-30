@@ -365,16 +365,16 @@ def _as_callable_for_pcoll(
 
 
 def _as_callable(original_fields, expr, transform_name, language, input_schema):
+  if isinstance(expr, str):
+    expr = {'expression': expr}
 
   # Extract original type from upstream pcoll when doing simple mappings
-  original_type = input_schema.get(str(expr), None)
+  original_type = input_schema.get(expr.get('expression'), None)
   if expr in original_fields:
     language = "python"
 
   # TODO(yaml): support an imports parameter
   # TODO(yaml): support a requirements parameter (possibly at a higher level)
-  if isinstance(expr, str):
-    expr = {'expression': expr}
   if not isinstance(expr, dict):
     raise ValueError(
         f"Ambiguous expression type (perhaps missing quoting?): {expr}")
@@ -383,7 +383,7 @@ def _as_callable(original_fields, expr, transform_name, language, input_schema):
 
   if language == "javascript":
     func = _expand_javascript_mapping_func(original_fields, **expr)
-  elif language == "python" or language == "generic":
+  elif language in ("python", "generic", None):
     func = _expand_python_mapping_func(original_fields, **expr)
   else:
     raise ValueError(
@@ -406,13 +406,9 @@ def _as_callable(original_fields, expr, transform_name, language, input_schema):
     return checking_func
 
   elif original_type:
-
-    @beam.typehints.with_output_types(convert_to_beam_type(original_type))
-    def checking_func(row):
-      result = func(row)
-      return result
-
-    return checking_func
+    return beam.typehints.with_output_types(
+        convert_to_beam_type(original_type))(
+            func)
 
   else:
     return func
