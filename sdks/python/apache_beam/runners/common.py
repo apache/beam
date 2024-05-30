@@ -430,6 +430,42 @@ class DoFnSignature(object):
           pass
     return False
 
+  def get_bundle_contexts(self):
+    seen = set()
+    for sig in (self.setup_lifecycle_method,
+                self.start_bundle_method,
+                self.process_method,
+                self.process_batch_method,
+                self.finish_bundle_method,
+                self.teardown_lifecycle_method):
+      for d in sig.defaults:
+        try:
+          if isinstance(d, DoFn.BundleContextParam):
+            if d not in seen:
+              seen.add(d)
+              yield d
+        except Exception:  # pylint: disable=broad-except
+          # Default value might be incomparable.
+          pass
+
+  def get_setup_contexts(self):
+    seen = set()
+    for sig in (self.setup_lifecycle_method,
+                self.start_bundle_method,
+                self.process_method,
+                self.process_batch_method,
+                self.finish_bundle_method,
+                self.teardown_lifecycle_method):
+      for d in sig.defaults:
+        try:
+          if isinstance(d, DoFn.SetupContextParam):
+            if d not in seen:
+              seen.add(d)
+              yield d
+        except Exception:  # pylint: disable=broad-except
+          # Default value might be incomparable.
+          pass
+
 
 class DoFnInvoker(object):
   """An abstraction that can be used to execute DoFn methods.
@@ -564,6 +600,10 @@ class DoFnInvoker(object):
 
     """Invokes the DoFn.setup() method
     """
+    self._setup_context_values = {
+        d: d.context_manager.__enter__()
+        for d in self.signature.get_setup_contexts()
+    }
     self.signature.setup_lifecycle_method.method_value()
 
   def invoke_start_bundle(self):
@@ -571,6 +611,10 @@ class DoFnInvoker(object):
 
     """Invokes the DoFn.start_bundle() method.
     """
+    self._bundle_context_values = {
+        d: d.context_manager.__enter__()
+        for d in self.signature.get_bundle_contexts()
+    }
     self.output_handler.start_bundle_outputs(
         self.signature.start_bundle_method.method_value())
 
@@ -581,6 +625,9 @@ class DoFnInvoker(object):
     """
     self.output_handler.finish_bundle_outputs(
         self.signature.finish_bundle_method.method_value())
+    for d in self._bundle_context_values.keys():
+      d.context_manager.__exit__(None, None, None)
+    self._bundle_context_values = None
 
   def invoke_teardown(self):
     # type: () -> None
@@ -588,6 +635,9 @@ class DoFnInvoker(object):
     """Invokes the DoFn.teardown() method
     """
     self.signature.teardown_lifecycle_method.method_value()
+    for d in self._setup_context_values.keys():
+      d.context_manager.__exit__(None, None, None)
+    self._setup_context_values = None
 
   def invoke_user_timer(
       self, timer_spec, key, window, timestamp, pane_info, dynamic_timer_tag):
@@ -706,6 +756,10 @@ def _get_arg_placeholders(
     elif isinstance(d, core.DoFn.TimerParam):
       args_with_placeholders.append(ArgPlaceholder(d))
     elif isinstance(d, type) and core.DoFn.BundleFinalizerParam == d:
+      args_with_placeholders.append(ArgPlaceholder(d))
+    elif isinstance(d, core.DoFn.BundleContextParam):
+      args_with_placeholders.append(ArgPlaceholder(d))
+    elif isinstance(d, core.DoFn.SetupContextParam):
       args_with_placeholders.append(ArgPlaceholder(d))
     else:
       # If no more args are present then the value must be passed via kwarg
@@ -988,6 +1042,10 @@ class PerWindowInvoker(DoFnInvoker):
                 windowed_value.pane_info))
       elif core.DoFn.BundleFinalizerParam == p:
         args_for_process[i] = self.bundle_finalizer_param
+      elif isinstance(p, core.DoFn.BundleContextParam):
+        args_for_process[i] = self._bundle_context_values[p]
+      elif isinstance(p, core.DoFn.SetupContextParam):
+        args_for_process[i] = self._setup_context_values[p]
 
     kwargs_for_process = kwargs_for_process or {}
 
@@ -1076,6 +1134,10 @@ class PerWindowInvoker(DoFnInvoker):
         raise NotImplementedError(
             "https://github.com/apache/beam/issues/21653: "
             "Per-key process_batch")
+      elif isinstance(p, core.DoFn.BundleContextParam):
+        args_for_process_batch[i] = self._bundle_context_values[p]
+      elif isinstance(p, core.DoFn.SetupContextParam):
+        args_for_process_batch[i] = self._setup_context_values[p]
 
     kwargs_for_process_batch = kwargs_for_process_batch or {}
 
