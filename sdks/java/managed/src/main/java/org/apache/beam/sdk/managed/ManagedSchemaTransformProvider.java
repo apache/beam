@@ -67,8 +67,7 @@ public class ManagedSchemaTransformProvider
 
   public ManagedSchemaTransformProvider() {}
 
-  @VisibleForTesting
-  public ManagedSchemaTransformProvider(@Nullable Collection<String> supportedIdentifiers) {
+  ManagedSchemaTransformProvider(@Nullable Collection<String> supportedIdentifiers) {
     try {
       for (SchemaTransformProvider schemaTransformProvider :
           ServiceLoader.load(SchemaTransformProvider.class)) {
