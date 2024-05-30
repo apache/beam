@@ -203,22 +203,16 @@ public class TransformUpgrader implements AutoCloseable {
     if (transformToUpgrade == null) {
       throw new IllegalArgumentException("Could not find a transform with the ID " + transformId);
     }
-    ByteString configRowBytes =
-        transformToUpgrade.getAnnotationsOrThrow(
-            BeamUrns.getConstant(ExternalTransforms.Annotations.Enum.CONFIG_ROW_KEY));
-    ByteString configRowSchemaBytes =
-        transformToUpgrade.getAnnotationsOrThrow(
-            BeamUrns.getConstant(ExternalTransforms.Annotations.Enum.CONFIG_ROW_SCHEMA_KEY));
-    SchemaApi.Schema configRowSchemaProto =
-        SchemaApi.Schema.parseFrom(configRowSchemaBytes.toByteArray());
 
     byte[] payloadBytes = null;
 
     if (!transformToUpgrade.getSpec().getUrn().equals(BeamUrns.getUrn(SCHEMA_TRANSFORM))) {
       ByteString configRowBytes =
-          transformToUpgrade.getAnnotationsOrThrow(PTransformTranslation.CONFIG_ROW_KEY);
+          transformToUpgrade.getAnnotationsOrThrow(
+              BeamUrns.getConstant(ExternalTransforms.Annotations.Enum.CONFIG_ROW_KEY));
       ByteString configRowSchemaBytes =
-          transformToUpgrade.getAnnotationsOrThrow(PTransformTranslation.CONFIG_ROW_SCHEMA_KEY);
+          transformToUpgrade.getAnnotationsOrThrow(
+              BeamUrns.getConstant(ExternalTransforms.Annotations.Enum.CONFIG_ROW_SCHEMA_KEY));
       SchemaApi.Schema configRowSchemaProto =
           SchemaApi.Schema.parseFrom(configRowSchemaBytes.toByteArray());
       payloadBytes =
