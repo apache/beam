@@ -135,7 +135,7 @@ class SizeBasedBufferingClosableOutputStream(ClosableOutputStream):
       close_callback=None,  # type: Optional[Callable[[bytes], None]]
       flush_callback=None,  # type: Optional[Callable[[bytes], None]]
       size_flush_threshold=_DEFAULT_SIZE_FLUSH_THRESHOLD,  # type: int
-      large_buffer_warn_threshold_bytes = 536870912  # type: int
+      large_buffer_warn_threshold_bytes = 512 << 20  # type: int
   ):
     super().__init__(close_callback)
     self._flush_callback = flush_callback
