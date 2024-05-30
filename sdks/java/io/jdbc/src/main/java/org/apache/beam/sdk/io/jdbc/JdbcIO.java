@@ -137,6 +137,10 @@ import org.slf4j.LoggerFactory;
  *   })
  * );
  * }</pre>
+ * 
+ * <p> If you use Cloud SQL with postgres, the JDBC connection Url has this pattern with SocketFactory:
+ * "jdbc:postgresql://google/mydb?cloudSqlInstance=project:region:myinstance&
+ * socketFactory=com.google.cloud.sql.postgres.SocketFactory"
  *
  * <p>Query parameters can be configured using a user-provided {@link StatementPreparator}. For
  * example:
