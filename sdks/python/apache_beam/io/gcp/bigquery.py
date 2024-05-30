@@ -283,7 +283,8 @@ method) could look like::
   def chain_after(result):
     try:
       # This works for FILE_LOADS, where we run load and possibly copy jobs.
-      return (result.load_jobid_pairs, result.copy_jobid_pairs) | beam.Flatten()
+      return (result.destination_load_jobid_pairs,
+          result.destination_copy_jobid_pairs) | beam.Flatten()
     except AttributeError:
       # Works for STREAMING_INSERTS, where we return the rows BigQuery rejected
       return result.failed_rows
