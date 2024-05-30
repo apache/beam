@@ -593,7 +593,7 @@ public class DataflowPipelineTranslator {
       if (!node.isRootNode()) {
         parents.addFirst(node);
       }
-            PTransform<?, ?> transform = node.getTransform();
+      PTransform<?, ?> transform = node.getTransform();
       if (transform != null) {
         TransformTranslator translator = getTransformTranslator(transform.getClass());
         if (translator != null) {
