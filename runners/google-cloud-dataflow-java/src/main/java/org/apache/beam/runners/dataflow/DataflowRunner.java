@@ -2583,8 +2583,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               "%s does not currently support @RequiresTimeSortedInput in streaming mode.",
               DataflowRunner.class.getSimpleName()));
     }
-
-    boolean streamingEngine = useStreamingEngine(options);
     boolean isUnifiedWorker = useUnifiedWorker(options);
 
     if (DoFnSignatures.usesMultimapState(fn) && isUnifiedWorker) {
@@ -2593,25 +2591,21 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               "%s does not currently support %s running using streaming on unified worker",
               DataflowRunner.class.getSimpleName(), MultimapState.class.getSimpleName()));
     }
-    if (DoFnSignatures.usesSetState(fn)) {
-      if (streaming && (isUnifiedWorker || streamingEngine)) {
-        throw new UnsupportedOperationException(
-            String.format(
-                "%s does not currently support %s when using %s",
-                DataflowRunner.class.getSimpleName(),
-                SetState.class.getSimpleName(),
-                isUnifiedWorker ? "streaming on unified worker" : "streaming engine"));
-      }
+    if (DoFnSignatures.usesSetState(fn) && streaming && isUnifiedWorker) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "%s does not currently support %s when using %s",
+              DataflowRunner.class.getSimpleName(),
+              SetState.class.getSimpleName(),
+              "streaming on unified worker"));
     }
-    if (DoFnSignatures.usesMapState(fn)) {
-      if (streaming && (isUnifiedWorker || streamingEngine)) {
-        throw new UnsupportedOperationException(
-            String.format(
-                "%s does not currently support %s when using %s",
-                DataflowRunner.class.getSimpleName(),
-                MapState.class.getSimpleName(),
-                isUnifiedWorker ? "streaming on unified worker" : "streaming engine"));
-      }
+    if (DoFnSignatures.usesMapState(fn) && streaming && isUnifiedWorker) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "%s does not currently support %s when using %s",
+              DataflowRunner.class.getSimpleName(),
+              MapState.class.getSimpleName(),
+              "streaming on unified worker"));
     }
     if (DoFnSignatures.usesBundleFinalizer(fn) && !isUnifiedWorker) {
       throw new UnsupportedOperationException(

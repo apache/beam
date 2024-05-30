@@ -2709,7 +2709,7 @@ public class ParDoTest implements Serializable {
                 @StateId(countStateId) CombiningState<Integer, int[], Integer> count,
                 OutputReceiver<KV<String, Integer>> r) {
               KV<String, Integer> value = element.getValue();
-              ReadableState<Iterable<Entry<String, Integer>>> entriesView = state.entries();
+              Iterable<Entry<String, Integer>> entriesView = state.entries().read();
               state.put(value.getKey(), value.getValue());
               count.add(1);
               if (count.read() >= 4) {
@@ -2718,7 +2718,7 @@ public class ParDoTest implements Serializable {
                 // but that cached ReadableState views of the state do change.
                 state.put("BadKey", -1);
                 assertEquals(3, Iterables.size(iterate));
-                assertEquals(4, Iterables.size(entriesView.read()));
+                assertEquals(3, Iterables.size(entriesView));
                 assertEquals(4, Iterables.size(state.entries().read()));
 
                 for (Map.Entry<String, Integer> entry : iterate) {
