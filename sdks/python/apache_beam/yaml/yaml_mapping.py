@@ -19,6 +19,7 @@
 import functools
 import inspect
 import itertools
+import re
 from collections import abc
 from typing import Any
 from typing import Callable
@@ -55,6 +56,12 @@ except ImportError:
   js2py = None
   JsObjectWrapper = object
 
+_str_expression_fields = {
+    'AssignTimestamps': 'timestamp',
+    'Filter': 'keep',
+    'Partition': 'by',
+}
+
 
 def normalize_mapping(spec):
   """
@@ -64,7 +71,80 @@ def normalize_mapping(spec):
     config = spec.get('config')
     if isinstance(config.get('drop'), str):
       config['drop'] = [config['drop']]
+    for field, value in list(config.get('fields', {}).items()):
+      if isinstance(value, (str, int, float)):
+        config['fields'][field] = {'expression': str(value)}
+
+  elif spec['type'] in _str_expression_fields:
+    param = _str_expression_fields[spec['type']]
+    config = spec.get('config', {})
+    if isinstance(config.get(param), (str, int, float)):
+      config[param] = {'expression': str(config.get(param))}
+
   return spec
+
+
+def is_literal(expr):
+  # Some languages have limited integer literal ranges.
+  if re.fullmatch(r'-?\d+?', expr) and -1 << 31 < int(expr) < 1 << 31:
+    return True
+  elif re.fullmatch(r'-?\d+\.\d*', expr):
+    return True
+  elif re.fullmatch(r'"[^\\"]*"', expr):
+    return True
+  else:
+    return False
+
+
+def validate_generic_expression(
+    expr_dict, input_fields, allow_cmp, error_field):
+  if not isinstance(expr_dict, dict):
+    raise ValueError(
+        f"Ambiguous expression type (perhaps missing quoting?): {expr}")
+  if len(expr_dict) != 1 or 'expression' not in expr_dict:
+    raise ValueError(
+        "Missing language specification. "
+        "Must specify a language when using a map with custom logic for %s" %
+        error_field)
+  expr = str(expr_dict['expression'])
+
+  def is_atomic(expr):
+    return is_literal(expr) or expr in input_fields
+
+  if is_atomic(expr):
+    return
+
+  if allow_cmp:
+    maybe_cmp = re.fullmatch('(.*)([<>=!]+)(.*)', expr)
+    if maybe_cmp:
+      left, cmp, right = maybe_cmp.groups()
+      if (is_atomic(left.strip()) and is_atomic(right.strip()) and
+          cmp in {'==', '<=', '>=', '<', '>', '!='}):
+        return
+
+  raise ValueError(
+      f"Missing language specification or unknown input fields: {expr}")
+
+
+def validate_generic_expressions(base_type, config, input_pcolls):
+  if not input_pcolls:
+    return
+  try:
+    input_fields = [
+        name for (name, _) in named_fields_from_element_type(
+            next(iter(input_pcolls)).element_type)
+    ]
+  except (TypeError, ValueError) as exn:
+    input_fields = ()
+
+  if base_type == 'MapToFields':
+    for field, value in list(config.get('fields', {}).items()):
+      validate_generic_expression(value, input_fields, True, field)
+
+  elif base_type in _str_expression_fields:
+    param = _str_expression_fields[base_type]
+    validate_generic_expression(
+        config.get(param), input_fields, base_type == 'Filter', param)
 
 
 def _check_mapping_arguments(
@@ -295,7 +375,7 @@ def _as_callable(original_fields, expr, transform_name, language):
 
   if language == "javascript":
     func = _expand_javascript_mapping_func(original_fields, **expr)
-  elif language == "python":
+  elif language == "python" or language == "generic":
     func = _expand_python_mapping_func(original_fields, **expr)
   else:
     raise ValueError(
@@ -484,7 +564,7 @@ def _PyJsFilter(
   See more complete documentation on
   [YAML Filtering](https://beam.apache.org/documentation/sdks/yaml-udf/#filtering).
   """  # pylint: disable=line-too-long
-  keep_fn = _as_callable_for_pcoll(pcoll, keep, "keep", language)
+  keep_fn = _as_callable_for_pcoll(pcoll, keep, "keep", language or 'generic')
   return pcoll | beam.Filter(keep_fn)
 
 
@@ -515,17 +595,6 @@ def normalize_fields(pcoll, fields, drop=(), append=False, language='generic'):
         raise ValueError(
             f'Redefinition of field "{name}". '
             'Cannot append a field that already exists in original input.')
-
-  if language == 'generic':
-    for expr in fields.values():
-      if not isinstance(expr, str):
-        raise ValueError(
-            "Missing language specification. "
-            "Must specify a language when using a map with custom logic.")
-    missing = set(fields.values()) - set(input_schema.keys())
-    if missing:
-      raise ValueError(
-          f"Missing language specification or unknown input fields: {missing}")
 
   if append:
     return input_schema, {
@@ -705,6 +774,7 @@ def create_mapping_providers():
           'Explode': _Explode,
           'Filter-python': _PyJsFilter,
           'Filter-javascript': _PyJsFilter,
+          'Filter-generic': _PyJsFilter,
           'MapToFields-python': _PyJsMapToFields,
           'MapToFields-javascript': _PyJsMapToFields,
           'MapToFields-generic': _PyJsMapToFields,
