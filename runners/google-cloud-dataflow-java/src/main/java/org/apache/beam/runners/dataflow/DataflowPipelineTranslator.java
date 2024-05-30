@@ -964,41 +964,6 @@ public class DataflowPipelineTranslator {
         });
 
     registerTransformTranslator(
-        RedistributeArbitrarily.class,
-        new TransformTranslator<RedistributeArbitrarily>() {
-          @Override
-          public void translate(RedistributeArbitrarily transform, TranslationContext context) {
-            redistributeArbitrarilyHelper(transform, context);
-          }
-
-          private <T> void redistributeArbitrarilyHelper(
-              RedistributeArbitrarily<T> transform, TranslationContext context) {
-            StepTranslationContext stepContext = context.addStep(transform, "GroupByKey");
-
-            PCollection<T> input = context.getInput(transform);
-            stepContext.addInput(PropertyNames.PARALLEL_INPUT, input);
-            stepContext.addOutput(PropertyNames.OUTPUT, context.getOutput(transform));
-
-            // Dataflow worker implements reshuffle by reading GBK with ReshuffleTrigger; that is
-            // the only part of
-            // the windowing strategy that should be observed.
-            WindowingStrategy<?, ?> windowingStrategy =
-                input.getWindowingStrategy().withTrigger(new ReshuffleTrigger<>());
-            stepContext.addInput(
-                PropertyNames.SERIALIZED_FN,
-                byteArrayToJsonString(
-                    serializeWindowingStrategy(windowingStrategy, context.getPipelineOptions())));
-
-            // Many group by key options do not apply to redistribute but Dataflow doesn't
-            // understand
-            // that. We set them here to be sure to avoid any complex codepaths
-            stepContext.addInput(PropertyNames.DISALLOW_COMBINER_LIFTING, true);
-            stepContext.addInput(PropertyNames.IS_MERGING_WINDOW_FN, false);
-            stepContext.addInput(PropertyNames.ALLOW_DUPLICATES, transform.getAllowDuplicates());
-          }
-        });
-
-    registerTransformTranslator(
         GroupByKey.class,
         new TransformTranslator<GroupByKey>() {
           @Override
