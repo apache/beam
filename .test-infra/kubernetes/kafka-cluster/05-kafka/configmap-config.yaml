@@ -39,3 +39,5 @@ data:
     kafka-configs --zookeeper zookeeper:2181 --entity-type topics --entity-name beam-batch --describe
     kafka-topics --zookeeper zookeeper:2181 --create --if-not-exists --force --topic beam-sdf --partitions 1 --replication-factor 3
     kafka-configs --zookeeper zookeeper:2181 --entity-type topics --entity-name beam-sdf --describe
+    kafka-topics --zookeeper zookeeper:2181 --create --if-not-exists --force --topic beam-integration-test --partitions 1 --replication-factor 3
+    kafka-configs --zookeeper zookeeper:2181 --entity-type topics --entity-name beam-integration-test --describe

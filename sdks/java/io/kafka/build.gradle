@@ -16,6 +16,9 @@
  * limitations under the License.
  */
 
+
+import groovy.json.JsonOutput
+
 import java.util.stream.Collectors
 
 plugins { id 'org.apache.beam.module' }
@@ -143,6 +146,28 @@ task kafkaVersionsCompatibilityTest {
   dependsOn (":sdks:java:io:kafka:kafka-231:kafkaVersion231BatchIT")
   dependsOn (":sdks:java:io:kafka:kafka-241:kafkaVersion241BatchIT")
   dependsOn (":sdks:java:io:kafka:kafka-251:kafkaVersion251BatchIT")
+}
+
+task integrationTestLocal(type: Test) {
+  def gcpTempLocation = project.findProperty('gcpTempLocation') ?: 'gs://temp-storage-for-end-to-end-tests'
+  def kafkaBootstrapServerAddresses = project.getProperty("kafkaBootstrapServerAddresses")
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+          "--tempRoot=${gcpTempLocation}",
+          "--runner=DirectRunner",
+          "--sourceOptions={\"numRecords\":\"100\",\"keySizeBytes\":\"10\",\"valueSizeBytes\":\"90\"}",
+          "--kafkaTopic=beam-integration-test",
+          "--readTimeout=1800",
+          "--kafkaBootstrapServerAddresses=${kafkaBootstrapServerAddresses}"
+  ])
+
+  // Disable Gradle cache: these ITs interact with live service that should always be considered "out of date"
+  outputs.upToDateWhen { false }
+
+  include '**/*IT.class'
+
+  maxParallelForks 4
+  classpath = sourceSets.test.runtimeClasspath
+  testClassesDirs = sourceSets.test.output.classesDirs
 }
 
 static def createTestList(Map<String, String> prefixMap, String suffix) {
