@@ -67,9 +67,9 @@ public class ComputationStateCacheTest {
                 .build(),
             Watermarks.builder().setInputDataWatermark(Instant.now()).build(),
             Work.createProcessingContext(
-                    "computationId", (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance())
-                .setWorkCommitter(ignored -> {})
-                .build(),
+                "computationId",
+                (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance(),
+                ignored -> {}),
             Instant::now,
             Collections.emptyList()),
         ignored -> {});

@@ -130,9 +130,9 @@ public class StreamingModeExecutionContextTest {
         workItem,
         watermarks,
         Work.createProcessingContext(
-                COMPUTATION_ID, (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance())
-            .setWorkCommitter(ignored -> {})
-            .build(),
+            COMPUTATION_ID,
+            (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance(),
+            ignored -> {}),
         Instant::now,
         Collections.emptyList());
   }

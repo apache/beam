@@ -120,9 +120,9 @@ public class DispatchedActiveWorkRefresherTest {
                 .build(),
             Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
             Work.createProcessingContext(
-                    "computationId", (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance())
-                .setWorkCommitter(ignored -> {})
-                .build(),
+                "computationId",
+                (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance(),
+                ignored -> {}),
             DispatchedActiveWorkRefresherTest.A_LONG_TIME_AGO,
             ImmutableList.of()),
         processWork);

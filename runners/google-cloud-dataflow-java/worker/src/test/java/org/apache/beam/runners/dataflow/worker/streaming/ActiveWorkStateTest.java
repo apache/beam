@@ -85,9 +85,9 @@ public class ActiveWorkStateTest {
 
   private static Work.ProcessingContext createWorkProcessingContext() {
     return Work.createProcessingContext(
-            "computationId", (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance())
-        .setWorkCommitter(ignored -> {})
-        .build();
+        "computationId",
+        (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance(),
+        ignored -> {});
   }
 
   private static WorkId workId(long workToken, long cacheToken) {

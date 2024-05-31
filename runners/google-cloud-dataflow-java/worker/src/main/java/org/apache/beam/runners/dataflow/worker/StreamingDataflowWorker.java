@@ -805,9 +805,7 @@ public class StreamingDataflowWorker {
               workItem,
               watermarks.setOutputDataWatermark(workItem.getOutputDataWatermark()).build(),
               Work.createProcessingContext(
-                      computationId, metricTrackingWindmillServer::getStateData)
-                  .setWorkCommitter(workCommitter::commit)
-                  .build(),
+                  computationId, metricTrackingWindmillServer::getStateData, workCommitter::commit),
               /* getWorkStreamLatencies= */ Collections.emptyList());
         }
       }
@@ -842,10 +840,9 @@ public class StreamingDataflowWorker {
                                     .setOutputDataWatermark(workItem.getOutputDataWatermark())
                                     .build(),
                                 Work.createProcessingContext(
-                                        computationState.getComputationId(),
-                                        metricTrackingWindmillServer::getStateData)
-                                    .setWorkCommitter(workCommitter::commit)
-                                    .build(),
+                                    computationState.getComputationId(),
+                                    metricTrackingWindmillServer::getStateData,
+                                    workCommitter::commit),
                                 getWorkStreamLatencies);
                           }));
       try {

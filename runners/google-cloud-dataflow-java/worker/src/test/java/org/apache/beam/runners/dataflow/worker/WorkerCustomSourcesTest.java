@@ -197,9 +197,9 @@ public class WorkerCustomSourcesTest {
         workItem,
         watermarks,
         Work.createProcessingContext(
-                COMPUTATION_ID, (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance())
-            .setWorkCommitter(ignored -> {})
-            .build(),
+            COMPUTATION_ID,
+            (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance(),
+            ignored -> {}),
         Instant::now,
         Collections.emptyList());
   }
@@ -995,9 +995,9 @@ public class WorkerCustomSourcesTest {
             workItem,
             Watermarks.builder().setInputDataWatermark(new Instant(0)).build(),
             Work.createProcessingContext(
-                    COMPUTATION_ID, (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance())
-                .setWorkCommitter(ignored -> {})
-                .build(),
+                COMPUTATION_ID,
+                (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance(),
+                gnored -> {}),
             Instant::now,
             Collections.emptyList());
     context.start(

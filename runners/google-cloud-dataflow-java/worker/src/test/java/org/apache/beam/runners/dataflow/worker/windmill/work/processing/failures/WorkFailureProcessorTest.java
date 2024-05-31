@@ -85,9 +85,9 @@ public class WorkFailureProcessorTest {
             Windmill.WorkItem.newBuilder().setKey(ByteString.EMPTY).setWorkToken(1L).build(),
             Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
             Work.createProcessingContext(
-                    "computationId", (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance())
-                .setWorkCommitter(ignored -> {})
-                .build(),
+                "computationId",
+                (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance(),
+                ignored -> {}),
             clock,
             new ArrayList<>()),
         processWorkFn);

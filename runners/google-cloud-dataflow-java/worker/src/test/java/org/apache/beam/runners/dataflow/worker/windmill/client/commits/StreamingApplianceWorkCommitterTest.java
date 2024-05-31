@@ -63,12 +63,11 @@ public class StreamingApplianceWorkCommitterTest {
             .build(),
         Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
         Work.createProcessingContext(
-                "computationId", (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance())
-            .setWorkCommitter(
-                ignored -> {
-                  throw new UnsupportedOperationException();
-                })
-            .build(),
+            "computationId",
+            (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance(),
+            ignored -> {
+              throw new UnsupportedOperationException();
+            }),
         Instant::now,
         Collections.emptyList());
   }

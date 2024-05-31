@@ -103,10 +103,11 @@ public class Work {
     return work;
   }
 
-  public static ProcessingContext.Builder createProcessingContext(
+  public static ProcessingContext createProcessingContext(
       String computationId,
-      BiFunction<String, KeyedGetDataRequest, KeyedGetDataResponse> getKeyedDataFn) {
-    return ProcessingContext.builder(computationId, getKeyedDataFn);
+      BiFunction<String, KeyedGetDataRequest, KeyedGetDataResponse> getKeyedDataFn,
+      Consumer<Commit> workCommitter) {
+    return ProcessingContext.create(computationId, getKeyedDataFn, workCommitter);
   }
 
   private static LatencyAttribution.Builder createLatencyAttributionWithActiveLatencyBreakdown(
@@ -312,13 +313,14 @@ public class Work {
   @AutoValue
   public abstract static class ProcessingContext {
 
-    private static ProcessingContext.Builder builder(
+    private static ProcessingContext create(
         String computationId,
-        BiFunction<String, KeyedGetDataRequest, KeyedGetDataResponse> getKeyedDataFn) {
-      return new AutoValue_Work_ProcessingContext.Builder()
-          .setComputationId(computationId)
-          .setKeyedDataFetcher(
-              request -> Optional.ofNullable(getKeyedDataFn.apply(computationId, request)));
+        BiFunction<String, KeyedGetDataRequest, KeyedGetDataResponse> getKeyedDataFn,
+        Consumer<Commit> workCommitter) {
+      return new AutoValue_Work_ProcessingContext(
+          computationId,
+          request -> Optional.ofNullable(getKeyedDataFn.apply(computationId, request)),
+          workCommitter);
     }
 
     /** Computation that the {@link Work} belongs to. */
@@ -333,17 +335,5 @@ public class Work {
      * {@link WorkItem}.
      */
     public abstract Consumer<Commit> workCommitter();
-
-    @AutoValue.Builder
-    public abstract static class Builder {
-      abstract Builder setComputationId(String value);
-
-      abstract Builder setKeyedDataFetcher(
-          Function<KeyedGetDataRequest, Optional<KeyedGetDataResponse>> value);
-
-      public abstract Builder setWorkCommitter(Consumer<Commit> value);
-
-      public abstract ProcessingContext build();
-    }
   }
 }
