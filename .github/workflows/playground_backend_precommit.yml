@@ -30,7 +30,7 @@ env:
 jobs:
   precommit_check:
     name: precommit-check
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-20.04, highmem]
     env:
       DATASTORE_EMULATOR_VERSION: '423.0.0'
       PYTHON_VERSION: '3.8'
@@ -64,4 +64,4 @@ jobs:
           install_components: 'beta,cloud-datastore-emulator'
           version: '${{ env.DATASTORE_EMULATOR_VERSION }}'
       - name: Run PreCommit
-        run: ./gradlew playground:backend:precommit
+        run: ./gradlew playground:backend:precommit --info
