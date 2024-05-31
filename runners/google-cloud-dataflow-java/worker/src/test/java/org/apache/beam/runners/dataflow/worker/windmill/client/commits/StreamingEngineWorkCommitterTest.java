@@ -40,6 +40,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import org.apache.beam.runners.dataflow.worker.FakeWindmillServer;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
+import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.streaming.WorkId;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
@@ -69,17 +70,23 @@ public class StreamingEngineWorkCommitterTest {
   private FakeWindmillServer fakeWindmillServer;
   private Supplier<CloseableStream<CommitWorkStream>> commitWorkStreamFactory;
 
-  private static Work createMockWork(long workToken, Consumer<Work> processWorkFn) {
+  private static Work createMockWork(long workToken) {
     return Work.create(
         Windmill.WorkItem.newBuilder()
             .setKey(ByteString.EMPTY)
             .setWorkToken(workToken)
-            .setShardingKey(workToken)
-            .setCacheToken(workToken)
+            .setCacheToken(1L)
+            .setShardingKey(2L)
             .build(),
+        Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
+        Work.createProcessingContext(
+            "computationId",
+            (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance(),
+            ignored -> {
+              throw new UnsupportedOperationException();
+            }),
         Instant::now,
-        Collections.emptyList(),
-        processWorkFn);
+        Collections.emptyList());
   }
 
   private static ComputationState createComputationState(String computationId) {
@@ -126,7 +133,7 @@ public class StreamingEngineWorkCommitterTest {
     workCommitter = createWorkCommitter(completeCommits::add);
     List<Commit> commits = new ArrayList<>();
     for (int i = 1; i <= 5; i++) {
-      Work work = createMockWork(i, ignored -> {});
+      Work work = createMockWork(i);
       WorkItemCommitRequest commitRequest =
           WorkItemCommitRequest.newBuilder()
               .setKey(work.getWorkItem().getKey())
@@ -157,7 +164,7 @@ public class StreamingEngineWorkCommitterTest {
     workCommitter = createWorkCommitter(completeCommits::add);
     List<Commit> commits = new ArrayList<>();
     for (int i = 1; i <= 10; i++) {
-      Work work = createMockWork(i, ignored -> {});
+      Work work = createMockWork(i);
       // Fail half of the work.
       if (i % 2 == 0) {
         work.setFailed();
@@ -213,7 +220,7 @@ public class StreamingEngineWorkCommitterTest {
 
     List<Commit> commits = new ArrayList<>();
     for (int i = 1; i <= 10; i++) {
-      Work work = createMockWork(i, ignored -> {});
+      Work work = createMockWork(i);
       WorkItemCommitRequest commitRequest =
           WorkItemCommitRequest.newBuilder()
               .setKey(work.getWorkItem().getKey())
@@ -278,6 +285,7 @@ public class StreamingEngineWorkCommitterTest {
                 return Instant.now();
               }
             };
+
     commitWorkStreamFactory =
         WindmillStreamPool.create(1, Duration.standardMinutes(1), fakeCommitWorkStream)
             ::getCloseableStream;
@@ -287,7 +295,7 @@ public class StreamingEngineWorkCommitterTest {
 
     List<Commit> commits = new ArrayList<>();
     for (int i = 1; i <= 10; i++) {
-      Work work = createMockWork(i, ignored -> {});
+      Work work = createMockWork(i);
       WorkItemCommitRequest commitRequest =
           WorkItemCommitRequest.newBuilder()
               .setKey(work.getWorkItem().getKey())
@@ -323,7 +331,7 @@ public class StreamingEngineWorkCommitterTest {
         StreamingEngineWorkCommitter.create(commitWorkStreamFactory, 5, completeCommits::add);
     List<Commit> commits = new ArrayList<>();
     for (int i = 1; i <= 500; i++) {
-      Work work = createMockWork(i, ignored -> {});
+      Work work = createMockWork(i);
       WorkItemCommitRequest commitRequest =
           WorkItemCommitRequest.newBuilder()
               .setKey(work.getWorkItem().getKey())

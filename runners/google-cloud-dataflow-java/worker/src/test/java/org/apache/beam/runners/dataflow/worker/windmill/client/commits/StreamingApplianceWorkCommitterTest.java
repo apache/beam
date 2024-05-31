@@ -31,6 +31,7 @@ import java.util.function.Consumer;
 import org.apache.beam.runners.dataflow.worker.FakeWindmillServer;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.ShardedKey;
+import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
@@ -52,17 +53,23 @@ public class StreamingApplianceWorkCommitterTest {
   private FakeWindmillServer fakeWindmillServer;
   private StreamingApplianceWorkCommitter workCommitter;
 
-  private static Work createMockWork(long workToken, Consumer<Work> processWorkFn) {
+  private static Work createMockWork(long workToken) {
     return Work.create(
         Windmill.WorkItem.newBuilder()
             .setKey(ByteString.EMPTY)
             .setWorkToken(workToken)
-            .setShardingKey(workToken)
-            .setCacheToken(workToken)
+            .setCacheToken(1L)
+            .setShardingKey(2L)
             .build(),
+        Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
+        Work.createProcessingContext(
+            "computationId",
+            (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance(),
+            ignored -> {
+              throw new UnsupportedOperationException();
+            }),
         Instant::now,
-        Collections.emptyList(),
-        processWorkFn);
+        Collections.emptyList());
   }
 
   private static ComputationState createComputationState(String computationId) {
@@ -97,7 +104,7 @@ public class StreamingApplianceWorkCommitterTest {
     workCommitter = createWorkCommitter(completeCommits::add);
     List<Commit> commits = new ArrayList<>();
     for (int i = 1; i <= 5; i++) {
-      Work work = createMockWork(i, ignored -> {});
+      Work work = createMockWork(i);
       Windmill.WorkItemCommitRequest commitRequest =
           Windmill.WorkItemCommitRequest.newBuilder()
               .setKey(work.getWorkItem().getKey())

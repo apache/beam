@@ -18,39 +18,31 @@
 package org.apache.beam.runners.dataflow.worker.streaming;
 
 import com.google.auto.value.AutoValue;
+import java.util.function.Consumer;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 
-/**
- * A composite key used to identify a unit of {@link Work}. If multiple units of {@link Work} have
- * the same workToken AND cacheToken, the {@link Work} is a duplicate. If multiple units of {@link
- * Work} have the same workToken, but different cacheTokens, the {@link Work} is a retry. If
- * multiple units of {@link Work} have the same cacheToken, but different workTokens, the {@link
- * Work} is obsolete.
- */
+/** {@link Work} instance and a processing function used to process the work. */
 @AutoValue
-public abstract class WorkId {
+public abstract class ExecutableWork implements Runnable {
 
-  public static Builder builder() {
-    return new AutoValue_WorkId.Builder();
+  public static ExecutableWork create(Work work, Consumer<Work> executeWorkFn) {
+    return new AutoValue_ExecutableWork(work, executeWorkFn);
   }
 
-  public static WorkId of(Windmill.WorkItem workItem) {
-    return WorkId.builder()
-        .setCacheToken(workItem.getCacheToken())
-        .setWorkToken(workItem.getWorkToken())
-        .build();
+  public abstract Work work();
+
+  abstract Consumer<Work> executeWorkFn();
+
+  @Override
+  public void run() {
+    executeWorkFn().accept(work());
   }
 
-  abstract long cacheToken();
+  public final WorkId id() {
+    return work().id();
+  }
 
-  abstract long workToken();
-
-  @AutoValue.Builder
-  public abstract static class Builder {
-    public abstract Builder setCacheToken(long value);
-
-    public abstract Builder setWorkToken(long value);
-
-    public abstract WorkId build();
+  public final Windmill.WorkItem getWorkItem() {
+    return work().getWorkItem();
   }
 }

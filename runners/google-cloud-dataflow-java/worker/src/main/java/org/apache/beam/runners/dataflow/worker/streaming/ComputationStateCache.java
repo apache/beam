@@ -193,6 +193,7 @@ public final class ComputationStateCache implements StatusDataProvider {
   /**
    * Close all {@link ComputationState}(s) present in the cache, then invalidate the entire cache.
    */
+  @VisibleForTesting
   public void closeAndInvalidateAll() {
     computationCache.asMap().values().forEach(ComputationState::close);
     computationCache.invalidateAll();
