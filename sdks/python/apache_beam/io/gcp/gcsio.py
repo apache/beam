@@ -37,9 +37,9 @@ from typing import Union
 
 from google.cloud import storage
 from google.cloud.exceptions import NotFound
+from google.cloud.storage.fileio import DEFAULT_RETRY
 from google.cloud.storage.fileio import BlobReader
 from google.cloud.storage.fileio import BlobWriter
-from google.cloud.storage.fileio import DEFAULT_RETRY
 
 from apache_beam import version as beam_version
 from apache_beam.internal.gcp import auth
