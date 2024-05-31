@@ -40,6 +40,8 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -1610,6 +1612,63 @@ public class TableRowToStorageApiProtoTest {
         "foobar",
         ((TableRow) unknown.get("nestedvalue1")).getF().get(BASE_TABLE_ROW.getF().size()).getV());
     assertEquals("foobar", ((TableRow) unknown.get("nestedvaluenof1")).get("unknown"));
+  }
+
+  @Test
+  public void testIgnoreUnknownRepeatedNestedField() throws Exception {
+    TableRow doublyNestedRowNoFWithUnknowns = new TableRow();
+    doublyNestedRowNoFWithUnknowns.putAll(BASE_TABLE_ROW_NO_F);
+    doublyNestedRowNoFWithUnknowns.put("unknown_doubly_nested", "foobar_doubly_nested");
+    TableRow nestedRow =
+        new TableRow()
+            .set("nested_struct", doublyNestedRowNoFWithUnknowns)
+            .set("unknown_repeated_struct", "foobar_repeated_struct");
+    TableRow repeatedRow =
+        new TableRow()
+            .set("repeated_struct", Collections.singletonList(nestedRow))
+            .set("unknown_top", "foobar_top");
+
+    TableSchema schema =
+        new TableSchema()
+            .setFields(
+                Arrays.asList(
+                    new TableFieldSchema()
+                        .setName("repeated_struct")
+                        .setType("STRUCT")
+                        .setMode("REPEATED")
+                        .setFields(
+                            Arrays.asList(
+                                new TableFieldSchema()
+                                    .setName("nested_struct")
+                                    .setType("STRUCT")
+                                    .setFields(BASE_TABLE_SCHEMA_NO_F.getFields())))));
+
+    Descriptor descriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(schema, true, false);
+    TableRowToStorageApiProto.SchemaInformation schemaInformation =
+        TableRowToStorageApiProto.SchemaInformation.fromTableSchema(schema);
+
+    TableRow unknown = new TableRow();
+    TableRowToStorageApiProto.messageFromTableRow(
+        schemaInformation, descriptor, repeatedRow, true, false, unknown, null, -1);
+    System.out.println(unknown);
+    // unkown at top level
+    assertEquals(2, unknown.size());
+    assertEquals("foobar_top", unknown.get("unknown_top"));
+
+    // unknown in a repeated struct
+    List<TableRow> unknownRepeatedStruct = ((List<TableRow>) unknown.get("repeated_struct"));
+    System.out.println(unknownRepeatedStruct.get(0));
+    assertEquals(1, unknownRepeatedStruct.size());
+    assertEquals(2, unknownRepeatedStruct.get(0).size());
+    assertEquals(
+        "foobar_repeated_struct", unknownRepeatedStruct.get(0).get("unknown_repeated_struct"));
+
+    // unknown in a double nested repeated struct
+    TableRow unknownDoublyNestedStruct =
+        (TableRow) unknownRepeatedStruct.get(0).get("nested_struct");
+    assertEquals(1, unknownDoublyNestedStruct.size());
+    assertEquals("foobar_doubly_nested", unknownDoublyNestedStruct.get("unknown_doubly_nested"));
   }
 
   @Test
