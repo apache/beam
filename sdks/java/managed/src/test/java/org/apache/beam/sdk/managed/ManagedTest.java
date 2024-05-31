@@ -17,17 +17,19 @@
  */
 package org.apache.beam.sdk.managed;
 
+import static org.junit.Assert.assertThrows;
+
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.managed.testing.TestSchemaTransformProvider;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.*;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Rule;
 import org.junit.Test;
@@ -59,6 +61,30 @@ public class ManagedTest {
           Row.withSchema(SCHEMA).withFieldValue("str", "a").withFieldValue("int", 1).build(),
           Row.withSchema(SCHEMA).withFieldValue("str", "b").withFieldValue("int", 2).build(),
           Row.withSchema(SCHEMA).withFieldValue("str", "c").withFieldValue("int", 3).build());
+
+  @Test
+  public void testResolveInputToPCollectionRowTuple() {
+    Pipeline p = Pipeline.create();
+    List<PInput> inputTypes =
+        Arrays.asList(
+            PBegin.in(p),
+            p.apply(Create.of(ROWS).withRowSchema(SCHEMA)),
+            PCollectionRowTuple.of("pcoll", p.apply(Create.of(ROWS).withRowSchema(SCHEMA))));
+
+    List<PInput> badInputTypes =
+        Arrays.asList(
+            p.apply(Create.of(1, 2, 3)),
+            p.apply(Create.of(ROWS)),
+            PCollectionTuple.of("pcoll", p.apply(Create.of(ROWS))));
+
+    for (PInput input : inputTypes) {
+      Managed.ManagedTransform.resolveInput(input);
+    }
+    for (PInput badInput : badInputTypes) {
+      assertThrows(
+          IllegalArgumentException.class, () -> Managed.ManagedTransform.resolveInput(badInput));
+    }
+  }
 
   public void runTestProviderTest(Managed.ManagedTransform writeOp) {
     PCollection<Row> rows =

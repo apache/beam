@@ -183,25 +183,7 @@ public class Managed {
 
     @Override
     public PCollectionRowTuple expand(PInput input) {
-      PCollectionRowTuple inputTuple;
-      if (input instanceof PBegin) {
-        inputTuple = PCollectionRowTuple.empty(input.getPipeline());
-      } else if (input instanceof PCollection) {
-        PCollection<?> inputCollection = (PCollection<?>) input;
-        Preconditions.checkState(
-            inputCollection.getCoder() instanceof RowCoder,
-            "Input PCollection must contain Row elements with a set Schema "
-                + "(using .setRowSchema()). Instead, found collection %s with coder: %s.",
-            inputCollection.getName(),
-            inputCollection.getCoder());
-        inputTuple =
-            PCollectionRowTuple.of(
-                ManagedTransformConstants.INPUT, (PCollection<Row>) inputCollection);
-      } else if (input instanceof PCollectionRowTuple) {
-        inputTuple = (PCollectionRowTuple) input;
-      } else {
-        throw new RuntimeException("Unsupported input type: " + input.getClass());
-      }
+      PCollectionRowTuple inputTuple = resolveInput(input);
 
       ManagedSchemaTransformProvider.ManagedConfig managedConfig =
           ManagedSchemaTransformProvider.ManagedConfig.builder()
@@ -214,6 +196,27 @@ public class Managed {
           new ManagedSchemaTransformProvider(getSupportedIdentifiers()).from(managedConfig);
 
       return inputTuple.apply(underlyingTransform);
+    }
+
+    @VisibleForTesting
+    static PCollectionRowTuple resolveInput(PInput input) {
+      if (input instanceof PBegin) {
+        return PCollectionRowTuple.empty(input.getPipeline());
+      } else if (input instanceof PCollection) {
+        PCollection<?> inputCollection = (PCollection<?>) input;
+        Preconditions.checkArgument(
+            inputCollection.getCoder() instanceof RowCoder,
+            "Input PCollection must contain Row elements with a set Schema "
+                + "(using .setRowSchema()). Instead, found collection %s with coder: %s.",
+            inputCollection.getName(),
+            inputCollection.getCoder());
+        return PCollectionRowTuple.of(
+            ManagedTransformConstants.INPUT, (PCollection<Row>) inputCollection);
+      } else if (input instanceof PCollectionRowTuple) {
+        return (PCollectionRowTuple) input;
+      }
+
+      throw new IllegalArgumentException("Unsupported input type: " + input.getClass());
     }
   }
 }
