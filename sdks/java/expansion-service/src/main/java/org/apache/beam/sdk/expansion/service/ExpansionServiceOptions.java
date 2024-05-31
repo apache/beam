@@ -87,9 +87,11 @@ public interface ExpansionServiceOptions extends PipelineOptions {
         try (InputStream stream = new FileInputStream(allowListFileObj)) {
           return AllowList.parseFromYamlStream(stream);
         } catch (FileNotFoundException e) {
-          throw new RuntimeException(e);
+          throw new RuntimeException(
+              "Could not parse the provided allowlist file " + allowListFile, e);
         } catch (IOException e) {
-          throw new RuntimeException(e);
+          throw new RuntimeException(
+              "Could not parse the provided allowlist file " + allowListFile, e);
         }
       }
 
@@ -112,9 +114,11 @@ public interface ExpansionServiceOptions extends PipelineOptions {
         try (InputStream stream = new FileInputStream(configFileObj)) {
           return ExpansionServiceConfig.parseFromYamlStream(stream);
         } catch (FileNotFoundException e) {
-          throw new RuntimeException(e);
+          throw new RuntimeException(
+              "Could not parse the provided Expansion Service config file" + configFile, e);
         } catch (IOException e) {
-          throw new RuntimeException(e);
+          throw new RuntimeException(
+              "Could not parse the provided Expansion Service config file" + configFile, e);
         }
       }
 

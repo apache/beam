@@ -30,10 +30,8 @@ import org.yaml.snakeyaml.Yaml;
 @AutoValue
 public abstract class ExpansionServiceConfig {
 
-  @SuppressWarnings("mutable")
   public abstract List<String> getAllowlist();
 
-  @SuppressWarnings("mutable")
   public abstract Map<String, List<Dependency>> getDependencies();
 
   public static ExpansionServiceConfig empty() {
@@ -52,40 +50,40 @@ public abstract class ExpansionServiceConfig {
     Yaml yaml = new Yaml();
     Map<Object, Object> config = yaml.load(inputStream);
 
-    if (config != null) {
-      List<String> allowList = new ArrayList<>();
-      Map<String, List<Dependency>> dependencies = new HashMap<>();
-      if (config.get("allowlist") != null) {
-        allowList = (List<String>) config.get("allowlist");
-      }
-
-      if (config.get("dependencies") != null) {
-        Map<String, List<Object>> dependenciesFromConfig =
-            (Map<String, List<Object>>) config.get("dependencies");
-        dependenciesFromConfig.forEach(
-            (k, v) -> {
-              if (v != null) {
-                List<Dependency> dependenciesForTransform =
-                    v.stream()
-                        .map(
-                            val -> {
-                              Map<String, Object> depProperties = (Map<String, Object>) val;
-                              String path = (String) depProperties.get("path");
-                              if (path == null) {
-                                throw new IllegalArgumentException(
-                                    "Expected the path to be not null");
-                              }
-                              return Dependency.create(path);
-                            })
-                        .collect(Collectors.toList());
-                dependencies.put(k, dependenciesForTransform);
-              }
-            });
-      }
-      return ExpansionServiceConfig.create(allowList, dependencies);
-    } else {
+    if (config == null) {
       throw new IllegalArgumentException(
           "Could not parse the provided YAML stream into a non-trivial ExpansionServiceConfig");
     }
+
+    List<String> allowList = new ArrayList<>();
+    Map<String, List<Dependency>> dependencies = new HashMap<>();
+    if (config.get("allowlist") != null) {
+      allowList = (List<String>) config.get("allowlist");
+    }
+
+    if (config.get("dependencies") != null) {
+      Map<String, List<Object>> dependenciesFromConfig =
+          (Map<String, List<Object>>) config.get("dependencies");
+      dependenciesFromConfig.forEach(
+          (k, v) -> {
+            if (v != null) {
+              List<Dependency> dependenciesForTransform =
+                  v.stream()
+                      .map(
+                          val -> {
+                            Map<String, Object> depProperties = (Map<String, Object>) val;
+                            String path = (String) depProperties.get("path");
+                            if (path == null) {
+                              throw new IllegalArgumentException(
+                                  "Expected the path to be not null");
+                            }
+                            return Dependency.create(path);
+                          })
+                      .collect(Collectors.toList());
+              dependencies.put(k, dependenciesForTransform);
+            }
+          });
+    }
+    return ExpansionServiceConfig.create(allowList, dependencies);
   }
 }

@@ -17,11 +17,12 @@
  */
 package org.apache.beam.sdk.transformservice;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.auto.value.AutoValue;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import org.yaml.snakeyaml.Yaml;
 
 @AutoValue
 public abstract class TransformServiceConfig {
@@ -31,13 +32,32 @@ public abstract class TransformServiceConfig {
     return create(new ArrayList<>());
   }
 
-  @JsonCreator
-  static TransformServiceConfig create(
-      @JsonProperty("expansionservices") List<String> expansionservices) {
+  static TransformServiceConfig create(List<String> expansionservices) {
     if (expansionservices == null) {
       expansionservices = new ArrayList<>();
     }
 
     return new AutoValue_TransformServiceConfig(expansionservices);
+  }
+
+  static TransformServiceConfig parseFromYamlStream(InputStream inputStream) {
+    Yaml yaml = new Yaml();
+    Map<Object, Object> config = yaml.load(inputStream);
+    if (config == null) {
+      throw new IllegalArgumentException(
+          "Could not parse the provided YAML stream into a non-trivial TransformServiceConfig");
+    }
+
+    List<String> expansionservices = null;
+    if (config.get("expansionservices") != null) {
+      expansionservices = (List<String>) config.get("expansionservices");
+    }
+
+    if (expansionservices == null) {
+      throw new IllegalArgumentException(
+          "Expected the Transform Service config to contain at least one Expansion Service.");
+    }
+
+    return TransformServiceConfig.create(expansionservices);
   }
 }

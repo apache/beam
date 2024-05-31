@@ -493,45 +493,44 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
       Yaml yaml = new Yaml();
       Map<Object, Object> config = yaml.load(inputStream);
 
-      if (config != null) {
-        String version = config.get("version") != null ? (String) config.get("version") : "";
-        List<AllowedClass> allowedClasses = new ArrayList<>();
-        if (config.get("allowedClasses") != null) {
-          allowedClasses =
-              ((List<Map<Object, Object>>) config.get("allowedClasses"))
-                  .stream()
-                      .map(
-                          data -> {
-                            String className = (String) data.get("className");
-                            if (className == null) {
-                              throw new IllegalArgumentException(
-                                  "Expected each entry in the allowlist to include the 'className'");
-                            }
-                            List<String> allowedBuilderMethods =
-                                (List<String>) data.get("allowedBuilderMethods");
-                            List<String> allowedConstructorMethods =
-                                (List<String>) data.get("allowedConstructorMethods");
-                            if (allowedBuilderMethods == null) {
-                              allowedBuilderMethods = new ArrayList<>();
-                            }
-                            if (allowedConstructorMethods == null) {
-                              allowedConstructorMethods = new ArrayList<>();
-                            }
-                            return AllowedClass.create(
-                                className, allowedBuilderMethods, allowedConstructorMethods);
-                          })
-                      .collect(Collectors.toList());
-        }
-        return AllowList.create(version, allowedClasses);
-      } else {
+      if (config == null) {
         throw new IllegalArgumentException(
             "Could not parse the provided YAML stream into a non-trivial AllowList");
       }
+
+      String version = config.get("version") != null ? (String) config.get("version") : "";
+      List<AllowedClass> allowedClasses = new ArrayList<>();
+      if (config.get("allowedClasses") != null) {
+        allowedClasses =
+            ((List<Map<Object, Object>>) config.get("allowedClasses"))
+                .stream()
+                    .map(
+                        data -> {
+                          String className = (String) data.get("className");
+                          if (className == null) {
+                            throw new IllegalArgumentException(
+                                "Expected each entry in the allowlist to include the 'className'");
+                          }
+                          List<String> allowedBuilderMethods =
+                              (List<String>) data.get("allowedBuilderMethods");
+                          List<String> allowedConstructorMethods =
+                              (List<String>) data.get("allowedConstructorMethods");
+                          if (allowedBuilderMethods == null) {
+                            allowedBuilderMethods = new ArrayList<>();
+                          }
+                          if (allowedConstructorMethods == null) {
+                            allowedConstructorMethods = new ArrayList<>();
+                          }
+                          return AllowedClass.create(
+                              className, allowedBuilderMethods, allowedConstructorMethods);
+                        })
+                    .collect(Collectors.toList());
+      }
+      return AllowList.create(version, allowedClasses);
     }
 
     public abstract String getVersion();
 
-    @SuppressWarnings("mutable")
     public abstract List<AllowedClass> getAllowedClasses();
 
     public AllowedClass getAllowedClass(String className) {
@@ -569,10 +568,8 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
 
     public abstract String getClassName();
 
-    @SuppressWarnings("mutable")
     public abstract List<String> getAllowedBuilderMethods();
 
-    @SuppressWarnings("mutable")
     public abstract List<String> getAllowedConstructorMethods();
 
     public boolean isAllowedClass(String className) {
