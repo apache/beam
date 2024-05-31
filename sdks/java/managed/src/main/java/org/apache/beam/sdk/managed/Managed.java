@@ -22,11 +22,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.utils.YamlUtils;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.values.PCollectionRowTuple;
+import org.apache.beam.sdk.values.*;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -47,12 +48,13 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
  * specifies arguments using like so:
  *
  * <pre>{@code
- * PCollectionRowTuple output = PCollectionRowTuple.empty(pipeline).apply(
+ * PCollection<Row> rows = pipeline.apply(
  *       Managed.read(ICEBERG)
  *           .withConfig(ImmutableMap.<String, Object>.builder()
  *               .put("foo", "abc")
  *               .put("bar", 123)
- *               .build()));
+ *               .build()))
+ *       .getOutput();
  * }</pre>
  *
  * <p>Instead of specifying configuration arguments directly in the code, one can provide the
@@ -66,11 +68,9 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
  * <p>The file's path can be passed in to the Managed API like so:
  *
  * <pre>{@code
- * PCollectionRowTuple input = PCollectionRowTuple.of("input", pipeline.apply(Create.of(...)))
+ * PCollection<Row> inputRows = pipeline.apply(Create.of(...));
  *
- * PCollectionRowTuple output = input.apply(
- *     Managed.write(ICEBERG)
- *         .withConfigUrl(<config path>));
+ * input.apply(Managed.write(ICEBERG).withConfigUrl(<config path>));
  * }</pre>
  */
 public class Managed {
@@ -132,8 +132,7 @@ public class Managed {
   }
 
   @AutoValue
-  public abstract static class ManagedTransform
-      extends PTransform<PCollectionRowTuple, PCollectionRowTuple> {
+  public abstract static class ManagedTransform extends PTransform<PInput, PCollectionRowTuple> {
     abstract String getIdentifier();
 
     abstract @Nullable Map<String, Object> getConfig();
@@ -183,7 +182,27 @@ public class Managed {
     }
 
     @Override
-    public PCollectionRowTuple expand(PCollectionRowTuple input) {
+    public PCollectionRowTuple expand(PInput input) {
+      PCollectionRowTuple inputTuple;
+      if (input instanceof PBegin) {
+        inputTuple = PCollectionRowTuple.empty(input.getPipeline());
+      } else if (input instanceof PCollection) {
+        PCollection<?> inputCollection = (PCollection<?>) input;
+        Preconditions.checkState(
+            inputCollection.getCoder() instanceof RowCoder,
+            "Input PCollection must contain Row elements with a set Schema "
+                + "(using .setRowSchema()). Instead, found collection %s with coder: %s.",
+            inputCollection.getName(),
+            inputCollection.getCoder());
+        inputTuple =
+            PCollectionRowTuple.of(
+                ManagedTransformConstants.INPUT, (PCollection<Row>) inputCollection);
+      } else if (input instanceof PCollectionRowTuple) {
+        inputTuple = (PCollectionRowTuple) input;
+      } else {
+        throw new RuntimeException("Unsupported input type: " + input.getClass());
+      }
+
       ManagedSchemaTransformProvider.ManagedConfig managedConfig =
           ManagedSchemaTransformProvider.ManagedConfig.builder()
               .setTransformIdentifier(getIdentifier())
@@ -194,7 +213,7 @@ public class Managed {
       SchemaTransform underlyingTransform =
           new ManagedSchemaTransformProvider(getSupportedIdentifiers()).from(managedConfig);
 
-      return input.apply(underlyingTransform);
+      return inputTuple.apply(underlyingTransform);
     }
   }
 }

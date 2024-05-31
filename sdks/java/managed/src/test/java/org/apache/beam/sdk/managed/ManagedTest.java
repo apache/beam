@@ -27,7 +27,6 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Rule;
@@ -63,9 +62,7 @@ public class ManagedTest {
 
   public void runTestProviderTest(Managed.ManagedTransform writeOp) {
     PCollection<Row> rows =
-        PCollectionRowTuple.of("input", pipeline.apply(Create.of(ROWS)).setRowSchema(SCHEMA))
-            .apply(writeOp)
-            .get("output");
+        pipeline.apply(Create.of(ROWS)).setRowSchema(SCHEMA).apply(writeOp).getOutput();
 
     Schema outputSchema = rows.getSchema();
     PAssert.that(rows)

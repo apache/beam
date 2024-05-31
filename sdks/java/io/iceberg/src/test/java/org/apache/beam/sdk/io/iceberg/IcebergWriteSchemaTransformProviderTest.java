@@ -135,16 +135,12 @@ public class IcebergWriteSchemaTransformProviderTest {
             identifier, CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP, warehouse.location);
     Map<String, Object> configMap = new Yaml().load(yamlConfig);
 
-    PCollectionRowTuple input =
-        PCollectionRowTuple.of(
-            INPUT_TAG,
-            testPipeline
-                .apply(
-                    "Records To Add", Create.of(TestFixtures.asRows(TestFixtures.FILE1SNAPSHOT1)))
-                .setRowSchema(
-                    SchemaAndRowConversions.icebergSchemaToBeamSchema(TestFixtures.SCHEMA)));
+    PCollection<Row> inputRows =
+        testPipeline
+            .apply("Records To Add", Create.of(TestFixtures.asRows(TestFixtures.FILE1SNAPSHOT1)))
+            .setRowSchema(SchemaAndRowConversions.icebergSchemaToBeamSchema(TestFixtures.SCHEMA));
     PCollection<Row> result =
-        input.apply(Managed.write(Managed.ICEBERG).withConfig(configMap)).get(OUTPUT_TAG);
+        inputRows.apply(Managed.write(Managed.ICEBERG).withConfig(configMap)).get(OUTPUT_TAG);
 
     PAssert.that(result).satisfies(new VerifyOutputs(identifier, "append"));
 

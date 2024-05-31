@@ -38,6 +38,9 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
  * every single parameter through the Managed interface.
  */
 public class ManagedTransformConstants {
+  // Standard input PCollection tag
+  public static final String INPUT = "input";
+
   public static final String ICEBERG_READ = "beam:schematransform:org.apache.beam:iceberg_read:v1";
   public static final String ICEBERG_WRITE =
       "beam:schematransform:org.apache.beam:iceberg_write:v1";

@@ -44,7 +44,6 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.util.construction.BeamUrns;
 import org.apache.beam.sdk.util.construction.PipelineTranslation;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -134,7 +133,7 @@ public class ManagedSchemaTransformTranslationTest {
             .setIdentifier(TestSchemaTransformProvider.IDENTIFIER)
             .build()
             .withConfig(underlyingConfig);
-    PCollectionRowTuple.of("input", input).apply(transform).get("output");
+    input.apply(transform);
 
     // Then translate the pipeline to a proto and extract the ManagedSchemaTransform's proto
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
