@@ -58,10 +58,15 @@ jobs:
           sudo chmod 644 /etc/apt/trusted.gpg.d/scalasbt-release.gpg
           sudo apt-get update --yes
           sudo apt-get install sbt --yes
+      - name: Install golangci-lint
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s v1.59.0
       - name: Set up Cloud SDK and its components
         uses: google-github-actions/setup-gcloud@v0
         with:
           install_components: 'beta,cloud-datastore-emulator'
           version: '${{ env.DATASTORE_EMULATOR_VERSION }}'
       - name: Run PreCommit
-        run: ./gradlew playground:backend:precommit --info
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :playground:backend:precommit --info
