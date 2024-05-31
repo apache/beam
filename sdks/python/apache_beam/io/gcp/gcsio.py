@@ -39,6 +39,7 @@ from google.cloud import storage
 from google.cloud.exceptions import NotFound
 from google.cloud.storage.fileio import BlobReader
 from google.cloud.storage.fileio import BlobWriter
+from google.cloud.storage.fileio import DEFAULT_RETRY
 
 from apache_beam import version as beam_version
 from apache_beam.internal.gcp import auth
@@ -542,5 +543,6 @@ class BeamBlobWriter(BlobWriter):
         blob,
         content_type=content_type,
         chunk_size=chunk_size,
-        ignore_flush=ignore_flush)
+        ignore_flush=ignore_flush,
+        retry=DEFAULT_RETRY)
     self.mode = "w"
