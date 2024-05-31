@@ -63,28 +63,19 @@ public class ManagedSchemaTransformProvider
     return "beam:transform:managed:v1";
   }
 
-  private final Map<String, SchemaTransformProvider> schemaTransformProviders = new HashMap<>();
+  // Use 'getAllProviders()' instead of this cache.
+  private final Map<String, SchemaTransformProvider> schemaTransformProvidersCache =
+      new HashMap<>();
+  private boolean providersCached = false;
 
-  public ManagedSchemaTransformProvider() {}
+  private @Nullable Collection<String> supportedIdentifiers;
+
+  public ManagedSchemaTransformProvider() {
+    this(null);
+  }
 
   ManagedSchemaTransformProvider(@Nullable Collection<String> supportedIdentifiers) {
-    try {
-      for (SchemaTransformProvider schemaTransformProvider :
-          ServiceLoader.load(SchemaTransformProvider.class)) {
-        if (schemaTransformProviders.containsKey(schemaTransformProvider.identifier())) {
-          throw new IllegalArgumentException(
-              "Found multiple SchemaTransformProvider implementations with the same identifier "
-                  + schemaTransformProvider.identifier());
-        }
-        if (supportedIdentifiers == null
-            || supportedIdentifiers.contains(schemaTransformProvider.identifier())) {
-          schemaTransformProviders.put(
-              schemaTransformProvider.identifier(), schemaTransformProvider);
-        }
-      }
-    } catch (Exception e) {
-      throw new RuntimeException(e.getMessage());
-    }
+    this.supportedIdentifiers = supportedIdentifiers;
   }
 
   @DefaultSchema(AutoValueSchema.class)
@@ -149,7 +140,7 @@ public class ManagedSchemaTransformProvider
     managedConfig.validate();
     SchemaTransformProvider schemaTransformProvider =
         Preconditions.checkNotNull(
-            schemaTransformProviders.get(managedConfig.getTransformIdentifier()),
+            getAllProviders().get(managedConfig.getTransformIdentifier()),
             "Could not find a transform with the identifier "
                 + "%s. This could be either due to the dependency with the "
                 + "transform not being available in the classpath or due to "
@@ -236,8 +227,36 @@ public class ManagedSchemaTransformProvider
     return YamlUtils.toBeamRow(configMap, transformSchema, false);
   }
 
-  Map<String, SchemaTransformProvider> getAllProviders() {
-    return schemaTransformProviders;
+  // We load providers seperately, after construction, to prevent the
+  // 'ManagedSchemaTransformProvider' from being initialized in a recursive loop
+  // when being loaded using 'AutoValue'.
+  synchronized Map<String, SchemaTransformProvider> getAllProviders() {
+    if (this.providersCached) {
+      return schemaTransformProvidersCache;
+    }
+    try {
+      for (SchemaTransformProvider schemaTransformProvider :
+          ServiceLoader.load(SchemaTransformProvider.class)) {
+        if (schemaTransformProvidersCache.containsKey(schemaTransformProvider.identifier())) {
+          throw new IllegalArgumentException(
+              "Found multiple SchemaTransformProvider implementations with the same identifier "
+                  + schemaTransformProvider.identifier());
+        }
+        if (supportedIdentifiers == null
+            || supportedIdentifiers.contains(schemaTransformProvider.identifier())) {
+          if (schemaTransformProvider.identifier().equals("beam:transform:managed:v1")) {
+            // Prevent recursively adding the 'ManagedSchemaTransformProvider'.
+            continue;
+          }
+          schemaTransformProvidersCache.put(
+              schemaTransformProvider.identifier(), schemaTransformProvider);
+        }
+      }
+      this.providersCached = true;
+      return schemaTransformProvidersCache;
+    } catch (Exception e) {
+      throw new RuntimeException(e.getMessage());
+    }
   }
 
   // TODO: set global snake_case naming convention and remove these special cases
