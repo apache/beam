@@ -874,8 +874,6 @@ class BeamModulePlugin implements Plugin<Project> {
         slf4j_jul_to_slf4j                          : "org.slf4j:jul-to-slf4j:$slf4j_version",
         slf4j_log4j12                               : "org.slf4j:slf4j-log4j12:$slf4j_version",
         slf4j_jcl                                   : "org.slf4j:slf4j-jcl:$slf4j_version",
-        // Note that the SnakeYaml 2.0 requires  jackson-dataformat-yaml 2.15 and above (https://github.com/apache/beam/issues/26743)
-        snake_yaml                                  : "org.yaml:snakeyaml:2.0",
         snappy_java                                 : "org.xerial.snappy:snappy-java:1.1.10.4",
         spark_core                                  : "org.apache.spark:spark-core_2.11:$spark2_version",
         spark_streaming                             : "org.apache.spark:spark-streaming_2.11:$spark2_version",
