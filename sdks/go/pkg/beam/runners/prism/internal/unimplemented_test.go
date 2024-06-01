@@ -52,7 +52,6 @@ func TestUnimplemented(t *testing.T) {
 		{pipeline: primitives.TriggerAfterProcessingTime},
 		{pipeline: primitives.TriggerAfterSynchronizedProcessingTime},
 		{pipeline: primitives.TriggerElementCount},
-		{pipeline: primitives.TriggerNever},
 		{pipeline: primitives.TriggerOrFinally},
 		{pipeline: primitives.TriggerRepeat},
 
