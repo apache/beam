@@ -55,6 +55,7 @@ public class ManagedTransformConstants {
           .put("schema", "schema")
           .put("file_descriptor_path", "fileDescriptorPath")
           .put("message_name", "messageName")
+          .put("max_read_time_seconds", "maxReadTimeSeconds")
           .build();
 
   private static final Map<String, String> KAFKA_WRITE_MAPPINGS =

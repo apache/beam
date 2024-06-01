@@ -149,6 +149,10 @@ public abstract class KafkaReadSchemaTransformConfiguration {
   /** Sets the topic from which to read. */
   public abstract String getTopic();
 
+  @SchemaFieldDescription("Upper bound of how long to read from Kafka.")
+  @Nullable
+  public abstract Integer getMaxReadTimeSeconds();
+
   @SchemaFieldDescription("This option specifies whether and where to output unwritable rows.")
   @Nullable
   public abstract ErrorHandling getErrorHandling();
@@ -178,6 +182,8 @@ public abstract class KafkaReadSchemaTransformConfiguration {
 
     /** Sets the topic from which to read. */
     public abstract Builder setTopic(String value);
+
+    public abstract Builder setMaxReadTimeSeconds(Integer maxReadTimeSeconds);
 
     public abstract Builder setErrorHandling(ErrorHandling errorHandling);
 

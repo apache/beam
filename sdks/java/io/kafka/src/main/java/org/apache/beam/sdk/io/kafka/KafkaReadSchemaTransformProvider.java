@@ -60,7 +60,6 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
@@ -80,19 +79,6 @@ public class KafkaReadSchemaTransformProvider
   public static final TupleTag<Row> OUTPUT_TAG = new TupleTag<Row>() {};
   public static final TupleTag<Row> ERROR_TAG = new TupleTag<Row>() {};
 
-  final Boolean isTest;
-  final Integer testTimeoutSecs;
-
-  public KafkaReadSchemaTransformProvider() {
-    this(false, 0);
-  }
-
-  @VisibleForTesting
-  KafkaReadSchemaTransformProvider(Boolean isTest, Integer testTimeoutSecs) {
-    this.isTest = isTest;
-    this.testTimeoutSecs = testTimeoutSecs;
-  }
-
   @Override
   protected Class<KafkaReadSchemaTransformConfiguration> configurationClass() {
     return KafkaReadSchemaTransformConfiguration.class;
@@ -103,7 +89,7 @@ public class KafkaReadSchemaTransformProvider
   })
   @Override
   protected SchemaTransform from(KafkaReadSchemaTransformConfiguration configuration) {
-    return new KafkaReadSchemaTransform(configuration, isTest, testTimeoutSecs);
+    return new KafkaReadSchemaTransform(configuration);
   }
 
   public static SerializableFunction<byte[], Row> getRawBytesToRowFunction(Schema rawSchema) {
@@ -132,16 +118,9 @@ public class KafkaReadSchemaTransformProvider
 
   static class KafkaReadSchemaTransform extends SchemaTransform {
     private final KafkaReadSchemaTransformConfiguration configuration;
-    final Boolean isTest;
-    final Integer testTimeoutSecs;
 
-    KafkaReadSchemaTransform(
-        KafkaReadSchemaTransformConfiguration configuration,
-        Boolean isTest,
-        Integer testTimeoutSecs) {
+    KafkaReadSchemaTransform(KafkaReadSchemaTransformConfiguration configuration) {
       this.configuration = configuration;
-      this.isTest = isTest;
-      this.testTimeoutSecs = testTimeoutSecs;
     }
 
     Row getConfigurationRow() {
@@ -194,8 +173,10 @@ public class KafkaReadSchemaTransformProvider
                 .withValueDeserializer(
                     ConfluentSchemaRegistryDeserializerProvider.of(
                         confluentSchemaRegUrl, confluentSchemaRegSubject));
-        if (isTest) {
-          kafkaRead = kafkaRead.withMaxReadTime(Duration.standardSeconds(testTimeoutSecs));
+        if (configuration.getMaxReadTimeSeconds() != null) {
+          kafkaRead =
+              kafkaRead.withMaxReadTime(
+                  Duration.standardSeconds(configuration.getMaxReadTimeSeconds()));
         }
 
         PCollection<GenericRecord> kafkaValues =
@@ -240,8 +221,10 @@ public class KafkaReadSchemaTransformProvider
               .withConsumerFactoryFn(new ConsumerFactoryWithGcsTrustStores())
               .withTopic(configuration.getTopic())
               .withBootstrapServers(configuration.getBootstrapServers());
-      if (isTest) {
-        kafkaRead = kafkaRead.withMaxReadTime(Duration.standardSeconds(testTimeoutSecs));
+      if (configuration.getMaxReadTimeSeconds() != null) {
+        kafkaRead =
+            kafkaRead.withMaxReadTime(
+                Duration.standardSeconds(configuration.getMaxReadTimeSeconds()));
       }
 
       PCollection<byte[]> kafkaValues =

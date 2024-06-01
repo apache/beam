@@ -132,7 +132,8 @@ public class KafkaReadSchemaTransformProviderTest {
             "confluentSchemaRegistryUrl",
             "errorHandling",
             "fileDescriptorPath",
-            "messageName"),
+            "messageName",
+            "maxReadTimeSeconds"),
         kafkaProvider.configurationSchema().getFields().stream()
             .map(field -> field.getName())
             .collect(Collectors.toSet()));
