@@ -1,7 +1,9 @@
 {
-  "commentedAboutFailingChecks": true,
-  "reviewersAssignedForLabels": {},
-  "nextAction": "Author",
+  "commentedAboutFailingChecks": false,
+  "reviewersAssignedForLabels": {
+    "website": "rszper"
+  },
+  "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
   "remindAfterTestsPass": [],
   "committerAssigned": false
