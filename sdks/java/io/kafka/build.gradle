@@ -150,7 +150,8 @@ task kafkaVersionsCompatibilityTest {
 
 task integrationTestLocal(type: Test) {
   def gcpTempLocation = project.findProperty('gcpTempLocation') ?: 'gs://temp-storage-for-end-to-end-tests'
-  def kafkaBootstrapServerAddresses = project.getProperty("kafkaBootstrapServerAddresses")
+  def kafkaBootstrapServerAddresses = project.findProperty("kafkaBootstrapServerAddresses") ?: 'localhost:9092'
+
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--tempRoot=${gcpTempLocation}",
           "--runner=DirectRunner",
