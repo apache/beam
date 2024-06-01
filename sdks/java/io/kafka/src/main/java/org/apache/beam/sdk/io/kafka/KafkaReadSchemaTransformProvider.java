@@ -173,10 +173,9 @@ public class KafkaReadSchemaTransformProvider
                 .withValueDeserializer(
                     ConfluentSchemaRegistryDeserializerProvider.of(
                         confluentSchemaRegUrl, confluentSchemaRegSubject));
-        if (configuration.getMaxReadTimeSeconds() != null) {
-          kafkaRead =
-              kafkaRead.withMaxReadTime(
-                  Duration.standardSeconds(configuration.getMaxReadTimeSeconds()));
+        Integer maxReadTimeSeconds = configuration.getMaxReadTimeSeconds();
+        if (maxReadTimeSeconds != null) {
+          kafkaRead = kafkaRead.withMaxReadTime(Duration.standardSeconds(maxReadTimeSeconds));
         }
 
         PCollection<GenericRecord> kafkaValues =
@@ -221,10 +220,9 @@ public class KafkaReadSchemaTransformProvider
               .withConsumerFactoryFn(new ConsumerFactoryWithGcsTrustStores())
               .withTopic(configuration.getTopic())
               .withBootstrapServers(configuration.getBootstrapServers());
-      if (configuration.getMaxReadTimeSeconds() != null) {
-        kafkaRead =
-            kafkaRead.withMaxReadTime(
-                Duration.standardSeconds(configuration.getMaxReadTimeSeconds()));
+      Integer maxReadTimeSeconds = configuration.getMaxReadTimeSeconds();
+      if (maxReadTimeSeconds != null) {
+        kafkaRead = kafkaRead.withMaxReadTime(Duration.standardSeconds(maxReadTimeSeconds));
       }
 
       PCollection<byte[]> kafkaValues =
