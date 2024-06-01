@@ -256,6 +256,8 @@ public class StreamingEngineWorkCommitterTest {
     Supplier<CommitWorkStream> fakeCommitWorkStream =
         () ->
             new CommitWorkStream() {
+              private boolean closed = false;
+
               @Override
               public RequestBatcher batcher() {
                 return new RequestBatcher() {
@@ -273,7 +275,9 @@ public class StreamingEngineWorkCommitterTest {
               }
 
               @Override
-              public void close() {}
+              public void close() {
+                closed = true;
+              }
 
               @Override
               public boolean awaitTermination(int time, TimeUnit unit) {
@@ -283,6 +287,11 @@ public class StreamingEngineWorkCommitterTest {
               @Override
               public Instant startTime() {
                 return Instant.now();
+              }
+
+              @Override
+              public boolean isClosed() {
+                return closed;
               }
             };
 

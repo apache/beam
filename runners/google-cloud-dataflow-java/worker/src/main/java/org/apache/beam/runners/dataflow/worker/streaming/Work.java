@@ -31,6 +31,7 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
 import org.apache.beam.runners.dataflow.worker.ActiveMessageMetadata;
@@ -43,6 +44,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribut
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution.ActiveLatencyBreakdown.Distribution;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.Commit;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReader;
@@ -107,7 +109,15 @@ public final class Work {
       String computationId,
       BiFunction<String, KeyedGetDataRequest, KeyedGetDataResponse> getKeyedDataFn,
       Consumer<Commit> workCommitter) {
-    return ProcessingContext.create(computationId, getKeyedDataFn, workCommitter);
+    return ProcessingContext.create(computationId, getKeyedDataFn, workCommitter, null);
+  }
+
+  public static ProcessingContext createFanOutProcessingContext(
+      String computationId,
+      BiFunction<String, KeyedGetDataRequest, KeyedGetDataResponse> getKeyedDataFn,
+      Consumer<Commit> workCommitter,
+      GetDataStream getDataStream) {
+    return ProcessingContext.create(computationId, getKeyedDataFn, workCommitter, getDataStream);
   }
 
   private static LatencyAttribution.Builder createLatencyAttributionWithActiveLatencyBreakdown(
@@ -169,6 +179,10 @@ public final class Work {
 
   public State getState() {
     return currentState.state();
+  }
+
+  public @Nullable GetDataStream getDataStream() {
+    return processingContext.getDataStream();
   }
 
   public void setState(State state) {
@@ -315,11 +329,13 @@ public final class Work {
     private static ProcessingContext create(
         String computationId,
         BiFunction<String, KeyedGetDataRequest, KeyedGetDataResponse> getKeyedDataFn,
-        Consumer<Commit> workCommitter) {
+        Consumer<Commit> workCommitter,
+        @Nullable GetDataStream getDataStream) {
       return new AutoValue_Work_ProcessingContext(
           computationId,
           request -> Optional.ofNullable(getKeyedDataFn.apply(computationId, request)),
-          workCommitter);
+          workCommitter,
+          getDataStream);
     }
 
     /** Computation that the {@link Work} belongs to. */
@@ -334,5 +350,7 @@ public final class Work {
      * {@link WorkItem}.
      */
     public abstract Consumer<Commit> workCommitter();
+
+    public abstract @Nullable GetDataStream getDataStream();
   }
 }

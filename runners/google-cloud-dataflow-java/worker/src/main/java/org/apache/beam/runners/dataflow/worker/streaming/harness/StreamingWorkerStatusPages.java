@@ -135,6 +135,7 @@ public final class StreamingWorkerStatusPages {
     statusPages.addStatusDataProvider(
         "exception", "Last Exception", new LastExceptionDataProvider());
     statusPages.addStatusDataProvider("cache", "State Cache", stateCache);
+    statusPages.addStatusDataProvider("activeGetWorkBudget", "Active GetWork Budget", writer -> {});
 
     if (isStreamingEngine()) {
       addStreamingEngineStatusPages();

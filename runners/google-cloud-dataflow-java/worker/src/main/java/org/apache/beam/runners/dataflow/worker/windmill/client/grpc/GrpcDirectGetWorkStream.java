@@ -24,6 +24,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
@@ -33,6 +34,8 @@ import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationWorkItemMetadata;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkRequest;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingGetWorkRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingGetWorkResponseChunk;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
@@ -82,6 +85,9 @@ public final class GrpcDirectGetWorkStream
   private final ThrottleTimer getWorkThrottleTimer;
   private final Supplier<GetDataStream> getDataStream;
   private final Supplier<WorkCommitter> workCommitter;
+  private final Function<
+          GetDataStream, BiFunction<String, KeyedGetDataRequest, KeyedGetDataResponse>>
+      keyedGetDataFn;
 
   /**
    * Map of stream IDs to their buffers. Used to aggregate streaming gRPC response chunks as they
@@ -103,6 +109,8 @@ public final class GrpcDirectGetWorkStream
       ThrottleTimer getWorkThrottleTimer,
       Supplier<GetDataStream> getDataStream,
       Supplier<WorkCommitter> workCommitter,
+      Function<GetDataStream, BiFunction<String, KeyedGetDataRequest, KeyedGetDataResponse>>
+          keyedGetDataFn,
       WorkItemScheduler workItemScheduler) {
     super(
         startGetWorkRpcFn, backoff, streamObserverFactory, streamRegistry, logEveryNStreamFailures);
@@ -114,6 +122,7 @@ public final class GrpcDirectGetWorkStream
     // stream.
     this.getDataStream = Suppliers.memoize(getDataStream::get);
     this.workCommitter = Suppliers.memoize(workCommitter::get);
+    this.keyedGetDataFn = keyedGetDataFn;
     this.inFlightBudget = new AtomicReference<>(GetWorkBudget.noBudget());
     this.nextBudgetAdjustment = new AtomicReference<>(GetWorkBudget.noBudget());
     this.pendingResponseBudget = new AtomicReference<>(GetWorkBudget.noBudget());
@@ -132,6 +141,8 @@ public final class GrpcDirectGetWorkStream
       ThrottleTimer getWorkThrottleTimer,
       Supplier<GetDataStream> getDataStream,
       Supplier<WorkCommitter> workCommitter,
+      Function<GetDataStream, BiFunction<String, KeyedGetDataRequest, KeyedGetDataResponse>>
+          keyedGetDataFn,
       WorkItemScheduler workItemScheduler) {
     GrpcDirectGetWorkStream getWorkStream =
         new GrpcDirectGetWorkStream(
@@ -144,6 +155,7 @@ public final class GrpcDirectGetWorkStream
             getWorkThrottleTimer,
             getDataStream,
             workCommitter,
+            keyedGetDataFn,
             workItemScheduler);
     getWorkStream.startStream();
     return getWorkStream;
@@ -187,22 +199,24 @@ public final class GrpcDirectGetWorkStream
   @Override
   protected synchronized void onNewStream() {
     workItemBuffers.clear();
-    // Add the current in-flight budget to the next adjustment. Only positive values are allowed
-    // here
-    // with negatives defaulting to 0, since GetWorkBudgets cannot be created with negative values.
-    GetWorkBudget budgetAdjustment = nextBudgetAdjustment.get().apply(inFlightBudget.get());
-    inFlightBudget.set(budgetAdjustment);
-    send(
-        StreamingGetWorkRequest.newBuilder()
-            .setRequest(
-                request
-                    .toBuilder()
-                    .setMaxBytes(budgetAdjustment.bytes())
-                    .setMaxItems(budgetAdjustment.items()))
-            .build());
+    if (!isClosed()) {
+      // Add the current in-flight budget to the next adjustment. Only positive values are allowed
+      // here with negatives defaulting to 0, since GetWorkBudgets cannot be created with negative
+      // values.
+      GetWorkBudget budgetAdjustment = nextBudgetAdjustment.get().apply(inFlightBudget.get());
+      inFlightBudget.set(budgetAdjustment);
+      send(
+          StreamingGetWorkRequest.newBuilder()
+              .setRequest(
+                  request
+                      .toBuilder()
+                      .setMaxBytes(budgetAdjustment.bytes())
+                      .setMaxItems(budgetAdjustment.items()))
+              .build());
 
-    // We just sent the budget, reset it.
-    nextBudgetAdjustment.set(GetWorkBudget.noBudget());
+      // We just sent the budget, reset it.
+      nextBudgetAdjustment.set(GetWorkBudget.noBudget());
+    }
   }
 
   @Override
@@ -326,8 +340,12 @@ public final class GrpcDirectGetWorkStream
     }
 
     private Work.ProcessingContext createProcessingContext(String computationId) {
-      return Work.createProcessingContext(
-          computationId, getDataStream.get()::requestKeyedData, workCommitter.get()::commit);
+      return Work.createFanOutProcessingContext(
+          computationId,
+          (computation, request) ->
+              keyedGetDataFn.apply(getDataStream.get()).apply(computation, request),
+          workCommitter.get()::commit,
+          getDataStream.get());
     }
   }
 }

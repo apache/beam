@@ -250,5 +250,10 @@ public class WindmillStreamPoolTest {
     public Instant startTime() {
       return startTime;
     }
+
+    @Override
+    public boolean isClosed() {
+      return closed;
+    }
   }
 }

@@ -259,6 +259,8 @@ public class EvenGetWorkBudgetDistributorTest {
                     .build())
             .build(),
         (workItem, watermarks, processingContext, ackWorkItemQueued, getWorkStreamLatencies) -> {},
-        ignored -> mock(WorkCommitter.class));
+        ignored -> mock(WorkCommitter.class),
+        getDataStream ->
+            (computationId, request) -> Windmill.KeyedGetDataResponse.getDefaultInstance());
   }
 }

@@ -287,6 +287,11 @@ public final class FakeWindmillServer extends WindmillServerStub {
       public Instant startTime() {
         return startTime;
       }
+
+      @Override
+      public boolean isClosed() {
+        return done.getCount() == 0;
+      }
     };
   }
 
@@ -358,6 +363,11 @@ public final class FakeWindmillServer extends WindmillServerStub {
       @Override
       public Instant startTime() {
         return startTime;
+      }
+
+      @Override
+      public boolean isClosed() {
+        return false;
       }
     };
   }
@@ -441,6 +451,11 @@ public final class FakeWindmillServer extends WindmillServerStub {
       @Override
       public Instant startTime() {
         return startTime;
+      }
+
+      @Override
+      public boolean isClosed() {
+        return false;
       }
     };
   }

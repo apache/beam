@@ -31,6 +31,7 @@ import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
@@ -45,6 +46,7 @@ import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableListMultimap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multimap;
 import org.joda.time.Duration;
@@ -329,6 +331,22 @@ public final class ActiveWorkState {
     return activeWork.entrySet().stream()
         .flatMap(entry -> toHeartbeatRequestStream(entry, refreshDeadline, sampler))
         .collect(toImmutableList());
+  }
+
+  synchronized ImmutableListMultimap<ShardedKey, Work> getReadOnlyActiveWork() {
+    // Do not return a reference to the underlying workQueue as iterations over it will cause a
+    // ConcurrentModificationException as it is not a thread-safe data structure.
+    ImmutableListMultimap.Builder<ShardedKey, Work> readOnlyActiveWork =
+        ImmutableListMultimap.builder();
+    for (Entry<ShardedKey, Deque<ExecutableWork>> keyedWorkQueues : activeWork.entrySet()) {
+      readOnlyActiveWork.putAll(
+          keyedWorkQueues.getKey(),
+          keyedWorkQueues.getValue().stream()
+              .map(ExecutableWork::work)
+              .collect(Collectors.toList()));
+    }
+
+    return readOnlyActiveWork.build();
   }
 
   /**

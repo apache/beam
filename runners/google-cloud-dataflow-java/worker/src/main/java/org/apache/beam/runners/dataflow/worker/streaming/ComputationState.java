@@ -31,6 +31,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudge
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableListMultimap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multimap;
 import org.joda.time.Instant;
@@ -137,6 +138,10 @@ public class ComputationState {
   public void invalidateStuckCommits(Instant stuckCommitDeadline) {
     activeWorkState.invalidateStuckCommits(
         stuckCommitDeadline, this::completeWorkAndScheduleNextWorkForKey);
+  }
+
+  public ImmutableListMultimap<ShardedKey, Work> currentActiveWorkReadOnly() {
+    return activeWorkState.getReadOnlyActiveWork();
   }
 
   private void execute(ExecutableWork executableWork) {

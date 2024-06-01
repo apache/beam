@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalDataRequest;
@@ -81,6 +82,10 @@ final class GrpcGetDataStreamRequests {
       this.responseStream = new AppendableInputStream();
     }
 
+    public ComputationOrGlobalDataRequest getDataRequest() {
+      return dataRequest;
+    }
+
     void addToStreamingGetDataRequest(Windmill.StreamingGetDataRequest.Builder builder) {
       builder.addRequestId(id);
       if (dataRequest.isForComputation()) {
@@ -126,8 +131,8 @@ final class GrpcGetDataStreamRequests {
       sent.countDown();
     }
 
-    void await() throws InterruptedException {
-      sent.await();
+    boolean await(long seconds) throws InterruptedException {
+      return sent.await(seconds, TimeUnit.SECONDS);
     }
   }
 

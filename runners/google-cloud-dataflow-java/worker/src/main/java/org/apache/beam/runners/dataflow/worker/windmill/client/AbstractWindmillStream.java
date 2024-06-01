@@ -176,6 +176,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
           onNewStream();
           if (clientClosed.get()) {
             close();
+            streamRegistry.remove(this);
           }
           return;
         }
@@ -238,7 +239,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   protected abstract void appendSpecificHtml(PrintWriter writer);
 
   @Override
-  public final synchronized void close() {
+  public synchronized void close() {
     // Synchronization of close and onCompleted necessary for correct retry logic in onNewStream.
     clientClosed.set(true);
     requestObserver().onCompleted();
@@ -253,6 +254,16 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   @Override
   public final Instant startTime() {
     return new Instant(startTimeMs.get());
+  }
+
+  @Override
+  public boolean isClosed() {
+    return streamClosed.get() || clientClosed.get();
+  }
+
+  private void setLastError(String error) {
+    lastError.set(error);
+    lastErrorTime.set(DateTime.now());
   }
 
   private class ResponseObserver implements StreamObserver<ResponseT> {
@@ -336,10 +347,5 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
       }
       executor.execute(AbstractWindmillStream.this::startStream);
     }
-  }
-
-  private void setLastError(String error) {
-    lastError.set(error);
-    lastErrorTime.set(DateTime.now());
   }
 }

@@ -41,6 +41,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillMetadataServiceV1Alpha1Grpc;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkerMetadataRequest;
@@ -97,7 +98,6 @@ public class StreamingEngineClientTest {
           .build();
 
   @Rule public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
-  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private final MutableHandlerRegistry serviceRegistry = new MutableHandlerRegistry();
   private final GrpcWindmillStreamFactory streamFactory =
       spy(GrpcWindmillStreamFactory.of(JOB_HEADER).build());
@@ -109,7 +109,7 @@ public class StreamingEngineClientTest {
   private final GrpcDispatcherClient dispatcherClient =
       GrpcDispatcherClient.forTesting(
           stubFactory, new ArrayList<>(), new ArrayList<>(), new HashSet<>());
-
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private Server fakeStreamingEngineServer;
   private CountDownLatch getWorkerMetadataReady;
   private GetWorkerMetadataTestStub fakeGetWorkerMetadataStub;
@@ -181,7 +181,9 @@ public class StreamingEngineClientTest {
         getWorkBudgetDistributor,
         dispatcherClient,
         CLIENT_ID,
-        ignored -> mock(WorkCommitter.class));
+        ignored -> mock(WorkCommitter.class),
+        getDataStream ->
+            (computationId, request) -> Windmill.KeyedGetDataResponse.getDefaultInstance());
   }
 
   @Test
@@ -235,7 +237,13 @@ public class StreamingEngineClientTest {
 
     verify(streamFactory, times(2))
         .createDirectGetWorkStream(
-            any(), eq(getWorkRequest(0, 0)), any(), any(), any(), eq(noOpProcessWorkItemFn()));
+            any(),
+            eq(getWorkRequest(0, 0)),
+            any(),
+            any(),
+            any(),
+            any(),
+            eq(noOpProcessWorkItemFn()));
 
     verify(streamFactory, times(2)).createGetDataStream(any(), any());
     verify(streamFactory, times(2)).createCommitWorkStream(any(), any());

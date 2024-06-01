@@ -28,6 +28,7 @@ import static org.mockito.Mockito.when;
 
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.CommitWorkStream;
@@ -105,6 +106,7 @@ public class WindmillStreamSenderTest {
             any(ThrottleTimer.class),
             any(),
             any(),
+            any(),
             eq(workItemScheduler));
 
     verify(streamFactory).createGetDataStream(eq(stub), any(ThrottleTimer.class));
@@ -134,6 +136,7 @@ public class WindmillStreamSenderTest {
                     .setMaxBytes(byteBudget)
                     .build()),
             any(ThrottleTimer.class),
+            any(),
             any(),
             any(),
             eq(workItemScheduler));
@@ -170,6 +173,7 @@ public class WindmillStreamSenderTest {
             any(ThrottleTimer.class),
             any(),
             any(),
+            any(),
             eq(workItemScheduler));
 
     verify(streamFactory, times(1)).createGetDataStream(eq(stub), any(ThrottleTimer.class));
@@ -203,12 +207,12 @@ public class WindmillStreamSenderTest {
             any(ThrottleTimer.class),
             any(),
             any(),
+            any(),
             eq(workItemScheduler)))
         .thenReturn(mockGetWorkStream);
-
     when(mockStreamFactory.createGetDataStream(eq(stub), any(ThrottleTimer.class)))
         .thenReturn(mockGetDataStream);
-    when(mockStreamFactory.createCommitWorkStream(eq(stub), any(ThrottleTimer.class)))
+    when(mockStreamFactory.createDirectCommitWorkStream(eq(stub), any(ThrottleTimer.class)))
         .thenReturn(mockCommitWorkStream);
 
     WindmillStreamSender windmillStreamSender =
@@ -236,6 +240,8 @@ public class WindmillStreamSenderTest {
         budget,
         streamFactory,
         workItemScheduler,
-        ignored -> mock(WorkCommitter.class));
+        ignored -> mock(WorkCommitter.class),
+        getDataStream ->
+            (computationId, request) -> Windmill.KeyedGetDataResponse.getDefaultInstance());
   }
 }

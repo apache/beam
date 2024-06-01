@@ -28,12 +28,15 @@ import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.status.StatusDataProvider;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillMetadataServiceV1Alpha1Grpc.CloudWindmillMetadataServiceV1Alpha1Stub;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationHeartbeatResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
@@ -52,6 +55,7 @@ import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.AbstractStub;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -182,7 +186,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         responseObserver -> withDefaultDeadline(stub).getWorkStream(responseObserver),
         request,
         grpcBackOff.get(),
-        newStreamObserverFactory(),
+        newBufferringStreamObserverFactory(),
         streamRegistry,
         logEveryNStreamFailures,
         getWorkThrottleTimer,
@@ -195,26 +199,44 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
       ThrottleTimer getWorkThrottleTimer,
       Supplier<GetDataStream> getDataStream,
       Supplier<WorkCommitter> workCommitter,
+      Function<
+              GetDataStream,
+              BiFunction<String, Windmill.KeyedGetDataRequest, Windmill.KeyedGetDataResponse>>
+          keyedGetDataFn,
       WorkItemScheduler workItemScheduler) {
     return GrpcDirectGetWorkStream.create(
-        responseObserver -> withDefaultDeadline(stub).getWorkStream(responseObserver),
+        stub::getWorkStream,
         request,
         grpcBackOff.get(),
-        newStreamObserverFactory(),
+        newSimpleStreamObserverFactory(),
         streamRegistry,
         logEveryNStreamFailures,
         getWorkThrottleTimer,
         getDataStream,
         workCommitter,
+        keyedGetDataFn,
         workItemScheduler);
+  }
+
+  public GetDataStream createDirectGetDataStream(
+      CloudWindmillServiceV1Alpha1Stub stub,
+      ThrottleTimer getDataThrottleTimer,
+      boolean sendKeyedGetDataRequests,
+      Consumer<List<ComputationHeartbeatResponse>> processHeartbeatResponses) {
+    return createGetDataStream(
+        () -> stub,
+        getDataThrottleTimer,
+        sendKeyedGetDataRequests,
+        processHeartbeatResponses,
+        newSimpleStreamObserverFactory());
   }
 
   public GetDataStream createGetDataStream(
       CloudWindmillServiceV1Alpha1Stub stub, ThrottleTimer getDataThrottleTimer) {
     return GrpcGetDataStream.create(
-        responseObserver -> withDefaultDeadline(stub).getDataStream(responseObserver),
+        responseObserver -> stub.get().getDataStream(responseObserver),
         grpcBackOff.get(),
-        newStreamObserverFactory(),
+        streamObserverFactory,
         streamRegistry,
         logEveryNStreamFailures,
         getDataThrottleTimer,
@@ -227,10 +249,26 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
 
   public CommitWorkStream createCommitWorkStream(
       CloudWindmillServiceV1Alpha1Stub stub, ThrottleTimer commitWorkThrottleTimer) {
+    return createCommitWorkStream(
+        () -> withDefaultDeadline(stub),
+        commitWorkThrottleTimer,
+        newBufferringStreamObserverFactory());
+  }
+
+  public CommitWorkStream createDirectCommitWorkStream(
+      CloudWindmillServiceV1Alpha1Stub stub, ThrottleTimer commitWorkThrottleTimer) {
+    return createCommitWorkStream(
+        () -> stub, commitWorkThrottleTimer, newSimpleStreamObserverFactory());
+  }
+
+  private CommitWorkStream createCommitWorkStream(
+      Supplier<CloudWindmillServiceV1Alpha1Stub> stub,
+      ThrottleTimer commitWorkThrottleTimer,
+      StreamObserverFactory streamObserverFactory) {
     return GrpcCommitWorkStream.create(
-        responseObserver -> withDefaultDeadline(stub).commitWorkStream(responseObserver),
+        responseObserver -> stub.get().commitWorkStream(responseObserver),
         grpcBackOff.get(),
-        newStreamObserverFactory(),
+        streamObserverFactory,
         streamRegistry,
         logEveryNStreamFailures,
         commitWorkThrottleTimer,
@@ -246,7 +284,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
     return GrpcGetWorkerMetadataStream.create(
         responseObserver -> withDefaultDeadline(stub).getWorkerMetadata(responseObserver),
         grpcBackOff.get(),
-        newStreamObserverFactory(),
+        newBufferringStreamObserverFactory(),
         streamRegistry,
         logEveryNStreamFailures,
         jobHeader,
@@ -255,9 +293,51 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         onNewWindmillEndpoints);
   }
 
-  private StreamObserverFactory newStreamObserverFactory() {
+  private StreamObserverFactory newBufferringStreamObserverFactory() {
     return StreamObserverFactory.direct(
         DEFAULT_STREAM_RPC_DEADLINE_SECONDS * 2, windmillMessagesBetweenIsReadyChecks);
+  }
+
+  /**
+   * Simple {@link StreamObserverFactory} that does not buffer or provide extra functionality for
+   * request observers.
+   *
+   * @implNote Used to create stream observers for direct path streams that do not share any
+   *     underlying resources between threads.
+   */
+  private StreamObserverFactory newSimpleStreamObserverFactory() {
+    return new StreamObserverFactory() {
+      @Override
+      public <ResponseT, RequestT> StreamObserver<RequestT> from(
+          Function<StreamObserver<ResponseT>, StreamObserver<RequestT>> clientFactory,
+          StreamObserver<ResponseT> responseObserver) {
+        return clientFactory.apply(responseObserver);
+      }
+    };
+  }
+
+  /**
+   * Schedules streaming RPC health checks to run on a background daemon thread, which will be
+   * cleaned up when the JVM shutdown.
+   */
+  public void scheduleHealthChecks(int healthCheckInterval) {
+    if (healthCheckInterval < 0) {
+      return;
+    }
+
+    new Timer("WindmillHealthCheckTimer")
+        .schedule(
+            new TimerTask() {
+              @Override
+              public void run() {
+                Instant reportThreshold = Instant.now().minus(Duration.millis(healthCheckInterval));
+                for (AbstractWindmillStream<?, ?> stream : streamRegistry) {
+                  stream.maybeSendHealthCheck(reportThreshold);
+                }
+              }
+            },
+            0,
+            healthCheckInterval);
   }
 
   @Override

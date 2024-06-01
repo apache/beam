@@ -19,10 +19,12 @@ package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.CommitWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
@@ -70,7 +72,11 @@ public class WindmillStreamSender {
       AtomicReference<GetWorkBudget> getWorkBudget,
       GrpcWindmillStreamFactory streamingEngineStreamFactory,
       WorkItemScheduler workItemScheduler,
-      Function<CommitWorkStream, WorkCommitter> workCommitterFactory) {
+      Function<CommitWorkStream, WorkCommitter> workCommitterFactory,
+      Function<
+              GetDataStream,
+              BiFunction<String, Windmill.KeyedGetDataRequest, Windmill.KeyedGetDataResponse>>
+          keyedGetDataFn) {
     this.started = new AtomicBoolean(false);
     this.getWorkBudget = getWorkBudget;
     this.streamingEngineThrottleTimers = StreamingEngineThrottleTimers.create();
@@ -84,10 +90,11 @@ public class WindmillStreamSender {
             () ->
                 streamingEngineStreamFactory.createGetDataStream(
                     stub, streamingEngineThrottleTimers.getDataThrottleTimer()));
+
     this.commitWorkStream =
         Suppliers.memoize(
             () ->
-                streamingEngineStreamFactory.createCommitWorkStream(
+                streamingEngineStreamFactory.createDirectCommitWorkStream(
                     stub, streamingEngineThrottleTimers.commitWorkThrottleTimer()));
     this.workCommitter =
         Suppliers.memoize(() -> workCommitterFactory.apply(commitWorkStream.get()));
@@ -100,6 +107,7 @@ public class WindmillStreamSender {
                     streamingEngineThrottleTimers.getWorkThrottleTimer(),
                     getDataStream,
                     workCommitter,
+                    keyedGetDataFn,
                     workItemScheduler));
   }
 
@@ -109,14 +117,19 @@ public class WindmillStreamSender {
       GetWorkBudget getWorkBudget,
       GrpcWindmillStreamFactory streamingEngineStreamFactory,
       WorkItemScheduler workItemScheduler,
-      Function<CommitWorkStream, WorkCommitter> workCommitterFactory) {
+      Function<CommitWorkStream, WorkCommitter> workCommitterFactory,
+      Function<
+              GetDataStream,
+              BiFunction<String, Windmill.KeyedGetDataRequest, Windmill.KeyedGetDataResponse>>
+          keyedGetDataFn) {
     return new WindmillStreamSender(
         stub,
         getWorkRequest,
         new AtomicReference<>(getWorkBudget),
         streamingEngineStreamFactory,
         workItemScheduler,
-        workCommitterFactory);
+        workCommitterFactory,
+        keyedGetDataFn);
   }
 
   private static GetWorkRequest withRequestBudget(GetWorkRequest request, GetWorkBudget budget) {

@@ -34,7 +34,6 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -57,7 +56,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.Vi
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ListMultimap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.MultimapBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.math.LongMath;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -74,7 +72,6 @@ public final class StreamingWorkerStatusReporter {
   private static final String WORKER_MESSAGE_REPORTER_THREAD = "ReportWorkerMessage";
   private static final String GLOBAL_WORKER_UPDATE_REPORTER_THREAD = "GlobalWorkerUpdates";
 
-  private final boolean publishCounters;
   private final int initialMaxThreadCount;
   private final int initialMaxBundlesOutstanding;
   private final WorkUnitClient dataflowServiceClient;
@@ -98,7 +95,6 @@ public final class StreamingWorkerStatusReporter {
   private final AtomicLong workerMessagesIndex;
 
   private StreamingWorkerStatusReporter(
-      boolean publishCounters,
       WorkUnitClient dataflowServiceClient,
       Supplier<Long> windmillQuotaThrottleTime,
       Supplier<Collection<StageInfo>> allStageInfo,
@@ -109,7 +105,6 @@ public final class StreamingWorkerStatusReporter {
       Function<String, ScheduledExecutorService> executorFactory,
       long windmillHarnessUpdateReportingPeriodMillis,
       long perWorkerMetricsUpdateReportingPeriodMillis) {
-    this.publishCounters = publishCounters;
     this.dataflowServiceClient = dataflowServiceClient;
     this.windmillQuotaThrottleTime = windmillQuotaThrottleTime;
     this.allStageInfo = allStageInfo;
@@ -139,39 +134,10 @@ public final class StreamingWorkerStatusReporter {
       StreamingCounters streamingCounters,
       MemoryMonitor memoryMonitor,
       BoundedQueueExecutor workExecutor,
-      long windmillHarnessUpdateReportingPeriodMillis,
-      long perWorkerMetricsUpdateReportingPeriodMillis) {
-    return new StreamingWorkerStatusReporter(
-        /* publishCounters= */ true,
-        workUnitClient,
-        windmillQuotaThrottleTime,
-        allStageInfo,
-        failureTracker,
-        streamingCounters,
-        memoryMonitor,
-        workExecutor,
-        threadName ->
-            Executors.newSingleThreadScheduledExecutor(
-                new ThreadFactoryBuilder().setNameFormat(threadName).build()),
-        windmillHarnessUpdateReportingPeriodMillis,
-        perWorkerMetricsUpdateReportingPeriodMillis);
-  }
-
-  @VisibleForTesting
-  public static StreamingWorkerStatusReporter forTesting(
-      boolean publishCounters,
-      WorkUnitClient workUnitClient,
-      Supplier<Long> windmillQuotaThrottleTime,
-      Supplier<Collection<StageInfo>> allStageInfo,
-      FailureTracker failureTracker,
-      StreamingCounters streamingCounters,
-      MemoryMonitor memoryMonitor,
-      BoundedQueueExecutor workExecutor,
       Function<String, ScheduledExecutorService> executorFactory,
       long windmillHarnessUpdateReportingPeriodMillis,
       long perWorkerMetricsUpdateReportingPeriodMillis) {
     return new StreamingWorkerStatusReporter(
-        publishCounters,
         workUnitClient,
         windmillQuotaThrottleTime,
         allStageInfo,
@@ -228,6 +194,22 @@ public final class StreamingWorkerStatusReporter {
     }
   }
 
+  // Calculates the PerWorkerMetrics reporting frequency, ensuring alignment with the
+  // WorkerMessages RPC schedule. The desired reporting period
+  // (perWorkerMetricsUpdateReportingPeriodMillis) is adjusted to the nearest multiple
+  // of the RPC interval (windmillHarnessUpdateReportingPeriodMillis).
+  private static long getPerWorkerMetricsUpdateFrequency(
+      long windmillHarnessUpdateReportingPeriodMillis,
+      long perWorkerMetricsUpdateReportingPeriodMillis) {
+    if (windmillHarnessUpdateReportingPeriodMillis == 0) {
+      return 0;
+    }
+    return LongMath.divide(
+        perWorkerMetricsUpdateReportingPeriodMillis,
+        windmillHarnessUpdateReportingPeriodMillis,
+        RoundingMode.CEILING);
+  }
+
   @SuppressWarnings("FutureReturnValueIgnored")
   public void start() {
     reportHarnessStartup();
@@ -276,22 +258,6 @@ public final class StreamingWorkerStatusReporter {
     }
   }
 
-  // Calculates the PerWorkerMetrics reporting frequency, ensuring alignment with the
-  // WorkerMessages RPC schedule. The desired reporting period
-  // (perWorkerMetricsUpdateReportingPeriodMillis) is adjusted to the nearest multiple
-  // of the RPC interval (windmillHarnessUpdateReportingPeriodMillis).
-  private static long getPerWorkerMetricsUpdateFrequency(
-      long windmillHarnessUpdateReportingPeriodMillis,
-      long perWorkerMetricsUpdateReportingPeriodMillis) {
-    if (windmillHarnessUpdateReportingPeriodMillis == 0) {
-      return 0;
-    }
-    return LongMath.divide(
-        perWorkerMetricsUpdateReportingPeriodMillis,
-        windmillHarnessUpdateReportingPeriodMillis,
-        RoundingMode.CEILING);
-  }
-
   /** Sends counter updates to Dataflow backend. */
   private void sendWorkerUpdatesToDataflowService(
       CounterSet deltaCounters, CounterSet cumulativeCounters) throws IOException {
@@ -303,13 +269,11 @@ public final class StreamingWorkerStatusReporter {
 
     List<CounterUpdate> counterUpdates = new ArrayList<>(COUNTER_UPDATES_SIZE);
 
-    if (publishCounters) {
-      allStageInfo.get().forEach(s -> counterUpdates.addAll(s.extractCounterUpdates()));
-      counterUpdates.addAll(
-          cumulativeCounters.extractUpdates(false, DataflowCounterUpdateExtractor.INSTANCE));
-      counterUpdates.addAll(
-          deltaCounters.extractModifiedDeltaUpdates(DataflowCounterUpdateExtractor.INSTANCE));
-    }
+    allStageInfo.get().forEach(s -> counterUpdates.addAll(s.extractCounterUpdates()));
+    counterUpdates.addAll(
+        cumulativeCounters.extractUpdates(false, DataflowCounterUpdateExtractor.INSTANCE));
+    counterUpdates.addAll(
+        deltaCounters.extractModifiedDeltaUpdates(DataflowCounterUpdateExtractor.INSTANCE));
 
     // Handle duplicate counters from different stages. Store all the counters in a multimap and
     // send the counters that appear multiple times in separate RPCs. Same logical counter could
@@ -368,7 +332,7 @@ public final class StreamingWorkerStatusReporter {
     List<WorkerMessage> workerMessages = new ArrayList<>(2);
     workerMessages.add(createWorkerMessageForStreamingScalingReport());
 
-    createWorkerMessageForPerWorkerMetrics().ifPresent(metrics -> workerMessages.add(metrics));
+    createWorkerMessageForPerWorkerMetrics().ifPresent(workerMessages::add);
     return workerMessages;
   }
 

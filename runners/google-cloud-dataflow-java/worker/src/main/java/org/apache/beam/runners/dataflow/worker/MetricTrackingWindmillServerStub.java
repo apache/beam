@@ -23,7 +23,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
@@ -31,11 +34,15 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamCancelledException;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamPool;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.SettableFuture;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Wrapper around a {@link WindmillServerStub} that tracks metrics for the number of in-flight
@@ -49,6 +56,8 @@ import org.joda.time.Duration;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class MetricTrackingWindmillServerStub {
+  private static final Logger LOG = LoggerFactory.getLogger(MetricTrackingWindmillServerStub.class);
+  private static final String FAN_OUT_REFRESH_WORK_EXECUTOR = "FanOutActiveWorkRefreshExecutor";
 
   private static final int MAX_READS_PER_BATCH = 60;
   private static final int MAX_ACTIVE_READS = 10;
@@ -59,8 +68,8 @@ public class MetricTrackingWindmillServerStub {
   private final WindmillServerStub server;
   private final MemoryMonitor gcThrashingMonitor;
   private final boolean useStreamingRequests;
-
   private final WindmillStreamPool<GetDataStream> getDataStreamPool;
+  private final ExecutorService fanOutActiveWorkRefreshExecutor;
 
   // This may be the same instance as getDataStreamPool based upon options.
   private final WindmillStreamPool<GetDataStream> heartbeatStreamPool;
@@ -106,6 +115,9 @@ public class MetricTrackingWindmillServerStub {
     this.server = server;
     this.gcThrashingMonitor = gcThrashingMonitor;
     this.useStreamingRequests = useStreamingRequests;
+    this.fanOutActiveWorkRefreshExecutor =
+        Executors.newCachedThreadPool(
+            new ThreadFactoryBuilder().setNameFormat(FAN_OUT_REFRESH_WORK_EXECUTOR).build());
     if (useStreamingRequests) {
       getDataStreamPool =
           WindmillStreamPool.create(
@@ -254,6 +266,27 @@ public class MetricTrackingWindmillServerStub {
     }
   }
 
+  public Windmill.KeyedGetDataResponse getStateData(
+      GetDataStream getDataStream, String computation, Windmill.KeyedGetDataRequest request) {
+    gcThrashingMonitor.waitForResources("GetStateData");
+    activeStateReads.getAndIncrement();
+    if (getDataStream.isClosed()) {
+      throw new WorkItemCancelledException(request.getShardingKey());
+    }
+
+    try {
+      return getDataStream.requestKeyedData(computation, request);
+    } catch (Exception e) {
+      if (WindmillStreamCancelledException.isWindmillStreamCancelledException(e)) {
+        LOG.error("Tried to fetch keyed data from a closed stream. Work has been cancelled", e);
+        throw new WorkItemCancelledException(request.getShardingKey());
+      }
+      throw new RuntimeException(e);
+    } finally {
+      activeStateReads.getAndDecrement();
+    }
+  }
+
   public Windmill.GlobalData getSideInputData(Windmill.GlobalDataRequest request) {
     gcThrashingMonitor.waitForResources("GetSideInputData");
     activeSideInputs.getAndIncrement();
@@ -271,6 +304,19 @@ public class MetricTrackingWindmillServerStub {
                 Windmill.GetDataRequest.newBuilder().addGlobalDataFetchRequests(request).build())
             .getGlobalData(0);
       }
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to get side input: ", e);
+    } finally {
+      activeSideInputs.getAndDecrement();
+    }
+  }
+
+  public Windmill.GlobalData getSideInputData(
+      GetDataStream getDataStream, Windmill.GlobalDataRequest request) {
+    gcThrashingMonitor.waitForResources("GetSideInputData");
+    activeSideInputs.getAndIncrement();
+    try {
+      return getDataStream.requestGlobalData(request);
     } catch (Exception e) {
       throw new RuntimeException("Failed to get side input: ", e);
     } finally {
@@ -317,6 +363,58 @@ public class MetricTrackingWindmillServerStub {
     } finally {
       activeHeartbeats.set(0);
     }
+  }
+
+  /**
+   * Attempts to refresh active work, fanning out to each {@link GetDataStream} in parallel.
+   *
+   * @implNote Skips closed {@link GetDataStream}(s).
+   */
+  public void refreshActiveWorkWithFanOut(
+      Map<GetDataStream, Map<String, List<HeartbeatRequest>>> heartbeats) {
+    if (heartbeats.isEmpty()) {
+      return;
+    }
+    try {
+      List<CompletableFuture<Void>> fanOutRefreshActiveWork = new ArrayList<>();
+      for (Map.Entry<GetDataStream, Map<String, List<HeartbeatRequest>>> heartbeat :
+          heartbeats.entrySet()) {
+        GetDataStream stream = heartbeat.getKey();
+        Map<String, List<HeartbeatRequest>> heartbeatRequests = heartbeat.getValue();
+        if (stream.isClosed()) {
+          LOG.warn(
+              "Trying to refresh work on stream={} after work has moved off of worker."
+                  + " heartbeats={}",
+              stream,
+              heartbeatRequests);
+        } else {
+          fanOutRefreshActiveWork.add(sendHeartbeatOnStreamFuture(heartbeat));
+        }
+      }
+
+      // Don't block until we kick off all the refresh active work RPCs.
+      @SuppressWarnings("rawtypes")
+      CompletableFuture<Void> parallelFanOutRefreshActiveWork =
+          CompletableFuture.allOf(fanOutRefreshActiveWork.toArray(new CompletableFuture[0]));
+      parallelFanOutRefreshActiveWork.join();
+    } finally {
+      activeHeartbeats.set(0);
+    }
+  }
+
+  private CompletableFuture<Void> sendHeartbeatOnStreamFuture(
+      Map.Entry<GetDataStream, Map<String, List<HeartbeatRequest>>> heartbeat) {
+    return CompletableFuture.runAsync(
+        () -> {
+          GetDataStream stream = heartbeat.getKey();
+          Map<String, List<HeartbeatRequest>> heartbeatRequests = heartbeat.getValue();
+          activeHeartbeats.getAndUpdate(existing -> existing + heartbeat.getValue().size());
+          stream.refreshActiveWork(heartbeatRequests);
+          // Active heartbeats should never drop below 0.
+          activeHeartbeats.getAndUpdate(
+              existing -> Math.max(existing - heartbeat.getValue().size(), 0));
+        },
+        fanOutActiveWorkRefreshExecutor);
   }
 
   public void printHtml(PrintWriter writer) {

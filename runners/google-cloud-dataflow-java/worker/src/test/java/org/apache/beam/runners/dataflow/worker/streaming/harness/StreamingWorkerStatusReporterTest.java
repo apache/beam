@@ -59,11 +59,10 @@ public class StreamingWorkerStatusReporterTest {
   @Test
   public void testOverrideMaximumThreadCount() throws Exception {
     StreamingWorkerStatusReporter reporter =
-        StreamingWorkerStatusReporter.forTesting(
-            true,
+        StreamingWorkerStatusReporter.create(
             mockWorkUnitClient,
             () -> DEFAULT_WINDMILL_QUOTA_THROTTLE_TIME,
-            () -> Collections.emptyList(),
+            Collections::emptyList,
             mockFailureTracker,
             StreamingCounters.create(),
             mockMemoryMonitor,
@@ -85,11 +84,10 @@ public class StreamingWorkerStatusReporterTest {
   @Test
   public void testHandleEmptyWorkerMessageResponse() throws Exception {
     StreamingWorkerStatusReporter reporter =
-        StreamingWorkerStatusReporter.forTesting(
-            true,
+        StreamingWorkerStatusReporter.create(
             mockWorkUnitClient,
             () -> DEFAULT_WINDMILL_QUOTA_THROTTLE_TIME,
-            () -> Collections.emptyList(),
+            Collections::emptyList,
             mockFailureTracker,
             StreamingCounters.create(),
             mockMemoryMonitor,
@@ -97,9 +95,8 @@ public class StreamingWorkerStatusReporterTest {
             (threadName) -> Executors.newSingleThreadScheduledExecutor(),
             DEFAULT_HARNESS_REPORTING_PERIOD,
             DEFAULT_PER_WORKER_METRICS_PERIOD);
-    WorkerMessageResponse workerMessageResponse = new WorkerMessageResponse();
     when(mockWorkUnitClient.reportWorkerMessage(any()))
-        .thenReturn(Collections.singletonList(workerMessageResponse));
+        .thenReturn(Collections.singletonList(new WorkerMessageResponse()));
     reporter.reportPeriodicWorkerMessage();
     verify(mockExecutor, Mockito.times(0)).setMaximumPoolSize(anyInt(), anyInt());
   }
