@@ -91,7 +91,7 @@ dependencies {
   // Pin snakeyaml version due to cassandra-all not support 2.x
   testImplementation ("org.yaml:snakeyaml") {
     version {
-      strictly '1.33'
+      strictly '[1,1.34['
     }
   }
   testImplementation library.java.hadoop_common
