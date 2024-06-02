@@ -73,9 +73,10 @@ type B struct {
 func (b *B) Init() {
 	// We need to see final data and timer signals that match the number of
 	// outputs the stage this bundle executes posesses
-	b.dataSema.Store(int32(b.OutputCount + len(b.HasTimers)))
+	outCap := int32(b.OutputCount + len(b.HasTimers))
+	b.dataSema.Store(outCap)
 	b.DataWait = make(chan struct{})
-	if b.OutputCount == 0 {
+	if outCap == 0 {
 		close(b.DataWait) // Can happen if there are no outputs for the bundle.
 	}
 	b.Resp = make(chan *fnpb.ProcessBundleResponse, 1)

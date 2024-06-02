@@ -158,6 +158,16 @@ public interface DataflowStreamingPipelineOptions extends PipelineOptions {
 
   void setWindmillHarnessUpdateReportingPeriod(Duration value);
 
+  @Description(
+      "Specifies how often system defined per-worker metrics are reported. These metrics are "
+          + " reported on the worker updates path so this number will be rounded up to the "
+          + " nearest multiple of WindmillHarnessUpdateReportingPeriod. If that value is 0, then "
+          + " these metrics are never sent.")
+  @Default.Integer(30000)
+  int getPerWorkerMetricsUpdateReportingPeriodMillis();
+
+  void setPerWorkerMetricsUpdateReportingPeriodMillis(int value);
+
   @Description("Limit on depth of user exception stack trace reported to cloud monitoring.")
   @Default.InstanceFactory(MaxStackTraceDepthToReportFactory.class)
   int getMaxStackTraceDepthToReport();

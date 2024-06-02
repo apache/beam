@@ -144,13 +144,12 @@ class PyJsYamlCombine(beam.PTransform):
 
     for output, agg in self._combine.items():
       expr = yaml_mapping._as_callable(
-          all_fields, agg['value'], 'Combine', self._language)
+          all_fields, agg['value'], 'Combine', self._language, input_types)
       fn = create_combine_fn(agg['fn'])
       transform = transform.aggregate_field(expr, fn, output)
 
       # TODO(yaml): See if this logic can be pushed into GroupBy itself.
       expr_type = extract_return_type(expr)
-      print('expr', expr, 'expr_type', expr_type)
       if isinstance(fn, beam.CombineFn):
         # TODO(yaml): Better inference on CombineFns whose outputs types are
         # functions of their input types

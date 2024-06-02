@@ -81,7 +81,7 @@ public class BigtableResourceManager implements ResourceManager {
 
   private static final Logger LOG = LoggerFactory.getLogger(BigtableResourceManager.class);
   private static final String DEFAULT_CLUSTER_ZONE = "us-central1-b";
-  private static final int DEFAULT_CLUSTER_NUM_NODES = 1;
+  private static final int DEFAULT_CLUSTER_NUM_NODES = 10;
   private static final StorageType DEFAULT_CLUSTER_STORAGE_TYPE = StorageType.SSD;
 
   private final String projectId;

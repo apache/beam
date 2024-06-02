@@ -36,7 +36,7 @@ groups:
                 maxDataPoints: 43200
                 rawQuery: true
                 rawSql: |-
-                  SELECT COUNT(workflow_id), CAST(workflow_id AS TEXT), name AS workflow_name, filename AS workflow_filename, url AS workflow_url, CAST(threshold AS TEXT) AS workflow_threshold, CAST(retrieved_at AS TEXT) AS workflow_retrieved_at
+                  SELECT COUNT(workflow_id), CAST(workflow_id AS TEXT), name AS workflow_name, filename AS workflow_filename, url AS workflow_url, CAST(threshold AS TEXT) AS workflow_threshold, CAST(retrieved_at AS TEXT) AS workflow_retrieved_at, dashboard_category
                   FROM github_workflows
                   WHERE is_flaky = true
                   GROUP BY workflow_id

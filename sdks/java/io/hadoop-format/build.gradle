@@ -88,6 +88,12 @@ dependencies {
   testImplementation library.java.cassandra_driver_mapping
   // TODO(yathu) bump to cassandra-5.x which uses newer jamm when released & beam runs test on Java11
   testImplementation "org.apache.cassandra:cassandra-all:3.11.10"
+  // Pin snakeyaml version due to cassandra-all not support 2.x
+  testImplementation ("org.yaml:snakeyaml") {
+    version {
+      strictly '[1,1.34['
+    }
+  }
   testImplementation library.java.hadoop_common
   testImplementation library.java.hadoop_hdfs
   testImplementation library.java.hadoop_mapreduce_client_core

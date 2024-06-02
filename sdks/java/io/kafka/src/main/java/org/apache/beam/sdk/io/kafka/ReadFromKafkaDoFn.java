@@ -32,6 +32,7 @@ import org.apache.beam.sdk.io.kafka.KafkaIOUtils.MovingAvg;
 import org.apache.beam.sdk.io.kafka.KafkaUnboundedReader.TimestampPolicyContext;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.metrics.Distribution;
+import org.apache.beam.sdk.metrics.Gauge;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -191,11 +192,10 @@ abstract class ReadFromKafkaDoFn<K, V>
     this.checkStopReadingFn = transform.getCheckStopReadingFn();
     this.badRecordRouter = transform.getBadRecordRouter();
     this.recordTag = recordTag;
-    if (transform.getConsumerPollingTimeout() != null) {
-      this.consumerPollingTimeout =
-          java.time.Duration.ofMillis(transform.getConsumerPollingTimeout().getMillis());
+    if (transform.getConsumerPollingTimeout() > 0) {
+      this.consumerPollingTimeout = transform.getConsumerPollingTimeout();
     } else {
-      this.consumerPollingTimeout = KAFKA_POLL_TIMEOUT;
+      this.consumerPollingTimeout = DEFAULT_KAFKA_POLL_TIMEOUT;
     }
   }
 
@@ -222,10 +222,11 @@ abstract class ReadFromKafkaDoFn<K, V>
   private transient @Nullable Map<TopicPartition, KafkaLatestOffsetEstimator> offsetEstimatorCache;
 
   private transient @Nullable LoadingCache<TopicPartition, AverageRecordSize> avgRecordSize;
+  private static final long DEFAULT_KAFKA_POLL_TIMEOUT = 2L;
 
-  private static final java.time.Duration KAFKA_POLL_TIMEOUT = java.time.Duration.ofSeconds(2);
+  private HashMap<String, Long> perPartitionBacklogMetrics = new HashMap<String, Long>();;
 
-  @VisibleForTesting final java.time.Duration consumerPollingTimeout;
+  @VisibleForTesting final long consumerPollingTimeout;
   @VisibleForTesting final DeserializerProvider<K> keyDeserializerProvider;
   @VisibleForTesting final DeserializerProvider<V> valueDeserializerProvider;
   @VisibleForTesting final Map<String, Object> consumerConfig;
@@ -345,6 +346,13 @@ abstract class ReadFromKafkaDoFn<K, V>
     if (!avgRecordSize.asMap().containsKey(kafkaSourceDescriptor.getTopicPartition())) {
       return numRecords;
     }
+    if (offsetEstimatorCache != null) {
+      for (Map.Entry<TopicPartition, KafkaLatestOffsetEstimator> tp :
+          offsetEstimatorCache.entrySet()) {
+        perPartitionBacklogMetrics.put(tp.getKey().toString(), tp.getValue().estimate());
+      }
+    }
+
     return avgRecordSize.get(kafkaSourceDescriptor.getTopicPartition()).getTotalSize(numRecords);
   }
 
@@ -397,6 +405,13 @@ abstract class ReadFromKafkaDoFn<K, V>
         Metrics.distribution(
             METRIC_NAMESPACE,
             RAW_SIZE_METRIC_PREFIX + kafkaSourceDescriptor.getTopicPartition().toString());
+    for (Map.Entry<String, Long> backlogSplit : perPartitionBacklogMetrics.entrySet()) {
+      Gauge backlog =
+          Metrics.gauge(
+              METRIC_NAMESPACE, RAW_SIZE_METRIC_PREFIX + "backlogBytes_" + backlogSplit.getKey());
+      backlog.set(backlogSplit.getValue());
+    }
+
     // Stop processing current TopicPartition when it's time to stop.
     if (checkStopReadingFn != null
         && checkStopReadingFn.apply(kafkaSourceDescriptor.getTopicPartition())) {
@@ -513,9 +528,9 @@ abstract class ReadFromKafkaDoFn<K, V>
     final Stopwatch sw = Stopwatch.createStarted();
     long previousPosition = -1;
     java.time.Duration elapsed = java.time.Duration.ZERO;
+    java.time.Duration timeout = java.time.Duration.ofSeconds(this.consumerPollingTimeout);
     while (true) {
-      final ConsumerRecords<byte[], byte[]> rawRecords =
-          consumer.poll(consumerPollingTimeout.minus(elapsed));
+      final ConsumerRecords<byte[], byte[]> rawRecords = consumer.poll(timeout.minus(elapsed));
       if (!rawRecords.isEmpty()) {
         // return as we have found some entries
         return rawRecords;
@@ -525,11 +540,11 @@ abstract class ReadFromKafkaDoFn<K, V>
         return rawRecords;
       }
       elapsed = sw.elapsed();
-      if (elapsed.toMillis() >= consumerPollingTimeout.toMillis()) {
+      if (elapsed.toMillis() >= timeout.toMillis()) {
         // timeout is over
         LOG.warn(
             "No messages retrieved with polling timeout {} seconds. Consider increasing the consumer polling timeout using withConsumerPollingTimeout method.",
-            consumerPollingTimeout.getSeconds());
+            consumerPollingTimeout);
         return rawRecords;
       }
     }

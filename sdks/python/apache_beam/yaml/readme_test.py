@@ -54,7 +54,7 @@ class FakeSql(beam.PTransform):
       raise ValueError(self.query)
 
     def guess_name_and_type(expr):
-      expr = expr.strip()
+      expr = expr.strip().replace('`', '')
       parts = expr.split()
       if len(parts) >= 2 and parts[-2].lower() == 'as':
         name = parts[-1]
@@ -181,6 +181,13 @@ class TestEnvironment:
     return os.path.join(
         self.tempdir.name, str(random.randint(0, 1000)) + '.out')
 
+  def udf_file(self, name):
+    if name == 'my_mapping':
+      lines = '\n'.join(['def my_mapping(row):', '\treturn "good"'])
+    else:
+      lines = '\n'.join(['def my_filter(row):', '\treturn True'])
+    return self.input_file('udf.py', lines)
+
   def __exit__(self, *args):
     self.tempdir.cleanup()
 
@@ -213,6 +220,13 @@ def create_test_method(test_type, test_name, test_yaml):
     with TestEnvironment() as env:
       nonlocal test_yaml
       test_yaml = test_yaml.replace('/path/to/*.tsv', env.input_tsv())
+      if 'MapToFields' in test_yaml or 'Filter' in test_yaml:
+        if 'my_mapping' in test_yaml:
+          test_yaml = test_yaml.replace(
+              '/path/to/some/udf.py', env.udf_file('my_mapping'))
+        elif 'my_filter' in test_yaml:
+          test_yaml = test_yaml.replace(
+              '/path/to/some/udf.py', env.udf_file('my_filter'))
       spec = yaml.load(test_yaml, Loader=SafeLoader)
       if test_type == 'PARSE':
         return
@@ -237,9 +251,15 @@ def create_test_method(test_type, test_name, test_yaml):
       with mock.patch(
           'apache_beam.yaml.yaml_provider.SqlBackedProvider.sql_provider',
           lambda self: test_provider):
-        p = beam.Pipeline(options=PipelineOptions(**options))
-        yaml_transform.expand_pipeline(
-            p, modified_yaml, yaml_provider.merge_providers([test_provider]))
+        # TODO(polber) - remove once there is support for ExternalTransforms
+        #  in precommits
+        with mock.patch(
+            'apache_beam.yaml.yaml_provider.ExternalProvider.create_transform',
+            lambda *args,
+            **kwargs: _Fakes.SomeTransform(*args, **kwargs)):
+          p = beam.Pipeline(options=PipelineOptions(**options))
+          yaml_transform.expand_pipeline(
+              p, modified_yaml, yaml_provider.merge_providers([test_provider]))
       if test_type == 'BUILD':
         return
       p.run().wait_until_finish()

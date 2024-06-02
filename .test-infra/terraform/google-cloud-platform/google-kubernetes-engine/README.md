@@ -34,43 +34,81 @@ This module assumes the following pre-existing resources:
 - [Cloud Resource Manager API Enabled](https://console.cloud.google.com/apis/library/cloudresourcemanager.googleapis.com)
 - [Virtual Private Cloud (VPC) network and subnetwork](https://cloud.google.com/vpc/docs/create-modify-vpc-networks)
 - [GCP Service Account](https://cloud.google.com/iam/docs/service-accounts-create) with [minimally permissive IAM roles](https://cloud.google.com/kubernetes-engine/docs/how-to/hardening-your-cluster#use_least_privilege_sa)
+- [Google Cloud Storage Bucket](https://cloud.google.com/storage/docs/creating-buckets) for
+[terraform backend](https://developer.hashicorp.com/terraform/language/settings/backends/gcs) configuration;
+creation of this resource cannot be automated as part of this module
+(`apache-beam-testing` already contains the bucket: `b507e468-52e9-4e72-83e5-ecbf563eda12`)
 
-# Step 1. Create vars.tfvars
+# Step 1. Create a new .tfbackend file in the [.test-infra/terraform/google-cloud-platform/google-kubernetes-engine](.) directory
 
-## If you are provisioning in `apache-beam-testing`:
+Create a new file to specify the
+[backend partial configuration](https://developer.hashicorp.com/terraform/language/settings/backends/configuration#partial-configuration).
+See below for details on naming convention and expected content.
+`apache-beam-testing` usage should be version controlled in this repository.
 
-You can skip this step and follow the next instruction. For security reasons,
-the `service_account_id` was omitted.
+## Name the file to communicate intent
 
-## If you are provisioning in a custom GCP project:
+If using `apache-beam-testing`, a suggested naming convention is
+`.<cluster-name-prefix>.apache-beam-testing.tfbackend`. *Note this is conventionally a dot file but doesn't have to be.*
 
-Create a `vars.tfvars` file
-in [.test-infra/terraform/google-cloud-platform/google-kubernetes-engine](.).
-Edit with your IDE terraform plugin installed and it will autocomplete the
-variable names.
+For example, `.my-cluster.apache-beam-testing.tfbackend` communicates
+to others that the backend specifies the state of a Kubernetes cluster with an ID prefix `my-cluster` in the
+`apache-beam-testing` project.
 
-# Step 2. Initialize and apply the terraform module.
+## Content
 
-## If you are provisioning in `apache-beam-testing`:
+The following is the expected content of the `.tfbackend` file, where `bucket` references the name of the
+Google Cloud Storage bucket created as a pre-requisite.
 
-Set the region:
+See below for details on naming convention and expected content.
+`apache-beam-testing` usage should be version controlled in this repository.
+
+If using `apache-beam-testing`:
+
+[.test-infra/terraform/google-cloud-platform/google-kubernetes-engine/copyme.apache-beam-testing.tfbackend](copyme.apache-beam-testing.tfbackend)
+contains a template with the following. Just change `<cluster-name-prefix>`.
+
 ```
-REGION=us-central1
+bucket = "b507e468-52e9-4e72-83e5-ecbf563eda12"
+prefix = ".test-infra/terraform/google-cloud-platform/google-kubernetes-engine/<cluster-name-prefix>"
 ```
 
-Apply the module:
+# Step 2. Create .tfvars file
+
+Create a new file to specify a `.tfvars` file for your new Kubernetes cluster for use with the
+[terraform cli](https://developer.hashicorp.com/terraform/cli) `-var-file` flag.
+See below for details on naming convention and expected content.
+`apache-beam-testing` usage should be version controlled in this repository.
+
+## Name the file to communicate intent
+
+If using `apache-beam-testing`, a suggested naming convention is
+`<cluster-name-prefix>.<region>.apache-beam-testing.tfvars`.
+
+For example, `my-cluster.us-central1.apache-beam-testing.tfvars` communicates to others that the
+
+Both
+[.test-infra/terraform/google-cloud-platform/google-kubernetes-engine/us-central1.apache-beam-testing.tfvars](us-central1.apache-beam-testing.tfvars)
+and
+[.test-infra/terraform/google-cloud-platform/google-kubernetes-engine/us-west1.apache-beam-testing.tfvars](us-west1.apache-beam-testing.tfvars)
+are example starter `.tfvars` files specific to `apache-beam-testing` for the targeted region.
+Editing the `.tfvars` file in an IDE installed with a terraform plugin and it will prompt you for the remaining
+variables.
+
+# Step 3. Initialize and apply the terraform module.
+
+Where:
 ```
-terraform init
-terraform apply -var-file=$REGION.apache-beam-testing.tfvars
+CLUSTER_PREFIX=<cluster-id-prefix>
+CONFIG=$CLUSTER_PREFIX.apache-beam-testing.tfbackend # file name only without the directory
+DIR=.test-infra/terraform/google-cloud-platform/google-kubernetes-engine
+VARS=$CLUSTER_PREFIX.us-west1.apache-beam-testing.tfvars
 ```
 
-You will be prompted for any remaining variables.
-
-## If you are provisioning in a custom GCP project:
-
+Run:
 ```
-terraform init
-terraform apply -var-file=vars.tfvars
+terraform -chdir=$DIR init -backend-config=$CONFIG
+terraform -chdir=$DIR apply -var-file=$VARS
 ```
 
 You will be prompted for any remaining variables.

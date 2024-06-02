@@ -29,7 +29,6 @@ import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.metrics.Histogram;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.util.HistogramData;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.ImmutableLongArray;
 
 /**
@@ -54,9 +53,9 @@ public final class LockFreeHistogram implements Histogram {
   private final AtomicBoolean dirty;
 
   /** Create a histogram. */
-  public LockFreeHistogram(KV<MetricName, HistogramData.BucketType> kv) {
-    this.name = kv.getKey();
-    this.bucketType = kv.getValue();
+  public LockFreeHistogram(MetricName name, HistogramData.BucketType bucketType) {
+    this.name = name;
+    this.bucketType = bucketType;
     this.buckets = new AtomicLongArray(bucketType.getNumBuckets());
     this.underflowStatistic =
         new AtomicReference<LockFreeHistogram.OutlierStatistic>(OutlierStatistic.EMPTY);

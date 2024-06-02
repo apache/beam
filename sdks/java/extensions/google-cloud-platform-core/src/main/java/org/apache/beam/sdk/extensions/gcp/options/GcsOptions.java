@@ -124,6 +124,24 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
 
   void setGcsPerformanceMetrics(Boolean reportPerformanceMetrics);
 
+  @Description("Read timeout for gcs http requests")
+  @Nullable
+  Integer getGcsHttpRequestReadTimeout();
+
+  void setGcsHttpRequestReadTimeout(@Nullable Integer timeoutMs);
+
+  @Description("Write timeout for gcs http requests.")
+  @Nullable
+  Integer getGcsHttpRequestWriteTimeout();
+
+  void setGcsHttpRequestWriteTimeout(@Nullable Integer timeoutMs);
+
+  @Description("Batching limit for rewrite ops which will copy data.")
+  @Nullable
+  Integer getGcsRewriteDataOpBatchLimit();
+
+  void setGcsRewriteDataOpBatchLimit(@Nullable Integer timeoutMs);
+
   /**
    * Returns the default {@link ExecutorService} to use within the Apache Beam SDK. The {@link
    * ExecutorService} is compatible with AppEngine.

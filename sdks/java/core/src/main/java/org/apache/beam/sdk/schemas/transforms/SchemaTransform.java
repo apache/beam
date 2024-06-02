@@ -21,7 +21,7 @@ import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.lang.reflect.ParameterizedType;
-import javax.annotation.Nullable;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
@@ -59,18 +59,15 @@ public abstract class SchemaTransform<ConfigT>
             "Expected one parameterized type, but got %s.",
             parameterizedType.getActualTypeArguments().length));
 
-    Class<ConfigT> typedClass = (Class<ConfigT>) parameterizedType.getActualTypeArguments()[0];
+    Class<ConfigT> configType = (Class<ConfigT>) parameterizedType.getActualTypeArguments()[0];
 
     SchemaRegistry registry = SchemaRegistry.createDefault();
     try {
       // Get initial row with values
-      Row row = registry.getToRowFunction(typedClass).apply(configuration);
-      // Get sorted Schema and recreate the Row
-      Schema configurationSchema = registry.getSchema(typedClass).sorted();
-      this.configurationRow =
-          configurationSchema.getFields().stream()
-              .map(field -> row.getValue(field.getName()))
-              .collect(Row.toRow(configurationSchema));
+      // sort lexicographically and convert field names to snake_case
+      this.configurationRow = registry.getToRowFunction(configType).apply(configuration)
+              .sorted()
+              .toSnakeCase();
     } catch (NoSuchSchemaException e) {
       throw new RuntimeException("Unable to find schema for this SchemaTransform's config.", e);
     }

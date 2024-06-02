@@ -30,10 +30,8 @@ from typing import Tuple
 import pandas as pd
 
 import apache_beam as beam
-from apache_beam import version as beam_version
 from apache_beam.dataframe.convert import to_pcollection
 from apache_beam.dataframe.frame_base import DeferredBase
-from apache_beam.internal.gcp import auth
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.pipeline import Pipeline
 from apache_beam.portability.api import beam_runner_api_pb2
@@ -452,20 +450,8 @@ def assert_bucket_exists(bucket_name):
   try:
     from google.cloud.exceptions import ClientError
     from google.cloud.exceptions import NotFound
-    from google.cloud import storage
-    credentials = auth.get_service_credentials(PipelineOptions())
-    if credentials:
-      # We set project to None, so it will not try to use project id from
-      # the environment (ADC).
-      storage_client = storage.Client(
-          credentials=credentials.get_google_auth_credentials(),
-          project=None,
-          extra_headers={
-              "User-Agent": "apache-beam/%s (GPN:Beam)" %
-              beam_version.__version__
-          })
-    else:
-      storage_client = storage.Client.create_anonymous_client()
+    from apache_beam.io.gcp.gcsio import create_storage_client
+    storage_client = create_storage_client(PipelineOptions())
     storage_client.get_bucket(bucket_name)
   except ClientError as e:
     if isinstance(e, NotFound):

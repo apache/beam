@@ -969,6 +969,8 @@ public class BigQueryIO {
 
       abstract Builder<T> setQueryTempDataset(String queryTempDataset);
 
+      abstract Builder<T> setQueryTempProject(String queryTempProject);
+
       abstract Builder<T> setMethod(TypedRead.Method method);
 
       abstract Builder<T> setFormat(DataFormat method);
@@ -1028,6 +1030,8 @@ public class BigQueryIO {
     abstract @Nullable String getQueryLocation();
 
     abstract @Nullable String getQueryTempDataset();
+
+    abstract @Nullable String getQueryTempProject();
 
     public abstract TypedRead.Method getMethod();
 
@@ -1109,6 +1113,7 @@ public class BigQueryIO {
                 MoreObjects.firstNonNull(getQueryPriority(), QueryPriority.BATCH),
                 getQueryLocation(),
                 getQueryTempDataset(),
+                getQueryTempProject(),
                 getKmsKey());
       }
       return sourceDef;
@@ -1124,6 +1129,7 @@ public class BigQueryIO {
           MoreObjects.firstNonNull(getQueryPriority(), QueryPriority.BATCH),
           getQueryLocation(),
           getQueryTempDataset(),
+          getQueryTempProject(),
           getKmsKey(),
           getFormat(),
           getParseFn(),
@@ -1203,12 +1209,16 @@ public class BigQueryIO {
               // The temp table is only used for dataset and project id validation, not for table
               // name
               // validation
+              String project = getQueryTempProject();
+              if (project == null) {
+                project =
+                    bqOptions.getBigQueryProject() == null
+                        ? bqOptions.getProject()
+                        : bqOptions.getBigQueryProject();
+              }
               TableReference tempTable =
                   new TableReference()
-                      .setProjectId(
-                          bqOptions.getBigQueryProject() == null
-                              ? bqOptions.getProject()
-                              : bqOptions.getBigQueryProject())
+                      .setProjectId(project)
                       .setDatasetId(getQueryTempDataset())
                       .setTableId("dummy table");
               BigQueryHelpers.verifyDatasetPresence(datasetService, tempTable);
@@ -1602,12 +1612,16 @@ public class BigQueryIO {
               String jobUuid = c.getJobId();
 
               Optional<String> queryTempDataset = Optional.ofNullable(getQueryTempDataset());
-
+              String project = getQueryTempProject();
+              if (project == null) {
+                project =
+                    options.getBigQueryProject() == null
+                        ? options.getProject()
+                        : options.getBigQueryProject();
+              }
               TableReference tempTable =
                   createTempTableReference(
-                      options.getBigQueryProject() == null
-                          ? options.getProject()
-                          : options.getBigQueryProject(),
+                      project,
                       BigQueryResourceNaming.createJobIdPrefix(
                           options.getJobName(), jobUuid, JobType.QUERY),
                       queryTempDataset);
@@ -2032,6 +2046,15 @@ public class BigQueryIO {
       return toBuilder().setQueryTempDataset(queryTempDatasetRef).build();
     }
 
+    /** See {@link #withQueryTempDataset(String)}. */
+    public TypedRead<T> withQueryTempProjectAndDataset(
+        String queryTempProjectRef, String queryTempDatasetRef) {
+      return toBuilder()
+          .setQueryTempProject(queryTempProjectRef)
+          .setQueryTempDataset(queryTempDatasetRef)
+          .build();
+    }
+
     /** See {@link Method}. */
     public TypedRead<T> withMethod(TypedRead.Method method) {
       return toBuilder().setMethod(method).build();
@@ -2350,7 +2373,7 @@ public class BigQueryIO {
 
     abstract @Nullable ValueProvider<String> getJsonTimePartitioning();
 
-    abstract @Nullable Clustering getClustering();
+    abstract @Nullable ValueProvider<String> getJsonClustering();
 
     abstract CreateDisposition getCreateDisposition();
 
@@ -2459,7 +2482,7 @@ public class BigQueryIO {
 
       abstract Builder<T> setJsonTimePartitioning(ValueProvider<String> jsonTimePartitioning);
 
-      abstract Builder<T> setClustering(Clustering clustering);
+      abstract Builder<T> setJsonClustering(ValueProvider<String> clustering);
 
       abstract Builder<T> setCreateDisposition(CreateDisposition createDisposition);
 
@@ -2826,8 +2849,18 @@ public class BigQueryIO {
      * tables, the fields here will be ignored; call {@link #withClustering()} instead.
      */
     public Write<T> withClustering(Clustering clustering) {
-      checkArgument(clustering != null, "clustering can not be null");
-      return toBuilder().setClustering(clustering).build();
+      checkArgument(clustering != null, "clustering cannot be null");
+      return withJsonClustering(StaticValueProvider.of(BigQueryHelpers.toJsonString(clustering)));
+    }
+
+    /**
+     * The same as {@link #withClustering(Clustering)}, but takes a JSON-serialized Clustering
+     * object in a deferred {@link ValueProvider}. For example: `"{"fields": ["column1", "column2",
+     * "column3"]}"`
+     */
+    public Write<T> withJsonClustering(ValueProvider<String> jsonClustering) {
+      checkArgument(jsonClustering != null, "clustering cannot be null");
+      return toBuilder().setJsonClustering(jsonClustering).build();
     }
 
     /**
@@ -2844,7 +2877,7 @@ public class BigQueryIO {
      * read state written with a previous version.
      */
     public Write<T> withClustering() {
-      return toBuilder().setClustering(new Clustering()).build();
+      return withClustering(new Clustering());
     }
 
     /** Specifies whether the table should be created if it does not exist. */
@@ -3420,10 +3453,10 @@ public class BigQueryIO {
         if (getJsonTableRef() != null) {
           dynamicDestinations =
               DynamicDestinationsHelpers.ConstantTableDestinations.fromJsonTableRef(
-                  getJsonTableRef(), getTableDescription(), getClustering() != null);
+                  getJsonTableRef(), getTableDescription(), getJsonClustering() != null);
         } else if (getTableFunction() != null) {
           dynamicDestinations =
-              new TableFunctionDestinations<>(getTableFunction(), getClustering() != null);
+              new TableFunctionDestinations<>(getTableFunction(), getJsonClustering() != null);
         }
 
         // Wrap with a DynamicDestinations class that will provide a schema. There might be no
@@ -3440,13 +3473,12 @@ public class BigQueryIO {
         }
 
         // Wrap with a DynamicDestinations class that will provide the proper TimePartitioning.
-        if (getJsonTimePartitioning() != null
-            || Optional.ofNullable(getClustering()).map(Clustering::getFields).isPresent()) {
+        if (getJsonTimePartitioning() != null || (getJsonClustering() != null)) {
           dynamicDestinations =
               new ConstantTimePartitioningClusteringDestinations<>(
                   (DynamicDestinations<T, TableDestination>) dynamicDestinations,
                   getJsonTimePartitioning(),
-                  StaticValueProvider.of(BigQueryHelpers.toJsonString(getClustering())));
+                  getJsonClustering());
         }
         if (getPrimaryKey() != null) {
           dynamicDestinations =
@@ -3699,7 +3731,7 @@ public class BigQueryIO {
                 elementCoder,
                 rowWriterFactory,
                 getKmsKey(),
-                getClustering() != null,
+                getJsonClustering() != null,
                 getUseAvroLogicalTypes(),
                 getWriteTempDataset(),
                 getBadRecordRouter(),

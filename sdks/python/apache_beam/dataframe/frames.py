@@ -1181,8 +1181,11 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
       pd.DataFrame, 'hist', reason="plotting-tools")
 
   attrs = property(
-      frame_base.wont_implement_method(
-          pd.DataFrame, 'attrs', reason='experimental'))
+      fget=frame_base.wont_implement_method(
+          pd.DataFrame, 'attrs', reason='experimental'),
+      fset=frame_base.wont_implement_method(
+          pd.DataFrame, 'attrs', reason='experimental'),
+  )
 
   reorder_levels = frame_base._proxy_method(
       'reorder_levels',
@@ -5124,13 +5127,18 @@ class _DeferredStringMethods(frame_base.DeferredBase):
 ELEMENTWISE_STRING_METHODS = [
             'capitalize',
             'casefold',
+            'center',
             'contains',
             'count',
+            'decode',
+            'encode',
             'endswith',
             'extract',
+            'find',
             'findall',
             'fullmatch',
             'get',
+            'index',
             'isalnum',
             'isalpha',
             'isdecimal',
@@ -5142,15 +5150,21 @@ ELEMENTWISE_STRING_METHODS = [
             'isupper',
             'join',
             'len',
+            'lfind',
+            'ljust',
             'lower',
             'lstrip',
             'match',
+            'normalize',
             'pad',
             'partition',
             'removeprefix',
             'removesuffix',
             'replace',
             'rpartition',
+            'rfind',
+            'rindex',
+            'rjust',
             'rstrip',
             'slice',
             'slice_replace',
@@ -5158,6 +5172,7 @@ ELEMENTWISE_STRING_METHODS = [
             'strip',
             'swapcase',
             'title',
+            'translate',
             'upper',
             'wrap',
             'zfill',

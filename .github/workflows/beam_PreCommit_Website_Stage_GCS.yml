@@ -85,8 +85,8 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          python-version: 3.8
-          java-version: 8
+          python-version: default
+          java-version: default
       - name: Authenticate on GCP
         uses: google-github-actions/setup-gcloud@v0
         with:

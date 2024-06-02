@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: PostCommit Python Xlang Gcp Direct
+name: PreCommit YAML Xlang Direct
 
 on:
   pull_request_target:
@@ -75,7 +75,7 @@ jobs:
     strategy:
       matrix:
         job_name: ["beam_PreCommit_Yaml_Xlang_Direct"]
-        job_phrase: ["Run Yaml_Xlang_Direct"]
+        job_phrase: ["Run Yaml_Xlang_Direct PreCommit"]
     steps:
       - uses: actions/checkout@v4
       - name: Setup repository
@@ -87,9 +87,8 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          python-version: |
-            3.8
-      - name: run PostCommit Yaml Xlang Gcp Direct script
+          python-version: default
+      - name: run PreCommit Yaml Xlang Direct script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:yamlIntegrationTests

@@ -80,7 +80,7 @@ jobs:
       - name: Set k8s access
         uses: ./.github/actions/setup-k8s-access
         with:
-          cluster_name: beam-utility
+          cluster_name: kafka-workflows
           k8s_namespace: ${{ matrix.job_name }}-${{ github.run_id }}
           cluster_zone: us-central1
       - name: Install Kafka

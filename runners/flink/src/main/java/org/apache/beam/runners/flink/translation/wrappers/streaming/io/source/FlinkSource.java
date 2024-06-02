@@ -29,6 +29,8 @@ import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.im
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.unbounded.FlinkUnboundedSource;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.construction.UnboundedReadFromBoundedSource;
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
@@ -71,22 +73,16 @@ public abstract class FlinkSource<T, OutputT>
     return new FlinkUnboundedSource<>(stepName, source, serializablePipelineOptions, numSplits);
   }
 
-  public static FlinkBoundedSource<byte[]> unboundedImpulse(long shutdownSourceAfterIdleMs) {
+  public static FlinkUnboundedSource<byte[]> unboundedImpulse(long shutdownSourceAfterIdleMs) {
     FlinkPipelineOptions flinkPipelineOptions = FlinkPipelineOptions.defaults();
     flinkPipelineOptions.setShutdownSourcesAfterIdleMs(shutdownSourceAfterIdleMs);
-    // Here we wrap the BeamImpulseSource with a FlinkBoundedSource, but overriding its
-    // boundedness to CONTINUOUS_UNBOUNDED. By doing so, the Flink engine will treat this
-    // source as an unbounded source and execute the job in streaming mode. This also
-    // works well with checkpoint, because the FlinkSourceSplit containing the
-    // BeamImpulseSource will be discarded after the impulse emission. So the streaming
-    // job won't see another impulse after failover.
-    return new FlinkBoundedSource<>(
+    return new FlinkUnboundedSource<>(
         "Impulse",
-        new BeamImpulseSource(),
+        new UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter<>(
+            new BeamImpulseSource()),
         new SerializablePipelineOptions(flinkPipelineOptions),
-        Boundedness.CONTINUOUS_UNBOUNDED,
         1,
-        record -> Watermark.MAX_WATERMARK.getTimestamp());
+        record -> BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis());
   }
 
   public static FlinkBoundedSource<byte[]> boundedImpulse() {

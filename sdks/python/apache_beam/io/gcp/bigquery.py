@@ -140,15 +140,15 @@ events of different types to different tables, and the table names are
 computed at pipeline runtime, one may do something like the following::
 
     with Pipeline() as p:
-      elements = (p | beam.Create([
+      elements = (p | 'Create elements' >> beam.Create([
         {'type': 'error', 'timestamp': '12:34:56', 'message': 'bad'},
         {'type': 'user_log', 'timestamp': '12:34:59', 'query': 'flu symptom'},
       ]))
 
-      table_names = (p | beam.Create([
+      table_names = (p | 'Create table_names' >> beam.Create([
         ('error', 'my_project:dataset1.error_table_for_today'),
         ('user_log', 'my_project:dataset1.query_table_for_today'),
-      ])
+      ]))
 
       table_names_dict = beam.pvalue.AsDict(table_names)
 
@@ -283,7 +283,8 @@ method) could look like::
   def chain_after(result):
     try:
       # This works for FILE_LOADS, where we run load and possibly copy jobs.
-      return (result.load_jobid_pairs, result.copy_jobid_pairs) | beam.Flatten()
+      return (result.destination_load_jobid_pairs,
+          result.destination_copy_jobid_pairs) | beam.Flatten()
     except AttributeError:
       # Works for STREAMING_INSERTS, where we return the rows BigQuery rejected
       return result.failed_rows
@@ -1186,11 +1187,19 @@ class _CustomBigQueryStorageSource(BoundedSource):
           parent=parent,
           read_session=requested_session,
           max_stream_count=stream_count)
+      if self.use_native_datetime:
+        display_schema = "Arrow Schema:" + str(read_session.arrow_schema)
+      else:
+        display_schema = "Avro Schema:" + str(read_session.avro_schema)
       _LOGGER.info(
           'Sent BigQuery Storage API CreateReadSession request: \n %s \n'
-          'Received response \n %s.',
+          'Received %d streams\ndata_format: %s\n'
+          'estimated_total_bytes_scanned: %s\n%s.',
           requested_session,
-          read_session)
+          len(read_session.streams),
+          read_session.data_format,
+          read_session.estimated_total_bytes_scanned,
+          display_schema)
 
       self.split_result = [
           _CustomBigQueryStorageStreamSource(
@@ -1221,6 +1230,10 @@ class _CustomBigQueryStorageSource(BoundedSource):
 
 class _CustomBigQueryStorageStreamSource(BoundedSource):
   """A source representing a single stream in a read session."""
+
+  # Runner will act on this counter on scaling event, if supported
+  THROTTLE_COUNTER = Metrics.counter(__name__, 'cumulativeThrottlingSeconds')
+
   def __init__(
       self, read_stream_name: str, use_native_datetime: Optional[bool] = True):
     self.read_stream_name = read_stream_name
@@ -1276,9 +1289,18 @@ class _CustomBigQueryStorageStreamSource(BoundedSource):
     else:
       return self.read_avro()
 
+  @staticmethod
+  def retry_delay_callback(delay):
+    _LOGGER.info("retry delay: %f", delay)
+    _CustomBigQueryStorageStreamSource.THROTTLE_COUNTER.inc(delay)
+
   def read_arrow(self):
+
     storage_client = bq_storage.BigQueryReadClient()
-    row_iter = iter(storage_client.read_rows(self.read_stream_name).rows())
+    row_iter = iter(
+        storage_client.read_rows(
+            self.read_stream_name,
+            retry_delay_callback=self.retry_delay_callback).rows())
     row = next(row_iter, None)
     # Handling the case where the user might provide very selective filters
     # which can result in read_rows_response being empty.
@@ -1292,7 +1314,10 @@ class _CustomBigQueryStorageStreamSource(BoundedSource):
 
   def read_avro(self):
     storage_client = bq_storage.BigQueryReadClient()
-    read_rows_iterator = iter(storage_client.read_rows(self.read_stream_name))
+    read_rows_iterator = iter(
+        storage_client.read_rows(
+            self.read_stream_name,
+            retry_delay_callback=self.retry_delay_callback))
     # Handling the case where the user might provide very selective filters
     # which can result in read_rows_response being empty.
     first_read_rows_response = next(read_rows_iterator, None)

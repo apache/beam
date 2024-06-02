@@ -239,17 +239,6 @@ releases to the Maven Central Repository.
 
 Each language has routine dependency maintenance that you should check now.
 
-#### Update base image dependencies for Python container images
-
-The Python base container images have pinned `requirements.txt` that are
-compatible with our dependency constraints, and design to avoid run-time
-installs, since run-time installs cause large delays at start-up time. Ideally,
-we this should happen regularly when dependencies update, but it is important
-to ensure that they are fully up to date for each release.
-
-Follow the instructions at
-https://s.apache.org/beam-python-requirements-generate
-
 #### Update Go version used for container builds
 
 Go makes security patch releases of their tooling.  This potentially affects
@@ -933,7 +922,7 @@ write to BigQuery, and create a cluster of machines for running containers (for 
   ```
   **Flink Local Runner**
   ```
-  ./gradlew :runners:flink:1.13:runQuickstartJavaFlinkLocal \
+  ./gradlew :runners:flink:1.18:runQuickstartJavaFlinkLocal \
   -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \
   -Pver=${RELEASE_VERSION}
   ```
@@ -1331,6 +1320,15 @@ Release Manager
 [1] https://github.com/apache/beam/pull/123
 ```
 
+#### Update Python Dependencies
+
+A PR should have already been created (and possibly merged) by github-actions bot, you should verify that this was done correctly
+by looking at open PRs from that bot - https://github.com/apache/beam/pulls/app%2Fgithub-actions
+
+If a PR has not been merged, drive it to completion.
+If no PR was created, triage any failures in https://github.com/apache/beam/actions/workflows/beam_Publish_Website.yml and manually regenerate dependencies,
+following https://cwiki.apache.org/confluence/display/BEAM/Python+Tips#PythonTips-HowtoupdatedependenciesthatareinstalledinPythoncontainerimages
+
 ### Update the Java starter repo
 
 After the new Beam release is published, the Java starter project needs to have its version manually upgraded.
@@ -1345,7 +1343,9 @@ open a PR to do this if you don't.
 
 ### Update Beam Playground
 
-After new Beam Release is published, Beam Playground can be updated following the steps below:
+After new Beam Release is published, Beam Playground can be updated following the steps below. If any steps fail, make
+sure that the triggers are correctly configured as described in
+https://github.com/apache/beam/blob/master/playground/terraform/infrastructure/cloudbuild-manual-setup/README.md#deploy-playgorund-environment-from-cloud-build-triggers:
 
 1. Open the [Cloud Build triggers in apache-beam-testing](https://console.cloud.google.com/cloud-build/triggers?project=apache-beam-testing) GCP project.
 2. Find the trigger "Deploy-Update-Playground-environment-stg":

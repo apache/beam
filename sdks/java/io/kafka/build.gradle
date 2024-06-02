@@ -90,6 +90,7 @@ dependencies {
   provided library.java.everit_json_schema
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation project(":sdks:java:io:synthetic")
+  testImplementation project(":sdks:java:managed")
   testImplementation project(path: ":sdks:java:extensions:avro", configuration: "testRuntimeMigration")
   testImplementation project(path: ":sdks:java:extensions:protobuf", configuration: "testRuntimeMigration")
   testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")

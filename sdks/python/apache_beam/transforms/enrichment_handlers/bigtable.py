@@ -16,6 +16,7 @@
 #
 import logging
 from typing import Any
+from typing import Callable
 from typing import Dict
 from typing import Optional
 
@@ -32,6 +33,8 @@ from apache_beam.transforms.enrichment_handlers.utils import ExceptionLevel
 __all__ = [
     'BigTableEnrichmentHandler',
 ]
+
+RowKeyFn = Callable[[beam.Row], bytes]
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -53,6 +56,8 @@ class BigTableEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
       See https://cloud.google.com/bigtable/docs/app-profiles for more details.
     encoding (str): encoding type to convert the string to bytes and vice-versa
       from BigTable. Default is `utf-8`.
+    row_key_fn: a lambda function that returns a string row key from the
+      input row. It is used to build/extract the row key for Bigtable.
     exception_level: a `enum.Enum` value from
       ``apache_beam.transforms.enrichment_handlers.utils.ExceptionLevel``
       to set the level when an empty row is returned from the BigTable query.
@@ -67,11 +72,12 @@ class BigTableEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
       project_id: str,
       instance_id: str,
       table_id: str,
-      row_key: str,
+      row_key: str = "",
       row_filter: Optional[RowFilter] = CellsColumnLimitFilter(1),
       *,
       app_profile_id: str = None,  # type: ignore[assignment]
       encoding: str = 'utf-8',
+      row_key_fn: Optional[RowKeyFn] = None,
       exception_level: ExceptionLevel = ExceptionLevel.WARN,
       include_timestamp: bool = False,
   ):
@@ -82,8 +88,15 @@ class BigTableEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
     self._row_filter = row_filter
     self._app_profile_id = app_profile_id
     self._encoding = encoding
+    self._row_key_fn = row_key_fn
     self._exception_level = exception_level
     self._include_timestamp = include_timestamp
+    if ((not self._row_key_fn and not self._row_key) or
+        bool(self._row_key_fn and self._row_key)):
+      raise ValueError(
+          "Please specify exactly one of `row_key` or a lambda "
+          "function with `row_key_fn` to extract the row key "
+          "from the input row.")
 
   def __enter__(self):
     """connect to the Google BigTable cluster."""
@@ -105,9 +118,12 @@ class BigTableEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
     response_dict: Dict[str, Any] = {}
     row_key_str: str = ""
     try:
-      request_dict = request._asdict()
-      row_key_str = str(request_dict[self._row_key])
-      row_key = row_key_str.encode(self._encoding)
+      if self._row_key_fn:
+        row_key = self._row_key_fn(request)
+      else:
+        request_dict = request._asdict()
+        row_key_str = str(request_dict[self._row_key])
+        row_key = row_key_str.encode(self._encoding)
       row = self._table.read_row(row_key, filter_=self._row_filter)
       if row:
         for cf_id, cf_v in row.cells.items():
@@ -148,4 +164,6 @@ class BigTableEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
   def get_cache_key(self, request: beam.Row) -> str:
     """Returns a string formatted with row key since it is unique to
     a request made to `Bigtable`."""
+    if self._row_key_fn:
+      return "row_key: %s" % str(self._row_key_fn(request))
     return "%s: %s" % (self._row_key, request._asdict()[self._row_key])

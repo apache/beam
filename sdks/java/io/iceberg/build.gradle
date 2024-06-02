@@ -1,3 +1,5 @@
+import groovy.json.JsonOutput
+
 import java.util.stream.Collectors
 
 /*
@@ -38,36 +40,33 @@ hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}
 def iceberg_version = "1.4.2"
 def parquet_version = "1.12.0"
 def orc_version = "1.9.2"
-def hive_version = "3.1.3"
 
 dependencies {
     implementation library.java.vendored_guava_32_1_2_jre
     implementation project(path: ":sdks:java:core", configuration: "shadow")
-    implementation project(":sdks:java:io:hadoop-common")
+    implementation project(":sdks:java:managed")
     implementation library.java.slf4j_api
+    implementation library.java.joda_time
     implementation "org.apache.parquet:parquet-column:$parquet_version"
-    implementation "org.apache.parquet:parquet-common:$parquet_version"
     implementation "org.apache.orc:orc-core:$orc_version"
     implementation "org.apache.iceberg:iceberg-core:$iceberg_version"
     implementation "org.apache.iceberg:iceberg-api:$iceberg_version"
     implementation "org.apache.iceberg:iceberg-parquet:$iceberg_version"
     implementation "org.apache.iceberg:iceberg-orc:$iceberg_version"
-    implementation "org.apache.iceberg:iceberg-arrow:$iceberg_version"
-    implementation "org.apache.iceberg:iceberg-data:$iceberg_version"
+    implementation library.java.hadoop_common
 
-
-
-    provided library.java.avro
-    provided library.java.hadoop_client
-    permitUnusedDeclared library.java.hadoop_client
-    provided library.java.hadoop_common
     testImplementation library.java.hadoop_client
-
+    testImplementation library.java.bigdataoss_gcsio
+    testImplementation library.java.bigdataoss_gcs_connector
+    testImplementation library.java.bigdataoss_util_hadoop
     testImplementation "org.apache.iceberg:iceberg-gcp:$iceberg_version"
+    testImplementation "org.apache.iceberg:iceberg-data:$iceberg_version"
     testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+    testImplementation project(":sdks:java:extensions:google-cloud-platform-core")
     testImplementation library.java.junit
     testRuntimeOnly library.java.slf4j_jdk14
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+    testRuntimeOnly project(path: ":runners:google-cloud-dataflow-java")
     hadoopVersions.each {kv ->
         "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-client:$kv.value"
     }
@@ -95,4 +94,44 @@ hadoopVersions.each { kv ->
         classpath = configurations."hadoopVersion$kv.key" + sourceSets.test.runtimeClasspath
         include '**/*Test.class'
     }
+}
+
+task integrationTest(type: Test) {
+    group = "Verification"
+    def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+    def gcpTempLocation = project.findProperty('gcpTempLocation') ?: 'gs://temp-storage-for-end-to-end-tests'
+    systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+        "--project=${gcpProject}",
+        "--tempLocation=${gcpTempLocation}",
+    ])
+
+    // Disable Gradle cache: these ITs interact with live service that should always be considered "out of date"
+    outputs.upToDateWhen { false }
+
+    include '**/*IT.class'
+
+    maxParallelForks 4
+    classpath = sourceSets.test.runtimeClasspath
+    testClassesDirs = sourceSets.test.output.classesDirs
+}
+
+task loadTest(type: Test) {
+    def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+    def gcpTempLocation = project.findProperty('gcpTempLocation') ?: 'gs://temp-storage-for-end-to-end-tests/temp-lt'
+    systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+            "--project=${gcpProject}",
+            "--tempLocation=${gcpTempLocation}",
+            "--testSize=large",
+            "--runner=DataflowRunner",
+            "--region=us-central1"
+    ])
+
+    // Disable Gradle cache: these ITs interact with live service that should always be considered "out of date"
+    outputs.upToDateWhen { false }
+
+    include '**/*LT.class'
+
+    maxParallelForks 4
+    classpath = sourceSets.test.runtimeClasspath
+    testClassesDirs = sourceSets.test.output.classesDirs
 }
