@@ -57,7 +57,7 @@ public class ManagedTransformConstants {
           .put("message_name", "messageName")
           .put("max_read_time_seconds", "maxReadTimeSeconds")
           .put("auto_offset_reset_config", "autoOffsetResetConfig")
-          .put("error_handling", "ErrorHandling")
+          .put("error_handling", "errorHandling")
           .build();
 
   private static final Map<String, String> KAFKA_WRITE_MAPPINGS =
@@ -69,7 +69,7 @@ public class ManagedTransformConstants {
           .put("file_descriptor_path", "fileDescriptorPath")
           .put("message_name", "messageName")
           .put("schema", "schema")
-          .put("error_handling", "ErrorHandling")
+          .put("error_handling", "errorHandling")
           .build();
 
   public static final Map<String, Map<String, String>> MAPPINGS =
