@@ -635,6 +635,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def sbe_tool_version = "1.25.1"
     def singlestore_jdbc_version = "1.1.4"
     def slf4j_version = "1.7.30"
+    def snakeyaml_version = "2.2"
     def spark2_version = "2.4.8"
     def spark3_version = "3.2.2"
     def spotbugs_version = "4.0.6"
@@ -866,6 +867,7 @@ class BeamModulePlugin implements Plugin<Project> {
         sbe_tool                                    : "uk.co.real-logic:sbe-tool:$sbe_tool_version",
         singlestore_jdbc                            : "com.singlestore:singlestore-jdbc-client:$singlestore_jdbc_version",
         slf4j_api                                   : "org.slf4j:slf4j-api:$slf4j_version",
+        snake_yaml                                  : "org.yaml:snakeyaml:$snakeyaml_version",
         slf4j_android                               : "org.slf4j:slf4j-android:$slf4j_version",
         slf4j_ext                                   : "org.slf4j:slf4j-ext:$slf4j_version",
         slf4j_jdk14                                 : "org.slf4j:slf4j-jdk14:$slf4j_version",
