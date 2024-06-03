@@ -19,14 +19,13 @@ package org.apache.beam.sdk.io.gcp.bigtable;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.MoreExecutors.directExecutor;
 
-
-import com.google.api.gax.rpc.ServerStream;
 import com.google.api.core.ApiFuture;
 import com.google.api.gax.batching.Batcher;
 import com.google.api.gax.batching.BatchingException;
 import com.google.api.gax.grpc.GrpcCallContext;
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.ResponseObserver;
+import com.google.api.gax.rpc.ServerStream;
 import com.google.api.gax.rpc.StreamController;
 import com.google.bigtable.v2.Cell;
 import com.google.bigtable.v2.Column;
@@ -174,9 +173,10 @@ class BigtableServiceImpl implements BigtableService {
         query.filter(Filters.FILTERS.fromProto(rowFilter));
       }
       try {
-        stream = client
-            .readRowsCallable(new BigtableRowProtoAdapter())
-            .call(query, GrpcCallContext.createDefault());
+        stream =
+            client
+                .readRowsCallable(new BigtableRowProtoAdapter())
+                .call(query, GrpcCallContext.createDefault());
         results = stream.iterator();
         serviceCallMetric.call("ok");
       } catch (StatusRuntimeException e) {
@@ -311,7 +311,6 @@ class BigtableServiceImpl implements BigtableService {
 
     @Override
     public void close() {}
-
 
     @Override
     public boolean start() throws IOException {
