@@ -104,8 +104,6 @@ public class SolaceIOIT {
         .apply("Count", ParDo.of(new CountingFn<>(NAMESPACE, READ_COUNT)));
 
     PipelineResult pipelineResult = readPipeline.run();
-    // todo this needs to be parametrized when moved to the official repo and used with the
-    // :integrationTest plugin
     pipelineResult.waitUntilFinish(Duration.standardSeconds(15));
 
     MetricsReader metricsReader = new MetricsReader(pipelineResult, NAMESPACE);
