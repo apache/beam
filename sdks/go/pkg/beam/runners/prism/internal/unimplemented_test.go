@@ -86,6 +86,7 @@ func TestImplemented(t *testing.T) {
 		{pipeline: primitives.Checkpoints},
 		{pipeline: primitives.CoGBK},
 		{pipeline: primitives.ReshuffleKV},
+		{pipeline: primitives.TriggerNever},
 	}
 
 	for _, test := range tests {
