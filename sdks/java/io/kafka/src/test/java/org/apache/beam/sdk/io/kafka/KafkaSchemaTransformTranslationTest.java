@@ -113,7 +113,7 @@ public class KafkaSchemaTransformTranslationTest {
         (KafkaWriteSchemaTransform) WRITE_PROVIDER.from(transformConfigRow);
     PCollectionRowTuple.of("input", input).apply(writeTransform);
 
-    // Then translate the pipeline to a proto and extract IcebergWriteSchemaTransform proto
+    // Then translate the pipeline to a proto and extract KafkaWriteSchemaTransform proto
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
     List<RunnerApi.PTransform> writeTransformProto =
         pipelineProto.getComponents().getTransformsMap().values().stream()
@@ -141,7 +141,7 @@ public class KafkaSchemaTransformTranslationTest {
 
     assertEquals(transformConfigRow, rowFromSpec);
 
-    // Use the information in the proto to recreate the IcebergWriteSchemaTransform
+    // Use the information in the proto to recreate the KafkaWriteSchemaTransform
     KafkaWriteSchemaTransformTranslator translator = new KafkaWriteSchemaTransformTranslator();
     KafkaWriteSchemaTransform writeTransformFromSpec =
         translator.fromConfigRow(rowFromSpec, PipelineOptionsFactory.create());
@@ -204,7 +204,7 @@ public class KafkaSchemaTransformTranslationTest {
 
     PCollectionRowTuple.empty(p).apply(readTransform);
 
-    // Then translate the pipeline to a proto and extract IcebergReadSchemaTransform proto
+    // Then translate the pipeline to a proto and extract KafkaReadSchemaTransform proto
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
     List<RunnerApi.PTransform> readTransformProto =
         pipelineProto.getComponents().getTransformsMap().values().stream()
@@ -231,7 +231,7 @@ public class KafkaSchemaTransformTranslationTest {
     Row rowFromSpec = RowCoder.of(schemaFromSpec).decode(payload.getConfigurationRow().newInput());
     assertEquals(transformConfigRow, rowFromSpec);
 
-    // Use the information in the proto to recreate the IcebergReadSchemaTransform
+    // Use the information in the proto to recreate the KafkaReadSchemaTransform
     KafkaReadSchemaTransformTranslator translator = new KafkaReadSchemaTransformTranslator();
     KafkaReadSchemaTransform readTransformFromSpec =
         translator.fromConfigRow(rowFromSpec, PipelineOptionsFactory.create());
