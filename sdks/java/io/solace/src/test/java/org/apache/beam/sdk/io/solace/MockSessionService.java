@@ -28,24 +28,13 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 public class MockSessionService implements SessionService {
 
   private final SerializableFunction<Integer, BytesXMLMessage> getRecordFn;
-  private final AtomicInteger ackCounter;
   private MessageReceiver messageReceiver = null;
-  private final int isEndOfStreamAfterCount;
+  private final int minMessagesReceived;
 
   public MockSessionService(
-      SerializableFunction<Integer, BytesXMLMessage> getRecordFn, int isEndOfStreamAfterCount) {
+      SerializableFunction<Integer, BytesXMLMessage> getRecordFn, int minMessagesReceived) {
     this.getRecordFn = getRecordFn;
-    this.isEndOfStreamAfterCount = isEndOfStreamAfterCount;
-    this.ackCounter = new AtomicInteger();
-  }
-
-  public MockSessionService(
-      SerializableFunction<Integer, BytesXMLMessage> getRecordFn,
-      AtomicInteger ackCounter,
-      int isEndOfStreamAfterCount) {
-    this.getRecordFn = getRecordFn;
-    this.isEndOfStreamAfterCount = isEndOfStreamAfterCount;
-    this.ackCounter = ackCounter;
+    this.minMessagesReceived = minMessagesReceived;
   }
 
   @Override
@@ -59,7 +48,7 @@ public class MockSessionService implements SessionService {
   @Override
   public MessageReceiver createReceiver() {
     if (messageReceiver == null) {
-      messageReceiver = new MockReceiver(getRecordFn, ackCounter, isEndOfStreamAfterCount);
+      messageReceiver = new MockReceiver(getRecordFn, minMessagesReceived);
     }
     return messageReceiver;
   }
@@ -68,18 +57,14 @@ public class MockSessionService implements SessionService {
   public void connect() {}
 
   public static class MockReceiver implements MessageReceiver, Serializable {
-    private final AtomicInteger receiveCounter = new AtomicInteger();
-    private final AtomicInteger ackCounter;
+    private final AtomicInteger counter = new AtomicInteger();
     private final SerializableFunction<Integer, BytesXMLMessage> getRecordFn;
-    private final int isEndOfStreamAfterCount;
+    private final int minMessagesReceived;
 
     public MockReceiver(
-        SerializableFunction<Integer, BytesXMLMessage> getRecordFn,
-        AtomicInteger ackCounter,
-        int isEndOfStreamAfterCount) {
+        SerializableFunction<Integer, BytesXMLMessage> getRecordFn, int minMessagesReceived) {
       this.getRecordFn = getRecordFn;
-      this.ackCounter = ackCounter;
-      this.isEndOfStreamAfterCount = isEndOfStreamAfterCount;
+      this.minMessagesReceived = minMessagesReceived;
     }
 
     @Override
@@ -92,17 +77,12 @@ public class MockSessionService implements SessionService {
 
     @Override
     public BytesXMLMessage receive() throws IOException {
-      return getRecordFn.apply(receiveCounter.getAndIncrement());
-    }
-
-    @Override
-    public void ack(long ackId) throws IOException {
-      ackCounter.getAndIncrement();
+      return getRecordFn.apply(counter.getAndIncrement());
     }
 
     @Override
     public boolean isEOF() {
-      return receiveCounter.get() >= isEndOfStreamAfterCount;
+      return counter.get() >= minMessagesReceived;
     }
   }
 }

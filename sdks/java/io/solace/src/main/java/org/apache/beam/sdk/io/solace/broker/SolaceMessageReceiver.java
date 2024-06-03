@@ -21,13 +21,14 @@ import com.solacesystems.jcsmp.BytesXMLMessage;
 import com.solacesystems.jcsmp.FlowReceiver;
 import com.solacesystems.jcsmp.JCSMPException;
 import com.solacesystems.jcsmp.StaleSessionException;
-import com.solacesystems.jcsmp.impl.flow.FlowHandle;
 import java.io.IOException;
 import org.apache.beam.sdk.io.solace.RetryCallableManager;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
-import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class SolaceMessageReceiver implements MessageReceiver {
+  private static final Logger LOG = LoggerFactory.getLogger(SolaceMessageReceiver.class);
 
   public static final int DEFAULT_ADVANCE_TIMEOUT_IN_MILLIS = 100;
   private final FlowReceiver flowReceiver;
@@ -58,29 +59,14 @@ public class SolaceMessageReceiver implements MessageReceiver {
 
   @Override
   public BytesXMLMessage receive() throws IOException {
-    return receive(0, null);
-  }
-
-  private BytesXMLMessage receive(int count, @Nullable Exception lastException) throws IOException {
-    if (count >= 2) {
-      throw new IOException(
-          "SolaceIO: tried to pull messages " + (count + 1) + " times, aborting.", lastException);
-    }
     try {
       return flowReceiver.receive(DEFAULT_ADVANCE_TIMEOUT_IN_MILLIS);
     } catch (StaleSessionException e) {
+      LOG.warn("SolaceIO: Caught StaleSessionException, restarting the FlowReceiver.");
       startFlowReceiver();
-      return receive(count + 1, e);
+      throw new IOException(e);
     } catch (JCSMPException e) {
       throw new IOException(e);
     }
-  }
-
-  @Override
-  public void ack(long ackId) throws IOException {
-    if (isClosed()) {
-      throw new IOException("SolaceIO: FlowReceiver is closed, can't acknowledge messages.");
-    }
-    ((FlowHandle) flowReceiver).sendSingleAck(ackId, true);
   }
 }

@@ -164,19 +164,13 @@ public class SolaceDataUtils {
       }
 
       @Override
-      public void rewindContent() {
-        //    return null;
-      }
+      public void rewindContent() {}
 
       @Override
-      public void writeBytes(byte[] arg0) {
-        //    return null;
-      }
+      public void writeBytes(byte[] arg0) {}
 
       @Override
-      public void writeBytes(byte[] arg0, int arg1, int arg2) {
-        //    return null;
-      }
+      public void writeBytes(byte[] arg0, int arg1, int arg2) {}
 
       @Override
       public void ackMessage() {
@@ -186,29 +180,19 @@ public class SolaceDataUtils {
       }
 
       @Override
-      public void clearAttachment() {
-        //    return null;
-      }
+      public void clearAttachment() {}
 
       @Override
-      public void clearBinaryMetadataBytes(int arg0) {
-        //    return null;
-      }
+      public void clearBinaryMetadataBytes(int arg0) {}
 
       @Override
-      public void clearContent() {
-        //    return null;
-      }
+      public void clearContent() {}
 
       @Override
-      public void clearQueueNameLocation() {
-        //    return null;
-      }
+      public void clearQueueNameLocation() {}
 
       @Override
-      public void clearTopicNameLocation() {
-        //    return null;
-      }
+      public void clearTopicNameLocation() {}
 
       @Override
       public String dump() {
@@ -557,194 +541,118 @@ public class SolaceDataUtils {
       }
 
       @Override
-      public void rejectMessage() {
-        //    return null;
-      }
+      public void rejectMessage() {}
 
       @Override
-      public void reset() {
-        //    return null;
-      }
+      public void reset() {}
 
       @Override
-      public void resetPayload() {
-        //    return null;
-      }
+      public void resetPayload() {}
 
       @Override
-      public void rewindAttachment() {
-        //    return null;
-      }
+      public void rewindAttachment() {}
 
       @Override
-      public void setAckImmediately(boolean arg0) {
-        //    return null;
-      }
+      public void setAckImmediately(boolean arg0) {}
 
       @Override
-      public void setAppMessageID(String arg0) {
-        //    return null;
-      }
+      public void setAppMessageID(String arg0) {}
 
       @Override
-      public void setAppMessageType(String arg0) {
-        //    return null;
-      }
+      public void setAppMessageType(String arg0) {}
 
       @Override
-      public void setApplicationMessageId(String arg0) {
-        //    return null;
-      }
+      public void setApplicationMessageId(String arg0) {}
 
       @Override
-      public void setApplicationMessageType(String arg0) {
-        //    return null;
-      }
+      public void setApplicationMessageType(String arg0) {}
 
       @Override
-      public void setAsReplyMessage(boolean arg0) {
-        //    return null;
-      }
+      public void setAsReplyMessage(boolean arg0) {}
 
       @Override
-      public void setCorrelationId(String arg0) {
-        //    return null;
-      }
+      public void setCorrelationId(String arg0) {}
 
       @Override
-      public void setCorrelationKey(Object arg0) {
-        //    return null;
-      }
+      public void setCorrelationKey(Object arg0) {}
 
       @Override
-      public void setCos(User_Cos arg0) {
-        //    return null;
-      }
+      public void setCos(User_Cos arg0) {}
 
       @Override
-      public void setDMQEligible(boolean arg0) {
-        //    return null;
-      }
+      public void setDMQEligible(boolean arg0) {}
 
       @Override
-      public void setDeliverToOne(boolean arg0) {
-        //    return null;
-      }
+      public void setDeliverToOne(boolean arg0) {}
 
       @Override
-      public void setDeliveryMode(DeliveryMode arg0) {
-        //    return null;
-      }
+      public void setDeliveryMode(DeliveryMode arg0) {}
 
       @Override
-      public void setElidingEligible(boolean arg0) {
-        //    return null;
-      }
+      public void setElidingEligible(boolean arg0) {}
 
       @Override
-      public void setExpiration(long arg0) {
-        //    return null;
-      }
+      public void setExpiration(long arg0) {}
 
       @Override
-      public void setHTTPContentEncoding(String arg0) {
-        //    return null;
-      }
+      public void setHTTPContentEncoding(String arg0) {}
 
       @Override
-      public void setHTTPContentType(String arg0) {
-        //    return null;
-      }
+      public void setHTTPContentType(String arg0) {}
 
       @Override
-      public void setMessageType(MessageType arg0) {
-        //    return null;
-      }
+      public void setMessageType(MessageType arg0) {}
 
       @Override
-      public void setPriority(int arg0) {
-        //    return null;
-      }
+      public void setPriority(int arg0) {}
 
       @Override
-      public void setProperties(SDTMap arg0) {
-        //    return null;
-      }
+      public void setProperties(SDTMap arg0) {}
 
       @Override
-      public void setQueueNameLocation(int arg0, int arg1) {
-        //    return null;
-      }
+      public void setQueueNameLocation(int arg0, int arg1) {}
 
       @Override
-      public void setReadOnly() {
-        //    return null;
-      }
+      public void setReadOnly() {}
 
       @Override
-      public void setReplyTo(Destination arg0) {
-        //    return null;
-      }
+      public void setReplyTo(Destination arg0) {}
 
       @Override
-      public void setReplyToSuffix(String arg0) {
-        //    return null;
-      }
+      public void setReplyToSuffix(String arg0) {}
 
       @Override
-      public void setSendTimestamp(long arg0) {
-        //    return null;
-      }
+      public void setSendTimestamp(long arg0) {}
 
       @Override
-      public void setSenderID(String arg0) {
-        //    return null;
-      }
+      public void setSenderID(String arg0) {}
 
       @Override
-      public void setSenderId(String arg0) {
-        //    return null;
-      }
+      public void setSenderId(String arg0) {}
 
       @Override
-      public void setSenderTimestamp(long arg0) {
-        //    return null;
-      }
+      public void setSenderTimestamp(long arg0) {}
 
       @Override
-      public void setSequenceNumber(long arg0) {
-        //    return null;
-      }
+      public void setSequenceNumber(long arg0) {}
 
       @Override
-      public void setStructuredMsg(boolean arg0) {
-        //    return null;
-      }
+      public void setStructuredMsg(boolean arg0) {}
 
       @Override
-      public void setStructuredMsgType(byte arg0) {
-        //    return null;
-      }
+      public void setStructuredMsgType(byte arg0) {}
 
       @Override
-      public void setTimeToLive(long arg0) {
-        //    return null;
-      }
+      public void setTimeToLive(long arg0) {}
 
       @Override
-      public void setTopicNameLocation(int arg0, int arg1) {
-        //    return null;
-      }
+      public void setTopicNameLocation(int arg0, int arg1) {}
 
       @Override
-      public void setUserData(byte[] arg0) {
-        //    return null;
-      }
+      public void setUserData(byte[] arg0) {}
 
       @Override
-      public void settle(Outcome arg0) throws JCSMPException {
-        //    return null;
-      }
+      public void settle(Outcome arg0) throws JCSMPException {}
 
       @Override
       public int writeAttachment(byte[] arg0) {
@@ -769,7 +677,6 @@ public class SolaceDataUtils {
       @Override
       public int writeBinaryMetadataBytes(int arg0, byte[] arg1, int arg2, int arg3)
           throws BufferUnderflowException {
-        // TOD0 Auto-generated method stub
         return 0;
       }
 
