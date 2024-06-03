@@ -101,7 +101,8 @@ public class Redistribute {
               .apply("ReifyOriginalMetadata", Reify.windowsInValue());
 
       PCollection<KV<K, Iterable<ValueInSingleWindow<V>>>> grouped =
-          reified.apply(GroupByKey.create());
+          reified.apply(
+              getAllowDuplicates() ? GroupByKey.createWithAllowDuplicates() : GroupByKey.create());
       return grouped
           .apply(
               "ExpandIterable",
