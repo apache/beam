@@ -127,7 +127,8 @@ def validate_generic_expression(
         return
 
   raise ValueError(
-      f"Missing language specification or unknown input fields: {expr}")
+      "Missing language specification, unknown input fields, "
+      f"or invalid generic expression: {expr}")
 
 
 def validate_generic_expressions(base_type, config, input_pcolls) -> None:
