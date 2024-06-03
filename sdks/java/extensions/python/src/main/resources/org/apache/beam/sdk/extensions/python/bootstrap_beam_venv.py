@@ -30,7 +30,6 @@ import os
 import shutil
 import subprocess
 import sys
-from pkg_resources import parse_version
 
 
 def main():
@@ -64,13 +63,13 @@ def main():
         info = json.load(
             urllib.request.urlopen("https://pypi.org/pypi/apache_beam/json"))
 
-        def maybe_strict_version(s):
-            try:
-                return parse_version(s)
-            except:
-                return parse_version('0.0')
+        def released_version(s):
+            if s.replace('.', '').isdecimal():
+              return [int(t) for t in s.split('.')]
+            else:
+              return [0]
 
-        beam_version = max(info['releases'], key=maybe_strict_version)
+        beam_version = max(info['releases'], key=released_version)
         beam_package = 'apache_beam[gcp,aws,azure,dataframe]==' + beam_version
     elif (os.path.exists(options.beam_version)
           or options.beam_version.startswith('http://')
