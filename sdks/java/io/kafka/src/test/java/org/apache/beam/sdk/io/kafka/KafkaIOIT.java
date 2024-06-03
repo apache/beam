@@ -608,18 +608,18 @@ public class KafkaIOIT {
   private static final int FIVE_MINUTES_IN_MS = 5 * 60 * 1000;
 
   @Test(timeout = FIVE_MINUTES_IN_MS)
-  public void testKafkaViaSchemaTransformJson() {
-    runReadWriteKafkaViaSchemaTransforms(
+  public void testKafkaViaManagedSchemaTransformJson() {
+    runReadWriteKafkaViaManagedSchemaTransforms(
         "JSON", SCHEMA_IN_JSON, JsonUtils.beamSchemaFromJsonSchema(SCHEMA_IN_JSON));
   }
 
   @Test(timeout = FIVE_MINUTES_IN_MS)
-  public void testKafkaViaSchemaTransformAvro() {
-    runReadWriteKafkaViaSchemaTransforms(
+  public void testKafkaViaManagedSchemaTransformAvro() {
+    runReadWriteKafkaViaManagedSchemaTransforms(
         "AVRO", AvroUtils.toAvroSchema(KAFKA_TOPIC_SCHEMA).toString(), KAFKA_TOPIC_SCHEMA);
   }
 
-  public void runReadWriteKafkaViaSchemaTransforms(
+  public void runReadWriteKafkaViaManagedSchemaTransforms(
       String format, String schemaDefinition, Schema beamSchema) {
     String topicName = options.getKafkaTopic() + "-schema-transform" + UUID.randomUUID();
     PCollectionRowTuple.of(
