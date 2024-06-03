@@ -102,7 +102,7 @@ public class Redistribute {
 
       PCollection<KV<K, Iterable<ValueInSingleWindow<V>>>> grouped =
           reified.apply(
-              getAllowDuplicates() ? GroupByKey.createWithAllowDuplicates() : GroupByKey.create());
+              allowDuplicates ? GroupByKey.createWithAllowDuplicates() : GroupByKey.create());
       return grouped
           .apply(
               "ExpandIterable",
