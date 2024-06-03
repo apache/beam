@@ -1848,8 +1848,7 @@ public class BigtableIOTest {
     }
 
     @Override
-    public void close() {
-    }
+    public void close() {}
   }
 
   /** A {@link FakeBigtableReader} implementation that throw exceptions at given stage. */
