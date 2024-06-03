@@ -115,9 +115,11 @@ public class GroupByKey<K, V>
     extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>> {
 
   private final boolean fewKeys;
+  private final boolean allowDuplicates;
 
-  private GroupByKey(boolean fewKeys) {
+  private GroupByKey(boolean fewKeys, boolean allowDuplicates) {
     this.fewKeys = fewKeys;
+    this.allowDuplicates = allowDuplicates;
   }
 
   /**
@@ -128,7 +130,7 @@ public class GroupByKey<K, V>
    *     {@code Iterable}s in the output {@code PCollection}
    */
   public static <K, V> GroupByKey<K, V> create() {
-    return new GroupByKey<>(false);
+    return new GroupByKey<>(false, false);
   }
 
   /**
@@ -140,12 +142,29 @@ public class GroupByKey<K, V>
    *     {@code Iterable}s in the output {@code PCollection}
    */
   static <K, V> GroupByKey<K, V> createWithFewKeys() {
-    return new GroupByKey<>(true);
+    return new GroupByKey<>(true, false);
+  }
+
+  /**
+   * Returns a {@code GroupByKey<K, V>} {@code PTransform} that its output can have duplicated
+   * elements.
+   *
+   * @param <K> the type of the keys of the input and output {@code PCollection}s
+   * @param <V> the type of the values of the input {@code PCollection} and the elements of the
+   *     {@code Iterable}s in the output {@code PCollection}
+   */
+  static <K, V> GroupByKey<K, V> createWithAllowDuplicates() {
+    return new GroupByKey<>(false, true);
   }
 
   /** Returns whether it groups just few keys. */
   public boolean fewKeys() {
     return fewKeys;
+  }
+
+  /** Returns whether it allows duplicated elements in the output. */
+  public boolean allowDuplicates() {
+    return allowDuplicates;
   }
 
   /////////////////////////////////////////////////////////////////////////////
