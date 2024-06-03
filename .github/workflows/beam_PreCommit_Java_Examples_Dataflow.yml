@@ -101,7 +101,7 @@ jobs:
       - name: run javaExamplesDataflowPrecommit script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :javaExamplesDataflowPrecommit
+          gradle-command: :runners:google-cloud-dataflow-java:examples:preCommitLegacyWorkerImpersonate
           arguments: |
             -PdisableSpotlessCheck=true \
             -PdisableCheckStyle=true \
