@@ -182,13 +182,13 @@ public class PCollectionRowTuple implements PInput, POutput {
   }
 
   /**
-   * Like {@link #get(String)}, but is a convenience method to get a single output without providing
-   * a tag for that output. Use only when there is a single output.
+   * Like {@link #get(String)}, but is a convenience method to get a single PCollection without
+   * providing a tag for that output. Use only when there is a single collection in this tuple.
    *
    * <p>Throws {@link IllegalStateException} if more than one output exists in the {@link
    * PCollectionRowTuple}.
    */
-  public PCollection<Row> getOutput() {
+  public PCollection<Row> getSinglePCollection() {
     Preconditions.checkState(
         pcollectionMap.size() == 1,
         "Expected exactly one output PCollection<Row>, but found %s. "

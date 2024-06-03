@@ -167,7 +167,9 @@ public class IcebergReadSchemaTransformProviderTest {
     Map<String, Object> configMap = new Yaml().load(yamlConfig);
 
     PCollection<Row> output =
-        testPipeline.apply(Managed.read(Managed.ICEBERG).withConfig(configMap)).getOutput();
+        testPipeline
+            .apply(Managed.read(Managed.ICEBERG).withConfig(configMap))
+            .getSinglePCollection();
 
     PAssert.that(output)
         .satisfies(

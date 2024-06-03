@@ -93,7 +93,7 @@ public class ManagedTest {
 
   public void runTestProviderTest(Managed.ManagedTransform writeOp) {
     PCollection<Row> rows =
-        pipeline.apply(Create.of(ROWS)).setRowSchema(SCHEMA).apply(writeOp).getOutput();
+        pipeline.apply(Create.of(ROWS)).setRowSchema(SCHEMA).apply(writeOp).getSinglePCollection();
 
     Schema outputSchema = rows.getSchema();
     PAssert.that(rows)
