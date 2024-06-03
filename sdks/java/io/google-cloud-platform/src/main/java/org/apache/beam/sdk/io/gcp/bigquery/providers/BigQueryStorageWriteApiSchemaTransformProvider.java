@@ -43,9 +43,11 @@ import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryStorageWriteApiSche
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
+import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
@@ -253,6 +255,10 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
     @Nullable
     public abstract Integer getNumStreams();
 
+    @SchemaFieldDescription("Use this Cloud KMS key to encrypt your data")
+    @Nullable
+    public abstract String getKmsKey();
+
     @SchemaFieldDescription("This option specifies whether and where to output unwritable rows.")
     @Nullable
     public abstract ErrorHandling getErrorHandling();
@@ -275,6 +281,8 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
 
       public abstract Builder setNumStreams(Integer numStreams);
 
+      public abstract Builder setKmsKey(String kmsKey);
+
       public abstract Builder setErrorHandling(ErrorHandling errorHandling);
 
       /** Builds a {@link BigQueryStorageWriteApiSchemaTransformConfiguration} instance. */
@@ -289,7 +297,7 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
    * BigQueryStorageWriteApiSchemaTransformConfiguration} and instantiated by {@link
    * BigQueryStorageWriteApiSchemaTransformProvider}.
    */
-  protected static class BigQueryStorageWriteApiSchemaTransform extends SchemaTransform {
+  public static class BigQueryStorageWriteApiSchemaTransform extends SchemaTransform {
 
     private BigQueryServices testBigQueryServices = null;
     private final BigQueryStorageWriteApiSchemaTransformConfiguration configuration;
@@ -453,6 +461,19 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
       }
     }
 
+    public Row getConfigurationRow() {
+      try {
+        // To stay consistent with our SchemaTransform configuration naming conventions,
+        // we sort lexicographically
+        return SchemaRegistry.createDefault()
+            .getToRowFunction(BigQueryStorageWriteApiSchemaTransformConfiguration.class)
+            .apply(configuration)
+            .sorted();
+      } catch (NoSuchSchemaException e) {
+        throw new RuntimeException(e);
+      }
+    }
+
     BigQueryIO.Write<Row> createStorageWriteApiTransform(Schema schema) {
       Method writeMethod =
           configuration.getUseAtLeastOnceSemantics() != null
@@ -490,6 +511,9 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
             BigQueryStorageWriteApiSchemaTransformConfiguration.WRITE_DISPOSITIONS.get(
                 configuration.getWriteDisposition().toUpperCase());
         write = write.withWriteDisposition(writeDisposition);
+      }
+      if (!Strings.isNullOrEmpty(configuration.getKmsKey())) {
+        write = write.withKmsKey(configuration.getKmsKey());
       }
 
       if (this.testBigQueryServices != null) {

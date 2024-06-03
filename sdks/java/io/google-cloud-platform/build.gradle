@@ -43,6 +43,7 @@ dependencies {
   implementation project(":sdks:java:extensions:google-cloud-platform-core")
   implementation project(":sdks:java:extensions:protobuf")
   implementation project(":sdks:java:extensions:arrow")
+  implementation project(":sdks:java:managed")
   implementation library.java.avro
   implementation library.java.bigdataoss_util
   implementation library.java.error_prone_annotations

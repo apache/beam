@@ -78,17 +78,20 @@ public class Managed {
   // TODO: Dynamically generate a list of supported transforms
   public static final String ICEBERG = "iceberg";
   public static final String KAFKA = "kafka";
+  public static final String BIGQUERY_STORAGE = "bigquery_storage";
 
   // Supported SchemaTransforms
   public static final Map<String, String> READ_TRANSFORMS =
       ImmutableMap.<String, String>builder()
           .put(ICEBERG, ManagedTransformConstants.ICEBERG_READ)
           .put(KAFKA, ManagedTransformConstants.KAFKA_READ)
+          .put(BIGQUERY_STORAGE, ManagedTransformConstants.BIGQUERY_STORAGE_READ)
           .build();
   public static final Map<String, String> WRITE_TRANSFORMS =
       ImmutableMap.<String, String>builder()
           .put(ICEBERG, ManagedTransformConstants.ICEBERG_WRITE)
           .put(KAFKA, ManagedTransformConstants.KAFKA_WRITE)
+          .put(BIGQUERY_STORAGE, ManagedTransformConstants.BIGQUERY_STORAGE_WRITE)
           .build();
 
   /**

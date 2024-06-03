@@ -43,6 +43,10 @@ public class ManagedTransformConstants {
       "beam:schematransform:org.apache.beam:iceberg_write:v1";
   public static final String KAFKA_READ = "beam:schematransform:org.apache.beam:kafka_read:v1";
   public static final String KAFKA_WRITE = "beam:schematransform:org.apache.beam:kafka_write:v1";
+  public static final String BIGQUERY_STORAGE_READ =
+      "beam:schematransform:org.apache.beam:bigquery_storage_read:v1";
+  public static final String BIGQUERY_STORAGE_WRITE =
+      "beam:schematransform:org.apache.beam:bigquery_storage_write:v2";
 
   private static final Map<String, String> KAFKA_READ_MAPPINGS =
       ImmutableMap.<String, String>builder()
@@ -67,9 +71,30 @@ public class ManagedTransformConstants {
           .put("message_name", "messageName")
           .build();
 
+  private static final Map<String, String> BIGQUERY_STORAGE_READ_MAPPINGS =
+      ImmutableMap.<String, String>builder()
+          .put("table", "tableSpec")
+          .put("query", "query")
+          .put("row_restriction", "rowRestriction")
+          .put("columns", "selectedFields")
+          .put("kms_key", "kmsKey")
+          .build();
+
+  private static final Map<String, String> BIGQUERY_STORAGE_WRITE_MAPPINGS =
+      ImmutableMap.<String, String>builder()
+          .put("table", "table")
+          .put("num_shards", "numStreams")
+          .put("triggering_frequency", "triggeringFrequencySeconds")
+          .put("create_disposition", "createDisposition")
+          .put("at_least_once", "useAtLeastOnceSemantics")
+          .put("kms_key", "kmsKey")
+          .build();
+
   public static final Map<String, Map<String, String>> MAPPINGS =
       ImmutableMap.<String, Map<String, String>>builder()
           .put(KAFKA_READ, KAFKA_READ_MAPPINGS)
           .put(KAFKA_WRITE, KAFKA_WRITE_MAPPINGS)
+          .put(BIGQUERY_STORAGE_READ, BIGQUERY_STORAGE_READ_MAPPINGS)
+          .put(BIGQUERY_STORAGE_WRITE, BIGQUERY_STORAGE_WRITE_MAPPINGS)
           .build();
 }
