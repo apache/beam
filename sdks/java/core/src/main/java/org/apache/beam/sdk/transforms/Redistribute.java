@@ -46,6 +46,9 @@ import org.joda.time.Duration;
  * input but functions as an operational hint to a runner that redistributing the data in some way
  * is likely useful.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class Redistribute {
   /** @return a {@link RedistributeArbitrarily} transform with default configuration. */
   public static <T> RedistributeArbitrarily<T> arbitrarily() {
