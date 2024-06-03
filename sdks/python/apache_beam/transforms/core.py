@@ -531,7 +531,7 @@ class _BundleContextParam(_DoFnParam):
   The context will be entered at the start of each bundle and exited at the
   end, equivalent to the `start_bundle` and `finish_bundle` methods on a DoFn.
 
-  The object returned from `__enter__`, if any will be substituted for this
+  The object returned from `__enter__`, if any, will be substituted for this
   parameter in invocations.
 
   This can be especially useful for setting up shared context in transforms
@@ -551,7 +551,7 @@ class _SetupContextParam(_DoFnParam):
   (Note, like `teardown`, exiting is best effort, as workers may be killed
   before all DoFns are torn down.)
 
-  The object returned from `__enter__`, if any will be substituted for this
+  The object returned from `__enter__`, if any, will be substituted for this
   parameter in invocations.
 
   This can be useful for setting up shared resources like persistent
