@@ -55,20 +55,6 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Note: this API is beta and subject to change.
  *
- * <h2>Authentication</h2>
- *
- * <p>When reading from Solace, the user must use {@link
- * Read#withSessionServiceFactory(SessionServiceFactory)} to create a JCSMP session and {@link
- * Read#withSempClientFactory(SempClientFactory)} to authenticate to the SEMP API.
- *
- * <p>See {@link Read#withSessionServiceFactory(SessionServiceFactory)} for session authentication.
- * The connector provides implementation of the {@link SessionServiceFactory} using the Basic
- * Authentication: {@link org.apache.beam.sdk.io.solace.broker.BasicAuthJcsmpSessionService}.
- *
- * <p>For the authentication to the SEMP API ({@link Read#withSempClientFactory(SempClientFactory)})
- * the connector provides {@link org.apache.beam.sdk.io.solace.broker.BasicAuthSempClientFactory} to
- * authenticate using the Basic Authentication.
- *
  * <h2>Reading</h2>
  *
  * To read from Solace, use the {@link SolaceIO#read()} or {@link SolaceIO#read(TypeDescriptor,
@@ -192,6 +178,20 @@ import org.slf4j.LoggerFactory;
  *
  *
  * }</pre>
+ *
+ * <h3>Authentication</h3>
+ *
+ * <p>When reading from Solace, the user must use {@link
+ * Read#withSessionServiceFactory(SessionServiceFactory)} to create a JCSMP session and {@link
+ * Read#withSempClientFactory(SempClientFactory)} to authenticate to the SEMP API.
+ *
+ * <p>See {@link Read#withSessionServiceFactory(SessionServiceFactory)} for session authentication.
+ * The connector provides implementation of the {@link SessionServiceFactory} using the Basic
+ * Authentication: {@link org.apache.beam.sdk.io.solace.broker.BasicAuthJcsmpSessionService}.
+ *
+ * <p>For the authentication to the SEMP API ({@link Read#withSempClientFactory(SempClientFactory)})
+ * the connector provides {@link org.apache.beam.sdk.io.solace.broker.BasicAuthSempClientFactory} to
+ * authenticate using the Basic Authentication.
  */
 @Internal
 public class SolaceIO {
