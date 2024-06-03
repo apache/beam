@@ -6287,8 +6287,8 @@ in the Python SDK, please read and work through
 &lt;a href="https://colab.sandbox.google.com/github/liferoad/beam/blob/learn-transforms/examples/notebooks/get-started/learn_beam_transforms_by_doing.ipynb">this colab notebook&lt;/a>.&lt;/p>
 &lt;h3 id="applying-transforms">4.1. Applying transforms&lt;/h3>
 &lt;p>To invoke a transform, you must &lt;strong>apply&lt;/strong> it to the input &lt;code>PCollection&lt;/code>. Each
-transform in the Beam SDKs has a generic &lt;code>apply&lt;/code> method
-&lt;span class="language-py">(or pipe operator &lt;code>|&lt;/code>)&lt;/span>.
+transform in the Beam SDKs has a generic &lt;code>apply&lt;/code> method&lt;span class="language-py">
+(or pipe operator &lt;code>|&lt;/code>)&lt;/span>.
 Invoking multiple Beam transforms is similar to &lt;em>method chaining&lt;/em>, but with one
 slight difference: You apply the transform to the input &lt;code>PCollection&lt;/code>, passing
 the transform itself as an argument, and the operation returns the output
