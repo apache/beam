@@ -90,6 +90,8 @@ public class PTransformTranslation {
   public static final String PAR_DO_TRANSFORM_URN = "beam:transform:pardo:v1";
   public static final String FLATTEN_TRANSFORM_URN = "beam:transform:flatten:v1";
   public static final String GROUP_BY_KEY_TRANSFORM_URN = "beam:transform:group_by_key:v1";
+  public static final String DATAFLOW_GROUP_BY_KEY_TRANSFORM_URN =
+      "beam:transform:dataflow_group_by_key:v1";
   public static final String IMPULSE_TRANSFORM_URN = "beam:transform:impulse:v1";
   public static final String ASSIGN_WINDOWS_TRANSFORM_URN = "beam:transform:window_into:v1";
   public static final String TEST_STREAM_TRANSFORM_URN = "beam:transform:teststream:v1";
@@ -177,6 +179,9 @@ public class PTransformTranslation {
     checkState(FLATTEN_TRANSFORM_URN.equals(getUrn(StandardPTransforms.Primitives.FLATTEN)));
     checkState(
         GROUP_BY_KEY_TRANSFORM_URN.equals(getUrn(StandardPTransforms.Primitives.GROUP_BY_KEY)));
+    checkState(
+        DATAFLOW_GROUP_BY_KEY_TRANSFORM_URN.equals(
+            getUrn(StandardPTransforms.Primitives.DATAFLOW_GROUP_BY_KEY)));
     checkState(IMPULSE_TRANSFORM_URN.equals(getUrn(StandardPTransforms.Primitives.IMPULSE)));
     checkState(
         ASSIGN_WINDOWS_TRANSFORM_URN.equals(getUrn(StandardPTransforms.Primitives.ASSIGN_WINDOWS)));
