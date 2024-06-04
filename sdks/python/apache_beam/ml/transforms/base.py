@@ -41,8 +41,6 @@ from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import ModelT
 from apache_beam.ml.inference.base import RunInferenceDLQ
 from apache_beam.options.pipeline_options import PipelineOptions
-from PIL.Image import Image as PIL_Image
-from vertexai.vision_models import Image as Vertex_Image
 
 _LOGGER = logging.getLogger(__name__)
 _ATTRIBUTE_FILE_NAME = 'attributes.json'
@@ -729,13 +727,14 @@ class _ImageEmbeddingHandler(ModelHandler):
     return model
 
   def _validate_column_data(self, batch):
-    if not isinstance(batch[0], (PIL_Image, Vertex_Image)):
+    # Don't want to require framework-specific imports
+    # here, so just catch columns of primatives for now.
+    if isinstance(batch[0], (int, str, float, bool)):
       raise TypeError(
           'Embeddings can only be generated on Dict[str, Image].'
           f'Got Dict[str, {type(batch[0])}] instead.')
 
-  def _validate_batch(
-      self, batch: Sequence[Dict[str, List[Union[PIL_Image, Vertex_Image]]]]):
+  def _validate_batch(self, batch: Sequence[Dict[str, List[Any]]]):
     if not batch or not isinstance(batch[0], dict):
       raise TypeError(
           'Expected data to be dicts, got '
