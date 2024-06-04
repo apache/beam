@@ -369,8 +369,12 @@ def get_function_arguments(obj, func):
   func_name = '_inspect_%s' % func
   if hasattr(obj, func_name):
     f = getattr(obj, func_name)
+    if func == 'process':
+      print("YES", obj, f, f())
     return f()
   f = getattr(obj, func)
+  if func == 'process':
+    print("NO", obj, func, f)
   return get_function_args_defaults(f)
 
 
@@ -386,6 +390,7 @@ def get_function_args_defaults(f):
     it doesn't include bound arguments and may follow function wrappers.
   """
   signature = get_signature(f)
+  print(f, signature)
   parameter = inspect.Parameter
   # TODO(BEAM-5878) support kwonlyargs on Python 3.
   _SUPPORTED_ARG_TYPES = [
@@ -525,25 +530,49 @@ class _WatermarkEstimatorParam(_DoFnParam):
     self.param_id = 'WatermarkEstimatorProvider'
 
 
-class _BundleContextParam(_DoFnParam):
+class _ContextParam(_DoFnParam):
+  def __init__(self, context_manager_constructor, args=(), kwargs=None, *, name=None):
+    class_name = self.__class__.__name__.strip('_')
+    if (not callable(context_manager_constructor) or hasattr(context_manager_constructor, '__enter__')):
+      # Context managers constructed with @contextlib.contextmanager can only
+      # be used once, and in addition cannot be pickled because they invoke
+      # the function on __init__ rather than at __enter__.
+      # In addition, other common context managers such as
+      # tempfile.TemporaryDirectory perform side-effecting actions in __init__
+      # rather than in __enter__.
+      raise TypeError(
+          "A context manager constructor (not a fully constructed context "
+          "manager) must be passed to avoid issues with one-shot managers. "
+          "For example, "
+          "write {class_name}(tempfile.TemporaryDirectory, args=(...)) "
+          "rather than {class_name}(tempfile.TemporaryDirectory(...))")
+    super().__init__(f'{class_name}_{name or id(self)}')
+    self.context_manager_constructor = context_manager_constructor
+    self.args = args
+    self.kwargs = kwargs or {}
+
+  def create_and_enter(self):
+    cm = self.context_manager_constructor(*self.args, **self.kwargs)
+    return cm, cm.__enter__()
+
+
+class _BundleContextParam(_ContextParam):
   """Allows one to use a context manager to manage bundle-scoped parameters.
 
   The context will be entered at the start of each bundle and exited at the
   end, equivalent to the `start_bundle` and `finish_bundle` methods on a DoFn.
 
   The object returned from `__enter__`, if any, will be substituted for this
-  parameter in invocations.
+  parameter in invocations.  Multiple context manager parameters may be
+  specified which will all be evaluated (in an unspecified order).
 
   This can be especially useful for setting up shared context in transforms
   like `Map`, `FlatMap`, and `Filter` where one does not have start_bundle
   and finish_bundle methods.
   """
-  def __init__(self, context_manager, name=None):
-    super().__init__(f'BundleContextParam_{name or id(self)}')
-    self.context_manager = context_manager
 
 
-class _SetupContextParam(_DoFnParam):
+class _SetupContextParam(_ContextParam):
   """Allows one to use a context manager to manage DoFn-scoped parameters.
 
   The context will be entered before the DoFn is used and exited when it is
@@ -552,15 +581,14 @@ class _SetupContextParam(_DoFnParam):
   before all DoFns are torn down.)
 
   The object returned from `__enter__`, if any, will be substituted for this
-  parameter in invocations.
+  parameter in invocations.  Multiple context manager parameters may be
+  specified which will all be evaluated (in an unspecified order).
 
   This can be useful for setting up shared resources like persistent
   connections to external services for transforms like `Map`, `FlatMap`, and
   `Filter` where one does not have setup and teardown methods.
   """
-  def __init__(self, context_manager, name=None):
-    super().__init__(f'SetupContextParam_{name or id(self)}')
-    self.context_manager = context_manager
+
 
 
 class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
@@ -693,6 +721,10 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
       tracker will be derived from the restriction provider in the parameter.
     - ``DoFn.WatermarkEstimatorParam``: a function that can be used to track
       output watermark of Splittable ``DoFn`` implementations.
+    - ``DoFn.BundleContextParam``: allows a shared context manager to be used
+      per bundle
+    - ``DoFn.SetupContextParam``: allows a shared context manager to be used
+      per DoFn
 
     Args:
       element: The element to be processed

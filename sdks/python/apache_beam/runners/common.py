@@ -159,8 +159,13 @@ class MethodWrapper(object):
           '\'obj_to_invoke\' has to be either a \'DoFn\' or '
           'a \'RestrictionProvider\'. Received %r instead.' % obj_to_invoke)
 
+    if method_name == 'process':
+      print()
+      print(method_name, "-" * 30)
     self.args, self.defaults = core.get_function_arguments(obj_to_invoke,
                                                            method_name)
+    if method_name == 'process':
+      print(self.args, self.defaults)
 
     # TODO(BEAM-5878) support kwonlyargs on Python 3.
     self.method_value = getattr(obj_to_invoke, method_name)
@@ -450,6 +455,7 @@ class DoFnSignature(object):
 
   def get_setup_contexts(self):
     seen = set()
+    print('self.process_method', self.process_method.method_value, self.process_method.method_value.__code__)
     for sig in (self.setup_lifecycle_method,
                 self.start_bundle_method,
                 self.process_method,
@@ -457,6 +463,7 @@ class DoFnSignature(object):
                 self.finish_bundle_method,
                 self.teardown_lifecycle_method):
       for d in sig.defaults:
+        print("HERE", sig, d)
         try:
           if isinstance(d, DoFn.SetupContextParam):
             if d not in seen:
@@ -601,8 +608,8 @@ class DoFnInvoker(object):
     """Invokes the DoFn.setup() method
     """
     self._setup_context_values = {
-        d: d.context_manager.__enter__()
-        for d in self.signature.get_setup_contexts()
+        c: c.create_and_enter()
+        for c in self.signature.get_setup_contexts()
     }
     self.signature.setup_lifecycle_method.method_value()
 
@@ -612,8 +619,8 @@ class DoFnInvoker(object):
     """Invokes the DoFn.start_bundle() method.
     """
     self._bundle_context_values = {
-        d: d.context_manager.__enter__()
-        for d in self.signature.get_bundle_contexts()
+        c: c.create_and_enter()
+        for c in self.signature.get_bundle_contexts()
     }
     self.output_handler.start_bundle_outputs(
         self.signature.start_bundle_method.method_value())
@@ -625,8 +632,8 @@ class DoFnInvoker(object):
     """
     self.output_handler.finish_bundle_outputs(
         self.signature.finish_bundle_method.method_value())
-    for d in self._bundle_context_values.keys():
-      d.context_manager.__exit__(None, None, None)
+    for c in self._bundle_context_values.values():
+      c[0].__exit__(None, None, None)
     self._bundle_context_values = None
 
   def invoke_teardown(self):
@@ -635,8 +642,8 @@ class DoFnInvoker(object):
     """Invokes the DoFn.teardown() method
     """
     self.signature.teardown_lifecycle_method.method_value()
-    for d in self._setup_context_values.keys():
-      d.context_manager.__exit__(None, None, None)
+    for c in self._setup_context_values.values():
+      c[0].__exit__(None, None, None)
     self._setup_context_values = None
 
   def invoke_user_timer(
@@ -1043,9 +1050,9 @@ class PerWindowInvoker(DoFnInvoker):
       elif core.DoFn.BundleFinalizerParam == p:
         args_for_process[i] = self.bundle_finalizer_param
       elif isinstance(p, core.DoFn.BundleContextParam):
-        args_for_process[i] = self._bundle_context_values[p]
+        args_for_process[i] = self._bundle_context_values[p][1]
       elif isinstance(p, core.DoFn.SetupContextParam):
-        args_for_process[i] = self._setup_context_values[p]
+        args_for_process[i] = self._setup_context_values[p][1]
 
     kwargs_for_process = kwargs_for_process or {}
 
@@ -1135,9 +1142,9 @@ class PerWindowInvoker(DoFnInvoker):
             "https://github.com/apache/beam/issues/21653: "
             "Per-key process_batch")
       elif isinstance(p, core.DoFn.BundleContextParam):
-        args_for_process_batch[i] = self._bundle_context_values[p]
+        args_for_process_batch[i] = self._bundle_context_values[p][1]
       elif isinstance(p, core.DoFn.SetupContextParam):
-        args_for_process_batch[i] = self._setup_context_values[p]
+        args_for_process_batch[i] = self._setup_context_values[p][1]
 
     kwargs_for_process_batch = kwargs_for_process_batch or {}
 
