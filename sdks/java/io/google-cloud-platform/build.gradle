@@ -43,7 +43,6 @@ dependencies {
   implementation project(":sdks:java:extensions:google-cloud-platform-core")
   implementation project(":sdks:java:extensions:protobuf")
   implementation project(":sdks:java:extensions:arrow")
-  implementation project(":sdks:java:managed")
   implementation library.java.avro
   implementation library.java.bigdataoss_util
   implementation library.java.error_prone_annotations
@@ -167,6 +166,7 @@ dependencies {
   testImplementation project(path: ":runners:direct-java", configuration: "shadow")
   testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
   testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
+  testImplementation project(":sdks:java:managed")
   testImplementation library.java.mockito_core
   testImplementation library.java.powermock
   testImplementation library.java.powermock_mockito
