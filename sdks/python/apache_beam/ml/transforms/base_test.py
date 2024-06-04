@@ -49,8 +49,10 @@ except ImportError:
 
 try:
   import PIL
+  from PIL.Image import Image as PIL_Image
 except ImportError:
   PIL = None  # type: ignore
+  PIL_Image = Any  # type: ignore
 
 try:
 
@@ -506,9 +508,9 @@ class TextEmbeddingHandlerTest(unittest.TestCase):
 
 
 class FakeImageModel:
-  def __call__(self, example: List[PIL.Image.Image]) -> List[PIL.Image.Image]:
+  def __call__(self, example: List[PIL_Image]) -> List[PIL_Image]:
     for i in range(len(example)):
-      if not isinstance(example[i], PIL.Image.Image):
+      if not isinstance(example[i], PIL_Image):
         raise TypeError('Input must be an Image')
     return example
 
@@ -516,7 +518,7 @@ class FakeImageModel:
 class FakeImageModelHandler(ModelHandler):
   def run_inference(
       self,
-      batch: Sequence[PIL.Image.Image],
+      batch: Sequence[PIL_Image],
       model: Any,
       inference_args: Optional[Dict[str, Any]] = None):
     return model(batch)
