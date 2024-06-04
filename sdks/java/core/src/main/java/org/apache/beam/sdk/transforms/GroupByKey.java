@@ -146,8 +146,8 @@ public class GroupByKey<K, V>
   }
 
   /**
-   * Returns a {@code GroupByKey<K, V>} {@code PTransform} that its output can have duplicated
-   * elements.
+   * Returns a {@code GroupByKey<K, V>} {@code PTransform} that is expanded from a
+   * {@link RedistributeByKey} transform whose output can have duplicated elements.
    *
    * @param <K> the type of the keys of the input and output {@code PCollection}s
    * @param <V> the type of the values of the input {@code PCollection} and the elements of the

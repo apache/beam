@@ -988,8 +988,9 @@ public class DataflowPipelineTranslator {
             stepContext.addInput(
                 PropertyNames.IS_MERGING_WINDOW_FN,
                 !windowingStrategy.getWindowFn().isNonMerging());
+            // The property, plumbed from a Redistribute transform, is only added if it is true.
             if (transform.allowDuplicates()) {
-                stepContext.addInput(PropertyNames.ALLOW_DUPLICATES, true);
+              stepContext.addInput(PropertyNames.ALLOW_DUPLICATES, true);
             }
           }
         });
