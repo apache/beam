@@ -76,6 +76,7 @@ import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.Flatten;
+import org.apache.beam.sdk.transforms.DataflowGroupByKey;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -988,6 +989,44 @@ public class DataflowPipelineTranslator {
             stepContext.addInput(
                 PropertyNames.IS_MERGING_WINDOW_FN,
                 !windowingStrategy.getWindowFn().isNonMerging());
+          }
+        });
+
+    registerTransformTranslator(
+        DataflowGroupByKey.class,
+        new TransformTranslator<DataflowGroupByKey>() {
+          @Override
+          public void translate(DataflowGroupByKey transform, TranslationContext context) {
+            dataflowGroupByKeyHelper(transform, context);
+          }
+
+          private <K, V> void dataflowGroupByKeyHelper(
+              DataflowGroupByKey<K, V> transform, TranslationContext context) {
+            StepTranslationContext stepContext = context.addStep(transform, "GroupByKey");
+            PCollection<KV<K, V>> input = context.getInput(transform);
+            stepContext.addInput(PropertyNames.PARALLEL_INPUT, input);
+            stepContext.addOutput(PropertyNames.OUTPUT, context.getOutput(transform));
+
+            WindowingStrategy<?, ?> windowingStrategy = input.getWindowingStrategy();
+            boolean isStreaming =
+                context.getPipelineOptions().as(StreamingOptions.class).isStreaming();
+            boolean allowCombinerLifting =
+                !windowingStrategy.needsMerge()
+                    && windowingStrategy.getWindowFn().assignsToOneWindow();
+            if (isStreaming) {
+              allowCombinerLifting &= transform.fewKeys();
+              // TODO: Allow combiner lifting on the non-default trigger, as appropriate.
+              allowCombinerLifting &= (windowingStrategy.getTrigger() instanceof DefaultTrigger);
+            }
+            stepContext.addInput(PropertyNames.DISALLOW_COMBINER_LIFTING, !allowCombinerLifting);
+            stepContext.addInput(
+                PropertyNames.SERIALIZED_FN,
+                byteArrayToJsonString(
+                    serializeWindowingStrategy(windowingStrategy, context.getPipelineOptions())));
+            stepContext.addInput(
+                PropertyNames.IS_MERGING_WINDOW_FN,
+                !windowingStrategy.getWindowFn().isNonMerging());
+            stepContext.addInput(PropertyNames.ALLOW_DUPLICATES, transform.allowDuplicates());
           }
         });
 
