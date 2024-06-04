@@ -74,8 +74,6 @@ jobs:
       - name: Setup credential helper
         run: |
           gcloud auth configure-docker
-      - name: Install gcloud Kubectl
-        run: gcloud components install kubectl
       - name: run Beam Metrics deployment script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
