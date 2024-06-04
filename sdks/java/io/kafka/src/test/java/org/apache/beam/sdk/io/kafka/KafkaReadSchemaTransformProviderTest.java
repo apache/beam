@@ -36,7 +36,7 @@ import org.apache.beam.sdk.managed.Managed;
 import org.apache.beam.sdk.managed.ManagedTransformConstants;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.utils.YamlUtils;
-import org.apache.beam.sdk.values.PCollectionRowTuple;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
@@ -319,7 +319,7 @@ public class KafkaReadSchemaTransformProviderTest {
       // Kafka Read SchemaTransform gets built in ManagedSchemaTransformProvider's expand
       Managed.read(Managed.KAFKA)
           .withConfig(YamlUtils.yamlStringToMap(config))
-          .expand(PCollectionRowTuple.empty(Pipeline.create()));
+          .expand(PBegin.in(Pipeline.create()));
     }
   }
 

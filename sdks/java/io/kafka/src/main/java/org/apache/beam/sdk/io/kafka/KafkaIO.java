@@ -2663,7 +2663,7 @@ public class KafkaIO {
       abstract Builder<K, V> setProducerConfig(Map<String, Object> producerConfig);
 
       abstract Builder<K, V> setProducerFactoryFn(
-          SerializableFunction<Map<String, Object>, Producer<K, V>> fn);
+          @Nullable SerializableFunction<Map<String, Object>, Producer<K, V>> fn);
 
       abstract Builder<K, V> setKeySerializer(Class<? extends Serializer<K>> serializer);
 
