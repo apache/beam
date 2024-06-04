@@ -929,7 +929,7 @@ def create_java_builtin_provider():
     return java_provider.create_transform(
         'WindowIntoStrategy',
         {
-            'serializedWindowingStrategy': windowing_strategy.to_runner_api(
+            'serialized_windowing_strategy': windowing_strategy.to_runner_api(
                 empty_context).SerializeToString()
         },
         None)

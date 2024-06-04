@@ -91,7 +91,7 @@ public class ManagedSchemaTransformTranslationTest {
 
   @Test
   public void testReCreateTransformFromRowWithConfig() {
-    String yamlString = "extraString: abc\n" + "extraInteger: 123";
+    String yamlString = "extra_string: abc\n" + "extra_integer: 123";
 
     ManagedConfig originalConfig =
         ManagedConfig.builder()
@@ -130,8 +130,8 @@ public class ManagedSchemaTransformTranslationTest {
             .setRowSchema(inputSchema);
     Map<String, Object> underlyingConfig =
         ImmutableMap.<String, Object>builder()
-            .put("extraString", "abc")
-            .put("extraInteger", 123)
+            .put("extra_string", "abc")
+            .put("extra_integer", 123)
             .build();
     String yamlStringConfig = YamlUtils.yamlStringFromMap(underlyingConfig);
     Managed.ManagedTransform transform =

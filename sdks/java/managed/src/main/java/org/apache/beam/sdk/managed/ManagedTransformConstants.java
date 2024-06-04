@@ -45,27 +45,10 @@ public class ManagedTransformConstants {
   public static final String KAFKA_WRITE = "beam:schematransform:org.apache.beam:kafka_write:v1";
 
   private static final Map<String, String> KAFKA_READ_MAPPINGS =
-      ImmutableMap.<String, String>builder()
-          .put("topic", "topic")
-          .put("bootstrap_servers", "bootstrapServers")
-          .put("consumer_config_updates", "consumerConfigUpdates")
-          .put("confluent_schema_registry_url", "confluentSchemaRegistryUrl")
-          .put("confluent_schema_registry_subject", "confluentSchemaRegistrySubject")
-          .put("data_format", "format")
-          .put("schema", "schema")
-          .put("file_descriptor_path", "fileDescriptorPath")
-          .put("message_name", "messageName")
-          .build();
+      ImmutableMap.<String, String>builder().put("data_format", "format").build();
 
   private static final Map<String, String> KAFKA_WRITE_MAPPINGS =
-      ImmutableMap.<String, String>builder()
-          .put("topic", "topic")
-          .put("bootstrap_servers", "bootstrapServers")
-          .put("producer_config_updates", "producerConfigUpdates")
-          .put("data_format", "format")
-          .put("file_descriptor_path", "fileDescriptorPath")
-          .put("message_name", "messageName")
-          .build();
+      ImmutableMap.<String, String>builder().put("data_format", "format").build();
 
   public static final Map<String, Map<String, String>> MAPPINGS =
       ImmutableMap.<String, Map<String, String>>builder()
