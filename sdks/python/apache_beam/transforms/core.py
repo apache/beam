@@ -369,12 +369,8 @@ def get_function_arguments(obj, func):
   func_name = '_inspect_%s' % func
   if hasattr(obj, func_name):
     f = getattr(obj, func_name)
-    if func == 'process':
-      print("YES", obj, f, f())
     return f()
   f = getattr(obj, func)
-  if func == 'process':
-    print("NO", obj, func, f)
   return get_function_args_defaults(f)
 
 
@@ -390,7 +386,6 @@ def get_function_args_defaults(f):
     it doesn't include bound arguments and may follow function wrappers.
   """
   signature = get_signature(f)
-  print(f, signature)
   parameter = inspect.Parameter
   # TODO(BEAM-5878) support kwonlyargs on Python 3.
   _SUPPORTED_ARG_TYPES = [
@@ -531,9 +526,11 @@ class _WatermarkEstimatorParam(_DoFnParam):
 
 
 class _ContextParam(_DoFnParam):
-  def __init__(self, context_manager_constructor, args=(), kwargs=None, *, name=None):
+  def __init__(
+      self, context_manager_constructor, args=(), kwargs=None, *, name=None):
     class_name = self.__class__.__name__.strip('_')
-    if (not callable(context_manager_constructor) or hasattr(context_manager_constructor, '__enter__')):
+    if (not callable(context_manager_constructor) or
+        hasattr(context_manager_constructor, '__enter__')):
       # Context managers constructed with @contextlib.contextmanager can only
       # be used once, and in addition cannot be pickled because they invoke
       # the function on __init__ rather than at __enter__.
@@ -588,7 +585,6 @@ class _SetupContextParam(_ContextParam):
   connections to external services for transforms like `Map`, `FlatMap`, and
   `Filter` where one does not have setup and teardown methods.
   """
-
 
 
 class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):

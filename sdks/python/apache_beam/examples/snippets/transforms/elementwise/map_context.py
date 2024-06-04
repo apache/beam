@@ -59,8 +59,6 @@ def map_context(test=None):
     # Cleanup/closing code, if any, would go here to be called once the
     # processing is done.
 
-  print(beam.runners.common.__file__)
-
   with beam.Pipeline() as pipeline:
     plants = (
         pipeline

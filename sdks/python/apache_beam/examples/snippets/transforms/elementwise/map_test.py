@@ -114,11 +114,14 @@ class MapTest(unittest.TestCase):
 
   def test_map_context(self):
     import re
+
     def check_nonces(output):
       def shares_same_nonces(elements):
         s = set(re.search('\d+ \d+', e).group(0) for e in elements)
         assert len(s) == 1, s
+
       assert_that(output, shares_same_nonces)
+
     map_context.map_context(check_nonces)
 
 

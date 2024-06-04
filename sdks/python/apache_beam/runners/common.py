@@ -159,14 +159,8 @@ class MethodWrapper(object):
           '\'obj_to_invoke\' has to be either a \'DoFn\' or '
           'a \'RestrictionProvider\'. Received %r instead.' % obj_to_invoke)
 
-    if method_name == 'process':
-      print()
-      print(method_name, "-" * 30)
     self.args, self.defaults = core.get_function_arguments(obj_to_invoke,
                                                            method_name)
-    if method_name == 'process':
-      print(self.args, self.defaults)
-
     # TODO(BEAM-5878) support kwonlyargs on Python 3.
     self.method_value = getattr(obj_to_invoke, method_name)
     self.method_name = method_name
@@ -455,7 +449,6 @@ class DoFnSignature(object):
 
   def get_setup_contexts(self):
     seen = set()
-    print('self.process_method', self.process_method.method_value, self.process_method.method_value.__code__)
     for sig in (self.setup_lifecycle_method,
                 self.start_bundle_method,
                 self.process_method,
@@ -463,7 +456,6 @@ class DoFnSignature(object):
                 self.finish_bundle_method,
                 self.teardown_lifecycle_method):
       for d in sig.defaults:
-        print("HERE", sig, d)
         try:
           if isinstance(d, DoFn.SetupContextParam):
             if d not in seen:
