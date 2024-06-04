@@ -15,6 +15,9 @@ _GRADLE_TARGETS = {"sdks:java:io:expansion-service:shadowJar": [KAFKA, ICEBERG]}
 __all__ = ["ICEBERG", "KAFKA", "Read", "Write"]
 
 
+# type: ignore[assignment]
+
+
 class _ManagedTransform(PTransform):
   def __init__(
       self,
@@ -54,8 +57,7 @@ class Read(_ManagedTransform):
     if not identifier:
       raise ValueError(
           f"An unsupported source was specified: '{source}'. Please specify "
-          f"one of the following sources: {self.READ_TRANSFORMS.keys()}"
-      )
+          f"one of the following sources: {self.READ_TRANSFORMS.keys()}")
 
     expansion_service = _resolve_expansion_service(
         source, identifier, expansion_service)
