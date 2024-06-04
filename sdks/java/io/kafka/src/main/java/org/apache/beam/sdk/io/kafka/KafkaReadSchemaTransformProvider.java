@@ -130,7 +130,8 @@ public class KafkaReadSchemaTransformProvider
         return SchemaRegistry.createDefault()
             .getToRowFunction(KafkaReadSchemaTransformConfiguration.class)
             .apply(configuration)
-            .sorted();
+            .sorted()
+            .toSnakeCase();
       } catch (NoSuchSchemaException e) {
         throw new RuntimeException(e);
       }

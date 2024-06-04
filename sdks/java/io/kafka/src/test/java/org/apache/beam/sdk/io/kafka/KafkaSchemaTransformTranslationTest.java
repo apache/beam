@@ -59,21 +59,37 @@ public class KafkaSchemaTransformTranslationTest {
   static final KafkaReadSchemaTransformProvider READ_PROVIDER =
       new KafkaReadSchemaTransformProvider();
 
+  static final Row READ_CONFIG =
+      Row.withSchema(READ_PROVIDER.configurationSchema())
+          .withFieldValue("format", "RAW")
+          .withFieldValue("topic", "test_topic")
+          .withFieldValue("bootstrap_servers", "host:port")
+          .withFieldValue("confluent_schema_registry_url", null)
+          .withFieldValue("confluent_schema_registry_subject", null)
+          .withFieldValue("schema", null)
+          .withFieldValue("file_descriptor_path", "testPath")
+          .withFieldValue("message_name", "test_message")
+          .withFieldValue("auto_offset_reset_config", "earliest")
+          .withFieldValue("consumer_config_updates", ImmutableMap.<String, String>builder().build())
+          .withFieldValue("error_handling", null)
+          .build();
+
+  static final Row WRITE_CONFIG =
+      Row.withSchema(WRITE_PROVIDER.configurationSchema())
+          .withFieldValue("format", "RAW")
+          .withFieldValue("topic", "test_topic")
+          .withFieldValue("bootstrap_servers", "host:port")
+          .withFieldValue("producer_config_updates", ImmutableMap.<String, String>builder().build())
+          .withFieldValue("error_handling", null)
+          .withFieldValue("file_descriptor_path", "testPath")
+          .withFieldValue("message_name", "test_message")
+          .withFieldValue("schema", "test_schema")
+          .build();
+
   @Test
   public void testRecreateWriteTransformFromRow() {
-    Row transformConfigRow =
-        Row.withSchema(WRITE_PROVIDER.configurationSchema())
-            .withFieldValue("format", "RAW")
-            .withFieldValue("topic", "test_topic")
-            .withFieldValue("bootstrapServers", "host:port")
-            .withFieldValue("producerConfigUpdates", ImmutableMap.<String, String>builder().build())
-            .withFieldValue("errorHandling", null)
-            .withFieldValue("fileDescriptorPath", "testPath")
-            .withFieldValue("messageName", "test_message")
-            .withFieldValue("schema", "test_schema")
-            .build();
     KafkaWriteSchemaTransform writeTransform =
-        (KafkaWriteSchemaTransform) WRITE_PROVIDER.from(transformConfigRow);
+        (KafkaWriteSchemaTransform) WRITE_PROVIDER.from(WRITE_CONFIG);
 
     KafkaWriteSchemaTransformTranslator translator = new KafkaWriteSchemaTransformTranslator();
     Row translatedRow = translator.toConfigRow(writeTransform);
@@ -81,7 +97,7 @@ public class KafkaSchemaTransformTranslationTest {
     KafkaWriteSchemaTransform writeTransformFromRow =
         translator.fromConfigRow(translatedRow, PipelineOptionsFactory.create());
 
-    assertEquals(transformConfigRow, writeTransformFromRow.getConfigurationRow());
+    assertEquals(WRITE_CONFIG, writeTransformFromRow.getConfigurationRow());
   }
 
   @Test
@@ -97,20 +113,8 @@ public class KafkaSchemaTransformTranslationTest {
                         Row.withSchema(inputSchema).addValue(new byte[] {1, 2, 3}).build())))
             .setRowSchema(inputSchema);
 
-    Row transformConfigRow =
-        Row.withSchema(WRITE_PROVIDER.configurationSchema())
-            .withFieldValue("format", "RAW")
-            .withFieldValue("topic", "test_topic")
-            .withFieldValue("bootstrapServers", "host:port")
-            .withFieldValue("producerConfigUpdates", ImmutableMap.<String, String>builder().build())
-            .withFieldValue("errorHandling", null)
-            .withFieldValue("fileDescriptorPath", "testPath")
-            .withFieldValue("messageName", "test_message")
-            .withFieldValue("schema", "test_schema")
-            .build();
-
     KafkaWriteSchemaTransform writeTransform =
-        (KafkaWriteSchemaTransform) WRITE_PROVIDER.from(transformConfigRow);
+        (KafkaWriteSchemaTransform) WRITE_PROVIDER.from(WRITE_CONFIG);
     PCollectionRowTuple.of("input", input).apply(writeTransform);
 
     // Then translate the pipeline to a proto and extract KafkaWriteSchemaTransform proto
@@ -139,36 +143,21 @@ public class KafkaSchemaTransformTranslationTest {
     assertEquals(WRITE_PROVIDER.configurationSchema(), schemaFromSpec);
     Row rowFromSpec = RowCoder.of(schemaFromSpec).decode(payload.getConfigurationRow().newInput());
 
-    assertEquals(transformConfigRow, rowFromSpec);
+    assertEquals(WRITE_CONFIG, rowFromSpec);
 
     // Use the information in the proto to recreate the KafkaWriteSchemaTransform
     KafkaWriteSchemaTransformTranslator translator = new KafkaWriteSchemaTransformTranslator();
     KafkaWriteSchemaTransform writeTransformFromSpec =
         translator.fromConfigRow(rowFromSpec, PipelineOptionsFactory.create());
 
-    assertEquals(transformConfigRow, writeTransformFromSpec.getConfigurationRow());
+    assertEquals(WRITE_CONFIG, writeTransformFromSpec.getConfigurationRow());
   }
 
   @Test
   public void testReCreateReadTransformFromRow() {
     // setting a subset of fields here.
-    Row transformConfigRow =
-        Row.withSchema(READ_PROVIDER.configurationSchema())
-            .withFieldValue("format", "RAW")
-            .withFieldValue("topic", "test_topic")
-            .withFieldValue("bootstrapServers", "host:port")
-            .withFieldValue("confluentSchemaRegistryUrl", "test_url")
-            .withFieldValue("confluentSchemaRegistrySubject", "test_subject")
-            .withFieldValue("schema", "test_schema")
-            .withFieldValue("fileDescriptorPath", "testPath")
-            .withFieldValue("messageName", "test_message")
-            .withFieldValue("autoOffsetResetConfig", "earliest")
-            .withFieldValue("consumerConfigUpdates", ImmutableMap.<String, String>builder().build())
-            .withFieldValue("errorHandling", null)
-            .build();
-
     KafkaReadSchemaTransform readTransform =
-        (KafkaReadSchemaTransform) READ_PROVIDER.from(transformConfigRow);
+        (KafkaReadSchemaTransform) READ_PROVIDER.from(READ_CONFIG);
 
     KafkaReadSchemaTransformTranslator translator = new KafkaReadSchemaTransformTranslator();
     Row row = translator.toConfigRow(readTransform);
@@ -176,7 +165,7 @@ public class KafkaSchemaTransformTranslationTest {
     KafkaReadSchemaTransform readTransformFromRow =
         translator.fromConfigRow(row, PipelineOptionsFactory.create());
 
-    assertEquals(transformConfigRow, readTransformFromRow.getConfigurationRow());
+    assertEquals(READ_CONFIG, readTransformFromRow.getConfigurationRow());
   }
 
   @Test
@@ -184,23 +173,9 @@ public class KafkaSchemaTransformTranslationTest {
       throws InvalidProtocolBufferException, IOException {
     // First build a pipeline
     Pipeline p = Pipeline.create();
-    Row transformConfigRow =
-        Row.withSchema(READ_PROVIDER.configurationSchema())
-            .withFieldValue("format", "RAW")
-            .withFieldValue("topic", "test_topic")
-            .withFieldValue("bootstrapServers", "host:port")
-            .withFieldValue("confluentSchemaRegistryUrl", null)
-            .withFieldValue("confluentSchemaRegistrySubject", null)
-            .withFieldValue("schema", null)
-            .withFieldValue("fileDescriptorPath", "testPath")
-            .withFieldValue("messageName", "test_message")
-            .withFieldValue("autoOffsetResetConfig", "earliest")
-            .withFieldValue("consumerConfigUpdates", ImmutableMap.<String, String>builder().build())
-            .withFieldValue("errorHandling", null)
-            .build();
 
     KafkaReadSchemaTransform readTransform =
-        (KafkaReadSchemaTransform) READ_PROVIDER.from(transformConfigRow);
+        (KafkaReadSchemaTransform) READ_PROVIDER.from(READ_CONFIG);
 
     PCollectionRowTuple.empty(p).apply(readTransform);
 
@@ -229,13 +204,13 @@ public class KafkaSchemaTransformTranslationTest {
     Schema schemaFromSpec = SchemaTranslation.schemaFromProto(payload.getConfigurationSchema());
     assertEquals(READ_PROVIDER.configurationSchema(), schemaFromSpec);
     Row rowFromSpec = RowCoder.of(schemaFromSpec).decode(payload.getConfigurationRow().newInput());
-    assertEquals(transformConfigRow, rowFromSpec);
+    assertEquals(READ_CONFIG, rowFromSpec);
 
     // Use the information in the proto to recreate the KafkaReadSchemaTransform
     KafkaReadSchemaTransformTranslator translator = new KafkaReadSchemaTransformTranslator();
     KafkaReadSchemaTransform readTransformFromSpec =
         translator.fromConfigRow(rowFromSpec, PipelineOptionsFactory.create());
 
-    assertEquals(transformConfigRow, readTransformFromSpec.getConfigurationRow());
+    assertEquals(READ_CONFIG, readTransformFromSpec.getConfigurationRow());
   }
 }
