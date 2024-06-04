@@ -38,7 +38,6 @@ from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.transforms import base
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-import PIL.Image
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
@@ -47,6 +46,12 @@ try:
   from apache_beam.ml.transforms.tft import TFTOperation
 except ImportError:
   tft = None  # type: ignore
+
+try:
+  from PIL.Image import Image
+  import PIL.Image
+except ImportError:
+  Image = None  # type: ignore
 
 try:
 
@@ -544,6 +549,7 @@ class TestImageEmbeddingHandler(unittest.TestCase):
   def tearDown(self) -> None:
     shutil.rmtree(self.artifact_location)
 
+  @unittest.skipIf(Image is None, 'PIL module is not installed.')
   def test_handler_with_incompatible_datatype(self):
     text_handler = base._ImageEmbeddingHandler(
         embeddings_manager=self.embedding_config)
@@ -555,6 +561,7 @@ class TestImageEmbeddingHandler(unittest.TestCase):
     with self.assertRaises(TypeError):
       text_handler.run_inference(data, None, None)
 
+  @unittest.skipIf(Image is None, 'PIL module is not installed.')
   def test_handler_with_dict_inputs(self):
     img_one = PIL.Image.new(mode='RGB', size=(1, 1))
     img_two = PIL.Image.new(mode='RGB', size=(1, 1))
