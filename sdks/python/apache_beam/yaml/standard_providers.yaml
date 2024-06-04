@@ -79,7 +79,7 @@
       'Filter-generic':
         language: 'language'
         keep: 'keep'
-        error_handling: 'errorHandling'
+        error_handling: 'error_handling'
       'Filter-java':
         language: 'language'
         keep: 'keep'
