@@ -25,6 +25,7 @@ import com.google.api.gax.batching.BatchingException;
 import com.google.api.gax.grpc.GrpcCallContext;
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.ResponseObserver;
+import com.google.api.gax.rpc.ServerStream;
 import com.google.api.gax.rpc.StreamController;
 import com.google.bigtable.v2.Cell;
 import com.google.bigtable.v2.Column;
@@ -137,6 +138,10 @@ class BigtableServiceImpl implements BigtableService {
 
     private Row currentRow;
 
+    private ServerStream<Row> stream;
+
+    private boolean exhausted;
+
     @VisibleForTesting
     BigtableReaderImpl(
         BigtableDataClient client,
@@ -168,11 +173,11 @@ class BigtableServiceImpl implements BigtableService {
         query.filter(Filters.FILTERS.fromProto(rowFilter));
       }
       try {
-        results =
+        stream =
             client
                 .readRowsCallable(new BigtableRowProtoAdapter())
-                .call(query, GrpcCallContext.createDefault())
-                .iterator();
+                .call(query, GrpcCallContext.createDefault());
+        results = stream.iterator();
         serviceCallMetric.call("ok");
       } catch (StatusRuntimeException e) {
         serviceCallMetric.call(e.getStatus().getCode().toString());
@@ -187,6 +192,7 @@ class BigtableServiceImpl implements BigtableService {
         currentRow = results.next();
         return true;
       }
+      exhausted = true;
       return false;
     }
 
@@ -196,6 +202,14 @@ class BigtableServiceImpl implements BigtableService {
         throw new NoSuchElementException();
       }
       return currentRow;
+    }
+
+    @Override
+    public void close() {
+      if (!exhausted) {
+        stream.cancel();
+        exhausted = true;
+      }
     }
   }
 
@@ -294,6 +308,9 @@ class BigtableServiceImpl implements BigtableService {
       this.refillSegmentWaterMark =
           Math.max(1, (int) (request.getRowsLimit() * WATERMARK_PERCENTAGE));
     }
+
+    @Override
+    public void close() {}
 
     @Override
     public boolean start() throws IOException {

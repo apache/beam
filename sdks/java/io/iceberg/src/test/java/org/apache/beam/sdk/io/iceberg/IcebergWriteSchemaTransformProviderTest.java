@@ -64,8 +64,7 @@ public class IcebergWriteSchemaTransformProviderTest {
     Row catalogConfigRow =
         Row.withSchema(IcebergSchemaTransformCatalogConfig.SCHEMA)
             .withFieldValue("catalog_name", "test_name")
-            .withFieldValue("catalog_type", "test_type")
-            .withFieldValue("catalog_implementation", "testImplementation")
+            .withFieldValue("catalog_type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
             .withFieldValue("warehouse_location", "test_location")
             .build();
     Row transformConfigRow =

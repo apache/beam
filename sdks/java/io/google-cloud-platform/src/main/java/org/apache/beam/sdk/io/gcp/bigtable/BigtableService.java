@@ -75,6 +75,8 @@ interface BigtableService extends Serializable {
      * current row because the last such call was unsuccessful.
      */
     Row getCurrentRow() throws NoSuchElementException;
+
+    void close();
   }
 
   /** Returns a {@link Reader} that will read from the specified source. */
