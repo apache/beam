@@ -122,18 +122,18 @@ public class KafkaReadSchemaTransformProviderTest {
 
     assertEquals(
         Sets.newHashSet(
-            "bootstrapServers",
+            "bootstrap_servers",
             "topic",
             "schema",
-            "autoOffsetResetConfig",
-            "consumerConfigUpdates",
+            "auto_offset_reset_config",
+            "consumer_config_updates",
             "format",
-            "confluentSchemaRegistrySubject",
-            "confluentSchemaRegistryUrl",
-            "errorHandling",
-            "fileDescriptorPath",
-            "messageName",
-            "maxReadTimeSeconds"),
+            "confluent_schema_registry_subject",
+            "confluent_schema_registry_url",
+            "error_handling",
+            "file_descriptor_path",
+            "message_name",
+            "max_read_time_seconds"),
         kafkaProvider.configurationSchema().getFields().stream()
             .map(field -> field.getName())
             .collect(Collectors.toSet()));

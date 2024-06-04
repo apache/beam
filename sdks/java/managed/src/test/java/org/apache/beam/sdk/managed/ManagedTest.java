@@ -90,7 +90,7 @@ public class ManagedTest {
             .setIdentifier(TestSchemaTransformProvider.IDENTIFIER)
             .build()
             .withSupportedIdentifiers(Arrays.asList(TestSchemaTransformProvider.IDENTIFIER))
-            .withConfig(ImmutableMap.of("extraString", "abc", "extraInteger", 123));
+            .withConfig(ImmutableMap.of("extra_string", "abc", "extra_integer", 123));
 
     runTestProviderTest(writeOp);
   }

@@ -24,7 +24,7 @@ pluginManagement {
 }
 
 plugins {
-  id("com.gradle.enterprise") version "3.17.2"
+  id("com.gradle.enterprise") version "3.17.4"
   id("com.gradle.common-custom-user-data-gradle-plugin") version "1.12.1"
 }
 
@@ -129,10 +129,6 @@ include(":runners:extensions-java:metrics")
   * verify versions in website/www/site/content/en/documentation/runners/flink.md
   * verify version in sdks/python/apache_beam/runners/interactive/interactive_beam.py
  */
-// Flink 1.14
-include(":runners:flink:1.14")
-include(":runners:flink:1.14:job-server")
-include(":runners:flink:1.14:job-server-container")
 // Flink 1.15
 include(":runners:flink:1.15")
 include(":runners:flink:1.15:job-server")
@@ -305,21 +301,25 @@ include(":sdks:python:test-suites:dataflow:py38")
 include(":sdks:python:test-suites:dataflow:py39")
 include(":sdks:python:test-suites:dataflow:py310")
 include(":sdks:python:test-suites:dataflow:py311")
+include(":sdks:python:test-suites:dataflow:py312")
 include(":sdks:python:test-suites:direct")
 include(":sdks:python:test-suites:direct:py38")
 include(":sdks:python:test-suites:direct:py39")
 include(":sdks:python:test-suites:direct:py310")
 include(":sdks:python:test-suites:direct:py311")
+include(":sdks:python:test-suites:direct:py312")
 include(":sdks:python:test-suites:direct:xlang")
 include(":sdks:python:test-suites:portable:py38")
 include(":sdks:python:test-suites:portable:py39")
 include(":sdks:python:test-suites:portable:py310")
 include(":sdks:python:test-suites:portable:py311")
+include(":sdks:python:test-suites:portable:py312")
 include(":sdks:python:test-suites:tox:pycommon")
 include(":sdks:python:test-suites:tox:py38")
 include(":sdks:python:test-suites:tox:py39")
 include(":sdks:python:test-suites:tox:py310")
 include(":sdks:python:test-suites:tox:py311")
+include(":sdks:python:test-suites:tox:py312")
 include(":sdks:python:test-suites:xlang")
 include(":sdks:typescript")
 include(":sdks:typescript:container")

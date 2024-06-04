@@ -661,7 +661,8 @@ public class FakeDatasetService implements DatasetService, WriteStreamService, S
             }
             fieldDescriptor = protoDescriptor.findFieldByName(StorageApiCDC.CHANGE_SQN_COLUMN);
             if (fieldDescriptor != null) {
-              changeSequenceNum = (long) msg.getField(fieldDescriptor);
+              String changeSequenceNumHex = (String) msg.getField(fieldDescriptor);
+              changeSequenceNum = Long.parseUnsignedLong(changeSequenceNumHex, 16);
             }
             Stream.Entry.UpdateType insertType = Stream.Entry.UpdateType.INSERT;
             if (insertTypeStr != null) {

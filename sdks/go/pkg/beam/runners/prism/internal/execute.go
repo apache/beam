@@ -286,7 +286,12 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 					case *pipepb.TestStreamPayload_Event_WatermarkEvent:
 						tsb.AddWatermarkEvent(ev.WatermarkEvent.GetTag(), mtime.Time(ev.WatermarkEvent.GetNewWatermark()))
 					case *pipepb.TestStreamPayload_Event_ProcessingTimeEvent:
-						tsb.AddProcessingTimeEvent(time.Duration(ev.ProcessingTimeEvent.GetAdvanceDuration()) * time.Millisecond)
+						if ev.ProcessingTimeEvent.GetAdvanceDuration() == int64(mtime.MaxTimestamp) {
+							// TODO: Determine the SDK common formalism for setting processing time to infinity.
+							tsb.AddProcessingTimeEvent(time.Duration(mtime.MaxTimestamp))
+						} else {
+							tsb.AddProcessingTimeEvent(time.Duration(ev.ProcessingTimeEvent.GetAdvanceDuration()) * time.Millisecond)
+						}
 					default:
 						return fmt.Errorf("prism error building stage %v - unknown TestStream event type: %T", stage.ID, ev)
 					}
@@ -309,6 +314,9 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 			em.AddStage(stage.ID, []string{stage.primaryInput}, outputs, stage.sideInputs)
 			if stage.stateful {
 				em.StageStateful(stage.ID)
+			}
+			if len(stage.processingTimeTimers) > 0 {
+				em.StageProcessingTimeTimers(stage.ID, stage.processingTimeTimers)
 			}
 		default:
 			err := fmt.Errorf("unknown environment[%v]", t.GetEnvironmentId())

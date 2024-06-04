@@ -57,8 +57,8 @@ dependencies {
 
     testImplementation library.java.hadoop_client
     testImplementation library.java.bigdataoss_gcsio
-    testImplementation "com.google.cloud.bigdataoss:gcs-connector:hadoop2-2.2.16"
-    testImplementation "com.google.cloud.bigdataoss:util-hadoop:hadoop2-2.2.16"
+    testImplementation library.java.bigdataoss_gcs_connector
+    testImplementation library.java.bigdataoss_util_hadoop
     testImplementation "org.apache.iceberg:iceberg-gcp:$iceberg_version"
     testImplementation "org.apache.iceberg:iceberg-data:$iceberg_version"
     testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
@@ -66,6 +66,7 @@ dependencies {
     testImplementation library.java.junit
     testRuntimeOnly library.java.slf4j_jdk14
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+    testRuntimeOnly project(path: ":runners:google-cloud-dataflow-java")
     hadoopVersions.each {kv ->
         "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-client:$kv.value"
     }
@@ -95,7 +96,7 @@ hadoopVersions.each { kv ->
     }
 }
 
-task integrationTest(type: Test, dependsOn: processTestResources) {
+task integrationTest(type: Test) {
     group = "Verification"
     def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
     def gcpTempLocation = project.findProperty('gcpTempLocation') ?: 'gs://temp-storage-for-end-to-end-tests'
@@ -108,6 +109,27 @@ task integrationTest(type: Test, dependsOn: processTestResources) {
     outputs.upToDateWhen { false }
 
     include '**/*IT.class'
+
+    maxParallelForks 4
+    classpath = sourceSets.test.runtimeClasspath
+    testClassesDirs = sourceSets.test.output.classesDirs
+}
+
+task loadTest(type: Test) {
+    def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+    def gcpTempLocation = project.findProperty('gcpTempLocation') ?: 'gs://temp-storage-for-end-to-end-tests/temp-lt'
+    systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+            "--project=${gcpProject}",
+            "--tempLocation=${gcpTempLocation}",
+            "--testSize=large",
+            "--runner=DataflowRunner",
+            "--region=us-central1"
+    ])
+
+    // Disable Gradle cache: these ITs interact with live service that should always be considered "out of date"
+    outputs.upToDateWhen { false }
+
+    include '**/*LT.class'
 
     maxParallelForks 4
     classpath = sourceSets.test.runtimeClasspath

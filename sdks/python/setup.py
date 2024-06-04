@@ -383,7 +383,9 @@ if __name__ == '__main__':
           'pytz>=2018.3',
           'redis>=5.0.0,<6',
           'regex>=2020.6.8',
-          'requests>=2.24.0,<3.0.0',
+          # unblock tests until new version of `docker` is released.
+          # https://github.com/docker/docker-py/pull/3257
+          'requests>=2.24.0,<3.0.0,!=2.32.*',
           'typing-extensions>=3.7.0',
           'zstandard>=0.18.0,<1',
           # Dynamic dependencies must be specified in a separate list, otherwise
@@ -419,6 +421,7 @@ if __name__ == '__main__':
               'pytest-xdist>=2.5.0,<4',
               'pytest-timeout>=2.1.0,<3',
               'scikit-learn>=0.20.0',
+              'setuptools',
               'sqlalchemy>=1.3,<3.0',
               'psycopg2-binary>=2.8.5,<3.0.0',
               'testcontainers[mysql]>=3.0.3,<4.0.0',
@@ -437,7 +440,7 @@ if __name__ == '__main__':
               'google-cloud-datastore>=2.0.0,<3',
               'google-cloud-pubsub>=2.1.0,<3',
               'google-cloud-pubsublite>=1.2.0,<2',
-              'google-cloud-storage>=2.14.0,<3',
+              'google-cloud-storage>=2.16.0,<3',
               # GCP packages required by tests
               'google-cloud-bigquery>=2.0.0,<4',
               'google-cloud-bigquery-storage>=2.6.3,<3',
@@ -485,8 +488,9 @@ if __name__ == '__main__':
               'onnxruntime',
               'sentence-transformers',
               'skl2onnx',
-              # https://github.com/apache/beam/issues/31294
-              'tensorflow<2.16.0',
+              # Support TF 2.16.0: https://github.com/apache/beam/issues/31294
+              # Once TF version is unpinned, also don't restrict Python version.
+              'tensorflow<2.16.0;python_version<"3.12"',
               'tensorflow-hub',
               # https://github.com/tensorflow/transform/issues/313
               'tensorflow-transform;python_version<"3.11"',
@@ -523,6 +527,7 @@ if __name__ == '__main__':
           'Programming Language :: Python :: 3.9',
           'Programming Language :: Python :: 3.10',
           'Programming Language :: Python :: 3.11',
+          'Programming Language :: Python :: 3.12',
           # When updating version classifiers, also update version warnings
           # above and in apache_beam/__init__.py.
           'Topic :: Software Development :: Libraries',

@@ -70,7 +70,7 @@ public class StorageApiSinkRowUpdateIT {
   }
 
   @Test
-  public void testCdc() throws Exception {
+  public void testCdcUsingLongSeqNum() throws Exception {
     TableSchema tableSchema =
         new TableSchema()
             .setFields(
@@ -105,6 +105,67 @@ public class StorageApiSinkRowUpdateIT {
             RowMutation.of(
                 new TableRow().set("key1", "foo4").set("key2", "bar4").set("value", "1"),
                 RowMutationInformation.of(RowMutationInformation.MutationType.DELETE, 1)));
+
+    List<String> primaryKey = Lists.newArrayList("key1", "key2");
+    String tableSpec = getTablespec();
+    Pipeline p = Pipeline.create();
+    p.apply("Create rows", Create.of(items))
+        .apply(
+            "Apply updates",
+            BigQueryIO.applyRowMutations()
+                .to(tableSpec)
+                .withSchema(tableSchema)
+                .withPrimaryKey(primaryKey)
+                .withClustering(new Clustering().setFields(primaryKey))
+                .withMethod(BigQueryIO.Write.Method.STORAGE_API_AT_LEAST_ONCE)
+                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED));
+
+    p.run();
+
+    List<TableRow> expected =
+        Lists.newArrayList(
+            new TableRow().set("key1", "foo0").set("key2", "bar0").set("value", "2"),
+            new TableRow().set("key1", "foo1").set("key2", "bar1").set("value", "3"),
+            new TableRow().set("key1", "foo3").set("key2", "bar3").set("value", "1"));
+    assertRowsWritten(tableSpec, expected);
+  }
+
+  @Test
+  public void testCdcUsingHexSequenceNum() throws Exception {
+    TableSchema tableSchema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("key1").setType("STRING"),
+                    new TableFieldSchema().setName("key2").setType("STRING"),
+                    new TableFieldSchema().setName("value").setType("STRING")));
+
+    List<RowMutation> items =
+        Lists.newArrayList(
+            RowMutation.of(
+                new TableRow().set("key1", "foo0").set("key2", "bar0").set("value", "1"),
+                RowMutationInformation.of(RowMutationInformation.MutationType.UPSERT, "AAA/0")),
+            RowMutation.of(
+                new TableRow().set("key1", "foo1").set("key2", "bar1").set("value", "1"),
+                RowMutationInformation.of(RowMutationInformation.MutationType.UPSERT, "AAA/0")),
+            RowMutation.of(
+                new TableRow().set("key1", "foo0").set("key2", "bar0").set("value", "2"),
+                RowMutationInformation.of(RowMutationInformation.MutationType.UPSERT, "AAA/1")),
+            RowMutation.of(
+                new TableRow().set("key1", "foo1").set("key2", "bar1").set("value", "1"),
+                RowMutationInformation.of(RowMutationInformation.MutationType.DELETE, "AAA/1")),
+            RowMutation.of(
+                new TableRow().set("key1", "foo3").set("key2", "bar3").set("value", "1"),
+                RowMutationInformation.of(RowMutationInformation.MutationType.UPSERT, "AAA/0")),
+            RowMutation.of(
+                new TableRow().set("key1", "foo1").set("key2", "bar1").set("value", "3"),
+                RowMutationInformation.of(RowMutationInformation.MutationType.UPSERT, "AAA/2")),
+            RowMutation.of(
+                new TableRow().set("key1", "foo4").set("key2", "bar4").set("value", "1"),
+                RowMutationInformation.of(RowMutationInformation.MutationType.UPSERT, "AAA/0")),
+            RowMutation.of(
+                new TableRow().set("key1", "foo4").set("key2", "bar4").set("value", "1"),
+                RowMutationInformation.of(RowMutationInformation.MutationType.DELETE, "AAA/1")));
 
     List<String> primaryKey = Lists.newArrayList("key1", "key2");
     String tableSpec = getTablespec();

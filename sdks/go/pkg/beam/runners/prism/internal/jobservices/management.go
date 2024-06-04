@@ -160,7 +160,7 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jo
 			}
 			// Validate all the timer features
 			for _, spec := range pardo.GetTimerFamilySpecs() {
-				check("TimerFamilySpecs.TimeDomain.Urn", spec.GetTimeDomain(), pipepb.TimeDomain_EVENT_TIME)
+				check("TimerFamilySpecs.TimeDomain.Urn", spec.GetTimeDomain(), pipepb.TimeDomain_EVENT_TIME, pipepb.TimeDomain_PROCESSING_TIME)
 			}
 
 			check("OnWindowExpirationTimerFamily", pardo.GetOnWindowExpirationTimerFamilySpec(), "") // Unsupported for now.
@@ -175,11 +175,6 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jo
 			var testStream pipepb.TestStreamPayload
 			if err := proto.Unmarshal(t.GetSpec().GetPayload(), &testStream); err != nil {
 				return nil, fmt.Errorf("unable to unmarshal TestStreamPayload for %v - %q: %w", tid, t.GetUniqueName(), err)
-			}
-			for _, ev := range testStream.GetEvents() {
-				if ev.GetProcessingTimeEvent() != nil {
-					check("TestStream.Event - ProcessingTimeEvents unsupported.", ev.GetProcessingTimeEvent())
-				}
 			}
 
 			t.EnvironmentId = "" // Unset the environment, to ensure it's handled prism side.
@@ -206,7 +201,13 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jo
 			check("WindowingStrategy.OutputTime", ws.GetOutputTime(), pipepb.OutputTime_END_OF_WINDOW)
 			// Non nil triggers should fail.
 			if ws.GetTrigger().GetDefault() == nil {
-				check("WindowingStrategy.Trigger", ws.GetTrigger(), &pipepb.Trigger_Default{})
+				dt := &pipepb.Trigger{
+					Trigger: &pipepb.Trigger_Default_{},
+				}
+				nt := &pipepb.Trigger{
+					Trigger: &pipepb.Trigger_Never_{},
+				}
+				check("WindowingStrategy.Trigger", ws.GetTrigger().String(), dt.String(), nt.String())
 			}
 		}
 	}

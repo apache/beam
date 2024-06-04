@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker.windmill.work.budget;
 
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -30,6 +31,7 @@ import java.util.List;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
+import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillStreamFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.WindmillStreamSender;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
@@ -46,9 +48,8 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class EvenGetWorkBudgetDistributorTest {
-  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   @Rule public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
-
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private ManagedChannel inProcessChannel;
   private CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub stub;
 
@@ -257,11 +258,8 @@ public class EvenGetWorkBudgetDistributorTest {
                     .setWorkerId("worker")
                     .build())
             .build(),
-        (computation,
-            inputDataWatermark,
-            synchronizedProcessingTime,
-            workItem,
-            ackQueuedWorkItem,
-            getWorkStreamLatencies) -> {});
+        (workItem, watermarks, processingContext, ackWorkItemQueued, getWorkStreamLatencies) -> {},
+        ignored -> mock(WorkCommitter.class),
+        ignored -> {});
   }
 }

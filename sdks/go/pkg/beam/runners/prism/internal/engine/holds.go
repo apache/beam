@@ -22,26 +22,37 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 )
 
-// holdHeap orders holds based on their timestamps
-// so we can always find the minimum timestamp of pending holds.
-type holdHeap []mtime.Time
+// mtimeHeap is a minHeap to find the earliest processing time event.
+// Used for holds, and general processing time event ordering.
+type mtimeHeap []mtime.Time
 
-func (h holdHeap) Len() int           { return len(h) }
-func (h holdHeap) Less(i, j int) bool { return h[i] < h[j] }
-func (h holdHeap) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
+func (h mtimeHeap) Len() int { return len(h) }
+func (h mtimeHeap) Less(i, j int) bool {
+	return h[i] < h[j]
+}
+func (h mtimeHeap) Swap(i, j int) { h[i], h[j] = h[j], h[i] }
 
-func (h *holdHeap) Push(x any) {
+func (h *mtimeHeap) Push(x any) {
 	// Push and Pop use pointer receivers because they modify the slice's length,
 	// not just its contents.
 	*h = append(*h, x.(mtime.Time))
 }
 
-func (h *holdHeap) Pop() any {
+func (h *mtimeHeap) Pop() any {
 	old := *h
 	n := len(old)
 	x := old[n-1]
 	*h = old[0 : n-1]
 	return x
+}
+
+func (h *mtimeHeap) Remove(toRemove mtime.Time) {
+	for i, v := range *h {
+		if v == toRemove {
+			heap.Remove(h, i)
+			return
+		}
+	}
 }
 
 // holdTracker track the watermark holds for a stage.
@@ -55,7 +66,7 @@ func (h *holdHeap) Pop() any {
 // A heap of the hold times is kept so we have quick access to the minimum hold, for calculating
 // how to advance the watermark.
 type holdTracker struct {
-	heap   holdHeap
+	heap   mtimeHeap
 	counts map[mtime.Time]int
 }
 
@@ -76,19 +87,13 @@ func (ht *holdTracker) Drop(hold mtime.Time, v int) {
 		panic(fmt.Sprintf("prism error: negative watermark hold count %v for time %v", n, hold))
 	}
 	delete(ht.counts, hold)
-	for i, h := range ht.heap {
-		if hold == h {
-			heap.Remove(&ht.heap, i)
-			break
-		}
-	}
+	ht.heap.Remove(hold)
 }
 
 // Add a hold a number of times to heap. If the hold time isn't already present in the heap, it is added.
 func (ht *holdTracker) Add(hold mtime.Time, v int) {
 	// Mark the hold in the heap.
-	ht.counts[hold] = ht.counts[hold] + v
-
+	ht.counts[hold] += v
 	if len(ht.counts) != len(ht.heap) {
 		// Since there's a difference, the hold should not be in the heap, so we add it.
 		heap.Push(&ht.heap, hold)

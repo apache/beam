@@ -39,6 +39,7 @@ from google.cloud import storage
 from google.cloud.exceptions import NotFound
 from google.cloud.storage.fileio import BlobReader
 from google.cloud.storage.fileio import BlobWriter
+from google.cloud.storage.retry import DEFAULT_RETRY
 
 from apache_beam import version as beam_version
 from apache_beam.internal.gcp import auth
@@ -162,12 +163,21 @@ class GcsIO(object):
     except NotFound:
       return None
 
-  def create_bucket(self, bucket_name, project, kms_key=None, location=None):
+  def create_bucket(
+      self,
+      bucket_name,
+      project,
+      kms_key=None,
+      location=None,
+      soft_delete_retention_duration_seconds=0):
     """Create and return a GCS bucket in a specific project."""
 
     try:
+      bucket = self.client.bucket(bucket_name)
+      bucket.soft_delete_policy.retention_duration_seconds = (
+          soft_delete_retention_duration_seconds)
       bucket = self.client.create_bucket(
-          bucket_or_name=bucket_name,
+          bucket_or_name=bucket,
           project=project,
           location=location,
       )
@@ -533,5 +543,6 @@ class BeamBlobWriter(BlobWriter):
         blob,
         content_type=content_type,
         chunk_size=chunk_size,
-        ignore_flush=ignore_flush)
+        ignore_flush=ignore_flush,
+        retry=DEFAULT_RETRY)
     self.mode = "w"

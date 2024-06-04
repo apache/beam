@@ -104,14 +104,15 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
 
   @Override
   public void stop() {
-    if (!commitSenders.isTerminated() || !commitSenders.isShutdown()) {
-      commitSenders.shutdown();
+    if (!commitSenders.isTerminated()) {
+      commitSenders.shutdownNow();
       try {
         commitSenders.awaitTermination(10, TimeUnit.SECONDS);
       } catch (InterruptedException e) {
-        LOG.warn("Could not shut down commitSenders gracefully, forcing shutdown.", e);
+        LOG.warn(
+            "Commit senders didn't complete shutdown within 10 seconds, continuing to drain queue",
+            e);
       }
-      commitSenders.shutdownNow();
     }
     drainCommitQueue();
   }
@@ -143,9 +144,10 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
             // Block until we have a commit or are shutting down.
             initialCommit = commitQueue.take();
           } catch (InterruptedException e) {
-            continue;
+            return;
           }
         }
+        Preconditions.checkNotNull(initialCommit);
 
         if (initialCommit.work().isFailed()) {
           onCommitComplete.accept(CompleteCommit.forFailedWork(initialCommit));
@@ -156,15 +158,17 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
         try (CloseableStream<CommitWorkStream> closeableCommitStream =
             commitWorkStreamFactory.get()) {
           CommitWorkStream commitStream = closeableCommitStream.stream();
-          if (!tryAddToCommitStream(initialCommit, commitStream)) {
-            throw new AssertionError("Initial commit on flushed stream should always be accepted.");
+          try (CommitWorkStream.RequestBatcher batcher = commitStream.batcher()) {
+            if (!tryAddToCommitBatch(initialCommit, batcher)) {
+              throw new AssertionError(
+                  "Initial commit on flushed stream should always be accepted.");
+            }
+            // Batch additional commits to the stream and possibly make an un-batched commit the
+            // next initial commit.
+            initialCommit = expandBatch(batcher);
           }
-          // Batch additional commits to the stream and possibly make an un-batched commit the next
-          // initial commit.
-          initialCommit = batchCommitsToStream(commitStream);
-          commitStream.flush();
         } catch (Exception e) {
-          LOG.error("Error occurred fetching a CommitWorkStream.", e);
+          LOG.error("Error occurred sending commits.", e);
         }
       }
     } finally {
@@ -174,13 +178,13 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
     }
   }
 
-  /** Adds the commit to the commitStream if it fits, returning true if it is consumed. */
-  private boolean tryAddToCommitStream(Commit commit, CommitWorkStream commitStream) {
+  /** Adds the commit to the batch if it fits, returning true if it is consumed. */
+  private boolean tryAddToCommitBatch(Commit commit, CommitWorkStream.RequestBatcher batcher) {
     Preconditions.checkNotNull(commit);
     commit.work().setState(Work.State.COMMITTING);
     activeCommitBytes.addAndGet(commit.getSize());
     boolean isCommitAccepted =
-        commitStream.commitWorkItem(
+        batcher.commitWorkItem(
             commit.computationId(),
             commit.request(),
             (commitStatus) -> {
@@ -197,9 +201,9 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
     return isCommitAccepted;
   }
 
-  // Helper to batch additional commits into the commit stream as long as they fit.
+  // Helper to batch additional commits into the commit batch as long as they fit.
   // Returns a commit that was removed from the queue but not consumed or null.
-  private Commit batchCommitsToStream(CommitWorkStream commitStream) {
+  private Commit expandBatch(CommitWorkStream.RequestBatcher batcher) {
     int commits = 1;
     while (true) {
       Commit commit;
@@ -210,8 +214,7 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
           commit = commitQueue.poll();
         }
       } catch (InterruptedException e) {
-        // Continue processing until !running.get()
-        continue;
+        return null;
       }
 
       if (commit == null) {
@@ -224,7 +227,7 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
         continue;
       }
 
-      if (!tryAddToCommitStream(commit, commitStream)) {
+      if (!tryAddToCommitBatch(commit, batcher)) {
         return commit;
       }
       commits++;
