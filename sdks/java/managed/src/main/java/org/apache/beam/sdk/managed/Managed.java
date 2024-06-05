@@ -62,7 +62,8 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
  * }</pre>
  *
  * <p>Instead of specifying configuration arguments directly in the code, one can provide the
- * location to a YAML file that contains this information. Say we have the following YAML file:
+ * location to a YAML file that contains this information. Say we have the following {@code
+ * config.yaml} file:
  *
  * <pre>{@code
  * foo: "abc"
@@ -74,7 +75,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
  * <pre>{@code
  * PCollection<Row> inputRows = pipeline.apply(Create.of(...));
  *
- * input.apply(Managed.write(ICEBERG).withConfigUrl(<config path>));
+ * inputRows.apply(Managed.write(ICEBERG).withConfigUrl("path/to/config.yaml"));
  * }</pre>
  */
 public class Managed {
