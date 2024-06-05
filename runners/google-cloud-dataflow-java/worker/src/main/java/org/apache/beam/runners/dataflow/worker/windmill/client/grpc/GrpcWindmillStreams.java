@@ -112,7 +112,7 @@ public class GrpcWindmillStreams implements StatusDataProvider {
    * given {@link JobHeader}.
    */
   public static GrpcWindmillStreams.Builder of(JobHeader jobHeader) {
-    return new AutoBuilder_GrpcWindmillStreamFactory_Builder()
+    return new AutoBuilder_GrpcWindmillStreams_Builder()
         .setJobHeader(jobHeader)
         .setWindmillMessagesBetweenIsReadyChecks(DEFAULT_WINDMILL_MESSAGES_BETWEEN_IS_READY_CHECKS)
         .setMaxBackOffSupplier(() -> DEFAULT_MAX_BACKOFF)
