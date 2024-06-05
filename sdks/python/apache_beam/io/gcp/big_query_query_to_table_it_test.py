@@ -30,7 +30,6 @@ import unittest
 
 import pytest
 from hamcrest.core.core.allof import all_of
-
 from tenacity import retry
 from tenacity import stop_after_attempt
 
