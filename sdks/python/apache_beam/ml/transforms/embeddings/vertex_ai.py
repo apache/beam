@@ -166,12 +166,14 @@ class _VertexAIImageEmbeddingHandler(ModelHandler):
   def __init__(
       self,
       model_name: str,
+      dimension: Optional[int] = None,
       project: Optional[str] = None,
       location: Optional[str] = None,
       credentials: Optional[Credentials] = None,
   ):
     vertexai.init(project=project, location=location, credentials=credentials)
     self.model_name = model_name
+    self.dimension = dimension
 
   def run_inference(
       self,
@@ -182,8 +184,11 @@ class _VertexAIImageEmbeddingHandler(ModelHandler):
     embeddings = []
     # Maximum request size for muli-model embedding models is 1.
     for img in batch:
-      embeddings_img = model.get_embeddings(image=img)
-      embeddings.append(embeddings_img.image_embedding)
+      try:
+        embedding_response= model.get_embeddings(image=img, dimension=self.dimension)
+        embeddings.append(embedding_response.image_embedding)
+      except Exception as e:
+        print(e)
     return embeddings
 
   def load_model(self):
@@ -202,6 +207,7 @@ class VertexAIImageEmbeddings(EmbeddingsManager):
       self,
       model_name: str,
       columns: List[str],
+      dimension: Optional[int],
       project: Optional[str] = None,
       location: Optional[str] = None,
       credentials: Optional[Credentials] = None,
@@ -226,11 +232,16 @@ class VertexAIImageEmbeddings(EmbeddingsManager):
     self.project = project
     self.location = location
     self.credentials = credentials
+    if dimension is not None:
+      if (dimension % 128 != 0) or (dimension < 128) or (dimension > 1408):
+        raise ValueError("dimension argument must be one of 128, 256, 512, or 1408")
+    self.dimension = dimension
     super().__init__(columns=columns, **kwargs)
 
   def get_model_handler(self) -> ModelHandler:
     return _VertexAIImageEmbeddingHandler(
         model_name=self.model_name,
+        dimension=self.dimension,
         project=self.project,
         location=self.location,
         credentials=self.credentials,
