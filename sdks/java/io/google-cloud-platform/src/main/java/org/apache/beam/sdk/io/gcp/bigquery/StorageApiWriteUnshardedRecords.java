@@ -678,6 +678,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                   // Convert the message to a TableRow and send it to the failedRows collection.
                   ByteString protoBytes = failedContext.protoRows.getSerializedRows(failedIndex);
                   org.joda.time.Instant timestamp = failedContext.timestamps.get(failedIndex);
+                  BigQueryStorageApiInsertError element = null;
                   try {
                     TableRow failedRow =
                         TableRowToStorageApiProto.tableRowFromMessage(
@@ -687,12 +688,15 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                                         .getDescriptor()),
                                 protoBytes),
                             true);
-                    failedRowsReceiver.outputWithTimestamp(
+                    element =
                         new BigQueryStorageApiInsertError(
-                            failedRow, error.getRowIndexToErrorMessage().get(failedIndex)),
-                        timestamp);
+                            failedRow, error.getRowIndexToErrorMessage().get(failedIndex));
                   } catch (Exception e) {
                     LOG.error("Failed to insert row and could not parse the result!", e);
+                  }
+                  // output outside try {} clause to avoid suppress downstream Exception
+                  if (element != null) {
+                    failedRowsReceiver.outputWithTimestamp(element, timestamp);
                   }
                 }
                 int numRowsFailed = failedRowIndices.size();
