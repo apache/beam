@@ -1725,6 +1725,18 @@ class CsvTest(unittest.TestCase):
             | beam.Map(lambda t: beam.Row(**dict(zip(type(t)._fields, t)))))
 
         assert_that(pcoll, equal_to(records))
+      # validate the label option works
+      with TestPipeline() as p:
+        pcoll = (
+            p
+            | beam.io.ReadFromCsv(os.path.join(dest, 'out*'))
+            | beam.Map(lambda t: beam.Row(**dict(zip(type(t)._fields, t)))))
+        pcoll1 = (
+            p
+            | beam.io.ReadFromCsv(os.path.join(dest, 'out*'), label='TestRead')
+            | beam.Map(lambda t: beam.Row(**dict(zip(type(t)._fields, t)))))
+
+        assert_that(pcoll1, equal_to(records))
 
 
 class JsonTest(unittest.TestCase):

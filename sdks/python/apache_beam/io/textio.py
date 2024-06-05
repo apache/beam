@@ -927,7 +927,12 @@ try:
 
   @append_pandas_args(
       pandas.read_csv, exclude=['filepath_or_buffer', 'iterator'])
-  def ReadFromCsv(path: str, *, splittable: bool = True, **kwargs):
+  def ReadFromCsv(
+      path: str,
+      *,
+      splittable: bool = True,
+      label: str = 'ReadFromCsv',
+      **kwargs):
     """A PTransform for reading comma-separated values (csv) files into a
     PCollection.
 
@@ -939,11 +944,11 @@ try:
         This should be set to False if single records span multiple lines (e.g.
         a quoted field has a newline inside of it).  Setting this to false may
         disable liquid sharding.
+      label (str): specify the PTransform label. Default is "ReadFromCsv".
       **kwargs: Extra arguments passed to `pandas.read_csv` (see below).
     """
     from apache_beam.dataframe.io import ReadViaPandas
-    return 'ReadFromCsv' >> ReadViaPandas(
-        'csv', path, splittable=splittable, **kwargs)
+    return label >> ReadViaPandas('csv', path, splittable=splittable, **kwargs)
 
   @append_pandas_args(
       pandas.DataFrame.to_csv, exclude=['path_or_buf', 'index', 'index_label'])
