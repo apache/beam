@@ -52,6 +52,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.commons.lang3.StringEscapeUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.junit.BeforeClass;
@@ -77,7 +78,7 @@ public class BigQueryIOJsonIT {
 
   @Rule public final transient TestPipeline p = TestPipeline.fromOptions(testOptions);
 
-  @Rule public final transient TestPipeline pWrite = TestPipeline.create();
+  @Rule public final transient TestPipeline pWrite = TestPipeline.fromOptions(testOptions);
 
   private BigQueryIOJsonOptions options;
 
@@ -85,6 +86,7 @@ public class BigQueryIOJsonIT {
   private static final String DATASET_ID = "bq_jsontype_test_nodelete";
   private static final String JSON_TABLE_NAME = "json_data";
 
+  @SuppressWarnings("unused") // persistent test fixture, though unused for the moment
   private static final String JSON_TABLE_DESTINATION =
       String.format("%s:%s.%s", project, DATASET_ID, JSON_TABLE_NAME);
 
@@ -134,6 +136,9 @@ public class BigQueryIOJsonIT {
 
   public static final String STORAGE_WRITE_TEST_TABLE =
       "storagewrite_test" + System.currentTimeMillis() + "_" + new SecureRandom().nextInt(32);
+
+  public static final String FILE_LOAD_TEST_TABLE =
+      "fileload_test" + System.currentTimeMillis() + "_" + new SecureRandom().nextInt(32);
 
   public static final String STREAMING_TEST_TABLE =
       "streaming_test" + System.currentTimeMillis() + "_" + new SecureRandom().nextInt(32);
@@ -203,9 +208,21 @@ public class BigQueryIOJsonIT {
   static class CompareJsonStrings
       implements SerializableFunction<Iterable<KV<String, String>>, Void> {
     Map<String, String> expected;
+    // Unescape actual string or not. This is to handle (currently) inconsistent behavior of same
+    // input data for different write methods.
+    //
+    // When feed a string to BigQuery JSON field, FILE_LOAD gives escaped string (e.g. "[\"a\"]" )
+    // while other write methods (STORAGE_WRITE_API, STREAMING_INSET) convert it to JSON string
+    // (e.g. ["a"])
+    final boolean unescape;
 
     public CompareJsonStrings(Map<String, String> expected) {
+      this(expected, false);
+    }
+
+    public CompareJsonStrings(Map<String, String> expected, boolean unescape) {
       this.expected = expected;
+      this.unescape = unescape;
     }
 
     @Override
@@ -223,6 +240,14 @@ public class BigQueryIOJsonIT {
                   key));
         }
         String jsonStringActual = actual.getValue();
+
+        // TODO(yathu) remove this conversion if FILE_LOAD produces unescaped JSON string
+        if (unescape && jsonStringActual.length() > 1) {
+          jsonStringActual =
+              StringEscapeUtils.unescapeEcmaScript(
+                  jsonStringActual.substring(1, jsonStringActual.length() - 1));
+        }
+
         JsonElement jsonActual = JsonParser.parseString(jsonStringActual);
 
         String jsonStringExpected = expected.get(key);
@@ -240,7 +265,7 @@ public class BigQueryIOJsonIT {
   }
 
   // Writes with given write method then reads back and validates with original test data.
-  public void runTestWrite(BigQueryIOJsonOptions options) {
+  public void runTestWriteRead(BigQueryIOJsonOptions options) {
     List<String> countries = Arrays.asList("usa", "aus", "special");
     List<TableRow> rowsToWrite = new ArrayList<>();
     for (Map.Entry<String, Map<String, Object>> element : JSON_TEST_DATA.entrySet()) {
@@ -299,53 +324,35 @@ public class BigQueryIOJsonIT {
       return;
     }
 
+    final boolean unescape = options.getWriteMethod() == Write.Method.FILE_LOADS;
+
     // Testing countries (straight json)
     PCollection<KV<String, String>> countries =
         jsonRows.apply(
             "Convert countries to KV JSON Strings", ParDo.of(new CountryToKVJsonString()));
 
-    PAssert.that(countries).satisfies(new CompareJsonStrings(getTestData("countries")));
+    PAssert.that(countries).satisfies(new CompareJsonStrings(getTestData("countries"), unescape));
 
     // Testing stats (json in struct)
     PCollection<KV<String, String>> stats =
         jsonRows.apply("Convert stats to KV JSON Strings", ParDo.of(new StatsToKVJsonString()));
 
-    PAssert.that(stats).satisfies(new CompareJsonStrings(getTestData("stats")));
+    PAssert.that(stats).satisfies(new CompareJsonStrings(getTestData("stats"), unescape));
 
     // Testing cities (json in array of structs)
     PCollection<KV<String, String>> cities =
         jsonRows.apply("Convert cities to KV JSON Strings", ParDo.of(new CitiesToKVJsonString()));
 
-    PAssert.that(cities).satisfies(new CompareJsonStrings(getTestData("cities")));
+    PAssert.that(cities).satisfies(new CompareJsonStrings(getTestData("cities"), unescape));
 
     // Testing landmarks (json in array)
     PCollection<KV<String, String>> landmarks =
         jsonRows.apply(
             "Convert landmarks to KV JSON Strings", ParDo.of(new LandmarksToKVJsonString()));
 
-    PAssert.that(landmarks).satisfies(new CompareJsonStrings(getTestData("landmarks")));
+    PAssert.that(landmarks).satisfies(new CompareJsonStrings(getTestData("landmarks"), unescape));
 
     p.run().waitUntilFinish();
-  }
-
-  @Test
-  public void testDirectRead() throws Exception {
-    LOG.info("Testing DIRECT_READ read method with JSON data");
-    options = TestPipeline.testingPipelineOptions().as(BigQueryIOJsonOptions.class);
-    options.setReadMethod(TypedRead.Method.DIRECT_READ);
-    options.setInputTable(JSON_TABLE_DESTINATION);
-
-    readAndValidateRows(options);
-  }
-
-  @Test
-  public void testExportRead() throws Exception {
-    LOG.info("Testing EXPORT read method with JSON data");
-    options = TestPipeline.testingPipelineOptions().as(BigQueryIOJsonOptions.class);
-    options.setReadMethod(TypedRead.Method.EXPORT);
-    options.setInputTable(JSON_TABLE_DESTINATION);
-
-    readAndValidateRows(options);
   }
 
   @Test
@@ -368,35 +375,49 @@ public class BigQueryIOJsonIT {
   }
 
   @Test
-  public void testStorageWrite() throws Exception {
-    LOG.info("Testing writing JSON data with Storage API");
-
+  public void testStorageWriteRead() {
     options = TestPipeline.testingPipelineOptions().as(BigQueryIOJsonOptions.class);
     options.setWriteMethod(Write.Method.STORAGE_WRITE_API);
+    options.setReadMethod(TypedRead.Method.DIRECT_READ);
 
     String storageDestination =
         String.format("%s:%s.%s", project, DATASET_ID, STORAGE_WRITE_TEST_TABLE);
     options.setOutput(storageDestination);
     options.setInputTable(storageDestination);
 
-    runTestWrite(options);
+    runTestWriteRead(options);
   }
 
   @Test
-  public void testLegacyStreamingWrite() throws Exception {
+  public void testFileLoadWriteExportRead() {
+    options = TestPipeline.testingPipelineOptions().as(BigQueryIOJsonOptions.class);
+    options.setWriteMethod(Write.Method.FILE_LOADS);
+    options.setReadMethod(TypedRead.Method.EXPORT);
+
+    String storageDestination =
+        String.format("%s:%s.%s", project, DATASET_ID, FILE_LOAD_TEST_TABLE);
+    options.setOutput(storageDestination);
+    options.setInputTable(storageDestination);
+
+    runTestWriteRead(options);
+  }
+
+  @Test
+  public void testLegacyStreamingWriteDefaultRead() {
     options = TestPipeline.testingPipelineOptions().as(BigQueryIOJsonOptions.class);
     options.setWriteMethod(Write.Method.STREAMING_INSERTS);
+    options.setReadMethod(TypedRead.Method.DEFAULT);
 
     String streamingDestination =
         String.format("%s:%s.%s", project, DATASET_ID, STREAMING_TEST_TABLE);
     options.setOutput(streamingDestination);
     options.setInputTable(streamingDestination);
 
-    runTestWrite(options);
+    runTestWriteRead(options);
   }
 
   @BeforeClass
-  public static void setupTestEnvironment() throws Exception {
+  public static void setupTestEnvironment() {
     PipelineOptionsFactory.register(BigQueryIOJsonOptions.class);
   }
 

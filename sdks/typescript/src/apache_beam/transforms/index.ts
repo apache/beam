@@ -24,7 +24,9 @@ export * from "./pardo";
 export * from "./transform";
 export * from "./window";
 export * from "./windowings";
+import { requireForSerialization } from "../serialization";
+import { packageName } from "../utils/packageJson";
+
 export { impulse, withRowCoder } from "./internal";
 
-import { requireForSerialization } from "../serialization";
-requireForSerialization("apache-beam/transforms", exports);
+requireForSerialization(`${packageName}/transforms`, exports);

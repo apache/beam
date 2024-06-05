@@ -301,7 +301,10 @@ public class AvroGenericRecordToStorageApiProtoTest {
               .set(
                   "decimalValue",
                   new Conversions.DecimalConversion()
-                      .toBytes(bd, Schema.create(Schema.Type.NULL), LogicalTypes.decimal(1, 1)))
+                      .toBytes(
+                          bd,
+                          Schema.create(Schema.Type.NULL),
+                          LogicalTypes.decimal(bd.precision(), bd.scale())))
               .set("dateValue", now)
               .set("timestampMicrosValue", now.getMillis() * 1000)
               .set("timestampMicrosAsInstantValue", now)
@@ -485,7 +488,8 @@ public class AvroGenericRecordToStorageApiProtoTest {
         descriptor.getFields().stream()
             .collect(Collectors.toMap(Descriptors.FieldDescriptor::getName, Functions.identity()));
     assertEquals("UPDATE", msg.getField(fieldDescriptors.get(StorageApiCDC.CHANGE_TYPE_COLUMN)));
-    assertEquals(42L, msg.getField(fieldDescriptors.get(StorageApiCDC.CHANGE_SQN_COLUMN)));
+    assertEquals(
+        Long.toHexString(42L), msg.getField(fieldDescriptors.get(StorageApiCDC.CHANGE_SQN_COLUMN)));
   }
 
   @Test

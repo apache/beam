@@ -42,7 +42,6 @@ dependencies {
   permitUnusedDeclared project(":sdks:java:expansion-service") // BEAM-11761
   implementation project(":sdks:java:extensions:google-cloud-platform-core")
   implementation project(":sdks:java:extensions:protobuf")
-  implementation project(":runners:core-construction-java")
   implementation project(":sdks:java:extensions:arrow")
   implementation library.java.avro
   implementation library.java.bigdataoss_util
@@ -117,8 +116,8 @@ dependencies {
   permitUnusedDeclared library.java.grpc_google_cloud_pubsublite_v1 // BEAM-11761
   implementation library.java.guava
   implementation library.java.http_client
-  provided library.java.hamcrest
-  permitUnusedDeclared library.java.hamcrest // BEAM-11761
+  implementation library.java.hamcrest
+  permitUnusedDeclared library.java.hamcrest // Needed for PipelineOptionRegistrar auto-service that registered TestPipelineOptions interfaces
   implementation library.java.http_core
   implementation library.java.jackson_core
   implementation library.java.jackson_databind
@@ -142,15 +141,24 @@ dependencies {
   implementation library.java.protobuf_java
   implementation library.java.protobuf_java_util
   implementation library.java.slf4j_api
-  implementation library.java.vendored_grpc_1_54_0
+  implementation library.java.vendored_grpc_1_60_1
   implementation library.java.vendored_guava_32_1_2_jre
-  implementation library.java.arrow_memory_core
-  implementation library.java.arrow_vector
+  implementation(library.java.arrow_memory_core) {
+    // Arrow 15 has compile dependency of slf4j 2.x where Beam does not support
+    exclude group: 'org.slf4j', module: 'slf4j-api'
+  }
+  implementation(library.java.arrow_vector) {
+    // Arrow 15 has compile dependency of slf4j 2.x where Beam does not support
+    exclude group: 'org.slf4j', module: 'slf4j-api'
+  }
 
   implementation 'com.google.http-client:google-http-client-gson:1.41.2'
   implementation "org.threeten:threetenbp:1.4.4"
 
-  testImplementation library.java.arrow_memory_netty
+  testImplementation(library.java.arrow_memory_netty) {
+    // Arrow 15 has compile dependency of slf4j 2.x where Beam does not support
+    exclude group: 'org.slf4j', module: 'slf4j-api'
+  }
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation project(path: ":sdks:java:extensions:avro", configuration: "testRuntimeMigration")
   testImplementation project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntimeMigration")

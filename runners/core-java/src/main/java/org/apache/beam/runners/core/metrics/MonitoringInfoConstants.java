@@ -19,7 +19,7 @@ package org.apache.beam.runners.core.metrics;
 
 import static org.apache.beam.model.pipeline.v1.MetricsApi.labelProps;
 import static org.apache.beam.model.pipeline.v1.MetricsApi.monitoringInfoSpec;
-import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
+import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;

@@ -18,8 +18,8 @@
 package org.apache.beam.runners.flink.translation.utils;
 
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.runners.core.construction.PTransformTranslation;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.sdk.util.construction.PTransformTranslation;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.InvalidProtocolBufferException;
 
 /**
  * Various utilies related to portability. Helps share code between portable batch and streaming

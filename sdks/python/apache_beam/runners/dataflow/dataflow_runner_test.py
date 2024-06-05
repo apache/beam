@@ -16,7 +16,6 @@
 #
 
 """Unit tests for the DataflowRunner class."""
-
 # pytype: skip-file
 
 import unittest
@@ -40,6 +39,7 @@ from apache_beam.runners import create_runner
 from apache_beam.runners.dataflow.dataflow_runner import DataflowPipelineResult
 from apache_beam.runners.dataflow.dataflow_runner import DataflowRuntimeException
 from apache_beam.runners.dataflow.dataflow_runner import _check_and_add_missing_options
+from apache_beam.runners.dataflow.dataflow_runner import _check_and_add_missing_streaming_options
 from apache_beam.runners.dataflow.internal.clients import dataflow as dataflow_api
 from apache_beam.runners.runner import PipelineState
 from apache_beam.testing.extra_assertions import ExtraAssertionsMixin
@@ -205,12 +205,15 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     self.default_properties.append('--experiments=beam_fn_api')
     self.default_properties.append('--worker_harness_container_image=LEGACY')
     remote_runner = DataflowRunner()
-    with Pipeline(remote_runner,
-                  options=PipelineOptions(self.default_properties)) as p:
+    options = PipelineOptions(self.default_properties)
+    options.view_as(DebugOptions).add_experiment(
+        'disable_logging_submission_environment')
+    with Pipeline(remote_runner, options=options) as p:
       (  # pylint: disable=expression-not-assigned
           p | ptransform.Create([1, 2, 3])
           | 'Do' >> ptransform.FlatMap(lambda x: [(x, x)])
           | ptransform.GroupByKey())
+
     self.assertEqual(
         list(remote_runner.proto_pipeline.components.environments.values()),
         [
@@ -218,19 +221,24 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
                 urn=common_urns.environments.DOCKER.urn,
                 payload=beam_runner_api_pb2.DockerPayload(
                     container_image='LEGACY').SerializeToString(),
-                capabilities=environments.python_sdk_docker_capabilities())
+                capabilities=environments.python_sdk_docker_capabilities(),
+                dependencies=environments.python_sdk_dependencies(
+                    options=options))
         ])
 
   def test_environment_override_translation_sdk_container_image(self):
     self.default_properties.append('--experiments=beam_fn_api')
     self.default_properties.append('--sdk_container_image=FOO')
     remote_runner = DataflowRunner()
-    with Pipeline(remote_runner,
-                  options=PipelineOptions(self.default_properties)) as p:
+    options = PipelineOptions(self.default_properties)
+    options.view_as(DebugOptions).add_experiment(
+        'disable_logging_submission_environment')
+    with Pipeline(remote_runner, options=options) as p:
       (  # pylint: disable=expression-not-assigned
           p | ptransform.Create([1, 2, 3])
           | 'Do' >> ptransform.FlatMap(lambda x: [(x, x)])
           | ptransform.GroupByKey())
+
     self.assertEqual(
         list(remote_runner.proto_pipeline.components.environments.values()),
         [
@@ -238,7 +246,9 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
                 urn=common_urns.environments.DOCKER.urn,
                 payload=beam_runner_api_pb2.DockerPayload(
                     container_image='FOO').SerializeToString(),
-                capabilities=environments.python_sdk_docker_capabilities())
+                capabilities=environments.python_sdk_docker_capabilities(),
+                dependencies=environments.python_sdk_dependencies(
+                    options=options))
         ])
 
   def test_remote_runner_translation(self):
@@ -514,6 +524,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
   def test_streaming_is_runner_v2(self):
     options = PipelineOptions(['--sdk_location=container', '--streaming'])
     _check_and_add_missing_options(options)
+    _check_and_add_missing_streaming_options(options)
     for expected in ['beam_fn_api',
                      'use_unified_worker',
                      'use_runner_v2',
@@ -545,6 +556,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         '--dataflow_service_options=enable_prime'
     ])
     _check_and_add_missing_options(options)
+    _check_and_add_missing_streaming_options(options)
     for expected in ['beam_fn_api',
                      'use_unified_worker',
                      'use_runner_v2',
@@ -554,6 +566,64 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
       self.assertTrue(
           options.view_as(DebugOptions).lookup_experiment(expected, False),
           expected)
+
+  @unittest.skipIf(apiclient is None, 'GCP dependencies are not installed')
+  @mock.patch(
+      'apache_beam.options.pipeline_options.GoogleCloudOptions.validate',
+      lambda *args: [])
+  def test_auto_streaming_with_unbounded(self):
+    options = PipelineOptions([
+        '--sdk_location=container',
+        '--runner=DataflowRunner',
+        '--dry_run=True',
+        '--temp_location=gs://bucket',
+        '--project=project',
+        '--region=region'
+    ])
+    with beam.Pipeline(options=options) as p:
+      _ = p | beam.io.ReadFromPubSub('projects/some-project/topics/some-topic')
+    self.assertEqual(
+        p.result.job.proto.type,
+        apiclient.dataflow.Job.TypeValueValuesEnum.JOB_TYPE_STREAMING)
+
+  @unittest.skipIf(apiclient is None, 'GCP dependencies are not installed')
+  @mock.patch(
+      'apache_beam.options.pipeline_options.GoogleCloudOptions.validate',
+      lambda *args: [])
+  def test_auto_streaming_no_unbounded(self):
+    options = PipelineOptions([
+        '--sdk_location=container',
+        '--runner=DataflowRunner',
+        '--dry_run=True',
+        '--temp_location=gs://bucket',
+        '--project=project',
+        '--region=region'
+    ])
+    with beam.Pipeline(options=options) as p:
+      _ = p | beam.Create([1, 2, 3])
+    self.assertEqual(
+        p.result.job.proto.type,
+        apiclient.dataflow.Job.TypeValueValuesEnum.JOB_TYPE_BATCH)
+
+  @unittest.skipIf(apiclient is None, 'GCP dependencies are not installed')
+  @mock.patch(
+      'apache_beam.options.pipeline_options.GoogleCloudOptions.validate',
+      lambda *args: [])
+  def test_explicit_streaming_no_unbounded(self):
+    options = PipelineOptions([
+        '--streaming',
+        '--sdk_location=container',
+        '--runner=DataflowRunner',
+        '--dry_run=True',
+        '--temp_location=gs://bucket',
+        '--project=project',
+        '--region=region'
+    ])
+    with beam.Pipeline(options=options) as p:
+      _ = p | beam.Create([1, 2, 3])
+    self.assertEqual(
+        p.result.job.proto.type,
+        apiclient.dataflow.Job.TypeValueValuesEnum.JOB_TYPE_STREAMING)
 
 
 if __name__ == '__main__':

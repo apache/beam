@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.toJsonString;
+import static org.apache.beam.sdk.io.gcp.bigquery.WriteTables.ResultCoder.INSTANCE;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
@@ -70,6 +71,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -82,6 +84,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 import java.util.stream.StreamSupport;
+import org.apache.avro.Schema.Field;
 import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumWriter;
@@ -91,7 +94,9 @@ import org.apache.avro.io.DatumWriter;
 import org.apache.avro.io.Encoder;
 import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.coders.AtomicCoder;
+import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.ShardedKeyCoder;
@@ -105,6 +110,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.Method;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.SchemaUpdateOption;
 import org.apache.beam.sdk.io.gcp.bigquery.WritePartition.ResultCoder;
+import org.apache.beam.sdk.io.gcp.bigquery.WriteRename.TempTableCleanupFn;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteTables.Result;
 import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices;
 import org.apache.beam.sdk.io.gcp.testing.FakeDatasetService;
@@ -139,6 +145,10 @@ import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandlingTestUtils.EchoErrorTransform;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandlingTestUtils.ErrorSinkTransform;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -172,6 +182,7 @@ import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -256,7 +267,9 @@ public class BigQueryIOWriteTest implements Serializable {
       };
 
   @Rule public transient ExpectedException thrown = ExpectedException.none();
-  @Rule public transient ExpectedLogs loggedWriteRename = ExpectedLogs.none(WriteRename.class);
+
+  @Rule
+  public transient ExpectedLogs loggedWriteRename = ExpectedLogs.none(TempTableCleanupFn.class);
 
   private FakeDatasetService fakeDatasetService = new FakeDatasetService();
   private FakeJobService fakeJobService = new FakeJobService();
@@ -495,7 +508,7 @@ public class BigQueryIOWriteTest implements Serializable {
     }
   }
 
-  void testTimePartitioningClustering(
+  void testTimePartitioningAndClustering(
       BigQueryIO.Write.Method insertMethod, boolean enablePartitioning, boolean enableClustering)
       throws Exception {
     TableRow row1 = new TableRow().set("date", "2018-01-01").set("number", "1");
@@ -540,16 +553,8 @@ public class BigQueryIOWriteTest implements Serializable {
     }
   }
 
-  void testTimePartitioning(BigQueryIO.Write.Method insertMethod) throws Exception {
-    testTimePartitioningClustering(insertMethod, true, false);
-  }
-
-  void testClustering(BigQueryIO.Write.Method insertMethod) throws Exception {
-    testTimePartitioningClustering(insertMethod, true, true);
-  }
-
-  @Test
-  public void testTimePartitioning() throws Exception {
+  void testTimePartitioningAndClusteringWithAllMethods(
+      Boolean enablePartitioning, Boolean enableClustering) throws Exception {
     BigQueryIO.Write.Method method;
     if (useStorageApi) {
       method =
@@ -559,15 +564,27 @@ public class BigQueryIOWriteTest implements Serializable {
     } else {
       method = Method.FILE_LOADS;
     }
-    testTimePartitioning(method);
+    testTimePartitioningAndClustering(method, enablePartitioning, enableClustering);
   }
 
   @Test
-  public void testClusteringStorageApi() throws Exception {
-    if (useStorageApi) {
-      testClustering(
-          useStorageApiApproximate ? Method.STORAGE_API_AT_LEAST_ONCE : Method.STORAGE_WRITE_API);
-    }
+  public void testTimePartitioningWithoutClustering() throws Exception {
+    testTimePartitioningAndClusteringWithAllMethods(true, false);
+  }
+
+  @Test
+  public void testTimePartitioningWithClustering() throws Exception {
+    testTimePartitioningAndClusteringWithAllMethods(true, true);
+  }
+
+  @Test
+  public void testClusteringWithoutPartitioning() throws Exception {
+    testTimePartitioningAndClusteringWithAllMethods(false, true);
+  }
+
+  @Test
+  public void testNoClusteringNoPartitioning() throws Exception {
+    testTimePartitioningAndClusteringWithAllMethods(false, false);
   }
 
   @Test
@@ -893,6 +910,124 @@ public class BigQueryIOWriteTest implements Serializable {
     assertThat(
         fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
         containsInAnyOrder(Iterables.toArray(elements, TableRow.class)));
+  }
+
+  private static final SerializableFunction<Integer, TableRow> failingIntegerToTableRow =
+      new SerializableFunction<Integer, TableRow>() {
+        @Override
+        public TableRow apply(Integer input) {
+          if (input == 15) {
+            throw new RuntimeException("Expected Exception");
+          }
+          return new TableRow().set("number", input);
+        }
+      };
+
+  @Test
+  public void testBatchLoadsWithTableRowErrorHandling() throws Exception {
+    assumeTrue(!useStreaming);
+    assumeTrue(!useStorageApi);
+    List<Integer> elements = Lists.newArrayList();
+    for (int i = 0; i < 30; ++i) {
+      elements.add(i);
+    }
+
+    ErrorHandler<BadRecord, PCollection<Long>> errorHandler =
+        p.registerBadRecordErrorHandler(new ErrorSinkTransform());
+
+    WriteResult result =
+        p.apply(Create.of(elements).withCoder(BigEndianIntegerCoder.of()))
+            .apply(
+                BigQueryIO.<Integer>write()
+                    .to("dataset-id.table-id")
+                    .withFormatFunction(failingIntegerToTableRow)
+                    .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+                    .withSchema(
+                        new TableSchema()
+                            .setFields(
+                                ImmutableList.of(
+                                    new TableFieldSchema().setName("name").setType("STRING"),
+                                    new TableFieldSchema().setName("number").setType("INTEGER"))))
+                    .withTestServices(fakeBqServices)
+                    .withErrorHandler(errorHandler)
+                    .withoutValidation());
+
+    errorHandler.close();
+
+    PAssert.that(result.getSuccessfulTableLoads())
+        .containsInAnyOrder(new TableDestination("project-id:dataset-id.table-id", null));
+    PAssert.thatSingleton(errorHandler.getOutput()).isEqualTo(1L);
+    p.run();
+
+    elements.remove(15);
+    assertThat(
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id").stream()
+            .map(tr -> ((Integer) tr.get("number")))
+            .collect(Collectors.toList()),
+        containsInAnyOrder(Iterables.toArray(elements, Integer.class)));
+  }
+
+  private static final org.apache.avro.Schema avroSchema =
+      org.apache.avro.Schema.createRecord(
+          ImmutableList.of(
+              new Field(
+                  "number",
+                  org.apache.avro.Schema.create(org.apache.avro.Schema.Type.LONG),
+                  "nodoc",
+                  0)));
+  private static final SerializableFunction<AvroWriteRequest<Long>, GenericRecord>
+      failingLongToAvro =
+          new SerializableFunction<AvroWriteRequest<Long>, GenericRecord>() {
+            @Override
+            public GenericRecord apply(AvroWriteRequest<Long> input) {
+              if (input.getElement() == 15) {
+                throw new RuntimeException("Expected Exception");
+              }
+              return new GenericRecordBuilder(avroSchema).set("number", input.getElement()).build();
+            }
+          };
+
+  @Test
+  public void testBatchLoadsWithAvroErrorHandling() throws Exception {
+    assumeTrue(!useStreaming);
+    assumeTrue(!useStorageApi);
+    List<Long> elements = Lists.newArrayList();
+    for (long i = 0L; i < 30L; ++i) {
+      elements.add(i);
+    }
+
+    ErrorHandler<BadRecord, PCollection<Long>> errorHandler =
+        p.registerBadRecordErrorHandler(new ErrorSinkTransform());
+
+    WriteResult result =
+        p.apply(Create.of(elements).withCoder(VarLongCoder.of()))
+            .apply(
+                BigQueryIO.<Long>write()
+                    .to("dataset-id.table-id")
+                    .withAvroFormatFunction(failingLongToAvro)
+                    .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+                    .withSchema(
+                        new TableSchema()
+                            .setFields(
+                                ImmutableList.of(
+                                    new TableFieldSchema().setName("number").setType("INTEGER"))))
+                    .withTestServices(fakeBqServices)
+                    .withErrorHandler(errorHandler)
+                    .withoutValidation());
+
+    errorHandler.close();
+
+    PAssert.that(result.getSuccessfulTableLoads())
+        .containsInAnyOrder(new TableDestination("project-id:dataset-id.table-id", null));
+    PAssert.thatSingleton(errorHandler.getOutput()).isEqualTo(1L);
+    p.run();
+
+    elements.remove(15);
+    assertThat(
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id").stream()
+            .map(tr -> Long.valueOf((String) tr.get("number")))
+            .collect(Collectors.toList()),
+        containsInAnyOrder(Iterables.toArray(elements, Long.class)));
   }
 
   @Test
@@ -1326,6 +1461,120 @@ public class BigQueryIOWriteTest implements Serializable {
     assumeTrue(useStreaming);
     assumeTrue(!useStorageApiApproximate);
     storageWrite(true);
+  }
+
+  // There are two failure scenarios in storage write.
+  // first is in conversion, which is triggered by using a bad format function
+  // second is in actually sending to BQ, which is triggered by telling te dataset service
+  // to fail a row
+  private void storageWriteWithErrorHandling(boolean autoSharding) throws Exception {
+    assumeTrue(useStorageApi);
+    if (autoSharding) {
+      assumeTrue(!useStorageApiApproximate);
+      assumeTrue(useStreaming);
+    }
+    List<Integer> elements = Lists.newArrayList();
+    for (int i = 0; i < 30; ++i) {
+      elements.add(i);
+    }
+
+    Function<TableRow, Boolean> shouldFailRow =
+        (Function<TableRow, Boolean> & Serializable)
+            tr ->
+                tr.containsKey("number")
+                    && (tr.get("number").equals("27") || tr.get("number").equals("3"));
+    fakeDatasetService.setShouldFailRow(shouldFailRow);
+
+    TestStream<Integer> testStream =
+        TestStream.create(BigEndianIntegerCoder.of())
+            .addElements(elements.get(0), Iterables.toArray(elements.subList(1, 10), Integer.class))
+            .advanceProcessingTime(Duration.standardMinutes(1))
+            .addElements(
+                elements.get(10), Iterables.toArray(elements.subList(11, 20), Integer.class))
+            .advanceProcessingTime(Duration.standardMinutes(1))
+            .addElements(
+                elements.get(20), Iterables.toArray(elements.subList(21, 30), Integer.class))
+            .advanceWatermarkToInfinity();
+
+    ErrorHandler<BadRecord, PCollection<BadRecord>> errorHandler =
+        p.registerBadRecordErrorHandler(new EchoErrorTransform());
+
+    BigQueryIO.Write<Integer> write =
+        BigQueryIO.<Integer>write()
+            .to("project-id:dataset-id.table-id")
+            .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+            .withFormatFunction(failingIntegerToTableRow)
+            .withSchema(
+                new TableSchema()
+                    .setFields(
+                        ImmutableList.of(
+                            new TableFieldSchema().setName("number").setType("INTEGER"))))
+            .withTestServices(fakeBqServices)
+            .withErrorHandler(errorHandler)
+            .withoutValidation();
+
+    if (useStreaming) {
+      if (!useStorageApiApproximate) {
+        write =
+            write
+                .withTriggeringFrequency(Duration.standardSeconds(30))
+                .withNumStorageWriteApiStreams(2);
+      }
+      if (autoSharding) {
+        write = write.withAutoSharding();
+      }
+    }
+
+    PTransform<PBegin, PCollection<Integer>> source =
+        useStreaming ? testStream : Create.of(elements).withCoder(BigEndianIntegerCoder.of());
+
+    p.apply(source).apply("WriteToBQ", write);
+
+    errorHandler.close();
+
+    PAssert.that(errorHandler.getOutput())
+        .satisfies(
+            badRecords -> {
+              int count = 0;
+              Iterator<BadRecord> iterator = badRecords.iterator();
+              while (iterator.hasNext()) {
+                count++;
+                iterator.next();
+              }
+              Assert.assertEquals("Wrong number of bad records", 3, count);
+              return null;
+            });
+
+    p.run().waitUntilFinish();
+
+    // remove the "bad" elements from the expected elements written
+    elements.remove(27);
+    elements.remove(15);
+    elements.remove(3);
+    assertThat(
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id").stream()
+            .map(tr -> Integer.valueOf((String) tr.get("number")))
+            .collect(Collectors.toList()),
+        containsInAnyOrder(Iterables.toArray(elements, Integer.class)));
+  }
+
+  @Test
+  public void testBatchStorageApiWriteWithErrorHandling() throws Exception {
+    assumeTrue(!useStreaming);
+    storageWriteWithErrorHandling(false);
+  }
+
+  @Test
+  public void testStreamingStorageApiWriteWithErrorHandling() throws Exception {
+    assumeTrue(useStreaming);
+    storageWriteWithErrorHandling(false);
+  }
+
+  @Test
+  public void testStreamingStorageApiWriteWithAutoShardingWithErrorHandling() throws Exception {
+    assumeTrue(useStreaming);
+    assumeTrue(!useStorageApiApproximate);
+    storageWriteWithErrorHandling(true);
   }
 
   @DefaultSchema(JavaFieldSchema.class)
@@ -2529,7 +2778,7 @@ public class BigQueryIOWriteTest implements Serializable {
     PCollection<KV<TableDestination, WriteTables.Result>> writeTablesOutput =
         writeTablesInput
             .apply(writeTables)
-            .setCoder(KvCoder.of(StringUtf8Coder.of(), WriteTables.ResultCoder.INSTANCE))
+            .setCoder(KvCoder.of(StringUtf8Coder.of(), INSTANCE))
             .apply(
                 ParDo.of(
                     new DoFn<
@@ -2629,13 +2878,19 @@ public class BigQueryIOWriteTest implements Serializable {
             BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED,
             3,
             "kms_key",
-            null);
+            null,
+            jobIdTokenView);
 
-    DoFnTester<Iterable<KV<TableDestination, WriteTables.Result>>, TableDestination> tester =
-        DoFnTester.of(writeRename);
-    tester.setSideInput(jobIdTokenView, GlobalWindow.INSTANCE, jobIdToken);
-    tester.processElement(tempTablesElement);
-    tester.finishBundle();
+    // Unfortunate hack to have create treat tempTablesElement as a single element, instead of as an
+    // iterable
+    p.apply(
+            Create.of(
+                    ImmutableList.of(
+                        (Iterable<KV<TableDestination, WriteTables.Result>>) tempTablesElement))
+                .withCoder(IterableCoder.of(KvCoder.of(TableDestinationCoder.of(), INSTANCE))))
+        .apply(writeRename);
+
+    p.run().waitUntilFinish();
 
     for (Map.Entry<TableDestination, Collection<String>> entry : tempTables.asMap().entrySet()) {
       TableDestination tableDestination = entry.getKey();
@@ -2683,7 +2938,7 @@ public class BigQueryIOWriteTest implements Serializable {
     tableRefs.add(
         BigQueryHelpers.parseTableSpec(String.format("%s:%s.%s", projectId, datasetId, "table4")));
 
-    WriteRename.removeTemporaryTables(datasetService, tableRefs);
+    WriteRename.TempTableCleanupFn.removeTemporaryTables(datasetService, tableRefs);
 
     for (TableReference ref : tableRefs) {
       loggedWriteRename.verifyDebug("Deleting table " + toJsonString(ref));
@@ -3341,28 +3596,36 @@ public class BigQueryIOWriteTest implements Serializable {
         Lists.newArrayList(
             RowMutation.of(
                 new TableRow().set("key1", "foo0").set("key2", "bar0").set("value", "1"),
-                RowMutationInformation.of(RowMutationInformation.MutationType.UPSERT, 0)),
+                RowMutationInformation.of(
+                    RowMutationInformation.MutationType.UPSERT, Long.toHexString(0L))),
             RowMutation.of(
                 new TableRow().set("key1", "foo1").set("key2", "bar1").set("value", "1"),
-                RowMutationInformation.of(RowMutationInformation.MutationType.UPSERT, 0)),
+                RowMutationInformation.of(
+                    RowMutationInformation.MutationType.UPSERT, Long.toHexString(0L))),
             RowMutation.of(
                 new TableRow().set("key1", "foo0").set("key2", "bar0").set("value", "2"),
-                RowMutationInformation.of(RowMutationInformation.MutationType.UPSERT, 1)),
+                RowMutationInformation.of(
+                    RowMutationInformation.MutationType.UPSERT, Long.toHexString(1L))),
             RowMutation.of(
                 new TableRow().set("key1", "foo1").set("key2", "bar1").set("value", "1"),
-                RowMutationInformation.of(RowMutationInformation.MutationType.DELETE, 1)),
+                RowMutationInformation.of(
+                    RowMutationInformation.MutationType.DELETE, Long.toHexString(1L))),
             RowMutation.of(
                 new TableRow().set("key1", "foo3").set("key2", "bar3").set("value", "1"),
-                RowMutationInformation.of(RowMutationInformation.MutationType.UPSERT, 0)),
+                RowMutationInformation.of(
+                    RowMutationInformation.MutationType.UPSERT, Long.toHexString(0L))),
             RowMutation.of(
                 new TableRow().set("key1", "foo1").set("key2", "bar1").set("value", "3"),
-                RowMutationInformation.of(RowMutationInformation.MutationType.UPSERT, 2)),
+                RowMutationInformation.of(
+                    RowMutationInformation.MutationType.UPSERT, Long.toHexString(2L))),
             RowMutation.of(
                 new TableRow().set("key1", "foo4").set("key2", "bar4").set("value", "1"),
-                RowMutationInformation.of(RowMutationInformation.MutationType.UPSERT, 0)),
+                RowMutationInformation.of(
+                    RowMutationInformation.MutationType.UPSERT, Long.toHexString(0L))),
             RowMutation.of(
                 new TableRow().set("key1", "foo4").set("key2", "bar4").set("value", "1"),
-                RowMutationInformation.of(RowMutationInformation.MutationType.DELETE, 1)));
+                RowMutationInformation.of(
+                    RowMutationInformation.MutationType.DELETE, Long.toHexString(1L))));
 
     BigQueryIO.Write<RowMutation> write =
         BigQueryIO.applyRowMutations()
@@ -3400,7 +3663,7 @@ public class BigQueryIOWriteTest implements Serializable {
                     new TableFieldSchema().setName("key2").setType("STRING"),
                     new TableFieldSchema().setName("value").setType("STRING"),
                     new TableFieldSchema().setName("updateType").setType("STRING"),
-                    new TableFieldSchema().setName("sqn").setType("INT64")));
+                    new TableFieldSchema().setName("sqn").setType("STRING")));
 
     Table fakeTable = new Table();
     TableReference ref =
@@ -3420,7 +3683,7 @@ public class BigQueryIOWriteTest implements Serializable {
             .optionalString("key2")
             .optionalString("value")
             .optionalString("updateType")
-            .optionalLong("sqn")
+            .requiredString("sqn")
             .endRecord();
 
     List<GenericRecord> items =
@@ -3430,56 +3693,56 @@ public class BigQueryIOWriteTest implements Serializable {
                 .set("key2", "bar0")
                 .set("value", "1")
                 .set("updateType", "UPSERT")
-                .set("sqn", 0L)
+                .set("sqn", Long.toHexString(0L))
                 .build(),
             new GenericRecordBuilder(avroSchema)
                 .set("key1", "foo1")
                 .set("key2", "bar1")
                 .set("value", "1")
                 .set("updateType", "UPSERT")
-                .set("sqn", 0L)
+                .set("sqn", Long.toHexString(0L))
                 .build(),
             new GenericRecordBuilder(avroSchema)
                 .set("key1", "foo0")
                 .set("key2", "bar0")
                 .set("value", "2")
                 .set("updateType", "UPSERT")
-                .set("sqn", 1L)
+                .set("sqn", Long.toHexString(1L))
                 .build(),
             new GenericRecordBuilder(avroSchema)
                 .set("key1", "foo1")
                 .set("key2", "bar1")
                 .set("value", "1")
                 .set("updateType", "DELETE")
-                .set("sqn", 1L)
+                .set("sqn", Long.toHexString(1L))
                 .build(),
             new GenericRecordBuilder(avroSchema)
                 .set("key1", "foo3")
                 .set("key2", "bar3")
                 .set("value", "1")
                 .set("updateType", "UPSERT")
-                .set("sqn", 0L)
+                .set("sqn", Long.toHexString(0L))
                 .build(),
             new GenericRecordBuilder(avroSchema)
                 .set("key1", "foo1")
                 .set("key2", "bar1")
                 .set("value", "3")
                 .set("updateType", "UPSERT")
-                .set("sqn", 2L)
+                .set("sqn", Long.toHexString(2L))
                 .build(),
             new GenericRecordBuilder(avroSchema)
                 .set("key1", "foo4")
                 .set("key2", "bar4")
                 .set("value", "1")
                 .set("updateType", "UPSERT")
-                .set("sqn", 0L)
+                .set("sqn", Long.toHexString(0L))
                 .build(),
             new GenericRecordBuilder(avroSchema)
                 .set("key1", "foo4")
                 .set("key2", "bar4")
                 .set("value", "1")
                 .set("updateType", "DELETE")
-                .set("sqn", 1L)
+                .set("sqn", Long.toHexString(1L))
                 .build());
 
     BigQueryIO.Write<GenericRecord> write =
@@ -3489,10 +3752,12 @@ public class BigQueryIOWriteTest implements Serializable {
             .withSchema(tableSchema)
             .withMethod(Method.STORAGE_API_AT_LEAST_ONCE)
             .withRowMutationInformationFn(
-                r ->
-                    RowMutationInformation.of(
-                        RowMutationInformation.MutationType.valueOf(r.get("updateType").toString()),
-                        (long) r.get("sqn")))
+                r -> {
+                  RowMutationInformation.MutationType mutationType =
+                      RowMutationInformation.MutationType.valueOf(r.get("updateType").toString());
+                  String sqn = r.get("sqn").toString();
+                  return RowMutationInformation.of(mutationType, sqn);
+                })
             .withoutValidation()
             .withTestServices(fakeBqServices);
 
@@ -3506,19 +3771,19 @@ public class BigQueryIOWriteTest implements Serializable {
                 .set("key2", "bar0")
                 .set("value", "2")
                 .set("updatetype", "UPSERT")
-                .set("sqn", "1"),
+                .set("sqn", Long.toHexString(1)),
             new TableRow()
                 .set("key1", "foo1")
                 .set("key2", "bar1")
                 .set("value", "3")
                 .set("updatetype", "UPSERT")
-                .set("sqn", "2"),
+                .set("sqn", Long.toHexString(2)),
             new TableRow()
                 .set("key1", "foo3")
                 .set("key2", "bar3")
                 .set("value", "1")
                 .set("updatetype", "UPSERT")
-                .set("sqn", "0"));
+                .set("sqn", Long.toHexString(0)));
 
     assertThat(
         fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
@@ -3538,7 +3803,7 @@ public class BigQueryIOWriteTest implements Serializable {
                     new TableFieldSchema().setName("key2").setType("STRING"),
                     new TableFieldSchema().setName("value").setType("STRING"),
                     new TableFieldSchema().setName("updateType").setType("STRING"),
-                    new TableFieldSchema().setName("sqn").setType("INT64")));
+                    new TableFieldSchema().setName("sqn").setType("STRING")));
 
     Table fakeTable = new Table();
     TableReference ref =
@@ -3557,7 +3822,7 @@ public class BigQueryIOWriteTest implements Serializable {
             .addNullableStringField("key2")
             .addNullableStringField("value")
             .addNullableStringField("updateType")
-            .addNullableInt64Field("sqn")
+            .addNullableStringField("sqn")
             .build();
 
     List<Row> items =
@@ -3567,56 +3832,56 @@ public class BigQueryIOWriteTest implements Serializable {
                 .withFieldValue("key2", "bar0")
                 .withFieldValue("value", "1")
                 .withFieldValue("updateType", "UPSERT")
-                .withFieldValue("sqn", 0L)
+                .withFieldValue("sqn", Long.toHexString(0L))
                 .build(),
             Row.withSchema(beamSchema)
                 .withFieldValue("key1", "foo1")
                 .withFieldValue("key2", "bar1")
                 .withFieldValue("value", "1")
                 .withFieldValue("updateType", "UPSERT")
-                .withFieldValue("sqn", 0L)
+                .withFieldValue("sqn", Long.toHexString(0L))
                 .build(),
             Row.withSchema(beamSchema)
                 .withFieldValue("key1", "foo0")
                 .withFieldValue("key2", "bar0")
                 .withFieldValue("value", "2")
                 .withFieldValue("updateType", "UPSERT")
-                .withFieldValue("sqn", 1L)
+                .withFieldValue("sqn", Long.toHexString(1L))
                 .build(),
             Row.withSchema(beamSchema)
                 .withFieldValue("key1", "foo1")
                 .withFieldValue("key2", "bar1")
                 .withFieldValue("value", "1")
                 .withFieldValue("updateType", "DELETE")
-                .withFieldValue("sqn", 1L)
+                .withFieldValue("sqn", Long.toHexString(1L))
                 .build(),
             Row.withSchema(beamSchema)
                 .withFieldValue("key1", "foo3")
                 .withFieldValue("key2", "bar3")
                 .withFieldValue("value", "1")
                 .withFieldValue("updateType", "UPSERT")
-                .withFieldValue("sqn", 0L)
+                .withFieldValue("sqn", Long.toHexString(0L))
                 .build(),
             Row.withSchema(beamSchema)
                 .withFieldValue("key1", "foo1")
                 .withFieldValue("key2", "bar1")
                 .withFieldValue("value", "3")
                 .withFieldValue("updateType", "UPSERT")
-                .withFieldValue("sqn", 2L)
+                .withFieldValue("sqn", Long.toHexString(2L))
                 .build(),
             Row.withSchema(beamSchema)
                 .withFieldValue("key1", "foo4")
                 .withFieldValue("key2", "bar4")
                 .withFieldValue("value", "1")
                 .withFieldValue("updateType", "UPSERT")
-                .withFieldValue("sqn", 0L)
+                .withFieldValue("sqn", Long.toHexString(0L))
                 .build(),
             Row.withSchema(beamSchema)
                 .withFieldValue("key1", "foo4")
                 .withFieldValue("key2", "bar4")
                 .withFieldValue("value", "1")
                 .withFieldValue("updateType", "DELETE")
-                .withFieldValue("sqn", 1L)
+                .withFieldValue("sqn", Long.toHexString(1L))
                 .build());
 
     BigQueryIO.Write<Row> write =
@@ -3630,7 +3895,7 @@ public class BigQueryIOWriteTest implements Serializable {
                 r ->
                     RowMutationInformation.of(
                         RowMutationInformation.MutationType.valueOf(r.getString("updateType")),
-                        r.getInt64("sqn")))
+                        r.getString("sqn")))
             .withoutValidation()
             .withTestServices(fakeBqServices);
 
@@ -3644,19 +3909,19 @@ public class BigQueryIOWriteTest implements Serializable {
                 .set("key2", "bar0")
                 .set("value", "2")
                 .set("updatetype", "UPSERT")
-                .set("sqn", "1"),
+                .set("sqn", Long.toHexString(1)),
             new TableRow()
                 .set("key1", "foo1")
                 .set("key2", "bar1")
                 .set("value", "3")
                 .set("updatetype", "UPSERT")
-                .set("sqn", "2"),
+                .set("sqn", Long.toHexString(2)),
             new TableRow()
                 .set("key1", "foo3")
                 .set("key2", "bar3")
                 .set("value", "1")
                 .set("updatetype", "UPSERT")
-                .set("sqn", "0"));
+                .set("sqn", Long.toHexString(0)));
 
     assertThat(
         fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),

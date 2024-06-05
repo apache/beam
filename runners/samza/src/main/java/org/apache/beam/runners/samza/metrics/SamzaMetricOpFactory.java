@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.samza.metrics;
 
-import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.samza.runtime.Op;
+import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.checkerframework.checker.nullness.qual.NonNull;
 
 /**

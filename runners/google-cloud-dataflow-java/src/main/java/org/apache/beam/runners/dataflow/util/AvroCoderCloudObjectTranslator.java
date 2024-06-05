@@ -18,11 +18,11 @@
 package org.apache.beam.runners.dataflow.util;
 
 import org.apache.avro.Schema;
-import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.avro.io.AvroDatumFactory;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.StringUtils;
+import org.apache.beam.sdk.util.construction.SdkComponents;
 
 /** A {@link CloudObjectTranslator} for {@link AvroCoder}. */
 @SuppressWarnings({

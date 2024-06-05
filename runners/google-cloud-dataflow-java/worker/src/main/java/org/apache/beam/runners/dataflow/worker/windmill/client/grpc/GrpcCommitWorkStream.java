@@ -38,8 +38,8 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.Co
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
 import org.apache.beam.sdk.util.BackOff;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,7 +51,6 @@ public final class GrpcCommitWorkStream
   private static final long HEARTBEAT_REQUEST_ID = Long.MAX_VALUE;
 
   private final Map<Long, PendingRequest> pending;
-  private final Batcher batcher;
   private final AtomicLong idGenerator;
   private final JobHeader jobHeader;
   private final ThrottleTimer commitWorkThrottleTimer;
@@ -75,7 +74,6 @@ public final class GrpcCommitWorkStream
         streamRegistry,
         logEveryNStreamFailures);
     pending = new ConcurrentHashMap<>();
-    batcher = new Batcher();
     this.idGenerator = idGenerator;
     this.jobHeader = jobHeader;
     this.commitWorkThrottleTimer = commitWorkThrottleTimer;
@@ -116,14 +114,23 @@ public final class GrpcCommitWorkStream
   @Override
   protected synchronized void onNewStream() {
     send(StreamingCommitWorkRequest.newBuilder().setHeader(jobHeader).build());
-    Batcher resendBatcher = new Batcher();
-    for (Map.Entry<Long, PendingRequest> entry : pending.entrySet()) {
-      if (!resendBatcher.canAccept(entry.getValue())) {
-        resendBatcher.flush();
+    try (Batcher resendBatcher = new Batcher()) {
+      for (Map.Entry<Long, PendingRequest> entry : pending.entrySet()) {
+        if (!resendBatcher.canAccept(entry.getValue().getBytes())) {
+          resendBatcher.flush();
+        }
+        resendBatcher.add(entry.getKey(), entry.getValue());
       }
-      resendBatcher.add(entry.getKey(), entry.getValue());
     }
-    resendBatcher.flush();
+  }
+
+  /**
+   * Returns a builder that can be used for sending requests. Each builder is not thread-safe but
+   * different builders for the same stream may be used simultaneously.
+   */
+  @Override
+  public CommitWorkStream.RequestBatcher batcher() {
+    return new Batcher();
   }
 
   @Override
@@ -173,22 +180,6 @@ public final class GrpcCommitWorkStream
   @Override
   protected void startThrottleTimer() {
     commitWorkThrottleTimer.start();
-  }
-
-  @Override
-  public boolean commitWorkItem(
-      String computation, WorkItemCommitRequest commitRequest, Consumer<CommitStatus> onDone) {
-    PendingRequest request = new PendingRequest(computation, commitRequest, onDone);
-    if (!batcher.canAccept(request)) {
-      return false;
-    }
-    batcher.add(idGenerator.incrementAndGet(), request);
-    return true;
-  }
-
-  @Override
-  public void flush() {
-    batcher.flush();
   }
 
   private void flushInternal(Map<Long, PendingRequest> requests) {
@@ -305,7 +296,7 @@ public final class GrpcCommitWorkStream
     }
   }
 
-  private class Batcher {
+  private class Batcher implements CommitWorkStream.RequestBatcher {
 
     private final Map<Long, PendingRequest> queue;
     private long queuedBytes;
@@ -315,22 +306,35 @@ public final class GrpcCommitWorkStream
       this.queue = new HashMap<>();
     }
 
-    boolean canAccept(PendingRequest request) {
-      return queue.isEmpty()
-          || (queue.size() < streamingRpcBatchLimit
-              && (request.getBytes() + queuedBytes) < AbstractWindmillStream.RPC_STREAM_CHUNK_SIZE);
+    @Override
+    public boolean commitWorkItem(
+        String computation, WorkItemCommitRequest commitRequest, Consumer<CommitStatus> onDone) {
+      if (!canAccept(commitRequest.getSerializedSize() + computation.length())) {
+        return false;
+      }
+      PendingRequest request = new PendingRequest(computation, commitRequest, onDone);
+      add(idGenerator.incrementAndGet(), request);
+      return true;
+    }
+
+    /** Flushes any pending work items to the wire. */
+    @Override
+    public void flush() {
+      flushInternal(queue);
+      queuedBytes = 0;
+      queue.clear();
     }
 
     void add(long id, PendingRequest request) {
-      assert (canAccept(request));
+      assert (canAccept(request.getBytes()));
       queuedBytes += request.getBytes();
       queue.put(id, request);
     }
 
-    void flush() {
-      flushInternal(queue);
-      queuedBytes = 0;
-      queue.clear();
+    private boolean canAccept(long requestBytes) {
+      return queue.isEmpty()
+          || (queue.size() < streamingRpcBatchLimit
+              && (requestBytes + queuedBytes) < AbstractWindmillStream.RPC_STREAM_CHUNK_SIZE);
     }
   }
 }

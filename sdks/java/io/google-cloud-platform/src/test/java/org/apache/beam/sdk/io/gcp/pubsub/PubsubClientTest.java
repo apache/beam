@@ -205,7 +205,7 @@ public class PubsubClientTest {
 
     assertThrows(
         "null definition should throw an exception",
-        NullPointerException.class,
+        SchemaParseException.class,
         () ->
             PubsubClient.fromPubsubSchema(
                 com.google.pubsub.v1.Schema.newBuilder().setType(Schema.Type.AVRO).build()));

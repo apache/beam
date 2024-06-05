@@ -51,6 +51,7 @@ import static org.mockito.Mockito.when;
 import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.Proxy;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -58,7 +59,9 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
@@ -78,6 +81,8 @@ import org.apache.activemq.util.Callback;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
+import org.apache.beam.sdk.io.jms.JmsIO.UnboundedJmsReader;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
@@ -209,7 +214,6 @@ public class JmsIOTest {
     producer.send(message);
     producer.send(message);
     producer.send(message);
-    producer.send(message);
     producer.close();
     session.close();
     connection.close();
@@ -227,11 +231,22 @@ public class JmsIOTest {
     PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(5L);
     pipeline.run();
 
-    connection = connectionFactory.createConnection(USERNAME, PASSWORD);
-    session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
-    MessageConsumer consumer = session.createConsumer(session.createQueue(QUEUE));
-    Message msg = consumer.receiveNoWait();
-    assertNull(msg);
+    assertQueueIsEmpty();
+  }
+
+  private void assertQueueIsEmpty() throws JMSException {
+    // we need to disable the prefetch, otherwise the receiveNoWait could still return null even
+    // when there are messages waiting on the queue
+    Connection connection =
+        connectionFactoryWithSyncAcksAndWithoutPrefetch.createConnection(USERNAME, PASSWORD);
+    try {
+      Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+      MessageConsumer consumer = session.createConsumer(session.createQueue(QUEUE));
+      connection.start();
+      assertNull(consumer.receiveNoWait());
+    } finally {
+      connection.close();
+    }
   }
 
   @Test
@@ -263,11 +278,41 @@ public class JmsIOTest {
     PAssert.thatSingleton(output.apply("Count", Count.<String>globally())).isEqualTo(1L);
     pipeline.run();
 
-    connection = connectionFactory.createConnection(USERNAME, PASSWORD);
-    session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
-    MessageConsumer consumer = session.createConsumer(session.createQueue(QUEUE));
-    Message msg = consumer.receiveNoWait();
-    assertNull(msg);
+    assertQueueIsEmpty();
+  }
+
+  @Test
+  public void testRequiresDedup() throws Exception {
+    // produce message
+    Connection connection = connectionFactory.createConnection(USERNAME, PASSWORD);
+    Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+    MessageProducer producer = session.createProducer(session.createQueue(QUEUE));
+    for (int i = 0; i < 10; i++) {
+      producer.send(session.createTextMessage("test " + i));
+    }
+    producer.close();
+    session.close();
+    connection.close();
+
+    JmsIO.Read spec =
+        JmsIO.read()
+            .withConnectionFactory(connectionFactoryWithSyncAcksAndWithoutPrefetch)
+            .withUsername(USERNAME)
+            .withPassword(PASSWORD)
+            .withQueue(QUEUE);
+    JmsIO.UnboundedJmsSource source = new JmsIO.UnboundedJmsSource(spec);
+    JmsIO.UnboundedJmsReader reader = source.createReader(null, null);
+
+    // start the reader and move to the first record
+    assertTrue(reader.start());
+    Set<ByteBuffer> uniqueIds = new HashSet<>();
+    uniqueIds.add(ByteBuffer.wrap(reader.getCurrentRecordId()));
+
+    for (int i = 0; i < 10; i++) {
+      if (reader.advance()) {
+        assertTrue(uniqueIds.add(ByteBuffer.wrap(reader.getCurrentRecordId())));
+      }
+    }
   }
 
   @Test
@@ -420,6 +465,76 @@ public class JmsIOTest {
     // that the consumer will poll for message, which is exactly what we want for the test.
     // We are also sending message acknowledgements synchronously to ensure that they are
     // processed before any subsequent assertions.
+    UnboundedJmsReader reader = setupReaderForTest();
+
+    // start the reader and move to the first record
+    assertTrue(reader.start());
+
+    // consume 3 messages (NB: start already consumed the first message)
+    for (int i = 0; i < 3; i++) {
+      assertTrue(String.format("Failed at %d-th message", i), reader.advance());
+    }
+
+    // the messages are still pending in the queue (no ACK yet)
+    assertEquals(10, count(QUEUE));
+
+    // we finalize the checkpoint
+    reader.getCheckpointMark().finalizeCheckpoint();
+
+    // the checkpoint finalize ack the messages, and so they are not pending in the queue anymore
+    assertEquals(6, count(QUEUE));
+
+    // we read the 6 pending messages
+    for (int i = 0; i < 6; i++) {
+      assertTrue(String.format("Failed at %d-th message", i), reader.advance());
+    }
+
+    // still 6 pending messages as we didn't finalize the checkpoint
+    assertEquals(6, count(QUEUE));
+
+    // we finalize the checkpoint: no more message in the queue
+    reader.getCheckpointMark().finalizeCheckpoint();
+
+    assertEquals(0, count(QUEUE));
+  }
+
+  @Test
+  public void testCheckpointMarkAndFinalizeSeparately() throws Exception {
+    UnboundedJmsReader reader = setupReaderForTest();
+
+    // start the reader and move to the first record
+    assertTrue(reader.start());
+
+    // consume 2 message (NB: start already consumed the first message)
+    assertTrue(reader.advance());
+    assertTrue(reader.advance());
+
+    // get checkpoint mark after consumed 4 messages
+    CheckpointMark mark = reader.getCheckpointMark();
+
+    // consume two more messages after checkpoint made
+    reader.advance();
+    reader.advance();
+
+    // the messages are still pending in the queue (no ACK yet)
+    assertEquals(10, count(QUEUE));
+
+    // we finalize the checkpoint
+    mark.finalizeCheckpoint();
+
+    // the checkpoint finalize ack the messages, and so they are not pending in the queue anymore
+    assertEquals(7, count(QUEUE));
+  }
+
+  private JmsIO.UnboundedJmsReader setupReaderForTest() throws JMSException {
+    // we are using no prefetch here
+    // prefetch is an ActiveMQ feature: to make efficient use of network resources the broker
+    // utilizes a 'push' model to dispatch messages to consumers. However, in the case of our
+    // test, it means that we can have some latency between the receiveNoWait() method used by
+    // the consumer and the prefetch buffer populated by the broker. Using a prefetch to 0 means
+    // that the consumer will poll for message, which is exactly what we want for the test.
+    // We are also sending message acknowledgements synchronously to ensure that they are
+    // processed before any subsequent assertions.
     Connection connection =
         connectionFactoryWithSyncAcksAndWithoutPrefetch.createConnection(USERNAME, PASSWORD);
     connection.start();
@@ -439,37 +554,8 @@ public class JmsIOTest {
             .withPassword(PASSWORD)
             .withQueue(QUEUE);
     JmsIO.UnboundedJmsSource source = new JmsIO.UnboundedJmsSource(spec);
-    JmsIO.UnboundedJmsReader reader = source.createReader(null, null);
-
-    // start the reader and move to the first record
-    assertTrue(reader.start());
-
-    // consume 3 messages (NB: start already consumed the first message)
-    for (int i = 0; i < 3; i++) {
-      assertTrue(reader.advance());
-    }
-
-    // the messages are still pending in the queue (no ACK yet)
-    assertEquals(10, count(QUEUE));
-
-    // we finalize the checkpoint
-    reader.getCheckpointMark().finalizeCheckpoint();
-
-    // the checkpoint finalize ack the messages, and so they are not pending in the queue anymore
-    assertEquals(6, count(QUEUE));
-
-    // we read the 6 pending messages
-    for (int i = 0; i < 6; i++) {
-      assertTrue(reader.advance());
-    }
-
-    // still 6 pending messages as we didn't finalize the checkpoint
-    assertEquals(6, count(QUEUE));
-
-    // we finalize the checkpoint: no more message in the queue
-    reader.getCheckpointMark().finalizeCheckpoint();
-
-    assertEquals(0, count(QUEUE));
+    JmsIO.UnboundedJmsReader reader = source.createReader(PipelineOptionsFactory.create(), null);
+    return reader;
   }
 
   private Function<?, ?> getJmsMessageAck(Class connectorClass) {
@@ -545,7 +631,7 @@ public class JmsIOTest {
             .withPassword(PASSWORD)
             .withQueue(QUEUE);
     JmsIO.UnboundedJmsSource source = new JmsIO.UnboundedJmsSource(spec);
-    JmsIO.UnboundedJmsReader reader = source.createReader(null, null);
+    JmsIO.UnboundedJmsReader reader = source.createReader(PipelineOptionsFactory.create(), null);
 
     // start the reader and move to the first record
     assertTrue(reader.start());
@@ -583,7 +669,7 @@ public class JmsIOTest {
   /** Test the checkpoint mark default coder, which is actually AvroCoder. */
   @Test
   public void testCheckpointMarkDefaultCoder() throws Exception {
-    JmsCheckpointMark jmsCheckpointMark = new JmsCheckpointMark();
+    JmsCheckpointMark jmsCheckpointMark = JmsCheckpointMark.newPreparer().newCheckpoint(null, null);
     Coder coder = new JmsIO.UnboundedJmsSource(null).getCheckpointMarkCoder();
     CoderProperties.coderSerializable(coder);
     CoderProperties.coderDecodeEncodeEqual(coder, jmsCheckpointMark);
@@ -598,7 +684,7 @@ public class JmsIOTest {
             .withPassword(PASSWORD)
             .withQueue(QUEUE);
     JmsIO.UnboundedJmsSource source = new JmsIO.UnboundedJmsSource(spec);
-    JmsIO.UnboundedJmsReader reader = source.createReader(null, null);
+    JmsIO.UnboundedJmsReader reader = source.createReader(PipelineOptionsFactory.create(), null);
 
     // start the reader and check getSplitBacklogBytes and getTotalBacklogBytes values
     reader.start();
@@ -622,7 +708,7 @@ public class JmsIOTest {
             .withAutoScaler(autoScaler);
 
     JmsIO.UnboundedJmsSource source = new JmsIO.UnboundedJmsSource(spec);
-    JmsIO.UnboundedJmsReader reader = source.createReader(null, null);
+    JmsIO.UnboundedJmsReader reader = source.createReader(PipelineOptionsFactory.create(), null);
 
     // start the reader and check getSplitBacklogBytes and getTotalBacklogBytes values
     reader.start();
@@ -668,12 +754,12 @@ public class JmsIOTest {
   }
 
   private boolean getDiscardedValue(JmsIO.UnboundedJmsReader reader) {
-    JmsCheckpointMark checkpoint = (JmsCheckpointMark) reader.getCheckpointMark();
-    checkpoint.lock.readLock().lock();
+    JmsCheckpointMark.Preparer preparer = reader.checkpointMarkPreparer;
+    preparer.lock.readLock().lock();
     try {
-      return checkpoint.discarded;
+      return preparer.discarded;
     } finally {
-      checkpoint.lock.readLock().unlock();
+      preparer.lock.readLock().unlock();
     }
   }
 
@@ -698,7 +784,7 @@ public class JmsIOTest {
             .withPassword(PASSWORD)
             .withQueue(QUEUE);
     JmsIO.UnboundedJmsSource source = new JmsIO.UnboundedJmsSource(spec);
-    JmsIO.UnboundedJmsReader reader = source.createReader(null, null);
+    JmsIO.UnboundedJmsReader reader = source.createReader(PipelineOptionsFactory.create(), null);
 
     // start the reader and move to the first record
     assertTrue(reader.start());
@@ -725,8 +811,8 @@ public class JmsIOTest {
     // still 6 pending messages as we didn't finalize the checkpoint
     assertEquals(6, count(QUEUE));
 
-    // But here we discard the checkpoint
-    ((JmsCheckpointMark) reader.getCheckpointMark()).discard();
+    // But here we discard the pending checkpoint
+    reader.checkpointMarkPreparer.discard();
     // we finalize the checkpoint: no messages should be acked
     reader.getCheckpointMark().finalizeCheckpoint();
 
@@ -841,11 +927,7 @@ public class JmsIOTest {
                                 "%s:%s",
                                 JMS_IO_PRODUCER_METRIC_NAME, PUBLICATION_RETRIES_METRIC_NAME)))))));
 
-    Connection connection = connectionFactory.createConnection(USERNAME, PASSWORD);
-    connection.start();
-    Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
-    MessageConsumer consumer = session.createConsumer(session.createQueue(QUEUE));
-    assertNull(consumer.receiveNoWait());
+    assertQueueIsEmpty();
   }
 
   @Test

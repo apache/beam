@@ -50,8 +50,6 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
 import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler.DefaultErrorHandler;
 import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
@@ -340,15 +338,6 @@ public class ReadFromKafkaDoFnTest {
     public void outputWithTimestamp(
         T output, @UnknownKeyFor @NonNull @Initialized Instant timestamp) {
       records.add(output);
-    }
-
-    @Override
-    public void outputWindowedValue(
-        T output,
-        Instant timestamp,
-        Collection<? extends BoundedWindow> windows,
-        PaneInfo paneInfo) {
-      throw new UnsupportedOperationException("Not expecting outputWindowedValue");
     }
 
     public List<T> getOutputs() {
@@ -650,6 +639,19 @@ public class ReadFromKafkaDoFnTest {
   public void testUnbounded() {
     BoundednessVisitor visitor = testBoundedness(rsd -> rsd);
     Assert.assertNotEquals(0, visitor.unboundedPCollections.size());
+  }
+
+  @Test
+  public void testConstructorWithPollTimeout() {
+    ReadSourceDescriptors<String, String> descriptors = makeReadSourceDescriptor(consumer);
+    // default poll timeout = 1 scond
+    ReadFromKafkaDoFn<String, String> dofnInstance = ReadFromKafkaDoFn.create(descriptors, RECORDS);
+    Assert.assertEquals(2L, dofnInstance.consumerPollingTimeout);
+    // updated timeout = 5 seconds
+    descriptors = descriptors.withConsumerPollingTimeout(5L);
+    ReadFromKafkaDoFn<String, String> dofnInstanceNew =
+        ReadFromKafkaDoFn.create(descriptors, RECORDS);
+    Assert.assertEquals(5L, dofnInstanceNew.consumerPollingTimeout);
   }
 
   private BoundednessVisitor testBoundedness(

@@ -123,6 +123,24 @@ public @interface DefaultSchema {
           });
     }
 
+    /**
+     * Retrieves the underlying {@link SchemaProvider} for the given {@link TypeDescriptor}. If no
+     * provider is found, returns null.
+     */
+    public @Nullable <T> SchemaProvider getUnderlyingSchemaProvider(
+        TypeDescriptor<T> typeDescriptor) {
+      ProviderAndDescriptor providerAndDescriptor = getSchemaProvider(typeDescriptor);
+      return providerAndDescriptor != null ? providerAndDescriptor.schemaProvider : null;
+    }
+
+    /**
+     * Retrieves the underlying {@link SchemaProvider} for the given {@link Class}. If no provider
+     * is found, returns null.
+     */
+    public @Nullable <T> SchemaProvider getUnderlyingSchemaProvider(Class<T> clazz) {
+      return getUnderlyingSchemaProvider(TypeDescriptor.of(clazz));
+    }
+
     @Override
     public <T> Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
       ProviderAndDescriptor providerAndDescriptor = getSchemaProvider(typeDescriptor);

@@ -16,6 +16,7 @@
 #
 
 include gen_protos.py
+include gen_xlang_wrappers.py
 include README.md
 include NOTICE
 include LICENSE

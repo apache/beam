@@ -121,7 +121,6 @@ task validateJavaHome {
     }
 }
 
-def useBuildx = project.containerPlatforms() != [project.nativeArchitecture()]
 def pushContainers = project.rootProject.hasProperty(["isRelease"]) || project.rootProject.hasProperty("push-containers")
 
 docker {
@@ -142,9 +141,9 @@ docker {
             'base_image': javaBaseImage,
             'java_version': imageJavaVersion,
     ])
-    buildx useBuildx
+    buildx project.useBuildx()
     platform(*project.containerPlatforms())
-    load useBuildx && !pushContainers
+    load project.useBuildx() && !pushContainers
     push pushContainers
 }
 

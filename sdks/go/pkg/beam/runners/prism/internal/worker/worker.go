@@ -354,7 +354,7 @@ func (wk *W) Data(data fnpb.BeamFnData_DataServer) error {
 			for _, d := range resp.GetData() {
 				cr, ok := wk.activeInstructions[d.GetInstructionId()]
 				if !ok {
-					slog.Info("data.Recv for unknown bundle", "response", resp)
+					slog.Info("data.Recv data for unknown bundle", "response", resp)
 					continue
 				}
 				// Received data is always for an active ProcessBundle instruction
@@ -367,7 +367,23 @@ func (wk *W) Data(data fnpb.BeamFnData_DataServer) error {
 					b.OutputData.WriteData(colID, d.GetData())
 				}
 				if d.GetIsLast() {
-					b.DataDone()
+					b.DataOrTimerDone()
+				}
+			}
+			for _, t := range resp.GetTimers() {
+				cr, ok := wk.activeInstructions[t.GetInstructionId()]
+				if !ok {
+					slog.Info("data.Recv timers for unknown bundle", "response", resp)
+					continue
+				}
+				// Received data is always for an active ProcessBundle instruction
+				b := cr.(*B)
+
+				if len(t.GetTimers()) > 0 {
+					b.OutputData.WriteTimers(t.GetTransformId(), t.GetTimerFamilyId(), t.GetTimers())
+				}
+				if t.GetIsLast() {
+					b.DataOrTimerDone()
 				}
 			}
 			wk.mu.Unlock()
@@ -507,6 +523,7 @@ func (wk *W) State(state fnpb.BeamFnState_StateServer) error {
 				default:
 					panic(fmt.Sprintf("unsupported StateKey Append type: %T: %v", key.GetType(), prototext.Format(key)))
 				}
+
 				responses <- &fnpb.StateResponse{
 					Id: req.GetId(),
 					Response: &fnpb.StateResponse_Append{

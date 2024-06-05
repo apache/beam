@@ -114,7 +114,7 @@ class TrivialRunner(runner.PipelineRunner):
               for pc in transform_proto.inputs.values()
           ], []))
 
-    elif transform_proto.spec.urn == 'beam:runner:executable_stage:v1':
+    elif transform_proto.spec.urn == common_urns.executable_stage:
       # This is a collection of user DoFns.
       self.execute_executable_stage(transform_proto, execution_state)
 

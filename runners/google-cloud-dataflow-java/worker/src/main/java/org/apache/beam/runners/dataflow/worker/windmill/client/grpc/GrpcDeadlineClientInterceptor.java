@@ -18,11 +18,11 @@
 package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 
 import java.util.concurrent.TimeUnit;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.CallOptions;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.Channel;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ClientCall;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ClientInterceptor;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.MethodDescriptor;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.CallOptions;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Channel;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ClientCall;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ClientInterceptor;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.MethodDescriptor;
 
 /**
  * Intercepts outgoing calls and attaches a relative deadline to the call. Deadlines are absolute,

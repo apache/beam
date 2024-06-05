@@ -96,6 +96,12 @@ class _VertexAITextEmbeddingHandler(ModelHandler):
     model = TextEmbeddingModel.from_pretrained(self.model_name)
     return model
 
+  def __repr__(self):
+    # ModelHandler is internal to the user and is not exposed.
+    # Hence we need to override the __repr__ method to expose
+    # the name of the class.
+    return 'VertexAITextEmbeddings'
+
 
 class VertexAITextEmbeddings(EmbeddingsManager):
   def __init__(
@@ -148,7 +154,6 @@ class VertexAITextEmbeddings(EmbeddingsManager):
     )
 
   def get_ptransform_for_processing(self, **kwargs) -> beam.PTransform:
-    return (
-        RunInference(
-            model_handler=_TextEmbeddingHandler(self),
-            inference_args=self.inference_args))
+    return RunInference(
+        model_handler=_TextEmbeddingHandler(self),
+        inference_args=self.inference_args)

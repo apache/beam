@@ -871,6 +871,8 @@ class WriteToText(PTransform):
         to exceed this value.  This also tracks the uncompressed,
         not compressed, size of the shard.
       skip_if_empty: Don't write any shards if the PCollection is empty.
+        In case of an empty PCollection, this will still delete existing
+        files having same file path and not create new ones.
     """
 
     self._sink = _TextSink(

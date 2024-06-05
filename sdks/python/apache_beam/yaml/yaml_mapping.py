@@ -24,28 +24,37 @@ from typing import Any
 from typing import Callable
 from typing import Collection
 from typing import Dict
+from typing import List
 from typing import Mapping
 from typing import NamedTuple
 from typing import Optional
+from typing import TypeVar
 from typing import Union
-
-import js2py
-from js2py import base
-from js2py.constructors import jsdate
-from js2py.internals import simplex
 
 import apache_beam as beam
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.portability.api import schema_pb2
+from apache_beam.transforms.window import TimestampedValue
 from apache_beam.typehints import row_type
 from apache_beam.typehints import schemas
 from apache_beam.typehints import trivial_inference
+from apache_beam.typehints import typehints
+from apache_beam.typehints.native_type_compatibility import convert_to_beam_type
+from apache_beam.typehints.row_type import RowTypeConstraint
 from apache_beam.typehints.schemas import named_fields_from_element_type
 from apache_beam.utils import python_callable
 from apache_beam.yaml import json_utils
 from apache_beam.yaml import options
 from apache_beam.yaml import yaml_provider
 from apache_beam.yaml.yaml_provider import dicts_to_rows
+
+# Import js2py package if it exists
+try:
+  import js2py
+  from js2py.base import JsObjectWrapper
+except ImportError:
+  js2py = None
+  JsObjectWrapper = object
 
 
 def normalize_mapping(spec):
@@ -82,7 +91,7 @@ def _check_mapping_arguments(
 # js2py's JsObjectWrapper object has a self-referencing __dict__ property
 # that cannot be pickled without implementing the __getstate__ and
 # __setstate__ methods.
-class _CustomJsObjectWrapper(js2py.base.JsObjectWrapper):
+class _CustomJsObjectWrapper(JsObjectWrapper):
   def __init__(self, js_obj):
     super().__init__(js_obj.__dict__['_obj'])
 
@@ -110,6 +119,17 @@ def py_value_to_js_dict(py_value):
 #  ECMAScript 5 and 6
 def _expand_javascript_mapping_func(
     original_fields, expression=None, callable=None, path=None, name=None):
+
+  # Check for installed js2py package
+  if js2py is None:
+    raise ValueError(
+        "Javascript mapping functions are not supported on"
+        " Python 3.12 or later.")
+
+  # import remaining js2py objects
+  from js2py import base
+  from js2py.constructors import jsdate
+  from js2py.internals import simplex
 
   js_array_type = (
       base.PyJsArray,
@@ -239,9 +259,34 @@ def _validator(beam_type: schema_pb2.FieldType) -> Callable[[Any], bool]:
     raise ValueError(f"Unrecognized type_info: {type_info!r}")
 
 
-def _as_callable(original_fields, expr, transform_name, language):
+def _as_callable_for_pcoll(
+    pcoll,
+    fn_spec: Union[str, Dict[str, str]],
+    msg: str,
+    language: Optional[str]):
+  if language == 'javascript':
+    options.YamlOptions.check_enabled(pcoll.pipeline, 'javascript')
+
+  try:
+    input_schema = dict(named_fields_from_element_type(pcoll.element_type))
+  except (TypeError, ValueError) as exn:
+    if is_expr(fn_spec):
+      raise ValueError("Can only use expressions on a schema'd input.") from exn
+    input_schema = {}  # unused
+
+  if isinstance(fn_spec, str) and fn_spec in input_schema:
+    return lambda row: getattr(row, fn_spec)
+  else:
+    return _as_callable(
+        list(input_schema.keys()), fn_spec, msg, language, input_schema)
+
+
+def _as_callable(original_fields, expr, transform_name, language, input_schema):
+
+  # Extract original type from upstream pcoll when doing simple mappings
+  original_type = input_schema.get(str(expr), None)
   if expr in original_fields:
-    return expr
+    language = "python"
 
   # TODO(yaml): support an imports parameter
   # TODO(yaml): support a requirements parameter (possibly at a higher level)
@@ -277,6 +322,15 @@ def _as_callable(original_fields, expr, transform_name, language):
 
     return checking_func
 
+  elif original_type:
+
+    @beam.typehints.with_output_types(convert_to_beam_type(original_type))
+    def checking_func(row):
+      result = func(row)
+      return result
+
+    return checking_func
+
   else:
     return func
 
@@ -296,10 +350,14 @@ def exception_handling_args(error_handling_spec):
     return None
 
 
-def _map_errors_to_standard_format():
+def _map_errors_to_standard_format(input_type):
   # TODO(https://github.com/apache/beam/issues/24755): Switch to MapTuple.
+
   return beam.Map(
-      lambda x: beam.Row(element=x[0], msg=str(x[1][1]), stack=str(x[1][2])))
+      lambda x: beam.Row(element=x[0], msg=str(x[1][1]), stack=str(x[1][2]))
+  ).with_output_types(
+      RowTypeConstraint.from_fields([("element", input_type), ("msg", str),
+                                     ("stack", str)]))
 
 
 def maybe_with_exception_handling(inner_expand):
@@ -307,7 +365,7 @@ def maybe_with_exception_handling(inner_expand):
     wrapped_pcoll = beam.core._MaybePValueWithErrors(
         pcoll, self._exception_handling_args)
     return inner_expand(self, wrapped_pcoll).as_result(
-        _map_errors_to_standard_format())
+        _map_errors_to_standard_format(pcoll.element_type))
 
   return expand
 
@@ -317,8 +375,8 @@ def maybe_with_exception_handling_transform_fn(transform_fn):
   def expand(pcoll, error_handling=None, **kwargs):
     wrapped_pcoll = beam.core._MaybePValueWithErrors(
         pcoll, exception_handling_args(error_handling))
-    return transform_fn(wrapped_pcoll,
-                        **kwargs).as_result(_map_errors_to_standard_format())
+    return transform_fn(wrapped_pcoll, **kwargs).as_result(
+        _map_errors_to_standard_format(pcoll.element_type))
 
   original_signature = inspect.signature(transform_fn)
   new_parameters = list(original_signature.parameters.values())
@@ -346,6 +404,9 @@ class _Explode(beam.PTransform):
 
   This is akin to a `FlatMap` when paired with the MapToFields transform.
 
+  See more complete documentation on
+  [YAML Mapping Functions](https://beam.apache.org/documentation/sdks/yaml-udf/#flatmap).
+
   Args:
       fields: The list of fields to expand.
       cross_product: If multiple fields are specified, indicates whether the
@@ -358,7 +419,8 @@ class _Explode(beam.PTransform):
           `('a', 1)` and `('b', 2)` when it is set to `false`.
           Only meaningful (and required) if multiple rows are specified.
       error_handling: Whether and how to handle errors during iteration.
-  """
+  """  # pylint: disable=line-too-long
+
   def __init__(
       self,
       fields: Union[str, Collection[str]],
@@ -431,20 +493,12 @@ class _Explode(beam.PTransform):
 @maybe_with_exception_handling_transform_fn
 def _PyJsFilter(
     pcoll, keep: Union[str, Dict[str, str]], language: Optional[str] = None):
-  if language == 'javascript':
-    options.YamlOptions.check_enabled(pcoll.pipeline, 'javascript')
+  """Keeps only records that satisfy the given criteria.
 
-  try:
-    input_schema = dict(named_fields_from_element_type(pcoll.element_type))
-  except (TypeError, ValueError) as exn:
-    if is_expr(keep):
-      raise ValueError("Can only use expressions on a schema'd input.") from exn
-    input_schema = {}  # unused
-
-  if isinstance(keep, str) and keep in input_schema:
-    keep_fn = lambda row: getattr(row, keep)
-  else:
-    keep_fn = _as_callable(list(input_schema.keys()), keep, "keep", language)
+  See more complete documentation on
+  [YAML Filtering](https://beam.apache.org/documentation/sdks/yaml-udf/#filtering).
+  """  # pylint: disable=line-too-long
+  keep_fn = _as_callable_for_pcoll(pcoll, keep, "keep", language)
   return pcoll | beam.Filter(keep_fn)
 
 
@@ -489,7 +543,7 @@ def normalize_fields(pcoll, fields, drop=(), append=False, language='generic'):
 
   if append:
     return input_schema, {
-        **{name: name
+        **{name: f'`{name}`' if language in ['sql', 'calcite'] else name
            for name in input_schema.keys() if name not in drop},
         **fields
     }
@@ -500,6 +554,11 @@ def normalize_fields(pcoll, fields, drop=(), append=False, language='generic'):
 @beam.ptransform.ptransform_fn
 @maybe_with_exception_handling_transform_fn
 def _PyJsMapToFields(pcoll, language='generic', **mapping_args):
+  """Creates records with new fields defined in terms of the input fields.
+
+  See more complete documentation on
+  [YAML Mapping Functions](https://beam.apache.org/documentation/sdks/yaml-udf/#mapping-functions).
+  """  # pylint: disable=line-too-long
   input_schema, fields = normalize_fields(
       pcoll, language=language, **mapping_args)
   if language == 'javascript':
@@ -509,7 +568,8 @@ def _PyJsMapToFields(pcoll, language='generic', **mapping_args):
 
   return pcoll | beam.Select(
       **{
-          name: _as_callable(original_fields, expr, name, language)
+          name: _as_callable(
+              original_fields, expr, name, language, input_schema)
           for (name, expr) in fields.items()
       })
 
@@ -530,14 +590,122 @@ def _SqlMapToFieldsTransform(pcoll, sql_transform_constructor, **mapping_args):
     elif 'expression' in v:
       return v['expression']
     else:
-      raise ValueError("Only expressions allowed in SQL at {name}.")
+      raise ValueError(f"Only expressions allowed in SQL at {name}.")
 
   selects = [
-      f'({extract_expr(name, expr)}) AS {name}'
+      f'({extract_expr(name, expr)}) AS `{name}`'
       for (name, expr) in fields.items()
   ]
   query = "SELECT " + ", ".join(selects) + " FROM PCOLLECTION"
   return pcoll | sql_transform_constructor(query)
+
+
+@beam.ptransform.ptransform_fn
+def _Partition(
+    pcoll,
+    by: Union[str, Dict[str, str]],
+    outputs: List[str],
+    unknown_output: Optional[str] = None,
+    error_handling: Optional[Mapping[str, Any]] = None,
+    language: Optional[str] = 'generic'):
+  """Splits an input into several distinct outputs.
+
+  Each input element will go to a distinct output based on the field or
+  function given in the `by` configuration parameter.
+
+  Args:
+      by: A field, callable, or expression giving the destination output for
+        this element.  Should return a string that is a member of the `outputs`
+        parameter. If `unknown_output` is also set, other returns values are
+        accepted as well, otherwise an error will be raised.
+      outputs: The set of outputs into which this input is being partitioned.
+      unknown_output: (Optional) If set, indicates a destination output for any
+        elements that are not assigned an output listed in the `outputs`
+        parameter.
+      error_handling: (Optional) Whether and how to handle errors during
+        partitioning.
+      language: (Optional) The language of the `by` expression.
+  """
+  split_fn = _as_callable_for_pcoll(pcoll, by, 'by', language)
+  try:
+    split_fn_output_type = trivial_inference.infer_return_type(
+        split_fn, [pcoll.element_type])
+  except (TypeError, ValueError):
+    pass
+  else:
+    if not typehints.is_consistent_with(split_fn_output_type,
+                                        typehints.Optional[str]):
+      raise ValueError(
+          f'Partition function "{by}" must return a string type '
+          f'not {split_fn_output_type}')
+  error_output = error_handling['output'] if error_handling else None
+  if error_output in outputs:
+    raise ValueError(
+        f'Error handling output "{error_output}" '
+        f'cannot be among the listed outputs {outputs}')
+  T = TypeVar('T')
+
+  def split(element):
+    tag = split_fn(element)
+    if tag is None:
+      tag = unknown_output
+    if not isinstance(tag, str):
+      raise ValueError(
+          f'Returned output name "{tag}" of type {type(tag)} '
+          f'from "{by}" must be a string.')
+    if tag not in outputs:
+      if unknown_output:
+        tag = unknown_output
+      else:
+        raise ValueError(f'Unknown output name "{tag}" from {by}')
+    return beam.pvalue.TaggedOutput(tag, element)
+
+  output_set = set(outputs)
+  if unknown_output:
+    output_set.add(unknown_output)
+  if error_output:
+    output_set.add(error_output)
+  mapping_transform = beam.Map(split)
+  if error_output:
+    mapping_transform = mapping_transform.with_exception_handling(
+        **exception_handling_args(error_handling))
+  else:
+    mapping_transform = mapping_transform.with_outputs(*output_set)
+  splits = pcoll | mapping_transform.with_input_types(T).with_output_types(T)
+  result = {out: getattr(splits, out) for out in output_set}
+  if error_output:
+    result[
+        error_output] = result[error_output] | _map_errors_to_standard_format(
+            pcoll.element_type)
+  return result
+
+
+@beam.ptransform.ptransform_fn
+@maybe_with_exception_handling_transform_fn
+def _AssignTimestamps(
+    pcoll,
+    timestamp: Union[str, Dict[str, str]],
+    language: Optional[str] = None):
+  """Assigns a new timestamp each element of its input.
+
+  This can be useful when reading records that have the timestamp embedded
+  in them, for example with various file types or other sources that by default
+  set all timestamps to the infinite past.
+
+  Note that the timestamp should only be set forward, as setting it backwards
+  may not cause it to hold back an already advanced watermark and the data
+  could become droppably late.
+
+  Args:
+      timestamp: A field, callable, or expression giving the new timestamp.
+      language: The language of the timestamp expression.
+      error_handling: Whether and how to handle errors during timestamp
+        evaluation.
+  """
+  timestamp_fn = _as_callable_for_pcoll(pcoll, timestamp, 'timestamp', language)
+  T = TypeVar('T')
+  return pcoll | beam.Map(lambda x: TimestampedValue(x, timestamp_fn(x))
+                          ).with_input_types(T).with_output_types(T)
 
 
 def create_mapping_providers():
@@ -546,12 +714,18 @@ def create_mapping_providers():
   # schema is known.
   return [
       yaml_provider.InlineProvider({
+          'AssignTimestamps-python': _AssignTimestamps,
+          'AssignTimestamps-javascript': _AssignTimestamps,
+          'AssignTimestamps-generic': _AssignTimestamps,
           'Explode': _Explode,
           'Filter-python': _PyJsFilter,
           'Filter-javascript': _PyJsFilter,
           'MapToFields-python': _PyJsMapToFields,
           'MapToFields-javascript': _PyJsMapToFields,
           'MapToFields-generic': _PyJsMapToFields,
+          'Partition-python': _Partition,
+          'Partition-javascript': _Partition,
+          'Partition-generic': _Partition,
       }),
       yaml_provider.SqlBackedProvider({
           'Filter-sql': _SqlFilterTransform,

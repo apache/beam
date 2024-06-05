@@ -37,8 +37,8 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.KeyTokenInvalidException;
-import org.apache.beam.runners.dataflow.worker.MetricTrackingWindmillServerStub;
 import org.apache.beam.runners.dataflow.worker.WindmillTimeUtils;
+import org.apache.beam.runners.dataflow.worker.WorkItemCancelledException;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataResponse;
@@ -53,7 +53,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.TimestampedValue;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Function;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
@@ -113,41 +113,43 @@ public class WindmillStateReader {
 
   public static final long MAX_CONTINUATION_KEY_BYTES = 72L << 20; // 72MB
   @VisibleForTesting final ConcurrentLinkedQueue<StateTag<?>> pendingLookups;
-  private final String computation;
   private final ByteString key;
   private final long shardingKey;
   private final long workToken;
   // WindmillStateReader should only perform blocking i/o in a try-with-resources block that
   // declares an AutoCloseable vended by readWrapperSupplier.
   private final Supplier<AutoCloseable> readWrapperSupplier;
-  private final MetricTrackingWindmillServerStub metricTrackingWindmillServerStub;
+  private final Function<KeyedGetDataRequest, Optional<KeyedGetDataResponse>>
+      fetchStateFromWindmillFn;
   private final ConcurrentHashMap<StateTag<?>, CoderAndFuture<?>> waiting;
   private long bytesRead = 0L;
+  private final Supplier<Boolean> workItemIsFailed;
 
   public WindmillStateReader(
-      MetricTrackingWindmillServerStub metricTrackingWindmillServerStub,
-      String computation,
+      Function<KeyedGetDataRequest, Optional<KeyedGetDataResponse>> fetchStateFromWindmillFn,
       ByteString key,
       long shardingKey,
       long workToken,
-      Supplier<AutoCloseable> readWrapperSupplier) {
-    this.metricTrackingWindmillServerStub = metricTrackingWindmillServerStub;
-    this.computation = computation;
+      Supplier<AutoCloseable> readWrapperSupplier,
+      Supplier<Boolean> workItemIsFailed) {
+    this.fetchStateFromWindmillFn = fetchStateFromWindmillFn;
     this.key = key;
     this.shardingKey = shardingKey;
     this.workToken = workToken;
     this.readWrapperSupplier = readWrapperSupplier;
     this.waiting = new ConcurrentHashMap<>();
     this.pendingLookups = new ConcurrentLinkedQueue<>();
+    this.workItemIsFailed = workItemIsFailed;
   }
 
-  public WindmillStateReader(
-      MetricTrackingWindmillServerStub metricTrackingWindmillServerStub,
-      String computation,
+  @VisibleForTesting
+  static WindmillStateReader forTesting(
+      Function<KeyedGetDataRequest, Optional<KeyedGetDataResponse>> fetchStateFromWindmillFn,
       ByteString key,
       long shardingKey,
       long workToken) {
-    this(metricTrackingWindmillServerStub, computation, key, shardingKey, workToken, () -> null);
+    return new WindmillStateReader(
+        fetchStateFromWindmillFn, key, shardingKey, workToken, () -> null, () -> Boolean.FALSE);
   }
 
   private <FutureT> Future<FutureT> stateFuture(StateTag<?> stateTag, @Nullable Coder<?> coder) {
@@ -404,10 +406,13 @@ public class WindmillStateReader {
 
   private KeyedGetDataResponse tryGetDataFromWindmill(HashSet<StateTag<?>> stateTags)
       throws Exception {
+    if (workItemIsFailed.get()) {
+      throw new WorkItemCancelledException(shardingKey);
+    }
     KeyedGetDataRequest keyedGetDataRequest = createRequest(stateTags);
     try (AutoCloseable ignored = readWrapperSupplier.get()) {
-      return Optional.ofNullable(
-              metricTrackingWindmillServerStub.getStateData(computation, keyedGetDataRequest))
+      return fetchStateFromWindmillFn
+          .apply(keyedGetDataRequest)
           .orElseThrow(
               () ->
                   new RuntimeException(

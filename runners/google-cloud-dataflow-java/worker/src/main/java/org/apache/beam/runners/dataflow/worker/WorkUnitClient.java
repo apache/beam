@@ -17,14 +17,19 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import com.google.api.services.dataflow.model.PerWorkerMetrics;
+import com.google.api.services.dataflow.model.StreamingScalingReport;
 import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemServiceState;
 import com.google.api.services.dataflow.model.WorkItemStatus;
+import com.google.api.services.dataflow.model.WorkerMessage;
+import com.google.api.services.dataflow.model.WorkerMessageResponse;
 import java.io.IOException;
+import java.util.List;
 import java.util.Optional;
 
 /** Abstract base class describing a client for WorkItem work units. */
-interface WorkUnitClient {
+public interface WorkUnitClient {
   /**
    * Returns a new WorkItem unit for this Worker to work on or null if no work item is available.
    */
@@ -49,4 +54,29 @@ interface WorkUnitClient {
    * @return a {@link WorkItemServiceState} (e.g. a new stop position)
    */
   WorkItemServiceState reportWorkItemStatus(WorkItemStatus workItemStatus) throws IOException;
+
+  /**
+   * Creates a {@link WorkerMessage} containing the given Streaming Scaling Report
+   *
+   * @param report the StreamingScalingReport containing autoscaling metrics
+   * @return a {@link WorkerMessage}
+   */
+  WorkerMessage createWorkerMessageFromStreamingScalingReport(StreamingScalingReport report);
+
+  /**
+   * Creates a {@link WorkerMessage} containing the given PerWorkerMetrics
+   *
+   * @param metrics Metric updates to send to the backend.
+   * @return a {@link WorkerMessage}
+   */
+  WorkerMessage createWorkerMessageFromPerWorkerMetrics(PerWorkerMetrics metrics);
+
+  /**
+   * Reports the worker messages to dataflow. We currently report autoscaling signals and
+   * perworkermetrics with this path.
+   *
+   * @param msg the WorkerMessages to report
+   * @return a list of {@link WorkerMessageResponse}
+   */
+  List<WorkerMessageResponse> reportWorkerMessage(List<WorkerMessage> messages) throws IOException;
 }

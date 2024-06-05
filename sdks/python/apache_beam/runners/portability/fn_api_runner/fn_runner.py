@@ -56,11 +56,13 @@ from apache_beam.metrics.monitoring_infos import consolidate as consolidate_moni
 from apache_beam.options import pipeline_options
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.portability import common_urns
+from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_provision_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners import runner
 from apache_beam.runners.common import group_by_key_input_visitor
+from apache_beam.runners.common import merge_common_environments
 from apache_beam.runners.common import validate_pipeline_graph
 from apache_beam.runners.portability import portable_metrics
 from apache_beam.runners.portability.fn_api_runner import execution
@@ -220,6 +222,8 @@ class FnApiRunner(runner.PipelineRunner):
     ]
     if direct_options.direct_embed_docker_python:
       pipeline_proto = self.embed_default_docker_image(pipeline_proto)
+    pipeline_proto = merge_common_environments(
+        self.resolve_any_environments(pipeline_proto))
     stage_context, stages = self.create_stages(pipeline_proto)
     return self.run_stages(stage_context, stages)
 
@@ -235,6 +239,9 @@ class FnApiRunner(runner.PipelineRunner):
         environments.DockerEnvironment.default_docker_image()).to_runner_api(
             None)  # type: ignore[arg-type]
 
+    # We'd rather deal with the complexity of any environments here rather
+    # than resolve them first so we can get optimal substitution in case
+    # docker is not high in the preferred environment type list.
     def is_this_python_docker_env(env):
       return any(
           e == docker_env for e in environments.expand_anyof_environments(env))
@@ -262,6 +269,16 @@ class FnApiRunner(runner.PipelineRunner):
     for transform in pipeline_proto.components.transforms.values():
       if transform.environment_id in python_docker_environments:
         transform.environment_id = embedded_env_id
+    return pipeline_proto
+
+  def resolve_any_environments(self, pipeline_proto):
+    for env_id, env in pipeline_proto.components.environments.items():
+      pipeline_proto.components.environments[env_id].CopyFrom(
+          environments.resolve_anyof_environment(
+              env,
+              python_urns.EMBEDDED_PYTHON,
+              common_urns.environments.EXTERNAL.urn,
+              common_urns.environments.DOCKER.urn))
     return pipeline_proto
 
   @contextlib.contextmanager

@@ -26,8 +26,7 @@ const findGitRoot = require("find-git-root");
 
 // TODO: (Typescript) Why can't the var above be used as a namespace?
 import { ChildProcess } from "child_process";
-
-import { version as beamVersion } from "../version";
+import { beamVersion } from "./packageJson";
 
 export interface Service {
   start: () => Promise<string>;

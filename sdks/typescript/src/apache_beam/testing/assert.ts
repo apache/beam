@@ -25,8 +25,8 @@
 
 import * as beam from "../index";
 import { globalWindows } from "../transforms/windowings";
-import * as internal from "../transforms/internal";
-
+import { requireForSerialization } from "../serialization";
+import { packageName } from "../utils/packageJson";
 import * as assert from "assert";
 
 // TODO(serialization): See if we can avoid this.
@@ -107,9 +107,8 @@ export function assertContentsSatisfies<T>(
   );
 }
 
-import { requireForSerialization } from "../serialization";
-requireForSerialization("apache-beam/testing/assert", exports);
-requireForSerialization("apache-beam/testing/assert", {
+requireForSerialization(`${packageName}/testing/assert`, exports);
+requireForSerialization(`${packageName}/testing/assert`, {
   callAssertDeepEqual,
 });
 requireForSerialization("assert");

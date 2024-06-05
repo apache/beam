@@ -28,10 +28,12 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
 import org.apache.beam.sdk.expansion.service.ExpansionService;
+import org.apache.beam.sdk.expansion.service.TransformProvider;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.parquet.ParquetIO;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
@@ -59,9 +61,7 @@ import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 
-/**
- * An {@link org.apache.beam.runners.core.construction.expansion.ExpansionService} useful for tests.
- */
+/** An {@link org.apache.beam.sdk.util.construction.expansion.ExpansionService} useful for tests. */
 @SuppressWarnings({
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
@@ -85,16 +85,15 @@ public class TestExpansionService {
   @AutoService(ExpansionService.ExpansionServiceRegistrar.class)
   public static class TestServiceRegistrar implements ExpansionService.ExpansionServiceRegistrar {
     @Override
-    public Map<String, ExpansionService.TransformProvider> knownTransforms() {
-      ImmutableMap.Builder<String, ExpansionService.TransformProvider> builder =
-          ImmutableMap.builder();
+    public Map<String, TransformProvider> knownTransforms() {
+      ImmutableMap.Builder<String, TransformProvider> builder = ImmutableMap.builder();
       builder.put(TEST_CGBK_URN, new TestCoGroupByKeyTransformProvider());
       builder.put(TEST_FLATTEN_URN, new TestFlattenTransformProvider());
       return builder.build();
     }
 
     public static class TestCoGroupByKeyTransformProvider
-        implements ExpansionService.TransformProvider<
+        implements TransformProvider<
             KeyedPCollectionTuple<Long>, PCollection<KV<Long, Iterable<String>>>> {
       public static class TestCoGroupByKeyTransform
           extends PTransform<KeyedPCollectionTuple<Long>, PCollection<KV<Long, Iterable<String>>>> {
@@ -137,13 +136,13 @@ public class TestExpansionService {
 
       @Override
       public PTransform<KeyedPCollectionTuple<Long>, PCollection<KV<Long, Iterable<String>>>>
-          getTransform(RunnerApi.FunctionSpec spec) {
+          getTransform(RunnerApi.FunctionSpec spec, PipelineOptions options) {
         return new TestCoGroupByKeyTransform();
       }
     }
 
     public static class TestFlattenTransformProvider
-        implements ExpansionService.TransformProvider<PCollectionList<Long>, PCollection<Long>> {
+        implements TransformProvider<PCollectionList<Long>, PCollection<Long>> {
       @Override
       public PCollectionList<Long> createInput(Pipeline p, Map<String, PCollection<?>> inputs) {
         PCollectionList<Long> inputList = PCollectionList.empty(p);
@@ -155,7 +154,7 @@ public class TestExpansionService {
 
       @Override
       public PTransform<PCollectionList<Long>, PCollection<Long>> getTransform(
-          RunnerApi.FunctionSpec spec) {
+          RunnerApi.FunctionSpec spec, PipelineOptions options) {
         return Flatten.pCollections();
       }
     }

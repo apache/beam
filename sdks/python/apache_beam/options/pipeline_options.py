@@ -1194,18 +1194,22 @@ class WorkerOptions(PipelineOptions):
         '--max_cache_memory_usage_mb',
         dest='max_cache_memory_usage_mb',
         type=int,
-        default=100,
+        default=0,
         help=(
             'Size of the SDK Harness cache to store user state and side '
-            'inputs in MB. Default is 100MB. If the cache is full, least '
+            'inputs in MB. The cache is disabled by default. Increasing '
+            'cache size might improve performance of some pipelines, such as '
+            'pipelines that use iterable side input views, but can '
+            'lead to an increase in memory consumption and OOM errors if '
+            'workers are not appropriately provisioned. '
+            'Using the cache might decrease performance pipelines using '
+            'materialized side inputs. '
+            'If the cache is full, least '
             'recently used elements will be evicted. This cache is per '
             'each SDK Harness instance. SDK Harness is a component '
             'responsible for executing the user code and communicating with '
             'the runner. Depending on the runner, there may be more than one '
-            'SDK Harness process running on the same worker node. Increasing '
-            'cache size might improve performance of some pipelines, but can '
-            'lead to an increase in memory consumption and OOM errors if '
-            'workers are not appropriately provisioned.'))
+            'SDK Harness process running on the same worker node.'))
 
   def validate(self, validator):
     errors = []
@@ -1587,7 +1591,7 @@ class JobServerOptions(PipelineOptions):
 class FlinkRunnerOptions(PipelineOptions):
 
   # These should stay in sync with gradle.properties.
-  PUBLISHED_FLINK_VERSIONS = ['1.12', '1.13', '1.14', '1.15', '1.16']
+  PUBLISHED_FLINK_VERSIONS = ['1.15', '1.16', '1.17', '1.18']
 
   @classmethod
   def _add_argparse_args(cls, parser):

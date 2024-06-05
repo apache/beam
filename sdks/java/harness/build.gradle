@@ -29,11 +29,12 @@ dependencies {
   // :sdks:java:core and transitive dependencies
   provided project(path: ":model:pipeline", configuration: "shadow")
   provided project(path: ":sdks:java:core", configuration: "shadow")
-  provided project(path: ":sdks:java:transform-service:launcher", configuration: "shadow")
+  provided project(path: ":sdks:java:transform-service:launcher")
   provided library.java.avro
+  provided library.java.jackson_databind
   provided library.java.joda_time
   provided library.java.slf4j_api
-  provided library.java.vendored_grpc_1_54_0
+  provided library.java.vendored_grpc_1_60_1
   provided library.java.vendored_guava_32_1_2_jre
 
   provided library.java.jamm
@@ -48,24 +49,9 @@ applyJavaNature(
   automaticModuleName: 'org.apache.beam.fn.harness',
   testShadowJar: true,
   shadowJarValidationExcludes: [
-    "avro/shaded/com/google/**",
-    "com/thoughtworks/paranamer/**",
-    "junit/**",
-    "io/github/classgraph/**",
-    "nonapi/io/github/classgraph/**",
-    "org/apache/avro/**",
     "org/apache/beam/fn/harness/**",
-    "org/apache/beam/model/fnexecution/**",
     "org/apache/beam/runners/core/**",
-    "org/apache/beam/runners/core/construction/**",
-    "org/apache/beam/sdk/extensions/avro/**",
     "org/apache/beam/sdk/fn/**",
-    "org/apache/commons/**",
-    "org/checkerframework/**",
-    "org/codehaus/jackson/**",
-    "org/hamcrest/**",
-    "org/junit/**",
-    "org/tukaani/xz/**",
   ],
   shadowClosure:
   {
@@ -85,14 +71,12 @@ ext.summary = "This contains the SDK Fn Harness for Beam Java"
 dependencies {
   implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
   implementation project(path: ":model:fn-execution", configuration: "shadow")
-  implementation project(":runners:core-construction-java")
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation project(":runners:core-java")
-  implementation project(":sdks:java:fn-execution")
   permitUnusedDeclared project(path: ":sdks:java:transform-service:launcher")
   testImplementation library.java.junit
   testImplementation library.java.mockito_core
-  shadowTestRuntimeClasspath project(path: ":sdks:java:core", configuration: "shadowTest")
-  testImplementation project(path: ":sdks:java:fn-execution", configuration: "testRuntimeMigration")
+  shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
   shadowTestRuntimeClasspath library.java.slf4j_jdk14
   permitUnusedDeclared library.java.avro
 }

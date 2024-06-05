@@ -22,14 +22,14 @@ import (
 	"context"
 	"encoding/json"
 	"flag"
-	"slices"
 	"strings"
 	"time"
 
 	"fmt"
 	"os"
-
 	"runtime/debug"
+
+	"golang.org/x/exp/slices"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"

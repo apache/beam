@@ -108,7 +108,7 @@ public class BundleCheckpointHandlers {
           // Calculate the watermark hold for the timer.
           long outputTimestamp = BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis();
           if (!residual.getApplication().getOutputWatermarksMap().isEmpty()) {
-            for (org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.Timestamp outputWatermark :
+            for (org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.Timestamp outputWatermark :
                 residual.getApplication().getOutputWatermarksMap().values()) {
               outputTimestamp = Math.min(outputTimestamp, outputWatermark.getSeconds() * 1000);
             }

@@ -169,7 +169,7 @@ class RetryManager<ResultT, ContextT extends Context<ResultT>> {
     }
 
     boolean await() throws Exception {
-      Preconditions.checkStateNotNull(callback);
+      Callback<ResultT> callback = Preconditions.checkStateNotNull(this.callback);
       callback.await();
       return callback.getFailed();
     }

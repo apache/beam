@@ -63,7 +63,7 @@ _LOGGER = logging.getLogger(__name__)
 
 _DEFAULT_SIZE_FLUSH_THRESHOLD = 10 << 20  # 10MB
 _DEFAULT_TIME_FLUSH_THRESHOLD_MS = 0  # disable time-based flush by default
-
+_FLUSH_MAX_SIZE = (2 << 30) - 100  # 2GB less some overhead, protobuf/grpc limit
 # Keep a set of completed instructions to discard late received data. The set
 # can have up to _MAX_CLEANED_INSTRUCTIONS items. See _GrpcDataChannel.
 _MAX_CLEANED_INSTRUCTIONS = 10000
@@ -128,15 +128,19 @@ class ClosableOutputStream(OutputStream):
 class SizeBasedBufferingClosableOutputStream(ClosableOutputStream):
   """A size-based buffering OutputStream."""
 
+  _large_flush_last_observed_timestamp = 0.0
+
   def __init__(
       self,
       close_callback=None,  # type: Optional[Callable[[bytes], None]]
       flush_callback=None,  # type: Optional[Callable[[bytes], None]]
-      size_flush_threshold=_DEFAULT_SIZE_FLUSH_THRESHOLD  # type: int
+      size_flush_threshold=_DEFAULT_SIZE_FLUSH_THRESHOLD,  # type: int
+      large_buffer_warn_threshold_bytes = 512 << 20  # type: int
   ):
     super().__init__(close_callback)
     self._flush_callback = flush_callback
     self._size_flush_threshold = size_flush_threshold
+    self._large_buffer_warn_threshold_bytes = large_buffer_warn_threshold_bytes
 
   # This must be called explicitly to avoid flushing partial elements.
   def maybe_flush(self):
@@ -147,6 +151,33 @@ class SizeBasedBufferingClosableOutputStream(ClosableOutputStream):
   def flush(self):
     # type: () -> None
     if self._flush_callback:
+      size = self.size()
+      if (self._large_buffer_warn_threshold_bytes and
+          size > self._large_buffer_warn_threshold_bytes):
+        if size > _FLUSH_MAX_SIZE:
+          raise ValueError(
+              f'Buffer size {size} exceeds GRPC limit {_FLUSH_MAX_SIZE}. '
+              'This is likely due to a single element that is too large. '
+              'To resolve, prefer multiple small elements over single large '
+              'elements in PCollections. If needed, store large blobs in '
+              'external storage systems, and use PCollections to pass their '
+              'metadata, or use a custom coder that reduces the element\'s '
+              'size.')
+
+        if self._large_flush_last_observed_timestamp + 600 < time.time():
+          self._large_flush_last_observed_timestamp = time.time()
+          _LOGGER.warning(
+              'Data output stream buffer size %s exceeds %s bytes. '
+              'This is likely due to a large element in a PCollection. '
+              'Large elements increase pipeline RAM requirements and '
+              'can cause runtime errors. '
+              'Prefer multiple small elements over single large elements '
+              'in PCollections. If needed, store large blobs in external '
+              'storage systems, and use PCollections to pass their metadata, '
+              'or use a custom coder that reduces the element\'s size.',
+              size,
+              self._large_buffer_warn_threshold_bytes)
+
       self._flush_callback(self.get())
       self._clear()
 

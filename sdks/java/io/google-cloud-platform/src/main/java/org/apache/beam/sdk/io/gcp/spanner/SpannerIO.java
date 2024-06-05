@@ -31,6 +31,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.gax.rpc.StatusCode.Code;
+import com.google.auth.Credentials;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.ServiceFactory;
 import com.google.cloud.Timestamp;
@@ -56,19 +57,21 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Objects;
 import java.util.OptionalInt;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.ServiceCallMetric;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.MetadataSpannerConfigFactory;
@@ -87,6 +90,7 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.schemas.Schema;
@@ -103,11 +107,9 @@ import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.Wait;
 import org.apache.beam.sdk.transforms.WithTimestamps;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
-import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.FluentBackoff;
@@ -1187,6 +1189,18 @@ public class SpannerIO {
     }
 
     /**
+     * Specifies max commit delay for the Commit API call for throughput optimized writes. If not
+     * set, Spanner might set a small delay if it thinks that will amortize the cost of the writes.
+     * For more information about the feature, <a
+     * href="https://cloud.google.com/spanner/docs/throughput-optimized-writes#default-behavior">see
+     * documentation</a>
+     */
+    public Write withMaxCommitDelay(long millis) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withMaxCommitDelay(millis));
+    }
+
+    /**
      * Specifies the maximum cumulative backoff time when retrying after DEADLINE_EXCEEDED errors.
      * Default is 15 mins.
      *
@@ -1670,31 +1684,15 @@ public class SpannerIO {
               getSpannerConfig().getProjectId().get(),
               partitionMetadataInstanceId,
               partitionMetadataDatabaseId);
-      SpannerConfig changeStreamSpannerConfig = getSpannerConfig();
-      // Set default retryable errors for ReadChangeStream
-      if (changeStreamSpannerConfig.getRetryableCodes() == null) {
-        ImmutableSet<Code> defaultRetryableCodes = ImmutableSet.of(Code.UNAVAILABLE, Code.ABORTED);
-        changeStreamSpannerConfig =
-            changeStreamSpannerConfig.toBuilder().setRetryableCodes(defaultRetryableCodes).build();
-      }
-      // Set default retry timeouts for ReadChangeStream
-      if (changeStreamSpannerConfig.getExecuteStreamingSqlRetrySettings() == null) {
-        changeStreamSpannerConfig =
-            changeStreamSpannerConfig
-                .toBuilder()
-                .setExecuteStreamingSqlRetrySettings(
-                    RetrySettings.newBuilder()
-                        .setTotalTimeout(org.threeten.bp.Duration.ofMinutes(5))
-                        .setInitialRpcTimeout(org.threeten.bp.Duration.ofMinutes(1))
-                        .setMaxRpcTimeout(org.threeten.bp.Duration.ofMinutes(1))
-                        .build())
-                .build();
-      }
+
+      final SpannerConfig changeStreamSpannerConfig = buildChangeStreamSpannerConfig();
       final SpannerConfig partitionMetadataSpannerConfig =
           MetadataSpannerConfigFactory.create(
               changeStreamSpannerConfig, partitionMetadataInstanceId, partitionMetadataDatabaseId);
-      Dialect changeStreamDatabaseDialect = getDialect(changeStreamSpannerConfig);
-      Dialect metadataDatabaseDialect = getDialect(partitionMetadataSpannerConfig);
+      final Dialect changeStreamDatabaseDialect =
+          getDialect(changeStreamSpannerConfig, input.getPipeline().getOptions());
+      final Dialect metadataDatabaseDialect =
+          getDialect(partitionMetadataSpannerConfig, input.getPipeline().getOptions());
       LOG.info(
           "The Spanner database "
               + changeStreamDatabaseId
@@ -1776,10 +1774,52 @@ public class SpannerIO {
           .apply(ParDo.of(new CleanUpReadChangeStreamDoFn(daoFactory)));
       return dataChangeRecordsOut;
     }
+
+    @VisibleForTesting
+    SpannerConfig buildChangeStreamSpannerConfig() {
+      SpannerConfig changeStreamSpannerConfig = getSpannerConfig();
+      // Set default retryable errors for ReadChangeStream
+      if (changeStreamSpannerConfig.getRetryableCodes() == null) {
+        ImmutableSet<Code> defaultRetryableCodes = ImmutableSet.of(Code.UNAVAILABLE, Code.ABORTED);
+        changeStreamSpannerConfig =
+            changeStreamSpannerConfig.toBuilder().setRetryableCodes(defaultRetryableCodes).build();
+      }
+      // Set default retry timeouts for ReadChangeStream
+      if (changeStreamSpannerConfig.getExecuteStreamingSqlRetrySettings() == null) {
+        changeStreamSpannerConfig =
+            changeStreamSpannerConfig
+                .toBuilder()
+                .setExecuteStreamingSqlRetrySettings(
+                    RetrySettings.newBuilder()
+                        .setTotalTimeout(org.threeten.bp.Duration.ofMinutes(5))
+                        .setInitialRpcTimeout(org.threeten.bp.Duration.ofMinutes(1))
+                        .setMaxRpcTimeout(org.threeten.bp.Duration.ofMinutes(1))
+                        .build())
+                .build();
+      }
+      return changeStreamSpannerConfig;
+    }
   }
 
-  private static Dialect getDialect(SpannerConfig spannerConfig) {
-    DatabaseClient databaseClient = SpannerAccessor.getOrCreate(spannerConfig).getDatabaseClient();
+  /** If credentials are not set in spannerConfig, uses the credentials from pipeline options. */
+  @VisibleForTesting
+  static SpannerConfig buildSpannerConfigWithCredential(
+      SpannerConfig spannerConfig, PipelineOptions pipelineOptions) {
+    if (spannerConfig.getCredentials() == null && pipelineOptions != null) {
+      final Credentials credentials = pipelineOptions.as(GcpOptions.class).getGcpCredential();
+      if (credentials != null) {
+        spannerConfig = spannerConfig.withCredentials(credentials);
+      }
+    }
+    return spannerConfig;
+  }
+
+  private static Dialect getDialect(SpannerConfig spannerConfig, PipelineOptions pipelineOptions) {
+    // Allow passing the credential from pipeline options to the getDialect() call.
+    SpannerConfig spannerConfigWithCredential =
+        buildSpannerConfigWithCredential(spannerConfig, pipelineOptions);
+    DatabaseClient databaseClient =
+        SpannerAccessor.getOrCreate(spannerConfigWithCredential).getDatabaseClient();
     return databaseClient.getDialect();
   }
 
@@ -2005,15 +2045,6 @@ public class SpannerIO {
       public void outputWithTimestamp(Iterable<MutationGroup> output, Instant timestamp) {
         c.output(output, timestamp, GlobalWindow.INSTANCE);
       }
-
-      @Override
-      public void outputWindowedValue(
-          Iterable<MutationGroup> output,
-          Instant timestamp,
-          Collection<? extends BoundedWindow> windows,
-          PaneInfo paneInfo) {
-        throw new UnsupportedOperationException("outputWindowedValue not supported");
-      }
     }
   }
 
@@ -2210,15 +2241,9 @@ public class SpannerIO {
     private void spannerWriteWithRetryIfSchemaChange(List<Mutation> batch) throws SpannerException {
       for (int retry = 1; ; retry++) {
         try {
-          if (spannerConfig.getRpcPriority() != null
-              && spannerConfig.getRpcPriority().get() != null) {
-            spannerAccessor
-                .getDatabaseClient()
-                .writeAtLeastOnceWithOptions(
-                    batch, Options.priority(spannerConfig.getRpcPriority().get()));
-          } else {
-            spannerAccessor.getDatabaseClient().writeAtLeastOnce(batch);
-          }
+          spannerAccessor
+              .getDatabaseClient()
+              .writeAtLeastOnceWithOptions(batch, getTransactionOptions());
           reportServiceCallMetricsForBatch(batch, "ok");
           return;
         } catch (AbortedException e) {
@@ -2237,6 +2262,21 @@ public class SpannerIO {
           throw e;
         }
       }
+    }
+
+    private Options.TransactionOption[] getTransactionOptions() {
+      return Stream.of(
+              spannerConfig.getRpcPriority() != null && spannerConfig.getRpcPriority().get() != null
+                  ? Options.priority(spannerConfig.getRpcPriority().get())
+                  : null,
+              spannerConfig.getMaxCommitDelay() != null
+                      && spannerConfig.getMaxCommitDelay().get() != null
+                  ? Options.maxCommitDelay(
+                      java.time.Duration.ofMillis(
+                          spannerConfig.getMaxCommitDelay().get().getMillis()))
+                  : null)
+          .filter(Objects::nonNull)
+          .toArray(Options.TransactionOption[]::new);
     }
 
     private void reportServiceCallMetricsForBatch(List<Mutation> batch, String statusCode) {

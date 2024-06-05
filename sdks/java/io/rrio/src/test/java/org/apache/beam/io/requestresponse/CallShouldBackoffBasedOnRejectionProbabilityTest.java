@@ -42,7 +42,7 @@ public class CallShouldBackoffBasedOnRejectionProbabilityTest {
         }
       }
       assertEquals(caze.toString(), caze.wantPReject, shouldBackoff.getRejectionProbability(), 0.1);
-      assertEquals(caze.toString(), caze.wantValue, shouldBackoff.value());
+      assertEquals(caze.toString(), caze.wantValue, shouldBackoff.isTrue());
     }
   }
 

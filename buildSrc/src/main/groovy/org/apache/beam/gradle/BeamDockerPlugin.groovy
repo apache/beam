@@ -247,6 +247,9 @@ class BeamDockerPlugin implements Plugin<Project> {
       }
     } else {
       buildCommandLine.add 'build'
+      // TARGETOS and TARGETARCH args not present through `docker build`, add here
+      ext.buildArgs.put('TARGETOS', 'linux')
+      ext.buildArgs.put('TARGETARCH', ext.project.nativeArchitecture())
     }
     if (ext.noCache) {
       buildCommandLine.add '--no-cache'

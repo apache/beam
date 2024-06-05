@@ -17,11 +17,14 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner;
 
+import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.google.cloud.spanner.DatabaseId;
+import com.google.cloud.spanner.SpannerOptions;
+import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.junit.Before;
 import org.junit.Test;
@@ -140,5 +143,25 @@ public class SpannerAccessorTest {
     verify(serviceFactory.mockSpanner(), times(1))
         .getDatabaseClient(DatabaseId.of("project", "test1", "test1"));
     verify(serviceFactory.mockSpanner(), times(1)).close();
+  }
+
+  @Test
+  public void testBuildSpannerOptionsWithCredential() {
+    TestCredential testCredential = new TestCredential();
+    SpannerConfig config1 =
+        SpannerConfig.create()
+            .toBuilder()
+            .setServiceFactory(serviceFactory)
+            .setProjectId(StaticValueProvider.of("project"))
+            .setInstanceId(StaticValueProvider.of("test-instance"))
+            .setDatabaseId(StaticValueProvider.of("test-db"))
+            .setDatabaseRole(StaticValueProvider.of("test-role"))
+            .setCredentials(StaticValueProvider.of(testCredential))
+            .build();
+
+    SpannerOptions options = SpannerAccessor.buildSpannerOptions(config1);
+    assertEquals("project", options.getProjectId());
+    assertEquals("test-role", options.getDatabaseRole());
+    assertEquals(testCredential, options.getCredentials());
   }
 }

@@ -41,7 +41,6 @@ import java.util.stream.Collectors;
 import org.apache.beam.model.expansion.v1.ExpansionApi;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
@@ -54,6 +53,7 @@ import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
+import org.apache.beam.sdk.util.construction.PipelineTranslation;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -93,8 +93,8 @@ public class ExpansionServiceTest {
   public static class TestTransformRegistrar implements ExpansionService.ExpansionServiceRegistrar {
 
     @Override
-    public Map<String, ExpansionService.TransformProvider> knownTransforms() {
-      return ImmutableMap.of(TEST_URN, spec -> Count.perElement());
+    public Map<String, TransformProvider> knownTransforms() {
+      return ImmutableMap.of(TEST_URN, (spec, options) -> Count.perElement());
     }
   }
 
@@ -193,8 +193,7 @@ public class ExpansionServiceTest {
                 .build());
 
     TestConfigSetters config =
-        ExpansionService.ExternalTransformRegistrarLoader.payloadToConfig(
-            externalConfig, TestConfigSetters.class);
+        ExpansionService.payloadToConfig(externalConfig, TestConfigSetters.class);
 
     assertThat(config.configKey1, Matchers.is(1L));
     assertThat(config.configKey2, contains(BYTE_LIST.toArray()));
@@ -269,8 +268,7 @@ public class ExpansionServiceTest {
                 .withFieldValue("configKey4", BYTE_KV_LIST_WITH_LIST_VALUE)
                 .build());
     TestConfigSchema config =
-        ExpansionService.ExternalTransformRegistrarLoader.payloadToConfig(
-            externalConfig, TestConfigSchema.class);
+        ExpansionService.payloadToConfig(externalConfig, TestConfigSchema.class);
 
     assertThat(config.getConfigKey1(), Matchers.is(1L));
     assertThat(config.getConfigKey2(), contains(BYTE_LIST.toArray()));
@@ -333,8 +331,7 @@ public class ExpansionServiceTest {
                 .build());
 
     TestConfigSimpleSchema config =
-        ExpansionService.ExternalTransformRegistrarLoader.payloadToConfig(
-            externalConfig, TestConfigSimpleSchema.class);
+        ExpansionService.payloadToConfig(externalConfig, TestConfigSimpleSchema.class);
 
     assertThat(config.getFoo(), Matchers.is(1L));
     assertThat(config.getBar(), Matchers.is("test string"));

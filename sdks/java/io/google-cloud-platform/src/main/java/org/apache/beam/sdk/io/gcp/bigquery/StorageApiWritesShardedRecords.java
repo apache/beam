@@ -652,7 +652,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
             AppendRowsContext failedContext =
                 Preconditions.checkStateNotNull(Iterables.getFirst(failedContexts, null));
             BigQuerySinkMetrics.reportFailedRPCMetrics(
-                failedContext, BigQuerySinkMetrics.RpcMethod.APPEND_ROWS);
+                failedContext, BigQuerySinkMetrics.RpcMethod.APPEND_ROWS, shortTableId);
             String errorCode =
                 BigQuerySinkMetrics.throwableToGRPCCodeString(failedContext.getError());
 
@@ -801,7 +801,8 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
             BigQuerySinkMetrics.reportSuccessfulRpcMetrics(
                 context, BigQuerySinkMetrics.RpcMethod.APPEND_ROWS, shortTableId);
             BigQuerySinkMetrics.appendRowsRowStatusCounter(
-                BigQuerySinkMetrics.RowStatus.SUCCESSFUL, BigQuerySinkMetrics.OK, shortTableId);
+                    BigQuerySinkMetrics.RowStatus.SUCCESSFUL, BigQuerySinkMetrics.OK, shortTableId)
+                .inc(flushedRows);
 
             if (successfulRowsTag != null) {
               for (int i = 0; i < context.protoRows.getSerializedRowsCount(); ++i) {
@@ -817,8 +818,8 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
       RetryManager<AppendRowsResponse, AppendRowsContext> retryManager =
           new RetryManager<>(
               Duration.standardSeconds(1),
-              Duration.standardSeconds(10),
-              1000,
+              Duration.standardSeconds(20),
+              500,
               BigQuerySinkMetrics.throttledTimeCounter(BigQuerySinkMetrics.RpcMethod.APPEND_ROWS));
       int numAppends = 0;
       for (SplittingIterable.Value splitValue : messages) {

@@ -763,6 +763,23 @@ class ToListCombineFn(core.CombineFn):
     return accumulator
 
 
+@with_input_types(T)
+@with_output_types(T)
+class ConcatListCombineFn(core.CombineFn):
+  """CombineFn for concatenating lists together."""
+  def create_accumulator(self):
+    return []
+
+  def add_input(self, accumulator, element):
+    return accumulator + element
+
+  def merge_accumulators(self, accumulators):
+    return sum(accumulators, [])
+
+  def extract_output(self, accumulator):
+    return accumulator
+
+
 @with_input_types(Tuple[K, V])
 @with_output_types(Dict[K, V])
 class ToDict(CombinerWithoutDefaults):

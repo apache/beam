@@ -44,7 +44,7 @@ def get_mean_delay_at_top_airports(airline_df):
   top_airports = total.nlargest(10, keep='all').dropna()
   at_top_airports = airline_df['arrival_airport'].isin(
       top_airports.index.values)
-  return airline_df[at_top_airports].mean()
+  return airline_df[at_top_airports].mean(numeric_only=True)
 
 
 def input_date(date):

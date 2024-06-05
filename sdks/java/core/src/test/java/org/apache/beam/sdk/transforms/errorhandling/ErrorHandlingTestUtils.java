@@ -45,4 +45,13 @@ public class ErrorHandlingTestUtils {
       }
     }
   }
+
+  public static class EchoErrorTransform
+      extends PTransform<PCollection<BadRecord>, PCollection<BadRecord>> {
+
+    @Override
+    public PCollection<BadRecord> expand(PCollection<BadRecord> input) {
+      return input;
+    }
+  }
 }

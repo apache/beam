@@ -36,7 +36,7 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -289,6 +289,7 @@ public class SpannerTransformRegistrar implements ExternalTransformRegistrar {
       private @Nullable Duration commitDeadline;
       private @Nullable Duration maxCumulativeBackoff;
       private @Nullable String failureMode;
+      private Boolean highPriority = false;
 
       public void setTable(String table) {
         this.table = table;
@@ -327,6 +328,10 @@ public class SpannerTransformRegistrar implements ExternalTransformRegistrar {
       public void setFailureMode(@Nullable String failureMode) {
         this.failureMode = failureMode;
       }
+
+      public void setHighPriority(Boolean highPriority) {
+        this.highPriority = highPriority;
+      }
     }
 
     @Override
@@ -341,6 +346,9 @@ public class SpannerTransformRegistrar implements ExternalTransformRegistrar {
               .withDatabaseId(configuration.databaseId)
               .withInstanceId(configuration.instanceId);
 
+      if (configuration.highPriority) {
+        writeTransform = writeTransform.withHighPriority();
+      }
       if (configuration.maxBatchSizeBytes != null) {
         writeTransform = writeTransform.withBatchSizeBytes(configuration.maxBatchSizeBytes);
       }

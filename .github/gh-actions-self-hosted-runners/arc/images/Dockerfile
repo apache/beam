@@ -54,9 +54,9 @@ RUN curl -OL https://github.com/cli/cli/releases/download/v2.31.0/gh_2.31.0_linu
     rm gh_2.31.0_linux_amd64.tar.gz && \
     mv gh_2.31.0_linux_amd64/bin/gh /usr/local/bin 
 #Install GCloud CLI and Kubectl
-RUN curl -OL https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-367.0.0-linux-x86_64.tar.gz && \
-    tar -xvf google-cloud-sdk-367.0.0-linux-x86_64.tar.gz && \
-    rm google-cloud-sdk-367.0.0-linux-x86_64.tar.gz && \
+RUN curl -OL https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-471.0.0-linux-x86_64.tar.gz && \
+    tar -xvf google-cloud-sdk-471.0.0-linux-x86_64.tar.gz && \
+    rm google-cloud-sdk-471.0.0-linux-x86_64.tar.gz && \
     mv google-cloud-sdk /usr/local/google-cloud-sdk && \
     /usr/local/google-cloud-sdk/install.sh --quiet && \
     /usr/local/google-cloud-sdk/bin/gcloud components install gke-gcloud-auth-plugin && \

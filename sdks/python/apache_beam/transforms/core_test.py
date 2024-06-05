@@ -24,6 +24,9 @@ import unittest
 import pytest
 
 import apache_beam as beam
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
+from apache_beam.transforms.window import FixedWindows
 
 
 class TestDoFn1(beam.DoFn):
@@ -134,6 +137,48 @@ class PartitionTest(unittest.TestCase):
       self.assertEqual(p4.is_bounded, False)
       self.assertEqual(p5.is_bounded, False)
       self.assertEqual(p6.is_bounded, False)
+
+
+class FlattenTest(unittest.TestCase):
+  def test_flatten_identical_windows(self):
+    with beam.testing.test_pipeline.TestPipeline() as p:
+      source1 = p | "c1" >> beam.Create(
+          [1, 2, 3, 4, 5]) | "w1" >> beam.WindowInto(FixedWindows(100))
+      source2 = p | "c2" >> beam.Create([6, 7, 8]) | "w2" >> beam.WindowInto(
+          FixedWindows(100))
+      source3 = p | "c3" >> beam.Create([9, 10]) | "w3" >> beam.WindowInto(
+          FixedWindows(100))
+      out = (source1, source2, source3) | "flatten" >> beam.Flatten()
+      assert_that(out, equal_to([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]))
+
+  def test_flatten_no_windows(self):
+    with beam.testing.test_pipeline.TestPipeline() as p:
+      source1 = p | "c1" >> beam.Create([1, 2, 3, 4, 5])
+      source2 = p | "c2" >> beam.Create([6, 7, 8])
+      source3 = p | "c3" >> beam.Create([9, 10])
+      out = (source1, source2, source3) | "flatten" >> beam.Flatten()
+      assert_that(out, equal_to([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]))
+
+  def test_flatten_mismatched_windows(self):
+    with beam.testing.test_pipeline.TestPipeline() as p:
+      source1 = p | "c1" >> beam.Create(
+          [1, 2, 3, 4, 5]) | "w1" >> beam.WindowInto(FixedWindows(25))
+      source2 = p | "c2" >> beam.Create([6, 7, 8]) | "w2" >> beam.WindowInto(
+          FixedWindows(100))
+      source3 = p | "c3" >> beam.Create([9, 10]) | "w3" >> beam.WindowInto(
+          FixedWindows(100))
+      _ = (source1, source2, source3) | "flatten" >> beam.Flatten()
+
+
+class FlatMapTest(unittest.TestCase):
+  def test_default(self):
+
+    with beam.Pipeline() as pipeline:
+      letters = (
+          pipeline
+          | beam.Create(['abc', 'def'], reshuffle=False)
+          | beam.FlatMap())
+      assert_that(letters, equal_to(['a', 'b', 'c', 'd', 'e', 'f']))
 
 
 if __name__ == '__main__':

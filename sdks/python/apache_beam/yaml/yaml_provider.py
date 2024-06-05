@@ -26,6 +26,7 @@ import json
 import logging
 import os
 import re
+import shutil
 import subprocess
 import sys
 import urllib.parse
@@ -45,6 +46,9 @@ import apache_beam.dataframe.io
 import apache_beam.io
 import apache_beam.transforms.util
 from apache_beam.portability.api import schema_pb2
+from apache_beam.runners import pipeline_context
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 from apache_beam.transforms import external
 from apache_beam.transforms import window
 from apache_beam.transforms.fully_qualified_named_transform import FullyQualifiedNamedTransform
@@ -204,11 +208,12 @@ class ExternalProvider(Provider):
         raise ValueError(
             f'Missing {required} in provider '
             f'at line {SafeLineLoader.get_line(spec)}')
-    urns = spec['transforms']
+    urns = SafeLineLoader.strip_metadata(spec['transforms'])
     type = spec['type']
     config = SafeLineLoader.strip_metadata(spec.get('config', {}))
-    extra_params = set(SafeLineLoader.strip_metadata(spec).keys()) - set(
-        ['transforms', 'type', 'config'])
+    extra_params = set(SafeLineLoader.strip_metadata(spec).keys()) - {
+        'transforms', 'type', 'config'
+    }
     if extra_params:
       raise ValueError(
           f'Unexpected parameters in provider of type {type} '
@@ -259,6 +264,7 @@ def maven_jar(
       urns,
       lambda: subprocess_server.JavaJarServer.path_to_maven_jar(
           artifact_id=artifact_id,
+          group_id=group_id,
           version=version,
           repository=repository,
           classifier=classifier,
@@ -328,8 +334,7 @@ def python(urns, packages=()):
   else:
     return InlineProvider({
         name:
-        python_callable.PythonCallableWithSource.load_from_fully_qualified_name(
-            constructor)
+        python_callable.PythonCallableWithSource.load_from_source(constructor)
         for (name, constructor) in urns.items()
     })
 
@@ -347,6 +352,10 @@ class ExternalPythonProvider(ExternalProvider):
 
   def create_external_transform(self, urn, args):
     # Python transforms are "registered" by fully qualified name.
+    if not re.match(r'^[\w.]*$', urn):
+      # Treat it as source.
+      args = {'source': urn, **args}
+      urn = '__constructor__'
     return external.ExternalTransform(
         "beam:transforms:python:fully_qualified_named",
         external.ImplicitSchemaPayloadBuilder({
@@ -546,22 +555,80 @@ def dicts_to_rows(o):
     return o
 
 
-def create_builtin_provider():
-  def create(elements: Iterable[Any], reshuffle: Optional[bool] = True):
-    """Creates a collection containing a specified set of elements.
+class YamlProviders:
+  class AssertEqual(beam.PTransform):
+    """Asserts that the input contains exactly the elements provided.
 
-    YAML/JSON-style mappings will be interpreted as Beam rows. For example::
+    This is primarily used for testing; it will cause the entire pipeline to
+    fail if the input to this transform is not exactly the set of `elements`
+    given in the config parameter.
 
-        type: Create
-        elements:
-           - {first: 0, second: {str: "foo", values: [1, 2, 3]}}
+    As with Create, YAML/JSON-style mappings are interpreted as Beam rows,
+    e.g.::
 
-    will result in a schema of the form (int, Row(string, List[int])).
+        type: AssertEqual
+        input: SomeTransform
+        config:
+          elements:
+             - {a: 0, b: "foo"}
+             - {a: 1, b: "bar"}
+
+    would ensure that `SomeTransform` produced exactly two elements with values
+    `(a=0, b="foo")` and `(a=1, b="bar")` respectively.
 
     Args:
         elements: The set of elements that should belong to the PCollection.
             YAML/JSON-style mappings will be interpreted as Beam rows.
-        reshuffle (optional): Whether to introduce a reshuffle (to possibly
+    """
+    def __init__(self, elements: Iterable[Any]):
+      self._elements = elements
+
+    def expand(self, pcoll):
+      return assert_that(
+          pcoll | beam.Map(lambda row: beam.Row(**row._asdict())),
+          equal_to(dicts_to_rows(self._elements)))
+
+  @staticmethod
+  def create(elements: Iterable[Any], reshuffle: Optional[bool] = True):
+    """Creates a collection containing a specified set of elements.
+
+    This transform always produces schema'd data. For example::
+
+        type: Create
+        config:
+          elements: [1, 2, 3]
+
+    will result in an output with three elements with a schema of
+    Row(element=int) whereas YAML/JSON-style mappings will be interpreted
+    directly as Beam rows, e.g.::
+
+        type: Create
+        config:
+          elements:
+             - {first: 0, second: {str: "foo", values: [1, 2, 3]}}
+             - {first: 1, second: {str: "bar", values: [4, 5, 6]}}
+
+    will result in a schema of the form (int, Row(string, List[int])).
+
+    This can also be expressed as YAML::
+
+        type: Create
+        config:
+          elements:
+            - first: 0
+              second:
+                str: "foo"
+                 values: [1, 2, 3]
+            - first: 1
+              second:
+                str: "bar"
+                 values: [4, 5, 6]
+
+    Args:
+        elements: The set of elements that should belong to the PCollection.
+            YAML/JSON-style mappings will be interpreted as Beam rows.
+            Primitives will be mapped to rows with a single "element" field.
+        reshuffle: (optional) Whether to introduce a reshuffle (to possibly
             redistribute the work) if there is more than one element in the
             collection. Defaults to True.
     """
@@ -570,6 +637,7 @@ def create_builtin_provider():
 
   # Or should this be posargs, args?
   # pylint: disable=dangerous-default-value
+  @staticmethod
   def fully_qualified_named_transform(
       constructor: str,
       args: Optional[Iterable[Any]] = (),
@@ -581,17 +649,21 @@ def create_builtin_provider():
     via a YAML interface. Note, however, that conversion may be required if this
     transform does not accept or produce Beam Rows.
 
-    For example,
+    For example::
 
         type: PyTransform
         config:
-          constructor: apache_beam.pkg.mod.SomeClass
-          args: [1, 'foo']
-          kwargs:
+           constructor: apache_beam.pkg.mod.SomeClass
+           args: [1, 'foo']
+           kwargs:
              baz: 3
 
     can be used to access the transform
     `apache_beam.pkg.mod.SomeClass(1, 'foo', baz=3)`.
+
+    See also the documentation on
+    [Inlining
+    Python](https://beam.apache.org/documentation/sdks/yaml-inline-python/).
 
     Args:
         constructor: Fully qualified name of a callable used to construct the
@@ -647,6 +719,17 @@ def create_builtin_provider():
     See [the Beam documentation on windowing](https://beam.apache.org/documentation/programming-guide/#windowing)
     for more details.
 
+    Sizes, offsets, periods and gaps (where applicable) must be defined using
+    a time unit suffix 'ms', 's', 'm', 'h' or 'd' for milliseconds, seconds,
+    minutes, hours or days, respectively. If a time unit is not specified, it
+    will default to 's'.
+
+    For example::
+
+        windowing:
+           type: fixed
+           size: 30s
+
     Note that any Yaml transform can have a
     [windowing parameter](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/README.md#windowing),
     which is applied to its inputs (if any) or outputs (if there are no inputs)
@@ -662,6 +745,29 @@ def create_builtin_provider():
       return pcoll | self._window_transform
 
     @staticmethod
+    def _parse_duration(value, name):
+      time_units = {
+          'ms': 0.001, 's': 1, 'm': 60, 'h': 60 * 60, 'd': 60 * 60 * 12
+      }
+      value, suffix = re.match(r'^(.*?)([^\d]*)$', str(value)).groups()
+      # Default to seconds if time unit suffix is not defined
+      if not suffix:
+        suffix = 's'
+      if not value:
+        raise ValueError(
+            f"Invalid windowing {name} value "
+            f"'{suffix if not value else value}'. "
+            f"Must provide numeric value.")
+      if suffix not in time_units:
+        raise ValueError((
+            "Invalid windowing {} time unit '{}'. " +
+            "Valid time units are {}.").format(
+                name,
+                suffix,
+                ', '.join("'{}'".format(k) for k in time_units.keys())))
+      return float(value) * time_units[suffix]
+
+    @staticmethod
     def _parse_window_spec(spec):
       spec = dict(spec)
       window_type = spec.pop('type')
@@ -669,37 +775,158 @@ def create_builtin_provider():
       if window_type == 'global':
         window_fn = window.GlobalWindows()
       elif window_type == 'fixed':
-        window_fn = window.FixedWindows(spec.pop('size'), spec.pop('offset', 0))
+        window_fn = window.FixedWindows(
+            YamlProviders.WindowInto._parse_duration(spec.pop('size'), 'size'),
+            YamlProviders.WindowInto._parse_duration(
+                spec.pop('offset', 0), 'offset'))
       elif window_type == 'sliding':
         window_fn = window.SlidingWindows(
-            spec.pop('size'), spec.pop('period'), spec.pop('offset', 0))
+            YamlProviders.WindowInto._parse_duration(spec.pop('size'), 'size'),
+            YamlProviders.WindowInto._parse_duration(
+                spec.pop('period'), 'period'),
+            YamlProviders.WindowInto._parse_duration(
+                spec.pop('offset', 0), 'offset'))
       elif window_type == 'sessions':
-        window_fn = window.FixedWindows(spec.pop('gap'))
+        window_fn = window.Sessions(
+            YamlProviders.WindowInto._parse_duration(spec.pop('gap'), 'gap'))
+      else:
+        raise ValueError(f'Unknown window type {window_type}')
       if spec:
         raise ValueError(f'Unknown parameters {spec.keys()}')
       # TODO: Triggering, etc.
       return beam.WindowInto(window_fn)
 
-  def LogForTesting():
+  @staticmethod
+  def log_for_testing(
+      level: Optional[str] = 'INFO', prefix: Optional[str] = ''):
     """Logs each element of its input PCollection.
 
     The output of this transform is a copy of its input for ease of use in
     chain-style pipelines.
+
+    Args:
+      level: one of ERROR, INFO, or DEBUG, mapped to a corresponding
+        language-specific logging level
+      prefix: an optional identifier that will get prepended to the element
+        being logged
     """
+    # Keeping this simple to be language agnostic.
+    # The intent is not to develop a logging library (and users can always do)
+    # their own mappings to get fancier output.
+    log_levels = {
+        'ERROR': logging.error,
+        'INFO': logging.info,
+        'DEBUG': logging.debug,
+    }
+    if level not in log_levels:
+      raise ValueError(
+          f'Unknown log level {level} not in {list(log_levels.keys())}')
+    logger = log_levels[level]
+
+    def to_loggable_json_recursive(o):
+      if isinstance(o, (str, bytes)):
+        return o
+      elif callable(getattr(o, '_asdict', None)):
+        return to_loggable_json_recursive(o._asdict())
+      elif isinstance(o, Mapping) and callable(getattr(o, 'items', None)):
+        return {str(k): to_loggable_json_recursive(v) for k, v in o.items()}
+      elif isinstance(o, Iterable):
+        return [to_loggable_json_recursive(x) for x in o]
+      else:
+        return o
+
     def log_and_return(x):
-      logging.info(x)
+      logger(prefix + json.dumps(to_loggable_json_recursive(x)))
       return x
 
-    return beam.Map(log_and_return)
+    return "LogForTesting" >> beam.Map(log_and_return)
 
-  return InlineProvider({
-      'Create': create,
-      'LogForTesting': LogForTesting,
-      'PyTransform': fully_qualified_named_transform,
-      'Flatten': Flatten,
-      'WindowInto': WindowInto,
-  },
-                        no_input_transforms=('Create', ))
+  @staticmethod
+  def create_builtin_provider():
+    return InlineProvider({
+        'AssertEqual': YamlProviders.AssertEqual,
+        'Create': YamlProviders.create,
+        'LogForTesting': YamlProviders.log_for_testing,
+        'PyTransform': YamlProviders.fully_qualified_named_transform,
+        'Flatten': YamlProviders.Flatten,
+        'WindowInto': YamlProviders.WindowInto,
+    },
+                          no_input_transforms=('Create', ))
+
+
+class TranslatingProvider(Provider):
+  def __init__(
+      self,
+      transforms: Mapping[str, Callable[..., beam.PTransform]],
+      underlying_provider: Provider):
+    self._transforms = transforms
+    self._underlying_provider = underlying_provider
+
+  def provided_transforms(self):
+    return self._transforms.keys()
+
+  def available(self):
+    return self._underlying_provider.available()
+
+  def cache_artifacts(self):
+    return self._underlying_provider.cache_artifacts()
+
+  def underlying_provider(self):
+    return self._underlying_provider
+
+  def to_json(self):
+    return {'type': "TranslatingProvider"}
+
+  def create_transform(
+      self, typ: str, config: Mapping[str, Any],
+      yaml_create_transform: Any) -> beam.PTransform:
+    return self._transforms[typ](self._underlying_provider, **config)
+
+
+def create_java_builtin_provider():
+  """Exposes built-in transforms from Java as well as Python to maximize
+  opportunities for fusion.
+
+  This class holds those transforms that require pre-processing of the configs.
+  For those Java transforms that can consume the user-provided configs directly
+  (or only need a simple renaming of parameters) a direct or renaming provider
+  is the simpler choice.
+  """
+
+  # An alternative could be examining the capabilities of various environments
+  # during (or as a pre-processing phase before) fusion to align environments
+  # where possible.  This would also require extra care in skipping these
+  # common transforms when doing the provider affinity analysis.
+
+  def java_window_into(java_provider, windowing):
+    """Use the `windowing` WindowingStrategy and invokes the Java class.
+
+    Though it would not be that difficult to implement this in Java as well,
+    we prefer to implement it exactly once for consistency (especially as
+    it evolves).
+    """
+    windowing_strategy = YamlProviders.WindowInto._parse_window_spec(
+        windowing).get_windowing(None)
+    # No context needs to be preserved for the basic WindowFns.
+    empty_context = pipeline_context.PipelineContext()
+    return java_provider.create_transform(
+        'WindowIntoStrategy',
+        {
+            'serializedWindowingStrategy': windowing_strategy.to_runner_api(
+                empty_context).SerializeToString()
+        },
+        None)
+
+  return TranslatingProvider(
+      transforms={'WindowInto': java_window_into},
+      underlying_provider=beam_jar(
+          urns={
+              'WindowIntoStrategy': (
+                  'beam:schematransform:'
+                  'org.apache.beam:yaml:window_into_strategy:v1')
+          },
+          gradle_target=
+          'sdks:java:extensions:schemaio-expansion-service:shadowJar'))
 
 
 class PypiExpansionService:
@@ -730,36 +957,49 @@ class PypiExpansionService:
   def _create_venv_from_scratch(cls, base_python, packages):
     venv = cls._path(base_python, packages)
     if not os.path.exists(venv):
-      subprocess.run([base_python, '-m', 'venv', venv], check=True)
-      venv_python = os.path.join(venv, 'bin', 'python')
-      subprocess.run([venv_python, '-m', 'ensurepip'], check=True)
-      subprocess.run([venv_python, '-m', 'pip', 'install'] + packages,
-                     check=True)
-      with open(venv + '-requirements.txt', 'w') as fout:
-        fout.write('\n'.join(packages))
+      try:
+        subprocess.run([base_python, '-m', 'venv', venv], check=True)
+        venv_python = os.path.join(venv, 'bin', 'python')
+        venv_pip = os.path.join(venv, 'bin', 'pip')
+        subprocess.run([venv_python, '-m', 'ensurepip'], check=True)
+        subprocess.run([venv_pip, 'install'] + packages, check=True)
+        with open(venv + '-requirements.txt', 'w') as fout:
+          fout.write('\n'.join(packages))
+      except:  # pylint: disable=bare-except
+        if os.path.exists(venv):
+          shutil.rmtree(venv, ignore_errors=True)
+        raise
     return venv
 
   @classmethod
   def _create_venv_from_clone(cls, base_python, packages):
     venv = cls._path(base_python, packages)
     if not os.path.exists(venv):
-      clonable_venv = cls._create_venv_to_clone(base_python)
-      clonable_python = os.path.join(clonable_venv, 'bin', 'python')
-      subprocess.run(
-          [clonable_python, '-m', 'clonevirtualenv', clonable_venv, venv],
-          check=True)
-      venv_binary = os.path.join(venv, 'bin', 'python')
-      subprocess.run([venv_binary, '-m', 'pip', 'install'] + packages,
-                     check=True)
-      with open(venv + '-requirements.txt', 'w') as fout:
-        fout.write('\n'.join(packages))
+      try:
+        clonable_venv = cls._create_venv_to_clone(base_python)
+        clonable_python = os.path.join(clonable_venv, 'bin', 'python')
+        subprocess.run(
+            [clonable_python, '-m', 'clonevirtualenv', clonable_venv, venv],
+            check=True)
+        venv_pip = os.path.join(venv, 'bin', 'pip')
+        subprocess.run([venv_pip, 'install'] + packages, check=True)
+        with open(venv + '-requirements.txt', 'w') as fout:
+          fout.write('\n'.join(packages))
+      except:  # pylint: disable=bare-except
+        if os.path.exists(venv):
+          shutil.rmtree(venv, ignore_errors=True)
+        raise
     return venv
 
   @classmethod
   def _create_venv_to_clone(cls, base_python):
+    if '.dev' in beam_version:
+      base_venv = os.path.dirname(os.path.dirname(base_python))
+      print('Cloning dev environment from', base_venv)
     return cls._create_venv_from_scratch(
-        base_python, [
-            'apache_beam[dataframe,gcp,test]==' + beam_version,
+        base_python,
+        [
+            'apache_beam[dataframe,gcp,test,yaml]==' + beam_version,
             'virtualenv-clone'
         ])
 
@@ -834,9 +1074,15 @@ class RenamingProvider(Provider):
     missing = set(self._mappings[type].values()) - set(
         underlying_schema_fields.keys())
     if missing:
-      raise ValueError(
-          f"Mapping destinations {missing} for {type} are not in the "
-          f"underlying config schema {list(underlying_schema_fields.keys())}")
+      if 'kwargs' in underlying_schema_fields.keys():
+        # These are likely passed by keyword argument dict rather than missing.
+        for field_name in missing:
+          underlying_schema_fields[field_name] = schema_pb2.Field(
+              name=field_name, type=typing_to_runner_api(Any))
+      else:
+        raise ValueError(
+            f"Mapping destinations {missing} for {type} are not in the "
+            f"underlying config schema {list(underlying_schema_fields.keys())}")
 
     def with_name(
         original: schema_pb2.Field, new_name: str) -> schema_pb2.Field:
@@ -920,14 +1166,17 @@ def merge_providers(*provider_sets):
 def standard_providers():
   from apache_beam.yaml.yaml_combine import create_combine_providers
   from apache_beam.yaml.yaml_mapping import create_mapping_providers
+  from apache_beam.yaml.yaml_join import create_join_providers
   from apache_beam.yaml.yaml_io import io_providers
   with open(os.path.join(os.path.dirname(__file__),
                          'standard_providers.yaml')) as fin:
     standard_providers = yaml.load(fin, Loader=SafeLoader)
 
   return merge_providers(
-      create_builtin_provider(),
+      YamlProviders.create_builtin_provider(),
+      create_java_builtin_provider(),
       create_mapping_providers(),
       create_combine_providers(),
+      create_join_providers(),
       io_providers(),
       parse_providers(standard_providers))

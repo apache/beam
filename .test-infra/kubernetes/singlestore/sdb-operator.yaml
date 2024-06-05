@@ -32,7 +32,7 @@ spec:
       serviceAccountName: sdb-operator
       containers:
         - name: sdb-operator
-          image: singlestore/operator:3.0.98-156a0090
+          image: singlestore/operator:3.246.0-da805c0b
           imagePullPolicy: Always
           args: [
             # Cause the operator to merge rather than replace annotations on services

@@ -44,6 +44,7 @@ LOCAL_WEBSITE_UPDATE_DIR=website_update_dir
 LOCAL_PYTHON_DOC=python_doc
 LOCAL_TYPESCRIPT_DOC=typescript_doc
 LOCAL_JAVA_DOC=java_doc
+LOCAL_YAML_DOC=yaml_doc
 LOCAL_WEBSITE_REPO=beam_website_repo
 
 USER_REMOTE_URL=
@@ -333,6 +334,7 @@ if [[ $confirmation = "y" ]]; then
   mkdir -p ${LOCAL_PYTHON_DOC}
   mkdir -p ${LOCAL_TYPESCRIPT_DOC}
   mkdir -p ${LOCAL_JAVA_DOC}
+  mkdir -p ${LOCAL_YAML_DOC}
   mkdir -p ${LOCAL_WEBSITE_REPO}
 
   echo "------------------Building Python Doc------------------------"
@@ -346,7 +348,7 @@ if [[ $confirmation = "y" ]]; then
   cd ${BEAM_ROOT_DIR}
   RELEASE_COMMIT=$(git rev-list -n 1 "tags/${RC_TAG}")
   # TODO(https://github.com/apache/beam/issues/20209): Don't hardcode py version in this file.
-  cd sdks/python && tox -e py38-docs
+  cd sdks/python && tox -e docs
   GENERATED_PYDOC=~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_PYTHON_DOC}/${BEAM_ROOT_DIR}/sdks/python/target/docs/_build
   rm -rf ${GENERATED_PYDOC}/.doctrees
 
@@ -363,6 +365,13 @@ if [[ $confirmation = "y" ]]; then
   cd ${BEAM_ROOT_DIR}
   ./gradlew :sdks:java:javadoc:aggregateJavadoc -PisRelease --no-daemon --no-parallel
   GENERATE_JAVADOC=~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_JAVA_DOC}/${BEAM_ROOT_DIR}/sdks/java/javadoc/build/docs/javadoc/
+
+  echo "----------------------Building YAML Doc----------------------"
+  cd ~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_YAML_DOC}
+  git clone --branch "${RC_TAG}" --depth 1 ${GIT_REPO_URL}
+  cd ${BEAM_ROOT_DIR}
+  ./gradlew :sdks:python:generateYamlDocs -PisRelease
+  GENERATE_YAMLDOC=~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_YAML_DOC}/${BEAM_ROOT_DIR}/sdks/python/build/yaml-ref.html
 
   echo "------------------Updating Release Docs---------------------"
   cd ~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_WEBSITE_REPO}
@@ -389,6 +398,13 @@ if [[ $confirmation = "y" ]]; then
   # Update current symlink to point to the latest release
   unlink typedoc/current | true
   ln -s ${RELEASE} typedoc/current
+
+  echo "............Copying generated yaml docs into beam-site.........."
+  mkdir -p yamldoc
+  cp -r ${GENERATE_YAMLDOC} yamldoc/${RELEASE}/index.html
+  # Update current symlink to point to the latest release
+  unlink yamldoc/current | true
+  ln -s ${RELEASE} yamldoc/current
 
   git add -A
   git commit -m "Update beam-site for release ${RELEASE}." -m "Content generated from commit ${RELEASE_COMMIT}."
@@ -419,4 +435,5 @@ if [[ $confirmation = "y" ]]; then
   rm -rf ~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_JAVA_DOC}
   rm -rf ~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_PYTHON_DOC}
   rm -rf ~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_TYPESCRIPT_DOC}
+  rm -rf ~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_YAML_DOC}
 fi

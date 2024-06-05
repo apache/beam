@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.gax.rpc.StatusCode.Code;
+import com.google.auth.Credentials;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.ServiceFactory;
 import com.google.cloud.spanner.Options.RpcPriority;
@@ -73,6 +74,8 @@ public abstract class SpannerConfig implements Serializable {
 
   public abstract @Nullable ValueProvider<RpcPriority> getRpcPriority();
 
+  public abstract @Nullable ValueProvider<Duration> getMaxCommitDelay();
+
   public abstract @Nullable ValueProvider<String> getDatabaseRole();
 
   public abstract @Nullable ValueProvider<Duration> getPartitionQueryTimeout();
@@ -83,6 +86,8 @@ public abstract class SpannerConfig implements Serializable {
   abstract @Nullable ServiceFactory<Spanner, SpannerOptions> getServiceFactory();
 
   public abstract @Nullable ValueProvider<Boolean> getDataBoostEnabled();
+
+  public abstract @Nullable ValueProvider<Credentials> getCredentials();
 
   abstract Builder toBuilder();
 
@@ -153,6 +158,8 @@ public abstract class SpannerConfig implements Serializable {
 
     abstract Builder setRpcPriority(ValueProvider<RpcPriority> rpcPriority);
 
+    abstract Builder setMaxCommitDelay(ValueProvider<Duration> maxCommitDelay);
+
     abstract Builder setDatabaseRole(ValueProvider<String> databaseRole);
 
     abstract Builder setDataBoostEnabled(ValueProvider<Boolean> dataBoostEnabled);
@@ -160,6 +167,8 @@ public abstract class SpannerConfig implements Serializable {
     abstract Builder setPartitionQueryTimeout(ValueProvider<Duration> partitionQueryTimeout);
 
     abstract Builder setPartitionReadTimeout(ValueProvider<Duration> partitionReadTimeout);
+
+    abstract Builder setCredentials(ValueProvider<Credentials> credentials);
 
     public abstract SpannerConfig build();
   }
@@ -273,6 +282,22 @@ public abstract class SpannerConfig implements Serializable {
     return toBuilder().setRpcPriority(rpcPriority).build();
   }
 
+  /* Specifies the max commit delay for high throughput writes. */
+  public SpannerConfig withMaxCommitDelay(long millis) {
+    return withMaxCommitDelay(Duration.millis(millis));
+  }
+
+  /** Specifies the max commit delay for high throughput writes. */
+  public SpannerConfig withMaxCommitDelay(Duration maxCommitDelay) {
+    return withMaxCommitDelay(ValueProvider.StaticValueProvider.of(maxCommitDelay));
+  }
+
+  /** Specifies the max commit delay for high throughput writes. */
+  public SpannerConfig withMaxCommitDelay(ValueProvider<Duration> maxCommitDelay) {
+    checkNotNull(maxCommitDelay, "withMaxCommitTimeout(maxCommitDelay) called with null input.");
+    return toBuilder().setMaxCommitDelay(maxCommitDelay).build();
+  }
+
   /** Specifies the Cloud Spanner database role. */
   public SpannerConfig withDatabaseRole(ValueProvider<String> databaseRole) {
     return toBuilder().setDatabaseRole(databaseRole).build();
@@ -301,5 +326,15 @@ public abstract class SpannerConfig implements Serializable {
   /** Specifies the PartitionRead timeout. */
   public SpannerConfig withPartitionReadTimeout(ValueProvider<Duration> partitionReadTimeout) {
     return toBuilder().setPartitionReadTimeout(partitionReadTimeout).build();
+  }
+
+  /** Specifies the credentials. */
+  public SpannerConfig withCredentials(Credentials credentials) {
+    return withCredentials(ValueProvider.StaticValueProvider.of(credentials));
+  }
+
+  /** Specifies the credentials. */
+  public SpannerConfig withCredentials(ValueProvider<Credentials> credentials) {
+    return toBuilder().setCredentials(credentials).build();
   }
 }

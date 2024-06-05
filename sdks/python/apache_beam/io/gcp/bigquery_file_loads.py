@@ -656,6 +656,7 @@ class TriggerLoadJobs(beam.DoFn):
     if not self.bq_io_metadata:
       self.bq_io_metadata = create_bigquery_io_metadata(self._step_name)
     self.pending_jobs = []
+    self.schema_cache = {}
 
   def process(
       self,
@@ -703,6 +704,29 @@ class TriggerLoadJobs(beam.DoFn):
 
     create_disposition = self.create_disposition
     if self.temporary_tables:
+      # we need to create temp tables, so we need a schema.
+      # if there is no input schema, fetch the destination table's schema
+      if schema is None:
+        hashed_dest = bigquery_tools.get_hashable_destination(table_reference)
+        if hashed_dest in self.schema_cache:
+          schema = self.schema_cache[hashed_dest]
+        else:
+          try:
+            schema = bigquery_tools.table_schema_to_dict(
+                bigquery_tools.BigQueryWrapper().get_table(
+                    project_id=table_reference.projectId,
+                    dataset_id=table_reference.datasetId,
+                    table_id=table_reference.tableId).schema)
+            self.schema_cache[hashed_dest] = schema
+          except Exception as e:
+            _LOGGER.warning(
+                "Input schema is absent and could not fetch the final "
+                "destination table's schema [%s]. Creating temp table [%s] "
+                "will likely fail: %s",
+                hashed_dest,
+                job_name,
+                e)
+
       # If we are using temporary tables, then we must always create the
       # temporary tables, so we replace the create_disposition.
       create_disposition = 'CREATE_IF_NEEDED'
@@ -723,6 +747,7 @@ class TriggerLoadJobs(beam.DoFn):
     )
     if not self.bq_io_metadata:
       self.bq_io_metadata = create_bigquery_io_metadata(self._step_name)
+
     job_reference = self.bq_wrapper.perform_load_job(
         destination=table_reference,
         source_uris=files,

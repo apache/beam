@@ -29,5 +29,5 @@ public interface CallShouldBackoff<ResponseT> extends Serializable {
   void update(ResponseT response);
 
   /** Report whether to backoff. */
-  boolean value();
+  boolean isTrue();
 }

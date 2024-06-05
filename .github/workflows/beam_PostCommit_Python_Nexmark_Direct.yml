@@ -118,7 +118,7 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          python-version: 3.8
+          python-version: default
       - name: run Java Testing Nexmark (query ${{ matrix.query }})
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

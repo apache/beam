@@ -647,11 +647,13 @@ public class MongoDbGridFSIO {
     public void startBundle() {
       GridFS gridfs = Preconditions.checkStateNotNull(this.gridfs);
       String filename = Preconditions.checkStateNotNull(spec.filename());
-      gridFsFile = gridfs.createFile(filename);
+      GridFSInputFile gridFsFile = gridfs.createFile(filename);
       if (spec.chunkSize() != null) {
         gridFsFile.setChunkSize(spec.chunkSize());
       }
       outputStream = gridFsFile.getOutputStream();
+
+      this.gridFsFile = gridFsFile;
     }
 
     @ProcessElement
@@ -664,9 +666,10 @@ public class MongoDbGridFSIO {
     @FinishBundle
     public void finishBundle() throws Exception {
       if (outputStream != null) {
+        OutputStream outputStream = this.outputStream;
         outputStream.flush();
         outputStream.close();
-        outputStream = null;
+        this.outputStream = null;
       }
       if (gridFsFile != null) {
         gridFsFile = null;
@@ -677,9 +680,10 @@ public class MongoDbGridFSIO {
     public void teardown() throws Exception {
       try {
         if (outputStream != null) {
+          OutputStream outputStream = this.outputStream;
           outputStream.flush();
           outputStream.close();
-          outputStream = null;
+          this.outputStream = null;
         }
         if (gridFsFile != null) {
           gridFsFile = null;

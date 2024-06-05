@@ -37,7 +37,7 @@ complements the foundation-wide guides:
 A Beam release consists of the following:
 
  - ASF source zips archived on
-   [dist.apache.org](https://dist.apache.org/release/beam) (later archived to
+   [dist.apache.org](https://dist.apache.org/repos/dist/release/beam/) (later archived to
    [archive.apache.org](https://archive.apache.org/dist/beam)
  - Java jars and poms published to [Maven
    Central](https://mvnrepository.com/artifact/org.apache.beam)
@@ -238,17 +238,6 @@ releases to the Maven Central Repository.
 ### Dependency checks
 
 Each language has routine dependency maintenance that you should check now.
-
-#### Update base image dependencies for Python container images
-
-The Python base container images have pinned `requirements.txt` that are
-compatible with our dependency constraints, and design to avoid run-time
-installs, since run-time installs cause large delays at start-up time. Ideally,
-we this should happen regularly when dependencies update, but it is important
-to ensure that they are fully up to date for each release.
-
-Follow the instructions at
-https://s.apache.org/beam-python-requirements-generate
 
 #### Update Go version used for container builds
 
@@ -564,11 +553,11 @@ The following should be confirmed:
 At
 [https://hub.docker.com/u/apache](https://hub.docker.com/search?q=apache%2Fbeam&type=image),
 visit each repository and navigate to "tags" tab.  Verify images are pushed
-with tags: `${RELEASE_VERSION}rc{RC_NUM}`
+with tags: `${RELEASE_VERSION}rc${RC_NUM}`
 
 Verify that third party licenses are included in Docker. You can do this with a simple script:
 
-    RC_TAG=${RELEASE_VERSION}rc{RC_NUM}
+    RC_TAG=${RELEASE_VERSION}rc${RC_NUM}
     for pyver in 3.8 3.9 3.10 3.11; do
       docker run --rm --entrypoint sh \
           apache/beam_python${pyver}_sdk:${RC_TAG} \
@@ -577,7 +566,7 @@ Verify that third party licenses are included in Docker. You can do this with a 
 
     for javaver in 8 11 17; do
       docker run --rm --entrypoint sh \
-          apache/beam_java${pyver}_sdk:${RC_TAG} \
+          apache/beam_java${javaver}_sdk:${RC_TAG} \
           -c 'ls -al /opt/apache/beam/third_party_licenses/ | wc -l'
     done
 
@@ -741,6 +730,8 @@ as an example.
 
     * {$KNOWN_ISSUE_1}
     * {$KNOWN_ISSUE_2}
+
+    For the most up to date list of known issues, see https://github.com/apache/beam/blob/master/CHANGES.md
 
     ## List of Contributors
 
@@ -931,7 +922,7 @@ write to BigQuery, and create a cluster of machines for running containers (for 
   ```
   **Flink Local Runner**
   ```
-  ./gradlew :runners:flink:1.13:runQuickstartJavaFlinkLocal \
+  ./gradlew :runners:flink:1.18:runQuickstartJavaFlinkLocal \
   -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \
   -Pver=${RELEASE_VERSION}
   ```
@@ -1329,6 +1320,15 @@ Release Manager
 [1] https://github.com/apache/beam/pull/123
 ```
 
+#### Update Python Dependencies
+
+A PR should have already been created (and possibly merged) by github-actions bot, you should verify that this was done correctly
+by looking at open PRs from that bot - https://github.com/apache/beam/pulls/app%2Fgithub-actions
+
+If a PR has not been merged, drive it to completion.
+If no PR was created, triage any failures in https://github.com/apache/beam/actions/workflows/beam_Publish_Website.yml and manually regenerate dependencies,
+following https://cwiki.apache.org/confluence/display/BEAM/Python+Tips#PythonTips-HowtoupdatedependenciesthatareinstalledinPythoncontainerimages
+
 ### Update the Java starter repo
 
 After the new Beam release is published, the Java starter project needs to have its version manually upgraded.
@@ -1343,7 +1343,9 @@ open a PR to do this if you don't.
 
 ### Update Beam Playground
 
-After new Beam Release is published, Beam Playground can be updated following the steps below:
+After new Beam Release is published, Beam Playground can be updated following the steps below. If any steps fail, make
+sure that the triggers are correctly configured as described in
+https://github.com/apache/beam/blob/master/playground/terraform/infrastructure/cloudbuild-manual-setup/README.md#deploy-playgorund-environment-from-cloud-build-triggers:
 
 1. Open the [Cloud Build triggers in apache-beam-testing](https://console.cloud.google.com/cloud-build/triggers?project=apache-beam-testing) GCP project.
 2. Find the trigger "Deploy-Update-Playground-environment-stg":
@@ -1388,3 +1390,23 @@ Perhaps parts of this guide can be clarified.
 
 If we have specific ideas, please start a discussion on the dev@ mailing list and/or propose a pull request to update this guide.
 Thanks!
+
+# Patch Releases
+
+The above document assumes a minor version bump cut off of the master branch. If you want to do a patch release cut off of a previous release branch, use the following steps:
+
+- Create a new release branch:
+
+```
+git clone https://github.com/apache/beam
+cd beam
+git fetch origin release-2.XX.0
+git checkout release-2.XX.0
+git checkout -b release-2.XX.1
+git push origin release-2.XX.1
+```
+
+- Add a PR to add the new release branch to the set of protected branches in .asf.yml - [example PR](https://github.com/apache/beam/pull/30832)
+- Add a PR to bump the Dataflow containers versions - [example PR](https://github.com/apache/beam/pull/30827)
+- Create PRs to cherry-pick any desired commits to the release branch
+- Follow the normal steps to build/vote/validate/finalize the release candidate that are listed above.

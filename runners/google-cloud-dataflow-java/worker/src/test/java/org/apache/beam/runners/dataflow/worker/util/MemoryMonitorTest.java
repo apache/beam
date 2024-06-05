@@ -34,7 +34,7 @@ import java.time.ZoneOffset;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import org.apache.beam.runners.core.construction.Environments;
+import org.apache.beam.sdk.util.construction.Environments;
 import org.hamcrest.Matchers;
 import org.junit.Before;
 import org.junit.Rule;

@@ -1899,13 +1899,19 @@ class StatelessDoFnInfo(DoFnInfo):
     return beam_runner_api_pb2.FunctionSpec(urn=self._urn)
 
 
-def FlatMap(fn, *args, **kwargs):  # pylint: disable=invalid-name
+def identity(x: T) -> T:
+  return x
+
+
+def FlatMap(fn=identity, *args, **kwargs):  # pylint: disable=invalid-name
   """:func:`FlatMap` is like :class:`ParDo` except it takes a callable to
   specify the transformation.
 
   The callable must return an iterable for each element of the input
   :class:`~apache_beam.pvalue.PCollection`. The elements of these iterables will
-  be flattened into the output :class:`~apache_beam.pvalue.PCollection`.
+  be flattened into the output :class:`~apache_beam.pvalue.PCollection`. If
+  no callable is given, then all elements of the input PCollection must already
+  be iterables themselves and will be flattened into the output PCollection.
 
   Args:
     fn (callable): a callable object.
@@ -3683,8 +3689,16 @@ class Flatten(PTransform):
     return pvalueish, pvalueish
 
   def expand(self, pcolls):
+    windowing = self.get_windowing(pcolls)
     for pcoll in pcolls:
       self._check_pcollection(pcoll)
+      if pcoll.windowing != windowing:
+        _LOGGER.warning(
+            'All input pcollections must have the same window. Windowing for '
+            'flatten set to %s, windowing of pcoll %s set to %s',
+            windowing,
+            pcoll,
+            pcoll.windowing)
     is_bounded = all(pcoll.is_bounded for pcoll in pcolls)
     return pvalue.PCollection(self.pipeline, is_bounded=is_bounded)
 

@@ -42,13 +42,14 @@ import org.joda.time.Instant;
 
 @NotThreadSafe
 public class Work implements Runnable {
-
   private final Windmill.WorkItem workItem;
   private final Supplier<Instant> clock;
   private final Instant startTime;
   private final Map<Windmill.LatencyAttribution.State, Duration> totalDurationPerState;
   private final Consumer<Work> processWorkFn;
+  private final WorkId id;
   private TimedState currentState;
+  private volatile boolean isFailed;
 
   private Work(Windmill.WorkItem workItem, Supplier<Instant> clock, Consumer<Work> processWorkFn) {
     this.workItem = workItem;
@@ -57,6 +58,12 @@ public class Work implements Runnable {
     this.startTime = clock.get();
     this.totalDurationPerState = new EnumMap<>(Windmill.LatencyAttribution.State.class);
     this.currentState = TimedState.initialState(startTime);
+    this.isFailed = false;
+    this.id =
+        WorkId.builder()
+            .setCacheToken(workItem.getCacheToken())
+            .setWorkToken(workItem.getWorkToken())
+            .build();
   }
 
   public static Work create(
@@ -95,6 +102,10 @@ public class Work implements Runnable {
     this.currentState = TimedState.create(state, now);
   }
 
+  public void setFailed() {
+    this.isFailed = true;
+  }
+
   public boolean isCommitPending() {
     return currentState.isCommitPending();
   }
@@ -109,6 +120,10 @@ public class Work implements Runnable {
     workIdBuilder.append('-');
     workIdBuilder.append(Long.toHexString(workItem.getWorkToken()));
     return workIdBuilder.toString();
+  }
+
+  public WorkId id() {
+    return id;
   }
 
   private void recordGetWorkStreamLatencies(
@@ -156,7 +171,7 @@ public class Work implements Runnable {
       stepBuilder.setUserStepName(activeMessage.get().userStepName());
       ActiveElementMetadata.Builder activeElementBuilder = ActiveElementMetadata.newBuilder();
       activeElementBuilder.setProcessingTimeMillis(
-          System.currentTimeMillis() - activeMessage.get().startTime());
+          activeMessage.get().stopwatch().elapsed().toMillis());
       stepBuilder.setActiveMessageMetadata(activeElementBuilder);
       builder.addActiveLatencyBreakdown(stepBuilder.build());
       return builder;
@@ -178,6 +193,10 @@ public class Work implements Runnable {
       builder.addActiveLatencyBreakdown(stepBuilder.build());
     }
     return builder;
+  }
+
+  public boolean isFailed() {
+    return isFailed;
   }
 
   boolean isStuckCommittingAt(Instant stuckCommitDeadline) {

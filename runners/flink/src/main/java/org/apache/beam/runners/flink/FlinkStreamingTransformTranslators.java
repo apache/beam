@@ -18,7 +18,7 @@
 package org.apache.beam.runners.flink;
 
 import static java.lang.String.format;
-import static org.apache.beam.runners.core.construction.SplittableParDo.SPLITTABLE_PROCESS_URN;
+import static org.apache.beam.sdk.util.construction.SplittableParDo.SPLITTABLE_PROCESS_URN;
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;
@@ -32,17 +32,12 @@ import java.util.Map;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems;
 import org.apache.beam.runners.core.SystemReduceFn;
-import org.apache.beam.runners.core.construction.PTransformTranslation;
-import org.apache.beam.runners.core.construction.ParDoTranslation;
-import org.apache.beam.runners.core.construction.ReadTranslation;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
-import org.apache.beam.runners.core.construction.SplittableParDo;
-import org.apache.beam.runners.core.construction.TransformPayloadTranslatorRegistrar;
 import org.apache.beam.runners.flink.translation.functions.FlinkAssignWindows;
+import org.apache.beam.runners.flink.translation.functions.ImpulseSourceFunction;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.DoFnOperator;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.KvToByteBufferKeySelector;
-import org.apache.beam.runners.flink.translation.wrappers.streaming.ProcessingTimeCallbackCompat;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.SingletonKeyedWorkItem;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.SingletonKeyedWorkItemCoder;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.SplittableDoFnOperator;
@@ -84,6 +79,11 @@ import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.AppliedCombineFn;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.construction.PTransformTranslation;
+import org.apache.beam.sdk.util.construction.ParDoTranslation;
+import org.apache.beam.sdk.util.construction.ReadTranslation;
+import org.apache.beam.sdk.util.construction.SplittableParDo;
+import org.apache.beam.sdk.util.construction.TransformPayloadTranslatorRegistrar;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -101,6 +101,7 @@ import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
+import org.apache.flink.api.common.operators.ProcessingTimeService.ProcessingTimeCallback;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -308,27 +309,27 @@ class FlinkStreamingTransformTranslators {
               WindowedValue.getFullCoder(ByteArrayCoder.of(), GlobalWindow.Coder.INSTANCE),
               context.getPipelineOptions());
 
-      FlinkBoundedSource<byte[]> impulseSource;
-      WatermarkStrategy<WindowedValue<byte[]>> watermarkStrategy;
+      final SingleOutputStreamOperator<WindowedValue<byte[]>> impulseOperator;
       if (context.isStreaming()) {
         long shutdownAfterIdleSourcesMs =
             context
                 .getPipelineOptions()
                 .as(FlinkPipelineOptions.class)
                 .getShutdownSourcesAfterIdleMs();
-        impulseSource = FlinkSource.unboundedImpulse(shutdownAfterIdleSourcesMs);
-        watermarkStrategy = WatermarkStrategy.forMonotonousTimestamps();
+        impulseOperator =
+            context
+                .getExecutionEnvironment()
+                .addSource(new ImpulseSourceFunction(shutdownAfterIdleSourcesMs), "Impulse")
+                .returns(typeInfo);
       } else {
-        impulseSource = FlinkSource.boundedImpulse();
-        watermarkStrategy = WatermarkStrategy.noWatermarks();
+        FlinkBoundedSource<byte[]> impulseSource = FlinkSource.boundedImpulse();
+        impulseOperator =
+            context
+                .getExecutionEnvironment()
+                .fromSource(impulseSource, WatermarkStrategy.noWatermarks(), "Impulse")
+                .returns(typeInfo);
       }
-      SingleOutputStreamOperator<WindowedValue<byte[]>> source =
-          context
-              .getExecutionEnvironment()
-              .fromSource(impulseSource, watermarkStrategy, "Impulse")
-              .returns(typeInfo);
-
-      context.setOutputDataStream(context.getOutput(transform), source);
+      context.setOutputDataStream(context.getOutput(transform), impulseOperator);
     }
   }
 
@@ -1449,10 +1450,6 @@ class FlinkStreamingTransformTranslators {
           .put(
               CreateStreamingFlinkView.CreateFlinkPCollectionView.class,
               new CreateStreamingFlinkViewPayloadTranslator())
-          .put(
-              SplittableParDoViaKeyedWorkItems.ProcessElements.class,
-              PTransformTranslation.TransformPayloadTranslator.NotSerializable.forUrn(
-                  SPLITTABLE_PROCESS_URN))
           .build();
     }
   }
@@ -1518,10 +1515,10 @@ class FlinkStreamingTransformTranslators {
   static class UnboundedSourceWrapperNoValueWithRecordId<
           OutputT, CheckpointMarkT extends UnboundedSource.CheckpointMark>
       extends RichParallelSourceFunction<WindowedValue<OutputT>>
-      implements ProcessingTimeCallbackCompat,
-          BeamStoppableFunction,
+      implements BeamStoppableFunction,
           CheckpointListener,
-          CheckpointedFunction {
+          CheckpointedFunction,
+          ProcessingTimeCallback {
 
     private final UnboundedSourceWrapper<OutputT, CheckpointMarkT> unboundedSourceWrapper;
 

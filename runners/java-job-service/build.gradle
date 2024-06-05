@@ -24,19 +24,16 @@ description = "Apache Beam :: Runners :: Java Job Service"
 
 dependencies {
   implementation library.java.vendored_guava_32_1_2_jre
-  implementation project(":runners:core-construction-java")
   implementation project(path: ":model:pipeline", configuration: "shadow")
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation project(path: ":model:job-management", configuration: "shadow")
   implementation project(":sdks:java:expansion-service")
-  implementation project(":sdks:java:fn-execution")
-  implementation project(":runners:core-construction-java")
   implementation project(":runners:java-fn-execution")
   implementation library.java.jackson_core
   implementation library.java.jackson_databind
   implementation library.java.joda_time
   implementation library.java.commons_compress
-  implementation library.java.vendored_grpc_1_54_0
+  implementation library.java.vendored_grpc_1_60_1
   implementation library.java.slf4j_api
   implementation library.java.args4j
   testImplementation library.java.junit

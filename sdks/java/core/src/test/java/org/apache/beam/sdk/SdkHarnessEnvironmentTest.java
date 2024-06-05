@@ -63,8 +63,7 @@ public class SdkHarnessEnvironmentTest {
   private static class JammDoFn extends DoFn<String, String> {
     @ProcessElement
     public void processElement(ProcessContext c) {
-      MemoryMeter memoryMeter =
-          MemoryMeter.builder().withGuessing(Guess.ALWAYS_INSTRUMENTATION).build();
+      MemoryMeter memoryMeter = MemoryMeter.builder().withGuessing(Guess.INSTRUMENTATION).build();
       assertThat(memoryMeter.measureDeep(c.element()), greaterThan(0L));
       c.output("measured");
     }

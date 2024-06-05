@@ -944,6 +944,8 @@ class BundleProcessor(object):
     self.data_channel_factory = data_channel_factory
     self.data_sampler = data_sampler
     self.current_instruction_id = None  # type: Optional[str]
+    # Represents whether the SDK is consuming received data.
+    self.consuming_received_data = False
 
     _verify_descriptor_created_in_a_compatible_env(process_bundle_descriptor)
     # There is no guarantee that the runner only set
@@ -1098,9 +1100,13 @@ class BundleProcessor(object):
           self.ops[transform_id].add_timer_info(timer_family_id, timer_info)
 
       # Process data and timer inputs
+      # We are currently not consuming received data.
+      self.consuming_received_data = False
       for data_channel, expected_inputs in data_channels.items():
         for element in data_channel.input_elements(instruction_id,
                                                    expected_inputs):
+          # Since we have received a set of elements and are consuming it.
+          self.consuming_received_data = True
           if isinstance(element, beam_fn_api_pb2.Elements.Timers):
             timer_coder_impl = (
                 self.timers_info[(
@@ -1112,6 +1118,8 @@ class BundleProcessor(object):
           elif isinstance(element, beam_fn_api_pb2.Elements.Data):
             input_op_by_transform_id[element.transform_id].process_encoded(
                 element.data)
+          # We are done consuming the set of elements.
+          self.consuming_received_data = False
 
       # Finish all operations.
       for op in self.ops.values():
@@ -1130,6 +1138,7 @@ class BundleProcessor(object):
               self.requires_finalization())
 
     finally:
+      self.consuming_received_data = False
       # Ensure any in-flight split attempts complete.
       with self.splitting_lock:
         self.current_instruction_id = None

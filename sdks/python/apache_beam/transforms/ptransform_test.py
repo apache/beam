@@ -101,6 +101,17 @@ class PTransformTest(unittest.TestCase):
         """inputs=('ci',) side_inputs=('cs',)>""",
         str(inputs_tr))
 
+  def test_named_annotations(self):
+    t = beam.Impulse()
+    t.annotations = lambda: {'test': 'value'}
+    named_t = 'Name' >> t
+    self.assertEqual(named_t.annotations(), {'test': 'value'})
+    original_annotations = named_t.annotations()
+    named_t.annotations = lambda: {'another': 'value', **original_annotations}
+    # Verify this is reflected on the original transform,
+    # which is what gets used in apply.
+    self.assertEqual(t.annotations(), {'test': 'value', 'another': 'value'})
+
   def test_do_with_do_fn(self):
     class AddNDoFn(beam.DoFn):
       def process(self, element, addon):

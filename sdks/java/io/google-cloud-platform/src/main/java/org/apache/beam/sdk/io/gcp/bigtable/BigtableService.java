@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable;
 
+import com.google.api.gax.rpc.ApiException;
 import com.google.bigtable.v2.MutateRowResponse;
 import com.google.bigtable.v2.Mutation;
 import com.google.bigtable.v2.Row;
@@ -29,7 +30,6 @@ import java.util.NoSuchElementException;
 import java.util.concurrent.CompletionStage;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO.BigtableSource;
 import org.apache.beam.sdk.values.KV;
-import org.joda.time.Duration;
 
 /** An interface for real or fake implementations of Cloud Bigtable. */
 interface BigtableService extends Serializable {
@@ -44,6 +44,12 @@ interface BigtableService extends Serializable {
      */
     CompletionStage<MutateRowResponse> writeRecord(KV<ByteString, Iterable<Mutation>> record)
         throws IOException;
+
+    /**
+     * Like above, but will not batch the record. Useful for single record retries. writeRecord
+     * should be preferred for performance reasons.
+     */
+    void writeSingleRecord(KV<ByteString, Iterable<Mutation>> record) throws ApiException;
 
     /**
      * Closes the writer.
@@ -69,12 +75,6 @@ interface BigtableService extends Serializable {
      * current row because the last such call was unsuccessful.
      */
     Row getCurrentRow() throws NoSuchElementException;
-
-    // Workaround for ReadRows requests which requires to pass the timeouts in
-    // ApiContext. Can be removed later once it's fixed in Veneer.
-    Duration getAttemptTimeout();
-
-    Duration getOperationTimeout();
   }
 
   /** Returns a {@link Reader} that will read from the specified source. */

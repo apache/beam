@@ -75,8 +75,8 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          java-version: 8
-          go-version: 1.21
+          java-version: default
+          go-version: default
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
       - name: Authenticate on GCP

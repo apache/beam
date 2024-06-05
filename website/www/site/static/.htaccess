@@ -26,3 +26,5 @@ RedirectMatch "/contribute/design-documents" "https://cwiki.apache.org/confluenc
 RedirectMatch "/contribute/release-guide" "https://github.com/apache/beam/blob/master/contributor-docs/release-guide.md"
 
 RedirectMatch "/contribute/committer-guide" "https://github.com/apache/beam/blob/master/contributor-docs/committer-guide.md"
+
+Header set Content-Security-Policy "frame-src 'self' https://play.beam.apache.org/ https://www.youtube.com/ https://drive.google.com/ ;"

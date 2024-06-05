@@ -24,6 +24,33 @@
     version: BEAM_VERSION
   transforms:
      Sql: 'beam:external:java:sql:v1'
+     Flatten: 'beam:schematransform:org.apache.beam:yaml:flatten:v1'
+     LogForTesting: 'beam:schematransform:org.apache.beam:yaml:log_for_testing:v1'
+
+# TODO(robertwb): Auto-detect redundantly provided transforms for maximal fusion.
+- type: 'beamJar'
+  config:
+    gradle_target: 'sdks:java:io:expansion-service:shadowJar'
+    version: BEAM_VERSION
+  transforms:
+     Flatten: 'beam:schematransform:org.apache.beam:yaml:flatten:v1'
+     LogForTesting: 'beam:schematransform:org.apache.beam:yaml:log_for_testing:v1'
+
+- type: 'beamJar'
+  config:
+    gradle_target: 'sdks:java:io:google-cloud-platform:expansion-service:shadowJar'
+    version: BEAM_VERSION
+  transforms:
+     Flatten: 'beam:schematransform:org.apache.beam:yaml:flatten:v1'
+     LogForTesting: 'beam:schematransform:org.apache.beam:yaml:log_for_testing:v1'
+
+- type: 'beamJar'
+  config:
+    gradle_target: 'sdks:java:extensions:schemaio-expansion-service:shadowJar'
+    version: BEAM_VERSION
+  transforms:
+     Flatten: 'beam:schematransform:org.apache.beam:yaml:flatten:v1'
+     LogForTesting: 'beam:schematransform:org.apache.beam:yaml:log_for_testing:v1'
 
 - type: 'python'
   config: {}

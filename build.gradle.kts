@@ -208,6 +208,9 @@ tasks.rat {
 
     // DuetAI training prompts
     "learning/prompts/**/*.md",
+
+    // Ignore terraform lock files
+    "**/.terraform.lock.hcl"
   )
 
   // Add .gitignore excludes to the Apache Rat exclusion list. We re-create the behavior
@@ -247,7 +250,6 @@ tasks.register("javaPreCommit") {
   dependsOn(":model:fn-execution:build")
   dependsOn(":model:job-management:build")
   dependsOn(":model:pipeline:build")
-  dependsOn(":runners:core-construction-java:build")
   dependsOn(":runners:core-java:build")
   dependsOn(":runners:direct-java:build")
   dependsOn(":runners:direct-java:needsRunnerTests")
@@ -293,7 +295,6 @@ tasks.register("javaPreCommit") {
   dependsOn(":sdks:java:extensions:sorter:build")
   dependsOn(":sdks:java:extensions:timeseries:build")
   dependsOn(":sdks:java:extensions:zetasketch:build")
-  dependsOn(":sdks:java:fn-execution:build")
   dependsOn(":sdks:java:harness:build")
   dependsOn(":sdks:java:harness:jmh:build")
   dependsOn(":sdks:java:io:bigquery-io-perf-tests:build")
@@ -305,6 +306,7 @@ tasks.register("javaPreCommit") {
   dependsOn(":sdks:java:io:synthetic:build")
   dependsOn(":sdks:java:io:xml:build")
   dependsOn(":sdks:java:javadoc:allJavadoc")
+  dependsOn(":sdks:java:managed:build")
   dependsOn(":sdks:java:testing:expansion-service:build")
   dependsOn(":sdks:java:testing:jpms-tests:build")
   dependsOn(":sdks:java:testing:load-tests:build")
@@ -313,6 +315,7 @@ tasks.register("javaPreCommit") {
   dependsOn(":sdks:java:testing:tpcds:build")
   dependsOn(":sdks:java:testing:watermarks:build")
   dependsOn(":sdks:java:transform-service:build")
+  dependsOn(":sdks:java:transform-service:app:build")
   dependsOn(":sdks:java:transform-service:launcher:build")
 }
 
@@ -325,11 +328,6 @@ tasks.register("javaioPreCommit") {
   dependsOn(":sdks:java:io:clickhouse:build")
   dependsOn(":sdks:java:io:debezium:expansion-service:build")
   dependsOn(":sdks:java:io:debezium:build")
-  dependsOn(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-5:build")
-  dependsOn(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-6:build")
-  dependsOn(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-7:build")
-  dependsOn(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-8:build")
-  dependsOn(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-common:build")
   dependsOn(":sdks:java:io:elasticsearch:build")
   dependsOn(":sdks:java:io:file-schema-transform:build")
   dependsOn(":sdks:java:io:google-ads:build")
@@ -405,6 +403,7 @@ tasks.register("javaHadoopVersionsTest") {
   dependsOn(":sdks:java:io:hadoop-file-system:hadoopVersionsTest")
   dependsOn(":sdks:java:io:hadoop-format:hadoopVersionsTest")
   dependsOn(":sdks:java:io:hcatalog:hadoopVersionsTest")
+  dependsOn(":sdks:java:io:iceberg:hadoopVersionsTest")
   dependsOn(":sdks:java:io:parquet:hadoopVersionsTest")
   dependsOn(":sdks:java:extensions:sorter:hadoopVersionsTest")
   dependsOn(":runners:spark:3:hadoopVersionsTest")
@@ -474,6 +473,7 @@ tasks.register("pythonPreCommit") {
   dependsOn(":sdks:python:test-suites:tox:py39:preCommitPy39")
   dependsOn(":sdks:python:test-suites:tox:py310:preCommitPy310")
   dependsOn(":sdks:python:test-suites:tox:py311:preCommitPy311")
+  dependsOn(":sdks:python:test-suites:tox:py312:preCommitPy312")
 }
 
 tasks.register("pythonPreCommitIT") {
@@ -490,21 +490,22 @@ tasks.register("pythonDockerBuildPreCommit") {
   dependsOn(":sdks:python:container:py39:docker")
   dependsOn(":sdks:python:container:py310:docker")
   dependsOn(":sdks:python:container:py311:docker")
+  dependsOn(":sdks:python:container:py312:docker")
 }
 
 tasks.register("pythonLintPreCommit") {
-  // TODO(https://github.com/apache/beam/issues/20209): Find a better way to specify lint and formatter tasks without hardcoding py version.
-  dependsOn(":sdks:python:test-suites:tox:py38:lint")
+  dependsOn(":sdks:python:test-suites:tox:pycommon:linter")
 }
 
 tasks.register("pythonFormatterPreCommit") {
-  dependsOn("sdks:python:test-suites:tox:py38:formatter")
+  dependsOn("sdks:python:test-suites:tox:pycommon:formatter")
 }
 
 tasks.register("python38PostCommit") {
   dependsOn(":sdks:python:test-suites:dataflow:py38:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py38:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py38:hdfsIntegrationTest")
+  dependsOn(":sdks:python:test-suites:direct:py38:azureIntegrationTest")
   dependsOn(":sdks:python:test-suites:portable:py38:postCommitPy38")
   // TODO: https://github.com/apache/beam/issues/22651
   // The default container uses Python 3.8. The goal here is to
@@ -517,7 +518,6 @@ tasks.register("python38PostCommit") {
 tasks.register("python39PostCommit") {
   dependsOn(":sdks:python:test-suites:dataflow:py39:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py39:postCommitIT")
-  dependsOn(":sdks:python:test-suites:direct:py39:hdfsIntegrationTest")
   dependsOn(":sdks:python:test-suites:portable:py39:postCommitPy39")
   // TODO (https://github.com/apache/beam/issues/23966)
   // Move this to Python 3.10 test suite once tfx-bsl has python 3.10 wheel.
@@ -527,7 +527,6 @@ tasks.register("python39PostCommit") {
 tasks.register("python310PostCommit") {
   dependsOn(":sdks:python:test-suites:dataflow:py310:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py310:postCommitIT")
-  dependsOn(":sdks:python:test-suites:direct:py310:hdfsIntegrationTest")
   dependsOn(":sdks:python:test-suites:portable:py310:postCommitPy310")
 }
 
@@ -538,15 +537,22 @@ tasks.register("python311PostCommit") {
   dependsOn(":sdks:python:test-suites:portable:py311:postCommitPy311")
 }
 
+tasks.register("python312PostCommit") {
+  dependsOn(":sdks:python:test-suites:dataflow:py312:postCommitIT")
+  dependsOn(":sdks:python:test-suites:direct:py312:postCommitIT")
+  dependsOn(":sdks:python:test-suites:direct:py312:hdfsIntegrationTest")
+  dependsOn(":sdks:python:test-suites:portable:py312:postCommitPy312")
+}
+
 tasks.register("portablePythonPreCommit") {
   dependsOn(":sdks:python:test-suites:portable:py38:preCommitPy38")
-  dependsOn(":sdks:python:test-suites:portable:py311:preCommitPy311")
+  dependsOn(":sdks:python:test-suites:portable:py312:preCommitPy312")
 }
 
 tasks.register("pythonSparkPostCommit") {
   dependsOn(":sdks:python:test-suites:portable:py38:sparkValidatesRunner")
   dependsOn(":sdks:python:test-suites:portable:py39:sparkValidatesRunner")
-  dependsOn(":sdks:python:test-suites:portable:py311:sparkValidatesRunner")
+  dependsOn(":sdks:python:test-suites:portable:py312:sparkValidatesRunner")
 }
 
 tasks.register("websitePreCommit") {
@@ -646,6 +652,11 @@ tasks.register("checkSetup") {
   dependsOn(":sdks:go:examples:wordCount")
   dependsOn(":sdks:python:wordCount")
   dependsOn(":examples:java:wordCount")
+}
+
+// Generates external transform config
+project.tasks.register("generateExternalTransformsConfig") {
+  dependsOn(":sdks:python:generateExternalTransformsConfig")
 }
 
 // Configure the release plugin to do only local work; the release manager determines what, if

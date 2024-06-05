@@ -19,7 +19,7 @@ package org.apache.beam.runners.dataflow.worker.windmill.state;
 
 import com.google.auto.value.AutoValue;
 import javax.annotation.Nullable;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Range;
 
 /**

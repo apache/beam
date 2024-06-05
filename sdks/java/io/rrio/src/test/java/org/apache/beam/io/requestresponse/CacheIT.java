@@ -17,6 +17,8 @@
  */
 package org.apache.beam.io.requestresponse;
 
+import static org.apache.beam.sdk.io.common.IOITHelper.readIOTestPipelineOptions;
+
 import java.net.URI;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -30,6 +32,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -37,12 +40,12 @@ import org.junit.runners.JUnit4;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.utility.DockerImageName;
 
-/** Integration tests for {@link Cache}. */
 @RunWith(JUnit4.class)
 public class CacheIT {
-  @Rule public TestPipeline writePipeline = TestPipeline.create();
+  private final EchoITOptions options = readIOTestPipelineOptions(EchoITOptions.class);
+  @Rule public TestPipeline writePipeline = TestPipeline.fromOptions(options);
 
-  @Rule public TestPipeline readPipeline = TestPipeline.create();
+  @Rule public TestPipeline readPipeline = TestPipeline.fromOptions(options);
 
   private static final String CONTAINER_IMAGE_NAME = "redis:5.0.3-alpine";
   private static final Integer PORT = 6379;
@@ -59,6 +62,11 @@ public class CacheIT {
             return URI.create(
                 String.format("redis://%s:%d", redis.getHost(), redis.getFirstMappedPort()));
           });
+
+  @BeforeClass
+  public static void removeIntegrationTestsProperty() {
+    System.clearProperty("integrationTestPipelineOptions");
+  }
 
   @Test
   public void givenRequestResponsesCached_writeThenReadYieldsMatches()
@@ -104,7 +112,7 @@ public class CacheIT {
     PCollection<Request> requests =
         readPipeline.apply(Create.of(toRead)).setCoder(CallTest.DETERMINISTIC_REQUEST_CODER);
 
-    Call.Result<KV<Request, Response>> gotKVsResult =
+    Result<KV<Request, Response>> gotKVsResult =
         requests.apply(
             Cache.readUsingRedis(
                 externalClients.getActualClient(),

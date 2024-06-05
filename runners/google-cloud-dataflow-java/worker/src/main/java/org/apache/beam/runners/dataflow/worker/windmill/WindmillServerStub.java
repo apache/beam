@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill;
 
-import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.Set;
 import org.apache.beam.runners.dataflow.worker.status.StatusDataProvider;
@@ -25,6 +24,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.Co
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemReceiver;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPort;
 
 /** Stub for communicating with a Windmill server. */
@@ -38,7 +38,12 @@ public abstract class WindmillServerStub implements StatusDataProvider {
    * subsequent calls, if endpoints are different from previous values new stubs are created,
    * replacing the previous ones.
    */
-  public abstract void setWindmillServiceEndpoints(Set<HostAndPort> endpoints) throws IOException;
+  public abstract void setWindmillServiceEndpoints(Set<HostAndPort> endpoints);
+
+  /*
+   * Returns the windmill service endpoints set by setWindmillServiceEndpoints
+   */
+  public abstract ImmutableSet<HostAndPort> getWindmillServiceEndpoints();
 
   /** Returns true iff this WindmillServerStub is ready for making API calls. */
   public abstract boolean isReady();

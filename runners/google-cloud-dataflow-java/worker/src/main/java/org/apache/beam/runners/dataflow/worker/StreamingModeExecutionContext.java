@@ -42,6 +42,7 @@ import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
+import org.apache.beam.runners.dataflow.worker.DataflowOperationContext.DataflowExecutionState;
 import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext.StepContext;
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
@@ -64,7 +65,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
@@ -112,6 +113,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
   private Windmill.WorkItemCommitRequest.Builder outputBuilder;
   private UnboundedSource.UnboundedReader<?> activeReader;
   private volatile long backlogBytes;
+  private Supplier<Boolean> workIsFailed;
 
   public StreamingModeExecutionContext(
       CounterFactory counterFactory,
@@ -135,11 +137,16 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     this.stateNameMap = ImmutableMap.copyOf(stateNameMap);
     this.stateCache = stateCache;
     this.backlogBytes = UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN;
+    this.workIsFailed = () -> Boolean.FALSE;
   }
 
   @VisibleForTesting
   public long getBacklogBytes() {
     return backlogBytes;
+  }
+
+  public boolean workIsFailed() {
+    return workIsFailed.get();
   }
 
   public void start(
@@ -150,9 +157,11 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       @Nullable Instant synchronizedProcessingTime,
       WindmillStateReader stateReader,
       SideInputStateFetcher sideInputStateFetcher,
-      Windmill.WorkItemCommitRequest.Builder outputBuilder) {
+      Windmill.WorkItemCommitRequest.Builder outputBuilder,
+      @Nullable Supplier<Boolean> workFailed) {
     this.key = key;
     this.work = work;
+    this.workIsFailed = (workFailed != null) ? workFailed : () -> Boolean.FALSE;
     this.computationKey =
         WindmillComputationKey.create(computationId, work.getKey(), work.getShardingKey());
     this.sideInputStateFetcher = sideInputStateFetcher;
@@ -429,24 +438,21 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
 
   /**
    * Execution states in Streaming are shared between multiple map-task executors. Thus this class
-   * needs to be thread safe for multiple writers. A single stage could have have multiple executors
+   * needs to be thread safe for multiple writers. A single stage could have multiple executors
    * running concurrently.
    */
-  public static class StreamingModeExecutionState
-      extends DataflowOperationContext.DataflowExecutionState {
+  public static class StreamingModeExecutionState extends DataflowExecutionState {
 
     // AtomicLong is used because this value is written in two places:
     // 1. The sampling thread calls takeSample to increment the time spent in this state
     // 2. The reporting thread calls extractUpdate which reads the current sum *AND* sets it to 0.
     private final AtomicLong totalMillisInState = new AtomicLong();
 
-    @SuppressWarnings("unused")
     public StreamingModeExecutionState(
         NameContext nameContext,
         String stateName,
         MetricsContainer metricsContainer,
-        ProfileScope profileScope,
-        StreamingDataflowWorker worker) {
+        ProfileScope profileScope) {
       // TODO: Take in the requesting step name and side input index for streaming.
       super(nameContext, stateName, null, null, metricsContainer, profileScope);
     }
@@ -484,22 +490,15 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
    */
   public static class StreamingModeExecutionStateRegistry extends DataflowExecutionStateRegistry {
 
-    private final StreamingDataflowWorker worker;
-
-    public StreamingModeExecutionStateRegistry(StreamingDataflowWorker worker) {
-      this.worker = worker;
-    }
-
     @Override
-    protected DataflowOperationContext.DataflowExecutionState createState(
+    protected DataflowExecutionState createState(
         NameContext nameContext,
         String stateName,
         String requestingStepName,
         Integer inputIndex,
         MetricsContainer container,
         ProfileScope profileScope) {
-      return new StreamingModeExecutionState(
-          nameContext, stateName, container, profileScope, worker);
+      return new StreamingModeExecutionState(nameContext, stateName, container, profileScope);
     }
   }
 
@@ -507,14 +506,14 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     private final ExecutionState readState;
     private final @Nullable ExecutionStateTracker stateTracker;
 
-    ScopedReadStateSupplier(
+    private ScopedReadStateSupplier(
         DataflowOperationContext operationContext, ExecutionStateTracker stateTracker) {
       this.readState = operationContext.newExecutionState("windmill-read");
       this.stateTracker = stateTracker;
     }
 
     @Override
-    public Closeable get() {
+    public @Nullable Closeable get() {
       if (stateTracker == null) {
         return null;
       }
@@ -670,7 +669,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     private NavigableSet<TimerData> modifiedUserSynchronizedProcessingTimersOrdered = null;
     // A list of timer keys that were modified by user processing earlier in this bundle. This
     // serves a tombstone, so
-    // that we know not to fire any bundle tiemrs that were moddified.
+    // that we know not to fire any bundle timers that were modified.
     private Table<String, StateNamespace, TimerData> modifiedUserTimerKeys = null;
 
     public StepContext(DataflowOperationContext operationContext) {

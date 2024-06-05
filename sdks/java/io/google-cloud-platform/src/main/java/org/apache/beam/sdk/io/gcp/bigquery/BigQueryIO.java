@@ -19,6 +19,8 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.resolveTempLocation;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryResourceNaming.createTempTableReference;
+import static org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter.BAD_RECORD_TAG;
+import static org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter.RECORDING_ROUTER;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
@@ -72,15 +74,14 @@ import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.avro.io.AvroSource;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.BoundedSource;
-import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.MoveOptions;
 import org.apache.beam.sdk.io.fs.ResolveOptions;
@@ -96,7 +97,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.StorageClient;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQuerySourceBase.ExtractResult;
 import org.apache.beam.sdk.io.gcp.bigquery.DynamicDestinationsHelpers.ConstantSchemaDestinations;
-import org.apache.beam.sdk.io.gcp.bigquery.DynamicDestinationsHelpers.ConstantTimePartitioningDestinations;
+import org.apache.beam.sdk.io.gcp.bigquery.DynamicDestinationsHelpers.ConstantTimePartitioningClusteringDestinations;
 import org.apache.beam.sdk.io.gcp.bigquery.DynamicDestinationsHelpers.SchemaFromViewDestinations;
 import org.apache.beam.sdk.io.gcp.bigquery.DynamicDestinationsHelpers.TableFunctionDestinations;
 import org.apache.beam.sdk.io.gcp.bigquery.PassThroughThenCleanup.CleanupOperation;
@@ -111,6 +112,7 @@ import org.apache.beam.sdk.schemas.ProjectionProducer;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -120,6 +122,11 @@ import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
+import org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter;
+import org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter.ThrowingBadRecordRouter;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler.DefaultErrorHandler;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -605,7 +612,7 @@ public class BigQueryIO {
    * PCollection<TableRow>} directly to BigQueryIO.Write.
    */
   static final SerializableFunction<TableRow, TableRow> TABLE_ROW_IDENTITY_FORMATTER =
-      SerializableFunctions.identity();;
+      SerializableFunctions.identity();
 
   /**
    * A formatting function that maps a GenericRecord to itself. This allows sending a {@code
@@ -742,6 +749,8 @@ public class BigQueryIO {
         .setUseAvroLogicalTypes(false)
         .setFormat(DataFormat.AVRO)
         .setProjectionPushdownApplied(false)
+        .setBadRecordErrorHandler(new DefaultErrorHandler<>())
+        .setBadRecordRouter(BadRecordRouter.THROWING_ROUTER)
         .build();
   }
 
@@ -770,6 +779,8 @@ public class BigQueryIO {
         .setUseAvroLogicalTypes(false)
         .setFormat(DataFormat.AVRO)
         .setProjectionPushdownApplied(false)
+        .setBadRecordErrorHandler(new DefaultErrorHandler<>())
+        .setBadRecordRouter(BadRecordRouter.THROWING_ROUTER)
         .build();
   }
 
@@ -958,6 +969,8 @@ public class BigQueryIO {
 
       abstract Builder<T> setQueryTempDataset(String queryTempDataset);
 
+      abstract Builder<T> setQueryTempProject(String queryTempProject);
+
       abstract Builder<T> setMethod(TypedRead.Method method);
 
       abstract Builder<T> setFormat(DataFormat method);
@@ -984,6 +997,11 @@ public class BigQueryIO {
       abstract Builder<T> setFromBeamRowFn(FromBeamRowFunction<T> fromRowFn);
 
       abstract Builder<T> setUseAvroLogicalTypes(Boolean useAvroLogicalTypes);
+
+      abstract Builder<T> setBadRecordErrorHandler(
+          ErrorHandler<BadRecord, ?> badRecordErrorHandler);
+
+      abstract Builder<T> setBadRecordRouter(BadRecordRouter badRecordRouter);
 
       abstract Builder<T> setProjectionPushdownApplied(boolean projectionPushdownApplied);
     }
@@ -1013,6 +1031,8 @@ public class BigQueryIO {
 
     abstract @Nullable String getQueryTempDataset();
 
+    abstract @Nullable String getQueryTempProject();
+
     public abstract TypedRead.Method getMethod();
 
     abstract DataFormat getFormat();
@@ -1032,6 +1052,10 @@ public class BigQueryIO {
     abstract @Nullable FromBeamRowFunction<T> getFromBeamRowFn();
 
     abstract Boolean getUseAvroLogicalTypes();
+
+    abstract ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
+
+    abstract BadRecordRouter getBadRecordRouter();
 
     abstract boolean getProjectionPushdownApplied();
 
@@ -1089,6 +1113,7 @@ public class BigQueryIO {
                 MoreObjects.firstNonNull(getQueryPriority(), QueryPriority.BATCH),
                 getQueryLocation(),
                 getQueryTempDataset(),
+                getQueryTempProject(),
                 getKmsKey());
       }
       return sourceDef;
@@ -1104,6 +1129,7 @@ public class BigQueryIO {
           MoreObjects.firstNonNull(getQueryPriority(), QueryPriority.BATCH),
           getQueryLocation(),
           getQueryTempDataset(),
+          getQueryTempProject(),
           getKmsKey(),
           getFormat(),
           getParseFn(),
@@ -1138,6 +1164,9 @@ public class BigQueryIO {
                 e);
           }
         }
+        checkArgument(
+            getBadRecordRouter().equals(BadRecordRouter.THROWING_ROUTER),
+            "BigQueryIO Read with Error Handling is only available when DIRECT_READ is used");
       }
 
       ValueProvider<TableReference> table = getTableProvider();
@@ -1180,12 +1209,16 @@ public class BigQueryIO {
               // The temp table is only used for dataset and project id validation, not for table
               // name
               // validation
+              String project = getQueryTempProject();
+              if (project == null) {
+                project =
+                    bqOptions.getBigQueryProject() == null
+                        ? bqOptions.getProject()
+                        : bqOptions.getBigQueryProject();
+              }
               TableReference tempTable =
                   new TableReference()
-                      .setProjectId(
-                          bqOptions.getBigQueryProject() == null
-                              ? bqOptions.getProject()
-                              : bqOptions.getBigQueryProject())
+                      .setProjectId(project)
                       .setDatasetId(getQueryTempDataset())
                       .setTableId("dummy table");
               BigQueryHelpers.verifyDatasetPresence(datasetService, tempTable);
@@ -1429,27 +1462,75 @@ public class BigQueryIO {
       ValueProvider<TableReference> tableProvider = getTableProvider();
       Pipeline p = input.getPipeline();
       if (tableProvider != null) {
-        // No job ID is required. Read directly from BigQuery storage.
-        PCollection<T> rows =
-            p.apply(
-                org.apache.beam.sdk.io.Read.from(
-                    BigQueryStorageTableSource.create(
-                        tableProvider,
-                        getFormat(),
-                        getSelectedFields(),
-                        getRowRestriction(),
-                        getParseFn(),
-                        outputCoder,
-                        getBigQueryServices(),
-                        getProjectionPushdownApplied())));
-        if (beamSchema != null) {
-          rows.setSchema(
-              beamSchema,
-              getTypeDescriptor(),
-              getToBeamRowFn().apply(beamSchema),
-              getFromBeamRowFn().apply(beamSchema));
+        // ThrowingBadRecordRouter is the default value, and is what is used if the user hasn't
+        // specified any particular error handling.
+        if (getBadRecordRouter() instanceof ThrowingBadRecordRouter) {
+          // No job ID is required. Read directly from BigQuery storage.
+          PCollection<T> rows =
+              p.apply(
+                  org.apache.beam.sdk.io.Read.from(
+                      BigQueryStorageTableSource.create(
+                          tableProvider,
+                          getFormat(),
+                          getSelectedFields(),
+                          getRowRestriction(),
+                          getParseFn(),
+                          outputCoder,
+                          getBigQueryServices(),
+                          getProjectionPushdownApplied())));
+          if (beamSchema != null) {
+            rows.setSchema(
+                beamSchema,
+                getTypeDescriptor(),
+                getToBeamRowFn().apply(beamSchema),
+                getFromBeamRowFn().apply(beamSchema));
+          }
+          return rows;
+        } else {
+          // We need to manually execute the table source, so as to be able to capture exceptions
+          // to pipe to error handling
+          BigQueryStorageTableSource<T> source =
+              BigQueryStorageTableSource.create(
+                  tableProvider,
+                  getFormat(),
+                  getSelectedFields(),
+                  getRowRestriction(),
+                  getParseFn(),
+                  outputCoder,
+                  getBigQueryServices(),
+                  getProjectionPushdownApplied());
+          List<? extends BoundedSource<T>> sources;
+          try {
+            // This splitting logic taken from the SDF implementation of Read
+            long estimatedSize = source.getEstimatedSizeBytes(bqOptions);
+            // Split into pieces as close to the default desired bundle size but if that would cause
+            // too few splits then prefer to split up to the default desired number of splits.
+            long desiredChunkSize;
+            if (estimatedSize <= 0) {
+              desiredChunkSize = 64 << 20; // 64mb
+            } else {
+              // 1mb --> 1 shard; 1gb --> 32 shards; 1tb --> 1000 shards, 1pb --> 32k shards
+              desiredChunkSize = Math.max(1 << 20, (long) (1000 * Math.sqrt(estimatedSize)));
+            }
+            sources = source.split(desiredChunkSize, bqOptions);
+          } catch (Exception e) {
+            throw new RuntimeException("Unable to split TableSource", e);
+          }
+          TupleTag<T> rowTag = new TupleTag<>();
+          PCollectionTuple resultTuple =
+              p.apply(Create.of(sources))
+                  .apply(
+                      "Read Storage Table Source",
+                      ParDo.of(new ReadTableSource<T>(rowTag, getParseFn(), getBadRecordRouter()))
+                          .withOutputTags(rowTag, TupleTagList.of(BAD_RECORD_TAG)));
+          getBadRecordErrorHandler()
+              .addErrorCollection(
+                  resultTuple
+                      .get(BAD_RECORD_TAG)
+                      .setCoder(BadRecord.getCoder(input.getPipeline())));
+
+          return resultTuple.get(rowTag).setCoder(outputCoder);
         }
-        return rows;
       }
 
       checkArgument(
@@ -1472,10 +1553,10 @@ public class BigQueryIO {
       //
 
       PCollectionView<String> jobIdTokenView;
-      PCollectionTuple tuple;
       PCollection<T> rows;
 
-      if (!getWithTemplateCompatibility()) {
+      if (!getWithTemplateCompatibility()
+          && getBadRecordRouter() instanceof ThrowingBadRecordRouter) {
         // Create a singleton job ID token at pipeline construction time.
         String staticJobUuid = BigQueryHelpers.randomUUIDString();
         jobIdTokenView =
@@ -1503,46 +1584,24 @@ public class BigQueryIO {
         jobIdTokenView = jobIdTokenCollection.apply("ViewId", View.asSingleton());
 
         TupleTag<ReadStream> readStreamsTag = new TupleTag<>();
-        TupleTag<List<ReadStream>> listReadStreamsTag = new TupleTag<>();
         TupleTag<ReadSession> readSessionTag = new TupleTag<>();
         TupleTag<String> tableSchemaTag = new TupleTag<>();
 
-        if (!bqOptions.getEnableBundling()) {
-          tuple =
-              createTupleForDirectRead(
-                  jobIdTokenCollection,
-                  outputCoder,
-                  readStreamsTag,
-                  readSessionTag,
-                  tableSchemaTag);
-          tuple.get(readStreamsTag).setCoder(ProtoCoder.of(ReadStream.class));
-        } else {
-          tuple =
-              createTupleForDirectReadWithStreamBundle(
-                  jobIdTokenCollection,
-                  outputCoder,
-                  listReadStreamsTag,
-                  readSessionTag,
-                  tableSchemaTag);
-          tuple.get(listReadStreamsTag).setCoder(ListCoder.of(ProtoCoder.of(ReadStream.class)));
-        }
-
+        PCollectionTuple tuple =
+            createTupleForDirectRead(
+                jobIdTokenCollection, outputCoder, readStreamsTag, readSessionTag, tableSchemaTag);
+        tuple.get(readStreamsTag).setCoder(ProtoCoder.of(ReadStream.class));
         tuple.get(readSessionTag).setCoder(ProtoCoder.of(ReadSession.class));
         tuple.get(tableSchemaTag).setCoder(StringUtf8Coder.of());
+
         PCollectionView<ReadSession> readSessionView =
             tuple.get(readSessionTag).apply("ReadSessionView", View.asSingleton());
         PCollectionView<String> tableSchemaView =
             tuple.get(tableSchemaTag).apply("TableSchemaView", View.asSingleton());
 
-        if (!bqOptions.getEnableBundling()) {
-          rows =
-              createPCollectionForDirectRead(
-                  tuple, outputCoder, readStreamsTag, readSessionView, tableSchemaView);
-        } else {
-          rows =
-              createPCollectionForDirectReadWithStreamBundle(
-                  tuple, outputCoder, listReadStreamsTag, readSessionView, tableSchemaView);
-        }
+        rows =
+            createPCollectionForDirectRead(
+                tuple, outputCoder, readStreamsTag, readSessionView, tableSchemaView);
       }
 
       PassThroughThenCleanup.CleanupOperation cleanupOperation =
@@ -1553,12 +1612,16 @@ public class BigQueryIO {
               String jobUuid = c.getJobId();
 
               Optional<String> queryTempDataset = Optional.ofNullable(getQueryTempDataset());
-
+              String project = getQueryTempProject();
+              if (project == null) {
+                project =
+                    options.getBigQueryProject() == null
+                        ? options.getProject()
+                        : options.getBigQueryProject();
+              }
               TableReference tempTable =
                   createTempTableReference(
-                      options.getBigQueryProject() == null
-                          ? options.getProject()
-                          : options.getBigQueryProject(),
+                      project,
                       BigQueryResourceNaming.createJobIdPrefix(
                           options.getJobName(), jobUuid, JobType.QUERY),
                       queryTempDataset);
@@ -1586,6 +1649,48 @@ public class BigQueryIO {
             getFromBeamRowFn().apply(beamSchema));
       }
       return rows.apply(new PassThroughThenCleanup<>(cleanupOperation, jobIdTokenView));
+    }
+
+    private static class ReadTableSource<T> extends DoFn<BoundedSource<T>, T> {
+
+      private final TupleTag<T> rowTag;
+
+      private final SerializableFunction<SchemaAndRecord, T> parseFn;
+
+      private final BadRecordRouter badRecordRouter;
+
+      public ReadTableSource(
+          TupleTag<T> rowTag,
+          SerializableFunction<SchemaAndRecord, T> parseFn,
+          BadRecordRouter badRecordRouter) {
+        this.rowTag = rowTag;
+        this.parseFn = parseFn;
+        this.badRecordRouter = badRecordRouter;
+      }
+
+      @ProcessElement
+      public void processElement(
+          @Element BoundedSource<T> boundedSource,
+          MultiOutputReceiver outputReceiver,
+          PipelineOptions options)
+          throws Exception {
+        ErrorHandlingParseFn<T> errorHandlingParseFn = new ErrorHandlingParseFn<T>(parseFn);
+        BoundedSource<T> sourceWithErrorHandlingParseFn;
+        if (boundedSource instanceof BigQueryStorageStreamSource) {
+          sourceWithErrorHandlingParseFn =
+              ((BigQueryStorageStreamSource<T>) boundedSource).fromExisting(errorHandlingParseFn);
+        } else {
+          throw new RuntimeException(
+              "Bounded Source is not BigQueryStorageStreamSource, unable to read");
+        }
+        readSource(
+            options,
+            rowTag,
+            outputReceiver,
+            sourceWithErrorHandlingParseFn,
+            errorHandlingParseFn,
+            badRecordRouter);
+      }
     }
 
     private PCollectionTuple createTupleForDirectRead(
@@ -1651,77 +1756,35 @@ public class BigQueryIO {
       return tuple;
     }
 
-    private PCollectionTuple createTupleForDirectReadWithStreamBundle(
-        PCollection<String> jobIdTokenCollection,
-        Coder<T> outputCoder,
-        TupleTag<List<ReadStream>> listReadStreamsTag,
-        TupleTag<ReadSession> readSessionTag,
-        TupleTag<String> tableSchemaTag) {
+    private static class ErrorHandlingParseFn<T>
+        implements SerializableFunction<SchemaAndRecord, T> {
+      private final SerializableFunction<SchemaAndRecord, T> parseFn;
 
-      PCollectionTuple tuple =
-          jobIdTokenCollection.apply(
-              "RunQueryJob",
-              ParDo.of(
-                      new DoFn<String, List<ReadStream>>() {
-                        @ProcessElement
-                        public void processElement(ProcessContext c) throws Exception {
-                          BigQueryOptions options =
-                              c.getPipelineOptions().as(BigQueryOptions.class);
-                          String jobUuid = c.element();
-                          // Execute the query and get the destination table holding the results.
-                          // The getTargetTable call runs a new instance of the query and returns
-                          // the destination table created to hold the results.
-                          BigQueryStorageQuerySource<T> querySource =
-                              createStorageQuerySource(jobUuid, outputCoder);
-                          Table queryResultTable = querySource.getTargetTable(options);
+      private transient SchemaAndRecord schemaAndRecord = null;
 
-                          // Create a read session without specifying a desired stream count and
-                          // let the BigQuery storage server pick the number of streams.
-                          CreateReadSessionRequest request =
-                              CreateReadSessionRequest.newBuilder()
-                                  .setParent(
-                                      BigQueryHelpers.toProjectResourceName(
-                                          options.getBigQueryProject() == null
-                                              ? options.getProject()
-                                              : options.getBigQueryProject()))
-                                  .setReadSession(
-                                      ReadSession.newBuilder()
-                                          .setTable(
-                                              BigQueryHelpers.toTableResourceName(
-                                                  queryResultTable.getTableReference()))
-                                          .setDataFormat(DataFormat.AVRO))
-                                  .setMaxStreamCount(0)
-                                  .build();
+      private ErrorHandlingParseFn(SerializableFunction<SchemaAndRecord, T> parseFn) {
+        this.parseFn = parseFn;
+      }
 
-                          ReadSession readSession;
-                          try (StorageClient storageClient =
-                              getBigQueryServices().getStorageClient(options)) {
-                            readSession = storageClient.createReadSession(request);
-                          }
-                          int streamIndex = 0;
-                          int streamsPerBundle = 10;
-                          List<ReadStream> streamBundle = Lists.newArrayList();
-                          for (ReadStream readStream : readSession.getStreamsList()) {
-                            streamIndex++;
-                            streamBundle.add(readStream);
-                            if (streamIndex % streamsPerBundle == 0) {
-                              c.output(streamBundle);
-                              streamBundle = Lists.newArrayList();
-                            }
-                          }
-                          if (streamIndex % streamsPerBundle != 0) {
-                            c.output(streamBundle);
-                          }
-                          c.output(readSessionTag, readSession);
-                          c.output(
-                              tableSchemaTag,
-                              BigQueryHelpers.toJsonString(queryResultTable.getSchema()));
-                        }
-                      })
-                  .withOutputTags(
-                      listReadStreamsTag, TupleTagList.of(readSessionTag).and(tableSchemaTag)));
+      @Override
+      public T apply(SchemaAndRecord input) {
+        schemaAndRecord = input;
+        try {
+          return parseFn.apply(input);
+        } catch (Exception e) {
+          throw new ParseException(e);
+        }
+      }
 
-      return tuple;
+      public SchemaAndRecord getSchemaAndRecord() {
+        return schemaAndRecord;
+      }
+    }
+
+    private static class ParseException extends RuntimeException {
+      public ParseException(Exception e) {
+        super(e);
+      }
     }
 
     private PCollection<T> createPCollectionForDirectRead(
@@ -1730,7 +1793,8 @@ public class BigQueryIO {
         TupleTag<ReadStream> readStreamsTag,
         PCollectionView<ReadSession> readSessionView,
         PCollectionView<String> tableSchemaView) {
-      PCollection<T> rows =
+      TupleTag<T> rowTag = new TupleTag<>();
+      PCollectionTuple resultTuple =
           tuple
               .get(readStreamsTag)
               .apply(Reshuffle.viaRandomKey())
@@ -1738,83 +1802,92 @@ public class BigQueryIO {
                   ParDo.of(
                           new DoFn<ReadStream, T>() {
                             @ProcessElement
-                            public void processElement(ProcessContext c) throws Exception {
+                            public void processElement(
+                                ProcessContext c, MultiOutputReceiver outputReceiver)
+                                throws Exception {
                               ReadSession readSession = c.sideInput(readSessionView);
                               TableSchema tableSchema =
                                   BigQueryHelpers.fromJsonString(
                                       c.sideInput(tableSchemaView), TableSchema.class);
                               ReadStream readStream = c.element();
 
+                              ErrorHandlingParseFn<T> errorHandlingParseFn =
+                                  new ErrorHandlingParseFn<T>(getParseFn());
+
                               BigQueryStorageStreamSource<T> streamSource =
                                   BigQueryStorageStreamSource.create(
                                       readSession,
                                       readStream,
                                       tableSchema,
-                                      getParseFn(),
+                                      errorHandlingParseFn,
                                       outputCoder,
                                       getBigQueryServices());
 
-                              // Read all of the data from the stream. In the event that this work
-                              // item fails and is rescheduled, the same rows will be returned in
-                              // the same order.
-                              BoundedSource.BoundedReader<T> reader =
-                                  streamSource.createReader(c.getPipelineOptions());
-                              for (boolean more = reader.start(); more; more = reader.advance()) {
-                                c.output(reader.getCurrent());
-                              }
+                              readSource(
+                                  c.getPipelineOptions(),
+                                  rowTag,
+                                  outputReceiver,
+                                  streamSource,
+                                  errorHandlingParseFn,
+                                  getBadRecordRouter());
                             }
                           })
-                      .withSideInputs(readSessionView, tableSchemaView))
-              .setCoder(outputCoder);
+                      .withSideInputs(readSessionView, tableSchemaView)
+                      .withOutputTags(rowTag, TupleTagList.of(BAD_RECORD_TAG)));
 
-      return rows;
+      getBadRecordErrorHandler()
+          .addErrorCollection(
+              resultTuple.get(BAD_RECORD_TAG).setCoder(BadRecord.getCoder(tuple.getPipeline())));
+
+      return resultTuple.get(rowTag).setCoder(outputCoder);
     }
 
-    private PCollection<T> createPCollectionForDirectReadWithStreamBundle(
-        PCollectionTuple tuple,
-        Coder<T> outputCoder,
-        TupleTag<List<ReadStream>> listReadStreamsTag,
-        PCollectionView<ReadSession> readSessionView,
-        PCollectionView<String> tableSchemaView) {
-      PCollection<T> rows =
-          tuple
-              .get(listReadStreamsTag)
-              .apply(Reshuffle.viaRandomKey())
-              .apply(
-                  ParDo.of(
-                          new DoFn<List<ReadStream>, T>() {
-                            @ProcessElement
-                            public void processElement(ProcessContext c) throws Exception {
-                              ReadSession readSession = c.sideInput(readSessionView);
-                              TableSchema tableSchema =
-                                  BigQueryHelpers.fromJsonString(
-                                      c.sideInput(tableSchemaView), TableSchema.class);
-                              List<ReadStream> streamBundle = c.element();
+    public static <T> void readSource(
+        PipelineOptions options,
+        TupleTag<T> rowTag,
+        MultiOutputReceiver outputReceiver,
+        BoundedSource<T> streamSource,
+        ErrorHandlingParseFn<T> errorHandlingParseFn,
+        BadRecordRouter badRecordRouter)
+        throws Exception {
+      // Read all the data from the stream. In the event that this work
+      // item fails and is rescheduled, the same rows will be returned in
+      // the same order.
+      BoundedSource.BoundedReader<T> reader = streamSource.createReader(options);
 
-                              BigQueryStorageStreamBundleSource<T> streamSource =
-                                  BigQueryStorageStreamBundleSource.create(
-                                      readSession,
-                                      streamBundle,
-                                      tableSchema,
-                                      getParseFn(),
-                                      outputCoder,
-                                      getBigQueryServices(),
-                                      1L);
+      try {
+        if (reader.start()) {
+          outputReceiver.get(rowTag).output(reader.getCurrent());
+        } else {
+          return;
+        }
+      } catch (ParseException e) {
+        GenericRecord record = errorHandlingParseFn.getSchemaAndRecord().getRecord();
+        badRecordRouter.route(
+            outputReceiver,
+            record,
+            AvroCoder.of(record.getSchema()),
+            (Exception) e.getCause(),
+            "Unable to parse record reading from BigQuery");
+      }
 
-                              // Read all of the data from the stream. In the event that this work
-                              // item fails and is rescheduled, the same rows will be returned in
-                              // the same order.
-                              BoundedReader<T> reader =
-                                  streamSource.createReader(c.getPipelineOptions());
-                              for (boolean more = reader.start(); more; more = reader.advance()) {
-                                c.output(reader.getCurrent());
-                              }
-                            }
-                          })
-                      .withSideInputs(readSessionView, tableSchemaView))
-              .setCoder(outputCoder);
-
-      return rows;
+      while (true) {
+        try {
+          if (reader.advance()) {
+            outputReceiver.get(rowTag).output(reader.getCurrent());
+          } else {
+            return;
+          }
+        } catch (ParseException e) {
+          GenericRecord record = errorHandlingParseFn.getSchemaAndRecord().getRecord();
+          badRecordRouter.route(
+              outputReceiver,
+              record,
+              AvroCoder.of(record.getSchema()),
+              (Exception) e.getCause(),
+              "Unable to parse record reading from BigQuery");
+        }
+      }
     }
 
     @Override
@@ -1973,6 +2046,15 @@ public class BigQueryIO {
       return toBuilder().setQueryTempDataset(queryTempDatasetRef).build();
     }
 
+    /** See {@link #withQueryTempDataset(String)}. */
+    public TypedRead<T> withQueryTempProjectAndDataset(
+        String queryTempProjectRef, String queryTempDatasetRef) {
+      return toBuilder()
+          .setQueryTempProject(queryTempProjectRef)
+          .setQueryTempDataset(queryTempDatasetRef)
+          .build();
+    }
+
     /** See {@link Method}. */
     public TypedRead<T> withMethod(TypedRead.Method method) {
       return toBuilder().setMethod(method).build();
@@ -2012,6 +2094,13 @@ public class BigQueryIO {
      */
     public TypedRead<T> withRowRestriction(ValueProvider<String> rowRestriction) {
       return toBuilder().setRowRestriction(rowRestriction).build();
+    }
+
+    public TypedRead<T> withErrorHandler(ErrorHandler<BadRecord, ?> badRecordErrorHandler) {
+      return toBuilder()
+          .setBadRecordErrorHandler(badRecordErrorHandler)
+          .setBadRecordRouter(BadRecordRouter.RECORDING_ROUTER)
+          .build();
     }
 
     public TypedRead<T> withTemplateCompatibility() {
@@ -2151,6 +2240,8 @@ public class BigQueryIO {
         .setDirectWriteProtos(true)
         .setDefaultMissingValueInterpretation(
             AppendRowsRequest.MissingValueInterpretation.DEFAULT_VALUE)
+        .setBadRecordErrorHandler(new DefaultErrorHandler<>())
+        .setBadRecordRouter(BadRecordRouter.THROWING_ROUTER)
         .build();
   }
 
@@ -2231,9 +2322,7 @@ public class BigQueryIO {
        * of load jobs allowed per day, so be careful not to set the triggering frequency too
        * frequent. For more information, see <a
        * href="https://cloud.google.com/bigquery/docs/loading-data-cloud-storage">Loading Data from
-       * Cloud Storage</a>. Note: Load jobs currently do not support BigQuery's <a
-       * href="https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#json_type">
-       * JSON data type</a>.
+       * Cloud Storage</a>.
        */
       FILE_LOADS,
 
@@ -2284,7 +2373,7 @@ public class BigQueryIO {
 
     abstract @Nullable ValueProvider<String> getJsonTimePartitioning();
 
-    abstract @Nullable Clustering getClustering();
+    abstract @Nullable ValueProvider<String> getJsonClustering();
 
     abstract CreateDisposition getCreateDisposition();
 
@@ -2359,6 +2448,10 @@ public class BigQueryIO {
     abstract @Nullable SerializableFunction<T, RowMutationInformation>
         getRowMutationInformationFn();
 
+    abstract ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
+
+    abstract BadRecordRouter getBadRecordRouter();
+
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
@@ -2389,7 +2482,7 @@ public class BigQueryIO {
 
       abstract Builder<T> setJsonTimePartitioning(ValueProvider<String> jsonTimePartitioning);
 
-      abstract Builder<T> setClustering(Clustering clustering);
+      abstract Builder<T> setJsonClustering(ValueProvider<String> clustering);
 
       abstract Builder<T> setCreateDisposition(CreateDisposition createDisposition);
 
@@ -2466,6 +2559,11 @@ public class BigQueryIO {
 
       abstract Builder<T> setRowMutationInformationFn(
           SerializableFunction<T, RowMutationInformation> rowMutationFn);
+
+      abstract Builder<T> setBadRecordErrorHandler(
+          ErrorHandler<BadRecord, ?> badRecordErrorHandler);
+
+      abstract Builder<T> setBadRecordRouter(BadRecordRouter badRecordRouter);
 
       abstract Write<T> build();
     }
@@ -2746,14 +2844,23 @@ public class BigQueryIO {
     }
 
     /**
-     * Specifies the clustering fields to use when writing to a single output table. Can only be
-     * used when {@link#withTimePartitioning(TimePartitioning)} is set. If {@link
+     * Specifies the clustering fields to use when writing to a single output table. If {@link
      * #to(SerializableFunction)} or {@link #to(DynamicDestinations)} is used to write to dynamic
      * tables, the fields here will be ignored; call {@link #withClustering()} instead.
      */
     public Write<T> withClustering(Clustering clustering) {
-      checkArgument(clustering != null, "clustering can not be null");
-      return toBuilder().setClustering(clustering).build();
+      checkArgument(clustering != null, "clustering cannot be null");
+      return withJsonClustering(StaticValueProvider.of(BigQueryHelpers.toJsonString(clustering)));
+    }
+
+    /**
+     * The same as {@link #withClustering(Clustering)}, but takes a JSON-serialized Clustering
+     * object in a deferred {@link ValueProvider}. For example: `"{"fields": ["column1", "column2",
+     * "column3"]}"`
+     */
+    public Write<T> withJsonClustering(ValueProvider<String> jsonClustering) {
+      checkArgument(jsonClustering != null, "clustering cannot be null");
+      return toBuilder().setJsonClustering(jsonClustering).build();
     }
 
     /**
@@ -2770,7 +2877,7 @@ public class BigQueryIO {
      * read state written with a previous version.
      */
     public Write<T> withClustering() {
-      return toBuilder().setClustering(new Clustering()).build();
+      return withClustering(new Clustering());
     }
 
     /** Specifies whether the table should be created if it does not exist. */
@@ -2875,8 +2982,8 @@ public class BigQueryIO {
     /**
      * Choose the frequency at which file writes are triggered.
      *
-     * <p>This is only applicable when the write method is set to {@link Method#FILE_LOADS}, and
-     * only when writing an unbounded {@link PCollection}.
+     * <p>This is only applicable when the write method is set to {@link Method#FILE_LOADS} or
+     * {@link Method#STORAGE_WRITE_API}, and only when writing an unbounded {@link PCollection}.
      *
      * <p>Every triggeringFrequency duration, a BigQuery load job will be generated for all the data
      * written since the last load job. BigQuery has limits on how many load jobs can be triggered
@@ -2901,9 +3008,9 @@ public class BigQueryIO {
     }
 
     /**
-     * Control how many parallel streams are used when using Storage API writes. Applicable only
-     * when also setting {@link #withTriggeringFrequency}. To let runner determine the sharding at
-     * runtime, set this to zero, or {@link #withAutoSharding()} instead.
+     * Control how many parallel streams are used when using Storage API writes. Applicable only for
+     * streaming pipelines, and when {@link #withTriggeringFrequency} is also set. To let runner
+     * determine the sharding at runtime, set this to zero, or {@link #withAutoSharding()} instead.
      */
     public Write<T> withNumStorageWriteApiStreams(int numStorageWriteApiStreams) {
       return toBuilder().setNumStorageWriteApiStreams(numStorageWriteApiStreams).build();
@@ -3134,6 +3241,13 @@ public class BigQueryIO {
       return toBuilder().setWriteTempDataset(writeTempDataset).build();
     }
 
+    public Write<T> withErrorHandler(ErrorHandler<BadRecord, ?> errorHandler) {
+      return toBuilder()
+          .setBadRecordErrorHandler(errorHandler)
+          .setBadRecordRouter(RECORDING_ROUTER)
+          .build();
+    }
+
     @Override
     public void validate(PipelineOptions pipelineOptions) {
       BigQueryOptions options = pipelineOptions.as(BigQueryOptions.class);
@@ -3339,10 +3453,10 @@ public class BigQueryIO {
         if (getJsonTableRef() != null) {
           dynamicDestinations =
               DynamicDestinationsHelpers.ConstantTableDestinations.fromJsonTableRef(
-                  getJsonTableRef(), getTableDescription(), getClustering() != null);
+                  getJsonTableRef(), getTableDescription(), getJsonClustering() != null);
         } else if (getTableFunction() != null) {
           dynamicDestinations =
-              new TableFunctionDestinations<>(getTableFunction(), getClustering() != null);
+              new TableFunctionDestinations<>(getTableFunction(), getJsonClustering() != null);
         }
 
         // Wrap with a DynamicDestinations class that will provide a schema. There might be no
@@ -3359,12 +3473,12 @@ public class BigQueryIO {
         }
 
         // Wrap with a DynamicDestinations class that will provide the proper TimePartitioning.
-        if (getJsonTimePartitioning() != null) {
+        if (getJsonTimePartitioning() != null || (getJsonClustering() != null)) {
           dynamicDestinations =
-              new ConstantTimePartitioningDestinations<>(
+              new ConstantTimePartitioningClusteringDestinations<>(
                   (DynamicDestinations<T, TableDestination>) dynamicDestinations,
                   getJsonTimePartitioning(),
-                  StaticValueProvider.of(BigQueryHelpers.toJsonString(getClustering())));
+                  getJsonClustering());
         }
         if (getPrimaryKey() != null) {
           dynamicDestinations =
@@ -3540,6 +3654,9 @@ public class BigQueryIO {
         checkArgument(
             !getPropagateSuccessfulStorageApiWrites(),
             "withPropagateSuccessfulStorageApiWrites only supported when using storage api writes.");
+        checkArgument(
+            getBadRecordRouter() instanceof ThrowingBadRecordRouter,
+            "Error Handling is not supported with STREAMING_INSERTS");
 
         RowWriterFactory.TableRowWriterFactory<T, DestinationT> tableRowWriterFactory =
             (RowWriterFactory.TableRowWriterFactory<T, DestinationT>) rowWriterFactory;
@@ -3574,12 +3691,30 @@ public class BigQueryIO {
         checkArgument(
             !getPropagateSuccessfulStorageApiWrites(),
             "withPropagateSuccessfulStorageApiWrites only supported when using storage api writes.");
+        if (!(getBadRecordRouter() instanceof ThrowingBadRecordRouter)) {
+          LOG.warn(
+              "Error Handling is partially supported when using FILE_LOADS. Consider using STORAGE_WRITE_API or STORAGE_API_AT_LEAST_ONCE");
+        }
 
-        // Batch load jobs currently support JSON data insertion only with CSV files
+        // Batch load handles wrapped json string value differently than the other methods. Raise a
+        // warning when applies.
         if (getJsonSchema() != null && getJsonSchema().isAccessible()) {
           JsonElement schema = JsonParser.parseString(getJsonSchema().get());
-          if (!schema.getAsJsonObject().keySet().isEmpty()) {
-            validateNoJsonTypeInSchema(schema);
+          if (!schema.getAsJsonObject().keySet().isEmpty() && hasJsonTypeInSchema(schema)) {
+            if (rowWriterFactory.getOutputType() == OutputType.JsonTableRow) {
+              LOG.warn(
+                  "Found JSON type in TableSchema for 'FILE_LOADS' write method. \n"
+                      + "Make sure the TableRow value is a parsed JSON to ensure the read as a "
+                      + "JSON type. Otherwise it will read as a raw (escaped) string.\n"
+                      + "See https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-json#limitations "
+                      + "for limitations.");
+            } else if (rowWriterFactory.getOutputType() == OutputType.AvroGenericRecord) {
+              LOG.warn(
+                  "Found JSON type in TableSchema for 'FILE_LOADS' write method. \n"
+                      + " check steps in https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro#extract_json_data_from_avro_data "
+                      + " to ensure the read as a JSON type. Otherwise it will read as a raw "
+                      + "(escaped) string.");
+            }
           }
         }
 
@@ -3596,9 +3731,11 @@ public class BigQueryIO {
                 elementCoder,
                 rowWriterFactory,
                 getKmsKey(),
-                getClustering() != null,
+                getJsonClustering() != null,
                 getUseAvroLogicalTypes(),
-                getWriteTempDataset());
+                getWriteTempDataset(),
+                getBadRecordRouter(),
+                getBadRecordErrorHandler());
         batchLoads.setTestServices(getBigQueryServices());
         if (getSchemaUpdateOptions() != null) {
           batchLoads.setSchemaUpdateOptions(getSchemaUpdateOptions());
@@ -3718,35 +3855,36 @@ public class BigQueryIO {
                 getIgnoreUnknownValues(),
                 getPropagateSuccessfulStorageApiWrites(),
                 getRowMutationInformationFn() != null,
-                getDefaultMissingValueInterpretation());
+                getDefaultMissingValueInterpretation(),
+                getBadRecordRouter(),
+                getBadRecordErrorHandler());
         return input.apply("StorageApiLoads", storageApiLoads);
       } else {
         throw new RuntimeException("Unexpected write method " + method);
       }
     }
 
-    private void validateNoJsonTypeInSchema(JsonElement schema) {
+    private boolean hasJsonTypeInSchema(JsonElement schema) {
       JsonElement fields = schema.getAsJsonObject().get("fields");
       if (!fields.isJsonArray() || fields.getAsJsonArray().isEmpty()) {
-        return;
+        return false;
       }
 
       JsonArray fieldArray = fields.getAsJsonArray();
 
       for (int i = 0; i < fieldArray.size(); i++) {
         JsonObject field = fieldArray.get(i).getAsJsonObject();
-        checkArgument(
-            !field.get("type").getAsString().equals("JSON"),
-            "Found JSON type in TableSchema. JSON data insertion is currently "
-                + "not supported with 'FILE_LOADS' write method. This is supported with the "
-                + "other write methods, however. For more information, visit: "
-                + "https://cloud.google.com/bigquery/docs/reference/standard-sql/"
-                + "json-data#ingest_json_data");
+        if (field.get("type").getAsString().equals("JSON")) {
+          return true;
+        }
 
         if (field.get("type").getAsString().equals("STRUCT")) {
-          validateNoJsonTypeInSchema(field);
+          if (hasJsonTypeInSchema(field)) {
+            return true;
+          }
         }
       }
+      return false;
     }
 
     @Override

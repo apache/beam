@@ -32,7 +32,7 @@ import java.util.concurrent.Executor;
  * delegate to reduce maintenance burden.
  */
 public class VendoredCredentialsAdapter
-    extends org.apache.beam.vendor.grpc.v1p54p0.com.google.auth.Credentials {
+    extends org.apache.beam.vendor.grpc.v1p60p1.com.google.auth.Credentials {
 
   private final com.google.auth.Credentials credentials;
 
@@ -54,7 +54,7 @@ public class VendoredCredentialsAdapter
   public void getRequestMetadata(
       final URI uri,
       Executor executor,
-      final org.apache.beam.vendor.grpc.v1p54p0.com.google.auth.RequestMetadataCallback callback) {
+      final org.apache.beam.vendor.grpc.v1p60p1.com.google.auth.RequestMetadataCallback callback) {
     credentials.getRequestMetadata(
         uri, executor, new VendoredRequestMetadataCallbackAdapter(callback));
   }

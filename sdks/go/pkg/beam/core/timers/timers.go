@@ -51,8 +51,10 @@ type TimerMap struct {
 	FireTimestamp, HoldTimestamp mtime.Time
 }
 
+// timerConfig is used transiently to hold configuration from the functional options.
 type timerConfig struct {
 	Tag           string
+	HoldSet       bool // Whether the HoldTimestamp was set.
 	HoldTimestamp mtime.Time
 }
 
@@ -68,6 +70,7 @@ func WithTag(tag string) timerOptions {
 // WithOutputTimestamp sets the output timestamp for the timer.
 func WithOutputTimestamp(outputTimestamp time.Time) timerOptions {
 	return func(tm *timerConfig) {
+		tm.HoldSet = true
 		tm.HoldTimestamp = mtime.FromTime(outputTimestamp)
 	}
 }
@@ -108,7 +111,7 @@ func (et EventTime) Set(p Provider, FiringTimestamp time.Time, opts ...timerOpti
 		opt(&tc)
 	}
 	tm := TimerMap{Family: et.Family, Tag: tc.Tag, FireTimestamp: mtime.FromTime(FiringTimestamp), HoldTimestamp: mtime.FromTime(FiringTimestamp)}
-	if !tc.HoldTimestamp.ToTime().IsZero() {
+	if tc.HoldSet {
 		tm.HoldTimestamp = tc.HoldTimestamp
 	}
 	p.Set(tm)
@@ -142,7 +145,7 @@ func (pt ProcessingTime) Set(p Provider, FiringTimestamp time.Time, opts ...time
 		opt(&tc)
 	}
 	tm := TimerMap{Family: pt.Family, Tag: tc.Tag, FireTimestamp: mtime.FromTime(FiringTimestamp), HoldTimestamp: mtime.FromTime(FiringTimestamp)}
-	if !tc.HoldTimestamp.ToTime().IsZero() {
+	if tc.HoldSet {
 		tm.HoldTimestamp = tc.HoldTimestamp
 	}
 

@@ -22,6 +22,7 @@ import sys
 import tempfile
 import typing
 import unittest
+import uuid
 from typing import List
 from typing import NamedTuple
 from typing import Union
@@ -30,6 +31,7 @@ import numpy as np
 from parameterized import parameterized
 
 import apache_beam as beam
+from apache_beam.io.filesystems import FileSystems
 
 # pylint: disable=wrong-import-position, ungrouped-imports
 try:
@@ -301,11 +303,14 @@ class TFTProcessHandlerTest(unittest.TestCase):
       _ = raw_data | process_handler
 
       self.assertTrue(
-          os.path.exists(
+          FileSystems.exists(
+              # To check the gcs directory with FileSystems, the dir path must
+              # end with /
               os.path.join(
-                  self.artifact_location, handlers.RAW_DATA_METADATA_DIR)))
+                  self.artifact_location,
+                  handlers.RAW_DATA_METADATA_DIR + '/')))
       self.assertTrue(
-          os.path.exists(
+          FileSystems.exists(
               os.path.join(
                   self.artifact_location,
                   handlers.RAW_DATA_METADATA_DIR,
@@ -614,6 +619,15 @@ class TFTProcessHandlerTest(unittest.TestCase):
           actual_data_x,
           equal_to(expected_data_x, equals_fn=np.array_equal),
           label='transformed data')
+
+
+class TFTProcessHandlerTestWithGCSLocation(TFTProcessHandlerTest):
+  def setUp(self) -> None:
+    self.artifact_location = self.gcs_artifact_location = os.path.join(
+        'gs://temp-storage-for-perf-tests/tft_handler', uuid.uuid4().hex)
+
+  def tearDown(self):
+    pass
 
 
 if __name__ == '__main__':

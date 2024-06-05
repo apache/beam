@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.schemas.utils;
 
+import static org.apache.beam.sdk.util.ByteBuddyUtils.getClassLoadingStrategy;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.lang.reflect.Constructor;
@@ -32,11 +33,10 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import net.bytebuddy.ByteBuddy;
-import net.bytebuddy.asm.AsmVisitorWrapper;
+import net.bytebuddy.asm.AsmVisitorWrapper.ForDeclaredMethods;
 import net.bytebuddy.description.method.MethodDescription.ForLoadedMethod;
 import net.bytebuddy.description.type.TypeDescription.ForLoadedType;
 import net.bytebuddy.dynamic.DynamicType;
-import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
 import net.bytebuddy.dynamic.scaffold.InstrumentedType;
 import net.bytebuddy.implementation.Implementation;
 import net.bytebuddy.implementation.bytecode.ByteCodeAppender;
@@ -227,7 +227,7 @@ public class AutoValueUtils {
 
   private static final ByteBuddy BYTE_BUDDY = new ByteBuddy();
 
-  static SchemaUserTypeCreator createBuilderCreator(
+  private static SchemaUserTypeCreator createBuilderCreator(
       Class<?> builderClass,
       List<FieldValueTypeInformation> setterMethods,
       Method buildMethod,
@@ -242,9 +242,9 @@ public class AutoValueUtils {
               .intercept(
                   new BuilderCreateInstruction(types, setterMethods, builderClass, buildMethod));
       return builder
-          .visit(new AsmVisitorWrapper.ForDeclaredMethods().writerFlags(ClassWriter.COMPUTE_FRAMES))
+          .visit(new ForDeclaredMethods().writerFlags(ClassWriter.COMPUTE_FRAMES))
           .make()
-          .load(ReflectHelpers.findClassLoader(), ClassLoadingStrategy.Default.INJECTION)
+          .load(ReflectHelpers.findClassLoader(), getClassLoadingStrategy(builderClass))
           .getLoaded()
           .getDeclaredConstructor()
           .newInstance();

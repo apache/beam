@@ -20,12 +20,14 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import static org.junit.Assert.assertEquals;
 
 import com.google.api.client.util.Data;
+import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.ErrorProto;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.JobStatus;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
+import java.util.Arrays;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
@@ -257,5 +259,14 @@ public class BigQueryHelpersTest {
     assertEquals(tempTableReference.getTableId(), noDataset.getTableId());
 
     assertEquals(dataset.get(), noDataset.setDatasetId(dataset.get()).getDatasetId());
+  }
+
+  @Test
+  public void testClusteringJsonConversion() {
+    Clustering clustering =
+        new Clustering().setFields(Arrays.asList("column1", "column2", "column3"));
+    String jsonClusteringFields = "[\"column1\", \"column2\", \"column3\"]";
+
+    assertEquals(clustering, BigQueryHelpers.clusteringFromJsonFields(jsonClusteringFields));
   }
 }

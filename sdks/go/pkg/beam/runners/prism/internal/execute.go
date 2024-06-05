@@ -16,13 +16,16 @@
 package internal
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"sort"
 	"sync/atomic"
 	"time"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
@@ -66,10 +69,17 @@ func RunPipeline(j *jobservices.Job) {
 	j.SendMsg("running " + j.String())
 	j.Running()
 
-	if err := executePipeline(j.RootCtx, wks, j); err != nil {
+	if err := executePipeline(j.RootCtx, wks, j); err != nil && !errors.Is(err, jobservices.ErrCancel) {
 		j.Failed(err)
 		return
 	}
+
+	if errors.Is(context.Cause(j.RootCtx), jobservices.ErrCancel) {
+		j.SendMsg("pipeline canceled " + j.String())
+		j.Canceled()
+		return
+	}
+
 	j.SendMsg("pipeline completed " + j.String())
 
 	j.SendMsg("terminating " + j.String())
@@ -230,6 +240,63 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 			case urns.TransformImpulse:
 				impulses = append(impulses, stage.ID)
 				em.AddStage(stage.ID, nil, []string{getOnlyValue(t.GetOutputs())}, nil)
+			case urns.TransformTestStream:
+				// Add a synthetic stage that should largely be unused.
+				em.AddStage(stage.ID, nil, maps.Values(t.GetOutputs()), nil)
+				// Decode the test stream, and convert it to the various events for the ElementManager.
+				var pyld pipepb.TestStreamPayload
+				if err := proto.Unmarshal(t.GetSpec().GetPayload(), &pyld); err != nil {
+					return fmt.Errorf("prism error building stage %v - decoding TestStreamPayload: \n%w", stage.ID, err)
+				}
+
+				// Ensure awareness of the coder used for the teststream.
+				cID, err := lpUnknownCoders(pyld.GetCoderId(), coders, comps.GetCoders())
+				if err != nil {
+					panic(err)
+				}
+				mayLP := func(v []byte) []byte {
+					return v
+				}
+				if cID != pyld.GetCoderId() {
+					// The coder needed length prefixing. For simplicity, add a length prefix to each
+					// encoded element, since we will be sending a length prefixed coder to consume
+					// this anyway. This is simpler than trying to find all the re-written coders after the fact.
+					mayLP = func(v []byte) []byte {
+						var buf bytes.Buffer
+						if err := coder.EncodeVarInt((int64)(len(v)), &buf); err != nil {
+							panic(err)
+						}
+						if _, err := buf.Write(v); err != nil {
+							panic(err)
+						}
+						return buf.Bytes()
+					}
+				}
+
+				tsb := em.AddTestStream(stage.ID, t.Outputs)
+				for _, e := range pyld.GetEvents() {
+					switch ev := e.GetEvent().(type) {
+					case *pipepb.TestStreamPayload_Event_ElementEvent:
+						var elms []engine.TestStreamElement
+						for _, e := range ev.ElementEvent.GetElements() {
+							elms = append(elms, engine.TestStreamElement{Encoded: mayLP(e.GetEncodedElement()), EventTime: mtime.Time(e.GetTimestamp())})
+						}
+						tsb.AddElementEvent(ev.ElementEvent.GetTag(), elms)
+						ev.ElementEvent.GetTag()
+					case *pipepb.TestStreamPayload_Event_WatermarkEvent:
+						tsb.AddWatermarkEvent(ev.WatermarkEvent.GetTag(), mtime.Time(ev.WatermarkEvent.GetNewWatermark()))
+					case *pipepb.TestStreamPayload_Event_ProcessingTimeEvent:
+						if ev.ProcessingTimeEvent.GetAdvanceDuration() == int64(mtime.MaxTimestamp) {
+							// TODO: Determine the SDK common formalism for setting processing time to infinity.
+							tsb.AddProcessingTimeEvent(time.Duration(mtime.MaxTimestamp))
+						} else {
+							tsb.AddProcessingTimeEvent(time.Duration(ev.ProcessingTimeEvent.GetAdvanceDuration()) * time.Millisecond)
+						}
+					default:
+						return fmt.Errorf("prism error building stage %v - unknown TestStream event type: %T", stage.ID, ev)
+					}
+				}
+
 			case urns.TransformFlatten:
 				inputs := maps.Values(t.GetInputs())
 				sort.Strings(inputs)
@@ -247,6 +314,9 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 			em.AddStage(stage.ID, []string{stage.primaryInput}, outputs, stage.sideInputs)
 			if stage.stateful {
 				em.StageStateful(stage.ID)
+			}
+			if len(stage.processingTimeTimers) > 0 {
+				em.StageProcessingTimeTimers(stage.ID, stage.processingTimeTimers)
 			}
 		default:
 			err := fmt.Errorf("unknown environment[%v]", t.GetEnvironmentId())

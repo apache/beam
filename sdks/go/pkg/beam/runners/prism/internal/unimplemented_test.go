@@ -43,18 +43,6 @@ func TestUnimplemented(t *testing.T) {
 	}{
 		// {pipeline: primitives.Drain}, // Can't test drain automatically yet.
 
-		{pipeline: primitives.TestStreamBoolSequence},
-		{pipeline: primitives.TestStreamByteSliceSequence},
-		{pipeline: primitives.TestStreamFloat64Sequence},
-		{pipeline: primitives.TestStreamInt64Sequence},
-		{pipeline: primitives.TestStreamStrings},
-		{pipeline: primitives.TestStreamTwoBoolSequences},
-		{pipeline: primitives.TestStreamTwoFloat64Sequences},
-		{pipeline: primitives.TestStreamTwoInt64Sequences},
-
-		// Needs teststream
-		{pipeline: primitives.Panes},
-
 		// Triggers (Need teststream and are unimplemented.)
 		{pipeline: primitives.TriggerAlways},
 		{pipeline: primitives.TriggerAfterAll},
@@ -68,7 +56,8 @@ func TestUnimplemented(t *testing.T) {
 		{pipeline: primitives.TriggerOrFinally},
 		{pipeline: primitives.TriggerRepeat},
 
-		// TODO: Timers integration tests.
+		// Needs triggers.
+		{pipeline: primitives.Panes},
 	}
 
 	for _, test := range tests {
@@ -128,6 +117,56 @@ func TestStateAPI(t *testing.T) {
 		{pipeline: primitives.MapStateParDoClear},
 		{pipeline: primitives.SetStateParDo},
 		{pipeline: primitives.SetStateParDoClear},
+	}
+
+	for _, test := range tests {
+		t.Run(initTestName(test.pipeline), func(t *testing.T) {
+			p, s := beam.NewPipelineWithRoot()
+			test.pipeline(s)
+			_, err := executeWithT(context.Background(), t, p)
+			if err != nil {
+				t.Fatalf("pipeline failed, but feature should be implemented in Prism: %v", err)
+			}
+		})
+	}
+}
+
+func TestTimers(t *testing.T) {
+	initRunner(t)
+
+	tests := []struct {
+		pipeline func(s beam.Scope)
+	}{
+		{pipeline: primitives.TimersEventTimeBounded},
+		{pipeline: primitives.TimersEventTimeUnbounded},
+	}
+
+	for _, test := range tests {
+		t.Run(initTestName(test.pipeline), func(t *testing.T) {
+			p, s := beam.NewPipelineWithRoot()
+			test.pipeline(s)
+			_, err := executeWithT(context.Background(), t, p)
+			if err != nil {
+				t.Fatalf("pipeline failed, but feature should be implemented in Prism: %v", err)
+			}
+		})
+	}
+}
+
+func TestTestStream(t *testing.T) {
+	initRunner(t)
+
+	tests := []struct {
+		pipeline func(s beam.Scope)
+	}{
+		{pipeline: primitives.TestStreamBoolSequence},
+		{pipeline: primitives.TestStreamByteSliceSequence},
+		{pipeline: primitives.TestStreamFloat64Sequence},
+		{pipeline: primitives.TestStreamInt64Sequence},
+		{pipeline: primitives.TestStreamStrings},
+		{pipeline: primitives.TestStreamTwoBoolSequences},
+		{pipeline: primitives.TestStreamTwoFloat64Sequences},
+		{pipeline: primitives.TestStreamTwoInt64Sequences},
 	}
 
 	for _, test := range tests {

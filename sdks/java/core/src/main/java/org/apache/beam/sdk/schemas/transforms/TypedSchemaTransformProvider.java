@@ -17,8 +17,13 @@
  */
 package org.apache.beam.sdk.schemas.transforms;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+
+import java.lang.reflect.ParameterizedType;
 import java.util.List;
 import java.util.Optional;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
@@ -32,6 +37,10 @@ import org.apache.beam.sdk.values.Row;
  *
  * <p>ConfigT should be available in the SchemaRegistry.
  *
+ * <p>{@link #configurationSchema()} produces a configuration {@link Schema} that is inferred from
+ * {@code ConfigT} using the SchemaRegistry. A Beam {@link Row} can still be used produce a {@link
+ * SchemaTransform} using {@link #from(Row)}, as long as the Row fits the configuration Schema.
+ *
  * <p><b>Internal only:</b> This interface is actively being worked on and it will likely change as
  * we provide implementations for more standard Beam transforms. We provide no backwards
  * compatibility guarantees and it should not be implemented outside of the Beam repository.
@@ -39,7 +48,20 @@ import org.apache.beam.sdk.values.Row;
 @Internal
 public abstract class TypedSchemaTransformProvider<ConfigT> implements SchemaTransformProvider {
 
-  protected abstract Class<ConfigT> configurationClass();
+  @SuppressWarnings("unchecked")
+  protected Class<ConfigT> configurationClass() {
+    @Nullable
+    ParameterizedType parameterizedType = (ParameterizedType) getClass().getGenericSuperclass();
+    checkStateNotNull(
+        parameterizedType, "Could not get the TypedSchemaTransformProvider's parameterized type.");
+    checkArgument(
+        parameterizedType.getActualTypeArguments().length == 1,
+        String.format(
+            "Expected one parameterized type, but got %s.",
+            parameterizedType.getActualTypeArguments().length));
+
+    return (Class<ConfigT>) parameterizedType.getActualTypeArguments()[0];
+  }
 
   /**
    * Produce a SchemaTransform from ConfigT. Can throw a {@link InvalidConfigurationException} or a
@@ -56,7 +78,7 @@ public abstract class TypedSchemaTransformProvider<ConfigT> implements SchemaTra
   }
 
   @Override
-  public final Schema configurationSchema() {
+  public Schema configurationSchema() {
     try {
       // Sort the fields by name to ensure a consistent schema is produced
       return SchemaRegistry.createDefault().getSchema(configurationClass()).sorted();
@@ -68,8 +90,9 @@ public abstract class TypedSchemaTransformProvider<ConfigT> implements SchemaTra
     }
   }
 
+  /** Produces a {@link SchemaTransform} from a Row configuration. */
   @Override
-  public final SchemaTransform from(Row configuration) {
+  public SchemaTransform from(Row configuration) {
     return from(configFromRow(configuration));
   }
 

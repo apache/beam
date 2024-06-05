@@ -47,14 +47,14 @@ func pipInstallRequirements(ctx context.Context, logger *tools.Logger, files []s
 			// as possible PyPI downloads. In the first round the --find-links
 			// option will make sure that only things staged in the worker will be
 			// used without following their dependencies.
-			args := []string{"-m", "pip", "install", "-q", "-r", filepath.Join(dir, name), "--no-cache-dir", "--disable-pip-version-check", "--no-index", "--no-deps", "--find-links", dir}
+			args := []string{"-m", "pip", "install", "-r", filepath.Join(dir, name), "--no-cache-dir", "--disable-pip-version-check", "--no-index", "--no-deps", "--find-links", dir}
 			if err := execx.Execute(pythonVersion, args...); err != nil {
 				bufLogger.Printf(ctx, "Some packages could not be installed solely from the requirements cache. Installing packages from PyPI.")
 			}
 			// The second install round opens up the search for packages on PyPI and
 			// also installs dependencies. The key is that if all the packages have
 			// been installed in the first round then this command will be a no-op.
-			args = []string{"-m", "pip", "install", "-q", "-r", filepath.Join(dir, name), "--no-cache-dir", "--disable-pip-version-check", "--find-links", dir}
+			args = []string{"-m", "pip", "install", "-r", filepath.Join(dir, name), "--no-cache-dir", "--disable-pip-version-check", "--find-links", dir}
 			err := execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...)
 			if err != nil {
 				bufLogger.FlushAtError(ctx)

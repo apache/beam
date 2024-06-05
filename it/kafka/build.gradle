@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import org.apache.beam.gradle.IoPerformanceTestUtilities
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
@@ -40,5 +41,18 @@ dependencies {
     testImplementation project(path: ":sdks:java:io:kafka")
     testImplementation project(path: ":sdks:java:io:synthetic")
     testImplementation project(path: ":runners:direct-java")
+    testImplementation project(path: ":runners:google-cloud-dataflow-java")
     testImplementation project(path: ":sdks:java:testing:test-utils")
+    testImplementation project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntimeMigration")
 }
+
+tasks.register(
+        "KafkaStressTestMedium", IoPerformanceTestUtilities.IoPerformanceTest, project, 'kafka', 'KafkaIOST',
+        ['configuration':'medium','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp']
+        + System.properties
+)
+tasks.register(
+        "KafkaStressTestLarge", IoPerformanceTestUtilities.IoPerformanceTest, project, 'kafka', 'KafkaIOST',
+        ['configuration':'large','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp']
+        + System.properties
+)

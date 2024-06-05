@@ -370,6 +370,7 @@ public class JdbcIO {
   }
 
   private static final long DEFAULT_BATCH_SIZE = 1000L;
+  private static final long DEFAULT_MAX_BATCH_BUFFERING_DURATION = 200L;
   private static final int DEFAULT_FETCH_SIZE = 50_000;
   // Default values used from fluent backoff.
   private static final Duration DEFAULT_INITIAL_BACKOFF = Duration.standardSeconds(1);
@@ -389,6 +390,7 @@ public class JdbcIO {
   public static <T> WriteVoid<T> writeVoid() {
     return new AutoValue_JdbcIO_WriteVoid.Builder<T>()
         .setBatchSize(DEFAULT_BATCH_SIZE)
+        .setMaxBatchBufferingDuration(DEFAULT_MAX_BATCH_BUFFERING_DURATION)
         .setRetryStrategy(new DefaultRetryStrategy())
         .setRetryConfiguration(RetryConfiguration.create(5, null, Duration.standardSeconds(5)))
         .build();
@@ -642,16 +644,23 @@ public class JdbcIO {
           String password = getPassword().get();
           basicDataSource.setPassword(password);
         }
-        if (getConnectionProperties() != null && getConnectionProperties().get() != null) {
-          basicDataSource.setConnectionProperties(getConnectionProperties().get());
+        if (getConnectionProperties() != null) {
+          String connectionProperties = getConnectionProperties().get();
+          if (connectionProperties != null) {
+            basicDataSource.setConnectionProperties(connectionProperties);
+          }
         }
-        if (getConnectionInitSqls() != null
-            && getConnectionInitSqls().get() != null
-            && !getConnectionInitSqls().get().isEmpty()) {
-          basicDataSource.setConnectionInitSqls(getConnectionInitSqls().get());
+        if (getConnectionInitSqls() != null) {
+          Collection<String> connectionInitSqls = getConnectionInitSqls().get();
+          if (connectionInitSqls != null && !connectionInitSqls.isEmpty()) {
+            basicDataSource.setConnectionInitSqls(connectionInitSqls);
+          }
         }
-        if (getMaxConnections() != null && getMaxConnections().get() != null) {
-          basicDataSource.setMaxTotal(getMaxConnections().get());
+        if (getMaxConnections() != null) {
+          Integer maxConnections = getMaxConnections().get();
+          if (maxConnections != null) {
+            basicDataSource.setMaxTotal(maxConnections);
+          }
         }
         if (getDriverClassLoader() != null) {
           basicDataSource.setDriverClassLoader(getDriverClassLoader());
@@ -1679,6 +1688,11 @@ public class JdbcIO {
       return new Write<>(inner.withBatchSize(batchSize));
     }
 
+    /** See {@link WriteVoid#withMaxBatchBufferingDuration(long)}. */
+    public Write<T> withMaxBatchBufferingDuration(long maxBatchBufferingDuration) {
+      return new Write<>(inner.withMaxBatchBufferingDuration(maxBatchBufferingDuration));
+    }
+
     /** See {@link WriteVoid#withRetryStrategy(RetryStrategy)}. */
     public Write<T> withRetryStrategy(RetryStrategy retryStrategy) {
       return new Write<>(inner.withRetryStrategy(retryStrategy));
@@ -1747,13 +1761,16 @@ public class JdbcIO {
   /* The maximum number of elements that will be included in a batch. */
 
   static <T> PCollection<Iterable<T>> batchElements(
-      PCollection<T> input, @Nullable Boolean withAutoSharding, long batchSize) {
+      PCollection<T> input,
+      @Nullable Boolean withAutoSharding,
+      long batchSize,
+      long maxBatchBufferingDuration) {
     PCollection<Iterable<T>> iterables;
     if (input.isBounded() == IsBounded.UNBOUNDED) {
       PCollection<KV<String, T>> keyedInput = input.apply(WithKeys.<String, T>of(""));
       GroupIntoBatches<String, T> groupTransform =
           GroupIntoBatches.<String, T>ofSize(batchSize)
-              .withMaxBufferingDuration(Duration.millis(200));
+              .withMaxBufferingDuration(Duration.millis(maxBatchBufferingDuration));
       if (withAutoSharding != null && withAutoSharding) {
         // unbounded and withAutoSharding enabled, group into batches with shardedKey
         iterables = keyedInput.apply(groupTransform.withShardedKey()).apply(Values.create());
@@ -1769,6 +1786,8 @@ public class JdbcIO {
                     @Nullable List<T> outputList;
 
                     @ProcessElement
+                    @SuppressWarnings(
+                        "nullness") // https://github.com/typetools/checker-framework/issues/6389
                     public void process(ProcessContext c) {
                       if (outputList == null) {
                         outputList = new ArrayList<>();
@@ -1949,7 +1968,8 @@ public class JdbcIO {
           "Autosharding is only supported for streaming pipelines.");
 
       PCollection<Iterable<T>> iterables =
-          JdbcIO.<T>batchElements(input, autoSharding, DEFAULT_BATCH_SIZE);
+          JdbcIO.<T>batchElements(
+              input, autoSharding, DEFAULT_BATCH_SIZE, DEFAULT_MAX_BATCH_BUFFERING_DURATION);
       return iterables.apply(
           ParDo.of(
               new WriteFn<T, V>(
@@ -1962,6 +1982,7 @@ public class JdbcIO {
                       .setRetryConfiguration(getRetryConfiguration())
                       .setReturnResults(true)
                       .setBatchSize(1L)
+                      .setMaxBatchBufferingDuration(DEFAULT_MAX_BATCH_BUFFERING_DURATION)
                       .build())));
     }
   }
@@ -1980,6 +2001,8 @@ public class JdbcIO {
     abstract @Nullable ValueProvider<String> getStatement();
 
     abstract long getBatchSize();
+
+    abstract long getMaxBatchBufferingDuration();
 
     abstract @Nullable PreparedStatementSetter<T> getPreparedStatementSetter();
 
@@ -2001,6 +2024,8 @@ public class JdbcIO {
       abstract Builder<T> setStatement(ValueProvider<String> statement);
 
       abstract Builder<T> setBatchSize(long batchSize);
+
+      abstract Builder<T> setMaxBatchBufferingDuration(long maxBatchBufferingDuration);
 
       abstract Builder<T> setPreparedStatementSetter(PreparedStatementSetter<T> setter);
 
@@ -2040,13 +2065,30 @@ public class JdbcIO {
     }
 
     /**
-     * Provide a maximum size in number of SQL statement for the batch. Default is 1000.
+     * Provide a maximum size in number of SQL statement for the batch. Default is 1000. The
+     * pipeline will either commit a batch when this maximum is reached or its maximum buffering
+     * time has been reached. See {@link #withMaxBatchBufferingDuration(long)}
      *
      * @param batchSize maximum batch size in number of statements
      */
     public WriteVoid<T> withBatchSize(long batchSize) {
       checkArgument(batchSize > 0, "batchSize must be > 0, but was %s", batchSize);
       return toBuilder().setBatchSize(batchSize).build();
+    }
+
+    /**
+     * Provide maximum buffering time to batch elements before committing SQL statement. Default is
+     * 200 The pipeline will either commit a batch when this maximum buffering time has been reached
+     * or the maximum amount of elements has been collected. See {@link #withBatchSize(long)}
+     *
+     * @param maxBatchBufferingDuration maximum time in milliseconds before batch is committed
+     */
+    public WriteVoid<T> withMaxBatchBufferingDuration(long maxBatchBufferingDuration) {
+      checkArgument(
+          maxBatchBufferingDuration > 0,
+          "maxBatchBufferingDuration must be > 0, but was %s",
+          maxBatchBufferingDuration);
+      return toBuilder().setMaxBatchBufferingDuration(maxBatchBufferingDuration).build();
     }
 
     /**
@@ -2119,7 +2161,8 @@ public class JdbcIO {
       }
 
       PCollection<Iterable<T>> iterables =
-          JdbcIO.<T>batchElements(input, getAutoSharding(), getBatchSize());
+          JdbcIO.<T>batchElements(
+              input, getAutoSharding(), getBatchSize(), getMaxBatchBufferingDuration());
 
       return iterables
           .apply(
@@ -2133,6 +2176,7 @@ public class JdbcIO {
                           .setTable(spec.getTable())
                           .setStatement(spec.getStatement())
                           .setBatchSize(spec.getBatchSize())
+                          .setMaxBatchBufferingDuration(spec.getMaxBatchBufferingDuration())
                           .setReturnResults(false)
                           .build())))
           .setCoder(VoidCoder.of());
@@ -2440,6 +2484,9 @@ public class JdbcIO {
       abstract @Nullable Long getBatchSize();
 
       @Pure
+      abstract @Nullable Long getMaxBatchBufferingDuration();
+
+      @Pure
       abstract Boolean getReturnResults();
 
       @Pure
@@ -2467,6 +2514,9 @@ public class JdbcIO {
         abstract Builder<T, V> setRowMapper(@Nullable RowMapper<V> rowMapper);
 
         abstract Builder<T, V> setBatchSize(@Nullable Long batchSize);
+
+        abstract Builder<T, V> setMaxBatchBufferingDuration(
+            @Nullable Long maxBatchBufferingDuration);
 
         abstract Builder<T, V> setReturnResults(Boolean returnResults);
 
@@ -2513,11 +2563,13 @@ public class JdbcIO {
     }
 
     private Connection getConnection() throws SQLException {
+      Connection connection = this.connection;
       if (connection == null) {
         connection = checkStateNotNull(dataSource).getConnection();
         connection.setAutoCommit(false);
         preparedStatement =
             connection.prepareStatement(checkStateNotNull(spec.getStatement()).get());
+        this.connection = connection;
       }
       return connection;
     }

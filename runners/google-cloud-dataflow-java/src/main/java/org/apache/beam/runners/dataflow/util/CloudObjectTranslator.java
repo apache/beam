@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.util;
 
-import org.apache.beam.runners.core.construction.SdkComponents;
+import org.apache.beam.sdk.util.construction.SdkComponents;
 
 /**
  * A translator that takes an object and creates a {@link CloudObject} which can be converted back

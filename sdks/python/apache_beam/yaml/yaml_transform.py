@@ -16,6 +16,7 @@
 #
 
 import collections
+import functools
 import json
 import logging
 import os
@@ -48,17 +49,41 @@ try:
 except ImportError:
   jsonschema = None
 
-if jsonschema is not None:
+
+@functools.lru_cache
+def pipeline_schema(strictness):
   with open(os.path.join(os.path.dirname(__file__),
                          'pipeline.schema.yaml')) as yaml_file:
     pipeline_schema = yaml.safe_load(yaml_file)
+  if strictness == 'per_transform':
+    transform_schemas_path = os.path.join(
+        os.path.dirname(__file__), 'transforms.schema.yaml')
+    if not os.path.exists(transform_schemas_path):
+      raise RuntimeError(
+          "Please run "
+          "python -m apache_beam.yaml.generate_yaml_docs "
+          f"--schema_file='{transform_schemas_path}' "
+          "to run with transform-specific validation.")
+    with open(transform_schemas_path) as fin:
+      pipeline_schema['$defs']['transform']['allOf'].extend(yaml.safe_load(fin))
+  return pipeline_schema
 
 
-def validate_against_schema(pipeline):
+def _closest_line(o, path):
+  best_line = SafeLineLoader.get_line(o)
+  for step in path:
+    o = o[step]
+    maybe_line = SafeLineLoader.get_line(o)
+    if maybe_line != 'unknown':
+      best_line = maybe_line
+  return best_line
+
+
+def validate_against_schema(pipeline, strictness):
   try:
-    jsonschema.validate(pipeline, pipeline_schema)
+    jsonschema.validate(pipeline, pipeline_schema(strictness))
   except jsonschema.ValidationError as exn:
-    exn.message += f" at line {SafeLineLoader.get_line(exn.instance)}"
+    exn.message += f" around line {_closest_line(pipeline, exn.path)}"
     raise exn
 
 
@@ -212,8 +237,9 @@ class Scope(LightweightScope):
       for transform in self._transforms:
         if transform['type'] != 'composite':
           for input in empty_if_explicitly_empty(transform['input']).values():
-            transform_id, _ = self.get_transform_id_and_output_name(input)
-            self._all_followers[transform_id].append(transform['__uuid__'])
+            if input not in self._inputs:
+              transform_id, _ = self.get_transform_id_and_output_name(input)
+              self._all_followers[transform_id].append(transform['__uuid__'])
     return self._all_followers[self.get_transform_id(transform_name)]
 
   def compute_all(self):
@@ -465,7 +491,7 @@ def expand_leaf_transform(spec, scope):
     return {f'out{ix}': pcoll for (ix, pcoll) in enumerate(outputs)}
   elif isinstance(outputs, beam.PCollection):
     return {'out': outputs}
-  elif outputs is None:
+  elif outputs is None or isinstance(outputs, beam.pvalue.PDone):
     return {}
   else:
     raise ValueError(
@@ -492,10 +518,13 @@ def expand_composite_transform(spec, scope):
     @staticmethod
     def expand(inputs):
       inner_scope.compute_all()
-      return {
-          key: inner_scope.get_pcollection(value)
-          for (key, value) in spec['output'].items()
-      }
+      if '__implicit_outputs__' in spec['output']:
+        return inner_scope.get_outputs(spec['output']['__implicit_outputs__'])
+      else:
+        return {
+            key: inner_scope.get_pcollection(value)
+            for (key, value) in spec['output'].items()
+        }
 
   if 'name' not in spec:
     spec['name'] = 'Composite'
@@ -570,7 +599,7 @@ def chain_as_composite(spec):
         for (key, value) in composite_spec['output'].items()
     }
   else:
-    composite_spec['output'] = last_transform
+    composite_spec['output'] = {'__implicit_outputs__': last_transform}
   if 'name' not in composite_spec:
     composite_spec['name'] = 'Chain'
   composite_spec['type'] = 'composite'
@@ -713,7 +742,9 @@ def preprocess_windowing(spec):
         'type': 'WindowInto',
         'name': f'WindowInto[{key}]',
         'windowing': windowing,
-        'input': key,
+        'input': {
+            'input': key
+        },
         '__line__': spec['__line__'],
         '__uuid__': SafeLineLoader.create_uuid(),
     } for key in original_inputs.keys()]
@@ -889,8 +920,12 @@ def preprocess(spec, verbose=False, known_transforms=None):
             f'for type {spec["type"]} for {identify_object(spec)}')
     return spec
 
-  def preprocess_langauges(spec):
-    if spec['type'] in ('Filter', 'MapToFields', 'Combine'):
+  def preprocess_languages(spec):
+    if spec['type'] in ('AssignTimestamps',
+                        'Combine',
+                        'Filter',
+                        'MapToFields',
+                        'Partition'):
       language = spec.get('config', {}).get('language', 'generic')
       new_type = spec['type'] + '-' + language
       if known_transforms and new_type not in known_transforms:
@@ -907,7 +942,7 @@ def preprocess(spec, verbose=False, known_transforms=None):
       ensure_transforms_have_types,
       normalize_mapping,
       normalize_combine,
-      preprocess_langauges,
+      preprocess_languages,
       ensure_transforms_have_providers,
       preprocess_source_sink,
       preprocess_chain,
@@ -963,10 +998,13 @@ class YamlTransform(beam.PTransform):
         self._spec['input'] = {name: name for name in pcolls.keys()}
     python_provider = yaml_provider.InlineProvider({})
 
+    # Label goog-dataflow-yaml if job is started using Beam YAML.
     options = pipeline.options.view_as(GoogleCloudOptions)
+    yaml_version = ('beam-yaml=' + beam.version.__version__.replace('.', '_'))
     if not options.labels:
       options.labels = []
-    options.labels += ["yaml=true"]
+    if yaml_version not in options.labels:
+      options.labels.append(yaml_version)
 
     result = expand_transform(
         self._spec,
@@ -989,13 +1027,13 @@ def expand_pipeline(
     pipeline,
     pipeline_spec,
     providers=None,
-    validate_schema=jsonschema is not None):
+    validate_schema='generic' if jsonschema is not None else None):
   if isinstance(pipeline_spec, str):
     pipeline_spec = yaml.load(pipeline_spec, Loader=SafeLineLoader)
   # TODO(robertwb): It's unclear whether this gives as good of errors, but
   # this could certainly be handy as a first pass when Beam is not available.
-  if validate_schema:
-    validate_against_schema(pipeline_spec)
+  if validate_schema and validate_schema != 'none':
+    validate_against_schema(pipeline_spec, validate_schema)
   # Calling expand directly to avoid outer layer of nesting.
   return YamlTransform(
       pipeline_as_composite(pipeline_spec['pipeline']),

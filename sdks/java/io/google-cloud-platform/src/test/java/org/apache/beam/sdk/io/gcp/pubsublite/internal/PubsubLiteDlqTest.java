@@ -31,6 +31,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.sdk.extensions.protobuf.ProtoByteUtils;
 import org.apache.beam.sdk.io.gcp.pubsublite.PubsubLiteIO;
 import org.apache.beam.sdk.io.gcp.pubsublite.PubsubLiteReadSchemaTransformProvider;
 import org.apache.beam.sdk.io.gcp.pubsublite.PubsubLiteReadSchemaTransformProvider.ErrorFn;
@@ -252,6 +253,67 @@ public class PubsubLiteDlqTest {
                       .build())
               .build());
 
+  private static final String PROTO_STRING_SCHEMA =
+      "syntax = \"proto3\";\n"
+          + "package com.test.proto;"
+          + "\n"
+          + "message MyMessage {\n"
+          + "  int32 id = 1;\n"
+          + "  string name = 2;\n"
+          + "  bool active = 3;\n"
+          + "\n"
+          + "  // Nested field\n"
+          + "  message Address {\n"
+          + "    string street = 1;\n"
+          + "    string city = 2;\n"
+          + "    string state = 3;\n"
+          + "    string zip_code = 4;\n"
+          + "  }\n"
+          + "\n"
+          + "  Address address = 4;\n"
+          + "}";
+
+  private static final Schema BEAM_PROTO_SCHEMA =
+      Schema.builder()
+          .addField("id", Schema.FieldType.INT32)
+          .addField("name", Schema.FieldType.STRING)
+          .addField("active", Schema.FieldType.BOOLEAN)
+          .addField(
+              "address",
+              Schema.FieldType.row(
+                  Schema.builder()
+                      .addField("city", Schema.FieldType.STRING)
+                      .addField("street", Schema.FieldType.STRING)
+                      .addField("state", Schema.FieldType.STRING)
+                      .addField("zip_code", Schema.FieldType.STRING)
+                      .build()))
+          .build();
+
+  private static final Row INPUT_ROW =
+      Row.withSchema(BEAM_PROTO_SCHEMA)
+          .withFieldValue("id", 1234)
+          .withFieldValue("name", "Doe")
+          .withFieldValue("active", false)
+          .withFieldValue("address.city", "seattle")
+          .withFieldValue("address.street", "fake street")
+          .withFieldValue("address.zip_code", "TO-1234")
+          .withFieldValue("address.state", "wa")
+          .build();
+  private static final SerializableFunction<Row, byte[]> INPUT_MAPPER =
+      ProtoByteUtils.getRowToProtoBytesFromSchema(PROTO_STRING_SCHEMA, "com.test.proto.MyMessage");
+
+  private static final byte[] INPUT_SOURCE = INPUT_MAPPER.apply(INPUT_ROW);
+
+  private static final List<SequencedMessage> INPUT_MESSAGES =
+      Collections.singletonList(
+          SequencedMessage.newBuilder()
+              .setMessage(
+                  PubSubMessage.newBuilder()
+                      .setData(ByteString.copyFrom(INPUT_SOURCE))
+                      .putAllAttributes(ATTRIBUTE_VALUES_MAP)
+                      .build())
+              .build());
+
   final SerializableFunction<byte[], Row> valueMapper =
       JsonUtils.getJsonBytesToRowFunction(BEAM_SCHEMA);
 
@@ -469,6 +531,33 @@ public class PubsubLiteDlqTest {
     // We are deduping so we should only have 1 value
     PAssert.that(count).containsInAnyOrder(Collections.singletonList(1L));
 
+    p.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testPubSubLiteErrorFnReadProto() {
+    Schema errorSchema = ErrorHandling.errorSchemaBytes();
+
+    List<String> attributes = new ArrayList<>();
+    String attributesMap = "";
+    Schema beamAttributeSchema =
+        PubsubLiteReadSchemaTransformProvider.buildSchemaWithAttributes(
+            BEAM_PROTO_SCHEMA, attributes, attributesMap);
+
+    SerializableFunction<byte[], Row> protoValueMapper =
+        ProtoByteUtils.getProtoBytesToRowFromSchemaFunction(
+            PROTO_STRING_SCHEMA, "com.test.proto.MyMessage");
+
+    PCollection<SequencedMessage> input = p.apply(Create.of(INPUT_MESSAGES));
+    PCollectionTuple output =
+        input.apply(
+            ParDo.of(new ErrorFn("Read-Error-Counter", protoValueMapper, errorSchema, Boolean.TRUE))
+                .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
+
+    output.get(OUTPUT_TAG).setRowSchema(beamAttributeSchema);
+    output.get(ERROR_TAG).setRowSchema(errorSchema);
+
+    PAssert.that(output.get(OUTPUT_TAG)).containsInAnyOrder(INPUT_ROW);
     p.run().waitUntilFinish();
   }
 }

@@ -23,6 +23,7 @@ import com.google.api.gax.rpc.FixedHeaderProvider;
 import com.google.api.gax.rpc.ServerStreamingCallSettings;
 import com.google.api.gax.rpc.StatusCode.Code;
 import com.google.api.gax.rpc.UnaryCallSettings;
+import com.google.auth.Credentials;
 import com.google.cloud.NoCredentials;
 import com.google.cloud.ServiceFactory;
 import com.google.cloud.spanner.BatchClient;
@@ -41,6 +42,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.util.ReleaseInfo;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -100,7 +102,8 @@ public class SpannerAccessor implements AutoCloseable {
     }
   }
 
-  private static SpannerAccessor createAndConnect(SpannerConfig spannerConfig) {
+  @VisibleForTesting
+  static SpannerOptions buildSpannerOptions(SpannerConfig spannerConfig) {
     SpannerOptions.Builder builder = SpannerOptions.newBuilder();
 
     Set<Code> retryableCodes = new HashSet<>();
@@ -222,8 +225,16 @@ public class SpannerAccessor implements AutoCloseable {
     if (databaseRole != null && databaseRole.get() != null && !databaseRole.get().isEmpty()) {
       builder.setDatabaseRole(databaseRole.get());
     }
-    SpannerOptions options = builder.build();
+    ValueProvider<Credentials> credentials = spannerConfig.getCredentials();
+    if (credentials != null && credentials.get() != null) {
+      builder.setCredentials(credentials.get());
+    }
 
+    return builder.build();
+  }
+
+  private static SpannerAccessor createAndConnect(SpannerConfig spannerConfig) {
+    SpannerOptions options = buildSpannerOptions(spannerConfig);
     Spanner spanner = options.getService();
     String instanceId = spannerConfig.getInstanceId().get();
     String databaseId = spannerConfig.getDatabaseId().get();

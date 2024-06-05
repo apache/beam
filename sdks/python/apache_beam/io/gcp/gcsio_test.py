@@ -25,6 +25,8 @@ from datetime import datetime
 
 import mock
 
+from apache_beam import version as beam_version
+
 # pylint: disable=wrong-import-order, wrong-import-position
 
 try:
@@ -43,9 +45,15 @@ class FakeGcsClient(object):
   def __init__(self):
     self.buckets = {}
 
+  def _add_bucket(self, bucket):
+    self.buckets[bucket.name] = bucket
+    return self.buckets[bucket.name]
+
+  def bucket(self, name):
+    return FakeBucket(self, name)
+
   def create_bucket(self, name):
-    self.buckets[name] = FakeBucket(self, name)
-    return self.buckets[name]
+    return self._add_bucket(self.bucket(name))
 
   def get_bucket(self, name):
     if name in self.buckets:
@@ -92,40 +100,51 @@ class FakeBucket(object):
     self.name = name
     self.blobs = {}
     self.default_kms_key_name = None
-    self.client.buckets[name] = self
 
-  def add_blob(self, blob):
-    self.blobs[blob.name] = blob
+  def _get_canonical_bucket(self):
+    return self.client.get_bucket(self.name)
 
-  def create_blob(self, name):
+  def _create_blob(self, name):
     return FakeBlob(name, self)
 
+  def add_blob(self, blob):
+    bucket = self._get_canonical_bucket()
+    bucket.blobs[blob.name] = blob
+    return bucket.blobs[blob.name]
+
+  def blob(self, name):
+    return self._create_blob(name)
+
   def copy_blob(self, blob, dest, new_name=None):
+    if self.get_blob(blob.name) is None:
+      raise NotFound("source blob not found")
     if not new_name:
       new_name = blob.name
-    dest.blobs[new_name] = blob
-    dest.blobs[new_name].name = new_name
-    dest.blobs[new_name].bucket = dest
-    return dest.blobs[new_name]
+    new_blob = FakeBlob(new_name, dest)
+    dest.add_blob(new_blob)
+    return new_blob
 
   def get_blob(self, blob_name):
-    if blob_name in self.blobs:
-      return self.blobs[blob_name]
+    bucket = self._get_canonical_bucket()
+    if blob_name in bucket.blobs:
+      return bucket.blobs[blob_name]
     else:
       return None
 
   def lookup_blob(self, name):
-    if name in self.blobs:
-      return self.blobs[name]
+    bucket = self._get_canonical_bucket()
+    if name in bucket.blobs:
+      return bucket.blobs[name]
     else:
-      return self.create_blob(name)
+      return bucket.create_blob(name)
 
   def set_default_kms_key_name(self, name):
     self.default_kms_key_name = name
 
   def delete_blob(self, name):
-    if name in self.blobs:
-      del self.blobs[name]
+    bucket = self._get_canonical_bucket()
+    if name in bucket.blobs:
+      del bucket.blobs[name]
 
 
 class FakeBlob(object):
@@ -151,11 +170,18 @@ class FakeBlob(object):
     self.updated = updated
     self._fail_when_getting_metadata = fail_when_getting_metadata
     self._fail_when_reading = fail_when_reading
-    self.bucket.add_blob(self)
 
   def delete(self):
-    if self.name in self.bucket.blobs:
-      del self.bucket.blobs[self.name]
+    self.bucket.delete_blob(self.name)
+
+  def download_as_bytes(self, **kwargs):
+    blob = self.bucket.get_blob(self.name)
+    if blob is None:
+      raise NotFound("blob not found")
+    return blob.contents
+
+  def __eq__(self, other):
+    return self.bucket.get_blob(self.name) is other.bucket.get_blob(other.name)
 
 
 @unittest.skipIf(NotFound is None, 'GCP dependencies are not installed')
@@ -200,6 +226,23 @@ class SampleOptions(object):
     self.dataflow_kms_key = kms_key
 
 
+_DEFAULT_UNIVERSE_DOMAIN = "googleapis.com"
+
+
+def _make_credentials(project=None, universe_domain=_DEFAULT_UNIVERSE_DOMAIN):
+  import google.auth.credentials
+
+  if project is not None:
+    return mock.Mock(
+        spec=google.auth.credentials.Credentials,
+        project_id=project,
+        universe_domain=universe_domain,
+    )
+
+  return mock.Mock(
+      spec=google.auth.credentials.Credentials, universe_domain=universe_domain)
+
+
 @unittest.skipIf(NotFound is None, 'GCP dependencies are not installed')
 class TestGCSIO(unittest.TestCase):
   def _insert_random_file(
@@ -224,6 +267,7 @@ class TestGCSIO(unittest.TestCase):
         updated=updated,
         fail_when_getting_metadata=fail_when_getting_metadata,
         fail_when_reading=fail_when_reading)
+    bucket.add_blob(blob)
     return blob
 
   def setUp(self):
@@ -475,7 +519,86 @@ class TestGCSIO(unittest.TestCase):
   def test_downloader_fail_non_existent_object(self):
     file_name = 'gs://gcsio-metrics-test/dummy_mode_file'
     with self.assertRaises(NotFound):
-      self.gcs.open(file_name, 'r')
+      with self.gcs.open(file_name, 'r') as f:
+        f.read(1)
+
+  def test_blob_delete(self):
+    file_name = 'gs://gcsio-test/delete_me'
+    file_size = 1024
+    bucket_name, blob_name = gcsio.parse_gcs_path(file_name)
+    # Test deletion of non-existent file.
+    bucket = self.client.get_bucket(bucket_name)
+    self.gcs.delete(file_name)
+
+    self._insert_random_file(self.client, file_name, file_size)
+    self.assertTrue(blob_name in bucket.blobs)
+
+    blob = bucket.get_blob(blob_name)
+    self.assertIsNotNone(blob)
+
+    blob.delete()
+    self.assertFalse(blob_name in bucket.blobs)
+
+  @mock.patch('google.cloud._http.JSONConnection._do_request')
+  @mock.patch('apache_beam.internal.gcp.auth.get_service_credentials')
+  def test_headers(self, mock_get_service_credentials, mock_do_request):
+    from apache_beam.internal.gcp.auth import _ApitoolsCredentialsAdapter
+    mock_get_service_credentials.return_value = _ApitoolsCredentialsAdapter(
+        _make_credentials("test-project"))
+
+    gcs = gcsio.GcsIO(pipeline_options={"job_name": "test-job-name"})
+    # no HTTP request when initializing GcsIO
+    mock_do_request.assert_not_called()
+
+    import requests
+    response = requests.Response()
+    response.status_code = 200
+    mock_do_request.return_value = response
+
+    # The function of get_bucket() is supposed to send only one HTTP request
+    gcs.get_bucket("test-bucket")
+    mock_do_request.assert_called_once()
+    call_args = mock_do_request.call_args[0]
+
+    # Headers are specified as the third argument of
+    # google.cloud._http.JSONConnection._do_request
+    actual_headers = call_args[2]
+    beam_user_agent = "apache-beam/%s (GPN:Beam)" % beam_version.__version__
+    self.assertIn(beam_user_agent, actual_headers['User-Agent'])
+    self.assertEqual(actual_headers['x-goog-custom-audit-job'], 'test-job-name')
+
+  @mock.patch('google.cloud._http.JSONConnection._do_request')
+  @mock.patch('apache_beam.internal.gcp.auth.get_service_credentials')
+  def test_create_default_bucket(
+      self, mock_get_service_credentials, mock_do_request):
+    from apache_beam.internal.gcp.auth import _ApitoolsCredentialsAdapter
+    mock_get_service_credentials.return_value = _ApitoolsCredentialsAdapter(
+        _make_credentials("test-project"))
+
+    gcs = gcsio.GcsIO(pipeline_options={"job_name": "test-job-name"})
+    # no HTTP request when initializing GcsIO
+    mock_do_request.assert_not_called()
+
+    import requests
+    response = requests.Response()
+    response.status_code = 200
+    mock_do_request.return_value = response
+
+    # The function of create_bucket() is supposed to send only one HTTP request
+    gcs.create_bucket("test-bucket", "test-project")
+    mock_do_request.assert_called_once()
+    call_args = mock_do_request.call_args[0]
+
+    # Request data is specified as the fourth argument of
+    # google.cloud._http.JSONConnection._do_request
+    actual_request_data = call_args[3]
+
+    import json
+    request_data_json = json.loads(actual_request_data)
+    # verify soft delete policy is disabled by default in the bucket creation
+    # request
+    self.assertEqual(
+        request_data_json['softDeletePolicy']['retentionDurationSeconds'], 0)
 
 
 if __name__ == '__main__':

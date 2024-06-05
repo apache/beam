@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.flink;
 
-import static org.apache.beam.runners.core.construction.resources.PipelineResources.detectClassPathResourcesToStage;
 import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.hasUnboundedPCollections;
+import static org.apache.beam.sdk.util.construction.resources.PipelineResources.detectClassPathResourcesToStage;
 
 import java.util.List;
 import java.util.Map;
@@ -26,13 +26,6 @@ import java.util.UUID;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
-import org.apache.beam.runners.core.construction.PTransformTranslation;
-import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
-import org.apache.beam.runners.core.construction.graph.ExecutableStage;
-import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
-import org.apache.beam.runners.core.construction.graph.ProtoOverrides;
-import org.apache.beam.runners.core.construction.graph.SplittableParDoExpander;
-import org.apache.beam.runners.core.construction.graph.TrivialNativeTransformExpander;
 import org.apache.beam.runners.core.metrics.MetricsPusher;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.jobsubmission.PortablePipelineJarUtils;
@@ -44,7 +37,8 @@ import org.apache.beam.sdk.metrics.MetricsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.SdkHarnessOptions;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.Struct;
+import org.apache.beam.sdk.util.construction.PipelineOptionsTranslation;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -105,30 +99,10 @@ public class FlinkPipelineRunner implements PortablePipelineRunner {
           throws Exception {
     LOG.info("Translating pipeline to Flink program.");
 
-    // Expand any splittable ParDos within the graph to enable sizing and splitting of bundles.
-    Pipeline pipelineWithSdfExpanded =
-        ProtoOverrides.updateTransform(
-            PTransformTranslation.PAR_DO_TRANSFORM_URN,
-            pipeline,
-            SplittableParDoExpander.createSizedReplacement());
-
-    // Don't let the fuser fuse any subcomponents of native transforms.
-    Pipeline trimmedPipeline =
-        TrivialNativeTransformExpander.forKnownUrns(
-            pipelineWithSdfExpanded, translator.knownUrns());
-
-    // Fused pipeline proto.
-    // TODO: Consider supporting partially-fused graphs.
-    RunnerApi.Pipeline fusedPipeline =
-        trimmedPipeline.getComponents().getTransformsMap().values().stream()
-                .anyMatch(proto -> ExecutableStage.URN.equals(proto.getSpec().getUrn()))
-            ? trimmedPipeline
-            : GreedyPipelineFuser.fuse(trimmedPipeline).toPipeline();
-
     FlinkPortablePipelineTranslator.Executor executor =
         translator.translate(
             translator.createTranslationContext(jobInfo, pipelineOptions, confDir, filesToStage),
-            fusedPipeline);
+            translator.prepareForTranslation(pipeline));
     final JobExecutionResult result = executor.execute(pipelineOptions.getJobName());
 
     return createPortablePipelineResult(result, pipelineOptions);

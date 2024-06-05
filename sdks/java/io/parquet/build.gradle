@@ -35,7 +35,7 @@ def hadoopVersions = [
 
 hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}
 
-def parquet_version = "1.12.0"
+def parquet_version = "1.13.1"
 
 dependencies {
   implementation library.java.vendored_guava_32_1_2_jre

@@ -70,7 +70,6 @@ def copyLauncherDependencies = tasks.register("copyLauncherDependencies", Copy) 
   }
 }
 
-def useBuildx = project.containerPlatforms() != [project.nativeArchitecture()]
 def pushContainers = project.rootProject.hasProperty(["isRelease"]) || project.rootProject.hasProperty("push-containers")
 
 docker {
@@ -87,9 +86,9 @@ docker {
   buildArgs(['py_version': "${project.ext.pythonVersion}",
              'pull_licenses': project.rootProject.hasProperty(["docker-pull-licenses"]) ||
                      project.rootProject.hasProperty(["isRelease"])])
-  buildx useBuildx
+  buildx project.useBuildx()
   platform(*project.containerPlatforms())
-  load useBuildx && !pushContainers
+  load project.useBuildx() && !pushContainers
   push pushContainers
 }
 

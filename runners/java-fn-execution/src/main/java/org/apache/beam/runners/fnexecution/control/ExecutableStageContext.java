@@ -18,8 +18,8 @@
 package org.apache.beam.runners.fnexecution.control;
 
 import java.io.Serializable;
-import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
+import org.apache.beam.sdk.util.construction.graph.ExecutableStage;
 
 /** The context required in order to execute {@link ExecutableStage stages}. */
 public interface ExecutableStageContext extends AutoCloseable {

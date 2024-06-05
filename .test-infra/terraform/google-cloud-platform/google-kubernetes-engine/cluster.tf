@@ -23,15 +23,25 @@ resource "random_string" "postfix" {
 }
 
 resource "google_container_cluster" "default" {
-  depends_on       = [google_project_service.required]
-  name             = "${var.cluster_name_prefix}-${random_string.postfix.result}"
-  location         = var.region
-  enable_autopilot = true
-  network          = data.google_compute_network.default.id
-  subnetwork       = data.google_compute_subnetwork.default.id
-  master_authorized_networks_config {}
+  depends_on          = [google_project_service.required, google_project_iam_member.assign_gke_iam]
+  deletion_protection = false
+  name                = coalesce(var.cluster_name_override,"${var.cluster_name_prefix}-${random_string.postfix.result}")
+  location            = var.region
+  enable_autopilot    = true
+  network             = data.google_compute_network.default.id
+  subnetwork          = data.google_compute_subnetwork.default.id
   private_cluster_config {
     enable_private_nodes    = true
     enable_private_endpoint = false
+  }
+
+  cluster_autoscaling {
+    auto_provisioning_defaults {
+      service_account = data.google_service_account.default.email
+      oauth_scopes    = [
+        "https://www.googleapis.com/auth/cloud-platform"
+      ]
+
+    }
   }
 }

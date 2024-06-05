@@ -435,6 +435,9 @@ def convert_to_typing_type(typ):
   if isinstance(typ, typehints.IterableTypeConstraint):
     return typing.Iterable[convert_to_typing_type(typ.inner_type)]
   if isinstance(typ, typehints.UnionConstraint):
+    if not typ.union_types:
+      # Gracefully handle the empty union type.
+      return typing.Any
     return typing.Union[tuple(convert_to_typing_types(typ.union_types))]
   if isinstance(typ, typehints.SetTypeConstraint):
     return typing.Set[convert_to_typing_type(typ.inner_type)]

@@ -53,6 +53,7 @@ composites = StandardPTransforms.Composites
 combine_components = StandardPTransforms.CombineComponents
 sdf_components = StandardPTransforms.SplittableParDoComponents
 group_into_batches_components = StandardPTransforms.GroupIntoBatchesComponents
+executable_stage = "beam:runner:executable_stage:v1"
 
 user_state = StandardUserStateTypes.Enum
 side_inputs = StandardSideInputTypes.Enum

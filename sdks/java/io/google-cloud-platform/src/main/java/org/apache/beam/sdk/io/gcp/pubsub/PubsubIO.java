@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
+import static org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter.BAD_RECORD_TAG;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.client.util.Clock;
@@ -62,6 +63,11 @@ import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.WithFailures;
 import org.apache.beam.sdk.transforms.WithFailures.Result;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
+import org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter;
+import org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter.ThrowingBadRecordRouter;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler.DefaultErrorHandler;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.Preconditions;
@@ -69,8 +75,11 @@ import org.apache.beam.sdk.values.EncodableThrowable;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
@@ -566,6 +575,8 @@ public class PubsubIO {
   public static Read<PubsubMessage> readMessagesWithAttributesAndMessageIdAndOrderingKey() {
     return Read.newBuilder()
         .setCoder(PubsubMessageWithAttributesAndMessageIdAndOrderingKeyCoder.of())
+        .setNeedsAttributes(true)
+        .setNeedsMessageId(true)
         .setNeedsOrderingKey(true)
         .build();
   }
@@ -658,6 +669,17 @@ public class PubsubIO {
   public static <T> Read<T> readMessagesWithCoderAndParseFn(
       Coder<T> coder, SimpleFunction<PubsubMessage, T> parseFn) {
     return Read.newBuilder(parseFn).setCoder(coder).build();
+  }
+
+  /**
+   * Returns A {@link PTransform} that continuously reads from a Google Cloud Pub/Sub stream,
+   * mapping each {@link PubsubMessage}, with attributes, into type T using the supplied parse
+   * function and coder. Similar to {@link #readMessagesWithCoderAndParseFn(Coder, SimpleFunction)},
+   * but with the with addition of making the message attributes available to the ParseFn.
+   */
+  public static <T> Read<T> readMessagesWithAttributesWithCoderAndParseFn(
+      Coder<T> coder, SimpleFunction<PubsubMessage, T> parseFn) {
+    return Read.newBuilder(parseFn).setCoder(coder).setNeedsAttributes(true).build();
   }
 
   /**
@@ -828,6 +850,10 @@ public class PubsubIO {
 
     abstract boolean getNeedsOrderingKey();
 
+    abstract BadRecordRouter getBadRecordRouter();
+
+    abstract ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
+
     abstract Builder<T> toBuilder();
 
     static <T> Builder<T> newBuilder(SerializableFunction<PubsubMessage, T> parseFn) {
@@ -837,6 +863,8 @@ public class PubsubIO {
       builder.setNeedsAttributes(false);
       builder.setNeedsMessageId(false);
       builder.setNeedsOrderingKey(false);
+      builder.setBadRecordRouter(BadRecordRouter.THROWING_ROUTER);
+      builder.setBadRecordErrorHandler(new DefaultErrorHandler<>());
       return builder;
     }
 
@@ -878,6 +906,11 @@ public class PubsubIO {
       abstract Builder<T> setNeedsOrderingKey(boolean needsOrderingKey);
 
       abstract Builder<T> setClock(Clock clock);
+
+      abstract Builder<T> setBadRecordRouter(BadRecordRouter badRecordRouter);
+
+      abstract Builder<T> setBadRecordErrorHandler(
+          ErrorHandler<BadRecord, ?> badRecordErrorHandler);
 
       abstract Read<T> build();
     }
@@ -957,6 +990,8 @@ public class PubsubIO {
      *
      * <p>See {@link PubsubIO.PubsubTopic#fromPath(String)} for more details on the format of the
      * {@code deadLetterTopic} string.
+     *
+     * <p>This functionality is mutually exclusive with {@link Read#withErrorHandler(ErrorHandler)}
      */
     public Read<T> withDeadLetterTopic(String deadLetterTopic) {
       return withDeadLetterTopic(StaticValueProvider.of(deadLetterTopic));
@@ -1043,6 +1078,19 @@ public class PubsubIO {
       return toBuilder().setCoder(coder).setParseFn(parseFn).build();
     }
 
+    /**
+     * Configures the PubSub read with an alternate error handler. When a message is read from
+     * PubSub, but fails to parse, the message and the parse failure information will be sent to the
+     * error handler. See {@link ErrorHandler} for more details on configuring an Error Handler.
+     * This functionality is mutually exclusive with {@link Read#withDeadLetterTopic(String)}.
+     */
+    public Read<T> withErrorHandler(ErrorHandler<BadRecord, ?> badRecordErrorHandler) {
+      return toBuilder()
+          .setBadRecordErrorHandler(badRecordErrorHandler)
+          .setBadRecordRouter(BadRecordRouter.RECORDING_ROUTER)
+          .build();
+    }
+
     @VisibleForTesting
     /**
      * Set's the internal Clock.
@@ -1062,6 +1110,12 @@ public class PubsubIO {
       if (getTopicProvider() != null && getSubscriptionProvider() != null) {
         throw new IllegalStateException(
             "Can't set both the topic and the subscription for " + "a PubsubIO.Read transform");
+      }
+
+      if (getDeadLetterTopicProvider() != null
+          && !(getBadRecordRouter() instanceof ThrowingBadRecordRouter)) {
+        throw new IllegalArgumentException(
+            "PubSubIO cannot be configured with both a dead letter topic and a bad record router");
       }
 
       @Nullable
@@ -1087,57 +1141,73 @@ public class PubsubIO {
               getNeedsMessageId(),
               getNeedsOrderingKey());
 
-      PCollection<T> read;
       PCollection<PubsubMessage> preParse = input.apply(source);
       TypeDescriptor<T> typeDescriptor = new TypeDescriptor<T>() {};
-      if (getDeadLetterTopicProvider() == null) {
+      PCollection<T> read;
+      if (getDeadLetterTopicProvider() == null
+          && (getBadRecordRouter() instanceof ThrowingBadRecordRouter)) {
         read = preParse.apply(MapElements.into(typeDescriptor).via(getParseFn()));
       } else {
+        // parse PubSub messages, separating out exceptions
         Result<PCollection<T>, KV<PubsubMessage, EncodableThrowable>> result =
             preParse.apply(
                 "PubsubIO.Read/Map/Parse-Incoming-Messages",
                 MapElements.into(typeDescriptor)
                     .via(getParseFn())
                     .exceptionsVia(new WithFailures.ThrowableHandler<PubsubMessage>() {}));
+
+        // Emit parsed records
         read = result.output();
 
-        // Write out failures to the provided dead-letter topic.
-        result
-            .failures()
-            // Since the stack trace could easily exceed Pub/Sub limits, we need to remove it from
-            // the attributes.
-            .apply(
-                "PubsubIO.Read/Map/Remove-Stack-Trace-Attribute",
-                MapElements.into(new TypeDescriptor<KV<PubsubMessage, Map<String, String>>>() {})
-                    .via(
-                        kv -> {
-                          PubsubMessage message = kv.getKey();
-                          String messageId =
-                              message.getMessageId() == null ? "<null>" : message.getMessageId();
-                          Throwable throwable = kv.getValue().throwable();
+        // Send exceptions to either the bad record router or the dead letter topic
+        if (!(getBadRecordRouter() instanceof ThrowingBadRecordRouter)) {
+          PCollection<BadRecord> badRecords =
+              result
+                  .failures()
+                  .apply(
+                      "Map Failures To BadRecords",
+                      ParDo.of(new ParseReadFailuresToBadRecords(preParse.getCoder())));
+          getBadRecordErrorHandler()
+              .addErrorCollection(badRecords.setCoder(BadRecord.getCoder(input.getPipeline())));
+        } else {
+          // Write out failures to the provided dead-letter topic.
+          result
+              .failures()
+              // Since the stack trace could easily exceed Pub/Sub limits, we need to remove it from
+              // the attributes.
+              .apply(
+                  "PubsubIO.Read/Map/Remove-Stack-Trace-Attribute",
+                  MapElements.into(new TypeDescriptor<KV<PubsubMessage, Map<String, String>>>() {})
+                      .via(
+                          kv -> {
+                            PubsubMessage message = kv.getKey();
+                            String messageId =
+                                message.getMessageId() == null ? "<null>" : message.getMessageId();
+                            Throwable throwable = kv.getValue().throwable();
 
-                          // In order to stay within Pub/Sub limits, we aren't adding the stack
-                          // trace to the attributes. Therefore, we need to log the throwable.
-                          LOG.error(
-                              "Error parsing Pub/Sub message with id '{}'", messageId, throwable);
+                            // In order to stay within Pub/Sub limits, we aren't adding the stack
+                            // trace to the attributes. Therefore, we need to log the throwable.
+                            LOG.error(
+                                "Error parsing Pub/Sub message with id '{}'", messageId, throwable);
 
-                          ImmutableMap<String, String> attributes =
-                              ImmutableMap.<String, String>builder()
-                                  .put("exceptionClassName", throwable.getClass().getName())
-                                  .put("exceptionMessage", throwable.getMessage())
-                                  .put("pubsubMessageId", messageId)
-                                  .build();
+                            ImmutableMap<String, String> attributes =
+                                ImmutableMap.<String, String>builder()
+                                    .put("exceptionClassName", throwable.getClass().getName())
+                                    .put("exceptionMessage", throwable.getMessage())
+                                    .put("pubsubMessageId", messageId)
+                                    .build();
 
-                          return KV.of(kv.getKey(), attributes);
-                        }))
-            .apply(
-                "PubsubIO.Read/Map/Create-Dead-Letter-Payload",
-                MapElements.into(TypeDescriptor.of(PubsubMessage.class))
-                    .via(kv -> new PubsubMessage(kv.getKey().getPayload(), kv.getValue())))
-            .apply(
-                writeMessages()
-                    .to(getDeadLetterTopicProvider().get().asPath())
-                    .withClientFactory(getPubsubClientFactory()));
+                            return KV.of(kv.getKey(), attributes);
+                          }))
+              .apply(
+                  "PubsubIO.Read/Map/Create-Dead-Letter-Payload",
+                  MapElements.into(TypeDescriptor.of(PubsubMessage.class))
+                      .via(kv -> new PubsubMessage(kv.getKey().getPayload(), kv.getValue())))
+              .apply(
+                  writeMessages()
+                      .to(getDeadLetterTopicProvider().get().asPath())
+                      .withClientFactory(getPubsubClientFactory()));
+        }
       }
 
       return read.setCoder(getCoder());
@@ -1151,6 +1221,28 @@ public class PubsubIO {
       builder.addIfNotNull(
           DisplayData.item("subscription", getSubscriptionProvider())
               .withLabel("Pubsub Subscription"));
+    }
+  }
+
+  private static class ParseReadFailuresToBadRecords
+      extends DoFn<KV<PubsubMessage, EncodableThrowable>, BadRecord> {
+    private final Coder<PubsubMessage> coder;
+
+    public ParseReadFailuresToBadRecords(Coder<PubsubMessage> coder) {
+      this.coder = coder;
+    }
+
+    @ProcessElement
+    public void processElement(
+        OutputReceiver<BadRecord> outputReceiver,
+        @Element KV<PubsubMessage, EncodableThrowable> element)
+        throws Exception {
+      outputReceiver.output(
+          BadRecord.fromExceptionInformation(
+              element.getKey(),
+              coder,
+              (Exception) element.getValue().throwable(),
+              "Failed to parse message read from PubSub"));
     }
   }
 
@@ -1196,6 +1288,10 @@ public class PubsubIO {
 
     abstract @Nullable String getPubsubRootUrl();
 
+    abstract BadRecordRouter getBadRecordRouter();
+
+    abstract ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
+
     abstract Builder<T> toBuilder();
 
     static <T> Builder<T> newBuilder(
@@ -1203,6 +1299,8 @@ public class PubsubIO {
       Builder<T> builder = new AutoValue_PubsubIO_Write.Builder<T>();
       builder.setPubsubClientFactory(FACTORY);
       builder.setFormatFn(formatFn);
+      builder.setBadRecordRouter(BadRecordRouter.THROWING_ROUTER);
+      builder.setBadRecordErrorHandler(new DefaultErrorHandler<>());
       return builder;
     }
 
@@ -1233,6 +1331,11 @@ public class PubsubIO {
           SerializableFunction<ValueInSingleWindow<T>, PubsubMessage> formatFn);
 
       abstract Builder<T> setPubsubRootUrl(String pubsubRootUrl);
+
+      abstract Builder<T> setBadRecordRouter(BadRecordRouter badRecordRouter);
+
+      abstract Builder<T> setBadRecordErrorHandler(
+          ErrorHandler<BadRecord, ?> badRecordErrorHandler);
 
       abstract Write<T> build();
     }
@@ -1332,6 +1435,19 @@ public class PubsubIO {
       return toBuilder().setPubsubRootUrl(pubsubRootUrl).build();
     }
 
+    /**
+     * Writes any serialization failures out to the Error Handler. See {@link ErrorHandler} for
+     * details on how to configure an Error Handler. Error Handlers are not well supported when
+     * writing to topics with schemas, and it is not recommended to configure an error handler if
+     * the target topic has a schema.
+     */
+    public Write<T> withErrorHandler(ErrorHandler<BadRecord, ?> badRecordErrorHandler) {
+      return toBuilder()
+          .setBadRecordErrorHandler(badRecordErrorHandler)
+          .setBadRecordRouter(BadRecordRouter.RECORDING_ROUTER)
+          .build();
+    }
+
     @Override
     public PDone expand(PCollection<T> input) {
       if (getTopicProvider() == null && !getDynamicDestinations()) {
@@ -1353,12 +1469,26 @@ public class PubsubIO {
                 MoreObjects.firstNonNull(
                     getMaxBatchBytesSize(), MAX_PUBLISH_BATCH_BYTE_SIZE_DEFAULT));
       }
+      TupleTag<PubsubMessage> pubsubMessageTupleTag = new TupleTag<>();
+      PCollectionTuple pubsubMessageTuple =
+          input.apply(
+              ParDo.of(
+                      new PreparePubsubWriteDoFn<>(
+                          getFormatFn(),
+                          topicFunction,
+                          maxMessageSize,
+                          getBadRecordRouter(),
+                          input.getCoder(),
+                          pubsubMessageTupleTag))
+                  .withOutputTags(pubsubMessageTupleTag, TupleTagList.of(BAD_RECORD_TAG)));
+
+      getBadRecordErrorHandler()
+          .addErrorCollection(
+              pubsubMessageTuple
+                  .get(BAD_RECORD_TAG)
+                  .setCoder(BadRecord.getCoder(input.getPipeline())));
       PCollection<PubsubMessage> pubsubMessages =
-          input
-              .apply(
-                  ParDo.of(
-                      new PreparePubsubWriteDoFn<>(getFormatFn(), topicFunction, maxMessageSize)))
-              .setCoder(new PubsubMessageWithTopicCoder());
+          pubsubMessageTuple.get(pubsubMessageTupleTag).setCoder(new PubsubMessageWithTopicCoder());
       switch (input.isBounded()) {
         case BOUNDED:
           pubsubMessages.apply(

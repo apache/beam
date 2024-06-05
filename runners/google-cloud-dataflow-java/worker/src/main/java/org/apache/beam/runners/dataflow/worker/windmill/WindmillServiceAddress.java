@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.worker.windmill;
 
 import com.google.auto.value.AutoOneOf;
+import com.google.auto.value.AutoValue;
 import java.net.Inet6Address;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPort;
 
@@ -38,8 +39,33 @@ public abstract class WindmillServiceAddress {
 
   public abstract HostAndPort gcpServiceAddress();
 
+  public abstract AuthenticatedGcpServiceAddress authenticatedGcpServiceAddress();
+
+  public static WindmillServiceAddress create(
+      AuthenticatedGcpServiceAddress authenticatedGcpServiceAddress) {
+    return AutoOneOf_WindmillServiceAddress.authenticatedGcpServiceAddress(
+        authenticatedGcpServiceAddress);
+  }
+
   public enum Kind {
     IPV6,
-    GCP_SERVICE_ADDRESS
+    GCP_SERVICE_ADDRESS,
+    // TODO(m-trieu): Use for direct connections when ALTS is enabled.
+    AUTHENTICATED_GCP_SERVICE_ADDRESS
+  }
+
+  @AutoValue
+  public abstract static class AuthenticatedGcpServiceAddress {
+
+    public static AuthenticatedGcpServiceAddress create(
+        String authenticatingService, HostAndPort gcpServiceAddress) {
+      // HostAndPort supports IpV6.
+      return new AutoValue_WindmillServiceAddress_AuthenticatedGcpServiceAddress(
+          authenticatingService, gcpServiceAddress);
+    }
+
+    public abstract String authenticatingService();
+
+    public abstract HostAndPort gcpServiceAddress();
   }
 }

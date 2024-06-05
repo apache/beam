@@ -133,7 +133,7 @@ task postCommitIT {
         "test_opts": testOpts,
         "sdk_location": project.ext.sdkLocation,
         "suite": "postCommitIT-df${pythonVersionSuffix}",
-        "collect": "it_postcommit"
+        "collect": "it_postcommit",
     ]
     def cmdArgs = mapToArgString(argMap)
     exec {
@@ -487,6 +487,28 @@ task tftTests {
   }
 }
 
+// Tests that depend on Mock API:https://github.com/apache/beam/tree/master/.test-infra/mock-apis. .
+task mockAPITests {
+  dependsOn 'initializeForDataflowJob'
+  dependsOn ':sdks:python:sdist'
+
+ doLast {
+  def testOpts = basicTestOpts
+  def argMap = [
+    "test_opts": testOpts,
+    "collect": "uses_mock_api",
+    "runner": "TestDataflowRunner",
+    "project": "apache-beam-testing",
+    "region": "us-west1",
+  ]
+  def cmdArgs = mapToArgString(argMap)
+  exec {
+    executable 'sh'
+	args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+  }
+ }
+}
+
 // add all RunInference E2E tests that run on DataflowRunner
 // As of now, this test suite is enable in py38 suite as the base NVIDIA image used for Tensor RT
 // contains Python 3.8.
@@ -495,6 +517,7 @@ project.tasks.register("inferencePostCommitIT") {
   dependsOn = [
   'tensorRTtests',
   'vertexAIInferenceTest',
+  'mockAPITests',
   ]
 }
 
@@ -506,10 +529,8 @@ def dataflowRegion = project.findProperty('dataflowRegion') ?: 'us-central1'
 project(":sdks:python:test-suites:xlang").ext.xlangTasks.each { taskMetadata ->
     createCrossLanguageUsingJavaExpansionTask(
       name: taskMetadata.name,
-      expansionProjectPath: taskMetadata.expansionProjectPath,
+      expansionProjectPaths: taskMetadata.expansionProjectPaths,
       collectMarker: taskMetadata.collectMarker,
-      startJobServer: taskMetadata.startJobServer,
-      cleanupJobServer: taskMetadata.cleanupJobServer,
       pythonPipelineOptions: [
         "--runner=TestDataflowRunner",
         "--project=${dataflowProject}",
@@ -518,6 +539,7 @@ project(":sdks:python:test-suites:xlang").ext.xlangTasks.each { taskMetadata ->
         "--sdk_harness_container_image_overrides=.*java.*,gcr.io/apache-beam-testing/beam-sdk/beam_java8_sdk:latest"
       ],
       pytestOptions: basicPytestOpts,
+      additionalDeps: taskMetadata.additionalDeps,
       additionalEnvs: taskMetadata.additionalEnvs
     )
 }

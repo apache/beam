@@ -27,6 +27,7 @@ from apache_beam.transforms import ptransform
 from apache_beam.typehints.native_type_compatibility import convert_to_typing_type
 from apache_beam.typehints.schemas import named_fields_to_schema
 from apache_beam.typehints.trivial_inference import instance_to_type
+from apache_beam.utils import python_callable
 
 PYTHON_FULLY_QUALIFIED_NAMED_TRANSFORM_URN = (
     'beam:transforms:python:fully_qualified_named')
@@ -63,6 +64,8 @@ class FullyQualifiedNamedTransform(ptransform.PTransform):
         args = self._args
         kwargs = dict(self._kwargs)
         source = kwargs.pop('source')
+      if isinstance(source, str):
+        source = python_callable.PythonCallableWithSource(source)
 
       if self._constructor == '__constructor__':
         transform = source(*args, **kwargs)
@@ -127,7 +130,15 @@ class FullyQualifiedNamedTransform(ptransform.PTransform):
   @staticmethod
   def from_runner_api_parameter(unused_ptransform, payload, unused_context):
     row = coders.RowCoder(payload.schema).decode(payload.payload)
-    maybe_as_dict = lambda x: x._asdict() if x else {}
+
+    def maybe_as_dict(x):
+      if isinstance(x, dict):
+        return x
+      elif x:
+        return x._asdict()
+      else:
+        return {}
+
     return FullyQualifiedNamedTransform(
         row.constructor,
         tuple(getattr(row, 'args', ())),

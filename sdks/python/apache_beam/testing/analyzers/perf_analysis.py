@@ -173,8 +173,10 @@ def run_change_point_analysis(
         constants._CHANGE_POINT_TIMESTAMP_LABEL].tolist()
     last_reported_issue_number = existing_issue_data[
         constants._ISSUE_NUMBER].tolist()[0]
-    # convert numpy.int64 to int
-    last_reported_issue_number = last_reported_issue_number.item()
+
+    if not isinstance(last_reported_issue_number, int):
+      # convert numpy.int64 to int
+      last_reported_issue_number = last_reported_issue_number.item()
 
     is_valid_change_point = is_sibling_change_point(
         previous_change_point_timestamps=existing_issue_timestamps,

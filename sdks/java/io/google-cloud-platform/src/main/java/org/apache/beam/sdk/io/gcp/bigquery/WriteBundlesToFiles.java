@@ -32,8 +32,10 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryRowWriter.BigQueryRowSerializationException;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteBundlesToFiles.Result;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.KV;
@@ -69,6 +71,8 @@ class WriteBundlesToFiles<DestinationT extends @NonNull Object, ElementT>
   private final int maxNumWritersPerBundle;
   private final long maxFileSize;
   private final RowWriterFactory<ElementT, DestinationT> rowWriterFactory;
+  private final Coder<KV<DestinationT, ElementT>> coder;
+  private final BadRecordRouter badRecordRouter;
   private int spilledShardNumber;
 
   /**
@@ -165,12 +169,16 @@ class WriteBundlesToFiles<DestinationT extends @NonNull Object, ElementT>
       TupleTag<KV<ShardedKey<DestinationT>, ElementT>> unwrittenRecordsTag,
       int maxNumWritersPerBundle,
       long maxFileSize,
-      RowWriterFactory<ElementT, DestinationT> rowWriterFactory) {
+      RowWriterFactory<ElementT, DestinationT> rowWriterFactory,
+      Coder<KV<DestinationT, ElementT>> coder,
+      BadRecordRouter badRecordRouter) {
     this.tempFilePrefixView = tempFilePrefixView;
     this.unwrittenRecordsTag = unwrittenRecordsTag;
     this.maxNumWritersPerBundle = maxNumWritersPerBundle;
     this.maxFileSize = maxFileSize;
     this.rowWriterFactory = rowWriterFactory;
+    this.coder = coder;
+    this.badRecordRouter = badRecordRouter;
   }
 
   @StartBundle
@@ -197,7 +205,10 @@ class WriteBundlesToFiles<DestinationT extends @NonNull Object, ElementT>
 
   @ProcessElement
   public void processElement(
-      ProcessContext c, @Element KV<DestinationT, ElementT> element, BoundedWindow window)
+      ProcessContext c,
+      @Element KV<DestinationT, ElementT> element,
+      BoundedWindow window,
+      MultiOutputReceiver outputReceiver)
       throws Exception {
     Map<DestinationT, BigQueryRowWriter<ElementT>> writers =
         Preconditions.checkStateNotNull(this.writers);
@@ -234,17 +245,32 @@ class WriteBundlesToFiles<DestinationT extends @NonNull Object, ElementT>
 
     try {
       writer.write(element.getValue());
-    } catch (Exception e) {
-      // Discard write result and close the write.
+    } catch (BigQueryRowSerializationException e) {
       try {
-        writer.close();
-        // The writer does not need to be reset, as this DoFn cannot be reused.
-      } catch (Exception closeException) {
-        // Do not mask the exception that caused the write to fail.
-        e.addSuppressed(closeException);
+        badRecordRouter.route(
+            outputReceiver,
+            element,
+            coder,
+            e,
+            "Unable to Write BQ Record to File because serialization to TableRow failed");
+      } catch (Exception e2) {
+        cleanupWriter(writer, e2);
       }
-      throw e;
+    } catch (Exception e) {
+      cleanupWriter(writer, e);
     }
+  }
+
+  private void cleanupWriter(BigQueryRowWriter<ElementT> writer, Exception e) throws Exception {
+    // Discard write result and close the write.
+    try {
+      writer.close();
+      // The writer does not need to be reset, as this DoFn cannot be reused.
+    } catch (Exception closeException) {
+      // Do not mask the exception that caused the write to fail.
+      e.addSuppressed(closeException);
+    }
+    throw e;
   }
 
   @FinishBundle

@@ -54,6 +54,7 @@ class VendorJavaPlugin implements Plugin<Project> {
     List<String> runtimeDependencies
     List<String> testDependencies
     Map<String, String> relocations
+    Map<String, List<String>> relocationExclusions
     List<String> exclusions
     String groupId
     String artifactId
@@ -122,7 +123,13 @@ artifactId=${project.name}
 
       project.shadowJar {
         config.relocations.each { srcNamespace, destNamespace ->
-          relocate(srcNamespace, destNamespace)
+          relocate(srcNamespace, destNamespace) {
+            if (config.relocationExclusions?.containsKey(srcNamespace)) {
+              config.relocationExclusions.get(srcNamespace).each { toExclude ->
+                exclude toExclude
+              }
+            }
+          }
         }
         config.exclusions.each { exclude it }
 

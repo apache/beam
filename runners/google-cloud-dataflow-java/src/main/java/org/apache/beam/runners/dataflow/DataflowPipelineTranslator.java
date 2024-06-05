@@ -51,12 +51,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.runners.core.construction.Environments;
-import org.apache.beam.runners.core.construction.ParDoTranslation;
-import org.apache.beam.runners.core.construction.SdkComponents;
-import org.apache.beam.runners.core.construction.SplittableParDo;
-import org.apache.beam.runners.core.construction.TransformInputs;
-import org.apache.beam.runners.core.construction.WindowingStrategyTranslation;
 import org.apache.beam.runners.dataflow.BatchViewOverrides.GroupByKeyAndSortValuesOnly;
 import org.apache.beam.runners.dataflow.DataflowRunner.CombineGroupedValues;
 import org.apache.beam.runners.dataflow.PrimitiveParDoSingleFactory.ParDoSingle;
@@ -86,6 +80,7 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Redistribute.RedistributeByKey;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
@@ -93,11 +88,18 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.resourcehints.ResourceHint;
 import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
+import org.apache.beam.sdk.transforms.windowing.ReshuffleTrigger;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.AppliedCombineFn;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.DoFnInfo;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.construction.Environments;
+import org.apache.beam.sdk.util.construction.ParDoTranslation;
+import org.apache.beam.sdk.util.construction.SdkComponents;
+import org.apache.beam.sdk.util.construction.SplittableParDo;
+import org.apache.beam.sdk.util.construction.TransformInputs;
+import org.apache.beam.sdk.util.construction.WindowingStrategyTranslation;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -107,7 +109,7 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
@@ -428,7 +430,11 @@ public class DataflowPipelineTranslator {
         environment.setDebugOptions(debugOptions);
       }
 
-      pipeline.traverseTopologically(this);
+      if (DataflowRunner.useUnifiedWorker(options)) {
+        LOG.info("Skipping v1 pipeline translation since this job will run on v2.");
+      } else {
+        pipeline.traverseTopologically(this);
+      }
 
       return job;
     }
@@ -910,6 +916,41 @@ public class DataflowPipelineTranslator {
 
             // TODO: Add support for combiner lifting once the need arises.
             stepContext.addInput(PropertyNames.DISALLOW_COMBINER_LIFTING, true);
+          }
+        });
+
+    registerTransformTranslator(
+        RedistributeByKey.class,
+        new TransformTranslator<RedistributeByKey>() {
+          @Override
+          public void translate(RedistributeByKey transform, TranslationContext context) {
+            redistributeByKeyHelper(transform, context);
+          }
+
+          private <K, V> void redistributeByKeyHelper(
+              RedistributeByKey<K, V> transform, TranslationContext context) {
+            StepTranslationContext stepContext = context.addStep(transform, "GroupByKey");
+
+            PCollection<KV<K, V>> input = context.getInput(transform);
+            stepContext.addInput(PropertyNames.PARALLEL_INPUT, input);
+            stepContext.addOutput(PropertyNames.OUTPUT, context.getOutput(transform));
+
+            // Dataflow worker implements reshuffle by reading GBK with ReshuffleTrigger; that is
+            // the only part of
+            // the windowing strategy that should be observed.
+            WindowingStrategy<?, ?> windowingStrategy =
+                input.getWindowingStrategy().withTrigger(new ReshuffleTrigger<>());
+            stepContext.addInput(
+                PropertyNames.SERIALIZED_FN,
+                byteArrayToJsonString(
+                    serializeWindowingStrategy(windowingStrategy, context.getPipelineOptions())));
+
+            // Many group by key options do not apply to redistribute but Dataflow doesn't
+            // understand
+            // that. We set them here to be sure to avoid any complex codepaths
+            stepContext.addInput(PropertyNames.DISALLOW_COMBINER_LIFTING, true);
+            stepContext.addInput(PropertyNames.IS_MERGING_WINDOW_FN, false);
+            stepContext.addInput(PropertyNames.ALLOW_DUPLICATES, transform.getAllowDuplicates());
           }
         });
 

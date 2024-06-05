@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.gax.rpc.StatusCode.Code;
+import com.google.auth.Credentials;
 import com.google.cloud.spanner.Options.RpcPriority;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerConfig;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -111,6 +112,11 @@ public class MetadataSpannerConfigFactory {
     ValueProvider<RpcPriority> rpcPriority = primaryConfig.getRpcPriority();
     if (rpcPriority != null) {
       config = config.withRpcPriority(StaticValueProvider.of(rpcPriority.get()));
+    }
+
+    ValueProvider<Credentials> credentials = primaryConfig.getCredentials();
+    if (credentials != null) {
+      config = config.withCredentials(credentials);
     }
 
     return config;

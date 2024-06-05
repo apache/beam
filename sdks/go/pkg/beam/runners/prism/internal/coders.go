@@ -200,7 +200,7 @@ func pullDecoder(c *pipepb.Coder, coders map[string]*pipepb.Coder) func(io.Reade
 	}
 }
 
-// pullDecoderNoAlloc returns a function that decodes a single eleemnt of the given coder.
+// pullDecoderNoAlloc returns a function that decodes a single element of the given coder.
 // Intended to only be used as an internal function for pullDecoder, which will use a io.TeeReader
 // to extract the bytes.
 func pullDecoderNoAlloc(c *pipepb.Coder, coders map[string]*pipepb.Coder) func(io.Reader) {
@@ -209,6 +209,20 @@ func pullDecoderNoAlloc(c *pipepb.Coder, coders map[string]*pipepb.Coder) func(i
 	// Anything length prefixed can be treated as opaque.
 	case urns.CoderBytes, urns.CoderStringUTF8, urns.CoderLengthPrefix:
 		return func(r io.Reader) {
+			l, _ := coder.DecodeVarInt(r)
+			ioutilx.ReadN(r, int(l))
+		}
+	case urns.CoderNullable:
+		return func(r io.Reader) {
+			b, _ := ioutilx.ReadN(r, 1)
+			if len(b) == 0 {
+				return
+			}
+			// Nullable coder is prefixed with 0 or 1 to indicate whether there exists remaining data.
+			prefix := b[0]
+			if prefix == 0 {
+				return
+			}
 			l, _ := coder.DecodeVarInt(r)
 			ioutilx.ReadN(r, int(l))
 		}

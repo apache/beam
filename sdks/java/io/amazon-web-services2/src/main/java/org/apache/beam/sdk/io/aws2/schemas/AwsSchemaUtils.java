@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.aws2.schemas;
 
 import static net.bytebuddy.matcher.ElementMatchers.isStatic;
 import static net.bytebuddy.matcher.ElementMatchers.named;
+import static org.apache.beam.sdk.util.ByteBuddyUtils.getClassLoadingStrategy;
 
 import java.util.function.BiConsumer;
 import net.bytebuddy.ByteBuddy;
@@ -26,7 +27,6 @@ import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.description.type.TypeDescription.ForLoadedType;
 import net.bytebuddy.description.type.TypeDescription.Generic;
-import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
 import net.bytebuddy.implementation.MethodCall;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.FieldValueSetter;
@@ -65,7 +65,7 @@ class AwsSchemaUtils {
               .method(named("get"))
               .intercept(MethodCall.invoke(builderMethod))
               .make()
-              .load(ReflectHelpers.findClassLoader(), ClassLoadingStrategy.Default.INJECTION)
+              .load(ReflectHelpers.findClassLoader(), getClassLoadingStrategy(clazz))
               .getLoaded()
               .getDeclaredConstructor()
               .newInstance();

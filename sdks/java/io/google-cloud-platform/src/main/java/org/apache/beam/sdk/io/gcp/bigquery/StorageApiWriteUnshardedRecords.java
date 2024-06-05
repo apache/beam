@@ -37,7 +37,6 @@ import io.grpc.Status;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -70,7 +69,6 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -747,15 +745,22 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                 quotaError = statusCode.equals(Status.Code.RESOURCE_EXHAUSTED);
               }
 
+              int allowedRetry;
+
               if (!quotaError) {
                 // This forces us to close and reopen all gRPC connections to Storage API on error,
                 // which empirically fixes random stuckness issues.
                 invalidateWriteStream();
+                allowedRetry = 5;
+              } else {
+                allowedRetry = 10;
               }
 
               // Maximum number of times we retry before we fail the work item.
-              if (failedContext.failureCount > 5) {
-                throw new RuntimeException("More than 5 attempts to call AppendRows failed.");
+              if (failedContext.failureCount > allowedRetry) {
+                throw new RuntimeException(
+                    String.format(
+                        "More than %d attempts to call AppendRows failed.", allowedRetry));
               }
 
               // The following errors are known to be persistent, so always fail the work item in
@@ -946,11 +951,12 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       long numRowsWritten = 0;
       for (DestinationState destinationState :
           Preconditions.checkStateNotNull(destinations).values()) {
+
         RetryManager<AppendRowsResponse, AppendRowsContext> retryManager =
             new RetryManager<>(
                 Duration.standardSeconds(1),
-                Duration.standardSeconds(10),
-                1000,
+                Duration.standardSeconds(20),
+                500,
                 BigQuerySinkMetrics.throttledTimeCounter(
                     BigQuerySinkMetrics.RpcMethod.APPEND_ROWS));
         retryManagers.add(retryManager);
@@ -1095,15 +1101,6 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                 BigQueryStorageApiInsertError output, org.joda.time.Instant timestamp) {
               context.output(failedRowsTag, output, timestamp, GlobalWindow.INSTANCE);
             }
-
-            @Override
-            public void outputWindowedValue(
-                BigQueryStorageApiInsertError output,
-                org.joda.time.Instant timestamp,
-                Collection<? extends BoundedWindow> windows,
-                PaneInfo paneInfo) {
-              throw new UnsupportedOperationException("outputWindowedValue not supported");
-            }
           };
       @Nullable OutputReceiver<TableRow> successfulRowsReceiver = null;
       if (successfulRowsTag != null) {
@@ -1117,15 +1114,6 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
               @Override
               public void outputWithTimestamp(TableRow output, org.joda.time.Instant timestamp) {
                 context.output(successfulRowsTag, output, timestamp, GlobalWindow.INSTANCE);
-              }
-
-              @Override
-              public void outputWindowedValue(
-                  TableRow output,
-                  org.joda.time.Instant timestamp,
-                  Collection<? extends BoundedWindow> windows,
-                  PaneInfo paneInfo) {
-                throw new UnsupportedOperationException("outputWindowedValue not supported");
               }
             };
       }

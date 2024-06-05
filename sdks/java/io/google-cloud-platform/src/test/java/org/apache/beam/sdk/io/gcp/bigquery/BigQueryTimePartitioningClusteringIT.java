@@ -225,6 +225,7 @@ public class BigQueryTimePartitioningClusteringIT {
     Table table = bqClient.tables().get(options.getProject(), DATASET_NAME, tableName).execute();
 
     Assert.assertEquals(table.getClustering(), CLUSTERING);
+    Assert.assertEquals(table.getTimePartitioning(), TIME_PARTITIONING);
   }
 
   @Test

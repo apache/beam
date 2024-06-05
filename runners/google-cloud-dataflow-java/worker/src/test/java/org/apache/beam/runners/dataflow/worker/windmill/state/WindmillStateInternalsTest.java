@@ -47,6 +47,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
@@ -82,7 +83,7 @@ import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.TimestampedValue;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ArrayListMultimap;
@@ -205,7 +206,7 @@ public class WindmillStateInternalsTest {
   public void setUp() {
     MockitoAnnotations.initMocks(this);
     options = PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
-    cache = new WindmillStateCache(options.getWorkerCacheMb());
+    cache = WindmillStateCache.ofSizeMbs(options.getWorkerCacheMb());
     resetUnderTest();
   }
 
@@ -1872,17 +1873,62 @@ public class WindmillStateInternalsTest {
   }
 
   @Test
+  public void testOrderedListAddBeforeRangeRead() throws Exception {
+    StateTag<OrderedListState<String>> addr =
+        StateTags.orderedList("orderedList", StringUtf8Coder.of());
+    OrderedListState<String> orderedList = underTest.state(NAMESPACE, addr);
+
+    SettableFuture<Iterable<TimestampedValue<String>>> future = SettableFuture.create();
+    Range<Long> readSubrange = Range.closedOpen(70 * 1000L, 100 * 1000L);
+    when(mockReader.orderedListFuture(
+            readSubrange, key(NAMESPACE, "orderedList"), STATE_FAMILY, StringUtf8Coder.of()))
+        .thenReturn(future);
+
+    orderedList.readRangeLater(Instant.ofEpochMilli(70), Instant.ofEpochMilli(100));
+
+    final TimestampedValue<String> helloValue =
+        TimestampedValue.of("hello", Instant.ofEpochMilli(100));
+    final TimestampedValue<String> worldValue =
+        TimestampedValue.of("world", Instant.ofEpochMilli(75));
+    final TimestampedValue<String> goodbyeValue =
+        TimestampedValue.of("goodbye", Instant.ofEpochMilli(50));
+
+    orderedList.add(helloValue);
+    waitAndSet(future, Collections.singletonList(worldValue), 200);
+    orderedList.add(goodbyeValue);
+
+    assertThat(
+        orderedList.readRange(Instant.ofEpochMilli(70), Instant.ofEpochMilli(100)),
+        Matchers.contains(worldValue));
+  }
+
+  @Test
   public void testOrderedListClearBeforeRead() throws Exception {
     StateTag<OrderedListState<String>> addr =
         StateTags.orderedList("orderedList", StringUtf8Coder.of());
     OrderedListState<String> orderedListState = underTest.state(NAMESPACE, addr);
 
-    final TimestampedValue<String> helloElement = TimestampedValue.of("hello", Instant.EPOCH);
+    final TimestampedValue<String> helloElement =
+        TimestampedValue.of("hello", Instant.ofEpochSecond(1));
     orderedListState.clear();
     orderedListState.add(helloElement);
     assertThat(orderedListState.read(), Matchers.containsInAnyOrder(helloElement));
+    // Shouldn't need to read from windmill for this.
+    Mockito.verifyZeroInteractions(mockReader);
+
+    assertThat(
+        orderedListState.readRange(Instant.ofEpochSecond(1), Instant.ofEpochSecond(2)),
+        Matchers.containsInAnyOrder(helloElement));
+    // Shouldn't need to read from windmill for this.
+    Mockito.verifyZeroInteractions(mockReader);
 
     // Shouldn't need to read from windmill for this.
+    assertThat(
+        orderedListState.readRange(Instant.ofEpochSecond(100), Instant.ofEpochSecond(200)),
+        Matchers.emptyIterable());
+    assertThat(
+        orderedListState.readRange(Instant.EPOCH, Instant.ofEpochSecond(1)),
+        Matchers.emptyIterable());
     Mockito.verifyZeroInteractions(mockReader);
   }
 
@@ -2198,6 +2244,66 @@ public class WindmillStateInternalsTest {
             TimestampedValue.class);
 
     TimestampedValue[] read = Iterables.toArray(orderedListState.read(), TimestampedValue.class);
+    assertArrayEquals(expected, read);
+  }
+
+  @Test
+  public void testOrderedListInterleavedLocalAddClearReadRange() {
+    Future<Map<Range<Instant>, RangeSet<Long>>> orderedListFuture = Futures.immediateFuture(null);
+    Future<Map<Range<Instant>, RangeSet<Instant>>> deletionsFuture = Futures.immediateFuture(null);
+    when(mockReader.valueFuture(
+            systemKey(NAMESPACE, "orderedList" + IdTracker.IDS_AVAILABLE_STR),
+            STATE_FAMILY,
+            IdTracker.IDS_AVAILABLE_CODER))
+        .thenReturn(orderedListFuture);
+    when(mockReader.valueFuture(
+            systemKey(NAMESPACE, "orderedList" + IdTracker.DELETIONS_STR),
+            STATE_FAMILY,
+            IdTracker.SUBRANGE_DELETIONS_CODER))
+        .thenReturn(deletionsFuture);
+
+    SettableFuture<Iterable<TimestampedValue<String>>> fromStorage = SettableFuture.create();
+
+    Range<Long> readSubrange = Range.closedOpen(1 * 1000000L, 8 * 1000000L);
+    when(mockReader.orderedListFuture(
+            readSubrange, key(NAMESPACE, "orderedList"), STATE_FAMILY, StringUtf8Coder.of()))
+        .thenReturn(fromStorage);
+
+    StateTag<OrderedListState<String>> addr =
+        StateTags.orderedList("orderedList", StringUtf8Coder.of());
+    OrderedListState<String> orderedListState = underTest.state(NAMESPACE, addr);
+
+    orderedListState.add(TimestampedValue.of("1", Instant.ofEpochSecond(1)));
+    orderedListState.add(TimestampedValue.of("2", Instant.ofEpochSecond(2)));
+    orderedListState.add(TimestampedValue.of("3", Instant.ofEpochSecond(3)));
+    orderedListState.add(TimestampedValue.of("4", Instant.ofEpochSecond(4)));
+
+    orderedListState.clearRange(Instant.ofEpochSecond(1), Instant.ofEpochSecond(4));
+
+    orderedListState.add(TimestampedValue.of("5", Instant.ofEpochSecond(5)));
+    orderedListState.add(TimestampedValue.of("6", Instant.ofEpochSecond(6)));
+
+    orderedListState.add(TimestampedValue.of("3_again", Instant.ofEpochSecond(3)));
+
+    orderedListState.add(TimestampedValue.of("7", Instant.ofEpochSecond(7)));
+    orderedListState.add(TimestampedValue.of("8", Instant.ofEpochSecond(8)));
+
+    fromStorage.set(ImmutableList.<TimestampedValue<String>>of());
+
+    TimestampedValue[] expected =
+        Iterables.toArray(
+            ImmutableList.of(
+                TimestampedValue.of("3_again", Instant.ofEpochSecond(3)),
+                TimestampedValue.of("4", Instant.ofEpochSecond(4)),
+                TimestampedValue.of("5", Instant.ofEpochSecond(5)),
+                TimestampedValue.of("6", Instant.ofEpochSecond(6)),
+                TimestampedValue.of("7", Instant.ofEpochSecond(7))),
+            TimestampedValue.class);
+
+    TimestampedValue[] read =
+        Iterables.toArray(
+            orderedListState.readRange(Instant.ofEpochSecond(1), Instant.ofEpochSecond(8)),
+            TimestampedValue.class);
     assertArrayEquals(expected, read);
   }
 
@@ -2937,7 +3043,7 @@ public class WindmillStateInternalsTest {
     value.write("Hi");
     underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
 
-    assertEquals(132, cache.getWeight());
+    assertEquals(221, cache.getWeight());
 
     resetUnderTest();
     value = underTest.state(NAMESPACE, addr);
@@ -2945,7 +3051,7 @@ public class WindmillStateInternalsTest {
     value.clear();
     underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
 
-    assertEquals(130, cache.getWeight());
+    assertEquals(219, cache.getWeight());
 
     resetUnderTest();
     value = underTest.state(NAMESPACE, addr);
@@ -2977,7 +3083,7 @@ public class WindmillStateInternalsTest {
 
     underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
 
-    assertEquals(140, cache.getWeight());
+    assertEquals(227, cache.getWeight());
 
     resetUnderTest();
     bag = underTest.state(NAMESPACE, addr);
@@ -2997,7 +3103,7 @@ public class WindmillStateInternalsTest {
 
     underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
 
-    assertEquals(133, cache.getWeight());
+    assertEquals(220, cache.getWeight());
 
     resetUnderTest();
     bag = underTest.state(NAMESPACE, addr);
@@ -3008,7 +3114,7 @@ public class WindmillStateInternalsTest {
 
     underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
 
-    assertEquals(134, cache.getWeight());
+    assertEquals(221, cache.getWeight());
 
     resetUnderTest();
     bag = underTest.state(NAMESPACE, addr);
@@ -3039,7 +3145,7 @@ public class WindmillStateInternalsTest {
 
     underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
 
-    assertEquals(138, cache.getWeight());
+    assertEquals(231, cache.getWeight());
 
     resetUnderTest();
     hold = underTest.state(NAMESPACE, addr);
@@ -3048,7 +3154,7 @@ public class WindmillStateInternalsTest {
 
     underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
 
-    assertEquals(138, cache.getWeight());
+    assertEquals(231, cache.getWeight());
 
     resetUnderTest();
     hold = underTest.state(NAMESPACE, addr);
@@ -3079,7 +3185,7 @@ public class WindmillStateInternalsTest {
 
     underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
 
-    assertEquals(131, cache.getWeight());
+    assertEquals(224, cache.getWeight());
 
     resetUnderTest();
     value = underTest.state(NAMESPACE, COMBINING_ADDR);
@@ -3090,7 +3196,7 @@ public class WindmillStateInternalsTest {
 
     underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
 
-    assertEquals(130, cache.getWeight());
+    assertEquals(223, cache.getWeight());
 
     resetUnderTest();
     value = underTest.state(NAMESPACE, COMBINING_ADDR);

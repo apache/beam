@@ -82,7 +82,6 @@ func (h *pardo) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipepb
 		!pdo.RequestsFinalization &&
 		!pdo.RequiresStableInput &&
 		!pdo.RequiresTimeSortedInput &&
-		len(pdo.TimerFamilySpecs) == 0 &&
 		pdo.RestrictionCoderId == "" {
 		// Which inputs are Side inputs don't change the graph further,
 		// so they're not included here. Any nearly any ParDo can have them.

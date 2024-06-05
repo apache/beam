@@ -43,7 +43,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -66,7 +65,7 @@ public class FhirIOSearchIT {
   private static final String BASE_STORE_ID =
       "FHIR_store_search_it_" + System.currentTimeMillis() + "_" + new SecureRandom().nextInt(32);
   private String fhirStoreId;
-  private static final int MAX_NUM_OF_SEARCHES = 50;
+  private static final int MAX_NUM_OF_SEARCHES = 20;
   private List<FhirSearchParameter<String>> input = new ArrayList<>();
   private List<FhirSearchParameter<List<Integer>>> genericParametersInput = new ArrayList<>();
   private static final String KEY = "key";
@@ -96,9 +95,9 @@ public class FhirIOSearchIT {
 
     JsonArray fhirResources =
         JsonParser.parseString(bundles.get(0)).getAsJsonObject().getAsJsonArray("entry");
-    Map<String, String> searchParameters = ImmutableMap.of("_count", "50");
+    Map<String, String> searchParameters = ImmutableMap.of("_count", "20");
     Map<String, List<Integer>> genericSearchParameters =
-        ImmutableMap.of("_count", Arrays.asList(50));
+        ImmutableMap.of("_count", Arrays.asList(20));
 
     // Include a non-resource type search.
     input.add(FhirSearchParameter.of("", KEY, searchParameters));
@@ -127,7 +126,6 @@ public class FhirIOSearchIT {
     }
   }
 
-  @Ignore("https://github.com/apache/beam/issues/28505")
   @Test
   public void testFhirIOSearch() {
     pipeline.getOptions().as(DirectOptions.class).setBlockOnRun(false);
@@ -157,7 +155,6 @@ public class FhirIOSearchIT {
     pipeline.run().waitUntilFinish();
   }
 
-  @Ignore("https://github.com/apache/beam/issues/28505")
   @Test
   public void testFhirIOSearchWithGenericParameters() {
     pipeline.getOptions().as(DirectOptions.class).setBlockOnRun(false);

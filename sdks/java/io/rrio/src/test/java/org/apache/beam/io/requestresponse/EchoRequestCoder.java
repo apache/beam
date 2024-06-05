@@ -25,6 +25,7 @@ import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.testinfra.mockapis.echo.v1.Echo.EchoRequest;
 import org.checkerframework.checker.nullness.qual.NonNull;
 
+/** A {@link CustomCoder} for {@link EchoRequest}s. */
 class EchoRequestCoder extends CustomCoder<@NonNull EchoRequest> {
 
   @Override
