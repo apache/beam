@@ -22,6 +22,8 @@ import static org.apache.beam.sdk.values.Row.toRow;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import java.io.IOException;
+import java.io.InputStream;
 import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.List;
@@ -189,6 +191,14 @@ public class YamlUtils {
     try {
       return MAPPER.readValue(yamlString, Map.class);
     } catch (JsonProcessingException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  public static Map<String, Object> inputStreamToMap(InputStream inputStream) {
+    try {
+      return MAPPER.readValue(inputStream, Map.class);
+    } catch (IOException e) {
       throw new RuntimeException(e);
     }
   }

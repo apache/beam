@@ -22,7 +22,7 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import org.yaml.snakeyaml.Yaml;
+import org.apache.beam.sdk.schemas.utils.YamlUtils;
 
 @AutoValue
 public abstract class TransformServiceConfig {
@@ -41,8 +41,7 @@ public abstract class TransformServiceConfig {
   }
 
   static TransformServiceConfig parseFromYamlStream(InputStream inputStream) {
-    Yaml yaml = new Yaml();
-    Map<Object, Object> config = yaml.load(inputStream);
+    Map<String, Object> config = YamlUtils.inputStreamToMap(inputStream);
     if (config == null) {
       throw new IllegalArgumentException(
           "Could not parse the provided YAML stream into a non-trivial TransformServiceConfig");

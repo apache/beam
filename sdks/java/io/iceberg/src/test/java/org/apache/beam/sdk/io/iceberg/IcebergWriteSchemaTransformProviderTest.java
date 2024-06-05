@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.apache.beam.sdk.managed.Managed;
+import org.apache.beam.sdk.schemas.utils.YamlUtils;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -47,7 +48,6 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.yaml.snakeyaml.Yaml;
 
 @RunWith(JUnit4.class)
 public class IcebergWriteSchemaTransformProviderTest {
@@ -132,7 +132,7 @@ public class IcebergWriteSchemaTransformProviderTest {
                 + "  catalog_type: %s\n"
                 + "  warehouse_location: %s",
             identifier, CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP, warehouse.location);
-    Map<String, Object> configMap = new Yaml().load(yamlConfig);
+    Map<String, Object> configMap = YamlUtils.yamlStringToMap(yamlConfig);
 
     PCollection<Row> inputRows =
         testPipeline
