@@ -27,6 +27,7 @@ from apache_beam.examples.snippets.util import assert_matches_stdout
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 
+from . import map_context
 from . import map_function
 from . import map_lambda
 from . import map_multiple_arguments
@@ -35,7 +36,6 @@ from . import map_side_inputs_iter
 from . import map_side_inputs_singleton
 from . import map_simple
 from . import map_tuple
-from . import map_context
 
 
 def check_plants(actual):
