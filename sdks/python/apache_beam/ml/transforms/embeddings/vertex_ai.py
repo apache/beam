@@ -185,7 +185,8 @@ class _VertexAIImageEmbeddingHandler(ModelHandler):
     # Maximum request size for muli-model embedding models is 1.
     for img in batch:
       try:
-        embedding_response= model.get_embeddings(image=img, dimension=self.dimension)
+        embedding_response = model.get_embeddings(
+            image=img, dimension=self.dimension)
         embeddings.append(embedding_response.image_embedding)
       except Exception as e:
         print(e)
@@ -233,7 +234,8 @@ class VertexAIImageEmbeddings(EmbeddingsManager):
     self.location = location
     self.credentials = credentials
     if dimension is not None and dimension not in (128, 256, 512, 1408):
-        raise ValueError("dimension argument must be one of 128, 256, 512, or 1408")
+      raise ValueError(
+          "dimension argument must be one of 128, 256, 512, or 1408")
     self.dimension = dimension
     super().__init__(columns=columns, **kwargs)
 

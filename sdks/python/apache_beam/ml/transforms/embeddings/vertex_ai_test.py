@@ -263,9 +263,7 @@ class VertexAIImageEmbeddingsTest(unittest.TestCase):
 
   def test_vertex_ai_image_embedding(self):
     embedding_config = VertexAIImageEmbeddings(
-        model_name=self.model_name,
-        columns=[test_query_column],
-        dimension=128)
+        model_name=self.model_name, columns=[test_query_column], dimension=128)
     with beam.Pipeline() as pipeline:
       transformed_pcoll = (
           pipeline | "CreateData" >> beam.Create([{
@@ -274,7 +272,7 @@ class VertexAIImageEmbeddingsTest(unittest.TestCase):
           | "MLTransform" >> MLTransform(
               write_artifact_location=self.artifact_location).with_transform(
                   embedding_config))
-      
+
       def assert_element(element):
         assert len(element[test_query_column]) == 128
 
@@ -283,9 +281,9 @@ class VertexAIImageEmbeddingsTest(unittest.TestCase):
   def test_improper_dimension(self):
     with self.assertRaises(ValueError):
       embedding_config = VertexAIImageEmbeddings(
-        model_name=self.model_name,
-        columns=[test_query_column],
-        dimension=127)
+          model_name=self.model_name,
+          columns=[test_query_column],
+          dimension=127)
 
 
 if __name__ == '__main__':
