@@ -34,6 +34,7 @@ import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.managed.Managed;
 import org.apache.beam.sdk.managed.ManagedTransformConstants;
+import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.utils.YamlUtils;
 import org.apache.beam.sdk.values.PBegin;
@@ -131,7 +132,8 @@ public class KafkaReadSchemaTransformProviderTest {
             "confluent_schema_registry_url",
             "error_handling",
             "file_descriptor_path",
-            "message_name"),
+            "message_name",
+            "max_read_time_seconds"),
         kafkaProvider.configurationSchema().getFields().stream()
             .map(field -> field.getName())
             .collect(Collectors.toSet()));
@@ -232,22 +234,23 @@ public class KafkaReadSchemaTransformProviderTest {
             .collect(Collectors.toList());
     KafkaReadSchemaTransformProvider kafkaProvider =
         (KafkaReadSchemaTransformProvider) providers.get(0);
+    SchemaTransform transform =
+        kafkaProvider.from(
+            KafkaReadSchemaTransformConfiguration.builder()
+                .setTopic("anytopic")
+                .setBootstrapServers("anybootstrap")
+                .setFormat("PROTO")
+                .setMessageName("MyOtherMessage")
+                .setFileDescriptorPath(
+                    Objects.requireNonNull(
+                            getClass()
+                                .getResource("/proto_byte/file_descriptor/proto_byte_utils.pb"))
+                        .getPath())
+                .build());
 
     assertThrows(
         NullPointerException.class,
-        () ->
-            kafkaProvider.from(
-                KafkaReadSchemaTransformConfiguration.builder()
-                    .setTopic("anytopic")
-                    .setBootstrapServers("anybootstrap")
-                    .setFormat("PROTO")
-                    .setMessageName("MyOtherMessage")
-                    .setFileDescriptorPath(
-                        Objects.requireNonNull(
-                                getClass()
-                                    .getResource("/proto_byte/file_descriptor/proto_byte_utils.pb"))
-                            .getPath())
-                    .build()));
+        () -> transform.expand(PCollectionRowTuple.empty(Pipeline.create())));
   }
 
   @Test
@@ -281,17 +284,18 @@ public class KafkaReadSchemaTransformProviderTest {
             .collect(Collectors.toList());
     KafkaReadSchemaTransformProvider kafkaProvider =
         (KafkaReadSchemaTransformProvider) providers.get(0);
+    SchemaTransform transform =
+        kafkaProvider.from(
+            KafkaReadSchemaTransformConfiguration.builder()
+                .setTopic("anytopic")
+                .setBootstrapServers("anybootstrap")
+                .setFormat("PROTO")
+                .setMessageName("MyMessage")
+                .build());
 
     assertThrows(
         IllegalArgumentException.class,
-        () ->
-            kafkaProvider.from(
-                KafkaReadSchemaTransformConfiguration.builder()
-                    .setTopic("anytopic")
-                    .setBootstrapServers("anybootstrap")
-                    .setFormat("PROTO")
-                    .setMessageName("MyMessage")
-                    .build()));
+        () -> transform.expand(PCollectionRowTuple.empty(Pipeline.create())));
   }
 
   @Test
