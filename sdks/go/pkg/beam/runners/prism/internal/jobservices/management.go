@@ -201,7 +201,13 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jo
 			check("WindowingStrategy.OutputTime", ws.GetOutputTime(), pipepb.OutputTime_END_OF_WINDOW)
 			// Non nil triggers should fail.
 			if ws.GetTrigger().GetDefault() == nil {
-				check("WindowingStrategy.Trigger", ws.GetTrigger(), &pipepb.Trigger_Default{})
+				dt := &pipepb.Trigger{
+					Trigger: &pipepb.Trigger_Default_{},
+				}
+				nt := &pipepb.Trigger{
+					Trigger: &pipepb.Trigger_Never_{},
+				}
+				check("WindowingStrategy.Trigger", ws.GetTrigger().String(), dt.String(), nt.String())
 			}
 		}
 	}

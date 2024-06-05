@@ -424,7 +424,10 @@ class InlineProvider(Provider):
     return self._transform_factories.keys()
 
   def config_schema(self, typ):
-    factory = self._transform_factories[typ]
+    return self.config_schema_from_callable(self._transform_factories[typ])
+
+  @classmethod
+  def config_schema_from_callable(cls, factory):
     if isinstance(factory, type) and issubclass(factory, beam.PTransform):
       # https://bugs.python.org/issue40897
       params = dict(inspect.signature(factory.__init__).parameters)
@@ -442,7 +445,7 @@ class InlineProvider(Provider):
 
     docs = {
         param.arg_name: param.description
-        for param in self.get_docs(typ).params
+        for param in cls.get_docs(factory).params
     }
 
     names_and_types = [
@@ -455,17 +458,22 @@ class InlineProvider(Provider):
         ])
 
   def description(self, typ):
+    return self.description_from_callable(self._transform_factories[typ])
+
+  @classmethod
+  def description_from_callable(cls, factory):
     def empty_if_none(s):
       return s or ''
 
-    docs = self.get_docs(typ)
+    docs = cls.get_docs(factory)
     return (
         empty_if_none(docs.short_description) +
         ('\n\n' if docs.blank_after_short_description else '\n') +
         empty_if_none(docs.long_description)).strip() or None
 
-  def get_docs(self, typ):
-    docstring = self._transform_factories[typ].__doc__ or ''
+  @classmethod
+  def get_docs(cls, factory):
+    docstring = factory.__doc__ or ''
     # These "extra" docstring parameters are not relevant for YAML and mess
     # up the parsing.
     docstring = re.sub(
@@ -510,6 +518,15 @@ class SqlBackedProvider(Provider):
 
   def provided_transforms(self):
     return self._transforms.keys()
+
+  def config_schema(self, type):
+    full_config = InlineProvider.config_schema_from_callable(
+        self._transforms[type])
+    # Omit the (first) query -> transform parameter.
+    return schema_pb2.Schema(fields=full_config.fields[1:])
+
+  def description(self, type):
+    return InlineProvider.description_from_callable(self._transforms[type])
 
   def available(self):
     return self.sql_provider().available()
@@ -557,7 +574,30 @@ def dicts_to_rows(o):
 
 class YamlProviders:
   class AssertEqual(beam.PTransform):
-    def __init__(self, elements):
+    """Asserts that the input contains exactly the elements provided.
+
+    This is primarily used for testing; it will cause the entire pipeline to
+    fail if the input to this transform is not exactly the set of `elements`
+    given in the config parameter.
+
+    As with Create, YAML/JSON-style mappings are interpreted as Beam rows,
+    e.g.::
+
+        type: AssertEqual
+        input: SomeTransform
+        config:
+          elements:
+             - {a: 0, b: "foo"}
+             - {a: 1, b: "bar"}
+
+    would ensure that `SomeTransform` produced exactly two elements with values
+    `(a=0, b="foo")` and `(a=1, b="bar")` respectively.
+
+    Args:
+        elements: The set of elements that should belong to the PCollection.
+            YAML/JSON-style mappings will be interpreted as Beam rows.
+    """
+    def __init__(self, elements: Iterable[Any]):
       self._elements = elements
 
     def expand(self, pcoll):
@@ -889,7 +929,7 @@ def create_java_builtin_provider():
     return java_provider.create_transform(
         'WindowIntoStrategy',
         {
-            'serializedWindowingStrategy': windowing_strategy.to_runner_api(
+            'serialized_windowing_strategy': windowing_strategy.to_runner_api(
                 empty_context).SerializeToString()
         },
         None)

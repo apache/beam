@@ -55,8 +55,7 @@ public class IcebergReadSchemaTransformProviderTest {
     Row catalogConfigRow =
         Row.withSchema(IcebergSchemaTransformCatalogConfig.SCHEMA)
             .withFieldValue("catalog_name", "test_name")
-            .withFieldValue("catalog_type", "test_type")
-            .withFieldValue("catalog_implementation", "testImplementation")
+            .withFieldValue("catalog_type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
             .withFieldValue("warehouse_location", "test_location")
             .build();
     Row transformConfigRow =
@@ -167,9 +166,9 @@ public class IcebergReadSchemaTransformProviderTest {
     Map<String, Object> configMap = new Yaml().load(yamlConfig);
 
     PCollection<Row> output =
-        PCollectionRowTuple.empty(testPipeline)
+        testPipeline
             .apply(Managed.read(Managed.ICEBERG).withConfig(configMap))
-            .get(OUTPUT_TAG);
+            .getSinglePCollection();
 
     PAssert.that(output)
         .satisfies(

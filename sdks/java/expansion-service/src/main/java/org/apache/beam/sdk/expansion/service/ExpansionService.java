@@ -81,6 +81,7 @@ import org.apache.beam.sdk.util.construction.RehydratedComponents;
 import org.apache.beam.sdk.util.construction.SdkComponents;
 import org.apache.beam.sdk.util.construction.SplittableParDo;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
@@ -246,6 +247,11 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
 
     private final TransformPayloadTranslator<PTransform<InputT, OutputT>> payloadTranslator;
 
+    // Returns true if the underlying transform represented by this is a schema-aware transform.
+    private boolean isSchemaTransform() {
+      return (payloadTranslator instanceof SchemaTransformPayloadTranslator);
+    }
+
     private TransformProviderForPayloadTranslator(
         TransformPayloadTranslator<PTransform<InputT, OutputT>> payloadTranslator) {
       this.payloadTranslator = payloadTranslator;
@@ -254,28 +260,51 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
     @Override
     public PTransform<InputT, OutputT> getTransform(
         RunnerApi.FunctionSpec spec, PipelineOptions options) {
-      try {
-        ExternalConfigurationPayload payload =
-            ExternalConfigurationPayload.parseFrom(spec.getPayload());
-        Row configRow =
-            RowCoder.of(SchemaTranslation.schemaFromProto(payload.getSchema()))
-                .decode(new ByteArrayInputStream(payload.getPayload().toByteArray()));
-        PTransform transformFromRow = payloadTranslator.fromConfigRow(configRow, options);
-        if (transformFromRow != null) {
-          return transformFromRow;
-        } else {
+      if (isSchemaTransform()) {
+        return ExpansionServiceSchemaTransformProvider.of().getTransform(spec, options);
+      } else {
+        try {
+          ExternalConfigurationPayload payload =
+              ExternalConfigurationPayload.parseFrom(spec.getPayload());
+          Row configRow =
+              RowCoder.of(SchemaTranslation.schemaFromProto(payload.getSchema()))
+                  .decode(new ByteArrayInputStream(payload.getPayload().toByteArray()));
+          PTransform transformFromRow = payloadTranslator.fromConfigRow(configRow, options);
+          if (transformFromRow != null) {
+            return transformFromRow;
+          } else {
+            throw new RuntimeException(
+                String.format(
+                    "A transform cannot be initiated using the provided config row %s and the"
+                        + " TransformPayloadTranslator %s",
+                    configRow, payloadTranslator));
+          }
+        } catch (Exception e) {
           throw new RuntimeException(
               String.format(
-                  "A transform cannot be initiated using the provided config row %s and the"
-                      + " TransformPayloadTranslator %s",
-                  configRow, payloadTranslator));
+                  "Failed to build transform %s from spec %s: %s",
+                  spec.getUrn(), spec, e.getMessage()),
+              e);
         }
-      } catch (Exception e) {
-        throw new RuntimeException(
-            String.format(
-                "Failed to build transform %s from spec %s: %s",
-                spec.getUrn(), spec, e.getMessage()),
-            e);
+      }
+    }
+
+    @Override
+    public InputT createInput(Pipeline p, Map<String, PCollection<?>> inputs) {
+      if (isSchemaTransform()) {
+        return (InputT) ExpansionServiceSchemaTransformProvider.of().createInput(p, inputs);
+      } else {
+        return TransformProvider.super.createInput(p, inputs);
+      }
+    }
+
+    @Override
+    public Map<String, PCollection<?>> extractOutputs(OutputT output) {
+      if (isSchemaTransform()) {
+        return ExpansionServiceSchemaTransformProvider.of()
+            .extractOutputs((PCollectionRowTuple) output);
+      } else {
+        return TransformProvider.super.extractOutputs(output);
       }
     }
 

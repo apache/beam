@@ -30,6 +30,7 @@ import com.google.api.services.dataflow.model.CounterStructuredName;
 import com.google.api.services.dataflow.model.CounterStructuredNameAndMetadata;
 import com.google.api.services.dataflow.model.CounterUpdate;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
@@ -55,6 +56,8 @@ import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.NoopProfileScope;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.ProfileScope;
+import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
+import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
@@ -89,6 +92,8 @@ public class StreamingModeExecutionContextTest {
   @Mock private SideInputStateFetcher sideInputStateFetcher;
   @Mock private WindmillStateReader stateReader;
 
+  private static final String COMPUTATION_ID = "computationId";
+
   private final StreamingModeExecutionStateRegistry executionStateRegistry =
       new StreamingModeExecutionStateRegistry();
   private StreamingModeExecutionContext executionContext;
@@ -104,7 +109,7 @@ public class StreamingModeExecutionContextTest {
     executionContext =
         new StreamingModeExecutionContext(
             counterSet,
-            "computationId",
+            COMPUTATION_ID,
             new ReaderCache(Duration.standardMinutes(1), Executors.newCachedThreadPool()),
             stateNameMap,
             WindmillStateCache.ofSizeMbs(options.getWorkerCacheMb()).forComputation("comp"),
@@ -120,6 +125,18 @@ public class StreamingModeExecutionContextTest {
             Long.MAX_VALUE);
   }
 
+  private static Work createMockWork(Windmill.WorkItem workItem, Watermarks watermarks) {
+    return Work.create(
+        workItem,
+        watermarks,
+        Work.createProcessingContext(
+            COMPUTATION_ID,
+            (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance(),
+            ignored -> {}),
+        Instant::now,
+        Collections.emptyList());
+  }
+
   @Test
   public void testTimerInternalsSetTimer() {
     Windmill.WorkItemCommitRequest.Builder outputBuilder =
@@ -129,16 +146,15 @@ public class StreamingModeExecutionContextTest {
         executionContext.createOperationContext(nameContext);
     StreamingModeExecutionContext.StepContext stepContext =
         executionContext.getStepContext(operationContext);
+
     executionContext.start(
         "key",
-        Windmill.WorkItem.newBuilder().setKey(ByteString.EMPTY).setWorkToken(17L).build(),
-        new Instant(1000), // input watermark
-        null, // output watermark
-        null, // synchronized processing time
+        createMockWork(
+            Windmill.WorkItem.newBuilder().setKey(ByteString.EMPTY).setWorkToken(17L).build(),
+            Watermarks.builder().setInputDataWatermark(new Instant(1000)).build()),
         stateReader,
         sideInputStateFetcher,
-        outputBuilder,
-        null);
+        outputBuilder);
 
     TimerInternals timerInternals = stepContext.timerInternals();
 
@@ -182,14 +198,12 @@ public class StreamingModeExecutionContextTest {
 
     executionContext.start(
         "key",
-        workItemBuilder.build(),
-        new Instant(1000), // input watermark
-        null, // output watermark
-        null, // synchronized processing time
+        createMockWork(
+            workItemBuilder.build(),
+            Watermarks.builder().setInputDataWatermark(new Instant(1000)).build()),
         stateReader,
         sideInputStateFetcher,
-        outputBuilder,
-        null);
+        outputBuilder);
     TimerInternals timerInternals = stepContext.timerInternals();
     assertTrue(timerTimestamp.isBefore(timerInternals.currentProcessingTime()));
   }

@@ -25,7 +25,6 @@ import org.apache.beam.sdk.io.iceberg.IcebergReadSchemaTransformProvider.Config;
 import org.apache.beam.sdk.managed.ManagedTransformConstants;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
-import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
@@ -131,16 +130,5 @@ public class IcebergReadSchemaTransformProvider extends TypedSchemaTransformProv
 
       return PCollectionRowTuple.of(OUTPUT_TAG, output);
     }
-  }
-
-  // TODO: set global snake_case naming convention and remove these special cases
-  @Override
-  public SchemaTransform from(Row rowConfig) {
-    return super.from(rowConfig.toCamelCase());
-  }
-
-  @Override
-  public Schema configurationSchema() {
-    return super.configurationSchema().toSnakeCase();
   }
 }
