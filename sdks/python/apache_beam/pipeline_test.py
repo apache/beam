@@ -793,9 +793,9 @@ class DoFnTest(unittest.TestCase):
   def test_context_params(self):
     def test_map(
         x,
-        context_a=DoFn.BundleContextParam(_TestContext('a')),
-        context_b=DoFn.BundleContextParam(_TestContext('b')),
-        context_c=DoFn.SetupContextParam(_TestContext('c'))):
+        context_a=DoFn.BundleContextParam(_TestContext, args=('a')),
+        context_b=DoFn.BundleContextParam(_TestContext, args=('b')),
+        context_c=DoFn.SetupContextParam(_TestContext, args=('c'))):
       return (x, context_a, context_b, context_c)
 
     self.assertEqual(_TestContext.live_contexts, 0)

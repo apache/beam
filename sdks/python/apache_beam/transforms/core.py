@@ -530,7 +530,9 @@ class _ContextParam(_DoFnParam):
       self, context_manager_constructor, args=(), kwargs=None, *, name=None):
     class_name = self.__class__.__name__.strip('_')
     if (not callable(context_manager_constructor) or
-        hasattr(context_manager_constructor, '__enter__')):
+        (hasattr(context_manager_constructor, '__enter__') and
+         len(inspect.signature(
+             context_manager_constructor.__enter__).parameters) == 0)):
       # Context managers constructed with @contextlib.contextmanager can only
       # be used once, and in addition cannot be pickled because they invoke
       # the function on __init__ rather than at __enter__.
