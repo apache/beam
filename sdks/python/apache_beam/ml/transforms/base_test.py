@@ -552,7 +552,7 @@ class TestImageEmbeddingHandler(unittest.TestCase):
 
   @unittest.skipIf(PIL is None, 'PIL module is not installed.')
   def test_handler_with_incompatible_datatype(self):
-    text_handler = base._ImageEmbeddingHandler(
+    image_handler = base._ImageEmbeddingHandler(
         embeddings_manager=self.embedding_config)
     data = [
         ('x', 'hi there'),
@@ -560,7 +560,7 @@ class TestImageEmbeddingHandler(unittest.TestCase):
         ('x', 'image_path.jpg'),
     ]
     with self.assertRaises(TypeError):
-      text_handler.run_inference(data, None, None)
+      image_handler.run_inference(data, None, None)
 
   @unittest.skipIf(PIL is None, 'PIL module is not installed.')
   def test_handler_with_dict_inputs(self):
