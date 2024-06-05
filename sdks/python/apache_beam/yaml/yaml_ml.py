@@ -30,7 +30,7 @@ try:
   # TODO(robertwb): Is this all of them?
   _transform_constructors = tft.__dict__
 except ImportError:
-  tft = None
+  tft = None  # type: ignore
 
 
 def _config_to_obj(spec):
@@ -62,4 +62,5 @@ def ml_transform(
       transforms=[_config_to_obj(t) for t in transforms] if transforms else [])
 
 
-ml_transform.__doc__ = MLTransform.__doc__
+if tft is not None:
+  ml_transform.__doc__ = MLTransform.__doc__
