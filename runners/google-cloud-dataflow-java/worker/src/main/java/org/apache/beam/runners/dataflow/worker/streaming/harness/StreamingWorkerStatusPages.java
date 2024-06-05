@@ -40,7 +40,7 @@ import org.apache.beam.runners.dataflow.worker.status.WorkerStatusPages;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationStateCache;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.ChannelzServlet;
-import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillStreamFactory;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillStreams;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
@@ -73,7 +73,7 @@ public final class StreamingWorkerStatusPages {
   private final ScheduledExecutorService statusPageDumper;
 
   // StreamingEngine status providers.
-  private final @Nullable GrpcWindmillStreamFactory windmillStreamFactory;
+  private final @Nullable GrpcWindmillStreams windmillStreamFactory;
   private final DebugCapture.@Nullable Manager debugCapture;
   private final @Nullable ChannelzServlet channelzServlet;
 
@@ -87,7 +87,7 @@ public final class StreamingWorkerStatusPages {
       WindmillStateCache stateCache,
       ComputationStateCache computationStateCache,
       Supplier<Long> currentActiveCommitBytes,
-      @Nullable GrpcWindmillStreamFactory windmillStreamFactory,
+      @Nullable GrpcWindmillStreams windmillStreamFactory,
       Consumer<PrintWriter> getDataStatusProvider,
       BoundedQueueExecutor workUnitExecutor,
       ScheduledExecutorService statusPageDumper) {
@@ -248,7 +248,7 @@ public final class StreamingWorkerStatusPages {
 
     Builder setCurrentActiveCommitBytes(Supplier<Long> currentActiveCommitBytes);
 
-    Builder setWindmillStreamFactory(GrpcWindmillStreamFactory windmillStreamFactory);
+    Builder setWindmillStreamFactory(GrpcWindmillStreams windmillStreamFactory);
 
     Builder setGetDataStatusProvider(Consumer<PrintWriter> getDataStatusProvider);
 

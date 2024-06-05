@@ -62,7 +62,7 @@ import org.joda.time.Instant;
  */
 @ThreadSafe
 @Internal
-public class GrpcWindmillStreamFactory implements StatusDataProvider {
+public class GrpcWindmillStreams implements StatusDataProvider {
   private static final Duration MIN_BACKOFF = Duration.millis(1);
   private static final Duration DEFAULT_MAX_BACKOFF = Duration.standardSeconds(30);
   private static final int DEFAULT_LOG_EVERY_N_STREAM_FAILURES = 1;
@@ -81,7 +81,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
   private final boolean sendKeyedGetDataRequests;
   private final Consumer<List<ComputationHeartbeatResponse>> processHeartbeatResponses;
 
-  GrpcWindmillStreamFactory(
+  GrpcWindmillStreams(
       JobHeader jobHeader,
       int logEveryNStreamFailures,
       int streamingRpcBatchLimit,
@@ -108,10 +108,10 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
   }
 
   /**
-   * Returns a new {@link Builder} for {@link GrpcWindmillStreamFactory} with default values set for
-   * the given {@link JobHeader}.
+   * Returns a new {@link Builder} for {@link GrpcWindmillStreams} with default values set for the
+   * given {@link JobHeader}.
    */
-  public static GrpcWindmillStreamFactory.Builder of(JobHeader jobHeader) {
+  public static GrpcWindmillStreams.Builder of(JobHeader jobHeader) {
     return new AutoBuilder_GrpcWindmillStreamFactory_Builder()
         .setJobHeader(jobHeader)
         .setWindmillMessagesBetweenIsReadyChecks(DEFAULT_WINDMILL_MESSAGES_BETWEEN_IS_READY_CHECKS)
@@ -250,7 +250,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
   }
 
   @Internal
-  @AutoBuilder(ofClass = GrpcWindmillStreamFactory.class)
+  @AutoBuilder(ofClass = GrpcWindmillStreams.class)
   public interface Builder {
     Builder setJobHeader(JobHeader jobHeader);
 
@@ -267,6 +267,6 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
     Builder setProcessHeartbeatResponses(
         Consumer<List<ComputationHeartbeatResponse>> processHeartbeatResponses);
 
-    GrpcWindmillStreamFactory build();
+    GrpcWindmillStreams build();
   }
 }

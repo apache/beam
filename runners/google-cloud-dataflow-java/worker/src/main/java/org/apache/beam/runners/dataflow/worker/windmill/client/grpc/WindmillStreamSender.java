@@ -68,7 +68,7 @@ public class WindmillStreamSender {
       CloudWindmillServiceV1Alpha1Stub stub,
       GetWorkRequest getWorkRequest,
       AtomicReference<GetWorkBudget> getWorkBudget,
-      GrpcWindmillStreamFactory streamingEngineStreamFactory,
+      GrpcWindmillStreams streamingEngineStreamFactory,
       WorkItemScheduler workItemScheduler,
       Function<CommitWorkStream, WorkCommitter> workCommitterFactory) {
     this.started = new AtomicBoolean(false);
@@ -107,7 +107,7 @@ public class WindmillStreamSender {
       CloudWindmillServiceV1Alpha1Stub stub,
       GetWorkRequest getWorkRequest,
       GetWorkBudget getWorkBudget,
-      GrpcWindmillStreamFactory streamingEngineStreamFactory,
+      GrpcWindmillStreams streamingEngineStreamFactory,
       WorkItemScheduler workItemScheduler,
       Function<CommitWorkStream, WorkCommitter> workCommitterFactory) {
     return new WindmillStreamSender(
