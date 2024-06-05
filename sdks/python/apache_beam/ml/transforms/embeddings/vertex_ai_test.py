@@ -280,6 +280,12 @@ class VertexAIImageEmbeddingsTest(unittest.TestCase):
 
       _ = (transformed_pcoll | beam.Map(assert_element))
 
+  def test_improper_dimension(self):
+    with self.assertRaises(ValueError):
+      embedding_config = VertexAIImageEmbeddings(
+        model_name=self.model_name,
+        columns=[test_query_column],
+        dimension=127)
 
 
 if __name__ == '__main__':

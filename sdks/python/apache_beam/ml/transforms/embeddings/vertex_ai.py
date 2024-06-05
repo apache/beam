@@ -232,8 +232,7 @@ class VertexAIImageEmbeddings(EmbeddingsManager):
     self.project = project
     self.location = location
     self.credentials = credentials
-    if dimension is not None:
-      if (dimension % 128 != 0) or (dimension < 128) or (dimension > 1408):
+    if dimension is not None and dimension not in (128, 256, 512, 1408):
         raise ValueError("dimension argument must be one of 128, 256, 512, or 1408")
     self.dimension = dimension
     super().__init__(columns=columns, **kwargs)
