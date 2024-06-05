@@ -19,6 +19,9 @@ package org.apache.beam.sdk.schemas.utils;
 
 import static org.apache.beam.sdk.values.Row.toRow;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.List;
@@ -34,9 +37,10 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Precondit
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.BaseEncoding;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.yaml.snakeyaml.Yaml;
 
 public class YamlUtils {
+  private static final ObjectMapper MAPPER = new ObjectMapper(new YAMLFactory());
+
   private static final Map<Schema.TypeName, Function<String, @Nullable Object>> YAML_VALUE_PARSERS =
       ImmutableMap
           .<Schema.TypeName,
@@ -74,16 +78,7 @@ public class YamlUtils {
                 requiredFields));
       }
     }
-    Yaml yaml = new Yaml();
-    Object yamlMap = yaml.load(yamlString);
-
-    Preconditions.checkArgument(
-        yamlMap instanceof Map,
-        "Expected a YAML mapping but got type '%s' instead.",
-        Preconditions.checkNotNull(yamlMap).getClass());
-
-    return toBeamRow(
-        (Map<String, Object>) Preconditions.checkNotNull(yamlMap), schema, convertNamesToCamelCase);
+    return toBeamRow(yamlStringToMap(yamlString), schema, convertNamesToCamelCase);
   }
 
   private static @Nullable Object toBeamValue(
@@ -180,13 +175,21 @@ public class YamlUtils {
     if (map == null || map.isEmpty()) {
       return "";
     }
-    return new Yaml().dumpAsMap(map);
+    try {
+      return MAPPER.writeValueAsString(map);
+    } catch (JsonProcessingException e) {
+      throw new RuntimeException(e);
+    }
   }
 
-  public static Map<String, Object> yamlStringToMap(@Nullable String yaml) {
-    if (yaml == null || yaml.isEmpty()) {
+  public static Map<String, Object> yamlStringToMap(@Nullable String yamlString) {
+    if (yamlString == null || yamlString.isEmpty()) {
       return Collections.emptyMap();
     }
-    return new Yaml().load(yaml);
+    try {
+      return MAPPER.readValue(yamlString, Map.class);
+    } catch (JsonProcessingException e) {
+      throw new RuntimeException(e);
+    }
   }
 }
