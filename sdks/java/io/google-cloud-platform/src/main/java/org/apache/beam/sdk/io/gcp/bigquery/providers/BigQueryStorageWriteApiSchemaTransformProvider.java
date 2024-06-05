@@ -468,7 +468,8 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
         return SchemaRegistry.createDefault()
             .getToRowFunction(BigQueryStorageWriteApiSchemaTransformConfiguration.class)
             .apply(configuration)
-            .sorted();
+            .sorted()
+            .toSnakeCase();
       } catch (NoSuchSchemaException e) {
         throw new RuntimeException(e);
       }

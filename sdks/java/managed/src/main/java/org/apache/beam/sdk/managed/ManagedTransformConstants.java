@@ -59,21 +59,13 @@ public class ManagedTransformConstants {
 
   private static final Map<String, String> BIGQUERY_STORAGE_READ_MAPPINGS =
       ImmutableMap.<String, String>builder()
-          .put("table", "tableSpec")
-          .put("query", "query")
-          .put("row_restriction", "rowRestriction")
-          .put("columns", "selectedFields")
-          .put("kms_key", "kmsKey")
+          .put("table", "table_spec")
+          .put("columns", "selected_fields")
           .build();
 
   private static final Map<String, String> BIGQUERY_STORAGE_WRITE_MAPPINGS =
       ImmutableMap.<String, String>builder()
-          .put("table", "table")
-          .put("num_shards", "numStreams")
-          .put("triggering_frequency", "triggeringFrequencySeconds")
-          .put("create_disposition", "createDisposition")
-          .put("at_least_once", "useAtLeastOnceSemantics")
-          .put("kms_key", "kmsKey")
+          .put("at_least_once", "use_at_least_once_semantics")
           .build();
 
   public static final Map<String, Map<String, String>> MAPPINGS =

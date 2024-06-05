@@ -187,7 +187,8 @@ public class BigQueryDirectReadSchemaTransformProvider
         return SchemaRegistry.createDefault()
             .getToRowFunction(BigQueryDirectReadSchemaTransformConfiguration.class)
             .apply(configuration)
-            .sorted();
+            .sorted()
+            .toSnakeCase();
       } catch (NoSuchSchemaException e) {
         throw new RuntimeException(e);
       }

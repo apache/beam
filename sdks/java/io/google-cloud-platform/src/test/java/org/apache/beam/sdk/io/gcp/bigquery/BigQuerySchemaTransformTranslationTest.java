@@ -58,20 +58,20 @@ public class BigQuerySchemaTransformTranslationTest {
   static final Row WRITE_CONFIG_ROW =
       Row.withSchema(WRITE_PROVIDER.configurationSchema())
           .withFieldValue("table", "project:dataset.table")
-          .withFieldValue("createDisposition", "create_never")
-          .withFieldValue("writeDisposition", "write_append")
-          .withFieldValue("triggeringFrequencySeconds", 5L)
-          .withFieldValue("useAtLeastOnceSemantics", false)
-          .withFieldValue("autoSharding", false)
-          .withFieldValue("numStreams", 5)
-          .withFieldValue("errorHandling", null)
+          .withFieldValue("create_disposition", "create_never")
+          .withFieldValue("write_disposition", "write_append")
+          .withFieldValue("triggering_frequency_seconds", 5L)
+          .withFieldValue("use_at_least_once_semantics", false)
+          .withFieldValue("auto_sharding", false)
+          .withFieldValue("num_streams", 5)
+          .withFieldValue("error_handling", null)
           .build();
   static final Row READ_CONFIG_ROW =
       Row.withSchema(READ_PROVIDER.configurationSchema())
           .withFieldValue("query", null)
-          .withFieldValue("tableSpec", "apache-beam-testing.samples.weather_stations")
-          .withFieldValue("rowRestriction", "col < 5")
-          .withFieldValue("selectedFields", Arrays.asList("col1", "col2", "col3"))
+          .withFieldValue("table_spec", "apache-beam-testing.samples.weather_stations")
+          .withFieldValue("row_restriction", "col < 5")
+          .withFieldValue("selected_fields", Arrays.asList("col1", "col2", "col3"))
           .build();
 
   @Test
