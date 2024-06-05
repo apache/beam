@@ -256,7 +256,7 @@ class VertexAIImageEmbeddingsTest(unittest.TestCase):
     self.gcs_artifact_location = os.path.join(
         'gs://temp-storage-for-perf-tests/vertex_ai_image', uuid.uuid4().hex)
     self.model_name = "multimodalembedding"
-    self.image_path = "gs://apache-beam-ml/testing/inputs/vertex_images/sunflowers/1008566138_6927679c8a.jpg"
+    self.image_path = "gs://apache-beam-ml/testing/inputs/vertex_images/sunflowers/1008566138_6927679c8a.jpg"  # pylint: disable=line-too-long
 
   def tearDown(self) -> None:
     shutil.rmtree(self.artifact_location)
@@ -280,7 +280,7 @@ class VertexAIImageEmbeddingsTest(unittest.TestCase):
 
   def test_improper_dimension(self):
     with self.assertRaises(ValueError):
-      embedding_config = VertexAIImageEmbeddings(
+      _ = VertexAIImageEmbeddings(
           model_name=self.model_name,
           columns=[test_query_column],
           dimension=127)
