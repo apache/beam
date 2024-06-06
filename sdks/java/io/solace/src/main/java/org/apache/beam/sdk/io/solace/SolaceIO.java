@@ -526,9 +526,7 @@ public class SolaceIO {
       }
     }
 
-    // FIXME: this is public only for the sake of testing, TODO: redesign test so this is
-    // private
-    public Queue initializeQueueForTopic(String jobName, SempClientFactory sempClientFactory) {
+    Queue initializeQueueForTopic(String jobName, SempClientFactory sempClientFactory) {
       Queue initializedQueue;
       Queue solaceQueue = getQueue();
       if (solaceQueue != null) {

@@ -38,12 +38,10 @@ public class SolaceTest {
   String replyTo = "no-one";
   Long receiveTimestamp = 123456789L;
   Long senderTimestamp = 987654321L;
-  long timestampMillis = 1234567890L;
   Long sequenceNumber = 27L;
   Long timeToLive = 34567890L;
   String payloadString = "some payload";
   byte[] payload = payloadString.getBytes(StandardCharsets.UTF_8);
-  String publishError = "some error";
 
   @Test
   public void testRecordEquality() {

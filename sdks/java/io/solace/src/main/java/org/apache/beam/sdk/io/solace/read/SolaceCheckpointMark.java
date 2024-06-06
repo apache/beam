@@ -37,6 +37,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @DefaultCoder(AvroCoder.class)
 public class SolaceCheckpointMark implements UnboundedSource.CheckpointMark {
   private transient AtomicBoolean activeReader;
+  // BytesXMLMessage is not serializable so if a job restarts from the checkpoint, we cannot retry
+  // these messages here. We relay on Solace's retry mechanism.
   private transient ArrayDeque<BytesXMLMessage> ackQueue;
 
   @SuppressWarnings("initialization") // Avro will set the fields by breaking abstraction
