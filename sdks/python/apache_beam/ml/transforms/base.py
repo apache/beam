@@ -710,9 +710,6 @@ class _TextEmbeddingHandler(_EmbeddingHandler):
   Args:
     embeddings_manager: An EmbeddingsManager instance.
   """
-  def __init__(self, embeddings_manager: EmbeddingsManager):
-    super().__init__(embeddings_manager)
-
   def _validate_column_data(self, batch):
     if not isinstance(batch[0], (str, bytes)):
       raise TypeError(
@@ -748,9 +745,6 @@ class _ImageEmbeddingHandler(_EmbeddingHandler):
   Args:
     embeddings_manager: An EmbeddingsManager instance.
   """
-  def __init__(self, embeddings_manager: EmbeddingsManager):
-    super().__init__(embeddings_manager)
-
   def _validate_column_data(self, batch):
     # Don't want to require framework-specific imports
     # here, so just catch columns of primatives for now.
