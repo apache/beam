@@ -62,6 +62,17 @@ public class SolaceIOTest {
 
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
+  private static Read<Record> getDefaultQueueRead(SessionServiceFactory fakeSessionServiceFactory) {
+    return getDefaultRead(fakeSessionServiceFactory).from(Solace.Queue.fromName("queue"));
+  }
+
+  private static Read<Record> getDefaultRead(SessionServiceFactory fakeSessionServiceFactory) {
+    return SolaceIO.read()
+        .withSempClientFactory(getMockSempClientFactory())
+        .withSessionServiceFactory(fakeSessionServiceFactory)
+        .withMaxNumConnections(1);
+  }
+
   private static BytesXMLMessage getOrNull(Integer index, List<BytesXMLMessage> messages) {
     return index != null && index < messages.size() ? messages.get(index) : null;
   }
@@ -109,13 +120,7 @@ public class SolaceIOTest {
 
     // Run the pipeline
     PCollection<Solace.Record> events =
-        pipeline.apply(
-            "Read from Solace",
-            SolaceIO.read()
-                .from(Solace.Queue.fromName("queue"))
-                .withSempClientFactory(getMockSempClientFactory())
-                .withSessionServiceFactory(fakeSessionServiceFactory)
-                .withMaxNumConnections(1));
+        pipeline.apply("Read from Solace", getDefaultQueueRead(fakeSessionServiceFactory));
 
     // Assert results
     PAssert.that(events).containsInAnyOrder(expected);
@@ -149,12 +154,7 @@ public class SolaceIOTest {
     PCollection<Solace.Record> events =
         pipeline.apply(
             "Read from Solace",
-            SolaceIO.read()
-                .from(Solace.Queue.fromName("queue"))
-                .withSempClientFactory(getMockSempClientFactory())
-                .withSessionServiceFactory(fakeSessionServiceFactory)
-                .withDeduplicateRecords(true)
-                .withMaxNumConnections(1));
+            getDefaultQueueRead(fakeSessionServiceFactory).withDeduplicateRecords(true));
     // Assert results
     PAssert.that(events).containsInAnyOrder(expected);
     pipeline.run();
@@ -185,14 +185,7 @@ public class SolaceIOTest {
 
     // Run the pipeline
     PCollection<Solace.Record> events =
-        pipeline.apply(
-            "Read from Solace",
-            SolaceIO.read()
-                .from(Solace.Queue.fromName("queue"))
-                .withSempClientFactory(getMockSempClientFactory())
-                .withSessionServiceFactory(fakeSessionServiceFactory)
-                .withMaxNumConnections(1)
-                .withDeduplicateRecords(false));
+        pipeline.apply("Read from Solace", getDefaultQueueRead(fakeSessionServiceFactory));
 
     // Assert results
     PAssert.that(events).containsInAnyOrder(expected);
@@ -233,12 +226,7 @@ public class SolaceIOTest {
     PCollection<Solace.Record> events =
         pipeline.apply(
             "Read from Solace",
-            SolaceIO.read()
-                .from(Solace.Queue.fromName("queue"))
-                .withSempClientFactory(getMockSempClientFactory())
-                .withSessionServiceFactory(fakeSessionServiceFactory)
-                .withDeduplicateRecords(true)
-                .withMaxNumConnections(1));
+            getDefaultQueueRead(fakeSessionServiceFactory).withDeduplicateRecords(true));
     // Assert results
     PAssert.that(events).containsInAnyOrder(expected);
     pipeline.run();
@@ -388,12 +376,7 @@ public class SolaceIOTest {
 
     SessionServiceFactory fakeSessionServiceFactory =
         new MockSessionServiceFactory(mockClientService);
-    Read<Record> spec =
-        SolaceIO.read()
-            .from(Solace.Queue.fromName("queue"))
-            .withSempClientFactory(getMockSempClientFactory())
-            .withSessionServiceFactory(fakeSessionServiceFactory)
-            .withMaxNumConnections(1);
+    Read<Record> spec = getDefaultQueueRead(fakeSessionServiceFactory);
 
     UnboundedSolaceSource<Record> initialSource = getSource(spec, spec.getQueue(), pipeline);
     UnboundedReader<Record> reader =
@@ -442,12 +425,7 @@ public class SolaceIOTest {
     SessionServiceFactory fakeSessionServiceFactory =
         new MockSessionServiceFactory(mockClientService);
 
-    Read<Record> spec =
-        SolaceIO.read()
-            .from(Solace.Queue.fromName("queue"))
-            .withSempClientFactory(getMockSempClientFactory())
-            .withSessionServiceFactory(fakeSessionServiceFactory)
-            .withMaxNumConnections(4);
+    Read<Record> spec = getDefaultQueueRead(fakeSessionServiceFactory).withMaxNumConnections(4);
 
     UnboundedSolaceSource<Record> initialSource = getSource(spec, spec.getQueue(), pipeline);
 
@@ -504,12 +482,7 @@ public class SolaceIOTest {
 
     SessionServiceFactory fakeSessionServiceFactory =
         new MockSessionServiceFactory(mockClientService);
-    Read<Record> spec =
-        SolaceIO.read()
-            .from(Solace.Queue.fromName("queue"))
-            .withSempClientFactory(getMockSempClientFactory())
-            .withSessionServiceFactory(fakeSessionServiceFactory)
-            .withMaxNumConnections(4);
+    Read<Record> spec = getDefaultQueueRead(fakeSessionServiceFactory).withMaxNumConnections(4);
 
     UnboundedSolaceSource<Record> initialSource = getSource(spec, spec.getQueue(), pipeline);
 
@@ -600,11 +573,7 @@ public class SolaceIOTest {
     PCollection<Solace.Record> events =
         pipeline.apply(
             "Read from Solace",
-            SolaceIO.read()
-                .from(Solace.Queue.fromName("queue"))
-                .withSempClientFactory(getMockSempClientFactory())
-                .withSessionServiceFactory(fakeSessionServiceFactory)
-                .withMaxNumConnections(2));
+            getDefaultQueueRead(fakeSessionServiceFactory));
 
     // Run the pipeline
     PCollection<Boolean> destAreTopics =
