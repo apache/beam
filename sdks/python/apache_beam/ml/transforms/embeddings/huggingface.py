@@ -32,6 +32,7 @@ import apache_beam as beam
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.transforms.base import EmbeddingsManager
+from apache_beam.ml.transforms.base import _ImageEmbeddingHandler
 from apache_beam.ml.transforms.base import _TextEmbeddingHandler
 
 try:
@@ -149,6 +150,45 @@ class SentenceTransformerEmbeddings(EmbeddingsManager):
     return (
         RunInference(
             model_handler=_TextEmbeddingHandler(self),
+            inference_args=self.inference_args,
+        ))
+
+
+class SentenceTransformerImageEmbeddings(EmbeddingsManager):
+  def __init__(self, model_name: str, columns: List[str], **kwargs):
+    """
+    Embedding config for sentence-transformers. This config can be used with
+    MLTransform to embed image data. Models are loaded using the RunInference
+    PTransform with the help of ModelHandler.
+
+    Args:
+      model_name: Name of the model to use. The model should be hosted on
+        HuggingFace Hub or compatible with sentence_transformers. See
+        https://www.sbert.net/docs/sentence_transformer/pretrained_models.html#image-text-models # pylint: disable=line-too-long
+        for a list of sentence_transformers models.
+      columns: List of columns to be embedded.
+      min_batch_size: The minimum batch size to be used for inference.
+      max_batch_size: The maximum batch size to be used for inference.
+      large_model: Whether to share the model across processes.
+    """
+    super().__init__(columns, **kwargs)
+    self.model_name = model_name
+
+  def get_model_handler(self):
+    return _SentenceTransformerModelHandler(
+        model_class=SentenceTransformer,
+        model_name=self.model_name,
+        load_model_args=self.load_model_args,
+        min_batch_size=self.min_batch_size,
+        max_batch_size=self.max_batch_size,
+        large_model=self.large_model)
+
+  def get_ptransform_for_processing(self, **kwargs) -> beam.PTransform:
+    # wrap the model handler in a _TextEmbeddingHandler since
+    # the SentenceTransformerEmbeddings works on text input data.
+    return (
+        RunInference(
+            model_handler=_ImageEmbeddingHandler(self),
             inference_args=self.inference_args,
         ))
 
