@@ -640,7 +640,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def spark2_version = "2.4.8"
     def spark3_version = "3.2.2"
     def spotbugs_version = "4.0.6"
-    def testcontainers_version = "1.19.7"
+    def testcontainers_version = "1.17.3"
     // [bomupgrader] determined by: org.apache.arrow:arrow-memory-core, consistent with: google_cloud_platform_libraries_bom
     def arrow_version = "15.0.2"
     def jmh_version = "1.34"
@@ -903,7 +903,6 @@ class BeamModulePlugin implements Plugin<Project> {
         testcontainers_oracle                       : "org.testcontainers:oracle-xe:$testcontainers_version",
         testcontainers_postgresql                   : "org.testcontainers:postgresql:$testcontainers_version",
         testcontainers_rabbitmq                     : "org.testcontainers:rabbitmq:$testcontainers_version",
-        testcontainers_solace                       : "org.testcontainers:solace:$testcontainers_version",
         truth                                       : "com.google.truth:truth:1.1.5",
         threetenbp                                  : "org.threeten:threetenbp:1.6.8",
         vendored_grpc_1_60_1                        : "org.apache.beam:beam-vendor-grpc-1_60_1:0.2",
