@@ -48,6 +48,12 @@ try:
 except ImportError:
   tft = None
 
+# pylint: disable=ungrouped-imports
+try:
+  from PIL import Image
+except ImportError:
+  Image = None
+
 _HF_TOKEN = os.environ.get('HF_INFERENCE_TOKEN')
 test_query = "This is a test"
 test_query_column = "feature_1"
@@ -284,6 +290,7 @@ class SentenceTrasformerEmbeddingsTest(unittest.TestCase):
 @unittest.skipIf(
     SentenceTransformerEmbeddings is None,
     'sentence-transformers is not installed.')
+@unittest.skipIf(Image is None, 'Pillow is not installed.')
 class SentenceTransformerImageEmbeddingsTest(unittest.TestCase):
   def setUp(self) -> None:
     self.artifact_location = tempfile.mkdtemp(prefix='sentence_transformers_')
@@ -296,7 +303,7 @@ class SentenceTransformerImageEmbeddingsTest(unittest.TestCase):
   def tearDown(self) -> None:
     shutil.rmtree(self.artifact_location)
 
-  def generateRandomImage(self, size: int) -> Image.Image:
+  def generateRandomImage(self, size: int):
     imarray = np.random.rand(size, size, 3) * 255
     return Image.fromarray(imarray.astype('uint8')).convert('RGBA')
 
