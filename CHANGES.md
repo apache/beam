@@ -53,6 +53,40 @@
 * ([#X](https://github.com/apache/beam/issues/X)).
 -->
 
+# [2.58.0] - Unreleased
+
+## Highlights
+
+* New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
+* New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
+
+## I/Os
+
+* Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+
+## New Features / Improvements
+
+* X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+
+## Breaking Changes
+
+* X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
+
+## Deprecations
+
+* X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
+
+## Bugfixes
+
+* Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+
+## Security Fixes
+* Fixed (CVE-YYYY-NNNN)[https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN] (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).
+
+## Known Issues
+
+* ([#X](https://github.com/apache/beam/issues/X)).
+
 # [2.57.0] - Unreleased
 
 ## Highlights
@@ -62,7 +96,6 @@
 
 ## I/Os
 
-* Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Ensure that BigtableIO closes the reader streams ([#31477](https://github.com/apache/beam/issues/31477)).
 
 ## New Features / Improvements
@@ -82,7 +115,6 @@
 
 ## Breaking Changes
 
-* X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
 * Java's View.asList() side inputs are now optimized for iterating rather than
   indexing when in the global window.
   This new implementation still supports all (immutable) List methods as before,
@@ -97,21 +129,6 @@
   * Running a 2.57.0+ remote SDK pipeline containing a pre-2.57.0 Java SchemaTransform
   * All direct uses of Python's [SchemaAwareExternalTransform](https://github.com/apache/beam/blob/a998107a1f5c3050821eef6a5ad5843d8adb8aec/sdks/python/apache_beam/transforms/external.py#L381)
     should be updated to use new snake_case parameter names.
-
-## Deprecations
-
-* X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
-
-## Bugfixes
-
-* Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
-
-## Security Fixes
-* Fixed (CVE-YYYY-NNNN)[https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN] (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).
-
-## Known Issues
-
-* ([#X](https://github.com/apache/beam/issues/X)).
 
 # [2.56.0] - 2024-05-01
 

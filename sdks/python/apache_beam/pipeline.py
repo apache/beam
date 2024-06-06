@@ -699,8 +699,10 @@ class Pipeline(HasDisplayData):
       else:
         raise RuntimeError(
             'A transform with label "%s" already exists in the pipeline. '
-            'To apply a transform with a specified label write '
-            'pvalue | "label" >> transform' % full_label)
+            'To apply a transform with a specified label, write '
+            'pvalue | "label" >> transform or use the option '
+            '"auto_unique_labels" to automatically generate unique '
+            'transform labels' % full_label)
     self.applied_labels.add(full_label)
 
     pvalueish, inputs = transform._extract_input_pvalues(pvalueish)

@@ -259,7 +259,8 @@ var sparkFilters = []string{
 	"TestSetStateClear",
 	"TestSetState",
 
-	"TestTimers_EventTime_Unbounded", // Side inputs in executable stage not supported.
+	"TestTimers_EventTime_Unbounded",     // Side inputs in executable stage not supported.
+	"TestTimers_ProcessingTime_Infinity", // Spark doesn't support test stream.
 }
 
 var dataflowFilters = []string{
