@@ -571,9 +571,7 @@ public class SolaceIOTest {
 
     // Run
     PCollection<Solace.Record> events =
-        pipeline.apply(
-            "Read from Solace",
-            getDefaultQueueRead(fakeSessionServiceFactory));
+        pipeline.apply("Read from Solace", getDefaultQueueRead(fakeSessionServiceFactory));
 
     // Run the pipeline
     PCollection<Boolean> destAreTopics =
