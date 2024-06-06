@@ -58,7 +58,7 @@ import org.joda.time.Instant;
  */
 @NotThreadSafe
 @Internal
-public class Work {
+public final class Work {
   private final ShardedKey shardedKey;
   private final WorkItem workItem;
   private final ProcessingContext processingContext;
