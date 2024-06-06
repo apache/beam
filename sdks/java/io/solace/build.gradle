@@ -19,6 +19,8 @@
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
         automaticModuleName: 'org.apache.beam.sdk.io.solace',
+        exportJavadoc: false,
+        publish: false,
 )
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
