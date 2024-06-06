@@ -25,7 +25,7 @@ from apache_beam.testing.util import equal_to
 from apache_beam.yaml.yaml_transform import YamlTransform
 
 try:
-  # pylint: disable=wrong-import-order, wrong-import-position
+  # pylint: disable=wrong-import-order, wrong-import-position, unused-import
   from apache_beam.ml.transforms import tft
 except ImportError:
   raise unittest.SkipTest('tensorflow_transform is not installed.')
