@@ -20,8 +20,6 @@ package org.apache.beam.sdk.io.aws;
 import static org.apache.beam.sdk.testing.TestPipeline.testingPipelineOptions;
 import static org.testcontainers.containers.localstack.LocalStackContainer.Service.S3;
 
-import com.amazonaws.auth.AWSStaticCredentialsProvider;
-import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration;
 import org.apache.beam.sdk.io.aws.options.AwsOptions;
@@ -141,8 +139,6 @@ public class ITEnvironment<OptionsT extends ITEnvironment.ITOptions> extends Ext
     options.setAwsServiceEndpoint(
         localstack.getEndpointOverride(S3).toString()); // service irrelevant
     options.setAwsRegion(localstack.getRegion());
-    options.setAwsCredentialsProvider(
-        new AWSStaticCredentialsProvider(
-            new BasicAWSCredentials(localstack.getAccessKey(), localstack.getSecretKey())));
+    options.setAwsCredentialsProvider(localstack.getDefaultCredentialsProvider());
   }
 }

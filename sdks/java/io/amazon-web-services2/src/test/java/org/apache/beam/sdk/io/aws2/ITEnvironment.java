@@ -34,6 +34,8 @@ import org.testcontainers.containers.localstack.LocalStackContainer;
 import org.testcontainers.containers.localstack.LocalStackContainer.Service;
 import org.testcontainers.containers.output.Slf4jLogConsumer;
 import org.testcontainers.utility.DockerImageName;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.awscore.client.builder.AwsClientBuilder;
 import software.amazon.awssdk.regions.Region;
 
@@ -139,6 +141,8 @@ public class ITEnvironment<OptionsT extends ITEnvironment.ITOptions> extends Ext
     localstack.start();
     options.setEndpoint(localstack.getEndpointOverride(S3)); // service irrelevant
     options.setAwsRegion(Region.of(localstack.getRegion()));
-    options.setAwsCredentialsProvider(localstack.getDefaultCredentialsProvider());
+    options.setAwsCredentialsProvider(
+        StaticCredentialsProvider.create(
+            AwsBasicCredentials.create(localstack.getAccessKey(), localstack.getSecretKey())));
   }
 }
