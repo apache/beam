@@ -27,12 +27,13 @@ import static org.junit.Assert.assertThrows;
 import java.io.IOException;
 import java.util.Collections;
 import org.apache.beam.fn.harness.Caches;
+import org.apache.beam.fn.harness.state.OrderedListUserState.TimestampedValueCoder;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.OrderedListRange;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.values.TimestampedValue;
-import org.apache.beam.sdk.values.TimestampedValue.TimestampedValueCoder;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
@@ -59,6 +60,8 @@ public class OrderedListUserStateTest {
   private final String pTransformId = "pTransformId";
   private final String stateId = "stateId";
   private final String encodedWindow = "encodedWindow";
+  private final Coder<TimestampedValue<String>> timestampedValueCoder =
+      TimestampedValueCoder.of(StringUtf8Coder.of());
 
   @Test
   public void testNoPersistedValues() throws Exception {
@@ -77,7 +80,7 @@ public class OrderedListUserStateTest {
   public void testRead() throws Exception {
     FakeBeamFnStateClient fakeClient =
         new FakeBeamFnStateClient(
-            TimestampedValueCoder.of(StringUtf8Coder.of()),
+            timestampedValueCoder,
             ImmutableMap.of(createOrderedListStateKey("A", 1), asList(A1, B1)));
     OrderedListUserState<String> userState =
         new OrderedListUserState<>(
@@ -97,7 +100,7 @@ public class OrderedListUserStateTest {
   public void testReadRange() throws Exception {
     FakeBeamFnStateClient fakeClient =
         new FakeBeamFnStateClient(
-            TimestampedValueCoder.of(StringUtf8Coder.of()),
+            timestampedValueCoder,
             ImmutableMap.of(
                 createOrderedListStateKey("A", 1), asList(A1, B1),
                 createOrderedListStateKey("A", 4), Collections.singletonList(A4),
@@ -149,7 +152,7 @@ public class OrderedListUserStateTest {
   public void testAdd() throws Exception {
     FakeBeamFnStateClient fakeClient =
         new FakeBeamFnStateClient(
-            TimestampedValueCoder.of(StringUtf8Coder.of()),
+            timestampedValueCoder,
             ImmutableMap.of(
                 createOrderedListStateKey("A", 1),
                 Collections.singletonList(A1),
@@ -192,7 +195,7 @@ public class OrderedListUserStateTest {
   public void testClearRange() throws Exception {
     FakeBeamFnStateClient fakeClient =
         new FakeBeamFnStateClient(
-            TimestampedValueCoder.of(StringUtf8Coder.of()),
+            timestampedValueCoder,
             ImmutableMap.of(
                 createOrderedListStateKey("A", 1),
                 asList(A1, B1),
@@ -260,7 +263,7 @@ public class OrderedListUserStateTest {
   public void testClear() throws Exception {
     FakeBeamFnStateClient fakeClient =
         new FakeBeamFnStateClient(
-            TimestampedValueCoder.of(StringUtf8Coder.of()),
+            timestampedValueCoder,
             ImmutableMap.of(
                 createOrderedListStateKey("A", 1),
                 asList(A1, B1),
@@ -294,7 +297,7 @@ public class OrderedListUserStateTest {
   public void testAddAndClearRange() throws Exception {
     FakeBeamFnStateClient fakeClient =
         new FakeBeamFnStateClient(
-            TimestampedValueCoder.of(StringUtf8Coder.of()),
+            timestampedValueCoder,
             ImmutableMap.of(
                 createOrderedListStateKey("A", 1),
                 Collections.singletonList(A1),
@@ -365,7 +368,7 @@ public class OrderedListUserStateTest {
   public void testAddAndClearRangeAfterClear() throws Exception {
     FakeBeamFnStateClient fakeClient =
         new FakeBeamFnStateClient(
-            TimestampedValueCoder.of(StringUtf8Coder.of()),
+            timestampedValueCoder,
             ImmutableMap.of(
                 createOrderedListStateKey("A", 1),
                 Collections.singletonList(A1),
@@ -405,7 +408,7 @@ public class OrderedListUserStateTest {
   public void testNoopAsyncCloseAndRead() throws Exception {
     FakeBeamFnStateClient fakeClient =
         new FakeBeamFnStateClient(
-            TimestampedValueCoder.of(StringUtf8Coder.of()),
+            timestampedValueCoder,
             ImmutableMap.of(
                 createOrderedListStateKey("A", 1),
                 Collections.singletonList(A1),
@@ -444,7 +447,7 @@ public class OrderedListUserStateTest {
   public void testAddAsyncCloseAndRead() throws Exception {
     FakeBeamFnStateClient fakeClient =
         new FakeBeamFnStateClient(
-            TimestampedValueCoder.of(StringUtf8Coder.of()),
+            timestampedValueCoder,
             ImmutableMap.of(
                 createOrderedListStateKey("A", 1),
                 Collections.singletonList(A1),
@@ -484,7 +487,7 @@ public class OrderedListUserStateTest {
   public void testClearRangeAsyncCloseAndRead() throws Exception {
     FakeBeamFnStateClient fakeClient =
         new FakeBeamFnStateClient(
-            TimestampedValueCoder.of(StringUtf8Coder.of()),
+            timestampedValueCoder,
             ImmutableMap.of(
                 createOrderedListStateKey("A", 1),
                 Collections.singletonList(A1),
@@ -526,7 +529,7 @@ public class OrderedListUserStateTest {
   public void testAddClearRangeAsyncCloseAndRead() throws Exception {
     FakeBeamFnStateClient fakeClient =
         new FakeBeamFnStateClient(
-            TimestampedValueCoder.of(StringUtf8Coder.of()),
+            timestampedValueCoder,
             ImmutableMap.of(
                 createOrderedListStateKey("A", 1),
                 Collections.singletonList(A1),

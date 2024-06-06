@@ -34,6 +34,7 @@ import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+import org.apache.beam.fn.harness.state.OrderedListUserState.TimestampedValueCoder;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.OrderedListRange;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateAppendResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateClearResponse;
@@ -52,7 +53,6 @@ import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TimestampedValue;
-import org.apache.beam.sdk.values.TimestampedValue.TimestampedValueCoder;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 
@@ -305,10 +305,10 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
           previousValue.add(request.getAppend().getData());
         } else {
           InputStream inStream = request.getAppend().getData().newInput();
+          TimestampedValueCoder<byte[]> coder =
+              TimestampedValueCoder.of(ByteArrayCoder.of());
           try {
             while (inStream.available() > 0) {
-              TimestampedValueCoder<byte[]> coder =
-                  TimestampedValueCoder.of(LengthPrefixCoder.of(ByteArrayCoder.of()));
               TimestampedValue<byte[]> tv = coder.decode(inStream);
               ByteStringOutputStream outStream = new ByteStringOutputStream();
               coder.encode(tv, outStream);

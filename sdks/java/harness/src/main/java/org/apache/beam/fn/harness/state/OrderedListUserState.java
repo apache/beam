@@ -18,12 +18,18 @@
 package org.apache.beam.fn.harness.state;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Map.Entry;
 import java.util.NavigableMap;
 import java.util.concurrent.CompletableFuture;
@@ -35,12 +41,17 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
+import org.apache.beam.sdk.coders.StructuredCoder;
+import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.fn.stream.PrefetchableIterable;
 import org.apache.beam.sdk.fn.stream.PrefetchableIterables;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TimestampedValue;
-import org.apache.beam.sdk.values.TimestampedValue.TimestampedValueCoder;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeParameter;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.BoundType;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
@@ -62,7 +73,6 @@ import org.joda.time.Instant;
 public class OrderedListUserState<T> {
   private final BeamFnStateClient beamFnStateClient;
   private final StateRequest request;
-  private final Coder<T> valueCoder;
   private final TimestampedValueCoder<T> timestampedValueCoder;
   // Pending updates to persistent storage
   private NavigableMap<Instant, Collection<T>> pendingAdds = Maps.newTreeMap();
@@ -70,6 +80,71 @@ public class OrderedListUserState<T> {
 
   private boolean isCleared = false;
   private boolean isClosed = false;
+
+  public static class TimestampedValueCoder<T> extends StructuredCoder<TimestampedValue<T>> {
+
+    private final Coder<T> valueCoder;
+
+    // Internally, a TimestampedValue is encoded with a KvCoder, where the key is encoded with
+    // a VarLongCoder and the value is encoded with a LengthPrefixCoder.
+    // Refer to the comment in StateAppendRequest
+    // (org/apache/beam/model/fn_execution/v1/beam_fn_api.proto) for more detail.
+    private final KvCoder<Long, T> internalKvCoder;
+    public static <T> OrderedListUserState.TimestampedValueCoder<T> of(Coder<T> valueCoder) {
+      return new OrderedListUserState.TimestampedValueCoder<>(valueCoder);
+    }
+
+    @Override
+    public Object structuralValue(TimestampedValue<T> value) {
+      Object structuralValue = valueCoder.structuralValue(value.getValue());
+      return TimestampedValue.of(structuralValue, value.getTimestamp());
+    }
+
+    @SuppressWarnings("unchecked")
+    TimestampedValueCoder(Coder<T> valueCoder) {
+      this.valueCoder = checkNotNull(valueCoder);
+      this.internalKvCoder = KvCoder.of(VarLongCoder.of(), LengthPrefixCoder.of(valueCoder));
+    }
+
+    @Override
+    public void encode(TimestampedValue<T> windowedElem, OutputStream outStream)
+        throws IOException {
+      internalKvCoder.encode(KV.of(windowedElem.getTimestamp().getMillis(),
+          windowedElem.getValue()), outStream);
+    }
+
+    @Override
+    public TimestampedValue<T> decode(InputStream inStream) throws IOException {
+      KV<Long, T> kv = internalKvCoder.decode(inStream);
+      return TimestampedValue.of(kv.getValue(), Instant.ofEpochMilli(kv.getKey()));
+    }
+
+    @Override
+    public void verifyDeterministic() throws NonDeterministicException {
+      verifyDeterministic(
+          this, "TimestampedValueCoder requires a deterministic valueCoder", valueCoder);
+    }
+
+    @Override
+    public List<? extends Coder<?>> getCoderArguments() {
+      return Arrays.<Coder<?>>asList(valueCoder);
+    }
+
+    public Coder<T> getValueCoder() {
+      return valueCoder;
+    }
+
+    @Override
+    public TypeDescriptor<TimestampedValue<T>> getEncodedTypeDescriptor() {
+      return new TypeDescriptor<TimestampedValue<T>>() {}.where(
+          new TypeParameter<T>() {}, valueCoder.getEncodedTypeDescriptor());
+    }
+
+    @Override
+    public List<? extends Coder<?>> getComponents() {
+      return Collections.singletonList(valueCoder);
+    }
+  }
 
   public OrderedListUserState(
       Cache<?, ?> cache,
@@ -82,8 +157,7 @@ public class OrderedListUserState<T> {
         "Expected OrderedListUserState StateKey but received %s.",
         stateKey);
     this.beamFnStateClient = beamFnStateClient;
-    this.valueCoder = valueCoder;
-    this.timestampedValueCoder = TimestampedValueCoder.of(this.valueCoder);
+    this.timestampedValueCoder = TimestampedValueCoder.of(valueCoder);
     this.request =
         StateRequest.newBuilder().setInstructionId(instructionId).setStateKey(stateKey).build();
   }
@@ -219,9 +293,9 @@ public class OrderedListUserState<T> {
       for (Entry<Instant, Collection<T>> entry : pendingAdds.entrySet()) {
         for (T v : entry.getValue()) {
           TimestampedValue<T> tv =
-              TimestampedValue.of(v, Instant.ofEpochMilli(entry.getKey().getMillis()));
+              TimestampedValue.of(v, entry.getKey());
           try {
-            TimestampedValueCoder.of(LengthPrefixCoder.of(valueCoder)).encode(tv, outStream);
+            timestampedValueCoder.encode(tv, outStream);
           } catch (IOException ex) {
             throw new RuntimeException(ex);
           }
