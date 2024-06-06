@@ -184,12 +184,9 @@ class _VertexAIImageEmbeddingHandler(ModelHandler):
     embeddings = []
     # Maximum request size for muli-model embedding models is 1.
     for img in batch:
-      try:
-        embedding_response = model.get_embeddings(
-            image=img, dimension=self.dimension)
-        embeddings.append(embedding_response.image_embedding)
-      except Exception as e:
-        print(e)
+      embedding_response = model.get_embeddings(
+          image=img, dimension=self.dimension)
+      embeddings.append(embedding_response.image_embedding)
     return embeddings
 
   def load_model(self):
@@ -224,6 +221,8 @@ class VertexAIImageEmbeddings(EmbeddingsManager):
     Args:
       model_name: The name of the Vertex AI Multi-Modal Embedding model.
       columns: The columns containing the text to be embedded.
+      dimension: The length of the embedding vector to generate. Must be one of
+        128, 256, 512, or 1408. If not set, Vertex AI's default value is 1408.
       project: The default GCP project for API calls.
       location: The default location for API calls.
       credentials: Custom credentials for API calls.
