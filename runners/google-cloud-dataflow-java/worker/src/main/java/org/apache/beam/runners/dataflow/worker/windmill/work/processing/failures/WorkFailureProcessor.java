@@ -24,6 +24,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.KeyTokenInvalidException;
 import org.apache.beam.runners.dataflow.worker.WorkItemCancelledException;
 import org.apache.beam.runners.dataflow.worker.status.LastExceptionDataProvider;
+import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.sdk.annotations.Internal;
@@ -102,14 +103,17 @@ public final class WorkFailureProcessor {
    * attempt to retry execution of the {@link Work} or drop it if it is invalid.
    */
   public void logAndProcessFailure(
-      String computationId, Work work, Throwable t, Consumer<Work> onInvalidWork) {
-    if (shouldRetryLocally(computationId, work, t)) {
+      String computationId,
+      ExecutableWork executableWork,
+      Throwable t,
+      Consumer<Work> onInvalidWork) {
+    if (shouldRetryLocally(computationId, executableWork.work(), t)) {
       // Try again after some delay and at the end of the queue to avoid a tight loop.
-      executeWithDelay(retryLocallyDelayMs, work);
+      executeWithDelay(retryLocallyDelayMs, executableWork);
     } else {
       // Consider the item invalid. It will eventually be retried by Windmill if it still needs to
       // be processed.
-      onInvalidWork.accept(work);
+      onInvalidWork.accept(executableWork.work());
     }
   }
 
@@ -120,9 +124,9 @@ public final class WorkFailureProcessor {
         .orElseGet(() -> "not written");
   }
 
-  private void executeWithDelay(long delayMs, Work work) {
+  private void executeWithDelay(long delayMs, ExecutableWork executableWork) {
     Uninterruptibles.sleepUninterruptibly(delayMs, TimeUnit.MILLISECONDS);
-    workUnitExecutor.forceExecute(work, work.getWorkItem().getSerializedSize());
+    workUnitExecutor.forceExecute(executableWork, executableWork.getWorkItem().getSerializedSize());
   }
 
   private boolean shouldRetryLocally(String computationId, Work work, Throwable t) {

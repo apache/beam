@@ -74,10 +74,10 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      - name: Install python
-        uses: actions/setup-python@v5
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
         with:
-          python-version: 3.8
+          python-version: default
       - name: Build source
         working-directory: ./sdks/python
         run: pip install -U build && python -m build --sdist
@@ -102,12 +102,13 @@ jobs:
           {"py_ver": "3.9", "tox_env": "py39"},
           {"py_ver": "3.10", "tox_env": "py310" },
           { "py_ver": "3.11", "tox_env": "py311" },
+          { "py_ver": "3.12", "tox_env": "py312" },
         ]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      - name: Install python
-        uses: actions/setup-python@v5
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
         with:
           python-version: ${{ matrix.params.py_ver }}
       - name: Install tox
@@ -134,12 +135,12 @@ jobs:
       fail-fast: false
       matrix:
         os: [[self-hosted, ubuntu-20.04, main], macos-latest, windows-latest]
-        python: ["3.8", "3.9", "3.10", "3.11"]
+        python: ["3.8", "3.9", "3.10", "3.11", "3.12"]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
       - name: Install python
-        uses: actions/setup-python@v5
+        uses: ./.github/actions/setup-environment-action
         with:
           python-version: ${{ matrix.python }}
       - name: Install requirements
@@ -159,18 +160,15 @@ jobs:
       fail-fast: false
       matrix:
         os: [[self-hosted, ubuntu-20.04, main], macos-latest, windows-latest]
-        python: ["3.8", "3.9", "3.10", "3.11"]
+        python: ["3.8", "3.9", "3.10", "3.11", "3.12"]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      - name: Install python
-        uses: actions/setup-python@v5
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
         with:
           python-version: ${{ matrix.python }}
-      - name: Install go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.21'
+          go-version: default
       - name: Download source from artifacts
         uses: actions/download-artifact@v4
         with:

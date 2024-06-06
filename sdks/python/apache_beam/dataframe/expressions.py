@@ -365,8 +365,10 @@ class ComputedExpression(Expression):
     self._preserves_partition_by = preserves_partition_by
 
   def placeholders(self):
-    return frozenset.union(
-        frozenset(), *[arg.placeholders() for arg in self.args()])
+    if not hasattr(self, '_placeholders'):
+      self._placeholders = frozenset.union(
+          frozenset(), *[arg.placeholders() for arg in self.args()])
+    return self._placeholders
 
   def args(self):
     return self._args

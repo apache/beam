@@ -52,7 +52,6 @@ func TestUnimplemented(t *testing.T) {
 		{pipeline: primitives.TriggerAfterProcessingTime},
 		{pipeline: primitives.TriggerAfterSynchronizedProcessingTime},
 		{pipeline: primitives.TriggerElementCount},
-		{pipeline: primitives.TriggerNever},
 		{pipeline: primitives.TriggerOrFinally},
 		{pipeline: primitives.TriggerRepeat},
 
@@ -87,6 +86,7 @@ func TestImplemented(t *testing.T) {
 		{pipeline: primitives.Checkpoints},
 		{pipeline: primitives.CoGBK},
 		{pipeline: primitives.ReshuffleKV},
+		{pipeline: primitives.TriggerNever},
 	}
 
 	for _, test := range tests {

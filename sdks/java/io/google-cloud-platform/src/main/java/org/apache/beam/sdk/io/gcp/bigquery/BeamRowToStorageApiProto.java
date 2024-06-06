@@ -144,11 +144,23 @@ public class BeamRowToStorageApiProto {
           .build();
 
   /**
+   * Forwards (@param changeSequenceNum) to {@link #messageFromBeamRow(Descriptor, Row, String,
+   * String)} via {@link Long#toHexString}.
+   */
+  public static DynamicMessage messageFromBeamRow(
+      Descriptor descriptor, Row row, @Nullable String changeType, long changeSequenceNum) {
+    return messageFromBeamRow(descriptor, row, changeType, Long.toHexString(changeSequenceNum));
+  }
+
+  /**
    * Given a Beam {@link Row} object, returns a protocol-buffer message that can be used to write
    * data using the BigQuery Storage streaming API.
    */
   public static DynamicMessage messageFromBeamRow(
-      Descriptor descriptor, Row row, @Nullable String changeType, long changeSequenceNum) {
+      Descriptor descriptor,
+      Row row,
+      @Nullable String changeType,
+      @Nullable String changeSequenceNum) {
     Schema beamSchema = row.getSchema();
     DynamicMessage.Builder builder = DynamicMessage.newBuilder(descriptor);
     for (int i = 0; i < row.getFieldCount(); ++i) {
@@ -170,7 +182,7 @@ public class BeamRowToStorageApiProto {
       builder.setField(
           org.apache.beam.sdk.util.Preconditions.checkStateNotNull(
               descriptor.findFieldByName(StorageApiCDC.CHANGE_SQN_COLUMN)),
-          changeSequenceNum);
+          org.apache.beam.sdk.util.Preconditions.checkStateNotNull(changeSequenceNum));
     }
     return builder.build();
   }

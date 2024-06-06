@@ -21,6 +21,7 @@ import unittest
 import uuid
 
 import numpy as np
+import pytest
 from parameterized import parameterized
 
 import apache_beam as beam
@@ -80,6 +81,7 @@ _parameterized_inputs = [
 ]
 
 
+@pytest.mark.no_xdist
 @unittest.skipIf(
     SentenceTransformerEmbeddings is None,
     'sentence-transformers is not installed.')

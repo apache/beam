@@ -70,6 +70,7 @@ import java.io.ByteArrayInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InvalidObjectException;
 import java.math.BigInteger;
 import java.net.SocketTimeoutException;
 import java.nio.channels.SeekableByteChannel;
@@ -1069,9 +1070,13 @@ public class GcsUtilTest {
   }
 
   private static List<String> makeStrings(String s, int n) {
+    return makeStrings("bucket", s, n);
+  }
+
+  private static List<String> makeStrings(String bucket, String s, int n) {
     ImmutableList.Builder<String> ret = ImmutableList.builder();
     for (int i = 0; i < n; ++i) {
-      ret.add(String.format("gs://bucket/%s%d", s, i));
+      ret.add(String.format("gs://%s/%s%d", bucket, s, i));
     }
     return ret.build();
   }
@@ -1157,6 +1162,48 @@ public class GcsUtilTest {
   }
 
   @Test
+  public void testMakeRewriteBatchesWithLowerDataOpLimit() throws IOException {
+    GcsOptions options = gcsOptionsWithTestCredential();
+    options.setGcsRewriteDataOpBatchLimit(2);
+    GcsUtil gcsUtil = options.getGcsUtil();
+
+    // Small number of files in same bucket fits in 1 batch
+    List<BatchInterface> batches =
+        gcsUtil.makeRewriteBatches(
+            gcsUtil.makeRewriteOps(makeStrings("s", 5), makeStrings("d", 5), false, false, false));
+    assertThat(batches.size(), equalTo(1));
+    assertThat(sumBatchSizes(batches), equalTo(5));
+
+    // Files copying between buckets use smaller batch size
+    batches =
+        gcsUtil.makeRewriteBatches(
+            gcsUtil.makeRewriteOps(
+                makeStrings("bucket1", "s", 5),
+                makeStrings("bucket2", "d", 5),
+                false,
+                false,
+                false));
+    assertThat(batches.size(), equalTo(3));
+    assertThat(sumBatchSizes(batches), equalTo(5));
+
+    // A mix of same bucket and different buckets uses large batches when possible.
+    List<String> fromFiles = new ArrayList<>(makeStrings("bucket1", "s", 3));
+    List<String> toFiles = new ArrayList<>(makeStrings("bucket2", "d", 3));
+    fromFiles.addAll(makeStrings("t", 90));
+    toFiles.addAll(makeStrings("e", 90));
+    fromFiles.addAll(makeStrings("bucket3", "u", 3));
+    toFiles.addAll(makeStrings("bucket4", "f", 3));
+    fromFiles.addAll(makeStrings("bucket5", "v", 1));
+    toFiles.addAll(makeStrings("bucket5", "g", 1));
+
+    batches =
+        gcsUtil.makeRewriteBatches(gcsUtil.makeRewriteOps(fromFiles, toFiles, false, false, false));
+    assertThat(batches.size(), equalTo(4));
+    assertThat(batches.get(0).size(), equalTo(91));
+    assertThat(sumBatchSizes(batches), equalTo(97));
+  }
+
+  @Test
   public void testMakeRewriteOpsInvalid() throws IOException {
     GcsUtil gcsUtil = gcsOptionsWithTestCredential().getGcsUtil();
     thrown.expect(IllegalArgumentException.class);
@@ -1184,6 +1231,9 @@ public class GcsUtilTest {
                 cb.onFailure(error, null);
               } catch (GoogleJsonResponseException e) {
                 cb.onFailure(e.getDetails(), null);
+              } catch (SocketTimeoutException e) {
+                System.out.println("Propagating socket exception as batch processing error");
+                throw e;
               } catch (Exception e) {
                 System.out.println("Propagating exception as server error " + e);
                 e.printStackTrace();
@@ -1226,7 +1276,7 @@ public class GcsUtilTest {
 
     Storage mockStorage = Mockito.mock(Storage.class);
     gcsUtil.setStorageClient(mockStorage);
-    gcsUtil.setBatchRequestSupplier(() -> new FakeBatcher());
+    gcsUtil.setBatchRequestSupplier(FakeBatcher::new);
 
     Storage.Objects mockStorageObjects = Mockito.mock(Storage.Objects.class);
     Storage.Objects.Rewrite mockStorageRewrite = Mockito.mock(Storage.Objects.Rewrite.class);
@@ -1237,13 +1287,13 @@ public class GcsUtilTest {
     when(mockStorageObjects.rewrite("bucket", "s0", "bucket", "d0", null))
         .thenReturn(mockStorageRewrite);
     when(mockStorageRewrite.execute())
-        .thenThrow(new SocketTimeoutException("SocketException"))
+        .thenThrow(new InvalidObjectException("Test exception"))
         .thenReturn(new RewriteResponse().setDone(true));
     when(mockStorageObjects.delete("bucket", "s0"))
         .thenReturn(mockStorageDelete1)
         .thenReturn(mockStorageDelete2);
 
-    when(mockStorageDelete1.execute()).thenThrow(new SocketTimeoutException("SocketException"));
+    when(mockStorageDelete1.execute()).thenThrow(new InvalidObjectException("Test exception"));
 
     gcsUtil.rename(makeStrings("s", 1), makeStrings("d", 1));
     verify(mockStorageRewrite, times(2)).execute();
@@ -1258,7 +1308,7 @@ public class GcsUtilTest {
 
     Storage mockStorage = Mockito.mock(Storage.class);
     gcsUtil.setStorageClient(mockStorage);
-    gcsUtil.setBatchRequestSupplier(() -> new FakeBatcher());
+    gcsUtil.setBatchRequestSupplier(FakeBatcher::new);
 
     Storage.Objects mockStorageObjects = Mockito.mock(Storage.Objects.class);
     Storage.Objects.Rewrite mockStorageRewrite1 = Mockito.mock(Storage.Objects.Rewrite.class);
@@ -1288,7 +1338,7 @@ public class GcsUtilTest {
 
     Storage mockStorage = Mockito.mock(Storage.class);
     gcsUtil.setStorageClient(mockStorage);
-    gcsUtil.setBatchRequestSupplier(() -> new FakeBatcher());
+    gcsUtil.setBatchRequestSupplier(FakeBatcher::new);
 
     Storage.Objects mockStorageObjects = Mockito.mock(Storage.Objects.class);
     Storage.Objects.Rewrite mockStorageRewrite = Mockito.mock(Storage.Objects.Rewrite.class);
@@ -1309,7 +1359,7 @@ public class GcsUtilTest {
 
     Storage mockStorage = Mockito.mock(Storage.class);
     gcsUtil.setStorageClient(mockStorage);
-    gcsUtil.setBatchRequestSupplier(() -> new FakeBatcher());
+    gcsUtil.setBatchRequestSupplier(FakeBatcher::new);
 
     Storage.Objects mockStorageObjects = Mockito.mock(Storage.Objects.class);
     Storage.Objects.Rewrite mockStorageRewrite = Mockito.mock(Storage.Objects.Rewrite.class);
@@ -1352,7 +1402,7 @@ public class GcsUtilTest {
 
     Storage mockStorage = Mockito.mock(Storage.class);
     gcsUtil.setStorageClient(mockStorage);
-    gcsUtil.setBatchRequestSupplier(() -> new FakeBatcher());
+    gcsUtil.setBatchRequestSupplier(FakeBatcher::new);
 
     Storage.Objects mockStorageObjects = Mockito.mock(Storage.Objects.class);
     Storage.Objects.Get mockGetRequest1 = Mockito.mock(Storage.Objects.Get.class);
@@ -1384,7 +1434,7 @@ public class GcsUtilTest {
 
     Storage mockStorage = Mockito.mock(Storage.class);
     gcsUtil.setStorageClient(mockStorage);
-    gcsUtil.setBatchRequestSupplier(() -> new FakeBatcher());
+    gcsUtil.setBatchRequestSupplier(FakeBatcher::new);
 
     Storage.Objects mockStorageObjects = Mockito.mock(Storage.Objects.class);
     Storage.Objects.Get mockGetRequest = Mockito.mock(Storage.Objects.Get.class);
@@ -1472,7 +1522,7 @@ public class GcsUtilTest {
 
     Storage mockStorage = Mockito.mock(Storage.class);
     gcsUtil.setStorageClient(mockStorage);
-    gcsUtil.setBatchRequestSupplier(() -> new FakeBatcher());
+    gcsUtil.setBatchRequestSupplier(FakeBatcher::new);
 
     Storage.Objects mockStorageObjects = Mockito.mock(Storage.Objects.class);
     Storage.Objects.Get mockGetRequest = Mockito.mock(Storage.Objects.Get.class);
@@ -1492,7 +1542,7 @@ public class GcsUtilTest {
 
     Storage mockStorage = Mockito.mock(Storage.class);
     gcsUtil.setStorageClient(mockStorage);
-    gcsUtil.setBatchRequestSupplier(() -> new FakeBatcher());
+    gcsUtil.setBatchRequestSupplier(FakeBatcher::new);
 
     Storage.Objects mockStorageObjects = Mockito.mock(Storage.Objects.class);
     Storage.Objects.Get mockGetRequest = Mockito.mock(Storage.Objects.Get.class);
@@ -1518,7 +1568,7 @@ public class GcsUtilTest {
 
     Storage mockStorage = Mockito.mock(Storage.class);
     gcsUtil.setStorageClient(mockStorage);
-    gcsUtil.setBatchRequestSupplier(() -> new FakeBatcher());
+    gcsUtil.setBatchRequestSupplier(FakeBatcher::new);
 
     Storage.Objects mockStorageObjects = Mockito.mock(Storage.Objects.class);
     when(mockStorage.objects()).thenReturn(mockStorageObjects);
@@ -1545,7 +1595,8 @@ public class GcsUtilTest {
           gcsOptions.getExecutorService(),
           hasExperiment(options, "use_grpc_for_gcs"),
           gcsOptions.getGcpCredential(),
-          gcsOptions.getGcsUploadBufferSizeBytes());
+          gcsOptions.getGcsUploadBufferSizeBytes(),
+          gcsOptions.getGcsRewriteDataOpBatchLimit());
     }
 
     private GcsUtilMock(
@@ -1554,14 +1605,16 @@ public class GcsUtilTest {
         ExecutorService executorService,
         Boolean shouldUseGrpc,
         Credentials credentials,
-        @Nullable Integer uploadBufferSizeBytes) {
+        @Nullable Integer uploadBufferSizeBytes,
+        @Nullable Integer rewriteDataOpBatchLimit) {
       super(
           storageClient,
           httpRequestInitializer,
           executorService,
           shouldUseGrpc,
           credentials,
-          uploadBufferSizeBytes);
+          uploadBufferSizeBytes,
+          rewriteDataOpBatchLimit);
     }
 
     @Override

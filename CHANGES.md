@@ -53,7 +53,7 @@
 * ([#X](https://github.com/apache/beam/issues/X)).
 -->
 
-# [2.57.0] - Unreleased
+# [2.58.0] - Unreleased
 
 ## Highlights
 
@@ -66,17 +66,11 @@
 
 ## New Features / Improvements
 
-* Added Feast feature store handler for enrichment transform (Python) ([#30957](https://github.com/apache/beam/issues/30964)).
-* BigQuery per-worker metrics are reported by default for Streaming Dataflow Jobs (Java) ([#31015](https://github.com/apache/beam/pull/31015))
+* X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Breaking Changes
 
 * X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
-* Java's View.asList() side inputs are now optimized for iterating rather than
-  indexing when in the global window.
-  This new implementation still supports all (immutable) List methods as before,
-  but some of the random access methods like get() and size() will be slower.
-  To use the old implementation one can use View.asList().withRandomAccess().
 
 ## Deprecations
 
@@ -93,6 +87,49 @@
 
 * ([#X](https://github.com/apache/beam/issues/X)).
 
+# [2.57.0] - Unreleased
+
+## Highlights
+
+* Apache Beam adds Python 3.12 support ([#29149](https://github.com/apache/beam/issues/29149)).
+* Added FlinkRunner for Flink 1.18 ([#30789](https://github.com/apache/beam/issues/30789)).
+
+## I/Os
+
+* Ensure that BigtableIO closes the reader streams ([#31477](https://github.com/apache/beam/issues/31477)).
+
+## New Features / Improvements
+
+* Added Feast feature store handler for enrichment transform (Python) ([#30957](https://github.com/apache/beam/issues/30964)).
+* BigQuery per-worker metrics are reported by default for Streaming Dataflow Jobs (Java) ([#31015](https://github.com/apache/beam/pull/31015))
+* Adds `inMemory()` variant of Java List and Map side inputs for more efficient lookups when the entire side input fits into memory.
+* Beam YAML now supports the jinja templating syntax.
+  Template variables can be passed with the (json-formatted) `--jinja_variables` flag.
+* DataFrame API now supports pandas 2.1.x and adds 12 more string functions for Series.([#31185](https://github.com/apache/beam/pull/31185)).
+* Added BigQuery handler for enrichment transform (Python) ([#31295](https://github.com/apache/beam/pull/31295))
+* Disable soft delete policy when creating the default bucket for a project (Java) ([#31324](https://github.com/apache/beam/pull/31324)).
+* Go SDK Prism Runner
+  * Pre-built Prism binaries are now part of the release and are available via the Github release page. ([#29697](https://github.com/apache/beam/issues/29697)).
+  * ProcessingTime is now handled synthetically with TestStream pipelines and Non-TestStream pipelines, for fast test pipeline execution by default. ([#30083](https://github.com/apache/beam/issues/30083)).
+    * Prism does NOT yet support "real time" execution for this release.
+
+## Breaking Changes
+
+* Java's View.asList() side inputs are now optimized for iterating rather than
+  indexing when in the global window.
+  This new implementation still supports all (immutable) List methods as before,
+  but some of the random access methods like get() and size() will be slower.
+  To use the old implementation one can use View.asList().withRandomAccess().
+* SchemaTransforms implemented with TypedSchemaTransformProvider now produce a
+  configuration Schema with snake_case naming convention
+  ([#31374](https://github.com/apache/beam/pull/31374)). This will make the following
+  cases problematic:
+  * Running a pre-2.57.0 remote SDK pipeline containing a 2.57.0+ Java SchemaTransform,
+    and vice versa:
+  * Running a 2.57.0+ remote SDK pipeline containing a pre-2.57.0 Java SchemaTransform
+  * All direct uses of Python's [SchemaAwareExternalTransform](https://github.com/apache/beam/blob/a998107a1f5c3050821eef6a5ad5843d8adb8aec/sdks/python/apache_beam/transforms/external.py#L381)
+    should be updated to use new snake_case parameter names.
+
 # [2.56.0] - 2024-05-01
 
 ## Highlights
@@ -103,7 +140,6 @@
 
 ## I/Os
 
-* Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Upgraded Avro version to 1.11.3, kafka-avro-serializer and kafka-schema-registry-client versions to 7.6.0 (Java) ([#30638](https://github.com/apache/beam/pull/30638)).
   The newer Avro package is known to have breaking changes. If you are affected, you can keep pinned to older Avro versions which are also tested with Beam.
 * Iceberg read/write support is available through the new Managed I/O Java API ([#30830](https://github.com/apache/beam/pull/30830)).
@@ -126,6 +162,9 @@
 * Fixed pipeline stuckness issue by disallowing versions of grpcio that can cause the stuckness (Python) ([#30867](https://github.com/apache/beam/issues/30867)).
 
 ## Known Issues
+
+* The beam interactive runner does not correctly run on flink ([#31168](https://github.com/apache/beam/issues/31168)).
+* When using the Flink runner from Python, 1.17 is not supported and 1.12/13 do not work correctly. Support for 1.17 will be added in 2.57.0, and the ability to choose 1.12/13 will be cleaned up and fully removed in 2.57.0 as well ([#31168](https://github.com/apache/beam/issues/31168)).
 
 # [2.55.1] - 2024-04-08
 

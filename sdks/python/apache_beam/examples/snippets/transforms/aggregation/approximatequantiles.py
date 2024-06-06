@@ -26,6 +26,7 @@
 #   default_example: false
 #   context_line: 37
 #   categories:
+#     - Core Transforms
 #   complexity: BASIC
 #   tags:
 #     - transforms

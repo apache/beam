@@ -20,6 +20,7 @@ package org.apache.beam.sdk.schemas.utils;
 import static org.apache.beam.sdk.values.Row.toRow;
 
 import java.math.BigDecimal;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -180,5 +181,12 @@ public class YamlUtils {
       return "";
     }
     return new Yaml().dumpAsMap(map);
+  }
+
+  public static Map<String, Object> yamlStringToMap(@Nullable String yaml) {
+    if (yaml == null || yaml.isEmpty()) {
+      return Collections.emptyMap();
+    }
+    return new Yaml().load(yaml);
   }
 }

@@ -124,7 +124,7 @@ func main() {
 	// (3) Invoke the Java harness, preserving artifact ordering in classpath.
 
 	os.Setenv("HARNESS_ID", *id)
-	if err := makePipelineOptionsFile(options); err != nil {
+	if err := tools.MakePipelineOptionsFileAndEnvVar(options); err != nil {
 		logger.Fatalf(ctx, "Failed to load pipeline options to worker: %v", err)
 	}
 	os.Setenv("LOGGING_API_SERVICE_DESCRIPTOR", proto.MarshalTextString(&pipepb.ApiServiceDescriptor{Url: *loggingEndpoint}))
@@ -247,29 +247,13 @@ func main() {
 	logger.Fatalf(ctx, "Java exited: %v", execx.Execute("java", args...))
 }
 
-// makePipelineOptionsFile writes the pipeline options to a file.
-// Assumes the options string is JSON formatted.
-func makePipelineOptionsFile(options string) error {
-	fn := "pipeline_options.json"
-	f, err := os.Create(fn)
-	if err != nil {
-		return fmt.Errorf("unable to create %v: %w", fn, err)
-	}
-	defer f.Close()
-	if _, err := f.WriteString(options); err != nil {
-		return fmt.Errorf("error writing %v: %w", f.Name(), err)
-	}
-	os.Setenv("PIPELINE_OPTIONS_FILE", f.Name())
-	return nil
-}
-
 // heapSizeLimit returns 80% of the runner limit, if provided. If not provided,
 // it returns 70% of the physical memory on the machine. If it cannot determine
 // that value, it returns 1GB. This is an imperfect heuristic. It aims to
 // ensure there is memory for non-heap use and other overhead, while also not
-// underutilizing the machine. if set_recommended_max_xmx experiment is enabled, 
-// sets xmx to 32G. Under 32G JVM enables CompressedOops. CompressedOops 
-// utilizes memory more efficiently, and has positive impact on GC performance 
+// underutilizing the machine. if set_recommended_max_xmx experiment is enabled,
+// sets xmx to 32G. Under 32G JVM enables CompressedOops. CompressedOops
+// utilizes memory more efficiently, and has positive impact on GC performance
 // and cache hit rate.
 func heapSizeLimit(info *fnpb.ProvisionInfo, setRecommendedMaxXmx bool) uint64 {
 	if setRecommendedMaxXmx {

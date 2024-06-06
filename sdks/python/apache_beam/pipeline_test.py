@@ -264,8 +264,10 @@ class PipelineTest(unittest.TestCase):
     self.assertEqual(
         cm.exception.args[0],
         'A transform with label "CustomTransform" already exists in the '
-        'pipeline. To apply a transform with a specified label write '
-        'pvalue | "label" >> transform')
+        'pipeline. To apply a transform with a specified label, write '
+        'pvalue | "label" >> transform or use the option '
+        '"auto_unique_labels" to automatically generate unique '
+        'transform labels')
 
   def test_auto_unique_labels(self):
 

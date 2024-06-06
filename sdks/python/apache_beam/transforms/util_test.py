@@ -299,15 +299,40 @@ class BatchElementsTest(unittest.TestCase):
       res = (
           p
           | beam.Create([
-              'a', 'a', 'aaaaaaaaaa',  # First batch.
-              'aaaaaa', 'aaaaa',       # Second batch.
-              'a', 'aaaaaaa', 'a', 'a' # Third batch.
+              'a', 'a',                # First batch.
+              'aaaaaaaaaa',            # Second batch.
+              'aaaaa', 'aaaaa',        # Third batch.
+              'a', 'aaaaaaa', 'a', 'a' # Fourth batch.
               ], reshuffle=False)
           | util.BatchElements(
               min_batch_size=10, max_batch_size=10, element_size_fn=len)
           | beam.Map(lambda batch: ''.join(batch))
           | beam.Map(len))
-      assert_that(res, equal_to([12, 11, 10]))
+      assert_that(res, equal_to([2, 10, 10, 10]))
+
+  def test_sized_windowed_batches(self):
+    # Assumes a single bundle, in order...
+    with TestPipeline() as p:
+      res = (
+          p
+          | beam.Create(range(1, 8), reshuffle=False)
+          | beam.Map(lambda t: window.TimestampedValue('a' * t, t))
+          | beam.WindowInto(window.FixedWindows(3))
+          | util.BatchElements(
+              min_batch_size=11,
+              max_batch_size=11,
+              element_size_fn=len,
+              clock=FakeClock())
+          | beam.Map(lambda batch: ''.join(batch)))
+      assert_that(
+          res,
+          equal_to([
+              'a' * (1+2), # Elements in [1, 3)
+              'a' * (3+4), # Elements in [3, 6)
+              'a' * 5,
+              'a' * 6, # Elements in [6, 9)
+              'a' * 7,
+          ]))
 
   def test_target_duration(self):
     clock = FakeClock()

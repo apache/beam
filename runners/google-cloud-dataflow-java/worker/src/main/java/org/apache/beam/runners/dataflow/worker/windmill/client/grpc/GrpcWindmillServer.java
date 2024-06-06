@@ -20,7 +20,6 @@ package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 import static org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannelFactory.LOCALHOST;
 import static org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannelFactory.inProcessChannel;
 import static org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannelFactory.localhostChannel;
-import static org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannelFactory.remoteChannel;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
@@ -30,7 +29,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.DataflowRunner;
@@ -54,13 +52,9 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ReportStatsRequ
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ReportStatsResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillApplianceGrpc;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
-import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.CommitWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
-import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCache;
-import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCachingRemoteStubFactory;
-import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.IsolationChannel;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.StreamingEngineThrottleTimers;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemReceiver;
@@ -154,29 +148,11 @@ public final class GrpcWindmillServer extends WindmillServerStub {
   public static GrpcWindmillServer create(
       DataflowWorkerHarnessOptions workerOptions,
       GrpcWindmillStreamFactory grpcWindmillStreamFactory,
-      Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses)
-      throws IOException {
-    Function<WindmillServiceAddress, ManagedChannel> channelFactory =
-        serviceAddress ->
-            remoteChannel(
-                serviceAddress, workerOptions.getWindmillServiceRpcChannelAliveTimeoutSec());
-    ChannelCache channelCache =
-        ChannelCache.create(
-            serviceAddress ->
-                // IsolationChannel will create and manage separate RPC channels to the same
-                // serviceAddress via calling the channelFactory, else just directly return the
-                // RPC channel.
-                workerOptions.getUseWindmillIsolatedChannels()
-                    ? IsolationChannel.create(() -> channelFactory.apply(serviceAddress))
-                    : channelFactory.apply(serviceAddress));
-    WindmillStubFactory stubFactory =
-        ChannelCachingRemoteStubFactory.create(workerOptions.getGcpCredential(), channelCache);
+      GrpcDispatcherClient dispatcherClient,
+      Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses) {
     GrpcWindmillServer grpcWindmillServer =
         new GrpcWindmillServer(
-            workerOptions,
-            grpcWindmillStreamFactory,
-            GrpcDispatcherClient.create(stubFactory),
-            processHeartbeatResponses);
+            workerOptions, grpcWindmillStreamFactory, dispatcherClient, processHeartbeatResponses);
     if (workerOptions.getWindmillServiceEndpoint() != null) {
       grpcWindmillServer.configureWindmillServiceEndpoints();
     } else if (!workerOptions.isEnableStreamingEngine()

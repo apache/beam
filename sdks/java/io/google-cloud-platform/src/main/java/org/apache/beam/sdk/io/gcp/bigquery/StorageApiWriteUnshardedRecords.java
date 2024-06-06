@@ -678,6 +678,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                   // Convert the message to a TableRow and send it to the failedRows collection.
                   ByteString protoBytes = failedContext.protoRows.getSerializedRows(failedIndex);
                   org.joda.time.Instant timestamp = failedContext.timestamps.get(failedIndex);
+                  BigQueryStorageApiInsertError element = null;
                   try {
                     TableRow failedRow =
                         TableRowToStorageApiProto.tableRowFromMessage(
@@ -687,12 +688,15 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                                         .getDescriptor()),
                                 protoBytes),
                             true);
-                    failedRowsReceiver.outputWithTimestamp(
+                    element =
                         new BigQueryStorageApiInsertError(
-                            failedRow, error.getRowIndexToErrorMessage().get(failedIndex)),
-                        timestamp);
+                            failedRow, error.getRowIndexToErrorMessage().get(failedIndex));
                   } catch (Exception e) {
                     LOG.error("Failed to insert row and could not parse the result!", e);
+                  }
+                  // output outside try {} clause to avoid suppress downstream Exception
+                  if (element != null) {
+                    failedRowsReceiver.outputWithTimestamp(element, timestamp);
                   }
                 }
                 int numRowsFailed = failedRowIndices.size();
@@ -745,15 +749,22 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                 quotaError = statusCode.equals(Status.Code.RESOURCE_EXHAUSTED);
               }
 
+              int allowedRetry;
+
               if (!quotaError) {
                 // This forces us to close and reopen all gRPC connections to Storage API on error,
                 // which empirically fixes random stuckness issues.
                 invalidateWriteStream();
+                allowedRetry = 5;
+              } else {
+                allowedRetry = 10;
               }
 
               // Maximum number of times we retry before we fail the work item.
-              if (failedContext.failureCount > 5) {
-                throw new RuntimeException("More than 5 attempts to call AppendRows failed.");
+              if (failedContext.failureCount > allowedRetry) {
+                throw new RuntimeException(
+                    String.format(
+                        "More than %d attempts to call AppendRows failed.", allowedRetry));
               }
 
               // The following errors are known to be persistent, so always fail the work item in
@@ -944,11 +955,12 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       long numRowsWritten = 0;
       for (DestinationState destinationState :
           Preconditions.checkStateNotNull(destinations).values()) {
+
         RetryManager<AppendRowsResponse, AppendRowsContext> retryManager =
             new RetryManager<>(
                 Duration.standardSeconds(1),
-                Duration.standardSeconds(10),
-                1000,
+                Duration.standardSeconds(20),
+                500,
                 BigQuerySinkMetrics.throttledTimeCounter(
                     BigQuerySinkMetrics.RpcMethod.APPEND_ROWS));
         retryManagers.add(retryManager);

@@ -28,6 +28,8 @@ from datetime import timedelta
 from typing import Any
 from typing import Dict
 from typing import Generic
+from typing import List
+from typing import Mapping
 from typing import Optional
 from typing import Tuple
 from typing import TypeVar
@@ -42,6 +44,7 @@ from apache_beam.coders import coders
 from apache_beam.io.components.adaptive_throttler import AdaptiveThrottler
 from apache_beam.metrics import Metrics
 from apache_beam.ml.inference.vertex_ai_inference import MSEC_TO_SEC
+from apache_beam.transforms.util import BatchElements
 from apache_beam.utils import retry
 
 RequestT = TypeVar('RequestT')
@@ -142,6 +145,10 @@ class Caller(contextlib.AbstractContextManager,
     is returned here.
     """
     return ""
+
+  def batch_elements_kwargs(self) -> Mapping[str, Any]:
+    """Returns a kwargs suitable for `beam.BatchElements`."""
+    return {}
 
 
 class ShouldBackOff(abc.ABC):
@@ -476,53 +483,67 @@ class _RedisCaller(Caller):
   def __enter__(self):
     self.client = redis.Redis(self.host, self.port, **self.kwargs)
 
+  def _read_cache(self, element):
+    cache_request = self.source_caller.get_cache_key(element)
+    # check if the caller is a enrichment handler. EnrichmentHandler
+    # provides the request format for cache.
+    if cache_request:
+      encoded_request = self.request_coder.encode(cache_request)
+    else:
+      encoded_request = self.request_coder.encode(element)
+
+    encoded_response = self.client.get(encoded_request)
+    if not encoded_response:
+      # no cache entry present for this request.
+      return element, None
+
+    if self.response_coder is None:
+      try:
+        response_dict = json.loads(encoded_response.decode('utf-8'))
+        response = beam.Row(**response_dict)
+      except Exception:
+        _LOGGER.warning(
+            'cannot decode response from redis cache for %s.' % element)
+        return element, None
+    else:
+      response = self.response_coder.decode(encoded_response)
+    return element, response
+
+  def _write_cache(self, element):
+    cache_request = self.source_caller.get_cache_key(element[0])
+    if cache_request:
+      encoded_request = self.request_coder.encode(cache_request)
+    else:
+      encoded_request = self.request_coder.encode(element[0])
+    if self.response_coder is None:
+      try:
+        encoded_response = json.dumps(element[1]._asdict()).encode('utf-8')
+      except Exception:
+        _LOGGER.warning(
+            'cannot encode response %s for %s to store in '
+            'redis cache.' % (element[1], element[0]))
+        return element
+    else:
+      encoded_response = self.response_coder.encode(element[1])
+    # Write to cache with TTL. Set nx to True to prevent overwriting for the
+    # same key.
+    self.client.set(
+        encoded_request, encoded_response, self.time_to_live, nx=True)
+    return element
+
   def __call__(self, element, *args, **kwargs):
     if self.mode == _RedisMode.READ:
-      cache_request = self.source_caller.get_cache_key(element)
-      # check if the caller is a enrichment handler. EnrichmentHandler
-      # provides the request format for cache.
-      if cache_request:
-        encoded_request = self.request_coder.encode(cache_request)
+      if isinstance(element, List):
+        responses = [self._read_cache(e) for e in element]
+        return responses
       else:
-        encoded_request = self.request_coder.encode(element)
-
-      encoded_response = self.client.get(encoded_request)
-      if not encoded_response:
-        # no cache entry present for this request.
-        return element, None
-
-      if self.response_coder is None:
-        try:
-          response_dict = json.loads(encoded_response.decode('utf-8'))
-          response = beam.Row(**response_dict)
-        except Exception:
-          _LOGGER.warning(
-              'cannot decode response from redis cache for %s.' % element)
-          return element, None
-      else:
-        response = self.response_coder.decode(encoded_response)
-      return element, response
+        return self._read_cache(element)
     else:
-      cache_request = self.source_caller.get_cache_key(element[0])
-      if cache_request:
-        encoded_request = self.request_coder.encode(cache_request)
+      if isinstance(element, List):
+        responses = [self._write_cache(e) for e in element]
+        return responses
       else:
-        encoded_request = self.request_coder.encode(element[0])
-      if self.response_coder is None:
-        try:
-          encoded_response = json.dumps(element[1]._asdict()).encode('utf-8')
-        except Exception:
-          _LOGGER.warning(
-              'cannot encode response %s for %s to store in '
-              'redis cache.' % (element[1], element[0]))
-          return element
-      else:
-        encoded_response = self.response_coder.encode(element[1])
-      # Write to cache with TTL. Set nx to True to prevent overwriting for the
-      # same key.
-      self.client.set(
-          encoded_request, encoded_response, self.time_to_live, nx=True)
-      return element
+        return self._write_cache(element)
 
   def __exit__(self, exc_type, exc_val, exc_tb):
     self.client.close()
@@ -708,6 +729,13 @@ class RedisCache(Cache):
     self._request_coder = request_coder
 
 
+class FlattenBatch(beam.DoFn):
+  """Flatten a batched PCollection."""
+  def process(self, elements, *args, **kwargs):
+    for element in elements:
+      yield element
+
+
 class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
                                         beam.PCollection[ResponseT]]):
   """A :class:`RequestResponseIO` transform to read and write to APIs.
@@ -753,6 +781,7 @@ class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
       self._repeater = NoOpsRepeater()
     self._cache = cache
     self._throttler = throttler
+    self._batching_kwargs = self._caller.batch_elements_kwargs()
 
   def expand(
       self,
@@ -773,6 +802,10 @@ class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
                                   | beam.ParDo(_FilterCacheReadFn()
                                                ).with_outputs(
                                     'cache_misses', main='cached_responses'))
+
+    # Batch elements if batching is enabled.
+    if self._batching_kwargs:
+      inputs = inputs | BatchElements(**self._batching_kwargs)
 
     if isinstance(self._throttler, DefaultThrottler):
       # DefaultThrottler applies throttling in the DoFn of
@@ -795,6 +828,10 @@ class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
               timeout=self._timeout,
               should_backoff=self._should_backoff,
               repeater=self._repeater))
+
+    # if batching is enabled then handle accordingly.
+    if self._batching_kwargs:
+      responses = responses | "FlattenBatch" >> beam.ParDo(FlattenBatch())
 
     if self._cache:
       # write to cache.

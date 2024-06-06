@@ -60,10 +60,12 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Objects;
 import java.util.OptionalInt;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.ServiceCallMetric;
@@ -1187,6 +1189,18 @@ public class SpannerIO {
     }
 
     /**
+     * Specifies max commit delay for the Commit API call for throughput optimized writes. If not
+     * set, Spanner might set a small delay if it thinks that will amortize the cost of the writes.
+     * For more information about the feature, <a
+     * href="https://cloud.google.com/spanner/docs/throughput-optimized-writes#default-behavior">see
+     * documentation</a>
+     */
+    public Write withMaxCommitDelay(long millis) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withMaxCommitDelay(millis));
+    }
+
+    /**
      * Specifies the maximum cumulative backoff time when retrying after DEADLINE_EXCEEDED errors.
      * Default is 15 mins.
      *
@@ -2227,15 +2241,9 @@ public class SpannerIO {
     private void spannerWriteWithRetryIfSchemaChange(List<Mutation> batch) throws SpannerException {
       for (int retry = 1; ; retry++) {
         try {
-          if (spannerConfig.getRpcPriority() != null
-              && spannerConfig.getRpcPriority().get() != null) {
-            spannerAccessor
-                .getDatabaseClient()
-                .writeAtLeastOnceWithOptions(
-                    batch, Options.priority(spannerConfig.getRpcPriority().get()));
-          } else {
-            spannerAccessor.getDatabaseClient().writeAtLeastOnce(batch);
-          }
+          spannerAccessor
+              .getDatabaseClient()
+              .writeAtLeastOnceWithOptions(batch, getTransactionOptions());
           reportServiceCallMetricsForBatch(batch, "ok");
           return;
         } catch (AbortedException e) {
@@ -2254,6 +2262,21 @@ public class SpannerIO {
           throw e;
         }
       }
+    }
+
+    private Options.TransactionOption[] getTransactionOptions() {
+      return Stream.of(
+              spannerConfig.getRpcPriority() != null && spannerConfig.getRpcPriority().get() != null
+                  ? Options.priority(spannerConfig.getRpcPriority().get())
+                  : null,
+              spannerConfig.getMaxCommitDelay() != null
+                      && spannerConfig.getMaxCommitDelay().get() != null
+                  ? Options.maxCommitDelay(
+                      java.time.Duration.ofMillis(
+                          spannerConfig.getMaxCommitDelay().get().getMillis()))
+                  : null)
+          .filter(Objects::nonNull)
+          .toArray(Options.TransactionOption[]::new);
     }
 
     private void reportServiceCallMetricsForBatch(List<Mutation> batch, String statusCode) {

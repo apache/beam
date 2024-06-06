@@ -27,6 +27,10 @@ applyJavaNature(
   shadowClosure: {},
 )
 
+shadowJar {
+  mergeServiceFiles()
+}
+
 description = "Apache Beam :: SDKs :: Java :: IO :: Expansion Service"
 ext.summary = "Expansion service serving several Java IOs"
 
@@ -39,6 +43,11 @@ dependencies {
   permitUnusedDeclared project(":sdks:java:io:kafka") // BEAM-11761
   implementation project(":sdks:java:io:kafka:upgrade")
   permitUnusedDeclared project(":sdks:java:io:kafka:upgrade") // BEAM-11761
+
+  // Needed by Iceberg I/O users that use GCS for the warehouse location.
+  implementation library.java.bigdataoss_gcs_connector
+  permitUnusedDeclared library.java.bigdataoss_gcs_connector
+
   runtimeOnly library.java.kafka_clients
   runtimeOnly library.java.slf4j_jdk14
 }

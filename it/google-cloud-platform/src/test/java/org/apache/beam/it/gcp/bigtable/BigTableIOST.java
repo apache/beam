@@ -151,7 +151,7 @@ public final class BigTableIOST extends IOStressTestBase {
                   Configuration.class),
               "large",
               Configuration.fromJsonString(
-                  "{\"rowsPerSecond\":50000,\"minutes\":60,\"pipelineTimeout\":120,\"numRecords\":5000000,\"valueSizeBytes\":1000,\"runner\":\"DataflowRunner\"}",
+                  "{\"rowsPerSecond\":50000,\"minutes\":60,\"pipelineTimeout\":120,\"numRecords\":10000000,\"valueSizeBytes\":1000,\"runner\":\"DataflowRunner\"}",
                   Configuration.class));
     } catch (IOException e) {
       throw new RuntimeException(e);

@@ -35,6 +35,12 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.apache.beam.runners.core.metrics.ServiceCallMetric;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -192,6 +198,7 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
             "split-at-fraction-calls-failed-due-to-other-reasons");
     private final Counter successfulSplitCalls =
         Metrics.counter(BigQueryStorageStreamReader.class, "split-at-fraction-calls-successful");
+    private static final ExecutorService executor = Executors.newCachedThreadPool();
 
     private BigQueryStorageStreamReader(
         BigQueryStorageStreamSource<T> source, BigQueryOptions options) throws IOException {
@@ -238,8 +245,12 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
     private synchronized boolean readNextRecord() throws IOException {
       Iterator<ReadRowsResponse> responseIterator = this.responseIterator;
       while (reader.readyForNextReadResponse()) {
-        // hasNext call has internal retry. Record throttling metrics after called
+        boolean previous = splitAllowed;
+        // disallow splitAtFraction (where it also calls hasNext) when iterator busy
+        splitAllowed = false;
         boolean hasNext = responseIterator.hasNext();
+        splitAllowed = previous;
+        // hasNext call has internal retry. Record throttling metrics after called
         storageClient.reportPendingMetrics();
 
         if (!hasNext) {
@@ -388,8 +399,22 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
           // The following line is required to trigger the `FailedPreconditionException` on which
           // the SplitReadStream validation logic depends. Removing it will cause incorrect
           // split operations to succeed.
-          newResponseIterator.hasNext();
-          storageClient.reportPendingMetrics();
+          Future<Boolean> future = executor.submit(newResponseIterator::hasNext);
+          try {
+            // The intended wait time is in sync with splitReadStreamSettings.setRetrySettings in
+            // StorageClientImpl.
+            future.get(30, TimeUnit.SECONDS);
+          } catch (TimeoutException | InterruptedException | ExecutionException e) {
+            badSplitPointCalls.inc();
+            LOG.info(
+                "Split of stream {} abandoned because current position check failed with {}.",
+                source.readStream.getName(),
+                e.getClass().getName());
+
+            return null;
+          } finally {
+            future.cancel(true);
+          }
         } catch (FailedPreconditionException e) {
           // The current source has already moved past the split point, so this split attempt
           // is unsuccessful.

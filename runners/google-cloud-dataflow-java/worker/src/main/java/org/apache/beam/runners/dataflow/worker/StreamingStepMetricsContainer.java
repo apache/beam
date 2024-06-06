@@ -42,7 +42,6 @@ import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.util.HistogramData;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Function;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
@@ -71,8 +70,8 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
   private MetricsMap<MetricName, DeltaDistributionCell> distributions =
       new MetricsMap<>(DeltaDistributionCell::new);
 
-  private MetricsMap<KV<MetricName, HistogramData.BucketType>, LockFreeHistogram>
-      perWorkerHistograms = new MetricsMap<>(LockFreeHistogram::new);
+  private final ConcurrentHashMap<MetricName, LockFreeHistogram> perWorkerHistograms =
+      new ConcurrentHashMap<>();
 
   private final Map<MetricName, Instant> perWorkerCountersByFirstStaleTime;
 
@@ -163,11 +162,17 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
   @Override
   public Histogram getPerWorkerHistogram(
       MetricName metricName, HistogramData.BucketType bucketType) {
-    if (enablePerWorkerMetrics) {
-      return perWorkerHistograms.get(KV.of(metricName, bucketType));
-    } else {
+    if (!enablePerWorkerMetrics) {
       return MetricsContainer.super.getPerWorkerHistogram(metricName, bucketType);
     }
+
+    LockFreeHistogram val = perWorkerHistograms.get(metricName);
+    if (val != null) {
+      return val;
+    }
+
+    return perWorkerHistograms.computeIfAbsent(
+        metricName, name -> new LockFreeHistogram(metricName, bucketType));
   }
 
   public Iterable<CounterUpdate> extractUpdates() {
@@ -316,7 +321,7 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
         });
     perWorkerHistograms.forEach(
         (k, v) -> {
-          v.getSnapshotAndReset().ifPresent(snapshot -> histograms.put(k.getKey(), snapshot));
+          v.getSnapshotAndReset().ifPresent(snapshot -> histograms.put(k, snapshot));
         });
 
     deleteStaleCounters(currentZeroValuedCounters, Instant.now(clock));

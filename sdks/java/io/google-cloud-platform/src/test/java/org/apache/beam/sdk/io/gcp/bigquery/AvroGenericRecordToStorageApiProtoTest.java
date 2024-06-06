@@ -488,7 +488,8 @@ public class AvroGenericRecordToStorageApiProtoTest {
         descriptor.getFields().stream()
             .collect(Collectors.toMap(Descriptors.FieldDescriptor::getName, Functions.identity()));
     assertEquals("UPDATE", msg.getField(fieldDescriptors.get(StorageApiCDC.CHANGE_TYPE_COLUMN)));
-    assertEquals(42L, msg.getField(fieldDescriptors.get(StorageApiCDC.CHANGE_SQN_COLUMN)));
+    assertEquals(
+        Long.toHexString(42L), msg.getField(fieldDescriptors.get(StorageApiCDC.CHANGE_SQN_COLUMN)));
   }
 
   @Test

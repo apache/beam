@@ -163,6 +163,19 @@ public class AvroGenericRecordToStorageApiProto {
   }
 
   /**
+   * Forwards {@param changeSequenceNum} to {@link #messageFromGenericRecord(Descriptor,
+   * GenericRecord, String, String)} via {@link Long#toHexString}.
+   */
+  public static DynamicMessage messageFromGenericRecord(
+      Descriptor descriptor,
+      GenericRecord record,
+      @Nullable String changeType,
+      long changeSequenceNum) {
+    return messageFromGenericRecord(
+        descriptor, record, changeType, Long.toHexString(changeSequenceNum));
+  }
+
+  /**
    * Given an Avro {@link GenericRecord} object, returns a protocol-buffer message that can be used
    * to write data using the BigQuery Storage streaming API.
    *
@@ -174,7 +187,7 @@ public class AvroGenericRecordToStorageApiProto {
       Descriptor descriptor,
       GenericRecord record,
       @Nullable String changeType,
-      long changeSequenceNum) {
+      @Nullable String changeSequenceNum) {
     Schema schema = record.getSchema();
     DynamicMessage.Builder builder = DynamicMessage.newBuilder(descriptor);
     for (Schema.Field field : schema.getFields()) {
@@ -195,7 +208,7 @@ public class AvroGenericRecordToStorageApiProto {
       builder.setField(
           org.apache.beam.sdk.util.Preconditions.checkStateNotNull(
               descriptor.findFieldByName(StorageApiCDC.CHANGE_SQN_COLUMN)),
-          changeSequenceNum);
+          org.apache.beam.sdk.util.Preconditions.checkStateNotNull(changeSequenceNum));
     }
     return builder.build();
   }

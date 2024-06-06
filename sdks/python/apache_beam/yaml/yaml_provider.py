@@ -80,13 +80,6 @@ class Provider:
   def description(self, type):
     return None
 
-  def __repr__(self):
-    ts = ','.join(sorted(self.provided_transforms()))
-    return f'{self.__class__.__name__}[{ts}]'
-
-  def to_json(self):
-    return {'type': self.__class__.__name__}
-
   def requires_inputs(self, typ: str, args: Mapping[str, Any]) -> bool:
     """Returns whether this transform requires inputs.
 
@@ -113,16 +106,6 @@ class Provider:
     provider that should actually be used for affinity checking.
     """
     return self
-
-  def with_underlying_provider(self, provider):
-    """Returns a provider that vends as many transforms of this provider as
-    possible but uses the given underlying provider.
-
-    This is used to try to minimize the number of distinct environments that
-    are used as many providers implicitly or explicitly link in many common
-    transforms.
-    """
-    return None
 
   def affinity(self, other: "Provider"):
     """Returns a value approximating how good it would be for this provider
@@ -170,17 +153,6 @@ class ExternalProvider(Provider):
 
   def provided_transforms(self):
     return self._urns.keys()
-
-  def with_underlying_provider(self, other_provider):
-    if not isinstance(other_provider, ExternalProvider):
-      return
-
-    all_urns = set(other_provider.schema_transforms().keys()).union(
-        set(other_provider._urns.values()))
-    for name, urn in self._urns.items():
-      if urn in all_urns and name not in other_provider._urns:
-        other_provider._urns[name] = urn
-    return other_provider
 
   def schema_transforms(self):
     if callable(self._service):
@@ -452,7 +424,10 @@ class InlineProvider(Provider):
     return self._transform_factories.keys()
 
   def config_schema(self, typ):
-    factory = self._transform_factories[typ]
+    return self.config_schema_from_callable(self._transform_factories[typ])
+
+  @classmethod
+  def config_schema_from_callable(cls, factory):
     if isinstance(factory, type) and issubclass(factory, beam.PTransform):
       # https://bugs.python.org/issue40897
       params = dict(inspect.signature(factory.__init__).parameters)
@@ -470,7 +445,7 @@ class InlineProvider(Provider):
 
     docs = {
         param.arg_name: param.description
-        for param in self.get_docs(typ).params
+        for param in cls.get_docs(factory).params
     }
 
     names_and_types = [
@@ -483,17 +458,22 @@ class InlineProvider(Provider):
         ])
 
   def description(self, typ):
+    return self.description_from_callable(self._transform_factories[typ])
+
+  @classmethod
+  def description_from_callable(cls, factory):
     def empty_if_none(s):
       return s or ''
 
-    docs = self.get_docs(typ)
+    docs = cls.get_docs(factory)
     return (
         empty_if_none(docs.short_description) +
         ('\n\n' if docs.blank_after_short_description else '\n') +
         empty_if_none(docs.long_description)).strip() or None
 
-  def get_docs(self, typ):
-    docstring = self._transform_factories[typ].__doc__ or ''
+  @classmethod
+  def get_docs(cls, factory):
+    docstring = factory.__doc__ or ''
     # These "extra" docstring parameters are not relevant for YAML and mess
     # up the parsing.
     docstring = re.sub(
@@ -539,6 +519,15 @@ class SqlBackedProvider(Provider):
   def provided_transforms(self):
     return self._transforms.keys()
 
+  def config_schema(self, type):
+    full_config = InlineProvider.config_schema_from_callable(
+        self._transforms[type])
+    # Omit the (first) query -> transform parameter.
+    return schema_pb2.Schema(fields=full_config.fields[1:])
+
+  def description(self, type):
+    return InlineProvider.description_from_callable(self._transforms[type])
+
   def available(self):
     return self.sql_provider().available()
 
@@ -547,15 +536,6 @@ class SqlBackedProvider(Provider):
 
   def underlying_provider(self):
     return self.sql_provider()
-
-  def with_underlying_provider(self, other_provider):
-    new_sql_provider = self.sql_provider().with_underlying_provider(
-        other_provider)
-    if new_sql_provider is None:
-      new_sql_provider = other_provider
-    if new_sql_provider and 'Sql' in set(
-        new_sql_provider.provided_transforms()):
-      return SqlBackedProvider(self._transforms, new_sql_provider)
 
   def to_json(self):
     return {'type': "SqlBackedProvider"}
@@ -594,7 +574,30 @@ def dicts_to_rows(o):
 
 class YamlProviders:
   class AssertEqual(beam.PTransform):
-    def __init__(self, elements):
+    """Asserts that the input contains exactly the elements provided.
+
+    This is primarily used for testing; it will cause the entire pipeline to
+    fail if the input to this transform is not exactly the set of `elements`
+    given in the config parameter.
+
+    As with Create, YAML/JSON-style mappings are interpreted as Beam rows,
+    e.g.::
+
+        type: AssertEqual
+        input: SomeTransform
+        config:
+          elements:
+             - {a: 0, b: "foo"}
+             - {a: 1, b: "bar"}
+
+    would ensure that `SomeTransform` produced exactly two elements with values
+    `(a=0, b="foo")` and `(a=1, b="bar")` respectively.
+
+    Args:
+        elements: The set of elements that should belong to the PCollection.
+            YAML/JSON-style mappings will be interpreted as Beam rows.
+    """
+    def __init__(self, elements: Iterable[Any]):
       self._elements = elements
 
     def expand(self, pcoll):
@@ -926,7 +929,7 @@ def create_java_builtin_provider():
     return java_provider.create_transform(
         'WindowIntoStrategy',
         {
-            'serializedWindowingStrategy': windowing_strategy.to_runner_api(
+            'serialized_windowing_strategy': windowing_strategy.to_runner_api(
                 empty_context).SerializeToString()
         },
         None)
@@ -1044,12 +1047,7 @@ class PypiExpansionService:
 
 @ExternalProvider.register_provider_type('renaming')
 class RenamingProvider(Provider):
-  def __init__(
-      self,
-      transforms: Mapping[str, str],
-      mappings: Mapping[str, Mapping[str, str]],
-      underlying_provider: Provider,
-      defaults: Optional[Mapping[str, Mapping[str, Any]]] = None):
+  def __init__(self, transforms, mappings, underlying_provider, defaults=None):
     if isinstance(underlying_provider, dict):
       underlying_provider = ExternalProvider.provider_from_spec(
           underlying_provider)
@@ -1150,23 +1148,6 @@ class RenamingProvider(Provider):
 
   def underlying_provider(self):
     return self._underlying_provider.underlying_provider()
-
-  def with_underlying_provider(self, other_provider):
-    new_underlying_provider = (
-        self._underlying_provider.with_underlying_provider(other_provider))
-    if new_underlying_provider:
-      provided = set(new_underlying_provider.provided_transforms())
-      new_transforms = {
-          alias: actual
-          for alias,
-          actual in self._transforms.items() if actual in provided
-      }
-      if new_transforms:
-        return RenamingProvider(
-            new_transforms,
-            self._mappings,
-            new_underlying_provider,
-            self._defaults)
 
   def cache_artifacts(self):
     self._underlying_provider.cache_artifacts()

@@ -337,16 +337,16 @@ class ApplyBuckets(TFTOperation):
       name: Optional[str] = None):
     """
     This functions is used to map the element to a positive index i for
-    which bucket_boundaries[i-1] <= element < bucket_boundaries[i],
-    if it exists. If input < bucket_boundaries[0], then element is
-    mapped to 0. If element >= bucket_boundaries[-1], then element is
+    which `bucket_boundaries[i-1] <= element < bucket_boundaries[i]`,
+    if it exists. If `input < bucket_boundaries[0]`, then element is
+    mapped to 0. If `element >= bucket_boundaries[-1]`, then element is
     mapped to len(bucket_boundaries). NaNs are mapped to
     len(bucket_boundaries).
 
     Args:
       columns: A list of column names to apply the transformation on.
-      bucket_boundaries: A rank 2 Tensor or list representing the bucket
-        boundaries sorted in ascending order.
+      bucket_boundaries: An iterable of ints or floats representing the bucket
+        boundaries. Must be sorted in ascending order.
       name: (Optional) A string that specifies the name of the operation.
     """
     super().__init__(columns)
@@ -358,6 +358,45 @@ class ApplyBuckets(TFTOperation):
       output_column_name: str) -> Dict[str, common_types.TensorType]:
     output = {
         output_column_name: tft.apply_buckets(
+            x=data, bucket_boundaries=self.bucket_boundaries, name=self.name)
+    }
+    return output
+
+
+@register_input_dtype(float)
+class ApplyBucketsWithInterpolation(TFTOperation):
+  def __init__(
+      self,
+      columns: List[str],
+      bucket_boundaries: Iterable[Union[int, float]],
+      name: Optional[str] = None):
+    """Interpolates values within the provided buckets and then normalizes to
+    [0, 1].
+    
+    Input values are bucketized based on the provided boundaries such that the
+    input is mapped to a positive index i for which `bucket_boundaries[i-1] <=
+    element < bucket_boundaries[i]`, if it exists. The values are then
+    normalized to the range [0,1] within the bucket, with NaN values being
+    mapped to 0.5.
+
+    For more information, see:
+    https://www.tensorflow.org/tfx/transform/api_docs/python/tft/apply_buckets_with_interpolation
+
+    Args:
+      columns: A list of column names to apply the transformation on.
+      bucket_boundaries: An iterable of ints or floats representing the bucket
+        boundaries sorted in ascending order.
+      name: (Optional) A string that specifies the name of the operation.
+    """
+    super().__init__(columns)
+    self.bucket_boundaries = [bucket_boundaries]
+    self.name = name
+
+  def apply_transform(
+      self, data: common_types.TensorType,
+      output_column_name: str) -> Dict[str, common_types.TensorType]:
+    output = {
+        output_column_name: tft.apply_buckets_with_interpolation(
             x=data, bucket_boundaries=self.bucket_boundaries, name=self.name)
     }
     return output
@@ -637,3 +676,69 @@ class BagOfWords(TFTOperation):
 def count_unique_words(
     data: tf.SparseTensor, output_vocab_name: Optional[str]) -> None:
   tft.count_per_key(data, key_vocabulary_filename=output_vocab_name)
+
+
+@register_input_dtype(str)
+class HashStrings(TFTOperation):
+  def __init__(
+      self,
+      columns: List[str],
+      hash_buckets: int,
+      key: Optional[Tuple[int, int]] = None,
+      name: Optional[str] = None):
+    '''Hashes strings into the provided number of buckets.
+    
+    Args:
+      columns: A list of the column names to apply the transformation on.
+      hash_buckets: the number of buckets to hash the strings into.
+      key: optional. An array of two Python `uint64`. If passed, output will be
+        a deterministic function of `strings` and `key`. Note that hashing will
+        be slower if this value is specified.
+      name: optional. A name for this operation.
+
+    Raises:
+      ValueError if `hash_buckets` is not a positive and non-zero integer.
+    '''
+    self.hash_buckets = hash_buckets
+    self.key = key
+    self.name = name
+
+    if hash_buckets < 1:
+      raise ValueError(
+          'number of hash buckets must be positive, got ', hash_buckets)
+
+    super().__init__(columns)
+
+  def apply_transform(
+      self, data: common_types.TensorType,
+      output_col_name: str) -> Dict[str, common_types.TensorType]:
+    output_dict = {
+        output_col_name: tft.hash_strings(
+            strings=data,
+            hash_buckets=self.hash_buckets,
+            key=self.key,
+            name=self.name)
+    }
+    return output_dict
+
+
+@register_input_dtype(str)
+class DeduplicateTensorPerRow(TFTOperation):
+  def __init__(self, columns: List[str], name: Optional[str] = None):
+    """ Deduplicates each row (0th dimension) of the provided tensor.
+
+    Args:
+      columns: A list of the columns to apply the transformation on.
+      name: optional. A name for this operation. 
+    """
+    self.name = name
+    super().__init__(columns)
+
+  def apply_transform(
+      self, data: common_types.TensorType,
+      output_col_name: str) -> Dict[str, common_types.TensorType]:
+    output_dict = {
+        output_col_name: tft.deduplicate_tensor_per_row(
+            input_tensor=data, name=self.name)
+    }
+    return output_dict

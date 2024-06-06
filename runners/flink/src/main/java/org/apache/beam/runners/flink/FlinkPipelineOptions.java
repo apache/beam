@@ -128,6 +128,22 @@ public interface FlinkPipelineOptions
   void setFinishBundleBeforeCheckpointing(boolean finishBundleBeforeCheckpointing);
 
   @Description(
+      "If set, Unaligned checkpoints contain in-flight data (i.e., data stored in buffers) as part of the "
+          + "checkpoint state, allowing checkpoint barriers to overtake these buffers. Thus, the checkpoint duration "
+          + "becomes independent of the current throughput as checkpoint barriers are effectively not embedded into the "
+          + "stream of data anymore")
+  @Default.Boolean(false)
+  boolean getUnalignedCheckpointEnabled();
+
+  void setUnalignedCheckpointEnabled(boolean unalignedCheckpointEnabled);
+
+  @Description("Forces unaligned checkpoints, particularly allowing them for iterative jobs.")
+  @Default.Boolean(false)
+  boolean getForceUnalignedCheckpointEnabled();
+
+  void setForceUnalignedCheckpointEnabled(boolean forceUnalignedCheckpointEnabled);
+
+  @Description(
       "Shuts down sources which have been idle for the configured time of milliseconds. Once a source has been "
           + "shut down, checkpointing is not possible anymore. Shutting down the sources eventually leads to pipeline "
           + "shutdown (=Flink job finishes) once all input has been processed. Unless explicitly set, this will "

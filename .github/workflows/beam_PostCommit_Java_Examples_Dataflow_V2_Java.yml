@@ -79,7 +79,6 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          distribution: 'temurin'
           java-version: |
             ${{ matrix.java_version }}
             8

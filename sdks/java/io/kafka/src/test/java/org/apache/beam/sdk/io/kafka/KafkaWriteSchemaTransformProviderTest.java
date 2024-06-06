@@ -18,17 +18,24 @@
 package org.apache.beam.sdk.io.kafka;
 
 import static org.apache.beam.sdk.io.kafka.KafkaWriteSchemaTransformProvider.getRowToRawBytesFunction;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 import java.io.UnsupportedEncodingException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.protobuf.ProtoByteUtils;
 import org.apache.beam.sdk.io.kafka.KafkaWriteSchemaTransformProvider.KafkaWriteSchemaTransform.ErrorCounterFn;
+import org.apache.beam.sdk.managed.Managed;
+import org.apache.beam.sdk.managed.ManagedTransformConstants;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.transforms.providers.ErrorHandling;
 import org.apache.beam.sdk.schemas.utils.JsonUtils;
+import org.apache.beam.sdk.schemas.utils.YamlUtils;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -184,5 +191,54 @@ public class KafkaWriteSchemaTransformProviderTest {
 
     output.get(ERROR_TAG).setRowSchema(errorSchema);
     p.run().waitUntilFinish();
+  }
+
+  private static final String PROTO_SCHEMA =
+      "syntax = \"proto3\";\n"
+          + "\n"
+          + "message MyMessage {\n"
+          + "  int32 id = 1;\n"
+          + "  string name = 2;\n"
+          + "  bool active = 3;\n"
+          + "}";
+
+  @Test
+  public void testBuildTransformWithManaged() {
+    List<String> configs =
+        Arrays.asList(
+            "topic: topic_1\n" + "bootstrap_servers: some bootstrap\n" + "data_format: RAW",
+            "topic: topic_2\n"
+                + "bootstrap_servers: some bootstrap\n"
+                + "producer_config_updates: {\"foo\": \"bar\"}\n"
+                + "data_format: AVRO",
+            "topic: topic_3\n"
+                + "bootstrap_servers: some bootstrap\n"
+                + "data_format: PROTO\n"
+                + "schema: '"
+                + PROTO_SCHEMA
+                + "'\n"
+                + "message_name: MyMessage");
+
+    for (String config : configs) {
+      // Kafka Write SchemaTransform gets built in ManagedSchemaTransformProvider's expand
+      Managed.write(Managed.KAFKA)
+          .withConfig(YamlUtils.yamlStringToMap(config))
+          .expand(
+              Pipeline.create()
+                  .apply(Create.empty(Schema.builder().addByteArrayField("bytes").build())));
+    }
+  }
+
+  @Test
+  public void testManagedMappings() {
+    KafkaWriteSchemaTransformProvider provider = new KafkaWriteSchemaTransformProvider();
+    Map<String, String> mapping = ManagedTransformConstants.MAPPINGS.get(provider.identifier());
+
+    assertNotNull(mapping);
+
+    List<String> configSchemaFieldNames = provider.configurationSchema().getFieldNames();
+    for (String paramName : mapping.values()) {
+      assertTrue(configSchemaFieldNames.contains(paramName));
+    }
   }
 }

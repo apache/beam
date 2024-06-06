@@ -46,6 +46,7 @@ import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.slf4j.Logger;
@@ -69,6 +70,7 @@ public class SideInputStateFetcher {
     this(fetchGlobalDataFn, SideInputCache.create(options));
   }
 
+  @VisibleForTesting
   SideInputStateFetcher(
       Function<GlobalDataRequest, GlobalData> fetchGlobalDataFn, SideInputCache sideInputCache) {
     this.fetchGlobalDataFn = fetchGlobalDataFn;
