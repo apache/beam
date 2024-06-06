@@ -40,7 +40,7 @@ from vertexai.language_models import TextEmbeddingModel
 from vertexai.vision_models import Image
 from vertexai.vision_models import MultiModalEmbeddingModel
 
-__all__ = ["VertexAITextEmbeddings"]
+__all__ = ["VertexAITextEmbeddings", "VertexAIImageEmbeddings"]
 
 DEFAULT_TASK_TYPE = "RETRIEVAL_DOCUMENT"
 # TODO: https://github.com/apache/beam/issues/29356
