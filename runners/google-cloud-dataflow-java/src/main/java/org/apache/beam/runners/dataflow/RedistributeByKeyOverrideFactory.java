@@ -53,7 +53,7 @@ class RedistributeByKeyOverrideFactory<K, V>
   private static class DataflowRedistributeByKey<K, V>
       extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, V>>> {
 
-    private final DataflowRunner runner;
+    private final transient DataflowRunner runner;
     private final RedistributeByKey<K, V> originalTransform;
     private final transient PCollection<KV<K, V>> originalOutput;
 
