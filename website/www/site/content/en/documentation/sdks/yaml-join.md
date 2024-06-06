@@ -63,8 +63,40 @@ inner join. The supported join types are:
 | Full Outer Join | left |
 | Right Outer Join | right |
 
-The following example  joins three inputs  using an inner join on the specified
+The following example  joins two inputs  using an inner join on the specified
 equalities:
+
+```
+- type: Join
+  input:
+    input1: First Input
+    input2: Second Input
+  config:
+    type: inner
+    equalities:
+      - input1: col1
+        input2: col1
+```
+
+
+The following example joins two inputs using a left outer join on the specified
+equalities. In this case, all rows from input1 will be kept because input1 is
+the left input. Order of joins follows the sequence as specified in equalities.
+
+```
+- type: Join
+  input:
+    input1: First Input
+    input2: Second Input
+  config:
+    type: left
+    equalities:
+      - input1: col1
+        input2: col1
+```
+
+The following example joins three inputs using an full outer join on the
+specified equalities:
 
 ```
 - type: Join
@@ -73,7 +105,7 @@ equalities:
     input2: Second Input
     input3: Third Input
   config:
-    type: inner
+    type: outer
     equalities:
       - input1: col1
         input2: col1
@@ -81,12 +113,10 @@ equalities:
         input3: col2
 ```
 
-
-If you don't  want all of the inputs to be joined using the same join type, you
-can specify the inputs to be outer joined. The following  example joins input1
-with input2 using a right outer join since input2 is on the right side and will
-join input2 with input 3 using a left outer join since input2 is on the left
-side.
+If you want a combination of join types, you can specify the inputs to be outer
+joined. The following  example joins input1 with input2 using a right outer join
+since input2 is on the right side and will join input2 with input 3 using a left
+outer join since input2 is on the left side.
 
 ```
 - type: Join
