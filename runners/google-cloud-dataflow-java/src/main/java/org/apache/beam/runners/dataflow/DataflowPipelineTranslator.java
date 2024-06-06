@@ -712,6 +712,11 @@ public class DataflowPipelineTranslator {
         if (translator.runner.doesPCollectionPreserveKeys((PCollection<?>) value)) {
           addInput(PropertyNames.PRESERVES_KEYS, "true");
         }
+        // Unrelated to sharding, append corresponding input properties if the output of
+        // a RedistributeByKey transform can have duplicated elements.
+        if (translator.runner.doesPCollectionAllowDuplicates((PCollection<?>) value)) {
+          addInput(PropertyNames.ALLOW_DUPLICATES, "true");
+        }
       }
 
       Map<String, Object> properties = getProperties();

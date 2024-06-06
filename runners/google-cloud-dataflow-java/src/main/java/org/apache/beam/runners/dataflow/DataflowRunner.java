@@ -119,6 +119,7 @@ import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Redistribute.RedistributeByKey;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.View;
@@ -245,6 +246,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   private final Set<PCollection<?>> pCollectionsPreservedKeys;
   private final Set<PCollection<?>> pcollectionsRequiringAutoSharding;
+
+  private final Set<PCollection<?>> pCollectionsAllowDuplicates;
 
   /**
    * Project IDs must contain lowercase letters, digits, or dashes. IDs must start with a letter and
@@ -498,6 +501,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     this.pcollectionsRequiringIndexedFormat = new HashSet<>();
     this.pCollectionsPreservedKeys = new HashSet<>();
     this.pcollectionsRequiringAutoSharding = new HashSet<>();
+    this.pCollectionsAllowDuplicates = new HashSet<>();
     this.ptransformViewsWithNonDeterministicKeyCoders = new HashSet<>();
   }
 
@@ -697,6 +701,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             PTransformOverride.of(
                 PTransformMatchers.classEqualTo(ParDo.SingleOutput.class),
                 new PrimitiveParDoSingleFactory()));
+
+    overridesBuilder.add(
+        PTransformOverride.of(
+            PTransformMatchers.classEqualTo(RedistributeByKey.class),
+            new RedistributeByKeyOverrideFactory(this)));
 
     if (streaming) {
       // For update compatibility, always use a Read for Create in streaming mode.
@@ -1819,12 +1828,20 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     pcollectionsRequiringAutoSharding.add(pcol);
   }
 
+  void maybeRecordPCollectionAllowDuplicates(PCollection<?> pcol) {
+    pCollectionsAllowDuplicates.add(pcol);
+  }
+
   boolean doesPCollectionPreserveKeys(PCollection<?> pcol) {
     return pCollectionsPreservedKeys.contains(pcol);
   }
 
   boolean doesPCollectionRequireAutoSharding(PCollection<?> pcol) {
     return pcollectionsRequiringAutoSharding.contains(pcol);
+  }
+
+  boolean doesPCollectionAllowDuplicates(PCollection<?> pcol) {
+    return pCollectionsAllowDuplicates.contains(pcol);
   }
 
   /** A set of {@link View}s with non-deterministic key coders. */
