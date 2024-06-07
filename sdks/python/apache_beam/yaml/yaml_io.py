@@ -94,7 +94,11 @@ def write_to_text(pcoll, path: str):
 
 
 def read_from_bigquery(
-    query=None, table=None, row_restriction=None, fields=None):
+    *,
+    table: Optional[str] = None,
+    query: Optional[str] = None,
+    row_restriction: Optional[str] = None,
+    fields: Optional[Iterable[str]] = None):
   """Reads data from BigQuery.
 
   Exactly one of table or query must be set.
@@ -114,10 +118,10 @@ def read_from_bigquery(
 
 
 def write_to_bigquery(
-    table,
+    table: Optional[str],
     *,
-    create_disposition=BigQueryDisposition.CREATE_IF_NEEDED,
-    write_disposition=BigQueryDisposition.WRITE_APPEND,
+    create_disposition: str = BigQueryDisposition.CREATE_IF_NEEDED,
+    write_disposition: str = BigQueryDisposition.WRITE_APPEND,
     error_handling=None):
   """Writes data to a BigQuery table."""
   class WriteToBigQueryHandlingErrors(beam.PTransform):
