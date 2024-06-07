@@ -151,7 +151,7 @@ tenacity==8.2.3
 testcontainers==3.7.1
 threadpoolctl==3.4.0
 tomli==2.0.1
-tqdm==4.66.2
+tqdm==4.66.3
 typing_extensions==4.11.0
 tzdata==2024.1
 tzlocal==5.2
