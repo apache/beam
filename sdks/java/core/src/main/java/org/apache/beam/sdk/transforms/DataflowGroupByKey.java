@@ -41,7 +41,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * Specialized implementation of {@code GroupByKey} for translating Redistribute transform to
  * Dataflow pipelines.
  */
-
 public class DataflowGroupByKey<K, V>
     extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>> {
 
