@@ -199,6 +199,22 @@ If one wanted to select a field that collides with a [reserved SQL keyword](http
 **Note**: the field mapping tags and fields defined in `drop` do not need to be escaped. Only the UDF itself
 needs to be a valid SQL statement.
 
+
+### Generic
+
+If a language is not specified the set of expressions is limited to pre-existing
+fields and integer, floating point, or string literals.  For example
+
+```
+- type: MapToFields
+  config:
+    fields:
+      new_col: col1
+      int_literal: 389
+      float_litera: 1.90216
+      str_literal: '"example"'  # note the double quoting
+```
+
 ## FlatMap
 
 Sometimes it may be desirable to emit more (or less) than one record for each
@@ -269,8 +285,17 @@ criteria. This can be accomplished with a `Filter` transform, e.g.
 ```
 - type: Filter
   config:
-    language: python
     keep: "col2 > 0"
+```
+
+For anything more complicated than a simple comparison between existing
+fields and numeric literals a `language` parameter must be provided, e.g.
+
+```
+- type: Filter
+  config:
+    language: python
+    keep: "col2 + col3 > 0"
 ```
 
 For more complicated filtering functions, one can provide a full Python callable that takes the row as an

@@ -128,7 +128,8 @@ def validate_generic_expression(
 
   raise ValueError(
       "Missing language specification, unknown input fields, "
-      f"or invalid generic expression: {expr}")
+      f"or invalid generic expression: {expr}. "
+      "See https://beam.apache.org/documentation/sdks/yaml-udf/#generic")
 
 
 def validate_generic_expressions(base_type, config, input_pcolls) -> None:
