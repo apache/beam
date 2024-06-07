@@ -66,7 +66,7 @@ def set_running_in_gce(worker_executing_project):
 
 
 def get_service_credentials(pipeline_options):
-  # type: (PipelineOptions) -> Optional[google.auth.credentials.Credentials]
+  # type: (PipelineOptions) -> Optional[_ApitoolsCredentialsAdapter]
 
   """For internal use only; no backwards-compatibility guarantees.
 
