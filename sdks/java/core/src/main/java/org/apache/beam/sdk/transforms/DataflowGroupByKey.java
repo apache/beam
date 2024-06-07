@@ -155,7 +155,7 @@ public class DataflowGroupByKey<K, V>
    * @param <V> the type of the values of the input {@code PCollection} and the elements of the
    *     {@code Iterable}s in the output {@code PCollection}
    */
-  static <K, V> DataflowGroupByKey<K, V> createWithAllowDuplicates() {
+  public static <K, V> DataflowGroupByKey<K, V> createWithAllowDuplicates() {
     return new DataflowGroupByKey<>(false, true);
   }
 
