@@ -60,7 +60,7 @@ import org.slf4j.LoggerFactory;
  * To read from Solace, use the {@link SolaceIO#read()} or {@link SolaceIO#read(TypeDescriptor,
  * SerializableFunction, SerializableFunction)}.
  *
- * <h3>No-arg {@link SolaceIO#read()} top-level method</h3>
+ * <h3>No-argument {@link SolaceIO#read()} top-level method</h3>
  *
  * <p>This method returns a PCollection of {@link Solace.Record} objects. It uses a default mapper
  * ({@link SolaceRecordMapper#map(BytesXMLMessage)}) to map from the received {@link
@@ -78,8 +78,8 @@ import org.slf4j.LoggerFactory;
  * <p>With this method, the user can:
  *
  * <ul>
- *   <li>specify custom output type of the PTransform (for example their own class consisting only
- *       of the relevant fields, optimized for their use-case),
+ *   <li>specify a custom output type for the PTransform (for example their own class consisting
+ *       only of the relevant fields, optimized for their use-case), and
  *   <li>create a custom mapping between {@link BytesXMLMessage} and their output type and
  *   <li>specify what field to use for watermark estimation from their mapped field (for example, in
  *       this method the user can use a field which is encoded in the payload as a timestamp, which
@@ -135,7 +135,7 @@ import org.slf4j.LoggerFactory;
  * <h4>The advanced {@link SolaceIO#read(TypeDescriptor, SerializableFunction,
  * SerializableFunction)} method</h4>
  *
- * <p>When using this method we can specify a custom output PCollection type and a custom timestamp
+ * <p>When using this method you can specify a custom output PCollection type and a custom timestamp
  * function.
  *
  * <pre>{@code
