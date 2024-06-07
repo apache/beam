@@ -43,6 +43,9 @@ import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Duration;
 
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 class RedistributeByKeyOverrideFactory<K, V>
     extends SingleInputOutputOverrideFactory<
         PCollection<KV<K, V>>, PCollection<KV<K, V>>, RedistributeByKey<K, V>> {

@@ -698,7 +698,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             PTransformOverride.of(
                 PTransformMatchers.classEqualTo(ParDo.SingleOutput.class),
                 new PrimitiveParDoSingleFactory()));
-  
+
     overridesBuilder.add(
         PTransformOverride.of(
             PTransformMatchers.classEqualTo(RedistributeByKey.class),
