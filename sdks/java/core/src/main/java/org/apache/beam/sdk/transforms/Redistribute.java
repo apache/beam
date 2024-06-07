@@ -46,9 +46,6 @@ import org.joda.time.Duration;
  * input but functions as an operational hint to a runner that redistributing the data in some way
  * is likely useful.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class Redistribute {
   /** @return a {@link RedistributeArbitrarily} transform with default configuration. */
   public static <T> RedistributeArbitrarily<T> arbitrarily() {
@@ -104,10 +101,7 @@ public class Redistribute {
               .apply("ReifyOriginalMetadata", Reify.windowsInValue());
 
       PCollection<KV<K, Iterable<ValueInSingleWindow<V>>>> grouped =
-          reified.apply(
-              allowDuplicates
-                  ? DataflowGroupByKey.createWithAllowDuplicates()
-                  : DataflowGroupByKey.create());
+          reified.apply(GroupByKey.create());
       return grouped
           .apply(
               "ExpandIterable",
@@ -128,19 +122,6 @@ public class Redistribute {
           // Set the windowing strategy directly, so that it doesn't get counted as the user having
           // set allowed lateness.
           .setWindowingStrategyInternal(originalStrategy);
-    }
-  }
-
-  /**
-   * @param <K> The type of key being reshuffled on.
-   * @param <V> The type of value being reshuffled.
-   */
-  public static class RedistributeByKeyAllowingDuplicates<K, V>
-      extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, V>>> {
-
-    @Override
-    public PCollection<KV<K, V>> expand(PCollection<KV<K, V>> input) {
-      return input.apply(Redistribute.byKey());
     }
   }
 
