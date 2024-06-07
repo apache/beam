@@ -103,6 +103,19 @@ def read_from_bigquery(
 
   Exactly one of table or query must be set.
   If query is set, neither row_restriction nor fields should be set.
+
+  Args:
+    table (str): The table to read from, specified as `DATASET.TABLE`
+      or `PROJECT:DATASET.TABLE`.
+    query (str): A query to be used instead of the table argument.
+    row_restriction (str): Optional SQL text filtering statement, similar to a
+      WHERE clause in a query. Aggregates are not supported. Restricted to a
+      maximum length for 1 MB.
+    selected_fields (List[str]): Optional List of names of the fields in the
+      table that should be read. If empty, all fields will be read. If the
+      specified field is a nested field, all the sub-fields in the field will be
+      selected. The output field order is unrelated to the order of fields
+      given here.
   """
   if query is None:
     assert table is not None
@@ -123,7 +136,38 @@ def write_to_bigquery(
     create_disposition: str = BigQueryDisposition.CREATE_IF_NEEDED,
     write_disposition: str = BigQueryDisposition.WRITE_APPEND,
     error_handling=None):
-  """Writes data to a BigQuery table."""
+  f"""Writes data to a BigQuery table.
+
+  Args:
+    table (str): The table to read from, specified as `DATASET.TABLE`
+      or `PROJECT:DATASET.TABLE`.
+      create_disposition (BigQueryDisposition): A string describing what
+        happens if the table does not exist. Possible values are:
+
+        * :attr:`{BigQueryDisposition.CREATE_IF_NEEDED}`: create if does not
+          exist.
+        * :attr:`{BigQueryDisposition.CREATE_NEVER}`: fail the write if does not
+          exist.
+
+        Defaults to `{BigQueryDisposition.CREATE_IF_NEEDED}`.
+
+      write_disposition (BigQueryDisposition): A string describing what happens
+        if the table has already some data. Possible values are:
+
+        * :attr:`{BigQueryDisposition.WRITE_TRUNCATE}`: delete existing rows.
+        * :attr:`{BigQueryDisposition.WRITE_APPEND}`: add to existing rows.
+        * :attr:`{BigQueryDisposition.WRITE_EMPTY}`: fail the write if table not
+          empty.
+
+        For streaming pipelines WriteTruncate can not be used.
+
+        Defaults to `{BigQueryDisposition.WRITE_APPEND}`.
+
+      error_handling: If specified, should be a mapping giving an output into
+        which to emit records that failed to bet written to BigQuery, as
+        described at https://beam.apache.org/documentation/sdks/yaml-errors/
+        Otherwise permanently failing records will cause pipeline failure.
+  """
   class WriteToBigQueryHandlingErrors(beam.PTransform):
     def default_label(self):
       return 'WriteToBigQuery'
