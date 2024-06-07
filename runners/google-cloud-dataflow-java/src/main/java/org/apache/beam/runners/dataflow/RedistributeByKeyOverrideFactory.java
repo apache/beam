@@ -54,12 +54,18 @@ class RedistributeByKeyOverrideFactory<K, V>
               transform) {
     return PTransformOverrideFactory.PTransformReplacement.of(
         PTransformReplacements.getSingletonMainInput(transform),
-        new DataflowRedistributeByKey<>());
+        new DataflowRedistributeByKey<>(transform.getTransform()));
   }
 
   /** Specialized implementation of {@link RedistributeByKey} for Dataflow pipelines. */
   private static class DataflowRedistributeByKey<K, V>
       extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, V>>> {
+
+    private final RedistributeByKey<K, V> originalTransform;
+
+    private DataflowRedistributeByKey(RedistributeByKey<K, V> originalTransform) {
+      this.originalTransform = originalTransform;
+    }
 
     @Override
     public PCollection<KV<K, V>> expand(PCollection<KV<K, V>> input) {
