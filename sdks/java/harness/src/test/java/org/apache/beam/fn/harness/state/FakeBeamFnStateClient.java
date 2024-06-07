@@ -47,7 +47,6 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.LengthPrefixCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
@@ -305,8 +304,7 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
           previousValue.add(request.getAppend().getData());
         } else {
           InputStream inStream = request.getAppend().getData().newInput();
-          TimestampedValueCoder<byte[]> coder =
-              TimestampedValueCoder.of(ByteArrayCoder.of());
+          TimestampedValueCoder<byte[]> coder = TimestampedValueCoder.of(ByteArrayCoder.of());
           try {
             while (inStream.available() > 0) {
               TimestampedValue<byte[]> tv = coder.decode(inStream);

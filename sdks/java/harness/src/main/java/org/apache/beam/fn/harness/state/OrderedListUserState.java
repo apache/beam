@@ -90,6 +90,7 @@ public class OrderedListUserState<T> {
     // Refer to the comment in StateAppendRequest
     // (org/apache/beam/model/fn_execution/v1/beam_fn_api.proto) for more detail.
     private final KvCoder<Long, T> internalKvCoder;
+
     public static <T> OrderedListUserState.TimestampedValueCoder<T> of(Coder<T> valueCoder) {
       return new OrderedListUserState.TimestampedValueCoder<>(valueCoder);
     }
@@ -109,8 +110,8 @@ public class OrderedListUserState<T> {
     @Override
     public void encode(TimestampedValue<T> windowedElem, OutputStream outStream)
         throws IOException {
-      internalKvCoder.encode(KV.of(windowedElem.getTimestamp().getMillis(),
-          windowedElem.getValue()), outStream);
+      internalKvCoder.encode(
+          KV.of(windowedElem.getTimestamp().getMillis(), windowedElem.getValue()), outStream);
     }
 
     @Override
@@ -292,8 +293,7 @@ public class OrderedListUserState<T> {
 
       for (Entry<Instant, Collection<T>> entry : pendingAdds.entrySet()) {
         for (T v : entry.getValue()) {
-          TimestampedValue<T> tv =
-              TimestampedValue.of(v, entry.getKey());
+          TimestampedValue<T> tv = TimestampedValue.of(v, entry.getKey());
           try {
             timestampedValueCoder.encode(tv, outStream);
           } catch (IOException ex) {
