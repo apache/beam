@@ -18,14 +18,12 @@
 package org.apache.beam.sdk.io.solace.data;
 
 import java.nio.charset.StandardCharsets;
-import java.util.Map;
 import org.apache.beam.sdk.io.solace.data.Solace.Destination;
 import org.junit.Assert;
 import org.junit.Test;
 
 public class SolaceTest {
 
-  Map<String, Object> properties;
   Destination destination =
       Solace.Destination.builder()
           .setName("some destination")
@@ -42,6 +40,8 @@ public class SolaceTest {
   Long timeToLive = 34567890L;
   String payloadString = "some payload";
   byte[] payload = payloadString.getBytes(StandardCharsets.UTF_8);
+  String attachmentString = "some attachment";
+  byte[] attachment = attachmentString.getBytes(StandardCharsets.UTF_8);
 
   @Test
   public void testRecordEquality() {
@@ -58,6 +58,7 @@ public class SolaceTest {
             .setSequenceNumber(sequenceNumber)
             .setTimeToLive(timeToLive)
             .setPayload(payload)
+            .setAttachmentBytes(attachment)
             .build();
 
     Solace.Record obj2 =
@@ -73,6 +74,7 @@ public class SolaceTest {
             .setSequenceNumber(sequenceNumber)
             .setTimeToLive(timeToLive)
             .setPayload(payload)
+            .setAttachmentBytes(attachment)
             .build();
 
     Solace.Record obj3 =
@@ -88,6 +90,7 @@ public class SolaceTest {
             .setSequenceNumber(sequenceNumber)
             .setTimeToLive(timeToLive)
             .setPayload(payload)
+            .setAttachmentBytes(attachment)
             .build();
 
     Assert.assertEquals(obj1, obj2);
@@ -104,6 +107,8 @@ public class SolaceTest {
     Assert.assertEquals(obj1.getSequenceNumber(), sequenceNumber);
     Assert.assertEquals(obj1.getTimeToLive(), timeToLive);
     Assert.assertEquals(new String(obj1.getPayload(), StandardCharsets.UTF_8), payloadString);
+    Assert.assertEquals(
+        new String(obj1.getAttachmentBytes(), StandardCharsets.UTF_8), attachmentString);
   }
 
   @Test
@@ -120,6 +125,7 @@ public class SolaceTest {
     Assert.assertNull(obj.getSenderTimestamp());
     Assert.assertNull(obj.getSequenceNumber());
     Assert.assertNull(obj.getTimeToLive());
+    Assert.assertArrayEquals(obj.getAttachmentBytes(), new byte[0]);
     Assert.assertEquals(new String(obj.getPayload(), StandardCharsets.UTF_8), payloadString);
   }
 

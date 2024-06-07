@@ -155,8 +155,12 @@ public class Solace {
     @SchemaFieldNumber("11")
     public abstract @Nullable String getReplicationGroupMessageId();
 
+    @SuppressWarnings("mutable")
+    @SchemaFieldNumber("12")
+    public abstract byte[] getAttachmentBytes();
+
     public static Builder builder() {
-      return new AutoValue_Solace_Record.Builder();
+      return new AutoValue_Solace_Record.Builder().setAttachmentBytes(new byte[0]);
     }
 
     @AutoValue.Builder
@@ -186,6 +190,8 @@ public class Solace {
       public abstract Builder setReplicationGroupMessageId(
           @Nullable String replicationGroupMessageId);
 
+      public abstract Builder setAttachmentBytes(byte[] attachmentBytes);
+
       public abstract Record build();
     }
   }
@@ -198,21 +204,22 @@ public class Solace {
         return null;
       }
 
-      ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+      ByteArrayOutputStream payloadBytesStream = new ByteArrayOutputStream();
       if (msg.getContentLength() != 0) {
         try {
-          outputStream.write(msg.getBytes());
+          payloadBytesStream.write(msg.getBytes());
         } catch (IOException e) {
-          LOG.error("Could not write Bytes from the BytesXMLMessage to the Solace.record.", e);
+          LOG.error("Could not write bytes from the BytesXMLMessage to the Solace.record.", e);
         }
       }
+
+      ByteArrayOutputStream attachmentBytesStream = new ByteArrayOutputStream();
       if (msg.getAttachmentContentLength() != 0) {
         try {
-          outputStream.write(msg.getAttachmentByteBuffer().array());
+          attachmentBytesStream.write(msg.getAttachmentByteBuffer().array());
         } catch (IOException e) {
           LOG.error(
-              "Could not AttachmentByteBuffer from the BytesXMLMessage to the" + " Solace.record.",
-              e);
+              "Could not AttachmentByteBuffer from the BytesXMLMessage to the Solace.record.", e);
         }
       }
 
@@ -227,7 +234,7 @@ public class Solace {
         destBuilder.setType(DestinationType.QUEUE);
       } else {
         LOG.error(
-            "SolaceIO: Unknown destination type for message {}, assuming that {} is a" + " topic",
+            "SolaceIO: Unknown destination type for message {}, assuming that {} is a topic",
             msg.getCorrelationId(),
             originalDestination.getName());
         destBuilder.setType(DestinationType.TOPIC);
@@ -248,7 +255,8 @@ public class Solace {
               msg.getReplicationGroupMessageId() != null
                   ? msg.getReplicationGroupMessageId().toString()
                   : null)
-          .setPayload(outputStream.toByteArray())
+          .setPayload(payloadBytesStream.toByteArray())
+          .setAttachmentBytes(attachmentBytesStream.toByteArray())
           .build();
     }
   }

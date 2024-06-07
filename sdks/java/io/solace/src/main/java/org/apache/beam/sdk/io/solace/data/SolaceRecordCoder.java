@@ -69,6 +69,7 @@ public class SolaceRecordCoder extends CustomCoder<Record> {
     LONG_CODER.encode(value.getSenderTimestamp(), outStream);
     LONG_CODER.encode(value.getSequenceNumber(), outStream);
     LONG_CODER.encode(value.getTimeToLive(), outStream);
+    BYTE_CODER.encode(value.getAttachmentBytes(), outStream);
   }
 
   @Override
@@ -100,6 +101,7 @@ public class SolaceRecordCoder extends CustomCoder<Record> {
         .setSenderTimestamp(LONG_CODER.decode(inStream))
         .setSequenceNumber(LONG_CODER.decode(inStream))
         .setTimeToLive(LONG_CODER.decode(inStream))
+        .setAttachmentBytes(BYTE_CODER.decode(inStream))
         .build();
   }
 }
