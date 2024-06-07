@@ -615,8 +615,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
 
                   @Override
                   public void clear() {
-                    clearRange(
-                        BoundedWindow.TIMESTAMP_MIN_VALUE, BoundedWindow.TIMESTAMP_MAX_VALUE);
+                    impl.clear();
                   }
 
                   @Override

@@ -61,8 +61,8 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.TreeRa
 import org.joda.time.Instant;
 
 /**
- * An implementation of a bag user state that utilizes the Beam Fn State API to fetch, clear and
- * persist values.
+ * An implementation of an ordered list user state that utilizes the Beam Fn State API to fetch,
+ * clear and persist values.
  *
  * <p>Calling {@link #asyncClose()} schedules any required persistence changes. This object should
  * no longer be used after it is closed.
@@ -244,7 +244,7 @@ public class OrderedListUserState<T> {
     // Remove items (in a collection) in the specific range from pendingAdds.
     // The old values of the removed sub map are kept, so that they will still be accessible in
     // pre-existing iterables even after the sort key is cleared.
-    pendingAdds.subMap(minTimestamp, true, limitTimestamp, false).clear();
+    pendingAdds.subMap(minTimestamp, limitTimestamp).clear();
     if (!isCleared) {
       pendingRemoves.add(
           Range.range(minTimestamp, BoundType.CLOSED, limitTimestamp, BoundType.OPEN));

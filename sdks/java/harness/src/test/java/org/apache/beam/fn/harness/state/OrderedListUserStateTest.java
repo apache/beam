@@ -22,10 +22,12 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.Iterator;
 import org.apache.beam.fn.harness.Caches;
 import org.apache.beam.fn.harness.state.OrderedListUserState.TimestampedValueCoder;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.OrderedListRange;
@@ -48,6 +50,8 @@ public class OrderedListUserStateTest {
       TimestampedValue.of("A1", Instant.ofEpochMilli(1));
   private static final TimestampedValue<String> B1 =
       TimestampedValue.of("B1", Instant.ofEpochMilli(1));
+  private static final TimestampedValue<String> C1 =
+      TimestampedValue.of("C1", Instant.ofEpochMilli(1));
   private static final TimestampedValue<String> A2 =
       TimestampedValue.of("A2", Instant.ofEpochMilli(2));
   private static final TimestampedValue<String> B2 =
@@ -564,6 +568,47 @@ public class OrderedListUserStateTest {
           Collections.singletonList(A3).toArray(),
           Iterables.toArray(userState.read(), TimestampedValue.class));
     }
+  }
+
+  @Test
+  public void testOperationsDuringNavigatingIterable() throws Exception {
+    FakeBeamFnStateClient fakeClient =
+        new FakeBeamFnStateClient(
+            timestampedValueCoder,
+            ImmutableMap.of(
+                createOrderedListStateKey("A", 1),
+                asList(A1, B1),
+                createOrderedListStateKey("A", 2),
+                asList(A2, B2),
+                createOrderedListStateKey("A", 3),
+                Collections.singletonList(A3),
+                createOrderedListStateKey("A", 4),
+                Collections.singletonList(A4)));
+
+    OrderedListUserState<String> userState =
+        new OrderedListUserState<>(
+            Caches.noop(),
+            fakeClient,
+            "instructionId",
+            createOrderedListStateKey("A"),
+            StringUtf8Coder.of());
+
+    Iterator<TimestampedValue<String>> iter = userState.read().iterator();
+    assertEquals(iter.next(), A1);
+
+    // Adding a C1 locally, but it should not be returned after B1 in the existing iterable.
+    userState.add(C1);
+    assertEquals(iter.next(), B1);
+    assertEquals(iter.next(), A2);
+
+    // Clearing range [2,4) locally, but B2 and A3 should still be returned.
+    userState.clearRange(Instant.ofEpochMilli(2), Instant.ofEpochMilli(4));
+    assertEquals(iter.next(), B2);
+    assertEquals(iter.next(), A3);
+
+    // Clearing all ranges locally, but A4 should still be returned.
+    userState.clear();
+    assertEquals(iter.next(), A4);
   }
 
   private ByteString encode(String... values) throws IOException {
