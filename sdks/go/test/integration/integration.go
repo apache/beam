@@ -183,6 +183,10 @@ var flinkFilters = []string{
 	"TestTestStreamByteSliceSequence",
 	"TestTestStreamTwoUserTypeSequences",
 	"TestTestStreamInt16Sequence",
+	"TestTestStreamSimple",
+	"TestTestStreamSimple_InfinityDefault",
+	"TestTestStreamToGBK",
+	"TestTestStreamTimersEventTime",
 
 	"TestTimers_EventTime_Unbounded", // (failure when comparing on side inputs (NPE on window lookup))
 	"TestTimers_ProcessingTime.*",    // Flink doesn't support processing time timers.
@@ -259,7 +263,8 @@ var sparkFilters = []string{
 	"TestSetStateClear",
 	"TestSetState",
 
-	"TestTimers_EventTime_Unbounded", // Side inputs in executable stage not supported.
+	"TestTimers_EventTime_Unbounded",     // Side inputs in executable stage not supported.
+	"TestTimers_ProcessingTime_Infinity", // Spark doesn't support test stream.
 }
 
 var dataflowFilters = []string{

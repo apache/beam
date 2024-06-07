@@ -56,9 +56,6 @@ pipeline:
       config:
         path: output
 
-options:
-  yaml_experimental_features: Combine
-
 # Expected:
 #  Row(product_name='Headphones', num_sold=2, total_revenue=119.98)
 #  Row(product_name='Monitor', num_sold=1, total_revenue=249.99)

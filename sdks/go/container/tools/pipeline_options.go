@@ -13,22 +13,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package core contains constants and other static data related to the SDK,
-// such as the SDK Name and version.
-//
-// As a rule, this package should not have dependencies, and should not depend
-// on any package within the Apache Beam Go SDK.
-//
-// Files in this package may be generated or updated by release scripts, allowing
-// for accurate version information to be included.
-package core
+package tools
 
-const (
-	// SdkName is the human readable name of the SDK for UserAgents.
-	SdkName = "Apache Beam SDK for Go"
-	// SdkVersion is the current version of the SDK.
-	SdkVersion = "2.58.0.dev"
-
-	// DefaultDockerImage represents the associated image for this release.
-	DefaultDockerImage = "apache/beam_go_sdk:" + SdkVersion
+import (
+	"fmt"
+	"os"
 )
+
+// MakePipelineOptionsFileAndEnvVar writes the pipeline options to a file.
+// Assumes the options string is JSON formatted.
+//
+// Stores the file name in question in PIPELINE_OPTIONS_FILE for access by the SDK.
+func MakePipelineOptionsFileAndEnvVar(options string) error {
+	fn := "pipeline_options.json"
+	f, err := os.Create(fn)
+	if err != nil {
+		return fmt.Errorf("unable to create %v: %w", fn, err)
+	}
+	defer f.Close()
+	if _, err := f.WriteString(options); err != nil {
+		return fmt.Errorf("error writing %v: %w", f.Name(), err)
+	}
+	os.Setenv("PIPELINE_OPTIONS_FILE", f.Name())
+	return nil
+}

@@ -258,15 +258,4 @@ public class ManagedSchemaTransformProvider
       throw new RuntimeException(e.getMessage());
     }
   }
-
-  // TODO: set global snake_case naming convention and remove these special cases
-  @Override
-  public SchemaTransform from(Row rowConfig) {
-    return super.from(rowConfig.toCamelCase());
-  }
-
-  @Override
-  public Schema configurationSchema() {
-    return super.configurationSchema().toSnakeCase();
-  }
 }
