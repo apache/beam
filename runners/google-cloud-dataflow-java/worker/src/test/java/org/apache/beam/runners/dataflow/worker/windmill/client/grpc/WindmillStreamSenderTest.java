@@ -33,8 +33,9 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.CommitWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
-import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemProcessor;
+import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemScheduler;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.inprocess.InProcessChannelBuilder;
@@ -49,11 +50,9 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class WindmillStreamSenderTest {
-  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private static final GetWorkRequest GET_WORK_REQUEST =
       GetWorkRequest.newBuilder().setClientId(1L).setJobId("job").setProjectId("project").build();
   @Rule public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
-
   private final GrpcWindmillStreamFactory streamFactory =
       spy(
           GrpcWindmillStreamFactory.of(
@@ -63,13 +62,9 @@ public class WindmillStreamSenderTest {
                       .setWorkerId("worker")
                       .build())
               .build());
-  private final WorkItemProcessor workItemProcessor =
-      (computation,
-          inputDataWatermark,
-          synchronizedProcessingTime,
-          workItem,
-          ackQueuedWorkItem,
-          getWorkStreamLatencies) -> {};
+  private final WorkItemScheduler workItemScheduler =
+      (workItem, watermarks, processingContext, ackWorkItemQueued, getWorkStreamLatencies) -> {};
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private ManagedChannel inProcessChannel;
   private CloudWindmillServiceV1Alpha1Stub stub;
 
@@ -110,9 +105,9 @@ public class WindmillStreamSenderTest {
             any(ThrottleTimer.class),
             any(),
             any(),
-            eq(workItemProcessor));
+            eq(workItemScheduler));
 
-    verify(streamFactory).createGetDataStream(eq(stub), any(ThrottleTimer.class));
+    verify(streamFactory).createGetDataStream(eq(stub), any(ThrottleTimer.class), eq(false), any());
     verify(streamFactory).createCommitWorkStream(eq(stub), any(ThrottleTimer.class));
   }
 
@@ -141,9 +136,10 @@ public class WindmillStreamSenderTest {
             any(ThrottleTimer.class),
             any(),
             any(),
-            eq(workItemProcessor));
+            eq(workItemScheduler));
 
-    verify(streamFactory, times(1)).createGetDataStream(eq(stub), any(ThrottleTimer.class));
+    verify(streamFactory, times(1))
+        .createGetDataStream(eq(stub), any(ThrottleTimer.class), eq(false), any());
     verify(streamFactory, times(1)).createCommitWorkStream(eq(stub), any(ThrottleTimer.class));
   }
 
@@ -175,9 +171,10 @@ public class WindmillStreamSenderTest {
             any(ThrottleTimer.class),
             any(),
             any(),
-            eq(workItemProcessor));
+            eq(workItemScheduler));
 
-    verify(streamFactory, times(1)).createGetDataStream(eq(stub), any(ThrottleTimer.class));
+    verify(streamFactory, times(1))
+        .createGetDataStream(eq(stub), any(ThrottleTimer.class), eq(false), any());
     verify(streamFactory, times(1)).createCommitWorkStream(eq(stub), any(ThrottleTimer.class));
   }
 
@@ -208,10 +205,11 @@ public class WindmillStreamSenderTest {
             any(ThrottleTimer.class),
             any(),
             any(),
-            eq(workItemProcessor)))
+            eq(workItemScheduler)))
         .thenReturn(mockGetWorkStream);
 
-    when(mockStreamFactory.createGetDataStream(eq(stub), any(ThrottleTimer.class)))
+    when(mockStreamFactory.createGetDataStream(
+            eq(stub), any(ThrottleTimer.class), eq(false), any()))
         .thenReturn(mockGetDataStream);
     when(mockStreamFactory.createCommitWorkStream(eq(stub), any(ThrottleTimer.class)))
         .thenReturn(mockCommitWorkStream);
@@ -236,6 +234,12 @@ public class WindmillStreamSenderTest {
   private WindmillStreamSender newWindmillStreamSender(
       GetWorkBudget budget, GrpcWindmillStreamFactory streamFactory) {
     return WindmillStreamSender.create(
-        stub, GET_WORK_REQUEST, budget, streamFactory, workItemProcessor);
+        stub,
+        GET_WORK_REQUEST,
+        budget,
+        streamFactory,
+        workItemScheduler,
+        ignored -> mock(WorkCommitter.class),
+        ignored -> {});
   }
 }

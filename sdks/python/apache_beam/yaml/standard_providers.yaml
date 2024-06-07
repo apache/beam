@@ -69,24 +69,24 @@
         append: 'append'
         drop: 'drop'
         fields: 'fields'
-        error_handling: 'errorHandling'
+        error_handling: 'error_handling'
       'MapToFields-java':
         language: 'language'
         append: 'append'
         drop: 'drop'
         fields: 'fields'
-        error_handling: 'errorHandling'
+        error_handling: 'error_handling'
       'Filter-generic':
         language: 'language'
         keep: 'keep'
-        error_handling: 'errorHandling'
+        error_handling: 'error_handling'
       'Filter-java':
         language: 'language'
         keep: 'keep'
-        error_handling: 'errorHandling'
+        error_handling: 'error_handling'
       'Explode':
         fields: 'fields'
-        cross_product: 'crossProduct'
+        cross_product: 'cross_product'
     underlying_provider:
       type: beamJar
       transforms:
