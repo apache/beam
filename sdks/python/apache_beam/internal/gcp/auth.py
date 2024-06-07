@@ -76,7 +76,7 @@ def get_service_credentials(pipeline_options):
       like impersonated credentials.
 
   Returns:
-    A ``google.auth.credentials.Credentials`` object or None if credentials
+    A ``_ApitoolsCredentialsAdapter`` object or None if credentials
     not found. Returned object is thread-safe.
   """
   return _Credentials.get_service_credentials(pipeline_options)
