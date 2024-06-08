@@ -93,66 +93,6 @@ public class DataflowGroupByKey<K, V>
               + " without a trigger. Use a Window.into or Window.triggering transform prior to"
               + " DataflowGroupByKey.");
     }
-
-    // Validate that the trigger does not finish before garbage collection time
-    if (!triggerIsSafe(windowingStrategy)) {
-      throw new IllegalArgumentException(
-          String.format(
-              "Unsafe trigger '%s' may lose data, did you mean to wrap it in"
-                  + "`Repeatedly.forever(...)`?%nSee "
-                  + "https://s.apache.org/finishing-triggers-drop-data "
-                  + "for details.",
-              windowingStrategy.getTrigger()));
-    }
-  }
-
-  @Override
-  public void validate(
-      @Nullable PipelineOptions options,
-      Map<TupleTag<?>, PCollection<?>> inputs,
-      Map<TupleTag<?>, PCollection<?>> outputs) {
-    PCollection<?> input = Iterables.getOnlyElement(inputs.values());
-    KvCoder<K, V> inputCoder = getInputKvCoder(input.getCoder());
-
-    // Ensure that the output coder key and value types aren't different.
-    Coder<?> outputCoder = Iterables.getOnlyElement(outputs.values()).getCoder();
-    KvCoder<?, ?> expectedOutputCoder = getOutputKvCoder(inputCoder);
-    if (!expectedOutputCoder.equals(outputCoder)) {
-      throw new IllegalStateException(
-          String.format(
-              "the DataflowGroupByKey requires its output coder to be %s but found %s.",
-              expectedOutputCoder, outputCoder));
-    }
-  }
-
-  // Note that Never trigger finishes *at* GC time so it is OK, and
-  // AfterWatermark.fromEndOfWindow() finishes at end-of-window time so it is
-  // OK if there is no allowed lateness.
-  private static boolean triggerIsSafe(WindowingStrategy<?, ?> windowingStrategy) {
-    if (!windowingStrategy.getTrigger().mayFinish()) {
-      return true;
-    }
-
-    if (windowingStrategy.getTrigger() instanceof NeverTrigger) {
-      return true;
-    }
-
-    if (windowingStrategy.getTrigger() instanceof FromEndOfWindow
-        && windowingStrategy.getAllowedLateness().getMillis() == 0) {
-      return true;
-    }
-
-    if (windowingStrategy.getTrigger() instanceof AfterWatermarkEarlyAndLate
-        && windowingStrategy.getAllowedLateness().getMillis() == 0) {
-      return true;
-    }
-
-    if (windowingStrategy.getTrigger() instanceof AfterWatermarkEarlyAndLate
-        && ((AfterWatermarkEarlyAndLate) windowingStrategy.getTrigger()).getLateTrigger() != null) {
-      return true;
-    }
-
-    return false;
   }
 
   public WindowingStrategy<?, ?> updateWindowingStrategy(WindowingStrategy<?, ?> inputStrategy) {

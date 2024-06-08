@@ -944,6 +944,7 @@ public class DataflowPipelineTranslator {
             stepContext.addInput(
                 PropertyNames.IS_MERGING_WINDOW_FN,
                 !windowingStrategy.getWindowFn().isNonMerging());
+            stepContext.addInput(PropertyNames.ALLOW_DUPLICATES, transform.allowDuplicates());
           }
         });
 
@@ -981,7 +982,6 @@ public class DataflowPipelineTranslator {
             stepContext.addInput(
                 PropertyNames.IS_MERGING_WINDOW_FN,
                 !windowingStrategy.getWindowFn().isNonMerging());
-            stepContext.addInput(PropertyNames.ALLOW_DUPLICATES, transform.allowDuplicates());
           }
         });
 
