@@ -694,6 +694,10 @@ class Pipeline(HasDisplayData):
       if auto_unique_labels:
         # If auto_unique_labels is set, we will append a unique suffix to the
         # label to make it unique.
+        logging.warning(
+            'Using --auto_unique_labels could cause data loss when '
+            'updating a pipeline or reloading the job state. '
+            'This is not recommended for streaming jobs.')
         unique_label = self._generate_unique_label(transform)
         return self.apply(transform, pvalueish, unique_label)
       else:
