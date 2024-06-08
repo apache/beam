@@ -940,8 +940,9 @@ class GoogleCloudOptions(PipelineOptions):
         _LOGGER.warning(
             'Unable to check soft delete policy in the bucket of %s.' %
             gcs_path)
-    except ImportError:
-      _LOGGER.warning('Missing dependencies to check soft delete policy.')
+    except Exception:
+      _LOGGER.warning(
+          'Unexpected error occurred when checking soft delete policy.')
     return False
 
   # If either temp or staging location has an issue, we use the valid one for
