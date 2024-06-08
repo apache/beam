@@ -793,21 +793,21 @@ class PipelineOptionsTest(unittest.TestCase):
   def test_validation_temp_with_soft_delete(self):
     from google.cloud.storage import Bucket
     bucket = Bucket(None)
-    bucket.soft_delete_policy.retention_duration_seconds = 0
-    with mock.patch("apache_beam.io.gcp.gcsio.GcsIO.get_bucket") as mock_get_bucket:
-      options = MockGoogleCloudOptionsWithBucket([
-        '--project=myproject',
-        '--temp_location=gs://beam/tmp'
-      ])
+    with mock.patch(
+        "apache_beam.io.gcp.gcsio.GcsIO.get_bucket") as mock_get_bucket:
+      options = MockGoogleCloudOptionsWithBucket(
+          ['--project=myproject', '--temp_location=gs://beam/tmp'])
       mock_get_bucket.return_value = bucket
 
       # soft delete policy enabled
       bucket.soft_delete_policy.retention_duration_seconds = 1024
-      self.assertTrue(options._warn_if_soft_delete_policy_enabled("temp_location"))
+      self.assertTrue(
+          options._warn_if_soft_delete_policy_enabled("temp_location"))
 
       # soft delete policy disabled
       bucket.soft_delete_policy.retention_duration_seconds = 0
-      self.assertFalse(options._warn_if_soft_delete_policy_enabled("temp_location"))
+      self.assertFalse(
+          options._warn_if_soft_delete_policy_enabled("temp_location"))
 
 
 if __name__ == '__main__':
