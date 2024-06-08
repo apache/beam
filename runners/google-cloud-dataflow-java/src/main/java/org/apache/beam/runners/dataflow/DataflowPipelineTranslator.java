@@ -921,41 +921,6 @@ public class DataflowPipelineTranslator {
         });
 
     registerTransformTranslator(
-        RedistributeByKey.class,
-        new TransformTranslator<RedistributeByKey>() {
-          @Override
-          public void translate(RedistributeByKey transform, TranslationContext context) {
-            redistributeByKeyHelper(transform, context);
-          }
-
-          private <K, V> void redistributeByKeyHelper(
-              RedistributeByKey<K, V> transform, TranslationContext context) {
-            StepTranslationContext stepContext = context.addStep(transform, "GroupByKey");
-
-            PCollection<KV<K, V>> input = context.getInput(transform);
-            stepContext.addInput(PropertyNames.PARALLEL_INPUT, input);
-            stepContext.addOutput(PropertyNames.OUTPUT, context.getOutput(transform));
-
-            // Dataflow worker implements reshuffle by reading GBK with ReshuffleTrigger; that is
-            // the only part of
-            // the windowing strategy that should be observed.
-            WindowingStrategy<?, ?> windowingStrategy =
-                input.getWindowingStrategy().withTrigger(new ReshuffleTrigger<>());
-            stepContext.addInput(
-                PropertyNames.SERIALIZED_FN,
-                byteArrayToJsonString(
-                    serializeWindowingStrategy(windowingStrategy, context.getPipelineOptions())));
-
-            // Many group by key options do not apply to redistribute but Dataflow doesn't
-            // understand
-            // that. We set them here to be sure to avoid any complex codepaths
-            stepContext.addInput(PropertyNames.DISALLOW_COMBINER_LIFTING, true);
-            stepContext.addInput(PropertyNames.IS_MERGING_WINDOW_FN, false);
-            stepContext.addInput(PropertyNames.ALLOW_DUPLICATES, transform.getAllowDuplicates());
-          }
-        });
-
-    registerTransformTranslator(
         GroupByKey.class,
         new TransformTranslator<GroupByKey>() {
           @Override
@@ -971,17 +936,7 @@ public class DataflowPipelineTranslator {
             stepContext.addOutput(PropertyNames.OUTPUT, context.getOutput(transform));
 
             WindowingStrategy<?, ?> windowingStrategy = input.getWindowingStrategy();
-            boolean isStreaming =
-                context.getPipelineOptions().as(StreamingOptions.class).isStreaming();
-            boolean allowCombinerLifting =
-                !windowingStrategy.needsMerge()
-                    && windowingStrategy.getWindowFn().assignsToOneWindow();
-            if (isStreaming) {
-              allowCombinerLifting &= transform.fewKeys();
-              // TODO: Allow combiner lifting on the non-default trigger, as appropriate.
-              allowCombinerLifting &= (windowingStrategy.getTrigger() instanceof DefaultTrigger);
-            }
-            stepContext.addInput(PropertyNames.DISALLOW_COMBINER_LIFTING, !allowCombinerLifting);
+            stepContext.addInput(PropertyNames.DISALLOW_COMBINER_LIFTING, true);
             stepContext.addInput(
                 PropertyNames.SERIALIZED_FN,
                 byteArrayToJsonString(

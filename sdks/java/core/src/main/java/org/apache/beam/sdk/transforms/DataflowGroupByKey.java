@@ -38,18 +38,16 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterab
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * Specialized implementation of {@code GroupByKey} for translating Redistribute transform to
- * Dataflow pipelines.
+ * Specialized implementation of {@code GroupByKey} for translating Redistribute transform into
+ * Dataflow service protos.
  */
 public class DataflowGroupByKey<K, V>
     extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>> {
 
-  private final boolean fewKeys;
   // Plumbed from Redistribute transform.
   private final boolean allowDuplicates;
 
-  private DataflowGroupByKey(boolean fewKeys, boolean allowDuplicates) {
-    this.fewKeys = fewKeys;
+  private DataflowGroupByKey(boolean allowDuplicates) {
     this.allowDuplicates = allowDuplicates;
   }
 
@@ -61,19 +59,7 @@ public class DataflowGroupByKey<K, V>
    *     {@code Iterable}s in the output {@code PCollection}
    */
   public static <K, V> DataflowGroupByKey<K, V> create() {
-    return new DataflowGroupByKey<>(false, false);
-  }
-
-  /**
-   * Returns a {@code DataflowGroupByKey<K, V>} {@code PTransform} that assumes it will be grouping
-   * a small number of keys.
-   *
-   * @param <K> the type of the keys of the input and output {@code PCollection}s
-   * @param <V> the type of the values of the input {@code PCollection} and the elements of the
-   *     {@code Iterable}s in the output {@code PCollection}
-   */
-  static <K, V> DataflowGroupByKey<K, V> createWithFewKeys() {
-    return new DataflowGroupByKey<>(true, false);
+    return new DataflowGroupByKey<>(false);
   }
 
   /**
@@ -85,12 +71,7 @@ public class DataflowGroupByKey<K, V>
    *     {@code Iterable}s in the output {@code PCollection}
    */
   public static <K, V> DataflowGroupByKey<K, V> createWithAllowDuplicates() {
-    return new DataflowGroupByKey<>(false, true);
-  }
-
-  /** Returns whether it groups just few keys. */
-  public boolean fewKeys() {
-    return fewKeys;
+    return new DataflowGroupByKey<>(true);
   }
 
   /** Returns whether it allows duplicated elements in the output. */
@@ -241,13 +222,5 @@ public class DataflowGroupByKey<K, V>
   /** Returns the {@code Coder} of the output of this transform. */
   public static <K, V> KvCoder<K, Iterable<V>> getOutputKvCoder(Coder<KV<K, V>> inputCoder) {
     return KvCoder.of(getKeyCoder(inputCoder), getOutputValueCoder(inputCoder));
-  }
-
-  @Override
-  public void populateDisplayData(DisplayData.Builder builder) {
-    super.populateDisplayData(builder);
-    if (fewKeys) {
-      builder.add(DisplayData.item("fewKeys", true).withLabel("Has Few Keys"));
-    }
   }
 }

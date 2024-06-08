@@ -328,8 +328,8 @@ message StandardPTransforms {
     // Payload: none
     TO_STRING = 8 [(beam_urn) = "beam:transform:to_string:v1"];
 
-    // Identical to GroupByKey except having a allowDuplicates property plumbed
-    // from Redistribute.
+    // Specialized implementation of GroupByKey for translating Redistribute transform into
+    // Dataflow service protos.
     DATAFLOW_GROUP_BY_KEY = 9
         [(beam_urn) = "beam:transform:dataflow_group_by_key:v1"];
   }
