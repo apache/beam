@@ -933,8 +933,8 @@ class GoogleCloudOptions(PipelineOptions):
               " off the soft delete feature on buckets that your Dataflow"
               " jobs use for temporary and staging storage. For more"
               " information, see"
-              " https://cloud.google.com/storage/docs/use-soft-delete#remove-soft-delete-policy."
-              % (bucket_name, arg_name))
+              " https://cloud.google.com/storage/docs/use-soft-delete"
+              "#remove-soft-delete-policy." % (bucket_name, arg_name))
           return True
       except GoogleAPICallError:
         _LOGGER.warning(
