@@ -921,15 +921,15 @@ public class DataflowPipelineTranslator {
         });
 
     registerTransformTranslator(
-        GroupByKey.class,
-        new TransformTranslator<GroupByKey>() {
+        DataflowGroupByKey.class,
+        new TransformTranslator<DataflowGroupByKey>() {
           @Override
-          public void translate(GroupByKey transform, TranslationContext context) {
-            groupByKeyHelper(transform, context);
+          public void translate(DataflowGroupByKey transform, TranslationContext context) {
+            dataflowGroupByKeyHelper(transform, context);
           }
 
-          private <K, V> void groupByKeyHelper(
-              GroupByKey<K, V> transform, TranslationContext context) {
+          private <K, V> void dataflowGroupByKeyHelper(
+              DataflowGroupByKey<K, V> transform, TranslationContext context) {
             StepTranslationContext stepContext = context.addStep(transform, "GroupByKey");
             PCollection<KV<K, V>> input = context.getInput(transform);
             stepContext.addInput(PropertyNames.PARALLEL_INPUT, input);
@@ -948,15 +948,15 @@ public class DataflowPipelineTranslator {
         });
 
     registerTransformTranslator(
-        DataflowGroupByKey.class,
-        new TransformTranslator<DataflowGroupByKey>() {
+        GroupByKey.class,
+        new TransformTranslator<GroupByKey>() {
           @Override
-          public void translate(DataflowGroupByKey transform, TranslationContext context) {
-            dataflowGroupByKeyHelper(transform, context);
+          public void translate(GroupByKey transform, TranslationContext context) {
+            groupByKeyHelper(transform, context);
           }
 
-          private <K, V> void dataflowGroupByKeyHelper(
-              DataflowGroupByKey<K, V> transform, TranslationContext context) {
+          private <K, V> void groupByKeyHelper(
+              GroupByKey<K, V> transform, TranslationContext context) {
             StepTranslationContext stepContext = context.addStep(transform, "GroupByKey");
             PCollection<KV<K, V>> input = context.getInput(transform);
             stepContext.addInput(PropertyNames.PARALLEL_INPUT, input);
