@@ -790,7 +790,7 @@ class PipelineOptionsTest(unittest.TestCase):
         errors,
         errors)
 
-  def test_validation_temp_with_soft_delete(self):
+  def test_soft_delete_on_temp_location(self):
     from google.cloud.storage import Bucket
     bucket = Bucket(None)
     with mock.patch(
