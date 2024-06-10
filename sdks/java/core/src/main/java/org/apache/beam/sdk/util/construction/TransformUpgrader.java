@@ -455,26 +455,6 @@ public class TransformUpgrader implements AutoCloseable {
   }
 
   /**
-   * Like {@link #findUpgradeURN(PTransform)} but for {@link SchemaTransform}s
-   *
-   * <p>Finds a SchemaTransform by comparing the underlying URN.
-   *
-   * @param transform transform to lookup.
-   * @return a URN if discovered. Returns {@code null} otherwise.
-   */
-  @SuppressWarnings({"rawtypes"})
-  public static @Nullable String findUpgradeSchemaTransformURN(SchemaTransform<?> transform) {
-    for (Entry<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator> entry :
-        new SchemaTransformRegistrar().getTransformPayloadTranslators().entrySet()) {
-      if (entry.getValue().getUrn().equals(transform.getIdentifier())) {
-        return entry.getValue().getUrn();
-      }
-    }
-
-    return null;
-  }
-
-  /**
    * A utility method that converts an arbitrary serializable object into a byte array.
    *
    * @param object an instance of type {@code Serializable}

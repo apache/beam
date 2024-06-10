@@ -42,7 +42,6 @@ public class SchemaTransformProviderTranslationTest {
     assertEquals(originalRow, transformFromRow.getConfigurationRow());
     assertEquals(
         provider.configurationSchema(), transformFromRow.getConfigurationRow().getSchema());
-    assertEquals(provider.identifier(), transformFromRow.getIdentifier());
   }
 
   @Test

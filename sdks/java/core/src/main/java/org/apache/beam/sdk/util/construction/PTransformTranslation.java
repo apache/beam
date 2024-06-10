@@ -46,6 +46,8 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
+import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
+import org.apache.beam.sdk.schemas.transforms.SchemaTransformProviderTranslation;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.CoderUtils;
@@ -59,6 +61,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSortedSet;
@@ -251,6 +254,7 @@ public class PTransformTranslation {
             (Comparator) ObjectsClassComparator.INSTANCE)
         .add(new RawPTransformTranslator())
         .add(new KnownTransformPayloadTranslator())
+        .add(new SchemaTransformPayloadTranslator())
         .add(ParDoTranslator.create())
         .add(ExternalTranslator.create())
         .build();
@@ -581,6 +585,74 @@ public class PTransformTranslation {
     }
   }
 
+  /**
+   * Translates {@link SchemaTransform}s by populating the {@link FunctionSpec} with a
+   * {@link ExternalTransforms.SchemaTransformPayload} containing the transform's configuration
+   * {@link Schema} and {@link Row}.
+   */
+  private static class SchemaTransformPayloadTranslator implements TransformTranslator<SchemaTransform> {
+    @Override
+    public @Nullable String getUrn(SchemaTransform transform) {
+      return transform.getIdentifier();
+    }
+
+    @Override
+    public boolean canTranslate(PTransform transform) {
+      // Can translate only if the SchemaTransform implementation registers its
+      // configuration Row and identifier
+      if (transform instanceof SchemaTransform) {
+        return (((SchemaTransform) transform).isRegistered());
+      }
+      return false;
+    }
+
+    @Override
+    public RunnerApi.PTransform translate(
+            AppliedPTransform appliedPTransform,
+            List subtransforms,
+            SdkComponents components) throws IOException {
+      RunnerApi.PTransform.Builder transformBuilder =
+              translateAppliedPTransform(appliedPTransform, subtransforms, components);
+
+      String identifier = ((SchemaTransform) appliedPTransform.getTransform()).getIdentifier();
+      TransformPayloadTranslator payloadTranslator = SchemaTransformProviderTranslation.getDefaultTranslators().get(identifier);
+
+      FunctionSpec spec = payloadTranslator.translate(appliedPTransform, components);
+      Row configRow = payloadTranslator.toConfigRow(appliedPTransform.getTransform());
+
+      if (spec != null) {
+        transformBuilder.setSpec(spec);
+        transformBuilder.putAnnotations(
+                BeamUrns.getConstant(Annotations.Enum.SCHEMATRANSFORM_URN_KEY),
+                ByteString.copyFromUtf8(identifier));
+        if (identifier.equals(MANAGED_TRANSFORM_URN)) {
+          String underlyingIdentifier = Preconditions.checkNotNull(
+                  configRow.getString("transform_identifier"),
+                  "Encountered a Managed Transform that has an empty \"transform_identifier\": %n%s",
+                            configRow);
+          transformBuilder.putAnnotations(
+                  BeamUrns.getConstant(Annotations.Enum.MANAGED_UNDERLYING_TRANSFORM_URN_KEY),
+                  ByteString.copyFromUtf8(underlyingIdentifier));
+        }
+      }
+      transformBuilder.putAnnotations(
+              BeamUrns.getConstant(Annotations.Enum.CONFIG_ROW_KEY),
+              ByteString.copyFrom(
+                      CoderUtils.encodeToByteArray(RowCoder.of(configRow.getSchema()), configRow)));
+      transformBuilder.putAnnotations(
+              BeamUrns.getConstant(Annotations.Enum.CONFIG_ROW_SCHEMA_KEY),
+              ByteString.copyFrom(
+                      SchemaTranslation.schemaToProto(configRow.getSchema(), true).toByteArray()));
+
+      for (Entry<String, byte[]> annotation :
+              appliedPTransform.getTransform().getAnnotations().entrySet()) {
+        transformBuilder.putAnnotations(
+                annotation.getKey(), ByteString.copyFrom(annotation.getValue()));
+      }
+
+      return transformBuilder.build();
+    }
+  }
   /**
    * Translates an {@link AppliedPTransform} by:
    *

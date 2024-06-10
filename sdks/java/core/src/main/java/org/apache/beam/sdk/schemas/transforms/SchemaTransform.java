@@ -21,6 +21,8 @@ import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.lang.reflect.ParameterizedType;
+
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
@@ -42,42 +44,46 @@ import org.apache.beam.sdk.values.Row;
  * compatibility guarantees and it should not be implemented outside of the Beam repository.
  */
 @Internal
-public abstract class SchemaTransform<ConfigT>
+public abstract class SchemaTransform
     extends PTransform<PCollectionRowTuple, PCollectionRowTuple> {
-  private final Row configurationRow;
-  private final String identifier;
+  private @Nullable Row configurationRow;
+  private @Nullable String identifier;
+  private boolean registered = false;
 
-  @SuppressWarnings("unchecked")
-  protected SchemaTransform(ConfigT configuration, String identifier) {
+  public SchemaTransform register(Row configurationRow, String identifier) {
+    this.configurationRow = configurationRow;
     this.identifier = identifier;
-    @Nullable
-    ParameterizedType parameterizedType = (ParameterizedType) getClass().getGenericSuperclass();
-    checkStateNotNull(parameterizedType, "Could not get the SchemaTransform's parameterized type.");
-    checkArgument(
-        parameterizedType.getActualTypeArguments().length == 1,
-        String.format(
-            "Expected one parameterized type, but got %s.",
-            parameterizedType.getActualTypeArguments().length));
+    registered = true;
 
-    Class<ConfigT> configType = (Class<ConfigT>) parameterizedType.getActualTypeArguments()[0];
+    return this;
+  }
 
+  public <ConfigT> SchemaTransform register(ConfigT configuration, Class<ConfigT> configClass, String identifier) {
     SchemaRegistry registry = SchemaRegistry.createDefault();
     try {
       // Get initial row with values
       // sort lexicographically and convert field names to snake_case
-      this.configurationRow = registry.getToRowFunction(configType).apply(configuration)
+      Row configRow = registry
+              .getToRowFunction(configClass)
+              .apply(configuration)
               .sorted()
               .toSnakeCase();
+      return register(configRow, identifier);
     } catch (NoSuchSchemaException e) {
-      throw new RuntimeException("Unable to find schema for this SchemaTransform's config.", e);
+      throw new RuntimeException(
+              String.format("Unable to find schema for this SchemaTransform's config type: %s", configClass), e);
     }
   }
 
   public Row getConfigurationRow() {
-    return configurationRow;
+    return Preconditions.checkNotNull(configurationRow, "Could not fetch SchemaTransform's configuration. " +
+            "Please store it using SchemaTransform::register.");
   }
-
   public String getIdentifier() {
-    return identifier;
+    return Preconditions.checkNotNull(identifier, "Could not fetch SchemaTransform's identifier. " +
+              "Please store it using SchemaTransform::register.");
+  }
+  public boolean isRegistered() {
+    return registered;
   }
 }

@@ -17,98 +17,86 @@
  */
 package org.apache.beam.sdk.schemas.transforms;
 
+import static org.apache.beam.model.pipeline.v1.ExternalTransforms.ExpansionMethods.Enum.SCHEMA_TRANSFORM;
 import static org.apache.beam.sdk.util.construction.PTransformTranslation.TransformPayloadTranslator;
 
-import com.google.auto.service.AutoService;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.ServiceLoader;
+
+import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
+import org.apache.beam.model.pipeline.v1.SchemaApi;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
-import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.schemas.SchemaTranslation;
+import org.apache.beam.sdk.util.construction.BeamUrns;
 import org.apache.beam.sdk.util.construction.SdkComponents;
-import org.apache.beam.sdk.util.construction.TransformPayloadTranslatorRegistrar;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class SchemaTransformProviderTranslation {
   public static class SchemaTransformTranslator
-      implements TransformPayloadTranslator<SchemaTransform<?>> {
-    private final String identifier;
-    private SchemaTransformProvider provider;
+      implements TransformPayloadTranslator<SchemaTransform> {
+    private final SchemaTransformProvider provider;
 
-    public SchemaTransformTranslator(String identifier) {
-      this.identifier = identifier;
-      try {
-        for (SchemaTransformProvider schemaTransformProvider :
-            ServiceLoader.load(SchemaTransformProvider.class)) {
-          if (schemaTransformProvider.identifier().equalsIgnoreCase(identifier)) {
-            if (this.provider != null) {
-              throw new IllegalArgumentException(
-                  "Found multiple SchemaTransformProvider implementations with the same identifier "
-                      + identifier);
-            }
-            this.provider = schemaTransformProvider;
-          }
-        }
-        if (this.provider == null) {
-          throw new IllegalArgumentException(
-              "Could not find SchemaTransformProvider implementation for identifier " + identifier);
-        }
-      } catch (Exception e) {
-        throw new RuntimeException(e.getMessage());
-      }
+    public SchemaTransformTranslator(SchemaTransformProvider provider) {
+      this.provider = provider;
     }
 
     @Override
     public String getUrn() {
-      return identifier;
+      return BeamUrns.getUrn(SCHEMA_TRANSFORM);
     }
 
     @Override
     @SuppressWarnings("argument")
     public @Nullable FunctionSpec translate(
-        AppliedPTransform<?, ?, SchemaTransform<?>> application, SdkComponents components)
+        AppliedPTransform<?, ?, SchemaTransform> application, SdkComponents components)
         throws IOException {
-      return FunctionSpec.newBuilder().setUrn(getUrn()).setPayload(ByteString.empty()).build();
+      SchemaApi.Schema expansionSchema =
+              SchemaTranslation.schemaToProto(provider.configurationSchema(), true);
+      Row configRow = toConfigRow(application.getTransform());
+      ByteArrayOutputStream os = new ByteArrayOutputStream();
+      RowCoder.of(provider.configurationSchema()).encode(configRow, os);
+
+      return FunctionSpec.newBuilder()
+              .setUrn(getUrn())
+              .setPayload(
+                      ExternalTransforms.SchemaTransformPayload.newBuilder()
+                              .setIdentifier(provider.identifier())
+                              .setConfigurationSchema(expansionSchema)
+                              .setConfigurationRow(ByteString.copyFrom(os.toByteArray()))
+                              .build()
+                              .toByteString())
+              .build();
     }
 
     @Override
-    public Row toConfigRow(SchemaTransform<?> transform) {
+    public Row toConfigRow(SchemaTransform transform) {
       return transform.getConfigurationRow();
     }
 
     @Override
-    public SchemaTransform<?> fromConfigRow(Row configRow, PipelineOptions options) {
+    public SchemaTransform fromConfigRow(Row configRow, PipelineOptions options) {
       return provider.from(configRow);
     }
   }
 
-  @AutoService(TransformPayloadTranslatorRegistrar.class)
-  public static class SchemaTransformRegistrar implements TransformPayloadTranslatorRegistrar {
-    @Override
-    @SuppressWarnings({
-      "rawtypes",
-    })
-    public Map<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator>
-        getTransformPayloadTranslators() {
-      Map<Class<SchemaTransform>, SchemaTransformTranslator> translators = new HashMap<>();
 
-      try {
-        for (SchemaTransformProvider schemaTransformProvider :
-            ServiceLoader.load(SchemaTransformProvider.class)) {
-          translators.put(
-              SchemaTransform.class,
-              new SchemaTransformTranslator(schemaTransformProvider.identifier()));
-        }
-      } catch (Exception e) {
-        throw new RuntimeException(e.getMessage());
-      }
-
-      return translators;
+  private static Map<String, SchemaTransformTranslator> cachedTranslators;
+  public static Map<String, SchemaTransformTranslator> getDefaultTranslators() {
+    if (cachedTranslators != null) {
+      return cachedTranslators;
     }
+    cachedTranslators = new HashMap<>();
+    for (SchemaTransformProvider provider : ServiceLoader.load(SchemaTransformProvider.class)) {
+       cachedTranslators.put(provider.identifier(), new SchemaTransformTranslator(provider));
+    }
+    return cachedTranslators;
   }
 }

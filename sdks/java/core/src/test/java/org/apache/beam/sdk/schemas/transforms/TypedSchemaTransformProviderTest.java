@@ -69,7 +69,7 @@ public class TypedSchemaTransformProviderTest {
 
     @Override
     public SchemaTransform<Configuration> from(Configuration config) {
-      return new FakeSchemaTransform(config, identifier());
+      return new FakeSchemaTransform(config);
     }
 
     @Override
@@ -100,7 +100,7 @@ public class TypedSchemaTransformProviderTest {
 
     @Override
     public SchemaTransform<Configuration> from(Configuration config) {
-      return new FakeSchemaTransform(config, identifier());
+      return new FakeSchemaTransform(config);
     }
   }
 
@@ -108,8 +108,8 @@ public class TypedSchemaTransformProviderTest {
 
     public Configuration config;
 
-    public FakeSchemaTransform(Configuration config, String identifier) {
-      super(config, identifier);
+    public FakeSchemaTransform(Configuration config) {
+      super(config);
       this.config = config;
     }
 
@@ -137,7 +137,6 @@ public class TypedSchemaTransformProviderTest {
     SchemaTransform<?> transform = minimalProvider.from(inputConfig);
 
     assertEquals(inputConfig, transform.getConfigurationRow());
-    assertEquals(minimalProvider.identifier(), transform.getIdentifier());
   }
 
   @Test

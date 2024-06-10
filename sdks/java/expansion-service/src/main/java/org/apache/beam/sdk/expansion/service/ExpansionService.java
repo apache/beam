@@ -68,18 +68,12 @@ import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
+import org.apache.beam.sdk.schemas.transforms.SchemaTransformProviderTranslation;
 import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.util.construction.BeamUrns;
-import org.apache.beam.sdk.util.construction.Environments;
-import org.apache.beam.sdk.util.construction.PTransformTranslation;
+import org.apache.beam.sdk.util.construction.*;
 import org.apache.beam.sdk.util.construction.PTransformTranslation.TransformPayloadTranslator;
-import org.apache.beam.sdk.util.construction.PipelineOptionsTranslation;
-import org.apache.beam.sdk.util.construction.PipelineTranslation;
-import org.apache.beam.sdk.util.construction.RehydratedComponents;
-import org.apache.beam.sdk.util.construction.SdkComponents;
-import org.apache.beam.sdk.util.construction.SplittableParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.PInput;
@@ -139,11 +133,22 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
   public static class ExternalTransformRegistrarLoader
       implements ExpansionService.ExpansionServiceRegistrar {
 
+    /**
+     * Map of known PTransform URNs (ie. transforms listed in a {@link TransformPayloadTranslatorRegistrar})
+     * and their corresponding TransformProviders.
+     */
     @Override
     public Map<String, TransformProvider> knownTransforms() {
       Map<String, TransformProvider> providers = new HashMap<>();
 
-      // First check and register ExternalTransformBuilder in serviceloader style, converting
+      // First populate with SchemaTransform URNs and their default translator implementation.
+      // These can be overwritten below if a custom translator for a given URN is found.
+      Map<String, SchemaTransformProviderTranslation.SchemaTransformTranslator> defaultSchemaTransformTranslators = SchemaTransformProviderTranslation.getDefaultTranslators();
+      for (Map.Entry<String, SchemaTransformProviderTranslation.SchemaTransformTranslator> entry: defaultSchemaTransformTranslators.entrySet()) {
+        providers.put(entry.getKey(), new TransformProviderForPayloadTranslator(entry.getValue()));
+      }
+
+      // Then check and register ExternalTransformBuilder in serviceloader style, converting
       // to TransformProvider after validation.
       Map<String, ExternalTransformBuilder> registeredBuilders = loadTransformBuilders();
       for (Map.Entry<String, ExternalTransformBuilder> registeredBuilder :

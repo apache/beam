@@ -56,7 +56,7 @@ public interface SchemaTransformProvider {
    * Produce a {@link SchemaTransform} from some transform-specific configuration object. Can throw
    * a {@link InvalidConfigurationException} or a {@link InvalidSchemaException}.
    */
-  SchemaTransform<?> from(Row configuration);
+  SchemaTransform from(Row configuration);
 
   /** Returns the input collection names of this transform. */
   default List<String> inputCollectionNames() {
