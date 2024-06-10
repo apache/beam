@@ -150,11 +150,9 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
       Map<String, TransformProvider> providers = new HashMap<>();
 
       // First populate with SchemaTransform URNs and their default translator implementation.
-      // These can be overwritten below if a custom translator for a given URN is found.
-      Map<String, SchemaTransformPayloadTranslator> defaultSchemaTransformTranslators =
-          SchemaTransformTranslation.getDefaultTranslators();
+      // These can be overwritten below if a custom translator is found.
       for (Map.Entry<String, SchemaTransformPayloadTranslator> entry :
-          defaultSchemaTransformTranslators.entrySet()) {
+          SchemaTransformTranslation.getDefaultTranslators().entrySet()) {
         providers.put(entry.getKey(), new TransformProviderForPayloadTranslator(entry.getValue()));
       }
 

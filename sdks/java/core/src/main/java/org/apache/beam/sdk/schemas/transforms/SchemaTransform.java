@@ -43,6 +43,11 @@ public abstract class SchemaTransform extends PTransform<PCollectionRowTuple, PC
   private @Nullable String identifier;
   private boolean registered = false;
 
+  /**
+   * Stores the transform's identifier and configuration {@link Row} used to build this instance.
+   * Doing so allows this transform to be translated from/to proto using {@link
+   * org.apache.beam.sdk.util.construction.PTransformTranslation.SchemaTransformTranslator}.
+   */
   public SchemaTransform register(Row configurationRow, String identifier) {
     this.configurationRow = configurationRow;
     this.identifier = identifier;
@@ -51,12 +56,16 @@ public abstract class SchemaTransform extends PTransform<PCollectionRowTuple, PC
     return this;
   }
 
+  /**
+   * Like {@link #register(Row, String)}, but with a configuration POJO. This is a convenience
+   * method for {@link TypedSchemaTransformProvider} implementations.
+   */
   public <ConfigT> SchemaTransform register(
       ConfigT configuration, Class<ConfigT> configClass, String identifier) {
     SchemaRegistry registry = SchemaRegistry.createDefault();
     try {
       // Get initial row with values
-      // sort lexicographically and convert field names to snake_case
+      // then sort lexicographically and convert to snake_case
       Row configRow =
           registry.getToRowFunction(configClass).apply(configuration).sorted().toSnakeCase();
       return register(configRow, identifier);
@@ -71,14 +80,14 @@ public abstract class SchemaTransform extends PTransform<PCollectionRowTuple, PC
   public Row getConfigurationRow() {
     return Preconditions.checkNotNull(
         configurationRow,
-        "Could not fetch Row configuration for %s. " + "Please store it using .register().",
+        "Could not fetch Row configuration for %s. Please store it using .register().",
         getClass());
   }
 
   public String getIdentifier() {
     return Preconditions.checkNotNull(
         identifier,
-        "Could not fetch identifier for %s. " + "Please store it using .register().",
+        "Could not fetch identifier for %s. Please store it using .register().",
         getClass());
   }
 

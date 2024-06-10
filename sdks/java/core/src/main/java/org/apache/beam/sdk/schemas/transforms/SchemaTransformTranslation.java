@@ -39,8 +39,10 @@ import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * A {@link TransformPayloadTranslator} implementation that translates between a Java {@link
- * SchemaTransform} and a protobuf payload for that transform.
+ * A default {@link TransformPayloadTranslator} implementation for {@link SchemaTransform}s.
+ *
+ * <p>Note: This is only eligible for registered SchemaTransform instances (using {@link
+ * SchemaTransform#register}).
  */
 public class SchemaTransformTranslation {
   public static class SchemaTransformPayloadTranslator

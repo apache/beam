@@ -256,7 +256,7 @@ public class PTransformTranslation {
         .add(new KnownTransformPayloadTranslator())
         .add(ParDoTranslator.create())
         .add(ExternalTranslator.create())
-        .add(new SchemaTransformPayloadTranslator())
+        .add(new SchemaTransformTranslator())
         .build();
   }
 
@@ -589,9 +589,16 @@ public class PTransformTranslation {
    * Translates {@link SchemaTransform}s by populating the {@link FunctionSpec} with a {@link
    * ExternalTransforms.SchemaTransformPayload} containing the transform's configuration {@link
    * Schema} and {@link Row}.
+   *
+   * <p>This can be used as a default translator for SchemaTransforms. If further customization is
+   * needed, you can develop a {@link TransformPayloadTranslator} implementation and include it in a
+   * {@link TransformPayloadTranslatorRegistrar}, which will be picked up by {@link
+   * KnownTransformPayloadTranslator}.
+   *
+   * <p>Note: This default translator is only eligible for registered SchemaTransform instances
+   * (using {@link SchemaTransform#register}).
    */
-  private static class SchemaTransformPayloadTranslator
-      implements TransformTranslator<SchemaTransform> {
+  private static class SchemaTransformTranslator implements TransformTranslator<SchemaTransform> {
     @Override
     public @Nullable String getUrn(SchemaTransform transform) {
       return transform.getIdentifier();
@@ -599,8 +606,7 @@ public class PTransformTranslation {
 
     @Override
     public boolean canTranslate(PTransform transform) {
-      // Can translate only if the SchemaTransform implementation registers its
-      // configuration Row and identifier
+      // Can translate only if the SchemaTransform's configuration Row and identifier are accessible
       if (transform instanceof SchemaTransform) {
         return (((SchemaTransform) transform).isRegistered());
       }

@@ -29,8 +29,10 @@ import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.testing.UsesSchema;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -38,6 +40,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 @Category(UsesSchema.class)
 public class TypedSchemaTransformProviderTest {
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   /** flat schema to select from. */
   @DefaultSchema(AutoValueSchema.class)
@@ -130,17 +133,29 @@ public class TypedSchemaTransformProviderTest {
   }
 
   @Test
-  public void testConfigurationRow() {
-    SchemaTransformProvider minimalProvider = new FakeMinimalTypedProvider();
-    Row inputConfig =
-        Row.withSchema(minimalProvider.configurationSchema())
-            .withFieldValue("field1", "field1")
-            .withFieldValue("field2", Integer.valueOf(13))
-            .build();
-
+  public void testGetConfigurationRow() {
+    FakeMinimalTypedProvider minimalProvider = new FakeMinimalTypedProvider();
+    Configuration inputConfig = Configuration.create("field1", 13);
     SchemaTransform transform = minimalProvider.from(inputConfig);
 
-    assertEquals(inputConfig, transform.getConfigurationRow());
+    Row expectedConfig =
+        Row.withSchema(minimalProvider.configurationSchema())
+            .withFieldValue("string_field", "field1")
+            .withFieldValue("integer_field", 13)
+            .build();
+
+    assertEquals(expectedConfig, transform.getConfigurationRow());
+    assertEquals(minimalProvider.identifier(), transform.getIdentifier());
+
+    // FakeTypedSchemaIOProvider doesn't register its schematransform.
+    // Check that a helpful error message is returned.
+    FakeTypedSchemaIOProvider fakeProvider = new FakeTypedSchemaIOProvider();
+    SchemaTransform unregisteredTransform = fakeProvider.from(inputConfig);
+    thrown.expect(NullPointerException.class);
+    thrown.expectMessage("Could not fetch Row configuration");
+    thrown.expectMessage("FakeSchemaTransform");
+    thrown.expectMessage("Please store it using .register()");
+    unregisteredTransform.getConfigurationRow();
   }
 
   @Test
