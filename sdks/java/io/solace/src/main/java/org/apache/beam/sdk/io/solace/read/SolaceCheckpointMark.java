@@ -22,7 +22,6 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
@@ -36,7 +35,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @Internal
 @DefaultCoder(AvroCoder.class)
 public class SolaceCheckpointMark implements UnboundedSource.CheckpointMark {
-  private transient AtomicBoolean activeReader;
   // BytesXMLMessage is not serializable so if a job restarts from the checkpoint, we cannot retry
   // these messages here. We relay on Solace's retry mechanism.
   private transient ArrayDeque<BytesXMLMessage> ackQueue;
@@ -44,18 +42,17 @@ public class SolaceCheckpointMark implements UnboundedSource.CheckpointMark {
   @SuppressWarnings("initialization") // Avro will set the fields by breaking abstraction
   private SolaceCheckpointMark() {}
 
-  public SolaceCheckpointMark(AtomicBoolean activeReader, List<BytesXMLMessage> ackQueue) {
-    this.activeReader = activeReader;
+  public SolaceCheckpointMark(List<BytesXMLMessage> ackQueue) {
     this.ackQueue = new ArrayDeque<>(ackQueue);
   }
 
   @Override
   public void finalizeCheckpoint() {
-    if (activeReader == null || !activeReader.get() || ackQueue == null) {
+    if (ackQueue == null) {
       return;
     }
 
-    while (ackQueue.size() > 0) {
+    while (!ackQueue.isEmpty()) {
       BytesXMLMessage msg = ackQueue.poll();
       if (msg != null) {
         msg.ackMessage();
@@ -79,11 +76,11 @@ public class SolaceCheckpointMark implements UnboundedSource.CheckpointMark {
     // content.
     ArrayList<BytesXMLMessage> ackList = new ArrayList<>(ackQueue);
     ArrayList<BytesXMLMessage> thatAckList = new ArrayList<>(that.ackQueue);
-    return Objects.equals(activeReader, that.activeReader) && Objects.equals(ackList, thatAckList);
+    return Objects.equals(ackList, thatAckList);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(activeReader, ackQueue);
+    return Objects.hash(ackQueue);
   }
 }
