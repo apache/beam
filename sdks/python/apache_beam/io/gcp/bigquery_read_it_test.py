@@ -307,6 +307,7 @@ class ReadTests(BigQueryReadIntegrationTests):
 
 
 class ReadUsingStorageApiTests(BigQueryReadIntegrationTests):
+  BIG_QUERY_DATASET_ID = 'python_read_table_'
   TABLE_DATA = [{
       'number': 1,
       'string': '你好',
@@ -330,7 +331,8 @@ class ReadUsingStorageApiTests(BigQueryReadIntegrationTests):
   @classmethod
   def setUpClass(cls):
     super(ReadUsingStorageApiTests, cls).setUpClass()
-    cls.table_name = 'python_read_table'
+    cls.table_name = '%s%d%s' % (
+        cls.BIG_QUERY_DATASET_ID, int(time.time()), secrets.token_hex(3))
     cls._create_table(cls.table_name)
 
     table_id = '{}.{}'.format(cls.dataset_id, cls.table_name)
