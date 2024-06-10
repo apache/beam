@@ -20,16 +20,38 @@ package org.apache.beam.sdk.io.solace.broker;
 import com.solacesystems.jcsmp.BytesXMLMessage;
 import java.io.IOException;
 
+/**
+ * Interface for receiving messages from a Solace broker.
+ *
+ * <p>Implementations of this interface are responsible for managing the connection to the broker
+ * and for receiving messages from the broker.
+ */
 public interface MessageReceiver {
+  /**
+   * Starts the message receiver.
+   *
+   * <p>This method is called in the {@link
+   * org.apache.beam.sdk.io.solace.read.UnboundedSolaceReader#start()} method.
+   */
   void start();
 
+  /**
+   * Returns {@literal true} if the message receiver is closed, {@literal false} otherwise.
+   *
+   * <p>A message receiver is closed when it is no longer able to receive messages.
+   */
   boolean isClosed();
 
+  /**
+   * Receives a message from the broker.
+   *
+   * <p>This method will block until a message is received.
+   */
   BytesXMLMessage receive() throws IOException;
 
   /**
    * Test clients may return {@literal true} to signal that all expected messages have been pulled
-   * and the test may complete. Real clients will return {@literal false}.
+   * and the test may complete. Real clients should always return {@literal false}.
    */
   default boolean isEOF() {
     return false;

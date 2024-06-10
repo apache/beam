@@ -19,12 +19,32 @@ package org.apache.beam.sdk.io.solace.broker;
 
 import java.io.Serializable;
 
+/**
+ * The SessionService interface provides a set of methods for managing a session with the Solace
+ * messaging system. It allows for establishing a connection, creating a message-receiver object,
+ * checking if the connection is closed or not, and gracefully closing the session.
+ */
 public interface SessionService extends Serializable {
+
+  /**
+   * Establishes a connection to the service. This could involve providing connection details like
+   * host, port, VPN name, username, and password.
+   */
   void connect();
 
+  /** Gracefully closes the connection to the service. */
   void close();
 
+  /**
+   * Checks whether the connection to the service is currently closed. This method is called when an
+   * `UnboundedSolaceReader` is starting to read messages - a session will be created if this
+   * returns true.
+   */
   boolean isClosed();
 
+  /**
+   * Creates a MessageReceiver object for receiving messages from Solace. Typically, this object is
+   * created from the session instance.
+   */
   MessageReceiver createReceiver();
 }

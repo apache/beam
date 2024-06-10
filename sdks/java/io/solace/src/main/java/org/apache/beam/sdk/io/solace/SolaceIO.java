@@ -51,11 +51,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A {@link PTransform} to read and write from/to Solace event broker.
+ * A {@link PTransform} to read and write from/to <a href="https://solace.com/">Solace</a> event
+ * broker.
  *
  * <p>Note: this API is beta and subject to change.
  *
- * <h2>Reading</h2>
+ * <h2>Reading from Solace</h2>
  *
  * To read from Solace, use the {@link SolaceIO#read()} or {@link SolaceIO#read(TypeDescriptor,
  * SerializableFunction, SerializableFunction)}.
@@ -115,20 +116,21 @@ import org.slf4j.LoggerFactory;
  * PCollection<Solace.Record> events =
  *   pipeline.apply(
  *     SolaceIO.read()
- *         .from(Queue.fromName(options.getSolaceReadQueue()))
+ *         .from(Queue.fromName("your-queue-name"))
  *         .withSempClientFactory(
  *                 BasicAuthSempClientFactory.builder()
- *                         .host("http://" + options.getSolaceHost() + ":8080")
- *                         .username(options.getSolaceUsername())
- *                         .password(options.getSolacePassword())
- *                         .vpnName(options.getSolaceVpnName())
+ *                         .host("your-host-name-with-protocol") // e.g. "http://12.34.56.78:8080"
+ *                         .username("semp-username")
+ *                         .password("semp-password")
+ *                         .vpnName("vpn-name")
  *                         .build())
  *         .withSessionServiceFactory(
  *                 BasicAuthJcsmpSessionServiceFactory.builder()
- *                         .host(options.getSolaceHost())
- *                         .username(options.getSolaceUsername())
- *                         .password(options.getSolacePassword())
- *                         .vpnName(options.getSolaceVpnName())
+ *                         .host("your-host-name")
+ *                               // e.g. "12.34.56.78", or "[fe80::1]", or "12.34.56.78:4444"
+ *                         .username("username")
+ *                         .password("password")
+ *                         .vpnName("vpn-name")
  *                         .build()));
  * }</pre>
  *
@@ -172,7 +174,7 @@ import org.slf4j.LoggerFactory;
  *                      TypeDescriptor.of(SimpleRecord.class),
  *                      record -> toSimpleRecord(record),
  *                      record -> record.timestamp)
- *              .from(Topic.fromName(options.getSolaceReadTopic()))
+ *              .from(Topic.fromName("your-topic-name"))
  *              .withSempClientFactory(...)
  *              .withSessionServiceFactory(...);
  *
@@ -340,8 +342,8 @@ public class SolaceIO {
      * </ul>
      *
      * <p>An existing implementation of the SempClientFactory includes {@link
-     * org.apache.beam.sdk.io.solace.broker.BasicAuthSempClientFactory} which implements the Basic
-     * Authentication to Solace.
+     * org.apache.beam.sdk.io.solace.broker.BasicAuthSempClientFactory} which implements connection
+     * to the SEMP with the Basic Authentication method.
      *
      * <p>To use it, specify the credentials with the builder methods.
      *
@@ -350,11 +352,11 @@ public class SolaceIO {
      * <pre>{@code
      * .withSempClientFactory(
      *         BasicAuthSempClientFactory.builder()
-     *                 .host("http://" + options.getSolaceHost() + ":8080")
-     *                 .username(options.getSolaceUsername())
-     *                 .password(options.getSolacePassword())
-     *                 .vpnName(options.getSolaceVpnName())
-     *                 .build())
+     *               .host("your-host-name-with-protocol") // e.g. "http://12.34.56.78:8080"
+     *               .username("username")
+     *               .password("password")
+     *               .vpnName("vpn-name")
+     *               .build())
      * }</pre>
      */
     public Read<T> withSempClientFactory(SempClientFactory sempClientFactory) {
@@ -382,15 +384,19 @@ public class SolaceIO {
      *
      * <p>To use it, specify the credentials with the builder methods. *
      *
-     * <p>The format of the host is `[Protocol://]Host[:Port]` *
+     * <p>The host is the IPv4 or IPv6 or host name of the appliance. IPv5 addresses must be encoded
+     * in brackets ([]). For example, "12.34.56.78", or "[fe80::1]". If connecting to a non-default
+     * port, it can be specified here using the "Host:Port" format. For example, "12.34.56.78:4444",
+     * or "[fe80::1]:4444".
      *
      * <pre>{@code
      * BasicAuthJcsmpSessionServiceFactory.builder()
-     *         .host(options.getSolaceHost())
-     *         .username(options.getSolaceUsername())
-     *         .password(options.getSolacePassword())
-     *         .vpnName(options.getSolaceVpnName())
-     *         .build()));
+     *     .host("your-host-name")
+     *           // e.g. "12.34.56.78", or "[fe80::1]", or "12.34.56.78:4444"
+     *     .username("semp-username")
+     *     .password("semp-password")
+     *     .vpnName("vpn-name")
+     *     .build()));
      * }</pre>
      */
     public Read<T> withSessionServiceFactory(SessionServiceFactory sessionServiceFactory) {
