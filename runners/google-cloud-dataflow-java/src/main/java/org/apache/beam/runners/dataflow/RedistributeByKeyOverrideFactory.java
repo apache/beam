@@ -26,7 +26,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.Element;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
-import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Redistribute.RedistributeByKey;
@@ -82,10 +81,9 @@ class RedistributeByKeyOverrideFactory<K, V>
       PCollection<KV<K, ValueInSingleWindow<V>>> reified =
           input
               .apply("SetIdentityWindow", rewindow)
-              .apply("ReifyOriginalMetadata", Reify.windowsInValue())
-              .apply("FilterNullValues", Filter.by(
-                  (KV<K, ValueInSingleWindow<V>> element) -> element.getValue().getValue() != null));
+              .apply("ReifyOriginalMetadata", Reify.windowsInValue());
 
+      @SuppressWarnings("nullness") // Cannot figure out how to make this typecheck
       PCollection<KV<K, Iterable<ValueInSingleWindow<V>>>> grouped =
           reified.apply(
               originalTransform != null && originalTransform.getAllowDuplicates()
