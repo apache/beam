@@ -18,8 +18,13 @@
 package org.apache.beam.sdk.schemas.transforms;
 
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.schemas.NoSuchSchemaException;
+import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
+import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * An abstraction representing schema capable and aware transforms. The interface is intended to be
@@ -33,5 +38,51 @@ import org.apache.beam.sdk.values.PCollectionRowTuple;
  * compatibility guarantees and it should not be implemented outside of the Beam repository.
  */
 @Internal
-public abstract class SchemaTransform
-    extends PTransform<PCollectionRowTuple, PCollectionRowTuple> {}
+public abstract class SchemaTransform extends PTransform<PCollectionRowTuple, PCollectionRowTuple> {
+  private @Nullable Row configurationRow;
+  private @Nullable String identifier;
+  private boolean registered = false;
+
+  public SchemaTransform register(Row configurationRow, String identifier) {
+    this.configurationRow = configurationRow;
+    this.identifier = identifier;
+    registered = true;
+
+    return this;
+  }
+
+  public <ConfigT> SchemaTransform register(
+      ConfigT configuration, Class<ConfigT> configClass, String identifier) {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    try {
+      // Get initial row with values
+      // sort lexicographically and convert field names to snake_case
+      Row configRow =
+          registry.getToRowFunction(configClass).apply(configuration).sorted().toSnakeCase();
+      return register(configRow, identifier);
+    } catch (NoSuchSchemaException e) {
+      throw new RuntimeException(
+          String.format(
+              "Unable to find schema for this SchemaTransform's config type: %s", configClass),
+          e);
+    }
+  }
+
+  public Row getConfigurationRow() {
+    return Preconditions.checkNotNull(
+        configurationRow,
+        "Could not fetch Row configuration for %s. " + "Please store it using .register().",
+        getClass());
+  }
+
+  public String getIdentifier() {
+    return Preconditions.checkNotNull(
+        identifier,
+        "Could not fetch identifier for %s. " + "Please store it using .register().",
+        getClass());
+  }
+
+  public boolean isRegistered() {
+    return registered;
+  }
+}

@@ -35,9 +35,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
-import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
@@ -147,11 +145,11 @@ public class ManagedSchemaTransformProvider
                 + "the specified transform not being supported.",
             managedConfig.getTransformIdentifier());
 
-    return new ManagedSchemaTransform(managedConfig, schemaTransformProvider);
+    return new ManagedSchemaTransform(managedConfig, schemaTransformProvider)
+        .register(managedConfig, ManagedConfig.class, identifier());
   }
 
   static class ManagedSchemaTransform extends SchemaTransform {
-    private final ManagedConfig managedConfig;
     private final Row underlyingTransformConfig;
     private final SchemaTransformProvider underlyingTransformProvider;
 
@@ -167,7 +165,6 @@ public class ManagedSchemaTransformProvider
             "Encountered an error when retrieving a Row configuration", e);
       }
 
-      this.managedConfig = managedConfig;
       this.underlyingTransformConfig = underlyingTransformConfig;
       this.underlyingTransformProvider = underlyingTransformProvider;
     }
@@ -181,26 +178,9 @@ public class ManagedSchemaTransformProvider
 
       return input.apply(underlyingTransformProvider.from(underlyingTransformConfig));
     }
-
-    public ManagedConfig getManagedConfig() {
-      return this.managedConfig;
-    }
-
-    Row getConfigurationRow() {
-      try {
-        // To stay consistent with our SchemaTransform configuration naming conventions,
-        // we sort lexicographically and convert field names to snake_case
-        return SchemaRegistry.createDefault()
-            .getToRowFunction(ManagedConfig.class)
-            .apply(managedConfig)
-            .sorted()
-            .toSnakeCase();
-      } catch (NoSuchSchemaException e) {
-        throw new RuntimeException(e);
-      }
-    }
   }
 
+  /** Returns the underlying transform's {@link Row} config. */
   @VisibleForTesting
   static Row getRowConfig(ManagedConfig config, Schema transformSchema) {
     // May return an empty row (perhaps the underlying transform doesn't have any required

@@ -105,7 +105,7 @@ public class TypedSchemaTransformProviderTest {
 
     @Override
     public SchemaTransform from(Configuration config) {
-      return new FakeSchemaTransform(config);
+      return new FakeSchemaTransform(config).register(config, Configuration.class, identifier());
     }
   }
 
@@ -121,6 +121,26 @@ public class TypedSchemaTransformProviderTest {
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
       return null;
     }
+  }
+
+  @Test
+  public void testInferConfigurationClass() {
+    assertEquals(Configuration.class, new FakeTypedSchemaIOProvider().configurationClass());
+    assertEquals(Configuration.class, new FakeMinimalTypedProvider().configurationClass());
+  }
+
+  @Test
+  public void testConfigurationRow() {
+    SchemaTransformProvider minimalProvider = new FakeMinimalTypedProvider();
+    Row inputConfig =
+        Row.withSchema(minimalProvider.configurationSchema())
+            .withFieldValue("field1", "field1")
+            .withFieldValue("field2", Integer.valueOf(13))
+            .build();
+
+    SchemaTransform transform = minimalProvider.from(inputConfig);
+
+    assertEquals(inputConfig, transform.getConfigurationRow());
   }
 
   @Test

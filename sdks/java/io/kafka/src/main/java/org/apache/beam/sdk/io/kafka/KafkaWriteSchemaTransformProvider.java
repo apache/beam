@@ -31,9 +31,7 @@ import org.apache.beam.sdk.extensions.protobuf.ProtoByteUtils;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
-import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
@@ -91,7 +89,8 @@ public class KafkaWriteSchemaTransformProvider
               + "Supported formats are: "
               + String.join(", ", SUPPORTED_FORMATS));
     }
-    return new KafkaWriteSchemaTransform(configuration);
+    return new KafkaWriteSchemaTransform(configuration)
+        .register(configuration, KafkaWriteSchemaTransformConfiguration.class, identifier());
   }
 
   static final class KafkaWriteSchemaTransform extends SchemaTransform implements Serializable {
@@ -99,20 +98,6 @@ public class KafkaWriteSchemaTransformProvider
 
     KafkaWriteSchemaTransform(KafkaWriteSchemaTransformConfiguration configuration) {
       this.configuration = configuration;
-    }
-
-    Row getConfigurationRow() {
-      try {
-        // To stay consistent with our SchemaTransform configuration naming conventions,
-        // we sort lexicographically
-        return SchemaRegistry.createDefault()
-            .getToRowFunction(KafkaWriteSchemaTransformConfiguration.class)
-            .apply(configuration)
-            .sorted()
-            .toSnakeCase();
-      } catch (NoSuchSchemaException e) {
-        throw new RuntimeException(e);
-      }
     }
 
     public static class ErrorCounterFn extends DoFn<Row, KV<byte[], byte[]>> {

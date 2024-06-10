@@ -18,15 +18,12 @@
 package org.apache.beam.sdk.schemas.transforms;
 
 import static org.apache.beam.model.pipeline.v1.ExternalTransforms.ExpansionMethods.Enum.SCHEMA_TRANSFORM;
-import static org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import static org.apache.beam.sdk.util.construction.PTransformTranslation.TransformPayloadTranslator;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.ServiceLoader;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
+import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.SchemaApi;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -38,12 +35,8 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/**
- * A {@link TransformPayloadTranslator} implementation that translates between a Java {@link
- * SchemaTransform} and a protobuf payload for that transform.
- */
-public class SchemaTransformTranslation {
-  public static class SchemaTransformPayloadTranslator
+public class SchemaTransformProviderTranslation {
+  public static class SchemaTransformTranslator
       implements TransformPayloadTranslator<SchemaTransform> {
     private final SchemaTransformProvider provider;
 
@@ -51,7 +44,7 @@ public class SchemaTransformTranslation {
       return provider.identifier();
     }
 
-    public SchemaTransformPayloadTranslator(SchemaTransformProvider provider) {
+    public SchemaTransformTranslator(SchemaTransformProvider provider) {
       this.provider = provider;
     }
 
@@ -92,13 +85,5 @@ public class SchemaTransformTranslation {
     public SchemaTransform fromConfigRow(Row configRow, PipelineOptions options) {
       return provider.from(configRow);
     }
-  }
-
-  public static Map<String, SchemaTransformPayloadTranslator> getDefaultTranslators() {
-    Map<String, SchemaTransformPayloadTranslator> translators = new HashMap<>();
-    for (SchemaTransformProvider provider : ServiceLoader.load(SchemaTransformProvider.class)) {
-      translators.put(provider.identifier(), new SchemaTransformPayloadTranslator(provider));
-    }
-    return translators;
   }
 }

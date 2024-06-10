@@ -24,8 +24,6 @@ import java.util.List;
 import org.apache.beam.sdk.io.iceberg.IcebergReadSchemaTransformProvider.Config;
 import org.apache.beam.sdk.managed.ManagedTransformConstants;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
-import org.apache.beam.sdk.schemas.NoSuchSchemaException;
-import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
@@ -48,7 +46,8 @@ public class IcebergReadSchemaTransformProvider extends TypedSchemaTransformProv
   @Override
   protected SchemaTransform from(Config configuration) {
     configuration.validate();
-    return new IcebergReadSchemaTransform(configuration);
+    return new IcebergReadSchemaTransform(configuration)
+        .register(configuration, Config.class, identifier());
   }
 
   @Override
@@ -91,20 +90,6 @@ public class IcebergReadSchemaTransformProvider extends TypedSchemaTransformProv
 
     IcebergReadSchemaTransform(Config configuration) {
       this.configuration = configuration;
-    }
-
-    Row getConfigurationRow() {
-      try {
-        // To stay consistent with our SchemaTransform configuration naming conventions,
-        // we sort lexicographically and convert field names to snake_case
-        return SchemaRegistry.createDefault()
-            .getToRowFunction(Config.class)
-            .apply(configuration)
-            .sorted()
-            .toSnakeCase();
-      } catch (NoSuchSchemaException e) {
-        throw new RuntimeException(e);
-      }
     }
 
     @Override

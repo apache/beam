@@ -18,10 +18,7 @@
 package org.apache.beam.sdk.io.kafka;
 
 import static org.apache.beam.model.pipeline.v1.ExternalTransforms.ExpansionMethods.Enum.SCHEMA_TRANSFORM;
-import static org.apache.beam.sdk.io.kafka.KafkaReadSchemaTransformProvider.KafkaReadSchemaTransform;
-import static org.apache.beam.sdk.io.kafka.KafkaSchemaTransformTranslation.KafkaReadSchemaTransformTranslator;
-import static org.apache.beam.sdk.io.kafka.KafkaSchemaTransformTranslation.KafkaWriteSchemaTransformTranslator;
-import static org.apache.beam.sdk.io.kafka.KafkaWriteSchemaTransformProvider.KafkaWriteSchemaTransform;
+import static org.apache.beam.sdk.schemas.transforms.SchemaTransformTranslation.SchemaTransformPayloadTranslator;
 import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
@@ -35,6 +32,7 @@ import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
+import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.util.construction.BeamUrns;
 import org.apache.beam.sdk.util.construction.PipelineTranslation;
@@ -43,21 +41,21 @@ import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
-import org.junit.ClassRule;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
-import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
+@RunWith(JUnit4.class)
 public class KafkaSchemaTransformTranslationTest {
-  @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
-
-  @Rule public transient ExpectedException thrown = ExpectedException.none();
-
   static final KafkaWriteSchemaTransformProvider WRITE_PROVIDER =
       new KafkaWriteSchemaTransformProvider();
   static final KafkaReadSchemaTransformProvider READ_PROVIDER =
       new KafkaReadSchemaTransformProvider();
+
+  static final SchemaTransformPayloadTranslator WRITE_TRANSLATOR =
+      new SchemaTransformPayloadTranslator(WRITE_PROVIDER);
+  static final SchemaTransformPayloadTranslator READ_TRANSLATOR =
+      new SchemaTransformPayloadTranslator(READ_PROVIDER);
 
   static final Row READ_CONFIG =
       Row.withSchema(READ_PROVIDER.configurationSchema())
@@ -88,16 +86,14 @@ public class KafkaSchemaTransformTranslationTest {
 
   @Test
   public void testRecreateWriteTransformFromRow() {
-    KafkaWriteSchemaTransform writeTransform =
-        (KafkaWriteSchemaTransform) WRITE_PROVIDER.from(WRITE_CONFIG);
+    SchemaTransform writeTransform = WRITE_PROVIDER.from(WRITE_CONFIG);
 
-    KafkaWriteSchemaTransformTranslator translator = new KafkaWriteSchemaTransformTranslator();
-    Row translatedRow = translator.toConfigRow(writeTransform);
+    Row translatedRow = WRITE_TRANSLATOR.toConfigRow(writeTransform);
 
-    KafkaWriteSchemaTransform writeTransformFromRow =
-        translator.fromConfigRow(translatedRow, PipelineOptionsFactory.create());
+    SchemaTransform translatedTransform =
+        WRITE_TRANSLATOR.fromConfigRow(translatedRow, PipelineOptionsFactory.create());
 
-    assertEquals(WRITE_CONFIG, writeTransformFromRow.getConfigurationRow());
+    assertEquals(WRITE_CONFIG, translatedTransform.getConfigurationRow());
   }
 
   @Test
@@ -113,8 +109,7 @@ public class KafkaSchemaTransformTranslationTest {
                         Row.withSchema(inputSchema).addValue(new byte[] {1, 2, 3}).build())))
             .setRowSchema(inputSchema);
 
-    KafkaWriteSchemaTransform writeTransform =
-        (KafkaWriteSchemaTransform) WRITE_PROVIDER.from(WRITE_CONFIG);
+    SchemaTransform writeTransform = WRITE_PROVIDER.from(WRITE_CONFIG);
     PCollectionRowTuple.of("input", input).apply(writeTransform);
 
     // Then translate the pipeline to a proto and extract KafkaWriteSchemaTransform proto
@@ -146,9 +141,8 @@ public class KafkaSchemaTransformTranslationTest {
     assertEquals(WRITE_CONFIG, rowFromSpec);
 
     // Use the information in the proto to recreate the KafkaWriteSchemaTransform
-    KafkaWriteSchemaTransformTranslator translator = new KafkaWriteSchemaTransformTranslator();
-    KafkaWriteSchemaTransform writeTransformFromSpec =
-        translator.fromConfigRow(rowFromSpec, PipelineOptionsFactory.create());
+    SchemaTransform writeTransformFromSpec =
+        WRITE_TRANSLATOR.fromConfigRow(rowFromSpec, PipelineOptionsFactory.create());
 
     assertEquals(WRITE_CONFIG, writeTransformFromSpec.getConfigurationRow());
   }
@@ -156,16 +150,14 @@ public class KafkaSchemaTransformTranslationTest {
   @Test
   public void testReCreateReadTransformFromRow() {
     // setting a subset of fields here.
-    KafkaReadSchemaTransform readTransform =
-        (KafkaReadSchemaTransform) READ_PROVIDER.from(READ_CONFIG);
+    SchemaTransform readTransform = READ_PROVIDER.from(READ_CONFIG);
 
-    KafkaReadSchemaTransformTranslator translator = new KafkaReadSchemaTransformTranslator();
-    Row row = translator.toConfigRow(readTransform);
+    Row row = READ_TRANSLATOR.toConfigRow(readTransform);
 
-    KafkaReadSchemaTransform readTransformFromRow =
-        translator.fromConfigRow(row, PipelineOptionsFactory.create());
+    SchemaTransform translatedTransform =
+        READ_TRANSLATOR.fromConfigRow(row, PipelineOptionsFactory.create());
 
-    assertEquals(READ_CONFIG, readTransformFromRow.getConfigurationRow());
+    assertEquals(READ_CONFIG, translatedTransform.getConfigurationRow());
   }
 
   @Test
@@ -174,8 +166,7 @@ public class KafkaSchemaTransformTranslationTest {
     // First build a pipeline
     Pipeline p = Pipeline.create();
 
-    KafkaReadSchemaTransform readTransform =
-        (KafkaReadSchemaTransform) READ_PROVIDER.from(READ_CONFIG);
+    SchemaTransform readTransform = READ_PROVIDER.from(READ_CONFIG);
 
     PCollectionRowTuple.empty(p).apply(readTransform);
 
@@ -207,9 +198,8 @@ public class KafkaSchemaTransformTranslationTest {
     assertEquals(READ_CONFIG, rowFromSpec);
 
     // Use the information in the proto to recreate the KafkaReadSchemaTransform
-    KafkaReadSchemaTransformTranslator translator = new KafkaReadSchemaTransformTranslator();
-    KafkaReadSchemaTransform readTransformFromSpec =
-        translator.fromConfigRow(rowFromSpec, PipelineOptionsFactory.create());
+    SchemaTransform readTransformFromSpec =
+        READ_TRANSLATOR.fromConfigRow(rowFromSpec, PipelineOptionsFactory.create());
 
     assertEquals(READ_CONFIG, readTransformFromSpec.getConfigurationRow());
   }

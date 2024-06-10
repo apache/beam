@@ -35,6 +35,8 @@ import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
+import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
+import org.apache.beam.sdk.schemas.transforms.SchemaTransformTranslation;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.util.construction.BeamUrns;
 import org.apache.beam.sdk.util.construction.PipelineTranslation;
@@ -63,6 +65,11 @@ public class IcebergSchemaTransformTranslationTest {
   static final IcebergReadSchemaTransformProvider READ_PROVIDER =
       new IcebergReadSchemaTransformProvider();
 
+  static final SchemaTransformTranslation.SchemaTransformPayloadTranslator WRITE_TRANSLATOR =
+      new SchemaTransformTranslation.SchemaTransformPayloadTranslator(WRITE_PROVIDER);
+  static final SchemaTransformTranslation.SchemaTransformPayloadTranslator READ_TRANSLATOR =
+      new SchemaTransformTranslation.SchemaTransformPayloadTranslator(READ_PROVIDER);
+
   @Test
   public void testReCreateWriteTransformFromRow() {
     Row catalogConfigRow =
@@ -76,15 +83,12 @@ public class IcebergSchemaTransformTranslationTest {
             .withFieldValue("table", "test_table_identifier")
             .withFieldValue("catalog_config", catalogConfigRow)
             .build();
-    IcebergWriteSchemaTransform writeTransform =
-        (IcebergWriteSchemaTransform) WRITE_PROVIDER.from(transformConfigRow);
+    SchemaTransform writeTransform = WRITE_PROVIDER.from(transformConfigRow);
 
-    IcebergSchemaTransformTranslation.IcebergWriteSchemaTransformTranslator translator =
-        new IcebergSchemaTransformTranslation.IcebergWriteSchemaTransformTranslator();
-    Row row = translator.toConfigRow(writeTransform);
+    Row row = WRITE_TRANSLATOR.toConfigRow(writeTransform);
 
-    IcebergWriteSchemaTransform writeTransformFromRow =
-        translator.fromConfigRow(row, PipelineOptionsFactory.create());
+    SchemaTransform writeTransformFromRow =
+        WRITE_TRANSLATOR.fromConfigRow(row, PipelineOptionsFactory.create());
 
     assertEquals(transformConfigRow, writeTransformFromRow.getConfigurationRow());
   }
@@ -147,10 +151,8 @@ public class IcebergSchemaTransformTranslationTest {
     assertEquals(transformConfigRow, rowFromSpec);
 
     // Use the information in the proto to recreate the IcebergWriteSchemaTransform
-    IcebergSchemaTransformTranslation.IcebergWriteSchemaTransformTranslator translator =
-        new IcebergSchemaTransformTranslation.IcebergWriteSchemaTransformTranslator();
-    IcebergWriteSchemaTransform writeTransformFromSpec =
-        translator.fromConfigRow(rowFromSpec, PipelineOptionsFactory.create());
+    SchemaTransform writeTransformFromSpec =
+        WRITE_TRANSLATOR.fromConfigRow(rowFromSpec, PipelineOptionsFactory.create());
 
     assertEquals(transformConfigRow, writeTransformFromSpec.getConfigurationRow());
   }
@@ -170,15 +172,12 @@ public class IcebergSchemaTransformTranslationTest {
             .withFieldValue("catalog_config", catalogConfigRow)
             .build();
 
-    IcebergReadSchemaTransform readTransform =
-        (IcebergReadSchemaTransform) READ_PROVIDER.from(transformConfigRow);
+    SchemaTransform readTransform = READ_PROVIDER.from(transformConfigRow);
 
-    IcebergSchemaTransformTranslation.IcebergReadSchemaTransformTranslator translator =
-        new IcebergSchemaTransformTranslation.IcebergReadSchemaTransformTranslator();
-    Row row = translator.toConfigRow(readTransform);
+    Row row = READ_TRANSLATOR.toConfigRow(readTransform);
 
-    IcebergReadSchemaTransform readTransformFromRow =
-        translator.fromConfigRow(row, PipelineOptionsFactory.create());
+    SchemaTransform readTransformFromRow =
+        READ_TRANSLATOR.fromConfigRow(row, PipelineOptionsFactory.create());
 
     assertEquals(transformConfigRow, readTransformFromRow.getConfigurationRow());
   }
@@ -236,10 +235,8 @@ public class IcebergSchemaTransformTranslationTest {
     assertEquals(transformConfigRow, rowFromSpec);
 
     // Use the information in the proto to recreate the IcebergReadSchemaTransform
-    IcebergSchemaTransformTranslation.IcebergReadSchemaTransformTranslator translator =
-        new IcebergSchemaTransformTranslation.IcebergReadSchemaTransformTranslator();
-    IcebergReadSchemaTransform readTransformFromSpec =
-        translator.fromConfigRow(rowFromSpec, PipelineOptionsFactory.create());
+    SchemaTransform readTransformFromSpec =
+        READ_TRANSLATOR.fromConfigRow(rowFromSpec, PipelineOptionsFactory.create());
 
     assertEquals(transformConfigRow, readTransformFromSpec.getConfigurationRow());
   }

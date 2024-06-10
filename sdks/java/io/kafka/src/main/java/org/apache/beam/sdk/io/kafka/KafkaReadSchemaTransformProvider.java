@@ -40,9 +40,7 @@ import org.apache.beam.sdk.extensions.protobuf.ProtoByteUtils;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
-import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.transforms.Convert;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
@@ -89,7 +87,8 @@ public class KafkaReadSchemaTransformProvider
   })
   @Override
   protected SchemaTransform from(KafkaReadSchemaTransformConfiguration configuration) {
-    return new KafkaReadSchemaTransform(configuration);
+    return new KafkaReadSchemaTransform(configuration)
+        .register(configuration, KafkaReadSchemaTransformConfiguration.class, identifier());
   }
 
   public static SerializableFunction<byte[], Row> getRawBytesToRowFunction(Schema rawSchema) {
@@ -121,20 +120,6 @@ public class KafkaReadSchemaTransformProvider
 
     KafkaReadSchemaTransform(KafkaReadSchemaTransformConfiguration configuration) {
       this.configuration = configuration;
-    }
-
-    Row getConfigurationRow() {
-      try {
-        // To stay consistent with our SchemaTransform configuration naming conventions,
-        // we sort lexicographically
-        return SchemaRegistry.createDefault()
-            .getToRowFunction(KafkaReadSchemaTransformConfiguration.class)
-            .apply(configuration)
-            .sorted()
-            .toSnakeCase();
-      } catch (NoSuchSchemaException e) {
-        throw new RuntimeException(e);
-      }
     }
 
     @Override

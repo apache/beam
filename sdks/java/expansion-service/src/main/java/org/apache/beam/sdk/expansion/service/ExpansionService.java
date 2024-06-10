@@ -68,6 +68,7 @@ import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
+import org.apache.beam.sdk.schemas.transforms.SchemaTransformTranslation;
 import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -139,11 +140,25 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
   public static class ExternalTransformRegistrarLoader
       implements ExpansionService.ExpansionServiceRegistrar {
 
+    /**
+     * Map of known PTransform URNs (ie. transforms listed in a {@link
+     * org.apache.beam.sdk.util.construction.TransformPayloadTranslatorRegistrar}) and their
+     * corresponding TransformProviders.
+     */
     @Override
     public Map<String, TransformProvider> knownTransforms() {
       Map<String, TransformProvider> providers = new HashMap<>();
 
-      // First check and register ExternalTransformBuilder in serviceloader style, converting
+      // First populate with SchemaTransform URNs and their default translator implementation.
+      // These can be overwritten below if a custom translator for a given URN is found.
+      Map<String, SchemaTransformPayloadTranslator> defaultSchemaTransformTranslators =
+          SchemaTransformTranslation.getDefaultTranslators();
+      for (Map.Entry<String, SchemaTransformPayloadTranslator> entry :
+          defaultSchemaTransformTranslators.entrySet()) {
+        providers.put(entry.getKey(), new TransformProviderForPayloadTranslator(entry.getValue()));
+      }
+
+      // Then check and register ExternalTransformBuilder in serviceloader style, converting
       // to TransformProvider after validation.
       Map<String, ExternalTransformBuilder> registeredBuilders = loadTransformBuilders();
       for (Map.Entry<String, ExternalTransformBuilder> registeredBuilder :
@@ -179,7 +194,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
             continue;
           } else if (urn.equals(BeamUrns.getUrn(SCHEMA_TRANSFORM))
               && translator instanceof SchemaTransformPayloadTranslator) {
-            urn = ((SchemaTransformPayloadTranslator) translator).provider().identifier();
+            urn = ((SchemaTransformPayloadTranslator) translator).identifier();
           }
         } catch (Exception e) {
           LOG.info(
@@ -245,7 +260,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
           InputT extends PInput, OutputT extends POutput>
       implements TransformProvider<InputT, OutputT> {
 
-    private final TransformPayloadTranslator<PTransform<InputT, OutputT>> payloadTranslator;
+    private final TransformPayloadTranslator payloadTranslator;
 
     // Returns true if the underlying transform represented by this is a schema-aware transform.
     private boolean isSchemaTransform() {
