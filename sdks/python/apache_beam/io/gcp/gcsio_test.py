@@ -600,6 +600,21 @@ class TestGCSIO(unittest.TestCase):
     self.assertEqual(
         request_data_json['softDeletePolicy']['retentionDurationSeconds'], 0)
 
+  @mock.patch("apache_beam.io.gcp.gcsio.GcsIO.get_bucket")
+  def test_is_soft_delete_enabled(self, mock_get_bucket):
+    bucket = mock.MagicMock()
+    mock_get_bucket.return_value = bucket
+
+    # soft delete policy enabled
+    bucket.soft_delete_policy.retention_duration_seconds = 1024
+    self.assertTrue(self.gcs.is_soft_delete_enabled(
+      "gs://beam_with_soft_delete/tmp"))
+
+    # soft delete policy disabled
+    bucket.soft_delete_policy.retention_duration_seconds = 0
+    self.assertFalse(self.gcs.is_soft_delete_enabled(
+      "gs://beam_without_soft_delete/tmp"))
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

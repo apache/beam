@@ -35,6 +35,7 @@ import time
 from typing import Optional
 from typing import Union
 
+from google.api_core.exceptions import GoogleAPICallError
 from google.cloud import storage
 from google.cloud.exceptions import NotFound
 from google.cloud.storage.fileio import BlobReader
@@ -529,6 +530,18 @@ class GcsIO(object):
         time.mktime(updated.timetuple()) - time.timezone +
         updated.microsecond / 1000000.0)
 
+  def is_soft_delete_enabled(self, gcs_path):
+    try:
+      bucket_name, _ = parse_gcs_path(gcs_path)
+      bucket = self.get_bucket(bucket_name)
+      if (bucket.soft_delete_policy is not None and
+              bucket.soft_delete_policy.retention_duration_seconds > 0):
+        return True
+    except Exception:
+      _LOGGER.warning(
+        "Unexpected error occurred when checking soft delete policy for %s"
+        % gcs_path)
+    return False
 
 class BeamBlobReader(BlobReader):
   def __init__(self, blob, chunk_size=DEFAULT_READ_BUFFER_SIZE):

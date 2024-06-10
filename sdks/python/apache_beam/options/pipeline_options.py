@@ -920,30 +920,19 @@ class GoogleCloudOptions(PipelineOptions):
   def _warn_if_soft_delete_policy_enabled(self, arg_name):
     gcs_path = getattr(self, arg_name, None)
     try:
-      from google.api_core.exceptions import GoogleAPICallError
       from apache_beam.io.gcp import gcsio
-      try:
-        bucket_name, _ = gcsio.parse_gcs_path(gcs_path)
-        bucket = gcsio.GcsIO().get_bucket(bucket_name)
-        if (bucket.soft_delete_policy is not None and
-            bucket.soft_delete_policy.retention_duration_seconds > 0):
+      if gcsio.GcsIO.is_soft_delete_enabled(gcs_path):
           _LOGGER.warning(
-              "Bucket %s specified in %s has soft-delete policy enabled."
+              "Bucket specified in %s has soft-delete policy enabled."
               " To avoid being billed for unnecessary storage costs, turn"
               " off the soft delete feature on buckets that your Dataflow"
               " jobs use for temporary and staging storage. For more"
               " information, see"
               " https://cloud.google.com/storage/docs/use-soft-delete"
-              "#remove-soft-delete-policy." % (bucket_name, arg_name))
-          return True
-      except GoogleAPICallError:
-        _LOGGER.warning(
-            'Unable to check soft delete policy in the bucket of %s.' %
-            gcs_path)
-    except Exception:
+              "#remove-soft-delete-policy." % arg_name)
+    except ImportError:
       _LOGGER.warning(
-          'Unexpected error occurred when checking soft delete policy.')
-    return False
+          'Unable to check soft delete policy due to import error.')
 
   # If either temp or staging location has an issue, we use the valid one for
   # both locations. If both are bad we return an error.
