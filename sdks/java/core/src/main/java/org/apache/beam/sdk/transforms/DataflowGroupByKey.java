@@ -136,7 +136,7 @@ public class DataflowGroupByKey<K, V>
    * Returns the {@code Coder} of the keys of the input to this transform, which is also used as the
    * {@code Coder} of the keys of the output of this transform.
    */
-  public static <K, V> Coder<K> getKeyCoder(Coder<KV<K, V>> inputCoder) {
+  static <K, V> Coder<K> getKeyCoder(Coder<KV<K, V>> inputCoder) {
     return DataflowGroupByKey.<K, V>getInputKvCoder(inputCoder).getKeyCoder();
   }
 

@@ -327,11 +327,6 @@ message StandardPTransforms {
     //
     // Payload: none
     TO_STRING = 8 [(beam_urn) = "beam:transform:to_string:v1"];
-
-    // Specialized implementation of GroupByKey for translating Redistribute transform into
-    // Dataflow service protos.
-    DATAFLOW_GROUP_BY_KEY = 9
-        [(beam_urn) = "beam:transform:dataflow_group_by_key:v1"];
   }
   enum DeprecatedPrimitives {
     // Represents the operation to read a Bounded or Unbounded source.
