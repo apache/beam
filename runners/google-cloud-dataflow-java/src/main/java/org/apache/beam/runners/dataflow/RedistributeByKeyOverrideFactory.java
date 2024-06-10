@@ -77,14 +77,14 @@ class RedistributeByKeyOverrideFactory<K, V>
               .triggering(new ReshuffleTrigger<>())
               .discardingFiredPanes()
               .withTimestampCombiner(TimestampCombiner.EARLIEST)
-              .withAllowedLateness(Duration.millis(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()))
-              .apply("FilterNullValues", Filter.by(
-                  (KV<K, ValueInSingleWindow<V>> element) -> element.getValue().getValue() != null));
+              .withAllowedLateness(Duration.millis(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()));
 
       PCollection<KV<K, ValueInSingleWindow<V>>> reified =
           input
               .apply("SetIdentityWindow", rewindow)
-              .apply("ReifyOriginalMetadata", Reify.windowsInValue());
+              .apply("ReifyOriginalMetadata", Reify.windowsInValue())
+              .apply("FilterNullValues", Filter.by(
+                  (KV<K, ValueInSingleWindow<V>> element) -> element.getValue().getValue() != null));
 
       PCollection<KV<K, Iterable<ValueInSingleWindow<V>>>> grouped =
           reified.apply(
