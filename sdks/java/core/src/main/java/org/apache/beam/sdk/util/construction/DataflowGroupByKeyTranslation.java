@@ -50,6 +50,7 @@ public class DataflowGroupByKeyTranslation {
   @AutoService(TransformPayloadTranslatorRegistrar.class)
   public static class Registrar implements TransformPayloadTranslatorRegistrar {
     @Override
+    @SuppressWarnings("rawtypes")
     public Map<
             ? extends Class<? extends PTransform>,
             ? extends PTransformTranslation.TransformPayloadTranslator>
