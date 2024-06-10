@@ -35,7 +35,6 @@ import time
 from typing import Optional
 from typing import Union
 
-from google.api_core.exceptions import GoogleAPICallError
 from google.cloud import storage
 from google.cloud.exceptions import NotFound
 from google.cloud.storage.fileio import BlobReader

@@ -915,13 +915,11 @@ class GoogleCloudOptions(PipelineOptions):
 
   # Log warning if soft delete policy is enabled in a gcs bucket
   # that is specified in an argument.
-  # The function returns true only if the policy is enabled.
-  # If the policy is disabled or there is any exception
   def _warn_if_soft_delete_policy_enabled(self, arg_name):
     gcs_path = getattr(self, arg_name, None)
     try:
       from apache_beam.io.gcp import gcsio
-      if gcsio.GcsIO.is_soft_delete_enabled(gcs_path):
+      if gcsio.GcsIO().is_soft_delete_enabled(gcs_path):
         _LOGGER.warning(
             "Bucket specified in %s has soft-delete policy enabled."
             " To avoid being billed for unnecessary storage costs, turn"
