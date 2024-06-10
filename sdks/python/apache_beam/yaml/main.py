@@ -68,7 +68,7 @@ def _preparse_jinja_flags(argv):
   return pipeline_args
 
 
-def _configure_parser(argv):
+def _parse_arguments(argv):
   parser = argparse.ArgumentParser()
   parser.add_argument(
       '--yaml_pipeline',
@@ -130,7 +130,7 @@ def _fix_xlang_instant_coding():
 
 def run(argv=None):
   argv = _preparse_jinja_flags(argv)
-  known_args, pipeline_args = _configure_parser(argv)
+  known_args, pipeline_args = _parse_arguments(argv)
   pipeline_template = _pipeline_spec_from_args(known_args)
   pipeline_yaml = (  # keep formatting
       jinja2.Environment(
