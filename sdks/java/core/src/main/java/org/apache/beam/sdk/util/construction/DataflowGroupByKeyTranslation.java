@@ -40,6 +40,7 @@ public class DataflowGroupByKeyTranslation {
     }
 
     @Override
+    @SuppressWarnings("nullness")
     public FunctionSpec translate(
         AppliedPTransform<?, ?, DataflowGroupByKey<?, ?>> transform, SdkComponents components) {
       return FunctionSpec.newBuilder().setUrn(getUrn(transform.getTransform())).build();
