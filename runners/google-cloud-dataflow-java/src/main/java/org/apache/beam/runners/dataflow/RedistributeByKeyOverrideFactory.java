@@ -26,6 +26,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.Element;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
+import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Redistribute.RedistributeByKey;
@@ -76,7 +77,9 @@ class RedistributeByKeyOverrideFactory<K, V>
               .triggering(new ReshuffleTrigger<>())
               .discardingFiredPanes()
               .withTimestampCombiner(TimestampCombiner.EARLIEST)
-              .withAllowedLateness(Duration.millis(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()));
+              .withAllowedLateness(Duration.millis(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()))
+              .apply("FilterNullValues", Filter.by(
+                  (KV<K, ValueInSingleWindow<V>> element) -> element.getValue().getValue() != null));
 
       PCollection<KV<K, ValueInSingleWindow<V>>> reified =
           input
