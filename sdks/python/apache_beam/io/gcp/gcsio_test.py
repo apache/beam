@@ -607,13 +607,13 @@ class TestGCSIO(unittest.TestCase):
 
     # soft delete policy enabled
     bucket.soft_delete_policy.retention_duration_seconds = 1024
-    self.assertTrue(self.gcs.is_soft_delete_enabled(
-      "gs://beam_with_soft_delete/tmp"))
+    self.assertTrue(
+        self.gcs.is_soft_delete_enabled("gs://beam_with_soft_delete/tmp"))
 
     # soft delete policy disabled
     bucket.soft_delete_policy.retention_duration_seconds = 0
-    self.assertFalse(self.gcs.is_soft_delete_enabled(
-      "gs://beam_without_soft_delete/tmp"))
+    self.assertFalse(
+        self.gcs.is_soft_delete_enabled("gs://beam_without_soft_delete/tmp"))
 
 
 if __name__ == '__main__':

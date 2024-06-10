@@ -922,17 +922,16 @@ class GoogleCloudOptions(PipelineOptions):
     try:
       from apache_beam.io.gcp import gcsio
       if gcsio.GcsIO.is_soft_delete_enabled(gcs_path):
-          _LOGGER.warning(
-              "Bucket specified in %s has soft-delete policy enabled."
-              " To avoid being billed for unnecessary storage costs, turn"
-              " off the soft delete feature on buckets that your Dataflow"
-              " jobs use for temporary and staging storage. For more"
-              " information, see"
-              " https://cloud.google.com/storage/docs/use-soft-delete"
-              "#remove-soft-delete-policy." % arg_name)
+        _LOGGER.warning(
+            "Bucket specified in %s has soft-delete policy enabled."
+            " To avoid being billed for unnecessary storage costs, turn"
+            " off the soft delete feature on buckets that your Dataflow"
+            " jobs use for temporary and staging storage. For more"
+            " information, see"
+            " https://cloud.google.com/storage/docs/use-soft-delete"
+            "#remove-soft-delete-policy." % arg_name)
     except ImportError:
-      _LOGGER.warning(
-          'Unable to check soft delete policy due to import error.')
+      _LOGGER.warning('Unable to check soft delete policy due to import error.')
 
   # If either temp or staging location has an issue, we use the valid one for
   # both locations. If both are bad we return an error.
