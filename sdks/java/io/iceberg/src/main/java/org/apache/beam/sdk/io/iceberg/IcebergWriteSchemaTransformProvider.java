@@ -63,8 +63,7 @@ public class IcebergWriteSchemaTransformProvider extends TypedSchemaTransformPro
   @Override
   protected SchemaTransform from(Config configuration) {
     configuration.validate();
-    return new IcebergWriteSchemaTransform(configuration)
-        .register(configuration, Config.class, identifier());
+    return register(configuration, new IcebergWriteSchemaTransform(configuration));
   }
 
   @Override

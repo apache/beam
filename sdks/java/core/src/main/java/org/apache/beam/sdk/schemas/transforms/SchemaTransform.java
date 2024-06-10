@@ -18,8 +18,6 @@
 package org.apache.beam.sdk.schemas.transforms;
 
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.sdk.schemas.NoSuchSchemaException;
-import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
@@ -54,27 +52,6 @@ public abstract class SchemaTransform extends PTransform<PCollectionRowTuple, PC
     registered = true;
 
     return this;
-  }
-
-  /**
-   * Like {@link #register(Row, String)}, but with a configuration POJO. This is a convenience
-   * method for {@link TypedSchemaTransformProvider} implementations.
-   */
-  public <ConfigT> SchemaTransform register(
-      ConfigT configuration, Class<ConfigT> configClass, String identifier) {
-    SchemaRegistry registry = SchemaRegistry.createDefault();
-    try {
-      // Get initial row with values
-      // then sort lexicographically and convert to snake_case
-      Row configRow =
-          registry.getToRowFunction(configClass).apply(configuration).sorted().toSnakeCase();
-      return register(configRow, identifier);
-    } catch (NoSuchSchemaException e) {
-      throw new RuntimeException(
-          String.format(
-              "Unable to find schema for this SchemaTransform's config type: %s", configClass),
-          e);
-    }
   }
 
   public Row getConfigurationRow() {

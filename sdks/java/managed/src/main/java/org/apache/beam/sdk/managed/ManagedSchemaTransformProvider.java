@@ -145,8 +145,8 @@ public class ManagedSchemaTransformProvider
                 + "the specified transform not being supported.",
             managedConfig.getTransformIdentifier());
 
-    return new ManagedSchemaTransform(managedConfig, schemaTransformProvider)
-        .register(managedConfig, ManagedConfig.class, identifier());
+    return register(
+        managedConfig, new ManagedSchemaTransform(managedConfig, schemaTransformProvider));
   }
 
   static class ManagedSchemaTransform extends SchemaTransform {

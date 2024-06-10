@@ -87,8 +87,7 @@ public class KafkaReadSchemaTransformProvider
   })
   @Override
   protected SchemaTransform from(KafkaReadSchemaTransformConfiguration configuration) {
-    return new KafkaReadSchemaTransform(configuration)
-        .register(configuration, KafkaReadSchemaTransformConfiguration.class, identifier());
+    return register(configuration, new KafkaReadSchemaTransform(configuration));
   }
 
   public static SerializableFunction<byte[], Row> getRawBytesToRowFunction(Schema rawSchema) {

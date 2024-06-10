@@ -42,7 +42,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * A default {@link TransformPayloadTranslator} implementation for {@link SchemaTransform}s.
  *
  * <p>Note: This is only eligible for registered SchemaTransform instances (using {@link
- * SchemaTransform#register}).
+ * SchemaTransform#register(Row, String)} or {@link TypedSchemaTransformProvider#register(Object,
+ * SchemaTransform)}).
  */
 public class SchemaTransformTranslation {
   public static class SchemaTransformPayloadTranslator

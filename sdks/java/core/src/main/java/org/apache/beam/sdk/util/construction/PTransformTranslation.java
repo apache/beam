@@ -596,7 +596,9 @@ public class PTransformTranslation {
    * KnownTransformPayloadTranslator}.
    *
    * <p>Note: This default translator is only eligible for registered SchemaTransform instances
-   * (using {@link SchemaTransform#register}).
+   * (using {@link SchemaTransform#register(Row, String)} or {@link
+   * org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider#register(Object,
+   * SchemaTransform)}).
    */
   private static class SchemaTransformTranslator implements TransformTranslator<SchemaTransform> {
     @Override

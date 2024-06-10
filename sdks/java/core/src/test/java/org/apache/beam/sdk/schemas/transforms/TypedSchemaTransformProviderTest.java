@@ -108,7 +108,7 @@ public class TypedSchemaTransformProviderTest {
 
     @Override
     public SchemaTransform from(Configuration config) {
-      return new FakeSchemaTransform(config).register(config, Configuration.class, identifier());
+      return register(config, new FakeSchemaTransform(config));
     }
   }
 

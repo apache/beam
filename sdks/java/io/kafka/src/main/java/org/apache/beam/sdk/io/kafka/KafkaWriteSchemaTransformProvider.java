@@ -89,8 +89,7 @@ public class KafkaWriteSchemaTransformProvider
               + "Supported formats are: "
               + String.join(", ", SUPPORTED_FORMATS));
     }
-    return new KafkaWriteSchemaTransform(configuration)
-        .register(configuration, KafkaWriteSchemaTransformConfiguration.class, identifier());
+    return register(configuration, new KafkaWriteSchemaTransform(configuration));
   }
 
   static final class KafkaWriteSchemaTransform extends SchemaTransform implements Serializable {
