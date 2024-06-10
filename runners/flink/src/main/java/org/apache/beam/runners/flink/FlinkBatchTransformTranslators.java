@@ -54,6 +54,7 @@ import org.apache.beam.sdk.transforms.CombineFnBase;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.Redistribute;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.join.UnionCoder;
@@ -94,6 +95,8 @@ import org.apache.flink.api.java.operators.Grouping;
 import org.apache.flink.api.java.operators.MapOperator;
 import org.apache.flink.api.java.operators.SingleInputUdfOperator;
 import org.apache.flink.api.java.operators.UnsortedGrouping;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.optimizer.Optimizer;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
@@ -127,6 +130,11 @@ class FlinkBatchTransformTranslators {
     TRANSLATORS.put(
         PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN, new GroupByKeyTranslatorBatch<>());
     TRANSLATORS.put(PTransformTranslation.RESHUFFLE_URN, new ReshuffleTranslatorBatch<>());
+    TRANSLATORS.put(
+        PTransformTranslation.REDISTRIBUTE_BY_KEY_URN, new RedistributeByKeyTranslatorBatch<>());
+    TRANSLATORS.put(
+        PTransformTranslation.REDISTRIBUTE_ARBITRARILY_URN,
+        new RedistributeArbitrarilyTranslatorBatch<>());
     TRANSLATORS.put(
         PTransformTranslation.FLATTEN_TRANSFORM_URN, new FlattenPCollectionTranslatorBatch<>());
     TRANSLATORS.put(
@@ -420,6 +428,76 @@ class FlinkBatchTransformTranslators {
               .<WindowedValue<KV<K, InputT>>>reduceGroup((i, c) -> i.forEach(c::collect))
               .returns(outputType);
       context.setOutputDataSet(context.getOutput(transform), reshuffle);
+    }
+  }
+
+  private static class RedistributeByKeyTranslatorBatch<K, InputT>
+      implements FlinkBatchPipelineTranslator.BatchTransformTranslator<
+          Redistribute.RedistributeByKey<K, InputT>> {
+
+    @Override
+    public void translateNode(
+        Redistribute.RedistributeByKey<K, InputT> transform, FlinkBatchTranslationContext context) {
+      final DataSet<WindowedValue<KV<K, InputT>>> inputDataSet =
+          context.getInputDataSet(context.getInput(transform));
+      // Construct an instance of CoderTypeInformation which contains the pipeline options.
+      // This will be used to initialized FileSystems.
+      final CoderTypeInformation<WindowedValue<KV<K, InputT>>> outputType =
+          ((CoderTypeInformation<WindowedValue<KV<K, InputT>>>) inputDataSet.getType())
+              .withPipelineOptions(context.getPipelineOptions());
+      // We insert a NOOP here to initialize the FileSystems via the above CoderTypeInformation.
+      // The output type coder may be relying on file system access. The shuffled data may have to
+      // be deserialized on a different machine using this coder where FileSystems has not been
+      // initialized.
+      final DataSet<WindowedValue<KV<K, InputT>>> retypedDataSet =
+          new MapOperator<>(
+              inputDataSet,
+              outputType,
+              FlinkIdentityFunction.of(),
+              getCurrentTransformName(context));
+      WindowedValue.WindowedValueCoder<KV<K, InputT>> kvWvCoder =
+          (WindowedValue.WindowedValueCoder<KV<K, InputT>>) outputType.getCoder();
+      KvCoder<K, InputT> kvCoder = (KvCoder<K, InputT>) kvWvCoder.getValueCoder();
+      DataSet<WindowedValue<KV<K, InputT>>> reshuffle =
+          retypedDataSet
+              .groupBy(new KvKeySelector<>(kvCoder.getKeyCoder()))
+              .<WindowedValue<KV<K, InputT>>>reduceGroup((i, c) -> i.forEach(c::collect))
+              .returns(outputType);
+      context.setOutputDataSet(context.getOutput(transform), reshuffle);
+    }
+  }
+
+  private static class RedistributeArbitrarilyTranslatorBatch<InputT>
+      implements FlinkBatchPipelineTranslator.BatchTransformTranslator<
+          Redistribute.RedistributeArbitrarily<InputT>> {
+
+    @Override
+    public void translateNode(
+        Redistribute.RedistributeArbitrarily<InputT> transform,
+        FlinkBatchTranslationContext context) {
+      final DataSet<WindowedValue<InputT>> inputDataSet =
+          context.getInputDataSet(context.getInput(transform));
+      // Construct an instance of CoderTypeInformation which contains the pipeline options.
+      // This will be used to initialized FileSystems.
+      final CoderTypeInformation<WindowedValue<InputT>> outputType =
+          ((CoderTypeInformation<WindowedValue<InputT>>) inputDataSet.getType())
+              .withPipelineOptions(context.getPipelineOptions());
+      // We insert a NOOP here to initialize the FileSystems via the above CoderTypeInformation.
+      // The output type coder may be relying on file system access. The shuffled data may have to
+      // be deserialized on a different machine using this coder where FileSystems has not been
+      // initialized.
+      final DataSet<WindowedValue<InputT>> retypedDataSet =
+          new MapOperator<>(
+              inputDataSet,
+              outputType,
+              FlinkIdentityFunction.of(),
+              getCurrentTransformName(context));
+      final Configuration partitionOptions = new Configuration();
+      partitionOptions.setString(
+          Optimizer.HINT_SHIP_STRATEGY, Optimizer.HINT_SHIP_STRATEGY_REPARTITION);
+      context.setOutputDataSet(
+          context.getOutput(transform),
+          retypedDataSet.map(FlinkIdentityFunction.of()).withParameters(partitionOptions));
     }
   }
 
