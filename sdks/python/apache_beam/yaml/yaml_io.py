@@ -131,10 +131,10 @@ def read_from_bigquery(
 
 
 def write_to_bigquery(
-    table: Optional[str],
+    table: str,
     *,
-    create_disposition: str = BigQueryDisposition.CREATE_IF_NEEDED,
-    write_disposition: str = BigQueryDisposition.WRITE_APPEND,
+    create_disposition: Optional[str] = BigQueryDisposition.CREATE_IF_NEEDED,
+    write_disposition: Optional[str] = BigQueryDisposition.WRITE_APPEND,
     error_handling=None):
   f"""Writes data to a BigQuery table.
 
