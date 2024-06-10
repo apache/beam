@@ -59,7 +59,7 @@ public class BoundedQueueExecutorTest {
             Windmill.WorkItem.newBuilder()
                 .setKey(ByteString.EMPTY)
                 .setShardingKey(1)
-                .setWorkToken(1)
+                .setWorkToken(33)
                 .setCacheToken(1)
                 .build(),
             Watermarks.builder().setInputDataWatermark(Instant.now()).build(),
@@ -301,7 +301,9 @@ public class BoundedQueueExecutorTest {
               assertTrue(
                   Thread.currentThread()
                       .getName()
-                      .contains(Long.toString(work.getWorkItem().getWorkToken())));
+                      .contains(
+                          BoundedQueueExecutor.debugFormattedWorkToken(
+                              work.getWorkItem().getWorkToken())));
               waitForWorkExecution.countDown();
             });
     executor.execute(executableWork, executableWork.getWorkItem().getSerializedSize());
@@ -317,7 +319,9 @@ public class BoundedQueueExecutorTest {
               assertTrue(
                   Thread.currentThread()
                       .getName()
-                      .contains(Long.toString(work.getWorkItem().getWorkToken())));
+                      .contains(
+                          BoundedQueueExecutor.debugFormattedWorkToken(
+                              work.getWorkItem().getWorkToken())));
               waitForWorkExecution.countDown();
             });
     executor.forceExecute(executableWork, executableWork.getWorkItem().getSerializedSize());

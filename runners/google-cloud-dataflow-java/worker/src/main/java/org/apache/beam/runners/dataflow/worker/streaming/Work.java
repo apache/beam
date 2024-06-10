@@ -196,8 +196,7 @@ public final class Work {
     return latencyTrackingId;
   }
 
-  public void queueCommit(
-      WorkItemCommitRequest commitRequest, ComputationState computationState) {
+  public void queueCommit(WorkItemCommitRequest commitRequest, ComputationState computationState) {
     setState(State.COMMIT_QUEUED);
     processingContext.workCommitter().accept(Commit.create(commitRequest, computationState, this));
   }
