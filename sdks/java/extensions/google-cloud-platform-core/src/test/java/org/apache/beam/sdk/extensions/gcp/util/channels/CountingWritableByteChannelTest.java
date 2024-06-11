@@ -17,43 +17,87 @@
  */
 package org.apache.beam.sdk.extensions.gcp.util.channels;
 
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+
+import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
+import java.nio.charset.StandardCharsets;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
+import org.apache.beam.repackaged.core.org.apache.commons.compress.utils.SeekableInMemoryByteChannel;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.Mockito;
-import org.mockito.junit.MockitoJUnitRunner;
+import org.junit.runners.Parameterized;
 
-@RunWith(MockitoJUnitRunner.class)
+@RunWith(Parameterized.class)
 public class CountingWritableByteChannelTest {
-  @Mock private WritableByteChannel delegate;
+  private ByteBuffer byteBuffer;
+  private byte[] testData;
+  private byte[] writtenData;
+  private SeekableByteChannel delegate;
+  private final BiFunction<SeekableByteChannel, Consumer<Integer>, WritableByteChannel>
+      channelUnderTestProvider;
 
-  @Mock private ByteBuffer byteBuffer;
+  public CountingWritableByteChannelTest(
+      BiFunction<SeekableByteChannel, Consumer<Integer>, WritableByteChannel>
+          channelUnderTestProvider,
+      @SuppressWarnings("unused") Class<? extends WritableByteChannel> testLabel) {
+    this.channelUnderTestProvider = channelUnderTestProvider;
+  }
 
-  @Mock private Consumer<Integer> consumer;
+  @Parameterized.Parameters(name = "{1}")
+  public static Iterable<Object[]> testParams() {
+    ImmutableList.Builder<Object[]> builder = new ImmutableList.Builder<>();
+    BiFunction<SeekableByteChannel, Consumer<Integer>, CountingWritableByteChannel>
+        countingReadableByteChannelProvider = CountingWritableByteChannel::new;
+    builder.add(
+        new Object[] {countingReadableByteChannelProvider, CountingWritableByteChannel.class});
 
-  @InjectMocks private CountingWritableByteChannel countingReadableByteChannel;
+    BiFunction<SeekableByteChannel, Consumer<Integer>, CountingSeekableByteChannel>
+        countingSeekableByteChannelProvider =
+            (delegate, bytesWrittenConsumer) ->
+                new CountingSeekableByteChannel(delegate, __ -> {}, bytesWrittenConsumer);
+    builder.add(
+        new Object[] {countingSeekableByteChannelProvider, CountingSeekableByteChannel.class});
 
-  @Test
-  public void delegateMethodsAreCalled() throws Exception {
-    countingReadableByteChannel.isOpen();
-    Mockito.verify(delegate).isOpen();
+    return builder.build();
+  }
 
-    countingReadableByteChannel.close();
-    Mockito.verify(delegate).close();
-
-    countingReadableByteChannel.write(byteBuffer);
-    Mockito.verify(delegate).write(byteBuffer);
+  @Before
+  public void before() {
+    testData = "This is some test data".getBytes(StandardCharsets.UTF_8);
+    byteBuffer = ByteBuffer.wrap(testData);
+    writtenData = new byte[testData.length];
+    delegate = new SeekableInMemoryByteChannel(writtenData);
   }
 
   @Test
-  public void bytesWrittenAreReportedToConsumer() throws Exception {
-    int bytesWritten = 42;
-    Mockito.when(delegate.write(Mockito.any())).thenReturn(bytesWritten);
-    countingReadableByteChannel.write(byteBuffer);
-    Mockito.verify(consumer).accept(bytesWritten);
+  public void testCounting() throws IOException {
+    AtomicInteger counter = new AtomicInteger();
+    WritableByteChannel countingChannel =
+        channelUnderTestProvider.apply(delegate, counter::addAndGet);
+
+    while (byteBuffer.remaining() != 0) {
+      countingChannel.write(byteBuffer);
+    }
+
+    assertEquals(testData.length, counter.get());
+  }
+
+  @Test
+  public void testWrite() throws IOException {
+    WritableByteChannel channel = channelUnderTestProvider.apply(delegate, __ -> {});
+
+    while (byteBuffer.remaining() != 0) {
+      channel.write(byteBuffer);
+    }
+
+    assertArrayEquals(testData, writtenData);
   }
 }

@@ -17,71 +17,49 @@
  */
 package org.apache.beam.sdk.extensions.gcp.util.channels;
 
-import java.nio.ByteBuffer;
+import static org.junit.Assert.assertEquals;
+
+import java.io.IOException;
 import java.nio.channels.SeekableByteChannel;
-import java.util.function.Consumer;
+import org.apache.beam.repackaged.core.org.apache.commons.compress.utils.SeekableInMemoryByteChannel;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.Mock;
-import org.mockito.Mockito;
-import org.mockito.junit.MockitoJUnitRunner;
+import org.junit.runners.JUnit4;
 
-@RunWith(MockitoJUnitRunner.class)
+/**
+ * Test {@link SeekableByteChannel} delegation. Reading, writing and consumer interactions are
+ * tested along with {@link CountingReadableByteChannel} and {@link CountingWritableByteChannel} as
+ * part of their respective test suites.
+ */
+@RunWith(JUnit4.class)
 public class CountingSeekableByteChannelTest {
-  @Mock private SeekableByteChannel delegate;
 
-  @Mock private ByteBuffer byteBuffer;
-
-  @Mock private Consumer<Integer> bytesReadConsumer;
-
-  @Mock private Consumer<Integer> bytesWrittenConsumer;
-
-  private CountingSeekableByteChannel countingSeekableByteChannel;
+  private SeekableByteChannel delegate;
+  private CountingSeekableByteChannel channelUnderTest;
 
   @Before
   public void before() {
-    countingSeekableByteChannel =
-        new CountingSeekableByteChannel(delegate, bytesReadConsumer, bytesWrittenConsumer);
+    delegate = new SeekableInMemoryByteChannel(new byte[16]);
+    channelUnderTest = new CountingSeekableByteChannel(delegate, __ -> {}, __ -> {});
   }
 
   @Test
-  public void delegateMethodsAreCalled() throws Exception {
-    countingSeekableByteChannel.isOpen();
-    Mockito.verify(delegate).isOpen();
-
-    countingSeekableByteChannel.close();
-    Mockito.verify(delegate).close();
-
-    countingSeekableByteChannel.read(byteBuffer);
-    Mockito.verify(delegate).read(byteBuffer);
-
-    countingSeekableByteChannel.position();
-    Mockito.verify(delegate).position();
-
-    countingSeekableByteChannel.position(-10);
-    Mockito.verify(delegate).position(-10);
-
-    countingSeekableByteChannel.size();
-    Mockito.verify(delegate).size();
-
-    countingSeekableByteChannel.truncate(-3);
-    Mockito.verify(delegate).truncate(-3);
+  public void testPosition() throws IOException {
+    int newPosition = 5;
+    channelUnderTest.position(newPosition);
+    assertEquals(newPosition, delegate.position());
   }
 
   @Test
-  public void bytesReadAreReportedToConsumer() throws Exception {
-    int bytesRead = 42;
-    Mockito.when(delegate.read(Mockito.any())).thenReturn(bytesRead);
-    countingSeekableByteChannel.read(byteBuffer);
-    Mockito.verify(bytesReadConsumer).accept(bytesRead);
+  public void testTruncate() throws IOException {
+    int newSize = 5;
+    channelUnderTest.truncate(newSize);
+    assertEquals(newSize, delegate.size());
   }
 
   @Test
-  public void bytesWrittenAreReportedToConsumer() throws Exception {
-    int bytesWritten = 42;
-    Mockito.when(delegate.write(Mockito.any())).thenReturn(bytesWritten);
-    countingSeekableByteChannel.write(byteBuffer);
-    Mockito.verify(bytesWrittenConsumer).accept(bytesWritten);
+  public void testSize() throws IOException {
+    assertEquals(delegate.size(), channelUnderTest.size());
   }
 }
