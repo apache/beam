@@ -17,227 +17,95 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
-import static org.apache.beam.model.pipeline.v1.ExternalTransforms.ExpansionMethods.Enum.SCHEMA_TRANSFORM;
-import static org.apache.beam.sdk.io.iceberg.IcebergReadSchemaTransformProvider.IcebergReadSchemaTransform;
-import static org.apache.beam.sdk.io.iceberg.IcebergWriteSchemaTransformProvider.INPUT_TAG;
-import static org.apache.beam.sdk.io.iceberg.IcebergWriteSchemaTransformProvider.IcebergWriteSchemaTransform;
-import static org.junit.Assert.assertEquals;
-
-import java.io.IOException;
 import java.util.Collections;
-import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
-import org.apache.beam.model.pipeline.v1.ExternalTransforms.SchemaTransformPayload;
-import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.RowCoder;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.SchemaTranslation;
-import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
-import org.apache.beam.sdk.schemas.transforms.SchemaTransformTranslation;
+import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
+import org.apache.beam.sdk.schemas.transforms.SchemaTransformTranslationTest;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.util.construction.BeamUrns;
-import org.apache.beam.sdk.util.construction.PipelineTranslation;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.iceberg.CatalogUtil;
 import org.apache.iceberg.catalog.TableIdentifier;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.*;
+import org.junit.experimental.runners.Enclosed;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
 
+@RunWith(Enclosed.class)
 public class IcebergSchemaTransformTranslationTest {
   @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
-  @Rule
-  public transient TestDataWarehouse warehouse = new TestDataWarehouse(TEMPORARY_FOLDER, "default");
+  public static class ReadTranslationTest extends SchemaTransformTranslationTest {
+    @Rule
+    public transient TestDataWarehouse warehouse =
+        new TestDataWarehouse(TEMPORARY_FOLDER, "default");
 
-  @Rule public transient ExpectedException thrown = ExpectedException.none();
+    String tableIdentifier;
 
-  static final IcebergWriteSchemaTransformProvider WRITE_PROVIDER =
-      new IcebergWriteSchemaTransformProvider();
-  static final IcebergReadSchemaTransformProvider READ_PROVIDER =
-      new IcebergReadSchemaTransformProvider();
+    @Before
+    public void setup() {
+      tableIdentifier = "default.table_" + Long.toString(UUID.randomUUID().hashCode(), 16);
+      warehouse.createTable(TableIdentifier.parse(tableIdentifier), TestFixtures.SCHEMA);
+    }
 
-  static final SchemaTransformTranslation.SchemaTransformPayloadTranslator WRITE_TRANSLATOR =
-      new SchemaTransformTranslation.SchemaTransformPayloadTranslator(WRITE_PROVIDER);
-  static final SchemaTransformTranslation.SchemaTransformPayloadTranslator READ_TRANSLATOR =
-      new SchemaTransformTranslation.SchemaTransformPayloadTranslator(READ_PROVIDER);
+    final IcebergReadSchemaTransformProvider READ_PROVIDER =
+        new IcebergReadSchemaTransformProvider();
 
-  @Test
-  public void testReCreateWriteTransformFromRow() {
-    Row catalogConfigRow =
-        Row.withSchema(IcebergSchemaTransformCatalogConfig.SCHEMA)
-            .withFieldValue("catalog_name", "test_name")
-            .withFieldValue("catalog_type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
-            .withFieldValue("warehouse_location", "test_location")
-            .build();
-    Row transformConfigRow =
-        Row.withSchema(WRITE_PROVIDER.configurationSchema())
-            .withFieldValue("table", "test_table_identifier")
-            .withFieldValue("catalog_config", catalogConfigRow)
-            .build();
-    SchemaTransform writeTransform = WRITE_PROVIDER.from(transformConfigRow);
+    @Override
+    protected SchemaTransformProvider provider() {
+      return READ_PROVIDER;
+    }
 
-    Row row = WRITE_TRANSLATOR.toConfigRow(writeTransform);
-
-    SchemaTransform writeTransformFromRow =
-        WRITE_TRANSLATOR.fromConfigRow(row, PipelineOptionsFactory.create());
-
-    assertEquals(transformConfigRow, writeTransformFromRow.getConfigurationRow());
+    @Override
+    protected Row configurationRow() {
+      Row catalogConfigRow =
+          Row.withSchema(IcebergSchemaTransformCatalogConfig.SCHEMA)
+              .withFieldValue("catalog_name", "test_read")
+              .withFieldValue("catalog_type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
+              .withFieldValue("warehouse_location", warehouse.location)
+              .build();
+      return Row.withSchema(READ_PROVIDER.configurationSchema())
+          .withFieldValue("table", tableIdentifier)
+          .withFieldValue("catalog_config", catalogConfigRow)
+          .build();
+    }
   }
 
-  @Test
-  public void testWriteTransformProtoTranslation()
-      throws InvalidProtocolBufferException, IOException {
-    // First build a pipeline
-    Pipeline p = Pipeline.create();
-    Schema inputSchema = Schema.builder().addStringField("str").build();
-    PCollection<Row> input =
-        p.apply(
-                Create.of(
-                    Collections.singletonList(Row.withSchema(inputSchema).addValue("a").build())))
-            .setRowSchema(inputSchema);
+  public static class WriteTranslationTest extends SchemaTransformTranslationTest {
+    static final IcebergWriteSchemaTransformProvider WRITE_PROVIDER =
+        new IcebergWriteSchemaTransformProvider();
 
-    Row catalogConfigRow =
-        Row.withSchema(IcebergSchemaTransformCatalogConfig.SCHEMA)
-            .withFieldValue("catalog_name", "test_catalog")
-            .withFieldValue("catalog_type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
-            .withFieldValue("catalog_implementation", "test_implementation")
-            .withFieldValue("warehouse_location", warehouse.location)
-            .build();
-    Row transformConfigRow =
-        Row.withSchema(WRITE_PROVIDER.configurationSchema())
-            .withFieldValue("table", "test_identifier")
-            .withFieldValue("catalog_config", catalogConfigRow)
-            .build();
+    @Override
+    protected SchemaTransformProvider provider() {
+      return WRITE_PROVIDER;
+    }
 
-    IcebergWriteSchemaTransform writeTransform =
-        (IcebergWriteSchemaTransform) WRITE_PROVIDER.from(transformConfigRow);
-    PCollectionRowTuple.of(INPUT_TAG, input).apply(writeTransform);
+    @Override
+    protected Row configurationRow() {
+      Row catalogConfigRow =
+          Row.withSchema(IcebergSchemaTransformCatalogConfig.SCHEMA)
+              .withFieldValue("catalog_name", "test_write")
+              .withFieldValue("catalog_type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
+              .withFieldValue("warehouse_location", "warehouse.location")
+              .build();
+      return Row.withSchema(WRITE_PROVIDER.configurationSchema())
+          .withFieldValue("table", "test_identifier")
+          .withFieldValue("catalog_config", catalogConfigRow)
+          .build();
+    }
 
-    // Then translate the pipeline to a proto and extract IcebergWriteSchemaTransform proto
-    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
-    List<RunnerApi.PTransform> writeTransformProto =
-        pipelineProto.getComponents().getTransformsMap().values().stream()
-            .filter(
-                tr -> {
-                  RunnerApi.FunctionSpec spec = tr.getSpec();
-                  try {
-                    return spec.getUrn().equals(BeamUrns.getUrn(SCHEMA_TRANSFORM))
-                        && SchemaTransformPayload.parseFrom(spec.getPayload())
-                            .getIdentifier()
-                            .equals(WRITE_PROVIDER.identifier());
-                  } catch (InvalidProtocolBufferException e) {
-                    throw new RuntimeException(e);
-                  }
-                })
-            .collect(Collectors.toList());
-    assertEquals(1, writeTransformProto.size());
-    RunnerApi.FunctionSpec spec = writeTransformProto.get(0).getSpec();
-
-    // Check that the proto contains correct values
-    SchemaTransformPayload payload = SchemaTransformPayload.parseFrom(spec.getPayload());
-    Schema schemaFromSpec = SchemaTranslation.schemaFromProto(payload.getConfigurationSchema());
-    assertEquals(WRITE_PROVIDER.configurationSchema(), schemaFromSpec);
-    Row rowFromSpec = RowCoder.of(schemaFromSpec).decode(payload.getConfigurationRow().newInput());
-
-    assertEquals(transformConfigRow, rowFromSpec);
-
-    // Use the information in the proto to recreate the IcebergWriteSchemaTransform
-    SchemaTransform writeTransformFromSpec =
-        WRITE_TRANSLATOR.fromConfigRow(rowFromSpec, PipelineOptionsFactory.create());
-
-    assertEquals(transformConfigRow, writeTransformFromSpec.getConfigurationRow());
-  }
-
-  @Test
-  public void testReCreateReadTransformFromRow() {
-    // setting a subset of fields here.
-    Row catalogConfigRow =
-        Row.withSchema(IcebergSchemaTransformCatalogConfig.SCHEMA)
-            .withFieldValue("catalog_name", "test_name")
-            .withFieldValue("catalog_type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
-            .withFieldValue("warehouse_location", "test_location")
-            .build();
-    Row transformConfigRow =
-        Row.withSchema(READ_PROVIDER.configurationSchema())
-            .withFieldValue("table", "test_table_identifier")
-            .withFieldValue("catalog_config", catalogConfigRow)
-            .build();
-
-    SchemaTransform readTransform = READ_PROVIDER.from(transformConfigRow);
-
-    Row row = READ_TRANSLATOR.toConfigRow(readTransform);
-
-    SchemaTransform readTransformFromRow =
-        READ_TRANSLATOR.fromConfigRow(row, PipelineOptionsFactory.create());
-
-    assertEquals(transformConfigRow, readTransformFromRow.getConfigurationRow());
-  }
-
-  @Test
-  public void testReadTransformProtoTranslation()
-      throws InvalidProtocolBufferException, IOException {
-    // First build a pipeline
-    Pipeline p = Pipeline.create();
-    Row catalogConfigRow =
-        Row.withSchema(IcebergSchemaTransformCatalogConfig.SCHEMA)
-            .withFieldValue("catalog_name", "test_catalog")
-            .withFieldValue("catalog_type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
-            .withFieldValue("warehouse_location", warehouse.location)
-            .build();
-    String identifier = "default.table_" + Long.toString(UUID.randomUUID().hashCode(), 16);
-    warehouse.createTable(TableIdentifier.parse(identifier), TestFixtures.SCHEMA);
-
-    Row transformConfigRow =
-        Row.withSchema(READ_PROVIDER.configurationSchema())
-            .withFieldValue("table", identifier)
-            .withFieldValue("catalog_config", catalogConfigRow)
-            .build();
-
-    IcebergReadSchemaTransform readTransform =
-        (IcebergReadSchemaTransform) READ_PROVIDER.from(transformConfigRow);
-
-    PCollectionRowTuple.empty(p).apply(readTransform);
-
-    // Then translate the pipeline to a proto and extract IcebergReadSchemaTransform proto
-    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
-    List<RunnerApi.PTransform> readTransformProto =
-        pipelineProto.getComponents().getTransformsMap().values().stream()
-            .filter(
-                tr -> {
-                  RunnerApi.FunctionSpec spec = tr.getSpec();
-                  try {
-                    return spec.getUrn().equals(BeamUrns.getUrn(SCHEMA_TRANSFORM))
-                        && SchemaTransformPayload.parseFrom(spec.getPayload())
-                            .getIdentifier()
-                            .equals(READ_PROVIDER.identifier());
-                  } catch (InvalidProtocolBufferException e) {
-                    throw new RuntimeException(e);
-                  }
-                })
-            .collect(Collectors.toList());
-    assertEquals(1, readTransformProto.size());
-    RunnerApi.FunctionSpec spec = readTransformProto.get(0).getSpec();
-
-    // Check that the proto contains correct values
-    SchemaTransformPayload payload = SchemaTransformPayload.parseFrom(spec.getPayload());
-    Schema schemaFromSpec = SchemaTranslation.schemaFromProto(payload.getConfigurationSchema());
-    assertEquals(READ_PROVIDER.configurationSchema(), schemaFromSpec);
-    Row rowFromSpec = RowCoder.of(schemaFromSpec).decode(payload.getConfigurationRow().newInput());
-    assertEquals(transformConfigRow, rowFromSpec);
-
-    // Use the information in the proto to recreate the IcebergReadSchemaTransform
-    SchemaTransform readTransformFromSpec =
-        READ_TRANSLATOR.fromConfigRow(rowFromSpec, PipelineOptionsFactory.create());
-
-    assertEquals(transformConfigRow, readTransformFromSpec.getConfigurationRow());
+    @Override
+    protected PCollectionRowTuple input(Pipeline p) {
+      Schema inputSchema = Schema.builder().addStringField("str").build();
+      PCollection<Row> inputRows =
+          p.apply(
+                  Create.of(
+                      Collections.singletonList(Row.withSchema(inputSchema).addValue("a").build())))
+              .setRowSchema(inputSchema);
+      return PCollectionRowTuple.of("input", inputRows);
+    }
   }
 }
