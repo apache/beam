@@ -33,7 +33,6 @@ test_query = 'This is a test query'
 # pylint: disable=ungrouped-imports
 try:
   from apache_beam.ml.transforms.embeddings.tensorflow_hub import TensorflowHubTextEmbeddings
-  import tensorflow as tf
 except ImportError:
   TensorflowHubTextEmbeddings = None  # type: ignore
   tf = None  # type: ignore
@@ -49,7 +48,7 @@ except ImportError:
 try:
   from apache_beam.ml.transforms.embeddings.tensorflow_hub import TensorflowHubImageEmbeddings
   from PIL import Image
-except:
+except ImportError:
   TensorflowHubImageEmbeddings = None  # type: ignore
   Image = None  # type: ignore
 
