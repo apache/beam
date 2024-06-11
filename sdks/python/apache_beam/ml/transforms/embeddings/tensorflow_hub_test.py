@@ -35,7 +35,7 @@ try:
   from apache_beam.ml.transforms.embeddings.tensorflow_hub import TensorflowHubTextEmbeddings
 except ImportError:
   TensorflowHubTextEmbeddings = None  # type: ignore
-  tf = None  # type: ignore
+  tf = None
 
 # pylint: disable=ungrouped-imports
 try:
@@ -50,7 +50,7 @@ try:
   from PIL import Image
 except ImportError:
   TensorflowHubImageEmbeddings = None  # type: ignore
-  Image = None  # type: ignore
+  Image = None 
 
 
 @unittest.skipIf(
