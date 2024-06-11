@@ -38,6 +38,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
@@ -46,12 +47,12 @@ import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.direct.Clock;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.HashBasedTable;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Table;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.joda.time.Duration;
@@ -61,8 +62,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
-public class DispatchedActiveWorkRefresherTest {
-
+public class ActiveWorkRefresherTest {
   private static final Supplier<Instant> A_LONG_TIME_AGO =
       () -> Instant.parse("1998-09-04T00:00:00Z");
   private static final String COMPUTATION_ID_PREFIX = "ComputationId-";
@@ -97,15 +97,21 @@ public class DispatchedActiveWorkRefresherTest {
       int activeWorkRefreshPeriodMillis,
       int stuckCommitDurationMillis,
       Supplier<Collection<ComputationState>> computations,
-      Consumer<Map<String, List<HeartbeatRequest>>> activeWorkRefresherFn) {
-    return DispatchedActiveWorkRefresher.create(
+      Consumer<Map<HeartbeatSender, Map<String, List<Windmill.HeartbeatRequest>>>>
+          activeWorkRefresherFn) {
+    return new ActiveWorkRefresher(
         clock,
         activeWorkRefreshPeriodMillis,
         stuckCommitDurationMillis,
         computations,
         DataflowExecutionStateSampler.instance(),
-        activeWorkRefresherFn,
-        Executors.newSingleThreadScheduledExecutor());
+        Executors.newSingleThreadScheduledExecutor(),
+        activeWorkRefresherFn);
+  }
+
+  private ExecutableWork createOldWork(int workIds, Consumer<Work> processWork) {
+    ShardedKey shardedKey = ShardedKey.create(ByteString.EMPTY, workIds);
+    return createOldWork(shardedKey, workIds, processWork);
   }
 
   private ExecutableWork createOldWork(
@@ -122,8 +128,9 @@ public class DispatchedActiveWorkRefresherTest {
             Work.createProcessingContext(
                 "computationId",
                 (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance(),
+                ignored -> {},
                 ignored -> {}),
-            DispatchedActiveWorkRefresherTest.A_LONG_TIME_AGO,
+            A_LONG_TIME_AGO,
             ImmutableList.of()),
         processWork);
   }
@@ -147,8 +154,7 @@ public class DispatchedActiveWorkRefresherTest {
     Map<String, List<ExecutableWork>> computationsAndWork = new HashMap<>();
     for (int i = 0; i < 5; i++) {
       ComputationState computationState = createComputationState(i);
-      ExecutableWork fakeWork =
-          createOldWork(ShardedKey.create(ByteString.EMPTY, i), i, processWork);
+      ExecutableWork fakeWork = createOldWork(i, processWork);
       computationState.activateWork(fakeWork);
 
       computations.add(computationState);
@@ -158,10 +164,10 @@ public class DispatchedActiveWorkRefresherTest {
       activeWorkForComputation.add(fakeWork);
     }
 
-    Map<String, List<HeartbeatRequest>> expectedHeartbeats = new HashMap<>();
+    Map<HeartbeatSender, Map<String, List<Windmill.HeartbeatRequest>>> fanoutExpectedHeartbeats =
+        new HashMap<>();
     CountDownLatch heartbeatsSent = new CountDownLatch(1);
     TestClock fakeClock = new TestClock(Instant.now());
-
     ActiveWorkRefresher activeWorkRefresher =
         createActiveWorkRefresher(
             fakeClock::now,
@@ -169,7 +175,7 @@ public class DispatchedActiveWorkRefresherTest {
             0,
             () -> computations,
             heartbeats -> {
-              expectedHeartbeats.putAll(heartbeats);
+              fanoutExpectedHeartbeats.putAll(heartbeats);
               heartbeatsSent.countDown();
             });
 
@@ -178,23 +184,29 @@ public class DispatchedActiveWorkRefresherTest {
     heartbeatsSent.await();
     activeWorkRefresher.stop();
 
-    assertThat(computationsAndWork.size()).isEqualTo(expectedHeartbeats.size());
-    for (Map.Entry<String, List<HeartbeatRequest>> expectedHeartbeat :
-        expectedHeartbeats.entrySet()) {
-      String computationId = expectedHeartbeat.getKey();
-      List<HeartbeatRequest> heartbeatRequests = expectedHeartbeat.getValue();
-      List<ExecutableWork> work = computationsAndWork.get(computationId);
-
-      // Compare the heartbeatRequest's and Work's workTokens, cacheTokens, and shardingKeys.
-      assertThat(heartbeatRequests)
-          .comparingElementsUsing(
-              Correspondence.from(
-                  (HeartbeatRequest h, ExecutableWork w) ->
-                      h.getWorkToken() == w.getWorkItem().getWorkToken()
-                          && h.getCacheToken() == w.getWorkItem().getWorkToken()
-                          && h.getShardingKey() == w.getWorkItem().getShardingKey(),
-                  "heartbeatRequest's and Work's workTokens, cacheTokens, and shardingKeys should be equal."))
-          .containsExactlyElementsIn(work);
+    assertThat(computationsAndWork.size())
+        .isEqualTo(Iterables.getOnlyElement(fanoutExpectedHeartbeats.values()).size());
+    for (Map.Entry<HeartbeatSender, Map<String, List<Windmill.HeartbeatRequest>>>
+        fanOutExpectedHeartbeat : fanoutExpectedHeartbeats.entrySet()) {
+      for (Map.Entry<String, List<Windmill.HeartbeatRequest>> expectedHeartbeat :
+          fanOutExpectedHeartbeat.getValue().entrySet()) {
+        String computationId = expectedHeartbeat.getKey();
+        List<Windmill.HeartbeatRequest> heartbeatRequests = expectedHeartbeat.getValue();
+        List<Work> work =
+            computationsAndWork.get(computationId).stream()
+                .map(ExecutableWork::work)
+                .collect(Collectors.toList());
+        // Compare the heartbeatRequest's and Work's workTokens, cacheTokens, and shardingKeys.
+        assertThat(heartbeatRequests)
+            .comparingElementsUsing(
+                Correspondence.from(
+                    (Windmill.HeartbeatRequest h, Work w) ->
+                        h.getWorkToken() == w.getWorkItem().getWorkToken()
+                            && h.getCacheToken() == w.getWorkItem().getWorkToken()
+                            && h.getShardingKey() == w.getWorkItem().getShardingKey(),
+                    "heartbeatRequest's and Work's workTokens, cacheTokens, and shardingKeys should be equal."))
+            .containsExactlyElementsIn(work);
+      }
     }
 
     activeWorkRefresher.stop();

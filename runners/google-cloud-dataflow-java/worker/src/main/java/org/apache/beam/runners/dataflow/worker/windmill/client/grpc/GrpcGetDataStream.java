@@ -49,7 +49,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingGetDat
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingGetDataResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.client.AbstractWindmillStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
-import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamCancelledException;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamClosedException;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcGetDataStreamRequests.QueuedBatch;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcGetDataStreamRequests.QueuedRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverFactory;
@@ -401,7 +401,7 @@ public final class GrpcGetDataStream
       long waitFor = 10;
       while (!batchSent) {
         if (isClosed()) {
-          throw new WindmillStreamCancelledException(
+          throw new WindmillStreamClosedException(
               "Requests failed for batch containing "
                   + createStreamCancelledErrorMessage(batch)
                   + " requests. This is most likely due to the stream being explicitly closed"

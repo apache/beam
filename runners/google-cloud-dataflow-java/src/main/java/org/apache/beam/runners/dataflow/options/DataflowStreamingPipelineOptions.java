@@ -224,9 +224,9 @@ public interface DataflowStreamingPipelineOptions extends PipelineOptions {
 
   @Description("Enables direct path mode for streaming engine.")
   @Default.InstanceFactory(EnableWindmillServiceDirectPathFactory.class)
-  boolean isEnableWindmillServiceDirectPath();
+  boolean getIsWindmillServiceDirectPathEnabled();
 
-  void setEnableWindmillServiceDirectPath(boolean value);
+  void setIsWindmillServiceDirectPathEnabled(boolean value);
 
   /**
    * Factory for creating local Windmill address. Reads from system propery 'windmill.hostport' for

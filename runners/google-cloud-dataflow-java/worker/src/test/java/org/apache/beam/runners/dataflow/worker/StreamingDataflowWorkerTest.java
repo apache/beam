@@ -335,7 +335,8 @@ public class StreamingDataflowWorkerTest {
             Work.createProcessingContext(
                 computationId,
                 (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance(),
-                ignored -> {}),
+                ignored -> {},
+                heartbeats -> {}),
             Instant::now,
             Collections.emptyList()),
         processWorkFn);
@@ -3419,7 +3420,8 @@ public class StreamingDataflowWorkerTest {
             Work.createProcessingContext(
                 "computationId",
                 (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance(),
-                ignored -> {}),
+                ignored -> {},
+                heartbeats -> {}),
             clock,
             Collections.emptyList());
 
@@ -3721,7 +3723,7 @@ public class StreamingDataflowWorkerTest {
     Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
 
     assertThat(server.numGetDataRequests(), greaterThan(0));
-    Windmill.GetDataRequest heartbeat = server.getGetDataRequests().get(2);
+    Windmill.GetDataRequest heartbeat = server.getGetDataRequests().get(1);
 
     for (LatencyAttribution la :
         heartbeat

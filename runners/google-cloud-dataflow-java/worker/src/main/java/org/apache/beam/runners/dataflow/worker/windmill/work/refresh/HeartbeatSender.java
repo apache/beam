@@ -15,25 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker.windmill.client;
+package org.apache.beam.runners.dataflow.worker.windmill.work.refresh;
 
-import org.apache.beam.sdk.annotations.Internal;
+import java.util.List;
+import java.util.Map;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 
-@Internal
-public final class WindmillStreamCancelledException extends RuntimeException {
+/** Interface for sending heartbeats. */
+@FunctionalInterface
+public interface HeartbeatSender {
+  void sendHeartbeats(Map<String, List<Windmill.HeartbeatRequest>> heartbeats);
 
-  public WindmillStreamCancelledException(String message) {
-    super(message);
-  }
-
-  /** Returns whether an exception was caused by a {@link WindmillStreamCancelledException}. */
-  public static boolean isWindmillStreamCancelledException(Throwable t) {
-    while (t != null) {
-      if (t instanceof WindmillStreamCancelledException) {
-        return true;
-      }
-      t = t.getCause();
-    }
+  default boolean isInvalid() {
     return false;
   }
 }

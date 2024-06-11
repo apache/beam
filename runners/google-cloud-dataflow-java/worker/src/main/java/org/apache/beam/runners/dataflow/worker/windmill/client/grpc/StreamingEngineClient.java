@@ -314,8 +314,6 @@ public final class StreamingEngineClient {
                 createNewGlobalDataStreams(newWindmillEndpoints.globalDataEndpoints()))
             .build();
 
-    closeStaleStreams.join();
-
     LOG.info(
         "Setting new connections: {}. Previous connections: {}.",
         newConnectionsState,
@@ -323,6 +321,7 @@ public final class StreamingEngineClient {
     connections.set(newConnectionsState);
     isBudgetRefreshPaused.set(false);
     getWorkBudgetRefresher.requestBudgetRefresh();
+    closeStaleStreams.join();
   }
 
   /** Close the streams that are no longer valid in parallel. */

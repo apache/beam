@@ -67,7 +67,8 @@ public class StreamingApplianceWorkCommitterTest {
             (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance(),
             ignored -> {
               throw new UnsupportedOperationException();
-            }),
+            },
+            ignored -> {}),
         Instant::now,
         Collections.emptyList());
   }

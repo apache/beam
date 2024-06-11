@@ -132,6 +132,7 @@ public class StreamingModeExecutionContextTest {
         Work.createProcessingContext(
             COMPUTATION_ID,
             (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance(),
+            ignored -> {},
             ignored -> {}),
         Instant::now,
         Collections.emptyList());

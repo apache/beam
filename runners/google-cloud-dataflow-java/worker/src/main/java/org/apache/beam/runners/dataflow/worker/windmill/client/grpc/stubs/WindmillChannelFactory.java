@@ -58,7 +58,9 @@ public final class WindmillChannelFactory {
         return remoteChannel(
             windmillServiceAddress.gcpServiceAddress(), windmillServiceRpcChannelTimeoutSec);
       case AUTHENTICATED_GCP_SERVICE_ADDRESS:
-        return remoteDirectChannel(windmillServiceAddress.authenticatedGcpServiceAddress());
+        return remoteDirectChannel(
+            windmillServiceAddress.authenticatedGcpServiceAddress(),
+            windmillServiceRpcChannelTimeoutSec);
         // switch is exhaustive will never happen.
       default:
         throw new UnsupportedOperationException(
@@ -67,11 +69,14 @@ public final class WindmillChannelFactory {
   }
 
   static ManagedChannel remoteDirectChannel(
-      AuthenticatedGcpServiceAddress authenticatedGcpServiceAddress) {
-    return AltsChannelBuilder.forAddress(
-            authenticatedGcpServiceAddress.gcpServiceAddress().getHost(),
-            authenticatedGcpServiceAddress.gcpServiceAddress().getPort())
-        .overrideAuthority(authenticatedGcpServiceAddress.authenticatingService())
+      AuthenticatedGcpServiceAddress authenticatedGcpServiceAddress,
+      int windmillServiceRpcChannelTimeoutSec) {
+    return withDefaultChannelOptions(
+            AltsChannelBuilder.forAddress(
+                    authenticatedGcpServiceAddress.gcpServiceAddress().getHost(),
+                    authenticatedGcpServiceAddress.gcpServiceAddress().getPort())
+                .overrideAuthority(authenticatedGcpServiceAddress.authenticatingService()),
+            windmillServiceRpcChannelTimeoutSec)
         .build();
   }
 

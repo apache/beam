@@ -176,7 +176,6 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
           onNewStream();
           if (clientClosed.get()) {
             close();
-            streamRegistry.remove(this);
           }
           return;
         }
@@ -257,7 +256,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   }
 
   @Override
-  public boolean isClosed() {
+  public final boolean isClosed() {
     return streamClosed.get() || clientClosed.get();
   }
 

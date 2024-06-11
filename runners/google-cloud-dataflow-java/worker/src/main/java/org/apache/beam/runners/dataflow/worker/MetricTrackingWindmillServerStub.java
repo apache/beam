@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import com.google.auto.value.AutoBuilder;
+import com.google.common.collect.Iterables;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -34,13 +35,13 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
-import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamCancelledException;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamClosedException;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamPool;
+import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.SettableFuture;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,22 +58,19 @@ import org.slf4j.LoggerFactory;
 })
 public class MetricTrackingWindmillServerStub {
   private static final Logger LOG = LoggerFactory.getLogger(MetricTrackingWindmillServerStub.class);
-  private static final String FAN_OUT_REFRESH_WORK_EXECUTOR = "FanOutActiveWorkRefreshExecutor";
+  private static final String FAN_OUT_REFRESH_WORK_EXECUTOR_NAME =
+      "FanOutActiveWorkRefreshExecutor";
 
   private static final int MAX_READS_PER_BATCH = 60;
   private static final int MAX_ACTIVE_READS = 10;
-  private static final Duration STREAM_TIMEOUT = Duration.standardSeconds(30);
   private final AtomicInteger activeSideInputs = new AtomicInteger();
   private final AtomicInteger activeStateReads = new AtomicInteger();
   private final AtomicInteger activeHeartbeats = new AtomicInteger();
   private final WindmillServerStub server;
   private final MemoryMonitor gcThrashingMonitor;
   private final boolean useStreamingRequests;
-  private final WindmillStreamPool<GetDataStream> getDataStreamPool;
+  private final @Nullable WindmillStreamPool<GetDataStream> getDataStreamPool;
   private final ExecutorService fanOutActiveWorkRefreshExecutor;
-
-  // This may be the same instance as getDataStreamPool based upon options.
-  private final WindmillStreamPool<GetDataStream> heartbeatStreamPool;
 
   @GuardedBy("this")
   private final List<ReadBatch> pendingReadBatches;
@@ -80,21 +78,20 @@ public class MetricTrackingWindmillServerStub {
   @GuardedBy("this")
   private int activeReadThreads = 0;
 
-  @Internal
-  @AutoBuilder(ofClass = MetricTrackingWindmillServerStub.class)
-  public abstract static class Builder {
-
-    abstract Builder setServer(WindmillServerStub server);
-
-    abstract Builder setGcThrashingMonitor(MemoryMonitor gcThrashingMonitor);
-
-    abstract Builder setUseStreamingRequests(boolean useStreamingRequests);
-
-    abstract Builder setUseSeparateHeartbeatStreams(boolean useSeparateHeartbeatStreams);
-
-    abstract Builder setNumGetDataStreams(int numGetDataStreams);
-
-    abstract MetricTrackingWindmillServerStub build();
+  MetricTrackingWindmillServerStub(
+      WindmillServerStub server,
+      MemoryMonitor gcThrashingMonitor,
+      boolean useStreamingRequests,
+      @Nullable WindmillStreamPool<GetDataStream> getDataStreamPool) {
+    this.server = server;
+    this.gcThrashingMonitor = gcThrashingMonitor;
+    this.useStreamingRequests = useStreamingRequests;
+    this.fanOutActiveWorkRefreshExecutor =
+        Executors.newCachedThreadPool(
+            new ThreadFactoryBuilder().setNameFormat(FAN_OUT_REFRESH_WORK_EXECUTOR_NAME).build());
+    this.getDataStreamPool = getDataStreamPool;
+    // This is used as a queue but is expected to be less than 10 batches.
+    this.pendingReadBatches = new ArrayList<>();
   }
 
   public static Builder builder(WindmillServerStub server, MemoryMonitor gcThrashingMonitor) {
@@ -102,37 +99,7 @@ public class MetricTrackingWindmillServerStub {
         .setServer(server)
         .setGcThrashingMonitor(gcThrashingMonitor)
         .setUseStreamingRequests(false)
-        .setUseSeparateHeartbeatStreams(false)
-        .setNumGetDataStreams(1);
-  }
-
-  MetricTrackingWindmillServerStub(
-      WindmillServerStub server,
-      MemoryMonitor gcThrashingMonitor,
-      boolean useStreamingRequests,
-      boolean useSeparateHeartbeatStreams,
-      int numGetDataStreams) {
-    this.server = server;
-    this.gcThrashingMonitor = gcThrashingMonitor;
-    this.useStreamingRequests = useStreamingRequests;
-    this.fanOutActiveWorkRefreshExecutor =
-        Executors.newCachedThreadPool(
-            new ThreadFactoryBuilder().setNameFormat(FAN_OUT_REFRESH_WORK_EXECUTOR).build());
-    if (useStreamingRequests) {
-      getDataStreamPool =
-          WindmillStreamPool.create(
-              Math.max(1, numGetDataStreams), STREAM_TIMEOUT, this.server::getDataStream);
-      if (useSeparateHeartbeatStreams) {
-        heartbeatStreamPool =
-            WindmillStreamPool.create(1, STREAM_TIMEOUT, this.server::getDataStream);
-      } else {
-        heartbeatStreamPool = getDataStreamPool;
-      }
-    } else {
-      getDataStreamPool = heartbeatStreamPool = null;
-    }
-    // This is used as a queue but is expected to be less than 10 batches.
-    this.pendingReadBatches = new ArrayList<>();
+        .setGetDataStreamPool(null);
   }
 
   // Adds the entry to a read batch for sending to the windmill server. If a non-null batch is
@@ -269,15 +236,15 @@ public class MetricTrackingWindmillServerStub {
   public Windmill.KeyedGetDataResponse getStateData(
       GetDataStream getDataStream, String computation, Windmill.KeyedGetDataRequest request) {
     gcThrashingMonitor.waitForResources("GetStateData");
-    activeStateReads.getAndIncrement();
     if (getDataStream.isClosed()) {
       throw new WorkItemCancelledException(request.getShardingKey());
     }
 
     try {
+      activeStateReads.getAndIncrement();
       return getDataStream.requestKeyedData(computation, request);
     } catch (Exception e) {
-      if (WindmillStreamCancelledException.isWindmillStreamCancelledException(e)) {
+      if (WindmillStreamClosedException.isWindmillStreamCancelledException(e)) {
         LOG.error("Tried to fetch keyed data from a closed stream. Work has been cancelled", e);
         throw new WorkItemCancelledException(request.getShardingKey());
       }
@@ -324,45 +291,8 @@ public class MetricTrackingWindmillServerStub {
     }
   }
 
-  /** Tells windmill processing is ongoing for the given keys. */
-  public void refreshActiveWork(Map<String, List<HeartbeatRequest>> heartbeats) {
-    if (heartbeats.isEmpty()) {
-      return;
-    }
-    activeHeartbeats.set(heartbeats.size());
-    try {
-      if (useStreamingRequests) {
-        GetDataStream stream = heartbeatStreamPool.getStream();
-        try {
-          stream.refreshActiveWork(heartbeats);
-        } finally {
-          heartbeatStreamPool.releaseStream(stream);
-        }
-      } else {
-        // This code path is only used by appliance which sends heartbeats (used to refresh active
-        // work) as KeyedGetDataRequests. So we must translate the HeartbeatRequest to a
-        // KeyedGetDataRequest here regardless of the value of sendKeyedGetDataRequests.
-        Windmill.GetDataRequest.Builder builder = Windmill.GetDataRequest.newBuilder();
-        for (Map.Entry<String, List<HeartbeatRequest>> entry : heartbeats.entrySet()) {
-          Windmill.ComputationGetDataRequest.Builder perComputationBuilder =
-              Windmill.ComputationGetDataRequest.newBuilder();
-          perComputationBuilder.setComputationId(entry.getKey());
-          for (HeartbeatRequest request : entry.getValue()) {
-            perComputationBuilder.addRequests(
-                Windmill.KeyedGetDataRequest.newBuilder()
-                    .setShardingKey(request.getShardingKey())
-                    .setWorkToken(request.getWorkToken())
-                    .setCacheToken(request.getCacheToken())
-                    .addAllLatencyAttribution(request.getLatencyAttributionList())
-                    .build());
-          }
-          builder.addRequests(perComputationBuilder.build());
-        }
-        server.getData(builder.build());
-      }
-    } finally {
-      activeHeartbeats.set(0);
-    }
+  public WindmillStreamPool<GetDataStream> getGetDataStreamPool() {
+    return getDataStreamPool;
   }
 
   /**
@@ -370,46 +300,53 @@ public class MetricTrackingWindmillServerStub {
    *
    * @implNote Skips closed {@link GetDataStream}(s).
    */
-  public void refreshActiveWorkWithFanOut(
-      Map<GetDataStream, Map<String, List<HeartbeatRequest>>> heartbeats) {
+  public void refreshActiveWork(
+      Map<HeartbeatSender, Map<String, List<HeartbeatRequest>>> heartbeats) {
     if (heartbeats.isEmpty()) {
       return;
     }
+
     try {
-      List<CompletableFuture<Void>> fanOutRefreshActiveWork = new ArrayList<>();
-      for (Map.Entry<GetDataStream, Map<String, List<HeartbeatRequest>>> heartbeat :
-          heartbeats.entrySet()) {
-        GetDataStream stream = heartbeat.getKey();
-        Map<String, List<HeartbeatRequest>> heartbeatRequests = heartbeat.getValue();
-        if (stream.isClosed()) {
-          LOG.warn(
-              "Trying to refresh work on stream={} after work has moved off of worker."
-                  + " heartbeats={}",
-              stream,
-              heartbeatRequests);
-        } else {
-          fanOutRefreshActiveWork.add(sendHeartbeatOnStreamFuture(heartbeat));
-        }
+      // There is 1 destination to send heartbeat requests.
+      if (heartbeats.size() == 1) {
+        Map.Entry<HeartbeatSender, Map<String, List<HeartbeatRequest>>> heartbeat =
+            Iterables.getOnlyElement(heartbeats.entrySet());
+        HeartbeatSender sender = heartbeat.getKey();
+        sender.sendHeartbeats(heartbeat.getValue());
       }
 
-      // Don't block until we kick off all the refresh active work RPCs.
-      @SuppressWarnings("rawtypes")
-      CompletableFuture<Void> parallelFanOutRefreshActiveWork =
-          CompletableFuture.allOf(fanOutRefreshActiveWork.toArray(new CompletableFuture[0]));
-      parallelFanOutRefreshActiveWork.join();
+      // There are multiple destinations to send heartbeat requests. Fan out requests in parallel.
+      else {
+        refreshActiveWorkWithFanOut(heartbeats);
+      }
     } finally {
       activeHeartbeats.set(0);
     }
   }
 
+  private void refreshActiveWorkWithFanOut(
+      Map<HeartbeatSender, Map<String, List<HeartbeatRequest>>> heartbeats) {
+    List<CompletableFuture<Void>> fanOutRefreshActiveWork = new ArrayList<>();
+    for (Map.Entry<HeartbeatSender, Map<String, List<HeartbeatRequest>>> heartbeat :
+        heartbeats.entrySet()) {
+      fanOutRefreshActiveWork.add(sendHeartbeatOnStreamFuture(heartbeat));
+    }
+
+    // Don't block until we kick off all the refresh active work RPCs.
+    @SuppressWarnings("rawtypes")
+    CompletableFuture<Void> parallelFanOutRefreshActiveWork =
+        CompletableFuture.allOf(fanOutRefreshActiveWork.toArray(new CompletableFuture[0]));
+    parallelFanOutRefreshActiveWork.join();
+  }
+
   private CompletableFuture<Void> sendHeartbeatOnStreamFuture(
-      Map.Entry<GetDataStream, Map<String, List<HeartbeatRequest>>> heartbeat) {
+      Map.Entry<HeartbeatSender, Map<String, List<HeartbeatRequest>>> heartbeat) {
     return CompletableFuture.runAsync(
         () -> {
-          GetDataStream stream = heartbeat.getKey();
-          Map<String, List<HeartbeatRequest>> heartbeatRequests = heartbeat.getValue();
           activeHeartbeats.getAndUpdate(existing -> existing + heartbeat.getValue().size());
-          stream.refreshActiveWork(heartbeatRequests);
+          HeartbeatSender sender = heartbeat.getKey();
+          Map<String, List<HeartbeatRequest>> heartbeatRequests = heartbeat.getValue();
+          sender.sendHeartbeats(heartbeatRequests);
           // Active heartbeats should never drop below 0.
           activeHeartbeats.getAndUpdate(
               existing -> Math.max(existing - heartbeat.getValue().size(), 0));
@@ -428,6 +365,22 @@ public class MetricTrackingWindmillServerStub {
       }
     }
     writer.println("Heartbeat Keys Active: " + activeHeartbeats.get());
+  }
+
+  @Internal
+  @AutoBuilder(ofClass = MetricTrackingWindmillServerStub.class)
+  public abstract static class Builder {
+
+    abstract Builder setServer(WindmillServerStub server);
+
+    abstract Builder setGcThrashingMonitor(MemoryMonitor gcThrashingMonitor);
+
+    abstract Builder setGetDataStreamPool(
+        @Nullable WindmillStreamPool<GetDataStream> getDataStreamPool);
+
+    abstract Builder setUseStreamingRequests(boolean useStreamingRequests);
+
+    abstract MetricTrackingWindmillServerStub build();
   }
 
   private static final class ReadBatch {

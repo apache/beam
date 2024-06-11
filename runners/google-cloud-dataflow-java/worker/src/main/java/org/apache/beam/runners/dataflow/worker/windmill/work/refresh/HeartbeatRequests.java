@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.work.refresh;
 
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList.toImmutableList;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableListMultimap.toImmutableListMultimap;
 
 import java.util.Collection;
@@ -28,10 +27,7 @@ import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.streaming.ShardedKey;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
-import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableListMultimap;
 import org.joda.time.Instant;
 
@@ -41,53 +37,27 @@ public final class HeartbeatRequests {
 
   private HeartbeatRequests() {}
 
-  static ImmutableList<HeartbeatRequest> getRefreshableKeyHeartbeats(
+  static ImmutableListMultimap<HeartbeatSender, HeartbeatRequest> getRefreshableKeyHeartbeats(
       ImmutableListMultimap<ShardedKey, Work> activeWork,
       Instant refreshDeadline,
       DataflowExecutionStateSampler sampler) {
     return activeWork.asMap().entrySet().stream()
-        .flatMap(entry -> toHeartbeatRequestStream(entry, refreshDeadline, sampler))
-        .collect(toImmutableList());
-  }
-
-  static ImmutableListMultimap<GetDataStream, HeartbeatRequest> getRefreshableDirectKeyHeartbeats(
-      ImmutableListMultimap<ShardedKey, Work> activeWork,
-      Instant refreshDeadline,
-      DataflowExecutionStateSampler sampler) {
-    return activeWork.asMap().entrySet().stream()
-        .flatMap(e -> toDirectHeartbeatRequest(e, refreshDeadline, sampler))
+        .flatMap(e -> toHeartbeatRequest(e, refreshDeadline, sampler))
         .collect(toImmutableListMultimap(Pair::getKey, Pair::getValue));
   }
 
-  private static Stream<Pair<GetDataStream, HeartbeatRequest>> toDirectHeartbeatRequest(
+  private static Stream<Pair<HeartbeatSender, HeartbeatRequest>> toHeartbeatRequest(
       Map.Entry<ShardedKey, Collection<Work>> shardedKeyAndWorkQueue,
       Instant refreshDeadline,
       DataflowExecutionStateSampler sampler) {
     ShardedKey shardedKey = shardedKeyAndWorkQueue.getKey();
     Collection<Work> workQueue = shardedKeyAndWorkQueue.getValue();
     return getRefreshableWork(workQueue, refreshDeadline)
-        // If the stream was explicitly closed fail the Work as the backend worker is invalid.
-        .peek(HeartbeatRequests::failWorkForClosedStream)
         // Don't send heartbeats for queued work we already know is failed.
         .filter(work -> !work.isFailed())
         .map(
             work ->
-                Pair.of(
-                    Preconditions.checkNotNull(work.getDataStream()),
-                    createHeartbeatRequest(shardedKey, work, sampler)));
-  }
-
-  private static Stream<HeartbeatRequest> toHeartbeatRequestStream(
-      Map.Entry<ShardedKey, Collection<Work>> shardedKeyAndWorkQueue,
-      Instant refreshDeadline,
-      DataflowExecutionStateSampler sampler) {
-    ShardedKey shardedKey = shardedKeyAndWorkQueue.getKey();
-    Collection<Work> workQueue = shardedKeyAndWorkQueue.getValue();
-
-    return getRefreshableWork(workQueue, refreshDeadline)
-        // Don't send heartbeats for queued work we already know is failed.
-        .filter(work -> !work.isFailed())
-        .map(work -> createHeartbeatRequest(shardedKey, work, sampler));
+                Pair.of(work.heartbeatSender(), createHeartbeatRequest(shardedKey, work, sampler)));
   }
 
   private static HeartbeatRequest createHeartbeatRequest(
@@ -102,12 +72,6 @@ public final class HeartbeatRequests {
 
   private static Stream<Work> getRefreshableWork(
       Collection<Work> workQueue, Instant refreshDeadline) {
-    return workQueue.stream().filter(work -> work.getStartTime().isBefore(refreshDeadline));
-  }
-
-  private static void failWorkForClosedStream(Work work) {
-    if (Preconditions.checkNotNull(work.getDataStream()).isClosed()) {
-      work.setFailed();
-    }
+    return workQueue.stream().filter(work -> work.isRefreshable(refreshDeadline));
   }
 }

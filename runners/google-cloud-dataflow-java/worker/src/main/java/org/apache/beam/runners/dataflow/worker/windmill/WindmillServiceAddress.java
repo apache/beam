@@ -19,9 +19,11 @@ package org.apache.beam.runners.dataflow.worker.windmill;
 
 import com.google.auto.value.AutoOneOf;
 import com.google.auto.value.AutoValue;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPort;
 
 /** Used to create channels to communicate with Streaming Engine via gRpc. */
+@Internal
 @AutoOneOf(WindmillServiceAddress.Kind.class)
 public abstract class WindmillServiceAddress {
 

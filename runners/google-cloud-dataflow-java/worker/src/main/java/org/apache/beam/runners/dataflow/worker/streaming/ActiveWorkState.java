@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.worker.streaming;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList.toImmutableList;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableListMultimap.flatteningToImmutableListMultimap;
 
 import java.io.PrintWriter;
 import java.util.ArrayDeque;
@@ -31,7 +32,6 @@ import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
@@ -333,20 +333,18 @@ public final class ActiveWorkState {
         .collect(toImmutableList());
   }
 
+  /**
+   * Returns a read only view of current active work.
+   *
+   * @implNote Do not return a reference to the underlying workQueue as iterations over it will
+   *     cause a {@link java.util.ConcurrentModificationException} as it is not a thread-safe data
+   *     structure.
+   */
   synchronized ImmutableListMultimap<ShardedKey, Work> getReadOnlyActiveWork() {
-    // Do not return a reference to the underlying workQueue as iterations over it will cause a
-    // ConcurrentModificationException as it is not a thread-safe data structure.
-    ImmutableListMultimap.Builder<ShardedKey, Work> readOnlyActiveWork =
-        ImmutableListMultimap.builder();
-    for (Entry<ShardedKey, Deque<ExecutableWork>> keyedWorkQueues : activeWork.entrySet()) {
-      readOnlyActiveWork.putAll(
-          keyedWorkQueues.getKey(),
-          keyedWorkQueues.getValue().stream()
-              .map(ExecutableWork::work)
-              .collect(Collectors.toList()));
-    }
-
-    return readOnlyActiveWork.build();
+    return activeWork.entrySet().stream()
+        .collect(
+            flatteningToImmutableListMultimap(
+                Entry::getKey, e -> e.getValue().stream().map(ExecutableWork::work)));
   }
 
   /**

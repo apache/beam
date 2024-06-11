@@ -41,6 +41,7 @@ public interface WindmillStream {
   /** Returns when the stream was opened. */
   Instant startTime();
 
+  /** Reflects that {@link #close()} was explicitly called. */
   boolean isClosed();
 
   /** Handle representing a stream of GetWork responses. */

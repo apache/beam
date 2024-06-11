@@ -19,8 +19,6 @@ package org.apache.beam.runners.dataflow.worker.windmill.work.refresh;
 
 import static com.google.common.truth.Truth.assertThat;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList.toImmutableList;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 import com.google.auto.value.AutoValue;
 import java.util.ArrayDeque;
@@ -29,13 +27,11 @@ import java.util.Deque;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.streaming.ShardedKey;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
-import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableListMultimap;
@@ -50,12 +46,11 @@ public class HeartbeatRequestsTest {
 
   private Map<ShardedKey, Deque<Work>> activeWork;
 
-  private static Work createWork(
-      Windmill.WorkItem workItem, WindmillStream.GetDataStream getDataStream) {
+  private static Work createWork(Windmill.WorkItem workItem, HeartbeatSender heartbeatSender) {
     return Work.create(
         workItem,
         Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
-        createProcessingContext(getDataStream),
+        createProcessingContext(heartbeatSender),
         Instant::now,
         Collections.emptyList());
   }
@@ -64,46 +59,19 @@ public class HeartbeatRequestsTest {
     return ShardedKey.create(ByteString.copyFromUtf8(str), shardKey);
   }
 
-  private static Work createWork(Windmill.WorkItem workItem) {
-    return Work.create(
-        workItem,
-        Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
-        createProcessingContext(),
-        Instant::now,
-        Collections.emptyList());
-  }
-
-  private static Work expiredWork(Windmill.WorkItem workItem) {
-    return Work.create(
-        workItem,
-        Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
-        createProcessingContext(),
-        () -> Instant.EPOCH,
-        Collections.emptyList());
-  }
-
-  private static Work.ProcessingContext createProcessingContext() {
+  private static Work.ProcessingContext createProcessingContext(HeartbeatSender heartbeatSender) {
     return Work.createProcessingContext(
         "computationId",
         (computationId, request) -> Windmill.KeyedGetDataResponse.getDefaultInstance(),
-        ignored -> {});
-  }
-
-  private static Work.ProcessingContext createProcessingContext(
-      WindmillStream.GetDataStream getDataStream) {
-    return Work.createFanOutProcessingContext(
-        "computationId",
-        (computationId, request) -> Windmill.KeyedGetDataResponse.getDefaultInstance(),
         ignored -> {},
-        getDataStream);
+        heartbeatSender);
   }
 
-  private static Work expiredWork(
-      Windmill.WorkItem workItem, WindmillStream.GetDataStream getDataStream) {
+  private static Work expiredWork(Windmill.WorkItem workItem, HeartbeatSender heartbeatSender) {
     return Work.create(
         workItem,
         Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
-        createProcessingContext(getDataStream),
+        createProcessingContext(heartbeatSender),
         () -> Instant.EPOCH,
         Collections.emptyList());
   }
@@ -123,50 +91,15 @@ public class HeartbeatRequestsTest {
   }
 
   @Test
-  public void testGetRefreshableKeyHeartbeats() {
-    Instant refreshDeadline = Instant.now();
-
-    Work freshWork = createWork(createWorkItem(3L, 3L));
-    Work refreshableWork1 = expiredWork(createWorkItem(1L, 1L));
-    refreshableWork1.setState(Work.State.COMMITTING);
-    Work refreshableWork2 = expiredWork(createWorkItem(2L, 2L));
-    refreshableWork2.setState(Work.State.COMMITTING);
-    ShardedKey shardedKey1 = shardedKey("someKey", 1L);
-    ShardedKey shardedKey2 = shardedKey("anotherKey", 2L);
-
-    activateWorkForKey(shardedKey1, refreshableWork1);
-    activateWorkForKey(shardedKey1, freshWork);
-    activateWorkForKey(shardedKey2, refreshableWork2);
-
-    ImmutableList<Windmill.HeartbeatRequest> requests =
-        HeartbeatRequests.getRefreshableKeyHeartbeats(
-            currentActiveWork(), refreshDeadline, DataflowExecutionStateSampler.instance());
-
-    ImmutableList<HeartbeatRequestShardingKeyWorkTokenAndCacheToken> expected =
-        ImmutableList.of(
-            HeartbeatRequestShardingKeyWorkTokenAndCacheToken.from(shardedKey1, refreshableWork1),
-            HeartbeatRequestShardingKeyWorkTokenAndCacheToken.from(shardedKey2, refreshableWork2));
-
-    ImmutableList<HeartbeatRequestShardingKeyWorkTokenAndCacheToken> actual =
-        requests.stream()
-            .map(HeartbeatRequestShardingKeyWorkTokenAndCacheToken::from)
-            .collect(toImmutableList());
-
-    assertThat(actual).containsExactlyElementsIn(expected);
-  }
-
-  @Test
   public void testGetRefreshableFanoutKeyHeartbeats() {
     Instant refreshDeadline = Instant.now();
-    WindmillStream.GetDataStream getDataStream1 = mock(WindmillStream.GetDataStream.class);
-    when(getDataStream1.isClosed()).thenReturn(false);
-    WindmillStream.GetDataStream getDataStream2 = mock(WindmillStream.GetDataStream.class);
-    when(getDataStream2.isClosed()).thenReturn(false);
+    HeartbeatSender sender1 = ignored -> {};
+    HeartbeatSender sender2 = ignored -> {};
 
-    Work freshWork = createWork(createWorkItem(3L, 3L), getDataStream1);
-    Work refreshableWork1 = expiredWork(createWorkItem(1L, 1L), getDataStream1);
+    Work freshWork = createWork(createWorkItem(3L, 3L), sender1);
+    Work refreshableWork1 = expiredWork(createWorkItem(1L, 1L), sender1);
     refreshableWork1.setState(Work.State.COMMITTING);
-    Work refreshableWork2 = expiredWork(createWorkItem(2L, 2L), getDataStream2);
+    Work refreshableWork2 = expiredWork(createWorkItem(2L, 2L), sender2);
     refreshableWork2.setState(Work.State.COMMITTING);
     ShardedKey shardedKey1 = shardedKey("someKey", 1L);
     ShardedKey shardedKey2 = shardedKey("anotherKey", 2L);
@@ -175,8 +108,8 @@ public class HeartbeatRequestsTest {
     activateWorkForKey(shardedKey1, freshWork);
     activateWorkForKey(shardedKey2, refreshableWork2);
 
-    ImmutableListMultimap<WindmillStream.GetDataStream, Windmill.HeartbeatRequest> requests =
-        HeartbeatRequests.getRefreshableDirectKeyHeartbeats(
+    ImmutableListMultimap<HeartbeatSender, Windmill.HeartbeatRequest> requests =
+        HeartbeatRequests.getRefreshableKeyHeartbeats(
             currentActiveWork(), refreshDeadline, DataflowExecutionStateSampler.instance());
 
     ImmutableList<HeartbeatRequestShardingKeyWorkTokenAndCacheToken> expected =
@@ -215,50 +148,27 @@ public class HeartbeatRequestsTest {
   abstract static class HeartbeatRequestShardingKeyWorkTokenAndCacheToken {
 
     private static HeartbeatRequestShardingKeyWorkTokenAndCacheToken create(
-        long shardingKey, long workToken, long cacheToken) {
+        long shardingKey, long workToken, long cacheToken, HeartbeatSender sender) {
       return new AutoValue_HeartbeatRequestsTest_HeartbeatRequestShardingKeyWorkTokenAndCacheToken(
-          shardingKey, workToken, cacheToken, null);
-    }
-
-    private static HeartbeatRequestShardingKeyWorkTokenAndCacheToken create(
-        long shardingKey,
-        long workToken,
-        long cacheToken,
-        WindmillStream.GetDataStream getDataStream) {
-      return new AutoValue_HeartbeatRequestsTest_HeartbeatRequestShardingKeyWorkTokenAndCacheToken(
-          shardingKey, workToken, cacheToken, Objects.requireNonNull(getDataStream));
-    }
-
-    private static HeartbeatRequestShardingKeyWorkTokenAndCacheToken from(
-        Windmill.HeartbeatRequest heartbeatRequest) {
-      return create(
-          heartbeatRequest.getShardingKey(),
-          heartbeatRequest.getWorkToken(),
-          heartbeatRequest.getCacheToken());
+          shardingKey, workToken, cacheToken, sender);
     }
 
     private static HeartbeatRequestShardingKeyWorkTokenAndCacheToken from(
         ShardedKey shardedKey, Work work) {
-      @Nullable WindmillStream.GetDataStream getDataStream = work.getDataStream();
-      return getDataStream == null
-          ? create(
-              shardedKey.shardingKey(),
-              work.getWorkItem().getWorkToken(),
-              work.getWorkItem().getCacheToken())
-          : create(
-              shardedKey.shardingKey(),
-              work.getWorkItem().getWorkToken(),
-              work.getWorkItem().getCacheToken(),
-              work.getDataStream());
+      return create(
+          shardedKey.shardingKey(),
+          work.getWorkItem().getWorkToken(),
+          work.getWorkItem().getCacheToken(),
+          work.heartbeatSender());
     }
 
     private static HeartbeatRequestShardingKeyWorkTokenAndCacheToken from(
-        Windmill.HeartbeatRequest heartbeatRequest, WindmillStream.GetDataStream getDataStream) {
+        Windmill.HeartbeatRequest heartbeatRequest, HeartbeatSender sender) {
       return create(
           heartbeatRequest.getShardingKey(),
           heartbeatRequest.getWorkToken(),
           heartbeatRequest.getCacheToken(),
-          getDataStream);
+          sender);
     }
 
     abstract long shardingKey();
@@ -267,7 +177,7 @@ public class HeartbeatRequestsTest {
 
     abstract long cacheToken();
 
-    abstract @Nullable WindmillStream.GetDataStream getDataStream();
+    abstract HeartbeatSender heartbeatSender();
 
     @Override
     public final boolean equals(Object obj) {

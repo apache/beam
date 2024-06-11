@@ -31,7 +31,6 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
 import org.apache.beam.runners.dataflow.worker.ActiveMessageMetadata;
@@ -44,10 +43,10 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribut
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution.ActiveLatencyBreakdown.Distribution;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
-import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.Commit;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReader;
+import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
@@ -108,16 +107,9 @@ public final class Work {
   public static ProcessingContext createProcessingContext(
       String computationId,
       BiFunction<String, KeyedGetDataRequest, KeyedGetDataResponse> getKeyedDataFn,
-      Consumer<Commit> workCommitter) {
-    return ProcessingContext.create(computationId, getKeyedDataFn, workCommitter, null);
-  }
-
-  public static ProcessingContext createFanOutProcessingContext(
-      String computationId,
-      BiFunction<String, KeyedGetDataRequest, KeyedGetDataResponse> getKeyedDataFn,
       Consumer<Commit> workCommitter,
-      GetDataStream getDataStream) {
-    return ProcessingContext.create(computationId, getKeyedDataFn, workCommitter, getDataStream);
+      HeartbeatSender heartbeatSender) {
+    return ProcessingContext.create(computationId, getKeyedDataFn, workCommitter, heartbeatSender);
   }
 
   private static LatencyAttribution.Builder createLatencyAttributionWithActiveLatencyBreakdown(
@@ -181,10 +173,6 @@ public final class Work {
     return currentState.state();
   }
 
-  public @Nullable GetDataStream getDataStream() {
-    return processingContext.getDataStream();
-  }
-
   public void setState(State state) {
     Instant now = clock.get();
     totalDurationPerState.compute(
@@ -192,6 +180,20 @@ public final class Work {
         (s, d) ->
             new Duration(this.currentState.startTime(), now).plus(d == null ? Duration.ZERO : d));
     this.currentState = TimedState.create(state, now);
+  }
+
+  public boolean isRefreshable(Instant refreshDeadline) {
+    boolean isRefreshable = getStartTime().isBefore(refreshDeadline);
+    if (heartbeatSender().isInvalid()) {
+      setFailed();
+      return false;
+    }
+
+    return isRefreshable;
+  }
+
+  public HeartbeatSender heartbeatSender() {
+    return processingContext.heartbeatSender();
   }
 
   public void setFailed() {
@@ -330,12 +332,12 @@ public final class Work {
         String computationId,
         BiFunction<String, KeyedGetDataRequest, KeyedGetDataResponse> getKeyedDataFn,
         Consumer<Commit> workCommitter,
-        @Nullable GetDataStream getDataStream) {
+        HeartbeatSender heartbeatSender) {
       return new AutoValue_Work_ProcessingContext(
           computationId,
           request -> Optional.ofNullable(getKeyedDataFn.apply(computationId, request)),
           workCommitter,
-          getDataStream);
+          heartbeatSender);
     }
 
     /** Computation that the {@link Work} belongs to. */
@@ -351,6 +353,6 @@ public final class Work {
      */
     public abstract Consumer<Commit> workCommitter();
 
-    public abstract @Nullable GetDataStream getDataStream();
+    public abstract HeartbeatSender heartbeatSender();
   }
 }

@@ -17,13 +17,20 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.work.refresh;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableListMultimap;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -37,7 +44,7 @@ import org.slf4j.LoggerFactory;
  * threshold is determined by {@link #activeWorkRefreshPeriodMillis}
  */
 @ThreadSafe
-public abstract class ActiveWorkRefresher {
+public class ActiveWorkRefresher {
   private static final Logger LOG = LoggerFactory.getLogger(ActiveWorkRefresher.class);
 
   protected final Supplier<Instant> clock;
@@ -46,20 +53,25 @@ public abstract class ActiveWorkRefresher {
   protected final DataflowExecutionStateSampler sampler;
   private final int stuckCommitDurationMillis;
   private final ScheduledExecutorService activeWorkRefreshExecutor;
+  private final Consumer<Map<HeartbeatSender, Map<String, List<Windmill.HeartbeatRequest>>>>
+      heartbeatSender;
 
-  protected ActiveWorkRefresher(
+  public ActiveWorkRefresher(
       Supplier<Instant> clock,
       int activeWorkRefreshPeriodMillis,
       int stuckCommitDurationMillis,
       Supplier<Collection<ComputationState>> computations,
       DataflowExecutionStateSampler sampler,
-      ScheduledExecutorService activeWorkRefreshExecutor) {
+      ScheduledExecutorService activeWorkRefreshExecutor,
+      Consumer<Map<HeartbeatSender, Map<String, List<Windmill.HeartbeatRequest>>>>
+          heartbeatSender) {
     this.clock = clock;
     this.activeWorkRefreshPeriodMillis = activeWorkRefreshPeriodMillis;
     this.stuckCommitDurationMillis = stuckCommitDurationMillis;
     this.computations = computations;
     this.sampler = sampler;
     this.activeWorkRefreshExecutor = activeWorkRefreshExecutor;
+    this.heartbeatSender = heartbeatSender;
   }
 
   @SuppressWarnings("FutureReturnValueIgnored")
@@ -103,5 +115,31 @@ public abstract class ActiveWorkRefresher {
     }
   }
 
-  protected abstract void refreshActiveWork();
+  private void refreshActiveWork() {
+    Instant refreshDeadline = clock.get().minus(Duration.millis(activeWorkRefreshPeriodMillis));
+
+    Map<HeartbeatSender, Map<String, List<Windmill.HeartbeatRequest>>> fannedOutHeartbeatRequests =
+        new HashMap<>();
+    for (ComputationState computationState : computations.get()) {
+      String computationId = computationState.getComputationId();
+
+      // Get heartbeat requests for computation's current active work, aggregated by GetDataStream
+      // to correctly fan-out the heartbeat requests.
+      ImmutableListMultimap<HeartbeatSender, Windmill.HeartbeatRequest> heartbeats =
+          HeartbeatRequests.getRefreshableKeyHeartbeats(
+              computationState.currentActiveWorkReadOnly(), refreshDeadline, sampler);
+      // Aggregate the heartbeats across computations by GetDataStream for correct fan out.
+      for (Map.Entry<HeartbeatSender, Collection<Windmill.HeartbeatRequest>> heartbeatsPerStream :
+          heartbeats.asMap().entrySet()) {
+        Map<String, List<Windmill.HeartbeatRequest>> existingHeartbeats =
+            fannedOutHeartbeatRequests.computeIfAbsent(
+                heartbeatsPerStream.getKey(), ignored -> new HashMap<>());
+        List<Windmill.HeartbeatRequest> existingHeartbeatsForComputation =
+            existingHeartbeats.computeIfAbsent(computationId, ignored -> new ArrayList<>());
+        existingHeartbeatsForComputation.addAll(heartbeatsPerStream.getValue());
+      }
+    }
+
+    heartbeatSender.accept(fannedOutHeartbeatRequests);
+  }
 }

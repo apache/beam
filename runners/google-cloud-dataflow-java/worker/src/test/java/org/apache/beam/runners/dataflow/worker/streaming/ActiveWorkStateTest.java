@@ -87,6 +87,7 @@ public class ActiveWorkStateTest {
     return Work.createProcessingContext(
         "computationId",
         (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance(),
+        ignored -> {},
         ignored -> {});
   }
 

@@ -199,6 +199,7 @@ public class WorkerCustomSourcesTest {
         Work.createProcessingContext(
             COMPUTATION_ID,
             (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance(),
+            ignored -> {},
             ignored -> {}),
         Instant::now,
         Collections.emptyList());
@@ -997,7 +998,8 @@ public class WorkerCustomSourcesTest {
             Work.createProcessingContext(
                 COMPUTATION_ID,
                 (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance(),
-                gnored -> {}),
+                ignored -> {},
+                ignored -> {}),
             Instant::now,
             Collections.emptyList());
     context.start(
