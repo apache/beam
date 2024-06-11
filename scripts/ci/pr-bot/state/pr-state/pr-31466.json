@@ -1,11 +1,11 @@
 {
   "commentedAboutFailingChecks": false,
   "reviewersAssignedForLabels": {
-    "python": "shunping",
+    "python": "riteshghorse",
     "io": "shunping"
   },
   "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
   "remindAfterTestsPass": [],
-  "committerAssigned": false
+  "committerAssigned": true
 }
