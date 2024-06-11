@@ -43,7 +43,7 @@ available transforms, see the [Transforms](#transforms) section on this page.
 ## Support and limitations {#support}
 
 -   Available in the Apache Beam Python SDK versions 2.53.0 and later.
--   Supports Python 3.8, 3.9, 3.10, 3.11, and 3.12.
+-   Supports Python 3.8, 3.9, 3.10, and 3.11
 -   Only available for pipelines that use [default windows](/documentation/programming-guide/#single-global-window).
 
 ## Transforms {#transforms}
