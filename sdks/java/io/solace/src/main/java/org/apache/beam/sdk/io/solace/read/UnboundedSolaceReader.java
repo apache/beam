@@ -26,6 +26,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.io.solace.broker.MessageReceiver;
@@ -50,6 +51,7 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
   private @Nullable T solaceMappedRecord;
   private @Nullable MessageReceiver messageReceiver;
   private @Nullable SessionService sessionService;
+  AtomicBoolean active = new AtomicBoolean(true);
 
   /**
    * Queue to place advanced messages before {@link #getCheckpointMark()} be called non-concurrent
@@ -114,6 +116,7 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
 
   @Override
   public void close() {
+    active.set(false);
     checkNotNull(sessionService).close();
   }
 
@@ -135,7 +138,7 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
         ackQueue.add(msg);
       }
     }
-    return new SolaceCheckpointMark(ackQueue);
+    return new SolaceCheckpointMark(active, ackQueue);
   }
 
   @Override
