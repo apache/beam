@@ -642,7 +642,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
                   @Override
                   public Iterable<TimestampedValue<T>> read() {
                     return readRange(
-                        BoundedWindow.TIMESTAMP_MIN_VALUE, BoundedWindow.TIMESTAMP_MAX_VALUE);
+                        Instant.ofEpochMilli(Long.MIN_VALUE), Instant.ofEpochMilli(Long.MAX_VALUE));
                   }
 
                   @Override

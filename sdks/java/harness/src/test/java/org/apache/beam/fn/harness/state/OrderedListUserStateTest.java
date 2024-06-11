@@ -571,6 +571,45 @@ public class OrderedListUserStateTest {
   }
 
   @Test
+  public void testClearAsyncCloseAndRead() throws Exception {
+    FakeBeamFnStateClient fakeClient =
+        new FakeBeamFnStateClient(
+            timestampedValueCoder,
+            ImmutableMap.of(
+                createOrderedListStateKey("A", 1),
+                Collections.singletonList(A1),
+                createOrderedListStateKey("A", 2),
+                Collections.singletonList(A2),
+                createOrderedListStateKey("A", 3),
+                Collections.singletonList(A3),
+                createOrderedListStateKey("A", 4),
+                Collections.singletonList(A4)));
+    {
+      OrderedListUserState<String> userState =
+          new OrderedListUserState<>(
+              Caches.noop(),
+              fakeClient,
+              "instructionId",
+              createOrderedListStateKey("A"),
+              StringUtf8Coder.of());
+
+      userState.clear();
+      userState.asyncClose();
+    }
+    {
+      OrderedListUserState<String> userState =
+          new OrderedListUserState<>(
+              Caches.noop(),
+              fakeClient,
+              "instructionId",
+              createOrderedListStateKey("A"),
+              StringUtf8Coder.of());
+
+      assertThat(userState.read(), is(emptyIterable()));
+    }
+  }
+
+  @Test
   public void testOperationsDuringNavigatingIterable() throws Exception {
     FakeBeamFnStateClient fakeClient =
         new FakeBeamFnStateClient(

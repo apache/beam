@@ -178,25 +178,7 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
 
     switch (request.getRequestCase()) {
       case GET:
-        if (key.getTypeCase() != TypeCase.ORDERED_LIST_USER_STATE) {
-          List<ByteString> byteStrings =
-              data.getOrDefault(request.getStateKey(), Collections.singletonList(ByteString.EMPTY));
-          int block = 0;
-          if (!request.getGet().getContinuationToken().isEmpty()) {
-            block = Integer.parseInt(request.getGet().getContinuationToken().toStringUtf8());
-          }
-          ByteString returnBlock = byteStrings.get(block);
-          ByteString continuationToken = ByteString.EMPTY;
-          if (byteStrings.size() > block + 1) {
-            continuationToken = ByteString.copyFromUtf8(Integer.toString(block + 1));
-          }
-          response =
-              StateResponse.newBuilder()
-                  .setGet(
-                      StateGetResponse.newBuilder()
-                          .setData(returnBlock)
-                          .setContinuationToken(continuationToken));
-        } else {
+        if (key.getTypeCase() == TypeCase.ORDERED_LIST_USER_STATE) {
           long start = key.getOrderedListUserState().getRange().getStart();
           long end = key.getOrderedListUserState().getRange().getEnd();
 
@@ -271,13 +253,29 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
                       StateGetResponse.newBuilder()
                           .setData(returnBlock)
                           .setContinuationToken(continuationToken));
+        } else {
+          List<ByteString> byteStrings =
+              data.getOrDefault(request.getStateKey(), Collections.singletonList(ByteString.EMPTY));
+          int block = 0;
+          if (!request.getGet().getContinuationToken().isEmpty()) {
+            block = Integer.parseInt(request.getGet().getContinuationToken().toStringUtf8());
+          }
+          ByteString returnBlock = byteStrings.get(block);
+          ByteString continuationToken = ByteString.EMPTY;
+          if (byteStrings.size() > block + 1) {
+            continuationToken = ByteString.copyFromUtf8(Integer.toString(block + 1));
+          }
+          response =
+              StateResponse.newBuilder()
+                  .setGet(
+                      StateGetResponse.newBuilder()
+                          .setData(returnBlock)
+                          .setContinuationToken(continuationToken));
         }
         break;
 
       case CLEAR:
-        if (key.getTypeCase() != TypeCase.ORDERED_LIST_USER_STATE) {
-          data.remove(request.getStateKey());
-        } else {
+        if (key.getTypeCase() == TypeCase.ORDERED_LIST_USER_STATE) {
           OrderedListRange r = request.getStateKey().getOrderedListUserState().getRange();
           StateKey.Builder stateKeyWithoutRange = request.getStateKey().toBuilder();
           stateKeyWithoutRange.getOrderedListUserStateBuilder().clearRange();
@@ -293,16 +291,14 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
             data.remove(keyBuilder.build());
             orderedListSortKeysFromStateKey.get(stateKeyWithoutRange.build()).remove(l);
           }
+        } else {
+          data.remove(request.getStateKey());
         }
         response = StateResponse.newBuilder().setClear(StateClearResponse.getDefaultInstance());
         break;
 
       case APPEND:
-        if (key.getTypeCase() != TypeCase.ORDERED_LIST_USER_STATE) {
-          List<ByteString> previousValue =
-              data.computeIfAbsent(request.getStateKey(), (unused) -> new ArrayList<>());
-          previousValue.add(request.getAppend().getData());
-        } else {
+        if (key.getTypeCase() == TypeCase.ORDERED_LIST_USER_STATE) {
           InputStream inStream = request.getAppend().getData().newInput();
           TimestampedValueCoder<byte[]> coder = TimestampedValueCoder.of(ByteArrayCoder.of());
           try {
@@ -333,6 +329,10 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
           } catch (IOException ex) {
             throw new RuntimeException(ex);
           }
+        } else {
+          List<ByteString> previousValue =
+              data.computeIfAbsent(request.getStateKey(), (unused) -> new ArrayList<>());
+          previousValue.add(request.getAppend().getData());
         }
         response = StateResponse.newBuilder().setAppend(StateAppendResponse.getDefaultInstance());
         break;

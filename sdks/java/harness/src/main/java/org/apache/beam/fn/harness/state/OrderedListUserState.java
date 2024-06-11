@@ -212,7 +212,7 @@ public class OrderedListUserState<T> {
               this.timestampedValueCoder);
 
       // Make a snapshot of the current pendingRemoves and use them to filter persistent values.
-      // The values of pendingRemoves are kept, so that they will still be accessible in
+      // The values of pendingRemoves are copied, so that they will still be accessible in
       // pre-existing iterables even after a sort key is removed.
       TreeRangeSet<Instant> pendingRemovesSnapshot = TreeRangeSet.create(pendingRemoves);
       Iterable<TimestampedValue<T>> persistentValuesAfterRemoval =
@@ -263,6 +263,12 @@ public class OrderedListUserState<T> {
     // so that they will still be accessible in pre-existing iterables even after the state is
     // cleared.
     pendingRemoves = TreeRangeSet.create();
+    pendingRemoves.add(
+        Range.range(
+            Instant.ofEpochMilli(Long.MIN_VALUE),
+            BoundType.CLOSED,
+            Instant.ofEpochMilli(Long.MAX_VALUE),
+            BoundType.OPEN));
     pendingAdds.clear();
   }
 
