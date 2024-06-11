@@ -22,7 +22,8 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.concurrent.GuardedBy;
-import org.apache.beam.runners.dataflow.worker.streaming.Work;
+import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Monitor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Monitor.Guard;
 
@@ -224,9 +225,10 @@ public class BoundedQueueExecutor {
           () -> {
             String threadName = Thread.currentThread().getName();
             try {
-              if (work instanceof Work) {
+              if (work instanceof ExecutableWork) {
                 String workToken =
-                    String.format("%016x", ((Work) work).getWorkItem().getWorkToken());
+                    debugFormattedWorkToken(
+                        ((ExecutableWork) work).work().getWorkItem().getWorkToken());
                 Thread.currentThread().setName(threadName + ":" + workToken);
               }
               work.run();
@@ -240,6 +242,11 @@ public class BoundedQueueExecutor {
       decrementCounters(workBytes);
       throw e;
     }
+  }
+
+  @VisibleForTesting
+  public static String debugFormattedWorkToken(long workToken) {
+    return String.format("%016x", workToken);
   }
 
   private void decrementCounters(long workBytes) {
