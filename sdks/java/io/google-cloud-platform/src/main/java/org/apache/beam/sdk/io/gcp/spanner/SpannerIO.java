@@ -1739,11 +1739,6 @@ public class SpannerIO {
           new PostProcessingMetricsDoFn(metrics);
 
       LOG.info("Partition metadata table that will be used is " + partitionMetadataTableName);
-      input
-          .getPipeline()
-          .getOptions()
-          .as(SpannerChangeStreamOptions.class)
-          .setMetadataTable(partitionMetadataTableName);
 
       final PCollection<byte[]> impulseOut = input.apply(Impulse.create());
       final PCollection<PartitionMetadata> partitionsOut =

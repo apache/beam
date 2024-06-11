@@ -20,18 +20,18 @@ on:
     tags: ['v*']
     branches: ['master', 'release-*']
     paths:
-      - "sdks/java/io/solace/**"
-      - ".github/workflows/beam_PreCommit_Java_Solace_IO_Direct.yml"
+    - "sdks/java/io/solace/**"
+    - ".github/workflows/beam_PreCommit_Java_Solace_IO_Direct.yml"
   pull_request_target:
     branches: ['master', 'release-*']
     paths:
-      - "sdks/java/io/solace/**"
-      - 'release/trigger_all_tests.json'
-      - '.github/trigger_files/beam_PreCommit_Java_Solace_IO_Direct.json'
+    - "sdks/java/io/solace/**"
+    - 'release/trigger_all_tests.json'
+    - '.github/trigger_files/beam_PreCommit_Java_Solace_IO_Direct.json'
   issue_comment:
     types: [created]
   schedule:
-    - cron: '45 1/6 * * *'
+  - cron: '45 1/6 * * *'
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -76,51 +76,51 @@ jobs:
       github.event.comment.body == 'Run Java_Solace_IO_Direct PreCommit'
     runs-on: ubuntu-20.04
     steps:
-      - uses: actions/checkout@v4
-      - name: Setup repository
-        uses: ./.github/actions/setup-action
-        with:
-          comment_phrase: ${{ matrix.job_phrase }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-      - name: Setup environment
-        uses: ./.github/actions/setup-environment-action
-      - name: run Solace IO build script
-        uses: ./.github/actions/gradle-command-self-hosted-action
-        with:
-          gradle-command: :sdks:java:io:solace:build
-          arguments: |
-            -PdisableSpotlessCheck=true \
-            -PdisableCheckStyle=true \
-      - name: run Solace IO IT script
-        uses: ./.github/actions/gradle-command-self-hosted-action
-        with:
-          gradle-command: :sdks:java:io:solace:integrationTest
-          arguments: |
-            -PdisableSpotlessCheck=true \
-            -PdisableCheckStyle=true \
-      - name: Archive JUnit Test Results
-        uses: actions/upload-artifact@v4
-        if: ${{ !success() }}
-        with:
-          name: JUnit Test Results
-          path: "**/build/reports/tests/"
-      - name: Publish JUnit Test Results
-        uses: EnricoMi/publish-unit-test-result-action@v2
-        if: always()
-        with:
-          commit: '${{ env.prsha || env.GITHUB_SHA }}'
-          comment_mode: ${{ github.event_name == 'issue_comment'  && 'always' || 'off' }}
-          files: '**/build/test-results/**/*.xml'
-      - name: Archive SpotBugs Results
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: SpotBugs Results
-          path: '**/build/reports/spotbugs/*.html'
-      - name: Publish SpotBugs Results
-        uses: jwgmeligmeyling/spotbugs-github-action@v1.2
-        if: always()
-        with:
-          name: Publish SpotBugs
-          path: '**/build/reports/spotbugs/*.html'
+    - uses: actions/checkout@v4
+    - name: Setup repository
+      uses: ./.github/actions/setup-action
+      with:
+        comment_phrase: ${{ matrix.job_phrase }}
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+    - name: Setup environment
+      uses: ./.github/actions/setup-environment-action
+    - name: run Solace IO build script
+      uses: ./.github/actions/gradle-command-self-hosted-action
+      with:
+        gradle-command: :sdks:java:io:solace:build
+        arguments: |
+          -PdisableSpotlessCheck=true \
+          -PdisableCheckStyle=true \
+    - name: run Solace IO IT script
+      uses: ./.github/actions/gradle-command-self-hosted-action
+      with:
+        gradle-command: :sdks:java:io:solace:integrationTest
+        arguments: |
+          -PdisableSpotlessCheck=true \
+          -PdisableCheckStyle=true \
+    - name: Archive JUnit Test Results
+      uses: actions/upload-artifact@v4
+      if: ${{ !success() }}
+      with:
+        name: JUnit Test Results
+        path: "**/build/reports/tests/"
+    - name: Publish JUnit Test Results
+      uses: EnricoMi/publish-unit-test-result-action@v2
+      if: always()
+      with:
+        commit: '${{ env.prsha || env.GITHUB_SHA }}'
+        comment_mode: ${{ github.event_name == 'issue_comment'  && 'always' || 'off' }}
+        files: '**/build/test-results/**/*.xml'
+    - name: Archive SpotBugs Results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: SpotBugs Results
+        path: '**/build/reports/spotbugs/*.html'
+    - name: Publish SpotBugs Results
+      uses: jwgmeligmeyling/spotbugs-github-action@v1.2
+      if: always()
+      with:
+        name: Publish SpotBugs
+        path: '**/build/reports/spotbugs/*.html'
