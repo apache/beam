@@ -29,7 +29,9 @@ import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.iceberg.CatalogUtil;
 import org.apache.iceberg.catalog.TableIdentifier;
-import org.junit.*;
+import org.junit.Before;
+import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.experimental.runners.Enclosed;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
@@ -51,7 +53,7 @@ public class IcebergSchemaTransformTranslationTest {
       warehouse.createTable(TableIdentifier.parse(tableIdentifier), TestFixtures.SCHEMA);
     }
 
-    final IcebergReadSchemaTransformProvider READ_PROVIDER =
+    static final IcebergReadSchemaTransformProvider READ_PROVIDER =
         new IcebergReadSchemaTransformProvider();
 
     @Override
