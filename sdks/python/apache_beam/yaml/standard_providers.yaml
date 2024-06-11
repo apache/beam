@@ -62,6 +62,7 @@
     'MapToFields-java': 'MapToFields-java'
     'MapToFields-generic': 'MapToFields-java'
     'Filter-java': 'Filter-java'
+    'Filter-generic': 'Filter-java'
     'Explode': 'Explode'
   config:
     mappings:
@@ -79,6 +80,10 @@
         append: 'append'
         drop: 'drop'
         fields: 'fields'
+        error_handling: 'error_handling'
+      'Filter-generic':
+        language: 'language'
+        keep: 'keep'
         error_handling: 'error_handling'
       'Filter-java':
         language: 'language'

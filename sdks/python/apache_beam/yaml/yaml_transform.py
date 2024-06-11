@@ -38,6 +38,7 @@ from apache_beam.transforms.fully_qualified_named_transform import FullyQualifie
 from apache_beam.yaml import yaml_provider
 from apache_beam.yaml.yaml_combine import normalize_combine
 from apache_beam.yaml.yaml_mapping import normalize_mapping
+from apache_beam.yaml.yaml_mapping import validate_generic_expressions
 
 __all__ = ["YamlTransform"]
 
@@ -384,6 +385,12 @@ class Scope(LightweightScope):
           f'Missing inputs for transform at {identify_object(spec)}')
 
     try:
+      if spec['type'].endswith('-generic'):
+        # Centralize the validation rather than require every implementation
+        # to do it.
+        validate_generic_expressions(
+            spec['type'].rsplit('-', 1)[0], config, input_pcolls)
+
       # pylint: disable=undefined-loop-variable
       ptransform = provider.create_transform(
           spec['type'], config, self.create_ptransform)
