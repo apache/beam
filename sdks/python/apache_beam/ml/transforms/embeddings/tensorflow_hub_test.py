@@ -50,7 +50,7 @@ try:
   from PIL import Image
 except ImportError:
   TensorflowHubImageEmbeddings = None  # type: ignore
-  Image = None 
+  Image = None
 
 
 @unittest.skipIf(
