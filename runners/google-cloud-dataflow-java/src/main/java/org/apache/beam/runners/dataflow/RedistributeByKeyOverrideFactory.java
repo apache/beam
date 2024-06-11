@@ -85,9 +85,9 @@ class RedistributeByKeyOverrideFactory<K, V>
 
       PCollection<KV<K, Iterable<ValueInSingleWindow<V>>>> grouped;
       if (originalTransform.getAllowDuplicates()) {
-          grouped = reified.apply(DataflowGroupByKey.createWithAllowDuplicates());
+        grouped = reified.apply(DataflowGroupByKey.createWithAllowDuplicates());
       } else {
-          grouped = reified.apply(DataflowGroupByKey.create());
+        grouped = reified.apply(DataflowGroupByKey.create());
       }
 
       return grouped
