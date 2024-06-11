@@ -83,12 +83,13 @@ class RedistributeByKeyOverrideFactory<K, V>
               .apply("SetIdentityWindow", rewindow)
               .apply("ReifyOriginalMetadata", Reify.windowsInValue());
 
-      @SuppressWarnings("nullness") // Cannot figure out how to make this typecheck
-      PCollection<KV<K, Iterable<ValueInSingleWindow<V>>>> grouped =
-          reified.apply(
-              originalTransform != null && originalTransform.getAllowDuplicates()
-                  ? DataflowGroupByKey.createWithAllowDuplicates()
-                  : DataflowGroupByKey.create());
+      PCollection<KV<K, Iterable<ValueInSingleWindow<V>>>> grouped;
+      if (originalTransform.getAllowDuplicates()) {
+          grouped = reified.apply(DataflowGroupByKey.createWithAllowDuplicates());
+      } else {
+          grouped = reified.apply(DataflowGroupByKey.create());
+      }
+
       return grouped
           .apply(
               "ExpandIterable",
