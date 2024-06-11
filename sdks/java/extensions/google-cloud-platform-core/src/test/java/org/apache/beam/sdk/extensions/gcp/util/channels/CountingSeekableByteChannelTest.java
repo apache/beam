@@ -49,6 +49,7 @@ public class CountingSeekableByteChannelTest {
     int newPosition = 5;
     channelUnderTest.position(newPosition);
     assertEquals(newPosition, delegate.position());
+    assertEquals(newPosition, channelUnderTest.position());
   }
 
   @Test
@@ -56,6 +57,7 @@ public class CountingSeekableByteChannelTest {
     int newSize = 5;
     channelUnderTest.truncate(newSize);
     assertEquals(newSize, delegate.size());
+    assertEquals(newSize, channelUnderTest.size());
   }
 
   @Test
