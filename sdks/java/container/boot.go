@@ -259,7 +259,13 @@ func heapSizeLimit(info *fnpb.ProvisionInfo, setRecommendedMaxXmx bool) uint64 {
 	if setRecommendedMaxXmx {
 		return 32 << 30
 	} else if size, err := syscallx.PhysicalMemorySize(); err == nil {
-		return max(size - (32 << 30), (size * 70) / 100)
+		var lim uint64 = (size * 70) / 100
+		var limLarge uint64 = size - (32 << 30)
+		if lim > limLarge {
+			return lim
+		} else {
+			return limLarge
+		}
 	}
 	return 1 << 30
 }
