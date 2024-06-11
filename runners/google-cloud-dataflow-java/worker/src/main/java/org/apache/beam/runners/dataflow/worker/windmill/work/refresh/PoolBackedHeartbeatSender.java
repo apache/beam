@@ -45,7 +45,7 @@ public final class PoolBackedHeartbeatSender implements HeartbeatSender {
         heartbeatStreamPool.getCloseableStream()) {
       closeableStream.stream().refreshActiveWork(heartbeats);
     } catch (Exception e) {
-      LOG.warn("Error occurred sending heartbeats.", e);
+      LOG.warn("Error occurred sending heartbeats=[{}].", heartbeats, e);
     }
   }
 }

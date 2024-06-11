@@ -22,11 +22,13 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamClosedException;
 
 /** Utility data classes for {@link GrpcGetDataStream}. */
 final class GrpcGetDataStreamRequests {
@@ -101,6 +103,7 @@ final class GrpcGetDataStreamRequests {
     private final CountDownLatch sent = new CountDownLatch(1);
     private long byteSize = 0;
     private boolean finalized = false;
+    private volatile boolean failed = false;
 
     CountDownLatch getLatch() {
       return sent;
@@ -108,6 +111,23 @@ final class GrpcGetDataStreamRequests {
 
     List<QueuedRequest> requests() {
       return requests;
+    }
+
+    /**
+     * Put all global data requests first because there is only a single repeated field for request
+     * ids and the initial ids correspond to global data requests if they are present.
+     */
+    List<QueuedRequest> sortedRequests() {
+      requests.sort(QueuedRequest.globalRequestsFirst());
+      return requests;
+    }
+
+    void validateRequests(Consumer<QueuedRequest> requestValidator) {
+      requests.forEach(requestValidator);
+    }
+
+    int requestCount() {
+      return requests.size();
     }
 
     long byteSize() {
@@ -127,12 +147,66 @@ final class GrpcGetDataStreamRequests {
       byteSize += request.byteSize();
     }
 
-    void countDown() {
+    /** Let waiting for threads know that the request has been successfully sent. */
+    synchronized void notifySent() {
       sent.countDown();
     }
 
-    boolean await(long seconds) throws InterruptedException {
-      return sent.await(seconds, TimeUnit.SECONDS);
+    /** Let waiting for threads know that a failure occurred. */
+    synchronized void notifyFailed() {
+      sent.countDown();
+      failed = true;
+    }
+
+    /**
+     * Block until notified of a successful send via {@link #notifySent()} or a non-retryable
+     * failure via {@link #notifyFailed()}. On failure, throw an exception to on calling threads.
+     */
+    void waitForSendOrFailNotification() throws InterruptedException {
+      sent.await();
+      if (failed) {
+        fail();
+      }
+    }
+
+    void fail() {
+      throw new WindmillStreamClosedException(
+          "Requests failed for batch containing "
+              + createStreamCancelledErrorMessage()
+              + " requests. This is most likely due to the stream being explicitly closed"
+              + " which happens when the work is marked as invalid on the streaming"
+              + " backend when key ranges shuffle around. This is transient and corresponding"
+              + " work will eventually be retried");
+    }
+
+    String createStreamCancelledErrorMessage() {
+      return requests.stream()
+          .map(
+              request -> {
+                switch (request.getDataRequest().getKind()) {
+                  case GLOBAL:
+                    return "GetSideInput=" + request.getDataRequest().global();
+                  case COMPUTATION:
+                    return request.getDataRequest().computation().getRequestsList().stream()
+                        .map(
+                            keyedRequest ->
+                                "KeyedGetState=["
+                                    + "key="
+                                    + keyedRequest.getKey()
+                                    + "shardingKey="
+                                    + keyedRequest.getShardingKey()
+                                    + "cacheToken="
+                                    + keyedRequest.getCacheToken()
+                                    + "workToken"
+                                    + keyedRequest.getWorkToken()
+                                    + "]")
+                        .collect(Collectors.joining());
+                  default:
+                    // Will never happen switch is exhaustive.
+                    throw new IllegalStateException();
+                }
+              })
+          .collect(Collectors.joining(","));
     }
   }
 
