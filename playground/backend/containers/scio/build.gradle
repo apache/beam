@@ -69,7 +69,10 @@ docker {
    files "./build/"
    tags containerImageTags()
    buildArgs(
-         ['BASE_IMAGE'   : project.rootProject.hasProperty(["base-image"]) ?
+         [  'GO_BASE_IMAGE': project.rootProject.hasProperty(["go-base-image"]) ?
+               project.rootProject["go-base-image"] :
+               "golang:1.21-bullseye",
+            'BASE_IMAGE'   : project.rootProject.hasProperty(["base-image"]) ?
                project.rootProject["base-image"] :
                "openjdk:11",
           'GIT_COMMIT'   : getGitCommitHash(),

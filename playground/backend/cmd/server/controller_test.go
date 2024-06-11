@@ -15,7 +15,6 @@
 package main
 
 import (
-	"beam.apache.org/playground/backend/internal/db/schema"
 	"context"
 	"fmt"
 	"io/fs"
@@ -27,6 +26,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"beam.apache.org/playground/backend/internal/db/schema"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -1486,7 +1487,7 @@ func TestPlaygroundController_GetDefaultPrecompiledObject(t *testing.T) {
 }
 
 func getPlaygroundServiceClient(ctx context.Context, t *testing.T) (pb.PlaygroundServiceClient, func()) {
-	conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(bufDialer), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.NewClient("bufnet", grpc.WithContextDialer(bufDialer), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		t.Fatalf("Failed to dial bufnet: %v", err)
 	}
