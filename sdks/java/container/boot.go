@@ -263,9 +263,8 @@ func heapSizeLimit(info *fnpb.ProvisionInfo, setRecommendedMaxXmx bool) uint64 {
 		var limLarge uint64 = size - (32 << 30)
 		if lim > limLarge {
 			return lim
-		} else {
-			return limLarge
 		}
+		return limLarge
 	}
 	return 1 << 30
 }
