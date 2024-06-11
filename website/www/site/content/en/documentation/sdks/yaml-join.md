@@ -125,8 +125,8 @@ outer join since input2 is on the left side.
     input2: Second Input
     input3: Third Input
   config:
-    type: 
-      outer: 
+    type:
+      outer:
         - input2
     equalities:
       - input1: col1
