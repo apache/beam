@@ -792,6 +792,20 @@ class DoFnTest(unittest.TestCase):
           ]),
           label='CheckGrouped')
 
+  def test_context_params(self):
+    def test_map(
+        x,
+        context_a=DoFn.BundleContextParam(_TestContext, args=('a')),
+        context_b=DoFn.BundleContextParam(_TestContext, args=('b')),
+        context_c=DoFn.SetupContextParam(_TestContext, args=('c'))):
+      return (x, context_a, context_b, context_c)
+
+    self.assertEqual(_TestContext.live_contexts, 0)
+    with TestPipeline() as p:
+      pcoll = p | Create([1, 2]) | beam.Map(test_map)
+      assert_that(pcoll, equal_to([(1, 'a', 'b', 'c'), (2, 'a', 'b', 'c')]))
+    self.assertEqual(_TestContext.live_contexts, 0)
+
   def test_incomparable_default(self):
     class IncomparableType(object):
       def __eq__(self, other):
@@ -811,6 +825,21 @@ class DoFnTest(unittest.TestCase):
           | beam.Create([None])
           | Map(lambda e, x=IncomparableType(): (e, type(x).__name__)))
       assert_that(pcoll, equal_to([(None, 'IncomparableType')]))
+
+
+class _TestContext:
+
+  live_contexts = 0
+
+  def __init__(self, value):
+    self._value = value
+
+  def __enter__(self):
+    _TestContext.live_contexts += 1
+    return self._value
+
+  def __exit__(self, *args):
+    _TestContext.live_contexts -= 1
 
 
 class Bacon(PipelineOptions):
