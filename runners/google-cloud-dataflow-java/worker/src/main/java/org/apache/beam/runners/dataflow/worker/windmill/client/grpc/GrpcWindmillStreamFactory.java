@@ -254,20 +254,22 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
      */
     default GrpcWindmillStreamFactory buildWithHealthChecksEvery(int healthCheckIntervalMillis) {
       GrpcWindmillStreamFactory streamFactory = build();
-      new Timer("WindmillHealthCheckTimer")
-          .schedule(
-              new TimerTask() {
-                @Override
-                public void run() {
-                  Instant reportThreshold =
-                      Instant.now().minus(Duration.millis(healthCheckIntervalMillis));
-                  for (AbstractWindmillStream<?, ?> stream : streamFactory.streamRegistry) {
-                    stream.maybeSendHealthCheck(reportThreshold);
+      if (healthCheckIntervalMillis >= 0) {
+        new Timer("WindmillHealthCheckTimer")
+            .schedule(
+                new TimerTask() {
+                  @Override
+                  public void run() {
+                    Instant reportThreshold =
+                        Instant.now().minus(Duration.millis(healthCheckIntervalMillis));
+                    for (AbstractWindmillStream<?, ?> stream : streamFactory.streamRegistry) {
+                      stream.maybeSendHealthCheck(reportThreshold);
+                    }
                   }
-                }
-              },
-              0,
-              healthCheckIntervalMillis);
+                },
+                0,
+                healthCheckIntervalMillis);
+      }
 
       return streamFactory;
     }
