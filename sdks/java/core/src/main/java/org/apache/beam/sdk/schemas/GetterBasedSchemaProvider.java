@@ -27,6 +27,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.LogicalType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
@@ -74,7 +76,9 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
       // schema, return a caching factory that caches the first value seen for each class. This
       // prevents having to lookup the getter list each time createGetters is called.
       this.getterFactory =
-          RowValueGettersFactory.of(GetterBasedSchemaProvider.this::fieldValueGetters);
+          RowValueGettersFactory.of(
+              GetterBasedSchemaProvider.this::fieldValueGetters,
+              GetterBasedSchemaProvider.this::fieldValueTypeInformations);
     }
 
     @Override
@@ -136,24 +140,35 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
   private static class RowValueGettersFactory implements Factory<List<FieldValueGetter>> {
     private final Factory<List<FieldValueGetter>> gettersFactory;
     private final Factory<List<FieldValueGetter>> cachingGettersFactory;
+    private final Factory<List<FieldValueTypeInformation>> typeInfoFactory;
 
-    static Factory<List<FieldValueGetter>> of(Factory<List<FieldValueGetter>> gettersFactory) {
-      return new RowValueGettersFactory(gettersFactory).cachingGettersFactory;
+    static Factory<List<FieldValueGetter>> of(
+        Factory<List<FieldValueGetter>> gettersFactory,
+        Factory<List<FieldValueTypeInformation>> typeInfoFactory) {
+      return new RowValueGettersFactory(gettersFactory, typeInfoFactory).cachingGettersFactory;
     }
 
-    RowValueGettersFactory(Factory<List<FieldValueGetter>> gettersFactory) {
+    RowValueGettersFactory(
+        Factory<List<FieldValueGetter>> gettersFactory,
+        Factory<List<FieldValueTypeInformation>> typeInfoFactory) {
       this.gettersFactory = gettersFactory;
       this.cachingGettersFactory = new CachingFactory<>(this);
+      this.typeInfoFactory = typeInfoFactory;
     }
 
     @Override
     public List<FieldValueGetter> create(TypeDescriptor<?> typeDescriptor, Schema schema) {
       List<FieldValueGetter> getters = gettersFactory.create(typeDescriptor, schema);
+      Map<String, FieldValueTypeInformation> typeInfoByName =
+          typeInfoFactory.create(typeDescriptor, schema).stream()
+              .collect(Collectors.toMap(FieldValueTypeInformation::getName, Function.identity()));
       List<FieldValueGetter> rowGetters = new ArrayList<>(getters.size());
       for (int i = 0; i < getters.size(); i++) {
-        TypeDescriptor resolvedGetterType = FieldValueGetter.resolveGetterType(getters.get(i));
         rowGetters.add(
-            rowValueGetter(getters.get(i), schema.getField(i).getType(), resolvedGetterType));
+            rowValueGetter(
+                getters.get(i),
+                schema.getField(i).getType(),
+                typeInfoByName.get(getters.get(i).name()).getType()));
       }
       return rowGetters;
     }
