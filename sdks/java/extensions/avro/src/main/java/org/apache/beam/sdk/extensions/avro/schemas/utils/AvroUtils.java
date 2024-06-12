@@ -808,20 +808,20 @@ public class AvroUtils {
   private static final class AvroSpecificRecordFieldValueTypeSupplier
       implements FieldValueTypeSupplier {
     @Override
-    public List<FieldValueTypeInformation> get(Class<?> clazz) {
+    public List<FieldValueTypeInformation> get(TypeDescriptor<?> typeDescriptor) {
       throw new RuntimeException("Unexpected call.");
     }
 
     @Override
-    public List<FieldValueTypeInformation> get(Class<?> clazz, Schema schema) {
+    public List<FieldValueTypeInformation> get(TypeDescriptor<?> typeDescriptor, Schema schema) {
       Map<String, String> mapping = getMapping(schema);
-      List<Method> methods = ReflectUtils.getMethods(clazz);
+      List<Method> methods = ReflectUtils.getMethods(typeDescriptor.getRawType());
       List<FieldValueTypeInformation> types = Lists.newArrayList();
       for (int i = 0; i < methods.size(); ++i) {
         Method method = methods.get(i);
         if (ReflectUtils.isGetter(method)) {
           FieldValueTypeInformation fieldValueTypeInformation =
-              FieldValueTypeInformation.forGetter(method, i);
+              FieldValueTypeInformation.forGetter(typeDescriptor, method, i);
           String name = mapping.get(fieldValueTypeInformation.getName());
           if (name != null) {
             types.add(fieldValueTypeInformation.withName(name));
@@ -864,13 +864,15 @@ public class AvroUtils {
 
   private static final class AvroPojoFieldValueTypeSupplier implements FieldValueTypeSupplier {
     @Override
-    public List<FieldValueTypeInformation> get(Class<?> clazz) {
-      List<java.lang.reflect.Field> classFields = ReflectUtils.getFields(clazz);
+    public List<FieldValueTypeInformation> get(TypeDescriptor<?> typeDescriptor) {
+      List<java.lang.reflect.Field> classFields =
+          ReflectUtils.getFields(typeDescriptor.getRawType());
       Map<String, FieldValueTypeInformation> types = Maps.newHashMap();
       for (int i = 0; i < classFields.size(); ++i) {
         java.lang.reflect.Field f = classFields.get(i);
         if (!f.isAnnotationPresent(AvroIgnore.class)) {
-          FieldValueTypeInformation typeInformation = FieldValueTypeInformation.forField(f, i);
+          FieldValueTypeInformation typeInformation =
+              FieldValueTypeInformation.forField(typeDescriptor, f, i);
           AvroName avroname = f.getAnnotation(AvroName.class);
           if (avroname != null) {
             typeInformation = typeInformation.withName(avroname.value());
@@ -883,12 +885,13 @@ public class AvroUtils {
   }
 
   /** Get field types for an AVRO-generated SpecificRecord or a POJO. */
-  public static <T> List<FieldValueTypeInformation> getFieldTypes(Class<T> clazz, Schema schema) {
-    if (TypeDescriptor.of(clazz).isSubtypeOf(TypeDescriptor.of(SpecificRecord.class))) {
+  public static <T> List<FieldValueTypeInformation> getFieldTypes(
+      TypeDescriptor<T> typeDescriptor, Schema schema) {
+    if (typeDescriptor.isSubtypeOf(TypeDescriptor.of(SpecificRecord.class))) {
       return JavaBeanUtils.getFieldTypes(
-          clazz, schema, new AvroSpecificRecordFieldValueTypeSupplier());
+          typeDescriptor, schema, new AvroSpecificRecordFieldValueTypeSupplier());
     } else {
-      return POJOUtils.getFieldTypes(clazz, schema, new AvroPojoFieldValueTypeSupplier());
+      return POJOUtils.getFieldTypes(typeDescriptor, schema, new AvroPojoFieldValueTypeSupplier());
     }
   }
 
@@ -907,12 +910,17 @@ public class AvroUtils {
   }
 
   /** Get an object creator for an AVRO-generated SpecificRecord. */
-  public static <T> SchemaUserTypeCreator getCreator(Class<T> clazz, Schema schema) {
-    if (TypeDescriptor.of(clazz).isSubtypeOf(TypeDescriptor.of(SpecificRecord.class))) {
-      return AvroByteBuddyUtils.getCreator((Class<? extends SpecificRecord>) clazz, schema);
+  public static <T> SchemaUserTypeCreator getCreator(
+      TypeDescriptor<T> typeDescriptor, Schema schema) {
+    if (typeDescriptor.isSubtypeOf(TypeDescriptor.of(SpecificRecord.class))) {
+      return AvroByteBuddyUtils.getCreator(
+          (Class<? extends SpecificRecord>) typeDescriptor.getRawType(), schema);
     } else {
       return POJOUtils.getSetFieldCreator(
-          clazz, schema, new AvroPojoFieldValueTypeSupplier(), new AvroTypeConversionFactory());
+          typeDescriptor,
+          schema,
+          new AvroPojoFieldValueTypeSupplier(),
+          new AvroTypeConversionFactory());
     }
   }
 
