@@ -72,9 +72,17 @@ import org.joda.time.Instant;
  */
 public class OrderedListUserState<T> {
   private final BeamFnStateClient beamFnStateClient;
-  private final StateRequest request;
+  private final StateRequest requestTemplate;
   private final TimestampedValueCoder<T> timestampedValueCoder;
   // Pending updates to persistent storage
+  // (a) The elements in pendingAdds are the ones that should be added to the persistent storage
+  //     during the next async_close(). It doesn't include the ones that are removed by
+  //     clear_range() or clear() after the last add.
+  // (b) The elements in pendingRemoves are the sort keys that should be removed from the persistent
+  //     storage.
+  // (c) When syncing local copy with persistent storage, pendingRemoves are performed first and
+  //     then pendingAdds. Switching this order may result in wrong results, because a value added
+  //     later could be removed from an earlier clear.
   private NavigableMap<Instant, Collection<T>> pendingAdds = Maps.newTreeMap();
   private TreeRangeSet<Instant> pendingRemoves = TreeRangeSet.create();
 
@@ -108,10 +116,11 @@ public class OrderedListUserState<T> {
     }
 
     @Override
-    public void encode(TimestampedValue<T> windowedElem, OutputStream outStream)
+    public void encode(TimestampedValue<T> timestampedValue, OutputStream outStream)
         throws IOException {
       internalKvCoder.encode(
-          KV.of(windowedElem.getTimestamp().getMillis(), windowedElem.getValue()), outStream);
+          KV.of(timestampedValue.getTimestamp().getMillis(), timestampedValue.getValue()),
+          outStream);
     }
 
     @Override
@@ -159,7 +168,7 @@ public class OrderedListUserState<T> {
         stateKey);
     this.beamFnStateClient = beamFnStateClient;
     this.timestampedValueCoder = TimestampedValueCoder.of(valueCoder);
-    this.request =
+    this.requestTemplate =
         StateRequest.newBuilder().setInstructionId(instructionId).setStateKey(stateKey).build();
   }
 
@@ -167,7 +176,7 @@ public class OrderedListUserState<T> {
     checkState(
         !isClosed,
         "OrderedList user state is no longer usable because it is closed for %s",
-        request.getStateKey());
+        requestTemplate.getStateKey());
     Instant timestamp = value.getTimestamp();
     pendingAdds.putIfAbsent(timestamp, new ArrayList<>());
     pendingAdds.get(timestamp).add(value.getValue());
@@ -177,7 +186,7 @@ public class OrderedListUserState<T> {
     checkState(
         !isClosed,
         "OrderedList user state is no longer usable because it is closed for %s",
-        request.getStateKey());
+        requestTemplate.getStateKey());
 
     // Store pendingAdds whose sort key is in the query range and values are truncated by the
     // current size. The values (collections) of pendingAdds are kept, so that they will still be
@@ -195,7 +204,7 @@ public class OrderedListUserState<T> {
     Iterable<TimestampedValue<T>> valuesInRange = Iterables.concat(pendingAddsInRange);
 
     if (!isCleared) {
-      StateRequest.Builder getRequestBuilder = this.request.toBuilder();
+      StateRequest.Builder getRequestBuilder = this.requestTemplate.toBuilder();
       getRequestBuilder
           .getStateKeyBuilder()
           .getOrderedListUserStateBuilder()
@@ -231,7 +240,7 @@ public class OrderedListUserState<T> {
     checkState(
         !isClosed,
         "OrderedList user state is no longer usable because it is closed for %s",
-        request.getStateKey());
+        requestTemplate.getStateKey());
 
     return readRange(Instant.ofEpochMilli(Long.MIN_VALUE), Instant.ofEpochMilli(Long.MAX_VALUE));
   }
@@ -240,7 +249,7 @@ public class OrderedListUserState<T> {
     checkState(
         !isClosed,
         "OrderedList user state is no longer usable because it is closed for %s",
-        request.getStateKey());
+        requestTemplate.getStateKey());
 
     // Remove items (in a collection) in the specific range from pendingAdds.
     // The old values of the removed sub map are kept, so that they will still be accessible in
@@ -256,7 +265,7 @@ public class OrderedListUserState<T> {
     checkState(
         !isClosed,
         "OrderedList user state is no longer usable because it is closed for %s",
-        request.getStateKey());
+        requestTemplate.getStateKey());
     isCleared = true;
     // Create a new object for pendingRemoves and clear the mappings in pendingAdds.
     // The entire tree range set of pendingRemoves and the old values in the pendingAdds are kept,
@@ -277,7 +286,7 @@ public class OrderedListUserState<T> {
 
     if (!pendingRemoves.isEmpty()) {
       for (Range<Instant> r : pendingRemoves.asRanges()) {
-        StateRequest.Builder stateRequest = this.request.toBuilder();
+        StateRequest.Builder stateRequest = this.requestTemplate.toBuilder();
         stateRequest.setClear(StateClearRequest.newBuilder().build());
         stateRequest
             .getStateKeyBuilder()
@@ -307,7 +316,7 @@ public class OrderedListUserState<T> {
           }
         }
       }
-      StateRequest.Builder stateRequest = this.request.toBuilder();
+      StateRequest.Builder stateRequest = this.requestTemplate.toBuilder();
       stateRequest.getAppendBuilder().setData(outStream.toByteString());
 
       CompletableFuture<StateResponse> response = beamFnStateClient.handle(stateRequest);
