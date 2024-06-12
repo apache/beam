@@ -59,7 +59,7 @@ buildCache {
       password = System.getenv("GRADLE_ENTERPRISE_CACHE_PASSWORD")
     }
     isEnabled = !System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME").isNullOrBlank()
-    isPush = isCi
+    isPush = isCi && !System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME").isNullOrBlank()
   }
 }
 
