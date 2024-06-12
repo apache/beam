@@ -70,6 +70,8 @@ dependencies {
     testImplementation library.java.mockito_core
     testImplementation library.java.testcontainers_postgresql
     testImplementation project(path: ":sdks:java:extensions:avro", configuration: "testRuntimeMigration")
+    testImplementation project(path: ":sdks:java:io:hadoop-common", configuration: "testRuntimeMigration")
+    testImplementation project(path: ":sdks:java:io:hadoop-format", configuration: "testRuntimeMigration")
     testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
     testImplementation project(path: ":runners:direct-java", configuration: "shadow")
     testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
