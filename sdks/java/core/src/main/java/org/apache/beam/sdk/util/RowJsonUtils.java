@@ -46,7 +46,9 @@ public class RowJsonUtils {
    * If needed, call this method during pipeline run time, e.g. in DoFn.setup.
    */
   public static void increaseDefaultStreamReadConstraints(int newLimit) {
-    if (newLimit <= defaultBufferLimit) return;
+    if (newLimit <= defaultBufferLimit) {
+      return;
+    }
     try {
       Class<?> unused = Class.forName("com.fasterxml.jackson.core.StreamReadConstraints");
 
