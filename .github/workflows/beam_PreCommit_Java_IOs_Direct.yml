@@ -22,6 +22,7 @@ on:
     paths:
       - "sdks/java/io/common/**"
       - "sdks/java/core/src/main/**"
+      - "buildSrc/**"
       - ".github/workflows/beam_PreCommit_Java_IOs_Direct.yml"
   pull_request_target:
     branches: ['master', 'release-*']

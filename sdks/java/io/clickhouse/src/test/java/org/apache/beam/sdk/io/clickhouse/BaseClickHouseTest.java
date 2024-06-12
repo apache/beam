@@ -48,7 +48,7 @@ public class BaseClickHouseTest {
     network = Network.newNetwork();
 
     zookeeper =
-        new GenericContainer<>("zookeeper:3.4.13")
+        new GenericContainer<>("zookeeper:3.9")
             .withStartupAttempts(10)
             .withExposedPorts(2181)
             .withNetwork(network)
@@ -58,7 +58,7 @@ public class BaseClickHouseTest {
     zookeeper.start();
 
     clickHouse =
-        new ClickHouseContainer("clickhouse/clickhouse-server:22.9")
+        new ClickHouseContainer("clickhouse/clickhouse-server:24.4")
             .withStartupAttempts(10)
             .withNetwork(network)
             .withClasspathResourceMapping(
@@ -84,10 +84,9 @@ public class BaseClickHouseTest {
   }
 
   ResultSet executeQuery(String sql) throws SQLException {
-    try (Connection connection = clickHouse.createConnection("");
-        Statement statement = connection.createStatement()) {
-      return statement.executeQuery(sql);
-    }
+    Connection connection = clickHouse.createConnection("");
+    Statement statement = connection.createStatement();
+    return statement.executeQuery(sql);
   }
 
   long executeQueryAsLong(String sql) throws SQLException {
