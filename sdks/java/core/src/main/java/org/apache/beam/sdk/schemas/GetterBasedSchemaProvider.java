@@ -19,7 +19,9 @@ package org.apache.beam.sdk.schemas;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
+import java.lang.reflect.TypeVariable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -149,11 +151,9 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
       List<FieldValueGetter> getters = gettersFactory.create(typeDescriptor, schema);
       List<FieldValueGetter> rowGetters = new ArrayList<>(getters.size());
       for (int i = 0; i < getters.size(); i++) {
+        TypeDescriptor resolvedGetterType = FieldValueGetter.resolveGetterType(getters.get(i));
         rowGetters.add(
-            rowValueGetter(
-                getters.get(i),
-                schema.getField(i).getType(),
-                FieldValueGetter.resolveGetterType(getters.get(i))));
+            rowValueGetter(getters.get(i), schema.getField(i).getType(), resolvedGetterType));
       }
       return rowGetters;
     }
@@ -170,7 +170,15 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
     }
 
     FieldValueGetter rowValueGetter(
-        FieldValueGetter base, FieldType type, TypeDescriptor resolvedGetterType) {
+        FieldValueGetter base, FieldType type, @Nullable TypeDescriptor resolvedGetterType) {
+      if (resolvedGetterType != null && resolvedGetterType.getType() instanceof TypeVariable) {
+        // TypeVariable carries no useful information for us at this point - we may see it here if
+        // the original root getter implementation is itself generic instead of being an instance of
+        // a class with known type arguments. In that case we'll try falling back to use type
+        // information present in the raw class of the object we're accessing, which will work as
+        // long as that class doesn't undergo the type erasure itself
+        resolvedGetterType = null;
+      }
       TypeName typeName = type.getTypeName();
 
       if (!needsConversion(type)) {
@@ -181,22 +189,32 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
       } else if (typeName.equals(TypeName.ARRAY)) {
         FieldType elementType = type.getCollectionElementType();
         TypeDescriptor elementTypeDescriptor =
-            resolvedGetterType.resolveType(Collection.class.getTypeParameters()[0]);
+            Optional.ofNullable(resolvedGetterType)
+                .map(getterType -> getterType.resolveType(Collection.class.getTypeParameters()[0]))
+                .orElse(null);
         return elementType.getTypeName().equals(TypeName.ROW)
             ? new GetEagerCollection(base, converter(elementType, elementTypeDescriptor))
             : new GetCollection(base, converter(elementType, elementTypeDescriptor));
       } else if (typeName.equals(TypeName.ITERABLE)) {
         TypeDescriptor elementTypeDescriptor =
-            resolvedGetterType.resolveType(Iterable.class.getTypeParameters()[0]);
+            Optional.ofNullable(resolvedGetterType)
+                .map(getterType -> getterType.resolveType(Iterable.class.getTypeParameters()[0]))
+                .orElse(null);
         return new GetIterable(
             base, converter(type.getCollectionElementType(), elementTypeDescriptor));
       } else if (typeName.equals(TypeName.MAP)) {
-        TypeDescriptor keyType = resolvedGetterType.resolveType(Map.class.getTypeParameters()[0]);
-        TypeDescriptor valueType = resolvedGetterType.resolveType(Map.class.getTypeParameters()[1]);
+        TypeDescriptor[] resolvedKeyValueTypes =
+            Optional.ofNullable(resolvedGetterType)
+                .map(
+                    getterType ->
+                        Arrays.stream(Map.class.getTypeParameters())
+                            .map(typeVar -> getterType.resolveType(typeVar))
+                            .toArray(TypeDescriptor[]::new))
+                .orElse(new TypeDescriptor[] {null, null});
         return new GetMap(
             base,
-            converter(type.getMapKeyType(), keyType),
-            converter(type.getMapValueType(), valueType));
+            converter(type.getMapKeyType(), resolvedKeyValueTypes[0]),
+            converter(type.getMapValueType(), resolvedKeyValueTypes[1]));
       } else if (type.isLogicalType(OneOfType.IDENTIFIER)) {
         OneOfType oneOfType = type.getLogicalType(OneOfType.class);
         Schema oneOfSchema = oneOfType.getOneOfSchema();
@@ -216,18 +234,18 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
       return base;
     }
 
-    FieldValueGetter converter(FieldType type, TypeDescriptor getterType) {
+    FieldValueGetter converter(FieldType type, @Nullable TypeDescriptor getterType) {
       return rowValueGetter(IDENTITY, type, getterType);
     }
 
     static class GetRow extends Converter<Object> {
       final Schema schema;
       final Factory<List<FieldValueGetter>> factory;
-      final TypeDescriptor valueType;
+      @Nullable final TypeDescriptor valueType;
 
       GetRow(
           FieldValueGetter getter,
-          TypeDescriptor valueType,
+          @Nullable TypeDescriptor valueType,
           Schema schema,
           Factory<List<FieldValueGetter>> factory) {
         super(getter);

@@ -75,9 +75,10 @@ public class AwsSchemaProvider extends GetterBasedSchemaProvider {
 
   @SuppressWarnings("rawtypes")
   @Override
-  public List<FieldValueGetter> fieldValueGetters(Class<?> clazz, Schema schema) {
+  public List<FieldValueGetter> fieldValueGetters(TypeDescriptor<?> typeDescriptor, Schema schema) {
     ConverterFactory fromAws = ConverterFactory.fromAws();
-    Map<String, SdkField<?>> sdkFields = sdkFieldsByName((Class<? extends SdkPojo>) clazz);
+    Map<String, SdkField<?>> sdkFields =
+        sdkFieldsByName((Class<? extends SdkPojo>) typeDescriptor.getRawType());
     List<FieldValueGetter> getters = new ArrayList<>(schema.getFieldCount());
     for (String field : schema.getFieldNames()) {
       SdkField<?> sdkField = checkStateNotNull(sdkFields.get(field), "Unknown field");
@@ -91,7 +92,7 @@ public class AwsSchemaProvider extends GetterBasedSchemaProvider {
   @Override
   public <T> SerializableFunction<Row, T> fromRowFunction(TypeDescriptor<T> type) {
     checkState(SdkPojo.class.isAssignableFrom(type.getRawType()), "Unsupported type %s", type);
-    return FromRowFactory.create(type.getRawType());
+    return FromRowFactory.create(type);
   }
 
   private static class FromRowWithBuilder<T extends SdkPojo>
@@ -114,7 +115,7 @@ public class AwsSchemaProvider extends GetterBasedSchemaProvider {
         }
       }
       SdkBuilder<?, T> builder = sdkBuilder(cls);
-      List<SdkBuilderSetter> setters = factory.create(cls, row.getSchema());
+      List<SdkBuilderSetter> setters = factory.create(TypeDescriptor.of(cls), row.getSchema());
       for (SdkBuilderSetter set : setters) {
         if (!row.getSchema().hasField(set.name())) {
           continue;
@@ -150,14 +151,19 @@ public class AwsSchemaProvider extends GetterBasedSchemaProvider {
         new CachingFactory<>(new SettersFactory());
 
     @SuppressWarnings("nullness") // schema nullable for this factory
-    static <T> SerializableFunction<Row, T> create(Class<? super T> clazz) {
-      checkState(SdkPojo.class.isAssignableFrom(clazz), "Unsupported clazz %s", clazz);
-      return (SerializableFunction<Row, T>) new FromRowFactory().cachingFactory.create(clazz, null);
+    static <T> SerializableFunction<Row, T> create(TypeDescriptor<? super T> typeDescriptor) {
+      checkState(
+          SdkPojo.class.isAssignableFrom(typeDescriptor.getRawType()),
+          "Unsupported type descriptor %s",
+          typeDescriptor);
+      return (SerializableFunction<Row, T>)
+          new FromRowFactory().cachingFactory.create(typeDescriptor, null);
     }
 
     @Override
-    public SerializableFunction<Row, ?> create(Class<?> clazz, Schema ignored) {
-      return new FromRowWithBuilder<>((Class<? extends SdkPojo>) clazz, settersFactory);
+    public SerializableFunction<Row, ?> create(TypeDescriptor<?> typeDescriptor, Schema ignored) {
+      return new FromRowWithBuilder<>(
+          (Class<? extends SdkPojo>) typeDescriptor.getRawType(), settersFactory);
     }
 
     private class SettersFactory implements Factory<List<SdkBuilderSetter>> {
@@ -168,8 +174,9 @@ public class AwsSchemaProvider extends GetterBasedSchemaProvider {
       }
 
       @Override
-      public List<SdkBuilderSetter> create(Class<?> clazz, Schema schema) {
-        Map<String, SdkField<?>> fields = sdkFieldsByName((Class<? extends SdkPojo>) clazz);
+      public List<SdkBuilderSetter> create(TypeDescriptor<?> typeDescriptor, Schema schema) {
+        Map<String, SdkField<?>> fields =
+            sdkFieldsByName((Class<? extends SdkPojo>) typeDescriptor.getRawType());
         checkForUnknownFields(schema, fields);
 
         List<SdkBuilderSetter> setters = new ArrayList<>(schema.getFieldCount());
@@ -192,12 +199,13 @@ public class AwsSchemaProvider extends GetterBasedSchemaProvider {
   }
 
   @Override
-  public List<FieldValueTypeInformation> fieldValueTypeInformations(Class<?> cls, Schema schema) {
+  public List<FieldValueTypeInformation> fieldValueTypeInformations(
+      TypeDescriptor<?> typeDescriptor, Schema schema) {
     throw new UnsupportedOperationException("FieldValueTypeInformation not available");
   }
 
   @Override
-  public SchemaUserTypeCreator schemaTypeCreator(Class<?> cls, Schema schema) {
+  public SchemaUserTypeCreator schemaTypeCreator(TypeDescriptor<?> typeDescriptor, Schema schema) {
     throw new UnsupportedOperationException("SchemaUserTypeCreator not available");
   }
 
