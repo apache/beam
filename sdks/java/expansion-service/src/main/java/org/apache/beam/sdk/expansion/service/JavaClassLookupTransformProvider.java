@@ -53,6 +53,7 @@ import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
+import org.apache.beam.sdk.schemas.utils.YamlUtils;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
@@ -62,7 +63,6 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.InvalidProtocolBufferException;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.yaml.snakeyaml.Yaml;
 
 /**
  * A transform provider that can be used to directly instantiate a transform using Java class name
@@ -490,8 +490,7 @@ class JavaClassLookupTransformProvider<InputT extends PInput, OutputT extends PO
     }
 
     static AllowList parseFromYamlStream(InputStream inputStream) {
-      Yaml yaml = new Yaml();
-      Map<Object, Object> config = yaml.load(inputStream);
+      Map<String, Object> config = YamlUtils.inputStreamToMap(inputStream);
 
       if (config == null) {
         throw new IllegalArgumentException(

@@ -123,11 +123,11 @@ public class YamlUtilsTest {
 
   @Test
   public void testInvalidTopLevelArray() {
-    String invalidYaml = "- top_level_list" + "- another_list";
+    String invalidYaml = "- top_level_list\n" + "- another_list";
     Schema schema = Schema.builder().build();
 
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Expected a YAML mapping");
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage("Array value");
     YamlUtils.toBeamRow(invalidYaml, schema);
   }
 

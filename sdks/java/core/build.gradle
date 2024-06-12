@@ -91,6 +91,7 @@ dependencies {
   shadow library.java.jackson_core
   shadow library.java.jackson_annotations
   shadow library.java.jackson_databind
+  shadow library.java.jackson_dataformat_yaml
   shadow library.java.slf4j_api
   shadow library.java.snappy_java
   shadow library.java.joda_time
@@ -98,7 +99,6 @@ dependencies {
   permitUnusedDeclared enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
   provided library.java.json_org
   implementation library.java.everit_json_schema
-  implementation library.java.snake_yaml
   shadowTest library.java.everit_json_schema
   provided library.java.junit
   testImplementation "com.github.stefanbirkner:system-rules:1.19.0"
@@ -107,7 +107,6 @@ dependencies {
   provided 'com.facebook.presto.hadoop:hadoop-apache2:3.2.0-1'
   provided library.java.zstd_jni
   permitUnusedDeclared 'com.facebook.presto.hadoop:hadoop-apache2:3.2.0-1'
-  shadowTest library.java.jackson_dataformat_yaml
   shadowTest library.java.guava_testlib
   shadowTest library.java.mockito_core
   shadowTest library.java.hamcrest

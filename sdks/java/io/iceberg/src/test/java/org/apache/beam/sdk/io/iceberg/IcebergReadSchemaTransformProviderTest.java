@@ -28,6 +28,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.managed.Managed;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.utils.YamlUtils;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
@@ -40,7 +41,6 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.yaml.snakeyaml.Yaml;
 
 public class IcebergReadSchemaTransformProviderTest {
 
@@ -163,7 +163,7 @@ public class IcebergReadSchemaTransformProviderTest {
                 + "  catalog_type: %s\n"
                 + "  warehouse_location: %s",
             identifier, CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP, warehouse.location);
-    Map<String, Object> configMap = new Yaml().load(yamlConfig);
+    Map<String, Object> configMap = YamlUtils.yamlStringToMap(yamlConfig);
 
     PCollection<Row> output =
         testPipeline

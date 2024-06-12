@@ -24,7 +24,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import org.yaml.snakeyaml.Yaml;
+import org.apache.beam.sdk.schemas.utils.YamlUtils;
 
 @SuppressWarnings("nullness")
 @AutoValue
@@ -47,8 +47,7 @@ public abstract class ExpansionServiceConfig {
   }
 
   static ExpansionServiceConfig parseFromYamlStream(InputStream inputStream) {
-    Yaml yaml = new Yaml();
-    Map<Object, Object> config = yaml.load(inputStream);
+    Map<String, Object> config = YamlUtils.inputStreamToMap(inputStream);
 
     if (config == null) {
       throw new IllegalArgumentException(
