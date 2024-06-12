@@ -70,7 +70,7 @@ public class TableRowJsonCoderTest {
 
   @Test
   public void testLargeRow() throws Exception {
-    String val = StringUtils.repeat("BEAM", 10 * 1024 * 1024);  // 40 MB
+    String val = StringUtils.repeat("BEAM", 10 * 1024 * 1024); // 40 MB
     TableRow testValue = new TableRowBuilder().set("a", val).set("b", "1").build();
     CoderProperties.coderDecodeEncodeEqual(TEST_CODER, testValue);
   }
