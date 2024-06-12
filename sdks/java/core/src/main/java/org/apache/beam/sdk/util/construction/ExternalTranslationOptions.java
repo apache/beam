@@ -25,9 +25,7 @@ import org.apache.beam.sdk.transforms.resourcehints.ResourceHintsOptions.EmptyLi
 
 public interface ExternalTranslationOptions extends PipelineOptions {
 
-  @Description(
-      "Set of URNs of transforms to be overriden using the transform service. The provided strings "
-          + "can be transform URNs of schema-transform IDs")
+  @Description("Set of URNs of transforms to be overriden using the transform service.")
   @Default.InstanceFactory(EmptyListDefault.class)
   List<String> getTransformsToOverride();
 

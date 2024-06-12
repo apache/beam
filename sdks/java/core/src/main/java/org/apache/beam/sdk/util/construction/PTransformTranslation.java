@@ -535,7 +535,7 @@ public class PTransformTranslation {
             if (underlyingIdentifier == null) {
               throw new IllegalStateException(
                   String.format(
-                      "Encountered a Managed Transform that has an empty \"transform_identifier\": %n%s",
+                      "Encountered a Managed Transform that has an empty \"transform_identifier\": \n%s",
                       configRow));
             }
             transformBuilder.putAnnotations(

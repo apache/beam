@@ -57,8 +57,8 @@ dependencies {
 
     testImplementation library.java.hadoop_client
     testImplementation library.java.bigdataoss_gcsio
-    testImplementation library.java.bigdataoss_gcs_connector
-    testImplementation library.java.bigdataoss_util_hadoop
+    testImplementation "com.google.cloud.bigdataoss:gcs-connector:hadoop2-2.2.16"
+    testImplementation "com.google.cloud.bigdataoss:util-hadoop:hadoop2-2.2.16"
     testImplementation "org.apache.iceberg:iceberg-gcp:$iceberg_version"
     testImplementation "org.apache.iceberg:iceberg-data:$iceberg_version"
     testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
