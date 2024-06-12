@@ -390,7 +390,7 @@ public class LyftFlinkStreamingPortableTranslations {
                   new LyftBase64ZlibJsonSchema(context.getPipelineOptions()),
                   properties);
           KinesisRecordTimestampExtractor watermarkAssigner = KinesisRecordTimestampExtractor
-              .occurredAt(maxOutOfOrdernessMillis, true)
+              .occurredAt(maxOutOfOrdernessMillis, true);
           source.setPeriodicWatermarkAssigner(watermarkAssigner);
           break;
         default:
