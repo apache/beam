@@ -569,10 +569,12 @@ The following should be confirmed:
 6. Build Prism binaries for various platforms, and upload them into [dist.apache.org](https://dist.apache.org/repos/dist/dev/beam)
    and the Github Release with the matching RC tag.
 
-### Verify source distributions
+### Verify source and artifact distributions
 
  - [ ] Verify that the source zip of the whole project is present in [dist.apache.org](https://dist.apache.org/repos/dist/dev/beam).
  - [ ] Verify that the Python binaries are present in [dist.apache.org](https://dist.apache.org/repos/dist/dev/beam).
+ - [ ] Verify that the Prism binaries are present in [dist.apache.org](https://dist.apache.org/repos/dist/dev/beam).
+ - [ ] Verify that the Prism binaries are attached to the Github Release created in the previous step.
 
 ### Verify docker images
 
