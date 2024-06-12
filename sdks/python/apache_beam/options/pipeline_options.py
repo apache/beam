@@ -1707,6 +1707,17 @@ class SparkRunnerOptions(PipelineOptions):
         help='Spark major version to use.')
 
 
+class PrismRunnerOptions(PipelineOptions):
+
+  @classmethod
+  def _add_argparse_args(cls, parser):
+    # TODO(lostluck): Add additional prism configuration options here as they're added to prism.
+    parser.add_argument(
+        '--prism_binary_location',
+        help='Path or URL to a prism binary, or zipped binary. '
+        ' Binary must be for the current platform.')
+
+
 class TestOptions(PipelineOptions):
   @classmethod
   def _add_argparse_args(cls, parser):
