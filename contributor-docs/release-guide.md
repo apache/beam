@@ -555,6 +555,7 @@ The following should be confirmed:
 ### Run build_release_candidate GitHub Action to create a release candidate
 
 **Action** [build_release_candidate](https://github.com/apache/beam/actions/workflows/build_release_candidate.yml) (click `run workflow`)
+and update the JSON configuration fields with "yes".
 
 **The action will:**
 
