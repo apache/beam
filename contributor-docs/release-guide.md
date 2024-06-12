@@ -528,6 +528,30 @@ The following should be confirmed:
 - [ ] There is a commit not on the release branch with the version adjusted.
 - [ ] The RC tag points to that commit.
 
+### Create a draft, pre-release Github release for the RC Tag
+
+TODO: Automate these steps as a github action.
+
+If this is for the first release candidate, create a new, draft, pre-release Github release.
+
+Go to https://github.com/apache/beam/releases/new to start creating a Github release.
+
+If this is for subsequent release candidates, re-use the existing Github release for this version.
+Do not create a new release.
+
+Update the Release tag to the current RC Tag. 
+Title the release "Beam ${RELEASE_VERSION} release".
+The description may remain empty for now, but will eventually contain the release blog post.
+
+Set this release as a pre-release, by checking the `Set as pre-release` box below the description box.
+
+Once configured properly, press the `Save draft` button.
+
+The following should be confirmed:
+
+- [ ] The Github release is configured as a draft, pre-release.
+- [ ] The Github release points to the current RC tag.
+
 ### Run build_release_candidate GitHub Action to create a release candidate
 
 **Action** [build_release_candidate](https://github.com/apache/beam/actions/workflows/build_release_candidate.yml) (click `run workflow`)
@@ -542,6 +566,8 @@ The following should be confirmed:
 5. Build javadoc, pydoc, typedocs for a PR to update beam-site.
     - **NOTE**: Do not merge this PR until after an RC has been approved (see
       "Finalize the Release").
+6. Build Prism binaries for various platforms, and upload them into [dist.apache.org](https://dist.apache.org/repos/dist/dev/beam)
+   and the Github Release with the matching RC tag.
 
 ### Verify source distributions
 
@@ -1189,9 +1215,12 @@ Merge all of the website pull requests
 
 ### Publish release to Github
 
-Once the tag is uploaded, publish the release notes to Github. From the [Beam release page on Github](https://github.com/apache/beam/releases) select
-"Draft a new release." Title the release "Beam ${RELEASE_VERSION} release" and set the release at the version tag created above. Use the content of the
-release blog post as the body of the release notes, set this version as the latest release, and publish it.
+Once the tag is uploaded, publish the release notes to Github. 
+From the [Beam release page on Github](https://github.com/apache/beam/releases)
+find and open the release for the final RC tag for for editing.
+Update the release with the final version tag created above.
+Use the content of the release blog post as the body of the release notes,
+set this version as the latest release, and publish it.
 
 The release notes should now be visible on Github's [Releases](https://github.com/apache/beam/releases) page.
 
