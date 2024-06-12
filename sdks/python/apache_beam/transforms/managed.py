@@ -1,5 +1,6 @@
 from typing import Any
 from typing import Dict
+from typing import Optional
 
 import yaml
 
@@ -9,8 +10,14 @@ from apache_beam.transforms.ptransform import PTransform
 
 ICEBERG = "iceberg"
 KAFKA = "kafka"
+BIGQUERY = "bigquery"
 _MANAGED_IDENTIFIER = "beam:transform:managed:v1"
-_GRADLE_TARGETS = {"sdks:java:io:expansion-service:shadowJar": [KAFKA, ICEBERG]}
+_GRADLE_TARGETS = {
+    "sdks:java:io:expansion-service:shadowJar": [KAFKA, ICEBERG],
+    "sdks:java:io:google-cloud-platform:expansion-service:shadowJar": [
+        BIGQUERY
+    ]
+}
 
 __all__ = ["ICEBERG", "KAFKA", "Read", "Write"]
 
@@ -22,8 +29,8 @@ class _ManagedTransform(PTransform):
   def __init__(
       self,
       underlying_identifier: str,
-      config: Dict[str, Any] = None,
-      config_url: str = None,
+      config: Optional[Dict[str, Any]] = None,
+      config_url: Optional[str] = None,
       expansion_service=None):
     super().__init__()
     self._underlying_identifier = underlying_identifier
@@ -50,9 +57,10 @@ class Read(_ManagedTransform):
   def __init__(
       self,
       source: str,
-      config: Dict[str, Any] = None,
-      config_url: str = None,
+      config: Optional[Dict[str, Any]] = None,
+      config_url: Optional[str] = None,
       expansion_service=None):
+    self._source = source
     identifier = self.READ_TRANSFORMS.get(source.lower())
     if not identifier:
       raise ValueError(
@@ -62,6 +70,9 @@ class Read(_ManagedTransform):
     expansion_service = _resolve_expansion_service(
         source, identifier, expansion_service)
     super().__init__(identifier, config, config_url, expansion_service)
+
+  def default_label(self) -> str:
+    return "Managed Read(%s)" % self._source.upper()
 
 
 class Write(_ManagedTransform):
@@ -73,9 +84,10 @@ class Write(_ManagedTransform):
   def __init__(
       self,
       sink: str,
-      config: Dict[str, Any] = None,
-      config_url: str = None,
+      config: Optional[Dict[str, Any]] = None,
+      config_url: Optional[str] = None,
       expansion_service=None):
+    self._sink = sink
     identifier = self.WRITE_TRANSFORMS.get(sink.lower())
     if not identifier:
       raise ValueError(
@@ -86,6 +98,9 @@ class Write(_ManagedTransform):
         sink, identifier, expansion_service)
     super().__init__(identifier, config, config_url, expansion_service)
 
+  def default_label(self) -> str:
+    return "Managed Write(%s)" % self._sink.upper()
+
 
 def _resolve_expansion_service(
     transform_name: str, identifier: str, expansion_service):
@@ -93,8 +108,8 @@ def _resolve_expansion_service(
     return expansion_service
 
   default_target = None
-  for gradle_target in _GRADLE_TARGETS:
-    if transform_name in gradle_target:
+  for gradle_target, transforms in _GRADLE_TARGETS.items():
+    if transform_name.lower() in transforms:
       default_target = gradle_target
       break
   if not default_target:
