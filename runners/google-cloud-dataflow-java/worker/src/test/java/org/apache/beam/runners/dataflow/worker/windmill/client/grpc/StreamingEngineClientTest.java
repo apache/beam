@@ -99,7 +99,8 @@ public class StreamingEngineClientTest {
   @Rule public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
   @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private final MutableHandlerRegistry serviceRegistry = new MutableHandlerRegistry();
-  private final GrpcWindmillStreams streamFactory = spy(GrpcWindmillStreams.of(JOB_HEADER).build());
+  private final GrpcWindmillStreamFactory streamFactory =
+      spy(GrpcWindmillStreamFactory.of(JOB_HEADER).build());
   private final ChannelCachingStubFactory stubFactory =
       new FakeWindmillStubFactory(
           () ->

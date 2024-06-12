@@ -77,7 +77,7 @@ public final class StreamingEngineClient {
   private static final String PUBLISH_NEW_WORKER_METADATA_THREAD = "PublishNewWorkerMetadataThread";
   private static final String CONSUME_NEW_WORKER_METADATA_THREAD = "ConsumeNewWorkerMetadataThread";
   private final JobHeader jobHeader;
-  private final GrpcWindmillStreams streamFactory;
+  private final GrpcWindmillStreamFactory streamFactory;
   private final WorkItemScheduler workItemScheduler;
   private final ChannelCachingStubFactory channelCachingStubFactory;
   private final GrpcDispatcherClient dispatcherClient;
@@ -101,7 +101,7 @@ public final class StreamingEngineClient {
   private StreamingEngineClient(
       JobHeader jobHeader,
       GetWorkBudget totalGetWorkBudget,
-      GrpcWindmillStreams streamFactory,
+      GrpcWindmillStreamFactory streamFactory,
       WorkItemScheduler workItemScheduler,
       ChannelCachingStubFactory channelCachingStubFactory,
       GetWorkBudgetDistributor getWorkBudgetDistributor,
@@ -166,7 +166,7 @@ public final class StreamingEngineClient {
   public static StreamingEngineClient create(
       JobHeader jobHeader,
       GetWorkBudget totalGetWorkBudget,
-      GrpcWindmillStreams streamingEngineStreamFactory,
+      GrpcWindmillStreamFactory streamingEngineStreamFactory,
       WorkItemScheduler processWorkItem,
       ChannelCachingStubFactory channelCachingStubFactory,
       GetWorkBudgetDistributor getWorkBudgetDistributor,
@@ -188,7 +188,7 @@ public final class StreamingEngineClient {
   static StreamingEngineClient forTesting(
       JobHeader jobHeader,
       GetWorkBudget totalGetWorkBudget,
-      GrpcWindmillStreams streamFactory,
+      GrpcWindmillStreamFactory streamFactory,
       WorkItemScheduler processWorkItem,
       ChannelCachingStubFactory stubFactory,
       GetWorkBudgetDistributor getWorkBudgetDistributor,

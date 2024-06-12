@@ -32,7 +32,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Al
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
-import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillStreams;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillStreamFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.WindmillStreamSender;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.inprocess.InProcessChannelBuilder;
@@ -251,7 +251,7 @@ public class EvenGetWorkBudgetDistributorTest {
             .setProjectId("project")
             .build(),
         getWorkBudget,
-        GrpcWindmillStreams.of(
+        GrpcWindmillStreamFactory.of(
                 JobHeader.newBuilder()
                     .setJobId("job")
                     .setProjectId("project")

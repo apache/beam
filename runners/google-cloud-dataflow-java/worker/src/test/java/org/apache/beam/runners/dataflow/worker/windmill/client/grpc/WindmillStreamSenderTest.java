@@ -53,9 +53,9 @@ public class WindmillStreamSenderTest {
   private static final GetWorkRequest GET_WORK_REQUEST =
       GetWorkRequest.newBuilder().setClientId(1L).setJobId("job").setProjectId("project").build();
   @Rule public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
-  private final GrpcWindmillStreams streamFactory =
+  private final GrpcWindmillStreamFactory streamFactory =
       spy(
-          GrpcWindmillStreams.of(
+          GrpcWindmillStreamFactory.of(
                   JobHeader.newBuilder()
                       .setJobId("job")
                       .setProjectId("project")
@@ -192,7 +192,7 @@ public class WindmillStreamSenderTest {
     long byteBudget = 1L;
     GetWorkRequest getWorkRequestWithBudget =
         GET_WORK_REQUEST.toBuilder().setMaxItems(itemBudget).setMaxBytes(byteBudget).build();
-    GrpcWindmillStreams mockStreamFactory = mock(GrpcWindmillStreams.class);
+    GrpcWindmillStreamFactory mockStreamFactory = mock(GrpcWindmillStreamFactory.class);
     GetWorkStream mockGetWorkStream = mock(GetWorkStream.class);
     GetDataStream mockGetDataStream = mock(GetDataStream.class);
     CommitWorkStream mockCommitWorkStream = mock(CommitWorkStream.class);
@@ -229,7 +229,7 @@ public class WindmillStreamSenderTest {
   }
 
   private WindmillStreamSender newWindmillStreamSender(
-      GetWorkBudget budget, GrpcWindmillStreams streamFactory) {
+      GetWorkBudget budget, GrpcWindmillStreamFactory streamFactory) {
     return WindmillStreamSender.create(
         stub,
         GET_WORK_REQUEST,
