@@ -19,10 +19,7 @@ _GRADLE_TARGETS = {
     ]
 }
 
-__all__ = ["ICEBERG", "KAFKA", "Read", "Write"]
-
-
-# type: ignore[assignment]
+__all__ = ["ICEBERG", "KAFKA", "BIGQUERY", "Read", "Write"]
 
 
 class _ManagedTransform(PTransform):
@@ -51,7 +48,8 @@ class _ManagedTransform(PTransform):
 class Read(_ManagedTransform):
   READ_TRANSFORMS = {
       ICEBERG: "beam:schematransform:org.apache.beam:iceberg_read:v1",
-      KAFKA: "beam:schematransform:org.apache.beam:kafka_read:v1"
+      KAFKA: "beam:schematransform:org.apache.beam:kafka_read:v1",
+      BIGQUERY: "beam:schematransform:org.apache.beam:bigquery_storage_read:v1"
   }
 
   def __init__(
@@ -78,7 +76,8 @@ class Read(_ManagedTransform):
 class Write(_ManagedTransform):
   WRITE_TRANSFORMS = {
       ICEBERG: "beam:schematransform:org.apache.beam:iceberg_write:v1",
-      KAFKA: "beam:schematransform:org.apache.beam:kafka_write:v1"
+      KAFKA: "beam:schematransform:org.apache.beam:kafka_write:v1",
+      BIGQUERY: "beam:schematransform:org.apache.beam:bigquery_storage_write:v2"
   }
 
   def __init__(
