@@ -40,6 +40,7 @@ import com.lyft.streamingplatform.eventssource.config.S3Config;
 import com.lyft.streamingplatform.eventssource.config.SourceContext;
 import com.lyft.streamingplatform.flink.FlinkLyftKinesisConsumer;
 import com.lyft.streamingplatform.flink.InitialRoundRobinKinesisShardAssigner;
+import com.lyft.streamingplatform.flink.KinesisRecordTimestampExtractor;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.sql.Timestamp;
@@ -106,6 +107,8 @@ public class LyftFlinkStreamingPortableTranslations {
   private static final String FLINK_S3_URN = "lyft:flinkS3Input";
   private static final String BYTES_ENCODING = "bytes";
   private static final String LYFT_BASE64_ZLIB_JSON = "lyft-base64-zlib-json";
+  private static final String LYFT_BASE64_ZLIB_JSON_KINESIS_TIMESTAMP_EXTRACTOR =
+      "lyft-base64-zlib-json-kinesis-timestamp-extractor";
 
   @AutoService(NativeTransforms.IsNativeTransform.class)
   public static class IsFlinkNativeTransform implements NativeTransforms.IsNativeTransform {
@@ -380,6 +383,15 @@ public class LyftFlinkStreamingPortableTranslations {
                   properties);
           source.setPeriodicWatermarkAssigner(
               new WindowedTimestampExtractor<>(Time.milliseconds(maxOutOfOrdernessMillis)));
+          break;
+        case LYFT_BASE64_ZLIB_JSON_KINESIS_TIMESTAMP_EXTRACTOR:
+          source =
+              FlinkLyftKinesisConsumer.create(stream,
+                  new LyftBase64ZlibJsonSchema(context.getPipelineOptions()),
+                  properties);
+          KinesisRecordTimestampExtractor watermarkAssigner = KinesisRecordTimestampExtractor
+              .occurredAt(maxOutOfOrdernessMillis, true)
+          source.setPeriodicWatermarkAssigner(watermarkAssigner);
           break;
         default:
           throw new IllegalArgumentException("Unknown encoding '" + encoding + "'");
