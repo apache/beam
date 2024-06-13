@@ -800,13 +800,9 @@ public class LyftFlinkStreamingPortableTranslations {
       long timestamp = Long.MAX_VALUE;
       while (iter.hasNext()) {
         JsonNode event = iter.next();
-        LOG.info("Entire event object: {}", event);
         JsonNode occurredAt = event.path(EventField.EventOccurredAt.fieldName());
-        LOG.info("occurred_at top level object: {}", occurredAt);
         if (occurredAt.isMissingNode()) {
-          LOG.info("occurred_at was a missing node");
           occurredAt = event.path(EVENT_BASE).path(EventField.EventOccurredAt.fieldName());
-          LOG.info("occurred_at child of event_base object: {}", occurredAt);
         }
 
         try {
