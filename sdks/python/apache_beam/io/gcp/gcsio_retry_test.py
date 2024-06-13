@@ -34,20 +34,21 @@ except ImportError:
   api_exceptions = None
 
 
-@unittest.skipIf((gcsio_retry is None or api_exceptions is None), 'GCP dependencies are not installed')
+@unittest.skipIf((gcsio_retry is None or api_exceptions is None),
+                 'GCP dependencies are not installed')
 class TestGCSIORetry(unittest.TestCase):
   def test_retry_on_non_retriable(self):
     mock = Mock(side_effect=[
         Exception('Something wrong!'),
     ])
-    retry = gcsio_retry.DEFAULT_RETRY_WITH_THROTTLING
+    retry = gcsio_retry.DEFAULT_RETRY_WITH_THROTTLING_COUNTERS
     with self.assertRaises(Exception):
       retry(mock)()
 
   def test_retry_on_throttling(self):
     mock = Mock(
         side_effect=[api_exceptions.TooManyRequests("Slow down!"), 12345])
-    retry = gcsio_retry.DEFAULT_RETRY_WITH_THROTTLING
+    retry = gcsio_retry.DEFAULT_RETRY_WITH_THROTTLING_COUNTERS
 
     sampler = statesampler.StateSampler('', counters.CounterFactory())
     statesampler.set_current_tracker(sampler)

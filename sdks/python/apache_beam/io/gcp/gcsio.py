@@ -43,6 +43,7 @@ from google.cloud.storage.retry import DEFAULT_RETRY
 
 from apache_beam import version as beam_version
 from apache_beam.internal.gcp import auth
+from apache_beam.io.gcp import gcsio_retry
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.utils import retry
@@ -147,6 +148,7 @@ class GcsIO(object):
     self.client = storage_client
     self._rewrite_cb = None
     self.bucket_to_project_number = {}
+    self._storage_client_retry = gcsio_retry.get_retry(pipeline_options)
 
   def get_project_number(self, bucket):
     if bucket not in self.bucket_to_project_number:
@@ -159,7 +161,8 @@ class GcsIO(object):
   def get_bucket(self, bucket_name):
     """Returns an object bucket from its name, or None if it does not exist."""
     try:
-      return self.client.lookup_bucket(bucket_name)
+      return self.client.lookup_bucket(
+          bucket_name, retry=self._storage_client_retry)
     except NotFound:
       return None
 
@@ -180,7 +183,7 @@ class GcsIO(object):
           bucket_or_name=bucket,
           project=project,
           location=location,
-      )
+          retry=self._storage_client_retry)
       if kms_key:
         bucket.default_kms_key_name(kms_key)
         bucket.patch()
@@ -213,10 +216,11 @@ class GcsIO(object):
 
     if mode == 'r' or mode == 'rb':
       blob = bucket.blob(blob_name)
-      return BeamBlobReader(blob, chunk_size=read_buffer_size)
+      return BeamBlobReader(
+          blob, chunk_size=read_buffer_size, retry=self._storage_client_retry)
     elif mode == 'w' or mode == 'wb':
       blob = bucket.blob(blob_name)
-      return BeamBlobWriter(blob, mime_type)
+      return BeamBlobWriter(blob, mime_type, retry=self._storage_client_retry)
     else:
       raise ValueError('Invalid file open mode: %s.' % mode)
 
@@ -448,7 +452,7 @@ class GcsIO(object):
     """
     bucket_name, blob_name = parse_gcs_path(path)
     bucket = self.client.bucket(bucket_name)
-    blob = bucket.get_blob(blob_name)
+    blob = bucket.get_blob(blob_name, retry=self._storage_client_retry)
     if blob:
       return blob
     else:
@@ -496,7 +500,8 @@ class GcsIO(object):
     else:
       _LOGGER.debug("Starting the size estimation of the input")
     bucket = self.client.bucket(bucket_name)
-    response = self.client.list_blobs(bucket, prefix=prefix)
+    response = self.client.list_blobs(
+        bucket, prefix=prefix, retry=self._storage_client_retry)
     for item in response:
       file_name = 'gs://%s/%s' % (item.bucket.name, item.name)
       if file_name not in file_info:
@@ -544,18 +549,24 @@ class GcsIO(object):
 
 
 class BeamBlobReader(BlobReader):
-  def __init__(self, blob, chunk_size=DEFAULT_READ_BUFFER_SIZE):
-    super().__init__(blob, chunk_size=chunk_size)
+  def __init__(
+      self, blob, chunk_size=DEFAULT_READ_BUFFER_SIZE, retry=DEFAULT_RETRY):
+    super().__init__(blob, chunk_size=chunk_size, retry=retry)
     self.mode = "r"
 
 
 class BeamBlobWriter(BlobWriter):
   def __init__(
-      self, blob, content_type, chunk_size=16 * 1024 * 1024, ignore_flush=True):
+      self,
+      blob,
+      content_type,
+      chunk_size=16 * 1024 * 1024,
+      ignore_flush=True,
+      retry=DEFAULT_RETRY):
     super().__init__(
         blob,
         content_type=content_type,
         chunk_size=chunk_size,
         ignore_flush=ignore_flush,
-        retry=DEFAULT_RETRY)
+        retry=retry)
     self.mode = "w"

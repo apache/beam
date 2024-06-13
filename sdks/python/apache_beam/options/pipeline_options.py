@@ -900,6 +900,12 @@ class GoogleCloudOptions(PipelineOptions):
             'Controls the OAuth scopes that will be requested when creating '
             'GCP credentials. Note: If set programmatically, must be set as a '
             'list of strings'))
+    parser.add_argument(
+        '--no_gcsio_throttling_counters',
+        default='false',
+        action='store_true',
+        help='Throttling counters in GcsIO is enabled by default. Set '
+        '--no_gcsio_throttling_counters to avoid it.')
 
   def _create_default_gcs_bucket(self):
     try:

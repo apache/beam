@@ -27,11 +27,14 @@ import time
 from apache_beam.metrics.metric import Metrics
 from google.api_core import retry
 from google.api_core import exceptions as api_exceptions
-from google.cloud.storage.retry import _should_retry
+from google.cloud.storage.retry import _should_retry  # pylint: disable=protected-access
+from google.cloud.storage.retry import DEFAULT_RETRY
+
+from apache_beam.options.pipeline_options import GoogleCloudOptions
 
 _LOGGER = logging.getLogger(__name__)
 
-__all__ = ['DEFAULT_RETRY_WITH_THROTTLING']
+__all__ = ['DEFAULT_RETRY_WITH_THROTTLING_COUNTERS']
 
 
 class ThrottlingHandler(object):
@@ -58,5 +61,12 @@ class ThrottlingHandler(object):
       time.sleep(sleep_seconds)
 
 
-DEFAULT_RETRY_WITH_THROTTLING = retry.Retry(
+DEFAULT_RETRY_WITH_THROTTLING_COUNTERS = retry.Retry(
     predicate=_should_retry, on_error=ThrottlingHandler())
+
+
+def get_retry(pipeline_options):
+  if pipeline_options.view_as(GoogleCloudOptions).no_gcsio_throttling_counters:
+    return DEFAULT_RETRY
+  else:
+    return DEFAULT_RETRY_WITH_THROTTLING_COUNTERS
