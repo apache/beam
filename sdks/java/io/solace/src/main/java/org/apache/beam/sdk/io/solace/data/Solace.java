@@ -41,6 +41,7 @@ import org.slf4j.LoggerFactory;
  *         .setMessageId(messageId)
  *         .setSenderTimestamp(timestampMillis)
  *         .setPayload(payload)
+ *         ...
  *         .build();
  * }</pre>
  *
@@ -82,7 +83,8 @@ public class Solace {
 
   public enum DestinationType {
     TOPIC,
-    QUEUE
+    QUEUE,
+    UNKNOWN
   }
 
   @AutoValue
@@ -122,19 +124,19 @@ public class Solace {
     public abstract @Nullable Destination getDestination();
 
     @SchemaFieldNumber("3")
-    public abstract @Nullable Long getExpiration();
+    public abstract long getExpiration();
 
     @SchemaFieldNumber("4")
-    public abstract @Nullable Integer getPriority();
+    public abstract int getPriority();
 
     @SchemaFieldNumber("5")
-    public abstract @Nullable Boolean getRedelivered();
+    public abstract boolean getRedelivered();
 
     @SchemaFieldNumber("6")
-    public abstract @Nullable String getReplyTo();
+    public abstract @Nullable Destination getReplyTo();
 
     @SchemaFieldNumber("7")
-    public abstract @Nullable Long getReceiveTimestamp();
+    public abstract long getReceiveTimestamp();
 
     @SchemaFieldNumber("8")
     public abstract @Nullable Long getSenderTimestamp();
@@ -143,7 +145,7 @@ public class Solace {
     public abstract @Nullable Long getSequenceNumber();
 
     @SchemaFieldNumber("10")
-    public abstract @Nullable Long getTimeToLive();
+    public abstract long getTimeToLive();
 
     /**
      * The ID for a particular message is only guaranteed to be the same for a particular copy of a
@@ -169,23 +171,23 @@ public class Solace {
 
       public abstract Builder setPayload(byte[] payload);
 
-      public abstract Builder setDestination(Destination destination);
+      public abstract Builder setDestination(@Nullable Destination destination);
 
-      public abstract Builder setExpiration(@Nullable Long expiration);
+      public abstract Builder setExpiration(long expiration);
 
-      public abstract Builder setPriority(@Nullable Integer priority);
+      public abstract Builder setPriority(int priority);
 
-      public abstract Builder setRedelivered(@Nullable Boolean redelivered);
+      public abstract Builder setRedelivered(boolean redelivered);
 
-      public abstract Builder setReplyTo(@Nullable String replyTo);
+      public abstract Builder setReplyTo(@Nullable Destination replyTo);
 
-      public abstract Builder setReceiveTimestamp(@Nullable Long receiveTimestamp);
+      public abstract Builder setReceiveTimestamp(long receiveTimestamp);
 
       public abstract Builder setSenderTimestamp(@Nullable Long senderTimestamp);
 
       public abstract Builder setSequenceNumber(@Nullable Long sequenceNumber);
 
-      public abstract Builder setTimeToLive(@Nullable Long timeToLive);
+      public abstract Builder setTimeToLive(long timeToLive);
 
       public abstract Builder setReplicationGroupMessageId(
           @Nullable String replicationGroupMessageId);
@@ -223,27 +225,14 @@ public class Solace {
         }
       }
 
-      String replyTo = (msg.getReplyTo() != null) ? msg.getReplyTo().getName() : null;
-
-      com.solacesystems.jcsmp.Destination originalDestination = msg.getDestination();
-      Destination.Builder destBuilder =
-          Destination.builder().setName(originalDestination.getName());
-      if (originalDestination instanceof com.solacesystems.jcsmp.Topic) {
-        destBuilder.setType(DestinationType.TOPIC);
-      } else if (originalDestination instanceof com.solacesystems.jcsmp.Queue) {
-        destBuilder.setType(DestinationType.QUEUE);
-      } else {
-        LOG.error(
-            "SolaceIO: Unknown destination type for message {}, assuming that {} is a topic",
-            msg.getCorrelationId(),
-            originalDestination.getName());
-        destBuilder.setType(DestinationType.TOPIC);
-      }
+      Destination replyTo = getDestination(msg.getCorrelationId(), msg.getReplyTo());
+      Destination destination = getDestination(msg.getCorrelationId(), msg.getDestination());
 
       return Record.builder()
-          .setDestination(destBuilder.build())
-          .setExpiration(msg.getExpiration())
           .setMessageId(msg.getApplicationMessageId())
+          .setPayload(payloadBytesStream.toByteArray())
+          .setDestination(destination)
+          .setExpiration(msg.getExpiration())
           .setPriority(msg.getPriority())
           .setRedelivered(msg.getRedelivered())
           .setReplyTo(replyTo)
@@ -255,9 +244,29 @@ public class Solace {
               msg.getReplicationGroupMessageId() != null
                   ? msg.getReplicationGroupMessageId().toString()
                   : null)
-          .setPayload(payloadBytesStream.toByteArray())
           .setAttachmentBytes(attachmentBytesStream.toByteArray())
           .build();
+    }
+
+    private static @Nullable Destination getDestination(
+        String msgId, com.solacesystems.jcsmp.Destination originalDestinationField) {
+      if (originalDestinationField == null) {
+        return null;
+      }
+      Destination.Builder destinationBuilder =
+          Destination.builder().setName(originalDestinationField.getName());
+      if (originalDestinationField instanceof com.solacesystems.jcsmp.Topic) {
+        destinationBuilder.setType(DestinationType.TOPIC);
+      } else if (originalDestinationField instanceof com.solacesystems.jcsmp.Queue) {
+        destinationBuilder.setType(DestinationType.QUEUE);
+      } else {
+        LOG.error(
+            "SolaceIO: Unknown destination type type for message {}, setting to {}",
+            msgId,
+            DestinationType.UNKNOWN.name());
+        destinationBuilder.setType(DestinationType.UNKNOWN);
+      }
+      return destinationBuilder.build();
     }
   }
 }

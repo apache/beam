@@ -38,6 +38,7 @@ import org.apache.beam.sdk.io.solace.data.Solace;
 import org.apache.beam.sdk.io.solace.data.Solace.SolaceRecordMapper;
 import org.apache.beam.sdk.io.solace.data.SolaceRecordCoder;
 import org.apache.beam.sdk.io.solace.read.UnboundedSolaceSource;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -54,7 +55,7 @@ import org.slf4j.LoggerFactory;
  * A {@link PTransform} to read and write from/to <a href="https://solace.com/">Solace</a> event
  * broker.
  *
- * <p>Note: this API is beta and subject to change.
+ * <p>Note: Internal use only; this API is beta and subject to change.
  *
  * <h2>Reading from Solace</h2>
  *
@@ -457,13 +458,17 @@ public class SolaceIO {
     }
 
     @Override
-    public PCollection<T> expand(PBegin input) {
+    public void validate(@Nullable PipelineOptions options) {
       checkState(
           (getQueue() == null ^ getTopic() == null),
           "SolaceIO.Read: One of the Solace {Queue, Topic} must be set.");
+      checkNotNull(getSempClientFactory(), "SolaceIO: sempClientFactory is null.");
+      checkNotNull(getSessionServiceFactory(), "SolaceIO: sessionServiceFactory is null.");
+    }
 
-      SempClientFactory sempClientFactory =
-          checkNotNull(getSempClientFactory(), "SolaceIO: sempClientFactory is null.");
+    @Override
+    public PCollection<T> expand(PBegin input) {
+      SempClientFactory sempClientFactory = checkNotNull(getSempClientFactory());
       String jobName = input.getPipeline().getOptions().getJobName();
       Queue queueFromOptions = getQueue();
       Queue initializedQueue =
@@ -471,8 +476,7 @@ public class SolaceIO {
               ? queueFromOptions
               : initializeQueueForTopic(jobName, sempClientFactory);
 
-      SessionServiceFactory sessionServiceFactory =
-          checkNotNull(getSessionServiceFactory(), "SolaceIO: sessionServiceFactory is null.");
+      SessionServiceFactory sessionServiceFactory = checkNotNull(getSessionServiceFactory());
       sessionServiceFactory.setQueue(initializedQueue);
 
       registerDefaultCoder(input.getPipeline());
@@ -542,7 +546,7 @@ public class SolaceIO {
         try {
           String topicName = checkNotNull(getTopic()).getName();
           initializedQueue = sempClientFactory.create().createQueueForTopic(queueName, topicName);
-          LOG.info(
+          LOG.warn(
               "SolaceIO.Read: A new queue {} was created. The Queue will not be"
                   + " deleted when this job finishes. Make sure to remove it yourself"
                   + " when not needed.",

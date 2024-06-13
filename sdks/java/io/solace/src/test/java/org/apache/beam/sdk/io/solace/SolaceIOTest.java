@@ -279,7 +279,7 @@ public class SolaceIOTest {
   @Test
   public void testNoQueueAndTopicSet() {
     Read<Record> spec = SolaceIO.read();
-    assertThrows(IllegalStateException.class, () -> spec.expand(pipeline.begin()));
+    assertThrows(IllegalStateException.class, () -> spec.validate(pipeline.getOptions()));
   }
 
   @Test
