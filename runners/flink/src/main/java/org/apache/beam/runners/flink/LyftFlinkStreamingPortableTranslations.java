@@ -26,6 +26,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.MissingNode;
 import com.google.auto.service.AutoService;
 import com.google.common.collect.Lists;
 import com.lyft.streamingplatform.LyftKafkaConsumerBuilder;
@@ -733,6 +734,7 @@ public class LyftFlinkStreamingPortableTranslations {
       implements KinesisDeserializationSchema<WindowedValue<byte[]>> {
     private static final ObjectMapper mapper = new ObjectMapper();
     private TypeInformation<WindowedValue<byte[]>> ti;
+    private static final String EVENT_BASE = "event_base";
 
     public LyftBase64ZlibJsonSchema(PipelineOptions options) {
       this.ti =
@@ -799,7 +801,15 @@ public class LyftFlinkStreamingPortableTranslations {
       long timestamp = Long.MAX_VALUE;
       while (iter.hasNext()) {
         JsonNode event = iter.next();
+        LOG.info("Entire event object: {}", event);
         JsonNode occurredAt = event.path(EventField.EventOccurredAt.fieldName());
+        LOG.info("occurred_at top level object: {}", occurredAt);
+        if (occurredAt.isMissingNode()) {
+          LOG.info("occurred_at was a missing node");
+          occurredAt = event.path(EVENT_BASE).path(EventField.EventOccurredAt.fieldName());
+          LOG.info("occurred_at child of event_base object: {}", occurredAt);
+        }
+
         try {
           long occurredAtMillis;
           if (occurredAt.isTextual()) {
