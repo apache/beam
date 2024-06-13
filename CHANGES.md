@@ -96,8 +96,6 @@
 
 ## I/Os
 
-* Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
-* Support for reading from Solace message broker added (Java) ([#31440](https://github.com/apache/beam/issues/31440)).
 * Ensure that BigtableIO closes the reader streams ([#31477](https://github.com/apache/beam/issues/31477)).
 
 ## New Features / Improvements
