@@ -203,17 +203,17 @@ public final class ThriftSchema extends GetterBasedSchemaProvider {
   @SuppressWarnings("rawtypes")
   @Override
   public @NonNull List<FieldValueGetter> fieldValueGetters(
-      @NonNull Class<?> targetClass, @NonNull Schema schema) {
-    return schemaFieldDescriptors(targetClass, schema).keySet().stream()
+      @NonNull TypeDescriptor<?> targetTypeDescriptor, @NonNull Schema schema) {
+    return schemaFieldDescriptors(targetTypeDescriptor.getRawType(), schema).keySet().stream()
         .map(FieldExtractor::new)
         .collect(Collectors.toList());
   }
 
   @Override
   public @NonNull List<FieldValueTypeInformation> fieldValueTypeInformations(
-      @NonNull Class<?> targetClass, @NonNull Schema schema) {
-    return schemaFieldDescriptors(targetClass, schema).values().stream()
-        .map(descriptor -> fieldValueTypeInfo(targetClass, descriptor.fieldName))
+      @NonNull TypeDescriptor<?> targetTypeDescriptor, @NonNull Schema schema) {
+    return schemaFieldDescriptors(targetTypeDescriptor.getRawType(), schema).values().stream()
+        .map(descriptor -> fieldValueTypeInfo(targetTypeDescriptor, descriptor.fieldName))
         .collect(Collectors.toList());
   }
 
@@ -223,27 +223,29 @@ public final class ThriftSchema extends GetterBasedSchemaProvider {
     return (Map<FieldT, FieldMetaData>) FieldMetaData.getStructMetaDataMap((Class<T>) targetClass);
   }
 
-  private FieldValueTypeInformation fieldValueTypeInfo(Class<?> type, String fieldName) {
-    if (TUnion.class.isAssignableFrom(type)) {
+  private FieldValueTypeInformation fieldValueTypeInfo(TypeDescriptor<?> type, String fieldName) {
+    if (TUnion.class.isAssignableFrom(type.getRawType())) {
       final List<Method> factoryMethods =
-          Stream.of(type.getDeclaredMethods())
+          Stream.of(type.getRawType().getDeclaredMethods())
               .filter(m -> m.getName().equals(fieldName))
               .filter(m -> m.getModifiers() == (Modifier.PUBLIC | Modifier.STATIC))
               .filter(m -> m.getParameterCount() == 1)
-              .filter(m -> m.getReturnType() == type)
+              .filter(m -> m.getReturnType() == type.getRawType())
               .collect(Collectors.toList());
       if (factoryMethods.isEmpty()) {
         throw new IllegalArgumentException(
             String.format(
-                "No suitable static factory method: %s.%s(...)", type.getName(), fieldName));
+                "No suitable static factory method: %s.%s(...)",
+                type.getRawType().getName(), fieldName));
       }
       if (factoryMethods.size() > 1) {
         throw new IllegalStateException("Overloaded factory methods: " + factoryMethods);
       }
-      return FieldValueTypeInformation.forSetter(factoryMethods.get(0), "");
+      return FieldValueTypeInformation.forSetter(type, factoryMethods.get(0), "");
     } else {
       try {
-        return FieldValueTypeInformation.forField(type.getDeclaredField(fieldName), 0);
+        return FieldValueTypeInformation.forField(
+            type, type.getRawType().getDeclaredField(fieldName), 0);
       } catch (NoSuchFieldException e) {
         throw new IllegalArgumentException(e);
       }
@@ -252,10 +254,11 @@ public final class ThriftSchema extends GetterBasedSchemaProvider {
 
   @Override
   public @NonNull SchemaUserTypeCreator schemaTypeCreator(
-      @NonNull Class<?> targetClass, @NonNull Schema schema) {
+      @NonNull TypeDescriptor<?> targetTypeDescriptor, @NonNull Schema schema) {
     final Map<TFieldIdEnum, FieldMetaData> fieldDescriptors =
-        schemaFieldDescriptors(targetClass, schema);
-    return params -> restoreThriftObject(targetClass, fieldDescriptors, params);
+        schemaFieldDescriptors(targetTypeDescriptor.getRawType(), schema);
+    return params ->
+        restoreThriftObject(targetTypeDescriptor.getRawType(), fieldDescriptors, params);
   }
 
   @SuppressWarnings("nullness")
