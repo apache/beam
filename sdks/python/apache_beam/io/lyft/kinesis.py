@@ -12,7 +12,6 @@ class FlinkKinesisInput(PTransform):
   portable Flink runner."""
 
   LYFT_BASE64_ZLIB_JSON_ENCODING = "lyft-base64-zlib-json"
-  LYFT_BASE64_ZLIB_JSON_KINESIS_TIMESTAMP_EXTRACTOR = "lyft-base64-zlib-json-kinesis-timestamp-extractor"
 
   consumer_properties = {
     'aws.region': 'us-east-1',
@@ -71,7 +70,6 @@ class FlinkKinesisInput(PTransform):
     watermarks to be emitted. Currently supported encodings:
 
     * FlinkKinesisInput.LYFT_BASE64_ZLIB_JSON_ENCODING
-    * FlinkKinesisInput.LYFT_BASE64_ZLIB_JSON_KINESIS_TIMESTAMP_EXTRACTOR
     """
     self.encoding = encoding
     return self
