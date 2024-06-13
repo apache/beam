@@ -539,7 +539,7 @@ Go to https://github.com/apache/beam/releases/new to start creating a Github rel
 If this is for subsequent release candidates, re-use the existing Github release for this version.
 Do not create a new release.
 
-Update the Release tag to the current RC Tag. 
+Update the Release tag to the current RC Tag.
 Title the release "Beam ${RELEASE_VERSION} release".
 The description may remain empty for now, but will eventually contain the release blog post.
 
@@ -1218,7 +1218,7 @@ Merge all of the website pull requests
 
 ### Publish release to Github
 
-Once the tag is uploaded, publish the release notes to Github. 
+Once the tag is uploaded, publish the release notes to Github.
 From the [Beam release page on Github](https://github.com/apache/beam/releases)
 find and open the release for the final RC tag for for editing.
 Update the release with the final version tag created above.
