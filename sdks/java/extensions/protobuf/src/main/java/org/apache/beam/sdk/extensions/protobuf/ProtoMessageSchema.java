@@ -53,13 +53,13 @@ public class ProtoMessageSchema extends GetterBasedSchemaProvider {
 
   private static final class ProtoClassFieldValueTypeSupplier implements FieldValueTypeSupplier {
     @Override
-    public List<FieldValueTypeInformation> get(Class<?> clazz) {
+    public List<FieldValueTypeInformation> get(TypeDescriptor<?> typeDescriptor) {
       throw new RuntimeException("Unexpected call.");
     }
 
     @Override
-    public List<FieldValueTypeInformation> get(Class<?> clazz, Schema schema) {
-      Multimap<String, Method> methods = ReflectUtils.getMethodsMap(clazz);
+    public List<FieldValueTypeInformation> get(TypeDescriptor<?> typeDescriptor, Schema schema) {
+      Multimap<String, Method> methods = ReflectUtils.getMethodsMap(typeDescriptor.getRawType());
       List<FieldValueTypeInformation> types =
           Lists.newArrayListWithCapacity(schema.getFieldCount());
       for (int i = 0; i < schema.getFieldCount(); ++i) {
@@ -72,7 +72,8 @@ public class ProtoMessageSchema extends GetterBasedSchemaProvider {
             Method method = getProtoGetter(methods, oneOfField.getName(), oneOfField.getType());
             oneOfTypes.put(
                 oneOfField.getName(),
-                FieldValueTypeInformation.forGetter(method, i).withName(field.getName()));
+                FieldValueTypeInformation.forGetter(typeDescriptor, method, i)
+                    .withName(field.getName()));
           }
           // Add an entry that encapsulates information about all possible getters.
           types.add(
@@ -82,7 +83,9 @@ public class ProtoMessageSchema extends GetterBasedSchemaProvider {
         } else {
           // This is a simple field. Add the getter.
           Method method = getProtoGetter(methods, field.getName(), field.getType());
-          types.add(FieldValueTypeInformation.forGetter(method, i).withName(field.getName()));
+          types.add(
+              FieldValueTypeInformation.forGetter(typeDescriptor, method, i)
+                  .withName(field.getName()));
         }
       }
       return types;
@@ -96,9 +99,10 @@ public class ProtoMessageSchema extends GetterBasedSchemaProvider {
   }
 
   @Override
-  public List<FieldValueGetter> fieldValueGetters(Class<?> targetClass, Schema schema) {
+  public List<FieldValueGetter> fieldValueGetters(
+      TypeDescriptor<?> targetTypeDescriptor, Schema schema) {
     return ProtoByteBuddyUtils.getGetters(
-        targetClass,
+        targetTypeDescriptor,
         schema,
         new ProtoClassFieldValueTypeSupplier(),
         new ProtoTypeConversionsFactory());
@@ -106,17 +110,19 @@ public class ProtoMessageSchema extends GetterBasedSchemaProvider {
 
   @Override
   public List<FieldValueTypeInformation> fieldValueTypeInformations(
-      Class<?> targetClass, Schema schema) {
-    return JavaBeanUtils.getFieldTypes(targetClass, schema, new ProtoClassFieldValueTypeSupplier());
+      TypeDescriptor<?> targetTypeDescriptor, Schema schema) {
+    return JavaBeanUtils.getFieldTypes(
+        targetTypeDescriptor, schema, new ProtoClassFieldValueTypeSupplier());
   }
 
   @Override
-  public SchemaUserTypeCreator schemaTypeCreator(Class<?> targetClass, Schema schema) {
+  public SchemaUserTypeCreator schemaTypeCreator(
+      TypeDescriptor<?> targetTypeDescriptor, Schema schema) {
     SchemaUserTypeCreator creator =
         ProtoByteBuddyUtils.getBuilderCreator(
-            targetClass, schema, new ProtoClassFieldValueTypeSupplier());
+            targetTypeDescriptor, schema, new ProtoClassFieldValueTypeSupplier());
     if (creator == null) {
-      throw new RuntimeException("Cannot create creator for " + targetClass);
+      throw new RuntimeException("Cannot create creator for " + targetTypeDescriptor);
     }
     return creator;
   }
@@ -149,7 +155,8 @@ public class ProtoMessageSchema extends GetterBasedSchemaProvider {
   private <T> void checkForDynamicType(TypeDescriptor<T> typeDescriptor) {
     if (typeDescriptor.getRawType().equals(DynamicMessage.class)) {
       throw new RuntimeException(
-          "DynamicMessage is not allowed for the standard ProtoSchemaProvider, use ProtoDynamicMessageSchema  instead.");
+          "DynamicMessage is not allowed for the standard ProtoSchemaProvider, use"
+              + " ProtoDynamicMessageSchema  instead.");
     }
   }
 

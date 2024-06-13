@@ -19,7 +19,6 @@ package org.apache.beam.sdk.schemas;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
-import java.lang.reflect.TypeVariable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -185,26 +184,18 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
     }
 
     FieldValueGetter rowValueGetter(
-        FieldValueGetter base, FieldType type, @Nullable TypeDescriptor resolvedGetterType) {
-      if (resolvedGetterType != null && resolvedGetterType.getType() instanceof TypeVariable) {
-        // TypeVariable carries no useful information for us at this point - we may see it here if
-        // the original root getter implementation is itself generic instead of being an instance of
-        // a class with known type arguments. In that case we'll try falling back to use type
-        // information present in the raw class of the object we're accessing, which will work as
-        // long as that class doesn't undergo the type erasure itself
-        resolvedGetterType = null;
-      }
+        FieldValueGetter base, FieldType type, @Nullable TypeDescriptor getterReturnType) {
       TypeName typeName = type.getTypeName();
 
       if (!needsConversion(type)) {
         return base;
       }
       if (typeName.equals(TypeName.ROW)) {
-        return new GetRow(base, resolvedGetterType, type.getRowSchema(), cachingGettersFactory);
+        return new GetRow(base, getterReturnType, type.getRowSchema(), cachingGettersFactory);
       } else if (typeName.equals(TypeName.ARRAY)) {
         FieldType elementType = type.getCollectionElementType();
         TypeDescriptor elementTypeDescriptor =
-            Optional.ofNullable(resolvedGetterType)
+            Optional.ofNullable(getterReturnType)
                 .map(getterType -> getterType.resolveType(Collection.class.getTypeParameters()[0]))
                 .orElse(null);
         return elementType.getTypeName().equals(TypeName.ROW)
@@ -212,14 +203,14 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
             : new GetCollection(base, converter(elementType, elementTypeDescriptor));
       } else if (typeName.equals(TypeName.ITERABLE)) {
         TypeDescriptor elementTypeDescriptor =
-            Optional.ofNullable(resolvedGetterType)
+            Optional.ofNullable(getterReturnType)
                 .map(getterType -> getterType.resolveType(Iterable.class.getTypeParameters()[0]))
                 .orElse(null);
         return new GetIterable(
             base, converter(type.getCollectionElementType(), elementTypeDescriptor));
       } else if (typeName.equals(TypeName.MAP)) {
         TypeDescriptor[] resolvedKeyValueTypes =
-            Optional.ofNullable(resolvedGetterType)
+            Optional.ofNullable(getterReturnType)
                 .map(
                     getterType ->
                         Arrays.stream(Map.class.getTypeParameters())
@@ -238,7 +229,7 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
         Map<Integer, FieldValueGetter> converters = Maps.newHashMapWithExpectedSize(values.size());
         for (Map.Entry<String, Integer> kv : values.entrySet()) {
           FieldType fieldType = oneOfSchema.getField(kv.getKey()).getType();
-          FieldValueGetter converter = converter(fieldType, resolvedGetterType);
+          FieldValueGetter converter = converter(fieldType, null);
           converters.put(kv.getValue(), converter);
         }
 
