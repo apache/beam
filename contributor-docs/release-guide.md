@@ -534,16 +534,18 @@ TODO: Automate these steps as a github action.
 
 If this is for the first release candidate, create a new, draft, pre-release Github release.
 
-Go to https://github.com/apache/beam/releases/new to start creating a Github release.
+* Go to https://github.com/apache/beam/releases/new to start creating a Github release.
 
-If this is for subsequent release candidates, re-use the existing Github release for this version.
-Do not create a new release.
+If this is for subsequent release candidates re-use the existing Github release for this version.
 
-Update the Release tag to the current RC Tag.
-Title the release "Beam ${RELEASE_VERSION} release".
-The description may remain empty for now, but will eventually contain the release blog post.
+* Do not create a new release if one already exists, navigate to the existing Github release for the previous RC.
 
-Set this release as a pre-release, by checking the `Set as pre-release` box below the description box.
+Once on the release page:
+
+* Update the Release tag to the current RC Tag.
+* Title the release "Beam ${RELEASE_VERSION} release".
+* The description may remain empty for now, but will eventually contain the release blog post.
+* Set this release as a pre-release, by checking the `Set as pre-release` box below the description box.
 
 Once configured properly, press the `Save draft` button.
 
