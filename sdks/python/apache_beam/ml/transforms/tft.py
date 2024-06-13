@@ -52,13 +52,17 @@ __all__ = [
     'ComputeAndApplyVocabulary',
     'ScaleToZScore',
     'ScaleTo01',
+    'ScaleToGaussian',
     'ApplyBuckets',
+    'ApplyBucketsWithInterpolation',
     'Bucketize',
     'TFIDF',
     'TFTOperation',
     'ScaleByMinMax',
     'NGrams',
     'BagOfWords',
+    'HashStrings',
+    'DeduplicateTensorPerRow',
 ]
 
 # Register the expected input types for each operation
@@ -464,8 +468,8 @@ class TFIDF(TFTOperation):
     This function applies a tf-idf transformation on the given columns
     of incoming data.
 
-    TFIDF outputs two artifacts for each column: the vocabu index and
-    the tfidf weight. The vocabu index is a mapping from the original
+    TFIDF outputs two artifacts for each column: the vocabulary index and
+    the tfidf weight. The vocabulary index is a mapping from the original
     vocabulary to the new vocabulary. The tfidf weight is a mapping
     from the original vocabulary to the tfidf score.
 
@@ -636,7 +640,7 @@ class BagOfWords(TFTOperation):
       compute_word_count: A boolean that specifies whether to compute
         the unique word count over the entire dataset. Defaults to False.
       key_vocab_filename: The file name for the key vocabulary file when
-        compute_word_count is True. If empty, a file name 
+        compute_word_count is True. If empty, a file name
         will be chosen based on the current scope. If provided, the vocab
         file will be suffixed with the column name.
       name: A name for the operation (optional).

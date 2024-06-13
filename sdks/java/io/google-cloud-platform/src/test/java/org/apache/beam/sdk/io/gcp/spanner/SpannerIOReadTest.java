@@ -65,6 +65,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mockito;
@@ -85,6 +86,8 @@ public class SpannerIOReadTest implements Serializable {
   @Rule
   public final transient TestPipeline pipeline =
       TestPipeline.create().enableAbandonedNodeEnforcement(false);
+
+  @Rule public transient ExpectedException thrown = ExpectedException.none();
 
   private FakeServiceFactory serviceFactory;
   private BatchReadOnlyTransaction mockBatchTx;
@@ -138,6 +141,22 @@ public class SpannerIOReadTest implements Serializable {
             .withQuery(QUERY_STATEMENT)
             .withQueryName(QUERY_NAME)
             .withTimestampBound(TIMESTAMP_BOUND));
+  }
+
+  @Test
+  public void runWithQueryAndWithTableAtTheSameTimeFails() {
+    SpannerIO.Read read =
+        SpannerIO.read()
+            .withSpannerConfig(spannerConfig)
+            .withQuery(QUERY_STATEMENT)
+            .withQueryName(QUERY_NAME)
+            .withTable(TABLE_ID)
+            .withColumns("id", "name")
+            .withTimestampBound(TIMESTAMP_BOUND);
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(
+        "Both query and table cannot be specified at the same time for SpannerIO.read().");
+    runBatchQueryTest(read);
   }
 
   @Test

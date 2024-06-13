@@ -58,7 +58,7 @@ import org.joda.time.Instant;
  */
 @NotThreadSafe
 @Internal
-public class Work {
+public final class Work {
   private final ShardedKey shardedKey;
   private final WorkItem workItem;
   private final ProcessingContext processingContext;
@@ -196,8 +196,7 @@ public class Work {
     return latencyTrackingId;
   }
 
-  public final void queueCommit(
-      WorkItemCommitRequest commitRequest, ComputationState computationState) {
+  public void queueCommit(WorkItemCommitRequest commitRequest, ComputationState computationState) {
     setState(State.COMMIT_QUEUED);
     processingContext.workCommitter().accept(Commit.create(commitRequest, computationState, this));
   }

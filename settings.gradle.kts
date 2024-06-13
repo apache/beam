@@ -367,3 +367,5 @@ include("sdks:java:managed")
 findProject(":sdks:java:managed")?.name = "managed"
 include("sdks:java:io:iceberg")
 findProject(":sdks:java:io:iceberg")?.name = "iceberg"
+include("sdks:java:io:solace")
+findProject(":sdks:java:io:solace")?.name = "solace"

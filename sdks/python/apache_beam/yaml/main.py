@@ -29,7 +29,46 @@ from apache_beam.typehints.schemas import MillisInstant
 from apache_beam.yaml import yaml_transform
 
 
-def _configure_parser(argv):
+def _preparse_jinja_flags(argv):
+  """Promotes any flags to --jinja_variables based on --jinja_variable_flags.
+
+  This is to facilitate tools (such as dataflow templates) that must pass
+  options as un-nested flags.
+  """
+  parser = argparse.ArgumentParser()
+  parser.add_argument(
+      '--jinja_variable_flags',
+      default=[],
+      type=lambda s: s.split(','),
+      help='A list of flag names that should be used as jinja variables.')
+  parser.add_argument(
+      '--jinja_variables',
+      default={},
+      type=json.loads,
+      help='A json dict of variables used when invoking the jinja preprocessor '
+      'on the provided yaml pipeline.')
+  jinja_args, other_args = parser.parse_known_args(argv)
+  if not jinja_args.jinja_variable_flags:
+    return argv
+
+  jinja_variable_parser = argparse.ArgumentParser()
+  for flag_name in jinja_args.jinja_variable_flags:
+    jinja_variable_parser.add_argument('--' + flag_name)
+  jinja_flag_variables, pipeline_args = jinja_variable_parser.parse_known_args(
+      other_args)
+  jinja_args.jinja_variables.update(
+      **
+      {k: v
+       for (k, v) in vars(jinja_flag_variables).items() if v is not None})
+  if jinja_args.jinja_variables:
+    pipeline_args = pipeline_args + [
+        '--jinja_variables=' + json.dumps(jinja_args.jinja_variables)
+    ]
+
+  return pipeline_args
+
+
+def _parse_arguments(argv):
   parser = argparse.ArgumentParser()
   parser.add_argument(
       '--yaml_pipeline',
@@ -90,7 +129,8 @@ def _fix_xlang_instant_coding():
 
 
 def run(argv=None):
-  known_args, pipeline_args = _configure_parser(argv)
+  argv = _preparse_jinja_flags(argv)
+  known_args, pipeline_args = _parse_arguments(argv)
   pipeline_template = _pipeline_spec_from_args(known_args)
   pipeline_yaml = (  # keep formatting
       jinja2.Environment(

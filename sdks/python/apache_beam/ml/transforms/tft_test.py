@@ -962,7 +962,7 @@ class BagOfWordsTest(unittest.TestCase):
     self.assertEqual(expected_data, actual_data)
 
 
-class HashWordsTest(unittest.TestCase):
+class HashStringsTest(unittest.TestCase):
   def setUp(self) -> None:
     self.artifact_location = tempfile.mkdtemp()
 
