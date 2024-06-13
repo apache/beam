@@ -395,7 +395,7 @@ public class StreamingDataflowWorker {
         clientId,
         configFetcherAndWindmillClient.getLeft(),
         computationStateCache,
-        WindmillStateCache.ofSizeMbs(options.getWorkerCacheMb()),
+        windmillStateCache,
         workExecutor,
         IntrinsicMapTaskExecutorFactory.defaultFactory(),
         options,
