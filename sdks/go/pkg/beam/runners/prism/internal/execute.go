@@ -335,7 +335,7 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 	eg.SetLimit(8)
 
 	var instID uint64
-	bundles := em.Bundles(egctx, func() string {
+	bundles := em.Bundles(egctx, j.CancelFn, func() string {
 		return fmt.Sprintf("inst%03d", atomic.AddUint64(&instID, 1))
 	})
 	for {
