@@ -902,7 +902,7 @@ class GoogleCloudOptions(PipelineOptions):
             'list of strings'))
     parser.add_argument(
         '--no_gcsio_throttling_counters',
-        default='false',
+        default=False,
         action='store_true',
         help='Throttling counters in GcsIO is enabled by default. Set '
         '--no_gcsio_throttling_counters to avoid it.')

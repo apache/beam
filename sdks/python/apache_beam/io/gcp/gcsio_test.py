@@ -31,6 +31,7 @@ from apache_beam import version as beam_version
 
 try:
   from apache_beam.io.gcp import gcsio
+  from apache_beam.io.gcp.gcsio_retry import DEFAULT_RETRY_WITH_THROTTLING_COUNTERS
   from google.cloud.exceptions import BadRequest, NotFound
 except ImportError:
   NotFound = None
@@ -80,7 +81,7 @@ class FakeGcsClient(object):
     holder = folder.get_blob(blob.name)
     return holder
 
-  def list_blobs(self, bucket_or_path, prefix=None):
+  def list_blobs(self, bucket_or_path, prefix=None, **unused_kwargs):
     bucket = self.get_bucket(bucket_or_path.name)
     if not prefix:
       return list(bucket.blobs.values())
@@ -124,7 +125,7 @@ class FakeBucket(object):
     dest.add_blob(new_blob)
     return new_blob
 
-  def get_blob(self, blob_name):
+  def get_blob(self, blob_name, **unused_kwargs):
     bucket = self._get_canonical_bucket()
     if blob_name in bucket.blobs:
       return bucket.blobs[blob_name]
@@ -472,7 +473,10 @@ class TestGCSIO(unittest.TestCase):
 
     with mock.patch('apache_beam.io.gcp.gcsio.BeamBlobReader') as reader:
       self.gcs.open(file_name, read_buffer_size=read_buffer_size)
-      reader.assert_called_with(blob, chunk_size=read_buffer_size)
+      reader.assert_called_with(
+          blob,
+          chunk_size=read_buffer_size,
+          retry=DEFAULT_RETRY_WITH_THROTTLING_COUNTERS)
 
   def test_file_write_call(self):
     file_name = 'gs://gcsio-test/write_file'
