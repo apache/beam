@@ -138,11 +138,11 @@ class GcsIO(object):
   """Google Cloud Storage I/O client."""
   def __init__(self, storage_client=None, pipeline_options=None):
     # type: (Optional[storage.Client], Optional[Union[dict, PipelineOptions]]) -> None
+    if not pipeline_options:
+      pipeline_options = PipelineOptions()
+    elif isinstance(pipeline_options, dict):
+      pipeline_options = PipelineOptions.from_dictionary(pipeline_options)
     if storage_client is None:
-      if not pipeline_options:
-        pipeline_options = PipelineOptions()
-      elif isinstance(pipeline_options, dict):
-        pipeline_options = PipelineOptions.from_dictionary(pipeline_options)
       storage_client = create_storage_client(pipeline_options)
     self.client = storage_client
     self._rewrite_cb = None
