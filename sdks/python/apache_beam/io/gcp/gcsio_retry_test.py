@@ -74,3 +74,7 @@ class TestGCSIORetry(unittest.TestCase):
             1)
     finally:
       sampler.stop()
+
+
+if __name__ == '__main__':
+  unittest.main()

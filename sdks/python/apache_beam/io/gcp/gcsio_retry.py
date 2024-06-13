@@ -24,12 +24,12 @@ import math
 import random
 import time
 
-from apache_beam.metrics.metric import Metrics
-from google.api_core import retry
 from google.api_core import exceptions as api_exceptions
-from google.cloud.storage.retry import _should_retry  # pylint: disable=protected-access
+from google.api_core import retry
 from google.cloud.storage.retry import DEFAULT_RETRY
+from google.cloud.storage.retry import _should_retry  # pylint: disable=protected-access
 
+from apache_beam.metrics.metric import Metrics
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 
 _LOGGER = logging.getLogger(__name__)
