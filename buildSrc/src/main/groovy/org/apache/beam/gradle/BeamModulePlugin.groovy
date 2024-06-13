@@ -636,6 +636,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def singlestore_jdbc_version = "1.1.4"
     def slf4j_version = "1.7.30"
     def snakeyaml_version = "2.2"
+    def solace_version = "10.21.0"
     def spark2_version = "2.4.8"
     def spark3_version = "3.2.2"
     def spotbugs_version = "4.0.6"
@@ -877,6 +878,7 @@ class BeamModulePlugin implements Plugin<Project> {
         slf4j_log4j12                               : "org.slf4j:slf4j-log4j12:$slf4j_version",
         slf4j_jcl                                   : "org.slf4j:slf4j-jcl:$slf4j_version",
         snappy_java                                 : "org.xerial.snappy:snappy-java:1.1.10.4",
+        solace                                      : "com.solacesystems:sol-jcsmp:$solace_version",
         spark_core                                  : "org.apache.spark:spark-core_2.11:$spark2_version",
         spark_streaming                             : "org.apache.spark:spark-streaming_2.11:$spark2_version",
         spark3_core                                 : "org.apache.spark:spark-core_2.12:$spark3_version",
