@@ -27,7 +27,7 @@ enableJavaPerformanceTesting()
 description = "Apache Beam :: SDKs :: Java :: IO :: Elasticsearch-Tests :: 7.x"
 ext.summary = "Tests of ElasticsearchIO on Elasticsearch 7.x"
 
-def elastic_search_version = "7.13.4"
+def elastic_search_version = "7.17.22"
 
 dependencies {
   testImplementation project(path: ":sdks:java:io:elasticsearch-tests:elasticsearch-tests-common", configuration: "testRuntimeMigration")

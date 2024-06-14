@@ -492,11 +492,17 @@ class ElasticsearchIOTestUtils {
   }
 
   static RestClient clientFromContainer(ElasticsearchContainer container) {
+    return clientFromContainer(container, false);
+  }
+
+  static RestClient clientFromContainer(
+      ElasticsearchContainer container, boolean isCompressionEnabled) {
     return RestClient.builder(
             new HttpHost(
                 container.getContainerIpAddress(),
                 container.getMappedPort(ELASTICSEARCH_DEFAULT_PORT),
                 "http"))
+        .setCompressionEnabled(isCompressionEnabled)
         .build();
   }
 
