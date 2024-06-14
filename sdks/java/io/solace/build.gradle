@@ -34,5 +34,4 @@ dependencies {
     implementation project(path: ":sdks:java:core", configuration: "shadow")
     implementation library.java.joda_time
     implementation library.java.solace
-    implementation library.java.vendored_guava_32_1_2_jre
 }
