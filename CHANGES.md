@@ -135,6 +135,9 @@
   * Running a 2.57.0+ remote SDK pipeline containing a pre-2.57.0 Java SchemaTransform
   * All direct uses of Python's [SchemaAwareExternalTransform](https://github.com/apache/beam/blob/a998107a1f5c3050821eef6a5ad5843d8adb8aec/sdks/python/apache_beam/transforms/external.py#L381)
     should be updated to use new snake_case parameter names.
+* Upgraded Jackson Databind to 2.15.4 (Java) ([#26743](https://github.com/apache/beam/issues/26743)).
+  jackson-2.15 has known breaking changes. An important one is it imposed a buffer limit for parser.
+  If your custom PTransform/DoFn are affected, refer to [#31580](https://github.com/apache/beam/pull/31580) for mitigation.
 
 # [2.56.0] - 2024-05-01
 

@@ -385,7 +385,7 @@ public class SolaceIO {
      *
      * <p>To use it, specify the credentials with the builder methods. *
      *
-     * <p>The host is the IPv4 or IPv6 or host name of the appliance. IPv5 addresses must be encoded
+     * <p>The host is the IPv4 or IPv6 or host name of the appliance. IPv6 addresses must be encoded
      * in brackets ([]). For example, "12.34.56.78", or "[fe80::1]". If connecting to a non-default
      * port, it can be specified here using the "Host:Port" format. For example, "12.34.56.78:4444",
      * or "[fe80::1]:4444".
