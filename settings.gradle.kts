@@ -24,8 +24,8 @@ pluginManagement {
 }
 
 plugins {
-  id("com.gradle.enterprise") version "3.17.5"
-  id("com.gradle.common-custom-user-data-gradle-plugin") version "1.12.1"
+  id("com.gradle.develocity") version "3.17.5"
+  id("com.gradle.common-custom-user-data-gradle-plugin") version "2.0.1"
 }
 
 
@@ -35,16 +35,12 @@ val isJenkinsBuild = arrayOf("JENKINS_HOME", "BUILD_ID").all { System.getenv(it)
 val isGithubActionsBuild = arrayOf("GITHUB_REPOSITORY", "GITHUB_RUN_ID").all { System.getenv(it) != null }
 val isCi = isJenkinsBuild || isGithubActionsBuild
 
-gradleEnterprise {
+develocity {
   server = "https://ge.apache.org"
-  allowUntrustedServer = false
 
   buildScan {
-    capture { isTaskInputFiles = true }
-    isUploadInBackground = !isCi
-    publishAlways()
-    this as BuildScanExtensionWithHiddenFeatures
-    publishIfAuthenticated()
+    uploadInBackground = !isCi
+    publishing.onlyIf { it.isAuthenticated }
     obfuscation {
       ipAddresses { addresses -> addresses.map { "0.0.0.0" } }
     }
@@ -63,7 +59,7 @@ buildCache {
       password = System.getenv("GRADLE_ENTERPRISE_CACHE_PASSWORD")
     }
     isEnabled = !System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME").isNullOrBlank()
-    isPush = isCi
+    isPush = isCi && !System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME").isNullOrBlank()
   }
 }
 
