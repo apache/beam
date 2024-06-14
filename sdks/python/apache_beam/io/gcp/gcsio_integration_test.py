@@ -38,12 +38,16 @@ import pytest
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.testing.test_pipeline import TestPipeline
-from google.api_core.exceptions import NotFound
 
 try:
   from apache_beam.io.gcp import gcsio
 except ImportError:
   gcsio = None  # type: ignore
+
+try:
+  from google.api_core.exceptions import NotFound
+except ImportError:
+  NotFound = None
 
 
 @unittest.skipIf(gcsio is None, 'GCP dependencies are not installed')
@@ -146,6 +150,7 @@ class GcsIOIntegrationTest(unittest.TestCase):
 
   @pytest.mark.it_postcommit
   @mock.patch('apache_beam.io.gcp.gcsio.default_gcs_bucket_name')
+  @unittest.skipIf(NotFound is None, 'GCP dependencies are not installed')
   def test_create_default_bucket(self, mock_default_gcs_bucket_name):
     google_cloud_options = self.test_pipeline.options.view_as(
         GoogleCloudOptions)
