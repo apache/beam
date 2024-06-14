@@ -38,6 +38,7 @@ import pytest
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.testing.test_pipeline import TestPipeline
+from google.api_core.exceptions import NotFound
 
 try:
   from apache_beam.io.gcp import gcsio
@@ -168,7 +169,12 @@ class GcsIOIntegrationTest(unittest.TestCase):
     # remove the existing bucket with the same name as the default bucket
     existing_bucket = self.gcsio.get_bucket(overridden_bucket_name)
     if existing_bucket:
-      existing_bucket.delete()
+      try:
+        existing_bucket.delete()
+      except NotFound:
+        # Bucket existence check from get_bucket may be inaccurate due to gcs
+        # cache or delay
+        pass
 
     bucket = gcsio.get_or_create_default_gcs_bucket(google_cloud_options)
     self.assertIsNotNone(bucket)
