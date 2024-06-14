@@ -166,35 +166,34 @@ public class Solace {
     }
 
     @AutoValue.Builder
-    public abstract static class Builder {
-      public abstract Builder setMessageId(@Nullable String messageId);
+    abstract static class Builder {
+      abstract Builder setMessageId(@Nullable String messageId);
 
-      public abstract Builder setPayload(byte[] payload);
+      abstract Builder setPayload(byte[] payload);
 
-      public abstract Builder setDestination(@Nullable Destination destination);
+      abstract Builder setDestination(@Nullable Destination destination);
 
-      public abstract Builder setExpiration(long expiration);
+      abstract Builder setExpiration(long expiration);
 
-      public abstract Builder setPriority(int priority);
+      abstract Builder setPriority(int priority);
 
-      public abstract Builder setRedelivered(boolean redelivered);
+      abstract Builder setRedelivered(boolean redelivered);
 
-      public abstract Builder setReplyTo(@Nullable Destination replyTo);
+      abstract Builder setReplyTo(@Nullable Destination replyTo);
 
-      public abstract Builder setReceiveTimestamp(long receiveTimestamp);
+      abstract Builder setReceiveTimestamp(long receiveTimestamp);
 
-      public abstract Builder setSenderTimestamp(@Nullable Long senderTimestamp);
+      abstract Builder setSenderTimestamp(@Nullable Long senderTimestamp);
 
-      public abstract Builder setSequenceNumber(@Nullable Long sequenceNumber);
+      abstract Builder setSequenceNumber(@Nullable Long sequenceNumber);
 
-      public abstract Builder setTimeToLive(long timeToLive);
+      abstract Builder setTimeToLive(long timeToLive);
 
-      public abstract Builder setReplicationGroupMessageId(
-          @Nullable String replicationGroupMessageId);
+      abstract Builder setReplicationGroupMessageId(@Nullable String replicationGroupMessageId);
 
-      public abstract Builder setAttachmentBytes(byte[] attachmentBytes);
+      abstract Builder setAttachmentBytes(byte[] attachmentBytes);
 
-      public abstract Record build();
+      abstract Record build();
     }
   }
 

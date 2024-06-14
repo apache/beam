@@ -15,12 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.solace;
+package org.apache.beam.sdk.io.solace.data;
 
 import com.solacesystems.jcsmp.BytesXMLMessage;
 import com.solacesystems.jcsmp.DeliveryMode;
 import com.solacesystems.jcsmp.Destination;
 import com.solacesystems.jcsmp.JCSMPException;
+import com.solacesystems.jcsmp.JCSMPFactory;
 import com.solacesystems.jcsmp.MessageType;
 import com.solacesystems.jcsmp.ReplicationGroupMessageId;
 import com.solacesystems.jcsmp.SDTMap;
@@ -34,7 +35,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
-import org.apache.beam.sdk.io.solace.data.Solace;
+import org.apache.beam.sdk.io.solace.SolaceIO;
 import org.apache.beam.sdk.schemas.JavaBeanSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -291,7 +292,7 @@ public class SolaceDataUtils {
 
       @Override
       public Destination getDestination() {
-        return SolaceIO.topicFromName(destination);
+        return JCSMPFactory.onlyInstance().createTopic(destination);
       }
 
       @Override
