@@ -706,7 +706,10 @@ class Pipeline(HasDisplayData):
             'To apply a transform with a specified label, write '
             'pvalue | "label" >> transform or use the option '
             '"auto_unique_labels" to automatically generate unique '
-            'transform labels' % full_label)
+            'transform labels. Note "auto_unique_labels" '
+            'could cause data loss when updating a pipeline or '
+            'reloading the job state. This is not recommended for '
+            'streaming jobs.' % full_label)
     self.applied_labels.add(full_label)
 
     pvalueish, inputs = transform._extract_input_pvalues(pvalueish)
