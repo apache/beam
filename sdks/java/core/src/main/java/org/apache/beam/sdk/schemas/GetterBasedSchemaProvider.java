@@ -33,6 +33,7 @@ import org.apache.beam.sdk.schemas.Schema.LogicalType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.OneOfType;
+import org.apache.beam.sdk.schemas.utils.ReflectUtils;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -196,7 +197,7 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
         FieldType elementType = type.getCollectionElementType();
         TypeDescriptor elementTypeDescriptor =
             Optional.ofNullable(getterReturnType)
-                .map(getterType -> getterType.resolveType(Collection.class.getTypeParameters()[0]))
+                .map(getterType -> ReflectUtils.getIterableComponentType(getterType))
                 .orElse(null);
         return elementType.getTypeName().equals(TypeName.ROW)
             ? new GetEagerCollection(base, converter(elementType, elementTypeDescriptor))
@@ -204,7 +205,7 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
       } else if (typeName.equals(TypeName.ITERABLE)) {
         TypeDescriptor elementTypeDescriptor =
             Optional.ofNullable(getterReturnType)
-                .map(getterType -> getterType.resolveType(Iterable.class.getTypeParameters()[0]))
+                .map(getterType -> ReflectUtils.getIterableComponentType(getterType))
                 .orElse(null);
         return new GetIterable(
             base, converter(type.getCollectionElementType(), elementTypeDescriptor));

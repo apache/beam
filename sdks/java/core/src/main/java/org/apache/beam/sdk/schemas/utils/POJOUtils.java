@@ -209,12 +209,12 @@ public class POJOUtils {
           List<FieldValueTypeInformation> types =
               fieldValueTypeSupplier.get(typeDescriptor, schema);
           return createConstructorCreator(
-              typeDescriptor, constructor, schema, types, typeConversionsFactory);
+              typeDescriptor.getRawType(), constructor, schema, types, typeConversionsFactory);
         });
   }
 
   public static <T> SchemaUserTypeCreator createConstructorCreator(
-      TypeDescriptor<T> typeDescriptor,
+      Class<T> clazz,
       Constructor<T> constructor,
       Schema schema,
       List<FieldValueTypeInformation> types,
@@ -222,19 +222,19 @@ public class POJOUtils {
     try {
       DynamicType.Builder<SchemaUserTypeCreator> builder =
           BYTE_BUDDY
-              .with(new InjectPackageStrategy(typeDescriptor.getRawType()))
+              .with(new InjectPackageStrategy(clazz))
               .subclass(SchemaUserTypeCreator.class)
               .method(ElementMatchers.named("create"))
               .intercept(
                   new ConstructorCreateInstruction(
-                      types, typeDescriptor.getRawType(), constructor, typeConversionsFactory));
+                      types, clazz, constructor, typeConversionsFactory));
 
       return builder
           .visit(new AsmVisitorWrapper.ForDeclaredMethods().writerFlags(ClassWriter.COMPUTE_FRAMES))
           .make()
           .load(
-              ReflectHelpers.findClassLoader(typeDescriptor.getRawType().getClassLoader()),
-              getClassLoadingStrategy(typeDescriptor.getRawType()))
+              ReflectHelpers.findClassLoader(clazz.getClassLoader()),
+              getClassLoadingStrategy(clazz))
           .getLoaded()
           .getDeclaredConstructor()
           .newInstance();
@@ -243,7 +243,7 @@ public class POJOUtils {
         | NoSuchMethodException
         | InvocationTargetException e) {
       throw new RuntimeException(
-          "Unable to generate a creator for " + typeDescriptor + " with schema " + schema);
+          "Unable to generate a creator for " + clazz + " with schema " + schema);
     }
   }
 

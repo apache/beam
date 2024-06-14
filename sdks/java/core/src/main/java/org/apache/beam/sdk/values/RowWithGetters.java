@@ -45,6 +45,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public class RowWithGetters extends Row {
   private final Object getterTarget;
   private final List<FieldValueGetter> getters;
+  private final TypeDescriptor getterTargetType;
   private @Nullable Map<Integer, @Nullable Object> cache = null;
 
   RowWithGetters(
@@ -54,7 +55,12 @@ public class RowWithGetters extends Row {
       Object getterTarget) {
     super(schema);
     this.getterTarget = getterTarget;
+    this.getterTargetType = getterTargetType;
     this.getters = getterFactory.create(getterTargetType, schema);
+  }
+
+  public TypeDescriptor getGetterTargetType() {
+    return getterTargetType;
   }
 
   @Override
