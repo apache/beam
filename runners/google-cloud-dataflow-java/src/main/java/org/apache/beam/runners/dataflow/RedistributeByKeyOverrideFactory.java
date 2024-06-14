@@ -18,10 +18,10 @@
 package org.apache.beam.runners.dataflow;
 
 import java.util.Collections;
+import org.apache.beam.runners.dataflow.internal.DataflowGroupByKey;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory.PTransformReplacement;
-import org.apache.beam.sdk.transforms.DataflowGroupByKey;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.Element;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;

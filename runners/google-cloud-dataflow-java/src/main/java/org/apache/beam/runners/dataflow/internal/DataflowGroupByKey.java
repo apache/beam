@@ -15,14 +15,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.transforms;
+package org.apache.beam.runners.dataflow.internal;
 
+import com.google.auto.service.AutoService;
+import java.util.Collections;
+import java.util.Map;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.util.construction.PTransformTranslation;
+import org.apache.beam.sdk.util.construction.SdkComponents;
+import org.apache.beam.sdk.util.construction.TransformPayloadTranslatorRegistrar;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
@@ -153,5 +162,33 @@ public class DataflowGroupByKey<K, V>
   /** Returns the {@code Coder} of the output of this transform. */
   public static <K, V> KvCoder<K, Iterable<V>> getOutputKvCoder(Coder<KV<K, V>> inputCoder) {
     return KvCoder.of(getKeyCoder(inputCoder), getOutputValueCoder(inputCoder));
+  }
+
+  static class DataflowGroupByKeyTranslator
+      implements PTransformTranslation.TransformPayloadTranslator<DataflowGroupByKey<?, ?>> {
+    @Override
+    public String getUrn() {
+      return PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN;
+    }
+
+    @Override
+    @SuppressWarnings("nullness")
+    public RunnerApi.FunctionSpec translate(
+        AppliedPTransform<?, ?, DataflowGroupByKey<?, ?>> transform, SdkComponents components) {
+      return RunnerApi.FunctionSpec.newBuilder().setUrn(getUrn(transform.getTransform())).build();
+    }
+  }
+
+  /** Registers {@link DataflowGroupByKeyTranslator}. */
+  @AutoService(TransformPayloadTranslatorRegistrar.class)
+  public static class Registrar implements TransformPayloadTranslatorRegistrar {
+    @Override
+    @SuppressWarnings("rawtypes")
+    public Map<
+            ? extends Class<? extends PTransform>,
+            ? extends PTransformTranslation.TransformPayloadTranslator>
+        getTransformPayloadTranslators() {
+      return Collections.singletonMap(DataflowGroupByKey.class, new DataflowGroupByKeyTranslator());
+    }
   }
 }
