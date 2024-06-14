@@ -48,6 +48,8 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** {@link Schema} describes the fields in {@link Row}. */
 @SuppressWarnings({
@@ -681,6 +683,9 @@ public class Schema implements Serializable {
   @AutoValue
   @Immutable
   public abstract static class FieldType implements Serializable {
+
+    private static final Logger LOG = LoggerFactory.getLogger(FieldType.class);
+
     // Returns the type of this field.
     public abstract TypeName getTypeName();
 
@@ -816,6 +821,13 @@ public class Schema implements Serializable {
 
     /** Create a map type for the given key and value types. */
     public static FieldType map(FieldType keyType, FieldType valueType) {
+      if (FieldType.BYTES.equals(keyType)) {
+        LOG.warn(
+            "Using byte arrays as keys in a Map may lead to unexpected behavior and may not work as intended. "
+                + "Since arrays do not override equals() or hashCode, comparisons will be done on reference equality only. "
+                + "ByteBuffers, when used as keys, present similar challenges because Row stores ByteBuffer as a byte array. "
+                + "Consider using a different type of key for more consistent and predictable behavior.");
+      }
       return FieldType.forTypeName(TypeName.MAP)
           .setMapKeyType(keyType)
           .setMapValueType(valueType)
