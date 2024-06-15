@@ -94,6 +94,15 @@ async function processPrComment(
     return;
   }
 
+  // Check to see if notifications have been stopped before processing further
+  if (
+    (await stateClient.getPrState(getPullNumberFromPayload(payload)))
+      .stopReviewerNotifications
+  ) {
+    console.log("Notifications have been paused for this pull - skipping");
+    return;
+  }
+
   // If comment was from the author, we should shift attention back to the reviewers.
   console.log(
     "No command to be processed, checking if we should shift attention to reviewers"
@@ -140,11 +149,6 @@ async function processPrUpdate() {
   const pullNumber = getPullNumberFromPayload(payload);
 
   const stateClient = new PersistentState();
-  const prState = await stateClient.getPrState(pullNumber);
-  if (prState.stopReviewerNotifications) {
-    console.log("Notifications have been paused for this pull - skipping");
-    return;
-  }
 
   switch (github.context.eventName) {
     case "issue_comment":
@@ -156,6 +160,12 @@ async function processPrUpdate() {
       await processPrComment(payload, stateClient, reviewerConfig);
       break;
     case "pull_request_target":
+      if (
+        (await stateClient.getPrState(pullNumber)).stopReviewerNotifications
+      ) {
+        console.log("Notifications have been paused for this pull - skipping");
+        return;
+      }
       if (payload.action === "synchronize") {
         console.log("Processing synchronize action");
         await setNextActionReviewers(payload, stateClient);
