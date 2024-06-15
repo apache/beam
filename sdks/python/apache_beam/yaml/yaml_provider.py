@@ -34,6 +34,8 @@ from typing import Any
 from typing import Callable
 from typing import Dict
 from typing import Iterable
+from typing import Iterator
+from typing import List
 from typing import Mapping
 from typing import Optional
 
@@ -45,6 +47,7 @@ import apache_beam as beam
 import apache_beam.dataframe.io
 import apache_beam.io
 import apache_beam.transforms.util
+from apache_beam.io.filesystems import FileSystems
 from apache_beam.portability.api import schema_pb2
 from apache_beam.runners import pipeline_context
 from apache_beam.testing.util import assert_that
@@ -222,7 +225,10 @@ class ExternalProvider(Provider):
       config['version'] = beam_version
     if type in cls._provider_types:
       try:
-        return cls._provider_types[type](urns, **config)
+        result = cls._provider_types[type](urns, **config)
+        if not hasattr(result, 'to_json'):
+          result.to_json = lambda: spec
+        return result
       except Exception as exn:
         raise ValueError(
             f'Unable to instantiate provider of type {type} '
@@ -1153,18 +1159,35 @@ class RenamingProvider(Provider):
     self._underlying_provider.cache_artifacts()
 
 
-def parse_providers(provider_specs):
-  providers = collections.defaultdict(list)
+def flatten_included_provider_specs(
+    provider_specs: Iterable[Mapping]) -> Iterator[Mapping]:
   for provider_spec in provider_specs:
-    provider = ExternalProvider.provider_from_spec(provider_spec)
-    for transform_type in provider.provided_transforms():
-      providers[transform_type].append(provider)
-      # TODO: Do this better.
-      provider.to_json = lambda result=provider_spec: result
-  return providers
+    if 'include' in provider_spec:
+      if len(provider_spec) != 1:
+        raise ValueError(f"Invalid provider spec: {provider_spec}")
+      try:
+        with urllib.request.urlopen(provider_spec['include']) as response:
+          content = response.read()
+      except (ValueError, urllib.error.URLError) as exn:
+        if 'unknown url type' in str(exn):
+          with FileSystems.open(provider_spec['include']) as fin:
+            content = fin.read()
+        else:
+          raise
+      yield from flatten_included_provider_specs(
+          yaml.load(content, Loader=SafeLoader))
+    else:
+      yield provider_spec
 
 
-def merge_providers(*provider_sets):
+def parse_providers(provider_specs: Iterable[Mapping]) -> Iterable[Provider]:
+  return [
+      ExternalProvider.provider_from_spec(provider_spec)
+      for provider_spec in flatten_included_provider_specs(provider_specs)
+  ]
+
+
+def merge_providers(*provider_sets) -> Mapping[str, Iterable[Provider]]:
   result = collections.defaultdict(list)
   for provider_set in provider_sets:
     if isinstance(provider_set, Provider):
