@@ -736,6 +736,20 @@ public class PubsubIO {
   }
 
   /**
+   * Returns A {@link PTransform} that writes {@link PubsubMessage}s, along with the {@link
+   * PubsubMessage#getMessageId() messageId} and {@link PubsubMessage#getOrderingKey()}, to a Google
+   * Cloud Pub/Sub stream.
+   */
+  public static Write<PubsubMessage> writeMessagesWithOrderingKey() {
+    return Write.newBuilder()
+        .setTopicProvider(null)
+        .setTopicFunction(null)
+        .setDynamicDestinations(false)
+        .setNeedsOrderingKey(true)
+        .build();
+  }
+
+  /**
    * Enables dynamic destination topics. The {@link PubsubMessage} elements are each expected to
    * contain a destination topic, which can be set using {@link PubsubMessage#withTopic}. If {@link
    * Write#to} is called, that will be used instead to generate the topic and the value returned by
@@ -1288,6 +1302,8 @@ public class PubsubIO {
 
     abstract @Nullable String getPubsubRootUrl();
 
+    abstract boolean getNeedsOrderingKey();
+
     abstract BadRecordRouter getBadRecordRouter();
 
     abstract ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
@@ -1301,6 +1317,7 @@ public class PubsubIO {
       builder.setFormatFn(formatFn);
       builder.setBadRecordRouter(BadRecordRouter.THROWING_ROUTER);
       builder.setBadRecordErrorHandler(new DefaultErrorHandler<>());
+      builder.setNeedsOrderingKey(false);
       return builder;
     }
 
@@ -1331,6 +1348,8 @@ public class PubsubIO {
           SerializableFunction<ValueInSingleWindow<T>, PubsubMessage> formatFn);
 
       abstract Builder<T> setPubsubRootUrl(String pubsubRootUrl);
+
+      abstract Builder<T> setNeedsOrderingKey(boolean needsOrderingKey);
 
       abstract Builder<T> setBadRecordRouter(BadRecordRouter badRecordRouter);
 
@@ -1487,8 +1506,12 @@ public class PubsubIO {
               pubsubMessageTuple
                   .get(BAD_RECORD_TAG)
                   .setCoder(BadRecord.getCoder(input.getPipeline())));
-      PCollection<PubsubMessage> pubsubMessages =
-          pubsubMessageTuple.get(pubsubMessageTupleTag).setCoder(new PubsubMessageWithTopicCoder());
+      PCollection<PubsubMessage> pubsubMessages = pubsubMessageTuple.get(pubsubMessageTupleTag);
+      if (getNeedsOrderingKey()) {
+        pubsubMessages.setCoder(PubsubMessageSchemaCoder.getSchemaCoder());
+      } else {
+        pubsubMessages.setCoder(new PubsubMessageWithTopicCoder());
+      }
       switch (input.isBounded()) {
         case BOUNDED:
           pubsubMessages.apply(
