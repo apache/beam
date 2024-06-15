@@ -22,7 +22,6 @@ import (
 	"container/heap"
 	"context"
 	"fmt"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	"io"
 	"sort"
 	"strings"
@@ -35,6 +34,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slog"
 )
@@ -292,8 +292,8 @@ func (rb RunBundle) LogValue() slog.Value {
 // The returned channel is closed when the context is canceled, or there are no pending elements
 // remaining.
 func (em *ElementManager) Bundles(ctx context.Context, upstreamCancelFn context.CancelCauseFunc, nextBundID func() string) <-chan RunBundle {
-	ctx, cancelFn := context.WithCancelCause(ctx)
 	runStageCh := make(chan RunBundle)
+	ctx, cancelFn := context.WithCancelCause(ctx)
 	go func() {
 		em.pendingElements.Wait()
 		slog.Debug("no more pending elements: terminating pipeline")
