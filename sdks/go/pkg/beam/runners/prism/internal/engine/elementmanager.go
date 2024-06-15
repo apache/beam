@@ -34,6 +34,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slog"
 )
@@ -290,7 +291,7 @@ func (rb RunBundle) LogValue() slog.Value {
 // Bundles is the core execution loop. It produces a sequences of bundles able to be executed.
 // The returned channel is closed when the context is canceled, or there are no pending elements
 // remaining.
-func (em *ElementManager) Bundles(ctx context.Context, nextBundID func() string) <-chan RunBundle {
+func (em *ElementManager) Bundles(ctx context.Context, upstreamCancelFn context.CancelCauseFunc, nextBundID func() string) <-chan RunBundle {
 	runStageCh := make(chan RunBundle)
 	ctx, cancelFn := context.WithCancelCause(ctx)
 	go func() {
@@ -384,7 +385,9 @@ func (em *ElementManager) Bundles(ctx context.Context, nextBundID func() string)
 					}
 				}
 			}
-			em.checkForQuiescence(advanced)
+			if err := em.checkForQuiescence(advanced); err != nil {
+				upstreamCancelFn(err)
+			}
 		}
 	}()
 	return runStageCh
@@ -400,11 +403,11 @@ func (em *ElementManager) Bundles(ctx context.Context, nextBundID func() string)
 // executing off the next TestStream event.
 //
 // Must be called while holding em.refreshCond.L.
-func (em *ElementManager) checkForQuiescence(advanced set[string]) {
+func (em *ElementManager) checkForQuiescence(advanced set[string]) error {
 	defer em.refreshCond.L.Unlock()
 	if len(em.inprogressBundles) > 0 {
 		// If there are bundles in progress, then there may be watermark refreshes when they terminate.
-		return
+		return nil
 	}
 	if len(em.watermarkRefreshes) > 0 {
 		// If there are watermarks to refresh, we aren't yet stuck.
@@ -414,12 +417,12 @@ func (em *ElementManager) checkForQuiescence(advanced set[string]) {
 			slog.Int("refreshCount", len(em.watermarkRefreshes)),
 			slog.Int64("pendingElementCount", v),
 		)
-		return
+		return nil
 	}
 	if em.testStreamHandler == nil && len(em.processTimeEvents.events) > 0 {
 		// If there's no test stream involved, and processing time events exist, then
 		// it's only a matter of time.
-		return
+		return nil
 	}
 	// The job has quiesced!
 
@@ -433,12 +436,12 @@ func (em *ElementManager) checkForQuiescence(advanced set[string]) {
 		// Note: it's a prism bug if test stream never causes a refresh to occur for a given event.
 		// It's not correct to move to the next event if no refreshes would occur.
 		if len(em.watermarkRefreshes) > 0 {
-			return
+			return nil
 		} else if _, ok := nextEvent.(tsProcessingTimeEvent); ok {
 			// It's impossible to fully control processing time SDK side handling for processing time
 			// Runner side, so we specialize refresh handling here to avoid spuriously getting stuck.
 			em.watermarkRefreshes.insert(em.testStreamHandler.ID)
-			return
+			return nil
 		}
 		// If there are no refreshes,  then there's no mechanism to make progress, so it's time to fast fail.
 	}
@@ -446,7 +449,7 @@ func (em *ElementManager) checkForQuiescence(advanced set[string]) {
 	v := em.livePending.Load()
 	if v == 0 {
 		// Since there are no further pending elements, the job will be terminating successfully.
-		return
+		return nil
 	}
 	// The job is officially stuck. Fail fast and produce debugging information.
 	// Jobs must never get stuck so this indicates a bug in prism to be investigated.
@@ -469,7 +472,7 @@ func (em *ElementManager) checkForQuiescence(advanced set[string]) {
 		upS := em.pcolParents[upPCol]
 		stageState = append(stageState, fmt.Sprintln(id, "watermark in", inW, "out", outW, "upstream", upW, "from", upS, "pending", ss.pending, "byKey", ss.pendingByKeys, "inprogressKeys", ss.inprogressKeys, "byBundle", ss.inprogressKeysByBundle, "holds", ss.watermarkHolds.heap, "holdCounts", ss.watermarkHolds.counts, "holdsInBundle", ss.inprogressHoldsByBundle, "pttEvents", ss.processingTimeTimers.toFire))
 	}
-	panic(fmt.Sprintf("nothing in progress and no refreshes with non zero pending elements: %v\n%v", v, strings.Join(stageState, "")))
+	return errors.Errorf("nothing in progress and no refreshes with non zero pending elements: %v\n%v", v, strings.Join(stageState, ""))
 }
 
 // InputForBundle returns pre-allocated data for the given bundle, encoding the elements using
