@@ -30,6 +30,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverCancelledException;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverFactory;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Status;
@@ -157,7 +158,14 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
         throw new IllegalStateException("Send called on a client closed stream.");
       }
 
-      requestObserver().onNext(request);
+      try {
+        requestObserver().onNext(request);
+      } catch (StreamObserverCancelledException e) {
+        if (isClosed()) {
+          LOG.warn("Stream was closed during send.", e);
+        }
+        throw e;
+      }
     }
   }
 

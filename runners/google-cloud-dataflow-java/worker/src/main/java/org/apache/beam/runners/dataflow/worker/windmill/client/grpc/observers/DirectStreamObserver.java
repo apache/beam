@@ -37,7 +37,7 @@ import org.slf4j.LoggerFactory;
  * becomes ready.
  */
 @ThreadSafe
-public final class DirectStreamObserver<T> implements StreamObserver<T> {
+final class DirectStreamObserver<T> implements StreamObserver<T> {
   private static final Logger LOG = LoggerFactory.getLogger(DirectStreamObserver.class);
   private final Phaser phaser;
 
@@ -52,7 +52,7 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
   @GuardedBy("lock")
   private int messagesSinceReady = 0;
 
-  public DirectStreamObserver(
+  DirectStreamObserver(
       Phaser phaser,
       CallStreamObserver<T> outboundObserver,
       long deadlineSeconds,
@@ -71,7 +71,7 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
     int awaitPhase = -1;
     long totalSecondsWaited = 0;
     long waitSeconds = 1;
-    while (true) {
+    while (phaser.getRegisteredParties() != 0) {
       try {
         synchronized (lock) {
           // We only check isReady periodically to effectively allow for increasing the outbound
@@ -99,6 +99,12 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
         // documentation stating otherwise) so we poll periodically and enforce an overall
         // timeout related to the stream deadline.
         phaser.awaitAdvanceInterruptibly(awaitPhase, waitSeconds, TimeUnit.SECONDS);
+        // Check to see if onCompleted has been called and the stream observer was closed before
+        // trying to send the next value.
+        if (phaser.getRegisteredParties() == 0) {
+          return;
+        }
+
         synchronized (lock) {
           messagesSinceReady = 0;
           outboundObserver.onNext(value);
@@ -107,10 +113,10 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
       } catch (TimeoutException e) {
         totalSecondsWaited += waitSeconds;
         if (totalSecondsWaited > deadlineSeconds) {
-          LOG.error(
+          throw new StreamObserverCancelledException(
               "Exceeded timeout waiting for the outboundObserver to become ready meaning "
-                  + "that the stream deadline was not respected.");
-          throw new RuntimeException(e);
+                  + "that the stream deadline was not respected.",
+              e);
         }
         if (totalSecondsWaited > 30) {
           LOG.info(
@@ -121,7 +127,7 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
         waitSeconds = waitSeconds * 2;
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
-        throw new RuntimeException(e);
+        throw new StreamObserverCancelledException(e);
       }
     }
   }
@@ -136,6 +142,7 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
   @Override
   public void onCompleted() {
     synchronized (lock) {
+      phaser.arriveAndDeregister();
       outboundObserver.onCompleted();
     }
   }
