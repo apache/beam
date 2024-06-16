@@ -57,14 +57,15 @@ public class CoGroupByKeyExample {
     // [START main_section]
     // Create pairs
     PCollection<KV<String, Integer>> pt1 =
-        pipeline.apply(Create.of(KV.of("a", 1), KV.of("b", 2), KV.of("b", 3), KV.of("c", 4)));
+        pipeline.apply(Create.of(KV.of("a", 1), KV.of("b", 2), KV.of("b", 3), KV.of("c", 4),KV.of("m", 5)));
     PCollection<KV<String, String>> pt2 =
         pipeline.apply(
             Create.of(
                 KV.of("a", "apple"),
                 KV.of("a", "avocado"),
                 KV.of("b", "banana"),
-                KV.of("c", "cherry")));
+                KV.of("c", "cherry"),
+                KV.of("m", "mango")));
 
     final TupleTag<Integer> t1 = new TupleTag<>();
     final TupleTag<String> t2 = new TupleTag<>();
