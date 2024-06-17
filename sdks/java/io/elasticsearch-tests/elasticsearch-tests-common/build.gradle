@@ -25,7 +25,7 @@ applyJavaNature(
 description = "Apache Beam :: SDKs :: Java :: IO :: Elasticsearch-Tests :: Common"
 ext.summary = "Common test classes for ElasticsearchIO"
 
-def elastic_search_version = "7.9.2"
+def elastic_search_version = "7.17.22"
 
 dependencies {
   testImplementation library.java.jackson_databind
