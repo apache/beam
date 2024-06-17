@@ -40,7 +40,7 @@ public class CountingChannelsIsOpenCloseMethodsTest<ChannelT extends Channel> {
   public interface ChannelUnderTestProvider<T extends Channel> {
     /**
      * Should create a {@link Channel} that delegates its open/closed state management to the
-     * provided delegate
+     * provided delegate.
      *
      * @param delegate a delegate channel whose state is to be managed
      * @return an instance of the channel class to be tested

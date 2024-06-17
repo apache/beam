@@ -44,7 +44,7 @@ public class CountingChannelsReadMethodsTest<ChannelT extends ReadableByteChanne
   public interface ChannelUnderTestProvider<T extends ReadableByteChannel> {
     /**
      * Should create a delegating and counting {@link ReadableByteChannel} whose read methods will
-     * be tested
+     * be tested.
      *
      * @param delegate a delegate to be used by the channel
      * @param bytesReadConsumer a consumer that is expected to receive the number of bytes read by

@@ -45,7 +45,7 @@ public class CountingChannelsWriteMethodsTest<ChannelT extends WritableByteChann
   public interface ChannelUnderTestProvider<T extends WritableByteChannel> {
     /**
      * Should create a delegating and counting {@link WritableByteChannel} whose write methods will
-     * be tested
+     * be tested.
      *
      * @param delegate a delegate to be used by the channel
      * @param bytesWrittenConsumer a consumer that is expected to receive the number of bytes
