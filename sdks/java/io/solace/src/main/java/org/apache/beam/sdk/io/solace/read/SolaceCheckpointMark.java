@@ -31,11 +31,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Checkpoint for an unbounded Solace source. Consists of the Solace messages waiting to be
- * acknowledged and oldest pending message timestamp.
+ * acknowledged.
  */
 @Internal
 @DefaultCoder(AvroCoder.class)
-public class SolaceCheckpointMark implements UnboundedSource.CheckpointMark {
+class SolaceCheckpointMark implements UnboundedSource.CheckpointMark {
   private transient AtomicBoolean activeReader;
   // BytesXMLMessage is not serializable so if a job restarts from the checkpoint, we cannot retry
   // these messages here. We relay on Solace's retry mechanism.
@@ -44,7 +44,14 @@ public class SolaceCheckpointMark implements UnboundedSource.CheckpointMark {
   @SuppressWarnings("initialization") // Avro will set the fields by breaking abstraction
   private SolaceCheckpointMark() {}
 
-  public SolaceCheckpointMark(AtomicBoolean activeReader, List<BytesXMLMessage> ackQueue) {
+  /**
+   * Creates a new {@link SolaceCheckpointMark}.
+   *
+   * @param activeReader {@link AtomicBoolean} indicating if the related reader is active. The
+   *     reader creating the messages has to be active to acknowledge the messages.
+   * @param ackQueue {@link List} of {@link BytesXMLMessage} to be acknowledged.
+   */
+  SolaceCheckpointMark(AtomicBoolean activeReader, List<BytesXMLMessage> ackQueue) {
     this.activeReader = activeReader;
     this.ackQueue = new ArrayDeque<>(ackQueue);
   }
@@ -55,7 +62,7 @@ public class SolaceCheckpointMark implements UnboundedSource.CheckpointMark {
       return;
     }
 
-    while (ackQueue.size() > 0) {
+    while (!ackQueue.isEmpty()) {
       BytesXMLMessage msg = ackQueue.poll();
       if (msg != null) {
         msg.ackMessage();
