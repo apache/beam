@@ -152,6 +152,6 @@ typing_extensions==4.11.0
 tzdata==2024.1
 tzlocal==5.2
 uritemplate==4.1.1
-urllib3==2.2.1
+urllib3==2.2.2
 wrapt==1.16.0
 zstandard==0.22.0
