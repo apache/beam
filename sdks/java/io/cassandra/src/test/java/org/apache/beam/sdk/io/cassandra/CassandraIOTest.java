@@ -546,7 +546,7 @@ public class CassandraIOTest implements Serializable {
   public void testReadWithQueryProviderWithWhereQuery() throws Exception {
     String query =
         String.format(
-            "select person_id, writetime(person_name) from %s.%s WHERE TRUE",
+            "select person_id, writetime(person_name) from %s.%s where person_id=10 AND person_department='logic'",
             CASSANDRA_KEYSPACE, CASSANDRA_TABLE);
 
     PCollection<Scientist> output =
@@ -561,7 +561,7 @@ public class CassandraIOTest implements Serializable {
                 .withCoder(SerializableCoder.of(Scientist.class))
                 .withEntity(Scientist.class));
 
-    PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(NUM_ROWS);
+    PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(1L);
     PAssert.that(output)
         .satisfies(
             input -> {
