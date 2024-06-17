@@ -97,17 +97,17 @@ public class Solace {
     @SchemaFieldNumber("1")
     public abstract DestinationType getType();
 
-    public static Builder builder() {
+    static Builder builder() {
       return new AutoValue_Solace_Destination.Builder();
     }
 
     @AutoValue.Builder
-    public abstract static class Builder {
-      public abstract Builder setName(String name);
+    abstract static class Builder {
+      abstract Builder setName(String name);
 
-      public abstract Builder setType(DestinationType type);
+      abstract Builder setType(DestinationType type);
 
-      public abstract Destination build();
+      abstract Destination build();
     }
   }
 
@@ -160,7 +160,7 @@ public class Solace {
     @SchemaFieldNumber("12")
     public abstract ByteString getAttachmentBytes();
 
-    public static Builder builder() {
+    static Builder builder() {
       return new AutoValue_Solace_Record.Builder();
     }
 
