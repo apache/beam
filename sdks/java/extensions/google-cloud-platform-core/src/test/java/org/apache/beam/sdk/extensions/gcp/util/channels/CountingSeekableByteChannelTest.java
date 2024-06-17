@@ -29,8 +29,9 @@ import org.junit.runners.JUnit4;
 
 /**
  * Test {@link SeekableByteChannel} delegation. Reading, writing and consumer interactions are
- * tested along with {@link CountingReadableByteChannel} and {@link CountingWritableByteChannel} as
- * part of their respective test suites.
+ * tested along with {@link CountingReadableByteChannel} and {@link CountingWritableByteChannel} in
+ * the {@link CountingChannelsReadMethodsTest} and {@link CountingChannelsWriteMethodsTest}
+ * respectively.
  */
 @RunWith(JUnit4.class)
 public class CountingSeekableByteChannelTest {
@@ -41,7 +42,7 @@ public class CountingSeekableByteChannelTest {
   @Before
   public void before() {
     delegate = new SeekableInMemoryByteChannel(new byte[16]);
-    channelUnderTest = new CountingSeekableByteChannel(delegate, __ -> {}, __ -> {});
+    channelUnderTest = CountingSeekableByteChannel.createWithNoOpConsumer(delegate);
   }
 
   @Test

@@ -21,11 +21,19 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.util.function.Consumer;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 
 public class CountingWritableByteChannel implements WritableByteChannel {
   private final WritableByteChannel delegate;
   private final Consumer<Integer> bytesWrittenConsumer;
+
+  // since it's equivalent to directly using the delegate, there's no point in using this variant
+  // elsewhere than in tests
+  @VisibleForTesting
+  public static CountingWritableByteChannel createWithNoOpConsumer(WritableByteChannel delegate) {
+    return new CountingWritableByteChannel(delegate, __ -> {});
+  }
 
   public CountingWritableByteChannel(
       WritableByteChannel delegate, Consumer<Integer> bytesWrittenConsumer) {

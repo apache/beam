@@ -26,7 +26,6 @@ import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import org.apache.beam.repackaged.core.org.apache.commons.compress.utils.SeekableInMemoryByteChannel;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -36,36 +35,52 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 @RunWith(Parameterized.class)
-public class CountingWritableByteChannelTest {
+public class CountingChannelsWriteMethodsTest<ChannelT extends WritableByteChannel> {
   private ByteBuffer byteBuffer;
   private byte[] testData;
   private byte[] writtenData;
   private SeekableByteChannel delegate;
-  private final BiFunction<SeekableByteChannel, Consumer<Integer>, WritableByteChannel>
-      channelUnderTestProvider;
+  private final ChannelUnderTestProvider<ChannelT> channelUnderTestProvider;
 
-  public CountingWritableByteChannelTest(
-      BiFunction<SeekableByteChannel, Consumer<Integer>, WritableByteChannel>
-          channelUnderTestProvider,
-      @SuppressWarnings("unused") Class<? extends WritableByteChannel> testLabel) {
+  public interface ChannelUnderTestProvider<T extends WritableByteChannel> {
+    /**
+     * Should create a delegating and counting {@link WritableByteChannel} whose write methods will
+     * be tested
+     *
+     * @param delegate a delegate to be used by the channel
+     * @param bytesWrittenConsumer a consumer that is expected to receive the number of bytes
+     *     written by the channel
+     * @return the channel object to be tested
+     */
+    T create(SeekableByteChannel delegate, Consumer<Integer> bytesWrittenConsumer);
+  }
+
+  public CountingChannelsWriteMethodsTest(
+      ChannelUnderTestProvider<ChannelT> channelUnderTestProvider,
+      @SuppressWarnings("unused") String testLabel) {
     this.channelUnderTestProvider = channelUnderTestProvider;
   }
 
+  private static <T extends WritableByteChannel> Object[] createTestCase(
+      ChannelUnderTestProvider<T> channelUnderTestProvider, Class<T> channelClass) {
+    return new Object[] {channelUnderTestProvider, channelClass.getSimpleName()};
+  }
+
+  private static Object[] createCountingSeekableByteChannelTestCase() {
+    return createTestCase(
+        CountingSeekableByteChannel::createWithBytesWrittenConsumer,
+        CountingSeekableByteChannel.class);
+  }
+
+  private static Object[] createCountingWritableByteChannelTestCase() {
+    return createTestCase(CountingWritableByteChannel::new, CountingWritableByteChannel.class);
+  }
+
   @Parameterized.Parameters(name = "{1}")
-  public static Iterable<Object[]> testParams() {
+  public static Iterable<Object[]> testCases() {
     ImmutableList.Builder<Object[]> builder = new ImmutableList.Builder<>();
-    BiFunction<SeekableByteChannel, Consumer<Integer>, CountingWritableByteChannel>
-        countingReadableByteChannelProvider = CountingWritableByteChannel::new;
-    builder.add(
-        new Object[] {countingReadableByteChannelProvider, CountingWritableByteChannel.class});
-
-    BiFunction<SeekableByteChannel, Consumer<Integer>, CountingSeekableByteChannel>
-        countingSeekableByteChannelProvider =
-            (delegate, bytesWrittenConsumer) ->
-                new CountingSeekableByteChannel(delegate, __ -> {}, bytesWrittenConsumer);
-    builder.add(
-        new Object[] {countingSeekableByteChannelProvider, CountingSeekableByteChannel.class});
-
+    builder.add(createCountingSeekableByteChannelTestCase());
+    builder.add(createCountingWritableByteChannelTestCase());
     return builder.build();
   }
 
@@ -81,7 +96,7 @@ public class CountingWritableByteChannelTest {
   public void testCounting() throws IOException {
     AtomicInteger counter = new AtomicInteger();
     WritableByteChannel countingChannel =
-        channelUnderTestProvider.apply(delegate, counter::addAndGet);
+        channelUnderTestProvider.create(delegate, counter::addAndGet);
 
     while (byteBuffer.remaining() != 0) {
       countingChannel.write(byteBuffer);
@@ -92,7 +107,7 @@ public class CountingWritableByteChannelTest {
 
   @Test
   public void testWrite() throws IOException {
-    WritableByteChannel channel = channelUnderTestProvider.apply(delegate, __ -> {});
+    WritableByteChannel channel = channelUnderTestProvider.create(delegate, __ -> {});
 
     while (byteBuffer.remaining() != 0) {
       channel.write(byteBuffer);

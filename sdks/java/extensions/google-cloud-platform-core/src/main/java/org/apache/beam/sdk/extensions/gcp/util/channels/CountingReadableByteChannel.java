@@ -21,12 +21,20 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
 import java.util.function.Consumer;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 
 public class CountingReadableByteChannel implements ReadableByteChannel {
 
   private final ReadableByteChannel delegate;
   private final Consumer<Integer> bytesReadConsumer;
+
+  // since it's equivalent to directly using the delegate, there's no point in using this variant
+  // elsewhere than in tests
+  @VisibleForTesting
+  public static CountingReadableByteChannel createWithNoOpConsumer(ReadableByteChannel delegate) {
+    return new CountingReadableByteChannel(delegate, __ -> {});
+  }
 
   public CountingReadableByteChannel(
       ReadableByteChannel delegate, Consumer<Integer> bytesReadConsumer) {

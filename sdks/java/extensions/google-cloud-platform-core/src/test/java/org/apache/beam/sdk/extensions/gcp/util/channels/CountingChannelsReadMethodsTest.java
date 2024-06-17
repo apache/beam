@@ -26,7 +26,6 @@ import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import org.apache.beam.repackaged.core.org.apache.commons.compress.utils.SeekableInMemoryByteChannel;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -36,36 +35,53 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 @RunWith(Parameterized.class)
-public class CountingReadableByteChannelTest {
+public class CountingChannelsReadMethodsTest<ChannelT extends ReadableByteChannel> {
 
   private ByteBuffer byteBuffer;
   private byte[] testData;
   private SeekableByteChannel delegate;
-  private final BiFunction<SeekableByteChannel, Consumer<Integer>, ? extends ReadableByteChannel>
-      channelUnderTestProvider;
 
-  public CountingReadableByteChannelTest(
-      BiFunction<SeekableByteChannel, Consumer<Integer>, ReadableByteChannel>
-          channelUnderTestProvider,
-      @SuppressWarnings("unused") Class<? extends ReadableByteChannel> testLabel) {
+  public interface ChannelUnderTestProvider<T extends ReadableByteChannel> {
+    /**
+     * Should create a delegating and counting {@link ReadableByteChannel} whose read methods will
+     * be tested
+     *
+     * @param delegate a delegate to be used by the channel
+     * @param bytesReadConsumer a consumer that is expected to receive the number of bytes read by
+     *     the channel
+     * @return the channel object to be tested
+     */
+    T create(SeekableByteChannel delegate, Consumer<Integer> bytesReadConsumer);
+  }
+
+  private final ChannelUnderTestProvider<ChannelT> channelUnderTestProvider;
+
+  public CountingChannelsReadMethodsTest(
+      ChannelUnderTestProvider<ChannelT> channelUnderTestProvider,
+      @SuppressWarnings("unused") String testLabel) {
     this.channelUnderTestProvider = channelUnderTestProvider;
   }
 
+  private static <T extends ReadableByteChannel> Object[] createTestCase(
+      ChannelUnderTestProvider<T> channelUnderTestProvider, Class<T> channelClass) {
+    return new Object[] {channelUnderTestProvider, channelClass.getSimpleName()};
+  }
+
+  private static Object[] countingReadableByteChannelTestCase() {
+    return createTestCase(CountingReadableByteChannel::new, CountingReadableByteChannel.class);
+  }
+
+  private static Object[] countingSeekableByteChannelTestCase() {
+    return createTestCase(
+        CountingSeekableByteChannel::createWithBytesReadConsumer,
+        CountingSeekableByteChannel.class);
+  }
+
   @Parameterized.Parameters(name = "{1}")
-  public static Iterable<Object[]> testParams() {
+  public static Iterable<Object[]> testCases() {
     ImmutableList.Builder<Object[]> builder = new ImmutableList.Builder<>();
-    BiFunction<SeekableByteChannel, Consumer<Integer>, CountingReadableByteChannel>
-        countingReadableByteChannelProvider = CountingReadableByteChannel::new;
-    builder.add(
-        new Object[] {countingReadableByteChannelProvider, CountingReadableByteChannel.class});
-
-    BiFunction<SeekableByteChannel, Consumer<Integer>, CountingSeekableByteChannel>
-        countingSeekableByteChannelProvider =
-            (delegate, bytesReadConsumer) ->
-                new CountingSeekableByteChannel(delegate, bytesReadConsumer, __ -> {});
-    builder.add(
-        new Object[] {countingSeekableByteChannelProvider, CountingSeekableByteChannel.class});
-
+    builder.add(countingReadableByteChannelTestCase());
+    builder.add(countingSeekableByteChannelTestCase());
     return builder.build();
   }
 
@@ -80,7 +96,7 @@ public class CountingReadableByteChannelTest {
   public void testCounting() throws IOException {
     AtomicInteger counter = new AtomicInteger();
     ReadableByteChannel countingChannel =
-        channelUnderTestProvider.apply(delegate, counter::addAndGet);
+        channelUnderTestProvider.create(delegate, counter::addAndGet);
 
     while (countingChannel.read(byteBuffer) != -1) {}
 
@@ -89,7 +105,7 @@ public class CountingReadableByteChannelTest {
 
   @Test
   public void testRead() throws IOException {
-    ReadableByteChannel channel = channelUnderTestProvider.apply(delegate, __ -> {});
+    ReadableByteChannel channel = channelUnderTestProvider.create(delegate, __ -> {});
     int totalBytesRead = 0;
     for (int bytesRead = channel.read(byteBuffer);
         bytesRead != -1;

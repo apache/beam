@@ -24,6 +24,7 @@ import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.Optional;
 import java.util.function.Consumer;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -31,6 +32,24 @@ public class CountingSeekableByteChannel implements SeekableByteChannel {
   private final SeekableByteChannel delegate;
   private final WritableByteChannel writableDelegate;
   private final ReadableByteChannel readableDelegate;
+
+  public static CountingSeekableByteChannel createWithBytesReadConsumer(
+      SeekableByteChannel delegate, Consumer<Integer> bytesReadConsumer) {
+    return new CountingSeekableByteChannel(delegate, bytesReadConsumer, null);
+  }
+
+  public static CountingSeekableByteChannel createWithBytesWrittenConsumer(
+      SeekableByteChannel delegate, Consumer<Integer> bytesWrittenConsumer) {
+    return new CountingSeekableByteChannel(delegate, null, bytesWrittenConsumer);
+  }
+
+  // since it's equivalent to directly using the delegate, there's no point in using this variant
+  // elsewhere than in tests
+  @VisibleForTesting
+  public static CountingSeekableByteChannel createWithNoOpConsumer(SeekableByteChannel delegate) {
+    Consumer<Integer> noop = __ -> {};
+    return new CountingSeekableByteChannel(delegate, noop, noop);
+  }
 
   public CountingSeekableByteChannel(
       SeekableByteChannel delegate,
