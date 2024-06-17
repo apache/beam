@@ -23,8 +23,12 @@ import org.apache.beam.sdk.io.solace.broker.SessionServiceFactory;
 public class MockSessionServiceFactory extends SessionServiceFactory {
   SessionService sessionService;
 
-  public MockSessionServiceFactory(MockSessionService clientService) {
+  public MockSessionServiceFactory(SessionService clientService) {
     this.sessionService = clientService;
+  }
+
+  public static SessionServiceFactory getDefaultMock() {
+    return new MockSessionServiceFactory(new MockEmptySessionService());
   }
 
   @Override

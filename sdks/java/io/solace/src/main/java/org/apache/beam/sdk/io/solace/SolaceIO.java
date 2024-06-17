@@ -243,11 +243,12 @@ public class SolaceIO {
    * the {@link Solace.Record} objects.
    */
   public static Read<Solace.Record> read() {
-    return Read.<Solace.Record>builder()
-        .setTypeDescriptor(TypeDescriptor.of(Solace.Record.class))
-        .setParseFn(SolaceRecordMapper::map)
-        .setTimestampFn(SENDER_TIMESTAMP_FUNCTION)
-        .build();
+    return new Read<Solace.Record>(
+        Read.Configuration.<Solace.Record>builder()
+            .setTypeDescriptor(TypeDescriptor.of(Solace.Record.class))
+            .setParseFn(SolaceRecordMapper::map)
+            .setTimestampFn(SENDER_TIMESTAMP_FUNCTION)
+            .setDeduplicateRecords(DEFAULT_DEDUPLICATE_RECORDS));
   }
   /**
    * Create a {@link Read} transform, to read from Solace. Specify a {@link SerializableFunction} to
@@ -269,25 +270,34 @@ public class SolaceIO {
     checkState(typeDescriptor != null, "SolaceIO.Read: typeDescriptor must not be null");
     checkState(parseFn != null, "SolaceIO.Read: parseFn must not be null");
     checkState(timestampFn != null, "SolaceIO.Read: timestampFn must not be null");
-    return Read.<T>builder()
-        .setTypeDescriptor(typeDescriptor)
-        .setParseFn(parseFn)
-        .setTimestampFn(timestampFn)
-        .build();
+    return new Read<T>(
+        Read.Configuration.<T>builder()
+            .setTypeDescriptor(typeDescriptor)
+            .setParseFn(parseFn)
+            .setTimestampFn(timestampFn)
+            .setDeduplicateRecords(DEFAULT_DEDUPLICATE_RECORDS));
   }
 
-  @AutoValue
-  public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>> {
+  public static class Read<T> extends PTransform<PBegin, PCollection<T>> {
+
     private static final Logger LOG = LoggerFactory.getLogger(Read.class);
+
+    @VisibleForTesting final Configuration.Builder<T> configurationBuilder;
+
+    public Read(Configuration.Builder<T> configurationBuilder) {
+      this.configurationBuilder = configurationBuilder;
+    }
 
     /** Set the queue name to read from. Use this or the `from(Topic)` method. */
     public Read<T> from(Solace.Queue queue) {
-      return toBuilder().setQueue(queueFromName(queue.getName())).build();
+      configurationBuilder.setQueue(queueFromName(queue.getName()));
+      return this;
     }
 
     /** Set the topic name to read from. Use this or the `from(Queue)` method. */
     public Read<T> from(Solace.Topic topic) {
-      return toBuilder().setTopic(topicFromName(topic.getName())).build();
+      configurationBuilder.setTopic(topicFromName(topic.getName()));
+      return this;
     }
 
     /**
@@ -302,20 +312,22 @@ public class SolaceIO {
     public Read<T> withTimestampFn(SerializableFunction<T, Instant> timestampFn) {
       checkState(
           timestampFn != null,
-          "SolaceIO.Read: timestamp function must be set or use the"
-              + " `Read.readSolaceRecords()` method");
-      return toBuilder().setTimestampFn(timestampFn).build();
+          "SolaceIO.Read: timestampFn must not be null. This function must be set or "
+              + "use the no-argument `Read.read()` method");
+      configurationBuilder.setTimestampFn(timestampFn);
+      return this;
     }
 
     /**
-     * Optional. Sets the maximum number of connections to the broker. The actual number of sessions
+     * Optional. Sets the maximum number of connections to the broker. The actual number of session
      * is determined by this and the number set by the runner. If not set, the number of sessions is
      * determined by the runner. The number of connections created follows this logic:
      * `numberOfConnections = min(maxNumConnections, desiredNumberOfSplits)`, where the
      * `desiredNumberOfSplits` is set by the runner.
      */
     public Read<T> withMaxNumConnections(Integer maxNumConnections) {
-      return toBuilder().setMaxNumConnections(maxNumConnections).build();
+      configurationBuilder.setMaxNumConnections(maxNumConnections);
+      return this;
     }
 
     /**
@@ -325,7 +337,8 @@ public class SolaceIO {
      * which is always set by Solace.
      */
     public Read<T> withDeduplicateRecords(boolean deduplicateRecords) {
-      return toBuilder().setDeduplicateRecords(deduplicateRecords).build();
+      configurationBuilder.setDeduplicateRecords(deduplicateRecords);
+      return this;
     }
 
     /**
@@ -362,7 +375,8 @@ public class SolaceIO {
      */
     public Read<T> withSempClientFactory(SempClientFactory sempClientFactory) {
       checkState(sempClientFactory != null, "SolaceIO.Read: sempClientFactory must not be null.");
-      return toBuilder().setSempClientFactory(sempClientFactory).build();
+      configurationBuilder.setSempClientFactory(sempClientFactory);
+      return this;
     }
 
     /**
@@ -403,85 +417,86 @@ public class SolaceIO {
     public Read<T> withSessionServiceFactory(SessionServiceFactory sessionServiceFactory) {
       checkState(
           sessionServiceFactory != null, "SolaceIO.Read: sessionServiceFactory must not be null.");
-      return toBuilder().setSessionServiceFactory(sessionServiceFactory).build();
+      configurationBuilder.setSessionServiceFactory(sessionServiceFactory);
+      return this;
     }
 
-    abstract @Nullable Queue getQueue();
+    @AutoValue
+    abstract static class Configuration<T> {
 
-    abstract @Nullable Topic getTopic();
+      abstract @Nullable Queue getQueue();
 
-    abstract @Nullable SerializableFunction<T, Instant> getTimestampFn();
+      abstract @Nullable Topic getTopic();
 
-    abstract @Nullable Integer getMaxNumConnections();
+      abstract SerializableFunction<T, Instant> getTimestampFn();
 
-    abstract boolean getDeduplicateRecords();
+      abstract @Nullable Integer getMaxNumConnections();
 
-    abstract SerializableFunction<@Nullable BytesXMLMessage, @Nullable T> getParseFn();
+      abstract boolean getDeduplicateRecords();
 
-    abstract @Nullable SempClientFactory getSempClientFactory();
+      abstract SerializableFunction<@Nullable BytesXMLMessage, @Nullable T> getParseFn();
 
-    abstract @Nullable SessionServiceFactory getSessionServiceFactory();
+      abstract SempClientFactory getSempClientFactory();
 
-    abstract TypeDescriptor<T> getTypeDescriptor();
+      abstract SessionServiceFactory getSessionServiceFactory();
 
-    public static <T> Builder<T> builder() {
-      Builder<T> builder = new org.apache.beam.sdk.io.solace.AutoValue_SolaceIO_Read.Builder<T>();
-      builder.setDeduplicateRecords(DEFAULT_DEDUPLICATE_RECORDS);
-      return builder;
-    }
+      abstract TypeDescriptor<T> getTypeDescriptor();
 
-    abstract Builder<T> toBuilder();
+      public static <T> Builder<T> builder() {
+        Builder<T> builder =
+            new org.apache.beam.sdk.io.solace.AutoValue_SolaceIO_Read_Configuration.Builder<T>();
+        return builder;
+      }
 
-    @AutoValue.Builder
-    public abstract static class Builder<T> {
+      @AutoValue.Builder
+      public abstract static class Builder<T> {
 
-      abstract Builder<T> setQueue(Queue queue);
+        abstract Builder<T> setQueue(Queue queue);
 
-      abstract Builder<T> setTopic(Topic topic);
+        abstract Builder<T> setTopic(Topic topic);
 
-      abstract Builder<T> setTimestampFn(SerializableFunction<T, Instant> timestampFn);
+        abstract Builder<T> setTimestampFn(SerializableFunction<T, Instant> timestampFn);
 
-      abstract Builder<T> setMaxNumConnections(Integer maxNumConnections);
+        abstract Builder<T> setMaxNumConnections(Integer maxNumConnections);
 
-      abstract Builder<T> setDeduplicateRecords(boolean deduplicateRecords);
+        abstract Builder<T> setDeduplicateRecords(boolean deduplicateRecords);
 
-      abstract Builder<T> setParseFn(
-          SerializableFunction<@Nullable BytesXMLMessage, @Nullable T> parseFn);
+        abstract Builder<T> setParseFn(
+            SerializableFunction<@Nullable BytesXMLMessage, @Nullable T> parseFn);
 
-      abstract Builder<T> setSempClientFactory(SempClientFactory brokerServiceFactory);
+        abstract Builder<T> setSempClientFactory(SempClientFactory brokerServiceFactory);
 
-      abstract Builder<T> setSessionServiceFactory(SessionServiceFactory sessionServiceFactory);
+        abstract Builder<T> setSessionServiceFactory(SessionServiceFactory sessionServiceFactory);
 
-      abstract Builder<T> setTypeDescriptor(TypeDescriptor<T> typeDescriptor);
+        abstract Builder<T> setTypeDescriptor(TypeDescriptor<T> typeDescriptor);
 
-      abstract Read<T> build();
+        abstract Configuration<T> build();
+      }
     }
 
     @Override
     public void validate(@Nullable PipelineOptions options) {
+      Configuration<T> configuration = configurationBuilder.build();
       checkState(
-          (getQueue() == null ^ getTopic() == null),
+          (configuration.getQueue() == null ^ configuration.getTopic() == null),
           "SolaceIO.Read: One of the Solace {Queue, Topic} must be set.");
-      checkNotNull(getSempClientFactory(), "SolaceIO: sempClientFactory is null.");
-      checkNotNull(getSessionServiceFactory(), "SolaceIO: sessionServiceFactory is null.");
     }
 
     @Override
     public PCollection<T> expand(PBegin input) {
-      SempClientFactory sempClientFactory = checkNotNull(getSempClientFactory());
+      Configuration<T> configuration = configurationBuilder.build();
+      SempClientFactory sempClientFactory = configuration.getSempClientFactory();
       String jobName = input.getPipeline().getOptions().getJobName();
-      Queue queueFromOptions = getQueue();
       Queue initializedQueue =
-          queueFromOptions != null
-              ? queueFromOptions
-              : initializeQueueForTopic(jobName, sempClientFactory);
+          initializeQueueForTopicIfNeeded(
+              configuration.getQueue(), configuration.getTopic(), jobName, sempClientFactory);
 
-      SessionServiceFactory sessionServiceFactory = checkNotNull(getSessionServiceFactory());
+      SessionServiceFactory sessionServiceFactory = configuration.getSessionServiceFactory();
       sessionServiceFactory.setQueue(initializedQueue);
 
       registerDefaultCoder(input.getPipeline());
       // Infer the actual coder
-      Coder<T> coder = inferCoder(input.getPipeline());
+      Coder<T> coder = inferCoder(input.getPipeline(), configuration.getTypeDescriptor());
 
       return input.apply(
           org.apache.beam.sdk.io.Read.from(
@@ -489,11 +504,11 @@ public class SolaceIO {
                   initializedQueue,
                   sempClientFactory,
                   sessionServiceFactory,
-                  getMaxNumConnections(),
-                  getDeduplicateRecords(),
+                  configuration.getMaxNumConnections(),
+                  configuration.getDeduplicateRecords(),
                   coder,
-                  checkNotNull(getTimestampFn()),
-                  checkNotNull(getParseFn()))));
+                  configuration.getTimestampFn(),
+                  configuration.getParseFn())));
     }
 
     private static void registerDefaultCoder(Pipeline pipeline) {
@@ -503,13 +518,13 @@ public class SolaceIO {
     }
 
     @VisibleForTesting
-    Coder<T> inferCoder(Pipeline pipeline) {
-      Coder<T> coderFromCoderRegistry = getFromCoderRegistry(pipeline);
+    Coder<T> inferCoder(Pipeline pipeline, TypeDescriptor<T> typeDescriptor) {
+      Coder<T> coderFromCoderRegistry = getFromCoderRegistry(pipeline, typeDescriptor);
       if (coderFromCoderRegistry != null) {
         return coderFromCoderRegistry;
       }
 
-      Coder<T> coderFromSchemaRegistry = getFromSchemaRegistry(pipeline);
+      Coder<T> coderFromSchemaRegistry = getFromSchemaRegistry(pipeline, typeDescriptor);
       if (coderFromSchemaRegistry != null) {
         return coderFromSchemaRegistry;
       }
@@ -520,31 +535,36 @@ public class SolaceIO {
               + " and register it in the CoderRegistry.");
     }
 
-    private @Nullable Coder<T> getFromSchemaRegistry(Pipeline pipeline) {
+    private @Nullable Coder<T> getFromSchemaRegistry(
+        Pipeline pipeline, TypeDescriptor<T> typeDescriptor) {
       try {
-        return pipeline.getSchemaRegistry().getSchemaCoder(getTypeDescriptor());
+        return pipeline.getSchemaRegistry().getSchemaCoder(typeDescriptor);
       } catch (NoSuchSchemaException e) {
         return null;
       }
     }
 
-    private @Nullable Coder<T> getFromCoderRegistry(Pipeline pipeline) {
+    private @Nullable Coder<T> getFromCoderRegistry(
+        Pipeline pipeline, TypeDescriptor<T> typeDescriptor) {
       try {
-        return pipeline.getCoderRegistry().getCoder(getTypeDescriptor());
+        return pipeline.getCoderRegistry().getCoder(typeDescriptor);
       } catch (CannotProvideCoderException e) {
         return null;
       }
     }
 
-    Queue initializeQueueForTopic(String jobName, SempClientFactory sempClientFactory) {
+    private Queue initializeQueueForTopicIfNeeded(
+        @Nullable Queue queue,
+        @Nullable Topic topic,
+        String jobName,
+        SempClientFactory sempClientFactory) {
       Queue initializedQueue;
-      Queue solaceQueue = getQueue();
-      if (solaceQueue != null) {
-        return solaceQueue;
+      if (queue != null) {
+        return queue;
       } else {
-        String queueName = String.format("queue-%s-%s", getTopic(), jobName);
+        String queueName = String.format("queue-%s-%s", topic, jobName);
         try {
-          String topicName = checkNotNull(getTopic()).getName();
+          String topicName = checkNotNull(topic).getName();
           initializedQueue = sempClientFactory.create().createQueueForTopic(queueName, topicName);
           LOG.warn(
               "SolaceIO.Read: A new queue {} was created. The Queue will not be"

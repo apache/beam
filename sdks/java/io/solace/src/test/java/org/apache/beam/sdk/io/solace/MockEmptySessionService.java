@@ -17,22 +17,30 @@
  */
 package org.apache.beam.sdk.io.solace;
 
-import org.apache.beam.sdk.io.solace.broker.SempClient;
-import org.apache.beam.sdk.io.solace.broker.SempClientFactory;
+import org.apache.beam.sdk.io.solace.broker.MessageReceiver;
+import org.apache.beam.sdk.io.solace.broker.SessionService;
 
-public class MockSempClientFactory implements SempClientFactory {
-  SempClient sempClient;
+public class MockEmptySessionService implements SessionService {
 
-  public MockSempClientFactory(SempClient sempClient) {
-    this.sempClient = sempClient;
-  }
+  String exceptionMessage = "This is an empty client, use a MockSessionService instead.";
 
-  public static SempClientFactory getDefaultMock() {
-    return new MockSempClientFactory(MockSempClient.builder().build());
+  @Override
+  public void close() {
+    throw new UnsupportedOperationException(exceptionMessage);
   }
 
   @Override
-  public SempClient create() {
-    return sempClient;
+  public boolean isClosed() {
+    throw new UnsupportedOperationException(exceptionMessage);
+  }
+
+  @Override
+  public MessageReceiver createReceiver() {
+    throw new UnsupportedOperationException(exceptionMessage);
+  }
+
+  @Override
+  public void connect() {
+    throw new UnsupportedOperationException(exceptionMessage);
   }
 }
