@@ -156,10 +156,10 @@ class GcsIO(object):
 
     return self.bucket_to_project_number.get(bucket, None)
 
-  def get_bucket(self, bucket_name):
+  def get_bucket(self, bucket_name, **kwargs):
     """Returns an object bucket from its name, or None if it does not exist."""
     try:
-      return self.client.lookup_bucket(bucket_name)
+      return self.client.lookup_bucket(bucket_name, **kwargs)
     except NotFound:
       return None
 
@@ -528,6 +528,20 @@ class GcsIO(object):
     return (
         time.mktime(updated.timetuple()) - time.timezone +
         updated.microsecond / 1000000.0)
+
+  def is_soft_delete_enabled(self, gcs_path):
+    try:
+      bucket_name, _ = parse_gcs_path(gcs_path)
+      # set retry timeout to 5 seconds when checking soft delete policy
+      bucket = self.get_bucket(bucket_name, retry=DEFAULT_RETRY.with_timeout(5))
+      if (bucket.soft_delete_policy is not None and
+          bucket.soft_delete_policy.retention_duration_seconds > 0):
+        return True
+    except Exception:
+      _LOGGER.warning(
+          "Unexpected error occurred when checking soft delete policy for %s" %
+          gcs_path)
+    return False
 
 
 class BeamBlobReader(BlobReader):
