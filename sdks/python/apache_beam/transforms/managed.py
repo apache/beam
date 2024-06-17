@@ -21,7 +21,7 @@ This module builds and instantiates turnkey transforms that can be managed by
 the underlying runner.
 
 Using Managed Transforms
-=================
+========================
 Managed transforms have a defined configuration and can be built using an
 inline :class:`dict` like so::
 
@@ -44,7 +44,7 @@ Simply provide the location to the file like so::
                     config_url="path/to/config.yaml")
 
 Available transforms
-=============
+====================
 Available transforms are:
 
 - **Kafka**
@@ -105,6 +105,7 @@ class _ManagedTransform(PTransform):
 
 
 class Read(_ManagedTransform):
+  """Read using Managed Transforms"""
   READ_TRANSFORMS = {
       ICEBERG: "beam:schematransform:org.apache.beam:iceberg_read:v1",
       KAFKA: "beam:schematransform:org.apache.beam:kafka_read:v1",
@@ -133,6 +134,7 @@ class Read(_ManagedTransform):
 
 
 class Write(_ManagedTransform):
+  """Write using Managed Transforms"""
   WRITE_TRANSFORMS = {
       ICEBERG: "beam:schematransform:org.apache.beam:iceberg_write:v1",
       KAFKA: "beam:schematransform:org.apache.beam:kafka_write:v1",
