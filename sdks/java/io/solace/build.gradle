@@ -39,6 +39,7 @@ dependencies {
     implementation project(":sdks:java:extensions:avro")
     implementation library.java.avro
     permitUnusedDeclared library.java.avro
+    implementation library.java.vendored_grpc_1_60_1
 
     testImplementation library.java.junit
     testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")

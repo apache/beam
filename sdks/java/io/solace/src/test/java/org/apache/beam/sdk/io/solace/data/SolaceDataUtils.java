@@ -38,6 +38,7 @@ import java.util.Objects;
 import org.apache.beam.sdk.schemas.JavaBeanSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class SolaceDataUtils {
@@ -98,8 +99,9 @@ public class SolaceDataUtils {
         replicationGroupMessageId != null
             ? replicationGroupMessageId.toString()
             : DEFAULT_REPLICATION_GROUP_ID.toString();
+
     return Solace.Record.builder()
-        .setPayload(payload.getBytes(StandardCharsets.UTF_8))
+        .setPayload(ByteString.copyFrom(payload, StandardCharsets.UTF_8))
         .setMessageId(messageId)
         .setDestination(
             Solace.Destination.builder()
@@ -115,6 +117,7 @@ public class SolaceDataUtils {
         .setTimeToLive(1000L)
         .setSenderTimestamp(null)
         .setReplicationGroupMessageId(replicationGroupMessageIdString)
+        .setAttachmentBytes(ByteString.EMPTY)
         .build();
   }
 

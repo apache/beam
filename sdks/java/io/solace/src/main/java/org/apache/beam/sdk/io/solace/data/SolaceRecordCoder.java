@@ -32,6 +32,7 @@ import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.solace.data.Solace.Destination;
 import org.apache.beam.sdk.io.solace.data.Solace.DestinationType;
 import org.apache.beam.sdk.io.solace.data.Solace.Record;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -59,7 +60,7 @@ public class SolaceRecordCoder extends CustomCoder<Record> {
   @Override
   public void encode(Record value, @NonNull OutputStream outStream) throws IOException {
     NULLABLE_STRING_CODER.encode(value.getMessageId(), outStream);
-    BYTE_CODER.encode(value.getPayload(), outStream);
+    BYTE_CODER.encode(value.getPayload().toByteArray(), outStream);
     Destination destination = value.getDestination();
     String destinationName = destination == null ? null : destination.getName();
     String destinationTypeName = destination == null ? null : destination.getType().toString();
@@ -79,7 +80,7 @@ public class SolaceRecordCoder extends CustomCoder<Record> {
     NULLABLE_LONG_CODER.encode(value.getSequenceNumber(), outStream);
     LONG_CODER.encode(value.getTimeToLive(), outStream);
     NULLABLE_STRING_CODER.encode(value.getReplicationGroupMessageId(), outStream);
-    BYTE_CODER.encode(value.getAttachmentBytes(), outStream);
+    BYTE_CODER.encode(value.getAttachmentBytes().toByteArray(), outStream);
   }
 
   @Override
@@ -87,7 +88,7 @@ public class SolaceRecordCoder extends CustomCoder<Record> {
     Record.Builder builder =
         Record.builder()
             .setMessageId(NULLABLE_STRING_CODER.decode(inStream))
-            .setPayload(BYTE_CODER.decode(inStream));
+            .setPayload(ByteString.copyFrom(BYTE_CODER.decode(inStream)));
 
     String destinationName = NULLABLE_STRING_CODER.decode(inStream);
     String destinationOriginalType = NULLABLE_STRING_CODER.decode(inStream);
@@ -118,7 +119,7 @@ public class SolaceRecordCoder extends CustomCoder<Record> {
         .setSequenceNumber(NULLABLE_LONG_CODER.decode(inStream))
         .setTimeToLive(LONG_CODER.decode(inStream))
         .setReplicationGroupMessageId(NULLABLE_STRING_CODER.decode(inStream))
-        .setAttachmentBytes(BYTE_CODER.decode(inStream))
+        .setAttachmentBytes(ByteString.copyFrom(BYTE_CODER.decode(inStream)))
         .build();
   }
 

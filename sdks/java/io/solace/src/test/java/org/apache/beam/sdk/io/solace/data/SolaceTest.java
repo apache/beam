@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.solace.data;
 
 import java.nio.charset.StandardCharsets;
 import org.apache.beam.sdk.io.solace.data.Solace.Destination;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -43,9 +44,9 @@ public class SolaceTest {
   Long sequenceNumber = 27L;
   long timeToLive = 34567890L;
   String payloadString = "some payload";
-  byte[] payload = payloadString.getBytes(StandardCharsets.UTF_8);
+  ByteString payload = ByteString.copyFrom(payloadString, StandardCharsets.UTF_8);
   String attachmentString = "some attachment";
-  byte[] attachment = attachmentString.getBytes(StandardCharsets.UTF_8);
+  ByteString attachment = ByteString.copyFrom(attachmentString, StandardCharsets.UTF_8);
 
   @Test
   public void testRecordEquality() {
@@ -110,29 +111,33 @@ public class SolaceTest {
     Assert.assertEquals(obj1.getSenderTimestamp(), senderTimestamp);
     Assert.assertEquals(obj1.getSequenceNumber(), sequenceNumber);
     Assert.assertEquals(obj1.getTimeToLive(), timeToLive);
-    Assert.assertEquals(new String(obj1.getPayload(), StandardCharsets.UTF_8), payloadString);
+    Assert.assertEquals(obj1.getPayload().toString(StandardCharsets.UTF_8), payloadString);
     Assert.assertEquals(
-        new String(obj1.getAttachmentBytes(), StandardCharsets.UTF_8), attachmentString);
+        obj1.getAttachmentBytes().toString(StandardCharsets.UTF_8), attachmentString);
   }
 
-  // @Test
-  // public void testRecordNullability() {
-  //   Solace.Record obj =
-  // Solace.Record.builder().setMessageId(messageId).setPayload(payload).build();
-  //   Assert.assertNotNull(obj);
-  //   Assert.assertNull(obj.getDestination());
-  //   Assert.assertEquals(obj.getMessageId(), messageId);
-  //   Assert.assertNull(obj.getExpiration());
-  //   Assert.assertNull(obj.getPriority());
-  //   Assert.assertNull(obj.getRedelivered());
-  //   Assert.assertNull(obj.getReplyTo());
-  //   Assert.assertNull(obj.getReceiveTimestamp());
-  //   Assert.assertNull(obj.getSenderTimestamp());
-  //   Assert.assertNull(obj.getSequenceNumber());
-  //   Assert.assertNull(obj.getTimeToLive());
-  //   Assert.assertArrayEquals(obj.getAttachmentBytes(), new byte[0]);
-  //   Assert.assertEquals(new String(obj.getPayload(), StandardCharsets.UTF_8), payloadString);
-  // }
+  @Test
+  public void testRecordNullability() {
+    Solace.Record obj =
+        Solace.Record.builder()
+            .setMessageId(messageId)
+            .setPayload(payload)
+            .setExpiration(0L)
+            .setPriority(1)
+            .setRedelivered(false)
+            .setReceiveTimestamp(1234567L)
+            .setTimeToLive(111L)
+            .setAttachmentBytes(ByteString.EMPTY)
+            .build();
+    Assert.assertNotNull(obj);
+    Assert.assertNull(obj.getDestination());
+    Assert.assertEquals(obj.getMessageId(), messageId);
+    Assert.assertNull(obj.getReplyTo());
+    Assert.assertNull(obj.getSenderTimestamp());
+    Assert.assertNull(obj.getSequenceNumber());
+    Assert.assertTrue(obj.getAttachmentBytes().isEmpty());
+    Assert.assertEquals(obj.getPayload().toString(StandardCharsets.UTF_8), payloadString);
+  }
 
   @Test(expected = IllegalStateException.class)
   public void testRecordBuilder() {
