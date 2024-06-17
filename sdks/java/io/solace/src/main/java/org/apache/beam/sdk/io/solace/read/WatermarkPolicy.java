@@ -23,18 +23,40 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Orderi
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
-public class WatermarkPolicy<T> implements Serializable {
+/**
+ * A class that manages the watermark for a Solace source.
+ *
+ * <p>The watermark is calculated based on the last saved watermark, the last update time, and the
+ * watermark idle duration threshold. If the last update time is before the watermark idle duration
+ * threshold, the watermark is set to the watermark idle duration threshold. Otherwise, the
+ * watermark is set to the last saved watermark.
+ *
+ * <p>The watermark is updated when a new record is received. The last saved watermark is set to the
+ * maximum of the current last saved watermark and the value resulting from the function calculating
+ * the timestamp from the record. The last update time is set to the current time when the watermark
+ * is updated.
+ */
+class WatermarkPolicy<T> implements Serializable {
   private WatermarkParameters<T> watermarkParameters;
 
-  public static <T> WatermarkPolicy<T> create(SerializableFunction<T, Instant> timestampFunction) {
+  static <T> WatermarkPolicy<T> create(SerializableFunction<T, Instant> timestampFunction) {
     return new WatermarkPolicy<T>(WatermarkParameters.<T>create(timestampFunction));
   }
 
   private WatermarkPolicy(WatermarkParameters<T> watermarkParameters) {
     this.watermarkParameters = watermarkParameters;
   }
-
-  public Instant getWatermark() {
+  /**
+   * Returns the current watermark.
+   *
+   * <p>The watermark is calculated based on the last saved watermark, the last update time, and the
+   * watermark idle duration threshold. If the last update time is before the watermark idle
+   * duration threshold, the watermark is set to the watermark idle duration threshold. Otherwise,
+   * the watermark is set to the last saved watermark.
+   *
+   * @return the current watermark
+   */
+  Instant getWatermark() {
     Instant now = Instant.now();
     Instant watermarkIdleThreshold =
         now.minus(watermarkParameters.getWatermarkIdleDurationThreshold());
@@ -51,7 +73,17 @@ public class WatermarkPolicy<T> implements Serializable {
     return watermarkParameters.getCurrentWatermark();
   }
 
-  public void update(@Nullable T record) {
+  /**
+   * Updates the watermark based on the provided record.
+   *
+   * <p>This method updates the last saved watermark and the last update time based on the timestamp
+   * function for the provided record. The last saved watermark is set to the maximum of the current
+   * last saved watermark and the timestamp of the record. The last update time is set to the
+   * current time.
+   *
+   * @param record The record to update the watermark with.
+   */
+  void update(@Nullable T record) {
     if (record == null) {
       return;
     }

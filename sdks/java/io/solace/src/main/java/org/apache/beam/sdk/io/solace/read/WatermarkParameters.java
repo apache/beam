@@ -27,7 +27,7 @@ import org.joda.time.Instant;
 
 /** {@code WatermarkParameters} contains the parameters used for watermark computation. */
 @AutoValue
-public abstract class WatermarkParameters<T> implements Serializable {
+abstract class WatermarkParameters<T> implements Serializable {
 
   private static final Duration STANDARD_WATERMARK_IDLE_DURATION_THRESHOLD =
       Duration.standardSeconds(30);
@@ -42,7 +42,7 @@ public abstract class WatermarkParameters<T> implements Serializable {
 
   abstract Duration getWatermarkIdleDurationThreshold();
 
-  public abstract Builder<T> toBuilder();
+  abstract Builder<T> toBuilder();
 
   static <T> Builder<T> builder() {
     return new AutoValue_WatermarkParameters.Builder<T>()
@@ -71,7 +71,7 @@ public abstract class WatermarkParameters<T> implements Serializable {
    * Create an instance of {@link WatermarkParameters} with a {@code SerializableFunction} to
    * extract the event time.
    */
-  public static <T> WatermarkParameters<T> create(SerializableFunction<T, Instant> timestampFn) {
+  static <T> WatermarkParameters<T> create(SerializableFunction<T, Instant> timestampFn) {
     Preconditions.checkArgument(timestampFn != null, "timestampFn function is null");
     return WatermarkParameters.<T>builder().setTimestampFn(timestampFn).build();
   }
@@ -80,7 +80,7 @@ public abstract class WatermarkParameters<T> implements Serializable {
    * Specify the watermark idle duration to consider before advancing the watermark. The default
    * watermark idle duration threshold is {@link #STANDARD_WATERMARK_IDLE_DURATION_THRESHOLD}.
    */
-  public WatermarkParameters<T> withWatermarkIdleDurationThreshold(Duration idleDurationThreshold) {
+  WatermarkParameters<T> withWatermarkIdleDurationThreshold(Duration idleDurationThreshold) {
     Preconditions.checkArgument(
         idleDurationThreshold != null, "watermark idle duration threshold is null");
     return toBuilder().setWatermarkIdleDurationThreshold(idleDurationThreshold).build();
