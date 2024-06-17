@@ -84,9 +84,7 @@ public class CountingReadableByteChannelTest {
 
     while (countingChannel.read(byteBuffer) != -1) {}
 
-    assertEquals(
-        testData.length - 1,
-        counter.get()); // the counter will subtract the final -1, that's expected
+    assertEquals(testData.length, counter.get());
   }
 
   @Test

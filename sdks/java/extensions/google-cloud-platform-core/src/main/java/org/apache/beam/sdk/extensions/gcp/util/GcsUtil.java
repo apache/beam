@@ -500,12 +500,7 @@ public class GcsUtil {
    * Create an integer consumer that updates the counter identified by a prefix and a bucket name.
    */
   private static Consumer<Integer> createCounterConsumer(String counterNamePrefix, String bucket) {
-    return bytesCounted -> {
-      if (bytesCounted > 0) {
-        Metrics.counter(GcsUtil.class, String.format("%s_%s", counterNamePrefix, bucket))
-            .inc(bytesCounted);
-      }
-    };
+    return Metrics.counter(GcsUtil.class, String.format("%s_%s", counterNamePrefix, bucket))::inc;
   }
 
   private WritableByteChannel wrapInCounting(

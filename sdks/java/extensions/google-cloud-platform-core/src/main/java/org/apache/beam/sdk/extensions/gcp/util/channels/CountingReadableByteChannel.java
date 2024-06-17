@@ -37,7 +37,9 @@ public class CountingReadableByteChannel implements ReadableByteChannel {
   @Override
   public int read(ByteBuffer dst) throws IOException {
     int bytesRead = delegate.read(dst);
-    bytesReadConsumer.accept(bytesRead);
+    if (bytesRead > 0) {
+      bytesReadConsumer.accept(bytesRead);
+    }
     return bytesRead;
   }
 
