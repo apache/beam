@@ -1,3 +1,62 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+"""Managed Transforms.
+
+This module builds and instantiates turnkey transforms that can be managed by
+the underlying runner.
+
+Using Managed Transforms
+=================
+Managed transforms have a defined configuration and can be built using an
+inline :class:`dict` like so::
+
+  results = p | beam.managed.Read(
+                    beam.managed.ICEBERG,
+                    config={"param_1": "foo",
+                            "param_2": "bar"})
+
+A YAML configuration file can also be used to build a Managed transform. Say we
+have the following `config.yaml` file::
+
+  param_1: "foo"
+  param_2: "bar"
+
+Simply provide the location to the file like so::
+
+  input_rows = p | beam.Create(...)
+  input_rows | beam.managed.Write(
+                    beam.managed.KAFKA,
+                    config_url="path/to/config.yaml")
+
+Available transforms
+=============
+Available transforms are:
+
+- **Kafka**
+- **Iceberg**
+- **BigQuery**
+
+**Note:** inputs and outputs need to be PCollections of Beam
+:py:class:`apache_beam.pvalue.Row` elements.
+
+**Note:** This Managed API uses Java's ManagedSchemaTransform under the hood.
+"""
+
 from typing import Any
 from typing import Dict
 from typing import Optional
