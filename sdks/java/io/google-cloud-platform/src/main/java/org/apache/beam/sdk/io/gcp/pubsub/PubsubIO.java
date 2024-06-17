@@ -742,20 +742,6 @@ public class PubsubIO {
   }
 
   /**
-   * Returns A {@link PTransform} that writes {@link PubsubMessage}s, along with the {@link
-   * PubsubMessage#getMessageId() messageId} and {@link PubsubMessage#getOrderingKey()}, to a Google
-   * Cloud Pub/Sub stream.
-   */
-  public static Write<PubsubMessage> writeMessagesWithOrderingKey() {
-    return Write.newBuilder()
-        .setTopicProvider(null)
-        .setTopicFunction(null)
-        .setDynamicDestinations(false)
-        .setNeedsOrderingKey(true)
-        .build();
-  }
-
-  /**
    * Enables dynamic destination topics. The {@link PubsubMessage} elements are each expected to
    * contain a destination topic, which can be set using {@link PubsubMessage#withTopic}. If {@link
    * Write#to} is called, that will be used instead to generate the topic and the value returned by
@@ -1472,6 +1458,16 @@ public class PubsubIO {
      */
     public Write<T> withMaxBatchBytesSize(int maxBatchBytesSize) {
       return toBuilder().setMaxBatchBytesSize(maxBatchBytesSize).build();
+    }
+
+    /**
+     * Writes to Pub/Sub with each record's ordering key. A subscription with message ordering
+     * enabled will receive messages published in the same region with the same ordering key in the
+     * order in which they were received by the service. Note that the order in which Beam publishes
+     * records to the service remains unspecified.
+     */
+    public Write<T> withOrderingKey() {
+      return toBuilder().setNeedsOrderingKey(true).build();
     }
 
     /**

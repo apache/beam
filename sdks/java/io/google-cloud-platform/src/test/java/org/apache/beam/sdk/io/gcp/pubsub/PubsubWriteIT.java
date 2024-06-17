@@ -132,7 +132,7 @@ public class PubsubWriteIT {
 
     pipeline
         .apply(Create.of(outgoingMessage).withCoder(PubsubMessageSchemaCoder.getSchemaCoder()))
-        .apply(PubsubIO.writeMessagesWithOrderingKey().to(testTopicPath.getPath()));
+        .apply(PubsubIO.writeMessages().withOrderingKey().to(testTopicPath.getPath()));
     pipeline.run().waitUntilFinish();
 
     List<PubsubClient.IncomingMessage> incomingMessages =
