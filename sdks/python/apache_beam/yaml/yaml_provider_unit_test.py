@@ -109,7 +109,7 @@ class ProviderParsingTest(unittest.TestCase):
         yaml_provider.flatten_included_provider_specs([
             self.INLINE_PROVIDER,
             {
-                'include': 'file://' + self.to_include
+                'include': 'file:///' + self.to_include
             },
         ]))
 
