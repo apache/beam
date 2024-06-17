@@ -319,7 +319,7 @@ public class SolaceIO {
     }
 
     /**
-     * Optional. Sets the maximum number of connections to the broker. The actual number of session
+     * Optional. Sets the maximum number of connections to the broker. The actual number of sessions
      * is determined by this and the number set by the runner. If not set, the number of sessions is
      * determined by the runner. The number of connections created follows this logic:
      * `numberOfConnections = min(maxNumConnections, desiredNumberOfSplits)`, where the
