@@ -515,6 +515,7 @@ class StandardOptions(PipelineOptions):
       'apache_beam.runners.interactive.interactive_runner.InteractiveRunner',
       'apache_beam.runners.portability.flink_runner.FlinkRunner',
       'apache_beam.runners.portability.portable_runner.PortableRunner',
+      'apache_beam.runners.portability.prism_runner.PrismRunner',
       'apache_beam.runners.portability.spark_runner.SparkRunner',
       'apache_beam.runners.test.TestDirectRunner',
       'apache_beam.runners.test.TestDataflowRunner',
@@ -1716,6 +1717,10 @@ class PrismRunnerOptions(PipelineOptions):
         '--prism_binary_location',
         help='Path or URL to a prism binary, or zipped binary. '
         ' Binary must be for the current platform.')
+    parser.add_argument(
+        '--prism_beam_version_override',
+        help='Override the SDK\'s version for deriving the Github Release URLs for downloading a zipped prism binary,'
+        ' for the current platform.')
 
 
 class TestOptions(PipelineOptions):
