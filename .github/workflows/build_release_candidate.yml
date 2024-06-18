@@ -530,6 +530,6 @@ jobs:
 
           echo "...........Adding prism artifacts to the Dev Apache SVN repo..........."
 
-          svn add --force prism
+          svn add --force --parents prism
           svn status
           svn commit -m "Staging Prism artifacts for Apache Beam ${RELEASE} RC${RC_NUM}" --non-interactive --username "${{ github.event.inputs.APACHE_ID }}" --password "${{ github.event.inputs.APACHE_PASSWORD }}"
