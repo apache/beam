@@ -17,10 +17,14 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.junit.Assert.assertEquals;
+
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.managed.Managed;
@@ -33,7 +37,6 @@ import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -175,13 +178,12 @@ public class IcebergIOLT implements Serializable {
                             beamSchema)))
             .setRowSchema(beamSchema);
 
-    PCollectionRowTuple.of("input", inputRows)
-        .apply(Managed.write(Managed.ICEBERG).withConfig(config));
-    writePipeline.run().waitUntilFinish();
+    inputRows.apply(Managed.write(Managed.ICEBERG).withConfig(config));
+    assertEquals(PipelineResult.State.DONE, writePipeline.run().waitUntilFinish());
 
     // read pipeline
     PCollection<Long> countRows =
-        PCollectionRowTuple.empty(readPipeline)
+        readPipeline
             .apply(Managed.read(Managed.ICEBERG).withConfig(config))
             .get("output")
             .apply(Count.globally());
@@ -205,7 +207,9 @@ public class IcebergIOLT implements Serializable {
     public Row apply(Long input) {
       Row.Builder rowBuilder = Row.withSchema(schema);
       for (int i = 0; i < numFields; i++) {
-        rowBuilder = rowBuilder.addValue(new byte[byteSizePerField]);
+        byte[] value = new byte[byteSizePerField];
+        ThreadLocalRandom.current().nextBytes(value);
+        rowBuilder = rowBuilder.addValue(value);
       }
       return rowBuilder.build();
     }
