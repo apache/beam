@@ -25,6 +25,10 @@ public class WorkItemCancelledException extends RuntimeException {
     super("Work item cancelled for key " + shardingKey);
   }
 
+  public WorkItemCancelledException(String message, Throwable t) {
+    super(message, t);
+  }
+
   /** Returns whether an exception was caused by a {@link WorkItemCancelledException}. */
   public static boolean isWorkItemCancelledException(@Nullable Throwable t) {
     while (t != null) {

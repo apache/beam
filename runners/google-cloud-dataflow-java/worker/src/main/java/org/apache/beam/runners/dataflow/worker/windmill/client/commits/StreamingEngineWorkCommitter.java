@@ -126,7 +126,7 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
   }
 
   private void failCommit(Commit commit) {
-    commit.work().setFailed();
+    commit.work().fail();
     onCommitComplete.accept(CompleteCommit.forFailedWork(commit));
   }
 

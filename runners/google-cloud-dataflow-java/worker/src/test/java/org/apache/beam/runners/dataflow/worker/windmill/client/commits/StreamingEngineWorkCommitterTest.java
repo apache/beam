@@ -168,7 +168,7 @@ public class StreamingEngineWorkCommitterTest {
       Work work = createMockWork(i);
       // Fail half of the work.
       if (i % 2 == 0) {
-        work.setFailed();
+        work.fail();
       }
       WorkItemCommitRequest commitRequest =
           WorkItemCommitRequest.newBuilder()

@@ -34,7 +34,6 @@ import java.util.function.BiConsumer;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
-import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
@@ -175,17 +174,7 @@ public final class ActiveWorkState {
           WorkItem workItem = queuedWork.work().getWorkItem();
           if (workItem.getWorkToken() == failedWorkId.workToken()
               && workItem.getCacheToken() == failedWorkId.cacheToken()) {
-            LOG.debug(
-                "Failing work "
-                    + computationStateCache.getComputation()
-                    + " "
-                    + entry.getKey().shardingKey()
-                    + " "
-                    + failedWorkId.workToken()
-                    + " "
-                    + failedWorkId.cacheToken()
-                    + ". The work will be retried and is not lost.");
-            queuedWork.work().setFailed();
+            queuedWork.work().fail();
             break;
           }
         }
@@ -305,16 +294,12 @@ public final class ActiveWorkState {
    *     cause a {@link java.util.ConcurrentModificationException} as it is not a thread-safe data
    *     structure.
    */
-  synchronized ImmutableListMultimap<ShardedKey, Work.RefreshableView> getReadOnlyActiveWork(
-      DataflowExecutionStateSampler sampler) {
+  synchronized ImmutableListMultimap<ShardedKey, RefreshableWork> getReadOnlyActiveWork() {
     return activeWork.entrySet().stream()
         .collect(
             flatteningToImmutableListMultimap(
                 Entry::getKey,
-                e ->
-                    e.getValue().stream()
-                        .map(ExecutableWork::work)
-                        .map(work -> work.refreshableView(sampler))));
+                e -> e.getValue().stream().map(ExecutableWork::work).map(Work::refreshableView)));
   }
 
   /**

@@ -27,7 +27,7 @@ public final class WindmillStreamClosedException extends RuntimeException {
   }
 
   /** Returns whether an exception was caused by a {@link WindmillStreamClosedException}. */
-  public static boolean isWindmillStreamCancelledException(Throwable t) {
+  public static boolean wasCauseOf(Throwable t) {
     while (t != null) {
       if (t instanceof WindmillStreamClosedException) {
         return true;

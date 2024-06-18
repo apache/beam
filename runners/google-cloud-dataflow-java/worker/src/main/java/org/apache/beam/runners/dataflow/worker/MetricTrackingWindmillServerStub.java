@@ -244,7 +244,7 @@ public class MetricTrackingWindmillServerStub {
       activeStateReads.getAndIncrement();
       return getDataStream.requestKeyedData(computation, request);
     } catch (Exception e) {
-      if (WindmillStreamClosedException.isWindmillStreamCancelledException(e)) {
+      if (WindmillStreamClosedException.wasCauseOf(e)) {
         LOG.error("Tried to fetch keyed data from a closed stream. Work has been cancelled", e);
         throw new WorkItemCancelledException(request.getShardingKey());
       }
@@ -285,14 +285,14 @@ public class MetricTrackingWindmillServerStub {
     try {
       return getDataStream.requestGlobalData(request);
     } catch (Exception e) {
+      if (WindmillStreamClosedException.wasCauseOf(e)) {
+        LOG.error("Tried to fetch global data from a closed stream. Work has been cancelled", e);
+        throw new WorkItemCancelledException("Failed to get side input.", e);
+      }
       throw new RuntimeException("Failed to get side input: ", e);
     } finally {
       activeSideInputs.getAndDecrement();
     }
-  }
-
-  public WindmillStreamPool<GetDataStream> getGetDataStreamPool() {
-    return getDataStreamPool;
   }
 
   /**
@@ -307,16 +307,14 @@ public class MetricTrackingWindmillServerStub {
     }
 
     try {
-      // There is 1 destination to send heartbeat requests.
       if (heartbeats.size() == 1) {
+        // There is 1 destination to send heartbeat requests.
         Map.Entry<HeartbeatSender, Map<String, List<HeartbeatRequest>>> heartbeat =
             Iterables.getOnlyElement(heartbeats.entrySet());
         HeartbeatSender sender = heartbeat.getKey();
         sender.sendHeartbeats(heartbeat.getValue());
-      }
-
-      // There are multiple destinations to send heartbeat requests. Fan out requests in parallel.
-      else {
+      } else {
+        // There are multiple destinations to send heartbeat requests. Fan out requests in parallel.
         refreshActiveWorkWithFanOut(heartbeats);
       }
     } finally {

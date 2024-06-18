@@ -22,7 +22,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationGetDataRequest;
@@ -105,29 +104,8 @@ final class GrpcGetDataStreamRequests {
     private boolean finalized = false;
     private volatile boolean failed = false;
 
-    CountDownLatch getLatch() {
-      return sent;
-    }
-
     List<QueuedRequest> requests() {
       return requests;
-    }
-
-    /**
-     * Put all global data requests first because there is only a single repeated field for request
-     * ids and the initial ids correspond to global data requests if they are present.
-     */
-    List<QueuedRequest> sortedRequests() {
-      requests.sort(QueuedRequest.globalRequestsFirst());
-      return requests;
-    }
-
-    void validateRequests(Consumer<QueuedRequest> requestValidator) {
-      requests.forEach(requestValidator);
-    }
-
-    int requestCount() {
-      return requests.size();
     }
 
     long byteSize() {
@@ -191,8 +169,6 @@ final class GrpcGetDataStreamRequests {
                         .map(
                             keyedRequest ->
                                 "KeyedGetState=["
-                                    + "key="
-                                    + keyedRequest.getKey()
                                     + "shardingKey="
                                     + keyedRequest.getShardingKey()
                                     + "cacheToken="

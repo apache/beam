@@ -19,7 +19,9 @@ package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintWriter;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -168,6 +170,15 @@ public final class GrpcDirectGetWorkStream
         .setOutputDataWatermark(workItem.getOutputDataWatermark())
         .setSynchronizedProcessingTime(metadata.synchronizedProcessingTime())
         .build();
+  }
+
+  private static Optional<WorkItem> parseWorkItem(InputStream serializedWorkItem) {
+    try {
+      return Optional.of(WorkItem.parseFrom(serializedWorkItem));
+    } catch (IOException e) {
+      LOG.error("Failed to parse work item from stream: ", e);
+      return Optional.empty();
+    }
   }
 
   private synchronized GetWorkBudget getThenResetBudgetAdjustment() {
@@ -322,31 +333,27 @@ public final class GrpcDirectGetWorkStream
     }
 
     private void runAndReset() {
-      try {
-        WorkItem workItem = WorkItem.parseFrom(data.newInput());
-        updatePendingResponseBudget(1, workItem.getSerializedSize());
-        workItemScheduler.scheduleWork(
-            workItem,
-            createWatermarks(workItem, Preconditions.checkNotNull(metadata)),
-            createProcessingContext(Preconditions.checkNotNull(metadata.computationId())),
-            // After the work item is successfully queued or dropped by ActiveWorkState, remove it
-            // from the pendingResponseBudget.
-            queuedWorkItem -> updatePendingResponseBudget(-1, -workItem.getSerializedSize()),
-            workTimingInfosTracker.getLatencyAttributions());
-      } catch (IOException e) {
-        LOG.error("Failed to parse work item from stream: ", e);
-      }
+      parseWorkItem(data.newInput()).ifPresent(this::scheduleWorkItem);
       workTimingInfosTracker.reset();
       data = ByteString.EMPTY;
     }
 
-    private Work.ProcessingContext createProcessingContext(String computationId) {
-      return Work.createProcessingContext(
-          computationId,
-          (computation, request) ->
-              keyedGetDataFn.apply(getDataStream.get()).apply(computation, request),
-          workCommitter.get()::commit,
-          new DirectHeartbeatSender(getDataStream.get()));
+    private void scheduleWorkItem(WorkItem workItem) {
+      updatePendingResponseBudget(1, workItem.getSerializedSize());
+      ComputationMetadata metadata = Preconditions.checkNotNull(this.metadata);
+      workItemScheduler.scheduleWork(
+          workItem,
+          createWatermarks(workItem, metadata),
+          Work.createProcessingContext(
+              metadata.computationId(),
+              (computation, request) ->
+                  keyedGetDataFn.apply(getDataStream.get()).apply(computation, request),
+              workCommitter.get()::commit,
+              DirectHeartbeatSender.create(getDataStream.get())),
+          // After the work item is successfully queued or dropped by ActiveWorkState, remove it
+          // from the pendingResponseBudget.
+          queuedWorkItem -> updatePendingResponseBudget(-1, -workItem.getSerializedSize()),
+          workTimingInfosTracker.getLatencyAttributions());
     }
   }
 }

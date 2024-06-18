@@ -1028,7 +1028,7 @@ public class WorkerCustomSourcesTest {
       numReads++;
       // Fail the work item after reading two elements.
       if (numReads == 2) {
-        dummyWork.setFailed();
+        dummyWork.fail();
       }
     }
     assertThat(numReads, equalTo(2));

@@ -46,11 +46,14 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitR
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.Commit;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReader;
+import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.DirectHeartbeatSender;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Represents the state of an attempt to process a {@link WorkItem} by executing user code.
@@ -59,7 +62,9 @@ import org.joda.time.Instant;
  */
 @NotThreadSafe
 @Internal
-public final class Work {
+public final class Work implements RefreshableWork {
+  private static final Logger LOG = LoggerFactory.getLogger(Work.class);
+
   private final ShardedKey shardedKey;
   private final WorkItem workItem;
   private final ProcessingContext processingContext;
@@ -79,7 +84,6 @@ public final class Work {
       Supplier<Instant> clock) {
     this.shardedKey = ShardedKey.create(workItem.getKey(), workItem.getShardingKey());
     this.workItem = workItem;
-    this.processingContext = processingContext;
     this.watermarks = watermarks;
     this.clock = clock;
     this.startTime = clock.get();
@@ -91,6 +95,15 @@ public final class Work {
             + Long.toHexString(workItem.getWorkToken());
     this.currentState = TimedState.initialState(startTime);
     this.isFailed = false;
+    this.processingContext =
+        processingContext.heartbeatSender() instanceof DirectHeartbeatSender
+            ? processingContext
+                .toBuilder()
+                .setHeartbeatSender(
+                    ((DirectHeartbeatSender) processingContext.heartbeatSender())
+                        .withStreamClosedHandler(() -> isFailed = true))
+                .build()
+            : processingContext;
   }
 
   public static Work create(
@@ -182,21 +195,27 @@ public final class Work {
     this.currentState = TimedState.create(state, now);
   }
 
-  private boolean isRefreshable(Instant refreshDeadline) {
-    boolean isRefreshable = getStartTime().isBefore(refreshDeadline);
-    if (heartbeatSender().isInvalid()) {
-      setFailed();
-      return false;
-    }
-
-    return isRefreshable;
+  @Override
+  public boolean isRefreshable(Instant refreshDeadline) {
+    return getStartTime().isBefore(refreshDeadline) && !isFailed;
   }
 
+  @Override
   public HeartbeatSender heartbeatSender() {
     return processingContext.heartbeatSender();
   }
 
-  public void setFailed() {
+  public void fail() {
+    LOG.debug(
+        "Failing work "
+            + processingContext.computationId()
+            + " "
+            + shardedKey
+            + " "
+            + id.workToken()
+            + " "
+            + id.cacheToken()
+            + ". The work will be retried and is not lost.");
     this.isFailed = true;
   }
 
@@ -221,6 +240,7 @@ public final class Work {
     return WindmillStateReader.forWork(this);
   }
 
+  @Override
   public WorkId id() {
     return id;
   }
@@ -232,6 +252,7 @@ public final class Work {
     }
   }
 
+  @Override
   public ImmutableList<LatencyAttribution> getLatencyAttributions(
       boolean isHeartbeat, DataflowExecutionStateSampler sampler) {
     return Arrays.stream(LatencyAttribution.State.values())
@@ -281,15 +302,9 @@ public final class Work {
         && currentState.startTime().isBefore(stuckCommitDeadline);
   }
 
-  /** Returns a read-only snapshot of this {@link Work} instance's state for work refreshing. */
-  RefreshableView refreshableView(DataflowExecutionStateSampler sampler) {
-    return RefreshableView.builder()
-        .setWorkId(id)
-        .setHeartbeatSender(heartbeatSender())
-        .setIsFailed(isFailed)
-        .setIsRefreshable(this::isRefreshable)
-        .setLatencyAttributions(getLatencyAttributions(/* isHeartbeat= */ true, sampler))
-        .build();
+  /** Returns a view of this {@link Work} instance for work refreshing. */
+  public RefreshableWork refreshableView() {
+    return this;
   }
 
   public enum State {
@@ -344,11 +359,13 @@ public final class Work {
         BiFunction<String, KeyedGetDataRequest, KeyedGetDataResponse> getKeyedDataFn,
         Consumer<Commit> workCommitter,
         HeartbeatSender heartbeatSender) {
-      return new AutoValue_Work_ProcessingContext(
-          computationId,
-          request -> Optional.ofNullable(getKeyedDataFn.apply(computationId, request)),
-          workCommitter,
-          heartbeatSender);
+      return new AutoValue_Work_ProcessingContext.Builder()
+          .setComputationId(computationId)
+          .setHeartbeatSender(heartbeatSender)
+          .setWorkCommitter(workCommitter)
+          .setKeyedDataFetcher(
+              request -> Optional.ofNullable(getKeyedDataFn.apply(computationId, request)))
+          .build();
     }
 
     /** Computation that the {@link Work} belongs to. */
@@ -365,50 +382,21 @@ public final class Work {
     public abstract Consumer<Commit> workCommitter();
 
     public abstract HeartbeatSender heartbeatSender();
-  }
 
-  @AutoValue
-  public abstract static class RefreshableView {
-
-    private static RefreshableView.Builder builder() {
-      return new AutoValue_Work_RefreshableView.Builder();
-    }
-
-    abstract WorkId workId();
-
-    public final long workToken() {
-      return workId().workToken();
-    }
-
-    public final long cacheToken() {
-      return workId().cacheToken();
-    }
-
-    abstract Function<Instant, Boolean> isRefreshable();
-
-    public final boolean isRefreshable(Instant refreshDeadline) {
-      return isRefreshable().apply(refreshDeadline);
-    }
-
-    public abstract HeartbeatSender heartbeatSender();
-
-    public abstract boolean isFailed();
-
-    public abstract ImmutableList<LatencyAttribution> latencyAttributions();
+    abstract Builder toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder {
-      abstract Builder setWorkId(WorkId value);
+      abstract Builder setComputationId(String value);
 
-      abstract Builder setIsRefreshable(Function<Instant, Boolean> value);
+      abstract Builder setKeyedDataFetcher(
+          Function<KeyedGetDataRequest, Optional<KeyedGetDataResponse>> value);
+
+      abstract Builder setWorkCommitter(Consumer<Commit> value);
 
       abstract Builder setHeartbeatSender(HeartbeatSender value);
 
-      abstract Builder setIsFailed(boolean value);
-
-      abstract Builder setLatencyAttributions(ImmutableList<LatencyAttribution> value);
-
-      abstract RefreshableView build();
+      abstract ProcessingContext build();
     }
   }
 }

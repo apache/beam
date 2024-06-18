@@ -127,7 +127,7 @@ public class ActiveWorkRefresher {
       // to correctly fan-out the heartbeat requests.
       ImmutableListMultimap<HeartbeatSender, Windmill.HeartbeatRequest> heartbeats =
           HeartbeatRequests.getRefreshableKeyHeartbeats(
-              computationState.currentActiveWorkReadOnly(sampler), refreshDeadline);
+              computationState.currentActiveWorkReadOnly(), refreshDeadline, sampler);
       // Aggregate the heartbeats across computations by GetDataStream for correct fan out.
       for (Map.Entry<HeartbeatSender, Collection<Windmill.HeartbeatRequest>> heartbeatsPerStream :
           heartbeats.asMap().entrySet()) {

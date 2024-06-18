@@ -25,8 +25,4 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 @FunctionalInterface
 public interface HeartbeatSender {
   void sendHeartbeats(Map<String, List<Windmill.HeartbeatRequest>> heartbeats);
-
-  default boolean isInvalid() {
-    return false;
-  }
 }

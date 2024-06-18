@@ -17,8 +17,23 @@
  */
 package org.apache.beam.runners.dataflow.worker.streaming;
 
+import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
+import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.joda.time.Instant;
 
+/** View of {@link Work} that exposes an interface for work refreshing. */
+@Internal
 public interface RefreshableWork {
-  Windmill.WorkItem getWorkItem();
+
+  WorkId id();
+
+  boolean isRefreshable(Instant refreshDeadline);
+
+  HeartbeatSender heartbeatSender();
+
+  ImmutableList<Windmill.LatencyAttribution> getLatencyAttributions(
+      boolean isHeartbeat, DataflowExecutionStateSampler sampler);
 }

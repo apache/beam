@@ -19,45 +19,55 @@ package org.apache.beam.runners.dataflow.worker.windmill.work.refresh;
 
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
-import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.sdk.annotations.Internal;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * {@link HeartbeatSender} implementation that sends heartbeats directly on the underlying stream.
- * If the stream is closed, does nothing.
+ * {@link HeartbeatSender} implementation that sends heartbeats directly on the underlying stream if
+ * the stream is not closed.
  *
- * @implNote {@link #equals(Object)} and {@link #hashCode()} implementations delegate to internal
- *     {@link org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream}
- *     implementations so that requests can be grouped and sent on the same stream.
+ * @implNote
+ *     <p>{@link #equals(Object)} and {@link #hashCode()} implementations delegate to internal
+ *     {@link GetDataStream} implementations so that requests can be grouped and sent on the same
+ *     stream.
+ *     <p>{@link #onStreamClosed} is a hook used to bind side effects if {@link
+ *     #sendHeartbeats(Map)} is called when the underlying stream is closed, and defaults as a
+ *     no-op.
  */
 @Internal
 public final class DirectHeartbeatSender implements HeartbeatSender {
   private static final Logger LOG = LoggerFactory.getLogger(DirectHeartbeatSender.class);
-  private final WindmillStream.GetDataStream getDataStream;
+  private final GetDataStream getDataStream;
+  private final Runnable onStreamClosed;
 
-  public DirectHeartbeatSender(WindmillStream.GetDataStream getDataStream) {
+  private DirectHeartbeatSender(GetDataStream getDataStream, Runnable onStreamClosed) {
     this.getDataStream = getDataStream;
+    this.onStreamClosed = onStreamClosed;
+  }
+
+  public static DirectHeartbeatSender create(GetDataStream getDataStream) {
+    return new DirectHeartbeatSender(getDataStream, () -> {});
   }
 
   @Override
-  public void sendHeartbeats(Map<String, List<Windmill.HeartbeatRequest>> heartbeats) {
-    if (isInvalid()) {
+  public void sendHeartbeats(Map<String, List<HeartbeatRequest>> heartbeats) {
+    if (getDataStream.isClosed()) {
       LOG.warn(
           "Trying to refresh work on stream={} after work has moved off of worker."
               + " heartbeats={}",
           getDataStream,
           heartbeats);
+      onStreamClosed.run();
     } else {
       getDataStream.refreshActiveWork(heartbeats);
     }
   }
 
-  @Override
-  public synchronized boolean isInvalid() {
-    return getDataStream.isClosed();
+  public HeartbeatSender withStreamClosedHandler(Runnable onStreamClosed) {
+    return new DirectHeartbeatSender(getDataStream, onStreamClosed);
   }
 
   @Override

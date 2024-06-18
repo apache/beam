@@ -27,7 +27,9 @@ import java.util.Deque;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
+import org.apache.beam.runners.dataflow.worker.streaming.RefreshableWork;
 import org.apache.beam.runners.dataflow.worker.streaming.ShardedKey;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
@@ -133,12 +135,16 @@ public class HeartbeatRequestsTest {
     workQueue.addLast(work);
   }
 
-  private ImmutableListMultimap<ShardedKey, Work> currentActiveWork() {
-    ImmutableListMultimap.Builder<ShardedKey, Work> currentActiveWork =
+  private ImmutableListMultimap<ShardedKey, RefreshableWork> currentActiveWork() {
+    ImmutableListMultimap.Builder<ShardedKey, RefreshableWork> currentActiveWork =
         ImmutableListMultimap.builder();
 
     for (Map.Entry<ShardedKey, Deque<Work>> keyedWorkQueues : activeWork.entrySet()) {
-      currentActiveWork.putAll(keyedWorkQueues.getKey(), keyedWorkQueues.getValue());
+      currentActiveWork.putAll(
+          keyedWorkQueues.getKey(),
+          keyedWorkQueues.getValue().stream()
+              .map(Work::refreshableView)
+              .collect(Collectors.toList()));
     }
 
     return currentActiveWork.build();

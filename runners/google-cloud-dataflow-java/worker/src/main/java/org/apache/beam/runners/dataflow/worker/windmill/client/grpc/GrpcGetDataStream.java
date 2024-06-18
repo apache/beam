@@ -316,6 +316,9 @@ public final class GrpcGetDataStream
       try {
         queueRequestAndWait(request);
         return parseFn.parse(request.getResponseStream());
+      } catch (WindmillStreamClosedException e) {
+        verify(isClosed());
+        throw e;
       } catch (CancellationException e) {
         // Retry issuing the request since the response stream was cancelled.
       } catch (AppendableInputStream.InvalidInputStreamStateException e) {

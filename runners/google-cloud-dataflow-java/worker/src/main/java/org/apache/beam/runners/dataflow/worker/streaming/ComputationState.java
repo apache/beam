@@ -23,7 +23,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import javax.annotation.Nullable;
-import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
@@ -138,9 +137,8 @@ public class ComputationState {
         stuckCommitDeadline, this::completeWorkAndScheduleNextWorkForKey);
   }
 
-  public ImmutableListMultimap<ShardedKey, Work.RefreshableView> currentActiveWorkReadOnly(
-      DataflowExecutionStateSampler sampler) {
-    return activeWorkState.getReadOnlyActiveWork(sampler);
+  public ImmutableListMultimap<ShardedKey, RefreshableWork> currentActiveWorkReadOnly() {
+    return activeWorkState.getReadOnlyActiveWork();
   }
 
   private void execute(ExecutableWork executableWork) {
