@@ -34,4 +34,5 @@ dependencies {
     implementation project(path: ":sdks:java:core", configuration: "shadow")
     implementation library.java.joda_time
     implementation library.java.solace
+    implementation project(":sdks:java:extensions:avro")
 }
