@@ -913,6 +913,24 @@ class GoogleCloudOptions(PipelineOptions):
     else:
       return None
 
+  # Log warning if soft delete policy is enabled in a gcs bucket
+  # that is specified in an argument.
+  def _warn_if_soft_delete_policy_enabled(self, arg_name):
+    gcs_path = getattr(self, arg_name, None)
+    try:
+      from apache_beam.io.gcp import gcsio
+      if gcsio.GcsIO().is_soft_delete_enabled(gcs_path):
+        _LOGGER.warning(
+            "Bucket specified in %s has soft-delete policy enabled."
+            " To avoid being billed for unnecessary storage costs, turn"
+            " off the soft delete feature on buckets that your Dataflow"
+            " jobs use for temporary and staging storage. For more"
+            " information, see"
+            " https://cloud.google.com/storage/docs/use-soft-delete"
+            "#remove-soft-delete-policy." % arg_name)
+    except ImportError:
+      _LOGGER.warning('Unable to check soft delete policy due to import error.')
+
   # If either temp or staging location has an issue, we use the valid one for
   # both locations. If both are bad we return an error.
   def _handle_temp_and_staging_locations(self, validator):
@@ -920,11 +938,15 @@ class GoogleCloudOptions(PipelineOptions):
     staging_errors = validator.validate_gcs_path(self, 'staging_location')
     if temp_errors and not staging_errors:
       setattr(self, 'temp_location', getattr(self, 'staging_location'))
+      self._warn_if_soft_delete_policy_enabled('staging_location')
       return []
     elif staging_errors and not temp_errors:
       setattr(self, 'staging_location', getattr(self, 'temp_location'))
+      self._warn_if_soft_delete_policy_enabled('temp_location')
       return []
     elif not staging_errors and not temp_errors:
+      self._warn_if_soft_delete_policy_enabled('temp_location')
+      self._warn_if_soft_delete_policy_enabled('staging_location')
       return []
     # Both staging and temp locations are bad, try to use default bucket.
     else:
@@ -935,6 +957,8 @@ class GoogleCloudOptions(PipelineOptions):
       else:
         setattr(self, 'temp_location', default_bucket)
         setattr(self, 'staging_location', default_bucket)
+        self._warn_if_soft_delete_policy_enabled('temp_location')
+        self._warn_if_soft_delete_policy_enabled('staging_location')
         return []
 
   def validate(self, validator):

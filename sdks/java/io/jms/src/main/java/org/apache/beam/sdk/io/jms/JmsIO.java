@@ -30,6 +30,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
@@ -186,12 +187,23 @@ public class JmsIO {
     return new AutoValue_JmsIO_Write.Builder<EventT>().build();
   }
 
+  public interface ConnectionFactoryContainer<T extends ConnectionFactoryContainer<T>> {
+
+    T withConnectionFactory(ConnectionFactory connectionFactory);
+
+    T withConnectionFactoryProviderFn(
+        SerializableFunction<Void, ? extends ConnectionFactory> connectionFactoryProviderFn);
+  }
+
   /**
    * A {@link PTransform} to read from a JMS destination. See {@link JmsIO} for more information on
    * usage and configuration.
    */
   @AutoValue
-  public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>> {
+  public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>>
+      implements ConnectionFactoryContainer<Read<T>> {
+
+    private @Nullable transient ConnectionFactory connectionFactory;
 
     /**
      * NB: According to http://docs.oracle.com/javaee/1.4/api/javax/jms/ConnectionFactory.html "It
@@ -201,9 +213,27 @@ public class JmsIO {
      * they can be stored in all JNDI naming contexts. In addition, it is recommended that these
      * implementations follow the JavaBeansTM design patterns."
      *
-     * <p>So, a {@link ConnectionFactory} implementation is serializable.
+     * <p>So, a {@link ConnectionFactory} implementation should be serializable.
      */
-    abstract @Nullable ConnectionFactory getConnectionFactory();
+    @Nullable
+    ConnectionFactory getConnectionFactory() {
+      if (connectionFactory == null) {
+        connectionFactory =
+            Optional.ofNullable(getConnectionFactoryProviderFn())
+                .map(provider -> provider.apply(null))
+                .orElse(null);
+      }
+      return connectionFactory;
+    }
+
+    /**
+     * In case the {@link ConnectionFactory} is not serializable it can be constructed separately on
+     * each worker from scratch by providing a {@link SerializableFunction} instead of a ready-made
+     * object.
+     */
+    @Nullable
+    abstract SerializableFunction<Void, ? extends ConnectionFactory>
+        getConnectionFactoryProviderFn();
 
     abstract @Nullable String getQueue();
 
@@ -233,7 +263,8 @@ public class JmsIO {
 
     @AutoValue.Builder
     abstract static class Builder<T> {
-      abstract Builder<T> setConnectionFactory(ConnectionFactory connectionFactory);
+      abstract Builder<T> setConnectionFactoryProviderFn(
+          SerializableFunction<Void, ? extends ConnectionFactory> connectionFactoryProviderFn);
 
       abstract Builder<T> setQueue(String queue);
 
@@ -265,6 +296,9 @@ public class JmsIO {
     /**
      * Specify the JMS connection factory to connect to the JMS broker.
      *
+     * <p>The {@link ConnectionFactory} object has to be serializable, if it is not consider using
+     * the {@link #withConnectionFactoryProviderFn}
+     *
      * <p>For instance:
      *
      * <pre>{@code
@@ -275,9 +309,33 @@ public class JmsIO {
      * @param connectionFactory The JMS {@link ConnectionFactory}.
      * @return The corresponding {@link JmsIO.Read}.
      */
+    @Override
     public Read<T> withConnectionFactory(ConnectionFactory connectionFactory) {
       checkArgument(connectionFactory != null, "connectionFactory can not be null");
-      return builder().setConnectionFactory(connectionFactory).build();
+      return builder().setConnectionFactoryProviderFn(__ -> connectionFactory).build();
+    }
+
+    /**
+     * Specify a JMS connection factory provider function to connect to the JMS broker. Use this
+     * method in case your {@link ConnectionFactory} objects are themselves not serializable, but
+     * you can recreate them as needed with a {@link SerializableFunction} provider
+     *
+     * <p>For instance:
+     *
+     * <pre>
+     * {@code pipeline.apply(JmsIO.read().withConnectionFactoryProviderFn(() -> new MyJmsConnectionFactory());}
+     * </pre>
+     *
+     * @param connectionFactoryProviderFn a {@link SerializableFunction} that creates a {@link
+     *     ConnectionFactory}
+     * @return The corresponding {@link JmsIO.Read}
+     */
+    @Override
+    public Read<T> withConnectionFactoryProviderFn(
+        SerializableFunction<Void, ? extends ConnectionFactory> connectionFactoryProviderFn) {
+      checkArgument(
+          connectionFactoryProviderFn != null, "connectionFactoryProviderFn cannot be null");
+      return builder().setConnectionFactoryProviderFn(connectionFactoryProviderFn).build();
     }
 
     /**
@@ -426,7 +484,9 @@ public class JmsIO {
 
     @Override
     public PCollection<T> expand(PBegin input) {
-      checkArgument(getConnectionFactory() != null, "withConnectionFactory() is required");
+      checkArgument(
+          getConnectionFactoryProviderFn() != null,
+          "Either withConnectionFactory() or withConnectionFactoryProviderFn() is required");
       checkArgument(
           getQueue() != null || getTopic() != null,
           "Either withQueue() or withTopic() is required");
@@ -786,9 +846,25 @@ public class JmsIO {
    */
   @AutoValue
   public abstract static class Write<EventT>
-      extends PTransform<PCollection<EventT>, WriteJmsResult<EventT>> {
+      extends PTransform<PCollection<EventT>, WriteJmsResult<EventT>>
+      implements ConnectionFactoryContainer<Write<EventT>> {
 
-    abstract @Nullable ConnectionFactory getConnectionFactory();
+    private @Nullable transient ConnectionFactory connectionFactory;
+
+    @Nullable
+    ConnectionFactory getConnectionFactory() {
+      if (connectionFactory == null) {
+        connectionFactory =
+            Optional.ofNullable(getConnectionFactoryProviderFn())
+                .map(provider -> provider.apply(null))
+                .orElse(null);
+      }
+
+      return connectionFactory;
+    }
+
+    abstract @Nullable SerializableFunction<Void, ? extends ConnectionFactory>
+        getConnectionFactoryProviderFn();
 
     abstract @Nullable String getQueue();
 
@@ -808,7 +884,8 @@ public class JmsIO {
 
     @AutoValue.Builder
     abstract static class Builder<EventT> {
-      abstract Builder<EventT> setConnectionFactory(ConnectionFactory connectionFactory);
+      abstract Builder<EventT> setConnectionFactoryProviderFn(
+          SerializableFunction<Void, ? extends ConnectionFactory> connectionFactoryProviderFn);
 
       abstract Builder<EventT> setQueue(String queue);
 
@@ -832,6 +909,9 @@ public class JmsIO {
     /**
      * Specify the JMS connection factory to connect to the JMS broker.
      *
+     * <p>The {@link ConnectionFactory} object has to be serializable, if it is not consider using
+     * the {@link #withConnectionFactoryProviderFn}
+     *
      * <p>For instance:
      *
      * <pre>{@code
@@ -842,9 +922,33 @@ public class JmsIO {
      * @param connectionFactory The JMS {@link ConnectionFactory}.
      * @return The corresponding {@link JmsIO.Read}.
      */
+    @Override
     public Write<EventT> withConnectionFactory(ConnectionFactory connectionFactory) {
       checkArgument(connectionFactory != null, "connectionFactory can not be null");
-      return builder().setConnectionFactory(connectionFactory).build();
+      return builder().setConnectionFactoryProviderFn(__ -> connectionFactory).build();
+    }
+
+    /**
+     * Specify a JMS connection factory provider function to connect to the JMS broker. Use this
+     * method in case your {@link ConnectionFactory} objects are themselves not serializable, but
+     * you can recreate them as needed with a {@link SerializableFunction} provider
+     *
+     * <p>For instance:
+     *
+     * <pre>
+     * {@code pipeline.apply(JmsIO.write().withConnectionFactoryProviderFn(() -> new MyJmsConnectionFactory());}
+     * </pre>
+     *
+     * @param connectionFactoryProviderFn a {@link SerializableFunction} that creates a {@link
+     *     ConnectionFactory}
+     * @return The corresponding {@link JmsIO.Write}
+     */
+    @Override
+    public Write<EventT> withConnectionFactoryProviderFn(
+        SerializableFunction<Void, ? extends ConnectionFactory> connectionFactoryProviderFn) {
+      checkArgument(
+          connectionFactoryProviderFn != null, "connectionFactoryProviderFn can not be null");
+      return builder().setConnectionFactoryProviderFn(connectionFactoryProviderFn).build();
     }
 
     /**
@@ -1010,14 +1114,18 @@ public class JmsIO {
 
     @Override
     public WriteJmsResult<EventT> expand(PCollection<EventT> input) {
-      checkArgument(getConnectionFactory() != null, "withConnectionFactory() is required");
+      checkArgument(
+          getConnectionFactoryProviderFn() != null,
+          "Either withConnectionFactory() or withConnectionFactoryProviderFn() is required");
       checkArgument(
           getTopicNameMapper() != null || getQueue() != null || getTopic() != null,
-          "Either withTopicNameMapper(topicNameMapper), withQueue(queue), or withTopic(topic) is required");
+          "Either withTopicNameMapper(topicNameMapper), withQueue(queue), or withTopic(topic) is"
+              + " required");
       boolean exclusiveTopicQueue = isExclusiveTopicQueue();
       checkArgument(
           exclusiveTopicQueue,
-          "Only one of withQueue(queue), withTopic(topic), or withTopicNameMapper(function) must be set.");
+          "Only one of withQueue(queue), withTopic(topic), or withTopicNameMapper(function) must be"
+              + " set.");
       checkArgument(getValueMapper() != null, "withValueMapper() is required");
 
       return input.apply(new Writer<>(this));

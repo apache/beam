@@ -666,8 +666,8 @@ in the Python SDK, please read and work through
 ### 4.1. Applying transforms {#applying-transforms}
 
 To invoke a transform, you must **apply** it to the input `PCollection`. Each
-transform in the Beam SDKs has a generic `apply` method
-<span class="language-py">(or pipe operator `|`)</span>.
+transform in the Beam SDKs has a generic `apply` method<span class="language-py">
+(or pipe operator `|`)</span>.
 Invoking multiple Beam transforms is similar to *method chaining*, but with one
 slight difference: You apply the transform to the input `PCollection`, passing
 the transform itself as an argument, and the operation returns the output

@@ -395,11 +395,19 @@ import org.slf4j.LoggerFactory;
  *
  * <pre>{@code
  * pipeline
- *  .apply(Create.of(KafkaSourceDescriptor.of(new TopicPartition("topic", 1)))
- *  .apply(KafkaIO.readAll()
- *          .withBootstrapServers("broker_1:9092,broker_2:9092")
- *          .withKeyDeserializer(LongDeserializer.class).
- *          .withValueDeserializer(StringDeserializer.class));
+ *  .apply(Create.of(
+ *    KafkaSourceDescriptor.of(
+ *      new TopicPartition("topic", 1),
+ *      null,
+ *      null,
+ *      null,
+ *      null,
+ *      null)))
+ *   .apply(
+ *     KafkaIO.<Long, String>readSourceDescriptors()
+ *       .withBootstrapServers("broker_1:9092,broker_2:9092")
+ *       .withKeyDeserializer(LongDeserializer.class)
+ *       .withValueDeserializer(StringDeserializer.class));
  * }</pre>
  *
  * Note that the {@code bootstrapServers} can also be populated from the {@link
@@ -412,8 +420,10 @@ import org.slf4j.LoggerFactory;
  *      new TopicPartition("topic", 1),
  *      null,
  *      null,
- *      ImmutableList.of("broker_1:9092", "broker_2:9092"))
- *  .apply(KafkaIO.readAll()
+ *      null,
+ *      null,
+ *      ImmutableList.of("broker_1:9092", "broker_2:9092"))))
+ *  .apply(KafkaIO.<Long, String>readSourceDescriptors()
  *         .withKeyDeserializer(LongDeserializer.class).
  *         .withValueDeserializer(StringDeserializer.class));
  * }</pre>
@@ -441,17 +451,19 @@ import org.slf4j.LoggerFactory;
  *
  * <pre>{@code
  * pipeline
- * .apply(Create.of(
+ *  .apply(Create.of(
  *    KafkaSourceDescriptor.of(
  *      new TopicPartition("topic", 1),
  *      null,
  *      null,
- *      ImmutableList.of("broker_1:9092", "broker_2:9092"))
- * .apply(KafkaIO.readAll()
- *          .withKeyDeserializer(LongDeserializer.class).
- *          .withValueDeserializer(StringDeserializer.class)
- *          .withProcessingTime()
- *          .commitOffsets());
+ *      null,
+ *      null,
+ *      ImmutableList.of("broker_1:9092", "broker_2:9092"))))
+ * .apply(KafkaIO.<Long, String>readSourceDescriptors()
+ *        .withKeyDeserializer(LongDeserializer.class).
+ *        .withValueDeserializer(StringDeserializer.class)
+ *        .withProcessingTime()
+ *        .commitOffsets());
  * }</pre>
  *
  * <h3>Writing to Kafka</h3>
@@ -2663,9 +2675,9 @@ public class KafkaIO {
       abstract Builder<K, V> setProducerConfig(Map<String, Object> producerConfig);
 
       abstract Builder<K, V> setProducerFactoryFn(
-          SerializableFunction<Map<String, Object>, Producer<K, V>> fn);
+          @Nullable SerializableFunction<Map<String, Object>, Producer<K, V>> fn);
 
-      abstract Builder<K, V> setKeySerializer(Class<? extends Serializer<K>> serializer);
+      abstract Builder<K, V> setKeySerializer(@Nullable Class<? extends Serializer<K>> serializer);
 
       abstract Builder<K, V> setValueSerializer(Class<? extends Serializer<V>> serializer);
 

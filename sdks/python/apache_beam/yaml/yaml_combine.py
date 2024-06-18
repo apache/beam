@@ -144,7 +144,7 @@ class PyJsYamlCombine(beam.PTransform):
 
     for output, agg in self._combine.items():
       expr = yaml_mapping._as_callable(
-          all_fields, agg['value'], 'Combine', self._language)
+          all_fields, agg['value'], 'Combine', self._language, input_types)
       fn = create_combine_fn(agg['fn'])
       transform = transform.aggregate_field(expr, fn, output)
 

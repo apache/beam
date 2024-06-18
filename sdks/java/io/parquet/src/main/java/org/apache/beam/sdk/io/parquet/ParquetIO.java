@@ -1046,13 +1046,13 @@ public class ParquetIO {
       return toBuilder().setCompressionCodec(compressionCodecName).build();
     }
 
-    /** Specifies configuration to be passed into the sink's writer. */
+    /** Specify Hadoop configuration for ParquetWriter. */
     public Sink withConfiguration(Map<String, String> configuration) {
       checkArgument(configuration != null, "configuration can not be null");
       return toBuilder().setConfiguration(SerializableConfiguration.fromMap(configuration)).build();
     }
 
-    /** Specify Hadoop configuration for ParquetReader. */
+    /** Specify Hadoop configuration for ParquetWriter. */
     public Sink withConfiguration(Configuration configuration) {
       checkArgument(configuration != null, "configuration can not be null");
       return toBuilder().setConfiguration(new SerializableConfiguration(configuration)).build();

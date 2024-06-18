@@ -119,6 +119,8 @@ public class ParDoTranslation {
   public static final String BAG_USER_STATE = "beam:user_state:bag:v1";
   /** Represents a user state specification that supports a multimap. */
   public static final String MULTIMAP_USER_STATE = "beam:user_state:multimap:v1";
+  /** Represents a user state specification that supports an ordered list. */
+  public static final String ORDERED_LIST_USER_STATE = "beam:user_state:ordered_list:v1";
 
   static {
     checkState(
@@ -141,6 +143,8 @@ public class ParDoTranslation {
             BeamUrns.getUrn(StandardRequirements.Enum.REQUIRES_ON_WINDOW_EXPIRATION)));
     checkState(BAG_USER_STATE.equals(BeamUrns.getUrn(StandardUserStateTypes.Enum.BAG)));
     checkState(MULTIMAP_USER_STATE.equals(BeamUrns.getUrn(StandardUserStateTypes.Enum.MULTIMAP)));
+    checkState(
+        ORDERED_LIST_USER_STATE.equals(BeamUrns.getUrn(StandardUserStateTypes.Enum.ORDERED_LIST)));
   }
 
   /** The URN for an unknown Java {@link DoFn}. */
@@ -601,9 +605,7 @@ public class ParDoTranslation {
                 .setOrderedListSpec(
                     RunnerApi.OrderedListStateSpec.newBuilder()
                         .setElementCoderId(registerCoderOrThrow(components, elementCoder)))
-                // TODO(https://github.com/apache/beam/issues/20486): Update with correct protocol
-                // once the protocol is defined and
-                // the SDK harness uses it.
+                .setProtocol(FunctionSpec.newBuilder().setUrn(ORDERED_LIST_USER_STATE))
                 .build();
           }
 
@@ -693,6 +695,10 @@ public class ParDoTranslation {
 
       case SET_SPEC:
         return StateSpecs.set(components.getCoder(stateSpec.getSetSpec().getElementCoderId()));
+
+      case ORDERED_LIST_SPEC:
+        return StateSpecs.orderedList(
+            components.getCoder(stateSpec.getOrderedListSpec().getElementCoderId()));
 
       case SPEC_NOT_SET:
       default:

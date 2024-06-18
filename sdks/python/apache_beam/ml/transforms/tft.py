@@ -52,13 +52,17 @@ __all__ = [
     'ComputeAndApplyVocabulary',
     'ScaleToZScore',
     'ScaleTo01',
+    'ScaleToGaussian',
     'ApplyBuckets',
+    'ApplyBucketsWithInterpolation',
     'Bucketize',
     'TFIDF',
     'TFTOperation',
     'ScaleByMinMax',
     'NGrams',
     'BagOfWords',
+    'HashStrings',
+    'DeduplicateTensorPerRow',
 ]
 
 # Register the expected input types for each operation
@@ -337,16 +341,16 @@ class ApplyBuckets(TFTOperation):
       name: Optional[str] = None):
     """
     This functions is used to map the element to a positive index i for
-    which bucket_boundaries[i-1] <= element < bucket_boundaries[i],
-    if it exists. If input < bucket_boundaries[0], then element is
-    mapped to 0. If element >= bucket_boundaries[-1], then element is
+    which `bucket_boundaries[i-1] <= element < bucket_boundaries[i]`,
+    if it exists. If `input < bucket_boundaries[0]`, then element is
+    mapped to 0. If `element >= bucket_boundaries[-1]`, then element is
     mapped to len(bucket_boundaries). NaNs are mapped to
     len(bucket_boundaries).
 
     Args:
       columns: A list of column names to apply the transformation on.
-      bucket_boundaries: A rank 2 Tensor or list representing the bucket
-        boundaries sorted in ascending order.
+      bucket_boundaries: An iterable of ints or floats representing the bucket
+        boundaries. Must be sorted in ascending order.
       name: (Optional) A string that specifies the name of the operation.
     """
     super().__init__(columns)
@@ -358,6 +362,45 @@ class ApplyBuckets(TFTOperation):
       output_column_name: str) -> Dict[str, common_types.TensorType]:
     output = {
         output_column_name: tft.apply_buckets(
+            x=data, bucket_boundaries=self.bucket_boundaries, name=self.name)
+    }
+    return output
+
+
+@register_input_dtype(float)
+class ApplyBucketsWithInterpolation(TFTOperation):
+  def __init__(
+      self,
+      columns: List[str],
+      bucket_boundaries: Iterable[Union[int, float]],
+      name: Optional[str] = None):
+    """Interpolates values within the provided buckets and then normalizes to
+    [0, 1].
+    
+    Input values are bucketized based on the provided boundaries such that the
+    input is mapped to a positive index i for which `bucket_boundaries[i-1] <=
+    element < bucket_boundaries[i]`, if it exists. The values are then
+    normalized to the range [0,1] within the bucket, with NaN values being
+    mapped to 0.5.
+
+    For more information, see:
+    https://www.tensorflow.org/tfx/transform/api_docs/python/tft/apply_buckets_with_interpolation
+
+    Args:
+      columns: A list of column names to apply the transformation on.
+      bucket_boundaries: An iterable of ints or floats representing the bucket
+        boundaries sorted in ascending order.
+      name: (Optional) A string that specifies the name of the operation.
+    """
+    super().__init__(columns)
+    self.bucket_boundaries = [bucket_boundaries]
+    self.name = name
+
+  def apply_transform(
+      self, data: common_types.TensorType,
+      output_column_name: str) -> Dict[str, common_types.TensorType]:
+    output = {
+        output_column_name: tft.apply_buckets_with_interpolation(
             x=data, bucket_boundaries=self.bucket_boundaries, name=self.name)
     }
     return output
@@ -425,8 +468,8 @@ class TFIDF(TFTOperation):
     This function applies a tf-idf transformation on the given columns
     of incoming data.
 
-    TFIDF outputs two artifacts for each column: the vocabu index and
-    the tfidf weight. The vocabu index is a mapping from the original
+    TFIDF outputs two artifacts for each column: the vocabulary index and
+    the tfidf weight. The vocabulary index is a mapping from the original
     vocabulary to the new vocabulary. The tfidf weight is a mapping
     from the original vocabulary to the tfidf score.
 
@@ -597,7 +640,7 @@ class BagOfWords(TFTOperation):
       compute_word_count: A boolean that specifies whether to compute
         the unique word count over the entire dataset. Defaults to False.
       key_vocab_filename: The file name for the key vocabulary file when
-        compute_word_count is True. If empty, a file name 
+        compute_word_count is True. If empty, a file name
         will be chosen based on the current scope. If provided, the vocab
         file will be suffixed with the column name.
       name: A name for the operation (optional).

@@ -161,11 +161,11 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
       TableRow tableRow = formatFunction.apply(element);
 
       String changeType = null;
-      long changeSequenceNum = -1;
+      String changeSequenceNum = null;
       Descriptor descriptorToUse = descriptor;
       if (rowMutationInformation != null) {
         changeType = rowMutationInformation.getMutationType().toString();
-        changeSequenceNum = rowMutationInformation.getSequenceNumber();
+        changeSequenceNum = rowMutationInformation.getChangeSequenceNumber();
         descriptorToUse = Preconditions.checkStateNotNull(cdcDescriptor);
       }
       // If autoSchemaUpdates==true, then we allow unknown values at this step and insert them into
