@@ -267,7 +267,10 @@ class PipelineTest(unittest.TestCase):
         'pipeline. To apply a transform with a specified label, write '
         'pvalue | "label" >> transform or use the option '
         '"auto_unique_labels" to automatically generate unique '
-        'transform labels')
+        'transform labels. Note "auto_unique_labels" '
+        'could cause data loss when updating a pipeline or '
+        'reloading the job state. This is not recommended for '
+        'streaming jobs.')
 
   def test_auto_unique_labels(self):
 

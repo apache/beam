@@ -556,7 +556,10 @@ class StandardOptions(PipelineOptions):
         action='store_true',
         help='Whether to automatically generate unique transform labels '
         'for every transform. The default behavior is to raise an '
-        'exception if a transform is created with a non-unique label.')
+        'exception if a transform is created with a non-unique label. '
+        'Using --auto_unique_labels could cause data loss when '
+        'updating a pipeline or reloading the job state. '
+        'This is not recommended for streaming jobs.')
 
 
 class StreamingOptions(PipelineOptions):
