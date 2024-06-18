@@ -28,15 +28,19 @@ ext.summary = "Common test classes for ElasticsearchIO"
 def elastic_search_version = "7.17.22"
 
 dependencies {
+  implementation library.java.jackson_core
   implementation library.java.jackson_databind
+  implementation library.java.joda_time
+  implementation library.java.vendored_guava_32_1_2_jre
+  implementation library.java.http_core
+  implementation library.java.testcontainers_base
+  implementation "org.apache.httpcomponents:httpcore-nio:4.4.12"
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation project(":sdks:java:io:elasticsearch")
-  implementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
   implementation library.java.slf4j_api
   implementation library.java.hamcrest
   implementation library.java.junit
   implementation "org.elasticsearch.client:elasticsearch-rest-client:$elastic_search_version"
-  implementation "org.elasticsearch.client:elasticsearch-rest-high-level-client:${elastic_search_version}"
   implementation library.java.testcontainers_elasticsearch
 
   runtimeOnly library.java.log4j2_api
