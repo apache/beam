@@ -141,10 +141,7 @@ class ReadFn<T> extends DoFn<Read<T>, T> {
     return (spec.query() == null)
         ? String.format("SELECT * FROM %s.%s", spec.keyspace().get(), spec.table().get())
             + " WHERE "
-        : spec.query().get()
-            + (hasRingRange
-                ? getJoinerClause(spec.query().get())
-                : "");
+        : spec.query().get() + (hasRingRange ? getJoinerClause(spec.query().get()) : "");
   }
 
   private static String getJoinerClause(String queryString) {

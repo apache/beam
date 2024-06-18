@@ -491,13 +491,16 @@ public class CassandraIOTest implements Serializable {
   }
 
   /**
-   * Create a mock value provider class that tests how the query gets expanded in CassandraIO.ReadFn.
+   * Create a mock value provider class that tests how the query gets expanded in
+   * CassandraIO.ReadFn.
    */
   static class MockQueryProvider implements ValueProvider<String> {
     private volatile String query;
+
     MockQueryProvider(String query) {
       this.query = query;
     }
+
     @Override
     public String get() {
       return query;
@@ -574,7 +577,6 @@ public class CassandraIOTest implements Serializable {
 
     pipeline.run();
   }
-
 
   @Test
   public void testReadWithUnfilteredQuery() throws Exception {
