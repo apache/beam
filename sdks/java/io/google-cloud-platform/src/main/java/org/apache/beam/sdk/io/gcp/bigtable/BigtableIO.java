@@ -57,6 +57,7 @@ import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.UniqueIdGenerator;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.action.ActionFactory;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.BigtableChangeStreamAccessor;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.BigtableClientOverride;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.DaoFactory;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.MetadataTableAdminDao;
@@ -2307,11 +2308,11 @@ public class BigtableIO {
 
     @Override
     public void validate(PipelineOptions options) {
-      BigtableServiceFactory factory = new BigtableServiceFactory();
       if (getBigtableConfig().getValidate()) {
-        try {
+        try (BigtableChangeStreamAccessor bigtableChangeStreamAccessor =
+            BigtableChangeStreamAccessor.getOrCreate(getBigtableConfig())) {
           checkArgument(
-              factory.checkTableExists(getBigtableConfig(), options, getTableId()),
+              bigtableChangeStreamAccessor.getTableAdminClient().exists(getTableId()),
               "Change Stream table %s does not exist",
               getTableId());
         } catch (IOException e) {

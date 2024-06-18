@@ -296,13 +296,12 @@ method) could look like::
        | MyOperationAfterWriteToBQ())
 
 Attributes can be accessed using dot notation or bracket notation:
-```
+
 result.failed_rows                  <--> result['FailedRows']
 result.failed_rows_with_errors      <--> result['FailedRowsWithErrors']
 result.destination_load_jobid_pairs <--> result['destination_load_jobid_pairs']
 result.destination_file_pairs       <--> result['destination_file_pairs']
 result.destination_copy_jobid_pairs <--> result['destination_copy_jobid_pairs']
-```
 
 Writing with Storage Write API using Cross Language
 ---------------------------------------------------

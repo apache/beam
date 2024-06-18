@@ -945,6 +945,8 @@ class GoogleCloudOptions(PipelineOptions):
       self._warn_if_soft_delete_policy_enabled('temp_location')
       return []
     elif not staging_errors and not temp_errors:
+      self._warn_if_soft_delete_policy_enabled('temp_location')
+      self._warn_if_soft_delete_policy_enabled('staging_location')
       return []
     # Both staging and temp locations are bad, try to use default bucket.
     else:

@@ -56,7 +56,7 @@ public class ElasticsearchIOTest implements Serializable {
 
     // Start the container. This step might take some time...
     container.start();
-    client = ElasticsearchIOTestUtils.clientFromContainer(container);
+    client = ElasticsearchIOTestUtils.clientFromContainer(container, true);
     setDefaultTemplate(client);
   }
 
