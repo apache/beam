@@ -84,9 +84,9 @@ func TestHeapSizeLimit(t *testing.T) {
 		t.Errorf("HeapSizeLimit(0). Actual (%d). want 1 GB", lim)
 	}
 	if lim := HeapSizeLimit(2 << 30); lim != (2 << 30) * 7 / 10 {
-		t.Errorf("HeapSizeLimit(0). Actual (%d). want 700 MB", lim)
+		t.Errorf("HeapSizeLimit(2 GB). Actual (%d). want 1.4 GB", lim)
 	}
 	if lim := HeapSizeLimit(200 << 30); lim != (200 - 32) << 30 {
-		t.Errorf("HeapSizeLimit(0). Actual (%d). want 168 GB", lim)
+		t.Errorf("HeapSizeLimit(200 GB). Actual (%d). want 168 GB", lim)
 	}
 }
