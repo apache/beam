@@ -160,14 +160,14 @@ func main() {
 
 	var lim uint64
 	if strings.Contains(options, "set_recommended_max_xmx") {
-    lim = 32 << 30
-  } else {
-    size, err := syscallx.PhysicalMemorySize()
-    if err != nil {
-      size = 0
-    }
-    lim = HeapSizeLimit(size)
-  }
+		lim = 32 << 30
+	} else {
+		size, err := syscallx.PhysicalMemorySize()
+		if err != nil {
+			size = 0
+		}
+		lim = HeapSizeLimit(size)
+	}
 
 	args := []string{
 		"-Xmx" + strconv.FormatUint(lim, 10),
