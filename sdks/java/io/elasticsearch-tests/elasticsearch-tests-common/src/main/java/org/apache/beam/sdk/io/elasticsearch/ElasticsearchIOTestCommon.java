@@ -116,6 +116,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Common test class for {@link ElasticsearchIO}. */
+@SuppressWarnings("nullness")
 class ElasticsearchIOTestCommon implements Serializable {
 
   private static final Logger LOG = LoggerFactory.getLogger(ElasticsearchIOTestCommon.class);

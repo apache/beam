@@ -34,6 +34,7 @@ import org.elasticsearch.client.RestClient;
  * <p>This is independent from the tests so that for read tests it can be run separately after data
  * store creation rather than every time (which can be more fragile.)
  */
+@SuppressWarnings("nullness")
 public class ElasticsearchIOITCommon {
 
   /** Pipeline options for elasticsearch tests. */
