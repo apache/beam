@@ -23,4 +23,11 @@ import java.io.Serializable;
  * This abstract class serves as a blueprint for creating `SessionService` objects. It introduces a
  * queue property and mandates the implementation of a create() method in concrete subclasses.
  */
-public abstract class SessionServiceFactory implements Serializable {}
+public abstract class SessionServiceFactory implements Serializable {
+
+  /**
+   * This is the core method that subclasses must implement. It defines how to construct and return
+   * a SessionService object.
+   */
+  public abstract SessionService create();
+}

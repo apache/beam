@@ -23,9 +23,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -33,7 +35,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * acknowledged.
  */
 @DefaultCoder(AvroCoder.class)
-class SolaceCheckpointMark implements UnboundedSource.CheckpointMark {
+@Internal
+@VisibleForTesting
+public class SolaceCheckpointMark implements UnboundedSource.CheckpointMark {
   private transient AtomicBoolean activeReader;
   // BytesXMLMessage is not serializable so if a job restarts from the checkpoint, we cannot retry
   // these messages here. We relay on Solace's retry mechanism.

@@ -23,4 +23,13 @@ import java.io.Serializable;
  * This interface serves as a blueprint for creating SempClient objects, which are used to interact
  * with a Solace message broker using the Solace Element Management Protocol (SEMP).
  */
-public interface SempClientFactory extends Serializable {}
+public interface SempClientFactory extends Serializable {
+
+  /**
+   * This method is the core of the factory interface. It defines how to construct and return a
+   * SempClient object. Implementations of this interface will provide the specific logic for
+   * creating a client instance, which might involve connecting to the broker, handling
+   * authentication, and configuring other settings.
+   */
+  SempClient create();
+}
