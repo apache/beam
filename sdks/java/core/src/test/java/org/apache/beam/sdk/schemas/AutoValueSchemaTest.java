@@ -357,17 +357,6 @@ public class AutoValueSchemaTest {
 
   @DefaultSchema(AutoValueSchema.class)
   @AutoValue
-  abstract static class InnerGenericAutoValue<T> {
-    public abstract T getT();
-
-    @SchemaCreate
-    public static <T> InnerGenericAutoValue<T> create(T t) {
-      return new AutoValue_AutoValueSchemaTest_InnerGenericAutoValue<>(t);
-    }
-  }
-
-  @DefaultSchema(AutoValueSchema.class)
-  @AutoValue
   abstract static class GenericAutoValue<T> {
     public abstract T getT();
 
