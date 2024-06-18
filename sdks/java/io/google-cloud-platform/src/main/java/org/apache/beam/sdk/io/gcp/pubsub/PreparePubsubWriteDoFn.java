@@ -63,6 +63,20 @@ public class PreparePubsubWriteDoFn<InputT> extends DoFn<InputT, PubsubMessage> 
     }
     int totalSize = payloadSize;
 
+    @Nullable String orderingKey = message.getOrderingKey();
+    if (orderingKey != null) {
+      int orderingKeySize = orderingKey.getBytes(StandardCharsets.UTF_8).length;
+      if (orderingKeySize > PUBSUB_MESSAGE_ATTRIBUTE_MAX_VALUE_BYTES) {
+        throw new SizeLimitExceededException(
+            "Pubsub message ordering key of length "
+                + orderingKeySize
+                + " exceeds maximum of "
+                + PUBSUB_MESSAGE_ATTRIBUTE_MAX_VALUE_BYTES
+                + " bytes. See https://cloud.google.com/pubsub/quotas#resource_limits");
+      }
+      totalSize += orderingKeySize;
+    }
+
     @Nullable Map<String, String> attributes = message.getAttributeMap();
     if (attributes != null) {
       if (attributes.size() > PUBSUB_MESSAGE_MAX_ATTRIBUTES) {
