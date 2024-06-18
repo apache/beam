@@ -182,7 +182,7 @@ public final class Work {
     this.currentState = TimedState.create(state, now);
   }
 
-  public boolean isRefreshable(Instant refreshDeadline) {
+  private boolean isRefreshable(Instant refreshDeadline) {
     boolean isRefreshable = getStartTime().isBefore(refreshDeadline);
     if (heartbeatSender().isInvalid()) {
       setFailed();
@@ -281,6 +281,17 @@ public final class Work {
         && currentState.startTime().isBefore(stuckCommitDeadline);
   }
 
+  /** Returns a read-only snapshot of this {@link Work} instance's state for work refreshing. */
+  RefreshableView refreshableView(DataflowExecutionStateSampler sampler) {
+    return RefreshableView.builder()
+        .setWorkId(id)
+        .setHeartbeatSender(heartbeatSender())
+        .setIsFailed(isFailed)
+        .setIsRefreshable(this::isRefreshable)
+        .setLatencyAttributions(getLatencyAttributions(/* isHeartbeat= */ true, sampler))
+        .build();
+  }
+
   public enum State {
     QUEUED(LatencyAttribution.State.QUEUED),
     PROCESSING(LatencyAttribution.State.ACTIVE),
@@ -354,5 +365,50 @@ public final class Work {
     public abstract Consumer<Commit> workCommitter();
 
     public abstract HeartbeatSender heartbeatSender();
+  }
+
+  @AutoValue
+  public abstract static class RefreshableView {
+
+    private static RefreshableView.Builder builder() {
+      return new AutoValue_Work_RefreshableView.Builder();
+    }
+
+    abstract WorkId workId();
+
+    public final long workToken() {
+      return workId().workToken();
+    }
+
+    public final long cacheToken() {
+      return workId().cacheToken();
+    }
+
+    abstract Function<Instant, Boolean> isRefreshable();
+
+    public final boolean isRefreshable(Instant refreshDeadline) {
+      return isRefreshable().apply(refreshDeadline);
+    }
+
+    public abstract HeartbeatSender heartbeatSender();
+
+    public abstract boolean isFailed();
+
+    public abstract ImmutableList<LatencyAttribution> latencyAttributions();
+
+    @AutoValue.Builder
+    abstract static class Builder {
+      abstract Builder setWorkId(WorkId value);
+
+      abstract Builder setIsRefreshable(Function<Instant, Boolean> value);
+
+      abstract Builder setHeartbeatSender(HeartbeatSender value);
+
+      abstract Builder setIsFailed(boolean value);
+
+      abstract Builder setLatencyAttributions(ImmutableList<LatencyAttribution> value);
+
+      abstract RefreshableView build();
+    }
   }
 }

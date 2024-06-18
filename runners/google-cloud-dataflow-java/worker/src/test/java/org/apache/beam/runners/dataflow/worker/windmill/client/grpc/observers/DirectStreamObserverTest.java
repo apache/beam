@@ -34,8 +34,9 @@ public class DirectStreamObserverTest {
   private final Set<Integer> sentOnStream = new HashSet<>();
 
   private DirectStreamObserver<Integer> newStreamObserver(long deadlineSeconds) {
+    AdvancingPhaser phaser = new AdvancingPhaser(1);
     return new DirectStreamObserver<>(
-        new AdvancingPhaser(1),
+        phaser,
         new CallStreamObserver<Integer>() {
           @Override
           public boolean isReady() {
@@ -43,7 +44,9 @@ public class DirectStreamObserverTest {
           }
 
           @Override
-          public void setOnReadyHandler(Runnable runnable) {}
+          public void setOnReadyHandler(Runnable runnable) {
+            phaser.arrive();
+          }
 
           @Override
           public void disableAutoInboundFlowControl() {}
@@ -60,10 +63,14 @@ public class DirectStreamObserverTest {
           }
 
           @Override
-          public void onError(Throwable throwable) {}
+          public void onError(Throwable throwable) {
+            phaser.forceTermination();
+          }
 
           @Override
-          public void onCompleted() {}
+          public void onCompleted() {
+            phaser.forceTermination();
+          }
         },
         deadlineSeconds,
         1);

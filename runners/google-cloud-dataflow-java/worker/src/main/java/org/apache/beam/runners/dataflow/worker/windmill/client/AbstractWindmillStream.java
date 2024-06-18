@@ -97,7 +97,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
         Executors.newSingleThreadExecutor(
             new ThreadFactoryBuilder()
                 .setDaemon(true)
-                .setNameFormat("WindmillStream-thread")
+                .setNameFormat("WindmillStream-" + getClass() + "-thread")
                 .build());
     this.backoff = backoff;
     this.streamRegistry = streamRegistry;
@@ -305,10 +305,11 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
         }
       }
       if (t != null) {
-        Status status = null;
+        Status status = Status.fromThrowable(t);
         if (t instanceof StatusRuntimeException) {
           status = ((StatusRuntimeException) t).getStatus();
         }
+
         String statusError = status == null ? "" : status.toString();
         setLastError(statusError);
         if (errorCount.getAndIncrement() % logEveryNStreamFailures == 0) {

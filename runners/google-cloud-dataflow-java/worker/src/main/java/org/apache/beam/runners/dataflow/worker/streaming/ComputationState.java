@@ -25,12 +25,10 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableListMultimap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multimap;
@@ -140,8 +138,9 @@ public class ComputationState {
         stuckCommitDeadline, this::completeWorkAndScheduleNextWorkForKey);
   }
 
-  public ImmutableListMultimap<ShardedKey, Work> currentActiveWorkReadOnly() {
-    return activeWorkState.getReadOnlyActiveWork();
+  public ImmutableListMultimap<ShardedKey, Work.RefreshableView> currentActiveWorkReadOnly(
+      DataflowExecutionStateSampler sampler) {
+    return activeWorkState.getReadOnlyActiveWork(sampler);
   }
 
   private void execute(ExecutableWork executableWork) {
@@ -150,12 +149,6 @@ public class ComputationState {
 
   private void forceExecute(ExecutableWork executableWork) {
     executor.forceExecute(executableWork, executableWork.work().getWorkItem().getSerializedSize());
-  }
-
-  /** Gets HeartbeatRequests for any work started before refreshDeadline. */
-  public ImmutableList<HeartbeatRequest> getKeyHeartbeats(
-      Instant refreshDeadline, DataflowExecutionStateSampler sampler) {
-    return activeWorkState.getKeyHeartbeats(refreshDeadline, sampler);
   }
 
   public GetWorkBudget getActiveWorkBudget() {

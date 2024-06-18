@@ -71,7 +71,7 @@ final class DirectStreamObserver<T> implements StreamObserver<T> {
     int awaitPhase = -1;
     long totalSecondsWaited = 0;
     long waitSeconds = 1;
-    while (phaser.getRegisteredParties() != 0) {
+    while (!isTerminated()) {
       try {
         synchronized (lock) {
           // We only check isReady periodically to effectively allow for increasing the outbound
@@ -99,9 +99,8 @@ final class DirectStreamObserver<T> implements StreamObserver<T> {
         // documentation stating otherwise) so we poll periodically and enforce an overall
         // timeout related to the stream deadline.
         phaser.awaitAdvanceInterruptibly(awaitPhase, waitSeconds, TimeUnit.SECONDS);
-        // Check to see if onCompleted has been called and the stream observer was closed before
-        // trying to send the next value.
-        if (phaser.getRegisteredParties() == 0) {
+        // Exit early if the phaser was terminated.
+        if (isTerminated()) {
           return;
         }
 
@@ -132,9 +131,14 @@ final class DirectStreamObserver<T> implements StreamObserver<T> {
     }
   }
 
+  private boolean isTerminated() {
+    return phaser.isTerminated() || phaser.getRegisteredParties() == 0;
+  }
+
   @Override
   public void onError(Throwable t) {
     synchronized (lock) {
+      phaser.arriveAndDeregister();
       outboundObserver.onError(t);
     }
   }

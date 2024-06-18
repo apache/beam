@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker.streaming;
 
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList.toImmutableList;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableListMultimap.flatteningToImmutableListMultimap;
 
 import java.io.PrintWriter;
@@ -32,20 +31,16 @@ import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
-import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableListMultimap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multimap;
@@ -106,29 +101,6 @@ public final class ActiveWorkState {
     Duration activeFor = new Duration(start, end);
     // Duration's toString always starts with "PT"; remove that here.
     return activeFor.toString().substring(2);
-  }
-
-  private static Stream<HeartbeatRequest> toHeartbeatRequestStream(
-      Entry<ShardedKey, Deque<ExecutableWork>> shardedKeyAndWorkQueue,
-      Instant refreshDeadline,
-      DataflowExecutionStateSampler sampler) {
-    ShardedKey shardedKey = shardedKeyAndWorkQueue.getKey();
-    Deque<ExecutableWork> workQueue = shardedKeyAndWorkQueue.getValue();
-
-    return workQueue.stream()
-        .map(ExecutableWork::work)
-        .filter(work -> work.getStartTime().isBefore(refreshDeadline))
-        // Don't send heartbeats for queued work we already know is failed.
-        .filter(work -> !work.isFailed())
-        .map(
-            work ->
-                Windmill.HeartbeatRequest.newBuilder()
-                    .setShardingKey(shardedKey.shardingKey())
-                    .setWorkToken(work.getWorkItem().getWorkToken())
-                    .setCacheToken(work.getWorkItem().getCacheToken())
-                    .addAllLatencyAttribution(
-                        work.getLatencyAttributions(/* isHeartbeat= */ true, sampler))
-                    .build());
   }
 
   /**
@@ -326,13 +298,6 @@ public final class ActiveWorkState {
     return stuckCommits.build();
   }
 
-  synchronized ImmutableList<HeartbeatRequest> getKeyHeartbeats(
-      Instant refreshDeadline, DataflowExecutionStateSampler sampler) {
-    return activeWork.entrySet().stream()
-        .flatMap(entry -> toHeartbeatRequestStream(entry, refreshDeadline, sampler))
-        .collect(toImmutableList());
-  }
-
   /**
    * Returns a read only view of current active work.
    *
@@ -340,11 +305,16 @@ public final class ActiveWorkState {
    *     cause a {@link java.util.ConcurrentModificationException} as it is not a thread-safe data
    *     structure.
    */
-  synchronized ImmutableListMultimap<ShardedKey, Work> getReadOnlyActiveWork() {
+  synchronized ImmutableListMultimap<ShardedKey, Work.RefreshableView> getReadOnlyActiveWork(
+      DataflowExecutionStateSampler sampler) {
     return activeWork.entrySet().stream()
         .collect(
             flatteningToImmutableListMultimap(
-                Entry::getKey, e -> e.getValue().stream().map(ExecutableWork::work)));
+                Entry::getKey,
+                e ->
+                    e.getValue().stream()
+                        .map(ExecutableWork::work)
+                        .map(work -> work.refreshableView(sampler))));
   }
 
   /**

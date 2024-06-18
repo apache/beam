@@ -23,7 +23,6 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.stream.Stream;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
-import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.streaming.ShardedKey;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
@@ -38,40 +37,31 @@ public final class HeartbeatRequests {
   private HeartbeatRequests() {}
 
   static ImmutableListMultimap<HeartbeatSender, HeartbeatRequest> getRefreshableKeyHeartbeats(
-      ImmutableListMultimap<ShardedKey, Work> activeWork,
-      Instant refreshDeadline,
-      DataflowExecutionStateSampler sampler) {
+      ImmutableListMultimap<ShardedKey, Work.RefreshableView> activeWork, Instant refreshDeadline) {
     return activeWork.asMap().entrySet().stream()
-        .flatMap(e -> toHeartbeatRequest(e, refreshDeadline, sampler))
+        .flatMap(e -> toHeartbeatRequest(e, refreshDeadline))
         .collect(toImmutableListMultimap(Pair::getKey, Pair::getValue));
   }
 
   private static Stream<Pair<HeartbeatSender, HeartbeatRequest>> toHeartbeatRequest(
-      Map.Entry<ShardedKey, Collection<Work>> shardedKeyAndWorkQueue,
-      Instant refreshDeadline,
-      DataflowExecutionStateSampler sampler) {
+      Map.Entry<ShardedKey, Collection<Work.RefreshableView>> shardedKeyAndWorkQueue,
+      Instant refreshDeadline) {
     ShardedKey shardedKey = shardedKeyAndWorkQueue.getKey();
-    Collection<Work> workQueue = shardedKeyAndWorkQueue.getValue();
-    return getRefreshableWork(workQueue, refreshDeadline)
+    Collection<Work.RefreshableView> workQueue = shardedKeyAndWorkQueue.getValue();
+    return workQueue.stream()
+        .filter(work -> work.isRefreshable(refreshDeadline))
         // Don't send heartbeats for queued work we already know is failed.
         .filter(work -> !work.isFailed())
-        .map(
-            work ->
-                Pair.of(work.heartbeatSender(), createHeartbeatRequest(shardedKey, work, sampler)));
+        .map(work -> Pair.of(work.heartbeatSender(), createHeartbeatRequest(shardedKey, work)));
   }
 
   private static HeartbeatRequest createHeartbeatRequest(
-      ShardedKey shardedKey, Work work, DataflowExecutionStateSampler sampler) {
+      ShardedKey shardedKey, Work.RefreshableView work) {
     return HeartbeatRequest.newBuilder()
         .setShardingKey(shardedKey.shardingKey())
-        .setWorkToken(work.getWorkItem().getWorkToken())
-        .setCacheToken(work.getWorkItem().getCacheToken())
-        .addAllLatencyAttribution(work.getLatencyAttributions(/* isHeartbeat= */ true, sampler))
+        .setWorkToken(work.workToken())
+        .setCacheToken(work.cacheToken())
+        .addAllLatencyAttribution(work.latencyAttributions())
         .build();
-  }
-
-  private static Stream<Work> getRefreshableWork(
-      Collection<Work> workQueue, Instant refreshDeadline) {
-    return workQueue.stream().filter(work -> work.isRefreshable(refreshDeadline));
   }
 }
