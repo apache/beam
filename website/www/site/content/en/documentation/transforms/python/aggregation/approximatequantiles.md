@@ -19,7 +19,7 @@ limitations under the License.
 
 {{< localstorage language language-py >}}
 
-{{< button-pydoc path="apache_beam.transforms.stat" class="ApproximateQuantile" >}}
+{{< button-pydoc path="apache_beam.transforms.stats" class="ApproximateQuantiles" >}}
 
 ## Examples
 
@@ -28,3 +28,7 @@ limitations under the License.
 {{< /playground >}}
 
 ## Related transforms
+
+N/A
+
+{{< button-pydoc path="apache_beam.transforms.stats" class="ApproximateQuantiles" >}}
