@@ -23,8 +23,12 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.coders.AtomicCoder;
@@ -202,7 +206,12 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
       }
 
       @Nullable String topic = dynamicTopicFn.apply(element);
-      K key = keyFunction.apply(ThreadLocalRandom.current().nextInt(numShards), topic);
+      @Nullable String orderingKey = message.getOrderingKey();
+      int shard =
+          orderingKey == null
+              ? ThreadLocalRandom.current().nextInt(numShards)
+              : Hashing.murmur3_32_fixed().hashString(orderingKey, StandardCharsets.UTF_8).asInt();
+      K key = keyFunction.apply(shard, topic);
       o.output(KV.of(key, OutgoingMessage.of(message, timestampMsSinceEpoch, recordId, topic)));
     }
 
@@ -219,6 +228,16 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
 
   /** Publish messages to Pubsub in batches. */
   private static class WriterFn extends DoFn<Iterable<OutgoingMessage>, Void> {
+    private class OutgoingData {
+      int bytes;
+      List<OutgoingMessage> messages;
+
+      OutgoingData() {
+        this.bytes = 0;
+        this.messages = new ArrayList<>(publishBatchSize);
+      }
+    }
+
     private final PubsubClientFactory pubsubFactory;
     private final @Nullable ValueProvider<TopicPath> topic;
     private final String timestampAttribute;
@@ -305,27 +324,53 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
     }
 
     @ProcessElement
+    @SuppressWarnings("ReferenceEquality")
     public void processElement(ProcessContext c) throws Exception {
-      List<OutgoingMessage> pubsubMessages = new ArrayList<>(publishBatchSize);
-      int bytes = 0;
+      // TODO(sjvanrossum): Refactor the write transform so this map can be indexed with topic +
+      // ordering key and have bundle scoped lifetime.
+      // NB: A larger, breaking refactor could make this irrelevant with a GBK on topic + ordering
+      // key (or GroupIntoBatches with configurable shard for ShardedKey?) and unify
+      // bounded/unbounded writes and static/dynamic destinations.
+      Map<@Nullable String, OutgoingData> orderingKeyBatches = new HashMap<>();
+      @Nullable String currentOrderingKey = null;
+      @Nullable OutgoingData currentBatch = null;
       for (OutgoingMessage message : c.element()) {
-        if (!pubsubMessages.isEmpty()
-            && bytes + message.getMessage().getData().size() > publishBatchBytes) {
-          // Break large (in bytes) batches into smaller.
-          // (We've already broken by batch size using the trigger below, though that may
-          // run slightly over the actual PUBLISH_BATCH_SIZE. We'll consider that ok since
-          // the hard limit from Pubsub is by bytes rather than number of messages.)
-          // BLOCKS until published.
-          publishBatch(pubsubMessages, bytes);
-          pubsubMessages.clear();
-          bytes = 0;
+        // If currentBatch is null set currentOrderingKey before entering the then clause. If
+        // currentBatch is not null and currentOrderingKey does not equal messageOrderingKey set
+        // currentOrderingKey and currentBatch before entering the then or else clause and only
+        // enter the then clause if currentBatch is null. This ensures currentBatch is initialized
+        // and contains at least one element before entering the else clause if currentOrderingKey
+        // is equal to messageOrderingKey.
+        @Nullable String messageOrderingKey = message.getMessage().getOrderingKey();
+        if ((currentBatch == null
+                && (currentOrderingKey = messageOrderingKey) == messageOrderingKey)
+            || (!Objects.equals(currentOrderingKey, messageOrderingKey)
+                && (currentBatch = orderingKeyBatches.get(currentOrderingKey = messageOrderingKey))
+                    == null)) {
+          currentBatch = new OutgoingData();
+          currentBatch.messages.add(message);
+          currentBatch.bytes += message.getMessage().getData().size();
+          orderingKeyBatches.put(currentOrderingKey, currentBatch);
+        } else {
+          if (currentBatch.bytes + message.getMessage().getData().size() > publishBatchBytes) {
+            // Break large (in bytes) batches into smaller.
+            // (We've already broken by batch size using the trigger below, though that may
+            // run slightly over the actual PUBLISH_BATCH_SIZE. We'll consider that ok since
+            // the hard limit from Pubsub is by bytes rather than number of messages.)
+            // BLOCKS until published.
+            publishBatch(currentBatch.messages, currentBatch.bytes);
+            currentBatch.messages.clear();
+            currentBatch.bytes = 0;
+          }
+          currentBatch.messages.add(message);
+          currentBatch.bytes += message.getMessage().getData().size();
         }
-        pubsubMessages.add(message);
-        bytes += message.getMessage().getData().size();
       }
-      if (!pubsubMessages.isEmpty()) {
-        // BLOCKS until published.
-        publishBatch(pubsubMessages, bytes);
+      for (OutgoingData batch : orderingKeyBatches.values()) {
+        if (!batch.messages.isEmpty()) {
+          // BLOCKS until published.
+          publishBatch(batch.messages, batch.bytes);
+        }
       }
     }
 
