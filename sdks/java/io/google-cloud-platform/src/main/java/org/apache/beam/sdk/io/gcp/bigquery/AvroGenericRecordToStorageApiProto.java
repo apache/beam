@@ -247,17 +247,17 @@ public class AvroGenericRecordToStorageApiProto {
         break;
       case MAP:
         Schema keyType = Schema.create(Schema.Type.STRING);
-        Schema valueType = TypeWithNullability.create(schema.getElementType()).getType();
+        Schema valueType = Schema.create(schema.getValueType().getType());
         if (valueType == null) {
           throw new RuntimeException("Unexpected null element type!");
         }
         TableFieldSchema keyFieldSchema =
             fieldDescriptorFromAvroField(
-                new Schema.Field("key", keyType, "key of the map entry", Schema.Field.NULL_VALUE));
+                new Schema.Field("key", keyType, "key of the map entry"));
         TableFieldSchema valueFieldSchema =
             fieldDescriptorFromAvroField(
                 new Schema.Field(
-                    "value", valueType, "value of the map entry", Schema.Field.NULL_VALUE));
+                    "value", valueType, "value of the map entry"));
         builder =
             builder
                 .setType(TableFieldSchema.Type.STRUCT)
@@ -346,7 +346,7 @@ public class AvroGenericRecordToStorageApiProto {
         return toProtoValue(fieldDescriptor, type.getType(), value);
       case MAP:
         Map<CharSequence, Object> map = (Map<CharSequence, Object>) value;
-        Schema valueType = TypeWithNullability.create(avroSchema.getElementType()).getType();
+        Schema valueType = Schema.create(avroSchema.getValueType().getType());
         if (valueType == null) {
           throw new RuntimeException("Unexpected null element type!");
         }
