@@ -1578,6 +1578,7 @@ public class PubsubIO {
                   getTimestampAttribute(),
                   getIdAttribute(),
                   100 /* numShards */,
+                  getNeedsOrderingKey(),
                   MoreObjects.firstNonNull(
                       getMaxBatchSize(), PubsubUnboundedSink.DEFAULT_PUBLISH_BATCH_SIZE),
                   MoreObjects.firstNonNull(

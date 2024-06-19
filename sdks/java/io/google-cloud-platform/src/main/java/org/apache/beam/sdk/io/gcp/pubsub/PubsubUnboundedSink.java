@@ -378,6 +378,9 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
    */
   private final int numShards;
 
+  /** Publish messages with an ordering key. Currently unsupported in DataflowRunner. */
+  private final boolean publishBatchWithOrderingKey;
+
   /** Maximum number of messages per publish. */
   private final int publishBatchSize;
 
@@ -402,6 +405,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
       String timestampAttribute,
       String idAttribute,
       int numShards,
+      boolean publishBatchWithOrderingKey,
       int publishBatchSize,
       int publishBatchBytes,
       Duration maxLatency,
@@ -412,6 +416,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
     this.timestampAttribute = timestampAttribute;
     this.idAttribute = idAttribute;
     this.numShards = numShards;
+    this.publishBatchWithOrderingKey = publishBatchWithOrderingKey;
     this.publishBatchSize = publishBatchSize;
     this.publishBatchBytes = publishBatchBytes;
     this.maxLatency = maxLatency;
@@ -424,13 +429,15 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
       ValueProvider<TopicPath> topic,
       String timestampAttribute,
       String idAttribute,
-      int numShards) {
+      int numShards,
+      boolean publishBatchWithOrderingKey) {
     this(
         pubsubFactory,
         topic,
         timestampAttribute,
         idAttribute,
         numShards,
+        publishBatchWithOrderingKey,
         DEFAULT_PUBLISH_BATCH_SIZE,
         DEFAULT_PUBLISH_BATCH_BYTES,
         DEFAULT_MAX_LATENCY,
@@ -444,6 +451,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
       String timestampAttribute,
       String idAttribute,
       int numShards,
+      boolean publishBatchWithOrderingKey,
       String pubsubRootUrl) {
     this(
         pubsubFactory,
@@ -451,6 +459,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
         timestampAttribute,
         idAttribute,
         numShards,
+        publishBatchWithOrderingKey,
         DEFAULT_PUBLISH_BATCH_SIZE,
         DEFAULT_PUBLISH_BATCH_BYTES,
         DEFAULT_MAX_LATENCY,
@@ -464,6 +473,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
       String timestampAttribute,
       String idAttribute,
       int numShards,
+      boolean publishBatchWithOrderingKey,
       int publishBatchSize,
       int publishBatchBytes) {
     this(
@@ -472,6 +482,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
         timestampAttribute,
         idAttribute,
         numShards,
+        publishBatchWithOrderingKey,
         publishBatchSize,
         publishBatchBytes,
         DEFAULT_MAX_LATENCY,
@@ -485,6 +496,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
       String timestampAttribute,
       String idAttribute,
       int numShards,
+      boolean publishBatchWithOrderingKey,
       int publishBatchSize,
       int publishBatchBytes,
       String pubsubRootUrl) {
@@ -494,6 +506,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
         timestampAttribute,
         idAttribute,
         numShards,
+        publishBatchWithOrderingKey,
         publishBatchSize,
         publishBatchBytes,
         DEFAULT_MAX_LATENCY,
@@ -518,6 +531,10 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
   /** Get the id attribute. */
   public @Nullable String getIdAttribute() {
     return idAttribute;
+  }
+
+  public boolean getPublishBatchWithOrderingKey() {
+    return publishBatchWithOrderingKey;
   }
 
   @Override
