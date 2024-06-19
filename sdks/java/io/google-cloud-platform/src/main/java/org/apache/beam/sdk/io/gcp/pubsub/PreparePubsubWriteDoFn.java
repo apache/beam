@@ -40,6 +40,7 @@ public class PreparePubsubWriteDoFn<InputT> extends DoFn<InputT, PubsubMessage> 
   private static final int PUBSUB_MESSAGE_ATTRIBUTE_MAX_VALUE_BYTES = 1024;
   // The amount of bytes that each attribute entry adds up to the request
   private static final int PUBSUB_MESSAGE_ATTRIBUTE_ENCODE_ADDITIONAL_BYTES = 6;
+  private boolean allowOrderingKey;
   private int maxPublishBatchSize;
 
   private SerializableFunction<ValueInSingleWindow<InputT>, PubsubMessage> formatFunction;
@@ -139,12 +140,14 @@ public class PreparePubsubWriteDoFn<InputT> extends DoFn<InputT, PubsubMessage> 
       SerializableFunction<ValueInSingleWindow<InputT>, PubsubMessage> formatFunction,
       @Nullable
           SerializableFunction<ValueInSingleWindow<InputT>, PubsubIO.PubsubTopic> topicFunction,
+      boolean allowOrderingKey,
       int maxPublishBatchSize,
       BadRecordRouter badRecordRouter,
       Coder<InputT> inputCoder,
       TupleTag<PubsubMessage> outputTag) {
     this.formatFunction = formatFunction;
     this.topicFunction = topicFunction;
+    this.allowOrderingKey = allowOrderingKey;
     this.maxPublishBatchSize = maxPublishBatchSize;
     this.badRecordRouter = badRecordRouter;
     this.inputCoder = inputCoder;
@@ -188,6 +191,14 @@ public class PreparePubsubWriteDoFn<InputT> extends DoFn<InputT, PubsubMessage> 
       Lineage.getSinks()
           .add("pubsub", "topic", PubsubClient.topicPathFromPath(topic).getDataCatalogSegments());
       reportedLineage = topic;
+    }
+    if (!allowOrderingKey && message.getOrderingKey() != null) {
+      badRecordRouter.route(
+          o,
+          element,
+          inputCoder,
+          null,
+          "The transform was not configured to publish messages with ordering keys");
     }
     try {
       validatePubsubMessageSize(message, maxPublishBatchSize);
