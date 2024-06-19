@@ -1479,10 +1479,9 @@ public class ByteBuddyUtils {
         // Push all creator parameters on the stack.
         TypeConversion<Type> convertType = typeConversionsFactory.createTypeConversion(true);
         for (int i = 0; i < parameters.size(); i++) {
-          Parameter parameter = parameters.get(i);
+          FieldValueTypeInformation fieldType = fields.get(fieldMapping.get(i));
           ForLoadedType convertedType =
-              new ForLoadedType(
-                  (Class) convertType.convert(TypeDescriptor.of(parameter.getType())));
+              new ForLoadedType((Class) convertType.convert(fieldType.getType()));
 
           // The instruction to read the parameter. Use the fieldMapping to reorder parameters as
           // necessary.
@@ -1497,7 +1496,7 @@ public class ByteBuddyUtils {
                   stackManipulation,
                   typeConversionsFactory
                       .createSetterConversions(readParameter)
-                      .convert(TypeDescriptor.of(parameter.getParameterizedType())));
+                      .convert(fieldType.getType()));
         }
         stackManipulation =
             new StackManipulation.Compound(

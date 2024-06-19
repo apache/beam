@@ -224,6 +224,10 @@ public class AutoValueUtils {
                 + "a setter for "
                 + autoValueFieldName);
       }
+      if (setterType.getType().hasUnresolvedParameters()) {
+        // copy the types from the getter in the builder's target class
+        setterType = setterType.withTypesFrom(type);
+      }
       setterMethods.add(setterType);
     }
 
@@ -308,11 +312,10 @@ public class AutoValueUtils {
 
         TypeConversion<Type> convertType = typeConversionsFactory.createTypeConversion(true);
         for (int i = 0; i < setters.size(); ++i) {
-          Method setterMethod = checkNotNull(setters.get(i).getMethod());
-          Parameter parameter = setterMethod.getParameters()[0];
+          FieldValueTypeInformation setterType = setters.get(i);
+          Method setterMethod = checkNotNull(setterType.getMethod());
           ForLoadedType convertedType =
-              new ForLoadedType(
-                  (Class) convertType.convert(TypeDescriptor.of(parameter.getParameterizedType())));
+              new ForLoadedType((Class) convertType.convert(setterType.getType()));
 
           StackManipulation readParameter =
               new StackManipulation.Compound(
@@ -327,7 +330,7 @@ public class AutoValueUtils {
                   Duplication.SINGLE,
                   typeConversionsFactory
                       .createSetterConversions(readParameter)
-                      .convert(TypeDescriptor.of(parameter.getType())),
+                      .convert(setterType.getType()),
                   MethodInvocation.invoke(new ForLoadedMethod(setterMethod)),
                   Removal.SINGLE);
         }

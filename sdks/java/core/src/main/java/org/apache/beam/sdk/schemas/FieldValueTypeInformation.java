@@ -79,7 +79,7 @@ public abstract class FieldValueTypeInformation implements Serializable {
   /** If the field has a description, returns the description for the field. */
   public abstract @Nullable String getDescription();
 
-  abstract Builder toBuilder();
+  public abstract Builder toBuilder();
 
   @AutoValue.Builder
   public abstract static class Builder {
@@ -288,6 +288,17 @@ public abstract class FieldValueTypeInformation implements Serializable {
 
   public FieldValueTypeInformation withName(String name) {
     return toBuilder().setName(name).build();
+  }
+
+  public FieldValueTypeInformation withTypesFrom(FieldValueTypeInformation other) {
+    return toBuilder()
+        .setType(other.getType())
+        .setRawType(other.getRawType())
+        .setElementType(other.getElementType())
+        .setMapKeyType(other.getMapKeyType())
+        .setMapValueType(other.getMapValueType())
+        .setOneOfTypes(other.getOneOfTypes())
+        .build();
   }
 
   public static @Nullable FieldValueTypeInformation getIterableComponentType(

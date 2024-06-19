@@ -512,7 +512,7 @@ public class AutoValueSchemaTest {
   }
 
   @Test
-  public void testGenericAutoValueMapCtorAlternativesFromRow() throws Exception {
+  public void testGenericAutoValueBuilderOfMapOfCreatorsFromRow() throws Exception {
     SchemaRegistry registry = SchemaRegistry.createDefault();
     SerializableFunction<
             Row, GenericAutoValueWithBuilder<Map<String, GenericAutoValueWithCreator<String>>>>
@@ -549,7 +549,44 @@ public class AutoValueSchemaTest {
   }
 
   @Test
-  public void testGenericAutoValueListCtorAlternativesFromRow() throws Exception {
+  public void testGenericAutoValueCreatorOfMapOfBuildersFromRow() throws Exception {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    SerializableFunction<
+            Row, GenericAutoValueWithCreator<Map<String, GenericAutoValueWithBuilder<String>>>>
+        fromRow =
+            registry.getFromRowFunction(
+                new TypeDescriptor<
+                    GenericAutoValueWithCreator<
+                        Map<String, GenericAutoValueWithBuilder<String>>>>() {});
+
+    Schema mapValueSchema = Schema.builder().addField("t", FieldType.STRING).build();
+
+    Row row =
+        Row.withSchema(
+                Schema.builder()
+                    .addMapField("t", FieldType.STRING, FieldType.row(mapValueSchema))
+                    .build())
+            .withFieldValue(
+                "t",
+                ImmutableMap.<String, Row>builder()
+                    .put("k1", Row.withSchema(mapValueSchema).withFieldValue("t", "v1").build())
+                    .put("k2", Row.withSchema(mapValueSchema).withFieldValue("t", "v2").build())
+                    .build())
+            .build();
+
+    GenericAutoValueWithCreator<Map<String, GenericAutoValueWithBuilder<String>>> actual =
+        fromRow.apply(row);
+    GenericAutoValueWithBuilder<String> genericAutoValue1 =
+        GenericAutoValueWithBuilder.<String>builder().setT("v1").build();
+    GenericAutoValueWithBuilder<String> genericAutoValue2 =
+        GenericAutoValueWithBuilder.<String>builder().setT("v2").build();
+
+    assertEquals(genericAutoValue1, actual.getT().get("k1"));
+    assertEquals(genericAutoValue2, actual.getT().get("k2"));
+  }
+
+  @Test
+  public void testGenericAutoValueBuilderOfListOfCreatorsFromRow() throws Exception {
     SchemaRegistry registry = SchemaRegistry.createDefault();
     SerializableFunction<
             Row, GenericAutoValueWithBuilder<List<GenericAutoValueWithCreator<String>>>>
@@ -580,6 +617,104 @@ public class AutoValueSchemaTest {
 
     assertEquals(genericAutoValue1, actual.getT().get(0));
     assertEquals(genericAutoValue2, actual.getT().get(1));
+  }
+
+  @Test
+  public void testGenericAutoValueCreatorOfListOfBuildersFromRow() throws Exception {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    SerializableFunction<
+            Row, GenericAutoValueWithCreator<List<GenericAutoValueWithBuilder<String>>>>
+        fromRow =
+            registry.getFromRowFunction(
+                new TypeDescriptor<
+                    GenericAutoValueWithCreator<List<GenericAutoValueWithBuilder<String>>>>() {});
+
+    Schema listElementSchema = Schema.builder().addField("t", FieldType.STRING).build();
+
+    Row row =
+        Row.withSchema(
+                Schema.builder().addArrayField("t", FieldType.row(listElementSchema)).build())
+            .withFieldValue(
+                "t",
+                ImmutableList.<Row>builder()
+                    .add(Row.withSchema(listElementSchema).withFieldValue("t", "v1").build())
+                    .add(Row.withSchema(listElementSchema).withFieldValue("t", "v2").build())
+                    .build())
+            .build();
+
+    GenericAutoValueWithCreator<List<GenericAutoValueWithBuilder<String>>> actual =
+        fromRow.apply(row);
+    GenericAutoValueWithBuilder<String> genericAutoValue1 =
+        GenericAutoValueWithBuilder.<String>builder().setT("v1").build();
+    GenericAutoValueWithBuilder<String> genericAutoValue2 =
+        GenericAutoValueWithBuilder.<String>builder().setT("v2").build();
+
+    assertEquals(genericAutoValue1, actual.getT().get(0));
+    assertEquals(genericAutoValue2, actual.getT().get(1));
+  }
+
+  @Test
+  public void testGenericAutoValueBuilderOfArrayOfCreatorsFromRow() throws Exception {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    SerializableFunction<Row, GenericAutoValueWithBuilder<GenericAutoValueWithCreator<String>[]>>
+        fromRow =
+            registry.getFromRowFunction(
+                new TypeDescriptor<
+                    GenericAutoValueWithBuilder<GenericAutoValueWithCreator<String>[]>>() {});
+
+    Schema arrayElementSchema = Schema.builder().addField("t", FieldType.STRING).build();
+
+    Row row =
+        Row.withSchema(
+                Schema.builder().addArrayField("t", FieldType.row(arrayElementSchema)).build())
+            .withFieldValue(
+                "t",
+                ImmutableList.<Row>builder()
+                    .add(Row.withSchema(arrayElementSchema).withFieldValue("t", "v1").build())
+                    .add(Row.withSchema(arrayElementSchema).withFieldValue("t", "v2").build())
+                    .build())
+            .build();
+
+    GenericAutoValueWithBuilder<GenericAutoValueWithCreator<String>[]> actual = fromRow.apply(row);
+    GenericAutoValueWithCreator<String> genericAutoValue1 =
+        GenericAutoValueWithCreator.create("v1");
+    GenericAutoValueWithCreator<String> genericAutoValue2 =
+        GenericAutoValueWithCreator.create("v2");
+
+    assertEquals(genericAutoValue1, actual.getT()[0]);
+    assertEquals(genericAutoValue2, actual.getT()[1]);
+  }
+
+  @Test
+  public void testGenericAutoValueCreatorOfArrayOfBuildersFromRow() throws Exception {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    SerializableFunction<Row, GenericAutoValueWithCreator<GenericAutoValueWithBuilder<String>[]>>
+        fromRow =
+            registry.getFromRowFunction(
+                new TypeDescriptor<
+                    GenericAutoValueWithCreator<GenericAutoValueWithBuilder<String>[]>>() {});
+
+    Schema arrayElementSchema = Schema.builder().addField("t", FieldType.STRING).build();
+
+    Row row =
+        Row.withSchema(
+                Schema.builder().addArrayField("t", FieldType.row(arrayElementSchema)).build())
+            .withFieldValue(
+                "t",
+                ImmutableList.<Row>builder()
+                    .add(Row.withSchema(arrayElementSchema).withFieldValue("t", "v1").build())
+                    .add(Row.withSchema(arrayElementSchema).withFieldValue("t", "v2").build())
+                    .build())
+            .build();
+
+    GenericAutoValueWithCreator<GenericAutoValueWithBuilder<String>[]> actual = fromRow.apply(row);
+    GenericAutoValueWithBuilder<String> genericAutoValue1 =
+        GenericAutoValueWithBuilder.<String>builder().setT("v1").build();
+    GenericAutoValueWithBuilder<String> genericAutoValue2 =
+        GenericAutoValueWithBuilder.<String>builder().setT("v2").build();
+
+    assertEquals(genericAutoValue1, actual.getT()[0]);
+    assertEquals(genericAutoValue2, actual.getT()[1]);
   }
 
   @Test
@@ -614,6 +749,26 @@ public class AutoValueSchemaTest {
     Row row =
         toRow.apply(
             GenericAutoValue.create(ImmutableList.of(genericAutoValue1, genericAutoValue2)));
+    Row[] genericAutoValueRows = row.<Row>getArray("t").toArray(new Row[0]);
+
+    assertEquals("v1", genericAutoValueRows[0].getString("t"));
+    assertEquals("v2", genericAutoValueRows[1].getString("t"));
+  }
+
+  @Test
+  public void testGenericAutoValueWithArrayToRow() throws Exception {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    SerializableFunction<GenericAutoValue<GenericAutoValue<String>[]>, Row> toRow =
+        registry.getToRowFunction(
+            new TypeDescriptor<GenericAutoValue<GenericAutoValue<String>[]>>() {});
+
+    GenericAutoValue<String> genericAutoValue1 = GenericAutoValue.create("v1");
+    GenericAutoValue<String> genericAutoValue2 = GenericAutoValue.create("v2");
+
+    @SuppressWarnings("unchecked")
+    Row row =
+        toRow.apply(
+            GenericAutoValue.create(new GenericAutoValue[] {genericAutoValue1, genericAutoValue2}));
     Row[] genericAutoValueRows = row.<Row>getArray("t").toArray(new Row[0]);
 
     assertEquals("v1", genericAutoValueRows[0].getString("t"));
