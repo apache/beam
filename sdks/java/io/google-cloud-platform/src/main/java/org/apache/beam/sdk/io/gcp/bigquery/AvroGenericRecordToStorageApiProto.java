@@ -252,12 +252,10 @@ public class AvroGenericRecordToStorageApiProto {
           throw new RuntimeException("Unexpected null element type!");
         }
         TableFieldSchema keyFieldSchema =
-            fieldDescriptorFromAvroField(
-                new Schema.Field("key", keyType, "key of the map entry"));
+            fieldDescriptorFromAvroField(new Schema.Field("key", keyType, "key of the map entry"));
         TableFieldSchema valueFieldSchema =
             fieldDescriptorFromAvroField(
-                new Schema.Field(
-                    "value", valueType, "value of the map entry"));
+                new Schema.Field("value", valueType, "value of the map entry"));
         builder =
             builder
                 .setType(TableFieldSchema.Type.STRUCT)

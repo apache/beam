@@ -270,12 +270,12 @@ public class AvroGenericRecordToStorageApiProtoTest {
 
   private static final Schema SCHEMA_WITH_MAP;
 
-    static {
-        ImmutableMap<String, Object> defaultVal = ImmutableMap.<String, Object>builder()
-              .put("key1", "value1")
-              .build();
+  static {
+    ImmutableMap<String, Object> defaultVal =
+        ImmutableMap.<String, Object>builder().put("key1", "value1").build();
 
-        SCHEMA_WITH_MAP = SchemaBuilder.record("TestMap")
+    SCHEMA_WITH_MAP =
+        SchemaBuilder.record("TestMap")
             .fields()
             .name("nested")
             .type()
@@ -288,7 +288,7 @@ public class AvroGenericRecordToStorageApiProtoTest {
             .stringType()
             .mapDefault(defaultVal)
             .endRecord();
-    }
+  }
 
   private static GenericRecord baseRecord;
   private static GenericRecord logicalTypesRecord;
@@ -536,10 +536,11 @@ public class AvroGenericRecordToStorageApiProtoTest {
     Map<String, String> mapData = new HashMap<>();
     mapData.put("key1", "value1");
     mapData.put("key2", "value2");
-    GenericRecord recordWithMap = new GenericRecordBuilder(SCHEMA_WITH_MAP)
-        .set("nested", baseRecord)
-        .set("aMap", mapData)
-        .build();
+    GenericRecord recordWithMap =
+        new GenericRecordBuilder(SCHEMA_WITH_MAP)
+            .set("nested", baseRecord)
+            .set("aMap", mapData)
+            .build();
 
     Descriptors.Descriptor descriptor =
         TableRowToStorageApiProto.getDescriptorFromTableSchema(
