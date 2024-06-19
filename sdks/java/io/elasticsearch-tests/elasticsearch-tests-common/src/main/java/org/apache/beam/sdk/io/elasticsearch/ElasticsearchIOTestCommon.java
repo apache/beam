@@ -56,7 +56,6 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.IOException;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
-import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -116,7 +115,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Common test class for {@link ElasticsearchIO}. */
-class ElasticsearchIOTestCommon implements Serializable {
+@SuppressWarnings("nullness")
+class ElasticsearchIOTestCommon {
 
   private static final Logger LOG = LoggerFactory.getLogger(ElasticsearchIOTestCommon.class);
 
@@ -1236,7 +1236,7 @@ class ElasticsearchIOTestCommon implements Serializable {
     List<String> data = new ArrayList<>();
     for (int i = 0; i < numDocs; i++) {
       // Scientist names at odd index to be deleted.
-      data.add(String.format("{\"id\" : %s, \"is_deleted\": %b}", i, i % 2 == 1));
+      data.add(String.format("{\"id\" : %s, \"is_deleted\": %b}", i, i % 2 != 0));
     }
 
     pipeline
@@ -1277,7 +1277,7 @@ class ElasticsearchIOTestCommon implements Serializable {
     List<String> data = new ArrayList<>();
     for (int i = 0; i < numDocs; i++) {
       // Scientist names at odd index to be deleted.
-      if (i % 2 == 1) {
+      if (i % 2 != 0) {
         data.add(String.format("{\"id\" : %s, \"is_deleted\": %b}", i, true));
       }
     }

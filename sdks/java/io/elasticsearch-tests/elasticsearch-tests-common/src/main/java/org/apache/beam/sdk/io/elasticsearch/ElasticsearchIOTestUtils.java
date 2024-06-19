@@ -52,6 +52,7 @@ import org.testcontainers.elasticsearch.ElasticsearchContainer;
 import org.testcontainers.utility.DockerImageName;
 
 /** Test utilities to use with {@link ElasticsearchIO}. */
+@SuppressWarnings("nullness")
 class ElasticsearchIOTestUtils {
   static final int ELASTICSEARCH_DEFAULT_PORT = 9200;
   static final String ELASTICSEARCH_PASSWORD = "superSecure";
