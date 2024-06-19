@@ -468,6 +468,21 @@ func (wk *W) State(state fnpb.BeamFnState_StateServer) error {
 
 					data = winMap[w]
 
+				case *fnpb.StateKey_MultimapKeysSideInput_:
+					mmkey := key.GetMultimapKeysSideInput()
+					wKey := mmkey.GetWindow()
+					var w typex.Window = window.GlobalWindow{}
+					if len(wKey) > 0 {
+						w, err = exec.MakeWindowDecoder(coder.NewIntervalWindow()).DecodeSingle(bytes.NewBuffer(wKey))
+						if err != nil {
+							panic(fmt.Sprintf("error decoding multimap side input window key %v: %v", wKey, err))
+						}
+					}
+					winMap := b.MultiMapSideInputData[SideInputKey{TransformID: mmkey.GetTransformId(), Local: mmkey.GetSideInputId()}]
+					for k := range winMap[w] {
+						data = append(data, []byte(k))
+					}
+
 				case *fnpb.StateKey_MultimapSideInput_:
 					mmkey := key.GetMultimapSideInput()
 					wKey := mmkey.GetWindow()
@@ -486,24 +501,6 @@ func (wk *W) State(state fnpb.BeamFnState_StateServer) error {
 					slog.Debug(fmt.Sprintf("side input[%v][%v] MultiMap Window: %v", req.GetId(), req.GetInstructionId(), w))
 
 					data = winMap[w][string(dKey)]
-
-				case *fnpb.StateKey_MultimapKeysSideInput_:
-					mmkey := key.GetMultimapKeysSideInput()
-					wKey := mmkey.GetWindow()
-					var w typex.Window
-					if len(wKey) == 0 {
-						w = window.GlobalWindow{}
-					} else {
-						w, err = exec.MakeWindowDecoder(coder.NewIntervalWindow()).DecodeSingle(bytes.NewBuffer(wKey))
-						if err != nil {
-							panic(fmt.Sprintf("error decoding multimap side input window key %v: %v", wKey, err))
-						}
-					}
-					winMap := b.MultiMapSideInputData[SideInputKey{TransformID: mmkey.GetTransformId(), Local: mmkey.GetSideInputId()}]
-
-					slog.Debug(fmt.Sprintf("side input[%v][%v] MultiMap Window: %v", req.GetId(), req.GetInstructionId(), w))
-
-					data = winMap[w][mmkey.GetSideInputId()]
 
 				case *fnpb.StateKey_BagUserState_:
 					bagkey := key.GetBagUserState()
