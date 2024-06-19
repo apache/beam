@@ -46,6 +46,7 @@ import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 
@@ -291,7 +292,7 @@ public class ArrowConversion {
       }
 
       @Override
-      public List<FieldValueGetter> create(Class<?> clazz, Schema schema) {
+      public List<FieldValueGetter> create(TypeDescriptor<?> typeDescriptor, Schema schema) {
         return this.fieldVectors.stream()
             .map(
                 (fieldVector) -> {
@@ -484,7 +485,9 @@ public class ArrowConversion {
         throw new IllegalStateException("There are no more Rows.");
       }
       Row result =
-          Row.withSchema(schema).withFieldValueGetters(this.fieldValueGetters, this.currRowIndex);
+          Row.withSchema(schema)
+              .withFieldValueGetters(
+                  TypeDescriptor.of(Integer.class), this.fieldValueGetters, this.currRowIndex);
       this.currRowIndex += 1;
       return result;
     }
