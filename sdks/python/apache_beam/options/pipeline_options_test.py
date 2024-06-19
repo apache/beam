@@ -187,6 +187,11 @@ class PipelineOptionsTest(unittest.TestCase):
       parser.add_argument('--option with space', help='mock option with space')
       parser.add_argument('--mock_json_option', type=json.loads, default={})
 
+  class GrandChildMockOptions(MockOptions):
+    @classmethod
+    def _add_argparse_args(cls, parser):
+      parser.add_argument('--grand_mock_flag', action='store_true', help='mock flag')
+
   # Use with MockOptions in test cases where multiple option classes are needed.
   class FakeOptions(PipelineOptions):
     @classmethod
@@ -215,6 +220,17 @@ class PipelineOptionsTest(unittest.TestCase):
     self.assertEqual(
         options.view_as(PipelineOptionsTest.MockOptions).mock_multi_option,
         expected['mock_multi_option'])
+  
+  @parameterized.expand(TEST_CASES)
+  def test_get_all_options_subsubclass(self, flags, expected, _):
+    options = PipelineOptionsTest.GrandChildMockOptions()(flags=flags)
+    self.assertDictContainsSubset(expected, options.get_all_options())
+    self.assertEqual(
+        options.view_as(PipelineOptionsTest.GrandChildMockOptions).mock_flag,
+        expected['mock_flag'])
+    self.assertEqual(
+        options.view_as(PipelineOptionsTest.GrandChildMockOptions).grand_mock_flag,
+        expected['grand_mock_flag'])
 
   @parameterized.expand(TEST_CASES)
   def test_get_all_options(self, flags, expected, _):
