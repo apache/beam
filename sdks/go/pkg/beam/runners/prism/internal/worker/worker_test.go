@@ -323,7 +323,7 @@ func TestWorker_State_MultimapKeysSideInput(t *testing.T) {
 			w:    window.GlobalWindow{},
 		},
 		{
-			name: "global window",
+			name: "interval window",
 			w: window.IntervalWindow{
 				Start: 1000,
 				End:   2000,
