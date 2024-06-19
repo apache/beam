@@ -215,7 +215,11 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
                 .map(
                     getterType ->
                         Arrays.stream(Map.class.getTypeParameters())
-                            .map(typeVar -> getterType.resolveType(typeVar))
+                            .map(
+                                typeVar -> {
+                                  TypeDescriptor resolved = getterType.resolveType(typeVar);
+                                  return resolved.hasUnresolvedParameters() ? null : resolved;
+                                })
                             .toArray(TypeDescriptor[]::new))
                 .orElse(new TypeDescriptor[] {null, null});
         return new GetMap(
