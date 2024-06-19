@@ -57,7 +57,10 @@ public final class TimeUtil {
     // millisecond resolution.
 
     // Translate the ReadableInstant to a DateTime with ISOChronology.
-    DateTime time = new DateTime(instant);
+    // We avoid passing `instant` directly to the constructor because that constructor calls into
+    // the thread-unsafe ConverterManager. Instead, we pass `instant.getMillis()`, which doesn't
+    // trigger the pluggable conversion system.
+    DateTime time = new DateTime(instant.getMillis());
 
     int millis = time.getMillisOfSecond();
     if (millis == 0) {
