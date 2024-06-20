@@ -76,7 +76,6 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Redistribute;
-import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -2138,9 +2137,9 @@ public class KafkaIO {
    * the transform will expand to:
    *
    * <pre>{@code
-   * PCollection<KafkaSourceDescriptor> --> ParDo(ReadFromKafkaDoFn<KafkaSourceDescriptor, KV<KafkaSourceDescriptor, KafkaRecord>>) --> Reshuffle() --> Map(output KafkaRecord)
-   *                                                                                                                                         |
-   *                                                                                                                                         --> KafkaCommitOffset
+   * PCollection<KafkaSourceDescriptor> --> ParDo(ReadFromKafkaDoFn<KafkaSourceDescriptor, KV<KafkaSourceDescriptor, KafkaRecord>>) --> Map(output KafkaRecord)
+   *                                                                                                          |
+   *                                                                                                          --> KafkaCommitOffset
    * }</pre>
    *
    * . Note that this expansion is not supported when running with x-lang on Dataflow.
@@ -2685,25 +2684,12 @@ public class KafkaIO {
                             .getSchemaCoder(KafkaSourceDescriptor.class),
                         recordCoder));
         if (isCommitOffsetEnabled() && !configuredKafkaCommit() && !isRedistribute()) {
-          outputWithDescriptor =
-              outputWithDescriptor
-                  .apply(Reshuffle.viaRandomKey())
-                  .setCoder(
-                      KvCoder.of(
-                          input
-                              .getPipeline()
-                              .getSchemaRegistry()
-                              .getSchemaCoder(KafkaSourceDescriptor.class),
-                          recordCoder));
-
-          PCollection<Void> unused = outputWithDescriptor.apply(new KafkaCommitOffset<K, V>(this));
-          unused.setCoder(VoidCoder.of());
+          outputWithDescriptor.apply(new KafkaCommitOffset<>(this)).setCoder(VoidCoder.of());
         }
         PCollection<KafkaRecord<K, V>> output =
             outputWithDescriptor
                 .apply(
-                    MapElements.into(new TypeDescriptor<KafkaRecord<K, V>>() {})
-                        .via(element -> element.getValue()))
+                    MapElements.into(new TypeDescriptor<KafkaRecord<K, V>>() {}).via(KV::getValue))
                 .setCoder(recordCoder);
         return output;
       } catch (NoSuchSchemaException e) {
