@@ -2711,9 +2711,14 @@ public class BigQueryIO {
     }
 
     /**
-     * If an insert failure occurs, this function is applied to the originally supplied row T. The
-     * resulting {@link TableRow} will be accessed via {@link
-     * WriteResult#getFailedInsertsWithErr()}.
+     * If an insert failure occurs, this function is applied to the originally supplied T element.
+     *
+     * <p>For {@link Method#STREAMING_INSERTS} method, the resulting {@link TableRow} will be
+     * accessed via {@link WriteResult#getFailedInsertsWithErr()}.
+     *
+     * <p>For {@link Method#STORAGE_WRITE_API} and {@link Method#STORAGE_API_AT_LEAST_ONCE} methods,
+     * the resulting {@link TableRow} will be accessed via {@link
+     * WriteResult#getFailedStorageApiInserts()}.
      */
     public Write<T> withFormatRecordOnFailureFunction(
         SerializableFunction<T, TableRow> formatFunction) {
@@ -3773,6 +3778,7 @@ public class BigQueryIO {
                   dynamicDestinations,
                   elementSchema,
                   elementToRowFunction,
+                  getFormatRecordOnFailureFunction(),
                   getRowMutationInformationFn() != null);
         } else if (getWriteProtosClass() != null && getDirectWriteProtos()) {
           // We could support both of these by falling back to
@@ -3795,7 +3801,9 @@ public class BigQueryIO {
           storageApiDynamicDestinations =
               (StorageApiDynamicDestinations<T, DestinationT>)
                   new StorageApiDynamicDestinationsProto(
-                      dynamicDestinations, getWriteProtosClass());
+                      dynamicDestinations,
+                      getWriteProtosClass(),
+                      getFormatRecordOnFailureFunction());
         } else if (getAvroRowWriterFactory() != null) {
           // we can configure the avro to storage write api proto converter for this
           // assuming the format function returns an Avro GenericRecord
@@ -3818,6 +3826,7 @@ public class BigQueryIO {
                   dynamicDestinations,
                   avroSchemaFactory,
                   recordWriterFactory.getToAvroFn(),
+                  getFormatRecordOnFailureFunction(),
                   getRowMutationInformationFn() != null);
         } else {
           RowWriterFactory.TableRowWriterFactory<T, DestinationT> tableRowWriterFactory =
@@ -3827,6 +3836,7 @@ public class BigQueryIO {
               new StorageApiDynamicDestinationsTableRow<>(
                   dynamicDestinations,
                   tableRowWriterFactory.getToRowFn(),
+                  getFormatRecordOnFailureFunction(),
                   getRowMutationInformationFn() != null,
                   getCreateDisposition(),
                   getIgnoreUnknownValues(),
