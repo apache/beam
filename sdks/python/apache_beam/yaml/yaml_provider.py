@@ -1162,8 +1162,11 @@ def flatten_included_provider_specs(
     provider_specs: Iterable[Mapping]) -> Iterator[Mapping]:
   for provider_spec in provider_specs:
     if 'include' in provider_spec:
-      if len(provider_spec) != 1:
-        raise ValueError(f"Invalid provider spec: {provider_spec}")
+      if len(SafeLineLoader.strip_metadata(provider_spec)) != 1:
+        raise ValueError(
+            f"When using include, it must be the only parameter: "
+            f"{provider_spec} "
+            f"at line {{SafeLineLoader.get_line(provider_spec)}}")
       try:
         with urllib.request.urlopen(provider_spec['include']) as response:
           content = response.read()
