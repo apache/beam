@@ -26,21 +26,15 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.Max;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.windowing.FixedWindows;
-import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.transforms.*;
+import org.apache.beam.sdk.transforms.windowing.*;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -90,7 +84,7 @@ public class KafkaCommitOffset<K, V>
               || description.getBootStrapServers() != null);
       Map<String, Object> config = new HashMap<>(currentConfig);
       if (description.getBootStrapServers() != null
-          && description.getBootStrapServers().size() > 0) {
+          && !description.getBootStrapServers().isEmpty()) {
         config.put(
             ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,
             String.join(",", description.getBootStrapServers()));
@@ -99,13 +93,64 @@ public class KafkaCommitOffset<K, V>
     }
   }
 
+  static class MaxOffsetFn<K, V>
+      extends DoFn<KV<KafkaSourceDescriptor, KafkaRecord<K, V>>, KV<KafkaSourceDescriptor, Long>> {
+    static class OffsetAndTimestamp {
+      OffsetAndTimestamp(long offset, Instant timestamp) {
+        this.offset = offset;
+        this.timestamp = timestamp;
+      }
+
+      void merge(long offset, Instant timestamp) {
+        if (this.offset < offset) {
+          this.offset = offset;
+          this.timestamp = timestamp;
+        }
+      }
+
+      long offset;
+      Instant timestamp;
+    }
+
+    private final Map<KafkaSourceDescriptor, OffsetAndTimestamp> maxObserved = new HashMap<>();
+
+    @StartBundle
+    public void startBundle() {
+      maxObserved.clear();
+    }
+
+    @RequiresStableInput
+    @ProcessElement
+    public void processElement(
+        @Element KV<KafkaSourceDescriptor, KafkaRecord<K, V>> element,
+        @Timestamp Instant timestamp) {
+      maxObserved.compute(
+          element.getKey(),
+          (k, v) -> {
+            long offset = element.getValue().getOffset();
+            if (v == null) {
+              return new OffsetAndTimestamp(offset, timestamp);
+            }
+            v.merge(offset, timestamp);
+            return v;
+          });
+    }
+
+    @FinishBundle
+    public void finishBundle(FinishBundleContext context) {
+      maxObserved.forEach(
+          (k, v) -> context.output(KV.of(k, v.offset), v.timestamp, GlobalWindow.INSTANCE));
+    }
+  }
+
   @Override
   public PCollection<Void> expand(PCollection<KV<KafkaSourceDescriptor, KafkaRecord<K, V>>> input) {
     try {
       return input
-          .apply(
-              MapElements.into(new TypeDescriptor<KV<KafkaSourceDescriptor, Long>>() {})
-                  .via(element -> KV.of(element.getKey(), element.getValue().getOffset())))
+          // Filter to single offset per-source descriptor before combining. This manual combiner
+          // lifting
+          // improves performance for runners that might otherwise omit it.
+          .apply(ParDo.of(new MaxOffsetFn<>()))
           .setCoder(
               KvCoder.of(
                   input
@@ -114,7 +159,7 @@ public class KafkaCommitOffset<K, V>
                       .getSchemaCoder(KafkaSourceDescriptor.class),
                   VarLongCoder.of()))
           .apply(Window.into(FixedWindows.of(Duration.standardMinutes(5))))
-          .apply(Max.longsPerKey())
+          .apply(Combine.fewKeys(Max.ofLongs()))
           .apply(ParDo.of(new CommitOffsetDoFn(readSourceDescriptors)))
           .setCoder(VoidCoder.of());
     } catch (NoSuchSchemaException e) {
