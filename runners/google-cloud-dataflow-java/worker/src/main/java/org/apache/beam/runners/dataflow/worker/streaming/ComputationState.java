@@ -101,7 +101,9 @@ public class ComputationState {
    * whether the {@link Work} will be activated, either immediately or sometime in the future.
    */
   public boolean activateWork(ExecutableWork executableWork) {
-    switch (activeWorkState.activateWorkForKey(executableWork)) {
+    ActiveWorkState.ActivatedWork activatedWork =
+        activeWorkState.activateWorkForKey(executableWork);
+    switch (activatedWork.result()) {
       case DUPLICATE:
         // Fall through intentionally. Work was not and will not be activated in these cases.
       case STALE:
@@ -110,7 +112,15 @@ public class ComputationState {
         return true;
       case EXECUTE:
         {
-          execute(executableWork);
+          execute(
+              activatedWork
+                  .executableWork()
+                  // This will never happen it is not possible to create ActivatedWork with state
+                  // EXECUTE without an ExecutableWork instance.
+                  .orElseThrow(
+                      () ->
+                          new IllegalStateException(
+                              "ExecutableWork is required for ActivateWorkResult EXECUTE.")));
           return true;
         }
       default:

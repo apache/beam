@@ -260,19 +260,22 @@ public class StreamingEngineWorkCommitterTest {
               private boolean closed = false;
 
               @Override
-              public RequestBatcher batcher() {
-                return new RequestBatcher() {
-                  @Override
-                  public boolean commitWorkItem(
-                      String computation,
-                      WorkItemCommitRequest request,
-                      Consumer<Windmill.CommitStatus> onDone) {
-                    return false;
-                  }
+              public Optional<RequestBatcher> newBatcher() {
+                return isClosed()
+                    ? Optional.empty()
+                    : Optional.of(
+                        new RequestBatcher() {
+                          @Override
+                          public boolean commitWorkItem(
+                              String computation,
+                              WorkItemCommitRequest request,
+                              Consumer<Windmill.CommitStatus> onDone) {
+                            return false;
+                          }
 
-                  @Override
-                  public void flush() {}
-                };
+                          @Override
+                          public void flush() {}
+                        });
               }
 
               @Override

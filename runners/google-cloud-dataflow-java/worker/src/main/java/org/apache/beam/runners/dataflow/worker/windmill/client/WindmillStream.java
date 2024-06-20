@@ -20,6 +20,7 @@ package org.apache.beam.runners.dataflow.worker.windmill.client;
 import java.io.Closeable;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -100,7 +101,7 @@ public interface WindmillStream {
      * Returns a builder that can be used for sending requests. Each builder is not thread-safe but
      * different builders for the same stream may be used simultaneously.
      */
-    RequestBatcher batcher();
+    Optional<RequestBatcher> newBatcher();
   }
 
   /** Interface for streaming GetWorkerMetadata requests to Windmill. */

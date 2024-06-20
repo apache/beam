@@ -20,11 +20,13 @@ package org.apache.beam.runners.dataflow.worker.windmill.client.commits;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
+import org.apache.beam.runners.dataflow.worker.WorkItemCancelledException;
 import org.apache.beam.runners.dataflow.worker.streaming.WeightedBoundedQueue;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.windmill.client.CloseableStream;
@@ -52,6 +54,7 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
   private final AtomicLong activeCommitBytes;
   private final Consumer<CompleteCommit> onCommitComplete;
   private final int numCommitSenders;
+  private final AtomicBoolean isRunning;
 
   private StreamingEngineWorkCommitter(
       Supplier<CloseableStream<CommitWorkStream>> commitWorkStreamFactory,
@@ -72,6 +75,7 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
     this.activeCommitBytes = new AtomicLong();
     this.onCommitComplete = onCommitComplete;
     this.numCommitSenders = numCommitSenders;
+    this.isRunning = new AtomicBoolean(false);
   }
 
   public static StreamingEngineWorkCommitter create(
@@ -85,7 +89,7 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
   @Override
   @SuppressWarnings("FutureReturnValueIgnored")
   public void start() {
-    if (!commitSenders.isShutdown()) {
+    if (isRunning.compareAndSet(false, true) && !commitSenders.isShutdown()) {
       for (int i = 0; i < numCommitSenders; i++) {
         commitSenders.submit(this::streamingCommitLoop);
       }
@@ -94,7 +98,16 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
 
   @Override
   public void commit(Commit commit) {
-    commitQueue.put(commit);
+    if (commit.work().isFailed() || !isRunning.get()) {
+      LOG.debug(
+          "Trying to queue commit on shutdown, failing commit=[computationId={}, shardingKey={}, workId={} ].",
+          commit.computationId(),
+          commit.work().getShardedKey(),
+          commit.work().id());
+      failCommit(commit);
+    } else {
+      commitQueue.put(commit);
+    }
   }
 
   @Override
@@ -104,17 +117,17 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
 
   @Override
   public void stop() {
-    if (!commitSenders.isTerminated()) {
+    if (isRunning.compareAndSet(true, false) && !commitSenders.isTerminated()) {
       commitSenders.shutdownNow();
       try {
         commitSenders.awaitTermination(10, TimeUnit.SECONDS);
       } catch (InterruptedException e) {
         LOG.warn(
-            "Commit senders didn't complete shutdown within 10 seconds, continuing to drain queue",
+            "Commit senders didn't complete shutdown within 10 seconds, continuing to drain queue.",
             e);
       }
+      drainCommitQueue();
     }
-    drainCommitQueue();
   }
 
   private void drainCommitQueue() {
@@ -144,6 +157,7 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
             // Block until we have a commit or are shutting down.
             initialCommit = commitQueue.take();
           } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             return;
           }
         }
@@ -158,7 +172,11 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
         try (CloseableStream<CommitWorkStream> closeableCommitStream =
             commitWorkStreamFactory.get()) {
           CommitWorkStream commitStream = closeableCommitStream.stream();
-          try (CommitWorkStream.RequestBatcher batcher = commitStream.batcher()) {
+          long shardingKey = initialCommit.work().getWorkItem().getShardingKey();
+          try (CommitWorkStream.RequestBatcher batcher =
+              commitStream
+                  .newBatcher()
+                  .orElseThrow(() -> new WorkItemCancelledException(shardingKey))) {
             if (!tryAddToCommitBatch(initialCommit, batcher)) {
               throw new AssertionError(
                   "Initial commit on flushed stream should always be accepted.");

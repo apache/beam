@@ -40,6 +40,7 @@ import org.slf4j.LoggerFactory;
 @Internal
 public final class DirectHeartbeatSender implements HeartbeatSender {
   private static final Logger LOG = LoggerFactory.getLogger(DirectHeartbeatSender.class);
+  private static final Runnable NO_OP_ON_STREAM_CLOSED_HANDLER = () -> {};
   private final GetDataStream getDataStream;
   private final Runnable onStreamClosed;
 
@@ -49,7 +50,7 @@ public final class DirectHeartbeatSender implements HeartbeatSender {
   }
 
   public static DirectHeartbeatSender create(GetDataStream getDataStream) {
-    return new DirectHeartbeatSender(getDataStream, () -> {});
+    return new DirectHeartbeatSender(getDataStream, NO_OP_ON_STREAM_CLOSED_HANDLER);
   }
 
   @Override
@@ -68,6 +69,10 @@ public final class DirectHeartbeatSender implements HeartbeatSender {
 
   public HeartbeatSender withStreamClosedHandler(Runnable onStreamClosed) {
     return new DirectHeartbeatSender(getDataStream, onStreamClosed);
+  }
+
+  public boolean hasStreamClosedHandler() {
+    return !onStreamClosed.equals(NO_OP_ON_STREAM_CLOSED_HANDLER);
   }
 
   @Override

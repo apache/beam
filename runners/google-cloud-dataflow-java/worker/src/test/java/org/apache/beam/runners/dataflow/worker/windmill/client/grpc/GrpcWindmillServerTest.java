@@ -110,14 +110,13 @@ import org.slf4j.LoggerFactory;
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class GrpcWindmillServerTest {
-  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
-  @Rule public GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
-  @Rule public ErrorCollector errorCollector = new ErrorCollector();
-
   private static final Logger LOG = LoggerFactory.getLogger(GrpcWindmillServerTest.class);
   private static final int STREAM_CHUNK_SIZE = 2 << 20;
   private final long clientId = 10L;
   private final MutableHandlerRegistry serviceRegistry = new MutableHandlerRegistry();
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
+  @Rule public GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
+  @Rule public ErrorCollector errorCollector = new ErrorCollector();
   private Server server;
   private GrpcWindmillServer client;
   private int remainingErrors = 20;
@@ -649,7 +648,8 @@ public class GrpcWindmillServerTest {
       latches.add(new CountDownLatch(1));
     }
     Collections.shuffle(commitRequestList);
-    try (CommitWorkStream.RequestBatcher batcher = stream.batcher()) {
+    try (CommitWorkStream.RequestBatcher batcher =
+        stream.newBatcher().orElseThrow(IllegalStateException::new)) {
       for (int i = 0; i < commitRequestList.size(); ) {
         final CountDownLatch latch = latches.get(i);
         if (batcher.commitWorkItem(
@@ -787,7 +787,8 @@ public class GrpcWindmillServerTest {
 
     // Make the commit requests, waiting for each of them to be verified and acknowledged.
     CommitWorkStream stream = client.commitWorkStream();
-    try (CommitWorkStream.RequestBatcher batcher = stream.batcher()) {
+    try (CommitWorkStream.RequestBatcher batcher =
+        stream.newBatcher().orElseThrow(IllegalStateException::new)) {
       for (int i = 0; i < commitRequestList.size(); ) {
         final CountDownLatch latch = latches.get(i);
         if (batcher.commitWorkItem(

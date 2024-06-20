@@ -22,11 +22,14 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import java.io.PrintWriter;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import javax.annotation.Nullable;
+import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitStatus;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingCommitRequestChunk;
@@ -37,20 +40,22 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.AbstractWindmillS
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.CommitWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@Internal
+@ThreadSafe
 public final class GrpcCommitWorkStream
     extends AbstractWindmillStream<StreamingCommitWorkRequest, StreamingCommitResponse>
     implements CommitWorkStream {
   private static final Logger LOG = LoggerFactory.getLogger(GrpcCommitWorkStream.class);
-
   private static final long HEARTBEAT_REQUEST_ID = Long.MAX_VALUE;
 
-  private final Map<Long, PendingRequest> pending;
+  private final Map<Long, PendingRequest> pendingRequests;
   private final AtomicLong idGenerator;
   private final JobHeader jobHeader;
   private final ThrottleTimer commitWorkThrottleTimer;
@@ -73,7 +78,7 @@ public final class GrpcCommitWorkStream
         streamObserverFactory,
         streamRegistry,
         logEveryNStreamFailures);
-    pending = new ConcurrentHashMap<>();
+    pendingRequests = new ConcurrentHashMap<>();
     this.idGenerator = idGenerator;
     this.jobHeader = jobHeader;
     this.commitWorkThrottleTimer = commitWorkThrottleTimer;
@@ -108,14 +113,14 @@ public final class GrpcCommitWorkStream
 
   @Override
   public void appendSpecificHtml(PrintWriter writer) {
-    writer.format("CommitWorkStream: %d pending", pending.size());
+    writer.format("CommitWorkStream: %d pending", pendingRequests.size());
   }
 
   @Override
   protected synchronized void onNewStream() {
     send(StreamingCommitWorkRequest.newBuilder().setHeader(jobHeader).build());
     try (Batcher resendBatcher = new Batcher()) {
-      for (Map.Entry<Long, PendingRequest> entry : pending.entrySet()) {
+      for (Map.Entry<Long, PendingRequest> entry : pendingRequests.entrySet()) {
         if (!resendBatcher.canAccept(entry.getValue().getBytes())) {
           resendBatcher.flush();
         }
@@ -125,17 +130,19 @@ public final class GrpcCommitWorkStream
   }
 
   /**
-   * Returns a builder that can be used for sending requests. Each builder is not thread-safe but
-   * different builders for the same stream may be used simultaneously.
+   * Returns a builder that can be used for sending requests if the stream is not closed.
+   *
+   * @implNote Each builder is not thread-safe but different builders for the same stream may be
+   *     used simultaneously.
    */
   @Override
-  public CommitWorkStream.RequestBatcher batcher() {
-    return new Batcher();
+  public Optional<RequestBatcher> newBatcher() {
+    return isClosed() ? Optional.empty() : Optional.of(new Batcher());
   }
 
   @Override
   protected boolean hasPendingRequests() {
-    return !pending.isEmpty();
+    return !pendingRequests.isEmpty();
   }
 
   @Override
@@ -150,20 +157,24 @@ public final class GrpcCommitWorkStream
   @Override
   protected void onResponse(StreamingCommitResponse response) {
     commitWorkThrottleTimer.stop();
-
-    RuntimeException finalException = null;
-    for (int i = 0; i < response.getRequestIdCount(); ++i) {
+    @Nullable RuntimeException finalException = null;
+    for (int i = 0; i < response.getRequestIdCount() && !isClosed(); ++i) {
       long requestId = response.getRequestId(i);
       if (requestId == HEARTBEAT_REQUEST_ID) {
         continue;
       }
-      PendingRequest done = pending.remove(requestId);
-      if (done == null) {
-        LOG.error("Got unknown commit request ID: {}", requestId);
+      @Nullable PendingRequest pendingRequest = pendingRequests.remove(requestId);
+      if (pendingRequest == null) {
+        LOG.warn(
+            "Got unknown commit request ID: [{}] in response: [{}]. Current pending requests: {}",
+            requestId,
+            response,
+            pendingRequests);
       } else {
         try {
-          done.onDone.accept(
-              (i < response.getStatusCount()) ? response.getStatus(i) : CommitStatus.OK);
+          CommitStatus commitStatus =
+              i < response.getStatusCount() ? response.getStatus(i) : CommitStatus.OK;
+          pendingRequest.ackResponse(commitStatus);
         } catch (RuntimeException e) {
           // Catch possible exceptions to ensure that an exception for one commit does not prevent
           // other commits from being processed.
@@ -183,9 +194,12 @@ public final class GrpcCommitWorkStream
   }
 
   private void flushInternal(Map<Long, PendingRequest> requests) {
-    if (requests.isEmpty()) {
+    boolean isClosed = isClosed();
+    if (requests.isEmpty() || isClosed) {
+      LOG.debug("Skipping commit stream flush. isClosed={}", isClosed);
       return;
     }
+
     if (requests.size() == 1) {
       Map.Entry<Long, PendingRequest> elem = requests.entrySet().iterator().next();
       if (elem.getValue().request.getSerializedSize()
@@ -199,7 +213,7 @@ public final class GrpcCommitWorkStream
     }
   }
 
-  private void issueSingleRequest(final long id, PendingRequest pendingRequest) {
+  private void issueSingleRequest(long id, PendingRequest pendingRequest) {
     StreamingCommitWorkRequest.Builder requestBuilder = StreamingCommitWorkRequest.newBuilder();
     requestBuilder
         .addCommitChunkBuilder()
@@ -209,7 +223,7 @@ public final class GrpcCommitWorkStream
         .setSerializedWorkItemCommit(pendingRequest.request.toByteString());
     StreamingCommitWorkRequest chunk = requestBuilder.build();
     synchronized (this) {
-      pending.put(id, pendingRequest);
+      pendingRequests.put(id, pendingRequest);
       try {
         send(chunk);
       } catch (IllegalStateException e) {
@@ -234,7 +248,7 @@ public final class GrpcCommitWorkStream
     }
     StreamingCommitWorkRequest request = requestBuilder.build();
     synchronized (this) {
-      pending.putAll(requests);
+      pendingRequests.putAll(requests);
       try {
         send(request);
       } catch (IllegalStateException e) {
@@ -243,12 +257,12 @@ public final class GrpcCommitWorkStream
     }
   }
 
-  private void issueMultiChunkRequest(final long id, PendingRequest pendingRequest) {
+  private void issueMultiChunkRequest(long id, PendingRequest pendingRequest) {
     checkNotNull(pendingRequest.computation);
     final ByteString serializedCommit = pendingRequest.request.toByteString();
 
     synchronized (this) {
-      pending.put(id, pendingRequest);
+      pendingRequests.put(id, pendingRequest);
       for (int i = 0;
           i < serializedCommit.size();
           i += AbstractWindmillStream.RPC_STREAM_CHUNK_SIZE) {
@@ -279,7 +293,6 @@ public final class GrpcCommitWorkStream
   }
 
   private static class PendingRequest {
-
     private final String computation;
     private final WorkItemCommitRequest request;
     private final Consumer<CommitStatus> onDone;
@@ -294,10 +307,13 @@ public final class GrpcCommitWorkStream
     long getBytes() {
       return (long) request.getSerializedSize() + computation.length();
     }
+
+    private void ackResponse(CommitStatus status) {
+      onDone.accept(status);
+    }
   }
 
   private class Batcher implements CommitWorkStream.RequestBatcher {
-
     private final Map<Long, PendingRequest> queue;
     private long queuedBytes;
 

@@ -378,66 +378,69 @@ public final class FakeWindmillServer extends WindmillServerStub {
     return new CommitWorkStream() {
 
       @Override
-      public RequestBatcher batcher() {
-        return new RequestBatcher() {
-          class RequestAndDone {
-            final Consumer<Windmill.CommitStatus> onDone;
-            final WorkItemCommitRequest request;
+      public Optional<RequestBatcher> newBatcher() {
+        return Optional.of(
+            new RequestBatcher() {
+              class RequestAndDone {
+                final Consumer<Windmill.CommitStatus> onDone;
+                final WorkItemCommitRequest request;
 
-            RequestAndDone(WorkItemCommitRequest request, Consumer<Windmill.CommitStatus> onDone) {
-              this.request = request;
-              this.onDone = onDone;
-            }
-          }
-
-          final List<RequestAndDone> requests = new ArrayList<>();
-
-          @Override
-          public boolean commitWorkItem(
-              String computation,
-              WorkItemCommitRequest request,
-              Consumer<Windmill.CommitStatus> onDone) {
-            LOG.debug("commitWorkStream::commitWorkItem: {}", request);
-            errorCollector.checkThat(request.hasWorkToken(), equalTo(true));
-            errorCollector.checkThat(
-                request.getShardingKey(), allOf(greaterThan(0L), lessThan(Long.MAX_VALUE)));
-            errorCollector.checkThat(request.getCacheToken(), not(equalTo(0L)));
-            if (requests.size() > 5) return false;
-
-            // Throws away the result, but allows to inject latency.
-            Windmill.CommitWorkRequest.Builder builder = Windmill.CommitWorkRequest.newBuilder();
-            builder.addRequestsBuilder().setComputationId(computation).addRequests(request);
-            commitsToOffer.getOrDefault(builder.build());
-
-            requests.add(new RequestAndDone(request, onDone));
-            flush();
-            return true;
-          }
-
-          @Override
-          public void flush() {
-            for (RequestAndDone elem : requests) {
-              if (dropStreamingCommits) {
-                droppedStreamingCommits.put(elem.request.getWorkToken(), elem.onDone);
-                // Return true to indicate the request was accepted even if we are dropping the
-                // commit to simulate a dropped commit.
-                continue;
+                RequestAndDone(
+                    WorkItemCommitRequest request, Consumer<Windmill.CommitStatus> onDone) {
+                  this.request = request;
+                  this.onDone = onDone;
+                }
               }
 
-              commitsReceived.put(elem.request.getWorkToken(), elem.request);
-              elem.onDone.accept(
-                  Optional.ofNullable(
-                          streamingCommitsToOffer.remove(
-                              WorkId.builder()
-                                  .setWorkToken(elem.request.getWorkToken())
-                                  .setCacheToken(elem.request.getCacheToken())
-                                  .build()))
-                      // Default to CommitStatus.OK
-                      .orElse(Windmill.CommitStatus.OK));
-            }
-            requests.clear();
-          }
-        };
+              final List<RequestAndDone> requests = new ArrayList<>();
+
+              @Override
+              public boolean commitWorkItem(
+                  String computation,
+                  WorkItemCommitRequest request,
+                  Consumer<Windmill.CommitStatus> onDone) {
+                LOG.debug("commitWorkStream::commitWorkItem: {}", request);
+                errorCollector.checkThat(request.hasWorkToken(), equalTo(true));
+                errorCollector.checkThat(
+                    request.getShardingKey(), allOf(greaterThan(0L), lessThan(Long.MAX_VALUE)));
+                errorCollector.checkThat(request.getCacheToken(), not(equalTo(0L)));
+                if (requests.size() > 5) return false;
+
+                // Throws away the result, but allows to inject latency.
+                Windmill.CommitWorkRequest.Builder builder =
+                    Windmill.CommitWorkRequest.newBuilder();
+                builder.addRequestsBuilder().setComputationId(computation).addRequests(request);
+                commitsToOffer.getOrDefault(builder.build());
+
+                requests.add(new RequestAndDone(request, onDone));
+                flush();
+                return true;
+              }
+
+              @Override
+              public void flush() {
+                for (RequestAndDone elem : requests) {
+                  if (dropStreamingCommits) {
+                    droppedStreamingCommits.put(elem.request.getWorkToken(), elem.onDone);
+                    // Return true to indicate the request was accepted even if we are dropping the
+                    // commit to simulate a dropped commit.
+                    continue;
+                  }
+
+                  commitsReceived.put(elem.request.getWorkToken(), elem.request);
+                  elem.onDone.accept(
+                      Optional.ofNullable(
+                              streamingCommitsToOffer.remove(
+                                  WorkId.builder()
+                                      .setWorkToken(elem.request.getWorkToken())
+                                      .setCacheToken(elem.request.getCacheToken())
+                                      .build()))
+                          // Default to CommitStatus.OK
+                          .orElse(Windmill.CommitStatus.OK));
+                }
+                requests.clear();
+              }
+            });
       }
 
       @Override

@@ -34,7 +34,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.St
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverFactory;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Status;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.StatusRuntimeException;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -229,6 +228,8 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
     if (clientClosed.get()) {
       writer.write(", client closed");
     }
+
+    writer.format(", isClosed=[%s]", isClosed());
     long nowMs = Instant.now().getMillis();
     long sleepLeft = sleepUntil.get() - nowMs;
     if (sleepLeft > 0) {
@@ -265,7 +266,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
 
   @Override
   public final boolean isClosed() {
-    return streamClosed.get() || clientClosed.get();
+    return clientClosed.get() || streamClosed.get();
   }
 
   private void setLastError(String error) {
@@ -274,7 +275,6 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   }
 
   private class ResponseObserver implements StreamObserver<ResponseT> {
-
     @Override
     public void onNext(ResponseT response) {
       try {
@@ -305,55 +305,53 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
         }
       }
       if (t != null) {
-        Status status = Status.fromThrowable(t);
-        if (t instanceof StatusRuntimeException) {
-          status = ((StatusRuntimeException) t).getStatus();
-        }
-
-        String statusError = status == null ? "" : status.toString();
-        setLastError(statusError);
-        if (errorCount.getAndIncrement() % logEveryNStreamFailures == 0) {
-          long nowMillis = Instant.now().getMillis();
-          String responseDebug;
-          if (lastResponseTimeMs.get() == 0) {
-            responseDebug = "never received response";
-          } else {
-            responseDebug =
-                "received response " + (nowMillis - lastResponseTimeMs.get()) + "ms ago";
-          }
-          LOG.debug(
-              "{} streaming Windmill RPC errors for {}, last was: {} with status {}."
-                  + " created {}ms ago, {}. This is normal with autoscaling.",
-              AbstractWindmillStream.this.getClass(),
-              errorCount.get(),
-              t,
-              statusError,
-              nowMillis - startTimeMs.get(),
-              responseDebug);
-        }
-        // If the stream was stopped due to a resource exhausted error then we are throttled.
-        if (status != null && status.getCode() == Status.Code.RESOURCE_EXHAUSTED) {
-          startThrottleTimer();
-        }
-
-        try {
-          long sleep = backoff.nextBackOffMillis();
-          sleepUntil.set(Instant.now().getMillis() + sleep);
-          Thread.sleep(sleep);
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-        } catch (IOException e) {
-          // Ignore.
-        }
+        handleStreamErrorResponse(t);
       } else {
         errorCount.incrementAndGet();
         String error =
             "Stream completed successfully but did not complete requested operations, "
-                + "recreating";
+                + "recreating.";
         LOG.warn(error);
         setLastError(error);
       }
+
       executor.execute(AbstractWindmillStream.this::startStream);
+    }
+
+    private void handleStreamErrorResponse(Throwable t) {
+      Status errorStatus = Status.fromThrowable(t);
+      setLastError(errorStatus.toString());
+      if (errorCount.getAndIncrement() % logEveryNStreamFailures == 0) {
+        long nowMillis = Instant.now().getMillis();
+        String logMessage =
+            lastResponseTimeMs.get() == 0
+                ? "never received response"
+                : "received response " + (nowMillis - lastResponseTimeMs.get()) + "ms ago";
+
+        LOG.debug(
+            "{} streaming Windmill RPC errors for {}, last was: {} with status {}."
+                + " created {}ms ago, {}. This is normal with autoscaling.",
+            AbstractWindmillStream.this.getClass(),
+            errorCount.get(),
+            t,
+            errorStatus,
+            nowMillis - startTimeMs.get(),
+            logMessage);
+      }
+      // If the stream was stopped due to a resource exhausted error then we are throttled.
+      if (errorStatus.getCode() == Status.Code.RESOURCE_EXHAUSTED) {
+        startThrottleTimer();
+      }
+
+      try {
+        long sleep = backoff.nextBackOffMillis();
+        sleepUntil.set(Instant.now().getMillis() + sleep);
+        Thread.sleep(sleep);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      } catch (IOException e) {
+        // Ignore.
+      }
     }
   }
 }

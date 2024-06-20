@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker.streaming;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableListMultimap.flatteningToImmutableListMultimap;
 
+import com.google.auto.value.AutoValue;
 import java.io.PrintWriter;
 import java.util.ArrayDeque;
 import java.util.Collection;
@@ -73,7 +74,8 @@ public final class ActiveWorkState {
   /**
    * Current budget that is being processed or queued on the user worker. Incremented when work is
    * activated in {@link #activateWorkForKey(ExecutableWork)}, and decremented when work is
-   * completed in {@link #completeWorkAndGetNextWorkForKey(ShardedKey, WorkId)}.
+   * completed in {@link #completeWorkAndGetNextWorkForKey(ShardedKey, WorkId)} or failed via {@link
+   * Work#fail()}.
    */
   private final AtomicReference<GetWorkBudget> activeGetWorkBudget;
 
@@ -119,27 +121,36 @@ public final class ActiveWorkState {
    * <p>4. STALE: A work queue for the {@link ShardedKey} exists, and there is a queued {@link Work}
    * with a greater workToken than the passed in {@link Work}.
    */
-  synchronized ActivateWorkResult activateWorkForKey(ExecutableWork executableWork) {
-    ShardedKey shardedKey = executableWork.work().getShardedKey();
+  synchronized ActivatedWork activateWorkForKey(ExecutableWork executableWork) {
+    // Attach a failure handler to the work so that we remove it from active work budget when it is
+    // failed.
+    ExecutableWork workWithFailureHandler =
+        ExecutableWork.create(
+            executableWork
+                .work()
+                .withFailureHandler(() -> decrementActiveWorkBudget(executableWork.work())),
+            executableWork.executeWorkFn());
+
+    ShardedKey shardedKey = workWithFailureHandler.work().getShardedKey();
     Deque<ExecutableWork> workQueue = activeWork.getOrDefault(shardedKey, new ArrayDeque<>());
     // This key does not have any work queued up on it. Create one, insert Work, and mark the work
     // to be executed.
     if (!activeWork.containsKey(shardedKey) || workQueue.isEmpty()) {
-      workQueue.addLast(executableWork);
+      workQueue.addLast(workWithFailureHandler);
       activeWork.put(shardedKey, workQueue);
-      incrementActiveWorkBudget(executableWork.work());
-      return ActivateWorkResult.EXECUTE;
+      incrementActiveWorkBudget(workWithFailureHandler.work());
+      return ActivatedWork.executeNow(workWithFailureHandler);
     }
 
     // Check to see if we have this work token queued.
     Iterator<ExecutableWork> workIterator = workQueue.iterator();
     while (workIterator.hasNext()) {
       ExecutableWork queuedWork = workIterator.next();
-      if (queuedWork.id().equals(executableWork.id())) {
-        return ActivateWorkResult.DUPLICATE;
+      if (queuedWork.id().equals(workWithFailureHandler.id())) {
+        return ActivatedWork.notImmediatelyExecutable(ActivateWorkResult.DUPLICATE);
       }
-      if (queuedWork.id().cacheToken() == executableWork.id().cacheToken()) {
-        if (executableWork.id().workToken() > queuedWork.id().workToken()) {
+      if (queuedWork.id().cacheToken() == workWithFailureHandler.id().cacheToken()) {
+        if (workWithFailureHandler.id().workToken() > queuedWork.id().workToken()) {
           // Check to see if the queuedWork is active. We only want to remove it if it is NOT
           // currently active.
           if (!queuedWork.equals(workQueue.peek())) {
@@ -148,15 +159,15 @@ public final class ActiveWorkState {
           }
           // Continue here to possibly remove more non-active stale work that is queued.
         } else {
-          return ActivateWorkResult.STALE;
+          return ActivatedWork.notImmediatelyExecutable(ActivateWorkResult.STALE);
         }
       }
     }
 
     // Queue the work for later processing.
-    workQueue.addLast(executableWork);
-    incrementActiveWorkBudget(executableWork.work());
-    return ActivateWorkResult.QUEUED;
+    workQueue.addLast(workWithFailureHandler);
+    incrementActiveWorkBudget(workWithFailureHandler.work());
+    return ActivatedWork.notImmediatelyExecutable(ActivateWorkResult.QUEUED);
   }
 
   /**
@@ -366,5 +377,22 @@ public final class ActiveWorkState {
     EXECUTE,
     DUPLICATE,
     STALE
+  }
+
+  @AutoValue
+  abstract static class ActivatedWork {
+    private static ActivatedWork executeNow(ExecutableWork executableWork) {
+      return new AutoValue_ActiveWorkState_ActivatedWork(
+          ActivateWorkResult.EXECUTE, Optional.of(executableWork));
+    }
+
+    private static ActivatedWork notImmediatelyExecutable(ActivateWorkResult activateWorkResult) {
+      Preconditions.checkState(activateWorkResult != ActivateWorkResult.EXECUTE);
+      return new AutoValue_ActiveWorkState_ActivatedWork(activateWorkResult, Optional.empty());
+    }
+
+    abstract ActivateWorkResult result();
+
+    abstract Optional<ExecutableWork> executableWork();
   }
 }

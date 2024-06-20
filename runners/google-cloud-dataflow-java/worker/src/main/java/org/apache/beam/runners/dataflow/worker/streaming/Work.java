@@ -20,6 +20,7 @@ package org.apache.beam.runners.dataflow.worker.streaming;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList.toImmutableList;
 
 import com.google.auto.value.AutoValue;
+import com.google.common.base.Objects;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.EnumMap;
@@ -31,6 +32,7 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
 import org.apache.beam.runners.dataflow.worker.ActiveMessageMetadata;
@@ -74,34 +76,43 @@ public final class Work implements RefreshableWork {
   private final Map<LatencyAttribution.State, Duration> totalDurationPerState;
   private final WorkId id;
   private final String latencyTrackingId;
+  private final Runnable onFailed;
   private TimedState currentState;
   private volatile boolean isFailed;
 
   private Work(
+      ShardedKey shardedKey,
       WorkItem workItem,
-      Watermarks watermarks,
       ProcessingContext processingContext,
-      Supplier<Instant> clock) {
-    this.shardedKey = ShardedKey.create(workItem.getKey(), workItem.getShardingKey());
+      Watermarks watermarks,
+      Supplier<Instant> clock,
+      Instant startTime,
+      Map<LatencyAttribution.State, Duration> totalDurationPerState,
+      WorkId id,
+      String latencyTrackingId,
+      Runnable onFailed,
+      TimedState currentState,
+      boolean isFailed) {
+    this.shardedKey = shardedKey;
     this.workItem = workItem;
     this.watermarks = watermarks;
     this.clock = clock;
-    this.startTime = clock.get();
-    this.totalDurationPerState = new EnumMap<>(LatencyAttribution.State.class);
-    this.id = WorkId.of(workItem);
-    this.latencyTrackingId =
-        Long.toHexString(workItem.getShardingKey())
-            + '-'
-            + Long.toHexString(workItem.getWorkToken());
-    this.currentState = TimedState.initialState(startTime);
-    this.isFailed = false;
+    this.startTime = startTime;
+    this.totalDurationPerState = totalDurationPerState;
+    this.id = id;
+    this.latencyTrackingId = latencyTrackingId;
+    this.onFailed = onFailed;
+    this.currentState = currentState;
+    this.isFailed = isFailed;
     this.processingContext =
         processingContext.heartbeatSender() instanceof DirectHeartbeatSender
+                && !((DirectHeartbeatSender) processingContext.heartbeatSender())
+                    .hasStreamClosedHandler()
             ? processingContext
                 .toBuilder()
                 .setHeartbeatSender(
                     ((DirectHeartbeatSender) processingContext.heartbeatSender())
-                        .withStreamClosedHandler(() -> isFailed = true))
+                        .withStreamClosedHandler(() -> this.isFailed = true))
                 .build()
             : processingContext;
   }
@@ -112,7 +123,21 @@ public final class Work implements RefreshableWork {
       ProcessingContext processingContext,
       Supplier<Instant> clock,
       Collection<LatencyAttribution> getWorkStreamLatencies) {
-    Work work = new Work(workItem, watermarks, processingContext, clock);
+    Instant startTime = clock.get();
+    Work work =
+        new Work(
+            ShardedKey.create(workItem.getKey(), workItem.getShardingKey()),
+            workItem,
+            processingContext,
+            watermarks,
+            clock,
+            startTime,
+            new EnumMap<>(LatencyAttribution.State.class),
+            WorkId.of(workItem),
+            buildLatencyTrackingId(workItem),
+            () -> {},
+            TimedState.initialState(startTime),
+            false);
     work.recordGetWorkStreamLatencies(getWorkStreamLatencies);
     return work;
   }
@@ -162,6 +187,29 @@ public final class Work implements RefreshableWork {
     return latencyAttribution;
   }
 
+  private static String buildLatencyTrackingId(WorkItem workItem) {
+    return Long.toHexString(workItem.getShardingKey())
+        + '-'
+        + Long.toHexString(workItem.getWorkToken());
+  }
+
+  /** Returns a new {@link Work} instance with the same state and a different failure handler. */
+  public Work withFailureHandler(Runnable onFailed) {
+    return new Work(
+        shardedKey,
+        workItem,
+        processingContext,
+        watermarks,
+        clock,
+        startTime,
+        totalDurationPerState,
+        id,
+        latencyTrackingId,
+        onFailed,
+        currentState,
+        isFailed);
+  }
+
   public WorkItem getWorkItem() {
     return workItem;
   }
@@ -207,16 +255,15 @@ public final class Work implements RefreshableWork {
 
   public void fail() {
     LOG.debug(
-        "Failing work "
+        "Failing work: [computationId= "
             + processingContext.computationId()
-            + " "
+            + ", key="
             + shardedKey
-            + " "
-            + id.workToken()
-            + " "
-            + id.cacheToken()
-            + ". The work will be retried and is not lost.");
+            + ", workId="
+            + id
+            + "]. The work will be retried and is not lost.");
     this.isFailed = true;
+    onFailed.run();
   }
 
   public boolean isCommitPending() {
@@ -305,6 +352,41 @@ public final class Work implements RefreshableWork {
   /** Returns a view of this {@link Work} instance for work refreshing. */
   public RefreshableWork refreshableView() {
     return this;
+  }
+
+  @Override
+  public boolean equals(@Nullable Object o) {
+    if (o == null) return false;
+    if (this == o) return true;
+    if (!(o instanceof Work)) return false;
+    Work work = (Work) o;
+    return isFailed == work.isFailed
+        && Objects.equal(shardedKey, work.shardedKey)
+        && Objects.equal(workItem, work.workItem)
+        && Objects.equal(processingContext, work.processingContext)
+        && Objects.equal(watermarks, work.watermarks)
+        && Objects.equal(clock, work.clock)
+        && Objects.equal(startTime, work.startTime)
+        && Objects.equal(totalDurationPerState, work.totalDurationPerState)
+        && Objects.equal(id, work.id)
+        && Objects.equal(latencyTrackingId, work.latencyTrackingId)
+        && Objects.equal(currentState, work.currentState);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hashCode(
+        shardedKey,
+        workItem,
+        processingContext,
+        watermarks,
+        clock,
+        startTime,
+        totalDurationPerState,
+        id,
+        latencyTrackingId,
+        currentState,
+        isFailed);
   }
 
   public enum State {
