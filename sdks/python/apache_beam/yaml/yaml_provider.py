@@ -1160,6 +1160,7 @@ class RenamingProvider(Provider):
 
 def flatten_included_provider_specs(
     provider_specs: Iterable[Mapping]) -> Iterator[Mapping]:
+  from apache_beam.yaml.yaml_transform import SafeLineLoader
   for provider_spec in provider_specs:
     if 'include' in provider_spec:
       if len(SafeLineLoader.strip_metadata(provider_spec)) != 1:
@@ -1167,17 +1168,22 @@ def flatten_included_provider_specs(
             f"When using include, it must be the only parameter: "
             f"{provider_spec} "
             f"at line {{SafeLineLoader.get_line(provider_spec)}}")
+      include_uri = provider_spec['include']
       try:
-        with urllib.request.urlopen(provider_spec['include']) as response:
+        with urllib.request.urlopen(include_uri) as response:
           content = response.read()
       except (ValueError, urllib.error.URLError) as exn:
         if 'unknown url type' in str(exn):
-          with FileSystems.open(provider_spec['include']) as fin:
+          with FileSystems.open(include_uri) as fin:
             content = fin.read()
         else:
           raise
-      yield from flatten_included_provider_specs(
-          yaml.load(content, Loader=SafeLoader))
+      included_providers = yaml.load(content, Loader=SafeLineLoader)
+      if not isinstance(included_providers, list):
+        raise ValueError(
+            f"Included file {include_uri} must be a list of Providers "
+            f"at line {{SafeLineLoader.get_line(provider_spec)}}")
+      yield from flatten_included_provider_specs(included_providers)
     else:
       yield provider_spec
 

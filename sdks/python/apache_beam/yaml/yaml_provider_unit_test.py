@@ -24,6 +24,7 @@ import yaml
 
 from apache_beam.yaml import yaml_provider
 from apache_beam.yaml.yaml_provider import YamlProviders
+from apache_beam.yaml.yaml_transform import SafeLineLoader
 
 
 class WindowIntoTest(unittest.TestCase):
@@ -90,13 +91,15 @@ class ProviderParsingTest(unittest.TestCase):
     cls.tempdir.cleanup()
 
   def test_include_file(self):
-    flattened = list(
-        yaml_provider.flatten_included_provider_specs([
+    flattened = [
+        SafeLineLoader.strip_metadata(spec)
+        for spec in yaml_provider.flatten_included_provider_specs([
             self.INLINE_PROVIDER,
             {
                 'include': self.to_include
             },
-        ]))
+        ])
+    ]
 
     self.assertEqual([
         self.INLINE_PROVIDER,
@@ -105,13 +108,15 @@ class ProviderParsingTest(unittest.TestCase):
                      flattened)
 
   def test_include_url(self):
-    flattened = list(
-        yaml_provider.flatten_included_provider_specs([
+    flattened = [
+        SafeLineLoader.strip_metadata(spec)
+        for spec in yaml_provider.flatten_included_provider_specs([
             self.INLINE_PROVIDER,
             {
                 'include': 'file:///' + self.to_include
             },
-        ]))
+        ])
+    ]
 
     self.assertEqual([
         self.INLINE_PROVIDER,
@@ -120,13 +125,15 @@ class ProviderParsingTest(unittest.TestCase):
                      flattened)
 
   def test_nested_include(self):
-    flattened = list(
-        yaml_provider.flatten_included_provider_specs([
+    flattened = [
+        SafeLineLoader.strip_metadata(spec)
+        for spec in yaml_provider.flatten_included_provider_specs([
             self.INLINE_PROVIDER,
             {
                 'include': self.to_include_nested
             },
-        ]))
+        ])
+    ]
 
     self.assertEqual([
         self.INLINE_PROVIDER,
