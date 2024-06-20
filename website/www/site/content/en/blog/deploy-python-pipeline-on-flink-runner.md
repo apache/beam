@@ -502,7 +502,7 @@ if __name__ == "__main__":
     run()
 {{< /highlight >}}
 
-The pipeline script is added to a Python package under a folder named *word_len*, and a simple module named *run* is created as it should be executed as a module (i.e. `python -m ...`). (I had an error if I execute the pipeline as a script.) Note that this way of packaging is for demonstration only and see [this document](https://beam.apache.org/documentation/sdks/python-pipeline-dependencies/) for a recommended way of packaging a pipeline. 
+The pipeline script is added to a Python package under a folder named *word_len*, and a simple module named *run* is created as it should be executed as a module (i.e. `python -m ...`). (I had an error if I execute the pipeline as a script.) Note that this way of packaging is for demonstration only and see [this document](https://beam.apache.org/documentation/sdks/python-pipeline-dependencies/) for a recommended way of packaging a pipeline.
 
 {{< highlight py >}}
 # beam/word_len/run.py
@@ -635,7 +635,7 @@ spec:
 ```
 
 The pipeline is deployed using a Kubernetes job, and the custom *SDK Harness* image is used to execute the pipeline as a module. The first two arguments are application specific arguments and the rest are arguments for pipeline options. The pipeline arguments are self-explanatory, or you can check available options in the [pipeline options source](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/options/pipeline_options.py) and [Flink Runner document](https://beam.apache.org/documentation/runners/flink/). Note that, to execute Python user code in the sidecar container, we set the environment type to *EXTERNAL* and environment config to *localhost:50000*.
- 
+
 ```yaml
 # beam/word_len_job.yml
 apiVersion: batch/v1
@@ -823,7 +823,7 @@ We can see the output topic (*output-topic-beam*) is created on *kafka-ui*.
 src="/images/blog/deploy-python-pipeline-on-flink-runner/kafka-topics-2.png"
 alt="Kafka Output Topic">
 
-Also, we can check the output messages are created as expected in the *Topics* tab. 
+Also, we can check the output messages are created as expected in the *Topics* tab.
 
 <img class="center-block"
 src="/images/blog/deploy-python-pipeline-on-flink-runner/output-topic-messages.png"
