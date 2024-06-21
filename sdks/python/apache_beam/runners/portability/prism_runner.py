@@ -21,11 +21,15 @@
 
 import logging
 import os
+import platform
 import re
 import urllib
 import shutil
 import stat
 import zipfile
+
+from urllib.request import Request, urlopen
+from urllib.error import URLError
 
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.options import pipeline_options
@@ -33,11 +37,13 @@ from apache_beam.runners.portability import job_server
 from apache_beam.runners.portability import portable_runner
 from apache_beam.utils import subprocess_server
 from apache_beam.version import __version__ as beam_version
-from urllib.request import urlopen
 
 
 MAGIC_HOST_NAMES = ['[local]', '[auto]']
+# Prefix for constructing a download URL
 GITHUB_DOWNLOAD_PREFIX = 'https://github.com/apache/beam/releases/download/'
+# Prefix for constructing a release URL, so we can derive a download URL
+GITHUB_TAG_PREFIX = 'https://github.com/apache/beam/releases/tag/'
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -74,48 +80,82 @@ class PrismJobServer(job_server.SubprocessJobServer):
   def __init__(self, options):
     super().__init__()
     prism_options = options.view_as(pipeline_options.PrismRunnerOptions)
-    self._path = prism_options.prism_binary_location
-    self._version = prism_options.prism_beam_version_override if prism_options.prism_beam_version_override else beam_version
+    # Options flow:
+    # If the path is set, always download and unzip the provided path, even if a binary is cached.
+    self._path = prism_options.prism_location
+    # Use the given string as the beam version for downloading prism from github.
+    self._version = prism_options.prism_beam_version_override if prism_options.prism_beam_version_override else 'v' + beam_version
 
     job_options = options.view_as(pipeline_options.JobServerOptions)
     self._job_port = job_options.job_port
 
-  # Finds the bin or zip in the local cache, and if not, fetches it.
   @classmethod
-  def local_bin(cls, url, cache_dir=None):
-    if cache_dir is None:
-      cache_dir = cls.BIN_CACHE
-    if os.path.exists(url):
+  def maybe_unzip_and_make_executable(cls, url, cache_dir):
       if zipfile.is_zipfile(url): 
         z = zipfile.ZipFile(url)
         url = z.extract(os.path.splitext(os.path.basename(url))[0], path=cache_dir)
       
-      # Make the binary executable.
+      # Make sure the binary is executable.
       st = os.stat(url)
       os.chmod(url, st.st_mode | stat.S_IEXEC)
       return url
+
+  # Finds the bin or zip in the local cache, and if not, fetches it.
+  @classmethod
+  def local_bin(cls, url, cache_dir=None, ignore_cache=False):
+    # ignore_cache sets whether we should always be downloading and unzipping the file or not, to avoid staleness issues.
+    if cache_dir is None:
+      cache_dir = cls.BIN_CACHE
+    if os.path.exists(url):
+      _LOGGER.info('Using local prism binary from %s' % url)
+      return cls.maybe_unzip_and_make_executable(url, cache_dir=cache_dir)
     else:
-      #TODO VALIDATE/REWRITE THE REST OF THIS FUNCTION
-      cached_jar = os.path.join(cache_dir, os.path.basename(url))
-      if os.path.exists(cached_jar):
-        _LOGGER.info('Using cached job server jar from %s' % url)
+      cached_bin = os.path.join(cache_dir, os.path.basename(url))
+      if os.path.exists(cached_bin) and not ignore_cache:
+        _LOGGER.info('Using cached prism binary from %s' % url)
       else:
-        _LOGGER.info('Downloading job server jar from %s' % url)
+        _LOGGER.info('Downloading prism binary from %s' % url)
         if not os.path.exists(cache_dir):
           os.makedirs(cache_dir)
-          # TODO: Clean up this cache according to some policy.
         try:
           try:
             url_read = FileSystems.open(url)
           except ValueError:
             url_read = urlopen(url)
-          with open(cached_jar + '.tmp', 'wb') as jar_write:
-            shutil.copyfileobj(url_read, jar_write, length=1 << 20)
-          os.rename(cached_jar + '.tmp', cached_jar)
+          with open(cached_bin + '.tmp', 'wb') as zip_write:
+            shutil.copyfileobj(url_read, zip_write, length=1 << 20)
+          os.rename(cached_bin + '.tmp', cached_bin)
         except URLError as e:
           raise RuntimeError(
-              'Unable to fetch remote job server jar at %s: %s' % (url, e))
-      return cached_jar
+              'Unable to fetch remote prism binary at %s: %s' % (url, e))
+      return cls.maybe_unzip_and_make_executable(cached_bin, cache_dir=cache_dir)
+  
+  def construct_download_url(self, root_tag, sys, mach):
+    # Construct the prism download URL with the appropriate release tag.
+    # This maps operating systems and machine architectures to the compatible
+    # and canonical names used by the Go build targets.
+
+    # platform.system() provides compatible listings, so we need to filter out
+    # the unsupported versions.
+    opsys = sys.lower()
+    if opsys not in ['linux','windows','darwin']:
+      raise ValueError(
+        'Operating System "%s" unsupported for constructing a Prism release binary URL.' % (opsys)
+      )
+    
+    # platform.machine() will vary by system, but many names are compatible with each other.
+    arch = mach.lower()
+    if arch in ['amd64','x86_64', 'x86-64','x64']:
+      arch = 'amd64'
+    if arch in ['arm64','aarch64_be','aarch64','armv8b','armv8l']:
+      arch = 'arm64'
+
+    if arch not in ['amd64','arm64']:
+      raise ValueError(
+        'Machine archictecture "%s" unsupported for constructing a Prism release binary URL.' % (opsys)
+      )
+    return 'https://github.com/apache/beam/releases/download/%s/apache_beam-%s-prism-%s-%s.zip' % (root_tag, self._version, opsys, arch)
+         
 
   def path_to_binary(self):
     if self._path:
@@ -128,22 +168,30 @@ class PrismJobServer(job_server.SubprocessJobServer):
               'the file exists; you may have to first build prism '
               'using `go build `.' %
               (self._path))
+        
+        # We have a URL, see if we need to construct a valid file name.
+        if self._path.startswith(GITHUB_DOWNLOAD_PREFIX):
+          # If this URL starts with the download prefix, let it through.
+          return self._path 
+        # The only other valid option is a github release page.
+        if not self._path.startswith(GITHUB_TAG_PREFIX):
+          raise ValueError(
+              'Provided --prism_location URL is not an Apache Beam Github Release page URL or download URL: %s' %
+              (self._path))
+        # Get the root tag for this URL
+        root_tag = os.path.basename(os.path.normpath(self._path))
+        return self.construct_download_url(root_tag, platform.system(), platform.machine())
       return self._path
     else:
       if '.dev' in self._version:
         raise ValueError(
             'Unable to derive URL for dev versions "%s". Please provide an alternate '
-            'version to derive the release URL' %
+            'version to derive the release URL with the --prism_beam_version_override flag.' %
             (self._version))
-
-      # TODO Add figuring out what platform we're using 
-      opsys = 'linux'
-      arch = 'amd64'
-
-      return 'http://github.com/apache/beam/releases/download/%s/apache_beam-%s-prism-%s-%s.zip' % (self._version,self._version, opsys, arch)
+      return self.construct_download_url(self._version, platform.system(), platform.machine())
 
   def subprocess_cmd_and_endpoint(self):
-    bin_path = self.local_bin(self.path_to_binary())
+    bin_path = self.local_bin(self.path_to_binary(), ignore_cache=(self._path != None))
     job_port, = subprocess_server.pick_port(self._job_port)
     subprocess_cmd = [
         bin_path
