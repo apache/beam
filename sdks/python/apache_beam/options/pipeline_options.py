@@ -556,7 +556,10 @@ class StandardOptions(PipelineOptions):
         action='store_true',
         help='Whether to automatically generate unique transform labels '
         'for every transform. The default behavior is to raise an '
-        'exception if a transform is created with a non-unique label.')
+        'exception if a transform is created with a non-unique label. '
+        'Using --auto_unique_labels could cause data loss when '
+        'updating a pipeline or reloading the job state. '
+        'This is not recommended for streaming jobs.')
 
 
 class StreamingOptions(PipelineOptions):
@@ -900,6 +903,19 @@ class GoogleCloudOptions(PipelineOptions):
             'Controls the OAuth scopes that will be requested when creating '
             'GCP credentials. Note: If set programmatically, must be set as a '
             'list of strings'))
+    parser.add_argument(
+        '--enable_bucket_read_metric_counter',
+        default=False,
+        action='store_true',
+        help='Create metrics reporting the approximate number of bytes read '
+        'per bucket.')
+    parser.add_argument(
+        '--enable_bucket_write_metric_counter',
+        default=False,
+        action='store_true',
+        help=
+        'Create metrics reporting the approximate number of bytes written per '
+        'bucket.')
 
   def _create_default_gcs_bucket(self):
     try:

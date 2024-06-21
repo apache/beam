@@ -1044,10 +1044,6 @@ def expand_pipeline(
   # Calling expand directly to avoid outer layer of nesting.
   return YamlTransform(
       pipeline_as_composite(pipeline_spec['pipeline']),
-      {
-          **yaml_provider.parse_providers(pipeline_spec.get('providers', [])),
-          **{
-              key: yaml_provider.as_provider_list(key, value)
-              for (key, value) in (providers or {}).items()
-          }
-      }).expand(beam.pvalue.PBegin(pipeline))
+      yaml_provider.merge_providers(
+          pipeline_spec.get('providers', []), providers or
+          {})).expand(beam.pvalue.PBegin(pipeline))

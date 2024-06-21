@@ -21,9 +21,6 @@ import com.google.auto.value.AutoValue;
 import com.solacesystems.jcsmp.BytesXMLMessage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import org.apache.beam.sdk.schemas.AutoValueSchema;
-import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
-import org.apache.beam.sdk.schemas.annotations.SchemaFieldNumber;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
@@ -77,14 +74,12 @@ public class Solace {
 
   /** Represents a Solace message destination (either a Topic or a Queue). */
   @AutoValue
-  @DefaultSchema(AutoValueSchema.class)
   public abstract static class Destination {
     /**
      * Gets the name of the destination.
      *
      * @return The destination name.
      */
-    @SchemaFieldNumber("0")
     public abstract String getName();
 
     /**
@@ -92,7 +87,6 @@ public class Solace {
      *
      * @return The destination type.
      */
-    @SchemaFieldNumber("1")
     public abstract DestinationType getType();
 
     static Builder builder() {
@@ -111,7 +105,6 @@ public class Solace {
 
   /** Represents a Solace message record with its associated metadata. */
   @AutoValue
-  @DefaultSchema(AutoValueSchema.class)
   public abstract static class Record {
     /**
      * Gets the unique identifier of the message, a string for an application-specific message
@@ -121,7 +114,6 @@ public class Solace {
      *
      * @return The message ID, or null if not available.
      */
-    @SchemaFieldNumber("0")
     public abstract @Nullable String getMessageId();
 
     /**
@@ -131,7 +123,6 @@ public class Solace {
      *
      * @return The message payload.
      */
-    @SchemaFieldNumber("1")
     public abstract ByteString getPayload();
     /**
      * Gets the destination (topic or queue) to which the message was sent.
@@ -140,7 +131,6 @@ public class Solace {
      *
      * @return The destination, or null if not available.
      */
-    @SchemaFieldNumber("2")
     public abstract @Nullable Destination getDestination();
 
     /**
@@ -152,7 +142,6 @@ public class Solace {
      *
      * @return The expiration timestamp.
      */
-    @SchemaFieldNumber("3")
     public abstract long getExpiration();
 
     /**
@@ -162,7 +151,6 @@ public class Solace {
      *
      * @return The message priority.
      */
-    @SchemaFieldNumber("4")
     public abstract int getPriority();
 
     /**
@@ -172,7 +160,6 @@ public class Solace {
      *
      * @return True if redelivered, false otherwise.
      */
-    @SchemaFieldNumber("5")
     public abstract boolean getRedelivered();
 
     /**
@@ -182,7 +169,6 @@ public class Solace {
      *
      * @return The reply-to destination, or null if not specified.
      */
-    @SchemaFieldNumber("6")
     public abstract @Nullable Destination getReplyTo();
 
     /**
@@ -193,7 +179,6 @@ public class Solace {
      *
      * @return The timestamp.
      */
-    @SchemaFieldNumber("7")
     public abstract long getReceiveTimestamp();
 
     /**
@@ -202,7 +187,6 @@ public class Solace {
      *
      * @return The sender timestamp, or null if not available.
      */
-    @SchemaFieldNumber("8")
     public abstract @Nullable Long getSenderTimestamp();
 
     /**
@@ -212,7 +196,6 @@ public class Solace {
      *
      * @return The sequence number, or null if not available.
      */
-    @SchemaFieldNumber("9")
     public abstract @Nullable Long getSequenceNumber();
 
     /**
@@ -223,7 +206,6 @@ public class Solace {
      *
      * @return The time-to-live value.
      */
-    @SchemaFieldNumber("10")
     public abstract long getTimeToLive();
 
     /**
@@ -239,7 +221,6 @@ public class Solace {
      *
      * @return The replication group message ID, or null if not present.
      */
-    @SchemaFieldNumber("11")
     public abstract @Nullable String getReplicationGroupMessageId();
     /**
      * Gets the attachment data of the message as a ByteString, if any. This might represent files
@@ -249,7 +230,6 @@ public class Solace {
      *
      * @return The attachment data, or an empty ByteString if no attachment is present.
      */
-    @SchemaFieldNumber("12")
     public abstract ByteString getAttachmentBytes();
 
     static Builder builder() {

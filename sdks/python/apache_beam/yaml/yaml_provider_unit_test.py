@@ -16,9 +16,15 @@
 #
 
 import logging
+import os
+import tempfile
 import unittest
 
+import yaml
+
+from apache_beam.yaml import yaml_provider
 from apache_beam.yaml.yaml_provider import YamlProviders
+from apache_beam.yaml.yaml_transform import SafeLineLoader
 
 
 class WindowIntoTest(unittest.TestCase):
@@ -61,6 +67,80 @@ class WindowIntoTest(unittest.TestCase):
   def test_parse_duration_with_missing_value(self):
     with self.assertRaises(ValueError):
       self.parse_duration('s', 'size')
+
+
+class ProviderParsingTest(unittest.TestCase):
+
+  INLINE_PROVIDER = {'type': 'TEST', 'name': 'INLINED'}
+  INCLUDED_PROVIDER = {'type': 'TEST', 'name': 'INCLUDED'}
+  EXTRA_PROVIDER = {'type': 'TEST', 'name': 'EXTRA'}
+
+  @classmethod
+  def setUpClass(cls):
+    cls.tempdir = tempfile.TemporaryDirectory()
+    cls.to_include = os.path.join(cls.tempdir.name, 'providers.yaml')
+    with open(cls.to_include, 'w') as fout:
+      yaml.dump([cls.INCLUDED_PROVIDER], fout)
+    cls.to_include_nested = os.path.join(
+        cls.tempdir.name, 'nested_providers.yaml')
+    with open(cls.to_include_nested, 'w') as fout:
+      yaml.dump([{'include': cls.to_include}, cls.EXTRA_PROVIDER], fout)
+
+  @classmethod
+  def tearDownClass(cls):
+    cls.tempdir.cleanup()
+
+  def test_include_file(self):
+    flattened = [
+        SafeLineLoader.strip_metadata(spec)
+        for spec in yaml_provider.flatten_included_provider_specs([
+            self.INLINE_PROVIDER,
+            {
+                'include': self.to_include
+            },
+        ])
+    ]
+
+    self.assertEqual([
+        self.INLINE_PROVIDER,
+        self.INCLUDED_PROVIDER,
+    ],
+                     flattened)
+
+  def test_include_url(self):
+    flattened = [
+        SafeLineLoader.strip_metadata(spec)
+        for spec in yaml_provider.flatten_included_provider_specs([
+            self.INLINE_PROVIDER,
+            {
+                'include': 'file:///' + self.to_include
+            },
+        ])
+    ]
+
+    self.assertEqual([
+        self.INLINE_PROVIDER,
+        self.INCLUDED_PROVIDER,
+    ],
+                     flattened)
+
+  def test_nested_include(self):
+    flattened = [
+        SafeLineLoader.strip_metadata(spec)
+        for spec in yaml_provider.flatten_included_provider_specs([
+            self.INLINE_PROVIDER,
+            {
+                'include': self.to_include_nested
+            },
+        ])
+    ]
+
+    self.assertEqual([
+        self.INLINE_PROVIDER,
+        self.INCLUDED_PROVIDER,
+        self.EXTRA_PROVIDER,
+    ],
+                     flattened)
 
 
 if __name__ == '__main__':

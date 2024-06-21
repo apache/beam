@@ -14,11 +14,12 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
+
 # ApproximateUnique
 
 {{< localstorage language language-py >}}
 
-{{< button-pydoc path="apache_beam.transforms.stat" class="ApproximateUnique" >}}
+{{< button-pydoc path="apache_beam.transforms.stats" class="ApproximateUnique" >}}
 
 ## Examples
 
@@ -27,3 +28,7 @@ limitations under the License.
 {{< /playground >}}
 
 ## Related transforms
+
+N/A
+
+{{< button-pydoc path="apache_beam.transforms.stats" class="ApproximateUnique" >}}
