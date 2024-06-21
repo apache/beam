@@ -181,7 +181,7 @@ public class SpannerAccessorTest {
             .setInstanceId(StaticValueProvider.of("test-instance"))
             .setDatabaseId(StaticValueProvider.of("test-db"))
             .setDatabaseRole(StaticValueProvider.of("test-role"))
-            .setSessionPoolOptions(sessionPoolOptions)
+            .setSessionPoolOptions(StaticValueProvider.of(sessionPoolOptions))
             .build();
 
     SpannerOptions options = SpannerAccessor.buildSpannerOptions(config1);
