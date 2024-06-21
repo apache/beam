@@ -1159,7 +1159,8 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
           can set this if you want to reuse the same model across multiple
           RunInference steps and don't want to reload it twice. Note that using
           the same tag for different models will lead to non-deterministic
-          results, so exercise caution when using this parameter.
+          results, so exercise caution when using this parameter. This only
+          impacts models which are already being shared across processes.
     """
     self._model_handler = model_handler
     self._inference_args = inference_args
