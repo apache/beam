@@ -18,11 +18,13 @@
 package org.apache.beam.sdk.io.gcp.spanner;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.google.cloud.spanner.DatabaseId;
+import com.google.cloud.spanner.SessionPoolOptions;
 import com.google.cloud.spanner.SpannerOptions;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
@@ -163,5 +165,28 @@ public class SpannerAccessorTest {
     assertEquals("project", options.getProjectId());
     assertEquals("test-role", options.getDatabaseRole());
     assertEquals(testCredential, options.getCredentials());
+  }
+
+  @Test
+  public void testBuildSpannerOptionsWithSessionPoolOptions() {
+
+    final SessionPoolOptions sessionPoolOptions =
+        SessionPoolOptions.newBuilder().setWarnIfInactiveTransactions().build();
+
+    SpannerConfig config1 =
+        SpannerConfig.create()
+            .toBuilder()
+            .setServiceFactory(serviceFactory)
+            .setProjectId(StaticValueProvider.of("project"))
+            .setInstanceId(StaticValueProvider.of("test-instance"))
+            .setDatabaseId(StaticValueProvider.of("test-db"))
+            .setDatabaseRole(StaticValueProvider.of("test-role"))
+            .setSessionPoolOptions(sessionPoolOptions)
+            .build();
+
+    SpannerOptions options = SpannerAccessor.buildSpannerOptions(config1);
+    assertEquals("project", options.getProjectId());
+    assertEquals("test-role", options.getDatabaseRole());
+    assertNotNull(options.getSessionPoolOptions());
   }
 }
