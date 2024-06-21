@@ -21,6 +21,8 @@ import com.google.auto.value.AutoValue;
 import com.solacesystems.jcsmp.BytesXMLMessage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import org.apache.beam.sdk.schemas.AutoValueSchema;
+import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
@@ -74,6 +76,7 @@ public class Solace {
 
   /** Represents a Solace message destination (either a Topic or a Queue). */
   @AutoValue
+  @DefaultSchema(AutoValueSchema.class)
   public abstract static class Destination {
     /**
      * Gets the name of the destination.
@@ -105,6 +108,7 @@ public class Solace {
 
   /** Represents a Solace message record with its associated metadata. */
   @AutoValue
+  @DefaultSchema(AutoValueSchema.class)
   public abstract static class Record {
     /**
      * Gets the unique identifier of the message, a string for an application-specific message
