@@ -36,7 +36,6 @@ import org.apache.beam.sdk.io.solace.broker.SessionService;
 import org.apache.beam.sdk.io.solace.broker.SessionServiceFactory;
 import org.apache.beam.sdk.io.solace.data.Solace;
 import org.apache.beam.sdk.io.solace.data.Solace.SolaceRecordMapper;
-import org.apache.beam.sdk.io.solace.data.SolaceRecordCoder;
 import org.apache.beam.sdk.io.solace.read.UnboundedSolaceSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
@@ -494,8 +493,6 @@ public class SolaceIO {
       SessionServiceFactory sessionServiceFactory = configuration.getSessionServiceFactory();
       sessionServiceFactory.setQueue(initializedQueue);
 
-      registerDefaultCoder(input.getPipeline());
-      // Infer the actual coder
       Coder<T> coder = inferCoder(input.getPipeline(), configuration.getTypeDescriptor());
 
       return input.apply(
@@ -509,12 +506,6 @@ public class SolaceIO {
                   coder,
                   configuration.getTimestampFn(),
                   configuration.getParseFn())));
-    }
-
-    private static void registerDefaultCoder(Pipeline pipeline) {
-      pipeline
-          .getCoderRegistry()
-          .registerCoderForType(TypeDescriptor.of(Solace.Record.class), SolaceRecordCoder.of());
     }
 
     @VisibleForTesting
