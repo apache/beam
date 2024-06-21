@@ -75,7 +75,7 @@ class PrismJobServer(job_server.SubprocessJobServer):
     super().__init__()
     prism_options = options.view_as(pipeline_options.PrismRunnerOptions)
     # Options flow:
-    # If the path is set, always download and unzip the provided path, 
+    # If the path is set, always download and unzip the provided path,
     # even if a binary is cached.
     self._path = prism_options.prism_location
     # Which version to use when constructing the prism download url.
@@ -142,8 +142,7 @@ class PrismJobServer(job_server.SubprocessJobServer):
     if opsys not in ['linux', 'windows', 'darwin']:
       raise ValueError(
           'Operating System "%s" unsupported for constructing a Prism release '
-          'binary URL.'
-          % (opsys))
+          'binary URL.' % (opsys))
 
     # platform.machine() will vary by system, but many names are compatible.
     arch = mach.lower()
@@ -155,11 +154,11 @@ class PrismJobServer(job_server.SubprocessJobServer):
     if arch not in ['amd64', 'arm64']:
       raise ValueError(
           'Machine archictecture "%s" unsupported for constructing a Prism '
-          'release binary URL.'
-          % (opsys))
-    return ('https://github.com/apache/beam/releases/download/'
-      '%s/apache_beam-%s-prism-%s-%s.zip' % (
-        root_tag, self._version, opsys, arch))
+          'release binary URL.' % (opsys))
+    return (
+      'https://github.com/apache/beam/releases/download/'
+      '%s/apache_beam-%s-prism-%s-%s.zip' % 
+      (root_tag, self._version, opsys, arch))
 
   def path_to_binary(self):
     if self._path:
@@ -180,8 +179,7 @@ class PrismJobServer(job_server.SubprocessJobServer):
         if not self._path.startswith(GITHUB_TAG_PREFIX):
           raise ValueError(
               'Provided --prism_location URL is not an Apache Beam Github '
-              'Release page URL or download URL: %s'
-              % (self._path))
+              'Release page URL or download URL: %s' % (self._path))
         # Get the root tag for this URL
         root_tag = os.path.basename(os.path.normpath(self._path))
         return self.construct_download_url(
@@ -192,8 +190,7 @@ class PrismJobServer(job_server.SubprocessJobServer):
         raise ValueError(
             'Unable to derive URL for dev versions "%s". Please provide an '
             'alternate version to derive the release URL with the '
-            '--prism_beam_version_override flag.'
-            % (self._version))
+            '--prism_beam_version_override flag.' % (self._version))
       return self.construct_download_url(
           self._version, platform.system(), platform.machine())
 

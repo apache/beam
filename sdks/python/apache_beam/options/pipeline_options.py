@@ -1713,8 +1713,7 @@ class PrismRunnerOptions(PipelineOptions):
   def _add_argparse_args(cls, parser):
     parser.add_argument(
         '--prism_location',
-        help=
-        'Path or URL to a prism binary, or zipped binary for the current '
+        help='Path or URL to a prism binary, or zipped binary for the current '
         'platform (Operating System and Architecture). May also be an Apache '
         'Beam Github Release page URL, with a matching beam_version_override '
         'set. This option overrides all others for finding a prism binary.')
