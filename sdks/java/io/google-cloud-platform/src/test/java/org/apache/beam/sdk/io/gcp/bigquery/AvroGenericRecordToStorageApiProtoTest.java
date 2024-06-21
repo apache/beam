@@ -271,9 +271,6 @@ public class AvroGenericRecordToStorageApiProtoTest {
   private static final Schema SCHEMA_WITH_MAP;
 
   static {
-    ImmutableMap<String, Object> defaultVal =
-        ImmutableMap.<String, Object>builder().put("key1", "value1").build();
-
     SCHEMA_WITH_MAP =
         SchemaBuilder.record("TestMap")
             .fields()
@@ -286,7 +283,7 @@ public class AvroGenericRecordToStorageApiProtoTest {
             .map()
             .values()
             .stringType()
-            .mapDefault(defaultVal)
+            .mapDefault(ImmutableMap.<String, Object>builder().put("key1", "value1").build())
             .endRecord();
   }
 
