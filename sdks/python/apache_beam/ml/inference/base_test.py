@@ -1592,6 +1592,45 @@ class RunInferenceBaseTest(unittest.TestCase):
         mh3.load_model, tag=tag3).acquire()
     self.assertEqual(8, model3.predict(10))
 
+  def test_run_inference_loads_different_models(self):
+    mh1 = FakeModelHandler(incrementing=True, min_batch_size=3)
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'start' >> beam.Create([1, 2, 3])
+      actual = (
+          pcoll
+          | 'ri1' >> base.RunInference(mh1)
+          | 'ri2' >> base.RunInference(mh1))
+      assert_that(actual, equal_to([1, 2, 3]), label='assert:inferences')
+
+  def test_run_inference_loads_different_models_multi_process_shared(self):
+    mh1 = FakeModelHandler(
+        incrementing=True, min_batch_size=3, multi_process_shared=True)
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'start' >> beam.Create([1, 2, 3])
+      actual = (
+          pcoll
+          | 'ri1' >> base.RunInference(mh1)
+          | 'ri2' >> base.RunInference(mh1))
+      assert_that(actual, equal_to([1, 2, 3]), label='assert:inferences')
+
+  def test_runinference_loads_same_model_with_identifier_multi_process_shared(
+      self):
+    mh1 = FakeModelHandler(
+        incrementing=True, min_batch_size=3, multi_process_shared=True)
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'start' >> beam.Create([1, 2, 3])
+      actual = (
+          pcoll
+          | 'ri1' >> base.RunInference(
+              mh1,
+              model_identifier='same_model_with_identifier_multi_process_shared'
+          )
+          | 'ri2' >> base.RunInference(
+              mh1,
+              model_identifier='same_model_with_identifier_multi_process_shared'
+          ))
+      assert_that(actual, equal_to([4, 5, 6]), label='assert:inferences')
+
   def test_run_inference_watch_file_pattern_side_input_label(self):
     pipeline = TestPipeline()
     # label of the WatchPattern transform.
