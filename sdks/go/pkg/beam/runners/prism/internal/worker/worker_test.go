@@ -18,8 +18,6 @@ package worker
 import (
 	"bytes"
 	"context"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
 	"github.com/google/go-cmp/cmp"
 	"net"
 	"sort"
@@ -27,7 +25,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/engine"
