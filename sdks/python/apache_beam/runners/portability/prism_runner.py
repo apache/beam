@@ -156,9 +156,9 @@ class PrismJobServer(job_server.SubprocessJobServer):
           'Machine archictecture "%s" unsupported for constructing a Prism '
           'release binary URL.' % (opsys))
     return (
-      'https://github.com/apache/beam/releases/download/'
-      '%s/apache_beam-%s-prism-%s-%s.zip' % 
-      (root_tag, self._version, opsys, arch))
+        'https://github.com/apache/beam/releases/download/'
+        '%s/apache_beam-%s-prism-%s-%s.zip' % 
+        (root_tag, self._version, opsys, arch))
 
   def path_to_binary(self):
     if self._path:
