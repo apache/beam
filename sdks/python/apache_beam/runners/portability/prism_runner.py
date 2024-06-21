@@ -157,7 +157,7 @@ class PrismJobServer(job_server.SubprocessJobServer):
           'release binary URL.' % (opsys))
     return (
         'https://github.com/apache/beam/releases/download/'
-        '%s/apache_beam-%s-prism-%s-%s.zip' % 
+        '%s/apache_beam-%s-prism-%s-%s.zip' %
         (root_tag, self._version, opsys, arch))
 
   def path_to_binary(self):
