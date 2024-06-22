@@ -21,6 +21,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.mock;
@@ -238,14 +239,14 @@ public class StreamingEngineClientTest {
     verify(streamFactory, times(2))
         .createDirectGetWorkStream(
             any(),
+            any(),
             eq(getWorkRequest(0, 0)),
             any(),
             any(),
             any(),
             any(),
             eq(noOpProcessWorkItemFn()));
-
-    verify(streamFactory, times(2)).createGetDataStream(any(), any());
+    verify(streamFactory, times(2)).createGetDataStream(anyString(), any(), any());
     verify(streamFactory, times(2)).createCommitWorkStream(any(), any());
   }
 

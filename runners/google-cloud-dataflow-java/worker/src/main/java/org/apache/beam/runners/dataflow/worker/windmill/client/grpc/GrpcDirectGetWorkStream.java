@@ -100,6 +100,7 @@ public final class GrpcDirectGetWorkStream
   private final ConcurrentMap<Long, WorkItemBuffer> workItemBuffers;
 
   private GrpcDirectGetWorkStream(
+      String streamId,
       Function<
               StreamObserver<StreamingGetWorkResponseChunk>,
               StreamObserver<StreamingGetWorkRequest>>
@@ -116,7 +117,12 @@ public final class GrpcDirectGetWorkStream
           keyedGetDataFn,
       WorkItemScheduler workItemScheduler) {
     super(
-        startGetWorkRpcFn, backoff, streamObserverFactory, streamRegistry, logEveryNStreamFailures);
+        startGetWorkRpcFn,
+        backoff,
+        streamObserverFactory,
+        streamRegistry,
+        logEveryNStreamFailures,
+        streamId);
     this.request = request;
     this.getWorkThrottleTimer = getWorkThrottleTimer;
     this.workItemScheduler = workItemScheduler;
@@ -132,6 +138,7 @@ public final class GrpcDirectGetWorkStream
   }
 
   public static GrpcDirectGetWorkStream create(
+      String streamId,
       Function<
               StreamObserver<StreamingGetWorkResponseChunk>,
               StreamObserver<StreamingGetWorkRequest>>
@@ -149,6 +156,7 @@ public final class GrpcDirectGetWorkStream
       WorkItemScheduler workItemScheduler) {
     GrpcDirectGetWorkStream getWorkStream =
         new GrpcDirectGetWorkStream(
+            "DirectGetWorkStream-" + streamId,
             startGetWorkRpcFn,
             request,
             backoff,
@@ -240,7 +248,7 @@ public final class GrpcDirectGetWorkStream
   public void appendSpecificHtml(PrintWriter writer) {
     // Number of buffers is same as distinct workers that sent work on this stream.
     writer.format(
-        "GetWorkStream: %d buffers, %s inflight budget allowed.",
+        "DirectGetWorkStream: %d buffers, %s inflight budget allowed.",
         workItemBuffers.size(), inFlightBudget.get());
   }
 

@@ -446,6 +446,7 @@ public final class StreamingEngineClient {
     // GetWorkBudgetDistributor.
     WindmillStreamSender windmillStreamSender =
         WindmillStreamSender.create(
+            connection.backendWorkerToken().orElseGet(() -> ""),
             connection.stub(),
             GetWorkRequest.newBuilder()
                 .setClientId(clientId)

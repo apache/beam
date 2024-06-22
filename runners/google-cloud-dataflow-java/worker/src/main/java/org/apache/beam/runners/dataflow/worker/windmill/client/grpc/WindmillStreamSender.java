@@ -67,6 +67,7 @@ public class WindmillStreamSender {
   private final StreamingEngineThrottleTimers streamingEngineThrottleTimers;
 
   private WindmillStreamSender(
+      String backendWorkerToken,
       CloudWindmillServiceV1Alpha1Stub stub,
       GetWorkRequest getWorkRequest,
       AtomicReference<GetWorkBudget> getWorkBudget,
@@ -89,19 +90,23 @@ public class WindmillStreamSender {
         Suppliers.memoize(
             () ->
                 streamingEngineStreamFactory.createGetDataStream(
-                    stub, streamingEngineThrottleTimers.getDataThrottleTimer()));
-
+                    backendWorkerToken,
+                    stub,
+                    streamingEngineThrottleTimers.getDataThrottleTimer()));
     this.commitWorkStream =
         Suppliers.memoize(
             () ->
                 streamingEngineStreamFactory.createDirectCommitWorkStream(
-                    stub, streamingEngineThrottleTimers.commitWorkThrottleTimer()));
+                    backendWorkerToken,
+                    stub,
+                    streamingEngineThrottleTimers.commitWorkThrottleTimer()));
     this.workCommitter =
         Suppliers.memoize(() -> workCommitterFactory.apply(commitWorkStream.get()));
     this.getWorkStream =
         Suppliers.memoize(
             () ->
                 streamingEngineStreamFactory.createDirectGetWorkStream(
+                    backendWorkerToken,
                     stub,
                     withRequestBudget(getWorkRequest, getWorkBudget.get()),
                     streamingEngineThrottleTimers.getWorkThrottleTimer(),
@@ -112,6 +117,7 @@ public class WindmillStreamSender {
   }
 
   public static WindmillStreamSender create(
+      String backendWorkerId,
       CloudWindmillServiceV1Alpha1Stub stub,
       GetWorkRequest getWorkRequest,
       GetWorkBudget getWorkBudget,
@@ -123,6 +129,7 @@ public class WindmillStreamSender {
               BiFunction<String, Windmill.KeyedGetDataRequest, Windmill.KeyedGetDataResponse>>
           keyedGetDataFn) {
     return new WindmillStreamSender(
+        backendWorkerId,
         stub,
         getWorkRequest,
         new AtomicReference<>(getWorkBudget),

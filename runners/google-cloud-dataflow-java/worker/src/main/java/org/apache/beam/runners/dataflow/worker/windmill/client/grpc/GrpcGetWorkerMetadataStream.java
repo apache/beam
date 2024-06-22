@@ -69,7 +69,8 @@ public final class GrpcGetWorkerMetadataStream
         backoff,
         streamObserverFactory,
         streamRegistry,
-        logEveryNStreamFailures);
+        logEveryNStreamFailures,
+        "GetWorkerMetadata");
     this.workerMetadataRequest = WorkerMetadataRequest.newBuilder().setHeader(jobHeader).build();
     this.metadataVersion = metadataVersion;
     this.getWorkerMetadataThrottleTimer = getWorkerMetadataThrottleTimer;

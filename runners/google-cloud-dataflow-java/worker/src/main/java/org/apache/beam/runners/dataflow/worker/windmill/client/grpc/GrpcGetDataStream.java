@@ -76,6 +76,7 @@ public final class GrpcGetDataStream
   private final Consumer<List<ComputationHeartbeatResponse>> processHeartbeatResponses;
 
   private GrpcGetDataStream(
+      String streamId,
       Function<StreamObserver<StreamingGetDataResponse>, StreamObserver<StreamingGetDataRequest>>
           startGetDataRpcFn,
       BackOff backoff,
@@ -89,7 +90,12 @@ public final class GrpcGetDataStream
       boolean sendKeyedGetDataRequests,
       Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses) {
     super(
-        startGetDataRpcFn, backoff, streamObserverFactory, streamRegistry, logEveryNStreamFailures);
+        startGetDataRpcFn,
+        backoff,
+        streamObserverFactory,
+        streamRegistry,
+        logEveryNStreamFailures,
+        streamId);
     this.idGenerator = idGenerator;
     this.getDataThrottleTimer = getDataThrottleTimer;
     this.jobHeader = jobHeader;
@@ -101,6 +107,7 @@ public final class GrpcGetDataStream
   }
 
   public static GrpcGetDataStream create(
+      String streamId,
       Function<StreamObserver<StreamingGetDataResponse>, StreamObserver<StreamingGetDataRequest>>
           startGetDataRpcFn,
       BackOff backoff,
@@ -115,6 +122,7 @@ public final class GrpcGetDataStream
       Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses) {
     GrpcGetDataStream getDataStream =
         new GrpcGetDataStream(
+            "GetDataStream" + streamId,
             startGetDataRpcFn,
             backoff,
             streamObserverFactory,

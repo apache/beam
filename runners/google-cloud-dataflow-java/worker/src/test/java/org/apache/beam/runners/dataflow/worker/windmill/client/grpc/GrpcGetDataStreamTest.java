@@ -99,6 +99,7 @@ public class GrpcGetDataStreamTest {
   private GrpcGetDataStream createGetDataStream(GetDataStreamTestStub testStub) {
     serviceRegistry.addService(testStub);
     return GrpcGetDataStream.create(
+        "streamId",
         responseObserver ->
             CloudWindmillServiceV1Alpha1Grpc.newStub(inProcessChannel)
                 .getDataStream(responseObserver),

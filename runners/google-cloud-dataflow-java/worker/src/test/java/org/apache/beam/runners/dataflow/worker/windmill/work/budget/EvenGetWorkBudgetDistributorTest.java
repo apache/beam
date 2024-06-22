@@ -244,6 +244,7 @@ public class EvenGetWorkBudgetDistributorTest {
 
   private WindmillStreamSender createWindmillStreamSender(GetWorkBudget getWorkBudget) {
     return WindmillStreamSender.create(
+        "backendWorkerId",
         stub,
         Windmill.GetWorkRequest.newBuilder()
             .setClientId(1L)

@@ -69,6 +69,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   protected static final int RPC_STREAM_CHUNK_SIZE = 2 << 20;
   private static final Logger LOG = LoggerFactory.getLogger(AbstractWindmillStream.class);
   protected final AtomicBoolean clientClosed;
+  private final String streamId;
   private final AtomicLong lastSendTimeMs;
   private final Executor executor;
   private final BackOff backoff;
@@ -91,13 +92,12 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
       BackOff backoff,
       StreamObserverFactory streamObserverFactory,
       Set<AbstractWindmillStream<?, ?>> streamRegistry,
-      int logEveryNStreamFailures) {
+      int logEveryNStreamFailures,
+      String streamId) {
+    this.streamId = streamId;
     this.executor =
         Executors.newSingleThreadExecutor(
-            new ThreadFactoryBuilder()
-                .setDaemon(true)
-                .setNameFormat("WindmillStream-" + getClass() + "-thread")
-                .build());
+            new ThreadFactoryBuilder().setDaemon(true).setNameFormat(streamId + "-thread").build());
     this.backoff = backoff;
     this.streamRegistry = streamRegistry;
     this.logEveryNStreamFailures = logEveryNStreamFailures;
@@ -222,6 +222,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   // rendering.
   public final void appendSummaryHtml(PrintWriter writer) {
     appendSpecificHtml(writer);
+    writer.format("id: %s; ", streamId);
     if (errorCount.get() > 0) {
       writer.format(
           ", %d errors, last error [ %s ] at [%s]",
