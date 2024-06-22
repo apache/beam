@@ -583,7 +583,6 @@ class TriggerPipelineTest(unittest.TestCase):
               accumulation_mode=AccumulationMode.DISCARDING)
           | beam.GroupByKey()
           | beam.Map(lambda x: x[1]))
-
       assert_that(results, equal_to([list(range(total_elements_in_trigger))]))
 
   def test_repeatedly_after_processing_time(self):
@@ -772,11 +771,11 @@ class TriggerPipelineTest(unittest.TestCase):
           | beam.GroupByKey()
           | beam.FlatMap(lambda x: x[1]))
 
-    # The trigger should fire twice. Once after 5 seconds, and once after 10.
-    # The firings should accumulate the output.
-    first_firing = [str(i) for i in elements if i <= 5]
-    second_firing = [str(i) for i in elements]
-    assert_that(records, equal_to(first_firing + second_firing))
+      # The trigger should fire twice. Once after 5 seconds, and once after 10.
+      # The firings should accumulate the output.
+      first_firing = [str(i) for i in elements if i <= 5]
+      second_firing = [str(i) for i in elements]
+      assert_that(records, equal_to(first_firing + second_firing))
 
   def test_on_pane_watermark_hold_no_pipeline_stall(self):
     """A regression test added for
