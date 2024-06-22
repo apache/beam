@@ -386,10 +386,16 @@ public abstract class StateInternalsTest {
         value.entries().readLater().read(),
         containsInAnyOrder(MapEntry.of("B", 2), MapEntry.of("D", 4), MapEntry.of("E", 5)));
 
+    // isEmpty
+    assertThat(value.isEmpty().read(), equalTo(false));
+
     // clear
     value.clear();
     assertThat(value.entries().read(), Matchers.emptyIterable());
     assertThat(underTest.state(NAMESPACE_1, STRING_MAP_ADDR), equalTo(value));
+
+    // isEmpty
+    assertThat(value.isEmpty().read(), equalTo(true));
   }
 
   @Test
