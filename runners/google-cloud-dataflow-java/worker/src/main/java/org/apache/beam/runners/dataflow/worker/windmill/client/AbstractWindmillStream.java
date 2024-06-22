@@ -162,7 +162,9 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
       } catch (StreamObserverCancelledException e) {
         if (isClosed()) {
           LOG.warn("Stream was closed during send.", e);
+          return;
         }
+        LOG.error("StreamObserver was unexpectedly cancelled.", e);
         throw e;
       }
     }

@@ -245,7 +245,7 @@ public class MetricTrackingWindmillServerStub {
       return getDataStream.requestKeyedData(computation, request);
     } catch (Exception e) {
       if (WindmillStreamClosedException.wasCauseOf(e)) {
-        LOG.error("Tried to fetch keyed data from a closed stream. Work has been cancelled", e);
+        LOG.debug("Tried to fetch keyed data from a closed stream. Work has been cancelled.", e);
         throw new WorkItemCancelledException(request.getShardingKey());
       }
       throw new RuntimeException(e);

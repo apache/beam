@@ -107,6 +107,7 @@ final class DirectStreamObserver<T> implements StreamObserver<T> {
         synchronized (lock) {
           messagesSinceReady = 0;
           outboundObserver.onNext(value);
+          return;
         }
       } catch (TimeoutException e) {
         // Check to see if the stream observer was terminated while we were waiting for the
