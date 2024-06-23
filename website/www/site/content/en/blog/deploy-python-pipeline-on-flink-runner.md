@@ -249,7 +249,7 @@ kubectl get all -l app=kafka-ui
 # replicaset.apps/kafka-ui-65dbbc98dc   1         1         1       35s
 {{< /highlight >}}
 
-We can use `kubectl port-forward` to connect to the *kafka-ui* server running in the minikube cluster on port 8080.
+We use `kubectl port-forward` to connect to the `kafka-ui` server running in the minikube cluster on port 8080.
 
 {{< highlight bash >}}
 kubectl port-forward svc/kafka-ui 8080
