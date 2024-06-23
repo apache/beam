@@ -230,7 +230,7 @@ spec:
               cpu: 500m
 ```
 
-The Kafka management app (*kafka-ui*) can be deployed using `kubectl create`.
+Deploy the Kafka management app (`kafka-ui`) using the `kubectl create` command.
 
 {{< highlight bash >}}
 kubectl create -f kafka/manifests/kafka-ui.yaml
