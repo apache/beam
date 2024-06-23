@@ -58,7 +58,7 @@ DOWNLOAD_URL=https://github.com/strimzi/strimzi-kafka-operator/releases/download
 curl -L -o kafka/manifests/strimzi-cluster-operator-$STRIMZI_VERSION.yaml \
   ${DOWNLOAD_URL}
 
-# update namespace from myproject to default
+# Update the namespace from myproject to default.
 sed -i 's/namespace: .*/namespace: default/' kafka/manifests/strimzi-cluster-operator-$STRIMZI_VERSION.yaml
 
 ## deploy strimzi cluster operator
