@@ -53,7 +53,7 @@ To deploy the operator, use the `kubectl create` command.
 ## Download and deploy the Strimzi operator.
 STRIMZI_VERSION="0.39.0"
 
-## (optional) if downloading a different version
+## Optional: If downloading a different version, include this step.
 DOWNLOAD_URL=https://github.com/strimzi/strimzi-kafka-operator/releases/download/$STRIMZI_VERSION/strimzi-cluster-operator-$STRIMZI_VERSION.yaml
 curl -L -o kafka/manifests/strimzi-cluster-operator-$STRIMZI_VERSION.yaml \
   ${DOWNLOAD_URL}
