@@ -175,7 +175,7 @@ kubectl get po,strimzipodsets.core.strimzi.io,svc -l app.kubernetes.io/instance=
 
 ### Deploy the Kafka UI
 
-[UI for Apache Kafka (kafka-ui)](https://docs.kafka-ui.provectus.io/overview/readme) is a free and open-source Kafka management application, and it is deployed as a Kubernetes Deployment. The Deployment is configured to have a single instance, and the Kafka cluster access details are specified as environment variables.
+[UI for Apache Kafka (`kafka-ui`)](https://docs.kafka-ui.provectus.io/overview/readme) is a free and open-source Kafka management application. It's deployed as a Kubernetes Deployment. The Deployment is configured to have a single instance, and the Kafka cluster access details are specified as environment variables.
 
 ```yaml
 # kafka/manifests/kafka-ui.yaml
