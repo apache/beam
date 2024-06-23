@@ -32,6 +32,8 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -265,6 +267,25 @@ public class AvroGenericRecordToStorageApiProtoTest {
           .items(BASE_SCHEMA)
           .noDefault()
           .endRecord();
+
+  private static final Schema SCHEMA_WITH_MAP;
+
+  static {
+    SCHEMA_WITH_MAP =
+        SchemaBuilder.record("TestMap")
+            .fields()
+            .name("nested")
+            .type()
+            .optional()
+            .type(BASE_SCHEMA)
+            .name("aMap")
+            .type()
+            .map()
+            .values()
+            .stringType()
+            .mapDefault(ImmutableMap.<String, Object>builder().put("key1", "value1").build())
+            .endRecord();
+  }
 
   private static GenericRecord baseRecord;
   private static GenericRecord logicalTypesRecord;
@@ -504,5 +525,46 @@ public class AvroGenericRecordToStorageApiProtoTest {
             descriptor, logicalTypesRecord, null, -1);
     assertEquals(7, msg.getAllFields().size());
     assertBaseRecord(msg, logicalTypesProtoExpectedFields);
+  }
+
+  @Test
+  public void testMessageFromGenericRecordWithMap() throws Exception {
+    // Create a GenericRecord with a map field
+    Map<String, String> mapData = new HashMap<>();
+    mapData.put("key1", "value1");
+    mapData.put("key2", "value2");
+    GenericRecord recordWithMap =
+        new GenericRecordBuilder(SCHEMA_WITH_MAP)
+            .set("nested", baseRecord)
+            .set("aMap", mapData)
+            .build();
+
+    Descriptors.Descriptor descriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(
+            AvroGenericRecordToStorageApiProto.protoTableSchemaFromAvroSchema(SCHEMA_WITH_MAP),
+            true,
+            false);
+    DynamicMessage msg =
+        AvroGenericRecordToStorageApiProto.messageFromGenericRecord(
+            descriptor, recordWithMap, null, -1);
+
+    assertEquals(2, msg.getAllFields().size());
+
+    Map<String, Descriptors.FieldDescriptor> fieldDescriptors =
+        descriptor.getFields().stream()
+            .collect(Collectors.toMap(Descriptors.FieldDescriptor::getName, Functions.identity()));
+    DynamicMessage nestedMsg = (DynamicMessage) msg.getField(fieldDescriptors.get("nested"));
+    assertBaseRecord(nestedMsg, baseProtoExpectedFields);
+
+    // Assert the map field
+    List<DynamicMessage> list = (List<DynamicMessage>) msg.getField(fieldDescriptors.get("amap"));
+    // Convert the list of DynamicMessages back to a map
+    Map<String, String> actualMap = new HashMap<>();
+    for (DynamicMessage entry : list) {
+      String key = (String) entry.getField(entry.getDescriptorForType().findFieldByName("key"));
+      String value = (String) entry.getField(entry.getDescriptorForType().findFieldByName("value"));
+      actualMap.put(key, value);
+    }
+    assertEquals(mapData, actualMap);
   }
 }
