@@ -259,16 +259,16 @@ kubectl port-forward svc/kafka-ui 8080
 src="/images/blog/deploy-python-pipeline-on-flink-runner/kafka-ui.png"
 alt="Kafka UI">
 
-## Develop Stream Processing App
+## Develop a stream processing app
 
-We develop an Apache Beam pipeline as a Python package and add it to a custom Docker image, which is used to execute Python user code (*SDK Harness*). We also build another custom Docker image, which adds the Java SDK of Apache Beam to the official Flink base image. This image is used for deploying a Flink cluster as well as for executing Java user code of the *Kafka Connector I/O*.
+We develop an Apache Beam pipeline as a Python package and add it to a custom Docker image, which is used to execute Python user code (*SDK harness*). We also build another custom Docker image, which adds the Java SDK of Apache Beam to the official Flink base image. This image is used to deploy a Flink cluster and to execute Java user code of the *Kafka Connector I/O*.
 
 
-### Beam Pipeline Code
+### Beam pipeline code
 
-The application begins with reading text messages from an input Kafka topic, followed by extracting words by splitting the messages (*ReadWordsFromKafka*). Next, the elements (words) are added to a fixed time window of 5 seconds and their average length is calculated (*CalculateAvgWordLen*). Finally, we include the window start/end timestamps and send the updated element to an output Kafka topic (*WriteWordLenToKafka*).
+The application first reads text messages from an input Kafka topic. Next, it extracts words by splitting the messages (*ReadWordsFromKafka*). Then, the elements (words) are added to a fixed time window of 5 seconds, and their average length is calculated (*CalculateAvgWordLen*). Finally, we include the window start and end timestamps, and send the updated element to an output Kafka topic (*WriteWordLenToKafka*).
 
-Note that we create a custom *Java IO Expansion Service* (`get_expansion_service`) and add it to the *ReadFromKafka* and *WriteToKafka* transforms of the *Kafka Connector I/O*. Although the *Kafka I/O* provides a function to create that service, it did not work for me (or I do not understand how to make use of it yet). Instead, I ended up creating a custom service as illustrated in [Building Big Data Pipelines with Apache Beam by Jan Lukavský](https://www.packtpub.com/product/building-big-data-pipelines-with-apache-beam/9781800564930). Note further that the expansion service Jar file (*beam-sdks-java-io-expansion-service.jar*) should exist in the Kubernetes [*job*](https://kubernetes.io/docs/concepts/workloads/controllers/job/) that executes the pipeline while the Java SDK (*/opt/apache/beam/boot*) should exist in the runner worker.
+We create a custom *Java IO Expansion Service* (`get_expansion_service`) and add it to the *ReadFromKafka* and *WriteToKafka* transforms of the *Kafka Connector I/O*. Although the *Kafka I/O* provides a function to create that service, it did not work for me (or I do not understand how to make use of it yet). Instead, I created a custom service, as illustrated in [Building Big Data Pipelines with Apache Beam by Jan Lukavský](https://www.packtpub.com/product/building-big-data-pipelines-with-apache-beam/9781800564930). The expansion service Jar file (*beam-sdks-java-io-expansion-service.jar*) must exist in the Kubernetes [*job*](https://kubernetes.io/docs/concepts/workloads/controllers/job/) that executes the pipeline, while the Java SDK (*/opt/apache/beam/boot*) must exist in the runner worker.
 
 {{< highlight py >}}
 # beam/word_len/word_len.py
@@ -466,8 +466,8 @@ def run(argv=None, save_main_session=True):
     print(known_args)
     print(pipeline_args)
 
-    # We use the save_main_session option because one or more DoFn's in this
-    # workflow rely on global context (e.g., a module imported at module level).
+    # We use the save_main_session option because one or more DoFn elements in this
+    # workflow rely on global context. That is, a module imported at the module level.
     pipeline_options = PipelineOptions(pipeline_args)
     pipeline_options.view_as(SetupOptions).save_main_session = save_main_session
 
@@ -502,7 +502,7 @@ if __name__ == "__main__":
     run()
 {{< /highlight >}}
 
-The pipeline script is added to a Python package under a folder named *word_len*, and a simple module named *run* is created as it should be executed as a module (i.e. `python -m ...`). (I had an error if I execute the pipeline as a script.) Note that this way of packaging is for demonstration only and see [this document](https://beam.apache.org/documentation/sdks/python-pipeline-dependencies/) for a recommended way of packaging a pipeline.
+The pipeline script is added to a Python package under a folder named `word_len`. A simple module named `run` is created, because it is executed as a module, for example, `python -m ...`. When I ran the pipeline as a script, I encountered an error. This packaging method is for demonstration only. For a recommended way of packaging a pipeline, see [Managing Python Pipeline Dependencies](https://beam.apache.org/documentation/sdks/python-pipeline-dependencies/) .
 
 {{< highlight py >}}
 # beam/word_len/run.py
@@ -511,7 +511,7 @@ from . import *
 run()
 {{< /highlight >}}
 
-Overall, the pipeline package is structured as shown below.
+Overall, the pipeline package uses the following structure.
 
 {{< highlight bash >}}
 tree beam/word_len
@@ -522,9 +522,9 @@ beam/word_len
 └── word_len.py
 {{< /highlight >}}
 
-### Build Docker Images
+### Build Docker images
 
-As mentioned earlier, we build a custom Docker image (*beam-python-example:1.16*) that is used for deploying a Flink cluster as well as for executing Java user code of the *Kafka Connector I/O*.
+As discussed previously, we build a custom Docker image (*beam-python-example:1.16*) and use it to deploy a Flink cluster and to run the Java user code of the *Kafka Connector I/O*.
 
 ```Dockerfile
 # beam/Dockerfile
@@ -533,7 +533,7 @@ FROM flink:1.16
 COPY --from=apache/beam_java11_sdk:2.56.0 /opt/apache/beam/ /opt/apache/beam/
 ```
 
-We also build another custom Docker image (*beam-python-harness:2.56.0*) to run Python user code (*SDK Harness*). From the Python SDK Docker image, it first installs JDK Development Kit (JDK) and downloads the *Java IO Expansion Service* Jar file. Then, Beam pipeline packages are copied to the */app* folder, and it ends up adding the app folder into the *PYTHONPATH* environment variable, which makes the packages to be searchable.
+We also build a custom Docker image (*beam-python-harness:2.56.0*) to run Python user code (*SDK harness*). From the Python SDK Docker image, it first installs the Java Development Kit (JDK) and downloads the *Java IO Expansion Service* Jar file. Then, the Beam pipeline packages are copied to the */app* folder. The app folder is added to the *PYTHONPATH* environment variable, which makes the packages searchable.
 
 ```Dockerfile
 # beam/Dockerfile-python-harness
@@ -555,7 +555,7 @@ COPY word_count /app/word_count
 ENV PYTHONPATH="$PYTHONPATH:/app"
 ```
 
-As the custom images should be accessible in the minikube cluster, we should point the terminal's docker-cli to the minikube's Docker engine. Then, the images can be built as usual using `docker build`.
+Because the custom images need to be accessible in the minikube cluster, we point the terminal's `docker-cli` to the minikube's Docker engine. Then, we can build the images using the `docker build` command.
 
 {{< highlight bash >}}
 eval $(minikube docker-env)
@@ -563,13 +563,13 @@ docker build -t beam-python-example:1.16 beam/
 docker build -t beam-python-harness:2.56.0 -f beam/Dockerfile-python-harness beam/
 {{< /highlight >}}
 
-## Deploy Stream Processing App
+## Deploy the stream processing app
 
-The Beam pipeline is executed on a [Flink session cluster](https://nightlies.apache.org/flink/flink-kubernetes-operator-docs-main/docs/custom-resource/overview/#session-cluster-deployments), which is deployed via the Flink Kubernetes Operator. Note that the [application deployment mode](https://nightlies.apache.org/flink/flink-kubernetes-operator-docs-main/docs/custom-resource/overview/#application-deployments) where the Beam pipeline is deployed as a Flink job doesn't seem to work (or I don't understand how to do so yet) due to either job submission timeout error or failing to upload the job artifact. After the pipeline is deployed, we check the output of the application by sending text messages to the input Kafka topic.
+The Beam pipeline is executed on a [Flink session cluster](https://nightlies.apache.org/flink/flink-kubernetes-operator-docs-main/docs/custom-resource/overview/#session-cluster-deployments), which is deployed by the Flink Kubernetes Operator. The [application deployment mode](https://nightlies.apache.org/flink/flink-kubernetes-operator-docs-main/docs/custom-resource/overview/#application-deployments) where the Beam pipeline is deployed as a Flink job doesn't seem to work (or I don't understand how to do so yet) due to either a job submission timeout error or a failure to upload the job artifact. After the pipeline is deployed, we check the output of the application by sending text messages to the input Kafka topic.
 
-### Deploy Flink Kubernetes Operator
+### Deploy the Flink Kubernetes Operator
 
-We first need to install the [certificate manager](https://github.com/cert-manager/cert-manager) on the minikube cluster to enable adding the webhook component. Then, the operator can be installed using a Helm chart, and the version 1.8.0 is installed in the post.
+First, to enable adding the webhook component, install the [certificate manager](https://github.com/cert-manager/cert-manager) on the minikube cluster. Then, use a Helm chart to install the operator. The version 1.8.0 is installed in the post.
 
 {{< highlight bash >}}
 kubectl create -f https://github.com/jetstack/cert-manager/releases/download/v1.8.2/cert-manager.yaml
@@ -587,9 +587,9 @@ helm list
 # flink-kubernetes-operator       default         1               2024-06-03 21:37:45.579302452 +1000 AEST        deployed        flink-kubernetes-operator-1.8.0 1.8.0
 {{< /highlight >}}
 
-### Deploy Beam Pipeline
+### Deploy the Beam pipeline
 
-First, we create a Flink session cluster. In the manifest file, we configure common properties such as the Docker image, Flink version, cluster configuration and pod template. These properties are applied to the Flink job manager and task manager, and only the replica and resource are specified additionally to them. Note that we add a sidecar container to the task manager and this *SDK Harness* container is configured to execute Python user code - see the job configuration below.
+First, create a Flink session cluster. In the manifest file, configure common properties, such as the Docker image, Flink version, cluster configuration, and pod template. These properties are applied to the Flink job manager and task manager. In addition, specify the replica and resource. We add a sidecar container to the task manager, and this *SDK harness* container is configured to execute Python user code - see the following job configuration.
 
 ```yaml
 # beam/word_len_cluster.yml
@@ -634,7 +634,7 @@ spec:
                 name: harness-port
 ```
 
-The pipeline is deployed using a Kubernetes job, and the custom *SDK Harness* image is used to execute the pipeline as a module. The first two arguments are application specific arguments and the rest are arguments for pipeline options. The pipeline arguments are self-explanatory, or you can check available options in the [pipeline options source](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/options/pipeline_options.py) and [Flink Runner document](https://beam.apache.org/documentation/runners/flink/). Note that, to execute Python user code in the sidecar container, we set the environment type to *EXTERNAL* and environment config to *localhost:50000*.
+The pipeline is deployed using a Kubernetes job, and the custom *SDK harness* image is used to execute the pipeline as a module. The first two arguments are application-specific. The rest of the arguments are for pipeline options. For more information about the pipeline arguments, see the [pipeline options source](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/options/pipeline_options.py) and [Flink Runner document](https://beam.apache.org/documentation/runners/flink/). To execute Python user code in the sidecar container, we set the environment type to *EXTERNAL* and the environment config to *localhost:50000*.
 
 ```yaml
 # beam/word_len_job.yml
@@ -669,7 +669,12 @@ spec:
       restartPolicy: Never
 ```
 
-The session cluster and job can be deployed using `kubectl create`. The session cluster is created by the *FlinkDeployment* custom resource, and it manages the job manager deployment, task manager pod and associated services. When we check the log of the job's pod, we see that it starts the *Job Service* after downloading the Jar file, uploads the pipeline artifact, submit the pipeline as a Flink job and continuously monitors the job status.
+Deploy the session cluster and job using the `kubectl create` command. The session cluster is created by the *FlinkDeployment* custom resource, and it manages the job manager deployment, task manager pod, and associated services. When we check the log of the job's pod, we see that it does the following tasks:
+
+- starts the *Job Service* after downloading the Jar file
+- uploads the pipeline artifact
+- submits the pipeline as a Flink job
+- and continuously monitors the job status
 
 {{< highlight bash >}}
 kubectl create -f beam/word_len_cluster.yml
@@ -708,7 +713,7 @@ kubectl logs word-len-job-p5rph -f
 # ...
 {{< /highlight >}}
 
-After deployment is complete, we can see the following Flink session cluster and job related resources.
+After the deployment completes, we can see the following Flink session cluster and job related resources.
 
 {{< highlight bash >}}
 kubectl get all -l app=word-len-cluster
@@ -734,7 +739,7 @@ kubectl get all -l app=word-len-job
 # job.batch/word-len-job   0/1           5m24s      5m24s
 {{< /highlight >}}
 
-The Flink web UI can be accessed using `kubectl port-forward` on port 8081. In the job graph, we see there are two tasks where the first task is performed until adding word elements into a fixed time window and the second one is up to sending the average word length records to the output topic.
+You can access the Flink web UI using the `kubectl port-forward` command on port 8081. The job graph shows two tasks. The first task is performed until adding word elements into a fixed time window. The second task sends the average word length records to the output topic.
 
 {{< highlight bash >}}
 kubectl port-forward svc/flink-word-len-rest 8081
@@ -744,15 +749,15 @@ kubectl port-forward svc/flink-word-len-rest 8081
 src="/images/blog/deploy-python-pipeline-on-flink-runner/flink-ui.png"
 alt="Flink UI">
 
-The *Kafka I/O* automatically creates a topic if it doesn't exist, and we can see the input topic is created on *kafka-ui*.
+The *Kafka I/O* automatically creates a topic if it doesn't exist, and we can see the input topic is created on `kafka-ui`.
 
 <img class="center-block"
 src="/images/blog/deploy-python-pipeline-on-flink-runner/kafka-topics-1.png"
 alt="Kafka Input Topic">
 
-### Kafka Producer
+### Kafka producer
 
-A simple Python Kafka producer is created to check the output of the application. The producer app sends random text from the [Faker](https://faker.readthedocs.io/en/master/) package to the input Kafka topic every 1 second by default.
+A simple Python Kafka producer is created to check the output of the application. By default, the producer app sends random text from the [Faker](https://faker.readthedocs.io/en/master/) package to the input Kafka topic every one second.
 
 {{< highlight py >}}
 # kafka/client/producer.py
@@ -809,7 +814,7 @@ if __name__ == "__main__":
         time.sleep(int(os.getenv("DELAY_SECONDS", "1")))
 {{< /highlight >}}
 
-The Kafka bootstrap server can be exposed on port 29092 using `kubectl port-forward` and the producer app can be started by executing the Python script.
+Expose the Kafka bootstrap server on port 29092 using the `kubectl port-forward` command. Execute the Python script to start the producer app.
 
 {{< highlight bash >}}
 kubectl port-forward svc/demo-cluster-kafka-external-bootstrap 29092
@@ -817,36 +822,36 @@ kubectl port-forward svc/demo-cluster-kafka-external-bootstrap 29092
 python kafka/client/producer.py
 {{< /highlight >}}
 
-We can see the output topic (*output-topic-beam*) is created on *kafka-ui*.
+We can see the output topic (`output-topic-beam`) is created on `kafka-ui`.
 
 <img class="center-block"
 src="/images/blog/deploy-python-pipeline-on-flink-runner/kafka-topics-2.png"
 alt="Kafka Output Topic">
 
-Also, we can check the output messages are created as expected in the *Topics* tab.
+Also, we can check that the output messages are created as expected in the **Topics** tab.
 
 <img class="center-block"
 src="/images/blog/deploy-python-pipeline-on-flink-runner/output-topic-messages.png"
 alt="Kafka Output Topic Messages">
 
-# Delete Resources
+# Delete resources
 
-The Kubernetes resources and minikube cluster can be deleted as shown below.
+Delete the Kubernetes resources and the minikube cluster using the following steps.
 
 {{< highlight bash >}}
-## delete flink operator and related resoruces
+## Delete the Flink Operator and related resources.
 kubectl delete -f beam/word_len_cluster.yml
 kubectl delete -f beam/word_len_job.yml
 helm uninstall flink-kubernetes-operator
 helm repo remove flink-operator-repo
 kubectl delete -f https://github.com/jetstack/cert-manager/releases/download/v1.8.2/cert-manager.yaml
 
-## delete kafka cluster and related resources
+## Delete the Kafka cluster and related resources.
 STRIMZI_VERSION="0.39.0"
 kubectl delete -f kafka/manifests/kafka-cluster.yaml
 kubectl delete -f kafka/manifests/kafka-ui.yaml
 kubectl delete -f kafka/manifests/strimzi-cluster-operator-$STRIMZI_VERSION.yaml
 
-## delete minikube
+## Delete the minikube.
 minikube delete
 {{< /highlight >}}
