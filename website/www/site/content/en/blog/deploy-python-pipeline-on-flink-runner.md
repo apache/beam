@@ -173,7 +173,7 @@ kubectl get po,strimzipodsets.core.strimzi.io,svc -l app.kubernetes.io/instance=
 # service/demo-cluster-zookeeper-nodes            ClusterIP   None             <none>        2181/TCP,2888/TCP,3888/TCP            2m20s
 {{< /highlight >}}
 
-### Deploy Kafka UI
+### Deploy the Kafka UI
 
 [UI for Apache Kafka (kafka-ui)](https://docs.kafka-ui.provectus.io/overview/readme) is a free and open-source Kafka management application, and it is deployed as a Kubernetes Deployment. The Deployment is configured to have a single instance, and the Kafka cluster access details are specified as environment variables.
 
