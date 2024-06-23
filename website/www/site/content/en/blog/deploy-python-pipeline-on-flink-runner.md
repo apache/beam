@@ -140,7 +140,7 @@ spec:
       deleteClaim: true
 ```
 
-The Kafka cluster can be deployed using `kubectl create`.
+Deploy he Kafka cluster using the `kubectl create` command.
 
 {{< highlight bash >}}
 kubectl create -f kafka/manifests/kafka-cluster.yaml
