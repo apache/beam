@@ -61,7 +61,7 @@ curl -L -o kafka/manifests/strimzi-cluster-operator-$STRIMZI_VERSION.yaml \
 # Update the namespace from myproject to default.
 sed -i 's/namespace: .*/namespace: default/' kafka/manifests/strimzi-cluster-operator-$STRIMZI_VERSION.yaml
 
-## deploy strimzi cluster operator
+## Deploy the Strimzi cluster operator.
 kubectl create -f kafka/manifests/strimzi-cluster-operator-$STRIMZI_VERSION.yaml
 {{< /highlight >}}
 
