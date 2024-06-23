@@ -43,7 +43,7 @@ minikube start --cpus='max' --memory=20480 \
   --addons=metrics-server --kubernetes-version=v1.25.3
 {{< /highlight >}}
 
-### Deploy Strimzi Operator
+### Deploy the Strimzi operator
 
 The [**GitHub repository**](https://github.com/jaehyeon-kim/beam-demos/tree/master/beam-deploy) keeps manifest files that can be used to deploy the *Strimzi Operator*, Kafka cluster and Kafka management app. If you want to download a different version of the operator, you can download the relevant manifest file by specifying the desired version. By default, the manifest file assumes that the resources are deployed in the *myproject* namespace. As we deploy them in the *default* namespace, however, we need to change the resource namespace, and it is performed using [sed](https://www.gnu.org/software/sed/manual/sed.html).
 
