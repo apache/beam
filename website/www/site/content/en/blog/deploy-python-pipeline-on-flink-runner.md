@@ -1,5 +1,5 @@
 ---
-title: "Deploy Python Pipelines on Kubernetes via the Flink Runner"
+title: "Deploy Python pipelines on Kubernetes using the Flink runner"
 date: "2024-06-20T13:56:15+10:00"
 categories:
   - blog
