@@ -36,7 +36,7 @@ We develop an Apache Beam pipeline using the Python SDK and deploy it on an Apac
 
 ## Set up the Kafka cluster
 
-An Apache Kafka cluster is deployed using the [Strimzi Operator](https://strimzi.io/) on a [minikube](https://minikube.sigs.k8s.io/docs/) cluster. We install Strimzi version 0.39.0 and Kubernetes version 1.25.3. Once the [minikube CLI](https://minikube.sigs.k8s.io/docs/start/) and [Docker](https://www.docker.com/) are installed, a minikube cluster can be created by specifying the desired Kubernetes version. The source of this post can be found in the [**GitHub repository**](https://github.com/jaehyeon-kim/beam-demos/tree/master/beam-deploy).
+An Apache Kafka cluster is deployed using the [Strimzi Operator](https://strimzi.io/) on a [minikube](https://minikube.sigs.k8s.io/docs/) cluster. We install Strimzi version 0.39.0 and Kubernetes version 1.25.3. After the [minikube CLI](https://minikube.sigs.k8s.io/docs/start/) and [Docker](https://www.docker.com/) are installed, you can create a minikube cluster by specifying the desired Kubernetes version. You can find the source code for this blog post can be found in the [**GitHub repository**](https://github.com/jaehyeon-kim/beam-demos/tree/master/beam-deploy).
 
 {{< highlight bash >}}
 minikube start --cpus='max' --memory=20480 \
