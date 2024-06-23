@@ -146,7 +146,7 @@ Deploy he Kafka cluster using the `kubectl create` command.
 kubectl create -f kafka/manifests/kafka-cluster.yaml
 {{< /highlight >}}
 
-The Kafka and Zookeeper nodes are managed by the [*StrimziPodSet*](https://strimzi.io/docs/operators/latest/configuring.html#type-StrimziPodSet-reference) custom resource. It also creates multiple Kubernetes [services](https://kubernetes.io/docs/concepts/services-networking/service/), and we use the following services in this series.
+The Kafka and Zookeeper nodes are managed by the [*StrimziPodSet*](https://strimzi.io/docs/operators/latest/configuring.html#type-StrimziPodSet-reference) custom resource. It also creates multiple Kubernetes [services](https://kubernetes.io/docs/concepts/services-networking/service/). In this series, we use the following services:
 
 - communication within the Kubernetes cluster
   - *demo-cluster-kafka-bootstrap* - to access Kafka brokers from the client and management apps
