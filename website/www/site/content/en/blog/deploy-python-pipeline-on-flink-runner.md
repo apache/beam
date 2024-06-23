@@ -20,7 +20,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Deploy Python Pipelines on Kubernetes via the Flink Runner
+# Deploy Python pipelines on Kubernetes using the Flink runner
 
 [Flink Kubernetes Operator](https://nightlies.apache.org/flink/flink-kubernetes-operator-docs-main/docs/concepts/overview/) acts as a control plane to manage the complete deployment lifecycle of Apache Flink applications. With the operator, we can simplify deployment and management of Apache Beam pipelines.
 
