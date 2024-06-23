@@ -50,7 +50,7 @@ The [**GitHub repository**](https://github.com/jaehyeon-kim/beam-demos/tree/mast
 To deploy the operator, use the `kubectl create` command.
 
 {{< highlight bash >}}
-## download and deploy strimzi oeprator
+## Download and deploy the Strimzi operator.
 STRIMZI_VERSION="0.39.0"
 
 ## (optional) if downloading a different version
