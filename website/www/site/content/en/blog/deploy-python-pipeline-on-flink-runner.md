@@ -79,7 +79,7 @@ kubectl get deploy,rs,po
 # pod/strimzi-cluster-operator-8d6d4795c-94t8c   1/1     Running   0          2m49s
 {{< /highlight >}}
 
-### Deploy Kafka Cluster
+### Deploy the Kafka cluster
 
 We deploy a Kafka cluster with a single broker and Zookeeper node. It has both internal and external listeners on port 9092 and 29092 respectively. Note that the external listener will be used to access the Kafka cluster outside the minikube cluster. Also, the cluster is configured to allow automatic creation of topics (*auto.create.topics.enable: "true"*) and the default number of partitions is set to 3 (*num.partitions: 3*).
 
