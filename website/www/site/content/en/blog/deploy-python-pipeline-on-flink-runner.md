@@ -65,7 +65,7 @@ sed -i 's/namespace: .*/namespace: default/' kafka/manifests/strimzi-cluster-ope
 kubectl create -f kafka/manifests/strimzi-cluster-operator-$STRIMZI_VERSION.yaml
 {{< /highlight >}}
 
-We can check the Strimzi Operator runs as a Kubernetes [deployment](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/).
+Verify that the Strimzi Operator runs as a Kubernetes [deployment](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/).
 
 {{< highlight bash >}}
 kubectl get deploy,rs,po
