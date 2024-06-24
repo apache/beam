@@ -269,6 +269,7 @@ public class AvroGenericRecordToStorageApiProtoTest {
           .endRecord();
 
   private static final Schema SCHEMA_WITH_MAP;
+  private static final Schema SCHEMA_WITH_NULLABLE_ARRAY;
 
   static {
     SCHEMA_WITH_MAP =
@@ -284,6 +285,17 @@ public class AvroGenericRecordToStorageApiProtoTest {
             .values()
             .stringType()
             .mapDefault(ImmutableMap.<String, Object>builder().put("key1", "value1").build())
+            .endRecord();
+    SCHEMA_WITH_NULLABLE_ARRAY =
+        SchemaBuilder.record("TestNullableArray")
+            .fields()
+            .name("aNullableArray")
+            .type()
+            .nullable()
+            .array()
+            .items()
+            .stringType()
+            .noDefault()
             .endRecord();
   }
 
@@ -566,5 +578,32 @@ public class AvroGenericRecordToStorageApiProtoTest {
       actualMap.put(key, value);
     }
     assertEquals(mapData, actualMap);
+  }
+
+  @Test
+  public void testMessageFromGenericRecordWithArray() throws Exception {
+    ImmutableList<String> aList = ImmutableList.of("one", "two", "red", "blue");
+    GenericRecord recordWithMap =
+        new GenericRecordBuilder(SCHEMA_WITH_NULLABLE_ARRAY)
+            .set("aNullableArray", aList)
+            .build();
+
+    Descriptors.Descriptor descriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(
+            AvroGenericRecordToStorageApiProto.protoTableSchemaFromAvroSchema(SCHEMA_WITH_NULLABLE_ARRAY),
+            true,
+            false);
+    DynamicMessage msg =
+        AvroGenericRecordToStorageApiProto.messageFromGenericRecord(
+            descriptor, recordWithMap, null, -1);
+
+    assertEquals(1, msg.getAllFields().size());
+
+    Map<String, Descriptors.FieldDescriptor> fieldDescriptors =
+        descriptor.getFields().stream()
+            .collect(Collectors.toMap(Descriptors.FieldDescriptor::getName, Functions.identity()));
+
+    List<String> list = (List<String>) msg.getField(fieldDescriptors.get("anullablearray"));
+    assertEquals(aList, list);
   }
 }

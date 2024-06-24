@@ -277,6 +277,7 @@ public class AvroGenericRecordToStorageApiProto {
         builder =
             builder
                 .setType(unionFieldSchema.getType())
+                .setMode(unionFieldSchema.getMode())
                 .addAllFields(unionFieldSchema.getFieldsList());
         break;
       default:
