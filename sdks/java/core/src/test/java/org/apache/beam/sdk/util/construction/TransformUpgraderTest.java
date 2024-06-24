@@ -41,7 +41,7 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
-import org.apache.beam.sdk.schemas.transforms.SchemaTransformTranslation.SchemaTransformPayloadTranslator;
+import org.apache.beam.sdk.schemas.transforms.SchemaTransformTranslation;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -178,7 +178,7 @@ public class TransformUpgraderTest {
 
     @Override
     public SchemaTransform from(Row configuration) {
-      return new TestSchemaTransform();
+      return new TestSchemaTransform().register(configuration, identifier());
     }
   }
 
@@ -187,19 +187,6 @@ public class TransformUpgraderTest {
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
       return input;
-    }
-  }
-
-  static class TestSchemaTransformTranslator
-      extends SchemaTransformPayloadTranslator<TestSchemaTransform> {
-    @Override
-    public SchemaTransformProvider provider() {
-      return new TestSchemaTransformProvider();
-    }
-
-    @Override
-    public Row toConfigRow(TestSchemaTransform transform) {
-      return Row.withSchema(Schema.builder().build()).build();
     }
   }
 
@@ -213,7 +200,10 @@ public class TransformUpgraderTest {
     public Map<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator>
         getTransformPayloadTranslators() {
       return ImmutableMap.<Class<? extends PTransform>, TransformPayloadTranslator>builder()
-          .put(TestSchemaTransform.class, new TestSchemaTransformTranslator())
+          .put(
+              TestSchemaTransform.class,
+              new SchemaTransformTranslation.SchemaTransformPayloadTranslator(
+                  new TestSchemaTransformProvider()))
           .build();
     }
   }
@@ -371,7 +361,9 @@ public class TransformUpgraderTest {
     Pipeline pipeline = Pipeline.create();
 
     // Build the pipeline
-    PCollectionRowTuple.empty(pipeline).apply(new TestSchemaTransform());
+    TestSchemaTransformProvider provider = new TestSchemaTransformProvider();
+    PCollectionRowTuple.empty(pipeline)
+        .apply(provider.from(Row.nullRow(provider.configurationSchema())));
 
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, false);
     ExternalTranslationOptions options =

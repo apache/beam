@@ -74,6 +74,28 @@ public abstract class TypedSchemaTransformProvider<ConfigT> implements SchemaTra
     return (Class<ConfigT>) parameterizedType.getActualTypeArguments()[0];
   }
 
+  /** Like {@link SchemaTransform#register(Row, String)}, but with a configuration POJO. */
+  protected SchemaTransform register(ConfigT configuration, SchemaTransform transform) {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    try {
+      // Get initial row with values
+      // then sort lexicographically and convert to snake_case
+      Row configRow =
+          registry
+              .getToRowFunction(configurationClass())
+              .apply(configuration)
+              .sorted()
+              .toSnakeCase();
+      return transform.register(configRow, identifier());
+    } catch (NoSuchSchemaException e) {
+      throw new RuntimeException(
+          String.format(
+              "Unable to find schema for this SchemaTransform's config type: %s",
+              configurationClass()),
+          e);
+    }
+  }
+
   /**
    * Produce a SchemaTransform from ConfigT. Can throw a {@link InvalidConfigurationException} or a
    * {@link InvalidSchemaException}.

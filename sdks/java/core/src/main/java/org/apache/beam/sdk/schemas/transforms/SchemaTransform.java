@@ -20,6 +20,9 @@ package org.apache.beam.sdk.schemas.transforms;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
+import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * An abstraction representing schema capable and aware transforms. The interface is intended to be
@@ -33,5 +36,39 @@ import org.apache.beam.sdk.values.PCollectionRowTuple;
  * compatibility guarantees and it should not be implemented outside of the Beam repository.
  */
 @Internal
-public abstract class SchemaTransform
-    extends PTransform<PCollectionRowTuple, PCollectionRowTuple> {}
+public abstract class SchemaTransform extends PTransform<PCollectionRowTuple, PCollectionRowTuple> {
+  private @Nullable Row configurationRow;
+  private @Nullable String identifier;
+  private boolean registered = false;
+
+  /**
+   * Stores the transform's identifier and configuration {@link Row} used to build this instance.
+   * Doing so allows this transform to be translated from/to proto using {@link
+   * org.apache.beam.sdk.util.construction.PTransformTranslation.SchemaTransformTranslator}.
+   */
+  public SchemaTransform register(Row configurationRow, String identifier) {
+    this.configurationRow = configurationRow;
+    this.identifier = identifier;
+    registered = true;
+
+    return this;
+  }
+
+  public Row getConfigurationRow() {
+    return Preconditions.checkNotNull(
+        configurationRow,
+        "Could not fetch Row configuration for %s. Please store it using .register().",
+        getClass());
+  }
+
+  public String getIdentifier() {
+    return Preconditions.checkNotNull(
+        identifier,
+        "Could not fetch identifier for %s. Please store it using .register().",
+        getClass());
+  }
+
+  public boolean isRegistered() {
+    return registered;
+  }
+}
