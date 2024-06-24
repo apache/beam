@@ -24,7 +24,7 @@ limitations under the License.
 
 The [Apache Flink Kubernetes Operator](https://nightlies.apache.org/flink/flink-kubernetes-operator-docs-main/docs/concepts/overview/) acts as a control plane to manage the complete deployment lifecycle of Apache Flink applications. With the operator, we can simplify the deployment and management of Apache Beam pipelines.
 
-In this post, we develop an [Apache Beam](https://beam.apache.org/) pipeline using the [Python SDK](https://beam.apache.org/documentation/sdks/python/) and deploy it on an [Apache Flink](https://flink.apache.org/) cluster by using the [Apache Flink runner](https://beam.apache.org/documentation/runners/flink/). We first deploy an [Apache Kafka](https://kafka.apache.org/) cluster on a [minikube](https://minikube.sigs.k8s.io/docs/) cluster, because the pipeline uses Kafka topics for its data source and sink. Then, we develop the pipeline as a Python package and add the package to a custom Docker image so that Python user code can be executed externally. For deployment, we create a Flink session cluster using the [Flink Kubernetes Operator](https://nightlies.apache.org/flink/flink-kubernetes-operator-docs-main/), and deploy the pipeline using a Kubernetes job. Finally, we check the output of the application by sending messages to the input Kafka topic using a Python producer application.
+In this post, we develop an [Apache Beam](https://beam.apache.org/) pipeline using the [Python SDK](https://beam.apache.org/documentation/sdks/python/) and deploy it on an [Apache Flink](https://flink.apache.org/) cluster by using the [Apache Flink runner](https://beam.apache.org/documentation/runners/flink/). We first deploy an [Apache Kafka](https://kafka.apache.org/) cluster on a [minikube](https://minikube.sigs.k8s.io/docs/) cluster, because the pipeline uses Kafka topics for its data source and sink. Then, we develop the pipeline as a Python package and add the package to a custom Docker image so that Python user code can be executed externally. For deployment, we create a Flink session cluster using the Flink Kubernetes Operator, and deploy the pipeline using a Kubernetes job. Finally, we check the output of the application by sending messages to the input Kafka topic using a Python producer application.
 
 {{< toc >}}
 
@@ -32,11 +32,11 @@ In this post, we develop an [Apache Beam](https://beam.apache.org/) pipeline usi
 
 ## Resources to run a Python Beam pipeline on Flink
 
-We develop an Apache Beam pipeline using the Python SDK and deploy it on an Apache Flink cluster using the Apache Flink runner. While the Flink cluster is created by the Flink Kubernetes Operator, we need two components to run the pipeline on the *Flink runner*: the **job service** and the [**SDK harness**](https://beam.apache.org/documentation/runtime/sdk-harness-config/). Roughly speaking, the job service converts details about a Python pipeline into a format that the Flink runner can understand. The SDK harness executes the Python user code. The Python SDK provides convenience wrappers to manage those components, and it can be utilized by specifying *FlinkRunner* in the pipeline option, for example, `--runner=FlinkRunner`. The *job service* is managed automatically. We rely on our own *SDK harness* as a sidecar container for simplicity. Also, we need the **Java IO Expansion Service**, because the pipeline uses Apache Kafka topics for its data source and sink, and the *Kafka Connector I/O* is developed in Java. Simply put, the expansion service is used to serialize data for the Java SDK.
+We develop an Apache Beam pipeline using the Python SDK and deploy it on an Apache Flink cluster using the Apache Flink runner. Although the Flink cluster is created by the Flink Kubernetes Operator, we need two components to run the pipeline on the *Flink runner*: the **job service** and the [**SDK harness**](https://beam.apache.org/documentation/runtime/sdk-harness-config/). Roughly speaking, the job service converts details about a Python pipeline into a format that the Flink runner can understand. The SDK harness executes the Python user code. The Python SDK provides convenience wrappers to manage those components, and you can use it by specifying *FlinkRunner* in the pipeline option, for example, `--runner=FlinkRunner`. The *job service* is managed automatically. We rely on our own *SDK harness* as a sidecar container for simplicity. Also, we need the **Java IO Expansion Service**, because the pipeline uses Apache Kafka topics for its data source and sink, and the Kafka Connector I/O is developed in Java. Simply put, the expansion service is used to serialize data for the Java SDK.
 
 ## Set up the Kafka cluster
 
-An Apache Kafka cluster is deployed using the [Strimzi Operator](https://strimzi.io/) on a [minikube](https://minikube.sigs.k8s.io/docs/) cluster. We install Strimzi version 0.39.0 and Kubernetes version 1.25.3. After the [minikube CLI](https://minikube.sigs.k8s.io/docs/start/) and [Docker](https://www.docker.com/) are installed, you can create a minikube cluster by specifying the desired Kubernetes version. You can find the source code for this blog post can be found in the [**GitHub repository**](https://github.com/jaehyeon-kim/beam-demos/tree/master/beam-deploy).
+An Apache Kafka cluster is deployed using the [Strimzi Operator](https://strimzi.io/) on a minikube cluster. We install Strimzi version 0.39.0 and Kubernetes version 1.25.3. After the [minikube CLI](https://minikube.sigs.k8s.io/docs/start/) and [Docker](https://www.docker.com/) are installed, you can create a minikube cluster by specifying the Kubernetes version. You can find the source code for this blog post in the [GitHub repository](https://github.com/jaehyeon-kim/beam-demos/tree/master/beam-deploy).
 
 {{< highlight bash >}}
 minikube start --cpus='max' --memory=20480 \
@@ -45,7 +45,7 @@ minikube start --cpus='max' --memory=20480 \
 
 ### Deploy the Strimzi operator
 
-The [**GitHub repository**](https://github.com/jaehyeon-kim/beam-demos/tree/master/beam-deploy) keeps manifest files that you can use to deploy the *Strimzi operator*, Kafka cluster, and Kafka management application. To download a different version of the operator, you can download the relevant manifest file by specifying the desired version. By default, the manifest file assumes that the resources are deployed in the *myproject* namespace. However, because we deploy them in the *default* namespace, we need to change the resource namespace. We change the resource namespace using [sed](https://www.gnu.org/software/sed/manual/sed.html).
+The GitHub repository keeps manifest files that you can use to deploy the Strimzi operator, Kafka cluster, and Kafka management application. To download a different version of the operator, download the relevant manifest file by specifying the version. By default, the manifest file assumes that the resources are deployed in the *myproject* namespace. However, because we deploy them in the *default* namespace, we need to change the resource namespace. We change the resource namespace using [sed](https://www.gnu.org/software/sed/manual/sed.html).
 
 To deploy the operator, use the `kubectl create` command.
 
@@ -81,7 +81,7 @@ kubectl get deploy,rs,po
 
 ### Deploy the Kafka cluster
 
-We deploy a Kafka cluster with a single broker and Zookeeper node. It has both internal and external listeners on ports 9092 and 29092, respectively. The external listener is used to access the Kafka cluster outside the minikube cluster. Also, the cluster is configured to allow automatic creation of topics (*auto.create.topics.enable: "true"*), and the default number of partitions is set to 3 (*num.partitions: 3*).
+We deploy a Kafka cluster with a single broker and Zookeeper node. It has both internal and external listeners on ports 9092 and 29092, respectively. The external listener is used to access the Kafka cluster outside the minikube cluster. Also, the cluster is configured to allow automatic creation of topics (`auto.create.topics.enable: "true"`), and the default number of partitions is set to 3 (`num.partitions: 3`).
 
 ```yaml
 # kafka/manifests/kafka-cluster.yaml
@@ -149,10 +149,10 @@ kubectl create -f kafka/manifests/kafka-cluster.yaml
 The Kafka and Zookeeper nodes are managed by the [*StrimziPodSet*](https://strimzi.io/docs/operators/latest/configuring.html#type-StrimziPodSet-reference) custom resource. It also creates multiple Kubernetes [services](https://kubernetes.io/docs/concepts/services-networking/service/). In this series, we use the following services:
 
 - communication within the Kubernetes cluster
-  - *demo-cluster-kafka-bootstrap* - to access Kafka brokers from the client and management apps
-  - *demo-cluster-zookeeper-client* - to access Zookeeper node from the management app
+  - `demo-cluster-kafka-bootstrap` - to access Kafka brokers from the client and management apps
+  - `demo-cluster-zookeeper-client` - to access Zookeeper node from the management app
 - communication from the host
-  - *demo-cluster-kafka-external-bootstrap* - to access Kafka brokers from the producer app
+  - `demo-cluster-kafka-external-bootstrap` - to access Kafka brokers from the producer app
 
 {{< highlight bash >}}
 kubectl get po,strimzipodsets.core.strimzi.io,svc -l app.kubernetes.io/instance=demo-cluster
@@ -266,9 +266,9 @@ We develop an Apache Beam pipeline as a Python package and add it to a custom Do
 
 ### Beam pipeline code
 
-The application first reads text messages from an input Kafka topic. Next, it extracts words by splitting the messages (*ReadWordsFromKafka*). Then, the elements (words) are added to a fixed time window of 5 seconds, and their average length is calculated (*CalculateAvgWordLen*). Finally, we include the window start and end timestamps, and send the updated element to an output Kafka topic (*WriteWordLenToKafka*).
+The application first reads text messages from an input Kafka topic. Next, it extracts words by splitting the messages (`ReadWordsFromKafka`). Then, the elements (words) are added to a fixed time window of 5 seconds, and their average length is calculated (`CalculateAvgWordLen`). Finally, we include the window start and end timestamps, and send the updated element to an output Kafka topic (`WriteWordLenToKafka`).
 
-We create a custom *Java IO Expansion Service* (`get_expansion_service`) and add it to the *ReadFromKafka* and *WriteToKafka* transforms of the *Kafka Connector I/O*. Although the *Kafka I/O* provides a function to create that service, it did not work for me (or I do not understand how to make use of it yet). Instead, I created a custom service, as illustrated in [Building Big Data Pipelines with Apache Beam by Jan Lukavský](https://www.packtpub.com/product/building-big-data-pipelines-with-apache-beam/9781800564930). The expansion service Jar file (*beam-sdks-java-io-expansion-service.jar*) must exist in the Kubernetes [*job*](https://kubernetes.io/docs/concepts/workloads/controllers/job/) that executes the pipeline, while the Java SDK (*/opt/apache/beam/boot*) must exist in the runner worker.
+We create a custom *Java IO Expansion Service* (`get_expansion_service`) and add it to the `ReadFromKafka` and `WriteToKafka` transforms of the Kafka Connector I/O. Although the Kafka I/O provides a function to create that service, it did not work for me (or I do not understand how to make use of it yet). Instead, I created a custom service, as illustrated in [Building Big Data Pipelines with Apache Beam by Jan Lukavský](https://www.packtpub.com/product/building-big-data-pipelines-with-apache-beam/9781800564930). The expansion service Jar file (`beam-sdks-java-io-expansion-service.jar`) must exist in the Kubernetes [*job*](https://kubernetes.io/docs/concepts/workloads/controllers/job/) that executes the pipeline, while the Java SDK (`/opt/apache/beam/boot`) must exist in the runner worker.
 
 {{< highlight py >}}
 # beam/word_len/word_len.py
@@ -502,7 +502,7 @@ if __name__ == "__main__":
     run()
 {{< /highlight >}}
 
-The pipeline script is added to a Python package under a folder named `word_len`. A simple module named `run` is created, because it is executed as a module, for example, `python -m ...`. When I ran the pipeline as a script, I encountered an error. This packaging method is for demonstration only. For a recommended way of packaging a pipeline, see [Managing Python Pipeline Dependencies](https://beam.apache.org/documentation/sdks/python-pipeline-dependencies/) .
+The pipeline script is added to a Python package under a folder named `word_len`. A simple module named `run` is created, because it is executed as a module, for example, `python -m ...`. When I ran the pipeline as a script, I encountered an error. This packaging method is for demonstration only. For a recommended way of packaging a pipeline, see [Managing Python Pipeline Dependencies](https://beam.apache.org/documentation/sdks/python-pipeline-dependencies/).
 
 {{< highlight py >}}
 # beam/word_len/run.py
@@ -524,7 +524,7 @@ beam/word_len
 
 ### Build Docker images
 
-As discussed previously, we build a custom Docker image (*beam-python-example:1.16*) and use it to deploy a Flink cluster and to run the Java user code of the *Kafka Connector I/O*.
+As discussed previously, we build a custom Docker image (*beam-python-example:1.16*) and use it to deploy a Flink cluster and to run the Java user code of the Kafka Connector I/O.
 
 ```Dockerfile
 # beam/Dockerfile
@@ -533,7 +533,7 @@ FROM flink:1.16
 COPY --from=apache/beam_java11_sdk:2.56.0 /opt/apache/beam/ /opt/apache/beam/
 ```
 
-We also build a custom Docker image (*beam-python-harness:2.56.0*) to run Python user code (*SDK harness*). From the Python SDK Docker image, it first installs the Java Development Kit (JDK) and downloads the *Java IO Expansion Service* Jar file. Then, the Beam pipeline packages are copied to the */app* folder. The app folder is added to the *PYTHONPATH* environment variable, which makes the packages searchable.
+We also build a custom Docker image (*beam-python-harness:2.56.0*) to run Python user code (*SDK harness*). From the Python SDK Docker image, it first installs the Java Development Kit (JDK) and downloads the *Java IO Expansion Service* Jar file. Then, the Beam pipeline packages are copied to the `/app` folder. The app folder is added to the `PYTHONPATH` environment variable, which makes the packages searchable.
 
 ```Dockerfile
 # beam/Dockerfile-python-harness
@@ -569,7 +569,7 @@ The Beam pipeline is executed on a [Flink session cluster](https://nightlies.apa
 
 ### Deploy the Flink Kubernetes Operator
 
-First, to enable adding the webhook component, install the [certificate manager](https://github.com/cert-manager/cert-manager) on the minikube cluster. Then, use a Helm chart to install the operator. The version 1.8.0 is installed in the post.
+First, to make it possible to add the webhook component, install the [certificate manager](https://github.com/cert-manager/cert-manager) on the minikube cluster. Then, use a Helm chart to install the operator. Version 1.8.0 is installed in the post.
 
 {{< highlight bash >}}
 kubectl create -f https://github.com/jetstack/cert-manager/releases/download/v1.8.2/cert-manager.yaml
@@ -634,7 +634,7 @@ spec:
                 name: harness-port
 ```
 
-The pipeline is deployed using a Kubernetes job, and the custom *SDK harness* image is used to execute the pipeline as a module. The first two arguments are application-specific. The rest of the arguments are for pipeline options. For more information about the pipeline arguments, see the [pipeline options source](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/options/pipeline_options.py) and [Flink Runner document](https://beam.apache.org/documentation/runners/flink/). To execute Python user code in the sidecar container, we set the environment type to *EXTERNAL* and the environment config to *localhost:50000*.
+The pipeline is deployed using a Kubernetes job, and the custom *SDK harness* image is used to execute the pipeline as a module. The first two arguments are application-specific. The rest of the arguments are for pipeline options. For more information about the pipeline arguments, see the [pipeline options source](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/options/pipeline_options.py) and [Flink Runner document](https://beam.apache.org/documentation/runners/flink/). To execute Python user code in the sidecar container, we set the environment type to `EXTERNAL` and the environment config to `localhost:50000`.
 
 ```yaml
 # beam/word_len_job.yml
@@ -674,7 +674,7 @@ Deploy the session cluster and job using the `kubectl create` command. The sessi
 - starts the *Job Service* after downloading the Jar file
 - uploads the pipeline artifact
 - submits the pipeline as a Flink job
-- and continuously monitors the job status
+- continuously monitors the job status
 
 {{< highlight bash >}}
 kubectl create -f beam/word_len_cluster.yml
@@ -739,7 +739,7 @@ kubectl get all -l app=word-len-job
 # job.batch/word-len-job   0/1           5m24s      5m24s
 {{< /highlight >}}
 
-You can access the Flink web UI using the `kubectl port-forward` command on port 8081. The job graph shows two tasks. The first task is performed until adding word elements into a fixed time window. The second task sends the average word length records to the output topic.
+You can access the Flink web UI using the `kubectl port-forward` command on port 8081. The job graph shows two tasks. The first task adds word elements into a fixed time window. The second task sends the average word length records to the output topic.
 
 {{< highlight bash >}}
 kubectl port-forward svc/flink-word-len-rest 8081
@@ -749,7 +749,7 @@ kubectl port-forward svc/flink-word-len-rest 8081
 src="/images/blog/deploy-python-pipeline-on-flink-runner/flink-ui.png"
 alt="Flink UI">
 
-The *Kafka I/O* automatically creates a topic if it doesn't exist, and we can see the input topic is created on `kafka-ui`.
+The Kafka I/O automatically creates a topic if it doesn't exist, and we can see the input topic is created on `kafka-ui`.
 
 <img class="center-block"
 src="/images/blog/deploy-python-pipeline-on-flink-runner/kafka-topics-1.png"
