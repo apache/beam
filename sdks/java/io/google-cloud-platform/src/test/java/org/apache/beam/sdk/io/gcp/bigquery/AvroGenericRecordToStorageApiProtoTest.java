@@ -584,13 +584,12 @@ public class AvroGenericRecordToStorageApiProtoTest {
   public void testMessageFromGenericRecordWithNullableArray() throws Exception {
     ImmutableList<String> aList = ImmutableList.of("one", "two", "red", "blue");
     GenericRecord recordWithMap =
-        new GenericRecordBuilder(SCHEMA_WITH_NULLABLE_ARRAY)
-            .set("aNullableArray", aList)
-            .build();
+        new GenericRecordBuilder(SCHEMA_WITH_NULLABLE_ARRAY).set("aNullableArray", aList).build();
 
     Descriptors.Descriptor descriptor =
         TableRowToStorageApiProto.getDescriptorFromTableSchema(
-            AvroGenericRecordToStorageApiProto.protoTableSchemaFromAvroSchema(SCHEMA_WITH_NULLABLE_ARRAY),
+            AvroGenericRecordToStorageApiProto.protoTableSchemaFromAvroSchema(
+                SCHEMA_WITH_NULLABLE_ARRAY),
             true,
             false);
     DynamicMessage msg =
