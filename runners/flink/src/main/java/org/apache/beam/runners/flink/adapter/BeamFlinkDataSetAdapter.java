@@ -31,6 +31,7 @@ import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.PipelineOptionsTranslation;
 import org.apache.beam.sdk.util.construction.graph.PipelineNode;
@@ -59,55 +60,54 @@ public class BeamFlinkDataSetAdapter {
     this.pipelineOptions = pipelineOptions;
   }
 
-  @SuppressWarnings("nullness")
   public <InputT, OutputT, CollectionT extends PCollection<? extends InputT>>
       DataSet<OutputT> applyBeamPTransform(
           DataSet<InputT> input, PTransform<CollectionT, PCollection<OutputT>> transform) {
     return (DataSet)
-        this.<CollectionT, PCollection<OutputT>>applyBeamPTransformInternal(
+        getNonNull(
+            applyBeamPTransformInternal(
                 ImmutableMap.of("input", input),
-                (pipeline, map) -> (CollectionT) map.get("input"),
+                (pipeline, map) -> (CollectionT) getNonNull(map, "input"),
                 (output) -> ImmutableMap.of("output", output),
                 transform,
-                input.getExecutionEnvironment())
-            .get("output");
+                input.getExecutionEnvironment()),
+            "output");
   }
 
-  @SuppressWarnings("nullness")
   public <OutputT> DataSet<OutputT> applyBeamPTransform(
       Map<String, ? extends DataSet<?>> inputs,
       PTransform<PCollectionTuple, PCollection<OutputT>> transform) {
     return (DataSet)
-        applyBeamPTransformInternal(
+        getNonNull(
+            applyBeamPTransformInternal(
                 inputs,
                 BeamAdapterUtils::mapToTuple,
                 (output) -> ImmutableMap.of("output", output),
                 transform,
-                inputs.values().stream().findAny().get().getExecutionEnvironment())
-            .get("output");
+                inputs.values().stream().findAny().get().getExecutionEnvironment()),
+            "output");
   }
 
-  @SuppressWarnings("nullness")
   public <OutputT> DataSet<OutputT> applyBeamPTransform(
       ExecutionEnvironment executionEnvironment,
       PTransform<PBegin, PCollection<OutputT>> transform) {
     return (DataSet)
-        applyBeamPTransformInternal(
-                ImmutableMap.<String, DataSet<?>>of(),
+        getNonNull(
+            applyBeamPTransformInternal(
+                ImmutableMap.of(),
                 (pipeline, map) -> PBegin.in(pipeline),
                 (output) -> ImmutableMap.of("output", output),
                 transform,
-                executionEnvironment)
-            .get("output");
+                executionEnvironment),
+            "output");
   }
 
-  @SuppressWarnings("nullness")
   public <InputT, CollectionT extends PCollection<? extends InputT>>
       Map<String, DataSet<?>> applyMultiOutputBeamPTransform(
           DataSet<InputT> input, PTransform<CollectionT, PCollectionTuple> transform) {
     return applyBeamPTransformInternal(
         ImmutableMap.of("input", input),
-        (pipeline, map) -> (CollectionT) map.get("input"),
+        (pipeline, map) -> (CollectionT) getNonNull(map, "input"),
         BeamAdapterUtils::tupleToMap,
         transform,
         input.getExecutionEnvironment());
@@ -134,13 +134,12 @@ public class BeamFlinkDataSetAdapter {
         executionEnvironment);
   }
 
-  @SuppressWarnings("nullness")
   public <InputT, CollectionT extends PCollection<? extends InputT>>
       void applyNoOutputBeamPTransform(
           DataSet<InputT> input, PTransform<CollectionT, PDone> transform) {
     applyBeamPTransformInternal(
         ImmutableMap.of("input", input),
-        (pipeline, map) -> (CollectionT) map.get("input"),
+        (pipeline, map) -> (CollectionT) getNonNull(map, "input"),
         pDone -> ImmutableMap.of(),
         transform,
         input.getExecutionEnvironment());
@@ -173,39 +172,34 @@ public class BeamFlinkDataSetAdapter {
           Function<BeamOutputT, Map<String, PCollection<?>>> fromBeamOutput,
           PTransform<? super BeamInputT, BeamOutputT> transform,
           ExecutionEnvironment executionEnvironment) {
-    return BeamAdapterUtils.<DataSet<?>, BeamInputT, BeamOutputT>applyBeamPTransformInternal(
+    return BeamAdapterUtils.applyBeamPTransformInternal(
         inputs,
         toBeamInput,
         fromBeamOutput,
         transform,
         executionEnvironment,
+        true,
         dataSet -> dataSet.getType(),
         pipelineOptions,
         coderRegistry,
-        new BeamAdapterUtils.PipelineFragmentTranslator<DataSet<?>>() {
-          @Override
-          public Map<String, DataSet<?>> translate(
-              Map<String, ? extends DataSet<?>> inputs,
-              RunnerApi.Pipeline pipelineProto,
-              ExecutionEnvironment executionEnvironment) {
-            Map<String, DataSet<?>> outputs = new HashMap<>();
-            FlinkBatchPortablePipelineTranslator translator =
-                FlinkBatchPortablePipelineTranslator.createTranslator(
-                    ImmutableMap.of(
-                        FlinkInput.URN, flinkInputTranslator(inputs),
-                        FlinkOutput.URN, flinkOutputTranslator(outputs)));
-            FlinkBatchPortablePipelineTranslator.BatchTranslationContext context =
-                FlinkBatchPortablePipelineTranslator.createTranslationContext(
-                    JobInfo.create(
-                        "unusedJobId",
-                        "unusedJobName",
-                        "unusedRetrievalToken",
-                        PipelineOptionsTranslation.toProto(pipelineOptions)),
-                    pipelineOptions.as(FlinkPipelineOptions.class),
-                    executionEnvironment);
-            translator.translate(context, translator.prepareForTranslation(pipelineProto));
-            return outputs;
-          }
+        (flinkInputs, pipelineProto, env) -> {
+          Map<String, DataSet<?>> flinkOutputs = new HashMap<>();
+          FlinkBatchPortablePipelineTranslator translator =
+              FlinkBatchPortablePipelineTranslator.createTranslator(
+                  ImmutableMap.of(
+                      FlinkInput.URN, flinkInputTranslator(flinkInputs),
+                      FlinkOutput.URN, flinkOutputTranslator(flinkOutputs)));
+          FlinkBatchPortablePipelineTranslator.BatchTranslationContext context =
+              FlinkBatchPortablePipelineTranslator.createTranslationContext(
+                  JobInfo.create(
+                      "unusedJobId",
+                      "unusedJobName",
+                      "unusedRetrievalToken",
+                      PipelineOptionsTranslation.toProto(pipelineOptions)),
+                  pipelineOptions.as(FlinkPipelineOptions.class),
+                  env);
+          translator.translate(context, translator.prepareForTranslation(pipelineProto));
+          return flinkOutputs;
         });
   }
 
@@ -217,11 +211,11 @@ public class BeamFlinkDataSetAdapter {
       // When we run into a FlinkInput operator, it "produces" the corresponding input as its
       // "computed result."
       String inputId = t.getTransform().getSpec().getPayload().toStringUtf8();
-      DataSet<InputT> flinkInput = (DataSet<InputT>) inputMap.get(inputId);
-      // To make the nullness checker happy...
-      if (flinkInput == null) {
-        throw new IllegalStateException("Missing input: " + inputId);
-      }
+      DataSet<InputT> flinkInput =
+          org.apache.beam.sdk.util.Preconditions.checkStateNotNull(
+              (DataSet<InputT>) inputMap.get(inputId),
+              "missing input referenced in proto: ",
+              inputId);
       context.addDataSet(
           Iterables.getOnlyElement(t.getTransform().getOutputsMap().values()),
           // new MapOperator(...) rather than .map to manually designate the type information.
@@ -261,5 +255,9 @@ public class BeamFlinkDataSetAdapter {
               w -> w.getValue(),
               "StripWindows"));
     };
+  }
+
+  private <K, V> V getNonNull(Map<K, V> map, K key) {
+    return Preconditions.checkStateNotNull(map.get(Preconditions.checkArgumentNotNull(key)));
   }
 }

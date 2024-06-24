@@ -649,7 +649,7 @@ class BigQueryWrapper(object):
       retry += 1
       job = self.get_job(
           job_reference.projectId, job_reference.jobId, job_reference.location)
-      logging.info('Job %s status: %s', job.id, job.status.state)
+      _LOGGER.info('Job %s status: %s', job.id, job.status.state)
       if job.status.state == 'DONE' and job.status.errorResult:
         raise RuntimeError(
             'BigQuery job {} failed. Error Result: {}'.format(

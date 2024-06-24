@@ -29,8 +29,6 @@ from typing import Union
 from parameterized import parameterized
 
 import apache_beam as beam
-from apache_beam import DoFn
-from apache_beam import ParDo
 from apache_beam import coders
 from apache_beam.io.jdbc import ReadFromJdbc
 from apache_beam.io.jdbc import WriteToJdbc
@@ -131,12 +129,16 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
     else:
       binary_type = ('BINARY(10)', 'VARBINARY(10)')
 
-    self.engine.execute(
-        "CREATE TABLE IF NOT EXISTS {}".format(table_name) + "(f_id INTEGER, " +
-        "f_float DOUBLE PRECISION, " + "f_char CHAR(10), " +
-        "f_varchar VARCHAR(10), " + f"f_bytes {binary_type[0]}, " +
-        f"f_varbytes {binary_type[1]}, " + "f_timestamp TIMESTAMP(3), " +
-        "f_decimal DECIMAL(10, 2), " + "f_date DATE, " + "f_time TIME(3))")
+    with self.engine.begin() as connection:
+      connection.execute(
+          sqlalchemy.text(
+              "CREATE TABLE IF NOT EXISTS {}".format(table_name) +
+              "(f_id INTEGER, " + "f_float DOUBLE PRECISION, " +
+              "f_char CHAR(10), " + "f_varchar VARCHAR(10), " +
+              f"f_bytes {binary_type[0]}, " + f"f_varbytes {binary_type[1]}, " +
+              "f_timestamp TIMESTAMP(3), " + "f_decimal DECIMAL(10, 2), " +
+              "f_date DATE, " + "f_time TIME(3))"))
+
     inserted_rows = [
         JdbcTestRow(
             i,
@@ -199,6 +201,8 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
       p.not_use_test_runner_api = True
       result = (
           p
+          # TODO(https://github.com/apache/beam/issues/20446) Add test with
+          # overridden read_query
           | 'Read from jdbc' >> ReadFromJdbc(
               table_name=table_name,
               driver_class_name=self.driver_class_name,
@@ -208,26 +212,6 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
               classpath=classpath))
 
       assert_that(result, equal_to(expected_row))
-
-    with TestPipeline() as p:
-      p.not_use_test_runner_api = True
-
-      class ExtractCount(DoFn):
-        def process(self, element):
-          yield element[0]
-
-      result = (
-          p
-          | 'Read from jdbc override query' >> ReadFromJdbc(
-              table_name=table_name,
-              query=f'select count(*) from {table_name}',
-              driver_class_name=self.driver_class_name,
-              jdbc_url=self.jdbc_url,
-              username=self.username,
-              password=self.password,
-              classpath=classpath)
-          | 'ExtractCount' >> ParDo(ExtractCount()))
-      assert_that(result, equal_to([ROW_COUNT]))
 
     # Try the same read using the partitioned reader code path.
     # Outputs should be the same.

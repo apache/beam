@@ -21,4 +21,11 @@ package org.apache.beam.sdk.metrics;
 public interface Histogram extends Metric {
   /** Add an observation to this histogram. */
   void update(double value);
+
+  /** Add observations to this histogram. */
+  default void update(double... values) {
+    for (double value : values) {
+      update(value);
+    }
+  }
 }

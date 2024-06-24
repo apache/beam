@@ -48,13 +48,13 @@ limitations under the License.
 
 <table class="table-bordered table-striped">
   <tr><th>Transform</th><th>Description</th></tr>
-  <tr><td>ApproximateQuantiles</td><td>Not available. See <a href="https://issues.apache.org/jira/browse/BEAM-6694">BEAM-6694</a> for updates.</td></tr>
-  <tr><td>ApproximateUnique</td><td>Not available. See <a href="https://issues.apache.org/jira/browse/BEAM-6693">BEAM-6693</a> for updates.</td></tr>
+  <tr><td><a href="/documentation/transforms/python/aggregation/approximatequantiles">ApproximateQuantiles</a></td><td>Given a distribution, find the approximate N-tiles.</td></tr>
+  <tr><td><a href="/documentation/transforms/python/aggregation/approximateunique">ApproximateUnique</a></td><td>Given a pcollection, return the estimated number of unique elements.</td></tr>
+  <tr><td><a href="/documentation/transforms/python/aggregation/batchelements">BatchElements</a></td><td>Transform that batches elements for amortized processing.</td></tr>
   <tr><td><a href="/documentation/transforms/python/aggregation/cogroupbykey">CoGroupByKey</a></td><td>Takes several keyed collections of elements and produces a collection where each element consists of a key and all values associated with that key.</td></tr>
   <tr><td><a href="/documentation/transforms/python/aggregation/combineglobally">CombineGlobally</a></td><td>Transforms to combine elements.</td></tr>
   <tr><td><a href="/documentation/transforms/python/aggregation/combineperkey">CombinePerKey</a></td><td>Transforms to combine elements for each key.</td></tr>
   <tr><td><a href="/documentation/transforms/python/aggregation/combinevalues">CombineValues</a></td><td>Transforms to combine keyed iterables.</td></tr>
-  <tr><td>CombineWithContext</td><td>Not available.</td></tr>
   <tr><td><a href="/documentation/transforms/python/aggregation/count">Count</a></td><td>Counts the number of elements within each aggregation.</td></tr>
   <tr><td><a href="/documentation/transforms/python/aggregation/distinct">Distinct</a></td><td>Produces a collection containing distinct elements from the input collection.</td></tr>
   <tr><td><a href="/documentation/transforms/python/aggregation/groupbykey">GroupByKey</a></td><td>Takes a keyed collection of elements and produces a collection where each element consists of a key and all values associated with that key.</td></tr>
@@ -66,6 +66,7 @@ limitations under the License.
   <tr><td><a href="/documentation/transforms/python/aggregation/min">Min</a></td><td>Gets the element with the minimum value within each aggregation.</td></tr>
   <tr><td><a href="/documentation/transforms/python/aggregation/sample">Sample</a></td><td>Randomly select some number of elements from each aggregation.</td></tr>
   <tr><td><a href="/documentation/transforms/python/aggregation/sum">Sum</a></td><td>Sums all the elements within each aggregation.</td></tr>
+  <tr><td><a href="/documentation/transforms/python/aggregation/tolist">ToList</a></td><td>Aggregates all elements into a single list.</td></tr>
   <tr><td><a href="/documentation/transforms/python/aggregation/top">Top</a></td><td>Compute the largest element(s) in each aggregation.</td></tr>
 </table>
 
@@ -77,10 +78,8 @@ limitations under the License.
   <tr><td><a href="/documentation/transforms/python/other/flatten">Flatten</a></td><td>Given multiple input collections, produces a single output collection containing
   all elements from all of the input collections.
 </td></tr>
-  <tr><td>PAssert</td><td>Not available.</td></tr>
   <tr><td><a href="/documentation/transforms/python/other/reshuffle">Reshuffle</a></td><td>Given an input collection, redistributes the elements between workers. This is
   most useful for adjusting parallelism or preventing coupled failures.</td></tr>
-  <tr><td>View</td><td>Not available.</td></tr>
   <tr><td><a href="/documentation/transforms/python/other/windowinto">WindowInto</a></td><td>Logically divides up or groups the elements of a collection into finite
   windows according to a function.</td></tr>
 </table>

@@ -20,7 +20,7 @@ version: '3'
 services:
   # HDFS namenode.
   namenode:
-    image: gcr.io/apache-beam-testing/uhopper-hadoop/hadoop-namenode:2.8.1
+    image: gcr.io/apache-beam-testing/uhopper-hadoop/hadoop-namenode:2.10.2
     hostname: namenode
     environment:
       - CLUSTER_NAME=test
@@ -30,7 +30,7 @@ services:
 
   # HDFS datanode.
   datanode:
-    image: gcr.io/apache-beam-testing/uhopper-hadoop/hadoop-datanode:2.8.1
+    image: gcr.io/apache-beam-testing/uhopper-hadoop/hadoop-datanode:2.10.2
     hostname: datanode
     environment:
       - CLUSTER_NAME=test

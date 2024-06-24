@@ -94,8 +94,6 @@ import org.apache.flink.api.java.operators.Grouping;
 import org.apache.flink.api.java.operators.MapOperator;
 import org.apache.flink.api.java.operators.SingleInputUdfOperator;
 import org.apache.flink.api.java.operators.UnsortedGrouping;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.optimizer.Optimizer;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
@@ -413,12 +411,15 @@ class FlinkBatchTransformTranslators {
               outputType,
               FlinkIdentityFunction.of(),
               getCurrentTransformName(context));
-      final Configuration partitionOptions = new Configuration();
-      partitionOptions.setString(
-          Optimizer.HINT_SHIP_STRATEGY, Optimizer.HINT_SHIP_STRATEGY_REPARTITION);
-      context.setOutputDataSet(
-          context.getOutput(transform),
-          retypedDataSet.map(FlinkIdentityFunction.of()).withParameters(partitionOptions));
+      WindowedValue.WindowedValueCoder<KV<K, InputT>> kvWvCoder =
+          (WindowedValue.WindowedValueCoder<KV<K, InputT>>) outputType.getCoder();
+      KvCoder<K, InputT> kvCoder = (KvCoder<K, InputT>) kvWvCoder.getValueCoder();
+      DataSet<WindowedValue<KV<K, InputT>>> reshuffle =
+          retypedDataSet
+              .groupBy(new KvKeySelector<>(kvCoder.getKeyCoder()))
+              .<WindowedValue<KV<K, InputT>>>reduceGroup((i, c) -> i.forEach(c::collect))
+              .returns(outputType);
+      context.setOutputDataSet(context.getOutput(transform), reshuffle);
     }
   }
 

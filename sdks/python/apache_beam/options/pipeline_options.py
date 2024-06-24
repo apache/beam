@@ -556,7 +556,10 @@ class StandardOptions(PipelineOptions):
         action='store_true',
         help='Whether to automatically generate unique transform labels '
         'for every transform. The default behavior is to raise an '
-        'exception if a transform is created with a non-unique label.')
+        'exception if a transform is created with a non-unique label. '
+        'Using --auto_unique_labels could cause data loss when '
+        'updating a pipeline or reloading the job state. '
+        'This is not recommended for streaming jobs.')
 
 
 class StreamingOptions(PipelineOptions):
@@ -900,6 +903,19 @@ class GoogleCloudOptions(PipelineOptions):
             'Controls the OAuth scopes that will be requested when creating '
             'GCP credentials. Note: If set programmatically, must be set as a '
             'list of strings'))
+    parser.add_argument(
+        '--enable_bucket_read_metric_counter',
+        default=False,
+        action='store_true',
+        help='Create metrics reporting the approximate number of bytes read '
+        'per bucket.')
+    parser.add_argument(
+        '--enable_bucket_write_metric_counter',
+        default=False,
+        action='store_true',
+        help=
+        'Create metrics reporting the approximate number of bytes written per '
+        'bucket.')
 
   def _create_default_gcs_bucket(self):
     try:
@@ -913,6 +929,24 @@ class GoogleCloudOptions(PipelineOptions):
     else:
       return None
 
+  # Log warning if soft delete policy is enabled in a gcs bucket
+  # that is specified in an argument.
+  def _warn_if_soft_delete_policy_enabled(self, arg_name):
+    gcs_path = getattr(self, arg_name, None)
+    try:
+      from apache_beam.io.gcp import gcsio
+      if gcsio.GcsIO().is_soft_delete_enabled(gcs_path):
+        _LOGGER.warning(
+            "Bucket specified in %s has soft-delete policy enabled."
+            " To avoid being billed for unnecessary storage costs, turn"
+            " off the soft delete feature on buckets that your Dataflow"
+            " jobs use for temporary and staging storage. For more"
+            " information, see"
+            " https://cloud.google.com/storage/docs/use-soft-delete"
+            "#remove-soft-delete-policy." % arg_name)
+    except ImportError:
+      _LOGGER.warning('Unable to check soft delete policy due to import error.')
+
   # If either temp or staging location has an issue, we use the valid one for
   # both locations. If both are bad we return an error.
   def _handle_temp_and_staging_locations(self, validator):
@@ -920,11 +954,15 @@ class GoogleCloudOptions(PipelineOptions):
     staging_errors = validator.validate_gcs_path(self, 'staging_location')
     if temp_errors and not staging_errors:
       setattr(self, 'temp_location', getattr(self, 'staging_location'))
+      self._warn_if_soft_delete_policy_enabled('staging_location')
       return []
     elif staging_errors and not temp_errors:
       setattr(self, 'staging_location', getattr(self, 'temp_location'))
+      self._warn_if_soft_delete_policy_enabled('temp_location')
       return []
     elif not staging_errors and not temp_errors:
+      self._warn_if_soft_delete_policy_enabled('temp_location')
+      self._warn_if_soft_delete_policy_enabled('staging_location')
       return []
     # Both staging and temp locations are bad, try to use default bucket.
     else:
@@ -935,6 +973,8 @@ class GoogleCloudOptions(PipelineOptions):
       else:
         setattr(self, 'temp_location', default_bucket)
         setattr(self, 'staging_location', default_bucket)
+        self._warn_if_soft_delete_policy_enabled('temp_location')
+        self._warn_if_soft_delete_policy_enabled('staging_location')
         return []
 
   def validate(self, validator):
@@ -1591,7 +1631,7 @@ class JobServerOptions(PipelineOptions):
 class FlinkRunnerOptions(PipelineOptions):
 
   # These should stay in sync with gradle.properties.
-  PUBLISHED_FLINK_VERSIONS = ['1.12', '1.13', '1.14', '1.15', '1.16']
+  PUBLISHED_FLINK_VERSIONS = ['1.15', '1.16', '1.17', '1.18']
 
   @classmethod
   def _add_argparse_args(cls, parser):

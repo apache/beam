@@ -160,9 +160,9 @@ public abstract class FileReadSchemaTransformConfiguration {
       if (terminateAfterSecondsSinceNewOutput != null && terminateAfterSecondsSinceNewOutput > 0L) {
         checkArgument(
             pollIntervalMillis != null && pollIntervalMillis > 0L,
-            "Found positive value for terminateAfterSecondsSinceNewOutput but non-positive"
+            "Found positive value for terminateAfterSecondsSinceNewOutput but non-positive "
                 + "value for pollIntervalMillis. Please set pollIntervalMillis as well to enable"
-                + "watching for new files.");
+                + " watching for new files.");
       }
       return config;
     }

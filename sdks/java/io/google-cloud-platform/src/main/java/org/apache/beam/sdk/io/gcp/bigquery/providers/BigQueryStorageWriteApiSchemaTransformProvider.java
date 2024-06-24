@@ -89,11 +89,6 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
   protected static final String DYNAMIC_DESTINATIONS = "DYNAMIC_DESTINATIONS";
 
   @Override
-  protected Class<BigQueryStorageWriteApiSchemaTransformConfiguration> configurationClass() {
-    return BigQueryStorageWriteApiSchemaTransformConfiguration.class;
-  }
-
-  @Override
   protected SchemaTransform from(
       BigQueryStorageWriteApiSchemaTransformConfiguration configuration) {
     return new BigQueryStorageWriteApiSchemaTransform(configuration);

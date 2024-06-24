@@ -138,7 +138,7 @@ class SdkWorkerTest(unittest.TestCase):
         beam_fn_api_pb2.InstructionResponse(
             instruction_id='progress_instruction_id',
             process_bundle_progress=beam_fn_api_pb2.
-            ProcessBundleProgressResponse()))
+            ProcessBundleProgressResponse(consuming_received_data=False)))
 
     # Add a mock bundle processor as if it was running before it's released
     bundle_processor_cache.active_bundle_processors['instruction_id'] = (
@@ -149,7 +149,7 @@ class SdkWorkerTest(unittest.TestCase):
         beam_fn_api_pb2.InstructionResponse(
             instruction_id='progress_instruction_id',
             process_bundle_progress=beam_fn_api_pb2.
-            ProcessBundleProgressResponse()))
+            ProcessBundleProgressResponse(consuming_received_data=False)))
 
   def test_failed_bundle_processor_returns_failed_progress_response(self):
     bundle_processor = mock.MagicMock()

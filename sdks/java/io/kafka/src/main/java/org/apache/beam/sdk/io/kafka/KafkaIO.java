@@ -395,11 +395,19 @@ import org.slf4j.LoggerFactory;
  *
  * <pre>{@code
  * pipeline
- *  .apply(Create.of(KafkaSourceDescriptor.of(new TopicPartition("topic", 1)))
- *  .apply(KafkaIO.readAll()
- *          .withBootstrapServers("broker_1:9092,broker_2:9092")
- *          .withKeyDeserializer(LongDeserializer.class).
- *          .withValueDeserializer(StringDeserializer.class));
+ *  .apply(Create.of(
+ *    KafkaSourceDescriptor.of(
+ *      new TopicPartition("topic", 1),
+ *      null,
+ *      null,
+ *      null,
+ *      null,
+ *      null)))
+ *   .apply(
+ *     KafkaIO.<Long, String>readSourceDescriptors()
+ *       .withBootstrapServers("broker_1:9092,broker_2:9092")
+ *       .withKeyDeserializer(LongDeserializer.class)
+ *       .withValueDeserializer(StringDeserializer.class));
  * }</pre>
  *
  * Note that the {@code bootstrapServers} can also be populated from the {@link
@@ -412,8 +420,10 @@ import org.slf4j.LoggerFactory;
  *      new TopicPartition("topic", 1),
  *      null,
  *      null,
- *      ImmutableList.of("broker_1:9092", "broker_2:9092"))
- *  .apply(KafkaIO.readAll()
+ *      null,
+ *      null,
+ *      ImmutableList.of("broker_1:9092", "broker_2:9092"))))
+ *  .apply(KafkaIO.<Long, String>readSourceDescriptors()
  *         .withKeyDeserializer(LongDeserializer.class).
  *         .withValueDeserializer(StringDeserializer.class));
  * }</pre>
@@ -441,17 +451,19 @@ import org.slf4j.LoggerFactory;
  *
  * <pre>{@code
  * pipeline
- * .apply(Create.of(
+ *  .apply(Create.of(
  *    KafkaSourceDescriptor.of(
  *      new TopicPartition("topic", 1),
  *      null,
  *      null,
- *      ImmutableList.of("broker_1:9092", "broker_2:9092"))
- * .apply(KafkaIO.readAll()
- *          .withKeyDeserializer(LongDeserializer.class).
- *          .withValueDeserializer(StringDeserializer.class)
- *          .withProcessingTime()
- *          .commitOffsets());
+ *      null,
+ *      null,
+ *      ImmutableList.of("broker_1:9092", "broker_2:9092"))))
+ * .apply(KafkaIO.<Long, String>readSourceDescriptors()
+ *        .withKeyDeserializer(LongDeserializer.class).
+ *        .withValueDeserializer(StringDeserializer.class)
+ *        .withProcessingTime()
+ *        .commitOffsets());
  * }</pre>
  *
  * <h3>Writing to Kafka</h3>
@@ -587,6 +599,7 @@ public class KafkaIO {
         .setCommitOffsetsInFinalizeEnabled(false)
         .setDynamicRead(false)
         .setTimestampPolicyFactory(TimestampPolicyFactory.withProcessingTime())
+        .setConsumerPollingTimeout(2L)
         .build();
   }
 
@@ -706,6 +719,9 @@ public class KafkaIO {
     @Pure
     public abstract @Nullable ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
 
+    @Pure
+    public abstract long getConsumerPollingTimeout();
+
     abstract Builder<K, V> toBuilder();
 
     @AutoValue.Builder
@@ -761,6 +777,8 @@ public class KafkaIO {
           @Nullable SerializableFunction<TopicPartition, Boolean> checkStopReadingFn) {
         return setCheckStopReadingFn(CheckStopReadingFnWrapper.of(checkStopReadingFn));
       }
+
+      abstract Builder<K, V> setConsumerPollingTimeout(long consumerPollingTimeout);
 
       abstract Read<K, V> build();
 
@@ -825,6 +843,15 @@ public class KafkaIO {
         // We can expose dynamic read to external build when ReadFromKafkaDoFn is the default
         // implementation.
         builder.setDynamicRead(false);
+
+        if (config.consumerPollingTimeout != null) {
+          if (config.consumerPollingTimeout <= 0) {
+            throw new IllegalArgumentException("consumerPollingTimeout should be > 0.");
+          }
+          builder.setConsumerPollingTimeout(config.consumerPollingTimeout);
+        } else {
+          builder.setConsumerPollingTimeout(2L);
+        }
       }
 
       private static <T> Coder<T> resolveCoder(Class<Deserializer<T>> deserializer) {
@@ -887,6 +914,7 @@ public class KafkaIO {
         private Long maxNumRecords;
         private Long maxReadTime;
         private Boolean commitOffsetInFinalize;
+        private Long consumerPollingTimeout;
         private String timestampPolicy;
 
         public void setConsumerConfig(Map<String, String> consumerConfig) {
@@ -927,6 +955,10 @@ public class KafkaIO {
 
         public void setTimestampPolicy(String timestampPolicy) {
           this.timestampPolicy = timestampPolicy;
+        }
+
+        public void setConsumerPollingTimeout(Long consumerPollingTimeout) {
+          this.consumerPollingTimeout = consumerPollingTimeout;
         }
       }
     }
@@ -1334,6 +1366,16 @@ public class KafkaIO {
       return toBuilder().setBadRecordErrorHandler(badRecordErrorHandler).build();
     }
 
+    /**
+     * Sets the timeout time in seconds for Kafka consumer polling request in the {@link
+     * ReadFromKafkaDoFn}. A lower timeout optimizes for latency. Increase the timeout if the
+     * consumer is not fetching any records. The default is 2 seconds.
+     */
+    public Read<K, V> withConsumerPollingTimeout(long duration) {
+      checkState(duration > 0, "Consumer polling timeout must be greater than 0.");
+      return toBuilder().setConsumerPollingTimeout(duration).build();
+    }
+
     /** Returns a {@link PTransform} for PCollection of {@link KV}, dropping Kafka metatdata. */
     public PTransform<PBegin, PCollection<KV<K, V>>> withoutMetadata() {
       return new TypedWithoutMetadata<>(this);
@@ -1554,7 +1596,7 @@ public class KafkaIO {
         if (kafkaRead.getBadRecordErrorHandler() != null) {
           LOG.warn(
               "The Legacy implementation of Kafka Read does not support writing malformed"
-                  + "messages to an error handler. Use the SDF implementation instead.");
+                  + " messages to an error handler. Use the SDF implementation instead.");
         }
         // Handles unbounded source to bounded conversion if maxNumRecords or maxReadTime is set.
         Unbounded<KafkaRecord<K, V>> unbounded =
@@ -1596,7 +1638,8 @@ public class KafkaIO {
                 .withValueDeserializerProvider(kafkaRead.getValueDeserializerProvider())
                 .withManualWatermarkEstimator()
                 .withTimestampPolicyFactory(kafkaRead.getTimestampPolicyFactory())
-                .withCheckStopReadingFn(kafkaRead.getCheckStopReadingFn());
+                .withCheckStopReadingFn(kafkaRead.getCheckStopReadingFn())
+                .withConsumerPollingTimeout(kafkaRead.getConsumerPollingTimeout());
         if (kafkaRead.isCommitOffsetsInFinalizeEnabled()) {
           readTransform = readTransform.commitOffsets();
         }
@@ -2036,6 +2079,9 @@ public class KafkaIO {
     @Pure
     abstract ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
 
+    @Pure
+    abstract long getConsumerPollingTimeout();
+
     abstract boolean isBounded();
 
     abstract ReadSourceDescriptors.Builder<K, V> toBuilder();
@@ -2086,6 +2132,8 @@ public class KafkaIO {
       abstract ReadSourceDescriptors.Builder<K, V> setBadRecordErrorHandler(
           ErrorHandler<BadRecord, ?> badRecordErrorHandler);
 
+      abstract ReadSourceDescriptors.Builder<K, V> setConsumerPollingTimeout(long duration);
+
       abstract ReadSourceDescriptors.Builder<K, V> setBounded(boolean bounded);
 
       abstract ReadSourceDescriptors<K, V> build();
@@ -2099,6 +2147,7 @@ public class KafkaIO {
           .setBounded(false)
           .setBadRecordRouter(BadRecordRouter.THROWING_ROUTER)
           .setBadRecordErrorHandler(new ErrorHandler.DefaultErrorHandler<>())
+          .setConsumerPollingTimeout(2L)
           .build()
           .withProcessingTime()
           .withMonotonicallyIncreasingWatermarkEstimator();
@@ -2360,6 +2409,15 @@ public class KafkaIO {
           .build();
     }
 
+    /**
+     * Sets the timeout time in seconds for Kafka consumer polling request in the {@link
+     * ReadFromKafkaDoFn}. A lower timeout optimizes for latency. Increase the timeout if the
+     * consumer is not fetching any records. The default is 2 seconds.
+     */
+    public ReadSourceDescriptors<K, V> withConsumerPollingTimeout(long duration) {
+      return toBuilder().setConsumerPollingTimeout(duration).build();
+    }
+
     ReadAllFromRow<K, V> forExternalBuild() {
       return new ReadAllFromRow<>(this);
     }
@@ -2617,9 +2675,9 @@ public class KafkaIO {
       abstract Builder<K, V> setProducerConfig(Map<String, Object> producerConfig);
 
       abstract Builder<K, V> setProducerFactoryFn(
-          SerializableFunction<Map<String, Object>, Producer<K, V>> fn);
+          @Nullable SerializableFunction<Map<String, Object>, Producer<K, V>> fn);
 
-      abstract Builder<K, V> setKeySerializer(Class<? extends Serializer<K>> serializer);
+      abstract Builder<K, V> setKeySerializer(@Nullable Class<? extends Serializer<K>> serializer);
 
       abstract Builder<K, V> setValueSerializer(Class<? extends Serializer<V>> serializer);
 

@@ -56,6 +56,7 @@ import org.apache.beam.runners.dataflow.DataflowRunner.CombineGroupedValues;
 import org.apache.beam.runners.dataflow.PrimitiveParDoSingleFactory.ParDoSingle;
 import org.apache.beam.runners.dataflow.TransformTranslator.StepTranslationContext;
 import org.apache.beam.runners.dataflow.TransformTranslator.TranslationContext;
+import org.apache.beam.runners.dataflow.internal.DataflowGroupByKey;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.CloudObjects;
@@ -428,7 +429,11 @@ public class DataflowPipelineTranslator {
         environment.setDebugOptions(debugOptions);
       }
 
-      pipeline.traverseTopologically(this);
+      if (DataflowRunner.useUnifiedWorker(options)) {
+        LOG.info("Skipping v1 pipeline translation since this job will run on v2.");
+      } else {
+        pipeline.traverseTopologically(this);
+      }
 
       return job;
     }
@@ -910,6 +915,34 @@ public class DataflowPipelineTranslator {
 
             // TODO: Add support for combiner lifting once the need arises.
             stepContext.addInput(PropertyNames.DISALLOW_COMBINER_LIFTING, true);
+          }
+        });
+
+    registerTransformTranslator(
+        DataflowGroupByKey.class,
+        new TransformTranslator<DataflowGroupByKey>() {
+          @Override
+          public void translate(DataflowGroupByKey transform, TranslationContext context) {
+            dataflowGroupByKeyHelper(transform, context);
+          }
+
+          private <K, V> void dataflowGroupByKeyHelper(
+              DataflowGroupByKey<K, V> transform, TranslationContext context) {
+            StepTranslationContext stepContext = context.addStep(transform, "GroupByKey");
+            PCollection<KV<K, V>> input = context.getInput(transform);
+            stepContext.addInput(PropertyNames.PARALLEL_INPUT, input);
+            stepContext.addOutput(PropertyNames.OUTPUT, context.getOutput(transform));
+
+            WindowingStrategy<?, ?> windowingStrategy = input.getWindowingStrategy();
+            stepContext.addInput(PropertyNames.DISALLOW_COMBINER_LIFTING, true);
+            stepContext.addInput(
+                PropertyNames.SERIALIZED_FN,
+                byteArrayToJsonString(
+                    serializeWindowingStrategy(windowingStrategy, context.getPipelineOptions())));
+            stepContext.addInput(
+                PropertyNames.IS_MERGING_WINDOW_FN,
+                !windowingStrategy.getWindowFn().isNonMerging());
+            stepContext.addInput(PropertyNames.ALLOW_DUPLICATES, transform.allowDuplicates());
           }
         });
 

@@ -50,7 +50,7 @@ task check {
 
         // precommit and postcommit should triggered by this specific file
         // this is to ensure not missing test during release branch verification
-        if (paths != null && !paths.contains('release/trigger_all_tests.json')) {
+        if (paths != null && !paths.contains('release/trigger_all_tests.json') && !fname.toLowerCase().contains('sickbay')) {
           errors.add("Error validating ${fname}: " +
                   "Please add 'release/trigger_all_tests.json' to the trigger path")
           return

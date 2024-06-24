@@ -18,10 +18,12 @@
 package org.apache.beam.runners.dataflow.worker.windmill.work.refresh;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.after;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.google.api.services.dataflow.model.MapTask;
@@ -38,7 +40,9 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
+import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
 import org.apache.beam.runners.dataflow.worker.streaming.ShardedKey;
+import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
@@ -50,7 +54,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.HashBa
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Table;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -105,16 +108,23 @@ public class DispatchedActiveWorkRefresherTest {
         Executors.newSingleThreadScheduledExecutor());
   }
 
-  private Work createOldWork(int workIds, Consumer<Work> processWork) {
-    return Work.create(
-        Windmill.WorkItem.newBuilder()
-            .setWorkToken(workIds)
-            .setCacheToken(workIds)
-            .setKey(ByteString.EMPTY)
-            .setShardingKey(workIds)
-            .build(),
-        DispatchedActiveWorkRefresherTest.A_LONG_TIME_AGO,
-        ImmutableList.of(),
+  private ExecutableWork createOldWork(
+      ShardedKey shardedKey, int workIds, Consumer<Work> processWork) {
+    return ExecutableWork.create(
+        Work.create(
+            Windmill.WorkItem.newBuilder()
+                .setKey(shardedKey.key())
+                .setShardingKey(shardedKey.shardingKey())
+                .setWorkToken(workIds)
+                .setCacheToken(workIds)
+                .build(),
+            Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
+            Work.createProcessingContext(
+                "computationId",
+                (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance(),
+                ignored -> {}),
+            DispatchedActiveWorkRefresherTest.A_LONG_TIME_AGO,
+            ImmutableList.of()),
         processWork);
   }
 
@@ -134,14 +144,15 @@ public class DispatchedActiveWorkRefresherTest {
         };
 
     List<ComputationState> computations = new ArrayList<>();
-    Map<String, List<Work>> computationsAndWork = new HashMap<>();
+    Map<String, List<ExecutableWork>> computationsAndWork = new HashMap<>();
     for (int i = 0; i < 5; i++) {
       ComputationState computationState = createComputationState(i);
-      Work fakeWork = createOldWork(i, processWork);
-      computationState.activateWork(ShardedKey.create(ByteString.EMPTY, i), fakeWork);
+      ExecutableWork fakeWork =
+          createOldWork(ShardedKey.create(ByteString.EMPTY, i), i, processWork);
+      computationState.activateWork(fakeWork);
 
       computations.add(computationState);
-      List<Work> activeWorkForComputation =
+      List<ExecutableWork> activeWorkForComputation =
           computationsAndWork.computeIfAbsent(
               computationState.getComputationId(), ignored -> new ArrayList<>());
       activeWorkForComputation.add(fakeWork);
@@ -172,13 +183,13 @@ public class DispatchedActiveWorkRefresherTest {
         expectedHeartbeats.entrySet()) {
       String computationId = expectedHeartbeat.getKey();
       List<HeartbeatRequest> heartbeatRequests = expectedHeartbeat.getValue();
-      List<Work> work = computationsAndWork.get(computationId);
+      List<ExecutableWork> work = computationsAndWork.get(computationId);
 
       // Compare the heartbeatRequest's and Work's workTokens, cacheTokens, and shardingKeys.
       assertThat(heartbeatRequests)
           .comparingElementsUsing(
               Correspondence.from(
-                  (HeartbeatRequest h, Work w) ->
+                  (HeartbeatRequest h, ExecutableWork w) ->
                       h.getWorkToken() == w.getWorkItem().getWorkToken()
                           && h.getCacheToken() == w.getWorkItem().getWorkToken()
                           && h.getShardingKey() == w.getWorkItem().getShardingKey(),
@@ -192,23 +203,36 @@ public class DispatchedActiveWorkRefresherTest {
   }
 
   @Test
-  public void testInvalidateStuckCommits() {
+  public void testInvalidateStuckCommits() throws InterruptedException {
     int stuckCommitDurationMillis = 100;
-    Table<ComputationState, Work, WindmillStateCache.ForComputation> computations =
+    Table<ComputationState, ExecutableWork, WindmillStateCache.ForComputation> computations =
         HashBasedTable.create();
-    WindmillStateCache stateCache = new WindmillStateCache(100);
+    WindmillStateCache stateCache = WindmillStateCache.ofSizeMbs(100);
     ByteString key = ByteString.EMPTY;
     for (int i = 0; i < 5; i++) {
       WindmillStateCache.ForComputation perComputationStateCache =
           spy(stateCache.forComputation(COMPUTATION_ID_PREFIX + i));
       ComputationState computationState = spy(createComputationState(i, perComputationStateCache));
-      Work fakeWork = createOldWork(i, ignored -> {});
-      fakeWork.setState(Work.State.COMMITTING);
-      computationState.activateWork(ShardedKey.create(key, i), fakeWork);
+      ExecutableWork fakeWork = createOldWork(ShardedKey.create(key, i), i, ignored -> {});
+      fakeWork.work().setState(Work.State.COMMITTING);
+      computationState.activateWork(fakeWork);
       computations.put(computationState, fakeWork, perComputationStateCache);
     }
 
     TestClock fakeClock = new TestClock(Instant.now());
+    CountDownLatch invalidateStuckCommitRan = new CountDownLatch(computations.size());
+
+    // Count down the latch every time to avoid waiting/sleeping arbitrarily.
+    for (ComputationState computation : computations.rowKeySet()) {
+      doAnswer(
+              invocation -> {
+                invocation.callRealMethod();
+                invalidateStuckCommitRan.countDown();
+                return null;
+              })
+          .when(computation)
+          .invalidateStuckCommits(any(Instant.class));
+    }
 
     ActiveWorkRefresher activeWorkRefresher =
         createActiveWorkRefresher(
@@ -220,21 +244,20 @@ public class DispatchedActiveWorkRefresherTest {
 
     activeWorkRefresher.start();
     fakeClock.advance(Duration.millis(stuckCommitDurationMillis));
-    Uninterruptibles.sleepUninterruptibly(stuckCommitDurationMillis, TimeUnit.MILLISECONDS);
+    invalidateStuckCommitRan.await();
+    activeWorkRefresher.stop();
 
-    for (Table.Cell<ComputationState, Work, WindmillStateCache.ForComputation> cell :
+    for (Table.Cell<ComputationState, ExecutableWork, WindmillStateCache.ForComputation> cell :
         computations.cellSet()) {
       ComputationState computation = cell.getRowKey();
-      Work work = cell.getColumnKey();
+      ExecutableWork work = cell.getColumnKey();
       WindmillStateCache.ForComputation perComputationStateCache = cell.getValue();
-      verify(perComputationStateCache, after((long) (stuckCommitDurationMillis * 1.5)).times(1))
+      verify(perComputationStateCache, times(1))
           .invalidate(eq(key), eq(work.getWorkItem().getShardingKey()));
-      verify(computation, after((long) (stuckCommitDurationMillis * 1.5)).times(1))
+      verify(computation, times(1))
           .completeWorkAndScheduleNextWorkForKey(
               eq(ShardedKey.create(key, work.getWorkItem().getShardingKey())), eq(work.id()));
     }
-
-    activeWorkRefresher.stop();
   }
 
   static class TestClock implements Clock {

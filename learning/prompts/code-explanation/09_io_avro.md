@@ -16,6 +16,7 @@ def _add_argparse_args(cls, parser):
     (p | "Read Avro" >> ReadFromAvro(options.path)
        | Map(logging.info))
 ```
+
 Response:
 This code reads data from [Apache Avro](https://avro.apache.org/) files using the `ReadFromAvro` transform from the built-in [AvroIO connector](https://beam.apache.org/releases/pydoc/current/apache_beam.io.avroio.html).
 
@@ -30,7 +31,8 @@ def _add_argparse_args(cls, parser):
 
     options = ReadAvroOptions()
 ```
-The `ReadAvroOptions` class is used to define the command-line argument `--path`, which specifies the path to the Avro file. This code uses [pipeline options](https://beam.apache.org/documentation/patterns/pipeline-options/) for the required `path` argument.
+
+The `ReadAvroOptions` class defines the command-line argument `--path`, which specifies the path to the Avro file. To parse command-line arguments, this code uses [pipeline options](https://beam.apache.org/documentation/patterns/pipeline-options/).
 
 ```python
   with beam.Pipeline(options=options) as p:
@@ -38,4 +40,5 @@ The `ReadAvroOptions` class is used to define the command-line argument `--path`
     (p | "Read Avro" >> ReadFromAvro(options.path)
        | Map(logging.info))
 ```
-A Beam pipeline is created using the `ReadAvroOptions` class and the [ReadFromAvro transform](https://beam.apache.org/releases/pydoc/current/apache_beam.io.avroio.html#apache_beam.io.avroio.ReadFromAvro) is used to read data from the Avro file.
+
+The Apache Beam pipeline uses the `ReadAvroOptions` class to set the path to the Avro file and the [`ReadFromAvro` transform](https://beam.apache.org/releases/pydoc/current/apache_beam.io.avroio.html#apache_beam.io.avroio.ReadFromAvro) to read data from the file.

@@ -43,6 +43,7 @@ with beam.Pipeline(options=options) as p:
         )
         | 'Log Data' >> Map(logging.info))
 ```
+
 Response:
 This code reads data from an [Oracle Java Database Connectivity (JDBC) enabled database](https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/) using the `ReadFromJdbc` transform from the built-in [JdbcIO connector](https://beam.apache.org/releases/pydoc/current/apache_beam.io.jdbc.html).
 
@@ -51,6 +52,7 @@ class ExampleRow(NamedTuple):
     id: int
     name: str
 ```
+
 This code defines a named tuple `ExampleRow` with two fields: `id` and `name`.
 
 ```python
@@ -81,7 +83,7 @@ class JdbcOptions(PipelineOptions):
 options = JdbcOptions()
 ```
 
-The `JdbcOptions` class is used to define the command-line arguments `--table_name`, `--jdbc_url`, `--driver_class_name`, `--username`, and `--password`, which specify the JDBC connection parameters. This code uses [pipeline options](https://beam.apache.org/documentation/patterns/pipeline-options/) to parse command-line arguments.
+The `JdbcOptions` class defines the command-line arguments `--table_name`, `--jdbc_url`, `--driver_class_name`, `--username`, and `--password`, which specify the JDBC connection parameters. To parse command-line arguments, this code uses [pipeline options](https://beam.apache.org/documentation/patterns/pipeline-options/).
 
 ```python
 coders.registry.register_coder(ExampleRow, coders.RowCoder)
@@ -102,4 +104,4 @@ with beam.Pipeline(options=options) as p:
         | 'Log Data' >> Map(logging.info))
 ```
 
-A Beam pipeline is created using the `JdbcOptions` class and the [ReadFromJdbc transform](https://beam.apache.org/releases/pydoc/current/apache_beam.io.jdbc.html#apache_beam.io.jdbc.ReadFromJdbc) is used to read data from the database via JDBC.
+The Apache Beam pipeline uses the `JdbcOptions` class to set the path to the database and the [`ReadFromJdbc` transform](https://beam.apache.org/releases/pydoc/current/apache_beam.io.jdbc.html#apache_beam.io.jdbc.ReadFromJdbc) to read data from the database via JDBC.

@@ -37,7 +37,7 @@ complements the foundation-wide guides:
 A Beam release consists of the following:
 
  - ASF source zips archived on
-   [dist.apache.org](https://dist.apache.org/release/beam) (later archived to
+   [dist.apache.org](https://dist.apache.org/repos/dist/release/beam/) (later archived to
    [archive.apache.org](https://archive.apache.org/dist/beam)
  - Java jars and poms published to [Maven
    Central](https://mvnrepository.com/artifact/org.apache.beam)
@@ -238,17 +238,6 @@ releases to the Maven Central Repository.
 ### Dependency checks
 
 Each language has routine dependency maintenance that you should check now.
-
-#### Update base image dependencies for Python container images
-
-The Python base container images have pinned `requirements.txt` that are
-compatible with our dependency constraints, and design to avoid run-time
-installs, since run-time installs cause large delays at start-up time. Ideally,
-we this should happen regularly when dependencies update, but it is important
-to ensure that they are fully up to date for each release.
-
-Follow the instructions at
-https://s.apache.org/beam-python-requirements-generate
 
 #### Update Go version used for container builds
 
@@ -539,9 +528,36 @@ The following should be confirmed:
 - [ ] There is a commit not on the release branch with the version adjusted.
 - [ ] The RC tag points to that commit.
 
+### Create a draft, pre-release Github release for the RC Tag
+
+TODO: Automate these steps as a github action.
+
+If this is for the first release candidate, create a new, draft, pre-release Github release.
+
+* Go to https://github.com/apache/beam/releases/new to start creating a Github release.
+
+If this is for subsequent release candidates re-use the existing Github release for this version.
+
+* Do not create a new release if one already exists, navigate to the existing Github release for the previous RC.
+
+Once on the release page:
+
+* Update the Release tag to the current RC Tag.
+* Title the release "Beam ${RELEASE_VERSION} release".
+* The description may remain empty for now, but will eventually contain the release blog post.
+* Set this release as a pre-release, by checking the `Set as pre-release` box below the description box.
+
+Once configured properly, press the `Save draft` button.
+
+The following should be confirmed:
+
+- [ ] The Github release is configured as a draft, pre-release.
+- [ ] The Github release points to the current RC tag.
+
 ### Run build_release_candidate GitHub Action to create a release candidate
 
 **Action** [build_release_candidate](https://github.com/apache/beam/actions/workflows/build_release_candidate.yml) (click `run workflow`)
+and update the JSON configuration fields with "yes".
 
 **The action will:**
 
@@ -553,11 +569,15 @@ The following should be confirmed:
 5. Build javadoc, pydoc, typedocs for a PR to update beam-site.
     - **NOTE**: Do not merge this PR until after an RC has been approved (see
       "Finalize the Release").
+6. Build Prism binaries for various platforms, and upload them into [dist.apache.org](https://dist.apache.org/repos/dist/dev/beam)
+   and the Github Release with the matching RC tag.
 
-### Verify source distributions
+### Verify source and artifact distributions
 
  - [ ] Verify that the source zip of the whole project is present in [dist.apache.org](https://dist.apache.org/repos/dist/dev/beam).
  - [ ] Verify that the Python binaries are present in [dist.apache.org](https://dist.apache.org/repos/dist/dev/beam).
+ - [ ] Verify that the Prism binaries are present in [dist.apache.org](https://dist.apache.org/repos/dist/dev/beam).
+ - [ ] Verify that the Prism binaries are attached to the Github Release created in the previous step.
 
 ### Verify docker images
 
@@ -741,6 +761,8 @@ as an example.
 
     * {$KNOWN_ISSUE_1}
     * {$KNOWN_ISSUE_2}
+
+    For the most up to date list of known issues, see https://github.com/apache/beam/blob/master/CHANGES.md
 
     ## List of Contributors
 
@@ -931,7 +953,7 @@ write to BigQuery, and create a cluster of machines for running containers (for 
   ```
   **Flink Local Runner**
   ```
-  ./gradlew :runners:flink:1.13:runQuickstartJavaFlinkLocal \
+  ./gradlew :runners:flink:1.18:runQuickstartJavaFlinkLocal \
   -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \
   -Pver=${RELEASE_VERSION}
   ```
@@ -1198,9 +1220,12 @@ Merge all of the website pull requests
 
 ### Publish release to Github
 
-Once the tag is uploaded, publish the release notes to Github. From the [Beam release page on Github](https://github.com/apache/beam/releases) select
-"Draft a new release." Title the release "Beam ${RELEASE_VERSION} release" and set the release at the version tag created above. Use the content of the
-release blog post as the body of the release notes, set this version as the latest release, and publish it.
+Once the tag is uploaded, publish the release notes to Github.
+From the [Beam release page on Github](https://github.com/apache/beam/releases)
+find and open the release for the final RC tag for for editing.
+Update the release with the final version tag created above.
+Use the content of the release blog post as the body of the release notes,
+set this version as the latest release, and publish it.
 
 The release notes should now be visible on Github's [Releases](https://github.com/apache/beam/releases) page.
 
@@ -1329,6 +1354,15 @@ Release Manager
 [1] https://github.com/apache/beam/pull/123
 ```
 
+#### Update Python Dependencies
+
+A PR should have already been created (and possibly merged) by github-actions bot, you should verify that this was done correctly
+by looking at open PRs from that bot - https://github.com/apache/beam/pulls/app%2Fgithub-actions
+
+If a PR has not been merged, drive it to completion.
+If no PR was created, triage any failures in https://github.com/apache/beam/actions/workflows/beam_Publish_Website.yml and manually regenerate dependencies,
+following https://cwiki.apache.org/confluence/display/BEAM/Python+Tips#PythonTips-HowtoupdatedependenciesthatareinstalledinPythoncontainerimages
+
 ### Update the Java starter repo
 
 After the new Beam release is published, the Java starter project needs to have its version manually upgraded.
@@ -1343,7 +1377,9 @@ open a PR to do this if you don't.
 
 ### Update Beam Playground
 
-After new Beam Release is published, Beam Playground can be updated following the steps below:
+After new Beam Release is published, Beam Playground can be updated following the steps below. If any steps fail, make
+sure that the triggers are correctly configured as described in
+https://github.com/apache/beam/blob/master/playground/terraform/infrastructure/cloudbuild-manual-setup/README.md#deploy-playgorund-environment-from-cloud-build-triggers:
 
 1. Open the [Cloud Build triggers in apache-beam-testing](https://console.cloud.google.com/cloud-build/triggers?project=apache-beam-testing) GCP project.
 2. Find the trigger "Deploy-Update-Playground-environment-stg":
@@ -1388,3 +1424,23 @@ Perhaps parts of this guide can be clarified.
 
 If we have specific ideas, please start a discussion on the dev@ mailing list and/or propose a pull request to update this guide.
 Thanks!
+
+# Patch Releases
+
+The above document assumes a minor version bump cut off of the master branch. If you want to do a patch release cut off of a previous release branch, use the following steps:
+
+- Create a new release branch:
+
+```
+git clone https://github.com/apache/beam
+cd beam
+git fetch origin release-2.XX.0
+git checkout release-2.XX.0
+git checkout -b release-2.XX.1
+git push origin release-2.XX.1
+```
+
+- Add a PR to add the new release branch to the set of protected branches in .asf.yml - [example PR](https://github.com/apache/beam/pull/30832)
+- Add a PR to bump the Dataflow containers versions - [example PR](https://github.com/apache/beam/pull/30827)
+- Create PRs to cherry-pick any desired commits to the release branch
+- Follow the normal steps to build/vote/validate/finalize the release candidate that are listed above.

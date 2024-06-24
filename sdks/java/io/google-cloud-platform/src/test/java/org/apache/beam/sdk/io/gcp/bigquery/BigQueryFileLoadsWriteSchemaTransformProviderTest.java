@@ -41,7 +41,6 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.io.InvalidConfigurationException;
-import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -108,16 +107,16 @@ public class BigQueryFileLoadsWriteSchemaTransformProviderTest {
 
   @Test
   public void testLoad() throws IOException, InterruptedException {
-    SchemaTransformProvider provider = new BigQueryFileLoadsWriteSchemaTransformProvider();
+    BigQueryFileLoadsWriteSchemaTransformProvider provider =
+        new BigQueryFileLoadsWriteSchemaTransformProvider();
     BigQueryFileLoadsWriteSchemaTransformConfiguration configuration =
         BigQueryFileLoadsWriteSchemaTransformConfiguration.builder()
             .setTableSpec(BigQueryHelpers.toTableSpec(TABLE_REFERENCE))
             .setWriteDisposition(WriteDisposition.WRITE_TRUNCATE.name())
             .setCreateDisposition(CreateDisposition.CREATE_IF_NEEDED.name())
             .build();
-    Row configurationRow = configuration.toBeamRow();
     BigQueryWriteSchemaTransform schemaTransform =
-        (BigQueryWriteSchemaTransform) provider.from(configurationRow);
+        (BigQueryWriteSchemaTransform) provider.from(configuration);
     schemaTransform.setTestBigQueryServices(fakeBigQueryServices);
     String tag = provider.inputCollectionNames().get(0);
     PCollectionRowTuple input =
@@ -254,9 +253,10 @@ public class BigQueryFileLoadsWriteSchemaTransformProviderTest {
 
   private BigQueryWriteSchemaTransform transformFrom(
       BigQueryFileLoadsWriteSchemaTransformConfiguration configuration) {
-    SchemaTransformProvider provider = new BigQueryFileLoadsWriteSchemaTransformProvider();
+    BigQueryFileLoadsWriteSchemaTransformProvider provider =
+        new BigQueryFileLoadsWriteSchemaTransformProvider();
     BigQueryWriteSchemaTransform transform =
-        (BigQueryWriteSchemaTransform) provider.from(configuration.toBeamRow());
+        (BigQueryWriteSchemaTransform) provider.from(configuration);
 
     transform.setTestBigQueryServices(fakeBigQueryServices);
 

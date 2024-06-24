@@ -46,9 +46,12 @@ import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 
   private final Coder<T> coder;
 
-  FlinkInput(String identifier, Coder<T> coder) {
+  private final boolean isBounded;
+
+  FlinkInput(String identifier, Coder<T> coder, boolean isBounded) {
     this.identifier = identifier;
     this.coder = coder;
+    this.isBounded = isBounded;
   }
 
   @Override
@@ -56,12 +59,11 @@ import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
     return PCollection.createPrimitiveOutputInternal(
         input.getPipeline(),
         WindowingStrategy.globalDefault(),
-        PCollection.IsBounded.BOUNDED,
+        isBounded ? PCollection.IsBounded.BOUNDED : PCollection.IsBounded.UNBOUNDED,
         coder);
   }
 
   // This Translator translates this kind of PTransform into a Beam proto representation.
-  @SuppressWarnings("nullness")
   @AutoService(TransformPayloadTranslatorRegistrar.class)
   public static class Translator
       implements PTransformTranslation.TransformPayloadTranslator<FlinkInput<?>>,
@@ -72,6 +74,7 @@ import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
     }
 
     @Override
+    @SuppressWarnings("nullness") // TODO(https://github.com/apache/beam/issues/20497)
     public RunnerApi.FunctionSpec translate(
         AppliedPTransform<?, ?, FlinkInput<?>> application, SdkComponents components)
         throws IOException {

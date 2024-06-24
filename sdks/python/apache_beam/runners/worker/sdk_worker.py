@@ -607,12 +607,18 @@ class BundleProcessorCache(object):
     # type: () -> None
     def shutdown_inactive_bundle_processors():
       # type: () -> None
+      inactive_descriptor_ids = []
+      inactive_time = time.time(
+      ) - DEFAULT_BUNDLE_PROCESSOR_CACHE_SHUTDOWN_THRESHOLD_S
       with self._lock:
         for descriptor_id, last_access_time in self.last_access_times.items():
-          if (time.time() - last_access_time >
-              DEFAULT_BUNDLE_PROCESSOR_CACHE_SHUTDOWN_THRESHOLD_S):
-            BundleProcessorCache._shutdown_cached_bundle_processors(
-                self.cached_bundle_processors[descriptor_id])
+          if (inactive_time > last_access_time):
+            inactive_descriptor_ids.append(descriptor_id)
+
+      # Shutdown can be expensive, keep out of lock
+      for descriptor_id in inactive_descriptor_ids:
+        BundleProcessorCache._shutdown_cached_bundle_processors(
+            self.cached_bundle_processors[descriptor_id])
 
     self.periodic_shutdown = PeriodicThread(
         DEFAULT_BUNDLE_PROCESSOR_CACHE_SHUTDOWN_THRESHOLD_S,
@@ -739,10 +745,12 @@ class SdkWorker(object):
           instruction_id=instruction_id, error=traceback.format_exc())
     if processor:
       monitoring_infos = processor.monitoring_infos()
+      consuming_received_data = processor.consuming_received_data
     else:
       # Return an empty response if we aren't running. This can happen
       # if the ProcessBundleRequest has not started or already finished.
       monitoring_infos = []
+      consuming_received_data = False
     return beam_fn_api_pb2.InstructionResponse(
         instruction_id=instruction_id,
         process_bundle_progress=beam_fn_api_pb2.ProcessBundleProgressResponse(
@@ -750,7 +758,8 @@ class SdkWorker(object):
             monitoring_data={
                 SHORT_ID_CACHE.get_short_id(info): info.payload
                 for info in monitoring_infos
-            }))
+            },
+            consuming_received_data=consuming_received_data))
 
   def finalize_bundle(
       self,
@@ -1159,6 +1168,11 @@ class GlobalCachingStateHandler(CachingStateHandler):
     self._state_cache = global_state_cache
     self._context = threading.local()
 
+    # state retrieval time statistics
+    self._retrieval_time = 0.0
+    self._get_raw_called = 0
+    self._warn_interval = 60.0
+
   @contextlib.contextmanager
   def process_instruction_id(self, bundle_id, cache_tokens):
     # type: (str, Iterable[beam_fn_api_pb2.ProcessBundleRequest.CacheToken]) -> Iterator[None]
@@ -1272,13 +1286,45 @@ class GlobalCachingStateHandler(CachingStateHandler):
        :return A generator which returns the next element if advanced.
     """
     while True:
-      data, continuation_token = (
-          self._underlying.get_raw(state_key, continuation_token))
-      input_stream = coder_impl.create_InputStream(data)
+      input_stream, continuation_token = self._get_raw(
+          state_key, continuation_token)
+
       while input_stream.size() > 0:
         yield coder.decode_from_stream(input_stream, True)
       if not continuation_token:
         break
+
+  def _get_raw(self,
+      state_key,  # type: beam_fn_api_pb2.StateKey
+      continuation_token  # type: Optional[bytes]
+               ):
+    # type: (...) -> Tuple[coder_impl.create_InputStream, Optional[bytes]]
+
+    """Call underlying get_raw with performance statistics and detection."""
+    start_time = time.time()
+
+    data, continuation_token = (
+        self._underlying.get_raw(state_key, continuation_token))
+
+    input_stream = coder_impl.create_InputStream(data)
+
+    self._retrieval_time += time.time() - start_time
+    self._get_raw_called += 1
+
+    if self._retrieval_time > self._warn_interval:
+      _LOGGER.warning(
+          "Retrieving state %d times costed %.0f seconds. It may be due to "
+          "insufficient state cache size and/or frequent direct access of "
+          "states.\nConsider adding '--max_cache_memory_usage_mb' pipeline "
+          "option to increase state cache size or switch to materialized "
+          "(pvalue.AsList) side input if applicable." %
+          (self._get_raw_called, self._retrieval_time))
+      # reset counts
+      self._retrieval_time = 0.0
+      self._get_raw_called = 0
+      self._warn_interval *= 2
+
+    return input_stream, continuation_token
 
   def _get_cache_token(self, state_key):
     # type: (beam_fn_api_pb2.StateKey) -> Optional[bytes]
@@ -1306,9 +1352,8 @@ class GlobalCachingStateHandler(CachingStateHandler):
     """Materialized the first page of data, concatenated with a lazy iterable
     of the rest, if any.
     """
-    data, continuation_token = self._underlying.get_raw(state_key, None)
+    input_stream, continuation_token = self._get_raw(state_key, None)
     head = []
-    input_stream = coder_impl.create_InputStream(data)
     while input_stream.size() > 0:
       head.append(coder.decode_from_stream(input_stream, True))
 

@@ -411,7 +411,9 @@ public class BeamRowToStorageApiProtoTest {
     assertBaseRecord(nestedMsg);
     assertEquals(
         "UPDATE", msg.getField(descriptor.findFieldByName(StorageApiCDC.CHANGE_TYPE_COLUMN)));
-    assertEquals(42L, msg.getField(descriptor.findFieldByName(StorageApiCDC.CHANGE_SQN_COLUMN)));
+    assertEquals(
+        Long.toHexString(42L),
+        msg.getField(descriptor.findFieldByName(StorageApiCDC.CHANGE_SQN_COLUMN)));
   }
 
   @Test

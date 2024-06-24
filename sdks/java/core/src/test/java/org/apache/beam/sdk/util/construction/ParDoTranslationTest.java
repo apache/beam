@@ -245,6 +245,10 @@ public class ParDoTranslationTest {
             {
               StateSpecs.map(StringUtf8Coder.of(), VarIntCoder.of()),
               FunctionSpec.newBuilder().setUrn(ParDoTranslation.MULTIMAP_USER_STATE).build()
+            },
+            {
+              StateSpecs.orderedList(VarIntCoder.of()),
+              FunctionSpec.newBuilder().setUrn(ParDoTranslation.ORDERED_LIST_USER_STATE).build()
             }
           });
     }

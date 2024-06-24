@@ -1117,6 +1117,19 @@ class FnApiRunnerTest(unittest.TestCase):
     from apache_beam.runners.portability.fn_api_runner.execution import GenericMergingWindowFn
     self.assertEqual(GenericMergingWindowFn._HANDLES, {})
 
+  def test_custom_window_type(self):
+    with self.create_pipeline() as p:
+      res = (
+          p
+          | beam.Create([1, 2, 100, 101, 102])
+          | beam.Map(lambda t: window.TimestampedValue(('k', t), t))
+          | beam.WindowInto(EvenOddWindows())
+          | beam.GroupByKey()
+          | beam.Map(lambda k_vs1: (k_vs1[0], sorted(k_vs1[1]))))
+      assert_that(
+          res,
+          equal_to([('k', [1]), ('k', [2]), ('k', [101]), ('k', [100, 102])]))
+
   @unittest.skip('BEAM-9119: test is flaky')
   def test_large_elements(self):
     with self.create_pipeline() as p:
@@ -2377,6 +2390,47 @@ class CustomMergingWindowFn(window.WindowFn):
 
   def get_window_coder(self):
     return coders.IntervalWindowCoder()
+
+
+class ColoredFixedWindow(window.BoundedWindow):
+  def __init__(self, end, color):
+    super().__init__(end)
+    self.color = color
+
+  def __hash__(self):
+    return hash((self.end, self.color))
+
+  def __eq__(self, other):
+    return (
+        type(self) == type(other) and self.end == other.end and
+        self.color == other.color)
+
+
+class ColoredFixedWindowCoder(beam.coders.Coder):
+  kv_coder = beam.coders.TupleCoder(
+      [beam.coders.TimestampCoder(), beam.coders.StrUtf8Coder()])
+
+  def encode(self, colored_window):
+    return self.kv_coder.encode((colored_window.end, colored_window.color))
+
+  def decode(self, encoded_window):
+    return ColoredFixedWindow(*self.kv_coder.decode(encoded_window))
+
+  def is_deterministic(self):
+    return True
+
+
+class EvenOddWindows(window.NonMergingWindowFn):
+  def assign(self, context):
+    timestamp = context.timestamp
+    return [
+        ColoredFixedWindow(
+            timestamp - timestamp % 10 + 10,
+            'red' if timestamp.micros // 1000000 % 2 else 'black')
+    ]
+
+  def get_window_coder(self):
+    return ColoredFixedWindowCoder()
 
 
 class ExpectingSideInputsFn(beam.DoFn):

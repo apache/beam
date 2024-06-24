@@ -146,6 +146,12 @@ class Timestamp(object):
     """Returns the largest timestamp smaller than self."""
     return Timestamp(micros=self.micros - 1)
 
+  def successor(self):
+    # type: () -> Timestamp
+
+    """Returns the smallest timestamp larger than self."""
+    return Timestamp(micros=self.micros + 1)
+
   def __repr__(self):
     # type: () -> str
     micros = self.micros

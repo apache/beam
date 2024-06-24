@@ -18,14 +18,22 @@ limitations under the License.
 # Large Language Model Inference in Beam
 In Apache Beam 2.40.0, Beam introduced the RunInference API, which lets you deploy a machine learning model in a Beam pipeline. A `RunInference` transform performs inference on a `PCollection` of examples using a machine learning (ML) model. The transform outputs a PCollection that contains the input examples and output predictions. For more information, see RunInference [here](/documentation/transforms/python/elementwise/runinference/). You can also find [inference examples on GitHub](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/inference).
 
-
 ## Using RunInference with very large models
 RunInference works well on arbitrarily large models as long as they can fit on your hardware.
 
+### Memory Management
+
+RunInference has several mechanisms for reducing memory utilization. For example, by default RunInference load at most a single copy of each model per process (rather than one per thread).
+
+Many Beam runners, however, run multiple Beam processes per machine at once. This can cause problems since the memory footprint of loading large models like LLMs multiple times can be too large to fit into a single machine.
+For memory-intensive models, RunInference provides a mechanism for more intelligently sharing memory across multiple processes to reduce the overall memory footprint. To enable this mode, users just have
+to set the parameter `large_model` to True in their model configuration (see below for an example), and Beam will take care of the memory management.
+
+### Running an Example Pipeline with T5
+
 This example demonstrates running inference with a `T5` language model using `RunInference` in a pipeline. `T5` is an encoder-decoder model pre-trained on a multi-task mixture of unsupervised and supervised tasks. Each task is converted into a text-to-text format. The example uses `T5-11B`, which contains 11 billion parameters and is 45 GB in size. In  order to work well on a variety of tasks, `T5` prepends a different prefix to the input corresponding to each task. For example, for translation, the input would be: `translate English to German: …` and for summarization, it would be: `summarize: …`. For more information about `T5` see the [T5 overiew](https://huggingface.co/docs/transformers/model_doc/t5) in the HuggingFace documentation.
 
-### Run the Pipeline ?
-First, install `apache-beam` 2.40 or greater:
+To run inference with this model, first, install `apache-beam` 2.40 or greater:
 
 ```
 pip install apache-beam -U
@@ -103,7 +111,8 @@ In order to use it, you must first define a `ModelHandler`. RunInference provide
       model_class=T5ForConditionalGeneration,
       model_params={"config": AutoConfig.from_pretrained(args.model_name)},
       device="cpu",
-      inference_fn=gen_fn)
+      inference_fn=gen_fn,
+      large_model=True)
 {{< /highlight >}}
 
 A `ModelHandler` requires parameters like:
@@ -112,3 +121,4 @@ A `ModelHandler` requires parameters like:
 * `model_params` – A dictionary of arguments required to instantiate the model class.
 * `device` – The device on which you wish to run the model. If device = GPU then a GPU device will be used if it is available. Otherwise, it will be CPU.
 * `inference_fn` -  The inference function to use during RunInference.
+* `large_model` - (see `Memory Management` above). Whether to use memory minimization techniques to lower the memory footprint of your model.

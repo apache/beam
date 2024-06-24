@@ -26,6 +26,7 @@ import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableConstraints;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -303,7 +304,14 @@ class DynamicDestinationsHelpers {
       TableDestination destination = super.getDestination(element);
       String partitioning =
           Optional.ofNullable(jsonTimePartitioning).map(ValueProvider::get).orElse(null);
+      if (partitioning == null
+          || JsonParser.parseString(partitioning).getAsJsonObject().isEmpty()) {
+        partitioning = destination.getJsonTimePartitioning();
+      }
       String clustering = Optional.ofNullable(jsonClustering).map(ValueProvider::get).orElse(null);
+      if (clustering == null || JsonParser.parseString(clustering).getAsJsonObject().isEmpty()) {
+        clustering = destination.getJsonClustering();
+      }
 
       return new TableDestination(
           destination.getTableSpec(), destination.getTableDescription(), partitioning, clustering);

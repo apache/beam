@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -224,6 +225,9 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
                 METRIC_NAMESPACE, RAW_SIZE_METRIC_PREFIX + pState.topicPartition.toString());
         rawSizes.update(recordSize);
 
+        for (Map.Entry<String, Long> backlogSplit : perPartitionBacklogMetrics.entrySet()) {
+          backlogBytesOfSplit.set(backlogSplit.getValue());
+        }
         return true;
 
       } else { // -- (b)
@@ -341,6 +345,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
   private final Counter bytesReadBySplit;
   private final Gauge backlogBytesOfSplit;
   private final Gauge backlogElementsOfSplit;
+  private HashMap<String, Long> perPartitionBacklogMetrics = new HashMap<String, Long>();;
   private final Counter checkpointMarkCommitsEnqueued =
       Metrics.counter(METRIC_NAMESPACE, CHECKPOINT_MARK_COMMITS_ENQUEUED_METRIC);
   // Checkpoint marks skipped in favor of newer mark (only the latest needs to be committed).
@@ -491,6 +496,10 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
       lastWatermark = timestampPolicy.getWatermark(mkTimestampPolicyContext());
       return lastWatermark;
     }
+
+    String name() {
+      return this.topicPartition.toString();
+    }
   }
 
   KafkaUnboundedReader(
@@ -528,14 +537,16 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
         prevWatermark = Optional.of(new Instant(ckptMark.getWatermarkMillis()));
       }
 
-      states.add(
-          new PartitionState<>(
+      PartitionState<K, V> state =
+          new PartitionState<K, V>(
               tp,
               nextOffset,
               source
                   .getSpec()
                   .getTimestampPolicyFactory()
-                  .createTimestampPolicy(tp, prevWatermark)));
+                  .createTimestampPolicy(tp, prevWatermark));
+      states.add(state);
+      perPartitionBacklogMetrics.put(state.name(), 0L);
     }
 
     partitionStates = ImmutableList.copyOf(states);
@@ -717,6 +728,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
       if (pBacklog == UnboundedReader.BACKLOG_UNKNOWN) {
         return UnboundedReader.BACKLOG_UNKNOWN;
       }
+      perPartitionBacklogMetrics.put(p.name(), pBacklog);
       backlogCount += pBacklog;
     }
 

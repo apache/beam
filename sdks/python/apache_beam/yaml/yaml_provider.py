@@ -34,6 +34,7 @@ from typing import Any
 from typing import Callable
 from typing import Dict
 from typing import Iterable
+from typing import Iterator
 from typing import Mapping
 from typing import Optional
 
@@ -45,8 +46,11 @@ import apache_beam as beam
 import apache_beam.dataframe.io
 import apache_beam.io
 import apache_beam.transforms.util
+from apache_beam.io.filesystems import FileSystems
 from apache_beam.portability.api import schema_pb2
 from apache_beam.runners import pipeline_context
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 from apache_beam.transforms import external
 from apache_beam.transforms import window
 from apache_beam.transforms.fully_qualified_named_transform import FullyQualifiedNamedTransform
@@ -220,7 +224,10 @@ class ExternalProvider(Provider):
       config['version'] = beam_version
     if type in cls._provider_types:
       try:
-        return cls._provider_types[type](urns, **config)
+        result = cls._provider_types[type](urns, **config)
+        if not hasattr(result, 'to_json'):
+          result.to_json = lambda: spec
+        return result
       except Exception as exn:
         raise ValueError(
             f'Unable to instantiate provider of type {type} '
@@ -422,7 +429,10 @@ class InlineProvider(Provider):
     return self._transform_factories.keys()
 
   def config_schema(self, typ):
-    factory = self._transform_factories[typ]
+    return self.config_schema_from_callable(self._transform_factories[typ])
+
+  @classmethod
+  def config_schema_from_callable(cls, factory):
     if isinstance(factory, type) and issubclass(factory, beam.PTransform):
       # https://bugs.python.org/issue40897
       params = dict(inspect.signature(factory.__init__).parameters)
@@ -440,7 +450,7 @@ class InlineProvider(Provider):
 
     docs = {
         param.arg_name: param.description
-        for param in self.get_docs(typ).params
+        for param in cls.get_docs(factory).params
     }
 
     names_and_types = [
@@ -453,17 +463,22 @@ class InlineProvider(Provider):
         ])
 
   def description(self, typ):
+    return self.description_from_callable(self._transform_factories[typ])
+
+  @classmethod
+  def description_from_callable(cls, factory):
     def empty_if_none(s):
       return s or ''
 
-    docs = self.get_docs(typ)
+    docs = cls.get_docs(factory)
     return (
         empty_if_none(docs.short_description) +
         ('\n\n' if docs.blank_after_short_description else '\n') +
         empty_if_none(docs.long_description)).strip() or None
 
-  def get_docs(self, typ):
-    docstring = self._transform_factories[typ].__doc__ or ''
+  @classmethod
+  def get_docs(cls, factory):
+    docstring = factory.__doc__ or ''
     # These "extra" docstring parameters are not relevant for YAML and mess
     # up the parsing.
     docstring = re.sub(
@@ -508,6 +523,15 @@ class SqlBackedProvider(Provider):
 
   def provided_transforms(self):
     return self._transforms.keys()
+
+  def config_schema(self, type):
+    full_config = InlineProvider.config_schema_from_callable(
+        self._transforms[type])
+    # Omit the (first) query -> transform parameter.
+    return schema_pb2.Schema(fields=full_config.fields[1:])
+
+  def description(self, type):
+    return InlineProvider.description_from_callable(self._transforms[type])
 
   def available(self):
     return self.sql_provider().available()
@@ -554,6 +578,38 @@ def dicts_to_rows(o):
 
 
 class YamlProviders:
+  class AssertEqual(beam.PTransform):
+    """Asserts that the input contains exactly the elements provided.
+
+    This is primarily used for testing; it will cause the entire pipeline to
+    fail if the input to this transform is not exactly the set of `elements`
+    given in the config parameter.
+
+    As with Create, YAML/JSON-style mappings are interpreted as Beam rows,
+    e.g.::
+
+        type: AssertEqual
+        input: SomeTransform
+        config:
+          elements:
+             - {a: 0, b: "foo"}
+             - {a: 1, b: "bar"}
+
+    would ensure that `SomeTransform` produced exactly two elements with values
+    `(a=0, b="foo")` and `(a=1, b="bar")` respectively.
+
+    Args:
+        elements: The set of elements that should belong to the PCollection.
+            YAML/JSON-style mappings will be interpreted as Beam rows.
+    """
+    def __init__(self, elements: Iterable[Any]):
+      self._elements = elements
+
+    def expand(self, pcoll):
+      return assert_that(
+          pcoll | beam.Map(lambda row: beam.Row(**row._asdict())),
+          equal_to(dicts_to_rows(self._elements)))
+
   @staticmethod
   def create(elements: Iterable[Any], reshuffle: Optional[bool] = True):
     """Creates a collection containing a specified set of elements.
@@ -626,6 +682,10 @@ class YamlProviders:
 
     can be used to access the transform
     `apache_beam.pkg.mod.SomeClass(1, 'foo', baz=3)`.
+
+    See also the documentation on
+    [Inlining
+    Python](https://beam.apache.org/documentation/sdks/yaml-inline-python/).
 
     Args:
         constructor: Fully qualified name of a callable used to construct the
@@ -806,6 +866,7 @@ class YamlProviders:
   @staticmethod
   def create_builtin_provider():
     return InlineProvider({
+        'AssertEqual': YamlProviders.AssertEqual,
         'Create': YamlProviders.create,
         'LogForTesting': YamlProviders.log_for_testing,
         'PyTransform': YamlProviders.fully_qualified_named_transform,
@@ -859,21 +920,21 @@ def create_java_builtin_provider():
   # where possible.  This would also require extra care in skipping these
   # common transforms when doing the provider affinity analysis.
 
-  def java_window_into(java_provider, **config):
-    """Parses the config into a WindowingStrategy and invokes the Java class.
+  def java_window_into(java_provider, windowing):
+    """Use the `windowing` WindowingStrategy and invokes the Java class.
 
     Though it would not be that difficult to implement this in Java as well,
     we prefer to implement it exactly once for consistency (especially as
     it evolves).
     """
     windowing_strategy = YamlProviders.WindowInto._parse_window_spec(
-        config).get_windowing(None)
+        windowing).get_windowing(None)
     # No context needs to be preserved for the basic WindowFns.
     empty_context = pipeline_context.PipelineContext()
     return java_provider.create_transform(
         'WindowIntoStrategy',
         {
-            'serializedWindowingStrategy': windowing_strategy.to_runner_api(
+            'serialized_windowing_strategy': windowing_strategy.to_runner_api(
                 empty_context).SerializeToString()
         },
         None)
@@ -1035,9 +1096,15 @@ class RenamingProvider(Provider):
     missing = set(self._mappings[type].values()) - set(
         underlying_schema_fields.keys())
     if missing:
-      raise ValueError(
-          f"Mapping destinations {missing} for {type} are not in the "
-          f"underlying config schema {list(underlying_schema_fields.keys())}")
+      if 'kwargs' in underlying_schema_fields.keys():
+        # These are likely passed by keyword argument dict rather than missing.
+        for field_name in missing:
+          underlying_schema_fields[field_name] = schema_pb2.Field(
+              name=field_name, type=typing_to_runner_api(Any))
+      else:
+        raise ValueError(
+            f"Mapping destinations {missing} for {type} are not in the "
+            f"underlying config schema {list(underlying_schema_fields.keys())}")
 
     def with_name(
         original: schema_pb2.Field, new_name: str) -> schema_pb2.Field:
@@ -1091,18 +1158,44 @@ class RenamingProvider(Provider):
     self._underlying_provider.cache_artifacts()
 
 
-def parse_providers(provider_specs):
-  providers = collections.defaultdict(list)
+def flatten_included_provider_specs(
+    provider_specs: Iterable[Mapping]) -> Iterator[Mapping]:
+  from apache_beam.yaml.yaml_transform import SafeLineLoader
   for provider_spec in provider_specs:
-    provider = ExternalProvider.provider_from_spec(provider_spec)
-    for transform_type in provider.provided_transforms():
-      providers[transform_type].append(provider)
-      # TODO: Do this better.
-      provider.to_json = lambda result=provider_spec: result
-  return providers
+    if 'include' in provider_spec:
+      if len(SafeLineLoader.strip_metadata(provider_spec)) != 1:
+        raise ValueError(
+            f"When using include, it must be the only parameter: "
+            f"{provider_spec} "
+            f"at line {{SafeLineLoader.get_line(provider_spec)}}")
+      include_uri = provider_spec['include']
+      try:
+        with urllib.request.urlopen(include_uri) as response:
+          content = response.read()
+      except (ValueError, urllib.error.URLError) as exn:
+        if 'unknown url type' in str(exn):
+          with FileSystems.open(include_uri) as fin:
+            content = fin.read()
+        else:
+          raise
+      included_providers = yaml.load(content, Loader=SafeLineLoader)
+      if not isinstance(included_providers, list):
+        raise ValueError(
+            f"Included file {include_uri} must be a list of Providers "
+            f"at line {{SafeLineLoader.get_line(provider_spec)}}")
+      yield from flatten_included_provider_specs(included_providers)
+    else:
+      yield provider_spec
 
 
-def merge_providers(*provider_sets):
+def parse_providers(provider_specs: Iterable[Mapping]) -> Iterable[Provider]:
+  return [
+      ExternalProvider.provider_from_spec(provider_spec)
+      for provider_spec in flatten_included_provider_specs(provider_specs)
+  ]
+
+
+def merge_providers(*provider_sets) -> Mapping[str, Iterable[Provider]]:
   result = collections.defaultdict(list)
   for provider_set in provider_sets:
     if isinstance(provider_set, Provider):
@@ -1121,6 +1214,7 @@ def merge_providers(*provider_sets):
 def standard_providers():
   from apache_beam.yaml.yaml_combine import create_combine_providers
   from apache_beam.yaml.yaml_mapping import create_mapping_providers
+  from apache_beam.yaml.yaml_join import create_join_providers
   from apache_beam.yaml.yaml_io import io_providers
   with open(os.path.join(os.path.dirname(__file__),
                          'standard_providers.yaml')) as fin:
@@ -1131,5 +1225,6 @@ def standard_providers():
       create_java_builtin_provider(),
       create_mapping_providers(),
       create_combine_providers(),
+      create_join_providers(),
       io_providers(),
       parse_providers(standard_providers))

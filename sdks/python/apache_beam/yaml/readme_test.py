@@ -54,7 +54,7 @@ class FakeSql(beam.PTransform):
       raise ValueError(self.query)
 
     def guess_name_and_type(expr):
-      expr = expr.strip()
+      expr = expr.strip().replace('`', '')
       parts = expr.split()
       if len(parts) >= 2 and parts[-2].lower() == 'as':
         name = parts[-1]
@@ -128,12 +128,25 @@ class FakeAggregation(beam.PTransform):
         lambda _: 1, sum, 'count')
 
 
+class _Fakes:
+  fn = str
+
+  class SomeTransform(beam.PTransform):
+    def __init__(*args, **kwargs):
+      pass
+
+    def expand(self, pcoll):
+      return pcoll
+
+
 RENDER_DIR = None
 TEST_TRANSFORMS = {
     'Sql': FakeSql,
     'ReadFromPubSub': FakeReadFromPubSub,
     'WriteToPubSub': FakeWriteToPubSub,
     'SomeGroupingTransform': FakeAggregation,
+    'SomeTransform': _Fakes.SomeTransform,
+    'AnotherTransform': _Fakes.SomeTransform,
 }
 
 
@@ -155,7 +168,7 @@ class TestEnvironment:
     return path
 
   def input_csv(self):
-    return self.input_file('input.csv', 'col1,col2,col3\nabc,1,2.5\n')
+    return self.input_file('input.csv', 'col1,col2,col3\na,1,2.5\n')
 
   def input_tsv(self):
     return self.input_file('input.tsv', 'col1\tcol2\tcol3\nabc\t1\t2.5\n')
@@ -167,6 +180,13 @@ class TestEnvironment:
   def output_file(self):
     return os.path.join(
         self.tempdir.name, str(random.randint(0, 1000)) + '.out')
+
+  def udf_file(self, name):
+    if name == 'my_mapping':
+      lines = '\n'.join(['def my_mapping(row):', '\treturn "good"'])
+    else:
+      lines = '\n'.join(['def my_filter(row):', '\treturn True'])
+    return self.input_file('udf.py', lines)
 
   def __exit__(self, *args):
     self.tempdir.cleanup()
@@ -192,14 +212,21 @@ def replace_recursive(spec, transform_type, arg_name, arg_value):
 
 def create_test_method(test_type, test_name, test_yaml):
   test_yaml = test_yaml.replace(
-      'pkg.module.', 'apache_beam.yaml.readme_test._Fakes.')
-  test_yaml = test_yaml.replace(
       'apache_beam.pkg.module.', 'apache_beam.yaml.readme_test._Fakes.')
+  test_yaml = test_yaml.replace(
+      'pkg.module.', 'apache_beam.yaml.readme_test._Fakes.')
 
   def test(self):
     with TestEnvironment() as env:
       nonlocal test_yaml
       test_yaml = test_yaml.replace('/path/to/*.tsv', env.input_tsv())
+      if 'MapToFields' in test_yaml or 'Filter' in test_yaml:
+        if 'my_mapping' in test_yaml:
+          test_yaml = test_yaml.replace(
+              '/path/to/some/udf.py', env.udf_file('my_mapping'))
+        elif 'my_filter' in test_yaml:
+          test_yaml = test_yaml.replace(
+              '/path/to/some/udf.py', env.udf_file('my_filter'))
       spec = yaml.load(test_yaml, Loader=SafeLoader)
       if test_type == 'PARSE':
         return
@@ -213,10 +240,7 @@ def create_test_method(test_type, test_name, test_yaml):
         if write in test_yaml:
           spec = replace_recursive(spec, write, 'path', env.output_file())
       modified_yaml = yaml.dump(spec)
-      options = {
-          'pickle_library': 'cloudpickle',
-          'yaml_experimental_features': ['Combine']
-      }
+      options = {'pickle_library': 'cloudpickle'}
       if RENDER_DIR is not None:
         options['runner'] = 'apache_beam.runners.render.RenderRunner'
         options['render_output'] = [
@@ -227,9 +251,15 @@ def create_test_method(test_type, test_name, test_yaml):
       with mock.patch(
           'apache_beam.yaml.yaml_provider.SqlBackedProvider.sql_provider',
           lambda self: test_provider):
-        p = beam.Pipeline(options=PipelineOptions(**options))
-        yaml_transform.expand_pipeline(
-            p, modified_yaml, yaml_provider.merge_providers([test_provider]))
+        # TODO(polber) - remove once there is support for ExternalTransforms
+        #  in precommits
+        with mock.patch(
+            'apache_beam.yaml.yaml_provider.ExternalProvider.create_transform',
+            lambda *args,
+            **kwargs: _Fakes.SomeTransform(*args, **kwargs)):
+          p = beam.Pipeline(options=PipelineOptions(**options))
+          yaml_transform.expand_pipeline(
+              p, modified_yaml, yaml_provider.merge_providers([test_provider]))
       if test_type == 'BUILD':
         return
       p.run().wait_until_finish()
@@ -250,13 +280,15 @@ def parse_test_methods(markdown_lines):
       else:
         if code_lines:
           if code_lines[0].startswith('- type:'):
+            is_chain = not any('input:' in line for line in code_lines)
             # Treat this as a fragment of a larger pipeline.
             # pylint: disable=not-an-iterable
             code_lines = [
                 'pipeline:',
-                '  type: chain',
+                '  type: chain' if is_chain else '',
                 '  transforms:',
                 '    - type: ReadFromCsv',
+                '      name: input',
                 '      config:',
                 '        path: whatever',
             ] + ['    ' + line for line in code_lines]
@@ -276,17 +308,6 @@ def parse_test_methods(markdown_lines):
 def createTestSuite(name, path):
   with open(path) as readme:
     return type(name, (unittest.TestCase, ), dict(parse_test_methods(readme)))
-
-
-class _Fakes:
-  fn = str
-
-  class SomeTransform(beam.PTransform):
-    def __init__(*args, **kwargs):
-      pass
-
-    def expand(self, pcoll):
-      return pcoll
 
 
 # These are copied from $ROOT/website/www/site/content/en/documentation/sdks

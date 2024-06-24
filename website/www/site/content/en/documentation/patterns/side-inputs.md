@@ -19,6 +19,8 @@ limitations under the License.
 
 The samples on this page show you common Beam side input patterns. A side input is an additional input that your `DoFn` can access each time it processes an element in the input `PCollection`. For more information, see the [programming guide section on side inputs](/documentation/programming-guide/#side-inputs).
 
+If you are trying to enrich your data by doing a key-value lookup to a remote service, you may first want to consider the [Enrichment transform](https://beam.apache.org/documentation/transforms/python/elementwise/enrichment/) which can abstract away some of the details of side inputs and provide additional benefits like client-side throttling.
+
 {{< language-switcher java py >}}
 
 ## Slowly updating global window side inputs

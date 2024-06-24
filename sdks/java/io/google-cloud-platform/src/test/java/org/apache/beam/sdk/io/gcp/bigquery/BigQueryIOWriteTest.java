@@ -3596,28 +3596,36 @@ public class BigQueryIOWriteTest implements Serializable {
         Lists.newArrayList(
             RowMutation.of(
                 new TableRow().set("key1", "foo0").set("key2", "bar0").set("value", "1"),
-                RowMutationInformation.of(RowMutationInformation.MutationType.UPSERT, 0)),
+                RowMutationInformation.of(
+                    RowMutationInformation.MutationType.UPSERT, Long.toHexString(0L))),
             RowMutation.of(
                 new TableRow().set("key1", "foo1").set("key2", "bar1").set("value", "1"),
-                RowMutationInformation.of(RowMutationInformation.MutationType.UPSERT, 0)),
+                RowMutationInformation.of(
+                    RowMutationInformation.MutationType.UPSERT, Long.toHexString(0L))),
             RowMutation.of(
                 new TableRow().set("key1", "foo0").set("key2", "bar0").set("value", "2"),
-                RowMutationInformation.of(RowMutationInformation.MutationType.UPSERT, 1)),
+                RowMutationInformation.of(
+                    RowMutationInformation.MutationType.UPSERT, Long.toHexString(1L))),
             RowMutation.of(
                 new TableRow().set("key1", "foo1").set("key2", "bar1").set("value", "1"),
-                RowMutationInformation.of(RowMutationInformation.MutationType.DELETE, 1)),
+                RowMutationInformation.of(
+                    RowMutationInformation.MutationType.DELETE, Long.toHexString(1L))),
             RowMutation.of(
                 new TableRow().set("key1", "foo3").set("key2", "bar3").set("value", "1"),
-                RowMutationInformation.of(RowMutationInformation.MutationType.UPSERT, 0)),
+                RowMutationInformation.of(
+                    RowMutationInformation.MutationType.UPSERT, Long.toHexString(0L))),
             RowMutation.of(
                 new TableRow().set("key1", "foo1").set("key2", "bar1").set("value", "3"),
-                RowMutationInformation.of(RowMutationInformation.MutationType.UPSERT, 2)),
+                RowMutationInformation.of(
+                    RowMutationInformation.MutationType.UPSERT, Long.toHexString(2L))),
             RowMutation.of(
                 new TableRow().set("key1", "foo4").set("key2", "bar4").set("value", "1"),
-                RowMutationInformation.of(RowMutationInformation.MutationType.UPSERT, 0)),
+                RowMutationInformation.of(
+                    RowMutationInformation.MutationType.UPSERT, Long.toHexString(0L))),
             RowMutation.of(
                 new TableRow().set("key1", "foo4").set("key2", "bar4").set("value", "1"),
-                RowMutationInformation.of(RowMutationInformation.MutationType.DELETE, 1)));
+                RowMutationInformation.of(
+                    RowMutationInformation.MutationType.DELETE, Long.toHexString(1L))));
 
     BigQueryIO.Write<RowMutation> write =
         BigQueryIO.applyRowMutations()
@@ -3655,7 +3663,7 @@ public class BigQueryIOWriteTest implements Serializable {
                     new TableFieldSchema().setName("key2").setType("STRING"),
                     new TableFieldSchema().setName("value").setType("STRING"),
                     new TableFieldSchema().setName("updateType").setType("STRING"),
-                    new TableFieldSchema().setName("sqn").setType("INT64")));
+                    new TableFieldSchema().setName("sqn").setType("STRING")));
 
     Table fakeTable = new Table();
     TableReference ref =
@@ -3675,7 +3683,7 @@ public class BigQueryIOWriteTest implements Serializable {
             .optionalString("key2")
             .optionalString("value")
             .optionalString("updateType")
-            .optionalLong("sqn")
+            .requiredString("sqn")
             .endRecord();
 
     List<GenericRecord> items =
@@ -3685,56 +3693,56 @@ public class BigQueryIOWriteTest implements Serializable {
                 .set("key2", "bar0")
                 .set("value", "1")
                 .set("updateType", "UPSERT")
-                .set("sqn", 0L)
+                .set("sqn", Long.toHexString(0L))
                 .build(),
             new GenericRecordBuilder(avroSchema)
                 .set("key1", "foo1")
                 .set("key2", "bar1")
                 .set("value", "1")
                 .set("updateType", "UPSERT")
-                .set("sqn", 0L)
+                .set("sqn", Long.toHexString(0L))
                 .build(),
             new GenericRecordBuilder(avroSchema)
                 .set("key1", "foo0")
                 .set("key2", "bar0")
                 .set("value", "2")
                 .set("updateType", "UPSERT")
-                .set("sqn", 1L)
+                .set("sqn", Long.toHexString(1L))
                 .build(),
             new GenericRecordBuilder(avroSchema)
                 .set("key1", "foo1")
                 .set("key2", "bar1")
                 .set("value", "1")
                 .set("updateType", "DELETE")
-                .set("sqn", 1L)
+                .set("sqn", Long.toHexString(1L))
                 .build(),
             new GenericRecordBuilder(avroSchema)
                 .set("key1", "foo3")
                 .set("key2", "bar3")
                 .set("value", "1")
                 .set("updateType", "UPSERT")
-                .set("sqn", 0L)
+                .set("sqn", Long.toHexString(0L))
                 .build(),
             new GenericRecordBuilder(avroSchema)
                 .set("key1", "foo1")
                 .set("key2", "bar1")
                 .set("value", "3")
                 .set("updateType", "UPSERT")
-                .set("sqn", 2L)
+                .set("sqn", Long.toHexString(2L))
                 .build(),
             new GenericRecordBuilder(avroSchema)
                 .set("key1", "foo4")
                 .set("key2", "bar4")
                 .set("value", "1")
                 .set("updateType", "UPSERT")
-                .set("sqn", 0L)
+                .set("sqn", Long.toHexString(0L))
                 .build(),
             new GenericRecordBuilder(avroSchema)
                 .set("key1", "foo4")
                 .set("key2", "bar4")
                 .set("value", "1")
                 .set("updateType", "DELETE")
-                .set("sqn", 1L)
+                .set("sqn", Long.toHexString(1L))
                 .build());
 
     BigQueryIO.Write<GenericRecord> write =
@@ -3744,10 +3752,12 @@ public class BigQueryIOWriteTest implements Serializable {
             .withSchema(tableSchema)
             .withMethod(Method.STORAGE_API_AT_LEAST_ONCE)
             .withRowMutationInformationFn(
-                r ->
-                    RowMutationInformation.of(
-                        RowMutationInformation.MutationType.valueOf(r.get("updateType").toString()),
-                        (long) r.get("sqn")))
+                r -> {
+                  RowMutationInformation.MutationType mutationType =
+                      RowMutationInformation.MutationType.valueOf(r.get("updateType").toString());
+                  String sqn = r.get("sqn").toString();
+                  return RowMutationInformation.of(mutationType, sqn);
+                })
             .withoutValidation()
             .withTestServices(fakeBqServices);
 
@@ -3761,19 +3771,19 @@ public class BigQueryIOWriteTest implements Serializable {
                 .set("key2", "bar0")
                 .set("value", "2")
                 .set("updatetype", "UPSERT")
-                .set("sqn", "1"),
+                .set("sqn", Long.toHexString(1)),
             new TableRow()
                 .set("key1", "foo1")
                 .set("key2", "bar1")
                 .set("value", "3")
                 .set("updatetype", "UPSERT")
-                .set("sqn", "2"),
+                .set("sqn", Long.toHexString(2)),
             new TableRow()
                 .set("key1", "foo3")
                 .set("key2", "bar3")
                 .set("value", "1")
                 .set("updatetype", "UPSERT")
-                .set("sqn", "0"));
+                .set("sqn", Long.toHexString(0)));
 
     assertThat(
         fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
@@ -3793,7 +3803,7 @@ public class BigQueryIOWriteTest implements Serializable {
                     new TableFieldSchema().setName("key2").setType("STRING"),
                     new TableFieldSchema().setName("value").setType("STRING"),
                     new TableFieldSchema().setName("updateType").setType("STRING"),
-                    new TableFieldSchema().setName("sqn").setType("INT64")));
+                    new TableFieldSchema().setName("sqn").setType("STRING")));
 
     Table fakeTable = new Table();
     TableReference ref =
@@ -3812,7 +3822,7 @@ public class BigQueryIOWriteTest implements Serializable {
             .addNullableStringField("key2")
             .addNullableStringField("value")
             .addNullableStringField("updateType")
-            .addNullableInt64Field("sqn")
+            .addNullableStringField("sqn")
             .build();
 
     List<Row> items =
@@ -3822,56 +3832,56 @@ public class BigQueryIOWriteTest implements Serializable {
                 .withFieldValue("key2", "bar0")
                 .withFieldValue("value", "1")
                 .withFieldValue("updateType", "UPSERT")
-                .withFieldValue("sqn", 0L)
+                .withFieldValue("sqn", Long.toHexString(0L))
                 .build(),
             Row.withSchema(beamSchema)
                 .withFieldValue("key1", "foo1")
                 .withFieldValue("key2", "bar1")
                 .withFieldValue("value", "1")
                 .withFieldValue("updateType", "UPSERT")
-                .withFieldValue("sqn", 0L)
+                .withFieldValue("sqn", Long.toHexString(0L))
                 .build(),
             Row.withSchema(beamSchema)
                 .withFieldValue("key1", "foo0")
                 .withFieldValue("key2", "bar0")
                 .withFieldValue("value", "2")
                 .withFieldValue("updateType", "UPSERT")
-                .withFieldValue("sqn", 1L)
+                .withFieldValue("sqn", Long.toHexString(1L))
                 .build(),
             Row.withSchema(beamSchema)
                 .withFieldValue("key1", "foo1")
                 .withFieldValue("key2", "bar1")
                 .withFieldValue("value", "1")
                 .withFieldValue("updateType", "DELETE")
-                .withFieldValue("sqn", 1L)
+                .withFieldValue("sqn", Long.toHexString(1L))
                 .build(),
             Row.withSchema(beamSchema)
                 .withFieldValue("key1", "foo3")
                 .withFieldValue("key2", "bar3")
                 .withFieldValue("value", "1")
                 .withFieldValue("updateType", "UPSERT")
-                .withFieldValue("sqn", 0L)
+                .withFieldValue("sqn", Long.toHexString(0L))
                 .build(),
             Row.withSchema(beamSchema)
                 .withFieldValue("key1", "foo1")
                 .withFieldValue("key2", "bar1")
                 .withFieldValue("value", "3")
                 .withFieldValue("updateType", "UPSERT")
-                .withFieldValue("sqn", 2L)
+                .withFieldValue("sqn", Long.toHexString(2L))
                 .build(),
             Row.withSchema(beamSchema)
                 .withFieldValue("key1", "foo4")
                 .withFieldValue("key2", "bar4")
                 .withFieldValue("value", "1")
                 .withFieldValue("updateType", "UPSERT")
-                .withFieldValue("sqn", 0L)
+                .withFieldValue("sqn", Long.toHexString(0L))
                 .build(),
             Row.withSchema(beamSchema)
                 .withFieldValue("key1", "foo4")
                 .withFieldValue("key2", "bar4")
                 .withFieldValue("value", "1")
                 .withFieldValue("updateType", "DELETE")
-                .withFieldValue("sqn", 1L)
+                .withFieldValue("sqn", Long.toHexString(1L))
                 .build());
 
     BigQueryIO.Write<Row> write =
@@ -3885,7 +3895,7 @@ public class BigQueryIOWriteTest implements Serializable {
                 r ->
                     RowMutationInformation.of(
                         RowMutationInformation.MutationType.valueOf(r.getString("updateType")),
-                        r.getInt64("sqn")))
+                        r.getString("sqn")))
             .withoutValidation()
             .withTestServices(fakeBqServices);
 
@@ -3899,19 +3909,19 @@ public class BigQueryIOWriteTest implements Serializable {
                 .set("key2", "bar0")
                 .set("value", "2")
                 .set("updatetype", "UPSERT")
-                .set("sqn", "1"),
+                .set("sqn", Long.toHexString(1)),
             new TableRow()
                 .set("key1", "foo1")
                 .set("key2", "bar1")
                 .set("value", "3")
                 .set("updatetype", "UPSERT")
-                .set("sqn", "2"),
+                .set("sqn", Long.toHexString(2)),
             new TableRow()
                 .set("key1", "foo3")
                 .set("key2", "bar3")
                 .set("value", "1")
                 .set("updatetype", "UPSERT")
-                .set("sqn", "0"));
+                .set("sqn", Long.toHexString(0)));
 
     assertThat(
         fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),

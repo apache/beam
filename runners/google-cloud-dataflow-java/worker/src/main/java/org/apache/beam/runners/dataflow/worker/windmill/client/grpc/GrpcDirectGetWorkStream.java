@@ -28,6 +28,8 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.WindmillTimeUtils;
+import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
+import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationWorkItemMetadata;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkRequest;
@@ -36,10 +38,10 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingGetWor
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.client.AbstractWindmillStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
-import org.apache.beam.runners.dataflow.worker.windmill.work.ProcessWorkItemClient;
-import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemProcessor;
+import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemScheduler;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.util.BackOff;
@@ -55,7 +57,7 @@ import org.slf4j.LoggerFactory;
  * Implementation of {@link GetWorkStream} that passes along a specific {@link
  * org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream} and {@link
  * org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.CommitWorkStream} to the
- * processing context {@link ProcessWorkItemClient}. During the work item processing lifecycle,
+ * processing context {@link Work.ProcessingContext}. During the work item processing lifecycle,
  * these direct streams are used to facilitate these RPC calls to specific backend workers.
  */
 @Internal
@@ -76,10 +78,11 @@ public final class GrpcDirectGetWorkStream
   private final AtomicReference<GetWorkBudget> nextBudgetAdjustment;
   private final AtomicReference<GetWorkBudget> pendingResponseBudget;
   private final GetWorkRequest request;
-  private final WorkItemProcessor workItemProcessorFn;
+  private final WorkItemScheduler workItemScheduler;
   private final ThrottleTimer getWorkThrottleTimer;
   private final Supplier<GetDataStream> getDataStream;
-  private final Supplier<CommitWorkStream> commitWorkStream;
+  private final Supplier<WorkCommitter> workCommitter;
+
   /**
    * Map of stream IDs to their buffers. Used to aggregate streaming gRPC response chunks as they
    * come in. Once all chunks for a response has been received, the chunk is processed and the
@@ -99,18 +102,18 @@ public final class GrpcDirectGetWorkStream
       int logEveryNStreamFailures,
       ThrottleTimer getWorkThrottleTimer,
       Supplier<GetDataStream> getDataStream,
-      Supplier<CommitWorkStream> commitWorkStream,
-      WorkItemProcessor workItemProcessorFn) {
+      Supplier<WorkCommitter> workCommitter,
+      WorkItemScheduler workItemScheduler) {
     super(
         startGetWorkRpcFn, backoff, streamObserverFactory, streamRegistry, logEveryNStreamFailures);
     this.request = request;
     this.getWorkThrottleTimer = getWorkThrottleTimer;
-    this.workItemProcessorFn = workItemProcessorFn;
+    this.workItemScheduler = workItemScheduler;
     this.workItemBuffers = new ConcurrentHashMap<>();
     // Use the same GetDataStream and CommitWorkStream instances to process all the work in this
     // stream.
     this.getDataStream = Suppliers.memoize(getDataStream::get);
-    this.commitWorkStream = Suppliers.memoize(commitWorkStream::get);
+    this.workCommitter = Suppliers.memoize(workCommitter::get);
     this.inFlightBudget = new AtomicReference<>(GetWorkBudget.noBudget());
     this.nextBudgetAdjustment = new AtomicReference<>(GetWorkBudget.noBudget());
     this.pendingResponseBudget = new AtomicReference<>(GetWorkBudget.noBudget());
@@ -128,8 +131,8 @@ public final class GrpcDirectGetWorkStream
       int logEveryNStreamFailures,
       ThrottleTimer getWorkThrottleTimer,
       Supplier<GetDataStream> getDataStream,
-      Supplier<CommitWorkStream> commitWorkStream,
-      WorkItemProcessor workItemProcessorFn) {
+      Supplier<WorkCommitter> workCommitter,
+      WorkItemScheduler workItemScheduler) {
     GrpcDirectGetWorkStream getWorkStream =
         new GrpcDirectGetWorkStream(
             startGetWorkRpcFn,
@@ -140,10 +143,18 @@ public final class GrpcDirectGetWorkStream
             logEveryNStreamFailures,
             getWorkThrottleTimer,
             getDataStream,
-            commitWorkStream,
-            workItemProcessorFn);
+            workCommitter,
+            workItemScheduler);
     getWorkStream.startStream();
     return getWorkStream;
+  }
+
+  private static Watermarks createWatermarks(WorkItem workItem, ComputationMetadata metadata) {
+    return Watermarks.builder()
+        .setInputDataWatermark(metadata.inputDataWatermark())
+        .setOutputDataWatermark(workItem.getOutputDataWatermark())
+        .setSynchronizedProcessingTime(metadata.synchronizedProcessingTime())
+        .build();
   }
 
   private synchronized GetWorkBudget getThenResetBudgetAdjustment() {
@@ -299,13 +310,10 @@ public final class GrpcDirectGetWorkStream
       try {
         WorkItem workItem = WorkItem.parseFrom(data.newInput());
         updatePendingResponseBudget(1, workItem.getSerializedSize());
-        Preconditions.checkNotNull(metadata);
-        workItemProcessorFn.processWork(
-            metadata.computationId(),
-            metadata.inputDataWatermark(),
-            metadata.synchronizedProcessingTime(),
-            ProcessWorkItemClient.create(
-                WorkItem.parseFrom(data.newInput()), getDataStream.get(), commitWorkStream.get()),
+        workItemScheduler.scheduleWork(
+            workItem,
+            createWatermarks(workItem, Preconditions.checkNotNull(metadata)),
+            createProcessingContext(Preconditions.checkNotNull(metadata.computationId())),
             // After the work item is successfully queued or dropped by ActiveWorkState, remove it
             // from the pendingResponseBudget.
             queuedWorkItem -> updatePendingResponseBudget(-1, -workItem.getSerializedSize()),
@@ -315,6 +323,11 @@ public final class GrpcDirectGetWorkStream
       }
       workTimingInfosTracker.reset();
       data = ByteString.EMPTY;
+    }
+
+    private Work.ProcessingContext createProcessingContext(String computationId) {
+      return Work.createProcessingContext(
+          computationId, getDataStream.get()::requestKeyedData, workCommitter.get()::commit);
     }
   }
 }

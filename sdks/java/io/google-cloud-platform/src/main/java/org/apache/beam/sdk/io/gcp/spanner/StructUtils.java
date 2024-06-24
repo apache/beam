@@ -76,12 +76,7 @@ final class StructUtils {
               addIterableToStructBuilder(structBuilder, row.getIterable(column), field);
               break;
             case FLOAT:
-              @Nullable Float floatValue = row.getFloat(column);
-              if (floatValue == null) {
-                structBuilder.set(column).to((Double) null);
-              } else {
-                structBuilder.set(column).to(floatValue);
-              }
+              structBuilder.set(column).to(row.getFloat(column));
               break;
             case DOUBLE:
               structBuilder.set(column).to(row.getDouble(column));
@@ -187,8 +182,9 @@ final class StructUtils {
       case INT16:
         return Type.int64();
       case DOUBLE:
-      case FLOAT:
         return Type.float64();
+      case FLOAT:
+        return Type.float32();
       case DECIMAL:
         return Type.numeric();
       case STRING:
@@ -242,6 +238,8 @@ final class StructUtils {
         structBuilder.set(column).toInt64Array((Iterable<Long>) ((Object) iterable));
         break;
       case FLOAT:
+        structBuilder.set(column).toFloat32Array((Iterable<Float>) ((Object) iterable));
+        break;
       case DOUBLE:
         structBuilder.set(column).toFloat64Array((Iterable<Double>) ((Object) iterable));
         break;
@@ -306,6 +304,8 @@ final class StructUtils {
         return DateTime.parse(struct.getDate(column).toString());
       case INT64:
         return struct.getLong(column);
+      case FLOAT32:
+        return struct.getFloat(column);
       case FLOAT64:
         return struct.getDouble(column);
       case NUMERIC:
@@ -352,6 +352,8 @@ final class StructUtils {
             .collect(toList());
       case INT64:
         return struct.getLongList(column);
+      case FLOAT32:
+        return struct.getFloatList(column);
       case FLOAT64:
         return struct.getDoubleList(column);
       case STRING:

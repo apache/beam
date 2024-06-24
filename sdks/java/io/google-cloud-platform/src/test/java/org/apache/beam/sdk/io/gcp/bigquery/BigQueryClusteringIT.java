@@ -33,6 +33,7 @@ import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -171,7 +172,9 @@ public class BigQueryClusteringIT {
         .apply(
             BigQueryIO.writeTableRows()
                 .to(new ClusteredDestinations(tableName))
-                .withClustering(CLUSTERING)
+                .withJsonClustering(
+                    ValueProvider.StaticValueProvider.of(
+                        BigQueryHelpers.toJsonString(CLUSTERING.getFields())))
                 .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
                 .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE)
                 .withMethod(BigQueryIO.Write.Method.FILE_LOADS));

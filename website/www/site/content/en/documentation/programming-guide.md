@@ -666,8 +666,8 @@ in the Python SDK, please read and work through
 ### 4.1. Applying transforms {#applying-transforms}
 
 To invoke a transform, you must **apply** it to the input `PCollection`. Each
-transform in the Beam SDKs has a generic `apply` method
-<span class="language-py">(or pipe operator `|`)</span>.
+transform in the Beam SDKs has a generic `apply` method<span class="language-py">
+(or pipe operator `|`)</span>.
 Invoking multiple Beam transforms is similar to *method chaining*, but with one
 slight difference: You apply the transform to the input `PCollection`, passing
 the transform itself as an argument, and the operation returns the output
@@ -2153,6 +2153,14 @@ students = ...
 {{< code_sample "sdks/typescript/test/docs/programming_guide.ts" model_multiple_pcollections_partition >}}
 {{< /highlight >}}
 
+{{< highlight yaml >}}
+{{< code_sample "sdks/python/apache_beam/yaml/programming_guide_test.py" model_multiple_pcollections_partition >}}
+{{< /highlight >}}
+
+{{< paragraph class="language-yaml">}}
+Note that in Beam YAML, `PCollections` are partitioned via string rather than integer values.
+{{< /paragraph >}}
+
 ### 4.3. Requirements for writing user code for Beam transforms {#requirements-for-writing-user-code-for-beam-transforms}
 
 When you build user code for a Beam transform, you should keep in mind the
@@ -2414,6 +2422,14 @@ from `apply`). If you want to have multiple outputs, emit an object with distinc
 properties in your `ParDo` operation and follow this operation with a `Split`
 to break it into multiple `PCollection`s.
 {{< /paragraph >}}
+
+{{< paragraph class="language-yaml">}}
+In Beam YAML, one obtains multiple outputs by emitting all outputs to a single
+`PCollection`, possibly with an extra field, and then using `Partition` to
+split this single `PCollection` into multiple distinct `PCollection`
+outputs.
+{{< /paragraph >}}
+
 
 #### 4.5.1. Tags for multiple outputs {#output-tags}
 
@@ -7756,7 +7772,13 @@ p.apply("Read",
     .withKwarg("validate", false))
 ```
 
-  > **Note:** `PythonExternalTransform` has other useful methods such as `withExtraPackages` for staging PyPI package dependencies and `withOutputCoder` for setting an output coder.
+`PythonExternalTransform` has other useful methods such as `withExtraPackages` for staging PyPI package dependencies and `withOutputCoder` for setting an output coder. If your transform exists in an external package, make sure to specify that package using `withExtraPackages`, for example:
+
+```java
+p.apply("Read",
+    PythonExternalTransform.<PBegin, PCollection<String>>from("my_python_package.BeamReadPTransform")
+    .withExtraPackages(ImmutableList.of("my_python_package")))
+```
 
 Alternatively, you may want to create a Python module that registers an existing Python transform as a cross-language transform for use with the Python expansion service and calls into that existing transform to perform its intended operation. A registered URN can be used later in an expansion request for indicating an expansion target.
 
@@ -7815,11 +7837,7 @@ $ export PORT_FOR_EXPANSION_SERVICE=12345
 $ python -m apache_beam.runners.portability.expansion_service_test -p $PORT_FOR_EXPANSION_SERVICE --pickle_library=cloudpickle
     {{< /highlight >}}
 
-4. This expansion service is now ready to serve up transforms on the address `localhost:$PORT_FOR_EXPANSION_SERVICE`.
-
-**Including dependencies**
-
-Currently Python external transforms are limited to dependencies available in the core Beam SDK harness.
+4. This expansion service is now ready to serve up transforms on the address `localhost:$PORT_FOR_EXPANSION_SERVICE
 
 #### 13.1.3. Creating cross-language Go transforms
 
