@@ -312,7 +312,9 @@ public class AvroGenericRecordToStorageApiProto {
       FieldDescriptor fieldDescriptor, Schema.Field avroField, String name, GenericRecord record) {
     @Nullable Object value = record.get(name);
     if (value == null) {
-      if (fieldDescriptor.isOptional()) {
+      if (fieldDescriptor.isOptional()
+          || avroField.schema().getTypes().stream()
+              .anyMatch(t -> t.getType() == Schema.Type.NULL)) {
         return null;
       } else {
         throw new IllegalArgumentException(

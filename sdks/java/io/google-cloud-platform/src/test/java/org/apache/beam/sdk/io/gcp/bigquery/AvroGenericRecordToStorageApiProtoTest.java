@@ -31,6 +31,7 @@ import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
@@ -268,36 +269,32 @@ public class AvroGenericRecordToStorageApiProtoTest {
           .noDefault()
           .endRecord();
 
-  private static final Schema SCHEMA_WITH_MAP;
-  private static final Schema SCHEMA_WITH_NULLABLE_ARRAY;
+  private static final Schema SCHEMA_WITH_MAP =
+      SchemaBuilder.record("TestMap")
+          .fields()
+          .name("nested")
+          .type()
+          .optional()
+          .type(BASE_SCHEMA)
+          .name("aMap")
+          .type()
+          .map()
+          .values()
+          .stringType()
+          .mapDefault(ImmutableMap.<String, Object>builder().put("key1", "value1").build())
+          .endRecord();
 
-  static {
-    SCHEMA_WITH_MAP =
-        SchemaBuilder.record("TestMap")
-            .fields()
-            .name("nested")
-            .type()
-            .optional()
-            .type(BASE_SCHEMA)
-            .name("aMap")
-            .type()
-            .map()
-            .values()
-            .stringType()
-            .mapDefault(ImmutableMap.<String, Object>builder().put("key1", "value1").build())
-            .endRecord();
-    SCHEMA_WITH_NULLABLE_ARRAY =
-        SchemaBuilder.record("TestNullableArray")
-            .fields()
-            .name("aNullableArray")
-            .type()
-            .nullable()
-            .array()
-            .items()
-            .stringType()
-            .noDefault()
-            .endRecord();
-  }
+  private static final Schema SCHEMA_WITH_NULLABLE_ARRAY =
+      SchemaBuilder.record("TestNullableArray")
+          .fields()
+          .name("aNullableArray")
+          .type()
+          .nullable()
+          .array()
+          .items()
+          .stringType()
+          .noDefault()
+          .endRecord();
 
   private static GenericRecord baseRecord;
   private static GenericRecord logicalTypesRecord;
@@ -581,10 +578,12 @@ public class AvroGenericRecordToStorageApiProtoTest {
   }
 
   @Test
-  public void testMessageFromGenericRecordWithNullableArray() throws Exception {
+  public void testMessageFromGenericRecordWithNullableArrayWithNonNullValue() throws Exception {
     ImmutableList<String> aList = ImmutableList.of("one", "two", "red", "blue");
-    GenericRecord recordWithMap =
-        new GenericRecordBuilder(SCHEMA_WITH_NULLABLE_ARRAY).set("aNullableArray", aList).build();
+    GenericRecord recordWithArray =
+        new GenericRecordBuilder(AvroGenericRecordToStorageApiProtoTest.SCHEMA_WITH_NULLABLE_ARRAY)
+            .set("aNullableArray", aList)
+            .build();
 
     Descriptors.Descriptor descriptor =
         TableRowToStorageApiProto.getDescriptorFromTableSchema(
@@ -594,7 +593,7 @@ public class AvroGenericRecordToStorageApiProtoTest {
             false);
     DynamicMessage msg =
         AvroGenericRecordToStorageApiProto.messageFromGenericRecord(
-            descriptor, recordWithMap, null, -1);
+            descriptor, recordWithArray, null, -1);
 
     assertEquals(1, msg.getAllFields().size());
 
@@ -604,5 +603,33 @@ public class AvroGenericRecordToStorageApiProtoTest {
 
     List<String> list = (List<String>) msg.getField(fieldDescriptors.get("anullablearray"));
     assertEquals(aList, list);
+  }
+
+  @Test
+  public void testMessageFromGenericRecordWithNullableArrayWithNullValue() throws Exception {
+    ImmutableList<String> aNullList = null;
+    GenericRecord recordWithNullArray =
+        new GenericRecordBuilder(AvroGenericRecordToStorageApiProtoTest.SCHEMA_WITH_NULLABLE_ARRAY)
+            .set("aNullableArray", aNullList)
+            .build();
+
+    Descriptors.Descriptor descriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(
+            AvroGenericRecordToStorageApiProto.protoTableSchemaFromAvroSchema(
+                SCHEMA_WITH_NULLABLE_ARRAY),
+            true,
+            false);
+    DynamicMessage msg =
+        AvroGenericRecordToStorageApiProto.messageFromGenericRecord(
+            descriptor, recordWithNullArray, null, -1);
+
+    assertEquals(0, msg.getAllFields().size());
+
+    Map<String, Descriptors.FieldDescriptor> fieldDescriptors =
+        descriptor.getFields().stream()
+            .collect(Collectors.toMap(Descriptors.FieldDescriptor::getName, Functions.identity()));
+
+    List<String> list = (List<String>) msg.getField(fieldDescriptors.get("anullablearray"));
+    assertEquals(Collections.emptyList(), list);
   }
 }
