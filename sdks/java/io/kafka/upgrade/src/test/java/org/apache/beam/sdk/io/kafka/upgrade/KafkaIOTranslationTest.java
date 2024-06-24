@@ -64,6 +64,7 @@ public class KafkaIOTranslationTest {
     READ_TRANSFORM_SCHEMA_MAPPING.put("getMaxReadTime", "max_read_time");
     READ_TRANSFORM_SCHEMA_MAPPING.put("getStartReadTime", "start_read_time");
     READ_TRANSFORM_SCHEMA_MAPPING.put("getStopReadTime", "stop_read_time");
+    READ_TRANSFORM_SCHEMA_MAPPING.put("getRedistributeNumKeys", "redistribute_num_keys");
     READ_TRANSFORM_SCHEMA_MAPPING.put(
         "isCommitOffsetsInFinalizeEnabled", "is_commit_offset_finalize_enabled");
     READ_TRANSFORM_SCHEMA_MAPPING.put("isDynamicRead", "is_dynamic_read");
