@@ -581,7 +581,7 @@ public class AvroGenericRecordToStorageApiProtoTest {
   }
 
   @Test
-  public void testMessageFromGenericRecordWithArray() throws Exception {
+  public void testMessageFromGenericRecordWithNullableArray() throws Exception {
     ImmutableList<String> aList = ImmutableList.of("one", "two", "red", "blue");
     GenericRecord recordWithMap =
         new GenericRecordBuilder(SCHEMA_WITH_NULLABLE_ARRAY)
