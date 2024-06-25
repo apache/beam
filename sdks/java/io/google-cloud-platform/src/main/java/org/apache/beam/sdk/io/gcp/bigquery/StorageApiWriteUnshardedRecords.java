@@ -217,7 +217,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                         createDisposition,
                         kmsKey,
                         usesCdc,
-                        defaultMissingValueInterpretation))
+                        defaultMissingValueInterpretation,
+                        options.getStorageWriteApiMaxRetries()))
                 .withOutputTags(finalizeTag, tupleTagList)
                 .withSideInputs(dynamicDestinations.getSideInputs()));
 
@@ -889,6 +890,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
     private int numPendingRecordBytes = 0;
     private final int flushThresholdBytes;
     private final int flushThresholdCount;
+    private final int maxRetries;
     private final StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations;
     private final BigQueryServices bqServices;
     private final boolean useDefaultStream;
@@ -910,7 +912,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         BigQueryIO.Write.CreateDisposition createDisposition,
         @Nullable String kmsKey,
         boolean usesCdc,
-        AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation) {
+        AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation,
+        int maxRetries) {
       this.messageConverters = new TwoLevelMessageConverterCache<>(operationName);
       this.dynamicDestinations = dynamicDestinations;
       this.bqServices = bqServices;
@@ -927,6 +930,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       this.kmsKey = kmsKey;
       this.usesCdc = usesCdc;
       this.defaultMissingValueInterpretation = defaultMissingValueInterpretation;
+      this.maxRetries = maxRetries;
     }
 
     boolean shouldFlush() {
@@ -960,7 +964,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
             new RetryManager<>(
                 Duration.standardSeconds(1),
                 Duration.standardSeconds(20),
-                500,
+                maxRetries,
                 BigQuerySinkMetrics.throttledTimeCounter(
                     BigQuerySinkMetrics.RpcMethod.APPEND_ROWS));
         retryManagers.add(retryManager);
