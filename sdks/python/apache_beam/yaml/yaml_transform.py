@@ -160,9 +160,10 @@ class SafeLineLoader(SafeLoader):
   def strip_metadata(cls, spec, tagged_str=True):
     if isinstance(spec, Mapping):
       return {
-          key: cls.strip_metadata(value, tagged_str)
-          for key,
-          value in spec.items() if key not in ('__line__', '__uuid__')
+          cls.strip_metadata(key, tagged_str):
+          cls.strip_metadata(value, tagged_str)
+          for (key, value) in spec.items()
+          if key not in ('__line__', '__uuid__')
       }
     elif isinstance(spec, Iterable) and not isinstance(spec, (str, bytes)):
       return [cls.strip_metadata(value, tagged_str) for value in spec]
