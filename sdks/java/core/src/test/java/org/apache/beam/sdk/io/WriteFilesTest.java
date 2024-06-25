@@ -118,6 +118,11 @@ public class WriteFilesTest {
   @Rule public final TestPipeline p = TestPipeline.create();
   @Rule public ExpectedException thrown = ExpectedException.none();
 
+  private static final int CUSTOM_FILE_TRIGGERING_RECORD_COUNT = 50000;
+  private static final int CUSTOM_FILE_TRIGGERING_BYTE_COUNT = 32 * 1024 * 1024; // 32MiB
+  private static final Duration CUSTOM_FILE_TRIGGERING_RECORD_BUFFERING_DURATION =
+      Duration.standardSeconds(4);
+
   @SuppressWarnings("unchecked") // covariant cast
   private static final PTransform<PCollection<String>, PCollection<String>> IDENTITY_MAP =
       (PTransform)
@@ -340,6 +345,23 @@ public class WriteFilesTest {
         Window.into(FixedWindows.of(Duration.standardSeconds(10))),
         getBaseOutputFilename(),
         WriteFiles.to(makeSimpleSink()).withWindowedWrites().withAutoSharding(),
+        null,
+        true);
+  }
+
+  @Test
+  @Category({NeedsRunner.class, UsesUnboundedPCollections.class})
+  public void testWriteUnboundedWithCustomBatchParameters() throws IOException {
+    runShardedWrite(
+        Arrays.asList("one", "two", "three", "four", "five", "six"),
+        Window.into(FixedWindows.of(Duration.standardSeconds(10))),
+        getBaseOutputFilename(),
+        WriteFiles.to(makeSimpleSink())
+            .withWindowedWrites()
+            .withAutoSharding()
+            .withBatchSize(CUSTOM_FILE_TRIGGERING_RECORD_COUNT)
+            .withBatchSizeBytes(CUSTOM_FILE_TRIGGERING_BYTE_COUNT)
+            .withBatchMaxBufferingDuration(CUSTOM_FILE_TRIGGERING_RECORD_BUFFERING_DURATION),
         null,
         true);
   }
