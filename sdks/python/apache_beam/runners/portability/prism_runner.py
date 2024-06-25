@@ -27,6 +27,11 @@ import shutil
 import stat
 import zipfile
 
+# this will make using the list parameterized generic happy
+# on python 3.8 so we aren't revisiting this code after we
+# sunset it
+from __future__ import annotations
+
 from urllib.request import urlopen
 from urllib.error import URLError
 
@@ -49,8 +54,6 @@ class PrismRunner(portable_runner.PortableRunner):
   """A runner for launching jobs on Prism, automatically downloading and
   starting a Prism instance if needed.
   """
-
-  # Inherits run_portable_pipeline from PortableRunner.
 
   def default_environment(self, options):
     portable_options = options.view_as(pipeline_options.PortableOptions)
@@ -88,7 +91,7 @@ class PrismJobServer(job_server.SubprocessJobServer):
     self._job_port = job_options.job_port
 
   @classmethod
-  def maybe_unzip_and_make_executable(cls, url, cache_dir):
+  def maybe_unzip_and_make_executable(cls, url, cache_dir) -> (str):
     if zipfile.is_zipfile(url):
       z = zipfile.ZipFile(url)
       url = z.extract(
@@ -101,7 +104,7 @@ class PrismJobServer(job_server.SubprocessJobServer):
 
   # Finds the bin or zip in the local cache, and if not, fetches it.
   @classmethod
-  def local_bin(cls, url, cache_dir=None, ignore_cache=False):
+  def local_bin(cls, url, cache_dir=None, ignore_cache=False) -> (str):
     # ignore_cache sets whether we should always be downloading and unzipping
     # the file or not, to avoid staleness issues.
     if cache_dir is None:
@@ -131,13 +134,13 @@ class PrismJobServer(job_server.SubprocessJobServer):
       return cls.maybe_unzip_and_make_executable(
           cached_bin, cache_dir=cache_dir)
 
-  def construct_download_url(self, root_tag, sys, mach):
-    # Construct the prism download URL with the appropriate release tag.
-    # This maps operating systems and machine architectures to the compatible
-    # and canonical names used by the Go build targets.
+  def construct_download_url(self, root_tag, sys, mach) -> (str):
+    """Construct the prism download URL with the appropriate release tag.
+    This maps operating systems and machine architectures to the compatible
+    and canonical names used by the Go build targets.
 
-    # platform.system() provides compatible listings, so we need to filter out
-    # the unsupported versions.
+    platform.system() provides compatible listings, so we need to filter out
+    the unsupported versions."""
     opsys = sys.lower()
     if opsys not in ['linux', 'windows', 'darwin']:
       raise ValueError(
@@ -156,11 +159,10 @@ class PrismJobServer(job_server.SubprocessJobServer):
           'Machine archictecture "%s" unsupported for constructing a Prism '
           'release binary URL.' % (opsys))
     return (
-        'https://github.com/apache/beam/releases/download/'
-        '%s/apache_beam-%s-prism-%s-%s.zip' %
-        (root_tag, self._version, opsys, arch))
+        f"https://github.com/apache/beam/releases/download/{root_tag}/apache_beam-{self._version}-prism-{opsys}-{arch}.zip"
+    )
 
-  def path_to_binary(self):
+  def path_to_binary(self) -> str:
     if self._path:
       if not os.path.exists(self._path):
         url = urllib.parse.urlparse(self._path)
@@ -194,14 +196,14 @@ class PrismJobServer(job_server.SubprocessJobServer):
       return self.construct_download_url(
           self._version, platform.system(), platform.machine())
 
-  def subprocess_cmd_and_endpoint(self):
+  def subprocess_cmd_and_endpoint(self) -> tuple[list[Any], str]:
     bin_path = self.local_bin(
         self.path_to_binary(), ignore_cache=(self._path is not None))
     job_port, = subprocess_server.pick_port(self._job_port)
-    subprocess_cmd = [bin_path] + list(self.prism_arguments(job_port))
-    return (subprocess_cmd, 'localhost:%s' % job_port)
+    subprocess_cmd = [bin_path] + self.prism_arguments(job_port)
+    return (subprocess_cmd, f"localhost:{job_port}")
 
-  def prism_arguments(self, job_port):
+  def prism_arguments(self, job_port) -> list[Any]:
     return [
         '--job_port',
         job_port,
