@@ -22,9 +22,9 @@
 import logging
 import os
 import platform
-import urllib
 import shutil
 import stat
+import urllib
 import zipfile
 
 # this will make using the list parameterized generic happy
@@ -32,8 +32,8 @@ import zipfile
 # sunset it
 from __future__ import annotations
 
-from urllib.request import urlopen
 from urllib.error import URLError
+from urllib.request import urlopen
 
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.options import pipeline_options
