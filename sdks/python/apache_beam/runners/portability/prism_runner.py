@@ -17,6 +17,11 @@
 
 """A runner for executing portable pipelines on Apache Beam Prism."""
 
+# this will make using the list parameterized generic happy
+# on python 3.8 so we aren't revisiting this code after we
+# sunset it
+from __future__ import annotations
+
 # pytype: skip-file
 
 import logging
@@ -27,10 +32,6 @@ import stat
 import urllib
 import zipfile
 
-# this will make using the list parameterized generic happy
-# on python 3.8 so we aren't revisiting this code after we
-# sunset it
-from __future__ import annotations
 
 from urllib.error import URLError
 from urllib.request import urlopen
