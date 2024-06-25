@@ -22,7 +22,6 @@ import java.io.PrintWriter;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -71,10 +70,10 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   protected static final int RPC_STREAM_CHUNK_SIZE = 2 << 20;
   private static final Logger LOG = LoggerFactory.getLogger(AbstractWindmillStream.class);
   protected final AtomicBoolean clientClosed;
-  private final String streamId;
+  protected final WindmillStream.Id streamId;
   private final AtomicLong lastSendTimeMs;
   private final Executor executor;
-  private final ExecutorService sendExecutor;
+  private final Executor requestSender;
   private final BackOff backoff;
   private final AtomicLong startTimeMs;
   private final AtomicLong lastResponseTimeMs;
@@ -97,11 +96,11 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
       int logEveryNStreamFailures,
       String backendWorkerToken) {
     this.streamId =
-        WindmillStream.Id.create(this, backendWorkerToken, backendWorkerToken.isEmpty()).toString();
+        WindmillStream.Id.create(this, backendWorkerToken, !backendWorkerToken.isEmpty());
     this.executor =
         Executors.newSingleThreadExecutor(
             new ThreadFactoryBuilder().setDaemon(true).setNameFormat(streamId + "-thread").build());
-    this.sendExecutor =
+    this.requestSender =
         Executors.newSingleThreadExecutor(
             new ThreadFactoryBuilder()
                 .setDaemon(true)
@@ -128,11 +127,8 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
                     new AbstractWindmillStream<RequestT, ResponseT>.ResponseObserver()));
   }
 
-  private static long debugDuration(long nowMs, long startMs) {
-    if (startMs <= 0) {
-      return -1;
-    }
-    return Math.max(0, nowMs - startMs);
+  private static String debugDuration(long nowMs, long startMs) {
+    return (startMs <= 0 ? -1 : Math.max(0, nowMs - startMs)) + "ms";
   }
 
   /** Called on each response from the server. */
@@ -159,7 +155,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
         throw new IllegalStateException("Send called on a client closed stream.");
       }
 
-      sendExecutor.submit(
+      requestSender.execute(
           () -> {
             if (isClosed()) {
               return;
@@ -225,33 +221,65 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
 
   protected abstract void sendHealthCheck();
 
-  // Care is taken that synchronization on this is unnecessary for all status page information.
-  // Blocking sends are made beneath this stream object's lock which could block status page
-  // rendering.
+  /**
+   * @implNote Care is taken that synchronization on this is unnecessary for all status page
+   *     information.Blocking sends are made beneath this stream object's lock which could block
+   *     status page rendering.
+   */
   public final void appendSummaryHtml(PrintWriter writer) {
+    writer.format("<h3>%s:</h3>", streamId);
     appendSpecificHtml(writer);
-    writer.format("id: %s; ", streamId);
-    if (errorCount.get() > 0) {
-      writer.format(
-          ", %d errors, last error [ %s ] at [%s]",
-          errorCount.get(), lastError.get(), lastErrorTime.get());
-    }
-    if (clientClosed.get()) {
-      writer.write(", client closed");
-    }
+    writer.println("<strong>Status:</strong>");
+    writer.println(
+        "<table border=\"1\" "
+            + "style=\"border-collapse:collapse;padding:5px;border-spacing:5px;border:1px\">");
+    writer.println(
+        "<tr>"
+            + "<th>Error Count</th>"
+            + "<th>Last Error</th>"
+            + "<th>Last Error Received Time</th>"
+            + "<th>Is Client Closed</th>"
+            + "<th>Is Closed</th>"
+            + "<th>BackOff Remaining</th>"
+            + "<th>Current Stream Age Millis</th>"
+            + "<th>Last Request Sent Time</th>"
+            + "<th>Last Received Response Time</th>"
+            + "</tr>");
 
-    writer.format(", isClosed=[%s]", isClosed());
+    StringBuilder statusString = new StringBuilder();
+    statusString.append("<tr>");
+    statusString.append("<td>");
+    if (errorCount.get() > 0) {
+      statusString.append(errorCount.get());
+      statusString.append("</td><td>");
+      statusString.append(lastError.get());
+      statusString.append("</td><td>");
+      statusString.append(lastErrorTime.get());
+    } else {
+      statusString.append(0);
+      statusString.append("</td><td>");
+      statusString.append("N/A");
+      statusString.append("</td><td>");
+      statusString.append("N/A");
+    }
+    statusString.append("</td><td>");
+
+    statusString.append(clientClosed.get());
+    statusString.append("</td><td>");
+    statusString.append(isClosed());
+    statusString.append("</td><td>");
     long nowMs = Instant.now().getMillis();
     long sleepLeft = sleepUntil.get() - nowMs;
-    if (sleepLeft > 0) {
-      writer.format(", %dms backoff remaining", sleepLeft);
-    }
-    writer.format(
-        ", current stream is %dms old, last send %dms, last response %dms, closed: %s",
-        debugDuration(nowMs, startTimeMs.get()),
-        debugDuration(nowMs, lastSendTimeMs.get()),
-        debugDuration(nowMs, lastResponseTimeMs.get()),
-        streamClosed.get());
+    statusString.append(Math.max(sleepLeft, 0));
+    statusString.append("</td><td>");
+    statusString.append(debugDuration(nowMs, startTimeMs.get()));
+    statusString.append("</td><td>");
+    statusString.append(debugDuration(nowMs, lastSendTimeMs.get()));
+    statusString.append("</td><td>");
+    statusString.append(debugDuration(nowMs, lastResponseTimeMs.get()));
+    statusString.append("</td></tr>\n");
+    writer.print(statusString);
+    writer.println("</table>");
   }
 
   // Don't require synchronization on stream, see the appendSummaryHtml comment.
@@ -354,7 +382,6 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
         if (clientClosed.get() && !hasPendingRequests()) {
           streamRegistry.remove(AbstractWindmillStream.this);
           finishLatch.countDown();
-          sendExecutor.shutdownNow();
           return;
         }
       }

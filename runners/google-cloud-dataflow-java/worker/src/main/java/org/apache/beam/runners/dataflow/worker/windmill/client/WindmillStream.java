@@ -111,20 +111,25 @@ public interface WindmillStream {
 
   @AutoValue
   abstract class Id {
-    public static Id create(WindmillStream stream, String backendWorkerToken, boolean isDirect) {
+    private static final String GET_WORK_STREAM_TYPE = "GetWorkStream";
+    private static final String GET_DATA_STREAM_TYPE = "GetDataStream";
+    private static final String GET_WORKER_METADATA_STREAM_TYPE = "GetWorkerMetadataStream";
+    private static final String COMMIT_WORK_STREAM_TYPE = "CommitWorkStream";
+
+    static Id create(WindmillStream stream, String backendWorkerToken, boolean isDirect) {
       return new AutoValue_WindmillStream_Id(
           Id.getStreamType(stream), backendWorkerToken, isDirect);
     }
 
     private static String getStreamType(WindmillStream windmillStream) {
       if (windmillStream instanceof GetWorkStream) {
-        return "GetWork-";
+        return GET_WORK_STREAM_TYPE;
       } else if (windmillStream instanceof GetWorkerMetadataStream) {
-        return "GetWorkerMetadata-";
+        return GET_WORKER_METADATA_STREAM_TYPE;
       } else if (windmillStream instanceof GetDataStream) {
-        return "GetData-";
+        return GET_DATA_STREAM_TYPE;
       } else if (windmillStream instanceof CommitWorkStream) {
-        return "CommitWork-";
+        return COMMIT_WORK_STREAM_TYPE;
       }
 
       // Should not happen conditions above are exhaustive.
@@ -133,17 +138,16 @@ public interface WindmillStream {
 
     abstract String streamType();
 
-    abstract String backendWorkerToken();
+    public abstract String backendWorkerToken();
 
     abstract boolean isDirect();
 
     @Override
-    public String toString() {
-      return String.format(
-          "[%s]-[%s]-[%s]",
-          streamType(),
-          isDirect() ? "direct" : "dispatched",
-          backendWorkerToken().isEmpty() ? "no_worker_token" : backendWorkerToken());
+    public final String toString() {
+      String id = String.format("%s-%s", streamType(), isDirect() ? "Direct" : "Dispatched");
+      return backendWorkerToken().isEmpty()
+          ? id + String.format("-[%s]", backendWorkerToken())
+          : id;
     }
   }
 }

@@ -21,6 +21,7 @@ import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -38,6 +39,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationWork
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataResponse;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution.State;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingGetWorkRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingGetWorkResponseChunk;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
@@ -189,6 +191,11 @@ public final class GrpcDirectGetWorkStream
     }
   }
 
+  private static String newHtmlTableHeader() {
+    return "<table border=\"1\" "
+        + "style=\"border-collapse:collapse;padding:5px;border-spacing:5px;border:1px\">";
+  }
+
   private synchronized GetWorkBudget getThenResetBudgetAdjustment() {
     return nextBudgetAdjustment.getAndUpdate(unused -> GetWorkBudget.noBudget());
   }
@@ -246,10 +253,83 @@ public final class GrpcDirectGetWorkStream
 
   @Override
   public void appendSpecificHtml(PrintWriter writer) {
-    // Number of buffers is same as distinct workers that sent work on this stream.
-    writer.format(
-        "DirectGetWorkStream: %d buffers, %s inflight budget allowed.",
-        workItemBuffers.size(), inFlightBudget.get());
+    writer.format("<strong>In-flight Budget:</strong> %s<br>", inFlightBudget.get());
+    writer.format("<strong>Next Budget Adjustment:</strong> %s<br>", inFlightBudget.get());
+    writer.format("<strong>Pending Response Budget:</strong> %s<br>", pendingResponseBudget.get());
+    writer.println("<strong>WorkItemBuffers:</strong>");
+    writer.println(newHtmlTableHeader());
+    writer.println(
+        "<tr>"
+            + "<th>Stream ID</th>"
+            + "<th>Computation</th>"
+            + "<th>Input Data Watermark</th>"
+            + "<th>Synchronized Processing Time</th>"
+            + "<th>WorkItem Create End Time</th>"
+            + "<th>Last WorkItem Chunk Received Time</th>"
+            + "<th>WorkItem Creation Latency</th>"
+            + "<th>Aggregate Latency Table</th>"
+            + "</tr>");
+    StringBuilder statusString = new StringBuilder();
+    for (Map.Entry<Long, WorkItemBuffer> buffer : workItemBuffers.entrySet()) {
+      statusString.append("<tr>");
+      statusString.append("<td>");
+      statusString.append(buffer.getKey());
+      statusString.append("</td><td>");
+      @Nullable ComputationMetadata metadata = buffer.getValue().metadata;
+      if (metadata != null) {
+        statusString.append(metadata.computationId());
+        statusString.append("</td><td>");
+        statusString.append(metadata.inputDataWatermark());
+        statusString.append("</td><td>");
+        statusString.append(metadata.synchronizedProcessingTime());
+      } else {
+        statusString.append("N/A");
+        statusString.append("</td><td>");
+        statusString.append("N/A");
+        statusString.append("</td><td>");
+        statusString.append("N/A");
+      }
+      statusString.append("</td><td>");
+      statusString.append(buffer.getValue().workTimingInfosTracker.getWorkItemCreationEndTime());
+      statusString.append("</td><td>");
+      statusString.append(
+          buffer.getValue().workTimingInfosTracker.getWorkItemLastChunkReceivedByWorkerTime());
+      statusString.append("</td><td>");
+      statusString.append(
+          buffer
+              .getValue()
+              .workTimingInfosTracker
+              .getWorkItemCreationLatency()
+              .map(Windmill.LatencyAttribution::toString)
+              .orElse("N/A"));
+      statusString.append("</td><td>");
+      Map<State, GetWorkTimingInfosTracker.SumAndMaxDurations> aggregatedGetWorkStreamLatencies =
+          buffer.getValue().workTimingInfosTracker.getAggregatedGetWorkStreamLatencies();
+      if (!aggregatedGetWorkStreamLatencies.isEmpty()) {
+        statusString.append(newHtmlTableHeader());
+        for (Map.Entry<State, GetWorkTimingInfosTracker.SumAndMaxDurations> latencyEntry :
+            aggregatedGetWorkStreamLatencies.entrySet()) {
+          statusString.append(
+              "<tr>"
+                  + "<th>Latency State</th>"
+                  + "<th>Latency Sum and Max Duration</th>"
+                  + "</tr>");
+          statusString.append("<tr>");
+          statusString.append("<td>");
+          statusString.append(latencyEntry.getKey());
+          statusString.append("</td><td>");
+          statusString.append(latencyEntry.getValue());
+          statusString.append("</td></tr>\n");
+        }
+        statusString.append("</table>");
+      } else {
+        statusString.append("N/A");
+      }
+      statusString.append("</td></tr>\n");
+    }
+
+    writer.print(statusString);
+    writer.println("</table>");
   }
 
   @Override
@@ -355,11 +435,14 @@ public final class GrpcDirectGetWorkStream
           workItem,
           createWatermarks(workItem, metadata),
           Work.createProcessingContext(
-              metadata.computationId(),
-              (computation, request) ->
-                  keyedGetDataFn.apply(getDataStream.get()).apply(computation, request),
-              workCommitter.get()::commit,
-              DirectHeartbeatSender.create(getDataStream.get())),
+                  metadata.computationId(),
+                  (computation, request) ->
+                      keyedGetDataFn.apply(getDataStream.get()).apply(computation, request),
+                  workCommitter.get()::commit,
+                  DirectHeartbeatSender.create(getDataStream.get()))
+              .toBuilder()
+              .setBackendWorkerToken(streamId.backendWorkerToken())
+              .build(),
           // After the work item is successfully queued or dropped by ActiveWorkState, remove it
           // from the pendingResponseBudget.
           queuedWorkItem -> updatePendingResponseBudget(-1, -workItem.getSerializedSize()),

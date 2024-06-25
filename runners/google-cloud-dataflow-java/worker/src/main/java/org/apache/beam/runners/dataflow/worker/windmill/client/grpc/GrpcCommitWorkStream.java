@@ -117,7 +117,7 @@ public final class GrpcCommitWorkStream
 
   @Override
   public void appendSpecificHtml(PrintWriter writer) {
-    writer.format("CommitWorkStream: %d pending", pendingRequests.size());
+    writer.format("<br>%d Pending Requests<br>", pendingRequests.size());
   }
 
   @Override
@@ -161,7 +161,7 @@ public final class GrpcCommitWorkStream
   @Override
   protected void onResponse(StreamingCommitResponse response) {
     commitWorkThrottleTimer.stop();
-    @Nullable RuntimeException finalException = null;
+    @Nullable RuntimeException failure = null;
     for (int i = 0; i < response.getRequestIdCount() && !isClosed(); ++i) {
       long requestId = response.getRequestId(i);
       if (requestId == HEARTBEAT_REQUEST_ID) {
@@ -169,26 +169,23 @@ public final class GrpcCommitWorkStream
       }
       @Nullable PendingRequest pendingRequest = pendingRequests.remove(requestId);
       if (pendingRequest == null) {
-        LOG.warn(
-            "Got unknown commit request ID: [{}] in response: [{}]. Current pending requests: {}",
-            requestId,
-            response,
-            pendingRequests);
+        LOG.warn("Got unknown commit request ID: [{}].", requestId);
       } else {
         try {
-          CommitStatus commitStatus =
-              i < response.getStatusCount() ? response.getStatus(i) : CommitStatus.OK;
-          pendingRequest.ackResponse(commitStatus);
+          pendingRequest.ackResponse(
+              i < response.getStatusCount() ? response.getStatus(i) : CommitStatus.OK);
         } catch (RuntimeException e) {
           // Catch possible exceptions to ensure that an exception for one commit does not prevent
-          // other commits from being processed.
+          // other commits from being processed. Aggregate all the failures to throw after
+          // processing the response if they exist.
           LOG.warn("Exception while processing commit response.", e);
-          finalException = e;
+          if (failure == null) failure = e;
+          else failure.addSuppressed(e);
         }
       }
     }
-    if (finalException != null) {
-      throw finalException;
+    if (failure != null) {
+      throw failure;
     }
   }
 

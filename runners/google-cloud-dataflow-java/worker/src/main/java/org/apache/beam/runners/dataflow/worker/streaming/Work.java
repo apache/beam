@@ -147,7 +147,8 @@ public final class Work implements RefreshableWork {
       BiFunction<String, KeyedGetDataRequest, KeyedGetDataResponse> getKeyedDataFn,
       Consumer<Commit> workCommitter,
       HeartbeatSender heartbeatSender) {
-    return ProcessingContext.create(computationId, getKeyedDataFn, workCommitter, heartbeatSender);
+    return ProcessingContext.create(computationId, getKeyedDataFn, workCommitter, heartbeatSender)
+        .build();
   }
 
   private static LatencyAttribution.Builder createLatencyAttributionWithActiveLatencyBreakdown(
@@ -344,6 +345,10 @@ public final class Work implements RefreshableWork {
     return isFailed;
   }
 
+  public String backendWorkerToken() {
+    return processingContext.backendWorkerToken();
+  }
+
   boolean isStuckCommittingAt(Instant stuckCommitDeadline) {
     return currentState.state() == Work.State.COMMITTING
         && currentState.startTime().isBefore(stuckCommitDeadline);
@@ -435,20 +440,23 @@ public final class Work implements RefreshableWork {
 
   @AutoValue
   public abstract static class ProcessingContext {
+    private static final String UNKNOWN_BACKEND_WORKER_TOKEN = "UNKNOWN";
 
-    private static ProcessingContext create(
+    private static ProcessingContext.Builder create(
         String computationId,
         BiFunction<String, KeyedGetDataRequest, KeyedGetDataResponse> getKeyedDataFn,
         Consumer<Commit> workCommitter,
         HeartbeatSender heartbeatSender) {
       return new AutoValue_Work_ProcessingContext.Builder()
+          .setBackendWorkerToken(UNKNOWN_BACKEND_WORKER_TOKEN)
           .setComputationId(computationId)
           .setHeartbeatSender(heartbeatSender)
           .setWorkCommitter(workCommitter)
           .setKeyedDataFetcher(
-              request -> Optional.ofNullable(getKeyedDataFn.apply(computationId, request)))
-          .build();
+              request -> Optional.ofNullable(getKeyedDataFn.apply(computationId, request)));
     }
+
+    abstract String backendWorkerToken();
 
     /** Computation that the {@link Work} belongs to. */
     public abstract String computationId();
@@ -465,10 +473,12 @@ public final class Work implements RefreshableWork {
 
     public abstract HeartbeatSender heartbeatSender();
 
-    abstract Builder toBuilder();
+    public abstract Builder toBuilder();
 
     @AutoValue.Builder
-    abstract static class Builder {
+    public abstract static class Builder {
+      public abstract Builder setBackendWorkerToken(String value);
+
       abstract Builder setComputationId(String value);
 
       abstract Builder setKeyedDataFetcher(
@@ -478,7 +488,7 @@ public final class Work implements RefreshableWork {
 
       abstract Builder setHeartbeatSender(HeartbeatSender value);
 
-      abstract ProcessingContext build();
+      public abstract ProcessingContext build();
     }
   }
 }

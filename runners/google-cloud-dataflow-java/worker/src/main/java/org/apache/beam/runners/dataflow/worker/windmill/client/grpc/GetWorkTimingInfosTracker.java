@@ -24,6 +24,7 @@ import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkStreamTimingInfo;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkStreamTimingInfo.Event;
@@ -170,6 +171,22 @@ final class GetWorkTimingInfosTracker {
     return latencyAttributions;
   }
 
+  Map<State, SumAndMaxDurations> getAggregatedGetWorkStreamLatencies() {
+    return Collections.unmodifiableMap(aggregatedGetWorkStreamLatencies);
+  }
+
+  Instant getWorkItemCreationEndTime() {
+    return workItemCreationEndTime;
+  }
+
+  Instant getWorkItemLastChunkReceivedByWorkerTime() {
+    return workItemLastChunkReceivedByWorkerTime;
+  }
+
+  Optional<LatencyAttribution> getWorkItemCreationLatency() {
+    return Optional.ofNullable(workItemCreationLatency);
+  }
+
   void reset() {
     this.aggregatedGetWorkStreamLatencies.clear();
     this.workItemCreationEndTime = Instant.EPOCH;
@@ -177,13 +194,18 @@ final class GetWorkTimingInfosTracker {
     this.workItemCreationLatency = null;
   }
 
-  private static class SumAndMaxDurations {
+  static class SumAndMaxDurations {
     private Duration sum;
     private Duration max;
 
     private SumAndMaxDurations(Duration sum, Duration max) {
       this.sum = sum;
       this.max = max;
+    }
+
+    @Override
+    public String toString() {
+      return "Latency{" + "sum=" + sum + ", max=" + max + '}';
     }
   }
 }

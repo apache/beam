@@ -55,6 +55,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.St
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -136,6 +137,12 @@ public final class GrpcGetDataStream
             processHeartbeatResponses);
     getDataStream.startStream();
     return getDataStream;
+  }
+
+  private static String elapsedString(Instant start, Instant end) {
+    Duration activeFor = new Duration(start, end);
+    // Duration's toString always starts with "PT"; remove that here.
+    return activeFor.toString().substring(2);
   }
 
   @Override
@@ -290,26 +297,54 @@ public final class GrpcGetDataStream
 
   @Override
   public void appendSpecificHtml(PrintWriter writer) {
-    writer.format(
-        "GetDataStream: %d queued batches, %d pending requests [", batches.size(), pending.size());
-    for (Map.Entry<Long, AppendableInputStream> entry : pending.entrySet()) {
-      writer.format("Stream %d ", entry.getKey());
-      if (entry.getValue().isCancelled()) {
-        writer.append("cancelled ");
-      }
-      if (entry.getValue().isComplete()) {
-        writer.append("complete ");
-      }
-      int queueSize = entry.getValue().size();
-      if (queueSize > 0) {
-        writer.format("%d queued responses ", queueSize);
-      }
-      long blockedMs = entry.getValue().getBlockedStartMs();
-      if (blockedMs > 0) {
-        writer.format("blocked for %dms", Instant.now().getMillis() - blockedMs);
+    writer.format("<br>%d queued batches, %d pending requests", batches.size(), pending.size());
+    writer.println(
+        "<table border=\"1\" "
+            + "style=\"border-collapse:collapse;padding:5px;border-spacing:5px;border:1px\">");
+    writer.println(
+        "<tr>"
+            + "<th>Request ID</th>"
+            + "<th>Is Cancelled?</th>"
+            + "<th>Is Complete?</th>"
+            + "<th>Queued Responses</th>"
+            + "<th>Blocked For</th>"
+            + "</tr>");
+
+    StringBuilder statusString = new StringBuilder();
+    if (pending.isEmpty()) {
+      statusString.append("<tr>");
+      statusString.append("<td>");
+      statusString.append("N/A");
+      statusString.append("</td><td>");
+      statusString.append("N/A");
+      statusString.append("</td><td>");
+      statusString.append("N/A");
+      statusString.append("</td><td>");
+      statusString.append("N/A");
+      statusString.append("</td><td>");
+      statusString.append("N/A");
+      statusString.append("</td></tr>\n");
+    } else {
+      for (Map.Entry<Long, AppendableInputStream> entry : pending.entrySet()) {
+        statusString.append("<tr>");
+        statusString.append("<td>");
+        statusString.append(entry.getKey());
+        statusString.append("</td><td>");
+        statusString.append(entry.getValue().isCancelled());
+        statusString.append("</td><td>");
+        statusString.append(entry.getValue().isComplete());
+        statusString.append("</td><td>");
+        statusString.append(entry.getValue().size());
+        statusString.append("</td><td>");
+        statusString.append(
+            elapsedString(
+                Instant.ofEpochMilli(entry.getValue().getBlockedStartMs()), Instant.now()));
+        statusString.append("</td></tr>\n");
       }
     }
-    writer.append("]");
+
+    writer.print(statusString);
+    writer.println("</table>");
   }
 
   private <ResponseT> ResponseT issueRequest(QueuedRequest request, ParseFn<ResponseT> parseFn) {

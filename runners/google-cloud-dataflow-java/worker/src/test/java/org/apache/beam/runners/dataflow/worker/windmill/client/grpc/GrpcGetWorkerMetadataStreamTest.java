@@ -30,6 +30,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
@@ -266,13 +267,14 @@ public class GrpcGetWorkerMetadataStreamTest {
   }
 
   @Test
-  public void testSendHealthCheck() {
+  public void testSendHealthCheck() throws InterruptedException {
+    CountDownLatch onRequestReceived = new CountDownLatch(1);
     TestGetWorkMetadataRequestObserver requestObserver =
-        Mockito.spy(new TestGetWorkMetadataRequestObserver());
+        Mockito.spy(new TestGetWorkMetadataRequestObserver(onRequestReceived::countDown));
     GetWorkerMetadataTestStub testStub = new GetWorkerMetadataTestStub(requestObserver);
     stream = getWorkerMetadataTestStream(testStub, 0, new TestWindmillEndpointsConsumer());
     stream.sendHealthCheck();
-
+    onRequestReceived.await();
     verify(requestObserver).onNext(WorkerMetadataRequest.getDefaultInstance());
   }
 
@@ -308,9 +310,20 @@ public class GrpcGetWorkerMetadataStreamTest {
   private static class TestGetWorkMetadataRequestObserver
       implements StreamObserver<WorkerMetadataRequest> {
     private @Nullable StreamObserver<WorkerMetadataResponse> responseObserver;
+    private final Runnable onRequestReceived;
+
+    private TestGetWorkMetadataRequestObserver(Runnable onRequestReceived) {
+      this.onRequestReceived = onRequestReceived;
+    }
+
+    private TestGetWorkMetadataRequestObserver() {
+      this.onRequestReceived = () -> {};
+    }
 
     @Override
-    public void onNext(WorkerMetadataRequest workerMetadataRequest) {}
+    public void onNext(WorkerMetadataRequest workerMetadataRequest) {
+      onRequestReceived.run();
+    }
 
     @Override
     public void onError(Throwable throwable) {}

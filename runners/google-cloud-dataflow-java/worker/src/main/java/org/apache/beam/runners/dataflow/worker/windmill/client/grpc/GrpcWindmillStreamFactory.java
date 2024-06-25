@@ -298,7 +298,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
 
   @Override
   public void appendSummaryHtml(PrintWriter writer) {
-    writer.write("Active Streams:<br>");
+    writer.write("<h2>Active Streams:</h2><br>");
     for (AbstractWindmillStream<?, ?> stream : streamRegistry) {
       stream.appendSummaryHtml(writer);
       writer.write("<br>");
