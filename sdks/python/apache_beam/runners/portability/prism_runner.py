@@ -32,7 +32,6 @@ import stat
 import urllib
 import zipfile
 
-
 from urllib.error import URLError
 from urllib.request import urlopen
 
@@ -55,7 +54,6 @@ class PrismRunner(portable_runner.PortableRunner):
   """A runner for launching jobs on Prism, automatically downloading and
   starting a Prism instance if needed.
   """
-
   def default_environment(self, options):
     portable_options = options.view_as(pipeline_options.PortableOptions)
     if (not portable_options.environment_type and
