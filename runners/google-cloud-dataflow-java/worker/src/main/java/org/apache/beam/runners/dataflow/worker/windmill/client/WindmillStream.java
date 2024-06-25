@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.client;
 
+import com.google.auto.value.AutoValue;
 import java.io.Closeable;
 import java.util.List;
 import java.util.Map;
@@ -74,6 +75,12 @@ public interface WindmillStream {
   /** Interface for streaming CommitWorkRequests to Windmill. */
   @ThreadSafe
   interface CommitWorkStream extends WindmillStream {
+    /**
+     * Returns a builder that can be used for sending requests. Each builder is not thread-safe but
+     * different builders for the same stream may be used simultaneously.
+     */
+    Optional<RequestBatcher> newBatcher();
+
     @NotThreadSafe
     interface RequestBatcher extends Closeable {
       /**
@@ -96,15 +103,47 @@ public interface WindmillStream {
         flush();
       }
     }
-
-    /**
-     * Returns a builder that can be used for sending requests. Each builder is not thread-safe but
-     * different builders for the same stream may be used simultaneously.
-     */
-    Optional<RequestBatcher> newBatcher();
   }
 
   /** Interface for streaming GetWorkerMetadata requests to Windmill. */
   @ThreadSafe
   interface GetWorkerMetadataStream extends WindmillStream {}
+
+  @AutoValue
+  abstract class Id {
+    public static Id create(WindmillStream stream, String backendWorkerToken, boolean isDirect) {
+      return new AutoValue_WindmillStream_Id(
+          Id.getStreamType(stream), backendWorkerToken, isDirect);
+    }
+
+    private static String getStreamType(WindmillStream windmillStream) {
+      if (windmillStream instanceof GetWorkStream) {
+        return "GetWork-";
+      } else if (windmillStream instanceof GetWorkerMetadataStream) {
+        return "GetWorkerMetadata-";
+      } else if (windmillStream instanceof GetDataStream) {
+        return "GetData-";
+      } else if (windmillStream instanceof CommitWorkStream) {
+        return "CommitWork-";
+      }
+
+      // Should not happen conditions above are exhaustive.
+      throw new IllegalArgumentException("Unknown stream type.");
+    }
+
+    abstract String streamType();
+
+    abstract String backendWorkerToken();
+
+    abstract boolean isDirect();
+
+    @Override
+    public String toString() {
+      return String.format(
+          "[%s]-[%s]-[%s]",
+          streamType(),
+          isDirect() ? "direct" : "dispatched",
+          backendWorkerToken().isEmpty() ? "no_worker_token" : backendWorkerToken());
+    }
+  }
 }

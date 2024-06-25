@@ -60,7 +60,7 @@ public final class GrpcGetWorkStream
   private final AtomicLong inflightBytes;
 
   private GrpcGetWorkStream(
-      String streamId,
+      String backendWorkerToken,
       Function<
               StreamObserver<StreamingGetWorkResponseChunk>,
               StreamObserver<StreamingGetWorkRequest>>
@@ -78,7 +78,7 @@ public final class GrpcGetWorkStream
         streamObserverFactory,
         streamRegistry,
         logEveryNStreamFailures,
-        streamId);
+        backendWorkerToken);
     this.request = request;
     this.getWorkThrottleTimer = getWorkThrottleTimer;
     this.receiver = receiver;
@@ -88,7 +88,7 @@ public final class GrpcGetWorkStream
   }
 
   public static GrpcGetWorkStream create(
-      String streamId,
+      String backendWorkerToken,
       Function<
               StreamObserver<StreamingGetWorkResponseChunk>,
               StreamObserver<StreamingGetWorkRequest>>
@@ -102,7 +102,7 @@ public final class GrpcGetWorkStream
       WorkItemReceiver receiver) {
     GrpcGetWorkStream getWorkStream =
         new GrpcGetWorkStream(
-            streamId,
+            backendWorkerToken,
             startGetWorkRpcFn,
             request,
             backoff,

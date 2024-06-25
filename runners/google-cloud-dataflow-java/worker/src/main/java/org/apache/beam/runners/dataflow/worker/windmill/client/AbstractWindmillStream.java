@@ -22,6 +22,7 @@ import java.io.PrintWriter;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -30,6 +31,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverCancelledException;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverFactory;
 import org.apache.beam.sdk.util.BackOff;
@@ -72,6 +74,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   private final String streamId;
   private final AtomicLong lastSendTimeMs;
   private final Executor executor;
+  private final ExecutorService sendExecutor;
   private final BackOff backoff;
   private final AtomicLong startTimeMs;
   private final AtomicLong lastResponseTimeMs;
@@ -82,10 +85,9 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   private final CountDownLatch finishLatch;
   private final Set<AbstractWindmillStream<?, ?>> streamRegistry;
   private final int logEveryNStreamFailures;
-  private final Supplier<StreamObserver<RequestT>> requestObserverSupplier;
+  private final UpdatableDelegateRequestObserver<RequestT> requestObserver;
   // Indicates if the current stream in requestObserver is closed by calling close() method
   private final AtomicBoolean streamClosed;
-  private @Nullable StreamObserver<RequestT> requestObserver;
 
   protected AbstractWindmillStream(
       Function<StreamObserver<ResponseT>, StreamObserver<RequestT>> clientFactory,
@@ -93,11 +95,18 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
       StreamObserverFactory streamObserverFactory,
       Set<AbstractWindmillStream<?, ?>> streamRegistry,
       int logEveryNStreamFailures,
-      String streamId) {
-    this.streamId = streamId;
+      String backendWorkerToken) {
+    this.streamId =
+        WindmillStream.Id.create(this, backendWorkerToken, backendWorkerToken.isEmpty()).toString();
     this.executor =
         Executors.newSingleThreadExecutor(
             new ThreadFactoryBuilder().setDaemon(true).setNameFormat(streamId + "-thread").build());
+    this.sendExecutor =
+        Executors.newSingleThreadExecutor(
+            new ThreadFactoryBuilder()
+                .setDaemon(true)
+                .setNameFormat(streamId + "-RequestThread")
+                .build());
     this.backoff = backoff;
     this.streamRegistry = streamRegistry;
     this.logEveryNStreamFailures = logEveryNStreamFailures;
@@ -111,10 +120,12 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
     this.lastErrorTime = new AtomicReference<>();
     this.sleepUntil = new AtomicLong();
     this.finishLatch = new CountDownLatch(1);
-    this.requestObserverSupplier =
-        () ->
-            streamObserverFactory.from(
-                clientFactory, new AbstractWindmillStream<RequestT, ResponseT>.ResponseObserver());
+    this.requestObserver =
+        new UpdatableDelegateRequestObserver<>(
+            () ->
+                streamObserverFactory.from(
+                    clientFactory,
+                    new AbstractWindmillStream<RequestT, ResponseT>.ResponseObserver()));
   }
 
   private static long debugDuration(long nowMs, long startMs) {
@@ -140,15 +151,6 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
    */
   protected abstract void startThrottleTimer();
 
-  private StreamObserver<RequestT> requestObserver() {
-    if (requestObserver == null) {
-      throw new NullPointerException(
-          "requestObserver cannot be null. Missing a call to startStream() to initialize.");
-    }
-
-    return requestObserver;
-  }
-
   /** Send a request to the server. */
   protected final void send(RequestT request) {
     lastSendTimeMs.set(Instant.now().getMillis());
@@ -157,16 +159,22 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
         throw new IllegalStateException("Send called on a client closed stream.");
       }
 
-      try {
-        requestObserver().onNext(request);
-      } catch (StreamObserverCancelledException e) {
-        if (isClosed()) {
-          LOG.warn("Stream was closed during send.", e);
-          return;
-        }
-        LOG.error("StreamObserver was unexpectedly cancelled.", e);
-        throw e;
-      }
+      sendExecutor.submit(
+          () -> {
+            if (isClosed()) {
+              return;
+            }
+            try {
+              requestObserver.onNext(request);
+            } catch (StreamObserverCancelledException e) {
+              if (isClosed()) {
+                LOG.warn("Stream was closed during send.", e);
+                return;
+              }
+              LOG.error("StreamObserver was unexpectedly cancelled.", e);
+              throw e;
+            }
+          });
     }
   }
 
@@ -181,7 +189,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
           lastResponseTimeMs.set(0);
           streamClosed.set(false);
           // lazily initialize the requestObserver. Gets reset whenever the stream is reopened.
-          requestObserver = requestObserverSupplier.get();
+          requestObserver.reset();
           onNewStream();
           if (clientClosed.get()) {
             close();
@@ -253,7 +261,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   public synchronized void close() {
     // Synchronization of close and onCompleted necessary for correct retry logic in onNewStream.
     clientClosed.set(true);
-    requestObserver().onCompleted();
+    requestObserver.onCompleted();
     streamClosed.set(true);
   }
 
@@ -275,6 +283,48 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   private void setLastError(String error) {
     lastError.set(error);
     lastErrorTime.set(DateTime.now());
+  }
+
+  /** Request observer that allows updating its internal delegate. */
+  @ThreadSafe
+  private static class UpdatableDelegateRequestObserver<RequestT>
+      implements StreamObserver<RequestT> {
+    private final Supplier<StreamObserver<RequestT>> requestObserverSupplier;
+    private final AtomicReference<StreamObserver<RequestT>> delegateRequestObserver;
+
+    private UpdatableDelegateRequestObserver(
+        Supplier<StreamObserver<RequestT>> requestObserverSupplier) {
+      this.requestObserverSupplier = requestObserverSupplier;
+      this.delegateRequestObserver = new AtomicReference<>();
+    }
+
+    private synchronized StreamObserver<RequestT> delegate() {
+      if (delegateRequestObserver.get() == null) {
+        throw new NullPointerException(
+            "requestObserver cannot be null. Missing a call to startStream() to initialize.");
+      }
+
+      return delegateRequestObserver.get();
+    }
+
+    private synchronized void reset() {
+      delegateRequestObserver.set(requestObserverSupplier.get());
+    }
+
+    @Override
+    public void onNext(RequestT requestT) {
+      delegate().onNext(requestT);
+    }
+
+    @Override
+    public void onError(Throwable throwable) {
+      delegate().onError(throwable);
+    }
+
+    @Override
+    public void onCompleted() {
+      delegate().onCompleted();
+    }
   }
 
   private class ResponseObserver implements StreamObserver<ResponseT> {
@@ -304,6 +354,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
         if (clientClosed.get() && !hasPendingRequests()) {
           streamRegistry.remove(AbstractWindmillStream.this);
           finishLatch.countDown();
+          sendExecutor.shutdownNow();
           return;
         }
       }

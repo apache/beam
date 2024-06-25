@@ -100,7 +100,7 @@ public final class GrpcDirectGetWorkStream
   private final ConcurrentMap<Long, WorkItemBuffer> workItemBuffers;
 
   private GrpcDirectGetWorkStream(
-      String streamId,
+      String backendWorkerToken,
       Function<
               StreamObserver<StreamingGetWorkResponseChunk>,
               StreamObserver<StreamingGetWorkRequest>>
@@ -122,7 +122,7 @@ public final class GrpcDirectGetWorkStream
         streamObserverFactory,
         streamRegistry,
         logEveryNStreamFailures,
-        streamId);
+        backendWorkerToken);
     this.request = request;
     this.getWorkThrottleTimer = getWorkThrottleTimer;
     this.workItemScheduler = workItemScheduler;
@@ -138,7 +138,7 @@ public final class GrpcDirectGetWorkStream
   }
 
   public static GrpcDirectGetWorkStream create(
-      String streamId,
+      String backendWorkerToken,
       Function<
               StreamObserver<StreamingGetWorkResponseChunk>,
               StreamObserver<StreamingGetWorkRequest>>
@@ -156,7 +156,7 @@ public final class GrpcDirectGetWorkStream
       WorkItemScheduler workItemScheduler) {
     GrpcDirectGetWorkStream getWorkStream =
         new GrpcDirectGetWorkStream(
-            "DirectGetWorkStream-" + streamId,
+            backendWorkerToken,
             startGetWorkRpcFn,
             request,
             backoff,
@@ -278,8 +278,10 @@ public final class GrpcDirectGetWorkStream
   }
 
   @Override
-  public synchronized void adjustBudget(long itemsDelta, long bytesDelta) {
-    nextBudgetAdjustment.set(nextBudgetAdjustment.get().apply(itemsDelta, bytesDelta));
+  public void adjustBudget(long itemsDelta, long bytesDelta) {
+    synchronized (this) {
+      nextBudgetAdjustment.set(nextBudgetAdjustment.get().apply(itemsDelta, bytesDelta));
+    }
     sendRequestExtension();
   }
 

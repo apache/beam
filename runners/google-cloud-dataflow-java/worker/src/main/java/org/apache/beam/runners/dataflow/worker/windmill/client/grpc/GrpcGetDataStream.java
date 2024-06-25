@@ -107,7 +107,7 @@ public final class GrpcGetDataStream
   }
 
   public static GrpcGetDataStream create(
-      String streamId,
+      String backendWorkerToken,
       Function<StreamObserver<StreamingGetDataResponse>, StreamObserver<StreamingGetDataRequest>>
           startGetDataRpcFn,
       BackOff backoff,
@@ -122,7 +122,7 @@ public final class GrpcGetDataStream
       Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses) {
     GrpcGetDataStream getDataStream =
         new GrpcGetDataStream(
-            "GetDataStream" + streamId,
+            backendWorkerToken,
             startGetDataRpcFn,
             backoff,
             streamObserverFactory,
