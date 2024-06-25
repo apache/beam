@@ -30,6 +30,7 @@ import shutil
 import subprocess
 import sys
 import urllib.parse
+import warnings
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -39,6 +40,7 @@ from typing import Mapping
 from typing import Optional
 
 import docstring_parser
+import jinja2
 import yaml
 from yaml.loader import SafeLoader
 
@@ -61,6 +63,7 @@ from apache_beam.typehints.schemas import typing_to_runner_api
 from apache_beam.utils import python_callable
 from apache_beam.utils import subprocess_server
 from apache_beam.version import __version__ as beam_version
+from apache_beam.yaml import json_utils
 
 
 class Provider:
@@ -374,6 +377,64 @@ class ExternalPythonProvider(ExternalProvider):
       return 50
     else:
       return super()._affinity(other)
+
+
+@ExternalProvider.register_provider_type('yaml')
+class YamlProvider(Provider):
+  def __init__(self, transforms: Mapping[str, Mapping[str, Any]]):
+    if not isinstance(transforms, dict):
+      raise ValueError('Transform mapping must be a dict.')
+    self._transforms = transforms
+
+  def available(self):
+    return True
+
+  def cache_artifacts(self):
+    pass
+
+  def provided_transforms(self):
+    return self._transforms.keys()
+
+  def config_schema(self, type):
+    return json_utils.json_schema_to_beam_schema(self.json_config_schema(type))
+
+  def json_config_schema(self, type):
+    return dict(
+        type='object',
+        additionalProperties=False,
+        **self._transforms[type]['config_schema'])
+
+  def description(self, type):
+    return self._transforms[type].get('description')
+
+  def requires_inputs(self, type, args):
+    return self._transforms[type].get(
+        'requires_inputs', super().requires_inputs(type, args))
+
+  def create_transform(
+      self,
+      type: str,
+      args: Mapping[str, Any],
+      yaml_create_transform: Callable[
+          [Mapping[str, Any], Iterable[beam.PCollection]], beam.PTransform]
+  ) -> beam.PTransform:
+    from apache_beam.yaml.yaml_transform import SafeLineLoader, YamlTransform
+    spec = self._transforms[type]
+    try:
+      import jsonschema
+      jsonschema.validate(args, self.json_config_schema(type))
+    except ImportError:
+      warnings.warn(
+          'Please install jsonschema '
+          f'for better provider validation of "{type}"')
+    body = spec['body']
+    if not isinstance(body, str):
+      body = yaml.safe_dump(SafeLineLoader.strip_metadata(body))
+    templated = (  # keep formatting
+        jinja2.Environment(undefined=jinja2.StrictUndefined)
+          .from_string(body)
+          .render(**args))
+    return YamlTransform(templated)
 
 
 # This is needed because type inference can't handle *args, **kwargs forwarding.
