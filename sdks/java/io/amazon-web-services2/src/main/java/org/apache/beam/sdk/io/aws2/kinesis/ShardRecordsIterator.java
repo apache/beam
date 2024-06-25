@@ -122,6 +122,10 @@ class ShardRecordsIterator {
     return watermarkPolicy.getWatermark();
   }
 
+  Instant getEventTime(KinesisRecord record) {
+    return watermarkPolicy.getTimestamp(record);
+  }
+
   Instant getLatestRecordTimestamp() {
     return latestRecordTimestampPolicy.getWatermark();
   }
