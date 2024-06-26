@@ -67,7 +67,6 @@ dependencies {
     exclude group: "org.apache.hive", module: "hive-exec"
     exclude group: "com.google.protobuf", module: "protobuf-java"
   }
-  testImplementation project(":sdks:java:io:common").sourceSets.test.output
   testImplementation library.java.commons_io
   testImplementation library.java.junit
   testImplementation library.java.hamcrest

@@ -43,7 +43,7 @@ public abstract class TestRow implements Serializable, Comparable<TestRow> {
     return id().compareTo(other.id());
   }
 
-  /** Creates a {@link org.apache.beam.sdk.io.common.TestRow} from the seed value. */
+  /** Creates a {@link TestRow} from the seed value. */
   public static TestRow fromSeed(Integer seed) {
     return create(seed, getNameForSeed(seed));
   }
@@ -54,8 +54,8 @@ public abstract class TestRow implements Serializable, Comparable<TestRow> {
   }
 
   /**
-   * Returns a range of {@link org.apache.beam.sdk.io.common.TestRow}s for seed values between
-   * rangeStart (inclusive) and rangeEnd (exclusive).
+   * Returns a range of {@link TestRow}s for seed values between rangeStart (inclusive) and rangeEnd
+   * (exclusive).
    */
   public static Iterable<TestRow> getExpectedValues(int rangeStart, int rangeEnd) {
     List<TestRow> ret = new ArrayList<>(rangeEnd - rangeStart + 1);
@@ -65,9 +65,7 @@ public abstract class TestRow implements Serializable, Comparable<TestRow> {
     return ret;
   }
 
-  /**
-   * Uses the input Long values as seeds to produce {@link org.apache.beam.sdk.io.common.TestRow}s.
-   */
+  /** Uses the input Long values as seeds to produce {@link TestRow}s. */
   public static class DeterministicallyConstructTestRowFn extends DoFn<Long, TestRow> {
     @ProcessElement
     public void processElement(ProcessContext c) {
@@ -75,7 +73,7 @@ public abstract class TestRow implements Serializable, Comparable<TestRow> {
     }
   }
 
-  /** Outputs just the name stored in the {@link org.apache.beam.sdk.io.common.TestRow}. */
+  /** Outputs just the name stored in the {@link TestRow}. */
   public static class SelectNameFn extends DoFn<TestRow, String> {
     @ProcessElement
     public void processElement(ProcessContext c) {
@@ -95,9 +93,8 @@ public abstract class TestRow implements Serializable, Comparable<TestRow> {
           5_000_000, "c44f8a5648cd9207c9c6f77395a998dc");
 
   /**
-   * Returns the hash value that {@link org.apache.beam.sdk.io.common.HashingFn} will return when it
-   * is run on {@link org.apache.beam.sdk.io.common.TestRow}s produced by getExpectedValues(0,
-   * rowCount).
+   * Returns the hash value that {@link HashingFn} will return when it is run on {@link TestRow}s
+   * produced by getExpectedValues(0, rowCount).
    */
   public static String getExpectedHashForRowCount(int rowCount)
       throws UnsupportedOperationException {
