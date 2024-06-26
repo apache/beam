@@ -158,7 +158,8 @@ class PrismJobServer(job_server.SubprocessJobServer):
           'Machine archictecture "%s" unsupported for constructing a Prism '
           'release binary URL.' % (opsys))
     return (
-        f"https://github.com/apache/beam/releases/download/{root_tag}/apache_beam-{self._version}-prism-{opsys}-{arch}.zip"
+        "https://github.com/apache/beam/releases/download/"
+        f"{root_tag}/apache_beam-{self._version}-prism-{opsys}-{arch}.zip"
     )
 
   def path_to_binary(self) -> str:
@@ -195,14 +196,15 @@ class PrismJobServer(job_server.SubprocessJobServer):
       return self.construct_download_url(
           self._version, platform.system(), platform.machine())
 
-  def subprocess_cmd_and_endpoint(self) -> tuple[list[Any], str]:
+  def subprocess_cmd_and_endpoint(
+      self) -> typing.Tuple[typing.List[typing.Any], str]:
     bin_path = self.local_bin(
         self.path_to_binary(), ignore_cache=(self._path is not None))
     job_port, = subprocess_server.pick_port(self._job_port)
     subprocess_cmd = [bin_path] + self.prism_arguments(job_port)
     return (subprocess_cmd, f"localhost:{job_port}")
 
-  def prism_arguments(self, job_port) -> list[Any]:
+  def prism_arguments(self, job_port) -> typing.List[Any]:
     return [
         '--job_port',
         job_port,

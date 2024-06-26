@@ -36,13 +36,8 @@ from apache_beam.io.external.generate_sequence import GenerateSequence
 from apache_beam.io.kafka import ReadFromKafka
 from apache_beam.io.kafka import WriteToKafka
 from apache_beam.options.pipeline_options import DebugOptions
-from apache_beam.options.pipeline_options import PrismRunnerOptions
 from apache_beam.options.pipeline_options import PortableOptions
-from apache_beam.options.pipeline_options import StandardOptions
-from apache_beam.runners.portability import job_server
-from apache_beam.runners.portability import portable_runner
 from apache_beam.runners.portability import portable_runner_test
-from apache_beam.runners.portability import prism_runner
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms.sql import SqlTransform
@@ -228,8 +223,8 @@ class PrismRunnerTest(portable_runner_test.PortableRunnerTest):
                 timestamp_policy=ReadFromKafka.create_time_policy,
                 expansion_service=self.get_expansion_service()))
     self.assertTrue(
-        'No resolvable bootstrap urls given in bootstrap.servers'
-        in str(ctx.exception),
+        'No resolvable bootstrap urls given in bootstrap.servers' in str(
+            ctx.exception),
         'Expected to fail due to invalid bootstrap.servers, but '
         'failed due to:\n%s' % str(ctx.exception))
 
