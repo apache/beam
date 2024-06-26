@@ -22,8 +22,6 @@
 # sunset it
 from __future__ import annotations
 
-# pytype: skip-file
-
 import logging
 import os
 import platform
@@ -32,7 +30,6 @@ import stat
 import typing
 import urllib
 import zipfile
-
 from urllib.error import URLError
 from urllib.request import urlopen
 
@@ -42,6 +39,10 @@ from apache_beam.runners.portability import job_server
 from apache_beam.runners.portability import portable_runner
 from apache_beam.utils import subprocess_server
 from apache_beam.version import __version__ as beam_version
+
+# pytype: skip-file
+
+
 
 # Prefix for constructing a download URL
 GITHUB_DOWNLOAD_PREFIX = 'https://github.com/apache/beam/releases/download/'
@@ -159,7 +160,7 @@ class PrismJobServer(job_server.SubprocessJobServer):
           'Machine archictecture "%s" unsupported for constructing a Prism '
           'release binary URL.' % (opsys))
     return (
-        "https://github.com/apache/beam/releases/download/"
+        GITHUB_DOWNLOAD_PREFIX
         f"{root_tag}/apache_beam-{self._version}-prism-{opsys}-{arch}.zip")
 
   def path_to_binary(self) -> str:
