@@ -124,7 +124,7 @@ public class GrpcWindmillServerTest {
 
   @Before
   public void setUp() throws Exception {
-    startServerAndClient("Fake server for " + getClass(), new ArrayList<>());
+    startServerAndClient(new ArrayList<>());
   }
 
   @After
@@ -132,7 +132,8 @@ public class GrpcWindmillServerTest {
     server.shutdownNow();
   }
 
-  private void startServerAndClient(String name, List<String> experiments) throws Exception {
+  private void startServerAndClient(List<String> experiments) throws Exception {
+    String name = "Fake server for " + getClass();
     this.server =
         InProcessServerBuilder.forName(name)
             .fallbackHandlerRegistry(serviceRegistry)
@@ -886,7 +887,6 @@ public class GrpcWindmillServerTest {
     // options passed in. This requires teardown and re-constructing the client and server
     tearDown();
     startServerAndClient(
-        "Fake Server For testStreamingGetDataHeartbeatsAsKeyedGetDataRequests",
         Collections.singletonList("streaming_engine_disable_new_heartbeat_requests"));
 
     serviceRegistry.addService(
