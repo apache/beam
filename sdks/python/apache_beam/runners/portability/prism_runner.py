@@ -37,6 +37,7 @@ from apache_beam.io.filesystems import FileSystems
 from apache_beam.options import pipeline_options
 from apache_beam.runners.portability import job_server
 from apache_beam.runners.portability import portable_runner
+from apache_beam.transforms import environments
 from apache_beam.utils import subprocess_server
 from apache_beam.version import __version__ as beam_version
 
@@ -56,7 +57,7 @@ class PrismRunner(portable_runner.PortableRunner):
   """A runner for launching jobs on Prism, automatically downloading and
   starting a Prism instance if needed.
   """
-  def default_environment(self, options):
+  def default_environment(self, options: pipeline_options.PipelineOptions) -> environments.Environment:
     portable_options = options.view_as(pipeline_options.PortableOptions)
     if (not portable_options.environment_type and
         not portable_options.output_executable_path):
@@ -92,11 +93,11 @@ class PrismJobServer(job_server.SubprocessJobServer):
     self._job_port = job_options.job_port
 
   @classmethod
-  def maybe_unzip_and_make_executable(cls, url, cache_dir) -> (str):
+  def maybe_unzip_and_make_executable(cls, url, bin_cache) -> str:
     if zipfile.is_zipfile(url):
       z = zipfile.ZipFile(url)
       url = z.extract(
-          os.path.splitext(os.path.basename(url))[0], path=cache_dir)
+          os.path.splitext(os.path.basename(url))[0], path=bin_cache)
 
     # Make sure the binary is executable.
     st = os.stat(url)
@@ -105,22 +106,22 @@ class PrismJobServer(job_server.SubprocessJobServer):
 
   # Finds the bin or zip in the local cache, and if not, fetches it.
   @classmethod
-  def local_bin(cls, url, cache_dir=None, ignore_cache=False) -> (str):
+  def local_bin(cls, url, bin_cache=None, ignore_cache=False) -> str:
     # ignore_cache sets whether we should always be downloading and unzipping
     # the file or not, to avoid staleness issues.
-    if cache_dir is None:
-      cache_dir = cls.BIN_CACHE
+    if bin_cache is None:
+      bin_cache = cls.BIN_CACHE
     if os.path.exists(url):
       _LOGGER.info('Using local prism binary from %s' % url)
-      return cls.maybe_unzip_and_make_executable(url, cache_dir=cache_dir)
+      return cls.maybe_unzip_and_make_executable(url, bin_cache=bin_cache)
     else:
-      cached_bin = os.path.join(cache_dir, os.path.basename(url))
+      cached_bin = os.path.join(bin_cache, os.path.basename(url))
       if os.path.exists(cached_bin) and not ignore_cache:
         _LOGGER.info('Using cached prism binary from %s' % url)
       else:
         _LOGGER.info('Downloading prism binary from %s' % url)
-        if not os.path.exists(cache_dir):
-          os.makedirs(cache_dir)
+        if not os.path.exists(bin_cache):
+          os.makedirs(bin_cache)
         try:
           try:
             url_read = FileSystems.open(url)
@@ -133,9 +134,9 @@ class PrismJobServer(job_server.SubprocessJobServer):
           raise RuntimeError(
               'Unable to fetch remote prism binary at %s: %s' % (url, e))
       return cls.maybe_unzip_and_make_executable(
-          cached_bin, cache_dir=cache_dir)
+          cached_bin, bin_cache=bin_cache)
 
-  def construct_download_url(self, root_tag, sys, mach) -> (str):
+  def construct_download_url(self, root_tag, sys, mach) -> str:
     """Construct the prism download URL with the appropriate release tag.
     This maps operating systems and machine architectures to the compatible
     and canonical names used by the Go build targets.
@@ -164,7 +165,7 @@ class PrismJobServer(job_server.SubprocessJobServer):
         f"{root_tag}/apache_beam-{self._version}-prism-{opsys}-{arch}.zip")
 
   def path_to_binary(self) -> str:
-    if self._path:
+    if self._path is not None:
       if not os.path.exists(self._path):
         url = urllib.parse.urlparse(self._path)
         if not url.scheme:
