@@ -1,4 +1,145 @@
-<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Apache Beam</title><description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.</description><link>/</link><generator>Hugo -- gohugo.io</generator><item><title>Deploy Python pipelines on Kubernetes using the Flink runner</title><description>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Apache Beam</title><description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.</description><link>/</link><generator>Hugo -- gohugo.io</generator><item><title>Apache Beam 2.57.0</title><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>We are happy to present the new 2.57.0 release of Beam.
+This release includes both improvements and new functionality.
+See the &lt;a href="/get-started/downloads/#2570-2024-06-26">download page&lt;/a> for this release.&lt;/p>
+&lt;p>For more information on changes in 2.57.0, check out the &lt;a href="https://github.com/apache/beam/milestone/21">detailed release notes&lt;/a>.&lt;/p>
+&lt;h2 id="highlights">Highlights&lt;/h2>
+&lt;ul>
+&lt;li>Apache Beam adds Python 3.12 support (&lt;a href="https://github.com/apache/beam/issues/29149">#29149&lt;/a>).&lt;/li>
+&lt;li>Added FlinkRunner for Flink 1.18 (&lt;a href="https://github.com/apache/beam/issues/30789">#30789&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="ios">I/Os&lt;/h2>
+&lt;ul>
+&lt;li>Ensure that BigtableIO closes the reader streams (&lt;a href="https://github.com/apache/beam/issues/31477">#31477&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
+&lt;ul>
+&lt;li>Added Feast feature store handler for enrichment transform (Python) (&lt;a href="https://github.com/apache/beam/issues/30964">#30957&lt;/a>).&lt;/li>
+&lt;li>BigQuery per-worker metrics are reported by default for Streaming Dataflow Jobs (Java) (&lt;a href="https://github.com/apache/beam/pull/31015">#31015&lt;/a>)&lt;/li>
+&lt;li>Adds &lt;code>inMemory()&lt;/code> variant of Java List and Map side inputs for more efficient lookups when the entire side input fits into memory.&lt;/li>
+&lt;li>Beam YAML now supports the jinja templating syntax.
+Template variables can be passed with the (json-formatted) &lt;code>--jinja_variables&lt;/code> flag.&lt;/li>
+&lt;li>DataFrame API now supports pandas 2.1.x and adds 12 more string functions for Series.(&lt;a href="https://github.com/apache/beam/pull/31185">#31185&lt;/a>).&lt;/li>
+&lt;li>Added BigQuery handler for enrichment transform (Python) (&lt;a href="https://github.com/apache/beam/pull/31295">#31295&lt;/a>)&lt;/li>
+&lt;li>Disable soft delete policy when creating the default bucket for a project (Java) (&lt;a href="https://github.com/apache/beam/pull/31324">#31324&lt;/a>).&lt;/li>
+&lt;li>Added &lt;code>DoFn.SetupContextParam&lt;/code> and &lt;code>DoFn.BundleContextParam&lt;/code> which can be used
+as a python &lt;code>DoFn.process&lt;/code>, &lt;code>Map&lt;/code>, or &lt;code>FlatMap&lt;/code> parameter to invoke a context
+manager per DoFn setup or bundle (analogous to using &lt;code>setup&lt;/code>/&lt;code>teardown&lt;/code>
+or &lt;code>start_bundle&lt;/code>/&lt;code>finish_bundle&lt;/code> respectively.)&lt;/li>
+&lt;li>Go SDK Prism Runner
+&lt;ul>
+&lt;li>Pre-built Prism binaries are now part of the release and are available via the Github release page. (&lt;a href="https://github.com/apache/beam/issues/29697">#29697&lt;/a>).&lt;/li>
+&lt;li>ProcessingTime is now handled synthetically with TestStream pipelines and Non-TestStream pipelines, for fast test pipeline execution by default. (&lt;a href="https://github.com/apache/beam/issues/30083">#30083&lt;/a>).
+&lt;ul>
+&lt;li>Prism does NOT yet support &amp;ldquo;real time&amp;rdquo; execution for this release.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>Improve processing for large elements to reduce the chances for exceeding 2GB protobuf limits (Python)([https://github.com/apache/beam/issues/31607]).&lt;/li>
+&lt;/ul>
+&lt;h2 id="breaking-changes">Breaking Changes&lt;/h2>
+&lt;ul>
+&lt;li>Java&amp;rsquo;s View.asList() side inputs are now optimized for iterating rather than
+indexing when in the global window.
+This new implementation still supports all (immutable) List methods as before,
+but some of the random access methods like get() and size() will be slower.
+To use the old implementation one can use View.asList().withRandomAccess().&lt;/li>
+&lt;li>SchemaTransforms implemented with TypedSchemaTransformProvider now produce a
+configuration Schema with snake_case naming convention
+(&lt;a href="https://github.com/apache/beam/pull/31374">#31374&lt;/a>). This will make the following
+cases problematic:
+&lt;ul>
+&lt;li>Running a pre-2.57.0 remote SDK pipeline containing a 2.57.0+ Java SchemaTransform,
+and vice versa:&lt;/li>
+&lt;li>Running a 2.57.0+ remote SDK pipeline containing a pre-2.57.0 Java SchemaTransform&lt;/li>
+&lt;li>All direct uses of Python&amp;rsquo;s &lt;a href="https://github.com/apache/beam/blob/a998107a1f5c3050821eef6a5ad5843d8adb8aec/sdks/python/apache_beam/transforms/external.py#L381">SchemaAwareExternalTransform&lt;/a>
+should be updated to use new snake_case parameter names.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>Upgraded Jackson Databind to 2.15.4 (Java) (&lt;a href="https://github.com/apache/beam/issues/26743">#26743&lt;/a>).
+jackson-2.15 has known breaking changes. An important one is it imposed a buffer limit for parser.
+If your custom PTransform/DoFn are affected, refer to &lt;a href="https://github.com/apache/beam/pull/31580">#31580&lt;/a> for mitigation.&lt;/li>
+&lt;/ul>
+&lt;p>For the most up to date list of known issues, see &lt;a href="https://github.com/apache/beam/blob/master/CHANGES.md">https://github.com/apache/beam/blob/master/CHANGES.md&lt;/a>&lt;/p>
+&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
+&lt;p>According to git shortlog, the following people contributed to the 2.57.0 release. Thank you to all contributors!&lt;/p>
+&lt;p>Ahmed Abualsaud&lt;/p>
+&lt;p>Ahmet Altay&lt;/p>
+&lt;p>Alexey Romanenko&lt;/p>
+&lt;p>Andrey Devyatkin&lt;/p>
+&lt;p>Anody Zhang&lt;/p>
+&lt;p>Arvind Ram&lt;/p>
+&lt;p>Ben Konz&lt;/p>
+&lt;p>Bruno Volpato&lt;/p>
+&lt;p>Celeste Zeng&lt;/p>
+&lt;p>Chamikara Jayalath&lt;/p>
+&lt;p>Claire McGinty&lt;/p>
+&lt;p>Colm O hEigeartaigh&lt;/p>
+&lt;p>Damon&lt;/p>
+&lt;p>Danny McCormick&lt;/p>
+&lt;p>Evan Galpin&lt;/p>
+&lt;p>Ferran Fernández Garrido&lt;/p>
+&lt;p>Florent Biville&lt;/p>
+&lt;p>Jack Dingilian&lt;/p>
+&lt;p>Jack McCluskey&lt;/p>
+&lt;p>Jan Lukavský&lt;/p>
+&lt;p>JayajP&lt;/p>
+&lt;p>Jeff Kinard&lt;/p>
+&lt;p>Jeffrey Kinard&lt;/p>
+&lt;p>John Casey&lt;/p>
+&lt;p>Justin Uang&lt;/p>
+&lt;p>Kenneth Knowles&lt;/p>
+&lt;p>Kevin Zhou&lt;/p>
+&lt;p>Liam Miller-Cushon&lt;/p>
+&lt;p>Maarten Vercruysse&lt;/p>
+&lt;p>Maciej Szwaja&lt;/p>
+&lt;p>Maja Kontrec Rönn&lt;/p>
+&lt;p>Marc hurabielle&lt;/p>
+&lt;p>Martin Trieu&lt;/p>
+&lt;p>Mattie Fu&lt;/p>
+&lt;p>Min Zhu&lt;/p>
+&lt;p>Naireen Hussain&lt;/p>
+&lt;p>Nick Anikin&lt;/p>
+&lt;p>Pablo Rodriguez Defino&lt;/p>
+&lt;p>Paul King&lt;/p>
+&lt;p>Priyans Desai&lt;/p>
+&lt;p>Radosław Stankiewicz&lt;/p>
+&lt;p>Rebecca Szper&lt;/p>
+&lt;p>Ritesh Ghorse&lt;/p>
+&lt;p>Robert Bradshaw&lt;/p>
+&lt;p>Robert Burke&lt;/p>
+&lt;p>Rodrigo Bozzolo&lt;/p>
+&lt;p>RyuSA&lt;/p>
+&lt;p>Sam Rohde&lt;/p>
+&lt;p>Sam Whittle&lt;/p>
+&lt;p>Sergei Lilichenko&lt;/p>
+&lt;p>Shahar Epstein&lt;/p>
+&lt;p>Shunping Huang&lt;/p>
+&lt;p>Svetak Sundhar&lt;/p>
+&lt;p>Tomo Suzuki&lt;/p>
+&lt;p>Tony Tang&lt;/p>
+&lt;p>Valentyn Tymofieiev&lt;/p>
+&lt;p>Vincent Stollenwerk&lt;/p>
+&lt;p>Vineet Kumar&lt;/p>
+&lt;p>Vitaly Terentyev&lt;/p>
+&lt;p>Vlado Djerek&lt;/p>
+&lt;p>XQ Hu&lt;/p>
+&lt;p>Yi Hu&lt;/p>
+&lt;p>akashorabek&lt;/p>
+&lt;p>bzablocki&lt;/p>
+&lt;p>kberezin&lt;/p></description><link>/blog/beam-2.57.0/</link><pubDate>Wed, 26 Jun 2024 13:00:00 -0800</pubDate><guid>/blog/beam-2.57.0/</guid><category>blog</category><category>release</category></item><item><title>Deploy Python pipelines on Kubernetes using the Flink runner</title><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -1947,129 +2088,4 @@ With this improvement, each worker gets a fair share of tasks, leading to better
 &lt;li>&lt;a href="https://beam.apache.org/blog/apache-beam-flink-and-kubernetes/">Part 1: Introduction to Building and Managing Apache Beam Flink Services on Kubernetes&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;p>&lt;em>Join the conversation and share your experiences on our &lt;a href="https://beam.apache.org/community/">Community&lt;/a> or contribute to our ongoing projects on &lt;a href="https://github.com/apache/beam">GitHub&lt;/a>. Your feedback is invaluable. If you have any comments or questions about this series, please feel free to reach out to us via &lt;a href="https://beam.apache.org/community/contact-us/">User Mailist&lt;/a>&lt;/em>&lt;/p>
-&lt;p>&lt;em>Stay connected with us for more updates and insights into Apache Beam, Flink, and Kubernetes.&lt;/em>&lt;/p></description><link>/blog/apache-beam-flink-and-kubernetes-part2/</link><pubDate>Mon, 18 Dec 2023 09:00:00 -0400</pubDate><guid>/blog/apache-beam-flink-and-kubernetes-part2/</guid><category>blog</category></item><item><title>Apache Beam 2.52.0</title><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>We are happy to present the new 2.52.0 release of Beam.
-This release includes both improvements and new functionality.
-See the &lt;a href="/get-started/downloads/#2520-2023-11-17">download page&lt;/a> for this release.&lt;/p>
-&lt;p>For more information on changes in 2.52.0, check out the &lt;a href="https://github.com/apache/beam/milestone/16">detailed release notes&lt;/a>.&lt;/p>
-&lt;h2 id="highlights">Highlights&lt;/h2>
-&lt;ul>
-&lt;li>Previously deprecated Avro-dependent code (Beam Release 2.46.0) has been finally removed from Java SDK &amp;ldquo;core&amp;rdquo; package.
-Please, use &lt;code>beam-sdks-java-extensions-avro&lt;/code> instead. This will allow to easily update Avro version in user code without
-potential breaking changes in Beam &amp;ldquo;core&amp;rdquo; since the Beam Avro extension already supports the latest Avro versions and
-should handle this. (&lt;a href="https://github.com/apache/beam/issues/25252">#25252&lt;/a>).&lt;/li>
-&lt;li>Publishing Java 21 SDK container images now supported as part of Apache Beam release process. (&lt;a href="https://github.com/apache/beam/issues/28120">#28120&lt;/a>)
-&lt;ul>
-&lt;li>Direct Runner and Dataflow Runner support running pipelines on Java21 (experimental until tests fully setup). For other runners (Flink, Spark, Samza, etc) support status depend on runner projects.&lt;/li>
-&lt;/ul>
-&lt;/li>
-&lt;/ul>
-&lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
-&lt;ul>
-&lt;li>Add &lt;code>UseDataStreamForBatch&lt;/code> pipeline option to the Flink runner. When it is set to true, Flink runner will run batch
-jobs using the DataStream API. By default the option is set to false, so the batch jobs are still executed
-using the DataSet API.&lt;/li>
-&lt;li>&lt;code>upload_graph&lt;/code> as one of the Experiments options for DataflowRunner is no longer required when the graph is larger than 10MB for Java SDK (&lt;a href="https://github.com/apache/beam/pull/28621">PR#28621&lt;/a>).&lt;/li>
-&lt;li>state amd side input cache has been enabled to a default of 100 MB. Use &lt;code>--max_cache_memory_usage_mb=X&lt;/code> to provide cache size for the user state API and side inputs. (Python) (&lt;a href="https://github.com/apache/beam/issues/28770">#28770&lt;/a>).&lt;/li>
-&lt;li>Beam YAML stable release. Beam pipelines can now be written using YAML and leverage the Beam YAML framework which includes a preliminary set of IO&amp;rsquo;s and turnkey transforms. More information can be found in the YAML root folder and in the &lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/README.md">README&lt;/a>.&lt;/li>
-&lt;/ul>
-&lt;h2 id="breaking-changes">Breaking Changes&lt;/h2>
-&lt;ul>
-&lt;li>&lt;code>org.apache.beam.sdk.io.CountingSource.CounterMark&lt;/code> uses custom &lt;code>CounterMarkCoder&lt;/code> as a default coder since all Avro-dependent
-classes finally moved to &lt;code>extensions/avro&lt;/code>. In case if it&amp;rsquo;s still required to use &lt;code>AvroCoder&lt;/code> for &lt;code>CounterMark&lt;/code>, then,
-as a workaround, a copy of &amp;ldquo;old&amp;rdquo; &lt;code>CountingSource&lt;/code> class should be placed into a project code and used directly
-(&lt;a href="https://github.com/apache/beam/issues/25252">#25252&lt;/a>).&lt;/li>
-&lt;li>Renamed &lt;code>host&lt;/code> to &lt;code>firestoreHost&lt;/code> in &lt;code>FirestoreOptions&lt;/code> to avoid potential conflict of command line arguments (Java) (&lt;a href="https://github.com/apache/beam/pull/29201">#29201&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;h2 id="bugfixes">Bugfixes&lt;/h2>
-&lt;ul>
-&lt;li>Fixed &amp;ldquo;Desired bundle size 0 bytes must be greater than 0&amp;rdquo; in Java SDK&amp;rsquo;s BigtableIO.BigtableSource when you have more cores than bytes to read (Java) &lt;a href="https://github.com/apache/beam/issues/28793">#28793&lt;/a>.&lt;/li>
-&lt;li>&lt;code>watch_file_pattern&lt;/code> arg of the &lt;a href="https://github.com/apache/beam/blob/104c10b3ee536a9a3ea52b4dbf62d86b669da5d9/sdks/python/apache_beam/ml/inference/base.py#L997">RunInference&lt;/a> arg had no effect prior to 2.52.0. To use the behavior of arg &lt;code>watch_file_pattern&lt;/code> prior to 2.52.0, follow the documentation at &lt;a href="https://beam.apache.org/documentation/ml/side-input-updates/">https://beam.apache.org/documentation/ml/side-input-updates/&lt;/a> and use &lt;code>WatchFilePattern&lt;/code> PTransform as a SideInput. (&lt;a href="https://github.com/apache/beam/pulls/28948">#28948&lt;/a>)&lt;/li>
-&lt;li>&lt;code>MLTransform&lt;/code> doesn&amp;rsquo;t output artifacts such as min, max and quantiles. Instead, &lt;code>MLTransform&lt;/code> will add a feature to output these artifacts as human readable format - &lt;a href="https://github.com/apache/beam/issues/29017">#29017&lt;/a>. For now, to use the artifacts such as min and max that were produced by the eariler &lt;code>MLTransform&lt;/code>, use &lt;code>read_artifact_location&lt;/code> of &lt;code>MLTransform&lt;/code>, which reads artifacts that were produced earlier in a different &lt;code>MLTransform&lt;/code> (&lt;a href="https://github.com/apache/beam/pull/29016/">#29016&lt;/a>)&lt;/li>
-&lt;li>Fixed a memory leak, which affected some long-running Python pipelines: &lt;a href="https://github.com/apache/beam/issues/28246">#28246&lt;/a>.&lt;/li>
-&lt;/ul>
-&lt;h2 id="security-fixes">Security Fixes&lt;/h2>
-&lt;ul>
-&lt;li>Fixed &lt;a href="https://www.cve.org/CVERecord?id=CVE-2023-39325">CVE-2023-39325&lt;/a> (Java/Python/Go) (&lt;a href="https://github.com/apache/beam/issues/29118">#29118&lt;/a>).&lt;/li>
-&lt;li>Mitigated &lt;a href="https://nvd.nist.gov/vuln/detail/CVE-2023-47248">CVE-2023-47248&lt;/a> (Python) &lt;a href="https://github.com/apache/beam/issues/29392">#29392&lt;/a>.&lt;/li>
-&lt;/ul>
-&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
-&lt;p>According to git shortlog, the following people contributed to the 2.52.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Ahmed Abualsaud&lt;/p>
-&lt;p>Ahmet Altay&lt;/p>
-&lt;p>Aleksandr Dudko&lt;/p>
-&lt;p>Alexey Romanenko&lt;/p>
-&lt;p>Anand Inguva&lt;/p>
-&lt;p>Andrei Gurau&lt;/p>
-&lt;p>Andrey Devyatkin&lt;/p>
-&lt;p>BjornPrime&lt;/p>
-&lt;p>Bruno Volpato&lt;/p>
-&lt;p>Bulat&lt;/p>
-&lt;p>Chamikara Jayalath&lt;/p>
-&lt;p>Damon&lt;/p>
-&lt;p>Danny McCormick&lt;/p>
-&lt;p>Devansh Modi&lt;/p>
-&lt;p>Dominik Dębowczyk&lt;/p>
-&lt;p>Ferran Fernández Garrido&lt;/p>
-&lt;p>Hai Joey Tran&lt;/p>
-&lt;p>Israel Herraiz&lt;/p>
-&lt;p>Jack McCluskey&lt;/p>
-&lt;p>Jan Lukavský&lt;/p>
-&lt;p>JayajP&lt;/p>
-&lt;p>Jeff Kinard&lt;/p>
-&lt;p>Jeffrey Kinard&lt;/p>
-&lt;p>Jiangjie Qin&lt;/p>
-&lt;p>Jing&lt;/p>
-&lt;p>Joar Wandborg&lt;/p>
-&lt;p>Johanna Öjeling&lt;/p>
-&lt;p>Julien Tournay&lt;/p>
-&lt;p>Kanishk Karanawat&lt;/p>
-&lt;p>Kenneth Knowles&lt;/p>
-&lt;p>Kerry Donny-Clark&lt;/p>
-&lt;p>Luís Bianchin&lt;/p>
-&lt;p>Minbo Bae&lt;/p>
-&lt;p>Pranav Bhandari&lt;/p>
-&lt;p>Rebecca Szper&lt;/p>
-&lt;p>Reuven Lax&lt;/p>
-&lt;p>Ritesh Ghorse&lt;/p>
-&lt;p>Robert Bradshaw&lt;/p>
-&lt;p>Robert Burke&lt;/p>
-&lt;p>RyuSA&lt;/p>
-&lt;p>Shunping Huang&lt;/p>
-&lt;p>Steven van Rossum&lt;/p>
-&lt;p>Svetak Sundhar&lt;/p>
-&lt;p>Tony Tang&lt;/p>
-&lt;p>Vitaly Terentyev&lt;/p>
-&lt;p>Vivek Sumanth&lt;/p>
-&lt;p>Vlado Djerek&lt;/p>
-&lt;p>Yi Hu&lt;/p>
-&lt;p>aku019&lt;/p>
-&lt;p>brucearctor&lt;/p>
-&lt;p>caneff&lt;/p>
-&lt;p>damccorm&lt;/p>
-&lt;p>ddebowczyk92&lt;/p>
-&lt;p>dependabot[bot]&lt;/p>
-&lt;p>dpcollins-google&lt;/p>
-&lt;p>edman124&lt;/p>
-&lt;p>gabry.wu&lt;/p>
-&lt;p>illoise&lt;/p>
-&lt;p>johnjcasey&lt;/p>
-&lt;p>jonathan-lemos&lt;/p>
-&lt;p>kennknowles&lt;/p>
-&lt;p>liferoad&lt;/p>
-&lt;p>magicgoody&lt;/p>
-&lt;p>martin trieu&lt;/p>
-&lt;p>nancyxu123&lt;/p>
-&lt;p>pablo rodriguez defino&lt;/p>
-&lt;p>tvalentyn&lt;/p></description><link>/blog/beam-2.52.0/</link><pubDate>Fri, 17 Nov 2023 09:00:00 -0400</pubDate><guid>/blog/beam-2.52.0/</guid><category>blog</category><category>release</category></item></channel></rss>
+&lt;p>&lt;em>Stay connected with us for more updates and insights into Apache Beam, Flink, and Kubernetes.&lt;/em>&lt;/p></description><link>/blog/apache-beam-flink-and-kubernetes-part2/</link><pubDate>Mon, 18 Dec 2023 09:00:00 -0400</pubDate><guid>/blog/apache-beam-flink-and-kubernetes-part2/</guid><category>blog</category></item></channel></rss>

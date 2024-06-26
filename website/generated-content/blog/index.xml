@@ -1,4 +1,145 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Blogs</title><link>/blog/</link><description>Recent content in Blogs on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Thu, 20 Jun 2024 13:56:15 +1000</lastBuildDate><atom:link href="/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Deploy Python pipelines on Kubernetes using the Flink runner</title><link>/blog/deploy-python-pipeline-on-flink-runner/</link><pubDate>Thu, 20 Jun 2024 13:56:15 +1000</pubDate><guid>/blog/deploy-python-pipeline-on-flink-runner/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Blogs</title><link>/blog/</link><description>Recent content in Blogs on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Wed, 26 Jun 2024 13:00:00 -0800</lastBuildDate><atom:link href="/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.57.0</title><link>/blog/beam-2.57.0/</link><pubDate>Wed, 26 Jun 2024 13:00:00 -0800</pubDate><guid>/blog/beam-2.57.0/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>We are happy to present the new 2.57.0 release of Beam.
+This release includes both improvements and new functionality.
+See the &lt;a href="/get-started/downloads/#2570-2024-06-26">download page&lt;/a> for this release.&lt;/p>
+&lt;p>For more information on changes in 2.57.0, check out the &lt;a href="https://github.com/apache/beam/milestone/21">detailed release notes&lt;/a>.&lt;/p>
+&lt;h2 id="highlights">Highlights&lt;/h2>
+&lt;ul>
+&lt;li>Apache Beam adds Python 3.12 support (&lt;a href="https://github.com/apache/beam/issues/29149">#29149&lt;/a>).&lt;/li>
+&lt;li>Added FlinkRunner for Flink 1.18 (&lt;a href="https://github.com/apache/beam/issues/30789">#30789&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="ios">I/Os&lt;/h2>
+&lt;ul>
+&lt;li>Ensure that BigtableIO closes the reader streams (&lt;a href="https://github.com/apache/beam/issues/31477">#31477&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
+&lt;ul>
+&lt;li>Added Feast feature store handler for enrichment transform (Python) (&lt;a href="https://github.com/apache/beam/issues/30964">#30957&lt;/a>).&lt;/li>
+&lt;li>BigQuery per-worker metrics are reported by default for Streaming Dataflow Jobs (Java) (&lt;a href="https://github.com/apache/beam/pull/31015">#31015&lt;/a>)&lt;/li>
+&lt;li>Adds &lt;code>inMemory()&lt;/code> variant of Java List and Map side inputs for more efficient lookups when the entire side input fits into memory.&lt;/li>
+&lt;li>Beam YAML now supports the jinja templating syntax.
+Template variables can be passed with the (json-formatted) &lt;code>--jinja_variables&lt;/code> flag.&lt;/li>
+&lt;li>DataFrame API now supports pandas 2.1.x and adds 12 more string functions for Series.(&lt;a href="https://github.com/apache/beam/pull/31185">#31185&lt;/a>).&lt;/li>
+&lt;li>Added BigQuery handler for enrichment transform (Python) (&lt;a href="https://github.com/apache/beam/pull/31295">#31295&lt;/a>)&lt;/li>
+&lt;li>Disable soft delete policy when creating the default bucket for a project (Java) (&lt;a href="https://github.com/apache/beam/pull/31324">#31324&lt;/a>).&lt;/li>
+&lt;li>Added &lt;code>DoFn.SetupContextParam&lt;/code> and &lt;code>DoFn.BundleContextParam&lt;/code> which can be used
+as a python &lt;code>DoFn.process&lt;/code>, &lt;code>Map&lt;/code>, or &lt;code>FlatMap&lt;/code> parameter to invoke a context
+manager per DoFn setup or bundle (analogous to using &lt;code>setup&lt;/code>/&lt;code>teardown&lt;/code>
+or &lt;code>start_bundle&lt;/code>/&lt;code>finish_bundle&lt;/code> respectively.)&lt;/li>
+&lt;li>Go SDK Prism Runner
+&lt;ul>
+&lt;li>Pre-built Prism binaries are now part of the release and are available via the Github release page. (&lt;a href="https://github.com/apache/beam/issues/29697">#29697&lt;/a>).&lt;/li>
+&lt;li>ProcessingTime is now handled synthetically with TestStream pipelines and Non-TestStream pipelines, for fast test pipeline execution by default. (&lt;a href="https://github.com/apache/beam/issues/30083">#30083&lt;/a>).
+&lt;ul>
+&lt;li>Prism does NOT yet support &amp;ldquo;real time&amp;rdquo; execution for this release.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>Improve processing for large elements to reduce the chances for exceeding 2GB protobuf limits (Python)([https://github.com/apache/beam/issues/31607]).&lt;/li>
+&lt;/ul>
+&lt;h2 id="breaking-changes">Breaking Changes&lt;/h2>
+&lt;ul>
+&lt;li>Java&amp;rsquo;s View.asList() side inputs are now optimized for iterating rather than
+indexing when in the global window.
+This new implementation still supports all (immutable) List methods as before,
+but some of the random access methods like get() and size() will be slower.
+To use the old implementation one can use View.asList().withRandomAccess().&lt;/li>
+&lt;li>SchemaTransforms implemented with TypedSchemaTransformProvider now produce a
+configuration Schema with snake_case naming convention
+(&lt;a href="https://github.com/apache/beam/pull/31374">#31374&lt;/a>). This will make the following
+cases problematic:
+&lt;ul>
+&lt;li>Running a pre-2.57.0 remote SDK pipeline containing a 2.57.0+ Java SchemaTransform,
+and vice versa:&lt;/li>
+&lt;li>Running a 2.57.0+ remote SDK pipeline containing a pre-2.57.0 Java SchemaTransform&lt;/li>
+&lt;li>All direct uses of Python&amp;rsquo;s &lt;a href="https://github.com/apache/beam/blob/a998107a1f5c3050821eef6a5ad5843d8adb8aec/sdks/python/apache_beam/transforms/external.py#L381">SchemaAwareExternalTransform&lt;/a>
+should be updated to use new snake_case parameter names.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>Upgraded Jackson Databind to 2.15.4 (Java) (&lt;a href="https://github.com/apache/beam/issues/26743">#26743&lt;/a>).
+jackson-2.15 has known breaking changes. An important one is it imposed a buffer limit for parser.
+If your custom PTransform/DoFn are affected, refer to &lt;a href="https://github.com/apache/beam/pull/31580">#31580&lt;/a> for mitigation.&lt;/li>
+&lt;/ul>
+&lt;p>For the most up to date list of known issues, see &lt;a href="https://github.com/apache/beam/blob/master/CHANGES.md">https://github.com/apache/beam/blob/master/CHANGES.md&lt;/a>&lt;/p>
+&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
+&lt;p>According to git shortlog, the following people contributed to the 2.57.0 release. Thank you to all contributors!&lt;/p>
+&lt;p>Ahmed Abualsaud&lt;/p>
+&lt;p>Ahmet Altay&lt;/p>
+&lt;p>Alexey Romanenko&lt;/p>
+&lt;p>Andrey Devyatkin&lt;/p>
+&lt;p>Anody Zhang&lt;/p>
+&lt;p>Arvind Ram&lt;/p>
+&lt;p>Ben Konz&lt;/p>
+&lt;p>Bruno Volpato&lt;/p>
+&lt;p>Celeste Zeng&lt;/p>
+&lt;p>Chamikara Jayalath&lt;/p>
+&lt;p>Claire McGinty&lt;/p>
+&lt;p>Colm O hEigeartaigh&lt;/p>
+&lt;p>Damon&lt;/p>
+&lt;p>Danny McCormick&lt;/p>
+&lt;p>Evan Galpin&lt;/p>
+&lt;p>Ferran Fernández Garrido&lt;/p>
+&lt;p>Florent Biville&lt;/p>
+&lt;p>Jack Dingilian&lt;/p>
+&lt;p>Jack McCluskey&lt;/p>
+&lt;p>Jan Lukavský&lt;/p>
+&lt;p>JayajP&lt;/p>
+&lt;p>Jeff Kinard&lt;/p>
+&lt;p>Jeffrey Kinard&lt;/p>
+&lt;p>John Casey&lt;/p>
+&lt;p>Justin Uang&lt;/p>
+&lt;p>Kenneth Knowles&lt;/p>
+&lt;p>Kevin Zhou&lt;/p>
+&lt;p>Liam Miller-Cushon&lt;/p>
+&lt;p>Maarten Vercruysse&lt;/p>
+&lt;p>Maciej Szwaja&lt;/p>
+&lt;p>Maja Kontrec Rönn&lt;/p>
+&lt;p>Marc hurabielle&lt;/p>
+&lt;p>Martin Trieu&lt;/p>
+&lt;p>Mattie Fu&lt;/p>
+&lt;p>Min Zhu&lt;/p>
+&lt;p>Naireen Hussain&lt;/p>
+&lt;p>Nick Anikin&lt;/p>
+&lt;p>Pablo Rodriguez Defino&lt;/p>
+&lt;p>Paul King&lt;/p>
+&lt;p>Priyans Desai&lt;/p>
+&lt;p>Radosław Stankiewicz&lt;/p>
+&lt;p>Rebecca Szper&lt;/p>
+&lt;p>Ritesh Ghorse&lt;/p>
+&lt;p>Robert Bradshaw&lt;/p>
+&lt;p>Robert Burke&lt;/p>
+&lt;p>Rodrigo Bozzolo&lt;/p>
+&lt;p>RyuSA&lt;/p>
+&lt;p>Sam Rohde&lt;/p>
+&lt;p>Sam Whittle&lt;/p>
+&lt;p>Sergei Lilichenko&lt;/p>
+&lt;p>Shahar Epstein&lt;/p>
+&lt;p>Shunping Huang&lt;/p>
+&lt;p>Svetak Sundhar&lt;/p>
+&lt;p>Tomo Suzuki&lt;/p>
+&lt;p>Tony Tang&lt;/p>
+&lt;p>Valentyn Tymofieiev&lt;/p>
+&lt;p>Vincent Stollenwerk&lt;/p>
+&lt;p>Vineet Kumar&lt;/p>
+&lt;p>Vitaly Terentyev&lt;/p>
+&lt;p>Vlado Djerek&lt;/p>
+&lt;p>XQ Hu&lt;/p>
+&lt;p>Yi Hu&lt;/p>
+&lt;p>akashorabek&lt;/p>
+&lt;p>bzablocki&lt;/p>
+&lt;p>kberezin&lt;/p></description></item><item><title>Blog: Deploy Python pipelines on Kubernetes using the Flink runner</title><link>/blog/deploy-python-pipeline-on-flink-runner/</link><pubDate>Thu, 20 Jun 2024 13:56:15 +1000</pubDate><guid>/blog/deploy-python-pipeline-on-flink-runner/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -7091,72 +7232,4 @@ Nelson Osacky, Niel Markwick, Ning Kang, omarismail94, Pablo Estrada, Piotr Szub
 ramazan-yapparov, Reuven Lax, Reza Rokni, rHermes, Robert Bradshaw, Robert Burke, Robert Gruener,
 Romster, Rui Wang, Sam Whittle, shehzaadn-vd, Siyuan Chen, Sonam Ramchand, Tobiasz Kędzierski,
 Tomo Suzuki, tszerszen, tvalentyn, Tyson Hamilton, Udi Meiri, Xinbin Huang, Yichi Zhang,
-Yifan Mai, yoshiki.obata, Yueyang Qiu, Yusaku Matsuki&lt;/p></description></item><item><title>Blog: Example to ingest data from Apache Kafka to Google Cloud Pub/Sub</title><link>/blog/kafka-to-pubsub-example/</link><pubDate>Fri, 15 Jan 2021 00:00:01 -0800</pubDate><guid>/blog/kafka-to-pubsub-example/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>In this blog post we present an example that creates a pipeline to read data from a single topic or
-multiple topics from &lt;a href="https://kafka.apache.org/">Apache Kafka&lt;/a> and write data into a topic
-in &lt;a href="https://cloud.google.com/pubsub">Google Pub/Sub&lt;/a>. The example provides code samples to implement
-simple yet powerful pipelines and also provides an out-of-the-box solution that you can just &lt;em>&amp;quot;
-plug&amp;rsquo;n&amp;rsquo;play&amp;quot;&lt;/em>.&lt;/p>
-&lt;p>This end-to-end example is included
-in &lt;a href="/blog/beam-2.27.0/">Apache Beam release 2.27&lt;/a>
-and can be downloaded &lt;a href="/get-started/downloads/#2270-2020-12-22">here&lt;/a>.&lt;/p>
-&lt;p>We hope you will find this example useful for setting up data pipelines between Kafka and Pub/Sub.&lt;/p>
-&lt;h1 id="example-specs">Example specs&lt;/h1>
-&lt;p>Supported data formats:&lt;/p>
-&lt;ul>
-&lt;li>Serializable plain text formats, such as JSON&lt;/li>
-&lt;li>&lt;a href="https://cloud.google.com/pubsub/docs/reference/rest/v1/PubsubMessage">PubSubMessage&lt;/a>&lt;/li>
-&lt;/ul>
-&lt;p>Supported input source configurations:&lt;/p>
-&lt;ul>
-&lt;li>Single or multiple Apache Kafka bootstrap servers&lt;/li>
-&lt;li>Apache Kafka SASL/SCRAM authentication over plaintext or SSL connection&lt;/li>
-&lt;li>Secrets vault service &lt;a href="https://www.vaultproject.io/">HashiCorp Vault&lt;/a>&lt;/li>
-&lt;/ul>
-&lt;p>Supported destination configuration:&lt;/p>
-&lt;ul>
-&lt;li>Single Google Pub/Sub topic&lt;/li>
-&lt;/ul>
-&lt;p>In a simple scenario, the example will create an Apache Beam pipeline that will read messages from a
-source Kafka server with a source topic, and stream the text messages into specified Pub/Sub
-destination topic. Other scenarios may need Kafka SASL/SCRAM authentication, that can be performed
-over plaintext or SSL encrypted connection. The example supports using a single Kafka user account
-to authenticate in the provided source Kafka servers and topics. To support SASL authentication over
-SSL the example will need an SSL certificate location and access to a secrets vault service with
-Kafka username and password, currently supporting HashiCorp Vault.&lt;/p>
-&lt;h1 id="where-can-i-run-this-example">Where can I run this example?&lt;/h1>
-&lt;p>There are two ways to execute the pipeline.&lt;/p>
-&lt;ol>
-&lt;li>Locally. This way has many options - run directly from your IntelliJ, or create &lt;code>.jar&lt;/code> file and
-run it in the terminal, or use your favourite method of running Beam pipelines.&lt;/li>
-&lt;li>In &lt;a href="https://cloud.google.com/">Google Cloud&lt;/a> using Google
-Cloud &lt;a href="https://cloud.google.com/dataflow">Dataflow&lt;/a>:
-&lt;ul>
-&lt;li>With &lt;code>gcloud&lt;/code> command-line tool you can create
-a &lt;a href="https://cloud.google.com/dataflow/docs/concepts/dataflow-templates">Flex Template&lt;/a>
-out of this Beam example and execute it in Google Cloud Platform. &lt;em>This requires corresponding
-modifications of the example to turn it into a template.&lt;/em>&lt;/li>
-&lt;li>This example exists as
-a &lt;a href="https://github.com/GoogleCloudPlatform/DataflowTemplates/tree/master/v2/kafka-to-pubsub">Flex Template version&lt;/a>
-within &lt;a href="https://github.com/GoogleCloudPlatform/DataflowTemplates">Google Cloud Dataflow Template Pipelines&lt;/a>
-repository and can be run with no additional code modifications.&lt;/li>
-&lt;/ul>
-&lt;/li>
-&lt;/ol>
-&lt;h1 id="next-steps">Next Steps&lt;/h1>
-&lt;p>Give this &lt;strong>Beam end-to-end example&lt;/strong> a try. If you are new to Beam, we hope this example will give
-you more understanding on how pipelines work and look like. If you are already using Beam, we hope
-some code samples in it will be useful for your use cases.&lt;/p>
-&lt;p>Please
-&lt;a href="/community/contact-us/">let us know&lt;/a> if you encounter any issues.&lt;/p></description></item></channel></rss>
+Yifan Mai, yoshiki.obata, Yueyang Qiu, Yusaku Matsuki&lt;/p></description></item></channel></rss>
