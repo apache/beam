@@ -43,8 +43,6 @@ from apache_beam.version import __version__ as beam_version
 
 # pytype: skip-file
 
-
-
 # Prefix for constructing a download URL
 GITHUB_DOWNLOAD_PREFIX = 'https://github.com/apache/beam/releases/download/'
 # Prefix for constructing a release URL, so we can derive a download URL
@@ -57,7 +55,10 @@ class PrismRunner(portable_runner.PortableRunner):
   """A runner for launching jobs on Prism, automatically downloading and
   starting a Prism instance if needed.
   """
-  def default_environment(self, options: pipeline_options.PipelineOptions) -> environments.Environment:
+
+  def default_environment(
+      self,
+      options: pipeline_options.PipelineOptions) -> environments.Environment:
     portable_options = options.view_as(pipeline_options.PortableOptions)
     if (not portable_options.environment_type and
         not portable_options.output_executable_path):
