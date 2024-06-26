@@ -710,9 +710,11 @@ class _MoveTempFilesIntoFinalDestinationFn(beam.DoFn):
 
     try:
       filesystems.FileSystems.mkdirs(self.path.get())
-    except IOError:
-      # Directory already exists.
-      pass
+    except IOError as e:
+      cause = repr(e)
+      if 'FileExistsError' not in cause:
+        # Usually harmless. Especially if see FileExistsError so no need to log
+        _LOGGER.debug('Fail to create dir for final destination: %s', cause)
 
     try:
       filesystems.FileSystems.rename(
