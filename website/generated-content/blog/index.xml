@@ -1,4 +1,859 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Blogs</title><link>/blog/</link><description>Recent content in Blogs on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Wed, 01 May 2024 10:00:00 -0400</lastBuildDate><atom:link href="/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.56.0</title><link>/blog/beam-2.56.0/</link><pubDate>Wed, 01 May 2024 10:00:00 -0400</pubDate><guid>/blog/beam-2.56.0/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Blogs</title><link>/blog/</link><description>Recent content in Blogs on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Thu, 20 Jun 2024 13:56:15 +1000</lastBuildDate><atom:link href="/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Deploy Python pipelines on Kubernetes using the Flink runner</title><link>/blog/deploy-python-pipeline-on-flink-runner/</link><pubDate>Thu, 20 Jun 2024 13:56:15 +1000</pubDate><guid>/blog/deploy-python-pipeline-on-flink-runner/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;h1 id="deploy-python-pipelines-on-kubernetes-using-the-flink-runner">Deploy Python pipelines on Kubernetes using the Flink runner&lt;/h1>
+&lt;p>The &lt;a href="https://nightlies.apache.org/flink/flink-kubernetes-operator-docs-main/docs/concepts/overview/">Apache Flink Kubernetes Operator&lt;/a> acts as a control plane to manage the complete deployment lifecycle of Apache Flink applications. With the operator, we can simplify the deployment and management of Apache Beam pipelines.&lt;/p>
+&lt;p>In this post, we develop an &lt;a href="https://beam.apache.org/">Apache Beam&lt;/a> pipeline using the &lt;a href="https://beam.apache.org/documentation/sdks/python/">Python SDK&lt;/a> and deploy it on an &lt;a href="https://flink.apache.org/">Apache Flink&lt;/a> cluster by using the &lt;a href="https://beam.apache.org/documentation/runners/flink/">Apache Flink runner&lt;/a>. We first deploy an &lt;a href="https://kafka.apache.org/">Apache Kafka&lt;/a> cluster on a &lt;a href="https://minikube.sigs.k8s.io/docs/">minikube&lt;/a> cluster, because the pipeline uses Kafka topics for its data source and sink. Then, we develop the pipeline as a Python package and add the package to a custom Docker image so that Python user code can be executed externally. For deployment, we create a Flink session cluster using the Flink Kubernetes Operator, and deploy the pipeline using a Kubernetes job. Finally, we check the output of the application by sending messages to the input Kafka topic using a Python producer application.&lt;/p>
+&lt;nav id="TableOfContents">
+&lt;ul>
+&lt;li>&lt;a href="#resources-to-run-a-python-beam-pipeline-on-flink">Resources to run a Python Beam pipeline on Flink&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#set-up-the-kafka-cluster">Set up the Kafka cluster&lt;/a>
+&lt;ul>
+&lt;li>&lt;a href="#deploy-the-strimzi-operator">Deploy the Strimzi operator&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#deploy-the-kafka-cluster">Deploy the Kafka cluster&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#deploy-the-kafka-ui">Deploy the Kafka UI&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;a href="#develop-a-stream-processing-app">Develop a stream processing app&lt;/a>
+&lt;ul>
+&lt;li>&lt;a href="#beam-pipeline-code">Beam pipeline code&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#build-docker-images">Build Docker images&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;a href="#deploy-the-stream-processing-app">Deploy the stream processing app&lt;/a>
+&lt;ul>
+&lt;li>&lt;a href="#deploy-the-flink-kubernetes-operator">Deploy the Flink Kubernetes Operator&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#deploy-the-beam-pipeline">Deploy the Beam pipeline&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#kafka-producer">Kafka producer&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ul>
+&lt;/nav>
+&lt;h2 id="resources-to-run-a-python-beam-pipeline-on-flink">Resources to run a Python Beam pipeline on Flink&lt;/h2>
+&lt;p>We develop an Apache Beam pipeline using the Python SDK and deploy it on an Apache Flink cluster using the Apache Flink runner. Although the Flink cluster is created by the Flink Kubernetes Operator, we need two components to run the pipeline on the &lt;em>Flink runner&lt;/em>: the &lt;strong>job service&lt;/strong> and the &lt;a href="https://beam.apache.org/documentation/runtime/sdk-harness-config/">&lt;strong>SDK harness&lt;/strong>&lt;/a>. Roughly speaking, the job service converts details about a Python pipeline into a format that the Flink runner can understand. The SDK harness executes the Python user code. The Python SDK provides convenience wrappers to manage those components, and you can use it by specifying &lt;em>FlinkRunner&lt;/em> in the pipeline option, for example, &lt;code>--runner=FlinkRunner&lt;/code>. The &lt;em>job service&lt;/em> is managed automatically. We rely on our own &lt;em>SDK harness&lt;/em> as a sidecar container for simplicity. Also, we need the &lt;strong>Java IO Expansion Service&lt;/strong>, because the pipeline uses Apache Kafka topics for its data source and sink, and the Kafka Connector I/O is developed in Java. Simply put, the expansion service is used to serialize data for the Java SDK.&lt;/p>
+&lt;h2 id="set-up-the-kafka-cluster">Set up the Kafka cluster&lt;/h2>
+&lt;p>An Apache Kafka cluster is deployed using the &lt;a href="https://strimzi.io/">Strimzi Operator&lt;/a> on a minikube cluster. We install Strimzi version 0.39.0 and Kubernetes version 1.25.3. After the &lt;a href="https://minikube.sigs.k8s.io/docs/start/">minikube CLI&lt;/a> and &lt;a href="https://www.docker.com/">Docker&lt;/a> are installed, you can create a minikube cluster by specifying the Kubernetes version. You can find the source code for this blog post in the &lt;a href="https://github.com/jaehyeon-kim/beam-demos/tree/master/beam-deploy">GitHub repository&lt;/a>.&lt;/p>
+&lt;div class='language-bash snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-bash" data-lang="bash">&lt;span class="line">&lt;span class="cl">minikube start --cpus&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;max&amp;#39;&lt;/span> --memory&lt;span class="o">=&lt;/span>&lt;span class="m">20480&lt;/span> &lt;span class="se">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="se">&lt;/span> --addons&lt;span class="o">=&lt;/span>metrics-server --kubernetes-version&lt;span class="o">=&lt;/span>v1.25.3&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;h3 id="deploy-the-strimzi-operator">Deploy the Strimzi operator&lt;/h3>
+&lt;p>The GitHub repository keeps manifest files that you can use to deploy the Strimzi operator, Kafka cluster, and Kafka management application. To download a different version of the operator, download the relevant manifest file by specifying the version. By default, the manifest file assumes that the resources are deployed in the &lt;em>myproject&lt;/em> namespace. However, because we deploy them in the &lt;em>default&lt;/em> namespace, we need to change the resource namespace. We change the resource namespace using &lt;a href="https://www.gnu.org/software/sed/manual/sed.html">sed&lt;/a>.&lt;/p>
+&lt;p>To deploy the operator, use the &lt;code>kubectl create&lt;/code> command.&lt;/p>
+&lt;div class='language-bash snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-bash" data-lang="bash">&lt;span class="line">&lt;span class="cl">&lt;span class="c1">## Download and deploy the Strimzi operator.&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nv">STRIMZI_VERSION&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;0.39.0&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">## Optional: If downloading a different version, include this step.&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nv">DOWNLOAD_URL&lt;/span>&lt;span class="o">=&lt;/span>https://github.com/strimzi/strimzi-kafka-operator/releases/download/&lt;span class="nv">$STRIMZI_VERSION&lt;/span>/strimzi-cluster-operator-&lt;span class="nv">$STRIMZI_VERSION&lt;/span>.yaml
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">curl -L -o kafka/manifests/strimzi-cluster-operator-&lt;span class="nv">$STRIMZI_VERSION&lt;/span>.yaml &lt;span class="se">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="se">&lt;/span> &lt;span class="si">${&lt;/span>&lt;span class="nv">DOWNLOAD_URL&lt;/span>&lt;span class="si">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># Update the namespace from myproject to default.&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">sed -i &lt;span class="s1">&amp;#39;s/namespace: .*/namespace: default/&amp;#39;&lt;/span> kafka/manifests/strimzi-cluster-operator-&lt;span class="nv">$STRIMZI_VERSION&lt;/span>.yaml
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">## Deploy the Strimzi cluster operator.&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">kubectl create -f kafka/manifests/strimzi-cluster-operator-&lt;span class="nv">$STRIMZI_VERSION&lt;/span>.yaml&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;p>Verify that the Strimzi Operator runs as a Kubernetes &lt;a href="https://kubernetes.io/docs/concepts/workloads/controllers/deployment/">deployment&lt;/a>.&lt;/p>
+&lt;div class='language-bash snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-bash" data-lang="bash">&lt;span class="line">&lt;span class="cl">kubectl get deploy,rs,po
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># NAME READY UP-TO-DATE AVAILABLE AGE&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># deployment.apps/strimzi-cluster-operator 1/1 1 1 2m50s&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># NAME DESIRED CURRENT READY AGE&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># replicaset.apps/strimzi-cluster-operator-8d6d4795c 1 1 1 2m50s&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># NAME READY STATUS RESTARTS AGE&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># pod/strimzi-cluster-operator-8d6d4795c-94t8c 1/1 Running 0 2m49s&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;h3 id="deploy-the-kafka-cluster">Deploy the Kafka cluster&lt;/h3>
+&lt;p>We deploy a Kafka cluster with a single broker and Zookeeper node. It has both internal and external listeners on ports 9092 and 29092, respectively. The external listener is used to access the Kafka cluster outside the minikube cluster. Also, the cluster is configured to allow automatic creation of topics (&lt;code>auto.create.topics.enable: &amp;quot;true&amp;quot;&lt;/code>), and the default number of partitions is set to 3 (&lt;code>num.partitions: 3&lt;/code>).&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-yaml" data-lang="yaml">&lt;span class="line">&lt;span class="cl">&lt;span class="c"># kafka/manifests/kafka-cluster.yaml&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>&lt;span class="nt">apiVersion&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">kafka.strimzi.io/v1beta2&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>&lt;span class="nt">kind&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">Kafka&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>&lt;span class="nt">metadata&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">name&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">demo-cluster&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>&lt;span class="nt">spec&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">kafka&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">version&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="m">3.5.2&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">replicas&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="m">1&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">resources&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">requests&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">memory&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">256Mi&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">cpu&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">250m&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">limits&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">memory&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">512Mi&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">cpu&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">500m&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">listeners&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="nt">name&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">plain&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">port&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="m">9092&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">type&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">internal&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">tls&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="kc">false&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="nt">name&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">external&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">port&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="m">29092&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">type&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">nodeport&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">tls&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="kc">false&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">storage&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">type&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">jbod&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">volumes&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="nt">id&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="m">0&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">type&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">persistent-claim&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">size&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">20Gi&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">deleteClaim&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="kc">true&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">config&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">offsets.topic.replication.factor&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="m">1&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">transaction.state.log.replication.factor&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="m">1&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">transaction.state.log.min.isr&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="m">1&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">default.replication.factor&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="m">1&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">min.insync.replicas&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="m">1&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">inter.broker.protocol.version&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="s2">&amp;#34;3.5&amp;#34;&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">auto.create.topics.enable&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="s2">&amp;#34;true&amp;#34;&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">num.partitions&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="m">3&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">zookeeper&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">replicas&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="m">1&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">resources&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">requests&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">memory&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">256Mi&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">cpu&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">250m&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">limits&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">memory&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">512Mi&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">cpu&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">500m&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">storage&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">type&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">persistent-claim&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">size&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">10Gi&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">deleteClaim&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="kc">true&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Deploy he Kafka cluster using the &lt;code>kubectl create&lt;/code> command.&lt;/p>
+&lt;div class='language-bash snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-bash" data-lang="bash">&lt;span class="line">&lt;span class="cl">kubectl create -f kafka/manifests/kafka-cluster.yaml&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;p>The Kafka and Zookeeper nodes are managed by the &lt;a href="https://strimzi.io/docs/operators/latest/configuring.html#type-StrimziPodSet-reference">&lt;em>StrimziPodSet&lt;/em>&lt;/a> custom resource. It also creates multiple Kubernetes &lt;a href="https://kubernetes.io/docs/concepts/services-networking/service/">services&lt;/a>. In this series, we use the following services:&lt;/p>
+&lt;ul>
+&lt;li>communication within the Kubernetes cluster
+&lt;ul>
+&lt;li>&lt;code>demo-cluster-kafka-bootstrap&lt;/code> - to access Kafka brokers from the client and management apps&lt;/li>
+&lt;li>&lt;code>demo-cluster-zookeeper-client&lt;/code> - to access Zookeeper node from the management app&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>communication from the host
+&lt;ul>
+&lt;li>&lt;code>demo-cluster-kafka-external-bootstrap&lt;/code> - to access Kafka brokers from the producer app&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ul>
+&lt;div class='language-bash snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-bash" data-lang="bash">&lt;span class="line">&lt;span class="cl">kubectl get po,strimzipodsets.core.strimzi.io,svc -l app.kubernetes.io/instance&lt;span class="o">=&lt;/span>demo-cluster
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># NAME READY STATUS RESTARTS AGE&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># pod/demo-cluster-kafka-0 1/1 Running 0 115s&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># pod/demo-cluster-zookeeper-0 1/1 Running 0 2m20s&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># NAME PODS READY PODS CURRENT PODS AGE&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># strimzipodset.core.strimzi.io/demo-cluster-kafka 1 1 1 115s&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># strimzipodset.core.strimzi.io/demo-cluster-zookeeper 1 1 1 2m20s&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># NAME TYPE CLUSTER-IP EXTERNAL-IP PORT(S) AGE&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># service/demo-cluster-kafka-bootstrap ClusterIP 10.101.175.64 &amp;lt;none&amp;gt; 9091/TCP,9092/TCP 115s&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># service/demo-cluster-kafka-brokers ClusterIP None &amp;lt;none&amp;gt; 9090/TCP,9091/TCP,8443/TCP,9092/TCP 115s&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># service/demo-cluster-kafka-external-0 NodePort 10.106.155.20 &amp;lt;none&amp;gt; 29092:32475/TCP 115s&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># service/demo-cluster-kafka-external-bootstrap NodePort 10.111.244.128 &amp;lt;none&amp;gt; 29092:32674/TCP 115s&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># service/demo-cluster-zookeeper-client ClusterIP 10.100.215.29 &amp;lt;none&amp;gt; 2181/TCP 2m20s&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># service/demo-cluster-zookeeper-nodes ClusterIP None &amp;lt;none&amp;gt; 2181/TCP,2888/TCP,3888/TCP 2m20s&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;h3 id="deploy-the-kafka-ui">Deploy the Kafka UI&lt;/h3>
+&lt;p>&lt;a href="https://docs.kafka-ui.provectus.io/overview/readme">UI for Apache Kafka (&lt;code>kafka-ui&lt;/code>)&lt;/a> is a free and open-source Kafka management application. It&amp;rsquo;s deployed as a Kubernetes Deployment. The Deployment is configured to have a single instance, and the Kafka cluster access details are specified as environment variables.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-yaml" data-lang="yaml">&lt;span class="line">&lt;span class="cl">&lt;span class="c"># kafka/manifests/kafka-ui.yaml&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>&lt;span class="nt">apiVersion&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">v1&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>&lt;span class="nt">kind&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">Service&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>&lt;span class="nt">metadata&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">labels&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">app&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">kafka-ui&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">name&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">kafka-ui&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>&lt;span class="nt">spec&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">type&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">ClusterIP&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">ports&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="nt">port&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="m">8080&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">targetPort&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="m">8080&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">selector&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">app&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">kafka-ui&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>&lt;span class="nn">---&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>&lt;span class="nt">apiVersion&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">apps/v1&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>&lt;span class="nt">kind&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">Deployment&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>&lt;span class="nt">metadata&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">labels&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">app&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">kafka-ui&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">name&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">kafka-ui&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>&lt;span class="nt">spec&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">replicas&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="m">1&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">selector&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">matchLabels&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">app&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">kafka-ui&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">template&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">metadata&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">labels&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">app&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">kafka-ui&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">spec&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">containers&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="nt">image&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">provectuslabs/kafka-ui:v0.7.1&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">name&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">kafka-ui-container&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">ports&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="nt">containerPort&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="m">8080&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">env&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="nt">name&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">KAFKA_CLUSTERS_0_NAME&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">value&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">demo-cluster&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="nt">name&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">value&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">demo-cluster-kafka-bootstrap:9092&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="nt">name&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">KAFKA_CLUSTERS_0_ZOOKEEPER&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">value&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">demo-cluster-zookeeper-client:2181&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">resources&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">requests&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">memory&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">256Mi&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">cpu&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">250m&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">limits&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">memory&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">512Mi&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">cpu&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">500m&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Deploy the Kafka management app (&lt;code>kafka-ui&lt;/code>) using the &lt;code>kubectl create&lt;/code> command.&lt;/p>
+&lt;div class='language-bash snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-bash" data-lang="bash">&lt;span class="line">&lt;span class="cl">kubectl create -f kafka/manifests/kafka-ui.yaml
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">kubectl get all -l &lt;span class="nv">app&lt;/span>&lt;span class="o">=&lt;/span>kafka-ui
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># NAME READY STATUS RESTARTS AGE&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># pod/kafka-ui-65dbbc98dc-zl5gv 1/1 Running 0 35s&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># NAME TYPE CLUSTER-IP EXTERNAL-IP PORT(S) AGE&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># service/kafka-ui ClusterIP 10.109.14.33 &amp;lt;none&amp;gt; 8080/TCP 36s&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># NAME READY UP-TO-DATE AVAILABLE AGE&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># deployment.apps/kafka-ui 1/1 1 1 35s&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># NAME DESIRED CURRENT READY AGE&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># replicaset.apps/kafka-ui-65dbbc98dc 1 1 1 35s&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;p>We use &lt;code>kubectl port-forward&lt;/code> to connect to the &lt;code>kafka-ui&lt;/code> server running in the minikube cluster on port 8080.&lt;/p>
+&lt;div class='language-bash snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-bash" data-lang="bash">&lt;span class="line">&lt;span class="cl">kubectl port-forward svc/kafka-ui &lt;span class="m">8080&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;p>&lt;img class="center-block"
+src="/images/blog/deploy-python-pipeline-on-flink-runner/kafka-ui.png"
+alt="Kafka UI">&lt;/p>
+&lt;h2 id="develop-a-stream-processing-app">Develop a stream processing app&lt;/h2>
+&lt;p>We develop an Apache Beam pipeline as a Python package and add it to a custom Docker image, which is used to execute Python user code (&lt;em>SDK harness&lt;/em>). We also build another custom Docker image, which adds the Java SDK of Apache Beam to the official Flink base image. This image is used to deploy a Flink cluster and to execute Java user code of the &lt;em>Kafka Connector I/O&lt;/em>.&lt;/p>
+&lt;h3 id="beam-pipeline-code">Beam pipeline code&lt;/h3>
+&lt;p>The application first reads text messages from an input Kafka topic. Next, it extracts words by splitting the messages (&lt;code>ReadWordsFromKafka&lt;/code>). Then, the elements (words) are added to a fixed time window of 5 seconds, and their average length is calculated (&lt;code>CalculateAvgWordLen&lt;/code>). Finally, we include the window start and end timestamps, and send the updated element to an output Kafka topic (&lt;code>WriteWordLenToKafka&lt;/code>).&lt;/p>
+&lt;p>We create a custom &lt;em>Java IO Expansion Service&lt;/em> (&lt;code>get_expansion_service&lt;/code>) and add it to the &lt;code>ReadFromKafka&lt;/code> and &lt;code>WriteToKafka&lt;/code> transforms of the Kafka Connector I/O. Although the Kafka I/O provides a function to create that service, it did not work for me (or I do not understand how to make use of it yet). Instead, I created a custom service, as illustrated in &lt;a href="https://www.packtpub.com/product/building-big-data-pipelines-with-apache-beam/9781800564930">Building Big Data Pipelines with Apache Beam by Jan Lukavský&lt;/a>. The expansion service Jar file (&lt;code>beam-sdks-java-io-expansion-service.jar&lt;/code>) must exist in the Kubernetes &lt;a href="https://kubernetes.io/docs/concepts/workloads/controllers/job/">&lt;em>job&lt;/em>&lt;/a> that executes the pipeline, while the Java SDK (&lt;code>/opt/apache/beam/boot&lt;/code>) must exist in the runner worker.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># beam/word_len/word_len.py&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">json&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">argparse&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">re&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">logging&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">typing&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">apache_beam&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="nn">beam&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">pvalue&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam.io&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">kafka&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam.transforms.window&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">FixedWindows&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam.options.pipeline_options&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">PipelineOptions&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam.options.pipeline_options&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">SetupOptions&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam.transforms.external&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">JavaJarExpansionService&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">def&lt;/span> &lt;span class="nf">get_expansion_service&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">jar&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;/opt/apache/beam/jars/beam-sdks-java-io-expansion-service.jar&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">args&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="kc">None&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="n">args&lt;/span> &lt;span class="o">==&lt;/span> &lt;span class="kc">None&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">args&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s2">&amp;#34;--defaultEnvironmentType=PROCESS&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s1">&amp;#39;--defaultEnvironmentConfig={&amp;#34;command&amp;#34;: &amp;#34;/opt/apache/beam/boot&amp;#34;}&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s2">&amp;#34;--experiments=use_deprecated_read&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="n">JavaJarExpansionService&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">jar&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="s2">&amp;#34;{{PORT}}&amp;#34;&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">args&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">class&lt;/span> &lt;span class="nc">WordAccum&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">typing&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">NamedTuple&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">length&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">int&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">count&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">int&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">coders&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">registry&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">register_coder&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">WordAccum&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">coders&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">RowCoder&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">def&lt;/span> &lt;span class="nf">decode_message&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">kafka_kv&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">tuple&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">verbose&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">bool&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="kc">False&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="n">verbose&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nb">print&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">kafka_kv&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="n">kafka_kv&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">]&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">decode&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;utf-8&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">def&lt;/span> &lt;span class="nf">tokenize&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">element&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">str&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="n">re&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">findall&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="sa">r&lt;/span>&lt;span class="s2">&amp;#34;[A-Za-z\&amp;#39;]+&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">element&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">def&lt;/span> &lt;span class="nf">create_message&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">element&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">typing&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Tuple&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="nb">str&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nb">str&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nb">float&lt;/span>&lt;span class="p">]):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">msg&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">json&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">dumps&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">dict&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">zip&lt;/span>&lt;span class="p">([&lt;/span>&lt;span class="s2">&amp;#34;window_start&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;window_end&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;avg_len&amp;#34;&lt;/span>&lt;span class="p">],&lt;/span> &lt;span class="n">element&lt;/span>&lt;span class="p">)))&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nb">print&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">msg&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="s2">&amp;#34;&amp;#34;&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">encode&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;utf-8&amp;#34;&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="n">msg&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">encode&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;utf-8&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">class&lt;/span> &lt;span class="nc">AverageFn&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">CombineFn&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="nf">create_accumulator&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="n">WordAccum&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">length&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">count&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">0&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="nf">add_input&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">mutable_accumulator&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">WordAccum&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">element&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">str&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">length&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">count&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nb">tuple&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">mutable_accumulator&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="n">WordAccum&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">length&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">length&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="nb">len&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">element&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="n">count&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">count&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="nf">merge_accumulators&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">accumulators&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">typing&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">List&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">WordAccum&lt;/span>&lt;span class="p">]):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">lengths&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">counts&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nb">zip&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="n">accumulators&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="n">WordAccum&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">length&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="nb">sum&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">lengths&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="n">count&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="nb">sum&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">counts&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="nf">extract_output&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">accumulator&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">WordAccum&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">length&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">count&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nb">tuple&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">accumulator&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="n">length&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="n">count&lt;/span> &lt;span class="k">if&lt;/span> &lt;span class="n">count&lt;/span> &lt;span class="k">else&lt;/span> &lt;span class="nb">float&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;NaN&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="nf">get_accumulator_coder&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">coders&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">registry&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get_coder&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">WordAccum&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">class&lt;/span> &lt;span class="nc">AddWindowTS&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="nf">process&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">avg_len&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">float&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">win_param&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">WindowParam&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">yield&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">win_param&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">start&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">to_rfc3339&lt;/span>&lt;span class="p">(),&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">win_param&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">end&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">to_rfc3339&lt;/span>&lt;span class="p">(),&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">avg_len&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">class&lt;/span> &lt;span class="nc">ReadWordsFromKafka&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">PTransform&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="fm">__init__&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">bootstrap_servers&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">str&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">topics&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">typing&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">List&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="nb">str&lt;/span>&lt;span class="p">],&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">group_id&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">str&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">verbose&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">bool&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="kc">False&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">expansion_service&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">typing&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Any&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="kc">None&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">label&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">str&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="kc">None&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="kc">None&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span> &lt;span class="o">-&amp;gt;&lt;/span> &lt;span class="kc">None&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nb">super&lt;/span>&lt;span class="p">()&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="fm">__init__&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">label&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">boostrap_servers&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">bootstrap_servers&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">topics&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">topics&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">group_id&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">group_id&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">verbose&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">verbose&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">expansion_service&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">expansion_service&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="nf">expand&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nb">input&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">pvalue&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">PBegin&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nb">input&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="s2">&amp;#34;ReadFromKafka&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">kafka&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ReadFromKafka&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">consumer_config&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s2">&amp;#34;bootstrap.servers&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">boostrap_servers&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s2">&amp;#34;auto.offset.reset&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s2">&amp;#34;latest&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1"># &amp;#34;enable.auto.commit&amp;#34;: &amp;#34;true&amp;#34;,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s2">&amp;#34;group.id&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">group_id&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">},&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">topics&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">topics&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">timestamp_policy&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">kafka&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ReadFromKafka&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">create_time_policy&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">commit_offset_in_finalize&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="kc">True&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">expansion_service&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">expansion_service&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="s2">&amp;#34;DecodeMessage&amp;#34;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">decode_message&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="s2">&amp;#34;Tokenize&amp;#34;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">FlatMap&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">tokenize&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">class&lt;/span> &lt;span class="nc">CalculateAvgWordLen&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">PTransform&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="nf">expand&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nb">input&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">pvalue&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">PCollection&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nb">input&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="s2">&amp;#34;Windowing&amp;#34;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">WindowInto&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">FixedWindows&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">size&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">5&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="s2">&amp;#34;GetAvgWordLength&amp;#34;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">CombineGlobally&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">AverageFn&lt;/span>&lt;span class="p">())&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">without_defaults&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">class&lt;/span> &lt;span class="nc">WriteWordLenToKafka&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">PTransform&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="fm">__init__&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">bootstrap_servers&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">str&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">topic&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">str&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">expansion_service&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">typing&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Any&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="kc">None&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">label&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">str&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="kc">None&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="kc">None&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span> &lt;span class="o">-&amp;gt;&lt;/span> &lt;span class="kc">None&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nb">super&lt;/span>&lt;span class="p">()&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="fm">__init__&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">label&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">boostrap_servers&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">bootstrap_servers&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">topic&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">topic&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">expansion_service&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">expansion_service&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="nf">expand&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nb">input&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">pvalue&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">PCollection&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nb">input&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="s2">&amp;#34;AddWindowTS&amp;#34;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ParDo&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">AddWindowTS&lt;/span>&lt;span class="p">())&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="s2">&amp;#34;CreateMessages&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">create_message&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">with_output_types&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">typing&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Tuple&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="nb">bytes&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nb">bytes&lt;/span>&lt;span class="p">])&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="s2">&amp;#34;WriteToKafka&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">kafka&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">WriteToKafka&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">producer_config&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="p">{&lt;/span>&lt;span class="s2">&amp;#34;bootstrap.servers&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">boostrap_servers&lt;/span>&lt;span class="p">},&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">topic&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">topic&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">expansion_service&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">expansion_service&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">def&lt;/span> &lt;span class="nf">run&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">argv&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="kc">None&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">save_main_session&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="kc">True&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">parser&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">argparse&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ArgumentParser&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">description&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;Beam pipeline arguments&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">parser&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">add_argument&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s2">&amp;#34;--deploy&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">dest&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;deploy&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">action&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;store_true&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">default&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;Flag to indicate whether to deploy to a cluster&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">parser&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">add_argument&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s2">&amp;#34;--bootstrap_servers&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">dest&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;bootstrap&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">default&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;host.docker.internal:29092&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">help&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;Kafka bootstrap server addresses&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">parser&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">add_argument&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s2">&amp;#34;--input_topic&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">dest&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;input&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">default&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;input-topic&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">help&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;Kafka input topic name&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">parser&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">add_argument&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s2">&amp;#34;--output_topic&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">dest&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;output&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">default&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;output-topic-beam&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">help&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;Kafka output topic name&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">parser&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">add_argument&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s2">&amp;#34;--group_id&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">dest&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;group&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">default&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;beam-word-len&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">help&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;Kafka output group ID&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">known_args&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">pipeline_args&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">parser&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">parse_known_args&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">argv&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nb">print&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">known_args&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nb">print&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">pipeline_args&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1"># We use the save_main_session option because one or more DoFn elements in this&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1"># workflow rely on global context. That is, a module imported at the module level.&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">pipeline_options&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">PipelineOptions&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">pipeline_args&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">pipeline_options&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">view_as&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">SetupOptions&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">save_main_session&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">save_main_session&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">expansion_service&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="kc">None&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="n">known_args&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">deploy&lt;/span> &lt;span class="ow">is&lt;/span> &lt;span class="kc">True&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">expansion_service&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">get_expansion_service&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">options&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">pipeline_options&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">p&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">p&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="s2">&amp;#34;ReadWordsFromKafka&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">ReadWordsFromKafka&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">bootstrap_servers&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">known_args&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">bootstrap&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">topics&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">known_args&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">input&lt;/span>&lt;span class="p">],&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">group_id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">known_args&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">group&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">expansion_service&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">expansion_service&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="s2">&amp;#34;CalculateAvgWordLen&amp;#34;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">CalculateAvgWordLen&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="s2">&amp;#34;WriteWordLenToKafka&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">WriteWordLenToKafka&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">bootstrap_servers&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">known_args&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">bootstrap&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">topic&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">known_args&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">output&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">expansion_service&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">expansion_service&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">logging&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">getLogger&lt;/span>&lt;span class="p">()&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">setLevel&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">logging&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">DEBUG&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">logging&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">info&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;Building pipeline ...&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">if&lt;/span> &lt;span class="vm">__name__&lt;/span> &lt;span class="o">==&lt;/span> &lt;span class="s2">&amp;#34;__main__&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">run&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>The pipeline script is added to a Python package under a folder named &lt;code>word_len&lt;/code>. A simple module named &lt;code>run&lt;/code> is created, because it is executed as a module, for example, &lt;code>python -m ...&lt;/code>. When I ran the pipeline as a script, I encountered an error. This packaging method is for demonstration only. For a recommended way of packaging a pipeline, see &lt;a href="https://beam.apache.org/documentation/sdks/python-pipeline-dependencies/">Managing Python Pipeline Dependencies&lt;/a>.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># beam/word_len/run.py&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">.&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="o">*&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">run&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Overall, the pipeline package uses the following structure.&lt;/p>
+&lt;div class='language-bash snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-bash" data-lang="bash">&lt;span class="line">&lt;span class="cl">tree beam/word_len
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">beam/word_len
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">├── __init__.py
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">├── run.py
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">└── word_len.py&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;h3 id="build-docker-images">Build Docker images&lt;/h3>
+&lt;p>As discussed previously, we build a custom Docker image (&lt;em>beam-python-example:1.16&lt;/em>) and use it to deploy a Flink cluster and to run the Java user code of the Kafka Connector I/O.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-Dockerfile" data-lang="Dockerfile">&lt;span class="line">&lt;span class="cl">&lt;span class="c"># beam/Dockerfile&lt;/span>&lt;span class="err">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">&lt;/span>&lt;span class="k">FROM&lt;/span>&lt;span class="s"> flink:1.16&lt;/span>&lt;span class="err">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">&lt;/span>&lt;span class="k">COPY&lt;/span> --from&lt;span class="o">=&lt;/span>apache/beam_java11_sdk:2.56.0 /opt/apache/beam/ /opt/apache/beam/&lt;span class="err">
+&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>We also build a custom Docker image (&lt;em>beam-python-harness:2.56.0&lt;/em>) to run Python user code (&lt;em>SDK harness&lt;/em>). From the Python SDK Docker image, it first installs the Java Development Kit (JDK) and downloads the &lt;em>Java IO Expansion Service&lt;/em> Jar file. Then, the Beam pipeline packages are copied to the &lt;code>/app&lt;/code> folder. The app folder is added to the &lt;code>PYTHONPATH&lt;/code> environment variable, which makes the packages searchable.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-Dockerfile" data-lang="Dockerfile">&lt;span class="line">&lt;span class="cl">&lt;span class="c"># beam/Dockerfile-python-harness&lt;/span>&lt;span class="err">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">&lt;/span>&lt;span class="k">FROM&lt;/span>&lt;span class="s"> apache/beam_python3.10_sdk:2.56.0&lt;/span>&lt;span class="err">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">&lt;/span>&lt;span class="k">ARG&lt;/span> BEAM_VERSION&lt;span class="err">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">&lt;/span>&lt;span class="k">ENV&lt;/span> &lt;span class="nv">BEAM_VERSION&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="si">${&lt;/span>&lt;span class="nv">BEAM_VERSION&lt;/span>&lt;span class="k">:-&lt;/span>&lt;span class="nv">2&lt;/span>&lt;span class="p">.56.0&lt;/span>&lt;span class="si">}&lt;/span>&lt;span class="err">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">&lt;/span>&lt;span class="k">ENV&lt;/span> &lt;span class="nv">REPO_BASE_URL&lt;/span>&lt;span class="o">=&lt;/span>https://repo1.maven.org/maven2/org/apache/beam&lt;span class="err">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">&lt;/span>&lt;span class="k">RUN&lt;/span> apt-get update &lt;span class="o">&amp;amp;&amp;amp;&lt;/span> apt-get install -y default-jdk&lt;span class="err">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">&lt;/span>&lt;span class="k">RUN&lt;/span> mkdir -p /opt/apache/beam/jars &lt;span class="se">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="se">&lt;/span> &lt;span class="o">&amp;amp;&amp;amp;&lt;/span> wget &lt;span class="si">${&lt;/span>&lt;span class="nv">REPO_BASE_URL&lt;/span>&lt;span class="si">}&lt;/span>/beam-sdks-java-io-expansion-service/&lt;span class="si">${&lt;/span>&lt;span class="nv">BEAM_VERSION&lt;/span>&lt;span class="si">}&lt;/span>/beam-sdks-java-io-expansion-service-&lt;span class="si">${&lt;/span>&lt;span class="nv">BEAM_VERSION&lt;/span>&lt;span class="si">}&lt;/span>.jar &lt;span class="se">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="se">&lt;/span> --progress&lt;span class="o">=&lt;/span>bar:force:noscroll -O /opt/apache/beam/jars/beam-sdks-java-io-expansion-service.jar&lt;span class="err">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">&lt;/span>&lt;span class="k">COPY&lt;/span> word_len /app/word_len&lt;span class="err">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">&lt;/span>&lt;span class="k">COPY&lt;/span> word_count /app/word_count&lt;span class="err">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">&lt;/span>&lt;span class="k">ENV&lt;/span> &lt;span class="nv">PYTHONPATH&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;&lt;/span>&lt;span class="nv">$PYTHONPATH&lt;/span>&lt;span class="s2">:/app&amp;#34;&lt;/span>&lt;span class="err">
+&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Because the custom images need to be accessible in the minikube cluster, we point the terminal&amp;rsquo;s &lt;code>docker-cli&lt;/code> to the minikube&amp;rsquo;s Docker engine. Then, we can build the images using the &lt;code>docker build&lt;/code> command.&lt;/p>
+&lt;div class='language-bash snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-bash" data-lang="bash">&lt;span class="line">&lt;span class="cl">&lt;span class="nb">eval&lt;/span> &lt;span class="k">$(&lt;/span>minikube docker-env&lt;span class="k">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">docker build -t beam-python-example:1.16 beam/
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">docker build -t beam-python-harness:2.56.0 -f beam/Dockerfile-python-harness beam/&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;h2 id="deploy-the-stream-processing-app">Deploy the stream processing app&lt;/h2>
+&lt;p>The Beam pipeline is executed on a &lt;a href="https://nightlies.apache.org/flink/flink-kubernetes-operator-docs-main/docs/custom-resource/overview/#session-cluster-deployments">Flink session cluster&lt;/a>, which is deployed by the Flink Kubernetes Operator. The &lt;a href="https://nightlies.apache.org/flink/flink-kubernetes-operator-docs-main/docs/custom-resource/overview/#application-deployments">application deployment mode&lt;/a> where the Beam pipeline is deployed as a Flink job doesn&amp;rsquo;t seem to work (or I don&amp;rsquo;t understand how to do so yet) due to either a job submission timeout error or a failure to upload the job artifact. After the pipeline is deployed, we check the output of the application by sending text messages to the input Kafka topic.&lt;/p>
+&lt;h3 id="deploy-the-flink-kubernetes-operator">Deploy the Flink Kubernetes Operator&lt;/h3>
+&lt;p>First, to make it possible to add the webhook component, install the &lt;a href="https://github.com/cert-manager/cert-manager">certificate manager&lt;/a> on the minikube cluster. Then, use a Helm chart to install the operator. Version 1.8.0 is installed in the post.&lt;/p>
+&lt;div class='language-bash snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-bash" data-lang="bash">&lt;span class="line">&lt;span class="cl">kubectl create -f https://github.com/jetstack/cert-manager/releases/download/v1.8.2/cert-manager.yaml
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">helm repo add flink-operator-repo https://downloads.apache.org/flink/flink-kubernetes-operator-1.8.0/
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">helm install flink-kubernetes-operator flink-operator-repo/flink-kubernetes-operator
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># NAME: flink-kubernetes-operator&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># LAST DEPLOYED: Mon Jun 03 21:37:45 2024&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># NAMESPACE: default&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># STATUS: deployed&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># REVISION: 1&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># TEST SUITE: None&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">helm list
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># NAME NAMESPACE REVISION UPDATED STATUS CHART APP VERSION&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># flink-kubernetes-operator default 1 2024-06-03 21:37:45.579302452 +1000 AEST deployed flink-kubernetes-operator-1.8.0 1.8.0&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;h3 id="deploy-the-beam-pipeline">Deploy the Beam pipeline&lt;/h3>
+&lt;p>First, create a Flink session cluster. In the manifest file, configure common properties, such as the Docker image, Flink version, cluster configuration, and pod template. These properties are applied to the Flink job manager and task manager. In addition, specify the replica and resource. We add a sidecar container to the task manager, and this &lt;em>SDK harness&lt;/em> container is configured to execute Python user code - see the following job configuration.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-yaml" data-lang="yaml">&lt;span class="line">&lt;span class="cl">&lt;span class="c"># beam/word_len_cluster.yml&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>&lt;span class="nt">apiVersion&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">flink.apache.org/v1beta1&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>&lt;span class="nt">kind&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">FlinkDeployment&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>&lt;span class="nt">metadata&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">name&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">word-len-cluster&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>&lt;span class="nt">spec&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">image&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">beam-python-example:1.16&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">imagePullPolicy&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">Never&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">flinkVersion&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">v1_16&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">flinkConfiguration&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">taskmanager.numberOfTaskSlots&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="s2">&amp;#34;10&amp;#34;&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">serviceAccount&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">flink&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">podTemplate&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">spec&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">containers&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="nt">name&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">flink-main-container&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">volumeMounts&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="nt">mountPath&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">/opt/flink/log&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">name&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">flink-logs&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">volumes&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="nt">name&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">flink-logs&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">emptyDir&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>{}&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">jobManager&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">resource&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">memory&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="s2">&amp;#34;2048Mi&amp;#34;&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">cpu&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="m">2&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">taskManager&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">replicas&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="m">1&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">resource&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">memory&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="s2">&amp;#34;2048Mi&amp;#34;&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">cpu&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="m">2&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">podTemplate&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">spec&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">containers&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="nt">name&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">python-harness&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">image&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">beam-python-harness:2.56.0&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">args&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s2">&amp;#34;-worker_pool&amp;#34;&lt;/span>&lt;span class="p">]&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">ports&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="nt">containerPort&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="m">50000&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">name&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">harness-port&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>The pipeline is deployed using a Kubernetes job, and the custom &lt;em>SDK harness&lt;/em> image is used to execute the pipeline as a module. The first two arguments are application-specific. The rest of the arguments are for pipeline options. For more information about the pipeline arguments, see the &lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/options/pipeline_options.py">pipeline options source&lt;/a> and &lt;a href="https://beam.apache.org/documentation/runners/flink/">Flink Runner document&lt;/a>. To execute Python user code in the sidecar container, we set the environment type to &lt;code>EXTERNAL&lt;/code> and the environment config to &lt;code>localhost:50000&lt;/code>.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-yaml" data-lang="yaml">&lt;span class="line">&lt;span class="cl">&lt;span class="c"># beam/word_len_job.yml&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>&lt;span class="nt">apiVersion&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">batch/v1&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>&lt;span class="nt">kind&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">Job&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>&lt;span class="nt">metadata&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">name&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">word-len-job&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>&lt;span class="nt">spec&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">template&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">metadata&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">labels&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">app&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">word-len-job&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">spec&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">containers&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="nt">name&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">beam-word-len-job&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">image&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">beam-python-harness:2.56.0&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">command&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s2">&amp;#34;python&amp;#34;&lt;/span>&lt;span class="p">]&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">args&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="s2">&amp;#34;-m&amp;#34;&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="s2">&amp;#34;word_len.run&amp;#34;&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="s2">&amp;#34;--deploy&amp;#34;&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="s2">&amp;#34;--bootstrap_servers=demo-cluster-kafka-bootstrap:9092&amp;#34;&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="s2">&amp;#34;--runner=FlinkRunner&amp;#34;&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="s2">&amp;#34;--flink_master=word-len-cluster-rest:8081&amp;#34;&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="s2">&amp;#34;--job_name=beam-word-len&amp;#34;&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="s2">&amp;#34;--streaming&amp;#34;&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="s2">&amp;#34;--parallelism=3&amp;#34;&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="s2">&amp;#34;--flink_submit_uber_jar&amp;#34;&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="s2">&amp;#34;--environment_type=EXTERNAL&amp;#34;&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="s2">&amp;#34;--environment_config=localhost:50000&amp;#34;&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="s2">&amp;#34;--checkpointing_interval=10000&amp;#34;&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">restartPolicy&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">Never&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Deploy the session cluster and job using the &lt;code>kubectl create&lt;/code> command. The session cluster is created by the &lt;em>FlinkDeployment&lt;/em> custom resource, and it manages the job manager deployment, task manager pod, and associated services. When we check the log of the job&amp;rsquo;s pod, we see that it does the following tasks:&lt;/p>
+&lt;ul>
+&lt;li>starts the &lt;em>Job Service&lt;/em> after downloading the Jar file&lt;/li>
+&lt;li>uploads the pipeline artifact&lt;/li>
+&lt;li>submits the pipeline as a Flink job&lt;/li>
+&lt;li>continuously monitors the job status&lt;/li>
+&lt;/ul>
+&lt;div class='language-bash snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-bash" data-lang="bash">&lt;span class="line">&lt;span class="cl">kubectl create -f beam/word_len_cluster.yml
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># flinkdeployment.flink.apache.org/word-len-cluster created&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">kubectl create -f beam/word_len_job.yml
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># job.batch/word-len-job created&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">kubectl logs word-len-job-p5rph -f
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># WARNING:apache_beam.options.pipeline_options:Unknown pipeline options received: --checkpointing_interval=10000. Ignore if flags are used for internal purposes.&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># WARNING:apache_beam.options.pipeline_options:Unknown pipeline options received: --checkpointing_interval=10000. Ignore if flags are used for internal purposes.&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># INFO:root:Building pipeline ...&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># INFO:apache_beam.runners.portability.flink_runner:Adding HTTP protocol scheme to flink_master parameter: http://word-len-cluster-rest:8081&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># WARNING:apache_beam.options.pipeline_options:Unknown pipeline options received: --checkpointing_interval=10000. Ignore if flags are used for internal purposes.&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># DEBUG:apache_beam.runners.portability.abstract_job_service:Got Prepare request.&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># DEBUG:urllib3.connectionpool:Starting new HTTP connection (1): word-len-cluster-rest:8081&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># DEBUG:urllib3.connectionpool:http://word-len-cluster-rest:8081 &amp;#34;GET /v1/config HTTP/1.1&amp;#34; 200 240&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># INFO:apache_beam.utils.subprocess_server:Downloading job server jar from https://repo.maven.apache.org/maven2/org/apache/beam/beam-runners-flink-1.16-job-server/2.56.0/beam-runners-flink-1.16-job-server-2.56.0.jar&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># INFO:apache_beam.runners.portability.abstract_job_service:Artifact server started on port 43287&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># DEBUG:apache_beam.runners.portability.abstract_job_service:Prepared job &amp;#39;job&amp;#39; as &amp;#39;job-edc1c2f1-80ef-48b7-af14-7e6fc86f338a&amp;#39;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># INFO:apache_beam.runners.portability.abstract_job_service:Running job &amp;#39;job-edc1c2f1-80ef-48b7-af14-7e6fc86f338a&amp;#39;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># DEBUG:urllib3.connectionpool:Starting new HTTP connection (1): word-len-cluster-rest:8081&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># DEBUG:urllib3.connectionpool:http://word-len-cluster-rest:8081 &amp;#34;POST /v1/jars/upload HTTP/1.1&amp;#34; 200 148&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># DEBUG:urllib3.connectionpool:Starting new HTTP connection (1): word-len-cluster-rest:8081&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># DEBUG:urllib3.connectionpool:http://word-len-cluster-rest:8081 &amp;#34;POST /v1/jars/e1984c45-d8bc-4aa1-9b66-369a23826921_beam.jar/run HTTP/1.1&amp;#34; 200 44&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># INFO:apache_beam.runners.portability.flink_uber_jar_job_server:Started Flink job as a403cb2f92fecee65b8fd7cc8ac6e68a&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># INFO:apache_beam.runners.portability.portable_runner:Job state changed to STOPPED&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># DEBUG:urllib3.connectionpool:Starting new HTTP connection (1): word-len-cluster-rest:8081&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># DEBUG:urllib3.connectionpool:Starting new HTTP connection (1): word-len-cluster-rest:8081&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># DEBUG:urllib3.connectionpool:http://word-len-cluster-rest:8081 &amp;#34;GET /v1/jobs/a403cb2f92fecee65b8fd7cc8ac6e68a/execution-result HTTP/1.1&amp;#34; 200 31&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># DEBUG:urllib3.connectionpool:http://word-len-cluster-rest:8081 &amp;#34;GET /v1/jobs/a403cb2f92fecee65b8fd7cc8ac6e68a/execution-result HTTP/1.1&amp;#34; 200 31&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># INFO:apache_beam.runners.portability.portable_runner:Job state changed to RUNNING&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># DEBUG:urllib3.connectionpool:Starting new HTTP connection (1): word-len-cluster-rest:8081&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># DEBUG:urllib3.connectionpool:Starting new HTTP connection (1): word-len-cluster-rest:8081&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># DEBUG:urllib3.connectionpool:http://word-len-cluster-rest:8081 &amp;#34;GET /v1/jobs/a403cb2f92fecee65b8fd7cc8ac6e68a/execution-result HTTP/1.1&amp;#34; 200 31&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># DEBUG:urllib3.connectionpool:http://word-len-cluster-rest:8081 &amp;#34;GET /v1/jobs/a403cb2f92fecee65b8fd7cc8ac6e68a/execution-result HTTP/1.1&amp;#34; 200 31&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># ...&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;p>After the deployment completes, we can see the following Flink session cluster and job related resources.&lt;/p>
+&lt;div class='language-bash snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-bash" data-lang="bash">&lt;span class="line">&lt;span class="cl">kubectl get all -l &lt;span class="nv">app&lt;/span>&lt;span class="o">=&lt;/span>word-len-cluster
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># NAME READY STATUS RESTARTS AGE&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># pod/word-len-cluster-7c98f6f868-d4hbx 1/1 Running 0 5m32s&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># pod/word-len-cluster-taskmanager-1-1 2/2 Running 0 4m3s&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># NAME TYPE CLUSTER-IP EXTERNAL-IP PORT(S) AGE&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># service/word-len-cluster ClusterIP None &amp;lt;none&amp;gt; 6123/TCP,6124/TCP 5m32s&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># service/word-len-cluster-rest ClusterIP 10.104.23.28 &amp;lt;none&amp;gt; 8081/TCP 5m32s&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># NAME READY UP-TO-DATE AVAILABLE AGE&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># deployment.apps/word-len-cluster 1/1 1 1 5m32s&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># NAME DESIRED CURRENT READY AGE&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># replicaset.apps/word-len-cluster-7c98f6f868 1 1 1 5m32s&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">kubectl get all -l &lt;span class="nv">app&lt;/span>&lt;span class="o">=&lt;/span>word-len-job
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># NAME READY STATUS RESTARTS AGE&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># pod/word-len-job-24r6q 1/1 Running 0 5m24s&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># NAME COMPLETIONS DURATION AGE&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># job.batch/word-len-job 0/1 5m24s 5m24s&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;p>You can access the Flink web UI using the &lt;code>kubectl port-forward&lt;/code> command on port 8081. The job graph shows two tasks. The first task adds word elements into a fixed time window. The second task sends the average word length records to the output topic.&lt;/p>
+&lt;div class='language-bash snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-bash" data-lang="bash">&lt;span class="line">&lt;span class="cl">kubectl port-forward svc/flink-word-len-rest &lt;span class="m">8081&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;p>&lt;img class="center-block"
+src="/images/blog/deploy-python-pipeline-on-flink-runner/flink-ui.png"
+alt="Flink UI">&lt;/p>
+&lt;p>The Kafka I/O automatically creates a topic if it doesn&amp;rsquo;t exist, and we can see the input topic is created on &lt;code>kafka-ui&lt;/code>.&lt;/p>
+&lt;p>&lt;img class="center-block"
+src="/images/blog/deploy-python-pipeline-on-flink-runner/kafka-topics-1.png"
+alt="Kafka Input Topic">&lt;/p>
+&lt;h3 id="kafka-producer">Kafka producer&lt;/h3>
+&lt;p>A simple Python Kafka producer is created to check the output of the application. By default, the producer app sends random text from the &lt;a href="https://faker.readthedocs.io/en/master/">Faker&lt;/a> package to the input Kafka topic every one second.&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># kafka/client/producer.py&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">os&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">time&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">faker&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">Faker&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">kafka&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">KafkaProducer&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">class&lt;/span> &lt;span class="nc">TextProducer&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="fm">__init__&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">bootstrap_servers&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">list&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">topic_name&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">str&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">-&amp;gt;&lt;/span> &lt;span class="kc">None&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">bootstrap_servers&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">bootstrap_servers&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">topic_name&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">topic_name&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">kafka_producer&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">create_producer&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="nf">create_producer&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s2">&amp;#34;&amp;#34;&amp;#34;
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="s2"> Returns a KafkaProducer instance
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="s2"> &amp;#34;&amp;#34;&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="n">KafkaProducer&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">bootstrap_servers&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">bootstrap_servers&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">value_serializer&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="k">lambda&lt;/span> &lt;span class="n">v&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">v&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">encode&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;utf-8&amp;#34;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="nf">send_to_kafka&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">text&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">str&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">timestamp_ms&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">int&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="kc">None&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s2">&amp;#34;&amp;#34;&amp;#34;
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="s2"> Sends text to a Kafka topic.
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="s2"> &amp;#34;&amp;#34;&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">try&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">args&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">{&lt;/span>&lt;span class="s2">&amp;#34;topic&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">topic_name&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;value&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">text&lt;/span>&lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="n">timestamp_ms&lt;/span> &lt;span class="ow">is&lt;/span> &lt;span class="ow">not&lt;/span> &lt;span class="kc">None&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">args&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">{&lt;/span>&lt;span class="o">**&lt;/span>&lt;span class="n">args&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="o">**&lt;/span>&lt;span class="p">{&lt;/span>&lt;span class="s2">&amp;#34;timestamp_ms&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">timestamp_ms&lt;/span>&lt;span class="p">}}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">kafka_producer&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">send&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="o">**&lt;/span>&lt;span class="n">args&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">kafka_producer&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">flush&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">except&lt;/span> &lt;span class="ne">Exception&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">e&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">raise&lt;/span> &lt;span class="ne">RuntimeError&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;fails to send a message&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="kn">from&lt;/span> &lt;span class="nn">e&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">if&lt;/span> &lt;span class="vm">__name__&lt;/span> &lt;span class="o">==&lt;/span> &lt;span class="s2">&amp;#34;__main__&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">producer&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">TextProducer&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">os&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">getenv&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;BOOTSTRAP_SERVERS&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;localhost:29092&amp;#34;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">os&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">getenv&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;TOPIC_NAME&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;input-topic&amp;#34;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">fake&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">Faker&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">num_events&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mi">0&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">while&lt;/span> &lt;span class="kc">True&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">num_events&lt;/span> &lt;span class="o">+=&lt;/span> &lt;span class="mi">1&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">text&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">fake&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">text&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">producer&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">send_to_kafka&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">text&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="n">num_events&lt;/span> &lt;span class="o">%&lt;/span> &lt;span class="mi">5&lt;/span> &lt;span class="o">==&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nb">print&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="sa">f&lt;/span>&lt;span class="s2">&amp;#34;&amp;lt;&amp;lt;&amp;lt;&amp;lt;&amp;lt;&lt;/span>&lt;span class="si">{&lt;/span>&lt;span class="n">num_events&lt;/span>&lt;span class="si">}&lt;/span>&lt;span class="s2"> text sent... current&amp;gt;&amp;gt;&amp;gt;&amp;gt;&lt;/span>&lt;span class="se">\n&lt;/span>&lt;span class="si">{&lt;/span>&lt;span class="n">text&lt;/span>&lt;span class="si">}&lt;/span>&lt;span class="s2">&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">time&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">sleep&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">int&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">os&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">getenv&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;DELAY_SECONDS&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;1&amp;#34;&lt;/span>&lt;span class="p">)))&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Expose the Kafka bootstrap server on port 29092 using the &lt;code>kubectl port-forward&lt;/code> command. Execute the Python script to start the producer app.&lt;/p>
+&lt;div class='language-bash snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-bash" data-lang="bash">&lt;span class="line">&lt;span class="cl">kubectl port-forward svc/demo-cluster-kafka-external-bootstrap &lt;span class="m">29092&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">python kafka/client/producer.py&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;p>We can see the output topic (&lt;code>output-topic-beam&lt;/code>) is created on &lt;code>kafka-ui&lt;/code>.&lt;/p>
+&lt;p>&lt;img class="center-block"
+src="/images/blog/deploy-python-pipeline-on-flink-runner/kafka-topics-2.png"
+alt="Kafka Output Topic">&lt;/p>
+&lt;p>Also, we can check that the output messages are created as expected in the &lt;strong>Topics&lt;/strong> tab.&lt;/p>
+&lt;p>&lt;img class="center-block"
+src="/images/blog/deploy-python-pipeline-on-flink-runner/output-topic-messages.png"
+alt="Kafka Output Topic Messages">&lt;/p>
+&lt;h1 id="delete-resources">Delete resources&lt;/h1>
+&lt;p>Delete the Kubernetes resources and the minikube cluster using the following steps.&lt;/p>
+&lt;div class='language-bash snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-bash" data-lang="bash">&lt;span class="line">&lt;span class="cl">&lt;span class="c1">## Delete the Flink Operator and related resources.&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">kubectl delete -f beam/word_len_cluster.yml
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">kubectl delete -f beam/word_len_job.yml
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">helm uninstall flink-kubernetes-operator
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">helm repo remove flink-operator-repo
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">kubectl delete -f https://github.com/jetstack/cert-manager/releases/download/v1.8.2/cert-manager.yaml
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">## Delete the Kafka cluster and related resources.&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nv">STRIMZI_VERSION&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;0.39.0&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">kubectl delete -f kafka/manifests/kafka-cluster.yaml
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">kubectl delete -f kafka/manifests/kafka-ui.yaml
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">kubectl delete -f kafka/manifests/strimzi-cluster-operator-&lt;span class="nv">$STRIMZI_VERSION&lt;/span>.yaml
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">## Delete the minikube.&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">minikube delete&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div></description></item><item><title>Blog: Apache Beam 2.56.0</title><link>/blog/beam-2.56.0/</link><pubDate>Wed, 01 May 2024 10:00:00 -0400</pubDate><guid>/blog/beam-2.56.0/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -6304,62 +7159,4 @@ repository and can be run with no additional code modifications.&lt;/li>
 you more understanding on how pipelines work and look like. If you are already using Beam, we hope
 some code samples in it will be useful for your use cases.&lt;/p>
 &lt;p>Please
-&lt;a href="/community/contact-us/">let us know&lt;/a> if you encounter any issues.&lt;/p></description></item><item><title>Blog: Apache Beam 2.27.0</title><link>/blog/beam-2.27.0/</link><pubDate>Thu, 07 Jan 2021 12:00:00 -0800</pubDate><guid>/blog/beam-2.27.0/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>We are happy to present the new 2.27.0 release of Apache Beam. This release includes both improvements and new functionality.
-See the &lt;a href="/get-started/downloads/#2270-2020-12-22">download page&lt;/a> for this release.
-For more information on changes in 2.27.0, check out the
-&lt;a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12349380">detailed release notes&lt;/a>.&lt;/p>
-&lt;h2 id="highlights">Highlights&lt;/h2>
-&lt;ul>
-&lt;li>Java 11 Containers are now published with all Beam releases.&lt;/li>
-&lt;li>There is a new transform &lt;code>ReadAllFromBigQuery&lt;/code> that can receive multiple requests to read data from BigQuery at pipeline runtime. See &lt;a href="https://github.com/apache/beam/pull/13170">PR 13170&lt;/a>, and &lt;a href="https://issues.apache.org/jira/browse/BEAM-9650">BEAM-9650&lt;/a>.&lt;/li>
-&lt;/ul>
-&lt;h2 id="ios">I/Os&lt;/h2>
-&lt;ul>
-&lt;li>ReadFromMongoDB can now be used with MongoDB Atlas (Python) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11266">BEAM-11266&lt;/a>.)&lt;/li>
-&lt;li>ReadFromMongoDB/WriteToMongoDB will mask password in display_data (Python) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11444">BEAM-11444&lt;/a>.)&lt;/li>
-&lt;li>There is a new transform &lt;code>ReadAllFromBigQuery&lt;/code> that can receive multiple requests to read data from BigQuery at pipeline runtime. See &lt;a href="https://github.com/apache/beam/pull/13170">PR 13170&lt;/a>, and &lt;a href="https://issues.apache.org/jira/browse/BEAM-9650">BEAM-9650&lt;/a>.&lt;/li>
-&lt;/ul>
-&lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
-&lt;ul>
-&lt;li>Beam modules that depend on Hadoop are now tested for compatibility with Hadoop 3 (&lt;a href="https://issues.apache.org/jira/browse/BEAM-8569">BEAM-8569&lt;/a>). (Hive/HCatalog pending)&lt;/li>
-&lt;li>Publishing Java 11 SDK container images now supported as part of Apache Beam release process. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-8106">BEAM-8106&lt;/a>)&lt;/li>
-&lt;li>Added Cloud Bigtable Provider extension to Beam SQL (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11173">BEAM-11173&lt;/a>, &lt;a href="https://issues.apache.org/jira/browse/BEAM-11373">BEAM-11373&lt;/a>)&lt;/li>
-&lt;li>Added a schema provider for thrift data (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11338">BEAM-11338&lt;/a>)&lt;/li>
-&lt;li>Added combiner packing pipeline optimization to Dataflow runner. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10641">BEAM-10641&lt;/a>)&lt;/li>
-&lt;li>Added an example to ingest data from Apache Kafka to Google Pub/Sub. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11065">BEAM-11065&lt;/a>)&lt;/li>
-&lt;/ul>
-&lt;h2 id="breaking-changes">Breaking Changes&lt;/h2>
-&lt;ul>
-&lt;li>HBaseIO hbase-shaded-client dependency should be now provided by the users (&lt;a href="https://issues.apache.org/jira/browse/BEAM-9278">BEAM-9278&lt;/a>).&lt;/li>
-&lt;li>&lt;code>--region&lt;/code> flag in amazon-web-services2 was replaced by &lt;code>--awsRegion&lt;/code> (&lt;a href="https://issues.apache.org/jira/projects/BEAM/issues/BEAM-11331">BEAM-11331&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
-&lt;p>According to git shortlog, the following people contributed to the 2.27.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Ahmet Altay, Alan Myrvold, Alex Amato, Alexey Romanenko, Aliraza Nagamia, Allen Pradeep Xavier,
-Andrew Pilloud, andreyKaparulin, Ashwin Ramaswami, Boyuan Zhang, Brent Worden, Brian Hulette,
-Carlos Marin, Chamikara Jayalath, Costi Ciudatu, Damon Douglas, Daniel Collins,
-Daniel Oliveira, David Huntsperger, David Lu, David Moravek, David Wrede,
-dennis, Dennis Yung, dpcollins-google, Emily Ye, emkornfield,
-Esun Kim, Etienne Chauchot, Eugene Nikolaiev, Frank Zhao, Haizhou Zhao,
-Hector Acosta, Heejong Lee, Ilya, Iñigo San Jose Visiers, InigoSJ,
-Ismaël Mejía, janeliulwq, Jan Lukavský, Kamil Wasilewski, Kenneth Jung,
-Kenneth Knowles, Ke Wu, kileys, Kyle Weaver, lostluck,
-Matt Casters, Maximilian Michels, Michal Walenia, Mike Dewar, nehsyc,
-Nelson Osacky, Niels Basjes, Ning Kang, Pablo Estrada, palmere-google,
-Pawel Pasterz, Piotr Szuberski, purbanow, Reuven Lax, rHermes,
-Robert Bradshaw, Robert Burke, Rui Wang, Sam Rohde, Sam Whittle,
-Siyuan Chen, Tim Robertson, Tobiasz Kędzierski, tszerszen,
-Valentyn Tymofieiev, Tyson Hamilton, Udi Meiri, vachan-shetty, Xinyu Liu,
-Yichi Zhang, Yifan Mai, yoshiki.obata, Yueyang Qiu&lt;/p></description></item></channel></rss>
+&lt;a href="/community/contact-us/">let us know&lt;/a> if you encounter any issues.&lt;/p></description></item></channel></rss>
