@@ -264,29 +264,6 @@ class PrismRunnerTest(portable_runner_test.PortableRunnerTest):
           equal_to([(x, '{x}*{x}'.format(x=x), x * x) for x in range(5)]))
 
 
-#   def test_flattened_side_input(self):
-#     # Blocked on support for transcoding
-#     # https://jira.apache.org/jira/browse/BEAM-6523
-#     super().test_flattened_side_input(with_transcoding=False)
-
-#   def test_metrics(self):
-#     super().test_metrics(check_gauge=False)
-
-#   def test_sdf_with_watermark_tracking(self):
-#     raise unittest.SkipTest("BEAM-2939")
-
-#   def test_callbacks_with_exception(self):
-#     raise unittest.SkipTest("https://github.com/apache/beam/issues/19526")
-
-#   def test_register_finalizations(self):
-#     raise unittest.SkipTest("https://github.com/apache/beam/issues/19526")
-
-#   def test_custom_merging_window(self):
-#     raise unittest.SkipTest("https://github.com/apache/beam/issues/20641")
-
-#   def test_custom_window_type(self):
-#     raise unittest.SkipTest("https://github.com/apache/beam/issues/20641")
-
 # Inherits all other tests.
 
 if __name__ == '__main__':
