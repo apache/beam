@@ -25,7 +25,7 @@ import org.junit.runners.JUnit4;
 
 /**
  * Tests for {@link SparkStateInternals}. This is based on {@link StateInternalsTest}. Ignore set
- * and map tests.
+ * tests.
  */
 @RunWith(JUnit4.class)
 public class SparkStateInternalsTest extends StateInternalsTest {
