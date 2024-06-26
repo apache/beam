@@ -185,9 +185,6 @@ class PrismRunnerTest(portable_runner_test.PortableRunnerTest):
       lines = p | beam.io.ReadFromText('/etc/profile')
       assert_that(lines, lambda lines: len(lines) > 0)
 
-#   def test_no_subtransform_composite(self):
-#     raise unittest.SkipTest("BEAM-4781")
-
   def test_external_transform(self):
     with self.create_pipeline() as p:
       res = (
