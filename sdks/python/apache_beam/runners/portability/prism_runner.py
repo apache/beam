@@ -20,7 +20,7 @@
 # this will make using the list parameterized generic happy
 # on python 3.8 so we aren't revisiting this code after we
 # sunset it
-from __future__ import annotations,typing
+from __future__ import annotations
 
 # pytype: skip-file
 
