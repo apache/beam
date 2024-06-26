@@ -134,6 +134,14 @@ public interface BigQueryOptions
   void setStorageWriteApiTriggeringFrequencySec(Integer value);
 
   @Description(
+      "Maximum number of retries for Storage Write API writes. "
+          + "Currently it is only applicable for streaming pipeline.")
+  @Default.Integer(500)
+  Integer getStorageWriteApiMaxRetries();
+
+  void setStorageWriteApiMaxRetries(Integer value);
+
+  @Description(
       "When auto-sharding is used, the maximum duration in milliseconds the input records are"
           + " allowed to be buffered before being written to BigQuery.")
   @Default.Integer(0)
