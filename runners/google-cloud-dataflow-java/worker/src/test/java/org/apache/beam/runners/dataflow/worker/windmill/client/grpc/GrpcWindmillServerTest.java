@@ -21,7 +21,6 @@ import static org.junit.Assert.*;
 
 import java.io.InputStream;
 import java.io.SequenceInputStream;
-import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
