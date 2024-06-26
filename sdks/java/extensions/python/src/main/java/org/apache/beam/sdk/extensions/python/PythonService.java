@@ -41,6 +41,7 @@ public class PythonService {
   private static final Logger LOG = LoggerFactory.getLogger(PythonService.class);
 
   private final String module;
+  private String beamRequirement;
   private final List<String> args;
   private final List<String> extraPackages;
 
@@ -48,6 +49,8 @@ public class PythonService {
     this.module = module;
     this.args = args;
     this.extraPackages = extraPackages;
+    this.beamRequirement =
+        getMatchingStablePythonSDKVersion(ReleaseInfo.getReleaseInfo().getSdkVersion());
   }
 
   public PythonService(String module, List<String> args) {
@@ -72,6 +75,18 @@ public class PythonService {
         ImmutableList.<String>builder().addAll(this.extraPackages).addAll(extraPackages).build());
   }
 
+  /**
+   * Override the Beam version to be installed in the service environment.
+   *
+   * @param customBeamRequirement the custom Beam requirement, can be a version (e.g. 2.57.0) or a
+   *     path (e.g. /path/to/apache-beam.whl).
+   * @return this instance where Beam version overriden in place.
+   */
+  public PythonService withCustomBeamRequirement(String customBeamRequirement) {
+    this.beamRequirement = customBeamRequirement;
+    return this;
+  }
+
   @SuppressWarnings("argument")
   public AutoCloseable start() throws IOException, InterruptedException {
     File bootstrapScript = File.createTempFile("bootstrap_beam_venv", ".py");
@@ -82,9 +97,7 @@ public class PythonService {
     List<String> bootstrapCommand = new ArrayList<>();
     bootstrapCommand.add(whichPython());
     bootstrapCommand.add(bootstrapScript.getAbsolutePath());
-    bootstrapCommand.add(
-        "--beam_version="
-            + getMatchingStablePythonSDKVersion(ReleaseInfo.getReleaseInfo().getSdkVersion()));
+    bootstrapCommand.add("--beam_version=" + beamRequirement);
     if (!extraPackages.isEmpty()) {
       bootstrapCommand.add("--extra_packages=" + String.join(";", extraPackages));
     }
