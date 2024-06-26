@@ -20,7 +20,7 @@
 # this will make using the list parameterized generic happy
 # on python 3.8 so we aren't revisiting this code after we
 # sunset it
-from __future__ import annotations
+from __future__ import annotations,typing
 
 # pytype: skip-file
 
@@ -29,6 +29,7 @@ import os
 import platform
 import shutil
 import stat
+import typing
 import urllib
 import zipfile
 
@@ -159,8 +160,7 @@ class PrismJobServer(job_server.SubprocessJobServer):
           'release binary URL.' % (opsys))
     return (
         "https://github.com/apache/beam/releases/download/"
-        f"{root_tag}/apache_beam-{self._version}-prism-{opsys}-{arch}.zip"
-    )
+        f"{root_tag}/apache_beam-{self._version}-prism-{opsys}-{arch}.zip")
 
   def path_to_binary(self) -> str:
     if self._path:
@@ -204,7 +204,7 @@ class PrismJobServer(job_server.SubprocessJobServer):
     subprocess_cmd = [bin_path] + self.prism_arguments(job_port)
     return (subprocess_cmd, f"localhost:{job_port}")
 
-  def prism_arguments(self, job_port) -> typing.List[Any]:
+  def prism_arguments(self, job_port) -> typing.List[typing.Any]:
     return [
         '--job_port',
         job_port,
