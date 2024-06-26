@@ -55,7 +55,6 @@ class PrismRunner(portable_runner.PortableRunner):
   """A runner for launching jobs on Prism, automatically downloading and
   starting a Prism instance if needed.
   """
-
   def default_environment(
       self,
       options: pipeline_options.PipelineOptions) -> environments.Environment:
