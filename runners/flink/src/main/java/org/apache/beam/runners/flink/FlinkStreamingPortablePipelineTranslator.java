@@ -55,7 +55,8 @@ import org.apache.beam.runners.flink.translation.wrappers.streaming.WorkItemKeyS
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.DedupingOperator;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.StreamingImpulseSource;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.TestStreamSource;
-import org.apache.beam.runners.flink.translation.wrappers.streaming.io.UnboundedSourceWrapper;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.FlinkSource;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.unbounded.FlinkUnboundedSource;
 import org.apache.beam.runners.fnexecution.control.SdkHarnessClient;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.wire.WireCoders;
@@ -108,6 +109,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -601,15 +603,17 @@ public class FlinkStreamingPortablePipelineTranslator
 
       int parallelism =
           env.getMaxParallelism() > 0 ? env.getMaxParallelism() : env.getParallelism();
-      UnboundedSourceWrapper<T, ?> sourceWrapper =
-          new UnboundedSourceWrapper<>(
-              transformName, pipelineOptions, unboundedSource, parallelism);
+      FlinkUnboundedSource<T> sourceWrapper =
+          FlinkSource.unbounded(
+              transformName,
+              unboundedSource,
+              new SerializablePipelineOptions(pipelineOptions),
+              parallelism);
       nonDedupSource =
-          env.addSource(sourceWrapper)
-              .name(transformName)
-              .uid(transformName)
-              .returns(withIdTypeInfo);
-
+          env
+              .fromSource(
+                  sourceWrapper, WatermarkStrategy.noWatermarks(), transformName, withIdTypeInfo)
+              .uid(transformName);
       if (unboundedSource.requiresDeduping()) {
         source =
             nonDedupSource
