@@ -64,9 +64,9 @@ import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.Preconditions;
@@ -224,10 +224,9 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
     writeResults
         .get(finalizeTag)
         .setCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
-        // Calling Reshuffle makes the output stable - once this completes, the append operations
-        // will not retry.
-        // TODO(reuvenlax): This should use RequiresStableInput instead.
-        .apply("Reshuffle", Reshuffle.of())
+        // Group streams by table URN. This ensures that the WriteRecordsDoFn step is done
+        // and all streams are appended to before getting finalized and committed in the next step
+        .apply("Group streams by table", GroupByKey.create())
         .apply("Finalize writes", ParDo.of(new StorageApiFinalizeWritesDoFn(bqServices)));
     writeResults.get(failedRowsTag).setCoder(failedRowsCoder);
     if (successfulRowsTag != null) {
@@ -1003,7 +1002,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
 
     @StartBundle
     public void startBundle() throws IOException {
-      destinations = Maps.newHashMap();
+//      destinations = Maps.newHashMap();
       numPendingRecords = 0;
       numPendingRecordBytes = 0;
     }
@@ -1136,8 +1135,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         }
         state.teardown();
       }
-      destinations.clear();
-      this.destinations = null;
+//      destinations.clear();
+//      this.destinations = null;
     }
 
     @Teardown

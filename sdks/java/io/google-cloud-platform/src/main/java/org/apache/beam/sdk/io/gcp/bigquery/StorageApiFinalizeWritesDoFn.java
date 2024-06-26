@@ -23,6 +23,7 @@ import com.google.cloud.bigquery.storage.v1.StorageError;
 import com.google.cloud.bigquery.storage.v1.StorageError.StorageErrorCode;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.WriteStreamService;
@@ -44,7 +45,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** This DoFn finalizes and commits Storage API streams. */
-class StorageApiFinalizeWritesDoFn extends DoFn<KV<String, String>, Void> {
+class StorageApiFinalizeWritesDoFn extends DoFn<KV<String, Iterable<String>>, Void> {
   private static final Logger LOG = LoggerFactory.getLogger(StorageApiFinalizeWritesDoFn.class);
 
   private final Counter finalizeOperationsSent =
@@ -99,50 +100,52 @@ class StorageApiFinalizeWritesDoFn extends DoFn<KV<String, String>, Void> {
   }
 
   @ProcessElement
-  public void process(PipelineOptions pipelineOptions, @Element KV<String, String> element)
+  public void process(
+      PipelineOptions pipelineOptions, @Element KV<String, Iterable<String>> element)
       throws Exception {
-    String tableId = element.getKey();
-    String streamId = element.getValue();
     WriteStreamService writeStreamService = getWriteStreamService(pipelineOptions);
+    String tableId = element.getKey();
+    List<String> streams = Lists.newArrayList(element.getValue());
+    for (String streamId : streams) {
+      RetryManager<FinalizeWriteStreamResponse, Context<FinalizeWriteStreamResponse>> retryManager =
+          new RetryManager<>(
+              Duration.standardSeconds(1),
+              Duration.standardMinutes(1),
+              3,
+              BigQuerySinkMetrics.throttledTimeCounter(
+                  BigQuerySinkMetrics.RpcMethod.FINALIZE_STREAM));
+      retryManager.addOperation(
+          c -> {
+            finalizeOperationsSent.inc();
+            return writeStreamService.finalizeWriteStream(streamId);
+          },
+          contexts -> {
+            RetryManager.Operation.Context<FinalizeWriteStreamResponse> firstContext =
+                Preconditions.checkArgumentNotNull(Iterables.getFirst(contexts, null));
+            LOG.error("Finalize of stream " + streamId + " failed with " + firstContext.getError());
+            finalizeOperationsFailed.inc();
+            BigQuerySinkMetrics.reportFailedRPCMetrics(
+                firstContext, BigQuerySinkMetrics.RpcMethod.FINALIZE_STREAM);
 
-    RetryManager<FinalizeWriteStreamResponse, Context<FinalizeWriteStreamResponse>> retryManager =
-        new RetryManager<>(
-            Duration.standardSeconds(1),
-            Duration.standardMinutes(1),
-            3,
-            BigQuerySinkMetrics.throttledTimeCounter(
-                BigQuerySinkMetrics.RpcMethod.FINALIZE_STREAM));
-    retryManager.addOperation(
-        c -> {
-          finalizeOperationsSent.inc();
-          return writeStreamService.finalizeWriteStream(streamId);
-        },
-        contexts -> {
-          RetryManager.Operation.Context<FinalizeWriteStreamResponse> firstContext =
-              Preconditions.checkArgumentNotNull(Iterables.getFirst(contexts, null));
-          LOG.error("Finalize of stream " + streamId + " failed with " + firstContext.getError());
-          finalizeOperationsFailed.inc();
-          BigQuerySinkMetrics.reportFailedRPCMetrics(
-              firstContext, BigQuerySinkMetrics.RpcMethod.FINALIZE_STREAM);
+            return RetryType.RETRY_ALL_OPERATIONS;
+          },
+          c -> {
+            FinalizeWriteStreamResponse response =
+                Preconditions.checkArgumentNotNull(
+                    c.getResult(),
+                    "Finalize of write stream " + streamId + " finished, but with null result");
+            LOG.debug("Finalize of stream " + streamId + " finished with " + response);
+            rowsFinalized.inc(response.getRowCount());
 
-          return RetryType.RETRY_ALL_OPERATIONS;
-        },
-        c -> {
-          FinalizeWriteStreamResponse response =
-              Preconditions.checkArgumentNotNull(
-                  c.getResult(),
-                  "Finalize of write stream " + streamId + " finished, but with null result");
-          LOG.debug("Finalize of stream " + streamId + " finished with " + response);
-          rowsFinalized.inc(response.getRowCount());
+            finalizeOperationsSucceeded.inc();
+            BigQuerySinkMetrics.reportSuccessfulRpcMetrics(
+                c, BigQuerySinkMetrics.RpcMethod.FINALIZE_STREAM);
 
-          finalizeOperationsSucceeded.inc();
-          BigQuerySinkMetrics.reportSuccessfulRpcMetrics(
-              c, BigQuerySinkMetrics.RpcMethod.FINALIZE_STREAM);
-
-          commitStreams.computeIfAbsent(tableId, d -> Lists.newArrayList()).add(streamId);
-        },
-        new Context<>());
-    retryManager.run(true);
+            commitStreams.computeIfAbsent(tableId, d -> Lists.newArrayList()).add(streamId);
+          },
+          new Context<>());
+      retryManager.run(true);
+    }
   }
 
   @FinishBundle

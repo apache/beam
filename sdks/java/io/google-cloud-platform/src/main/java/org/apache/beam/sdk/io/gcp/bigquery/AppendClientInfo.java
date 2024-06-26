@@ -30,6 +30,8 @@ import com.google.protobuf.Message;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 
 /**
  * Container class used by {@link StorageApiWritesShardedRecords} and {@link
@@ -38,6 +40,9 @@ import javax.annotation.Nullable;
  */
 @AutoValue
 abstract class AppendClientInfo {
+  private final Counter connectionsCreated =
+      Metrics.counter(AppendClientInfo.class, "connectionsCreated");
+
   abstract @Nullable BigQueryServices.StreamAppendClient getStreamAppendClient();
 
   abstract TableSchema getTableSchema();
@@ -114,12 +119,11 @@ abstract class AppendClientInfo {
       return this;
     } else {
       String streamName = getStreamName.get();
-      return toBuilder()
-          .setStreamName(streamName)
-          .setStreamAppendClient(
-              writeStreamService.getStreamAppendClient(
-                  streamName, getDescriptor(), useConnectionPool, missingValueInterpretation))
-          .build();
+      BigQueryServices.StreamAppendClient client =
+          writeStreamService.getStreamAppendClient(
+              streamName, getDescriptor(), useConnectionPool, missingValueInterpretation);
+      connectionsCreated.inc();
+      return toBuilder().setStreamName(streamName).setStreamAppendClient(client).build();
     }
   }
 
