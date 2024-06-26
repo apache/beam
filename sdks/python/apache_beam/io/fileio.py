@@ -709,6 +709,12 @@ class _MoveTempFilesIntoFinalDestinationFn(beam.DoFn):
         move_to)
 
     try:
+      filesystems.FileSystems.mkdirs(self.path.get())
+    except IOError:
+      # Directory already exists.
+      pass
+
+    try:
       filesystems.FileSystems.rename(
           move_from,
           [filesystems.FileSystems.join(self.path.get(), f) for f in move_to])
