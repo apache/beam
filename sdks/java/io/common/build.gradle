@@ -28,7 +28,8 @@ dependencies {
   implementation library.java.postgres
   implementation library.java.slf4j_api
   implementation library.java.testcontainers_jdbc
-  implementation 'com.zaxxer:HikariCP-java6:2.3.13'
+  // TODO(https://github.com/apache/beam/issues/31678) HikariCP 5.x requires Java11+
+  implementation 'com.zaxxer:HikariCP:4.0.3'
   implementation project(path: ":sdks:java:core", configuration: "shadow")
 
   testImplementation library.java.junit
