@@ -93,7 +93,7 @@ class PrismJobServer(job_server.SubprocessJobServer):
     self._job_port = job_options.job_port
 
   @classmethod
-  def maybe_unzip_and_make_executable(cls, url, bin_cache) -> str:
+  def maybe_unzip_and_make_executable(cls, url: str, bin_cache: str) -> str:
     if zipfile.is_zipfile(url):
       z = zipfile.ZipFile(url)
       url = z.extract(
@@ -106,7 +106,8 @@ class PrismJobServer(job_server.SubprocessJobServer):
 
   # Finds the bin or zip in the local cache, and if not, fetches it.
   @classmethod
-  def local_bin(cls, url, bin_cache=None, ignore_cache=False) -> str:
+  def local_bin(
+      cls, url: str, bin_cache: str = None, ignore_cache: bool = False) -> str:
     # ignore_cache sets whether we should always be downloading and unzipping
     # the file or not, to avoid staleness issues.
     if bin_cache is None:
@@ -136,7 +137,7 @@ class PrismJobServer(job_server.SubprocessJobServer):
       return cls.maybe_unzip_and_make_executable(
           cached_bin, bin_cache=bin_cache)
 
-  def construct_download_url(self, root_tag, sys, mach) -> str:
+  def construct_download_url(self, root_tag: str, sys: str, mach: str) -> str:
     """Construct the prism download URL with the appropriate release tag.
     This maps operating systems and machine architectures to the compatible
     and canonical names used by the Go build targets.
