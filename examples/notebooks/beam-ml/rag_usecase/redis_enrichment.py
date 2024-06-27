@@ -47,7 +47,6 @@ __all__ = [
     'RedisEnrichmentHandler',
 ]
 
-#RowKeyFn = Callable[[beam.Row], bytes]
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -70,9 +69,9 @@ class RedisEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
       self,
       redis_host: str,
       redis_port: int,
-      index_name: str = "embeddings-index-1",
+      index_name: str = "embeddings-index",
       vector_field: str = "text_vector",
-      return_fields: list = ["text", "vector_score"],
+      return_fields: list = ["id", "title", "url", "text"],
       hybrid_fields: str = "*",
       k: int = 2,
   ):
@@ -102,8 +101,7 @@ class RedisEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
     
     
     # read embedding vector for user query
-    
-    #print(f'Inside redis Enrichment {request}')
+
     embedded_query = request['text']
     
     
@@ -116,13 +114,9 @@ class RedisEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
          .paging(0, self.k)
          .dialect(2)
     )
-    
-    #print(f'Inside redis Enrichment Query{query}')
-    params_dict = {"vector": np.array(embedded_query).astype(dtype=np.float32).tobytes()}
-    
 
-    #print(f'Inside redis Enrichment index name {params_dict}')
-    
+    params_dict = {"vector": np.array(embedded_query).astype(dtype=np.float32).tobytes()}
+
     # perform vector search
     results = self.client.ft(self.index_name).search(query, params_dict)
 

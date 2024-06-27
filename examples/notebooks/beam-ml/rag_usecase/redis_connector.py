@@ -18,11 +18,9 @@
 from __future__ import absolute_import
 
 import logging
-import pickle
 from past.builtins import unicode
 
 import apache_beam as beam
-import json
 import numpy as np
 
 from apache_beam.transforms import DoFn
@@ -33,9 +31,7 @@ from apache_beam.options.value_provider import ValueProvider
 from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam import coders
 
-
 import typing
-
 
 # Set the logging level to reduce verbose information
 import logging
@@ -45,7 +41,7 @@ logger = logging.getLogger(__name__)
 
 import redis
 
-__all__ = ['InsertDocInRedis','WriteToRedis']
+__all__ = ['InsertDocInRedis', 'InsertEmbeddingInRedis']
 
 
 class Document(typing.NamedTuple):
@@ -53,9 +49,9 @@ class Document(typing.NamedTuple):
     url: str
     title: str
     text: str
-    
-coders.registry.register_coder(Document, coders.RowCoder)
 
+
+coders.registry.register_coder(Document, coders.RowCoder)
 
 """This module implements IO classes to read write data on Redis.
 
@@ -77,6 +73,8 @@ Example usage::
 
 No backward compatibility guarantees. Everything in this module is experimental.
 """
+
+
 @deprecated(since='v.1')
 class InsertDocInRedis(PTransform):
     """InsertDocInRedis is a ``PTransform`` that writes a ``PCollection`` of
@@ -130,19 +128,20 @@ class InsertDocInRedis(PTransform):
 
     def expand(self, pcoll):
         return pcoll \
-               | Reshuffle() \
-               | beam.ParDo(_InsertDocInRedisFn(self._host,
-                                          self._port,
-                                          self._command,
-                                          self._batch_size).with_output_types(Document)
-               )
+               | "Reshuffle for Redis Insert" >> Reshuffle() \
+               | "Insert document into Redis" >> beam.ParDo(_InsertDocRedisFn(self._host,
+                                                                              self._port,
+                                                                              self._command,
+                                                                              self._batch_size)
+                                                            # .with_output_types(Document)
+                                                            )
 
 
-class _InsertDocInRedisFn(DoFn):
-    """Abstract class that takes in redis  
+class _InsertDocRedisFn(DoFn):
+    """Abstract class that takes in redis
     credentials to connect to redis DB
     """
-    
+
     def __init__(self, host, port, command, batch_size):
         self.host = host
         self.port = port
@@ -154,24 +153,24 @@ class _InsertDocInRedisFn(DoFn):
 
         self.text_col = None
 
-
     def finish_bundle(self):
         self._flush()
 
     def process(self, element, *args, **kwargs):
-        if type(element) is not dict:
-            element = element._asdict()         
+        # if type(element) is not dict:
+        #     element = element._asdict()
         self.batch.append(element)
         self.batch_counter += 1
         if self.batch_counter == self.batch_size.get():
-            self._flush() 
-        yield Document(**element)
+            self._flush()
+            # yield Document(**element)
+        yield element
 
     def _flush(self):
-        if self.batch_counter == 0: 
+        if self.batch_counter == 0:
             return
 
-        with _RedisSinkDoc(self.host.get(), self.port.get()) as sink:
+        with _InsertDocRedisSink(self.host.get(), self.port.get()) as sink:
 
             if not self.command:
                 sink.write(self.batch)
@@ -183,12 +182,11 @@ class _InsertDocInRedisFn(DoFn):
             self.batch = list()
 
 
-
-class _RedisSinkDoc(object):
-    """Class where we create redis client 
+class _InsertDocRedisSink(object):
+    """Class where we create redis client
     and write insertion logic in redis
     """
-    
+
     def __init__(self, host, port):
         self.host = host
         self.port = port
@@ -197,19 +195,19 @@ class _RedisSinkDoc(object):
     def _create_client(self):
         if self.client is None:
             self.client = redis.Redis(host=self.host,
-                                            port=self.port)
+                                      port=self.port)
 
     def write(self, elements):
         self._create_client()
         with self.client.pipeline() as pipe:
-            id = 1
-            for element in elements: # ML Transform passes a dictionary list. TODO: add a transform instead to suit the Vector DB functionality.
-                for k,v in element.items():
-                   pipe.hset(name = f'doc_{id}', key = k, value = v) 
-                   id += 1
+            # id = 1
+            for element in elements:  # ML Transform passes a dictionary list. TODO: add a transform instead to suit the Vector DB functionality.
+                doc_key = f"doc_{str(element['id'])}"
+                for k, v in element.items():
+                    print(f'Inserting doc_key={doc_key}, key={k}, value={v}')
+                    pipe.hset(name=doc_key, key=k, value=v)
 
             pipe.execute()
-
 
     def execute_command(self, command, elements):
         self._create_client()
@@ -228,14 +226,12 @@ class _RedisSinkDoc(object):
             self.client.close()
 
 
-
-
 """This module implements IO classes to read write data on Redis.
 
 
-Write to Redis:
+Insert Embedding in Redis :
 -----------------
-:class:`WriteToRedis` is a ``PTransform`` that writes key and values to a
+:class:`InsertEmbeddingInRedis` is a ``PTransform`` that writes key and values to a
 configured sink, and the write is conducted through a redis pipeline.
 
 The ptransform works by getting the first and second elements from the input,
@@ -251,13 +247,14 @@ Example usage::
 No backward compatibility guarantees. Everything in this module is experimental.
 """
 
+
 @deprecated(since='v.1')
-class WriteToRedis(PTransform):
+class InsertEmbeddingInRedis(PTransform):
     """WriteToRedis is a ``PTransform`` that writes a ``PCollection`` of
     key, value tuple or 2-element array into a redis server.
     """
 
-    def __init__(self, host=None, port=None, command=None, batch_size=100):
+    def __init__(self, host=None, port=None, command=None, batch_size=100, embedded_columns=None):
         """
 
         Args:
@@ -265,6 +262,7 @@ class WriteToRedis(PTransform):
         port (int, ValueProvider): The redis port
         command : command to be executed with redis client
         batch_size(int, ValueProvider): Number of key, values pairs to write at once
+        embedded_columns (list, ValueProvider): list of column whose embedding needs to be generated
 
         Returns:
         :class:`~apache_beam.transforms.ptransform.PTransform`
@@ -280,10 +278,15 @@ class WriteToRedis(PTransform):
                 '%s: port must be int, or ValueProvider; got %r instead'
             ) % (self.__class__.__name__, (type(port)))
 
-        if not isinstance(port, (int, ValueProvider)):
+        if not isinstance(batch_size, (int, ValueProvider)):
             raise TypeError(
                 '%s: batch_size must be int, or ValueProvider; got %r instead'
             ) % (self.__class__.__name__, (type(batch_size)))
+
+        if not isinstance(embedded_columns, (list, ValueProvider)):
+            raise TypeError(
+                '%s: embedded_columns must be list, or ValueProvider; got %r instead'
+            ) % (self.__class__.__name__, (type(embedded_columns)))
 
         if isinstance(host, (str, unicode)):
             host = StaticValueProvider(str, host)
@@ -297,30 +300,36 @@ class WriteToRedis(PTransform):
         if isinstance(batch_size, int):
             batch_size = StaticValueProvider(int, batch_size)
 
+        if isinstance(embedded_columns, int):
+            embedded_columns = StaticValueProvider(int, embedded_columns)
+
         self._host = host
         self._port = port
         self._command = command
         self._batch_size = batch_size
+        self.embedded_columns = embedded_columns
 
     def expand(self, pcoll):
         return pcoll \
-               | Reshuffle() \
-               | beam.ParDo(_WriteRedisFn(self._host,
-                                          self._port,
-                                          self._command,
-                                          self._batch_size))
+               | "Reshuffle for Embedding in Redis Insert" >> Reshuffle() \
+               | "Write `Embeddings` to Redis" >> beam.ParDo(_WriteEmbeddingInRedisFn(self._host,
+                                                                                      self._port,
+                                                                                      self._command,
+                                                                                      self._batch_size,
+                                                                                      self.embedded_columns))
 
 
-class _WriteRedisFn(DoFn):
-    """Abstract class that takes in redis  credentials 
+class _WriteEmbeddingInRedisFn(DoFn):
+    """Abstract class that takes in redis  credentials
     to connect to redis DB
     """
-    
-    def __init__(self, host, port, command, batch_size):
+
+    def __init__(self, host, port, command, batch_size, embedded_columns):
         self.host = host
         self.port = port
         self.command = command
         self.batch_size = batch_size
+        self.embedded_columns = embedded_columns
 
         self.batch_counter = 0
         self.batch = list()
@@ -339,7 +348,8 @@ class _WriteRedisFn(DoFn):
         if self.batch_counter == 0:
             return
 
-        with _RedisSink(self.host.get(), self.port.get()) as sink:
+        with _InsertEmbeddingInRedisSink(self.host.get(), self.port.get(),
+                                         self.embedded_columns if self.embedded_columns else []) as sink:
 
             if not self.command:
                 sink.write(self.batch)
@@ -351,35 +361,33 @@ class _WriteRedisFn(DoFn):
             self.batch = list()
 
 
-class _RedisSink(object):
-    """Class where we create redis client 
+class _InsertEmbeddingInRedisSink(object):
+    """Class where we create redis client
     and write text embedding  in redis DB
     """
-    
-    def __init__(self, host, port):
+
+    def __init__(self, host, port, embedded_columns):
         self.host = host
         self.port = port
         self.client = None
+        self.embedded_columns = embedded_columns
 
     def _create_client(self):
         if self.client is None:
             self.client = redis.Redis(host=self.host,
-                                            port=self.port)
-
+                                      port=self.port)
 
     def write(self, elements):
         self._create_client()
         with self.client.pipeline() as pipe:
-            id = 1
-            for element in elements: # ML Transform passes a dictionary list. TODO: add a transform instead to suit the Vector DB functionality.
+            for element in elements:  # ML Transform passes a dictionary list. TODO: add a transform instead to suit the Vector DB functionality.
+                doc_key = f"doc_{str(element['id'])}"
                 for k, v in element.items():
-                    # create byte vectors for text
-                    text_embedding = np.array(v, dtype=np.float32).tobytes()
-                    pipe.hset(name = f'doc_{id}',key = f'{k}_vector', value = text_embedding)
-                    id += 1
+                    if k in self.embedded_columns:
+                        v = np.array(v, dtype=np.float32).tobytes()
+                        print(f'This is name : {doc_key} and this is key : {k} and this is value : {v}')
+                        pipe.hset(name=doc_key, key=f'{k}_vector', value=v)
             pipe.execute()
-
-
 
     def execute_command(self, command, elements):
         self._create_client()
@@ -396,4 +404,3 @@ class _RedisSink(object):
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self.client is not None:
             self.client.close()
-
