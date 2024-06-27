@@ -110,7 +110,7 @@ class PrismJobServer(job_server.SubprocessJobServer):
       cls, url: str, bin_cache: str = '', ignore_cache: bool = False) -> str:
     # ignore_cache sets whether we should always be downloading and unzipping
     # the file or not, to avoid staleness issues.
-    if bin_cache is '':
+    if bin_cache == '':
       bin_cache = cls.BIN_CACHE
     if os.path.exists(url):
       _LOGGER.info('Using local prism binary from %s' % url)
