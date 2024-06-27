@@ -60,17 +60,17 @@ Let’s use the following pipeline as an example. Because we have a function, we
         return element**2
 
     with beam.Pipeline(argv=self.args) as p1:
-    result = p1 | ReadFromText("gs://my-storage-bucket/csv_location.csv")
-                | beam.Map(compute_square)
-                | WriteToText("gs://my-output-bucket-location/")
+        result = p1 | ReadFromText("gs://my-storage-bucket/csv_location.csv")
+                    | beam.Map(compute_square)
+                    | WriteToText("gs://my-output-bucket-location/")
 
 	
 Now let’s use the following pipeline as another example. Because we use a predefined function, we don’t need to unit test the function, as `str.strip`, is tested elsewhere. However, we do need to test the output of the `beam.Map` function.
 
     with beam.Pipeline(argv=self.args) as p2:
-    result = p2 | ReadFromText("gs://my-storage-bucket/csv_location.csv")
-                     | beam.Map(str.strip)
-                      | WriteToText("gs://my-output-bucket-location/")
+        result = p2 | ReadFromText("gs://my-storage-bucket/csv_location.csv")
+                    | beam.Map(str.strip)
+                    | WriteToText("gs://my-output-bucket-location/")
 
 
 Here are the corresponding tests for both pipelines: 
@@ -78,17 +78,20 @@ Here are the corresponding tests for both pipelines:
     # The following packages are imported for unit testing. 
     import unittest
     import apache_beam as beam 
-    
-    
+
+
     @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed') 
     class TestBeam(unittest.TestCase): 
-        # This test corresponds to pipeline p1, and is written to confirm the          compute_square function works as intended.
-    def test_compute_square(self): 
-        numbers=[1,2,3]
-    with TestPipeline() as p: 
-    output = p | beam.Create([1,2,3])
-               |beam.Map(compute_square)
-    assert_that(output, equal_to([1,4,9]))
+
+    # This test corresponds to pipeline p1, and is written to confirm the          compute_square function works as intended.
+        def test_compute_square(self): 
+            numbers=[1,2,3]
+
+
+        with TestPipeline() as p: 
+            output = p | beam.Create([1,2,3])
+                       |beam.Map(compute_square)
+        assert_that(output, equal_to([1,4,9]))
 
 
 
@@ -97,8 +100,8 @@ Here are the corresponding tests for both pipelines:
 		strings= [' Strawberry   \n','   Carrot   \n','   Eggplant   \n']
 		with TestPipeline() as p:
 			output = p | beam.Create(strings)
- 				    | beam.Map(str.strip)
-			assert_that(output,['Strawberry','Carrot','Eggplant'])
+ 				       | beam.Map(str.strip)
+        assert_that(output,['Strawberry','Carrot','Eggplant'])
 
 
 
@@ -113,7 +116,7 @@ The following cover other testing best practices:
       class TestBeam(unittest.TestCase): 
           def test_custom_function(self): 
               with TestPipeline() as p: 
-              input = p | beam.ParDo(custom_function(("1","2","3"))
+                input = p | beam.ParDo(custom_function(("1","2","3"))
               assert_that(input, equal_to(["1","2","3"]))
 
 
@@ -123,6 +126,8 @@ The following snippet is based off of example pipeline 1, from the top of this b
 
       # We import the mock package for mocking functionality
       import mock
+
+
       @mock.patch.object(CustomFunction, 'get_record')
       def test_error_message_wrong_length(self, get_record):
         record = ["field1","field2",...]
@@ -131,7 +136,7 @@ The following snippet is based off of example pipeline 1, from the top of this b
                                     "Length of record does not match expected length'"):
             p = apache_beam.Pipeline()
             result = p | beam.ParDo(custom_function(x))
-            result
+        result
 
 
 
