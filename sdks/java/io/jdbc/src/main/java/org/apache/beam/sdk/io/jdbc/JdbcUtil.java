@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.jdbc;
 
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
-import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import java.io.File;
 import java.io.IOException;
@@ -47,9 +46,6 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResourceId;
-import org.apache.beam.sdk.io.jdbc.JdbcIO.PreparedStatementSetter;
-import org.apache.beam.sdk.io.jdbc.JdbcIO.ReadWithPartitions;
-import org.apache.beam.sdk.io.jdbc.JdbcIO.RowMapper;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedPrecisionNumeric;
 import org.apache.beam.sdk.schemas.logicaltypes.MicrosInstant;
@@ -438,58 +434,39 @@ class JdbcUtil {
     return calendar;
   }
 
-  /**
-   * A helper for {@link ReadWithPartitions} that handles range calculations.
-   *
-   * @param <PartitionT>
-   */
-  interface JdbcReadWithPartitionsHelper<PartitionT>
-      extends PreparedStatementSetter<KV<PartitionT, PartitionT>>,
-          RowMapper<KV<Long, KV<PartitionT, PartitionT>>> {
-    static <T> @Nullable JdbcReadWithPartitionsHelper<T> getPartitionsHelper(
-        TypeDescriptor<T> type) {
-      // This cast is unchecked, thus this is a small type-checking risk. We just need
-      // to make sure that all preset helpers in `JdbcUtil.PRESET_HELPERS` are matched
-      // in type from their Key and their Value.
-      return (JdbcReadWithPartitionsHelper<T>) PRESET_HELPERS.get(type.getRawType());
-    }
-
-    Iterable<KV<PartitionT, PartitionT>> calculateRanges(
-        PartitionT lowerBound, PartitionT upperBound, Long partitions);
-
-    @Override
-    void setParameters(KV<PartitionT, PartitionT> element, PreparedStatement preparedStatement);
-
-    @Override
-    KV<Long, KV<PartitionT, PartitionT>> mapRow(ResultSet resultSet) throws Exception;
-  }
-
   /** Create partitions on a table. */
   static class PartitioningFn<T> extends DoFn<KV<Long, KV<T, T>>, KV<T, T>> {
-    private static final Logger LOG = LoggerFactory.getLogger(PartitioningFn.class);
-    final TypeDescriptor<T> partitioningColumnType;
 
-    PartitioningFn(TypeDescriptor<T> partitioningColumnType) {
-      this.partitioningColumnType = partitioningColumnType;
+    private static final Logger LOG = LoggerFactory.getLogger(PartitioningFn.class);
+    final JdbcReadWithPartitionsHelper<T> helper;
+
+    PartitioningFn(JdbcReadWithPartitionsHelper<T> partitioningHelper) {
+      this.helper = partitioningHelper;
     }
 
     @ProcessElement
     public void processElement(ProcessContext c) {
       T lowerBound = c.element().getValue().getKey();
       T upperBound = c.element().getValue().getValue();
-      JdbcReadWithPartitionsHelper<T> helper =
-          checkStateNotNull(
-              JdbcReadWithPartitionsHelper.getPartitionsHelper(partitioningColumnType));
       List<KV<T, T>> ranges =
           Lists.newArrayList(helper.calculateRanges(lowerBound, upperBound, c.element().getKey()));
-      LOG.warn("Total of {} ranges: {}", ranges.size(), ranges);
+      LOG.info("Total of {} ranges: {}", ranges.size(), ranges);
       for (KV<T, T> e : ranges) {
         c.output(e);
       }
     }
   }
 
-  public static final Map<Class<?>, JdbcReadWithPartitionsHelper<?>> PRESET_HELPERS =
+  static <T> @Nullable JdbcReadWithPartitionsHelper<T> getDefaultPartitionsHelper(
+      TypeDescriptor<T> type) {
+    // This cast is unchecked, thus this is a small type-checking risk. We just need
+    // to make sure that all preset helpers in `.PRESET_HELPERS` are matched
+    // in type from their Key and their Value.
+    return (JdbcReadWithPartitionsHelper<T>) PRESET_HELPERS.get(type.getRawType());
+  }
+
+  /** Singletons of preset JdbcReadWithPartitionsHelper. */
+  static final Map<Class<?>, JdbcReadWithPartitionsHelper<?>> PRESET_HELPERS =
       ImmutableMap.of(
           Long.class,
           new JdbcReadWithPartitionsHelper<Long>() {

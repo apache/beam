@@ -93,6 +93,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.TypeDescriptors.TypeVariableExtractor;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.commons.dbcp2.BasicDataSource;
 import org.apache.commons.dbcp2.DataSourceConnectionFactory;
 import org.apache.commons.dbcp2.PoolableConnectionFactory;
@@ -208,9 +209,10 @@ import org.slf4j.LoggerFactory;
  *
  * <h4>Parallel reading from a JDBC datasource</h4>
  *
- * <p>Beam supports partitioned reading of all data from a table. Automatic partitioning is
- * supported for a few data types: {@link Long}, {@link org.joda.time.DateTime}, {@link String}. To
- * enable this, use {@link JdbcIO#readWithPartitions(TypeDescriptor)}.
+ * <p>Beam supports partitioned reading of all data from a table. To enable this, use {@link
+ * JdbcIO#readWithPartitions(TypeDescriptor)}. Automatic partitioning is supported for {@link Long}
+ * and {@link org.joda.time.DateTime}. For other types, {@link
+ * ReadWithPartitions#withPartitionHelper} is required.
  *
  * <p>The partitioning scheme depends on these parameters, which can be user-provided, or
  * automatically inferred by Beam (for the supported types):
@@ -231,6 +233,9 @@ import org.slf4j.LoggerFactory;
  *   <li>{@code SELECT min(column), max(column) from table} when only number of partitions is
  *       provided, but not upper or lower bounds.
  * </ul>
+ *
+ * <p>Rows of the partition column that falls outside the range, including the rows of null columns,
+ * will be ignored from the query.
  *
  * <p><b>Should I use this transform?</b> Consider using this transform in the following situations:
  *
@@ -373,8 +378,9 @@ public class JdbcIO {
         .build();
   }
 
+  /** Read with partitions of default (long) type. */
   public static <T> ReadWithPartitions<T, Long> readWithPartitions() {
-    return JdbcIO.<T, Long>readWithPartitions(TypeDescriptors.longs());
+    return JdbcIO.readWithPartitions(TypeDescriptors.longs());
   }
 
   private static final long DEFAULT_BATCH_SIZE = 1000L;
@@ -923,7 +929,8 @@ public class JdbcIO {
       // Note that api.java.sql.Statement#setFetchSize says it only accepts values >= 0
       // and that MySQL supports using Integer.MIN_VALUE as a hint to stream the ResultSet instead
       // of loading it into memory. See
-      // https://dev.mysql.com/doc/connector-j/8.0/en/connector-j-reference-implementation-notes.html for additional details.
+      // https://dev.mysql.com/doc/connector-j/en/connector-j-reference-implementation-notes.html
+      // for additional details.
       checkArgument(
           fetchSize >= 0 || fetchSize == Integer.MIN_VALUE,
           "fetch size must be >= 0 or equal to Integer.MIN_VALUE");
@@ -1226,6 +1233,9 @@ public class JdbcIO {
     abstract @Nullable PartitionColumnT getUpperBound();
 
     @Pure
+    abstract @Nullable JdbcReadWithPartitionsHelper<PartitionColumnT> getPartitionHelper();
+
+    @Pure
     abstract @Nullable String getTable();
 
     @Pure
@@ -1251,6 +1261,9 @@ public class JdbcIO {
       abstract Builder<T, PartitionColumnT> setLowerBound(PartitionColumnT lowerBound);
 
       abstract Builder<T, PartitionColumnT> setUpperBound(PartitionColumnT upperBound);
+
+      abstract Builder<T, PartitionColumnT> setPartitionHelper(
+          JdbcReadWithPartitionsHelper<PartitionColumnT> helper);
 
       abstract Builder<T, PartitionColumnT> setUseBeamSchema(boolean useBeamSchema);
 
@@ -1324,6 +1337,15 @@ public class JdbcIO {
       return toBuilder().setUpperBound(upperBound).build();
     }
 
+    /**
+     * Use a custom {@link JdbcReadWithPartitionsHelper} for {@code ReadWithPartitions}. Required if
+     * partition column type is not supported by presets.
+     */
+    public ReadWithPartitions<T, PartitionColumnT> withPartitionHelper(
+        JdbcReadWithPartitionsHelper<PartitionColumnT> helper) {
+      return toBuilder().setPartitionHelper(helper).build();
+    }
+
     /** Name of the table in the external database. Can be used to pass a user-defined subqery. */
     public ReadWithPartitions<T, PartitionColumnT> withTable(String tableName) {
       checkNotNull(tableName, "table can not be null");
@@ -1360,10 +1382,9 @@ public class JdbcIO {
             ((Comparable<PartitionColumnT>) getLowerBound()).compareTo(getUpperBound()) < EQUAL,
             "The lower bound of partitioning column is larger or equal than the upper bound");
       }
-      checkNotNull(
-          JdbcUtil.JdbcReadWithPartitionsHelper.getPartitionsHelper(getPartitionColumnType()),
-          "readWithPartitions only supports the following types: %s",
-          JdbcUtil.PRESET_HELPERS.keySet());
+      JdbcReadWithPartitionsHelper<PartitionColumnT> helper =
+          MoreObjects.firstNonNull(
+              getPartitionHelper(), JdbcUtil.getDefaultPartitionsHelper(getPartitionColumnType()));
 
       PCollection<KV<Long, KV<PartitionColumnT, PartitionColumnT>>> params;
 
@@ -1383,10 +1404,7 @@ public class JdbcIO {
                     JdbcIO.<KV<Long, KV<PartitionColumnT, PartitionColumnT>>>read()
                         .withQuery(query)
                         .withDataSourceProviderFn(dataSourceProviderFn)
-                        .withRowMapper(
-                            checkStateNotNull(
-                                JdbcUtil.JdbcReadWithPartitionsHelper.getPartitionsHelper(
-                                    getPartitionColumnType())))
+                        .withRowMapper(helper)
                         .withFetchSize(getFetchSize()))
                 .apply(
                     MapElements.via(
@@ -1441,7 +1459,7 @@ public class JdbcIO {
 
       PCollection<KV<PartitionColumnT, PartitionColumnT>> ranges =
           params
-              .apply("Partitioning", ParDo.of(new PartitioningFn<>(getPartitionColumnType())))
+              .apply("Partitioning", ParDo.of(new PartitioningFn<>(helper)))
               .apply("Reshuffle partitions", Reshuffle.viaRandomKey());
 
       JdbcIO.ReadAll<KV<PartitionColumnT, PartitionColumnT>, T> readAll =
@@ -1452,11 +1470,7 @@ public class JdbcIO {
                       "select * from %1$s where %2$s >= ? and %2$s < ?", table, partitionColumn))
               .withRowMapper(rowMapper)
               .withFetchSize(getFetchSize())
-              .withParameterSetter(
-                  checkStateNotNull(
-                          JdbcUtil.JdbcReadWithPartitionsHelper.getPartitionsHelper(
-                              getPartitionColumnType()))
-                      ::setParameters)
+              .withParameterSetter(helper)
               .withOutputParallelization(false);
 
       if (getUseBeamSchema()) {
