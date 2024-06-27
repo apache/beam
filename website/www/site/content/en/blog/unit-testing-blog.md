@@ -21,20 +21,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 ## So You Want to Write Tests on your Beam pipeline?
-Testing remains one of the most fundamental components of software engineering. In this blog post, we shed light on some of the constructs that Apache Beam provides to allow for testing. We cover an opinionated set of best practices to write unit tests for your data pipeline in this post. Note that this post does not include integration tests, and those should be authored separately. 
+Testing remains one of the most fundamental components of software engineering. In this blog post, we shed light on some of the constructs that Apache Beam provides to allow for testing. We cover an opinionated set of best practices to write unit tests for your data pipeline in this post. Note that this post does not include integration tests, and those should be authored separately.
 
 Suppose we write a particular PTransform that reads data from a CSV file, gets passed through a custom function for parsing, and is written back to another Google Cloud Storage bucket (we need to do some custom data formatting to have data prepared for a downstream application).
 
 
-The pipeline is structured as follows: 
+The pipeline is structured as follows:
 
 ### Example pipeline 1
 
     #The following packages are used to run the example pipelines
-    import apache_beam as beam 
+    import apache_beam as beam
     import apache_beam.io.textio.ReadFromText
     import apache_beam.io.textio.WriteToText
-    
+
     with beam.Pipeline(argv=self.args) as p:
     result = p | ReadFromText("gs://my-storage-bucket/csv_location.csv")
                | beam.ParDo(lambda x: custom_function(x))
@@ -64,7 +64,7 @@ Let’s use the following pipeline as an example. Because we have a function, we
                     | beam.Map(compute_square)
                     | WriteToText("gs://my-output-bucket-location/")
 
-	
+
 Now let’s use the following pipeline as another example. Because we use a predefined function, we don’t need to unit test the function, as `str.strip`, is tested elsewhere. However, we do need to test the output of the `beam.Map` function.
 
     with beam.Pipeline(argv=self.args) as p2:
@@ -73,22 +73,22 @@ Now let’s use the following pipeline as another example. Because we use a pred
                     | WriteToText("gs://my-output-bucket-location/")
 
 
-Here are the corresponding tests for both pipelines: 
+Here are the corresponding tests for both pipelines:
 
-    # The following packages are imported for unit testing. 
+    # The following packages are imported for unit testing.
     import unittest
-    import apache_beam as beam 
+    import apache_beam as beam
 
 
-    @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed') 
-    class TestBeam(unittest.TestCase): 
+    @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+    class TestBeam(unittest.TestCase):
 
     # This test corresponds to pipeline p1, and is written to confirm the          compute_square function works as intended.
-        def test_compute_square(self): 
+        def test_compute_square(self):
             numbers=[1,2,3]
 
 
-        with TestPipeline() as p: 
+        with TestPipeline() as p:
             output = p | beam.Create([1,2,3])
                        |beam.Map(compute_square)
         assert_that(output, equal_to([1,4,9]))
@@ -113,9 +113,9 @@ The following cover other testing best practices:
 4. Use the `assert_that` statement to ensure that PCollection values match up correctly, such as the following example:
 
 
-      class TestBeam(unittest.TestCase): 
-          def test_custom_function(self): 
-              with TestPipeline() as p: 
+      class TestBeam(unittest.TestCase):
+          def test_custom_function(self):
+              with TestPipeline() as p:
                 input = p | beam.ParDo(custom_function(("1","2","3"))
               assert_that(input, equal_to(["1","2","3"]))
 
