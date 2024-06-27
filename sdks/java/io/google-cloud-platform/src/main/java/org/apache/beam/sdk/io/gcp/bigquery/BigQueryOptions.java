@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import java.util.Map;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;
@@ -215,6 +216,13 @@ public interface BigQueryOptions
   Boolean getEnableStorageReadApiV2();
 
   void setEnableStorageReadApiV2(Boolean value);
+
+  @Description(
+      "A map with string labels to be passed to BigQuery export, query and other jobs. "
+          + "See: https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfiguration")
+  Map<String, String> getJobLabelsMap();
+
+  void setJobLabelsMap(Map<String, String> value);
 
   /** BQ endpoint to use. If unspecified, uses the default endpoint. */
   @JsonIgnore
