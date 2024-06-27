@@ -267,10 +267,11 @@ func pullDecoderNoAlloc(c *pipepb.Coder, coders map[string]*pipepb.Coder) func(i
 	}
 }
 
+// debugCoder is developer code to get the structure of a proto coder visible when
+// debugging coder errors in prism. It may sometimes be unused, so we do this to avoid
+// linting errors.
 var _ = debugCoder
 
-// debugCoder is developer code to get the structure of a proto coder visible when
-// debugging coder errors in prism. It may sometimes be unused.
 func debugCoder(cid string, coders map[string]*pipepb.Coder) string {
 	var b strings.Builder
 	b.WriteString(cid)
