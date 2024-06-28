@@ -39,7 +39,7 @@ dependencies {
     provided library.java.jackson_dataformat_csv
     permitUnusedDeclared library.java.jackson_dataformat_csv
     testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
-    testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
+    testImplementation project(path: ":sdks:java:io:common")
 
     // Test dependencies
     testImplementation library.java.junit
@@ -51,6 +51,8 @@ dependencies {
     testImplementation library.java.testcontainers_base
     testImplementation library.java.testcontainers_mysql
     testImplementation library.java.testcontainers_postgresql
+    // TODO(https://github.com/apache/beam/issues/31678) HikariCP 5.x requires Java11+
+    testImplementation 'com.zaxxer:HikariCP:4.0.3'
 
     // Kafka connect dependencies
     implementation "org.apache.kafka:connect-api:2.5.0"

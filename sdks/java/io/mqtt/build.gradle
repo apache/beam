@@ -29,7 +29,7 @@ dependencies {
   implementation library.java.joda_time
   implementation "org.fusesource.mqtt-client:mqtt-client:1.15"
   implementation "org.fusesource.hawtbuf:hawtbuf:1.11"
-  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
+  testImplementation project(path: ":sdks:java:io:common")
   testImplementation library.java.activemq_broker
   testImplementation library.java.activemq_mqtt
   testImplementation library.java.activemq_kahadb_store
