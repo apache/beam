@@ -22,10 +22,11 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import com.google.auto.value.AutoValue;
 
 /**
- * A factory for creating {@link BasicAuthJcsmpSessionService} instances.
+ * A factory for creating {@link BasicAuthJcsmpSessionService} instances. Extends {@link
+ * SessionServiceFactory}.
  *
  * <p>This factory provides a way to create {@link BasicAuthJcsmpSessionService} instances with
- * different configurations.
+ * authenticate to Solace with Basic Authentication.
  */
 @AutoValue
 public abstract class BasicAuthJcsmpSessionServiceFactory extends SessionServiceFactory {

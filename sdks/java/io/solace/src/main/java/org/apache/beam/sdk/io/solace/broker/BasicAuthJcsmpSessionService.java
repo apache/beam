@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.solace.broker;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+
 import com.solacesystems.jcsmp.ConsumerFlowProperties;
 import com.solacesystems.jcsmp.EndpointProperties;
 import com.solacesystems.jcsmp.FlowReceiver;
@@ -71,16 +73,15 @@ public class BasicAuthJcsmpSessionService implements SessionService {
 
   @Override
   public void close() {
-    if (jcsmpSession != null && !jcsmpSession.isClosed()) {
-      retryCallableManager.retryCallable(
-          () -> {
-            if (jcsmpSession != null) {
-              jcsmpSession.closeSession();
-            }
-            return 0;
-          },
-          ImmutableSet.of(IOException.class));
+    if (isClosed()) {
+      return;
     }
+    retryCallableManager.retryCallable(
+        () -> {
+          checkNotNull(jcsmpSession).closeSession();
+          return 0;
+        },
+        ImmutableSet.of(IOException.class));
   }
 
   @Override
@@ -110,10 +111,9 @@ public class BasicAuthJcsmpSessionService implements SessionService {
     if (jcsmpSession != null) {
       return new SolaceMessageReceiver(
           createFlowReceiver(jcsmpSession, flowProperties, endpointProperties));
-    } else {
-      throw new IOException(
-          "SolaceIO.Read: Could not create a receiver from the Jcsmp session: session object is null.");
     }
+    throw new IOException(
+        "SolaceIO.Read: Could not create a receiver from the Jcsmp session: session object is null.");
   }
 
   // The `@SuppressWarning` is needed here, because the checkerframework reports an error for the
