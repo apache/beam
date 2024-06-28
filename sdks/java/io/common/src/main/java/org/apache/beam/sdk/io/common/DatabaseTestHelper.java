@@ -17,10 +17,12 @@
  */
 package org.apache.beam.sdk.io.common;
 
-import static org.junit.Assert.assertEquals;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -45,32 +47,28 @@ import org.postgresql.ds.PGSimpleDataSource;
 import org.testcontainers.containers.JdbcDatabaseContainer;
 
 /** This class contains helper methods to ease database usage in tests. */
+@SuppressFBWarnings(
+    value = {"OBL_UNSATISFIED_OBLIGATION", "OBL_UNSATISFIED_OBLIGATION_EXCEPTION_EDGE"},
+    justification = "https://github.com/spotbugs/spotbugs/issues/493")
 public class DatabaseTestHelper {
   private static Map<String, DataSource> hikariSources = new HashMap<>();
 
-  public static ResultSet performQuery(JdbcDatabaseContainer<?> container, String sql)
-      throws SQLException {
-    DataSource ds = getDataSourceForContainer(container);
-    Statement statement = ds.getConnection().createStatement();
-    statement.execute(sql);
-    ResultSet resultSet = statement.getResultSet();
-
-    resultSet.next();
-    return resultSet;
-  }
-
   public static DataSource getDataSourceForContainer(JdbcDatabaseContainer<?> container) {
-    if (hikariSources.get(container.getJdbcUrl()) != null) {
-      return hikariSources.get(container.getJdbcUrl());
+    String jdbcUrl = checkNotNull(container.getJdbcUrl());
+    DataSource existingSource = hikariSources.get(jdbcUrl);
+    if (existingSource != null) {
+      return existingSource;
     }
     HikariConfig hikariConfig = new HikariConfig();
     // Keeping a small connection pool to a testContainer to avoid overwhelming it.
     hikariConfig.setMaximumPoolSize(2);
-    hikariConfig.setJdbcUrl(container.getJdbcUrl());
+    hikariConfig.setJdbcUrl(jdbcUrl);
     hikariConfig.setUsername(container.getUsername());
     hikariConfig.setPassword(container.getPassword());
     hikariConfig.setDriverClassName(container.getDriverClassName());
-    return hikariSources.put(container.getJdbcUrl(), new HikariDataSource(hikariConfig));
+    existingSource = new HikariDataSource(hikariConfig);
+    hikariSources.put(jdbcUrl, existingSource);
+    return existingSource;
   }
 
   public static PGSimpleDataSource getPostgresDataSource(PostgresIOTestPipelineOptions options) {
@@ -102,19 +100,13 @@ public class DatabaseTestHelper {
     while (true) {
       // This is not implemented as try-with-resources because it appears that try-with-resources is
       // not correctly catching the PSQLException thrown by dataSource.getConnection()
-      Connection connection = null;
-      try {
-        connection = dataSource.getConnection();
-        try (Statement statement = connection.createStatement()) {
-          statement.execute(String.format("create table %s (%s)", tableName, fieldsList));
-          return;
-        }
+      try (Connection connection = dataSource.getConnection();
+          Statement statement = connection.createStatement()) {
+        statement.execute(String.format("create table %s (%s)", tableName, fieldsList));
+        return;
+
       } catch (SQLException e) {
         exception = e;
-      } finally {
-        if (connection != null) {
-          connection.close();
-        }
       }
       boolean hasNext;
       try {
@@ -176,10 +168,9 @@ public class DatabaseTestHelper {
 
   public static void createTableWithStatement(DataSource dataSource, String stmt)
       throws SQLException {
-    try (Connection connection = dataSource.getConnection()) {
-      try (Statement statement = connection.createStatement()) {
-        statement.execute(stmt);
-      }
+    try (Connection connection = dataSource.getConnection();
+        Statement statement = connection.createStatement()) {
+      statement.execute(stmt);
     }
   }
 
@@ -194,14 +185,15 @@ public class DatabaseTestHelper {
 
   public static void assertRowCount(DataSource dataSource, String tableName, int expectedRowCount)
       throws SQLException {
-    try (Connection connection = dataSource.getConnection()) {
-      try (Statement statement = connection.createStatement()) {
-        try (ResultSet resultSet = statement.executeQuery("select count(*) from " + tableName)) {
-          resultSet.next();
-          int count = resultSet.getInt(1);
-          assertEquals(expectedRowCount, count);
-        }
-      }
+    int count;
+    try (Connection connection = dataSource.getConnection();
+        Statement statement = connection.createStatement();
+        ResultSet resultSet = statement.executeQuery("select count(*) from " + tableName)) {
+      resultSet.next();
+      count = resultSet.getInt(1);
     }
+    // check state outside the try close to enable auto-close resources
+    checkState(
+        expectedRowCount == count, "Expected count: %d, actual: %d", expectedRowCount, count);
   }
 }

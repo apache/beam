@@ -52,7 +52,7 @@ dependencies {
     testImplementation library.java.testcontainers_rabbitmq
     testImplementation project(path: ":runners:direct-java", configuration: "shadow")
     testImplementation project(":sdks:java:io:synthetic")
-    testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
+    testImplementation project(path: ":sdks:java:io:common")
     testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
     testImplementation "com.rabbitmq:amqp-client:5.16.0"
 }

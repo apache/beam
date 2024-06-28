@@ -35,7 +35,7 @@ dependencies {
     implementation library.java.dbcp2
 
     testImplementation library.java.junit
-    testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
+    testImplementation project(path: ":sdks:java:io:common")
     testImplementation library.java.dbcp2
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
     testImplementation library.java.slf4j_api
