@@ -22,8 +22,8 @@ import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.appendTimestampS
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.readFileBasedIOITPipelineOptions;
 import static org.junit.Assert.assertNotEquals;
 
-import com.google.cloud.Timestamp;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
@@ -172,7 +172,7 @@ public class TFRecordIOIT {
   private void collectAndPublishMetrics(
       final PipelineResult writeResults, final PipelineResult readResults) {
     final String uuid = UUID.randomUUID().toString();
-    final String timestamp = Timestamp.now().toString();
+    final String timestamp = Instant.now().toString();
     final Set<NamedTestResult> results = new HashSet<>();
 
     results.add(
