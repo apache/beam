@@ -30,13 +30,11 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import javax.annotation.CheckReturnValue;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillConnection;
@@ -93,7 +91,6 @@ public final class StreamingEngineClient {
   private final Supplier<GetWorkerMetadataStream> getWorkerMetadataStream;
   private final Queue<WindmillEndpoints> newWindmillEndpoints;
   private final Function<WindmillStream.CommitWorkStream, WorkCommitter> workCommitterFactory;
-  private final Consumer<List<Windmill.ComputationHeartbeatResponse>> heartbeatResponseProcessor;
 
   /** Writes are guarded by synchronization, reads are lock free. */
   private final AtomicReference<StreamingEngineConnectionState> connections;
@@ -110,8 +107,7 @@ public final class StreamingEngineClient {
       GetWorkBudgetDistributor getWorkBudgetDistributor,
       GrpcDispatcherClient dispatcherClient,
       long clientId,
-      Function<WindmillStream.CommitWorkStream, WorkCommitter> workCommitterFactory,
-      Consumer<List<Windmill.ComputationHeartbeatResponse>> heartbeatResponseProcessor) {
+      Function<WindmillStream.CommitWorkStream, WorkCommitter> workCommitterFactory) {
     this.jobHeader = jobHeader;
     this.started = false;
     this.streamFactory = streamFactory;
@@ -147,7 +143,6 @@ public final class StreamingEngineClient {
                         newWorkerMetadataPublisher.submit(
                             () -> newWindmillEndpoints.add(endpoints))));
     this.workCommitterFactory = workCommitterFactory;
-    this.heartbeatResponseProcessor = heartbeatResponseProcessor;
   }
 
   private static ExecutorService singleThreadedExecutorServiceOf(String threadName) {
@@ -176,8 +171,7 @@ public final class StreamingEngineClient {
       ChannelCachingStubFactory channelCachingStubFactory,
       GetWorkBudgetDistributor getWorkBudgetDistributor,
       GrpcDispatcherClient dispatcherClient,
-      Function<WindmillStream.CommitWorkStream, WorkCommitter> workCommitterFactory,
-      Consumer<List<Windmill.ComputationHeartbeatResponse>> heartbeatProcessor) {
+      Function<WindmillStream.CommitWorkStream, WorkCommitter> workCommitterFactory) {
     return new StreamingEngineClient(
         jobHeader,
         totalGetWorkBudget,
@@ -187,8 +181,7 @@ public final class StreamingEngineClient {
         getWorkBudgetDistributor,
         dispatcherClient,
         /* clientId= */ new Random().nextLong(),
-        workCommitterFactory,
-        heartbeatProcessor);
+        workCommitterFactory);
   }
 
   @VisibleForTesting
@@ -201,8 +194,7 @@ public final class StreamingEngineClient {
       GetWorkBudgetDistributor getWorkBudgetDistributor,
       GrpcDispatcherClient dispatcherClient,
       long clientId,
-      Function<WindmillStream.CommitWorkStream, WorkCommitter> workCommitterFactory,
-      Consumer<List<Windmill.ComputationHeartbeatResponse>> heartbeatResponseProcessor) {
+      Function<WindmillStream.CommitWorkStream, WorkCommitter> workCommitterFactory) {
     StreamingEngineClient streamingEngineClient =
         new StreamingEngineClient(
             jobHeader,
@@ -213,8 +205,7 @@ public final class StreamingEngineClient {
             getWorkBudgetDistributor,
             dispatcherClient,
             clientId,
-            workCommitterFactory,
-            heartbeatResponseProcessor);
+            workCommitterFactory);
     streamingEngineClient.start();
     return streamingEngineClient;
   }
@@ -409,8 +400,7 @@ public final class StreamingEngineClient {
             GetWorkBudget.noBudget(),
             streamFactory,
             workItemScheduler,
-            workCommitterFactory,
-            heartbeatResponseProcessor);
+            workCommitterFactory);
     windmillStreamSender.startStreams();
     return windmillStreamSender;
   }
