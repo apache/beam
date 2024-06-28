@@ -109,6 +109,26 @@ public interface BigQueryOptions
 
   void setNumStorageWriteApiStreamAppendClients(Integer value);
 
+  @Description(
+      "When using the STORAGE_API_AT_LEAST_ONCE write method with multiplexing (ie. useStorageApiConnectionPool=true), "
+          + "this option sets the minimum number of connections each pool creates. This is on a per worker, per region basis. "
+          + "Note that in practice, the minimum number of connections created is the minimum of this value and "
+          + "(numStorageWriteApiStreamAppendClients x num destinations).")
+  @Default.Integer(2)
+  Integer getMinConnectionPoolConnections();
+
+  void setMinConnectionPoolConnections(Integer value);
+
+  @Description(
+      "When using the STORAGE_API_AT_LEAST_ONCE write method with multiplexing (ie. useStorageApiConnectionPool=true), "
+          + "this option sets the maximum number of connections each pool creates. This is on a per worker, per region basis. "
+          + "This value should be greater than or equal to the total number of dynamic destinations, otherwise a "
+          + "race condition occurs where append operations compete over streams.")
+  @Default.Integer(20)
+  Integer getMaxConnectionPoolConnections();
+
+  void setMaxConnectionPoolConnections(Integer value);
+
   @Description("The max number of messages inflight that we expect each connection will retain.")
   @Default.Long(1000)
   Long getStorageWriteMaxInflightRequests();
