@@ -68,6 +68,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
   private static final int DEFAULT_LOG_EVERY_N_STREAM_FAILURES = 1;
   private static final int DEFAULT_STREAMING_RPC_BATCH_LIMIT = Integer.MAX_VALUE;
   private static final int DEFAULT_WINDMILL_MESSAGES_BETWEEN_IS_READY_CHECKS = 1;
+  private static final int NO_HEALTH_CHECKS = -1;
 
   private final JobHeader jobHeader;
   private final int logEveryNStreamFailures;
@@ -81,7 +82,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
   private final boolean sendKeyedGetDataRequests;
   private final Consumer<List<ComputationHeartbeatResponse>> processHeartbeatResponses;
 
-  GrpcWindmillStreamFactory(
+  private GrpcWindmillStreamFactory(
       JobHeader jobHeader,
       int logEveryNStreamFailures,
       int streamingRpcBatchLimit,
@@ -107,6 +108,48 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
     this.streamIdGenerator = new AtomicLong();
   }
 
+  /** @implNote Used for {@link AutoBuilder} {@link Builder} class, do not call directly. */
+  static GrpcWindmillStreamFactory create(
+      JobHeader jobHeader,
+      int logEveryNStreamFailures,
+      int streamingRpcBatchLimit,
+      int windmillMessagesBetweenIsReadyChecks,
+      boolean sendKeyedGetDataRequests,
+      Consumer<List<ComputationHeartbeatResponse>> processHeartbeatResponses,
+      Supplier<Duration> maxBackOffSupplier,
+      int healthCheckIntervalMillis) {
+    GrpcWindmillStreamFactory streamFactory =
+        new GrpcWindmillStreamFactory(
+            jobHeader,
+            logEveryNStreamFailures,
+            streamingRpcBatchLimit,
+            windmillMessagesBetweenIsReadyChecks,
+            sendKeyedGetDataRequests,
+            processHeartbeatResponses,
+            maxBackOffSupplier);
+
+    if (healthCheckIntervalMillis >= 0) {
+      // Health checks are run on background daemon thread, which will only be cleaned up on JVM
+      // shutdown.
+      new Timer("WindmillHealthCheckTimer")
+          .schedule(
+              new TimerTask() {
+                @Override
+                public void run() {
+                  Instant reportThreshold =
+                      Instant.now().minus(Duration.millis(healthCheckIntervalMillis));
+                  for (AbstractWindmillStream<?, ?> stream : streamFactory.streamRegistry) {
+                    stream.maybeSendHealthCheck(reportThreshold);
+                  }
+                }
+              },
+              0,
+              healthCheckIntervalMillis);
+    }
+
+    return streamFactory;
+  }
+
   /**
    * Returns a new {@link Builder} for {@link GrpcWindmillStreamFactory} with default values set for
    * the given {@link JobHeader}.
@@ -118,6 +161,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         .setMaxBackOffSupplier(() -> DEFAULT_MAX_BACKOFF)
         .setLogEveryNStreamFailures(DEFAULT_LOG_EVERY_N_STREAM_FAILURES)
         .setStreamingRpcBatchLimit(DEFAULT_STREAMING_RPC_BATCH_LIMIT)
+        .setHealthCheckIntervalMillis(NO_HEALTH_CHECKS)
         .setSendKeyedGetDataRequests(true)
         .setProcessHeartbeatResponses(ignored -> {});
   }
@@ -226,7 +270,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
   }
 
   @Internal
-  @AutoBuilder(ofClass = GrpcWindmillStreamFactory.class)
+  @AutoBuilder(callMethod = "create")
   public interface Builder {
     Builder setJobHeader(JobHeader jobHeader);
 
@@ -243,35 +287,8 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
     Builder setProcessHeartbeatResponses(
         Consumer<List<ComputationHeartbeatResponse>> processHeartbeatResponses);
 
-    /** Creates stream factory without health checking. */
+    Builder setHealthCheckIntervalMillis(int healthCheckIntervalMillis);
+
     GrpcWindmillStreamFactory build();
-
-    /**
-     * Creates stream factory that sends health check RPCs every healthCheckIntervalMillis.
-     *
-     * @implNote Health checks are run on background daemon thread, which will be cleaned up when
-     *     the JVM shutdown.
-     */
-    default GrpcWindmillStreamFactory buildWithHealthChecksEvery(int healthCheckIntervalMillis) {
-      GrpcWindmillStreamFactory streamFactory = build();
-      if (healthCheckIntervalMillis >= 0) {
-        new Timer("WindmillHealthCheckTimer")
-            .schedule(
-                new TimerTask() {
-                  @Override
-                  public void run() {
-                    Instant reportThreshold =
-                        Instant.now().minus(Duration.millis(healthCheckIntervalMillis));
-                    for (AbstractWindmillStream<?, ?> stream : streamFactory.streamRegistry) {
-                      stream.maybeSendHealthCheck(reportThreshold);
-                    }
-                  }
-                },
-                0,
-                healthCheckIntervalMillis);
-      }
-
-      return streamFactory;
-    }
   }
 }

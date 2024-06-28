@@ -434,15 +434,18 @@ public class StreamingDataflowWorker {
           windmillStreamFactoryBuilder
               .setProcessHeartbeatResponses(
                   new WorkHeartbeatResponseProcessor(computationStateCache::get))
-              .buildWithHealthChecksEvery(
-                  options.getWindmillServiceStreamingRpcHealthCheckPeriodMs());
+              .setHealthCheckIntervalMillis(
+                  options.getWindmillServiceStreamingRpcHealthCheckPeriodMs())
+              .build();
       windmillServer = GrpcWindmillServer.create(options, windmillStreamFactory, dispatcherClient);
     } else {
       if (options.getWindmillServiceEndpoint() != null
           || options.getLocalWindmillHostport().startsWith("grpc:")) {
         windmillStreamFactory =
-            windmillStreamFactoryBuilder.buildWithHealthChecksEvery(
-                options.getWindmillServiceStreamingRpcHealthCheckPeriodMs());
+            windmillStreamFactoryBuilder
+                .setHealthCheckIntervalMillis(
+                    options.getWindmillServiceStreamingRpcHealthCheckPeriodMs())
+                .build();
         windmillServer =
             GrpcWindmillServer.create(options, windmillStreamFactory, dispatcherClient);
       } else {
@@ -557,8 +560,10 @@ public class StreamingDataflowWorker {
         memoryMonitor,
         maxWorkItemCommitBytes,
         options.isEnableStreamingEngine()
-            ? windmillStreamFactory.buildWithHealthChecksEvery(
-                options.getWindmillServiceStreamingRpcHealthCheckPeriodMs())
+            ? windmillStreamFactory
+                .setHealthCheckIntervalMillis(
+                    options.getWindmillServiceStreamingRpcHealthCheckPeriodMs())
+                .build()
             : windmillStreamFactory.build(),
         executorSupplier,
         stageInfo);

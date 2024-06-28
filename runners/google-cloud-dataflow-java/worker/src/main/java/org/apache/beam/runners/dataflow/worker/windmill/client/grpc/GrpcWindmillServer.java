@@ -181,8 +181,9 @@ public final class GrpcWindmillServer extends WindmillServerStub {
     GrpcWindmillStreamFactory windmillStreamFactory =
         GrpcWindmillStreamFactory.of(createJobHeader(testOptions, clientId))
             .setSendKeyedGetDataRequests(sendKeyedGetDataRequests)
-            .buildWithHealthChecksEvery(
-                testOptions.getWindmillServiceStreamingRpcHealthCheckPeriodMs());
+            .setHealthCheckIntervalMillis(
+                testOptions.getWindmillServiceStreamingRpcHealthCheckPeriodMs())
+            .build();
 
     return new GrpcWindmillServer(testOptions, windmillStreamFactory, dispatcherClient);
   }
