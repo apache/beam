@@ -334,7 +334,11 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
           if (client != null) {
             runAsyncIgnoreFailure(closeWriterExecutor, client::unpin);
           }
-          maybeInvalidateCachedClient();
+          // if this is a PENDING stream, we won't be using it again after cleaning up this
+          // destination state, so clear it from the cache
+          if (!useDefaultStream) {
+            APPEND_CLIENTS.invalidate(streamName);
+          }
           appendClientInfo = null;
         }
       }
@@ -513,25 +517,22 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
             if (client != null) {
               runAsyncIgnoreFailure(closeWriterExecutor, client::unpin);
             }
-            maybeInvalidateCachedClient();
+            // The default stream is cached across multiple different DoFns. If they all try and
+            // invalidate, then we can get races between threads invalidating and recreating
+            // streams.
+            // For this reason, we check to see that the cache still contains the object we
+            // created before invalidating (in case another thread has already invalidated and
+            // recreated the stream).
+            String streamEntryKey = getStreamAppendClientCacheEntryKey();
+            @Nullable
+            AppendClientInfo cachedAppendClient = APPEND_CLIENTS.getIfPresent(streamEntryKey);
+            if (cachedAppendClient != null
+                && System.identityHashCode(cachedAppendClient)
+                    == System.identityHashCode(appendClientInfo)) {
+              APPEND_CLIENTS.invalidate(streamEntryKey);
+            }
           }
           appendClientInfo = null;
-        }
-      }
-
-      void maybeInvalidateCachedClient() {
-        // The default stream is cached across multiple different DoFns. If they all try and
-        // invalidate, then we can get races between threads invalidating and recreating
-        // streams.
-        // For this reason, we check to see that the cache still contains the object we
-        // created before invalidating (in case another thread has already invalidated and
-        // recreated the stream).
-        String streamEntryKey = getStreamAppendClientCacheEntryKey();
-        @Nullable AppendClientInfo cachedAppendClient = APPEND_CLIENTS.getIfPresent(streamEntryKey);
-        if (cachedAppendClient != null
-            && System.identityHashCode(cachedAppendClient)
-                == System.identityHashCode(appendClientInfo)) {
-          APPEND_CLIENTS.invalidate(streamEntryKey);
         }
       }
 
