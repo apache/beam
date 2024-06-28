@@ -233,6 +233,10 @@ abstract class ReadFromKafkaDoFn<K, V>
   private transient @Nullable Deserializer<V> valueDeserializerInstance = null;
   private transient @Nullable Map<TopicPartition, KafkaLatestOffsetEstimator> offsetEstimatorCache;
 
+  // Backlog map
+  // this is updated in another thread, the main thread should never be calling get.
+  private static Map<TopicPartition, Supplier<Long>> backlog_map = new HashMap<>();
+
   private transient @Nullable LoadingCache<TopicPartition, AverageRecordSize> avgRecordSize;
   private static final long DEFAULT_KAFKA_POLL_TIMEOUT = 2L;
 
@@ -254,7 +258,7 @@ abstract class ReadFromKafkaDoFn<K, V>
 
     private final Consumer<byte[], byte[]> offsetConsumer;
     private final TopicPartition topicPartition;
-    private final Supplier<Long> memoizedBacklog;
+    private @Nullable Supplier<Long> memoizedBacklog;
     private boolean closed;
 
     KafkaLatestOffsetEstimator(
@@ -262,16 +266,7 @@ abstract class ReadFromKafkaDoFn<K, V>
       this.offsetConsumer = offsetConsumer;
       this.topicPartition = topicPartition;
       ConsumerSpEL.evaluateAssign(this.offsetConsumer, ImmutableList.of(this.topicPartition));
-      memoizedBacklog =
-          Suppliers.memoizeWithExpiration(
-              () -> {
-                synchronized (offsetConsumer) {
-                  ConsumerSpEL.evaluateSeek2End(offsetConsumer, topicPartition);
-                  return offsetConsumer.position(topicPartition);
-                }
-              },
-              1,
-              TimeUnit.SECONDS);
+      memoizedBacklog = backlog_map.get(topicPartition);
     }
 
     @Override
@@ -287,6 +282,25 @@ abstract class ReadFromKafkaDoFn<K, V>
 
     @Override
     public long estimate() {
+      // pull again to see if now the map is not null
+      memoizedBacklog = backlog_map.get(topicPartition);
+      if (memoizedBacklog != null) {
+        // manually query, and insert into map
+        LOG.info("xxx backlog map is null, manual query");
+        Supplier<Long> memoizedBacklog =
+            Suppliers.memoizeWithExpiration(
+                () -> {
+                  synchronized (offsetConsumer) {
+                    ConsumerSpEL.evaluateSeek2End(offsetConsumer, topicPartition);
+                    return offsetConsumer.position(topicPartition);
+                  }
+                },
+                2,
+                TimeUnit.SECONDS);
+        backlog_map.put(topicPartition, memoizedBacklog); // check for dupes?
+      }
+      // LOG.info("xxx backlog map is not null, return backlog");
+      Preconditions.checkStateNotNull(memoizedBacklog);
       return memoizedBacklog.get();
     }
 
@@ -380,8 +394,22 @@ abstract class ReadFromKafkaDoFn<K, V>
                   "tracker-" + topicPartition, offsetConsumerConfig, updatedConsumerConfig));
       offsetEstimator = new KafkaLatestOffsetEstimator(offsetConsumer, topicPartition);
       offsetEstimatorCacheInstance.put(topicPartition, offsetEstimator);
-    }
 
+      // insert into backlog map
+      if(backlog_map.get(topicPartition) == null){
+        Supplier<Long> memoizedBacklog =
+        Suppliers.memoizeWithExpiration(
+          () -> {
+            synchronized (offsetConsumer) {
+              ConsumerSpEL.evaluateSeek2End(offsetConsumer, topicPartition);
+              return offsetConsumer.position(topicPartition);
+            }
+          },
+          2,
+          TimeUnit.SECONDS);
+          backlog_map.put(topicPartition, memoizedBacklog); // check for dupes?
+        }
+    }
     return new GrowableOffsetRangeTracker(restriction.getFrom(), offsetEstimator);
   }
 
@@ -604,19 +632,33 @@ abstract class ReadFromKafkaDoFn<K, V>
                       "tracker-" + topicPartition, offsetConsumerConfig, updatedConsumerConfig));
           offsetEstimator = new KafkaLatestOffsetEstimator(offsetConsumer, topicPartition);
           offsetEstimatorCacheInstance.put(topicPartition, offsetEstimator);
+          if (backlog_map.get(topicPartition) == null) {
+            LOG.info("xxx backlog memoization is null, insert into map");
+            Supplier<Long> memoizedBacklog =
+                Suppliers.memoizeWithExpiration(
+                    () -> {
+                      synchronized (offsetConsumer) {
+                        ConsumerSpEL.evaluateSeek2End(offsetConsumer, topicPartition);
+                        return offsetConsumer.position(topicPartition);
+                      }
+                    },
+                    2,
+                    TimeUnit.SECONDS);
+            backlog_map.put(topicPartition, memoizedBacklog); // check for dupes?
+          }
         }
-      }
-    }
-
-    // Update backlog metrics
-    if (offsetEstimatorCache != null) {
-      for (Map.Entry<TopicPartition, KafkaLatestOffsetEstimator> tp :
-          offsetEstimatorCache.entrySet()) {
+        // Update backlog metrics
         Gauge backlog =
             Metrics.gauge(
-                METRIC_NAMESPACE,
-                RAW_SIZE_METRIC_PREFIX + "backlogBytes_" + tp.getKey().toString());
-        backlog.set(tp.getValue().estimate());
+                METRIC_NAMESPACE, RAW_SIZE_METRIC_PREFIX + "backlogBytes_" + tp.toString());
+        // wont be null since we just inserted in it above.
+        if (backlog_map.get(topicPartition) != null) {
+          // LOG.info("xxx backlog memoization is not null");
+          Preconditions.checkStateNotNull(backlog_map.get(topicPartition));
+          backlog.set(backlog_map.get(topicPartition).get());
+        } else {
+          // LOG.info("xxx backlog memoization is null, metric is not updated");
+        }
       }
     }
   }
