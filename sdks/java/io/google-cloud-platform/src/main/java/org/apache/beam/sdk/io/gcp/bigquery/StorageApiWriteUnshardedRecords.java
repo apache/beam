@@ -519,17 +519,17 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
             }
             // The default stream is cached across multiple different DoFns. If they all try and
             // invalidate, then we can get races between threads invalidating and recreating
-            // streams.
-            // For this reason, we check to see that the cache still contains the object we
-            // created before invalidating (in case another thread has already invalidated and
-            // recreated the stream).
-            String streamEntryKey = getStreamAppendClientCacheEntryKey();
+            // streams. For this reason,
+            // we check to see that the cache still contains the object we created before
+            // invalidating (in case another
+            // thread has already invalidated and recreated the stream).
+            String cacheEntryKey = getStreamAppendClientCacheEntryKey();
             @Nullable
-            AppendClientInfo cachedAppendClient = APPEND_CLIENTS.getIfPresent(streamEntryKey);
+            AppendClientInfo cachedAppendClient = APPEND_CLIENTS.getIfPresent(cacheEntryKey);
             if (cachedAppendClient != null
                 && System.identityHashCode(cachedAppendClient)
                     == System.identityHashCode(appendClientInfo)) {
-              APPEND_CLIENTS.invalidate(streamEntryKey);
+              APPEND_CLIENTS.invalidate(cacheEntryKey);
             }
           }
           appendClientInfo = null;
