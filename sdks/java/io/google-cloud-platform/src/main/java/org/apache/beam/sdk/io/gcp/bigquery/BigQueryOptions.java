@@ -142,6 +142,9 @@ public interface BigQueryOptions
 
   void setStorageWriteMaxInflightBytes(Long value);
 
+  @Description(
+      "Enables multiplexing mode, where multiple tables can share the same connection. Only available when writing with STORAGE_API_AT_LEAST_ONCE"
+          + " mode. For more information, see https://cloud.google.com/bigquery/docs/write-api-best-practices#connection_pool_management")
   @Default.Boolean(false)
   Boolean getUseStorageApiConnectionPool();
 
