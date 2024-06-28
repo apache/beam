@@ -334,6 +334,11 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
           if (client != null) {
             runAsyncIgnoreFailure(closeWriterExecutor, client::unpin);
           }
+          // if this is a PENDING stream, we won't be using it again after cleaning up this
+          // destination state, so clear it from the cache
+          if (!useDefaultStream) {
+            APPEND_CLIENTS.invalidate(streamName);
+          }
           appendClientInfo = null;
         }
       }
