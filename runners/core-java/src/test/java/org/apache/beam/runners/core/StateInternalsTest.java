@@ -387,7 +387,7 @@ public abstract class StateInternalsTest {
         containsInAnyOrder(MapEntry.of("B", 2), MapEntry.of("D", 4), MapEntry.of("E", 5)));
 
     // isEmpty
-    assertThat(value.isEmpty().read(), equalTo(false));
+    assertFalse(value.isEmpty().read());
 
     // clear
     value.clear();
@@ -395,7 +395,7 @@ public abstract class StateInternalsTest {
     assertThat(underTest.state(NAMESPACE_1, STRING_MAP_ADDR), equalTo(value));
 
     // isEmpty
-    assertThat(value.isEmpty().read(), equalTo(true));
+    assertTrue(value.isEmpty().read());
   }
 
   @Test
