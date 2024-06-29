@@ -15,11 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.csv.providers;
+package org.apache.beam.sdk.io.csv;
 
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.io.csv.CsvIOParseError;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -30,8 +29,9 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
 /**
- * The {@link T} and {@link CsvIOParseError} {@link PCollection} results of parsing CSV records. Use
- * {@link #getOutput()} and {@link #getErrors()} to apply these results in a pipeline.
+ * The {@link T} and {@link org.apache.beam.sdk.io.csv.CsvIOParseError} {@link PCollection} results
+ * of parsing CSV records. Use {@link #getOutput()} and {@link #getErrors()} to apply these results
+ * in a pipeline.
  */
 public class CsvIOParseResult<T> implements POutput {
 
@@ -61,8 +61,8 @@ public class CsvIOParseResult<T> implements POutput {
   }
 
   /**
-   * The {@link CsvIOParseError} {@link PCollection} as a result of errors associated with parsing
-   * CSV records.
+   * The {@link org.apache.beam.sdk.io.csv.CsvIOParseError} {@link PCollection} as a result of
+   * errors associated with parsing CSV records.
    */
   public PCollection<CsvIOParseError> getErrors() {
     return errors;
