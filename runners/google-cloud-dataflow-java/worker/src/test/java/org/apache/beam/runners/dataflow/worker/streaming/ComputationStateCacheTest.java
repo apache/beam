@@ -69,6 +69,7 @@ public class ComputationStateCacheTest {
             Work.createProcessingContext(
                 "computationId",
                 (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance(),
+                ignored -> {},
                 ignored -> {}),
             Instant::now,
             Collections.emptyList()),

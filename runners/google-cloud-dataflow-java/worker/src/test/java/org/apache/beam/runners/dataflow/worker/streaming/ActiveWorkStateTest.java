@@ -18,7 +18,6 @@
 package org.apache.beam.runners.dataflow.worker.streaming;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList.toImmutableList;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
@@ -26,20 +25,17 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
-import com.google.auto.value.AutoValue;
+import com.google.common.truth.Correspondence;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.streaming.ActiveWorkState.ActivateWorkResult;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Rule;
@@ -87,6 +83,7 @@ public class ActiveWorkStateTest {
     return Work.createProcessingContext(
         "computationId",
         (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance(),
+        ignored -> {},
         ignored -> {});
   }
 
@@ -104,6 +101,17 @@ public class ActiveWorkStateTest {
         .build();
   }
 
+  private static Correspondence<ExecutableWork, ExecutableWork> comparingActivatedWork() {
+    return Correspondence.from(
+        (ExecutableWork work, ExecutableWork activatedWork) ->
+            work.id().equals(activatedWork.id())
+                && work.getWorkItem().equals(activatedWork.getWorkItem())
+                && work.executeWorkFn() == activatedWork.executeWorkFn()
+                && work.work().getStartTime().equals(activatedWork.work().getStartTime())
+                && work.work().getState().equals(activatedWork.work().getState()),
+        "Both work instances should have the same state.");
+  }
+
   @Before
   public void setup() {
     Map<ShardedKey, Deque<ExecutableWork>> readWriteActiveWorkMap = new HashMap<>();
@@ -114,11 +122,12 @@ public class ActiveWorkStateTest {
 
   @Test
   public void testActivateWorkForKey_EXECUTE_unknownKey() {
-    ActivateWorkResult activateWorkResult =
-        activeWorkState.activateWorkForKey(
-            createWork(createWorkItem(1L, 1L, shardedKey("someKey", 1L))));
+    ExecutableWork work = createWork(createWorkItem(1L, 1L, shardedKey("someKey", 1L)));
+    ActiveWorkState.ActivatedWork activateWorkResult = activeWorkState.activateWorkForKey(work);
 
-    assertEquals(ActivateWorkResult.EXECUTE, activateWorkResult);
+    assertEquals(ActivateWorkResult.EXECUTE, activateWorkResult.result());
+    assertTrue(activateWorkResult.executableWork().isPresent());
+    assertThat(activateWorkResult.executableWork().get()).isNotSameInstanceAs(work);
   }
 
   @Test
@@ -127,14 +136,15 @@ public class ActiveWorkStateTest {
     long workToken = 1L;
     long cacheToken = 2L;
 
-    ActivateWorkResult activateWorkResult =
-        activeWorkState.activateWorkForKey(
-            createWork(createWorkItem(workToken, cacheToken, shardedKey)));
+    ExecutableWork work = createWork(createWorkItem(workToken, cacheToken, shardedKey));
+    ActiveWorkState.ActivatedWork activateWorkResult = activeWorkState.activateWorkForKey(work);
 
     Optional<ExecutableWork> nextWorkForKey =
         activeWorkState.completeWorkAndGetNextWorkForKey(shardedKey, workId(workToken, cacheToken));
 
-    assertEquals(ActivateWorkResult.EXECUTE, activateWorkResult);
+    assertEquals(ActivateWorkResult.EXECUTE, activateWorkResult.result());
+    assertTrue(activateWorkResult.executableWork().isPresent());
+    assertThat(activateWorkResult.executableWork().get()).isNotSameInstanceAs(work);
     assertEquals(Optional.empty(), nextWorkForKey);
     assertThat(readOnlyActiveWork).doesNotContainKey(shardedKey);
   }
@@ -146,10 +156,11 @@ public class ActiveWorkStateTest {
 
     // ActivateWork with the same shardedKey, and the same workTokens.
     activeWorkState.activateWorkForKey(createWork(createWorkItem(workToken, 1L, shardedKey)));
-    ActivateWorkResult activateWorkResult =
+    ActiveWorkState.ActivatedWork activateWorkResult =
         activeWorkState.activateWorkForKey(createWork(createWorkItem(workToken, 1L, shardedKey)));
 
-    assertEquals(ActivateWorkResult.DUPLICATE, activateWorkResult);
+    assertEquals(ActivateWorkResult.DUPLICATE, activateWorkResult.result());
+    assertFalse(activateWorkResult.executableWork().isPresent());
   }
 
   @Test
@@ -158,10 +169,11 @@ public class ActiveWorkStateTest {
 
     // ActivateWork with the same shardedKey, but different workTokens.
     activeWorkState.activateWorkForKey(createWork(createWorkItem(1L, 1L, shardedKey)));
-    ActivateWorkResult activateWorkResult =
+    ActiveWorkState.ActivatedWork activateWorkResult =
         activeWorkState.activateWorkForKey(createWork(createWorkItem(2L, 1L, shardedKey)));
 
-    assertEquals(ActivateWorkResult.QUEUED, activateWorkResult);
+    assertEquals(ActivateWorkResult.QUEUED, activateWorkResult.result());
+    assertFalse(activateWorkResult.executableWork().isPresent());
   }
 
   @Test
@@ -234,7 +246,7 @@ public class ActiveWorkStateTest {
         activeWorkState.completeWorkAndGetNextWorkForKey(shardedKey, workToBeCompleted.id());
 
     assertTrue(nextWorkOpt.isPresent());
-    assertSame(nextWork, nextWorkOpt.get());
+    assertSame(nextWork.executeWorkFn(), nextWorkOpt.get().executeWorkFn());
 
     Optional<ExecutableWork> endOfWorkQueue =
         activeWorkState.completeWorkAndGetNextWorkForKey(shardedKey, nextWork.id());
@@ -348,18 +360,20 @@ public class ActiveWorkStateTest {
     activeWorkState.activateWorkForKey(differentWorkTokenWork);
     // ActivateWork with the same shardedKey, and the same workTokens, but different cacheTokens.
     activeWorkState.activateWorkForKey(firstWork);
-    ActivateWorkResult activateWorkResult = activeWorkState.activateWorkForKey(secondWork);
+    ActiveWorkState.ActivatedWork activateWorkResult =
+        activeWorkState.activateWorkForKey(secondWork);
 
-    assertEquals(ActivateWorkResult.QUEUED, activateWorkResult);
+    assertEquals(ActivateWorkResult.QUEUED, activateWorkResult.result());
+    assertFalse(activateWorkResult.executableWork().isPresent());
     assertTrue(readOnlyActiveWork.get(shardedKey).contains(secondWork));
 
     Optional<ExecutableWork> nextWork =
         activeWorkState.completeWorkAndGetNextWorkForKey(shardedKey, differentWorkTokenWork.id());
     assertTrue(nextWork.isPresent());
-    assertSame(firstWork, nextWork.get());
+    assertSame(firstWork.executeWorkFn(), nextWork.get().executeWorkFn());
     nextWork = activeWorkState.completeWorkAndGetNextWorkForKey(shardedKey, firstWork.id());
     assertTrue(nextWork.isPresent());
-    assertSame(secondWork, nextWork.get());
+    assertSame(secondWork.executeWorkFn(), nextWork.get().executeWorkFn());
   }
 
   @Test
@@ -375,15 +389,17 @@ public class ActiveWorkStateTest {
 
     // ActivateWork with the same shardedKey, and the same workTokens, but different cacheTokens.
     activeWorkState.activateWorkForKey(firstWork);
-    ActivateWorkResult activateWorkResult = activeWorkState.activateWorkForKey(secondWork);
+    ActiveWorkState.ActivatedWork activateWorkResult =
+        activeWorkState.activateWorkForKey(secondWork);
 
-    assertEquals(ActivateWorkResult.QUEUED, activateWorkResult);
+    assertEquals(ActivateWorkResult.QUEUED, activateWorkResult.result());
+    assertFalse(activateWorkResult.executableWork().isPresent());
     assertEquals(firstWork, readOnlyActiveWork.get(shardedKey).peek());
     assertTrue(readOnlyActiveWork.get(shardedKey).contains(secondWork));
     Optional<ExecutableWork> nextWork =
         activeWorkState.completeWorkAndGetNextWorkForKey(shardedKey, firstWork.id());
     assertTrue(nextWork.isPresent());
-    assertSame(secondWork, nextWork.get());
+    assertSame(secondWork.executeWorkFn(), nextWork.get().executeWorkFn());
   }
 
   @Test
@@ -398,11 +414,14 @@ public class ActiveWorkStateTest {
     ExecutableWork newWork = createWork(createWorkItem(newWorkToken, cacheToken, shardedKey));
 
     activeWorkState.activateWorkForKey(queuedWork);
-    ActivateWorkResult activateWorkResult = activeWorkState.activateWorkForKey(newWork);
+    ActiveWorkState.ActivatedWork activateWorkResult = activeWorkState.activateWorkForKey(newWork);
 
     // newWork should be queued and queuedWork should not be removed since it is currently active.
-    assertEquals(ActivateWorkResult.QUEUED, activateWorkResult);
-    assertTrue(readOnlyActiveWork.get(shardedKey).contains(newWork));
+    assertEquals(ActivateWorkResult.QUEUED, activateWorkResult.result());
+    assertFalse(activateWorkResult.executableWork().isPresent());
+    assertThat(readOnlyActiveWork.get(shardedKey))
+        .comparingElementsUsing(comparingActivatedWork())
+        .contains(newWork);
     assertEquals(queuedWork, readOnlyActiveWork.get(shardedKey).peek());
   }
 
@@ -422,9 +441,10 @@ public class ActiveWorkStateTest {
 
     activeWorkState.activateWorkForKey(differentWorkTokenWork);
     activeWorkState.activateWorkForKey(queuedWork);
-    ActivateWorkResult activateWorkResult = activeWorkState.activateWorkForKey(newWork);
+    ActiveWorkState.ActivatedWork activateWorkResult = activeWorkState.activateWorkForKey(newWork);
 
-    assertEquals(ActivateWorkResult.QUEUED, activateWorkResult);
+    assertEquals(ActivateWorkResult.QUEUED, activateWorkResult.result());
+    assertFalse(activateWorkResult.executableWork().isPresent());
     assertTrue(readOnlyActiveWork.get(shardedKey).contains(newWork));
     assertFalse(readOnlyActiveWork.get(shardedKey).contains(queuedWork));
     assertEquals(differentWorkTokenWork, readOnlyActiveWork.get(shardedKey).peek());
@@ -441,76 +461,11 @@ public class ActiveWorkStateTest {
     ExecutableWork newWork = createWork(createWorkItem(newWorkToken, cacheToken, shardedKey));
 
     activeWorkState.activateWorkForKey(queuedWork);
-    ActivateWorkResult activateWorkResult = activeWorkState.activateWorkForKey(newWork);
+    ActiveWorkState.ActivatedWork activateWorkResult = activeWorkState.activateWorkForKey(newWork);
 
-    assertEquals(ActivateWorkResult.STALE, activateWorkResult);
+    assertEquals(ActivateWorkResult.STALE, activateWorkResult.result());
+    assertFalse(activateWorkResult.executableWork().isPresent());
     assertFalse(readOnlyActiveWork.get(shardedKey).contains(newWork));
     assertEquals(queuedWork, readOnlyActiveWork.get(shardedKey).peek());
-  }
-
-  @Test
-  public void testGetKeyHeartbeats() {
-    Instant refreshDeadline = Instant.now();
-    ShardedKey shardedKey1 = shardedKey("someKey", 1L);
-    ShardedKey shardedKey2 = shardedKey("anotherKey", 2L);
-
-    ExecutableWork freshWork = createWork(createWorkItem(3L, 3L, shardedKey1));
-    ExecutableWork refreshableWork1 = expiredWork(createWorkItem(1L, 1L, shardedKey1));
-    refreshableWork1.work().setState(Work.State.COMMITTING);
-    ExecutableWork refreshableWork2 = expiredWork(createWorkItem(2L, 2L, shardedKey2));
-    refreshableWork2.work().setState(Work.State.COMMITTING);
-
-    activeWorkState.activateWorkForKey(refreshableWork1);
-    activeWorkState.activateWorkForKey(freshWork);
-    activeWorkState.activateWorkForKey(refreshableWork2);
-
-    ImmutableList<HeartbeatRequest> requests =
-        activeWorkState.getKeyHeartbeats(refreshDeadline, DataflowExecutionStateSampler.instance());
-
-    ImmutableList<HeartbeatRequestShardingKeyWorkTokenAndCacheToken> expected =
-        ImmutableList.of(
-            HeartbeatRequestShardingKeyWorkTokenAndCacheToken.from(
-                shardedKey1, refreshableWork1.work()),
-            HeartbeatRequestShardingKeyWorkTokenAndCacheToken.from(
-                shardedKey2, refreshableWork2.work()));
-
-    ImmutableList<HeartbeatRequestShardingKeyWorkTokenAndCacheToken> actual =
-        requests.stream()
-            .map(HeartbeatRequestShardingKeyWorkTokenAndCacheToken::from)
-            .collect(toImmutableList());
-
-    assertThat(actual).containsExactlyElementsIn(expected);
-  }
-
-  @AutoValue
-  abstract static class HeartbeatRequestShardingKeyWorkTokenAndCacheToken {
-
-    private static HeartbeatRequestShardingKeyWorkTokenAndCacheToken create(
-        long shardingKey, long workToken, long cacheToken) {
-      return new AutoValue_ActiveWorkStateTest_HeartbeatRequestShardingKeyWorkTokenAndCacheToken(
-          shardingKey, workToken, cacheToken);
-    }
-
-    private static HeartbeatRequestShardingKeyWorkTokenAndCacheToken from(
-        HeartbeatRequest heartbeatRequest) {
-      return create(
-          heartbeatRequest.getShardingKey(),
-          heartbeatRequest.getWorkToken(),
-          heartbeatRequest.getCacheToken());
-    }
-
-    private static HeartbeatRequestShardingKeyWorkTokenAndCacheToken from(
-        ShardedKey shardedKey, Work work) {
-      return create(
-          shardedKey.shardingKey(),
-          work.getWorkItem().getWorkToken(),
-          work.getWorkItem().getCacheToken());
-    }
-
-    abstract long shardingKey();
-
-    abstract long workToken();
-
-    abstract long cacheToken();
   }
 }

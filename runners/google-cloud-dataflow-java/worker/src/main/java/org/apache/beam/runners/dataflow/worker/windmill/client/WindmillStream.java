@@ -17,9 +17,11 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.client;
 
+import com.google.auto.value.AutoValue;
 import java.io.Closeable;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -32,6 +34,8 @@ import org.joda.time.Instant;
 /** Superclass for streams returned by streaming Windmill methods. */
 @ThreadSafe
 public interface WindmillStream {
+  Id id();
+
   /** Indicates that no more requests will be sent. */
   void close();
 
@@ -40,6 +44,18 @@ public interface WindmillStream {
 
   /** Returns when the stream was opened. */
   Instant startTime();
+
+  /** Reflects that {@link #close()} was explicitly called. */
+  boolean isClosed();
+
+  /**
+   * Shutdown the stream. Logically closes the stream and terminates the stream. The stream instance
+   * should not have any interactions after this point.
+   */
+  void shutdown();
+
+  /** Indicates that the stream is shutdown and should not be used. */
+  boolean isShutdown();
 
   /** Handle representing a stream of GetWork responses. */
   @ThreadSafe
@@ -70,6 +86,12 @@ public interface WindmillStream {
   /** Interface for streaming CommitWorkRequests to Windmill. */
   @ThreadSafe
   interface CommitWorkStream extends WindmillStream {
+    /**
+     * Returns a builder that can be used for sending requests. Each builder is not thread-safe but
+     * different builders for the same stream may be used simultaneously.
+     */
+    Optional<RequestBatcher> newBatcher();
+
     @NotThreadSafe
     interface RequestBatcher extends Closeable {
       /**
@@ -92,15 +114,51 @@ public interface WindmillStream {
         flush();
       }
     }
-
-    /**
-     * Returns a builder that can be used for sending requests. Each builder is not thread-safe but
-     * different builders for the same stream may be used simultaneously.
-     */
-    RequestBatcher batcher();
   }
 
   /** Interface for streaming GetWorkerMetadata requests to Windmill. */
   @ThreadSafe
   interface GetWorkerMetadataStream extends WindmillStream {}
+
+  @AutoValue
+  abstract class Id {
+    private static final String GET_WORK_STREAM_TYPE = "GetWorkStream";
+    private static final String GET_DATA_STREAM_TYPE = "GetDataStream";
+    private static final String GET_WORKER_METADATA_STREAM_TYPE = "GetWorkerMetadataStream";
+    private static final String COMMIT_WORK_STREAM_TYPE = "CommitWorkStream";
+
+    public static Id create(WindmillStream stream, String backendWorkerToken, boolean isDirect) {
+      return new AutoValue_WindmillStream_Id(
+          Id.getStreamType(stream), backendWorkerToken, isDirect);
+    }
+
+    private static String getStreamType(WindmillStream windmillStream) {
+      if (windmillStream instanceof GetWorkStream) {
+        return GET_WORK_STREAM_TYPE;
+      } else if (windmillStream instanceof GetWorkerMetadataStream) {
+        return GET_WORKER_METADATA_STREAM_TYPE;
+      } else if (windmillStream instanceof GetDataStream) {
+        return GET_DATA_STREAM_TYPE;
+      } else if (windmillStream instanceof CommitWorkStream) {
+        return COMMIT_WORK_STREAM_TYPE;
+      }
+
+      // Should not happen conditions above are exhaustive.
+      throw new IllegalArgumentException("Unknown stream type.");
+    }
+
+    abstract String streamType();
+
+    public abstract String backendWorkerToken();
+
+    abstract boolean isDirect();
+
+    @Override
+    public final String toString() {
+      String id = String.format("%s-%s", streamType(), isDirect() ? "Direct" : "Dispatched");
+      return !backendWorkerToken().isEmpty()
+          ? id + String.format("-[%s]", backendWorkerToken())
+          : id;
+    }
+  }
 }

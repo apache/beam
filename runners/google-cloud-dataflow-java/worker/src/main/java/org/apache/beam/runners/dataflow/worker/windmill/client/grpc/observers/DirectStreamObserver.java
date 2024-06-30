@@ -37,32 +37,32 @@ import org.slf4j.LoggerFactory;
  * becomes ready.
  */
 @ThreadSafe
-public final class DirectStreamObserver<T> implements StreamObserver<T> {
+final class DirectStreamObserver<T> implements StreamObserver<T> {
   private static final Logger LOG = LoggerFactory.getLogger(DirectStreamObserver.class);
-  private final Phaser phaser;
 
+  private final Phaser isReadyNotifier;
+  private final long deadlineSeconds;
+  private final int messagesBetweenIsReadyChecks;
   private final Object lock = new Object();
 
   @GuardedBy("lock")
   private final CallStreamObserver<T> outboundObserver;
 
-  private final long deadlineSeconds;
-  private final int messagesBetweenIsReadyChecks;
-
   @GuardedBy("lock")
   private int messagesSinceReady = 0;
 
-  public DirectStreamObserver(
-      Phaser phaser,
+  DirectStreamObserver(
+      Phaser isReadyNotifier,
       CallStreamObserver<T> outboundObserver,
       long deadlineSeconds,
       int messagesBetweenIsReadyChecks) {
-    this.phaser = phaser;
+    this.isReadyNotifier = isReadyNotifier;
     this.outboundObserver = outboundObserver;
     this.deadlineSeconds = deadlineSeconds;
-    // We always let the first message pass through without blocking because it is performed under
-    // the StreamPool synchronized block and single header message isn't going to cause memory
-    // issues due to excessive buffering within grpc.
+    // We always let the first message pass through without blocking because it is either performed
+    // under the StreamPool synchronized block or WindmillStreamSender on a single thread and
+    // the initial single header message isn't going to cause memory issues due to excessive
+    // buffering within grpc.
     this.messagesBetweenIsReadyChecks = Math.max(1, messagesBetweenIsReadyChecks);
   }
 
@@ -71,7 +71,7 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
     int awaitPhase = -1;
     long totalSecondsWaited = 0;
     long waitSeconds = 1;
-    while (true) {
+    while (!isTerminated()) {
       try {
         synchronized (lock) {
           // We only check isReady periodically to effectively allow for increasing the outbound
@@ -84,7 +84,7 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
           // If we awaited previously and timed out, wait for the same phase. Otherwise we're
           // careful to observe the phase before observing isReady.
           if (awaitPhase < 0) {
-            awaitPhase = phaser.getPhase();
+            awaitPhase = isReadyNotifier.getPhase();
           }
           if (outboundObserver.isReady()) {
             messagesSinceReady = 0;
@@ -98,19 +98,34 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
         // channel has become ready.  This doesn't always seem to be the case (despite
         // documentation stating otherwise) so we poll periodically and enforce an overall
         // timeout related to the stream deadline.
-        phaser.awaitAdvanceInterruptibly(awaitPhase, waitSeconds, TimeUnit.SECONDS);
+        isReadyNotifier.awaitAdvanceInterruptibly(awaitPhase, waitSeconds, TimeUnit.SECONDS);
+        // Exit early if the phaser was terminated.
+        if (isTerminated()) {
+          return;
+        }
+
         synchronized (lock) {
           messagesSinceReady = 0;
           outboundObserver.onNext(value);
           return;
         }
       } catch (TimeoutException e) {
+        // Check to see if the stream observer was terminated while we were waiting for the
+        // isReadyNotifier to become ready.
+        if (isTerminated()) {
+          return;
+        }
+
         totalSecondsWaited += waitSeconds;
         if (totalSecondsWaited > deadlineSeconds) {
-          LOG.error(
-              "Exceeded timeout waiting for the outboundObserver to become ready meaning "
-                  + "that the stream deadline was not respected.");
-          throw new RuntimeException(e);
+          throw new StreamObserverCancelledException(
+              "Waited "
+                  + totalSecondsWaited
+                  + "s which exceeds deadline of "
+                  + deadlineSeconds
+                  + "s for the outboundObserver to become ready meaning "
+                  + "that the stream deadline was not respected.",
+              e);
         }
         if (totalSecondsWaited > 30) {
           LOG.info(
@@ -121,14 +136,19 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
         waitSeconds = waitSeconds * 2;
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
-        throw new RuntimeException(e);
+        throw new StreamObserverCancelledException(e);
       }
     }
+  }
+
+  private boolean isTerminated() {
+    return isReadyNotifier.getRegisteredParties() == 0 || isReadyNotifier.isTerminated();
   }
 
   @Override
   public void onError(Throwable t) {
     synchronized (lock) {
+      unblockIsReadyNotifier();
       outboundObserver.onError(t);
     }
   }
@@ -136,7 +156,16 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
   @Override
   public void onCompleted() {
     synchronized (lock) {
+      unblockIsReadyNotifier();
       outboundObserver.onCompleted();
+    }
+  }
+
+  private void unblockIsReadyNotifier() {
+    try {
+      isReadyNotifier.arriveAndDeregister();
+    } catch (IllegalStateException e) {
+      // onCompleted or onError has already been called and waiting threads have been freed.
     }
   }
 }

@@ -47,6 +47,7 @@ import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.client.CloseableStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.CommitWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamPool;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
@@ -84,7 +85,8 @@ public class StreamingEngineWorkCommitterTest {
             (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance(),
             ignored -> {
               throw new UnsupportedOperationException();
-            }),
+            },
+            ignored -> {}),
         Instant::now,
         Collections.emptyList());
   }
@@ -167,7 +169,7 @@ public class StreamingEngineWorkCommitterTest {
       Work work = createMockWork(i);
       // Fail half of the work.
       if (i % 2 == 0) {
-        work.setFailed();
+        work.fail();
       }
       WorkItemCommitRequest commitRequest =
           WorkItemCommitRequest.newBuilder()
@@ -256,24 +258,46 @@ public class StreamingEngineWorkCommitterTest {
     Supplier<CommitWorkStream> fakeCommitWorkStream =
         () ->
             new CommitWorkStream() {
-              @Override
-              public RequestBatcher batcher() {
-                return new RequestBatcher() {
-                  @Override
-                  public boolean commitWorkItem(
-                      String computation,
-                      WorkItemCommitRequest request,
-                      Consumer<Windmill.CommitStatus> onDone) {
-                    return false;
-                  }
+              private boolean closed = false;
 
-                  @Override
-                  public void flush() {}
-                };
+              @Override
+              public Id id() {
+                return WindmillStream.Id.create(this, "backend_worker_token", false);
               }
 
               @Override
-              public void close() {}
+              public Optional<RequestBatcher> newBatcher() {
+                return isShutdown()
+                    ? Optional.empty()
+                    : Optional.of(
+                        new RequestBatcher() {
+                          @Override
+                          public boolean commitWorkItem(
+                              String computation,
+                              WorkItemCommitRequest request,
+                              Consumer<Windmill.CommitStatus> onDone) {
+                            return false;
+                          }
+
+                          @Override
+                          public void flush() {}
+                        });
+              }
+
+              @Override
+              public void close() {
+                closed = true;
+              }
+
+              @Override
+              public void shutdown() {
+                close();
+              }
+
+              @Override
+              public boolean isShutdown() {
+                return closed;
+              }
 
               @Override
               public boolean awaitTermination(int time, TimeUnit unit) {
@@ -283,6 +307,11 @@ public class StreamingEngineWorkCommitterTest {
               @Override
               public Instant startTime() {
                 return Instant.now();
+              }
+
+              @Override
+              public boolean isClosed() {
+                return closed;
               }
             };
 

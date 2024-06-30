@@ -17,8 +17,9 @@
  */
 package org.apache.beam.runners.dataflow.worker.streaming;
 
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList.toImmutableList;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableListMultimap.flatteningToImmutableListMultimap;
 
+import com.google.auto.value.AutoValue;
 import java.io.PrintWriter;
 import java.util.ArrayDeque;
 import java.util.Collection;
@@ -31,20 +32,16 @@ import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
-import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
-import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableListMultimap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multimap;
 import org.joda.time.Duration;
@@ -77,7 +74,8 @@ public final class ActiveWorkState {
   /**
    * Current budget that is being processed or queued on the user worker. Incremented when work is
    * activated in {@link #activateWorkForKey(ExecutableWork)}, and decremented when work is
-   * completed in {@link #completeWorkAndGetNextWorkForKey(ShardedKey, WorkId)}.
+   * completed in {@link #completeWorkAndGetNextWorkForKey(ShardedKey, WorkId)} or failed via {@link
+   * Work#fail()}.
    */
   private final AtomicReference<GetWorkBudget> activeGetWorkBudget;
 
@@ -106,29 +104,6 @@ public final class ActiveWorkState {
     return activeFor.toString().substring(2);
   }
 
-  private static Stream<HeartbeatRequest> toHeartbeatRequestStream(
-      Entry<ShardedKey, Deque<ExecutableWork>> shardedKeyAndWorkQueue,
-      Instant refreshDeadline,
-      DataflowExecutionStateSampler sampler) {
-    ShardedKey shardedKey = shardedKeyAndWorkQueue.getKey();
-    Deque<ExecutableWork> workQueue = shardedKeyAndWorkQueue.getValue();
-
-    return workQueue.stream()
-        .map(ExecutableWork::work)
-        .filter(work -> work.getStartTime().isBefore(refreshDeadline))
-        // Don't send heartbeats for queued work we already know is failed.
-        .filter(work -> !work.isFailed())
-        .map(
-            work ->
-                Windmill.HeartbeatRequest.newBuilder()
-                    .setShardingKey(shardedKey.shardingKey())
-                    .setWorkToken(work.getWorkItem().getWorkToken())
-                    .setCacheToken(work.getWorkItem().getCacheToken())
-                    .addAllLatencyAttribution(
-                        work.getLatencyAttributions(/* isHeartbeat= */ true, sampler))
-                    .build());
-  }
-
   /**
    * Activates {@link Work} for the {@link ShardedKey}. Outcome can be 1 of 4 {@link
    * ActivateWorkResult}
@@ -146,27 +121,36 @@ public final class ActiveWorkState {
    * <p>4. STALE: A work queue for the {@link ShardedKey} exists, and there is a queued {@link Work}
    * with a greater workToken than the passed in {@link Work}.
    */
-  synchronized ActivateWorkResult activateWorkForKey(ExecutableWork executableWork) {
-    ShardedKey shardedKey = executableWork.work().getShardedKey();
+  synchronized ActivatedWork activateWorkForKey(ExecutableWork executableWork) {
+    // Attach a failure handler to the work so that we remove it from active work budget when it is
+    // failed.
+    ExecutableWork workWithFailureHandler =
+        ExecutableWork.create(
+            executableWork
+                .work()
+                .withFailureHandler(() -> decrementActiveWorkBudget(executableWork.work())),
+            executableWork.executeWorkFn());
+
+    ShardedKey shardedKey = workWithFailureHandler.work().getShardedKey();
     Deque<ExecutableWork> workQueue = activeWork.getOrDefault(shardedKey, new ArrayDeque<>());
     // This key does not have any work queued up on it. Create one, insert Work, and mark the work
     // to be executed.
     if (!activeWork.containsKey(shardedKey) || workQueue.isEmpty()) {
-      workQueue.addLast(executableWork);
+      workQueue.addLast(workWithFailureHandler);
       activeWork.put(shardedKey, workQueue);
-      incrementActiveWorkBudget(executableWork.work());
-      return ActivateWorkResult.EXECUTE;
+      incrementActiveWorkBudget(workWithFailureHandler.work());
+      return ActivatedWork.executeNow(workWithFailureHandler);
     }
 
     // Check to see if we have this work token queued.
     Iterator<ExecutableWork> workIterator = workQueue.iterator();
     while (workIterator.hasNext()) {
       ExecutableWork queuedWork = workIterator.next();
-      if (queuedWork.id().equals(executableWork.id())) {
-        return ActivateWorkResult.DUPLICATE;
+      if (queuedWork.id().equals(workWithFailureHandler.id())) {
+        return ActivatedWork.notImmediatelyExecutable(ActivateWorkResult.DUPLICATE);
       }
-      if (queuedWork.id().cacheToken() == executableWork.id().cacheToken()) {
-        if (executableWork.id().workToken() > queuedWork.id().workToken()) {
+      if (queuedWork.id().cacheToken() == workWithFailureHandler.id().cacheToken()) {
+        if (workWithFailureHandler.id().workToken() > queuedWork.id().workToken()) {
           // Check to see if the queuedWork is active. We only want to remove it if it is NOT
           // currently active.
           if (!queuedWork.equals(workQueue.peek())) {
@@ -175,15 +159,15 @@ public final class ActiveWorkState {
           }
           // Continue here to possibly remove more non-active stale work that is queued.
         } else {
-          return ActivateWorkResult.STALE;
+          return ActivatedWork.notImmediatelyExecutable(ActivateWorkResult.STALE);
         }
       }
     }
 
     // Queue the work for later processing.
-    workQueue.addLast(executableWork);
-    incrementActiveWorkBudget(executableWork.work());
-    return ActivateWorkResult.QUEUED;
+    workQueue.addLast(workWithFailureHandler);
+    incrementActiveWorkBudget(workWithFailureHandler.work());
+    return ActivatedWork.notImmediatelyExecutable(ActivateWorkResult.QUEUED);
   }
 
   /**
@@ -201,17 +185,7 @@ public final class ActiveWorkState {
           WorkItem workItem = queuedWork.work().getWorkItem();
           if (workItem.getWorkToken() == failedWorkId.workToken()
               && workItem.getCacheToken() == failedWorkId.cacheToken()) {
-            LOG.debug(
-                "Failing work "
-                    + computationStateCache.getComputation()
-                    + " "
-                    + entry.getKey().shardingKey()
-                    + " "
-                    + failedWorkId.workToken()
-                    + " "
-                    + failedWorkId.cacheToken()
-                    + ". The work will be retried and is not lost.");
-            queuedWork.work().setFailed();
+            queuedWork.work().fail();
             break;
           }
         }
@@ -312,10 +286,11 @@ public final class ActiveWorkState {
       if (executableWork != null) {
         Work work = executableWork.work();
         if (work.isStuckCommittingAt(stuckCommitDeadline)) {
-          LOG.error(
-              "Detected key {} stuck in COMMITTING state since {}, completing it with error.",
+          LOG.warn(
+              "Detected key {} stuck in COMMITTING state since {} originating from {} worker, invalidating.",
               shardedKey,
-              work.getStateStartTime());
+              work.getStateStartTime(),
+              work.backendWorkerToken());
           stuckCommits.put(shardedKey, work.id());
         }
       }
@@ -324,11 +299,19 @@ public final class ActiveWorkState {
     return stuckCommits.build();
   }
 
-  synchronized ImmutableList<HeartbeatRequest> getKeyHeartbeats(
-      Instant refreshDeadline, DataflowExecutionStateSampler sampler) {
+  /**
+   * Returns a read only view of current active work.
+   *
+   * @implNote Do not return a reference to the underlying workQueue as iterations over it will
+   *     cause a {@link java.util.ConcurrentModificationException} as it is not a thread-safe data
+   *     structure.
+   */
+  synchronized ImmutableListMultimap<ShardedKey, RefreshableWork> getReadOnlyActiveWork() {
     return activeWork.entrySet().stream()
-        .flatMap(entry -> toHeartbeatRequestStream(entry, refreshDeadline, sampler))
-        .collect(toImmutableList());
+        .collect(
+            flatteningToImmutableListMultimap(
+                Entry::getKey,
+                e -> e.getValue().stream().map(ExecutableWork::work).map(Work::refreshableView)));
   }
 
   /**
@@ -345,7 +328,15 @@ public final class ActiveWorkState {
         "<table border=\"1\" "
             + "style=\"border-collapse:collapse;padding:5px;border-spacing:5px;border:1px\">");
     writer.println(
-        "<tr><th>Key</th><th>Token</th><th>Queued</th><th>Active For</th><th>State</th><th>State Active For</th></tr>");
+        "<tr>"
+            + "<th>Key</th>"
+            + "<th>Token</th>"
+            + "<th>Queued</th>"
+            + "<th>Active For</th>"
+            + "<th>State</th>"
+            + "<th>State Active For</th>"
+            + "<th>Backend Worker Token</th>"
+            + "</tr>");
     // Use StringBuilder because we are appending in loop.
     StringBuilder activeWorkStatus = new StringBuilder();
     int commitsPendingCount = 0;
@@ -371,6 +362,8 @@ public final class ActiveWorkState {
       activeWorkStatus.append(activeWork.getState());
       activeWorkStatus.append("</td><td>");
       activeWorkStatus.append(elapsedString(activeWork.getStateStartTime(), now));
+      activeWorkStatus.append("</td><td>");
+      activeWorkStatus.append(activeWork.backendWorkerToken());
       activeWorkStatus.append("</td></tr>\n");
     }
 
@@ -395,5 +388,22 @@ public final class ActiveWorkState {
     EXECUTE,
     DUPLICATE,
     STALE
+  }
+
+  @AutoValue
+  abstract static class ActivatedWork {
+    private static ActivatedWork executeNow(ExecutableWork executableWork) {
+      return new AutoValue_ActiveWorkState_ActivatedWork(
+          ActivateWorkResult.EXECUTE, Optional.of(executableWork));
+    }
+
+    private static ActivatedWork notImmediatelyExecutable(ActivateWorkResult activateWorkResult) {
+      Preconditions.checkState(activateWorkResult != ActivateWorkResult.EXECUTE);
+      return new AutoValue_ActiveWorkState_ActivatedWork(activateWorkResult, Optional.empty());
+    }
+
+    abstract ActivateWorkResult result();
+
+    abstract Optional<ExecutableWork> executableWork();
   }
 }

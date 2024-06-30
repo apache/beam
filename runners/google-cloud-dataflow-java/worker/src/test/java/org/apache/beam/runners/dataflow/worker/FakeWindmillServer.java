@@ -61,6 +61,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribut
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution.State;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.CommitWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
@@ -231,6 +232,12 @@ public final class FakeWindmillServer extends WindmillServerStub {
     Instant startTime = Instant.now();
     final CountDownLatch done = new CountDownLatch(1);
     return new GetWorkStream() {
+
+      @Override
+      public Id id() {
+        return WindmillStream.Id.create(this, "backend_worker_token", false);
+      }
+
       @Override
       public void close() {
         done.countDown();
@@ -287,6 +294,21 @@ public final class FakeWindmillServer extends WindmillServerStub {
       public Instant startTime() {
         return startTime;
       }
+
+      @Override
+      public boolean isClosed() {
+        return done.getCount() == 0;
+      }
+
+      @Override
+      public void shutdown() {
+        close();
+      }
+
+      @Override
+      public boolean isShutdown() {
+        return isClosed();
+      }
     };
   }
 
@@ -294,6 +316,11 @@ public final class FakeWindmillServer extends WindmillServerStub {
   public GetDataStream getDataStream() {
     Instant startTime = Instant.now();
     return new GetDataStream() {
+      @Override
+      public Id id() {
+        return WindmillStream.Id.create(this, "backend_worker_token", false);
+      }
+
       @Override
       public Windmill.KeyedGetDataResponse requestKeyedData(
           String computation, KeyedGetDataRequest request) {
@@ -359,6 +386,19 @@ public final class FakeWindmillServer extends WindmillServerStub {
       public Instant startTime() {
         return startTime;
       }
+
+      @Override
+      public boolean isClosed() {
+        return false;
+      }
+
+      @Override
+      public void shutdown() {}
+
+      @Override
+      public boolean isShutdown() {
+        return false;
+      }
     };
   }
 
@@ -366,68 +406,75 @@ public final class FakeWindmillServer extends WindmillServerStub {
   public CommitWorkStream commitWorkStream() {
     Instant startTime = Instant.now();
     return new CommitWorkStream() {
+      @Override
+      public Id id() {
+        return WindmillStream.Id.create(this, "backend_worker_token", false);
+      }
 
       @Override
-      public RequestBatcher batcher() {
-        return new RequestBatcher() {
-          class RequestAndDone {
-            final Consumer<Windmill.CommitStatus> onDone;
-            final WorkItemCommitRequest request;
+      public Optional<RequestBatcher> newBatcher() {
+        return Optional.of(
+            new RequestBatcher() {
+              class RequestAndDone {
+                final Consumer<Windmill.CommitStatus> onDone;
+                final WorkItemCommitRequest request;
 
-            RequestAndDone(WorkItemCommitRequest request, Consumer<Windmill.CommitStatus> onDone) {
-              this.request = request;
-              this.onDone = onDone;
-            }
-          }
-
-          final List<RequestAndDone> requests = new ArrayList<>();
-
-          @Override
-          public boolean commitWorkItem(
-              String computation,
-              WorkItemCommitRequest request,
-              Consumer<Windmill.CommitStatus> onDone) {
-            LOG.debug("commitWorkStream::commitWorkItem: {}", request);
-            errorCollector.checkThat(request.hasWorkToken(), equalTo(true));
-            errorCollector.checkThat(
-                request.getShardingKey(), allOf(greaterThan(0L), lessThan(Long.MAX_VALUE)));
-            errorCollector.checkThat(request.getCacheToken(), not(equalTo(0L)));
-            if (requests.size() > 5) return false;
-
-            // Throws away the result, but allows to inject latency.
-            Windmill.CommitWorkRequest.Builder builder = Windmill.CommitWorkRequest.newBuilder();
-            builder.addRequestsBuilder().setComputationId(computation).addRequests(request);
-            commitsToOffer.getOrDefault(builder.build());
-
-            requests.add(new RequestAndDone(request, onDone));
-            flush();
-            return true;
-          }
-
-          @Override
-          public void flush() {
-            for (RequestAndDone elem : requests) {
-              if (dropStreamingCommits) {
-                droppedStreamingCommits.put(elem.request.getWorkToken(), elem.onDone);
-                // Return true to indicate the request was accepted even if we are dropping the
-                // commit to simulate a dropped commit.
-                continue;
+                RequestAndDone(
+                    WorkItemCommitRequest request, Consumer<Windmill.CommitStatus> onDone) {
+                  this.request = request;
+                  this.onDone = onDone;
+                }
               }
 
-              commitsReceived.put(elem.request.getWorkToken(), elem.request);
-              elem.onDone.accept(
-                  Optional.ofNullable(
-                          streamingCommitsToOffer.remove(
-                              WorkId.builder()
-                                  .setWorkToken(elem.request.getWorkToken())
-                                  .setCacheToken(elem.request.getCacheToken())
-                                  .build()))
-                      // Default to CommitStatus.OK
-                      .orElse(Windmill.CommitStatus.OK));
-            }
-            requests.clear();
-          }
-        };
+              final List<RequestAndDone> requests = new ArrayList<>();
+
+              @Override
+              public boolean commitWorkItem(
+                  String computation,
+                  WorkItemCommitRequest request,
+                  Consumer<Windmill.CommitStatus> onDone) {
+                LOG.debug("commitWorkStream::commitWorkItem: {}", request);
+                errorCollector.checkThat(request.hasWorkToken(), equalTo(true));
+                errorCollector.checkThat(
+                    request.getShardingKey(), allOf(greaterThan(0L), lessThan(Long.MAX_VALUE)));
+                errorCollector.checkThat(request.getCacheToken(), not(equalTo(0L)));
+                if (requests.size() > 5) return false;
+
+                // Throws away the result, but allows to inject latency.
+                Windmill.CommitWorkRequest.Builder builder =
+                    Windmill.CommitWorkRequest.newBuilder();
+                builder.addRequestsBuilder().setComputationId(computation).addRequests(request);
+                commitsToOffer.getOrDefault(builder.build());
+
+                requests.add(new RequestAndDone(request, onDone));
+                flush();
+                return true;
+              }
+
+              @Override
+              public void flush() {
+                for (RequestAndDone elem : requests) {
+                  if (dropStreamingCommits) {
+                    droppedStreamingCommits.put(elem.request.getWorkToken(), elem.onDone);
+                    // Return true to indicate the request was accepted even if we are dropping the
+                    // commit to simulate a dropped commit.
+                    continue;
+                  }
+
+                  commitsReceived.put(elem.request.getWorkToken(), elem.request);
+                  elem.onDone.accept(
+                      Optional.ofNullable(
+                              streamingCommitsToOffer.remove(
+                                  WorkId.builder()
+                                      .setWorkToken(elem.request.getWorkToken())
+                                      .setCacheToken(elem.request.getCacheToken())
+                                      .build()))
+                          // Default to CommitStatus.OK
+                          .orElse(Windmill.CommitStatus.OK));
+                }
+                requests.clear();
+              }
+            });
       }
 
       @Override
@@ -441,6 +488,19 @@ public final class FakeWindmillServer extends WindmillServerStub {
       @Override
       public Instant startTime() {
         return startTime;
+      }
+
+      @Override
+      public boolean isClosed() {
+        return false;
+      }
+
+      @Override
+      public void shutdown() {}
+
+      @Override
+      public boolean isShutdown() {
+        return false;
       }
     };
   }

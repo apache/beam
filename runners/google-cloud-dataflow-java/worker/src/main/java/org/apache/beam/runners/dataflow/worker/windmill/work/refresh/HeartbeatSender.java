@@ -15,28 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker;
+package org.apache.beam.runners.dataflow.worker.windmill.work.refresh;
 
-import javax.annotation.Nullable;
+import java.util.List;
+import java.util.Map;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 
-/** Indicates that the work item was cancelled and should not be retried. */
-public class WorkItemCancelledException extends RuntimeException {
-  public WorkItemCancelledException(long shardingKey) {
-    super("Work item cancelled for key " + shardingKey);
-  }
-
-  public WorkItemCancelledException(String message, Throwable t) {
-    super(message, t);
-  }
-
-  /** Returns whether an exception was caused by a {@link WorkItemCancelledException}. */
-  public static boolean isWorkItemCancelledException(@Nullable Throwable t) {
-    while (t != null) {
-      if (t instanceof WorkItemCancelledException) {
-        return true;
-      }
-      t = t.getCause();
-    }
-    return false;
-  }
+/** Interface for sending heartbeats. */
+@FunctionalInterface
+public interface HeartbeatSender {
+  void sendHeartbeats(Map<String, List<Windmill.HeartbeatRequest>> heartbeats);
 }

@@ -15,24 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker;
+package org.apache.beam.runners.dataflow.worker.windmill.client;
 
-import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Internal;
 
-/** Indicates that the work item was cancelled and should not be retried. */
-public class WorkItemCancelledException extends RuntimeException {
-  public WorkItemCancelledException(long shardingKey) {
-    super("Work item cancelled for key " + shardingKey);
+@Internal
+public final class WindmillStreamClosedException extends RuntimeException {
+
+  public WindmillStreamClosedException(String message) {
+    super(message);
   }
 
-  public WorkItemCancelledException(String message, Throwable t) {
-    super(message, t);
-  }
-
-  /** Returns whether an exception was caused by a {@link WorkItemCancelledException}. */
-  public static boolean isWorkItemCancelledException(@Nullable Throwable t) {
+  /** Returns whether an exception was caused by a {@link WindmillStreamClosedException}. */
+  public static boolean wasCauseOf(Throwable t) {
     while (t != null) {
-      if (t instanceof WorkItemCancelledException) {
+      if (t instanceof WindmillStreamClosedException) {
         return true;
       }
       t = t.getCause();

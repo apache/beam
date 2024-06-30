@@ -80,7 +80,7 @@ final class EvenGetWorkBudgetDistributor implements GetWorkBudgetDistributor {
   private ImmutableMap<WindmillStreamSender, GetWorkBudget> computeDesiredBudgets(
       ImmutableCollection<WindmillStreamSender> streams, GetWorkBudget totalGetWorkBudget) {
     GetWorkBudget activeWorkBudget = activeWorkBudgetSupplier.get();
-    LOG.info("Current active work budget: {}", activeWorkBudget);
+    LOG.debug("Current active work budget: {}", activeWorkBudget);
     // TODO: Fix possibly non-deterministic handing out of budgets.
     // Rounding up here will drift upwards over the lifetime of the streams.
     GetWorkBudget budgetPerStream =

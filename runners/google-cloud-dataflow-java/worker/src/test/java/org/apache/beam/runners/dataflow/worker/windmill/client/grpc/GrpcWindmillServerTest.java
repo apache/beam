@@ -110,14 +110,13 @@ import org.slf4j.LoggerFactory;
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class GrpcWindmillServerTest {
-  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
-  @Rule public GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
-  @Rule public ErrorCollector errorCollector = new ErrorCollector();
-
   private static final Logger LOG = LoggerFactory.getLogger(GrpcWindmillServerTest.class);
   private static final int STREAM_CHUNK_SIZE = 2 << 20;
   private final long clientId = 10L;
   private final MutableHandlerRegistry serviceRegistry = new MutableHandlerRegistry();
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
+  @Rule public GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
+  @Rule public ErrorCollector errorCollector = new ErrorCollector();
   private Server server;
   private GrpcWindmillServer client;
   private int remainingErrors = 20;
@@ -649,7 +648,8 @@ public class GrpcWindmillServerTest {
       latches.add(new CountDownLatch(1));
     }
     Collections.shuffle(commitRequestList);
-    try (CommitWorkStream.RequestBatcher batcher = stream.batcher()) {
+    try (CommitWorkStream.RequestBatcher batcher =
+        stream.newBatcher().orElseThrow(IllegalStateException::new)) {
       for (int i = 0; i < commitRequestList.size(); ) {
         final CountDownLatch latch = latches.get(i);
         if (batcher.commitWorkItem(
@@ -787,7 +787,8 @@ public class GrpcWindmillServerTest {
 
     // Make the commit requests, waiting for each of them to be verified and acknowledged.
     CommitWorkStream stream = client.commitWorkStream();
-    try (CommitWorkStream.RequestBatcher batcher = stream.batcher()) {
+    try (CommitWorkStream.RequestBatcher batcher =
+        stream.newBatcher().orElseThrow(IllegalStateException::new)) {
       for (int i = 0; i < commitRequestList.size(); ) {
         final CountDownLatch latch = latches.get(i);
         if (batcher.commitWorkItem(
@@ -879,7 +880,8 @@ public class GrpcWindmillServerTest {
   @Test
   public void testStreamingGetDataHeartbeatsAsKeyedGetDataRequests() throws Exception {
     // This server records the heartbeats observed but doesn't respond.
-    final Map<String, List<KeyedGetDataRequest>> getDataHeartbeats = new HashMap<>();
+    Map<String, List<KeyedGetDataRequest>> getDataHeartbeats = new HashMap<>();
+    CountDownLatch heartbeatReceived = new CountDownLatch(1);
 
     serviceRegistry.addService(
         new CloudWindmillServiceV1Alpha1ImplBase() {
@@ -920,6 +922,8 @@ public class GrpcWindmillServerTest {
                             .add(request.getRequestsList().get(0));
                       }
                     }
+
+                    heartbeatReceived.countDown();
                   }
                 } catch (Exception e) {
                   errorCollector.addError(e);
@@ -955,20 +959,10 @@ public class GrpcWindmillServerTest {
 
     GetDataStream stream = client.getDataStream();
     stream.refreshActiveWork(heartbeatsToRefresh);
+    heartbeatReceived.await();
     stream.close();
     assertTrue(stream.awaitTermination(60, TimeUnit.SECONDS));
-
-    boolean receivedAllGetDataHeartbeats = false;
-    while (!receivedAllGetDataHeartbeats) {
-      Thread.sleep(100);
-      synchronized (getDataHeartbeats) {
-        if (getDataHeartbeats.size() != expectedKeyedGetDataRequests.size()) {
-          continue;
-        }
-        assertEquals(expectedKeyedGetDataRequests, getDataHeartbeats);
-        receivedAllGetDataHeartbeats = true;
-      }
-    }
+    assertEquals(expectedKeyedGetDataRequests, getDataHeartbeats);
   }
 
   @Test
@@ -990,7 +984,7 @@ public class GrpcWindmillServerTest {
                 () -> WindmillChannelFactory.inProcessChannel("TestServer")));
     // This server records the heartbeats observed but doesn't respond.
     final List<ComputationHeartbeatRequest> receivedHeartbeats = new ArrayList<>();
-
+    CountDownLatch heartbeatsReceieved = new CountDownLatch(1);
     serviceRegistry.addService(
         new CloudWindmillServiceV1Alpha1ImplBase() {
           @Override
@@ -1021,10 +1015,8 @@ public class GrpcWindmillServerTest {
                     errorCollector.checkThat(
                         chunk.getSerializedSize(), Matchers.lessThanOrEqualTo(STREAM_CHUNK_SIZE));
                     errorCollector.checkThat(chunk.getRequestIdCount(), Matchers.is(0));
-
-                    synchronized (receivedHeartbeats) {
-                      receivedHeartbeats.addAll(chunk.getComputationHeartbeatRequestList());
-                    }
+                    receivedHeartbeats.addAll(chunk.getComputationHeartbeatRequestList());
+                    heartbeatsReceieved.countDown();
                   }
                 } catch (Exception e) {
                   errorCollector.addError(e);
@@ -1071,20 +1063,10 @@ public class GrpcWindmillServerTest {
 
     GetDataStream stream = client.getDataStream();
     stream.refreshActiveWork(heartbeatRequestMap);
+    heartbeatsReceieved.await();
     stream.close();
     assertTrue(stream.awaitTermination(60, TimeUnit.SECONDS));
-
-    boolean receivedAllHeartbeatRequests = false;
-    while (!receivedAllHeartbeatRequests) {
-      Thread.sleep(100);
-      synchronized (receivedHeartbeats) {
-        if (receivedHeartbeats.size() != expectedHeartbeats.size()) {
-          continue;
-        }
-        assertEquals(expectedHeartbeats, receivedHeartbeats);
-        receivedAllHeartbeatRequests = true;
-      }
-    }
+    assertEquals(expectedHeartbeats, receivedHeartbeats);
   }
 
   @Test

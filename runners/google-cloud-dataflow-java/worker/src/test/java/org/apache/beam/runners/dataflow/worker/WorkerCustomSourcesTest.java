@@ -199,6 +199,7 @@ public class WorkerCustomSourcesTest {
         Work.createProcessingContext(
             COMPUTATION_ID,
             (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance(),
+            ignored -> {},
             ignored -> {}),
         Instant::now,
         Collections.emptyList());
@@ -997,7 +998,8 @@ public class WorkerCustomSourcesTest {
             Work.createProcessingContext(
                 COMPUTATION_ID,
                 (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance(),
-                gnored -> {}),
+                ignored -> {},
+                ignored -> {}),
             Instant::now,
             Collections.emptyList());
     context.start(
@@ -1026,7 +1028,7 @@ public class WorkerCustomSourcesTest {
       numReads++;
       // Fail the work item after reading two elements.
       if (numReads == 2) {
-        dummyWork.setFailed();
+        dummyWork.fail();
       }
     }
     assertThat(numReads, equalTo(2));

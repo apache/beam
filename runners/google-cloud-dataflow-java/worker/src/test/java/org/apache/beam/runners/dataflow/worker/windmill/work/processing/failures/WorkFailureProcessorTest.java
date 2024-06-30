@@ -87,6 +87,7 @@ public class WorkFailureProcessorTest {
             Work.createProcessingContext(
                 "computationId",
                 (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance(),
+                ignored -> {},
                 ignored -> {}),
             clock,
             new ArrayList<>()),

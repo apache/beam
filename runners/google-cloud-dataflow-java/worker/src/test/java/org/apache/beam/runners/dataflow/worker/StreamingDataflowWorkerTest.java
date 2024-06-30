@@ -126,6 +126,9 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Timer;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Timer.Type;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WatermarkHold;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcDispatcherClient;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannelFactory;
+import org.apache.beam.runners.dataflow.worker.windmill.testing.FakeWindmillStubFactory;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.CollectionCoder;
@@ -332,7 +335,8 @@ public class StreamingDataflowWorkerTest {
             Work.createProcessingContext(
                 computationId,
                 (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance(),
-                ignored -> {}),
+                ignored -> {},
+                heartbeats -> {}),
             Instant::now,
             Collections.emptyList()),
         processWorkFn);
@@ -835,8 +839,14 @@ public class StreamingDataflowWorkerTest {
 
   private StreamingDataflowWorker makeWorker(
       StreamingDataflowWorkerTestParams streamingDataflowWorkerTestParams) {
+    FakeWindmillStubFactory stubFactory =
+        new FakeWindmillStubFactory(
+            () -> WindmillChannelFactory.inProcessChannel("StreamingDataflowWorkerTest"));
+    GrpcDispatcherClient dispatcherClient = GrpcDispatcherClient.create(stubFactory);
     StreamingDataflowWorker worker =
         StreamingDataflowWorker.forTesting(
+            stubFactory,
+            dispatcherClient,
             streamingDataflowWorkerTestParams.stateNameMappings(),
             server,
             Collections.singletonList(
@@ -844,7 +854,6 @@ public class StreamingDataflowWorkerTest {
             IntrinsicMapTaskExecutorFactory.defaultFactory(),
             mockWorkUnitClient,
             streamingDataflowWorkerTestParams.options(),
-            streamingDataflowWorkerTestParams.publishCounters(),
             hotKeyLogger,
             streamingDataflowWorkerTestParams.clock(),
             streamingDataflowWorkerTestParams.executorSupplier(),
@@ -3411,7 +3420,8 @@ public class StreamingDataflowWorkerTest {
             Work.createProcessingContext(
                 "computationId",
                 (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance(),
-                ignored -> {}),
+                ignored -> {},
+                heartbeats -> {}),
             clock,
             Collections.emptyList());
 
@@ -3713,7 +3723,7 @@ public class StreamingDataflowWorkerTest {
     Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
 
     assertThat(server.numGetDataRequests(), greaterThan(0));
-    Windmill.GetDataRequest heartbeat = server.getGetDataRequests().get(2);
+    Windmill.GetDataRequest heartbeat = server.getGetDataRequests().get(1);
 
     for (LatencyAttribution la :
         heartbeat

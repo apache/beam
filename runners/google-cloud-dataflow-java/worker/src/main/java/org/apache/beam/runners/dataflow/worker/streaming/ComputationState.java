@@ -23,14 +23,12 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import javax.annotation.Nullable;
-import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableListMultimap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multimap;
 import org.joda.time.Instant;
@@ -103,7 +101,9 @@ public class ComputationState {
    * whether the {@link Work} will be activated, either immediately or sometime in the future.
    */
   public boolean activateWork(ExecutableWork executableWork) {
-    switch (activeWorkState.activateWorkForKey(executableWork)) {
+    ActiveWorkState.ActivatedWork activatedWork =
+        activeWorkState.activateWorkForKey(executableWork);
+    switch (activatedWork.result()) {
       case DUPLICATE:
         // Fall through intentionally. Work was not and will not be activated in these cases.
       case STALE:
@@ -112,7 +112,15 @@ public class ComputationState {
         return true;
       case EXECUTE:
         {
-          execute(executableWork);
+          execute(
+              activatedWork
+                  .executableWork()
+                  // This will never happen it is not possible to create ActivatedWork with state
+                  // EXECUTE without an ExecutableWork instance.
+                  .orElseThrow(
+                      () ->
+                          new IllegalStateException(
+                              "ExecutableWork is required for ActivateWorkResult EXECUTE.")));
           return true;
         }
       default:
@@ -139,18 +147,16 @@ public class ComputationState {
         stuckCommitDeadline, this::completeWorkAndScheduleNextWorkForKey);
   }
 
+  public ImmutableListMultimap<ShardedKey, RefreshableWork> currentActiveWorkReadOnly() {
+    return activeWorkState.getReadOnlyActiveWork();
+  }
+
   private void execute(ExecutableWork executableWork) {
     executor.execute(executableWork, executableWork.work().getWorkItem().getSerializedSize());
   }
 
   private void forceExecute(ExecutableWork executableWork) {
     executor.forceExecute(executableWork, executableWork.work().getWorkItem().getSerializedSize());
-  }
-
-  /** Gets HeartbeatRequests for any work started before refreshDeadline. */
-  public ImmutableList<HeartbeatRequest> getKeyHeartbeats(
-      Instant refreshDeadline, DataflowExecutionStateSampler sampler) {
-    return activeWorkState.getKeyHeartbeats(refreshDeadline, sampler);
   }
 
   public GetWorkBudget getActiveWorkBudget() {

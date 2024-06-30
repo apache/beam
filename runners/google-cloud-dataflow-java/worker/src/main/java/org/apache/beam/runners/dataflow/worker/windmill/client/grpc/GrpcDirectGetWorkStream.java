@@ -19,11 +19,15 @@ package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintWriter;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
@@ -33,6 +37,9 @@ import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationWorkItemMetadata;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkRequest;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataResponse;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution.State;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingGetWorkRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingGetWorkResponseChunk;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
@@ -43,6 +50,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.St
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemScheduler;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
+import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.DirectHeartbeatSender;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
@@ -82,6 +90,9 @@ public final class GrpcDirectGetWorkStream
   private final ThrottleTimer getWorkThrottleTimer;
   private final Supplier<GetDataStream> getDataStream;
   private final Supplier<WorkCommitter> workCommitter;
+  private final Function<
+          GetDataStream, BiFunction<String, KeyedGetDataRequest, KeyedGetDataResponse>>
+      keyedGetDataFn;
 
   /**
    * Map of stream IDs to their buffers. Used to aggregate streaming gRPC response chunks as they
@@ -91,6 +102,7 @@ public final class GrpcDirectGetWorkStream
   private final ConcurrentMap<Long, WorkItemBuffer> workItemBuffers;
 
   private GrpcDirectGetWorkStream(
+      String backendWorkerToken,
       Function<
               StreamObserver<StreamingGetWorkResponseChunk>,
               StreamObserver<StreamingGetWorkRequest>>
@@ -103,9 +115,16 @@ public final class GrpcDirectGetWorkStream
       ThrottleTimer getWorkThrottleTimer,
       Supplier<GetDataStream> getDataStream,
       Supplier<WorkCommitter> workCommitter,
+      Function<GetDataStream, BiFunction<String, KeyedGetDataRequest, KeyedGetDataResponse>>
+          keyedGetDataFn,
       WorkItemScheduler workItemScheduler) {
     super(
-        startGetWorkRpcFn, backoff, streamObserverFactory, streamRegistry, logEveryNStreamFailures);
+        startGetWorkRpcFn,
+        backoff,
+        streamObserverFactory,
+        streamRegistry,
+        logEveryNStreamFailures,
+        backendWorkerToken);
     this.request = request;
     this.getWorkThrottleTimer = getWorkThrottleTimer;
     this.workItemScheduler = workItemScheduler;
@@ -114,12 +133,14 @@ public final class GrpcDirectGetWorkStream
     // stream.
     this.getDataStream = Suppliers.memoize(getDataStream::get);
     this.workCommitter = Suppliers.memoize(workCommitter::get);
+    this.keyedGetDataFn = keyedGetDataFn;
     this.inFlightBudget = new AtomicReference<>(GetWorkBudget.noBudget());
     this.nextBudgetAdjustment = new AtomicReference<>(GetWorkBudget.noBudget());
     this.pendingResponseBudget = new AtomicReference<>(GetWorkBudget.noBudget());
   }
 
   public static GrpcDirectGetWorkStream create(
+      String backendWorkerToken,
       Function<
               StreamObserver<StreamingGetWorkResponseChunk>,
               StreamObserver<StreamingGetWorkRequest>>
@@ -132,9 +153,12 @@ public final class GrpcDirectGetWorkStream
       ThrottleTimer getWorkThrottleTimer,
       Supplier<GetDataStream> getDataStream,
       Supplier<WorkCommitter> workCommitter,
+      Function<GetDataStream, BiFunction<String, KeyedGetDataRequest, KeyedGetDataResponse>>
+          keyedGetDataFn,
       WorkItemScheduler workItemScheduler) {
     GrpcDirectGetWorkStream getWorkStream =
         new GrpcDirectGetWorkStream(
+            backendWorkerToken,
             startGetWorkRpcFn,
             request,
             backoff,
@@ -144,6 +168,7 @@ public final class GrpcDirectGetWorkStream
             getWorkThrottleTimer,
             getDataStream,
             workCommitter,
+            keyedGetDataFn,
             workItemScheduler);
     getWorkStream.startStream();
     return getWorkStream;
@@ -155,6 +180,20 @@ public final class GrpcDirectGetWorkStream
         .setOutputDataWatermark(workItem.getOutputDataWatermark())
         .setSynchronizedProcessingTime(metadata.synchronizedProcessingTime())
         .build();
+  }
+
+  private static Optional<WorkItem> parseWorkItem(InputStream serializedWorkItem) {
+    try {
+      return Optional.of(WorkItem.parseFrom(serializedWorkItem));
+    } catch (IOException e) {
+      LOG.error("Failed to parse work item from stream: ", e);
+      return Optional.empty();
+    }
+  }
+
+  private static String newHtmlTableHeader() {
+    return "<table border=\"1\" "
+        + "style=\"border-collapse:collapse;padding:5px;border-spacing:5px;border:1px\">";
   }
 
   private synchronized GetWorkBudget getThenResetBudgetAdjustment() {
@@ -187,22 +226,24 @@ public final class GrpcDirectGetWorkStream
   @Override
   protected synchronized void onNewStream() {
     workItemBuffers.clear();
-    // Add the current in-flight budget to the next adjustment. Only positive values are allowed
-    // here
-    // with negatives defaulting to 0, since GetWorkBudgets cannot be created with negative values.
-    GetWorkBudget budgetAdjustment = nextBudgetAdjustment.get().apply(inFlightBudget.get());
-    inFlightBudget.set(budgetAdjustment);
-    send(
-        StreamingGetWorkRequest.newBuilder()
-            .setRequest(
-                request
-                    .toBuilder()
-                    .setMaxBytes(budgetAdjustment.bytes())
-                    .setMaxItems(budgetAdjustment.items()))
-            .build());
+    if (!isShutdown()) {
+      // Add the current in-flight budget to the next adjustment. Only positive values are allowed
+      // here with negatives defaulting to 0, since GetWorkBudgets cannot be created with negative
+      // values.
+      GetWorkBudget budgetAdjustment = nextBudgetAdjustment.get().apply(inFlightBudget.get());
+      inFlightBudget.set(budgetAdjustment);
+      send(
+          StreamingGetWorkRequest.newBuilder()
+              .setRequest(
+                  request
+                      .toBuilder()
+                      .setMaxBytes(budgetAdjustment.bytes())
+                      .setMaxItems(budgetAdjustment.items()))
+              .build());
 
-    // We just sent the budget, reset it.
-    nextBudgetAdjustment.set(GetWorkBudget.noBudget());
+      // We just sent the budget, reset it.
+      nextBudgetAdjustment.set(GetWorkBudget.noBudget());
+    }
   }
 
   @Override
@@ -212,10 +253,83 @@ public final class GrpcDirectGetWorkStream
 
   @Override
   public void appendSpecificHtml(PrintWriter writer) {
-    // Number of buffers is same as distinct workers that sent work on this stream.
-    writer.format(
-        "GetWorkStream: %d buffers, %s inflight budget allowed.",
-        workItemBuffers.size(), inFlightBudget.get());
+    writer.format("<strong>In-flight Budget:</strong> %s<br>", inFlightBudget.get());
+    writer.format("<strong>Next Budget Adjustment:</strong> %s<br>", inFlightBudget.get());
+    writer.format("<strong>Pending Response Budget:</strong> %s<br>", pendingResponseBudget.get());
+    writer.println("<strong>WorkItemBuffers:</strong>");
+    writer.println(newHtmlTableHeader());
+    writer.println(
+        "<tr>"
+            + "<th>Stream ID</th>"
+            + "<th>Computation</th>"
+            + "<th>Input Data Watermark</th>"
+            + "<th>Synchronized Processing Time</th>"
+            + "<th>WorkItem Create End Time</th>"
+            + "<th>Last WorkItem Chunk Received Time</th>"
+            + "<th>WorkItem Creation Latency</th>"
+            + "<th>Aggregate Latency Table</th>"
+            + "</tr>");
+    StringBuilder statusString = new StringBuilder();
+    for (Map.Entry<Long, WorkItemBuffer> buffer : workItemBuffers.entrySet()) {
+      statusString.append("<tr>");
+      statusString.append("<td>");
+      statusString.append(buffer.getKey());
+      statusString.append("</td><td>");
+      @Nullable ComputationMetadata metadata = buffer.getValue().metadata;
+      if (metadata != null) {
+        statusString.append(metadata.computationId());
+        statusString.append("</td><td>");
+        statusString.append(metadata.inputDataWatermark());
+        statusString.append("</td><td>");
+        statusString.append(metadata.synchronizedProcessingTime());
+      } else {
+        statusString.append("N/A");
+        statusString.append("</td><td>");
+        statusString.append("N/A");
+        statusString.append("</td><td>");
+        statusString.append("N/A");
+      }
+      statusString.append("</td><td>");
+      statusString.append(buffer.getValue().workTimingInfosTracker.getWorkItemCreationEndTime());
+      statusString.append("</td><td>");
+      statusString.append(
+          buffer.getValue().workTimingInfosTracker.getWorkItemLastChunkReceivedByWorkerTime());
+      statusString.append("</td><td>");
+      statusString.append(
+          buffer
+              .getValue()
+              .workTimingInfosTracker
+              .getWorkItemCreationLatency()
+              .map(Windmill.LatencyAttribution::toString)
+              .orElse("N/A"));
+      statusString.append("</td><td>");
+      Map<State, GetWorkTimingInfosTracker.SumAndMaxDurations> aggregatedGetWorkStreamLatencies =
+          buffer.getValue().workTimingInfosTracker.getAggregatedGetWorkStreamLatencies();
+      if (!aggregatedGetWorkStreamLatencies.isEmpty()) {
+        statusString.append(newHtmlTableHeader());
+        for (Map.Entry<State, GetWorkTimingInfosTracker.SumAndMaxDurations> latencyEntry :
+            aggregatedGetWorkStreamLatencies.entrySet()) {
+          statusString.append(
+              "<tr>"
+                  + "<th>Latency State</th>"
+                  + "<th>Latency Sum and Max Duration</th>"
+                  + "</tr>");
+          statusString.append("<tr>");
+          statusString.append("<td>");
+          statusString.append(latencyEntry.getKey());
+          statusString.append("</td><td>");
+          statusString.append(latencyEntry.getValue());
+          statusString.append("</td></tr>\n");
+        }
+        statusString.append("</table>");
+      } else {
+        statusString.append("N/A");
+      }
+      statusString.append("</td></tr>\n");
+    }
+
+    writer.print(statusString);
+    writer.println("</table>");
   }
 
   @Override
@@ -244,8 +358,10 @@ public final class GrpcDirectGetWorkStream
   }
 
   @Override
-  public synchronized void adjustBudget(long itemsDelta, long bytesDelta) {
-    nextBudgetAdjustment.set(nextBudgetAdjustment.get().apply(itemsDelta, bytesDelta));
+  public void adjustBudget(long itemsDelta, long bytesDelta) {
+    synchronized (this) {
+      nextBudgetAdjustment.set(nextBudgetAdjustment.get().apply(itemsDelta, bytesDelta));
+    }
     sendRequestExtension();
   }
 
@@ -307,27 +423,30 @@ public final class GrpcDirectGetWorkStream
     }
 
     private void runAndReset() {
-      try {
-        WorkItem workItem = WorkItem.parseFrom(data.newInput());
-        updatePendingResponseBudget(1, workItem.getSerializedSize());
-        workItemScheduler.scheduleWork(
-            workItem,
-            createWatermarks(workItem, Preconditions.checkNotNull(metadata)),
-            createProcessingContext(Preconditions.checkNotNull(metadata.computationId())),
-            // After the work item is successfully queued or dropped by ActiveWorkState, remove it
-            // from the pendingResponseBudget.
-            queuedWorkItem -> updatePendingResponseBudget(-1, -workItem.getSerializedSize()),
-            workTimingInfosTracker.getLatencyAttributions());
-      } catch (IOException e) {
-        LOG.error("Failed to parse work item from stream: ", e);
-      }
+      parseWorkItem(data.newInput()).ifPresent(this::scheduleWorkItem);
       workTimingInfosTracker.reset();
       data = ByteString.EMPTY;
     }
 
-    private Work.ProcessingContext createProcessingContext(String computationId) {
-      return Work.createProcessingContext(
-          computationId, getDataStream.get()::requestKeyedData, workCommitter.get()::commit);
+    private void scheduleWorkItem(WorkItem workItem) {
+      updatePendingResponseBudget(1, workItem.getSerializedSize());
+      ComputationMetadata metadata = Preconditions.checkNotNull(this.metadata);
+      workItemScheduler.scheduleWork(
+          workItem,
+          createWatermarks(workItem, metadata),
+          Work.createProcessingContext(
+                  metadata.computationId(),
+                  (computation, request) ->
+                      keyedGetDataFn.apply(getDataStream.get()).apply(computation, request),
+                  workCommitter.get()::commit,
+                  DirectHeartbeatSender.create(getDataStream.get()))
+              .toBuilder()
+              .setBackendWorkerToken(id().backendWorkerToken())
+              .build(),
+          // After the work item is successfully queued or dropped by ActiveWorkState, remove it
+          // from the pendingResponseBudget.
+          queuedWorkItem -> updatePendingResponseBudget(-1, -workItem.getSerializedSize()),
+          workTimingInfosTracker.getLatencyAttributions());
     }
   }
 }

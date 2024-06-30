@@ -48,10 +48,10 @@ public final class GrpcGetWorkerMetadataStream
   private final Object metadataLock;
 
   @GuardedBy("metadataLock")
-  private long metadataVersion;
+  private volatile long metadataVersion;
 
   @GuardedBy("metadataLock")
-  private WorkerMetadataResponse latestResponse;
+  private volatile WorkerMetadataResponse latestResponse;
 
   private GrpcGetWorkerMetadataStream(
       Function<StreamObserver<WorkerMetadataResponse>, StreamObserver<WorkerMetadataRequest>>
@@ -69,7 +69,8 @@ public final class GrpcGetWorkerMetadataStream
         backoff,
         streamObserverFactory,
         streamRegistry,
-        logEveryNStreamFailures);
+        logEveryNStreamFailures,
+        "");
     this.workerMetadataRequest = WorkerMetadataRequest.newBuilder().setHeader(jobHeader).build();
     this.metadataVersion = metadataVersion;
     this.getWorkerMetadataThrottleTimer = getWorkerMetadataThrottleTimer;
@@ -161,12 +162,24 @@ public final class GrpcGetWorkerMetadataStream
     send(HEALTH_CHECK_REQUEST);
   }
 
+  @SuppressWarnings("GuardedBy") // This is for debugging purposes, don't block processing threads.
   @Override
   protected void appendSpecificHtml(PrintWriter writer) {
-    synchronized (metadataLock) {
-      writer.format(
-          "GetWorkerMetadataStream: version=[%d] , job_header=[%s], latest_response=[%s]",
-          this.metadataVersion, workerMetadataRequest.getHeader(), this.latestResponse);
-    }
+    writer.println(
+        "<table border=\"1\" "
+            + "style=\"border-collapse:collapse;padding:5px;border-spacing:5px;border:1px\">");
+    writer.println(
+        "<tr>" + "<th>Version</th>" + "<th>Job</th>" + "<th>Latest Response</th>" + "</tr>");
+    String statusString =
+        "<tr>"
+            + "<td>"
+            + metadataVersion
+            + "</td><td>"
+            + workerMetadataRequest.getHeader()
+            + "</td><td>"
+            + latestResponse
+            + "</td></tr>\n";
+    writer.print(statusString);
+    writer.println("</table>");
   }
 }

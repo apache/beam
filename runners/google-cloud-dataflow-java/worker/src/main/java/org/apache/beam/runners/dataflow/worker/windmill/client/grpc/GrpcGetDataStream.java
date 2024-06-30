@@ -30,10 +30,10 @@ import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationHeartbeatRequest;
@@ -48,12 +48,14 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingGetDat
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingGetDataResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.client.AbstractWindmillStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamClosedException;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcGetDataStreamRequests.QueuedBatch;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcGetDataStreamRequests.QueuedRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -75,6 +77,7 @@ public final class GrpcGetDataStream
   private final Consumer<List<ComputationHeartbeatResponse>> processHeartbeatResponses;
 
   private GrpcGetDataStream(
+      String streamId,
       Function<StreamObserver<StreamingGetDataResponse>, StreamObserver<StreamingGetDataRequest>>
           startGetDataRpcFn,
       BackOff backoff,
@@ -88,7 +91,12 @@ public final class GrpcGetDataStream
       boolean sendKeyedGetDataRequests,
       Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses) {
     super(
-        startGetDataRpcFn, backoff, streamObserverFactory, streamRegistry, logEveryNStreamFailures);
+        startGetDataRpcFn,
+        backoff,
+        streamObserverFactory,
+        streamRegistry,
+        logEveryNStreamFailures,
+        streamId);
     this.idGenerator = idGenerator;
     this.getDataThrottleTimer = getDataThrottleTimer;
     this.jobHeader = jobHeader;
@@ -100,6 +108,7 @@ public final class GrpcGetDataStream
   }
 
   public static GrpcGetDataStream create(
+      String backendWorkerToken,
       Function<StreamObserver<StreamingGetDataResponse>, StreamObserver<StreamingGetDataRequest>>
           startGetDataRpcFn,
       BackOff backoff,
@@ -114,6 +123,7 @@ public final class GrpcGetDataStream
       Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses) {
     GrpcGetDataStream getDataStream =
         new GrpcGetDataStream(
+            backendWorkerToken,
             startGetDataRpcFn,
             backoff,
             streamObserverFactory,
@@ -129,6 +139,12 @@ public final class GrpcGetDataStream
     return getDataStream;
   }
 
+  private static String elapsedString(Instant start, Instant end) {
+    Duration activeFor = new Duration(start, end);
+    // Duration's toString always starts with "PT"; remove that here.
+    return activeFor.toString().substring(2);
+  }
+
   @Override
   protected synchronized void onNewStream() {
     send(StreamingGetDataRequest.newBuilder().setHeader(jobHeader).build());
@@ -142,6 +158,22 @@ public final class GrpcGetDataStream
         responseStream.cancel();
       }
     }
+  }
+
+  @Override
+  public synchronized void shutdown() {
+    super.shutdown();
+
+    // Stream has been explicitly closed. Drain pending input streams and request batches.
+    // Future calls to send RPCs will fail.
+    pending.values().forEach(AppendableInputStream::cancel);
+    pending.clear();
+    batches.forEach(
+        batch -> {
+          batch.markFinalized();
+          batch.notifyFailed();
+        });
+    batches.clear();
   }
 
   @Override
@@ -265,40 +297,81 @@ public final class GrpcGetDataStream
 
   @Override
   public void appendSpecificHtml(PrintWriter writer) {
-    writer.format(
-        "GetDataStream: %d queued batches, %d pending requests [", batches.size(), pending.size());
-    for (Map.Entry<Long, AppendableInputStream> entry : pending.entrySet()) {
-      writer.format("Stream %d ", entry.getKey());
-      if (entry.getValue().isCancelled()) {
-        writer.append("cancelled ");
-      }
-      if (entry.getValue().isComplete()) {
-        writer.append("complete ");
-      }
-      int queueSize = entry.getValue().size();
-      if (queueSize > 0) {
-        writer.format("%d queued responses ", queueSize);
-      }
-      long blockedMs = entry.getValue().getBlockedStartMs();
-      if (blockedMs > 0) {
-        writer.format("blocked for %dms", Instant.now().getMillis() - blockedMs);
+    writer.format("<br>%d queued batches, %d pending requests", batches.size(), pending.size());
+    writer.println(
+        "<table border=\"1\" "
+            + "style=\"border-collapse:collapse;padding:5px;border-spacing:5px;border:1px\">");
+    writer.println(
+        "<tr>"
+            + "<th>Request ID</th>"
+            + "<th>Is Cancelled?</th>"
+            + "<th>Is Complete?</th>"
+            + "<th>Queued Responses</th>"
+            + "<th>Blocked For</th>"
+            + "</tr>");
+
+    StringBuilder statusString = new StringBuilder();
+    if (pending.isEmpty()) {
+      statusString.append("<tr>");
+      statusString.append("<td>");
+      statusString.append("N/A");
+      statusString.append("</td><td>");
+      statusString.append("N/A");
+      statusString.append("</td><td>");
+      statusString.append("N/A");
+      statusString.append("</td><td>");
+      statusString.append("N/A");
+      statusString.append("</td><td>");
+      statusString.append("N/A");
+      statusString.append("</td></tr>\n");
+    } else {
+      for (Map.Entry<Long, AppendableInputStream> entry : pending.entrySet()) {
+        statusString.append("<tr>");
+        statusString.append("<td>");
+        statusString.append(entry.getKey());
+        statusString.append("</td><td>");
+        statusString.append(entry.getValue().isCancelled());
+        statusString.append("</td><td>");
+        statusString.append(entry.getValue().isComplete());
+        statusString.append("</td><td>");
+        statusString.append(entry.getValue().size());
+        statusString.append("</td><td>");
+        statusString.append(
+            elapsedString(
+                Instant.ofEpochMilli(entry.getValue().getBlockedStartMs()), Instant.now()));
+        statusString.append("</td></tr>\n");
       }
     }
-    writer.append("]");
+
+    writer.print(statusString);
+    writer.println("</table>");
   }
 
   private <ResponseT> ResponseT issueRequest(QueuedRequest request, ParseFn<ResponseT> parseFn) {
     while (true) {
+      // Handle stream closure during loop.
+      if (isShutdown() || isClosed()) {
+        throw new WindmillStreamClosedException(
+            "Cannot send request=[" + request + "] on closed stream.");
+      }
+
       request.resetResponseStream();
       try {
         queueRequestAndWait(request);
         return parseFn.parse(request.getResponseStream());
+      } catch (WindmillStreamClosedException e) {
+        verify(isShutdown() || isClosed());
+        throw e;
       } catch (CancellationException e) {
         // Retry issuing the request since the response stream was cancelled.
-        continue;
+      } catch (AppendableInputStream.InvalidInputStreamStateException e) {
+        // Handle stream failure when trying to parse response stream.
+        if (isShutdown() || isClosed()) {
+          throw new WindmillStreamClosedException(
+              "Cannot send request=[" + request + "] on closed stream.");
+        }
       } catch (IOException e) {
         LOG.error("Parsing GetData response failed: ", e);
-        continue;
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         throw new RuntimeException(e);
@@ -311,7 +384,7 @@ public final class GrpcGetDataStream
   private void queueRequestAndWait(QueuedRequest request) throws InterruptedException {
     QueuedBatch batch;
     boolean responsibleForSend = false;
-    CountDownLatch waitForSendLatch = null;
+    @Nullable QueuedBatch prevBatch = null;
     synchronized (batches) {
       batch = batches.isEmpty() ? null : batches.getLast();
       if (batch == null
@@ -319,7 +392,7 @@ public final class GrpcGetDataStream
           || batch.requests().size() >= streamingRpcBatchLimit
           || batch.byteSize() + request.byteSize() > AbstractWindmillStream.RPC_STREAM_CHUNK_SIZE) {
         if (batch != null) {
-          waitForSendLatch = batch.getLatch();
+          prevBatch = batch;
         }
         batch = new QueuedBatch();
         batches.addLast(batch);
@@ -328,12 +401,12 @@ public final class GrpcGetDataStream
       batch.addRequest(request);
     }
     if (responsibleForSend) {
-      if (waitForSendLatch == null) {
+      if (prevBatch == null) {
         // If there was not a previous batch wait a little while to improve
         // batching.
         Thread.sleep(1);
       } else {
-        waitForSendLatch.await();
+        prevBatch.waitForSendOrFailNotification();
       }
       // Finalize the batch so that no additional requests will be added.  Leave the batch in the
       // queue so that a subsequent batch will wait for its completion.
@@ -347,10 +420,10 @@ public final class GrpcGetDataStream
       }
       // Notify all waiters with requests in this batch as well as the sender
       // of the next batch (if one exists).
-      batch.countDown();
+      batch.notifySent();
     } else {
       // Wait for this batch to be sent before parsing the response.
-      batch.await();
+      batch.waitForSendOrFailNotification();
     }
   }
 
