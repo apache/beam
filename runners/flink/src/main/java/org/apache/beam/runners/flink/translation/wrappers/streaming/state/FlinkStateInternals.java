@@ -455,6 +455,7 @@ public class FlinkStateInternals<K> implements StateInternals {
 
   private static class FlinkOrderedListState<T> implements OrderedListState<T> {
     private final StateNamespace namespace;
+    private final String stateId;
     private final ListStateDescriptor<TimestampedValue<T>> flinkStateDescriptor;
     private final KeyedStateBackend<ByteBuffer> flinkStateBackend;
 
@@ -465,6 +466,7 @@ public class FlinkStateInternals<K> implements StateInternals {
         Coder<T> coder,
         SerializablePipelineOptions pipelineOptions) {
       this.namespace = namespace;
+      this.stateId = stateId;
       this.flinkStateBackend = flinkStateBackend;
       this.flinkStateDescriptor =
           new ListStateDescriptor<>(
@@ -570,6 +572,27 @@ public class FlinkStateInternals<K> implements StateInternals {
       } catch (Exception e) {
         throw new RuntimeException("Error clearing state.", e);
       }
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+
+      FlinkOrderedListState<?> that = (FlinkOrderedListState<?>) o;
+
+      return namespace.equals(that.namespace) && stateId.equals(that.stateId);
+    }
+
+    @Override
+    public int hashCode() {
+      int result = namespace.hashCode();
+      result = 31 * result + stateId.hashCode();
+      return result;
     }
   }
 
