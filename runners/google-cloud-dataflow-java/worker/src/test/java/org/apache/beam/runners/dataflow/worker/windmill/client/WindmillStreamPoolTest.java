@@ -22,6 +22,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
 
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
@@ -38,12 +39,12 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class WindmillStreamPoolTest {
-  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private static final int DEFAULT_NUM_STREAMS = 10;
   private static final int NEW_STREAM_HOLDS = 2;
   private final ConcurrentHashMap<
           TestWindmillStream, WindmillStreamPool.StreamData<TestWindmillStream>>
       holds = new ConcurrentHashMap<>();
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private List<WindmillStreamPool.@Nullable StreamData<TestWindmillStream>> streams;
 
   @Before
@@ -237,6 +238,11 @@ public class WindmillStreamPoolTest {
     }
 
     @Override
+    public Id id() {
+      return Id.create(mock(GetWorkStream.class), "backend_worker_token", false);
+    }
+
+    @Override
     public void close() {
       closed = true;
     }
@@ -253,6 +259,16 @@ public class WindmillStreamPoolTest {
 
     @Override
     public boolean isClosed() {
+      return closed;
+    }
+
+    @Override
+    public void shutdown() {
+      close();
+    }
+
+    @Override
+    public boolean isShutdown() {
       return closed;
     }
   }

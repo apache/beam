@@ -55,12 +55,12 @@ public final class DirectHeartbeatSender implements HeartbeatSender {
 
   @Override
   public void sendHeartbeats(Map<String, List<HeartbeatRequest>> heartbeats) {
-    if (getDataStream.isClosed()) {
+    if (getDataStream.isShutdown() || getDataStream.isClosed()) {
       LOG.warn(
-          "Trying to refresh work on stream={} after work has moved off of worker."
-              + " heartbeats={}",
-          getDataStream,
-          heartbeats);
+          "Trying to refresh work w/ {} heartbeats on stream={} after work has moved off of worker."
+              + " heartbeats",
+          getDataStream.id(),
+          heartbeats.size());
       onStreamClosed.run();
     } else {
       getDataStream.refreshActiveWork(heartbeats);

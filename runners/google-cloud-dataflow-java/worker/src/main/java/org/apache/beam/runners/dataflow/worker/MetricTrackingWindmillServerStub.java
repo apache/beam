@@ -236,7 +236,7 @@ public class MetricTrackingWindmillServerStub {
   public Windmill.KeyedGetDataResponse getStateData(
       GetDataStream getDataStream, String computation, Windmill.KeyedGetDataRequest request) {
     gcThrashingMonitor.waitForResources("GetStateData");
-    if (getDataStream.isClosed()) {
+    if (getDataStream.isShutdown()) {
       throw new WorkItemCancelledException(request.getShardingKey());
     }
 

@@ -22,7 +22,9 @@ import java.io.PrintWriter;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -70,10 +72,10 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   protected static final int RPC_STREAM_CHUNK_SIZE = 2 << 20;
   private static final Logger LOG = LoggerFactory.getLogger(AbstractWindmillStream.class);
   protected final AtomicBoolean clientClosed;
-  protected final WindmillStream.Id streamId;
+  private final WindmillStream.Id streamId;
   private final AtomicLong lastSendTimeMs;
   private final Executor executor;
-  private final Executor requestSender;
+  private final ExecutorService requestSender;
   private final BackOff backoff;
   private final AtomicLong startTimeMs;
   private final AtomicLong lastResponseTimeMs;
@@ -87,6 +89,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   private final UpdatableDelegateRequestObserver<RequestT> requestObserver;
   // Indicates if the current stream in requestObserver is closed by calling close() method
   private final AtomicBoolean streamClosed;
+  private final AtomicBoolean isShutdown;
 
   protected AbstractWindmillStream(
       Function<StreamObserver<ResponseT>, StreamObserver<RequestT>> clientFactory,
@@ -119,6 +122,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
     this.lastErrorTime = new AtomicReference<>();
     this.sleepUntil = new AtomicLong();
     this.finishLatch = new CountDownLatch(1);
+    this.isShutdown = new AtomicBoolean(false);
     this.requestObserver =
         new UpdatableDelegateRequestObserver<>(
             () ->
@@ -129,6 +133,11 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
 
   private static String debugDuration(long nowMs, long startMs) {
     return (startMs <= 0 ? -1 : Math.max(0, nowMs - startMs)) + "ms";
+  }
+
+  @Override
+  public final Id id() {
+    return streamId;
   }
 
   /** Called on each response from the server. */
@@ -147,7 +156,13 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
    */
   protected abstract void startThrottleTimer();
 
-  /** Send a request to the server. */
+  /**
+   * Send a request to the server.
+   *
+   * @implNote Requests are sent on a dedicated RequestThread via {@link #requestSender} to not
+   *     block external callers from closing/shutting down the stream.
+   */
+  @SuppressWarnings("FutureReturnValueIgnored")
   protected final void send(RequestT request) {
     lastSendTimeMs.set(Instant.now().getMillis());
     synchronized (this) {
@@ -155,22 +170,29 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
         throw new IllegalStateException("Send called on a client closed stream.");
       }
 
-      requestSender.execute(
-          () -> {
-            if (isClosed()) {
-              return;
-            }
-            try {
-              requestObserver.onNext(request);
-            } catch (StreamObserverCancelledException e) {
-              if (isClosed()) {
-                LOG.warn("Stream was closed during send.", e);
+      try {
+        requestSender.submit(
+            () -> {
+              if (isShutdown()) {
                 return;
               }
-              LOG.error("StreamObserver was unexpectedly cancelled.", e);
-              throw e;
-            }
-          });
+              try {
+                requestObserver.onNext(request);
+              } catch (StreamObserverCancelledException e) {
+                if (isClosed() || isShutdown()) {
+                  LOG.warn("Stream was closed or shutdown during send.", e);
+                  return;
+                }
+                LOG.error("StreamObserver was unexpectedly cancelled.", e);
+                throw e;
+              }
+            });
+      } catch (RejectedExecutionException e) {
+        LOG.warn(
+            "{} is shutdown and will not send or receive any more requests or responses.",
+            streamId,
+            e);
+      }
     }
   }
 
@@ -178,7 +200,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   protected final void startStream() {
     // Add the stream to the registry after it has been fully constructed.
     streamRegistry.add(this);
-    while (true) {
+    while (!isShutdown()) {
       try {
         synchronized (this) {
           startTimeMs.set(Instant.now().getMillis());
@@ -236,6 +258,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
     writer.println(
         "<tr>"
             + "<th>Error Count</th>"
+            + "<th>Is Shutdown</th>"
             + "<th>Last Error</th>"
             + "<th>Last Error Received Time</th>"
             + "<th>Is Client Closed</th>"
@@ -251,6 +274,8 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
     statusString.append("<td>");
     if (errorCount.get() > 0) {
       statusString.append(errorCount.get());
+      statusString.append("</td><td>");
+      statusString.append(isShutdown.get());
       statusString.append("</td><td>");
       statusString.append(lastError.get());
       statusString.append("</td><td>");
@@ -286,11 +311,24 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   protected abstract void appendSpecificHtml(PrintWriter writer);
 
   @Override
-  public synchronized void close() {
+  public final synchronized void close() {
     // Synchronization of close and onCompleted necessary for correct retry logic in onNewStream.
     clientClosed.set(true);
     requestObserver.onCompleted();
     streamClosed.set(true);
+  }
+
+  @Override
+  public synchronized void shutdown() {
+    if (isShutdown.compareAndSet(false, true)) {
+      close();
+      requestSender.shutdownNow();
+    }
+  }
+
+  @Override
+  public boolean isShutdown() {
+    return isShutdown.get();
   }
 
   @Override
@@ -379,7 +417,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
 
     private void onStreamFinished(@Nullable Throwable t) {
       synchronized (this) {
-        if (clientClosed.get() && !hasPendingRequests()) {
+        if (isShutdown() || (clientClosed.get() && !hasPendingRequests())) {
           streamRegistry.remove(AbstractWindmillStream.this);
           finishLatch.countDown();
           return;

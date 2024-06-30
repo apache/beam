@@ -61,6 +61,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribut
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution.State;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.CommitWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
@@ -231,6 +232,12 @@ public final class FakeWindmillServer extends WindmillServerStub {
     Instant startTime = Instant.now();
     final CountDownLatch done = new CountDownLatch(1);
     return new GetWorkStream() {
+
+      @Override
+      public Id id() {
+        return WindmillStream.Id.create(this, "backend_worker_token", false);
+      }
+
       @Override
       public void close() {
         done.countDown();
@@ -292,6 +299,16 @@ public final class FakeWindmillServer extends WindmillServerStub {
       public boolean isClosed() {
         return done.getCount() == 0;
       }
+
+      @Override
+      public void shutdown() {
+        close();
+      }
+
+      @Override
+      public boolean isShutdown() {
+        return isClosed();
+      }
     };
   }
 
@@ -299,6 +316,11 @@ public final class FakeWindmillServer extends WindmillServerStub {
   public GetDataStream getDataStream() {
     Instant startTime = Instant.now();
     return new GetDataStream() {
+      @Override
+      public Id id() {
+        return WindmillStream.Id.create(this, "backend_worker_token", false);
+      }
+
       @Override
       public Windmill.KeyedGetDataResponse requestKeyedData(
           String computation, KeyedGetDataRequest request) {
@@ -369,6 +391,14 @@ public final class FakeWindmillServer extends WindmillServerStub {
       public boolean isClosed() {
         return false;
       }
+
+      @Override
+      public void shutdown() {}
+
+      @Override
+      public boolean isShutdown() {
+        return false;
+      }
     };
   }
 
@@ -376,6 +406,10 @@ public final class FakeWindmillServer extends WindmillServerStub {
   public CommitWorkStream commitWorkStream() {
     Instant startTime = Instant.now();
     return new CommitWorkStream() {
+      @Override
+      public Id id() {
+        return WindmillStream.Id.create(this, "backend_worker_token", false);
+      }
 
       @Override
       public Optional<RequestBatcher> newBatcher() {
@@ -458,6 +492,14 @@ public final class FakeWindmillServer extends WindmillServerStub {
 
       @Override
       public boolean isClosed() {
+        return false;
+      }
+
+      @Override
+      public void shutdown() {}
+
+      @Override
+      public boolean isShutdown() {
         return false;
       }
     };

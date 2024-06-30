@@ -89,7 +89,7 @@ public class WindmillStreamSender {
     this.getDataStream =
         Suppliers.memoize(
             () ->
-                streamingEngineStreamFactory.createGetDataStream(
+                streamingEngineStreamFactory.createDirectGetDataStream(
                     backendWorkerToken,
                     stub,
                     streamingEngineThrottleTimers.getDataThrottleTimer()));
@@ -158,10 +158,10 @@ public class WindmillStreamSender {
     // streaming RPCs by possibly making calls over the network. Do not close the streams unless
     // they have already been started.
     if (started.get()) {
-      getWorkStream.get().close();
-      getDataStream.get().close();
+      getWorkStream.get().shutdown();
+      getDataStream.get().shutdown();
       workCommitter.get().stop();
-      commitWorkStream.get().close();
+      commitWorkStream.get().shutdown();
     }
   }
 

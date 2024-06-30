@@ -18,7 +18,6 @@
 package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -52,6 +51,7 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class WindmillStreamSenderTest {
+  private static final String BACKEND_WORKER_TOKEN = "some_backend_worker";
   private static final GetWorkRequest GET_WORK_REQUEST =
       GetWorkRequest.newBuilder().setClientId(1L).setJobId("job").setProjectId("project").build();
   @Rule public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
@@ -97,10 +97,11 @@ public class WindmillStreamSenderTest {
 
     verify(streamFactory)
         .createDirectGetWorkStream(
-            anyString(),
+            eq(BACKEND_WORKER_TOKEN),
             eq(stub),
             eq(
-                GET_WORK_REQUEST.toBuilder()
+                GET_WORK_REQUEST
+                    .toBuilder()
                     .setMaxItems(itemBudget)
                     .setMaxBytes(byteBudget)
                     .build()),
@@ -110,8 +111,10 @@ public class WindmillStreamSenderTest {
             any(),
             eq(workItemScheduler));
 
-    verify(streamFactory).createGetDataStream(anyString(), eq(stub), any(ThrottleTimer.class));
-    verify(streamFactory).createCommitWorkStream(eq(stub), any(ThrottleTimer.class));
+    verify(streamFactory)
+        .createDirectGetDataStream(eq(BACKEND_WORKER_TOKEN), eq(stub), any(ThrottleTimer.class));
+    verify(streamFactory)
+        .createDirectCommitWorkStream(eq(BACKEND_WORKER_TOKEN), eq(stub), any(ThrottleTimer.class));
   }
 
   @Test
@@ -129,10 +132,11 @@ public class WindmillStreamSenderTest {
 
     verify(streamFactory, times(1))
         .createDirectGetWorkStream(
-            anyString(),
+            eq(BACKEND_WORKER_TOKEN),
             eq(stub),
             eq(
-                GET_WORK_REQUEST.toBuilder()
+                GET_WORK_REQUEST
+                    .toBuilder()
                     .setMaxItems(itemBudget)
                     .setMaxBytes(byteBudget)
                     .build()),
@@ -143,8 +147,9 @@ public class WindmillStreamSenderTest {
             eq(workItemScheduler));
 
     verify(streamFactory, times(1))
-        .createGetDataStream(anyString(), eq(stub), any(ThrottleTimer.class));
-    verify(streamFactory, times(1)).createCommitWorkStream(eq(stub), any(ThrottleTimer.class));
+        .createDirectGetDataStream(eq(BACKEND_WORKER_TOKEN), eq(stub), any(ThrottleTimer.class));
+    verify(streamFactory, times(1))
+        .createDirectGetDataStream(eq(BACKEND_WORKER_TOKEN), eq(stub), any(ThrottleTimer.class));
   }
 
   @Test
@@ -165,10 +170,11 @@ public class WindmillStreamSenderTest {
 
     verify(streamFactory, times(1))
         .createDirectGetWorkStream(
-            anyString(),
+            eq(BACKEND_WORKER_TOKEN),
             eq(stub),
             eq(
-                GET_WORK_REQUEST.toBuilder()
+                GET_WORK_REQUEST
+                    .toBuilder()
                     .setMaxItems(itemBudget)
                     .setMaxBytes(byteBudget)
                     .build()),
@@ -179,8 +185,9 @@ public class WindmillStreamSenderTest {
             eq(workItemScheduler));
 
     verify(streamFactory, times(1))
-        .createGetDataStream(anyString(), eq(stub), any(ThrottleTimer.class));
-    verify(streamFactory, times(1)).createCommitWorkStream(eq(stub), any(ThrottleTimer.class));
+        .createDirectGetDataStream(eq(BACKEND_WORKER_TOKEN), eq(stub), any(ThrottleTimer.class));
+    verify(streamFactory, times(1))
+        .createDirectCommitWorkStream(eq(BACKEND_WORKER_TOKEN), eq(stub), any(ThrottleTimer.class));
   }
 
   @Test
@@ -205,7 +212,7 @@ public class WindmillStreamSenderTest {
     CommitWorkStream mockCommitWorkStream = mock(CommitWorkStream.class);
 
     when(mockStreamFactory.createDirectGetWorkStream(
-            anyString(),
+            eq(BACKEND_WORKER_TOKEN),
             eq(stub),
             eq(getWorkRequestWithBudget),
             any(ThrottleTimer.class),
@@ -214,10 +221,11 @@ public class WindmillStreamSenderTest {
             any(),
             eq(workItemScheduler)))
         .thenReturn(mockGetWorkStream);
-    when(mockStreamFactory.createGetDataStream(anyString(), eq(stub), any(ThrottleTimer.class)))
+    when(mockStreamFactory.createDirectGetDataStream(
+            eq(BACKEND_WORKER_TOKEN), eq(stub), any(ThrottleTimer.class)))
         .thenReturn(mockGetDataStream);
     when(mockStreamFactory.createDirectCommitWorkStream(
-            anyString(), eq(stub), any(ThrottleTimer.class)))
+            eq(BACKEND_WORKER_TOKEN), eq(stub), any(ThrottleTimer.class)))
         .thenReturn(mockCommitWorkStream);
 
     WindmillStreamSender windmillStreamSender =
@@ -228,9 +236,9 @@ public class WindmillStreamSenderTest {
     windmillStreamSender.startStreams();
     windmillStreamSender.closeAllStreams();
 
-    verify(mockGetWorkStream).close();
-    verify(mockGetDataStream).close();
-    verify(mockCommitWorkStream).close();
+    verify(mockGetWorkStream).shutdown();
+    verify(mockGetDataStream).shutdown();
+    verify(mockCommitWorkStream).shutdown();
   }
 
   private WindmillStreamSender newWindmillStreamSender(GetWorkBudget budget) {
@@ -240,7 +248,7 @@ public class WindmillStreamSenderTest {
   private WindmillStreamSender newWindmillStreamSender(
       GetWorkBudget budget, GrpcWindmillStreamFactory streamFactory) {
     return WindmillStreamSender.create(
-        "backendWorkerId",
+        BACKEND_WORKER_TOKEN,
         stub,
         GET_WORK_REQUEST,
         budget,

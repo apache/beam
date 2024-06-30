@@ -440,7 +440,7 @@ public final class Work implements RefreshableWork {
 
   @AutoValue
   public abstract static class ProcessingContext {
-    private static final String UNKNOWN_BACKEND_WORKER_TOKEN = "UNKNOWN";
+    private static final String UNKNOWN_BACKEND_WORKER_TOKEN = "";
 
     private static ProcessingContext.Builder create(
         String computationId,

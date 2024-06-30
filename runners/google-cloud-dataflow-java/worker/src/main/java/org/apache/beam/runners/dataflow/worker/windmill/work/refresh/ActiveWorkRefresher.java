@@ -30,6 +30,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableListMultimap;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -44,13 +45,14 @@ import org.slf4j.LoggerFactory;
  * threshold is determined by {@link #activeWorkRefreshPeriodMillis}
  */
 @ThreadSafe
-public class ActiveWorkRefresher {
+@Internal
+public final class ActiveWorkRefresher {
   private static final Logger LOG = LoggerFactory.getLogger(ActiveWorkRefresher.class);
 
-  protected final Supplier<Instant> clock;
-  protected final int activeWorkRefreshPeriodMillis;
-  protected final Supplier<Collection<ComputationState>> computations;
-  protected final DataflowExecutionStateSampler sampler;
+  private final Supplier<Instant> clock;
+  private final int activeWorkRefreshPeriodMillis;
+  private final Supplier<Collection<ComputationState>> computations;
+  private final DataflowExecutionStateSampler sampler;
   private final int stuckCommitDurationMillis;
   private final ScheduledExecutorService activeWorkRefreshExecutor;
   private final Consumer<Map<HeartbeatSender, Map<String, List<Windmill.HeartbeatRequest>>>>

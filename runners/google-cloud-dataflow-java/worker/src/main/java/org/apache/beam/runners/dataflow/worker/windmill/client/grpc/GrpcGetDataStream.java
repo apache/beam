@@ -161,8 +161,8 @@ public final class GrpcGetDataStream
   }
 
   @Override
-  public synchronized void close() {
-    super.close();
+  public synchronized void shutdown() {
+    super.shutdown();
 
     // Stream has been explicitly closed. Drain pending input streams and request batches.
     // Future calls to send RPCs will fail.
@@ -350,7 +350,7 @@ public final class GrpcGetDataStream
   private <ResponseT> ResponseT issueRequest(QueuedRequest request, ParseFn<ResponseT> parseFn) {
     while (true) {
       // Handle stream closure during loop.
-      if (isClosed()) {
+      if (isShutdown() || isClosed()) {
         throw new WindmillStreamClosedException(
             "Cannot send request=[" + request + "] on closed stream.");
       }
@@ -360,13 +360,13 @@ public final class GrpcGetDataStream
         queueRequestAndWait(request);
         return parseFn.parse(request.getResponseStream());
       } catch (WindmillStreamClosedException e) {
-        verify(isClosed());
+        verify(isShutdown() || isClosed());
         throw e;
       } catch (CancellationException e) {
         // Retry issuing the request since the response stream was cancelled.
       } catch (AppendableInputStream.InvalidInputStreamStateException e) {
         // Handle stream failure when trying to parse response stream.
-        if (isClosed()) {
+        if (isShutdown() || isClosed()) {
           throw new WindmillStreamClosedException(
               "Cannot send request=[" + request + "] on closed stream.");
         }

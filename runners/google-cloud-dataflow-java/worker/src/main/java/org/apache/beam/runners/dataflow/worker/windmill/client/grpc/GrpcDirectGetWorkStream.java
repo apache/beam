@@ -226,7 +226,7 @@ public final class GrpcDirectGetWorkStream
   @Override
   protected synchronized void onNewStream() {
     workItemBuffers.clear();
-    if (!isClosed()) {
+    if (!isShutdown()) {
       // Add the current in-flight budget to the next adjustment. Only positive values are allowed
       // here with negatives defaulting to 0, since GetWorkBudgets cannot be created with negative
       // values.
@@ -441,7 +441,7 @@ public final class GrpcDirectGetWorkStream
                   workCommitter.get()::commit,
                   DirectHeartbeatSender.create(getDataStream.get()))
               .toBuilder()
-              .setBackendWorkerToken(streamId.backendWorkerToken())
+              .setBackendWorkerToken(id().backendWorkerToken())
               .build(),
           // After the work item is successfully queued or dropped by ActiveWorkState, remove it
           // from the pendingResponseBudget.

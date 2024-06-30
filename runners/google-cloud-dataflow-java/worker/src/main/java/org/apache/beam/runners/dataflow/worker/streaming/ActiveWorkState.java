@@ -286,10 +286,11 @@ public final class ActiveWorkState {
       if (executableWork != null) {
         Work work = executableWork.work();
         if (work.isStuckCommittingAt(stuckCommitDeadline)) {
-          LOG.error(
-              "Detected key {} stuck in COMMITTING state since {}, completing it with error.",
+          LOG.warn(
+              "Detected key {} stuck in COMMITTING state since {} originating from {} worker, invalidating.",
               shardedKey,
-              work.getStateStartTime());
+              work.getStateStartTime(),
+              work.backendWorkerToken());
           stuckCommits.put(shardedKey, work.id());
         }
       }

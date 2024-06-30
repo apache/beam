@@ -148,7 +148,7 @@ final class DirectStreamObserver<T> implements StreamObserver<T> {
   @Override
   public void onError(Throwable t) {
     synchronized (lock) {
-      isReadyNotifier.arriveAndDeregister();
+      unblockIsReadyNotifier();
       outboundObserver.onError(t);
     }
   }
@@ -156,8 +156,16 @@ final class DirectStreamObserver<T> implements StreamObserver<T> {
   @Override
   public void onCompleted() {
     synchronized (lock) {
-      isReadyNotifier.arriveAndDeregister();
+      unblockIsReadyNotifier();
       outboundObserver.onCompleted();
+    }
+  }
+
+  private void unblockIsReadyNotifier() {
+    try {
+      isReadyNotifier.arriveAndDeregister();
+    } catch (IllegalStateException e) {
+      // onCompleted or onError has already been called and waiting threads have been freed.
     }
   }
 }

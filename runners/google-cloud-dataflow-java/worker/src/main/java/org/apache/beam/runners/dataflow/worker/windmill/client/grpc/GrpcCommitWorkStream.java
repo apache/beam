@@ -141,7 +141,7 @@ public final class GrpcCommitWorkStream
    */
   @Override
   public Optional<RequestBatcher> newBatcher() {
-    return isClosed() ? Optional.empty() : Optional.of(new Batcher());
+    return isShutdown() ? Optional.empty() : Optional.of(new Batcher());
   }
 
   @Override
@@ -162,7 +162,7 @@ public final class GrpcCommitWorkStream
   protected void onResponse(StreamingCommitResponse response) {
     commitWorkThrottleTimer.stop();
     @Nullable RuntimeException failure = null;
-    for (int i = 0; i < response.getRequestIdCount() && !isClosed(); ++i) {
+    for (int i = 0; i < response.getRequestIdCount() && !isShutdown(); ++i) {
       long requestId = response.getRequestId(i);
       if (requestId == HEARTBEAT_REQUEST_ID) {
         continue;
@@ -195,9 +195,9 @@ public final class GrpcCommitWorkStream
   }
 
   private void flushInternal(Map<Long, PendingRequest> requests) {
-    boolean isClosed = isClosed();
-    if (requests.isEmpty() || isClosed) {
-      LOG.debug("Skipping commit stream flush. isClosed={}", isClosed);
+    boolean isShutdown = isShutdown();
+    if (requests.isEmpty() || isShutdown) {
+      LOG.debug("Skipping commit stream flush. isShutdown={}", isShutdown);
       return;
     }
 

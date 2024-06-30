@@ -246,8 +246,8 @@ public class StreamingEngineClientTest {
             any(),
             any(),
             eq(noOpProcessWorkItemFn()));
-    verify(streamFactory, times(2)).createGetDataStream(anyString(), any(), any());
-    verify(streamFactory, times(2)).createCommitWorkStream(any(), any());
+    verify(streamFactory, times(2)).createDirectGetDataStream(anyString(), any(), any());
+    verify(streamFactory, times(2)).createDirectCommitWorkStream(anyString(), any(), any());
   }
 
   @Test

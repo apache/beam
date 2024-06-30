@@ -33,7 +33,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -287,7 +286,7 @@ public final class StreamingEngineClient {
   @VisibleForTesting
   public synchronized void finish() {
     Preconditions.checkState(started, "StreamingEngineClient never started.");
-    getWorkerMetadataStream.get().close();
+    getWorkerMetadataStream.get().shutdown();
     getWorkBudgetRefresher.stop();
     newWorkerMetadataPublisher.shutdownNow();
     newWorkerMetadataConsumer.shutdownNow();

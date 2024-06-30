@@ -34,6 +34,8 @@ import org.joda.time.Instant;
 /** Superclass for streams returned by streaming Windmill methods. */
 @ThreadSafe
 public interface WindmillStream {
+  Id id();
+
   /** Indicates that no more requests will be sent. */
   void close();
 
@@ -45,6 +47,15 @@ public interface WindmillStream {
 
   /** Reflects that {@link #close()} was explicitly called. */
   boolean isClosed();
+
+  /**
+   * Shutdown the stream. Logically closes the stream and terminates the stream. The stream instance
+   * should not have any interactions after this point.
+   */
+  void shutdown();
+
+  /** Indicates that the stream is shutdown and should not be used. */
+  boolean isShutdown();
 
   /** Handle representing a stream of GetWork responses. */
   @ThreadSafe
@@ -116,7 +127,7 @@ public interface WindmillStream {
     private static final String GET_WORKER_METADATA_STREAM_TYPE = "GetWorkerMetadataStream";
     private static final String COMMIT_WORK_STREAM_TYPE = "CommitWorkStream";
 
-    static Id create(WindmillStream stream, String backendWorkerToken, boolean isDirect) {
+    public static Id create(WindmillStream stream, String backendWorkerToken, boolean isDirect) {
       return new AutoValue_WindmillStream_Id(
           Id.getStreamType(stream), backendWorkerToken, isDirect);
     }
@@ -145,7 +156,7 @@ public interface WindmillStream {
     @Override
     public final String toString() {
       String id = String.format("%s-%s", streamType(), isDirect() ? "Direct" : "Dispatched");
-      return backendWorkerToken().isEmpty()
+      return !backendWorkerToken().isEmpty()
           ? id + String.format("-[%s]", backendWorkerToken())
           : id;
     }

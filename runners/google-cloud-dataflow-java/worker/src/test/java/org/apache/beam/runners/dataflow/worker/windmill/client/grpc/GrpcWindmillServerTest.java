@@ -36,6 +36,8 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1ImplBase;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitStatus;
@@ -721,6 +723,132 @@ public class GrpcWindmillServerTest {
     stream.close();
     assertTrue(stream.awaitTermination(30, TimeUnit.SECONDS));
     executor.shutdown();
+  }
+
+  @Test
+  // Tests stream retries on server errors before and after `close()`
+  public void testStreamingCommitClosedStream() throws Exception {
+    List<WorkItemCommitRequest> commitRequestList = new ArrayList<>();
+    List<CountDownLatch> latches = new ArrayList<>();
+    Map<Long, WorkItemCommitRequest> commitRequests = new ConcurrentHashMap<>();
+    AtomicBoolean shouldServerReturnError = new AtomicBoolean(true);
+    AtomicBoolean isClientClosed = new AtomicBoolean(false);
+    AtomicInteger errorsBeforeClose = new AtomicInteger();
+    AtomicInteger errorsAfterClose = new AtomicInteger();
+    for (int i = 0; i < 500; ++i) {
+      // Build some requests of varying size with a few big ones.
+      WorkItemCommitRequest request = makeCommitRequest(i, i * (i < 480 ? 8 : 128));
+      commitRequestList.add(request);
+      commitRequests.put((long) i, request);
+      latches.add(new CountDownLatch(1));
+    }
+    Collections.shuffle(commitRequestList);
+
+    // This server returns errors if shouldServerReturnError is true, else returns valid responses.
+    serviceRegistry.addService(
+        new CloudWindmillServiceV1Alpha1ImplBase() {
+          @Override
+          public StreamObserver<StreamingCommitWorkRequest> commitWorkStream(
+              StreamObserver<StreamingCommitResponse> responseObserver) {
+            StreamObserver<StreamingCommitWorkRequest> testCommitStreamObserver =
+                getTestCommitStreamObserver(responseObserver, commitRequests);
+            return new StreamObserver<StreamingCommitWorkRequest>() {
+              @Override
+              public void onNext(StreamingCommitWorkRequest request) {
+                if (shouldServerReturnError.get()) {
+                  try {
+                    responseObserver.onError(
+                        new RuntimeException("shouldServerReturnError = true"));
+                    if (isClientClosed.get()) {
+                      errorsAfterClose.incrementAndGet();
+                    } else {
+                      errorsBeforeClose.incrementAndGet();
+                    }
+                  } catch (IllegalStateException e) {
+                    // The stream is already closed.
+                  }
+                } else {
+                  testCommitStreamObserver.onNext(request);
+                }
+              }
+
+              @Override
+              public void onError(Throwable throwable) {
+                testCommitStreamObserver.onError(throwable);
+              }
+
+              @Override
+              public void onCompleted() {
+                testCommitStreamObserver.onCompleted();
+              }
+            };
+          }
+        });
+
+    // Make the commit requests, waiting for each of them to be verified and acknowledged.
+    CommitWorkStream stream = client.commitWorkStream();
+    try (CommitWorkStream.RequestBatcher batcher =
+        stream.newBatcher().orElseThrow(IllegalStateException::new)) {
+      for (int i = 0; i < commitRequestList.size(); ) {
+        final CountDownLatch latch = latches.get(i);
+        if (batcher.commitWorkItem(
+            "computation",
+            commitRequestList.get(i),
+            (CommitStatus status) -> {
+              assertEquals(status, CommitStatus.OK);
+              latch.countDown();
+            })) {
+          i++;
+        } else {
+          batcher.flush();
+        }
+      }
+    }
+
+    long deadline = System.currentTimeMillis() + 60_000; // 1 min
+    while (true) {
+      Thread.sleep(100);
+      int tmpErrorsBeforeClose = errorsBeforeClose.get();
+      // wait for at least 1 error before close
+      if (tmpErrorsBeforeClose > 0) {
+        break;
+      }
+      if (System.currentTimeMillis() > deadline) {
+        // Control should not reach here if the test is working as expected
+        fail(
+            String.format(
+                "Expected errors not sent by server errorsBeforeClose: %s"
+                    + " \n Should not reach here if the test is working as expected.",
+                tmpErrorsBeforeClose));
+      }
+    }
+
+    stream.close();
+    isClientClosed.set(true);
+
+    deadline = System.currentTimeMillis() + 60_000; // 1 min
+    while (true) {
+      Thread.sleep(100);
+      int tmpErrorsAfterClose = errorsAfterClose.get();
+      // wait for at least 1 error after close
+      if (tmpErrorsAfterClose > 0) {
+        break;
+      }
+      if (System.currentTimeMillis() > deadline) {
+        // Control should not reach here if the test is working as expected
+        fail(
+            String.format(
+                "Expected errors not sent by server errorsAfterClose: %s"
+                    + " \n Should not reach here if the test is working as expected.",
+                tmpErrorsAfterClose));
+      }
+    }
+
+    shouldServerReturnError.set(false);
+    for (CountDownLatch latch : latches) {
+      assertTrue(latch.await(1, TimeUnit.MINUTES));
+    }
+    assertTrue(stream.awaitTermination(30, TimeUnit.SECONDS));
   }
 
   private List<KeyedGetDataRequest> makeGetDataHeartbeatRequest(List<String> keys) {
