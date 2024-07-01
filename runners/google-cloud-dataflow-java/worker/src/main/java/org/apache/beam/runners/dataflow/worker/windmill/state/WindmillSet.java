@@ -91,7 +91,7 @@ public class WindmillSet<K> extends SimpleWindmillState implements SetState<K> {
   @Override
   void initializeForWorkItem(
       WindmillStateReader reader, Supplier<Closeable> scopedReadStateSupplier) {
-    super.cleanupAfterWorkItem();
+    super.initializeForWorkItem(reader, scopedReadStateSupplier);
     windmillMap.initializeForWorkItem(reader, scopedReadStateSupplier);
   }
 

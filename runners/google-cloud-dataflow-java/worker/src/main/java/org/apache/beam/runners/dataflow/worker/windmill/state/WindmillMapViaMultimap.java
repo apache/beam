@@ -46,7 +46,7 @@ public class WindmillMapViaMultimap<KeyT, ValueT> extends AbstractWindmillMap<Ke
   @Override
   void initializeForWorkItem(
       WindmillStateReader reader, Supplier<Closeable> scopedReadStateSupplier) {
-    super.cleanupAfterWorkItem();
+    super.initializeForWorkItem(reader, scopedReadStateSupplier);
     multimap.initializeForWorkItem(reader, scopedReadStateSupplier);
   }
 
@@ -95,7 +95,7 @@ public class WindmillMapViaMultimap<KeyT, ValueT> extends AbstractWindmillMap<Ke
     @Override
     public T read() {
       Iterator<T> iterator = wrapped.read().iterator();
-      if (iterator.hasNext()) {
+      if (!iterator.hasNext()) {
         return null;
       }
       return Iterators.getOnlyElement(iterator);
