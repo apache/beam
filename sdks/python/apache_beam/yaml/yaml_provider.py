@@ -40,7 +40,6 @@ from typing import Mapping
 from typing import Optional
 
 import docstring_parser
-import jinja2
 import yaml
 from yaml.loader import SafeLoader
 
@@ -430,11 +429,8 @@ class YamlProvider(Provider):
     body = spec['body']
     if not isinstance(body, str):
       body = yaml.safe_dump(SafeLineLoader.strip_metadata(body))
-    templated = (  # keep formatting
-        jinja2.Environment(undefined=jinja2.StrictUndefined)
-          .from_string(body)
-          .render(**args))
-    return YamlTransform(templated)
+    from apache_beam.yaml.yaml_transform import expand_jinja
+    return YamlTransform(expand_jinja(body, args))
 
 
 # This is needed because type inference can't handle *args, **kwargs forwarding.
