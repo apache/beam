@@ -398,17 +398,17 @@ public class SchemaAwareJavaBeans {
     @AutoValue.Builder
     public abstract static class Builder {
 
-      public abstract Builder setABoolean(Boolean value);
+      public abstract Builder setABoolean(@Nullable Boolean value);
 
-      public abstract Builder setADouble(Double value);
+      public abstract Builder setADouble(@Nullable Double value);
 
-      public abstract Builder setAFloat(Float value);
+      public abstract Builder setAFloat(@Nullable Float value);
 
-      public abstract Builder setAnInteger(Integer value);
+      public abstract Builder setAnInteger(@Nullable Integer value);
 
-      public abstract Builder setALong(Long value);
+      public abstract Builder setALong(@Nullable Long value);
 
-      public abstract Builder setAString(String value);
+      public abstract Builder setAString(@Nullable String value);
 
       public abstract NullableAllPrimitiveDataTypes build();
     }

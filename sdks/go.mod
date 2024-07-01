@@ -25,7 +25,7 @@ go 1.20
 require (
 	cloud.google.com/go/bigquery v1.61.0
 	cloud.google.com/go/bigtable v1.25.0
-	cloud.google.com/go/datastore v1.17.0
+	cloud.google.com/go/datastore v1.17.1
 	cloud.google.com/go/profiler v0.4.0
 	cloud.google.com/go/pubsub v1.38.0
 	cloud.google.com/go/spanner v1.63.0
@@ -38,7 +38,7 @@ require (
 	github.com/aws/smithy-go v1.20.2
 	github.com/docker/go-connections v0.5.0
 	github.com/dustin/go-humanize v1.0.1
-	github.com/go-sql-driver/mysql v1.8.0
+	github.com/go-sql-driver/mysql v1.8.1
 	github.com/golang/protobuf v1.5.4 // TODO(danoliveira): Fully replace this with google.golang.org/protobuf
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.6.0
@@ -48,9 +48,9 @@ require (
 	github.com/nats-io/nats-server/v2 v2.10.12
 	github.com/nats-io/nats.go v1.33.1
 	github.com/proullon/ramsql v0.1.3
-	github.com/spf13/cobra v1.8.0
+	github.com/spf13/cobra v1.8.1
 	github.com/testcontainers/testcontainers-go v0.26.0
-	github.com/tetratelabs/wazero v1.7.0
+	github.com/tetratelabs/wazero v1.7.3
 	github.com/xitongsys/parquet-go v1.6.2
 	github.com/xitongsys/parquet-go-source v0.0.0-20220315005136-aec0fe3e777c
 	go.mongodb.org/mongo-driver v1.13.1

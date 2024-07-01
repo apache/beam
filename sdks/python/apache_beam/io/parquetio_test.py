@@ -410,9 +410,8 @@ class TestParquet(unittest.TestCase):
       rows = [beam.Row(a=1, b='x'), beam.Row(a=2, b='y')]
       stable_repr = lambda row: json.dumps(row._asdict())
       with TestPipeline() as p:
-        _ = p | Create(rows) | WriteToParquet(path) | beam.Map(print)
+        _ = p | Create(rows) | WriteToParquet(path)
       with TestPipeline() as p:
-        # json used for stable sortability
         readback = (
             p
             | ReadFromParquet(path + '*', as_rows=True)

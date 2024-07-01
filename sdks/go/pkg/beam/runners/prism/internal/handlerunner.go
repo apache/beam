@@ -99,6 +99,20 @@ func (h *runner) handleFlatten(tid string, t *pipepb.PTransform, comps *pipepb.C
 			}
 		}
 
+		// Change the coders of PCollections being input into a flatten to match the
+		// Flatten's output coder. They must be compatible SDK side anyway, so ensure
+		// they're written out to the runner in the same fashion.
+		// This may stop being necessary once Flatten Unzipping happens in the optimizer.
+		outPCol := comps.GetPcollections()[outColID]
+		outCoder := comps.GetCoders()[outPCol.GetCoderId()]
+		coderSubs := map[string]*pipepb.Coder{}
+		for _, p := range t.GetInputs() {
+			inPCol := comps.GetPcollections()[p]
+			if inPCol.CoderId != outPCol.CoderId {
+				coderSubs[inPCol.CoderId] = outCoder
+			}
+		}
+
 		// Return the new components which is the transforms consumer
 		return prepareResult{
 			// We sub this flatten with itself, to not drop it.
@@ -106,6 +120,7 @@ func (h *runner) handleFlatten(tid string, t *pipepb.PTransform, comps *pipepb.C
 				Transforms: map[string]*pipepb.PTransform{
 					tid: t,
 				},
+				Coders: coderSubs,
 			},
 			RemovedLeaves: nil,
 			ForcedRoots:   forcedRoots,
