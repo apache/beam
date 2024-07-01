@@ -1,0 +1,24 @@
+pipeline:
+  type: chain
+  transforms:
+    - type: SpannerRead
+      config:
+        instance_id: ""
+        database_id: ""
+        table_id: "" 
+    - type: LogForTesting
+
+providers:
+  - type: renaming
+    transforms:
+      'ReadFromSpanner': 'ReadFromSpanner'
+    config:
+      mappings:
+        'SpannerRead': 'SpannerReadSchemaTransformProvider'
+        'Identity':
+      underlying_provider:
+        type: javaJar
+        config:
+          jar: 'sdks:java:extensions:schemaio-expansion-service:shadowJar'
+        transforms:
+          SpannerRead: "beam:schematransform:org.apache.beam:spanner_read:v1"
