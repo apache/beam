@@ -602,8 +602,8 @@ public class StreamingDataflowWorker {
         .setStreamingRpcBatchLimit(options.getWindmillServiceStreamingRpcBatchLimit())
         .setSendKeyedGetDataRequests(
             !options.isEnableStreamingEngine()
-                || !DataflowRunner.hasExperiment(
-                    options, "streaming_engine_send_new_heartbeat_requests"));
+                || DataflowRunner.hasExperiment(
+                    options, "streaming_engine_disable_new_heartbeat_requests"));
   }
 
   private static BoundedQueueExecutor createWorkUnitExecutor(DataflowWorkerHarnessOptions options) {
