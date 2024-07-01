@@ -67,6 +67,7 @@
 ## New Features / Improvements
 
 * Multiple RunInference instances can now share the same model instance by setting the model_identifier parameter (Python) ([#31665](https://github.com/apache/beam/issues/31665)).
+* Support for MapState and SetState when using Dataflow Runner with Streaming Engine (Java) ([[#18200](https://github.com/apache/beam/issues/18200)])
 
 ## Breaking Changes
 
