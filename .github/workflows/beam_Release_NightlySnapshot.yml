@@ -62,6 +62,7 @@ jobs:
         uses: ./.github/actions/setup-environment-action
         with:
           java-version: default
+          disable-cache: true
       - name: Auth on snapshot repository
         run: |
           mkdir -p ${HOME}/.m2
