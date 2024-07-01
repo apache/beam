@@ -95,7 +95,7 @@ func (n *PairWithRestriction) ProcessElement(ctx context.Context, elm *FullValue
 		return err
 	}
 
-	output := FullValue{Elm: elm, Elm2: &FullValue{Elm: rest, Elm2: n.iwesInv.Invoke(rest, elm)}, Timestamp: elm.Timestamp, Windows: elm.Windows}
+	output := FullValue{Elm: elm, Elm2: &FullValue{Elm: rest, Elm2: n.iwesInv.Invoke(rest, elm)}, Timestamp: elm.Timestamp, Windows: elm.Windows, Pane: elm.Pane}
 
 	return n.Out.ProcessElement(ctx, &output, values...)
 }
@@ -220,6 +220,7 @@ func (n *SplitAndSizeRestrictions) ProcessElement(ctx context.Context, elm *Full
 		output.Windows = elm.Windows
 		output.Elm = &FullValue{Elm: mainElm, Elm2: &FullValue{Elm: splitRest, Elm2: ws}}
 		output.Elm2 = size
+		output.Pane = elm.Pane
 
 		if err := n.Out.ProcessElement(ctx, output, values...); err != nil {
 			return err
@@ -518,12 +519,14 @@ func (n *ProcessSizedElementsAndRestrictions) ProcessElement(ctx context.Context
 			Elm2:      userElm.Elm2,
 			Timestamp: elm.Timestamp,
 			Windows:   elm.Windows,
+			Pane:      elm.Pane,
 		}
 	} else {
 		mainIn.Key = FullValue{
 			Elm:       elm.Elm.(*FullValue).Elm,
 			Timestamp: elm.Timestamp,
 			Windows:   elm.Windows,
+			Pane:      elm.Pane,
 		}
 	}
 
@@ -573,7 +576,7 @@ func (n *ProcessSizedElementsAndRestrictions) ProcessElement(ctx context.Context
 
 			key := &mainIn.Key
 			w := elm.Windows[i]
-			wElm := FullValue{Elm: key.Elm, Elm2: key.Elm2, Timestamp: key.Timestamp, Windows: []typex.Window{w}}
+			wElm := FullValue{Elm: key.Elm, Elm2: key.Elm2, Timestamp: key.Timestamp, Windows: []typex.Window{w}, Pane: elm.Pane}
 
 			n.currW = i
 			n.rt = rt
@@ -915,6 +918,7 @@ func (n *ProcessSizedElementsAndRestrictions) newSplitResult(ctx context.Context
 		Elm2:      size,
 		Timestamp: n.elm.Timestamp,
 		Windows:   w,
+		Pane:      n.elm.Pane,
 	}, nil
 }
 

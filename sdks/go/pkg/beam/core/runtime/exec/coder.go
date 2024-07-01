@@ -313,7 +313,7 @@ func (*bytesDecoder) DecodeTo(r io.Reader, fv *FullValue) error {
 	if err != nil {
 		return err
 	}
-	*fv = FullValue{Elm: data}
+	fv.Elm = data
 	return nil
 }
 

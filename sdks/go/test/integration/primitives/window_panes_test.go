@@ -26,3 +26,8 @@ func TestPanes(t *testing.T) {
 	integration.CheckFilters(t)
 	ptest.BuildAndRun(t, Panes)
 }
+
+func TestPanesNonStreaming(t *testing.T) {
+	integration.CheckFilters(t)
+	ptest.BuildAndRun(t, PanesNonStreaming)
+}

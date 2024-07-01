@@ -69,6 +69,7 @@ func (n *Inject) ProcessElement(ctx context.Context, elm *FullValue, values ...R
 		},
 		Timestamp: elm.Timestamp,
 		Windows:   elm.Windows,
+		Pane:      elm.Pane,
 	}
 	return n.Out.ProcessElement(ctx, v, values...)
 }
@@ -173,6 +174,7 @@ func (f *filterStream) Read() (*FullValue, error) {
 		}
 		v.Timestamp = elm.Timestamp
 		v.Windows = elm.Windows
+		v.Pane = elm.Pane
 		return v, nil
 	}
 }
