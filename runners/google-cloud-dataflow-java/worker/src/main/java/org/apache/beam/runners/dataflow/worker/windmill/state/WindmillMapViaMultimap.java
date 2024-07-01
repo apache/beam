@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.state;
 
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Iterators;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Iterator;
@@ -29,6 +27,8 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.ReadableStates;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterators;
 
 public class WindmillMapViaMultimap<KeyT, ValueT> extends AbstractWindmillMap<KeyT, ValueT> {
   final WindmillMultimap<KeyT, ValueT> multimap;
