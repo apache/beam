@@ -2594,18 +2594,16 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     if (DoFnSignatures.usesSetState(fn) && streaming && isUnifiedWorker) {
       throw new UnsupportedOperationException(
           String.format(
-              "%s does not currently support %s when using %s",
+              "%s does not currently support %s when using streaming on unified worker",
               DataflowRunner.class.getSimpleName(),
-              SetState.class.getSimpleName(),
-              "streaming on unified worker"));
+              SetState.class.getSimpleName()));
     }
     if (DoFnSignatures.usesMapState(fn) && streaming && isUnifiedWorker) {
       throw new UnsupportedOperationException(
           String.format(
-              "%s does not currently support %s when using %s",
+              "%s does not currently support %s when using streaming on unified worker",
               DataflowRunner.class.getSimpleName(),
-              MapState.class.getSimpleName(),
-              "streaming on unified worker"));
+              MapState.class.getSimpleName()));
     }
     if (DoFnSignatures.usesBundleFinalizer(fn) && !isUnifiedWorker) {
       throw new UnsupportedOperationException(
