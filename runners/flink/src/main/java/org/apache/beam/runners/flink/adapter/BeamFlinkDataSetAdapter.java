@@ -246,7 +246,6 @@ public class BeamFlinkDataSetAdapter {
       Coder<InputT> outputCoder =
           BeamAdapterCoderUtils.lookupCoder(
               p, Iterables.getOnlyElement(t.getTransform().getInputsMap().values()));
-      // TODO(robertwb): Also handle or disable length prefix coding (for embedded mode at least).
       outputMap.put(
           outputId,
           new MapOperator<WindowedValue<InputT>, InputT>(
