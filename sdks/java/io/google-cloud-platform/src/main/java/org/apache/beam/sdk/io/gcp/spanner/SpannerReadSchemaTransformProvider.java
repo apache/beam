@@ -47,9 +47,40 @@ public class SpannerReadSchemaTransformProvider
     private final SpannerReadSchemaTransformConfiguration configuration;
 
     SpannerSchemaTransformRead(SpannerReadSchemaTransformConfiguration configuration) {
+      configuration.validate();
       this.configuration = configuration;
     }
+    
+    public static Schema extractSchema(Struct struct) {
+      List<Schema.Field> fields = new ArrayList<>();
+      for (int i = 0; i < struct.getColumnCount(); i++) {
+          Type columnType = struct.getColumnType(i);
+          Schema.Field field = Schema.Field.of(i, convertSpannerTypeToBeamFieldType(columnType));
+          fields.add(field);
+      }
+      return Schema.builder().addFields(fields).build();
+  }
 
+  private static Schema.FieldType convertSpannerTypeToBeamFieldType(Type spannerType) {
+      switch (spannerType.getCode()) {
+          case BOOL:
+              return Schema.FieldType.BOOLEAN;
+          case BYTES:
+              return Schema.FieldType.BYTES;
+          case TIMESTAMP:
+              return Schema.FieldType.DATETIME;
+          case DATE:
+              return Schema.FieldType.DATETIME;
+          case INT64:
+              return Schema.FieldType.INT64;
+          case FLOAT64:
+              return Schema.FieldType.DOUBLE;
+          case NUMERIC:
+              return Schema.FieldType.DECIMAL;
+          case STRING:
+              return Schema.FieldType.STRING;
+      }
+  }
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
       checkNotNull(input, "Input to SpannerReadSchemaTransform cannot be null.");
@@ -72,8 +103,11 @@ public class SpannerReadSchemaTransformProvider
           );
       }
 
+      Schema schema = spannerRows.apply(MapElements.into(TypeDescriptor.of(Schema.class))
+                    .via(struct -> extractSchema(struct)));
+      // Schema? 
       PCollection<Row> rows = spannerRows.apply(MapElements.into(TypeDescriptor.of(Row.class))
-          .via((Struct struct) -> structToBeamRow(struct, inputSchema)));
+          .via((Struct struct) -> StructUtils.structToBeamRow(struct, schema)));
 
       return PCollectionRowTuple.of(OUTPUT_ROWS_TAG, rows);
     }
