@@ -50,7 +50,8 @@ dependencies {
     compileOnly "org.scala-lang:scala-library:2.11.12"
     testImplementation library.java.junit
     testImplementation library.java.testcontainers_rabbitmq
-    testImplementation project(path: ":runners:direct-java", configuration: "shadow")
+    testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+    testRuntimeOnly library.java.slf4j_simple
     testImplementation project(":sdks:java:io:synthetic")
     testImplementation project(path: ":sdks:java:io:common")
     testImplementation project(path: ":sdks:java:testing:test-utils")
