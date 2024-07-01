@@ -1902,9 +1902,8 @@ public class DataflowRunnerTest implements Serializable {
   @Test
   public void testMapStateUnsupportedRunnerV2() throws Exception {
     PipelineOptions options = buildPipelineOptions();
-    ExperimentalOptions.addExperiment(options.as(ExperimentalOptions.class), "use_runner_v2");
     options.as(DataflowPipelineOptions.class).setStreaming(true);
-
+    ExperimentalOptions.addExperiment(options.as(ExperimentalOptions.class), "use_runner_v2");
     verifyMapStateUnsupported(options);
   }
 
@@ -1930,8 +1929,8 @@ public class DataflowRunnerTest implements Serializable {
   @Test
   public void testSetStateUnsupportedRunnerV2() throws Exception {
     PipelineOptions options = buildPipelineOptions();
-    ExperimentalOptions.addExperiment(options.as(ExperimentalOptions.class), "use_runner_v2");
     options.as(DataflowPipelineOptions.class).setStreaming(true);
+    ExperimentalOptions.addExperiment(options.as(ExperimentalOptions.class), "use_runner_v2");
     verifySetStateUnsupported(options);
   }
 
