@@ -16,29 +16,43 @@
 package tools
 
 import (
-	"encoding/json"
-	"fmt"
 	"os"
+	"testing"
 )
 
-// MakePipelineOptionsFileAndEnvVar writes the pipeline options to a file.
-// Assumes the options string is JSON formatted.
-//
-// Stores the file name in question in PIPELINE_OPTIONS_FILE for access by the SDK.
-func MakePipelineOptionsFileAndEnvVar(options string) error {
-	fn := "pipeline_options.json"
-	f, err := os.Create(fn)
-	if err != nil {
-		return fmt.Errorf("unable to create %v: %w", fn, err)
+func TestMakePipelineOptionsFileAndEnvVar(t *testing.T) {
+	tests := []struct {
+		name          string
+		inputOptions  string
+		expectedError string
+	}{
+		{
+			"empty options",
+			"{}",
+			"",
+		},
+		{
+			"valid options",
+			"{\"abc\": 123}",
+			"",
+		},
+		{
+			"invalid options",
+			"{4}",
+			"options string is not JSON formatted {4}",
+		},
 	}
-	defer f.Close()
-	var js map[string]interface{}
-	if json.Unmarshal([]byte(options), &js) != nil {
-		return fmt.Errorf("options string is not JSON formatted %v", options)
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Cleanup(os.Clearenv)
+			err := MakePipelineOptionsFileAndEnvVar(test.inputOptions)
+			if err != nil {
+				if got, want := err.Error(), test.expectedError; got != want {
+					t.Errorf("got error: %v, want error: %v", got, want)
+				}
+			}
+		})
 	}
-	if _, err := f.WriteString(options); err != nil {
-		return fmt.Errorf("error writing %v: %w", f.Name(), err)
-	}
-	os.Setenv("PIPELINE_OPTIONS_FILE", f.Name())
-	return nil
+	os.Remove("pipeline_options.json")
 }
