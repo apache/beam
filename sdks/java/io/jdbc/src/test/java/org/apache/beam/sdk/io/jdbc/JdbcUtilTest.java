@@ -35,7 +35,6 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
-import org.apache.beam.sdk.io.jdbc.JdbcUtil.JdbcReadWithPartitionsHelper;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -189,8 +188,7 @@ public class JdbcUtilTest {
   @Test
   public void testDatetimePartitioningWithSingleKey() {
     JdbcReadWithPartitionsHelper<DateTime> helper =
-        JdbcUtil.JdbcReadWithPartitionsHelper.getPartitionsHelper(
-            TypeDescriptor.of(DateTime.class));
+        JdbcUtil.getPartitionsHelper(TypeDescriptor.of(DateTime.class));
     DateTime onlyPoint = DateTime.now();
     List<KV<DateTime, DateTime>> expectedRanges =
         Lists.newArrayList(KV.of(onlyPoint, onlyPoint.plusMillis(1)));
@@ -207,8 +205,7 @@ public class JdbcUtilTest {
   @Test
   public void testDatetimePartitioningWithMultiKey() {
     JdbcReadWithPartitionsHelper<DateTime> helper =
-        JdbcUtil.JdbcReadWithPartitionsHelper.getPartitionsHelper(
-            TypeDescriptor.of(DateTime.class));
+        JdbcUtil.getPartitionsHelper(TypeDescriptor.of(DateTime.class));
     DateTime lastPoint = DateTime.now();
     // At least 10ms in the past, or more.
     DateTime firstPoint = lastPoint.minusMillis(10 + new Random().nextInt(Integer.MAX_VALUE));
@@ -222,7 +219,7 @@ public class JdbcUtilTest {
   @Test
   public void testLongPartitioningWithSingleKey() {
     JdbcReadWithPartitionsHelper<Long> helper =
-        JdbcUtil.JdbcReadWithPartitionsHelper.getPartitionsHelper(TypeDescriptors.longs());
+        JdbcUtil.getPartitionsHelper(TypeDescriptors.longs());
     List<KV<Long, Long>> expectedRanges = Lists.newArrayList(KV.of(12L, 13L));
     List<KV<Long, Long>> ranges = Lists.newArrayList(helper.calculateRanges(12L, 12L, 10L));
     // It is not possible to generate any more than one range, because the lower and upper range are
@@ -236,7 +233,7 @@ public class JdbcUtilTest {
   @Test
   public void testLongPartitioningNotEnoughRanges() {
     JdbcReadWithPartitionsHelper<Long> helper =
-        JdbcUtil.JdbcReadWithPartitionsHelper.getPartitionsHelper(TypeDescriptors.longs());
+        JdbcUtil.getPartitionsHelper(TypeDescriptors.longs());
     // The minimum stride is one, which is what causes this sort of partitioning.
     List<KV<Long, Long>> expectedRanges =
         Lists.newArrayList(KV.of(12L, 14L), KV.of(14L, 16L), KV.of(16L, 18L), KV.of(18L, 21L));
