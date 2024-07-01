@@ -21,6 +21,38 @@ import (
 )
 
 func TestMakePipelineOptionsFileAndEnvVar(t *testing.T) {
-	MakePipelineOptionsFileAndEnvVar("")
+	tests := []struct {
+		name          string
+		inputOptions  string
+		expectedError string
+	}{
+		{
+			"empty options",
+			"{}",
+			"",
+		},
+		{
+			"valid options",
+			"{\"abc\": 123}",
+			"",
+		},
+		{
+			"invalid options",
+			"{4}",
+			"options string is not JSON formatted {4}",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Cleanup(os.Clearenv)
+			err := MakePipelineOptionsFileAndEnvVar(test.inputOptions)
+			if err != nil {
+				if got, want := err.Error(), test.expectedError; got != want {
+					t.Errorf("got error: %v, want error: %v", got, want)
+				}
+			}
+		})
+	}
 	os.Remove("pipeline_options.json")
 }
