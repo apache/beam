@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.solace.broker;
 
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import com.solacesystems.jcsmp.ConsumerFlowProperties;
 import com.solacesystems.jcsmp.EndpointProperties;
@@ -78,7 +78,7 @@ public class BasicAuthJcsmpSessionService implements SessionService {
     }
     retryCallableManager.retryCallable(
         () -> {
-          checkNotNull(jcsmpSession).closeSession();
+          checkStateNotNull(jcsmpSession).closeSession();
           return 0;
         },
         ImmutableSet.of(IOException.class));

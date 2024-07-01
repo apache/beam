@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.solace.broker;
 
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import com.google.auto.value.AutoValue;
 
@@ -65,7 +65,7 @@ public abstract class BasicAuthJcsmpSessionServiceFactory extends SessionService
   @Override
   public SessionService create() {
     return new BasicAuthJcsmpSessionService(
-        checkNotNull(queue, "SolaceIO.Read: Queue is not set.").getName(),
+        checkStateNotNull(queue, "SolaceIO.Read: Queue is not set.").getName(),
         host(),
         username(),
         password(),
