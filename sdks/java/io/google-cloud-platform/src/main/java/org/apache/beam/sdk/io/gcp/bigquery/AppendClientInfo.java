@@ -40,8 +40,8 @@ import org.apache.beam.sdk.metrics.Metrics;
  */
 @AutoValue
 abstract class AppendClientInfo {
-  private final Counter activeConnections =
-      Metrics.counter(AppendClientInfo.class, "activeConnections");
+  private final Counter activeStreamAppendClients =
+      Metrics.counter(AppendClientInfo.class, "activeStreamAppendClients");
 
   abstract @Nullable BigQueryServices.StreamAppendClient getStreamAppendClient();
 
@@ -123,7 +123,7 @@ abstract class AppendClientInfo {
           writeStreamService.getStreamAppendClient(
               streamName, getDescriptor(), useConnectionPool, missingValueInterpretation);
 
-      activeConnections.inc();
+      activeStreamAppendClients.inc();
 
       return toBuilder().setStreamName(streamName).setStreamAppendClient(client).build();
     }
@@ -133,7 +133,7 @@ abstract class AppendClientInfo {
     BigQueryServices.StreamAppendClient client = getStreamAppendClient();
     if (client != null) {
       getCloseAppendClient().accept(client);
-      activeConnections.dec();
+      activeStreamAppendClients.dec();
     }
   }
 

@@ -69,6 +69,7 @@ import com.google.cloud.bigquery.storage.v1.BigQueryReadClient;
 import com.google.cloud.bigquery.storage.v1.BigQueryReadSettings;
 import com.google.cloud.bigquery.storage.v1.BigQueryWriteClient;
 import com.google.cloud.bigquery.storage.v1.BigQueryWriteSettings;
+import com.google.cloud.bigquery.storage.v1.ConnectionWorkerPool;
 import com.google.cloud.bigquery.storage.v1.CreateReadSessionRequest;
 import com.google.cloud.bigquery.storage.v1.CreateWriteStreamRequest;
 import com.google.cloud.bigquery.storage.v1.FinalizeWriteStreamRequest;
@@ -1422,6 +1423,14 @@ public class BigQueryServicesImpl implements BigQueryServices {
                   : bqIOMetadata.getBeamJobName(),
               bqIOMetadata.getBeamJobId() == null ? "" : bqIOMetadata.getBeamJobId(),
               bqIOMetadata.getBeamWorkerId() == null ? "" : bqIOMetadata.getBeamWorkerId());
+
+      ConnectionWorkerPool.setOptions(
+          ConnectionWorkerPool.Settings.builder()
+              .setMinConnectionsPerRegion(
+                  options.as(BigQueryOptions.class).getMinConnectionPoolConnections())
+              .setMaxConnectionsPerRegion(
+                  options.as(BigQueryOptions.class).getMaxConnectionPoolConnections())
+              .build());
 
       StreamWriter streamWriter =
           StreamWriter.newBuilder(streamName, newWriteClient)
