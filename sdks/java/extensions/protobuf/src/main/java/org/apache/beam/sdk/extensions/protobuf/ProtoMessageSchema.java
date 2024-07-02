@@ -53,13 +53,13 @@ public class ProtoMessageSchema extends GetterBasedSchemaProvider {
 
   private static final class ProtoClassFieldValueTypeSupplier implements FieldValueTypeSupplier {
     @Override
-    public List<FieldValueTypeInformation> get(Class<?> clazz) {
+    public List<FieldValueTypeInformation> get(TypeDescriptor<?> typeDescriptor) {
       throw new RuntimeException("Unexpected call.");
     }
 
     @Override
-    public List<FieldValueTypeInformation> get(Class<?> clazz, Schema schema) {
-      Multimap<String, Method> methods = ReflectUtils.getMethodsMap(clazz);
+    public List<FieldValueTypeInformation> get(TypeDescriptor<?> typeDescriptor, Schema schema) {
+      Multimap<String, Method> methods = ReflectUtils.getMethodsMap(typeDescriptor.getRawType());
       List<FieldValueTypeInformation> types =
           Lists.newArrayListWithCapacity(schema.getFieldCount());
       for (int i = 0; i < schema.getFieldCount(); ++i) {

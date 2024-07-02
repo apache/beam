@@ -46,10 +46,10 @@ public class AutoValueSchema extends GetterBasedSchemaProvider {
     public static final AbstractGetterTypeSupplier INSTANCE = new AbstractGetterTypeSupplier();
 
     @Override
-    public List<FieldValueTypeInformation> get(Class<?> clazz) {
+    public List<FieldValueTypeInformation> get(TypeDescriptor<?> typeDescriptor) {
 
       // If the generated class is passed in, we want to look at the base class to find the getters.
-      Class<?> targetClass = AutoValueUtils.getBaseAutoValueClass(clazz);
+      Class<?> targetClass = AutoValueUtils.getBaseAutoValueClass(typeDescriptor.getRawType());
 
       List<Method> methods =
           ReflectUtils.getMethods(targetClass).stream()

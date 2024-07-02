@@ -123,7 +123,8 @@ public class AutoValueUtils {
   public static @Nullable SchemaUserTypeCreator getConstructorCreator(
       Class<?> clazz, Schema schema, FieldValueTypeSupplier fieldValueTypeSupplier) {
     Class<?> generatedClass = getAutoValueGenerated(clazz);
-    List<FieldValueTypeInformation> schemaTypes = fieldValueTypeSupplier.get(clazz, schema);
+    List<FieldValueTypeInformation> schemaTypes =
+        fieldValueTypeSupplier.get(TypeDescriptor.of(clazz), schema);
     Optional<Constructor<?>> constructor =
         Arrays.stream(generatedClass.getDeclaredConstructors())
             .filter(c -> !Modifier.isPrivate(c.getModifiers()))
@@ -201,7 +202,8 @@ public class AutoValueUtils {
 
     List<FieldValueTypeInformation> setterMethods =
         Lists.newArrayList(); // The builder methods to call in order.
-    List<FieldValueTypeInformation> schemaTypes = fieldValueTypeSupplier.get(clazz, schema);
+    List<FieldValueTypeInformation> schemaTypes =
+        fieldValueTypeSupplier.get(TypeDescriptor.of(clazz), schema);
     for (FieldValueTypeInformation type : schemaTypes) {
       String autoValueFieldName = ReflectUtils.stripGetterPrefix(type.getMethod().getName());
 

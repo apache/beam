@@ -57,9 +57,9 @@ public class JavaFieldSchema extends GetterBasedSchemaProvider {
     public static final JavaFieldTypeSupplier INSTANCE = new JavaFieldTypeSupplier();
 
     @Override
-    public List<FieldValueTypeInformation> get(Class<?> clazz) {
+    public List<FieldValueTypeInformation> get(TypeDescriptor<?> typeDescriptor) {
       List<Field> fields =
-          ReflectUtils.getFields(clazz).stream()
+          ReflectUtils.getFields(typeDescriptor.getRawType()).stream()
               .filter(m -> !m.isAnnotationPresent(SchemaIgnore.class))
               .collect(Collectors.toList());
       List<FieldValueTypeInformation> types = Lists.newArrayListWithCapacity(fields.size());
@@ -71,8 +71,8 @@ public class JavaFieldSchema extends GetterBasedSchemaProvider {
 
       // If there are no creators registered, then make sure none of the schema fields are final,
       // as we (currently) have no way of creating classes in this case.
-      if (ReflectUtils.getAnnotatedCreateMethod(clazz) == null
-          && ReflectUtils.getAnnotatedConstructor(clazz) == null) {
+      if (ReflectUtils.getAnnotatedCreateMethod(typeDescriptor.getRawType()) == null
+          && ReflectUtils.getAnnotatedConstructor(typeDescriptor.getRawType()) == null) {
         Optional<Field> finalField =
             types.stream()
                 .map(FieldValueTypeInformation::getField)
@@ -81,7 +81,7 @@ public class JavaFieldSchema extends GetterBasedSchemaProvider {
         if (finalField.isPresent()) {
           throw new IllegalArgumentException(
               "Class "
-                  + clazz
+                  + typeDescriptor
                   + " has final fields and no "
                   + "registered creator. Cannot use as schema, as we don't know how to create this "
                   + "object automatically");

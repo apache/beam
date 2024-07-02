@@ -104,7 +104,7 @@ public class StaticSchemaInference {
     }
     alreadyVisitedSchemas.put(typeDescriptor, null);
     Schema.Builder builder = Schema.builder();
-    for (FieldValueTypeInformation type : fieldValueTypeSupplier.get(typeDescriptor.getRawType())) {
+    for (FieldValueTypeInformation type : fieldValueTypeSupplier.get(typeDescriptor)) {
       Schema.FieldType fieldType =
           fieldFromType(type.getType(), fieldValueTypeSupplier, alreadyVisitedSchemas);
       Schema.Field f =

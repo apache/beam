@@ -60,9 +60,9 @@ public class JavaBeanSchema extends GetterBasedSchemaProvider {
     public static final GetterTypeSupplier INSTANCE = new GetterTypeSupplier();
 
     @Override
-    public List<FieldValueTypeInformation> get(Class<?> clazz) {
+    public List<FieldValueTypeInformation> get(TypeDescriptor<?> typeDescriptor) {
       List<Method> methods =
-          ReflectUtils.getMethods(clazz).stream()
+          ReflectUtils.getMethods(typeDescriptor.getRawType()).stream()
               .filter(ReflectUtils::isGetter)
               .filter(m -> !m.isAnnotationPresent(SchemaIgnore.class))
               .collect(Collectors.toList());
@@ -110,8 +110,8 @@ public class JavaBeanSchema extends GetterBasedSchemaProvider {
     private static final SetterTypeSupplier INSTANCE = new SetterTypeSupplier();
 
     @Override
-    public List<FieldValueTypeInformation> get(Class<?> clazz) {
-      return ReflectUtils.getMethods(clazz).stream()
+    public List<FieldValueTypeInformation> get(TypeDescriptor<?> typeDescriptor) {
+      return ReflectUtils.getMethods(typeDescriptor.getRawType()).stream()
           .filter(ReflectUtils::isSetter)
           .filter(m -> !m.isAnnotationPresent(SchemaIgnore.class))
           .map(FieldValueTypeInformation::forSetter)
@@ -161,8 +161,8 @@ public class JavaBeanSchema extends GetterBasedSchemaProvider {
     if (ReflectUtils.getAnnotatedCreateMethod(typeDescriptor.getRawType()) == null
         && ReflectUtils.getAnnotatedConstructor(typeDescriptor.getRawType()) == null) {
       JavaBeanUtils.validateJavaBean(
-          GetterTypeSupplier.INSTANCE.get(typeDescriptor.getRawType(), schema),
-          SetterTypeSupplier.INSTANCE.get(typeDescriptor.getRawType(), schema),
+          GetterTypeSupplier.INSTANCE.get(typeDescriptor, schema),
+          SetterTypeSupplier.INSTANCE.get(typeDescriptor, schema),
           schema);
     }
     return schema;
