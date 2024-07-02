@@ -19,7 +19,6 @@ import argparse
 import contextlib
 import json
 
-import jinja2
 import yaml
 
 import apache_beam as beam
@@ -109,13 +108,6 @@ def _pipeline_spec_from_args(known_args):
   return pipeline_yaml
 
 
-class _BeamFileIOLoader(jinja2.BaseLoader):
-  def get_source(self, environment, path):
-    with FileSystems.open(path) as fin:
-      source = fin.read().decode()
-    return source, path, lambda: True
-
-
 @contextlib.contextmanager
 def _fix_xlang_instant_coding():
   # Scoped workaround for https://github.com/apache/beam/issues/28151.
@@ -132,11 +124,8 @@ def run(argv=None):
   argv = _preparse_jinja_flags(argv)
   known_args, pipeline_args = _parse_arguments(argv)
   pipeline_template = _pipeline_spec_from_args(known_args)
-  pipeline_yaml = (  # keep formatting
-      jinja2.Environment(
-          undefined=jinja2.StrictUndefined, loader=_BeamFileIOLoader())
-      .from_string(pipeline_template)
-      .render(**known_args.jinja_variables or {}))
+  pipeline_yaml = yaml_transform.expand_jinja(
+      pipeline_template, known_args.jinja_variables or {})
   pipeline_spec = yaml.load(pipeline_yaml, Loader=yaml_transform.SafeLineLoader)
 
   with _fix_xlang_instant_coding():
