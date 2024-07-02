@@ -96,9 +96,7 @@ def heap_dump():
   return banner + heap + ending
 
 
-def _state_cache_stats(state_cache):
-  # type: (StateCache) -> str
-
+def _state_cache_stats(state_cache: StateCache) -> str:
   """Gather state cache statistics."""
   cache_stats = ['=' * 10 + ' CACHE STATS ' + '=' * 10]
   if not state_cache.is_cache_enabled():
