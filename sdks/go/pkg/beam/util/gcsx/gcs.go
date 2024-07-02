@@ -64,19 +64,19 @@ func Upload(ctx context.Context, client *storage.Client, project, bucket, object
 }
 
 // Get BucketAttrs with RetentionDuration of SoftDeletePolicy set to zero for disabling SoftDeletePolicy.
-func getDisableSoftDeletePolicyBucketAttrs() *storage.BucketAttrs {
+func getDisableSoftDeletePolicyBucketAttrs() storage.BucketAttrs {
 	attrs := storage.BucketAttrs{
 		SoftDeletePolicy: &storage.SoftDeletePolicy{
 			RetentionDuration: 0,
 		},
 	}
-	return &attrs
+	return attrs
 }
 
 // CreateBucket creates a bucket in GCS with RetentionDuration of zero to disable SoftDeletePolicy.
 func CreateBucket(ctx context.Context, client *storage.Client, project, bucket string) error {
 	disableSoftDeletePolicyBucketAttrs := getDisableSoftDeletePolicyBucketAttrs()
-	return client.Bucket(bucket).Create(ctx, project, disableSoftDeletePolicyBucketAttrs)
+	return client.Bucket(bucket).Create(ctx, project, &disableSoftDeletePolicyBucketAttrs)
 }
 
 // BucketExists returns true iff the given bucket exists.
