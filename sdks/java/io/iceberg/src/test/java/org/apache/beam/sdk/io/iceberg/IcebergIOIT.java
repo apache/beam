@@ -207,11 +207,10 @@ public class IcebergIOIT implements Serializable {
         ImmutableMap.<String, Object>builder()
             .put("table", tableId.toString())
             .put(
-                "catalog_config",
+                "catalog_properties",
                 ImmutableMap.<String, String>builder()
-                    .put("catalog_name", "hadoop")
-                    .put("catalog_type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
-                    .put("warehouse_location", warehouseLocation)
+                    .put("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
+                    .put("warehouse", warehouseLocation)
                     .build())
             .build();
 
@@ -247,11 +246,10 @@ public class IcebergIOIT implements Serializable {
         ImmutableMap.<String, Object>builder()
             .put("table", tableId.toString())
             .put(
-                "catalog_config",
+                "catalog_properties",
                 ImmutableMap.<String, String>builder()
-                    .put("catalog_name", "hadoop")
-                    .put("catalog_type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
-                    .put("warehouse_location", warehouseLocation)
+                    .put("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
+                    .put("warehouse", warehouseLocation)
                     .build())
             .build();
 

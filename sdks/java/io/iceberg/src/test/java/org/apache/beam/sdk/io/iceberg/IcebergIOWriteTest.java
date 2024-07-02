@@ -23,6 +23,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.UUID;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -75,12 +76,11 @@ public class IcebergIOWriteTest implements Serializable {
     // Create a table and add records to it.
     Table table = warehouse.createTable(tableId, TestFixtures.SCHEMA);
 
-    IcebergCatalogConfig catalog =
-        IcebergCatalogConfig.builder()
-            .setName("hadoop")
-            .setIcebergCatalogType(CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
-            .setWarehouseLocation(warehouse.location)
-            .build();
+    Properties props = new Properties();
+    props.setProperty("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP);
+    props.setProperty("warehouse", warehouse.location);
+
+    IcebergCatalogConfig catalog = IcebergCatalogConfig.builder().setProperties(props).build();
 
     testPipeline
         .apply("Records To Add", Create.of(TestFixtures.asRows(TestFixtures.FILE1SNAPSHOT1)))
@@ -109,12 +109,11 @@ public class IcebergIOWriteTest implements Serializable {
     Table table2 = warehouse.createTable(table2Id, TestFixtures.SCHEMA);
     Table table3 = warehouse.createTable(table3Id, TestFixtures.SCHEMA);
 
-    IcebergCatalogConfig catalog =
-        IcebergCatalogConfig.builder()
-            .setName("hadoop")
-            .setIcebergCatalogType(CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
-            .setWarehouseLocation(warehouse.location)
-            .build();
+    Properties props = new Properties();
+    props.setProperty("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP);
+    props.setProperty("warehouse", warehouse.location);
+
+    IcebergCatalogConfig catalog = IcebergCatalogConfig.builder().setProperties(props).build();
 
     DynamicDestinations dynamicDestinations =
         new DynamicDestinations() {
@@ -199,12 +198,11 @@ public class IcebergIOWriteTest implements Serializable {
       elementsPerTable.computeIfAbsent(tableId, ignored -> Lists.newArrayList()).add(element);
     }
 
-    IcebergCatalogConfig catalog =
-        IcebergCatalogConfig.builder()
-            .setName("hadoop")
-            .setIcebergCatalogType(CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
-            .setWarehouseLocation(warehouse.location)
-            .build();
+    Properties props = new Properties();
+    props.setProperty("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP);
+    props.setProperty("warehouse", warehouse.location);
+
+    IcebergCatalogConfig catalog = IcebergCatalogConfig.builder().setProperties(props).build();
 
     DynamicDestinations dynamicDestinations =
         new DynamicDestinations() {
