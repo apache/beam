@@ -99,7 +99,10 @@ func TestJoin(t *testing.T) {
 
 func TestGetDisableSoftDeletePolicyBucketAttrs(t *testing.T) {
 	attrs := getDisableSoftDeletePolicyBucketAttrs()
-	if attrs.SoftDeletePolicy.RetentionDuration != 0 {
+	if attrs == nil {
+		t.Errorf("Fail to getDisableSoftDeletePolicyBucketAttrs.")
+	}
+	if attrs != nil && attrs.SoftDeletePolicy.RetentionDuration != 0 {
 		t.Errorf("attrs has RetentionDuration %v which is not correct", attrs.SoftDeletePolicy.RetentionDuration)
 	}
 }
