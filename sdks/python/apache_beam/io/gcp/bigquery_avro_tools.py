@@ -63,8 +63,10 @@ BIG_QUERY_TO_AVRO_TYPES = {
 
 
 def get_record_schema_from_dict_table_schema(
-    schema_name, table_schema, namespace="apache_beam.io.gcp.bigquery"):
-  # type: (Text, Dict[Text, Any], Text) -> Dict[Text, Any] # noqa: F821
+    schema_name: Text,
+    table_schema: Dict[Text, Any],
+    namespace: Text = "apache_beam.io.gcp.bigquery") -> Dict[Text, Any]:
+  # noqa: F821
 
   """Convert a table schema into an Avro schema.
 
@@ -90,8 +92,9 @@ def get_record_schema_from_dict_table_schema(
   }
 
 
-def table_field_to_avro_field(table_field, namespace):
-  # type: (Dict[Text, Any], str) -> Dict[Text, Any] # noqa: F821
+def table_field_to_avro_field(table_field: Dict[Text, Any],
+                              namespace: str) -> Dict[Text, Any]:
+  # noqa: F821
 
   """Convert a BigQuery field to an avro field.
 
