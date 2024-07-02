@@ -65,7 +65,7 @@ func Upload(ctx context.Context, client *storage.Client, project, bucket, object
 
 // Get BucketAttrs with RetentionDuration of SoftDeletePolicy set to zero for disabling SoftDeletePolicy.
 func getDisableSoftDeletePolicyBucketAttrs() storage.BucketAttrs {
-	attrs := storage.BucketAttrs{
+	attrs := &storage.BucketAttrs{
 		SoftDeletePolicy: &storage.SoftDeletePolicy{
 			RetentionDuration: 0,
 		},
