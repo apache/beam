@@ -324,7 +324,10 @@ public class StreamingDataflowWorker {
     BoundedQueueExecutor workExecutor = createWorkUnitExecutor(options);
     AtomicInteger maxWorkItemCommitBytes = new AtomicInteger(Integer.MAX_VALUE);
     WindmillStateCache windmillStateCache =
-        WindmillStateCache.ofSizeMbs(options.getWorkerCacheMb());
+        WindmillStateCache.builder()
+            .setSizeMb(options.getWorkerCacheMb())
+            .setSupportMapViaMultimap(options.isEnableStreamingEngine())
+            .build();
     Function<String, ScheduledExecutorService> executorSupplier =
         threadName ->
             Executors.newSingleThreadScheduledExecutor(
@@ -478,7 +481,11 @@ public class StreamingDataflowWorker {
     ConcurrentMap<String, StageInfo> stageInfo = new ConcurrentHashMap<>();
     AtomicInteger maxWorkItemCommitBytes = new AtomicInteger(maxWorkItemCommitBytesOverrides);
     BoundedQueueExecutor workExecutor = createWorkUnitExecutor(options);
-    WindmillStateCache stateCache = WindmillStateCache.ofSizeMbs(options.getWorkerCacheMb());
+    WindmillStateCache stateCache =
+        WindmillStateCache.builder()
+            .setSizeMb(options.getWorkerCacheMb())
+            .setSupportMapViaMultimap(options.isEnableStreamingEngine())
+            .build();
     ComputationConfig.Fetcher configFetcher =
         options.isEnableStreamingEngine()
             ? StreamingEngineComputationConfigFetcher.forTesting(
