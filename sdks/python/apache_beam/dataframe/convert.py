@@ -42,12 +42,10 @@ if TYPE_CHECKING:
 
 # TODO: Or should this be called as_dataframe?
 def to_dataframe(
-    pcoll,  # type: pvalue.PCollection
-    proxy=None,  # type: Optional[pd.core.generic.NDFrame]
-    label=None,  # type: Optional[str]
-):
-  # type: (...) -> frame_base.DeferredFrame
-
+    pcoll: pvalue.PCollection,
+    proxy: Optional[pd.core.generic.NDFrame] = None,
+    label: Optional[str] = None,
+) -> frame_base.DeferredFrame:
   """Converts a PCollection to a deferred dataframe-like object, which can
   manipulated with pandas methods like `filter` and `groupby`.
 
@@ -93,10 +91,10 @@ def to_dataframe(
 # Note that the pipeline (indirectly) holds references to the transforms which
 # keeps both the PCollections and expressions alive. This ensures the
 # expression's ids are never accidentally re-used.
-TO_PCOLLECTION_CACHE = weakref.WeakValueDictionary(
-)  # type: weakref.WeakValueDictionary[str, pvalue.PCollection]
-UNBATCHED_CACHE = weakref.WeakValueDictionary(
-)  # type: weakref.WeakValueDictionary[str, pvalue.PCollection]
+TO_PCOLLECTION_CACHE: weakref.WeakValueDictionary[
+    str, pvalue.PCollection] = weakref.WeakValueDictionary()
+UNBATCHED_CACHE: weakref.WeakValueDictionary[
+    str, pvalue.PCollection] = weakref.WeakValueDictionary()
 
 
 class RowsToDataFrameFn(beam.DoFn):
@@ -173,7 +171,7 @@ class SeriesToElementsFn(beam.DoFn):
 
 
 def to_pcollection(
-    *dataframes,  # type: Union[frame_base.DeferredFrame, pd.DataFrame, pd.Series]
+    *dataframes: Union[frame_base.DeferredFrame, pd.DataFrame, pd.Series],
     label=None,
     always_return_tuple=False,
     yield_elements='schemas',
@@ -258,12 +256,12 @@ def to_pcollection(
       df for df in dataframes if df._expr._id not in TO_PCOLLECTION_CACHE
   ]
   if len(new_dataframes):
-    new_results = {p: extract_input(p)
-                   for p in placeholders
-                   } | label >> transforms._DataframeExpressionsTransform({
-                       ix: df._expr
-                       for (ix, df) in enumerate(new_dataframes)
-                   })  # type: Dict[Any, pvalue.PCollection]
+    new_results: Dict[Any, pvalue.PCollection] = {
+        p: extract_input(p)
+        for p in placeholders
+    } | label >> transforms._DataframeExpressionsTransform(
+        {ix: df._expr
+         for (ix, df) in enumerate(new_dataframes)})
 
     TO_PCOLLECTION_CACHE.update(
         {new_dataframes[ix]._expr._id: pc
