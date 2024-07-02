@@ -30,6 +30,7 @@ import com.google.cloud.spanner.BatchClient;
 import com.google.cloud.spanner.DatabaseAdminClient;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.DatabaseId;
+import com.google.cloud.spanner.SessionPoolOptions;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
 import com.google.cloud.spanner.v1.stub.SpannerStubSettings;
@@ -230,6 +231,10 @@ public class SpannerAccessor implements AutoCloseable {
       builder.setCredentials(credentials.get());
     }
 
+    ValueProvider<SessionPoolOptions> sessionPoolOptions = spannerConfig.getSessionPoolOptions();
+    if (sessionPoolOptions != null && sessionPoolOptions.get() != null) {
+      builder.setSessionPoolOption(sessionPoolOptions.get());
+    }
     return builder.build();
   }
 

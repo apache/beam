@@ -25,6 +25,7 @@ import com.google.auth.Credentials;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.ServiceFactory;
 import com.google.cloud.spanner.Options.RpcPriority;
+import com.google.cloud.spanner.SessionPoolOptions;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
 import java.io.Serializable;
@@ -88,6 +89,8 @@ public abstract class SpannerConfig implements Serializable {
   public abstract @Nullable ValueProvider<Boolean> getDataBoostEnabled();
 
   public abstract @Nullable ValueProvider<Credentials> getCredentials();
+
+  public abstract @Nullable ValueProvider<SessionPoolOptions> getSessionPoolOptions();
 
   abstract Builder toBuilder();
 
@@ -169,6 +172,8 @@ public abstract class SpannerConfig implements Serializable {
     abstract Builder setPartitionReadTimeout(ValueProvider<Duration> partitionReadTimeout);
 
     abstract Builder setCredentials(ValueProvider<Credentials> credentials);
+
+    abstract Builder setSessionPoolOptions(ValueProvider<SessionPoolOptions> sessionPoolOptions);
 
     public abstract SpannerConfig build();
   }
@@ -336,5 +341,16 @@ public abstract class SpannerConfig implements Serializable {
   /** Specifies the credentials. */
   public SpannerConfig withCredentials(ValueProvider<Credentials> credentials) {
     return toBuilder().setCredentials(credentials).build();
+  }
+
+  public SpannerConfig withSessionPoolOptions(SessionPoolOptions sessionPoolOptions) {
+    return toBuilder()
+        .setSessionPoolOptions(ValueProvider.StaticValueProvider.of(sessionPoolOptions))
+        .build();
+  }
+
+  public SpannerConfig withSessionPoolOptions(
+      ValueProvider<SessionPoolOptions> sessionPoolOptions) {
+    return toBuilder().setSessionPoolOptions(sessionPoolOptions).build();
   }
 }
