@@ -822,7 +822,7 @@ class BeamModulePlugin implements Plugin<Project> {
         jaxb_impl                                   : "com.sun.xml.bind:jaxb-impl:$jaxb_api_version",
         jcl_over_slf4j                              : "org.slf4j:jcl-over-slf4j:$slf4j_version",
         jmh_core                                    : "org.openjdk.jmh:jmh-core:$jmh_version",
-        joda_time                                   : "joda-time:joda-time:2.10.10",
+        joda_time                                   : "joda-time:joda-time:2.10.14",
         jsonassert                                  : "org.skyscreamer:jsonassert:1.5.0",
         jsr305                                      : "com.google.code.findbugs:jsr305:$jsr305_version",
         json_org                                    : "org.json:json:20231013", // Keep in sync with everit-json-schema / google_cloud_platform_libraries_bom transitive deps.
