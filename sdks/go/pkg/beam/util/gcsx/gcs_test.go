@@ -116,5 +116,4 @@ func TestDisableSoftDelete(t *testing.T) {
 	if attrs.SoftDeletePolicy.RetentionDuration != 0 {
 		t.Errorf("attrs has RetentionDuration %v which is not correct", attrs.SoftDeletePolicy.RetentionDuration)
 	}
-
 }
