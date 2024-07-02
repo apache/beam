@@ -1095,9 +1095,11 @@ class BeamModulePlugin implements Plugin<Project> {
 
       project.apply plugin: "java"
 
+      // TODO(https://github.com/apache/beam/issues/31740) stop using testRuntimeMigration in new projects
+      // and remove it in existing usages
       // We create a testRuntimeMigration configuration here to extend
       // testImplementation, testRuntimeOnly, and default (similar to what
-      // testRuntime did).
+      // testRuntime did), and depends on testJar.
       project.configurations {
         testRuntimeMigration.extendsFrom(project.configurations.default)
         testRuntimeMigration.extendsFrom(testImplementation)

@@ -30,9 +30,9 @@ dependencies {
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation "com.clearspring.analytics:stream:$streamlib_version"
   implementation "com.tdunning:t-digest:$tdigest_version"
-  testImplementation library.java.avro
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
-  testImplementation project(path: ":sdks:java:extensions:avro", configuration: "testRuntimeMigration")
+  testImplementation project(path: ":sdks:java:extensions:avro")
+  testImplementation library.java.avro
   testImplementation library.java.junit
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }
