@@ -144,7 +144,7 @@ public class JavaBeanUtilsTest {
 
     List<FieldValueGetter> getters =
         JavaBeanUtils.getGetters(
-            SimpleBean.class,
+            new TypeDescriptor<SimpleBean>() {},
             SIMPLE_BEAN_SCHEMA,
             new JavaBeanSchema.GetterTypeSupplier(),
             new DefaultTypeConversionsFactory());
@@ -176,7 +176,7 @@ public class JavaBeanUtilsTest {
     SimpleBean simpleBean = new SimpleBean();
     List<FieldValueSetter> setters =
         JavaBeanUtils.getSetters(
-            SimpleBean.class,
+            new TypeDescriptor<SimpleBean>() {},
             SIMPLE_BEAN_SCHEMA,
             new SetterTypeSupplier(),
             new DefaultTypeConversionsFactory());
@@ -222,7 +222,7 @@ public class JavaBeanUtilsTest {
 
     List<FieldValueGetter> getters =
         JavaBeanUtils.getGetters(
-            BeanWithBoxedFields.class,
+            new TypeDescriptor<BeanWithBoxedFields>() {},
             BEAN_WITH_BOXED_FIELDS_SCHEMA,
             new JavaBeanSchema.GetterTypeSupplier(),
             new DefaultTypeConversionsFactory());
@@ -238,7 +238,7 @@ public class JavaBeanUtilsTest {
     BeanWithBoxedFields bean = new BeanWithBoxedFields();
     List<FieldValueSetter> setters =
         JavaBeanUtils.getSetters(
-            BeanWithBoxedFields.class,
+            new TypeDescriptor<BeanWithBoxedFields>() {},
             BEAN_WITH_BOXED_FIELDS_SCHEMA,
             new SetterTypeSupplier(),
             new DefaultTypeConversionsFactory());
@@ -261,7 +261,7 @@ public class JavaBeanUtilsTest {
     BeanWithByteArray bean = new BeanWithByteArray();
     List<FieldValueSetter> setters =
         JavaBeanUtils.getSetters(
-            BeanWithByteArray.class,
+            new TypeDescriptor<BeanWithByteArray>() {},
             BEAN_WITH_BYTE_ARRAY_SCHEMA,
             new SetterTypeSupplier(),
             new DefaultTypeConversionsFactory());

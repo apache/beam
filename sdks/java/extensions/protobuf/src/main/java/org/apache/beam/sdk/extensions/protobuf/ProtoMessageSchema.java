@@ -109,7 +109,7 @@ public class ProtoMessageSchema extends GetterBasedSchemaProvider {
   public List<FieldValueTypeInformation> fieldValueTypeInformations(
       TypeDescriptor<?> targetTypeDescriptor, Schema schema) {
     return JavaBeanUtils.getFieldTypes(
-        targetTypeDescriptor.getRawType(), schema, new ProtoClassFieldValueTypeSupplier());
+        targetTypeDescriptor, schema, new ProtoClassFieldValueTypeSupplier());
   }
 
   @Override

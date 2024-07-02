@@ -118,7 +118,7 @@ public class JavaFieldSchema extends GetterBasedSchemaProvider {
   public List<FieldValueGetter> fieldValueGetters(
       TypeDescriptor<?> targetTypeDescriptor, Schema schema) {
     return POJOUtils.getGetters(
-        targetTypeDescriptor.getRawType(),
+        targetTypeDescriptor,
         schema,
         JavaFieldTypeSupplier.INSTANCE,
         new DefaultTypeConversionsFactory());
@@ -127,8 +127,7 @@ public class JavaFieldSchema extends GetterBasedSchemaProvider {
   @Override
   public List<FieldValueTypeInformation> fieldValueTypeInformations(
       TypeDescriptor<?> targetTypeDescriptor, Schema schema) {
-    return POJOUtils.getFieldTypes(
-        targetTypeDescriptor.getRawType(), schema, JavaFieldTypeSupplier.INSTANCE);
+    return POJOUtils.getFieldTypes(targetTypeDescriptor, schema, JavaFieldTypeSupplier.INSTANCE);
   }
 
   @Override
@@ -138,7 +137,7 @@ public class JavaFieldSchema extends GetterBasedSchemaProvider {
     Method annotated = ReflectUtils.getAnnotatedCreateMethod(targetTypeDescriptor.getRawType());
     if (annotated != null) {
       return POJOUtils.getStaticCreator(
-          targetTypeDescriptor.getRawType(),
+          targetTypeDescriptor,
           annotated,
           schema,
           JavaFieldTypeSupplier.INSTANCE,
@@ -150,7 +149,7 @@ public class JavaFieldSchema extends GetterBasedSchemaProvider {
         ReflectUtils.getAnnotatedConstructor(targetTypeDescriptor.getRawType());
     if (constructor != null) {
       return POJOUtils.getConstructorCreator(
-          targetTypeDescriptor.getRawType(),
+          targetTypeDescriptor,
           constructor,
           schema,
           JavaFieldTypeSupplier.INSTANCE,
@@ -158,7 +157,7 @@ public class JavaFieldSchema extends GetterBasedSchemaProvider {
     }
 
     return POJOUtils.getSetFieldCreator(
-        targetTypeDescriptor.getRawType(),
+        targetTypeDescriptor,
         schema,
         JavaFieldTypeSupplier.INSTANCE,
         new DefaultTypeConversionsFactory());

@@ -92,7 +92,7 @@ public class AutoValueSchema extends GetterBasedSchemaProvider {
   public List<FieldValueGetter> fieldValueGetters(
       TypeDescriptor<?> targetTypeDescriptor, Schema schema) {
     return JavaBeanUtils.getGetters(
-        targetTypeDescriptor.getRawType(),
+        targetTypeDescriptor,
         schema,
         AbstractGetterTypeSupplier.INSTANCE,
         new DefaultTypeConversionsFactory());
@@ -102,7 +102,7 @@ public class AutoValueSchema extends GetterBasedSchemaProvider {
   public List<FieldValueTypeInformation> fieldValueTypeInformations(
       TypeDescriptor<?> targetTypeDescriptor, Schema schema) {
     return JavaBeanUtils.getFieldTypes(
-        targetTypeDescriptor.getRawType(), schema, AbstractGetterTypeSupplier.INSTANCE);
+        targetTypeDescriptor, schema, AbstractGetterTypeSupplier.INSTANCE);
   }
 
   @Override
@@ -112,7 +112,7 @@ public class AutoValueSchema extends GetterBasedSchemaProvider {
     Method annotated = ReflectUtils.getAnnotatedCreateMethod(targetTypeDescriptor.getRawType());
     if (annotated != null) {
       return JavaBeanUtils.getStaticCreator(
-          targetTypeDescriptor.getRawType(),
+          targetTypeDescriptor,
           annotated,
           schema,
           AbstractGetterTypeSupplier.INSTANCE,

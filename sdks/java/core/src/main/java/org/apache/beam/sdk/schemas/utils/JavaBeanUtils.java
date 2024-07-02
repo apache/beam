@@ -51,7 +51,7 @@ import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConstructorCreateInstruc
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.InjectPackageStrategy;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.StaticFactoryMethodInstruction;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.TypeConversionsFactory;
-import org.apache.beam.sdk.schemas.utils.ReflectUtils.ClassWithSchema;
+import org.apache.beam.sdk.schemas.utils.ReflectUtils.TypeDescriptorWithSchema;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
@@ -112,19 +112,21 @@ public class JavaBeanUtils {
   // Static ByteBuddy instance used by all helpers.
   private static final ByteBuddy BYTE_BUDDY = new ByteBuddy();
 
-  private static final Map<ClassWithSchema, List<FieldValueTypeInformation>> CACHED_FIELD_TYPES =
-      Maps.newConcurrentMap();
+  private static final Map<TypeDescriptorWithSchema<?>, List<FieldValueTypeInformation>>
+      CACHED_FIELD_TYPES = Maps.newConcurrentMap();
 
   public static List<FieldValueTypeInformation> getFieldTypes(
-      Class<?> clazz, Schema schema, FieldValueTypeSupplier fieldValueTypeSupplier) {
+      TypeDescriptor<?> typeDescriptor,
+      Schema schema,
+      FieldValueTypeSupplier fieldValueTypeSupplier) {
     return CACHED_FIELD_TYPES.computeIfAbsent(
-        ClassWithSchema.create(clazz, schema),
-        c -> fieldValueTypeSupplier.get(TypeDescriptor.of(clazz), schema));
+        TypeDescriptorWithSchema.create(typeDescriptor, schema),
+        c -> fieldValueTypeSupplier.get(typeDescriptor, schema));
   }
 
   // The list of getters for a class is cached, so we only create the classes the first time
   // getSetters is called.
-  private static final Map<ClassWithSchema, List<FieldValueGetter>> CACHED_GETTERS =
+  private static final Map<TypeDescriptorWithSchema<?>, List<FieldValueGetter>> CACHED_GETTERS =
       Maps.newConcurrentMap();
 
   /**
@@ -133,15 +135,15 @@ public class JavaBeanUtils {
    * <p>The returned list is ordered by the order of fields in the schema.
    */
   public static List<FieldValueGetter> getGetters(
-      Class<?> clazz,
+      TypeDescriptor<?> typeDescriptor,
       Schema schema,
       FieldValueTypeSupplier fieldValueTypeSupplier,
       TypeConversionsFactory typeConversionsFactory) {
     return CACHED_GETTERS.computeIfAbsent(
-        ClassWithSchema.create(clazz, schema),
+        TypeDescriptorWithSchema.create(typeDescriptor, schema),
         c -> {
           List<FieldValueTypeInformation> types =
-              fieldValueTypeSupplier.get(TypeDescriptor.of(clazz), schema);
+              fieldValueTypeSupplier.get(typeDescriptor, schema);
           return types.stream()
               .map(t -> createGetter(t, typeConversionsFactory))
               .collect(Collectors.toList());
@@ -189,7 +191,7 @@ public class JavaBeanUtils {
 
   // The list of setters for a class is cached, so we only create the classes the first time
   // getSetters is called.
-  private static final Map<ClassWithSchema, List<FieldValueSetter>> CACHED_SETTERS =
+  private static final Map<TypeDescriptorWithSchema<?>, List<FieldValueSetter>> CACHED_SETTERS =
       Maps.newConcurrentMap();
 
   /**
@@ -198,15 +200,15 @@ public class JavaBeanUtils {
    * <p>The returned list is ordered by the order of fields in the schema.
    */
   public static List<FieldValueSetter> getSetters(
-      Class<?> clazz,
+      TypeDescriptor<?> typeDescriptor,
       Schema schema,
       FieldValueTypeSupplier fieldValueTypeSupplier,
       TypeConversionsFactory typeConversionsFactory) {
     return CACHED_SETTERS.computeIfAbsent(
-        ClassWithSchema.create(clazz, schema),
+        TypeDescriptorWithSchema.create(typeDescriptor, schema),
         c -> {
           List<FieldValueTypeInformation> types =
-              fieldValueTypeSupplier.get(TypeDescriptor.of(clazz), schema);
+              fieldValueTypeSupplier.get(typeDescriptor, schema);
           return types.stream()
               .map(t -> createSetter(t, typeConversionsFactory))
               .collect(Collectors.toList());
@@ -254,22 +256,22 @@ public class JavaBeanUtils {
 
   // The list of constructors for a class is cached, so we only create the classes the first time
   // getConstructor is called.
-  public static final Map<ClassWithSchema, SchemaUserTypeCreator> CACHED_CREATORS =
+  public static final Map<TypeDescriptorWithSchema<?>, SchemaUserTypeCreator> CACHED_CREATORS =
       Maps.newConcurrentMap();
 
   public static SchemaUserTypeCreator getConstructorCreator(
-      Class clazz,
+      TypeDescriptor<?> typeDescriptor,
       Constructor constructor,
       Schema schema,
       FieldValueTypeSupplier fieldValueTypeSupplier,
       TypeConversionsFactory typeConversionsFactory) {
     return CACHED_CREATORS.computeIfAbsent(
-        ClassWithSchema.create(clazz, schema),
+        TypeDescriptorWithSchema.create(typeDescriptor, schema),
         c -> {
           List<FieldValueTypeInformation> types =
-              fieldValueTypeSupplier.get(TypeDescriptor.of(clazz), schema);
+              fieldValueTypeSupplier.get(typeDescriptor, schema);
           return createConstructorCreator(
-              clazz, constructor, schema, types, typeConversionsFactory);
+              typeDescriptor.getRawType(), constructor, schema, types, typeConversionsFactory);
         });
   }
 
@@ -307,17 +309,18 @@ public class JavaBeanUtils {
   }
 
   public static SchemaUserTypeCreator getStaticCreator(
-      Class clazz,
+      TypeDescriptor<?> typeDescriptor,
       Method creator,
       Schema schema,
       FieldValueTypeSupplier fieldValueTypeSupplier,
       TypeConversionsFactory typeConversionsFactory) {
     return CACHED_CREATORS.computeIfAbsent(
-        ClassWithSchema.create(clazz, schema),
+        TypeDescriptorWithSchema.create(typeDescriptor, schema),
         c -> {
           List<FieldValueTypeInformation> types =
-              fieldValueTypeSupplier.get(TypeDescriptor.of(clazz), schema);
-          return createStaticCreator(clazz, creator, schema, types, typeConversionsFactory);
+              fieldValueTypeSupplier.get(typeDescriptor, schema);
+          return createStaticCreator(
+              typeDescriptor.getRawType(), creator, schema, types, typeConversionsFactory);
         });
   }
 

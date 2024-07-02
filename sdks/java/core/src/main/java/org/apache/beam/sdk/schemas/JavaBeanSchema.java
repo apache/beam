@@ -172,7 +172,7 @@ public class JavaBeanSchema extends GetterBasedSchemaProvider {
   public List<FieldValueGetter> fieldValueGetters(
       TypeDescriptor<?> targetTypeDescriptor, Schema schema) {
     return JavaBeanUtils.getGetters(
-        targetTypeDescriptor.getRawType(),
+        targetTypeDescriptor,
         schema,
         GetterTypeSupplier.INSTANCE,
         new DefaultTypeConversionsFactory());
@@ -181,8 +181,7 @@ public class JavaBeanSchema extends GetterBasedSchemaProvider {
   @Override
   public List<FieldValueTypeInformation> fieldValueTypeInformations(
       TypeDescriptor<?> targetTypeDescriptor, Schema schema) {
-    return JavaBeanUtils.getFieldTypes(
-        targetTypeDescriptor.getRawType(), schema, GetterTypeSupplier.INSTANCE);
+    return JavaBeanUtils.getFieldTypes(targetTypeDescriptor, schema, GetterTypeSupplier.INSTANCE);
   }
 
   @Override
@@ -192,7 +191,7 @@ public class JavaBeanSchema extends GetterBasedSchemaProvider {
     Method annotated = ReflectUtils.getAnnotatedCreateMethod(targetTypeDescriptor.getRawType());
     if (annotated != null) {
       return JavaBeanUtils.getStaticCreator(
-          targetTypeDescriptor.getRawType(),
+          targetTypeDescriptor,
           annotated,
           schema,
           GetterTypeSupplier.INSTANCE,
@@ -204,7 +203,7 @@ public class JavaBeanSchema extends GetterBasedSchemaProvider {
         ReflectUtils.getAnnotatedConstructor(targetTypeDescriptor.getRawType());
     if (constructor != null) {
       return JavaBeanUtils.getConstructorCreator(
-          targetTypeDescriptor.getRawType(),
+          targetTypeDescriptor,
           constructor,
           schema,
           GetterTypeSupplier.INSTANCE,
@@ -222,7 +221,7 @@ public class JavaBeanSchema extends GetterBasedSchemaProvider {
     @Override
     public List<FieldValueSetter> create(TypeDescriptor<?> targetTypeDescriptor, Schema schema) {
       return JavaBeanUtils.getSetters(
-          targetTypeDescriptor.getRawType(),
+          targetTypeDescriptor,
           schema,
           SetterTypeSupplier.INSTANCE,
           new DefaultTypeConversionsFactory());

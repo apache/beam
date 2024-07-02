@@ -160,7 +160,7 @@ public class POJOUtilsTest {
 
     List<FieldValueGetter> getters =
         POJOUtils.getGetters(
-            SimplePOJO.class,
+            new TypeDescriptor<SimplePOJO>() {},
             SIMPLE_POJO_SCHEMA,
             JavaFieldTypeSupplier.INSTANCE,
             new DefaultTypeConversionsFactory());
@@ -186,7 +186,7 @@ public class POJOUtilsTest {
     SimplePOJO simplePojo = new SimplePOJO();
     List<FieldValueSetter> setters =
         POJOUtils.getSetters(
-            SimplePOJO.class,
+            new TypeDescriptor<SimplePOJO>() {},
             SIMPLE_POJO_SCHEMA,
             JavaFieldTypeSupplier.INSTANCE,
             new DefaultTypeConversionsFactory());
@@ -225,7 +225,7 @@ public class POJOUtilsTest {
 
     List<FieldValueGetter> getters =
         POJOUtils.getGetters(
-            POJOWithBoxedFields.class,
+            new TypeDescriptor<POJOWithBoxedFields>() {},
             POJO_WITH_BOXED_FIELDS_SCHEMA,
             JavaFieldTypeSupplier.INSTANCE,
             new DefaultTypeConversionsFactory());
@@ -241,7 +241,7 @@ public class POJOUtilsTest {
     POJOWithBoxedFields pojo = new POJOWithBoxedFields();
     List<FieldValueSetter> setters =
         POJOUtils.getSetters(
-            POJOWithBoxedFields.class,
+            new TypeDescriptor<POJOWithBoxedFields>() {},
             POJO_WITH_BOXED_FIELDS_SCHEMA,
             JavaFieldTypeSupplier.INSTANCE,
             new DefaultTypeConversionsFactory());
@@ -264,7 +264,7 @@ public class POJOUtilsTest {
     POJOWithByteArray pojo = new POJOWithByteArray();
     List<FieldValueSetter> setters =
         POJOUtils.getSetters(
-            POJOWithByteArray.class,
+            new TypeDescriptor<POJOWithByteArray>() {},
             POJO_WITH_BYTE_ARRAY_SCHEMA,
             JavaFieldTypeSupplier.INSTANCE,
             new DefaultTypeConversionsFactory());

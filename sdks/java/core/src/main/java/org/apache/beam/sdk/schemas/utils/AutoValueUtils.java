@@ -134,7 +134,7 @@ public class AutoValueUtils {
         .map(
             c ->
                 JavaBeanUtils.getConstructorCreator(
-                    generatedClass,
+                    TypeDescriptor.of(generatedClass),
                     c,
                     schema,
                     fieldValueTypeSupplier,
