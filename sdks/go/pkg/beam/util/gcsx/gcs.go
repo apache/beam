@@ -65,7 +65,9 @@ func Upload(ctx context.Context, client *storage.Client, project, bucket, object
 
 // CreateBucket creates a bucket in GCS.
 func CreateBucket(ctx context.Context, client *storage.Client, project, bucket string) error {
-	return client.Bucket(bucket).Create(ctx, project, nil)
+	attrs := storage.BucketAttrs{}
+	attrs.SoftDeletePolicy.RetentionDuration = 0
+	return client.Bucket(bucket).Create(ctx, project, &attrs)
 }
 
 // BucketExists returns true iff the given bucket exists.
