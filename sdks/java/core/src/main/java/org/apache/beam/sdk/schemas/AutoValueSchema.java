@@ -49,10 +49,10 @@ public class AutoValueSchema extends GetterBasedSchemaProvider {
     public List<FieldValueTypeInformation> get(TypeDescriptor<?> typeDescriptor) {
 
       // If the generated class is passed in, we want to look at the base class to find the getters.
-      Class<?> targetClass = AutoValueUtils.getBaseAutoValueClass(typeDescriptor.getRawType());
+      TypeDescriptor<?> targetTypeDescriptor = AutoValueUtils.getBaseAutoValueClass(typeDescriptor);
 
       List<Method> methods =
-          ReflectUtils.getMethods(targetClass).stream()
+          ReflectUtils.getMethods(targetTypeDescriptor.getRawType()).stream()
               .filter(ReflectUtils::isGetter)
               // All AutoValue getters are marked abstract.
               .filter(m -> Modifier.isAbstract(m.getModifiers()))
@@ -132,7 +132,7 @@ public class AutoValueSchema extends GetterBasedSchemaProvider {
     // class. Use that for creating AutoValue objects.
     creatorFactory =
         AutoValueUtils.getConstructorCreator(
-            targetTypeDescriptor.getRawType(), schema, AbstractGetterTypeSupplier.INSTANCE);
+            targetTypeDescriptor, schema, AbstractGetterTypeSupplier.INSTANCE);
     if (creatorFactory == null) {
       throw new RuntimeException(
           "Could not find a way to create AutoValue class " + targetTypeDescriptor);
