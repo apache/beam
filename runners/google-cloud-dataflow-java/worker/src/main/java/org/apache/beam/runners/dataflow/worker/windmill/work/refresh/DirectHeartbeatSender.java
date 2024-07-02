@@ -59,7 +59,7 @@ public final class DirectHeartbeatSender implements HeartbeatSender {
       LOG.warn(
           "Trying to refresh work w/ {} heartbeats on stream={} after work has moved off of worker."
               + " heartbeats",
-          getDataStream.id(),
+          getDataStream.backendWorkerToken(),
           heartbeats.size());
       onStreamClosed.run();
     } else {

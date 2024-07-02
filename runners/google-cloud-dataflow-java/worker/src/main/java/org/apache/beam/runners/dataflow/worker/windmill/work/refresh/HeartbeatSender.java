@@ -24,5 +24,9 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 /** Interface for sending heartbeats. */
 @FunctionalInterface
 public interface HeartbeatSender {
+  /**
+   * Send heartbeats. Heartbeats are a map of computation id to a list of heartbeat requests that
+   * represent WorkItem that is actively being processed belonging to the computation.
+   */
   void sendHeartbeats(Map<String, List<Windmill.HeartbeatRequest>> heartbeats);
 }

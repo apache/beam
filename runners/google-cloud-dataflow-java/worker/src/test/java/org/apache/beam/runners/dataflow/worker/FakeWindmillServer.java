@@ -61,7 +61,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribut
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution.State;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
-import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.CommitWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
@@ -234,8 +233,8 @@ public final class FakeWindmillServer extends WindmillServerStub {
     return new GetWorkStream() {
 
       @Override
-      public Id id() {
-        return WindmillStream.Id.create(this, "backend_worker_token", false);
+      public String backendWorkerToken() {
+        return "backend_worker_token";
       }
 
       @Override
@@ -317,8 +316,8 @@ public final class FakeWindmillServer extends WindmillServerStub {
     Instant startTime = Instant.now();
     return new GetDataStream() {
       @Override
-      public Id id() {
-        return WindmillStream.Id.create(this, "backend_worker_token", false);
+      public String backendWorkerToken() {
+        return "backend_worker_token";
       }
 
       @Override
@@ -407,8 +406,8 @@ public final class FakeWindmillServer extends WindmillServerStub {
     Instant startTime = Instant.now();
     return new CommitWorkStream() {
       @Override
-      public Id id() {
-        return WindmillStream.Id.create(this, "backend_worker_token", false);
+      public String backendWorkerToken() {
+        return "backend_worker_token";
       }
 
       @Override

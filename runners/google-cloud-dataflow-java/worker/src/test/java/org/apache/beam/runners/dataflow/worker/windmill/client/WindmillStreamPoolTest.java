@@ -22,7 +22,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
 
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
@@ -238,8 +237,13 @@ public class WindmillStreamPoolTest {
     }
 
     @Override
-    public Id id() {
-      return Id.create(mock(GetWorkStream.class), "backend_worker_token", false);
+    public String backendWorkerToken() {
+      return "backend_worker_token";
+    }
+
+    @Override
+    public String streamType() {
+      return "test_stream";
     }
 
     @Override

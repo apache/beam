@@ -72,7 +72,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   protected static final int RPC_STREAM_CHUNK_SIZE = 2 << 20;
   private static final Logger LOG = LoggerFactory.getLogger(AbstractWindmillStream.class);
   protected final AtomicBoolean clientClosed;
-  private final WindmillStream.Id streamId;
+  private final String backendWorkerToken;
   private final AtomicLong lastSendTimeMs;
   private final Executor executor;
   private final ExecutorService requestSender;
@@ -98,16 +98,18 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
       Set<AbstractWindmillStream<?, ?>> streamRegistry,
       int logEveryNStreamFailures,
       String backendWorkerToken) {
-    this.streamId =
-        WindmillStream.Id.create(this, backendWorkerToken, !backendWorkerToken.isEmpty());
+    this.backendWorkerToken = backendWorkerToken;
     this.executor =
         Executors.newSingleThreadExecutor(
-            new ThreadFactoryBuilder().setDaemon(true).setNameFormat(streamId + "-thread").build());
+            new ThreadFactoryBuilder()
+                .setDaemon(true)
+                .setNameFormat(streamType() + backendWorkerToken + "-thread")
+                .build());
     this.requestSender =
         Executors.newSingleThreadExecutor(
             new ThreadFactoryBuilder()
                 .setDaemon(true)
-                .setNameFormat(streamId + "-RequestThread")
+                .setNameFormat(streamType() + backendWorkerToken + "-RequestThread")
                 .build());
     this.backoff = backoff;
     this.streamRegistry = streamRegistry;
@@ -136,8 +138,8 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   }
 
   @Override
-  public final Id id() {
-    return streamId;
+  public final String backendWorkerToken() {
+    return backendWorkerToken;
   }
 
   /** Called on each response from the server. */
@@ -189,8 +191,9 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
             });
       } catch (RejectedExecutionException e) {
         LOG.warn(
-            "{} is shutdown and will not send or receive any more requests or responses.",
-            streamId,
+            "{}-{} is shutdown and will not send or receive any more requests or responses.",
+            streamType(),
+            backendWorkerToken(),
             e);
       }
     }
@@ -249,7 +252,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
    *     status page rendering.
    */
   public final void appendSummaryHtml(PrintWriter writer) {
-    writer.format("<h3>%s:</h3>", streamId);
+    writer.format("<h3>%s-%s:</h3>", streamType(), backendWorkerToken());
     appendSpecificHtml(writer);
     writer.println("<strong>Status:</strong>");
     writer.println(
@@ -349,6 +352,12 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   private void setLastError(String error) {
     lastError.set(error);
     lastErrorTime.set(DateTime.now());
+  }
+
+  @Override
+  public String toString() {
+    String id = streamType();
+    return !backendWorkerToken().isEmpty() ? id + String.format("-[%s]", backendWorkerToken()) : id;
   }
 
   /** Request observer that allows updating its internal delegate. */

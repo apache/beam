@@ -118,6 +118,12 @@ final class DirectStreamObserver<T> implements StreamObserver<T> {
 
         totalSecondsWaited += waitSeconds;
         if (totalSecondsWaited > deadlineSeconds) {
+          LOG.error(
+              "PhaserState: isTerminated={}, registeredParties={}, unarrived={}, arrived={}",
+              isReadyNotifier.isTerminated(),
+              isReadyNotifier.getRegisteredParties(),
+              isReadyNotifier.getUnarrivedParties(),
+              isReadyNotifier.getArrivedParties());
           throw new StreamObserverCancelledException(
               "Waited "
                   + totalSecondsWaited
@@ -167,5 +173,21 @@ final class DirectStreamObserver<T> implements StreamObserver<T> {
     } catch (IllegalStateException e) {
       // onCompleted or onError has already been called and waiting threads have been freed.
     }
+  }
+
+  @Override
+  public String toString() {
+    return "DirectStreamObserver{"
+        + "isReadyNotifier="
+        + isReadyNotifier
+        + ", deadlineSeconds="
+        + deadlineSeconds
+        + ", messagesBetweenIsReadyChecks="
+        + messagesBetweenIsReadyChecks
+        + ", outboundObserver="
+        + outboundObserver
+        + ", messagesSinceReady="
+        + messagesSinceReady
+        + '}';
   }
 }

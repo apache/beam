@@ -441,7 +441,7 @@ public final class GrpcDirectGetWorkStream
                   workCommitter.get()::commit,
                   DirectHeartbeatSender.create(getDataStream.get()))
               .toBuilder()
-              .setBackendWorkerToken(id().backendWorkerToken())
+              .setBackendWorkerToken(backendWorkerToken().backendWorkerToken())
               .build(),
           // After the work item is successfully queued or dropped by ActiveWorkState, remove it
           // from the pendingResponseBudget.

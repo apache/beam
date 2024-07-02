@@ -47,7 +47,6 @@ import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.client.CloseableStream;
-import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.CommitWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamPool;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
@@ -261,8 +260,8 @@ public class StreamingEngineWorkCommitterTest {
               private boolean closed = false;
 
               @Override
-              public Id id() {
-                return WindmillStream.Id.create(this, "backend_worker_token", false);
+              public String backendWorkerToken() {
+                return "backend_worker_token";
               }
 
               @Override

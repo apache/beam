@@ -94,7 +94,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.ActiveWorkRefresher;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.ApplianceHeartbeatSender;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
-import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.PoolBackedHeartbeatSender;
+import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.StreamPoolHeartbeatSender;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.JvmInitializers;
@@ -171,7 +171,7 @@ public class StreamingDataflowWorker {
   private final StreamingWorkerStatusReporter workerStatusReporter;
   private final StreamingCounters streamingCounters;
   private final StreamingWorkScheduler streamingWorkScheduler;
-  private final HeartbeatSender heartbeatSender;
+  private final @Nullable HeartbeatSender heartbeatSender;
   private @Nullable StreamingEngineClient streamingEngineClient;
 
   private StreamingDataflowWorker(
@@ -236,7 +236,7 @@ public class StreamingDataflowWorker {
               if (windmillServiceEnabled) {
                 streamingDispatchLoop();
               } else {
-                dispatchLoop();
+                applianceDispatchLoop();
               }
               LOG.info("Dispatch done");
             });
@@ -339,18 +339,18 @@ public class StreamingDataflowWorker {
                   (computationId, request) ->
                       metricTrackingWindmillServer.getStateData(
                           getDataStream, computationId, request));
+      this.heartbeatSender = null;
     } else {
       this.streamingEngineClient = null;
+      this.heartbeatSender =
+          options.isEnableStreamingEngine()
+              ? new StreamPoolHeartbeatSender(
+                  options.getUseSeparateWindmillHeartbeatStreams()
+                      ? WindmillStreamPool.create(
+                          1, GET_DATA_STREAM_TIMEOUT, windmillServer::getDataStream)
+                      : getDataStreamPool)
+              : new ApplianceHeartbeatSender(windmillServer::getData);
     }
-
-    this.heartbeatSender =
-        options.isEnableStreamingEngine()
-            ? new PoolBackedHeartbeatSender(
-                options.getUseSeparateWindmillHeartbeatStreams()
-                    ? WindmillStreamPool.create(
-                        1, GET_DATA_STREAM_TIMEOUT, windmillServer::getDataStream)
-                    : getDataStreamPool)
-            : new ApplianceHeartbeatSender(windmillServer::getData);
 
     this.activeWorkRefresher =
         new ActiveWorkRefresher(
@@ -441,6 +441,7 @@ public class StreamingDataflowWorker {
         configFetcherComputationStateCacheAndWindmillClient =
             createConfigFetcherComputationStateCacheAndWindmillClient(
                 options,
+                dispatcherClient,
                 dataflowServiceClient,
                 maxWorkItemCommitBytes,
                 windmillStreamFactoryBuilder,
@@ -506,6 +507,7 @@ public class StreamingDataflowWorker {
   private static ConfigFetcherComputationStateCacheAndWindmillClient
       createConfigFetcherComputationStateCacheAndWindmillClient(
           DataflowWorkerHarnessOptions options,
+          GrpcDispatcherClient dispatcherClient,
           WorkUnitClient dataflowServiceClient,
           AtomicInteger maxWorkItemCommitBytes,
           GrpcWindmillStreamFactory.Builder windmillStreamFactoryBuilder,
@@ -513,7 +515,6 @@ public class StreamingDataflowWorker {
     ComputationConfig.Fetcher configFetcher;
     WindmillServerStub windmillServer;
     ComputationStateCache computationStateCache;
-    GrpcDispatcherClient dispatcherClient = GrpcDispatcherClient.create(createStubFactory(options));
     GrpcWindmillStreamFactory windmillStreamFactory;
     if (options.isEnableStreamingEngine()) {
       configFetcher =
@@ -743,20 +744,18 @@ public class StreamingDataflowWorker {
   }
 
   private static boolean isDirectPathPipeline(DataflowWorkerHarnessOptions options) {
-    boolean isIpV6Enabled =
-        Optional.ofNullable(options.getDataflowServiceOptions())
-            .map(serviceOptions -> serviceOptions.contains(ENABLE_IPV6_EXPERIMENT))
-            .orElse(false);
-    if (options.isEnableStreamingEngine()
-        && options.getIsWindmillServiceDirectPathEnabled()
-        && !isIpV6Enabled) {
+    if (options.isEnableStreamingEngine() && options.getIsWindmillServiceDirectPathEnabled()) {
+      boolean isIpV6Enabled =
+          Optional.ofNullable(options.getDataflowServiceOptions())
+              .map(serviceOptions -> serviceOptions.contains(ENABLE_IPV6_EXPERIMENT))
+              .orElse(false);
+      if (isIpV6Enabled) {
+        return true;
+      }
       LOG.warn(
           "DirectPath is currently only supported with IPv6 networking stack. Defaulting to CloudPath.");
     }
-
-    return options.isEnableStreamingEngine()
-        && options.getIsWindmillServiceDirectPathEnabled()
-        && isIpV6Enabled;
+    return false;
   }
 
   private static ChannelCachingStubFactory createStubFactory(
@@ -895,7 +894,7 @@ public class StreamingDataflowWorker {
     }
   }
 
-  private void dispatchLoop() {
+  private void applianceDispatchLoop() {
     while (running.get()) {
       memoryMonitor.waitForResources("GetWork");
 
@@ -939,7 +938,7 @@ public class StreamingDataflowWorker {
                   computationId,
                   metricTrackingWindmillServer::getStateData,
                   workCommitter::commit,
-                  heartbeatSender),
+                  Preconditions.checkNotNull(heartbeatSender)),
               /* getWorkStreamLatencies= */ Collections.emptyList());
         }
       }
@@ -977,7 +976,7 @@ public class StreamingDataflowWorker {
                                     computationState.getComputationId(),
                                     metricTrackingWindmillServer::getStateData,
                                     workCommitter::commit,
-                                    heartbeatSender),
+                                    Preconditions.checkNotNull(heartbeatSender)),
                                 getWorkStreamLatencies);
                           }));
       try {

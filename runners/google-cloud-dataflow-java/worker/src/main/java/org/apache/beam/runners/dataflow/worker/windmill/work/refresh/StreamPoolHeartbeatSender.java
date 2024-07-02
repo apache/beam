@@ -29,12 +29,12 @@ import org.slf4j.LoggerFactory;
 
 /** StreamingEngine stream pool based implementation of {@link HeartbeatSender}. */
 @Internal
-public final class PoolBackedHeartbeatSender implements HeartbeatSender {
-  private static final Logger LOG = LoggerFactory.getLogger(PoolBackedHeartbeatSender.class);
+public final class StreamPoolHeartbeatSender implements HeartbeatSender {
+  private static final Logger LOG = LoggerFactory.getLogger(StreamPoolHeartbeatSender.class);
 
   private final WindmillStreamPool<WindmillStream.GetDataStream> heartbeatStreamPool;
 
-  public PoolBackedHeartbeatSender(
+  public StreamPoolHeartbeatSender(
       WindmillStreamPool<WindmillStream.GetDataStream> heartbeatStreamPool) {
     this.heartbeatStreamPool = heartbeatStreamPool;
   }

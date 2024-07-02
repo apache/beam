@@ -296,7 +296,8 @@ public class MetricTrackingWindmillServerStub {
   }
 
   /**
-   * Attempts to refresh active work, fanning out to each {@link GetDataStream} in parallel.
+   * Attempts to refresh active work, fanning out to each {@link GetDataStream} in parallel based on
+   * {@link HeartbeatSender} implementation.
    *
    * @implNote Skips closed {@link GetDataStream}(s).
    */
@@ -306,11 +307,14 @@ public class MetricTrackingWindmillServerStub {
       return;
     }
 
+    // TODO(m-trieu): Return CompleteableFuture to prevent per-destination blocked thread for
+    // heartbeats.
     try {
       if (heartbeats.size() == 1) {
         // There is 1 destination to send heartbeat requests.
         Map.Entry<HeartbeatSender, Map<String, List<HeartbeatRequest>>> heartbeat =
             Iterables.getOnlyElement(heartbeats.entrySet());
+        activeHeartbeats.getAndUpdate(existing -> existing + heartbeat.getValue().size());
         HeartbeatSender sender = heartbeat.getKey();
         sender.sendHeartbeats(heartbeat.getValue());
       } else {
