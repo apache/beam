@@ -16,7 +16,6 @@
 #
 
 """For internal use only; no backwards-compatibility guarantees."""
-
 # pytype: skip-file
 
 from typing import Type
@@ -35,6 +34,10 @@ TimeMessageT = TypeVar(
     'TimeMessageT', duration_pb2.Duration, timestamp_pb2.Timestamp)
 
 message_types = (message.Message, )
+
+_MICROS_TO_SECONDS = 1000000
+_MICRO_TO_NANOSECONDS = 1000
+_NANO_TO_SECONDS = 1000000000
 
 
 @overload
@@ -123,8 +126,25 @@ def pack_Struct(**kwargs):
 def from_micros(cls, micros):
   # type: (Type[TimeMessageT], int) -> TimeMessageT
   result = cls()
-  result.FromMicroseconds(micros)
-  return result
+  if isinstance(result, duration_pb2.Duration):
+    result.FromMicroseconds(micros)
+    return result
+  elif isinstance(result, timestamp_pb2.Timestamp):
+    result.seconds = micros // _MICROS_TO_SECONDS
+    result.nanos = (micros % _MICROS_TO_SECONDS) * _MICRO_TO_NANOSECONDS
+    return result
+  else:
+    raise RuntimeError('cannot convert the micro seconds to %s' % cls)
+
+
+def to_micros(value: Union[duration_pb2.Duration, timestamp_pb2.Timestamp]):
+  if isinstance(value, duration_pb2.Duration):
+    return value.ToMicroseconds()
+  elif isinstance(value, timestamp_pb2.Timestamp):
+    micros = value.seconds * _MICROS_TO_SECONDS
+    return micros + value.nanos // _MICRO_TO_NANOSECONDS
+  else:
+    raise RuntimeError('cannot convert %s to micro seconds' % value)
 
 
 def to_Timestamp(time):
