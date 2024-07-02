@@ -58,7 +58,7 @@ class ExternalJobServer(JobServer):
 
 
 class EmbeddedJobServer(JobServer):
-  def start(self) -> local_job_service.LocalJobServicer:
+  def start(self) -> 'local_job_service.LocalJobServicer':
     return local_job_service.LocalJobServicer()
 
   def stop(self):

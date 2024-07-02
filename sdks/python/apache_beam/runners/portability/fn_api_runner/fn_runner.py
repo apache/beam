@@ -31,7 +31,6 @@ import subprocess
 import sys
 import threading
 import time
-from typing import TYPE_CHECKING
 from typing import Callable
 from typing import Dict
 from typing import Iterable
@@ -55,11 +54,13 @@ from apache_beam.metrics.metricbase import MetricName
 from apache_beam.metrics.monitoring_infos import consolidate as consolidate_monitoring_infos
 from apache_beam.options import pipeline_options
 from apache_beam.options.value_provider import RuntimeValueProvider
+from apache_beam.pipeline import Pipeline
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_provision_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
+from apache_beam.portability.api import metrics_pb2
 from apache_beam.runners import runner
 from apache_beam.runners.common import group_by_key_input_visitor
 from apache_beam.runners.common import merge_common_environments
@@ -75,6 +76,7 @@ from apache_beam.runners.portability.fn_api_runner.translations import OutputTim
 from apache_beam.runners.portability.fn_api_runner.translations import OutputTimers
 from apache_beam.runners.portability.fn_api_runner.translations import create_buffer_id
 from apache_beam.runners.portability.fn_api_runner.translations import only_element
+from apache_beam.runners.portability.fn_api_runner.worker_handlers import WorkerHandler
 from apache_beam.runners.portability.fn_api_runner.worker_handlers import WorkerHandlerManager
 from apache_beam.runners.worker import bundle_processor
 from apache_beam.transforms import environments
@@ -82,11 +84,6 @@ from apache_beam.utils import proto_utils
 from apache_beam.utils import thread_pool_executor
 from apache_beam.utils import timestamp
 from apache_beam.utils.profiler import Profile
-
-if TYPE_CHECKING:
-  from apache_beam.pipeline import Pipeline
-  from apache_beam.portability.api import metrics_pb2
-  from apache_beam.runners.portability.fn_api_runner.worker_handlers import WorkerHandler
 
 _LOGGER = logging.getLogger(__name__)
 _BUNDLE_LOGGER = logging.getLogger(__name__ + ".run_bundle")
@@ -105,7 +102,7 @@ class FnApiRunner(runner.PipelineRunner):
       default_environment: Optional[environments.Environment] = None,
       bundle_repeat: int = 0,
       use_state_iterables: bool = False,
-      provision_info: Optional[ExtendedProvisionInfo] = None,
+      provision_info: Optional['ExtendedProvisionInfo'] = None,
       progress_request_frequency: Optional[float] = None,
       is_drain: bool = False) -> None:
     """Creates a new Fn API Runner.
@@ -144,7 +141,7 @@ class FnApiRunner(runner.PipelineRunner):
 
   def run_pipeline(
       self, pipeline: Pipeline,
-      options: pipeline_options.PipelineOptions) -> RunnerResult:
+      options: pipeline_options.PipelineOptions) -> 'RunnerResult':
     RuntimeValueProvider.set_runtime_options({})
 
     # Setup "beam_fn_api" experiment options if lacked.
@@ -203,7 +200,7 @@ class FnApiRunner(runner.PipelineRunner):
   def run_via_runner_api(
       self,
       pipeline_proto: beam_runner_api_pb2.Pipeline,
-      options: pipeline_options.PipelineOptions) -> RunnerResult:
+      options: pipeline_options.PipelineOptions) -> 'RunnerResult':
     validate_pipeline_graph(pipeline_proto)
     self._validate_requirements(pipeline_proto)
     self._check_requirements(pipeline_proto)
@@ -410,7 +407,7 @@ class FnApiRunner(runner.PipelineRunner):
   def run_stages(
       self,
       stage_context: translations.TransformContext,
-      stages: List[translations.Stage]) -> RunnerResult:
+      stages: List[translations.Stage]) -> 'RunnerResult':
     """Run a list of topologically-sorted stages in batch mode.
 
     Args:
@@ -582,7 +579,7 @@ class FnApiRunner(runner.PipelineRunner):
   def _run_bundle_multiple_times_for_testing(
       self,
       runner_execution_context: execution.FnApiRunnerExecutionContext,
-      bundle_manager: BundleManager,
+      bundle_manager: 'BundleManager',
       data_input: MutableMapping[str, execution.PartitionableBuffer],
       data_output: DataOutput,
       fired_timers: Mapping[translations.TimerFamilyId,
@@ -1016,7 +1013,7 @@ class FnApiRunner(runner.PipelineRunner):
       bundle_input: DataInput,
       data_output: DataOutput,
       expected_timer_output: OutputTimers,
-      bundle_manager: BundleManager
+      bundle_manager: 'BundleManager'
   ) -> Tuple[beam_fn_api_pb2.InstructionResponse,
              Dict[str, execution.PartitionableBuffer],
              OutputTimerData,
@@ -1091,7 +1088,7 @@ class FnApiRunner(runner.PipelineRunner):
       def __init__(self) -> None:
         self._token = generate_token(1)
 
-      def __iter__(self) -> StaticGenerator:
+      def __iter__(self) -> 'StaticGenerator':
         # pylint: disable=non-iterator-returned
         return self
 
@@ -1103,7 +1100,7 @@ class FnApiRunner(runner.PipelineRunner):
         self._counter = 0
         self._lock = threading.Lock()
 
-      def __iter__(self) -> DynamicGenerator:
+      def __iter__(self) -> 'DynamicGenerator':
         # pylint: disable=non-iterator-returned
         return self
 
@@ -1130,7 +1127,7 @@ class ExtendedProvisionInfo(object):
     self.artifact_staging_dir = artifact_staging_dir
     self.job_name = job_name
 
-  def for_environment(self, env) -> ExtendedProvisionInfo:
+  def for_environment(self, env) -> 'ExtendedProvisionInfo':
     if env.dependencies:
       provision_info_with_deps = copy.deepcopy(self.provision_info)
       provision_info_with_deps.dependencies.extend(env.dependencies)
@@ -1210,7 +1207,8 @@ class BundleManager(object):
     Args:
       progress_frequency
     """
-    self.bundle_context_manager: execution.BundleContextManager = bundle_context_manager
+    self.bundle_context_manager: execution.BundleContextManager = (
+        bundle_context_manager)
     self._progress_frequency = progress_frequency
     self._worker_handler: Optional[WorkerHandler] = None
     self._cache_token_generator = cache_token_generator
@@ -1291,8 +1289,8 @@ class BundleManager(object):
                         estimated_input_elements=num_elements)
                 }))
         logging.info("Requesting split %s", split_request)
-        split_response: beam_fn_api_pb2.InstructionResponse = self._worker_handler.control_conn.push(
-            split_request).get()
+        split_response: beam_fn_api_pb2.InstructionResponse = (
+            self._worker_handler.control_conn.push(split_request).get())
         for t in (0.05, 0.1, 0.2):
           if ('Unknown process bundle' in split_response.error or
               split_response.process_bundle_split ==

@@ -28,16 +28,16 @@ from typing import Set
 from typing import Tuple
 
 from apache_beam import pipeline
+from apache_beam.pipeline import AppliedPTransform
 from apache_beam import pvalue
 from apache_beam.runners.direct.util import TimerFiring
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.timestamp import TIME_GRANULARITY
+from apache_beam.utils.timestamp import Timestamp
 
 if TYPE_CHECKING:
-  from apache_beam.pipeline import AppliedPTransform
   from apache_beam.runners.direct.bundle_factory import _Bundle
-  from apache_beam.utils.timestamp import Timestamp
 
 
 class WatermarkManager(object):
@@ -108,7 +108,7 @@ class WatermarkManager(object):
 
   def update_watermarks(
       self,
-      completed_committed_bundle: _Bundle,
+      completed_committed_bundle: '_Bundle',
       applied_ptransform: AppliedPTransform,
       completed_timers,
       outputs,
@@ -131,8 +131,8 @@ class WatermarkManager(object):
       input_committed_bundle,
       applied_ptransform: AppliedPTransform,
       completed_timers,
-      output_committed_bundles: Iterable[_Bundle],
-      unprocessed_bundles: Iterable[_Bundle]):
+      output_committed_bundles: Iterable['_Bundle'],
+      unprocessed_bundles: Iterable['_Bundle']):
     """Updated list of pending bundles for the given AppliedPTransform."""
 
     # Update pending elements. Filter out empty bundles. They do not impact
@@ -206,7 +206,7 @@ class _TransformWatermarks(object):
     self._output_watermark = WatermarkManager.WATERMARK_NEG_INF
     self._keyed_earliest_holds = {}
     # Scheduled bundles targeted for this transform.
-    self._pending: Set[_Bundle] = set()
+    self._pending: Set['_Bundle'] = set()
     self._fired_timers = set()
     self._lock = threading.Lock()
 
@@ -240,11 +240,11 @@ class _TransformWatermarks(object):
             hold_value == WatermarkManager.WATERMARK_POS_INF):
           del self._keyed_earliest_holds[key]
 
-  def add_pending(self, pending: _Bundle) -> None:
+  def add_pending(self, pending: '_Bundle') -> None:
     with self._lock:
       self._pending.add(pending)
 
-  def remove_pending(self, completed: _Bundle) -> None:
+  def remove_pending(self, completed: '_Bundle') -> None:
     with self._lock:
       # Ignore repeated removes. This will happen if a transform has a repeated
       # input.

@@ -25,7 +25,7 @@ import tempfile
 import uuid
 import zipfile
 from concurrent import futures
-from typing import TYPE_CHECKING
+from typing import BinaryIO
 from typing import Dict
 from typing import Iterator
 from typing import Optional
@@ -34,20 +34,16 @@ from typing import Union
 
 import grpc
 from google.protobuf import json_format
+from google.protobuf import struct_pb2
 from google.protobuf import timestamp_pb2
 
 from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import beam_job_api_pb2_grpc
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners.portability import artifact_service
 from apache_beam.utils.timestamp import Timestamp
-
-if TYPE_CHECKING:
-  # pylint: disable=ungrouped-imports
-  from typing import BinaryIO
-  from google.protobuf import struct_pb2
-  from apache_beam.portability.api import beam_runner_api_pb2
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -81,7 +77,7 @@ class AbstractJobServiceServicer(beam_job_api_pb2_grpc.JobServiceServicer):
                       job_name: str,
                       pipeline: beam_runner_api_pb2.Pipeline,
                       options: struct_pb2.Struct
-                     ) -> AbstractBeamJob:
+                     ) -> 'AbstractBeamJob':
     """Returns an instance of AbstractBeamJob specific to this servicer."""
     raise NotImplementedError(type(self))
 
@@ -208,7 +204,7 @@ class AbstractBeamJob(object):
   def run(self) -> None:
     raise NotImplementedError(self)
 
-  def cancel(self) -> Optional[beam_job_api_pb2.JobState.Enum]:
+  def cancel(self) -> Optional['beam_job_api_pb2.JobState.Enum']:
     raise NotImplementedError(self)
 
   def artifact_staging_endpoint(

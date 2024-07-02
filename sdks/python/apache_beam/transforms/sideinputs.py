@@ -76,7 +76,7 @@ def get_sideinput_index(tag: str) -> int:
 
 class SideInputMap(object):
   """Represents a mapping of windows to side input values."""
-  def __init__(self, view_class: pvalue.AsSideInput, view_options, iterable):
+  def __init__(self, view_class: 'pvalue.AsSideInput', view_options, iterable):
     self._window_mapping_fn = view_options.get(
         'window_mapping_fn', _global_window_mapping_fn)
     self._view_class = view_class

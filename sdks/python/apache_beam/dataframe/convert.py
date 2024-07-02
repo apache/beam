@@ -17,10 +17,10 @@
 import inspect
 import warnings
 import weakref
-from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
 from typing import Iterable
+from typing import Optional
 from typing import Tuple
 from typing import Union
 
@@ -34,10 +34,6 @@ from apache_beam.dataframe import transforms
 from apache_beam.dataframe.schemas import element_typehint_from_dataframe_proxy
 from apache_beam.dataframe.schemas import generate_proxy
 from apache_beam.typehints.pandas_type_compatibility import dtype_to_fieldtype
-
-if TYPE_CHECKING:
-  # pylint: disable=ungrouped-imports
-  from typing import Optional
 
 
 # TODO: Or should this be called as_dataframe?

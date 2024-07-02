@@ -110,7 +110,7 @@ class PubsubMessage(object):
     return 'PubsubMessage(%s, %s)' % (self.data, self.attributes)
 
   @staticmethod
-  def _from_proto_str(proto_msg: bytes) -> PubsubMessage:
+  def _from_proto_str(proto_msg: bytes) -> 'PubsubMessage':
     """Construct from serialized form of ``PubsubMessage``.
 
     Args:
@@ -183,7 +183,7 @@ class PubsubMessage(object):
     return serialized
 
   @staticmethod
-  def _from_message(msg: Any) -> PubsubMessage:
+  def _from_message(msg: Any) -> 'PubsubMessage':
     """Construct from ``google.cloud.pubsub_v1.subscriber.message.Message``.
 
     https://googleapis.github.io/google-cloud-python/latest/pubsub/subscriber/api/message.html

@@ -38,12 +38,12 @@ from apache_beam.coders import coders
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.transforms.timeutil import TimeDomain
+from apache_beam.utils import windowed_value
+from apache_beam.utils.timestamp import Timestamp
 
 if TYPE_CHECKING:
   from apache_beam.runners.pipeline_context import PipelineContext
-  from apache_beam.transforms.core import CombineFn, DoFn
-  from apache_beam.utils import windowed_value
-  from apache_beam.utils.timestamp import Timestamp
+  from apache_beam.transforms.core import DoFn
 
 CallableT = TypeVar('CallableT', bound=Callable)
 
@@ -62,14 +62,14 @@ class StateSpec(object):
     return '%s(%s)' % (self.__class__.__name__, self.name)
 
   def to_runner_api(
-      self, context: PipelineContext) -> beam_runner_api_pb2.StateSpec:
+      self, context: 'PipelineContext') -> beam_runner_api_pb2.StateSpec:
     raise NotImplementedError
 
 
 class ReadModifyWriteStateSpec(StateSpec):
   """Specification for a user DoFn value state cell."""
   def to_runner_api(
-      self, context: PipelineContext) -> beam_runner_api_pb2.StateSpec:
+      self, context: 'PipelineContext') -> beam_runner_api_pb2.StateSpec:
     return beam_runner_api_pb2.StateSpec(
         read_modify_write_spec=beam_runner_api_pb2.ReadModifyWriteStateSpec(
             coder_id=context.coders.get_id(self.coder)),
@@ -80,7 +80,7 @@ class ReadModifyWriteStateSpec(StateSpec):
 class BagStateSpec(StateSpec):
   """Specification for a user DoFn bag state cell."""
   def to_runner_api(
-      self, context: PipelineContext) -> beam_runner_api_pb2.StateSpec:
+      self, context: 'PipelineContext') -> beam_runner_api_pb2.StateSpec:
     return beam_runner_api_pb2.StateSpec(
         bag_spec=beam_runner_api_pb2.BagStateSpec(
             element_coder_id=context.coders.get_id(self.coder)),
@@ -91,7 +91,7 @@ class BagStateSpec(StateSpec):
 class SetStateSpec(StateSpec):
   """Specification for a user DoFn Set State cell"""
   def to_runner_api(
-      self, context: PipelineContext) -> beam_runner_api_pb2.StateSpec:
+      self, context: 'PipelineContext') -> beam_runner_api_pb2.StateSpec:
     return beam_runner_api_pb2.StateSpec(
         set_spec=beam_runner_api_pb2.SetStateSpec(
             element_coder_id=context.coders.get_id(self.coder)),
@@ -141,7 +141,7 @@ class CombiningValueStateSpec(StateSpec):
     super().__init__(name, coder)
 
   def to_runner_api(
-      self, context: PipelineContext) -> beam_runner_api_pb2.StateSpec:
+      self, context: 'PipelineContext') -> beam_runner_api_pb2.StateSpec:
     return beam_runner_api_pb2.StateSpec(
         combining_spec=beam_runner_api_pb2.CombiningStateSpec(
             combine_fn=self.combine_fn.to_runner_api(context),
@@ -180,7 +180,7 @@ class TimerSpec(object):
     return '%s(%s)' % (self.__class__.__name__, self.name)
 
   def to_runner_api(
-      self, context: PipelineContext, key_coder: Coder,
+      self, context: 'PipelineContext', key_coder: Coder,
       window_coder: Coder) -> beam_runner_api_pb2.TimerFamilySpec:
     return beam_runner_api_pb2.TimerFamilySpec(
         time_domain=TimeDomain.to_runner_api(self.time_domain),
@@ -217,7 +217,7 @@ def on_timer(timer_spec: TimerSpec) -> Callable[[CallableT], CallableT]:
   return _inner
 
 
-def get_dofn_specs(dofn: DoFn) -> Tuple[Set[StateSpec], Set[TimerSpec]]:
+def get_dofn_specs(dofn: 'DoFn') -> Tuple[Set[StateSpec], Set[TimerSpec]]:
   """Gets the state and timer specs for a DoFn, if any.
 
   Args:
@@ -256,7 +256,7 @@ def get_dofn_specs(dofn: DoFn) -> Tuple[Set[StateSpec], Set[TimerSpec]]:
   return all_state_specs, all_timer_specs
 
 
-def is_stateful_dofn(dofn: DoFn) -> bool:
+def is_stateful_dofn(dofn: 'DoFn') -> bool:
   """Determines whether a given DoFn is a stateful DoFn."""
 
   # A Stateful DoFn is a DoFn that uses user state or timers.
@@ -264,7 +264,7 @@ def is_stateful_dofn(dofn: DoFn) -> bool:
   return bool(all_state_specs or all_timer_specs)
 
 
-def validate_stateful_dofn(dofn: DoFn) -> None:
+def validate_stateful_dofn(dofn: 'DoFn') -> None:
   """Validates the proper specification of a stateful DoFn."""
 
   # Get state and timer specs.
@@ -378,7 +378,7 @@ class UserStateContext(object):
       self,
       timer_spec: TimerSpec,
       key: Any,
-      window: windowed_value.BoundedWindow,
+      window: 'windowed_value.BoundedWindow',
       timestamp: Timestamp,
       pane: windowed_value.PaneInfo,
   ) -> BaseTimer:
@@ -388,7 +388,7 @@ class UserStateContext(object):
       self,
       state_spec: StateSpec,
       key: Any,
-      window: windowed_value.BoundedWindow,
+      window: 'windowed_value.BoundedWindow',
   ) -> RuntimeState:
     raise NotImplementedError(type(self))
 

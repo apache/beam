@@ -27,7 +27,6 @@ import sys
 import threading
 import time
 import traceback
-from typing import TYPE_CHECKING
 from typing import Iterable
 from typing import Iterator
 from typing import List
@@ -38,13 +37,11 @@ import grpc
 
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
+from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners.worker import statesampler
 from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
 from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 from apache_beam.utils.sentinel import Sentinel
-
-if TYPE_CHECKING:
-  from apache_beam.portability.api import endpoints_pb2
 
 # Mapping from logging levels to LogEntry levels.
 LOG_LEVEL_TO_LOGENTRY_MAP = {

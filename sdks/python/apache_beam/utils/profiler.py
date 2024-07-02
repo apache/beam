@@ -45,8 +45,8 @@ class Profile(object):
 
   SORTBY = 'cumulative'
 
-  profile_output: str = None
-  stats: pstats.Stats = None
+  profile_output: str
+  stats: pstats.Stats
 
   def __init__(
       self,
@@ -139,7 +139,7 @@ class Profile(object):
     filesystems.FileSystems.rename([dest + '.tmp'], [dest])
 
   @staticmethod
-  def factory_from_options(options) -> Optional[Callable[..., Profile]]:
+  def factory_from_options(options) -> Optional[Callable[..., 'Profile']]:
     if options.profile_cpu or options.profile_memory:
 
       def create_profiler(profile_id, **kwargs):

@@ -23,7 +23,6 @@ For internal use only; no backwards-compatibility guarantees.
 # pytype: skip-file
 # mypy: disallow-untyped-defs
 
-from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
 from typing import FrozenSet
@@ -35,9 +34,12 @@ from typing import Type
 from typing import TypeVar
 from typing import Union
 
+from google.protobuf import message
 from typing_extensions import Protocol
 
 from apache_beam import coders
+from apache_beam.coders.coder_impl import IterableStateReader
+from apache_beam.coders.coder_impl import IterableStateWriter
 from apache_beam import pipeline
 from apache_beam import pvalue
 from apache_beam.internal import pickler
@@ -49,21 +51,15 @@ from apache_beam.transforms import environments
 from apache_beam.transforms.resources import merge_resource_hints
 from apache_beam.typehints import native_type_compatibility
 
-if TYPE_CHECKING:
-  from google.protobuf import message  # pylint: disable=ungrouped-imports
-  from apache_beam.coders.coder_impl import IterableStateReader
-  from apache_beam.coders.coder_impl import IterableStateWriter
-  from apache_beam.transforms import ptransform
-
 PortableObjectT = TypeVar('PortableObjectT', bound='PortableObject')
 
 
 class PortableObject(Protocol):
-  def to_runner_api(self, __context: PipelineContext) -> Any:
+  def to_runner_api(self, __context: 'PipelineContext') -> Any:
     pass
 
   @classmethod
-  def from_runner_api(cls, __proto: Any, __context: PipelineContext) -> Any:
+  def from_runner_api(cls, __proto: Any, __context: 'PipelineContext') -> Any:
     pass
 
 
@@ -75,7 +71,7 @@ class _PipelineContextMap(Generic[PortableObjectT]):
   """
   def __init__(
       self,
-      context: PipelineContext,
+      context: 'PipelineContext',
       obj_type: Type[PortableObjectT],
       namespace: str,
       proto_map: Optional[Mapping[str, message.Message]] = None) -> None:
@@ -271,7 +267,8 @@ class PipelineContext(object):
           self.coders[coder_id].to_type_hint())
 
   @staticmethod
-  def from_runner_api(proto: beam_runner_api_pb2.Components) -> PipelineContext:
+  def from_runner_api(
+      proto: beam_runner_api_pb2.Components) -> 'PipelineContext':
     return PipelineContext(proto)
 
   def to_runner_api(self) -> beam_runner_api_pb2.Components:

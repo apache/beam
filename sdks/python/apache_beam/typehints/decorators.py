@@ -204,7 +204,7 @@ class IOTypeHints(NamedTuple):
   @classmethod
   def _make_origin(
       cls,
-      bases: List[IOTypeHints],
+      bases: List['IOTypeHints'],
       tb: bool = True,
       msg: Iterable[str] = ()) -> List[str]:
     if msg:
@@ -232,12 +232,12 @@ class IOTypeHints(NamedTuple):
     return res
 
   @classmethod
-  def empty(cls) -> IOTypeHints:
+  def empty(cls) -> 'IOTypeHints':
     """Construct a base IOTypeHints object with no hints."""
     return IOTypeHints(None, None, [])
 
   @classmethod
-  def from_callable(cls, fn: Callable) -> Optional[IOTypeHints]:
+  def from_callable(cls, fn: Callable) -> Optional['IOTypeHints']:
     """Construct an IOTypeHints object from a callable's signature.
 
     Supports Python 3 annotations. For partial annotations, sets unknown types
@@ -291,19 +291,19 @@ class IOTypeHints(NamedTuple):
         output_types=(tuple(output_args), {}),
         origin=cls._make_origin([], tb=False, msg=msg))
 
-  def with_input_types(self, *args, **kwargs) -> IOTypeHints:
+  def with_input_types(self, *args, **kwargs) -> 'IOTypeHints':
     return self._replace(
         input_types=(args, kwargs), origin=self._make_origin([self]))
 
-  def with_output_types(self, *args, **kwargs) -> IOTypeHints:
+  def with_output_types(self, *args, **kwargs) -> 'IOTypeHints':
     return self._replace(
         output_types=(args, kwargs), origin=self._make_origin([self]))
 
-  def with_input_types_from(self, other: IOTypeHints) -> IOTypeHints:
+  def with_input_types_from(self, other: 'IOTypeHints') -> 'IOTypeHints':
     return self._replace(
         input_types=other.input_types, origin=self._make_origin([self]))
 
-  def with_output_types_from(self, other: IOTypeHints) -> IOTypeHints:
+  def with_output_types_from(self, other: 'IOTypeHints') -> 'IOTypeHints':
     return self._replace(
         output_types=other.output_types, origin=self._make_origin([self]))
 
@@ -353,10 +353,11 @@ class IOTypeHints(NamedTuple):
       my_type: any,
       has_my_type: Callable[[], bool],
       my_key: str,
-      special_containers: List[Union[PBegin, PDone, PCollection]], # noqa: F821
+      special_containers: List[
+          Union['PBegin', 'PDone', 'PCollection']], # noqa: F821
       error_str: str,
       source_str: str
-      ) -> IOTypeHints:
+      ) -> 'IOTypeHints':
     from apache_beam.pvalue import PCollection
 
     if not has_my_type() or not my_type or len(my_type[0]) != 1:
@@ -390,7 +391,7 @@ class IOTypeHints(NamedTuple):
         origin=self._make_origin([self], tb=False, msg=[source_str]),
         **kwarg_dict)
 
-  def strip_iterable(self) -> IOTypeHints:
+  def strip_iterable(self) -> 'IOTypeHints':
     """Removes outer Iterable (or equivalent) from output type.
 
     Only affects instances with simple output types, otherwise is a no-op.
@@ -429,7 +430,7 @@ class IOTypeHints(NamedTuple):
         output_types=((yielded_type, ), {}),
         origin=self._make_origin([self], tb=False, msg=['strip_iterable()']))
 
-  def with_defaults(self, hints: Optional[IOTypeHints]) -> IOTypeHints:
+  def with_defaults(self, hints: Optional['IOTypeHints']) -> 'IOTypeHints':
     if not hints:
       return self
     if not self:
