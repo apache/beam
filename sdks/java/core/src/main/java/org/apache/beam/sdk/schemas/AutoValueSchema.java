@@ -89,9 +89,10 @@ public class AutoValueSchema extends GetterBasedSchemaProvider {
   }
 
   @Override
-  public List<FieldValueGetter> fieldValueGetters(Class<?> targetClass, Schema schema) {
+  public List<FieldValueGetter> fieldValueGetters(
+      TypeDescriptor<?> targetTypeDescriptor, Schema schema) {
     return JavaBeanUtils.getGetters(
-        targetClass,
+        targetTypeDescriptor.getRawType(),
         schema,
         AbstractGetterTypeSupplier.INSTANCE,
         new DefaultTypeConversionsFactory());
@@ -99,17 +100,19 @@ public class AutoValueSchema extends GetterBasedSchemaProvider {
 
   @Override
   public List<FieldValueTypeInformation> fieldValueTypeInformations(
-      Class<?> targetClass, Schema schema) {
-    return JavaBeanUtils.getFieldTypes(targetClass, schema, AbstractGetterTypeSupplier.INSTANCE);
+      TypeDescriptor<?> targetTypeDescriptor, Schema schema) {
+    return JavaBeanUtils.getFieldTypes(
+        targetTypeDescriptor.getRawType(), schema, AbstractGetterTypeSupplier.INSTANCE);
   }
 
   @Override
-  public SchemaUserTypeCreator schemaTypeCreator(Class<?> targetClass, Schema schema) {
+  public SchemaUserTypeCreator schemaTypeCreator(
+      TypeDescriptor<?> targetTypeDescriptor, Schema schema) {
     // If a static method is marked with @SchemaCreate, use that.
-    Method annotated = ReflectUtils.getAnnotatedCreateMethod(targetClass);
+    Method annotated = ReflectUtils.getAnnotatedCreateMethod(targetTypeDescriptor.getRawType());
     if (annotated != null) {
       return JavaBeanUtils.getStaticCreator(
-          targetClass,
+          targetTypeDescriptor.getRawType(),
           annotated,
           schema,
           AbstractGetterTypeSupplier.INSTANCE,
@@ -119,7 +122,8 @@ public class AutoValueSchema extends GetterBasedSchemaProvider {
     // Try to find a generated builder class. If one exists, use that to generate a
     // SchemaTypeCreator for creating AutoValue objects.
     SchemaUserTypeCreator creatorFactory =
-        AutoValueUtils.getBuilderCreator(targetClass, schema, AbstractGetterTypeSupplier.INSTANCE);
+        AutoValueUtils.getBuilderCreator(
+            targetTypeDescriptor.getRawType(), schema, AbstractGetterTypeSupplier.INSTANCE);
     if (creatorFactory != null) {
       return creatorFactory;
     }
@@ -128,9 +132,10 @@ public class AutoValueSchema extends GetterBasedSchemaProvider {
     // class. Use that for creating AutoValue objects.
     creatorFactory =
         AutoValueUtils.getConstructorCreator(
-            targetClass, schema, AbstractGetterTypeSupplier.INSTANCE);
+            targetTypeDescriptor.getRawType(), schema, AbstractGetterTypeSupplier.INSTANCE);
     if (creatorFactory == null) {
-      throw new RuntimeException("Could not find a way to create AutoValue class " + targetClass);
+      throw new RuntimeException(
+          "Could not find a way to create AutoValue class " + targetTypeDescriptor);
     }
 
     return creatorFactory;

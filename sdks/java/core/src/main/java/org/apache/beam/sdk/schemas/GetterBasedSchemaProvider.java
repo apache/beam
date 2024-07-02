@@ -48,14 +48,16 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 })
 public abstract class GetterBasedSchemaProvider implements SchemaProvider {
   /** Implementing class should override to return FieldValueGetters. */
-  public abstract List<FieldValueGetter> fieldValueGetters(Class<?> targetClass, Schema schema);
+  public abstract List<FieldValueGetter> fieldValueGetters(
+      TypeDescriptor<?> targetTypeDescriptor, Schema schema);
 
   /** Implementing class should override to return a list of type-informations. */
   public abstract List<FieldValueTypeInformation> fieldValueTypeInformations(
-      Class<?> targetClass, Schema schema);
+      TypeDescriptor<?> targetTypeDescriptor, Schema schema);
 
   /** Implementing class should override to return a constructor. */
-  public abstract SchemaUserTypeCreator schemaTypeCreator(Class<?> targetClass, Schema schema);
+  public abstract SchemaUserTypeCreator schemaTypeCreator(
+      TypeDescriptor<?> targetTypeDescriptor, Schema schema);
 
   private class ToRowWithValueGetters<T> implements SerializableFunction<T, Row> {
     private final Schema schema;
@@ -141,8 +143,8 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
     }
 
     @Override
-    public List<FieldValueGetter> create(Class<?> clazz, Schema schema) {
-      List<FieldValueGetter> getters = gettersFactory.create(clazz, schema);
+    public List<FieldValueGetter> create(TypeDescriptor<?> typeDescriptor, Schema schema) {
+      List<FieldValueGetter> getters = gettersFactory.create(typeDescriptor, schema);
       List<FieldValueGetter> rowGetters = new ArrayList<>(getters.size());
       for (int i = 0; i < getters.size(); i++) {
         rowGetters.add(rowValueGetter(getters.get(i), schema.getField(i).getType()));

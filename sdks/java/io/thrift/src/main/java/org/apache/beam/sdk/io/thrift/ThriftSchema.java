@@ -203,17 +203,19 @@ public final class ThriftSchema extends GetterBasedSchemaProvider {
   @SuppressWarnings("rawtypes")
   @Override
   public @NonNull List<FieldValueGetter> fieldValueGetters(
-      @NonNull Class<?> targetClass, @NonNull Schema schema) {
-    return schemaFieldDescriptors(targetClass, schema).keySet().stream()
+      @NonNull TypeDescriptor<?> targetTypeDescriptor, @NonNull Schema schema) {
+    return schemaFieldDescriptors(targetTypeDescriptor.getRawType(), schema).keySet().stream()
         .map(FieldExtractor::new)
         .collect(Collectors.toList());
   }
 
   @Override
   public @NonNull List<FieldValueTypeInformation> fieldValueTypeInformations(
-      @NonNull Class<?> targetClass, @NonNull Schema schema) {
-    return schemaFieldDescriptors(targetClass, schema).values().stream()
-        .map(descriptor -> fieldValueTypeInfo(targetClass, descriptor.fieldName))
+      @NonNull TypeDescriptor<?> targetTypeDescriptor, @NonNull Schema schema) {
+    return schemaFieldDescriptors(targetTypeDescriptor.getRawType(), schema).values().stream()
+        .map(
+            descriptor ->
+                fieldValueTypeInfo(targetTypeDescriptor.getRawType(), descriptor.fieldName))
         .collect(Collectors.toList());
   }
 
@@ -252,10 +254,11 @@ public final class ThriftSchema extends GetterBasedSchemaProvider {
 
   @Override
   public @NonNull SchemaUserTypeCreator schemaTypeCreator(
-      @NonNull Class<?> targetClass, @NonNull Schema schema) {
+      @NonNull TypeDescriptor<?> targetTypeDescriptor, @NonNull Schema schema) {
     final Map<TFieldIdEnum, FieldMetaData> fieldDescriptors =
-        schemaFieldDescriptors(targetClass, schema);
-    return params -> restoreThriftObject(targetClass, fieldDescriptors, params);
+        schemaFieldDescriptors(targetTypeDescriptor.getRawType(), schema);
+    return params ->
+        restoreThriftObject(targetTypeDescriptor.getRawType(), fieldDescriptors, params);
   }
 
   @SuppressWarnings("nullness")

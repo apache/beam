@@ -96,9 +96,10 @@ public class ProtoMessageSchema extends GetterBasedSchemaProvider {
   }
 
   @Override
-  public List<FieldValueGetter> fieldValueGetters(Class<?> targetClass, Schema schema) {
+  public List<FieldValueGetter> fieldValueGetters(
+      TypeDescriptor<?> targetTypeDescriptor, Schema schema) {
     return ProtoByteBuddyUtils.getGetters(
-        targetClass,
+        targetTypeDescriptor.getRawType(),
         schema,
         new ProtoClassFieldValueTypeSupplier(),
         new ProtoTypeConversionsFactory());
@@ -106,17 +107,19 @@ public class ProtoMessageSchema extends GetterBasedSchemaProvider {
 
   @Override
   public List<FieldValueTypeInformation> fieldValueTypeInformations(
-      Class<?> targetClass, Schema schema) {
-    return JavaBeanUtils.getFieldTypes(targetClass, schema, new ProtoClassFieldValueTypeSupplier());
+      TypeDescriptor<?> targetTypeDescriptor, Schema schema) {
+    return JavaBeanUtils.getFieldTypes(
+        targetTypeDescriptor.getRawType(), schema, new ProtoClassFieldValueTypeSupplier());
   }
 
   @Override
-  public SchemaUserTypeCreator schemaTypeCreator(Class<?> targetClass, Schema schema) {
+  public SchemaUserTypeCreator schemaTypeCreator(
+      TypeDescriptor<?> targetTypeDescriptor, Schema schema) {
     SchemaUserTypeCreator creator =
         ProtoByteBuddyUtils.getBuilderCreator(
-            targetClass, schema, new ProtoClassFieldValueTypeSupplier());
+            targetTypeDescriptor.getRawType(), schema, new ProtoClassFieldValueTypeSupplier());
     if (creator == null) {
-      throw new RuntimeException("Cannot create creator for " + targetClass);
+      throw new RuntimeException("Cannot create creator for " + targetTypeDescriptor);
     }
     return creator;
   }

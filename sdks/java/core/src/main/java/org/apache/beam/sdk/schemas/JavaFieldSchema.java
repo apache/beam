@@ -116,24 +116,30 @@ public class JavaFieldSchema extends GetterBasedSchemaProvider {
   }
 
   @Override
-  public List<FieldValueGetter> fieldValueGetters(Class<?> targetClass, Schema schema) {
+  public List<FieldValueGetter> fieldValueGetters(
+      TypeDescriptor<?> targetTypeDescriptor, Schema schema) {
     return POJOUtils.getGetters(
-        targetClass, schema, JavaFieldTypeSupplier.INSTANCE, new DefaultTypeConversionsFactory());
+        targetTypeDescriptor.getRawType(),
+        schema,
+        JavaFieldTypeSupplier.INSTANCE,
+        new DefaultTypeConversionsFactory());
   }
 
   @Override
   public List<FieldValueTypeInformation> fieldValueTypeInformations(
-      Class<?> targetClass, Schema schema) {
-    return POJOUtils.getFieldTypes(targetClass, schema, JavaFieldTypeSupplier.INSTANCE);
+      TypeDescriptor<?> targetTypeDescriptor, Schema schema) {
+    return POJOUtils.getFieldTypes(
+        targetTypeDescriptor.getRawType(), schema, JavaFieldTypeSupplier.INSTANCE);
   }
 
   @Override
-  public SchemaUserTypeCreator schemaTypeCreator(Class<?> targetClass, Schema schema) {
+  public SchemaUserTypeCreator schemaTypeCreator(
+      TypeDescriptor<?> targetTypeDescriptor, Schema schema) {
     // If a static method is marked with @SchemaCreate, use that.
-    Method annotated = ReflectUtils.getAnnotatedCreateMethod(targetClass);
+    Method annotated = ReflectUtils.getAnnotatedCreateMethod(targetTypeDescriptor.getRawType());
     if (annotated != null) {
       return POJOUtils.getStaticCreator(
-          targetClass,
+          targetTypeDescriptor.getRawType(),
           annotated,
           schema,
           JavaFieldTypeSupplier.INSTANCE,
@@ -141,10 +147,11 @@ public class JavaFieldSchema extends GetterBasedSchemaProvider {
     }
 
     // If a Constructor was tagged with @SchemaCreate, invoke that constructor.
-    Constructor<?> constructor = ReflectUtils.getAnnotatedConstructor(targetClass);
+    Constructor<?> constructor =
+        ReflectUtils.getAnnotatedConstructor(targetTypeDescriptor.getRawType());
     if (constructor != null) {
       return POJOUtils.getConstructorCreator(
-          targetClass,
+          targetTypeDescriptor.getRawType(),
           constructor,
           schema,
           JavaFieldTypeSupplier.INSTANCE,
@@ -152,6 +159,9 @@ public class JavaFieldSchema extends GetterBasedSchemaProvider {
     }
 
     return POJOUtils.getSetFieldCreator(
-        targetClass, schema, JavaFieldTypeSupplier.INSTANCE, new DefaultTypeConversionsFactory());
+        targetTypeDescriptor.getRawType(),
+        schema,
+        JavaFieldTypeSupplier.INSTANCE,
+        new DefaultTypeConversionsFactory());
   }
 }
