@@ -16,9 +16,11 @@
 package gcsx
 
 import (
+	"context"
 	"strings"
 	"testing"
 
+	"cloud.google.com/go/storage"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
@@ -94,5 +96,24 @@ func TestJoin(t *testing.T) {
 		if got, want := Join(test.object, test.elms...), test.result; got != want {
 			t.Errorf("Join(%v, %v) Got: %v Want: %v", test.object, strings.Join(test.elms, ", "), got, want)
 		}
+	}
+}
+
+func TestDisableSoftDelete(t *testing.T) {
+	ctx := context.Background()
+	client, err1 := NewClient(ctx, storage.ScopeReadWrite)
+	if err1 != nil {
+		t.Errorf("Fail to NewClient with error %v", err1)
+	}
+	err2 := CreateBucket(ctx, client, "project", "bucketName")
+	if err1 != nil {
+		t.Errorf("Fail to CreateBucket with error %v", err2)
+	}
+	attrs, err3 := client.Bucket("bucketName").Attrs(ctx)
+	if err3 != nil || attrs == nil {
+		t.Errorf("Fail to get attrs from created Bucket with error %v", err3)
+	}
+	if attrs.SoftDeletePolicy.RetentionDuration != 0 {
+		t.Errorf("attrs has RetentionDuration %v which is not correct", attrs.SoftDeletePolicy.RetentionDuration)
 	}
 }
