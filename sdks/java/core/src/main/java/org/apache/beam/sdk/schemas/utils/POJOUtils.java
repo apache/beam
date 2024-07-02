@@ -73,7 +73,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public class POJOUtils {
   public static Schema schemaFromPojoClass(
       Class<?> clazz, FieldValueTypeSupplier fieldValueTypeSupplier) {
-    return StaticSchemaInference.schemaFromClass(clazz, fieldValueTypeSupplier);
+    return StaticSchemaInference.schemaFromClass(TypeDescriptor.of(clazz), fieldValueTypeSupplier);
   }
 
   // Static ByteBuddy instance used by all helpers.
