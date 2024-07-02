@@ -115,8 +115,7 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
   @Override
   @SuppressWarnings("unchecked")
   public <T> SerializableFunction<Row, T> fromRowFunction(TypeDescriptor<T> typeDescriptor) {
-    Class<T> clazz = (Class<T>) typeDescriptor.getType();
-    return new FromRowUsingCreator<>(clazz, this);
+    return new FromRowUsingCreator<>(typeDescriptor, this);
   }
 
   @Override

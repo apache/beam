@@ -116,7 +116,7 @@ public class AwsSchemaProvider extends GetterBasedSchemaProvider {
         }
       }
       SdkBuilder<?, T> builder = sdkBuilder(cls);
-      List<SdkBuilderSetter> setters = factory.create(cls, row.getSchema());
+      List<SdkBuilderSetter> setters = factory.create(TypeDescriptor.of(cls), row.getSchema());
       for (SdkBuilderSetter set : setters) {
         if (!row.getSchema().hasField(set.name())) {
           continue;

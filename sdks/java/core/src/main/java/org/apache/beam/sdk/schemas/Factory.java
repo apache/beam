@@ -24,9 +24,5 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 /** A Factory interface for schema-related objects for a specific Java type. */
 @Internal
 public interface Factory<T> extends Serializable {
-  default T create(Class<?> clazz, Schema schema) {
-    return create(TypeDescriptor.of(clazz), schema);
-  }
-
   T create(TypeDescriptor<?> typeDescriptor, Schema schema);
 }
