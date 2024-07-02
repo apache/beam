@@ -181,8 +181,7 @@ class DataLossReason(Flag):
 # to `reason & flag == flag`
 
 
-def _IncludesMayFinish(reason):
-  # type: (DataLossReason) -> bool
+def _IncludesMayFinish(reason: DataLossReason) -> bool:
   return reason & DataLossReason.MAY_FINISH == DataLossReason.MAY_FINISH
 
 
@@ -267,9 +266,7 @@ class TriggerFn(metaclass=ABCMeta):
     """Clear any state and timers used by this TriggerFn."""
     pass
 
-  def may_lose_data(self, unused_windowing):
-    # type: (core.Windowing) -> DataLossReason
-
+  def may_lose_data(self, unused_windowing: core.Windowing) -> DataLossReason:
     """Returns whether or not this trigger could cause data loss.
 
     A trigger can cause data loss in the following scenarios:
