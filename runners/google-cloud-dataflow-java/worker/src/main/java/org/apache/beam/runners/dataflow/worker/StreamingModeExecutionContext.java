@@ -129,6 +129,11 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
   private Work work;
   private WindmillComputationKey computationKey;
   private SideInputStateFetcher sideInputStateFetcher;
+  // The max*Bytes variables are updated in start() because a StreamingModeExecutionContext can
+  // be used for processing many work items and these values can change during the context's
+  // lifetime. start() is called for each work item.
+  private int maxOutputKeyBytes = Integer.MAX_VALUE;
+  private int maxOutputValueBytes = Integer.MAX_VALUE;
   private Windmill.WorkItemCommitRequest.Builder outputBuilder;
 
   /**
@@ -168,6 +173,11 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     return backlogBytes;
   }
 
+  // Use long instead?
+  public int getMaxOutputKeyBytes() { return maxOutputKeyBytes; }
+
+  public int getMaxOutputValueBytes() { return maxOutputValueBytes; }
+
   public boolean workIsFailed() {
     return Optional.ofNullable(work).map(Work::isFailed).orElse(false);
   }
@@ -177,11 +187,15 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       Work work,
       WindmillStateReader stateReader,
       SideInputStateFetcher sideInputStateFetcher,
+      int maxOutputKeyBytes,
+      int maxOutputValueBytes,
       Windmill.WorkItemCommitRequest.Builder outputBuilder) {
     this.key = key;
     this.work = work;
     this.computationKey = WindmillComputationKey.create(computationId, work.getShardedKey());
     this.sideInputStateFetcher = sideInputStateFetcher;
+    this.maxOutputKeyBytes = maxOutputKeyBytes;
+    this.maxOutputValueBytes = maxOutputValueBytes;
     this.outputBuilder = outputBuilder;
     this.sideInputCache.clear();
     clearSinkFullHint();

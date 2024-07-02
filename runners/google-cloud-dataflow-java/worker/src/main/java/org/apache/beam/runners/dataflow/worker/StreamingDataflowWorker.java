@@ -186,6 +186,8 @@ public class StreamingDataflowWorker {
       StreamingCounters streamingCounters,
       MemoryMonitor memoryMonitor,
       AtomicInteger maxWorkItemCommitBytes,
+      AtomicInteger maxOutputKeyBytes,
+      AtomicInteger maxOutputValueBytes,
       GrpcWindmillStreamFactory windmillStreamFactory,
       Function<String, ScheduledExecutorService> executorSupplier,
       ConcurrentMap<String, StageInfo> stageInfoMap) {
@@ -305,6 +307,8 @@ public class StreamingDataflowWorker {
             hotKeyLogger,
             sampler,
             maxWorkItemCommitBytes,
+            maxOutputKeyBytes,
+            maxOutputValueBytes,
             ID_GENERATOR,
             stageInfoMap);
 
@@ -323,6 +327,8 @@ public class StreamingDataflowWorker {
     WorkUnitClient dataflowServiceClient = new DataflowWorkUnitClient(options, LOG);
     BoundedQueueExecutor workExecutor = createWorkUnitExecutor(options);
     AtomicInteger maxWorkItemCommitBytes = new AtomicInteger(Integer.MAX_VALUE);
+    AtomicInteger maxOutputKeyBytes = new AtomicInteger(Integer.MAX_VALUE);
+    AtomicInteger maxOutputValueBytes = new AtomicInteger(Integer.MAX_VALUE);
     WindmillStateCache windmillStateCache =
         WindmillStateCache.ofSizeMbs(options.getWorkerCacheMb());
     Function<String, ScheduledExecutorService> executorSupplier =
@@ -338,6 +344,8 @@ public class StreamingDataflowWorker {
                 options,
                 dataflowServiceClient,
                 maxWorkItemCommitBytes,
+                maxOutputKeyBytes,
+                maxOutputValueBytes,
                 windmillStreamFactoryBuilder,
                 configFetcher ->
                     ComputationStateCache.create(
@@ -396,6 +404,8 @@ public class StreamingDataflowWorker {
         streamingCounters,
         memoryMonitor,
         maxWorkItemCommitBytes,
+        maxOutputKeyBytes,
+        maxOutputValueBytes,
         configFetcherComputationStateCacheAndWindmillClient.windmillStreamFactory(),
         executorSupplier,
         stageInfo);
@@ -412,6 +422,8 @@ public class StreamingDataflowWorker {
           DataflowWorkerHarnessOptions options,
           WorkUnitClient dataflowServiceClient,
           AtomicInteger maxWorkItemCommitBytes,
+          AtomicInteger maxOutputKeyBytes,
+          AtomicInteger maxOutputValueBytes,
           GrpcWindmillStreamFactory.Builder windmillStreamFactoryBuilder,
           Function<ComputationConfig.Fetcher, ComputationStateCache> computationStateCacheFactory) {
     ComputationConfig.Fetcher configFetcher;
@@ -424,11 +436,14 @@ public class StreamingDataflowWorker {
           StreamingEngineComputationConfigFetcher.create(
               options.getGlobalConfigRefreshPeriod().getMillis(),
               dataflowServiceClient,
+              DataflowRunner.hasExperiment(options, "throw_exceptions_on_large_output"),
               config ->
                   onPipelineConfig(
                       config,
                       dispatcherClient::consumeWindmillDispatcherEndpoints,
-                      maxWorkItemCommitBytes));
+                      maxWorkItemCommitBytes,
+                      maxOutputKeyBytes,
+                      maxOutputValueBytes));
       computationStateCache = computationStateCacheFactory.apply(configFetcher);
       windmillStreamFactory =
           windmillStreamFactoryBuilder
@@ -474,9 +489,13 @@ public class StreamingDataflowWorker {
       Supplier<Instant> clock,
       Function<String, ScheduledExecutorService> executorSupplier,
       int localRetryTimeoutMs,
-      int maxWorkItemCommitBytesOverrides) {
+      int maxWorkItemCommitBytesOverrides,
+      int maxOutputKeyBytesOverride,
+      int maxOutputValueBytesOverride) {
     ConcurrentMap<String, StageInfo> stageInfo = new ConcurrentHashMap<>();
     AtomicInteger maxWorkItemCommitBytes = new AtomicInteger(maxWorkItemCommitBytesOverrides);
+    AtomicInteger maxOutputKeyBytes = new AtomicInteger(maxOutputKeyBytesOverride);
+    AtomicInteger maxOutputValueBytes = new AtomicInteger(maxOutputValueBytesOverride);
     BoundedQueueExecutor workExecutor = createWorkUnitExecutor(options);
     WindmillStateCache stateCache = WindmillStateCache.ofSizeMbs(options.getWorkerCacheMb());
     ComputationConfig.Fetcher configFetcher =
@@ -490,7 +509,9 @@ public class StreamingDataflowWorker {
                     onPipelineConfig(
                         config,
                         windmillServer::setWindmillServiceEndpoints,
-                        maxWorkItemCommitBytes))
+                        maxWorkItemCommitBytes,
+                        maxOutputKeyBytes,
+                        maxOutputValueBytes))
             : new StreamingApplianceComputationConfigFetcher(windmillServer::getConfig);
     ConcurrentMap<String, String> stateNameMap =
         new ConcurrentHashMap<>(prePopulatedStateNameMappings);
@@ -559,6 +580,8 @@ public class StreamingDataflowWorker {
         streamingCounters,
         memoryMonitor,
         maxWorkItemCommitBytes,
+        maxOutputKeyBytes,
+        maxOutputValueBytes,
         options.isEnableStreamingEngine()
             ? windmillStreamFactory
                 .setHealthCheckIntervalMillis(
@@ -572,10 +595,22 @@ public class StreamingDataflowWorker {
   private static void onPipelineConfig(
       StreamingEnginePipelineConfig config,
       Consumer<ImmutableSet<HostAndPort>> consumeWindmillServiceEndpoints,
-      AtomicInteger maxWorkItemCommitBytes) {
+      AtomicInteger maxWorkItemCommitBytes,
+      AtomicInteger maxOutputKeyBytes,
+      AtomicInteger maxOutputValueBytes) {
     if (config.maxWorkItemCommitBytes() != maxWorkItemCommitBytes.get()) {
-      LOG.info("Setting maxWorkItemCommitBytes to {}", maxWorkItemCommitBytes);
+      LOG.info("Setting maxWorkItemCommitBytes to {}", config.maxWorkItemCommitBytes());
       maxWorkItemCommitBytes.set((int) config.maxWorkItemCommitBytes());
+    }
+
+    if (config.maxOutputKeyBytes() != maxOutputKeyBytes.get()) {
+      LOG.info("Setting maxOutputKeyBytes to {}", config.maxOutputKeyBytes());
+      maxOutputKeyBytes.set((int) config.maxOutputKeyBytes());
+    }
+
+    if (config.maxOutputValueBytes() != maxOutputValueBytes.get()) {
+      LOG.info("Setting maxOutputValueBytes to {}", config.maxOutputValueBytes());
+      maxOutputValueBytes.set((int) config.maxOutputValueBytes());
     }
 
     if (!config.windmillServiceEndpoints().isEmpty()) {

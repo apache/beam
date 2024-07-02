@@ -82,6 +82,8 @@ public final class StreamingWorkScheduler {
   private final ConcurrentMap<String, StageInfo> stageInfoMap;
   private final DataflowExecutionStateSampler sampler;
   private final AtomicInteger maxWorkItemCommitBytes;
+  private final AtomicInteger maxOutputKeyBytes;
+  private final AtomicInteger maxOutputValueBytes;
 
   public StreamingWorkScheduler(
       DataflowWorkerHarnessOptions options,
@@ -95,7 +97,9 @@ public final class StreamingWorkScheduler {
       HotKeyLogger hotKeyLogger,
       ConcurrentMap<String, StageInfo> stageInfoMap,
       DataflowExecutionStateSampler sampler,
-      AtomicInteger maxWorkItemCommitBytes) {
+      AtomicInteger maxWorkItemCommitBytes,
+      AtomicInteger maxOutputKeyBytes,
+      AtomicInteger maxOutputValueBytes) {
     this.options = options;
     this.clock = clock;
     this.computationWorkExecutorFactory = computationWorkExecutorFactory;
@@ -108,6 +112,8 @@ public final class StreamingWorkScheduler {
     this.stageInfoMap = stageInfoMap;
     this.sampler = sampler;
     this.maxWorkItemCommitBytes = maxWorkItemCommitBytes;
+    this.maxOutputKeyBytes = maxOutputKeyBytes;
+    this.maxOutputValueBytes = maxOutputValueBytes;
   }
 
   public static StreamingWorkScheduler create(
@@ -124,6 +130,8 @@ public final class StreamingWorkScheduler {
       HotKeyLogger hotKeyLogger,
       DataflowExecutionStateSampler sampler,
       AtomicInteger maxWorkItemCommitBytes,
+      AtomicInteger maxOutputKeyBytes,
+      AtomicInteger maxOutputValueBytes,
       IdGenerator idGenerator,
       ConcurrentMap<String, StageInfo> stageInfoMap) {
     ComputationWorkExecutorFactory computationWorkExecutorFactory =
@@ -148,7 +156,9 @@ public final class StreamingWorkScheduler {
         hotKeyLogger,
         stageInfoMap,
         sampler,
-        maxWorkItemCommitBytes);
+        maxWorkItemCommitBytes,
+        maxOutputKeyBytes,
+        maxOutputValueBytes);
   }
 
   private static long computeShuffleBytesRead(Windmill.WorkItem workItem) {
@@ -375,7 +385,8 @@ public final class StreamingWorkScheduler {
 
       // Blocks while executing work.
       computationWorkExecutor.executeWork(
-          executionKey, work, stateReader, localSideInputStateFetcher, outputBuilder);
+          executionKey, work, stateReader, localSideInputStateFetcher, maxOutputKeyBytes.get(),
+          maxOutputValueBytes.get(), outputBuilder);
 
       if (work.isFailed()) {
         throw new WorkItemCancelledException(workItem.getShardingKey());
