@@ -150,8 +150,8 @@ class BlobStorageFileSystem(FileSystem):
       self,
       path,
       mime_type='application/octet-stream',
-      compression_type=CompressionTypes.AUTO):
-    # type: (...) -> BinaryIO # noqa: F821
+      compression_type=CompressionTypes.AUTO) -> BinaryIO:
+    # noqa: F821
 
     """Returns a write channel for the given file path.
 
@@ -168,8 +168,8 @@ class BlobStorageFileSystem(FileSystem):
       self,
       path,
       mime_type='application/octet-stream',
-      compression_type=CompressionTypes.AUTO):
-    # type: (...) -> BinaryIO # noqa: F821
+      compression_type=CompressionTypes.AUTO) -> BinaryIO:
+    # noqa: F821
 
     """Returns a read channel for the given file path.
 
