@@ -86,8 +86,8 @@ class Metrics(object):
   def histogram(
       namespace: Union[Type, str],
       name: str,
-      bucket_type: BucketType,
-      logger: Optional[MetricLogger] = None) -> Metrics.DelegatingHistogram:
+      bucket_type: 'BucketType',
+      logger: Optional['MetricLogger'] = None) -> 'Metrics.DelegatingHistogram':
     """Obtains or creates a Histogram metric.
 
     Args:
@@ -109,8 +109,8 @@ class Metrics(object):
     def __init__(
         self,
         metric_name: MetricName,
-        bucket_type: BucketType,
-        logger: Optional[MetricLogger]) -> None:
+        bucket_type: 'BucketType',
+        logger: Optional['MetricLogger']) -> None:
       super().__init__(metric_name)
       self.metric_name = metric_name
       self.cell_type = HistogramCellFactory(bucket_type)
@@ -126,14 +126,14 @@ class Metrics(object):
 class MetricLogger(object):
   """Simple object to locally aggregate and log metrics."""
   def __init__(self) -> None:
-    self._metric: Dict[MetricName, MetricCell] = {}
+    self._metric: Dict[MetricName, 'MetricCell'] = {}
     self._lock = threading.Lock()
     self._last_logging_millis = int(time.time() * 1000)
     self.minimum_logging_frequency_msec = 180000
 
   def update(
       self,
-      cell_type: Union[Type[MetricCell], MetricCellFactory],
+      cell_type: Union[Type['MetricCell'], 'MetricCellFactory'],
       metric_name: MetricName,
       value: object) -> None:
     cell = self._get_metric_cell(cell_type, metric_name)
@@ -141,8 +141,8 @@ class MetricLogger(object):
 
   def _get_metric_cell(
       self,
-      cell_type: Union[Type[MetricCell], MetricCellFactory],
-      metric_name: MetricName) -> MetricCell:
+      cell_type: Union[Type['MetricCell'], 'MetricCellFactory'],
+      metric_name: MetricName) -> 'MetricCell':
     with self._lock:
       if metric_name not in self._metric:
         self._metric[metric_name] = cell_type()
@@ -187,7 +187,7 @@ class ServiceCallMetric(object):
     self.base_labels = base_labels if base_labels else {}
     self.request_count_urn = request_count_urn
 
-  def call(self, status: Union[int, str, HttpError]) -> None:
+  def call(self, status: Union[int, str, 'HttpError']) -> None:
     """Record the status of the call into appropriate metrics."""
     canonical_status = self.convert_to_canonical_status_string(status)
     additional_labels = {monitoring_infos.STATUS_LABEL: canonical_status}
@@ -200,7 +200,7 @@ class ServiceCallMetric(object):
     request_counter.inc()
 
   def convert_to_canonical_status_string(
-      self, status: Union[int, str, HttpError]) -> str:
+      self, status: Union[int, str, 'HttpError']) -> str:
     """Converts a status to a canonical GCP status cdoe string."""
     http_status_code = None
     if isinstance(status, int):

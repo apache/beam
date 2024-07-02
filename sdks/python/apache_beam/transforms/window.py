@@ -106,7 +106,7 @@ class TimestampCombiner(object):
   @staticmethod
   def get_impl(
       timestamp_combiner: beam_runner_api_pb2.OutputTime.Enum,
-      window_fn: WindowFn) -> timeutil.TimestampCombinerImpl:
+      window_fn: 'WindowFn') -> timeutil.TimestampCombinerImpl:
     if timestamp_combiner == TimestampCombiner.OUTPUT_AT_EOW:
       return timeutil.OutputAtEndOfWindowImpl()
     elif timestamp_combiner == TimestampCombiner.OUTPUT_AT_EARLIEST:
@@ -127,13 +127,14 @@ class WindowFn(urns.RunnerApiFn, metaclass=abc.ABCMeta):
         self,
         timestamp: TimestampTypes,
         element: Optional[Any] = None,
-        window: Optional[BoundedWindow] = None) -> None:
+        window: Optional['BoundedWindow'] = None) -> None:
       self.timestamp = Timestamp.of(timestamp)
       self.element = element
       self.window = window
 
   @abc.abstractmethod
-  def assign(self, assign_context: AssignContext) -> Iterable[BoundedWindow]:
+  def assign(self,
+             assign_context: 'AssignContext') -> Iterable['BoundedWindow']:
     # noqa: F821
 
     """Associates windows to an element.
@@ -148,17 +149,17 @@ class WindowFn(urns.RunnerApiFn, metaclass=abc.ABCMeta):
 
   class MergeContext(object):
     """Context passed to WindowFn.merge() to perform merging, if any."""
-    def __init__(self, windows: Iterable[BoundedWindow]) -> None:
+    def __init__(self, windows: Iterable['BoundedWindow']) -> None:
       self.windows = list(windows)
 
     def merge(
         self,
-        to_be_merged: Iterable[BoundedWindow],
-        merge_result: BoundedWindow) -> None:
+        to_be_merged: Iterable['BoundedWindow'],
+        merge_result: 'BoundedWindow') -> None:
       raise NotImplementedError
 
   @abc.abstractmethod
-  def merge(self, merge_context: WindowFn.MergeContext) -> None:
+  def merge(self, merge_context: 'WindowFn.MergeContext') -> None:
     """Returns a window that is the result of merging a set of windows."""
     raise NotImplementedError
 
@@ -171,7 +172,7 @@ class WindowFn(urns.RunnerApiFn, metaclass=abc.ABCMeta):
     raise NotImplementedError
 
   def get_transformed_output_time(
-      self, window: BoundedWindow, input_timestamp: Timestamp) -> Timestamp:  # pylint: disable=unused-argument
+      self, window: 'BoundedWindow', input_timestamp: Timestamp) -> Timestamp:  # pylint: disable=unused-argument
     """Given input time and output window, returns output time for window.
 
     If TimestampCombiner.OUTPUT_AT_EARLIEST_TRANSFORMED is used in the
@@ -260,10 +261,10 @@ class IntervalWindow(windowed_value._IntervalWindowBase, BoundedWindow):
       return self.end < other.end
     return hash(self) < hash(other)
 
-  def intersects(self, other: IntervalWindow) -> bool:
+  def intersects(self, other: 'IntervalWindow') -> bool:
     return other.start < self.end or self.start < other.end
 
-  def union(self, other: IntervalWindow) -> IntervalWindow:
+  def union(self, other: 'IntervalWindow') -> 'IntervalWindow':
     return IntervalWindow(
         min(self.start, other.start), max(self.end, other.end))
 
@@ -301,7 +302,7 @@ class TimestampedValue(Generic[V]):
 
 class GlobalWindow(BoundedWindow):
   """The default window into which all data is placed (via GlobalWindows)."""
-  _instance: GlobalWindow = None
+  _instance: Optional['GlobalWindow'] = None
 
   def __new__(cls):
     if cls._instance is None:
@@ -385,7 +386,7 @@ class GlobalWindows(NonMergingWindowFn):
   @staticmethod
   @urns.RunnerApiFn.register_urn(common_urns.global_windows.urn, None)
   def from_runner_api_parameter(
-      unused_fn_parameter, unused_context) -> GlobalWindows:
+      unused_fn_parameter, unused_context) -> 'GlobalWindows':
     return GlobalWindows()
 
 
@@ -446,7 +447,7 @@ class FixedWindows(NonMergingWindowFn):
   @urns.RunnerApiFn.register_urn(
       common_urns.fixed_windows.urn,
       standard_window_fns_pb2.FixedWindowsPayload)
-  def from_runner_api_parameter(fn_parameter, unused_context) -> FixedWindows:
+  def from_runner_api_parameter(fn_parameter, unused_context) -> 'FixedWindows':
     return FixedWindows(
         size=Duration(micros=fn_parameter.size.ToMicroseconds()),
         offset=Timestamp(micros=fn_parameter.offset.ToMicroseconds()))
@@ -518,7 +519,8 @@ class SlidingWindows(NonMergingWindowFn):
   @urns.RunnerApiFn.register_urn(
       common_urns.sliding_windows.urn,
       standard_window_fns_pb2.SlidingWindowsPayload)
-  def from_runner_api_parameter(fn_parameter, unused_context) -> SlidingWindows:
+  def from_runner_api_parameter(
+      fn_parameter, unused_context) -> 'SlidingWindows':
     return SlidingWindows(
         size=Duration(micros=fn_parameter.size.ToMicroseconds()),
         offset=Timestamp(micros=fn_parameter.offset.ToMicroseconds()),
@@ -585,6 +587,6 @@ class Sessions(WindowFn):
   @urns.RunnerApiFn.register_urn(
       common_urns.session_windows.urn,
       standard_window_fns_pb2.SessionWindowsPayload)
-  def from_runner_api_parameter(fn_parameter, unused_context) -> Sessions:
+  def from_runner_api_parameter(fn_parameter, unused_context) -> 'Sessions':
     return Sessions(
         gap_size=Duration(micros=fn_parameter.gap_size.ToMicroseconds()))

@@ -55,7 +55,7 @@ class HistogramCell(MetricCell):
   def reset(self):
     self.data = HistogramAggregator(self._bucket_type).identity_element()
 
-  def combine(self, other: HistogramCell) -> HistogramCell:
+  def combine(self, other: 'HistogramCell') -> 'HistogramCell':
     result = HistogramCell(self._bucket_type)
     result.data = self.data.combine(other.data)
     return result
@@ -63,7 +63,7 @@ class HistogramCell(MetricCell):
   def update(self, value):
     self.data.histogram.record(value)
 
-  def get_cumulative(self) -> HistogramData:
+  def get_cumulative(self) -> 'HistogramData':
     return self.data.get_cumulative()
 
   def to_runner_api_monitoring_info(self, name, transform_id):
@@ -90,7 +90,7 @@ class HistogramCellFactory(MetricCellFactory):
 
 
 class HistogramResult(object):
-  def __init__(self, data: HistogramData) -> None:
+  def __init__(self, data: 'HistogramData') -> None:
     self.data = data
 
   def __eq__(self, other):
@@ -139,10 +139,10 @@ class HistogramData(object):
   def __repr__(self):
     return 'HistogramData({})'.format(self.histogram.get_percentile_info())
 
-  def get_cumulative(self) -> HistogramData:
+  def get_cumulative(self) -> 'HistogramData':
     return HistogramData(self.histogram)
 
-  def combine(self, other: Optional[HistogramData]) -> HistogramData:
+  def combine(self, other: Optional['HistogramData']) -> 'HistogramData':
     if other is None:
       return self
 
@@ -156,7 +156,7 @@ class HistogramAggregator(MetricAggregator):
 
   Values aggregated should be ``HistogramData`` objects.
   """
-  def __init__(self, bucket_type: BucketType) -> None:
+  def __init__(self, bucket_type: 'BucketType') -> None:
     self._bucket_type = bucket_type
 
   def identity_element(self) -> HistogramData:

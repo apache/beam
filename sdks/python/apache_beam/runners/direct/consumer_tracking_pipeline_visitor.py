@@ -19,15 +19,12 @@
 
 # pytype: skip-file
 
-from typing import TYPE_CHECKING
 from typing import Dict
 from typing import Set
 
 from apache_beam import pvalue
+from apache_beam.pipeline import AppliedPTransform
 from apache_beam.pipeline import PipelineVisitor
-
-if TYPE_CHECKING:
-  from apache_beam.pipeline import AppliedPTransform
 
 
 class ConsumerTrackingPipelineVisitor(PipelineVisitor):

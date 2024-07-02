@@ -50,6 +50,7 @@ from apache_beam import coders
 from apache_beam.coders.coder_impl import CoderImpl
 from apache_beam.coders.coder_impl import create_InputStream
 from apache_beam.coders.coder_impl import create_OutputStream
+from apache_beam.coders.coder_impl import WindowedValueCoderImpl
 from apache_beam.coders.coders import WindowedValueCoder
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
@@ -59,6 +60,7 @@ from apache_beam.runners import pipeline_context
 from apache_beam.runners.common import ENCODED_IMPULSE_VALUE
 from apache_beam.runners.direct.clock import RealClock
 from apache_beam.runners.direct.clock import TestClock
+from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners.portability.fn_api_runner import translations
 from apache_beam.runners.portability.fn_api_runner.translations import DataInput
 from apache_beam.runners.portability.fn_api_runner.translations import DataOutput
@@ -73,6 +75,7 @@ from apache_beam.runners.worker import bundle_processor
 from apache_beam.transforms import core
 from apache_beam.transforms import trigger
 from apache_beam.transforms import window
+from apache_beam.transforms.window import BoundedWindow
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.utils import proto_utils
@@ -81,12 +84,8 @@ from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp
 
 if TYPE_CHECKING:
-  from apache_beam.coders.coder_impl import WindowedValueCoderImpl
-  from apache_beam.portability.api import endpoints_pb2
   from apache_beam.runners.portability.fn_api_runner import worker_handlers
   from apache_beam.runners.portability.fn_api_runner.translations import DataSideInput
-  from apache_beam.runners.portability.fn_api_runner.translations import TimerFamilyId
-  from apache_beam.transforms.window import BoundedWindow
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -318,8 +317,8 @@ class WindowGroupingBuffer(object):
   def append(self, elements_data: bytes) -> None:
     input_stream = create_InputStream(elements_data)
     while input_stream.size() > 0:
-      windowed_val_coder_impl: WindowedValueCoderImpl = self._windowed_value_coder.get_impl(
-      )
+      windowed_val_coder_impl: WindowedValueCoderImpl = (
+          self._windowed_value_coder.get_impl())
       windowed_value = windowed_val_coder_impl.decode_from_stream(
           input_stream, True)
       key, value = self._kv_extractor(windowed_value.value)
@@ -356,7 +355,7 @@ class GenericNonMergingWindowFn(window.NonMergingWindowFn):
   @staticmethod
   @window.urns.RunnerApiFn.register_urn(URN, bytes)
   def from_runner_api_parameter(
-      window_coder_id: bytes, context: Any) -> GenericNonMergingWindowFn:
+      window_coder_id: bytes, context: Any) -> 'GenericNonMergingWindowFn':
     return GenericNonMergingWindowFn(
         context.coders[window_coder_id.decode('utf-8')])
 
@@ -451,11 +450,11 @@ class GenericMergingWindowFn(window.WindowFn):
   TO_SDK_TRANSFORM = 'read'
   FROM_SDK_TRANSFORM = 'write'
 
-  _HANDLES: Dict[str, GenericMergingWindowFn] = {}
+  _HANDLES: Dict[str, 'GenericMergingWindowFn'] = {}
 
   def __init__(
       self,
-      execution_context: FnApiRunnerExecutionContext,
+      execution_context: 'FnApiRunnerExecutionContext',
       windowing_strategy_proto: beam_runner_api_pb2.WindowingStrategy) -> None:
     self._worker_handler: Optional[worker_handlers.WorkerHandler] = None
     self._handle_id = handle_id = uuid.uuid4().hex
@@ -473,7 +472,7 @@ class GenericMergingWindowFn(window.WindowFn):
     self.windowed_input_coder_impl: Optional[CoderImpl] = None
     self.windowed_output_coder_impl: Optional[CoderImpl] = None
 
-  def _execution_context_ref(self) -> FnApiRunnerExecutionContext:
+  def _execution_context_ref(self) -> 'FnApiRunnerExecutionContext':
     result = self._execution_context_ref_obj()
     assert result is not None
     return result
@@ -484,7 +483,7 @@ class GenericMergingWindowFn(window.WindowFn):
   @staticmethod
   @window.urns.RunnerApiFn.register_urn(URN, bytes)
   def from_runner_api_parameter(
-      handle_id: bytes, unused_context: Any) -> GenericMergingWindowFn:
+      handle_id: bytes, unused_context: Any) -> 'GenericMergingWindowFn':
     return GenericMergingWindowFn._HANDLES[handle_id.decode('utf-8')]
 
   def assign(
@@ -531,7 +530,7 @@ class GenericMergingWindowFn(window.WindowFn):
     return self._execution_context_ref().pipeline_context.coders[
         self._windowing_strategy_proto.window_coder_id]
 
-  def worker_handle(self) -> worker_handlers.WorkerHandler:
+  def worker_handle(self) -> 'worker_handlers.WorkerHandler':
     if self._worker_handler is None:
       worker_handler_manager = self._execution_context_ref(
       ).worker_handler_manager
@@ -665,7 +664,7 @@ class FnApiRunnerExecutionContext(object):
   def __init__(
       self,
       stages: List[translations.Stage],
-      worker_handler_manager: worker_handlers.WorkerHandlerManager,
+      worker_handler_manager: 'worker_handlers.WorkerHandlerManager',
       pipeline_components: beam_runner_api_pb2.Components,
       safe_coders: translations.SafeCoderMapping,
       data_channel_coders: Dict[str, str],
@@ -827,7 +826,7 @@ class FnApiRunnerExecutionContext(object):
   @staticmethod
   def _build_data_side_inputs_map(
       stages: Iterable[translations.Stage]
-  ) -> MutableMapping[str, DataSideInput]:
+  ) -> MutableMapping[str, 'DataSideInput']:
     """Builds an index mapping stages to side input descriptors.
 
     A side input descriptor is a map of side input IDs to side input access
@@ -910,7 +909,7 @@ class FnApiRunnerExecutionContext(object):
       return safe_id
 
   @property
-  def state_servicer(self) -> worker_handlers.StateServicer:
+  def state_servicer(self) -> 'worker_handlers.StateServicer':
     # TODO(BEAM-9625): Ensure FnApiRunnerExecutionContext owns StateServicer
     return self.worker_handler_manager.state_servicer
 
@@ -932,7 +931,7 @@ class FnApiRunnerExecutionContext(object):
 
   def commit_side_inputs_to_state(
       self,
-      data_side_input: DataSideInput,
+      data_side_input: 'DataSideInput',
   ) -> None:
     for (consuming_transform_id, tag), (buffer_id,
                                         func_spec) in data_side_input.items():
@@ -1033,7 +1032,7 @@ class BundleContextManager(object):
               create_buffer_id(timer_family_id, 'timers'), time_domain)
 
   @property
-  def worker_handlers(self) -> List[worker_handlers.WorkerHandler]:
+  def worker_handlers(self) -> List['worker_handlers.WorkerHandler']:
     if self._worker_handlers is None:
       self._worker_handlers = (
           self.execution_context.worker_handler_manager.get_worker_handlers(

@@ -27,7 +27,6 @@ import tempfile
 import threading
 import time
 import traceback
-from typing import TYPE_CHECKING
 from typing import Any
 from typing import List
 from typing import Mapping
@@ -35,6 +34,7 @@ from typing import Optional
 
 import grpc
 from google.protobuf import json_format
+from google.protobuf import struct_pb2
 from google.protobuf import text_format  # type: ignore # not in typeshed
 
 from apache_beam import pipeline
@@ -56,9 +56,6 @@ from apache_beam.runners.portability.fn_api_runner import worker_handlers
 from apache_beam.runners.worker.log_handler import LOGENTRY_TO_LOG_LEVEL_MAP
 from apache_beam.transforms import environments
 from apache_beam.utils import thread_pool_executor
-
-if TYPE_CHECKING:
-  from google.protobuf import struct_pb2  # pylint: disable=ungrouped-imports
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -96,7 +93,7 @@ class LocalJobServicer(abstract_job_service.AbstractJobServiceServicer):
                       job_name: str,
                       pipeline: beam_runner_api_pb2.Pipeline,
                       options: struct_pb2.Struct
-                     ) -> BeamJob:
+                     ) -> 'BeamJob':
     self._artifact_service.register_job(
         staging_token=preparation_id,
         dependency_sets=_extract_dependency_sets(

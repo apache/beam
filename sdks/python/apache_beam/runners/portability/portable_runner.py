@@ -25,7 +25,6 @@ import itertools
 import logging
 import threading
 import time
-from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
 from typing import Iterator
@@ -33,6 +32,7 @@ from typing import Optional
 from typing import Tuple
 
 import grpc
+from google.protobuf import struct_pb2
 
 from apache_beam.metrics import metric
 from apache_beam.metrics.execution import MetricResult
@@ -41,6 +41,7 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.value_provider import ValueProvider
+from apache_beam.pipeline import Pipeline
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_artifact_api_pb2_grpc
@@ -55,10 +56,6 @@ from apache_beam.runners.portability.fn_api_runner.fn_runner import translations
 from apache_beam.runners.worker import sdk_worker_main
 from apache_beam.runners.worker import worker_pool_main
 from apache_beam.transforms import environments
-
-if TYPE_CHECKING:
-  from google.protobuf import struct_pb2  # pylint: disable=ungrouped-imports
-  from apache_beam.pipeline import Pipeline
 
 __all__ = ['PortableRunner']
 

@@ -32,7 +32,7 @@ class Partitioning(object):
   def __repr__(self):
     return self.__class__.__name__
 
-  def is_subpartitioning_of(self, other: Partitioning) -> bool:
+  def is_subpartitioning_of(self, other: 'Partitioning') -> bool:
     """Returns whether self is a sub-partition of other.
 
     Specifically, returns whether something partitioned by self is necissarily

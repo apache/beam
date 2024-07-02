@@ -64,7 +64,7 @@ class _ExecutorService(object):
     TIMEOUT = 5
 
     def __init__(
-        self, queue: queue.Queue[_ExecutorService.CallableTask], index):
+        self, queue: queue.Queue['_ExecutorService.CallableTask'], index):
       super().__init__()
       self.queue = queue
       self._index = index
@@ -84,12 +84,12 @@ class _ExecutorService(object):
       self.name = 'Thread: %d, %s (%s)' % (
           self._index, name, 'executing' if task else 'idle')
 
-    def _get_task_or_none(self) -> Optional[_ExecutorService.CallableTask]:
+    def _get_task_or_none(self) -> Optional['_ExecutorService.CallableTask']:
       try:
         # Do not block indefinitely, otherwise we may not act for a requested
         # shutdown.
         return self.queue.get(
-            timeout=_ExecutorService._ExecutorServiceWorker.TIMEOUT)
+            timeout='_ExecutorService._ExecutorServiceWorker.TIMEOUT')
       except queue.Empty:
         return None
 
@@ -118,7 +118,7 @@ class _ExecutorService(object):
     ]
     self.shutdown_requested = False
 
-  def submit(self, task: _ExecutorService.CallableTask) -> None:
+  def submit(self, task: '_ExecutorService.CallableTask') -> None:
     assert isinstance(task, _ExecutorService.CallableTask)
     if not self.shutdown_requested:
       self.queue.put(task)
@@ -496,8 +496,8 @@ class _ExecutorServiceParallelExecutor(object):
     assert on_complete
     if self.transform_evaluator_registry.should_execute_serially(
         consumer_applied_ptransform):
-      transform_executor_service: _TransformEvaluationState = self.transform_executor_services.serial(
-          consumer_applied_ptransform)
+      transform_executor_service: _TransformEvaluationState = (
+          self.transform_executor_services.serial(consumer_applied_ptransform))
     else:
       transform_executor_service = self.transform_executor_services.parallel()
 

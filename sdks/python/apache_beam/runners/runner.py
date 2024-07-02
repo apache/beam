@@ -55,7 +55,7 @@ _RUNNER_MAP['pythonrpcdirectrunner'] = (
 _LOGGER = logging.getLogger(__name__)
 
 
-def create_runner(runner_name: str) -> PipelineRunner:
+def create_runner(runner_name: str) -> 'PipelineRunner':
   """For internal use only; no backwards-compatibility guarantees.
 
   Creates a runner instance from a runner class name.
@@ -113,8 +113,8 @@ class PipelineRunner(object):
   """
   def run(
       self,
-      transform: PTransform,
-      options: Optional[PipelineOptions] = None) -> PipelineResult:
+      transform: 'PTransform',
+      options: Optional[PipelineOptions] = None) -> 'PipelineResult':
     """Run the given transform or callable with this runner.
 
     Blocks until the pipeline is complete.  See also `PipelineRunner.run_async`.
@@ -125,8 +125,8 @@ class PipelineRunner(object):
 
   def run_async(
       self,
-      transform: PTransform,
-      options: Optional[PipelineOptions] = None) -> PipelineResult:
+      transform: 'PTransform',
+      options: Optional[PipelineOptions] = None) -> 'PipelineResult':
     """Run the given transform or callable with this runner.
 
     May return immediately, executing the pipeline in the background.
@@ -164,7 +164,7 @@ class PipelineRunner(object):
         options.view_as(PortableOptions))
 
   def run_pipeline(
-      self, pipeline: Pipeline, options: PipelineOptions) -> PipelineResult:
+      self, pipeline: 'Pipeline', options: PipelineOptions) -> 'PipelineResult':
     """Execute the entire pipeline or the sub-DAG reachable from a node.
     """
     pipeline.visit(
@@ -184,8 +184,8 @@ class PipelineRunner(object):
 
   def apply(
       self,
-      transform: PTransform,
-      input: Optional[pvalue.PValue],
+      transform: 'PTransform',
+      input: Optional['pvalue.PValue'],
       options: PipelineOptions):
     # TODO(robertwb): Remove indirection once internal references are fixed.
     return self.apply_PTransform(transform, input, options)

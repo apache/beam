@@ -67,7 +67,7 @@ class Metrics(object):
 
   @staticmethod
   def counter(
-      namespace: Union[Type, str], name: str) -> Metrics.DelegatingCounter:
+      namespace: Union[Type, str], name: str) -> 'Metrics.DelegatingCounter':
     """Obtains or creates a Counter metric.
 
     Args:
@@ -82,7 +82,8 @@ class Metrics(object):
 
   @staticmethod
   def distribution(
-      namespace: Union[Type, str], name: str) -> Metrics.DelegatingDistribution:
+      namespace: Union[Type, str],
+      name: str) -> 'Metrics.DelegatingDistribution':
     """Obtains or creates a Distribution metric.
 
     Distribution metrics are restricted to integer-only distributions.
@@ -98,7 +99,8 @@ class Metrics(object):
     return Metrics.DelegatingDistribution(MetricName(namespace, name))
 
   @staticmethod
-  def gauge(namespace: Union[Type, str], name: str) -> Metrics.DelegatingGauge:
+  def gauge(
+      namespace: Union[Type, str], name: str) -> 'Metrics.DelegatingGauge':
     """Obtains or creates a Gauge metric.
 
     Gauge metrics are restricted to integer-only values.
@@ -143,7 +145,7 @@ class MetricResults(object):
   GAUGES = "gauges"
 
   @staticmethod
-  def _matches_name(filter: MetricsFilter, metric_key: MetricKey) -> bool:
+  def _matches_name(filter: 'MetricsFilter', metric_key: 'MetricKey') -> bool:
     if ((filter.namespaces and
          metric_key.metric.namespace not in filter.namespaces) or
         (filter.names and metric_key.metric.name not in filter.names)):
@@ -172,7 +174,7 @@ class MetricResults(object):
             filter_scope.split('/'), actual_scope.split('/')))
 
   @staticmethod
-  def _matches_scope(filter: MetricsFilter, metric_key: MetricKey) -> bool:
+  def _matches_scope(filter: 'MetricsFilter', metric_key: 'MetricKey') -> bool:
     if not filter.steps:
       return True
 
@@ -183,7 +185,8 @@ class MetricResults(object):
     return False
 
   @staticmethod
-  def matches(filter: Optional[MetricsFilter], metric_key: MetricKey) -> bool:
+  def matches(
+      filter: Optional['MetricsFilter'], metric_key: 'MetricKey') -> bool:
     if filter is None:
       return True
 
@@ -194,7 +197,8 @@ class MetricResults(object):
 
   def query(
       self,
-      filter: Optional[MetricsFilter] = None) -> Dict[str, List[MetricResults]]:
+      filter: Optional['MetricsFilter'] = None
+  ) -> Dict[str, List['MetricResults']]:
     """Queries the runner for existing user metrics that match the filter.
 
     It should return a dictionary, with lists of each kind of metric, and
@@ -239,36 +243,36 @@ class MetricsFilter(object):
   def namespaces(self) -> FrozenSet[str]:
     return frozenset(self._namespaces)
 
-  def with_metric(self, metric: Metric) -> MetricsFilter:
+  def with_metric(self, metric: 'Metric') -> 'MetricsFilter':
     name = metric.metric_name.name or ''
     namespace = metric.metric_name.namespace or ''
     return self.with_name(name).with_namespace(namespace)
 
-  def with_name(self, name: str) -> MetricsFilter:
+  def with_name(self, name: str) -> 'MetricsFilter':
     return self.with_names([name])
 
-  def with_names(self, names: Iterable[str]) -> MetricsFilter:
+  def with_names(self, names: Iterable[str]) -> 'MetricsFilter':
     if isinstance(names, str):
       raise ValueError('Names must be a collection, not a string')
 
     self._names.update(names)
     return self
 
-  def with_namespace(self, namespace: Union[Type, str]) -> MetricsFilter:
+  def with_namespace(self, namespace: Union[Type, str]) -> 'MetricsFilter':
     return self.with_namespaces([namespace])
 
   def with_namespaces(
-      self, namespaces: Iterable[Union[Type, str]]) -> MetricsFilter:
+      self, namespaces: Iterable[Union[Type, str]]) -> 'MetricsFilter':
     if isinstance(namespaces, str):
       raise ValueError('Namespaces must be an iterable, not a string')
 
     self._namespaces.update([Metrics.get_namespace(ns) for ns in namespaces])
     return self
 
-  def with_step(self, step: str) -> MetricsFilter:
+  def with_step(self, step: str) -> 'MetricsFilter':
     return self.with_steps([step])
 
-  def with_steps(self, steps: Iterable[str]) -> MetricsFilter:
+  def with_steps(self, steps: Iterable[str]) -> 'MetricsFilter':
     if isinstance(steps, str):
       raise ValueError('Steps must be an iterable, not a string')
 

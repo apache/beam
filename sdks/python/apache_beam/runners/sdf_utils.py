@@ -55,7 +55,7 @@ class ThreadsafeRestrictionTracker(object):
   This wrapper guarantees synchronization of modifying restrictions across
   multi-thread.
   """
-  def __init__(self, restriction_tracker: RestrictionTracker) -> None:
+  def __init__(self, restriction_tracker: 'RestrictionTracker') -> None:
     from apache_beam.io.iobase import RestrictionTracker
     if not isinstance(restriction_tracker, RestrictionTracker):
       raise ValueError(
@@ -109,7 +109,7 @@ class ThreadsafeRestrictionTracker(object):
     with self._lock:
       return self._restriction_tracker.check_done()
 
-  def current_progress(self) -> RestrictionProgress:
+  def current_progress(self) -> 'RestrictionProgress':
     with self._lock:
       return self._restriction_tracker.current_progress()
 
@@ -182,7 +182,7 @@ class ThreadsafeWatermarkEstimator(object):
   """A threadsafe wrapper which wraps a WatermarkEstimator with locking
   mechanism to guarantee multi-thread safety.
   """
-  def __init__(self, watermark_estimator: WatermarkEstimator) -> None:
+  def __init__(self, watermark_estimator: 'WatermarkEstimator') -> None:
     from apache_beam.io.iobase import WatermarkEstimator
     if not isinstance(watermark_estimator, WatermarkEstimator):
       raise ValueError('Initializing Threadsafe requires a WatermarkEstimator')

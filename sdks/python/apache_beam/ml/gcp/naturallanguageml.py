@@ -66,7 +66,7 @@ class Document(object):
     self.from_gcs = from_gcs
 
   @staticmethod
-  def to_dict(document: Document) -> Mapping[str, Optional[str]]:
+  def to_dict(document: 'Document') -> Mapping[str, Optional[str]]:
     if document.from_gcs:
       dict_repr = {'gcs_content_uri': document.content}
     else:

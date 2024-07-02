@@ -26,17 +26,14 @@ See also: PTransforms.with_resource_hints().
 """
 
 import re
-from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
+from typing import Mapping
 from typing import Optional
 
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.portability.common_urns import resource_hints
-
-if TYPE_CHECKING:
-  from typing import Mapping
-  from apache_beam.options.pipeline_options import PipelineOptions
 
 __all__ = [
     'ResourceHint',

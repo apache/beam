@@ -182,7 +182,7 @@ class BoundedSource(SourceBase):
       self,
       start_position: Optional[Any],
       stop_position: Optional[Any],
-  ) -> RangeTracker:
+  ) -> 'RangeTracker':
     """Returns a RangeTracker for a given position range.
 
     Framework may invoke ``read()`` method with the RangeTracker object returned
@@ -1281,7 +1281,7 @@ class RestrictionTracker(object):
     """
     raise NotImplementedError
 
-  def current_progress(self) -> RestrictionProgress:
+  def current_progress(self) -> 'RestrictionProgress':
     """Returns a RestrictionProgress object representing the current progress.
 
     This API is recommended to be implemented. The runner can do a better job
@@ -1471,7 +1471,7 @@ class RestrictionProgress(object):
     else:
       return float(self._remaining) / self.total_work
 
-  def with_completed(self, completed: int) -> RestrictionProgress:
+  def with_completed(self, completed: int) -> 'RestrictionProgress':
     return RestrictionProgress(
         fraction=self._fraction, remaining=self._remaining, completed=completed)
 

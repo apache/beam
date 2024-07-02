@@ -131,10 +131,10 @@ class StateSampler(statesampler_impl.StateSampler):
 
   def scoped_state(
       self,
-      name_context: Union[str, common.NameContext],
+      name_context: Union[str, 'common.NameContext'],
       state_name: str,
       io_target=None,
-      metrics_container: Optional[MetricsContainer] = None
+      metrics_container: Optional['MetricsContainer'] = None
   ) -> statesampler_impl.ScopedState:
     """Returns a ScopedState object associated to a Step and a State.
 

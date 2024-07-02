@@ -62,7 +62,7 @@ class OffsetRange(object):
       yield OffsetRange(current_split_start, current_split_stop)
       current_split_start = current_split_stop
 
-  def split_at(self, split_pos) -> Tuple[OffsetRange, OffsetRange]:
+  def split_at(self, split_pos) -> Tuple['OffsetRange', 'OffsetRange']:
     return OffsetRange(self.start, split_pos), OffsetRange(split_pos, self.stop)
 
   def new_tracker(self):

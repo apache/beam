@@ -199,7 +199,7 @@ class MetricsReader(object):
       bq_table=None,
       bq_dataset=None,
       publish_to_bq=False,
-      influxdb_options: Optional[InfluxDBMetricsPublisherOptions] = None,
+      influxdb_options: Optional['InfluxDBMetricsPublisherOptions'] = None,
       namespace=None,
       filters=None):
     """Initializes :class:`MetricsReader` .

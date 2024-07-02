@@ -38,10 +38,10 @@ from google.protobuf import message
 from google.protobuf import wrappers_pb2
 
 from apache_beam.internal import pickler
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.utils import proto_utils
 
 if TYPE_CHECKING:
-  from apache_beam.portability.api import beam_runner_api_pb2
   from apache_beam.runners.pipeline_context import PipelineContext
 
 T = TypeVar('T')
@@ -75,7 +75,7 @@ class RunnerApiFn(object):
   # concrete implementation.
   # @abc.abstractmethod
   def to_runner_api_parameter(
-      self, unused_context: PipelineContext) -> Tuple[str, Any]:
+      self, unused_context: 'PipelineContext') -> Tuple[str, Any]:
     """Returns the urn and payload for this Fn.
 
     The returned urn(s) should be registered with `register_urn`.
@@ -88,8 +88,8 @@ class RunnerApiFn(object):
       cls,
       urn: str,
       parameter_type: Type[T],
-  ) -> Callable[[Callable[[T, PipelineContext], Any]],
-                Callable[[T, PipelineContext], Any]]:
+  ) -> Callable[[Callable[[T, 'PipelineContext'], Any]],
+                Callable[[T, 'PipelineContext'], Any]]:
     pass
 
   @classmethod
@@ -98,8 +98,8 @@ class RunnerApiFn(object):
       cls,
       urn: str,
       parameter_type: None,
-  ) -> Callable[[Callable[[bytes, PipelineContext], Any]],
-                Callable[[bytes, PipelineContext], Any]]:
+  ) -> Callable[[Callable[[bytes, 'PipelineContext'], Any]],
+                Callable[[bytes, 'PipelineContext'], Any]]:
     pass
 
   @classmethod
@@ -108,7 +108,7 @@ class RunnerApiFn(object):
       cls,
       urn: str,
       parameter_type: Type[T],
-      fn: Callable[[T, PipelineContext], Any]) -> None:
+      fn: Callable[[T, 'PipelineContext'], Any]) -> None:
     pass
 
   @classmethod
@@ -117,7 +117,7 @@ class RunnerApiFn(object):
       cls,
       urn: str,
       parameter_type: None,
-      fn: Callable[[bytes, PipelineContext], Any]) -> None:
+      fn: Callable[[bytes, 'PipelineContext'], Any]) -> None:
     pass
 
   @classmethod
@@ -159,12 +159,11 @@ class RunnerApiFn(object):
         unused_context: pickler.loads(proto.value))
 
   def to_runner_api(
-      self, context: PipelineContext) -> beam_runner_api_pb2.FunctionSpec:
+      self, context: 'PipelineContext') -> beam_runner_api_pb2.FunctionSpec:
     """Returns an FunctionSpec encoding this Fn.
 
     Prefer overriding self.to_runner_api_parameter.
     """
-    from apache_beam.portability.api import beam_runner_api_pb2
     urn, typed_param = self.to_runner_api_parameter(context)
     return beam_runner_api_pb2.FunctionSpec(
         urn=urn,
@@ -175,7 +174,7 @@ class RunnerApiFn(object):
   def from_runner_api(
       cls: Type[RunnerApiFnT],
       fn_proto: beam_runner_api_pb2.FunctionSpec,
-      context: PipelineContext) -> RunnerApiFnT:
+      context: 'PipelineContext') -> RunnerApiFnT:
     """Converts from an FunctionSpec to a Fn object.
 
     Prefer registering a urn with its parameter type and constructor.
