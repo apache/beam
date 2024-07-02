@@ -21,9 +21,9 @@ import com.google.auto.value.AutoValue;
 import com.solacesystems.jcsmp.BytesXMLMessage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -127,7 +127,7 @@ public class Solace {
      *
      * @return The message payload.
      */
-    public abstract ByteString getPayload();
+    public abstract ByteBuffer getPayload();
     /**
      * Gets the destination (topic or queue) to which the message was sent.
      *
@@ -234,7 +234,7 @@ public class Solace {
      *
      * @return The attachment data, or an empty ByteString if no attachment is present.
      */
-    public abstract ByteString getAttachmentBytes();
+    public abstract ByteBuffer getAttachmentBytes();
 
     static Builder builder() {
       return new AutoValue_Solace_Record.Builder();
@@ -244,7 +244,7 @@ public class Solace {
     abstract static class Builder {
       abstract Builder setMessageId(@Nullable String messageId);
 
-      abstract Builder setPayload(ByteString payload);
+      abstract Builder setPayload(ByteBuffer payload);
 
       abstract Builder setDestination(@Nullable Destination destination);
 
@@ -266,7 +266,7 @@ public class Solace {
 
       abstract Builder setReplicationGroupMessageId(@Nullable String replicationGroupMessageId);
 
-      abstract Builder setAttachmentBytes(ByteString attachmentBytes);
+      abstract Builder setAttachmentBytes(ByteBuffer attachmentBytes);
 
       abstract Record build();
     }
@@ -313,10 +313,9 @@ public class Solace {
 
       Destination replyTo = getDestination(msg.getCorrelationId(), msg.getReplyTo());
       Destination destination = getDestination(msg.getCorrelationId(), msg.getDestination());
-
       return Record.builder()
           .setMessageId(msg.getApplicationMessageId())
-          .setPayload(ByteString.copyFrom(payloadBytesStream.toByteArray()))
+          .setPayload(ByteBuffer.wrap(payloadBytesStream.toByteArray()))
           .setDestination(destination)
           .setExpiration(msg.getExpiration())
           .setPriority(msg.getPriority())
@@ -330,7 +329,7 @@ public class Solace {
               msg.getReplicationGroupMessageId() != null
                   ? msg.getReplicationGroupMessageId().toString()
                   : null)
-          .setAttachmentBytes(ByteString.copyFrom(attachmentBytesStream.toByteArray()))
+          .setAttachmentBytes(ByteBuffer.wrap(attachmentBytesStream.toByteArray()))
           .build();
     }
 
