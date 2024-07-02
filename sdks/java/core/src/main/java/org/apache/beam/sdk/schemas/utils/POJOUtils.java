@@ -71,9 +71,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
   "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class POJOUtils {
+
   public static Schema schemaFromPojoClass(
-      Class<?> clazz, FieldValueTypeSupplier fieldValueTypeSupplier) {
-    return StaticSchemaInference.schemaFromClass(TypeDescriptor.of(clazz), fieldValueTypeSupplier);
+      TypeDescriptor<?> typeDescriptor, FieldValueTypeSupplier fieldValueTypeSupplier) {
+    return StaticSchemaInference.schemaFromClass(typeDescriptor, fieldValueTypeSupplier);
   }
 
   // Static ByteBuddy instance used by all helpers.

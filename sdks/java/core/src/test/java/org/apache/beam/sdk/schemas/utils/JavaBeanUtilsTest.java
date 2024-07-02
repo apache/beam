@@ -52,6 +52,7 @@ import org.apache.beam.sdk.schemas.utils.TestJavaBeans.NullableBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.PrimitiveArrayBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.PrimitiveMapBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.SimpleBean;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.joda.time.DateTime;
 import org.junit.Test;
 
@@ -63,7 +64,8 @@ public class JavaBeanUtilsTest {
   @Test
   public void testNullable() {
     Schema schema =
-        JavaBeanUtils.schemaFromJavaBeanClass(NullableBean.class, GetterTypeSupplier.INSTANCE);
+        JavaBeanUtils.schemaFromJavaBeanClass(
+            new TypeDescriptor<NullableBean>() {}, GetterTypeSupplier.INSTANCE);
     assertTrue(schema.getField("str").getType().getNullable());
     assertFalse(schema.getField("anInt").getType().getNullable());
   }
@@ -71,14 +73,16 @@ public class JavaBeanUtilsTest {
   @Test
   public void testSimpleBean() {
     Schema schema =
-        JavaBeanUtils.schemaFromJavaBeanClass(SimpleBean.class, GetterTypeSupplier.INSTANCE);
+        JavaBeanUtils.schemaFromJavaBeanClass(
+            new TypeDescriptor<SimpleBean>() {}, GetterTypeSupplier.INSTANCE);
     SchemaTestUtils.assertSchemaEquivalent(SIMPLE_BEAN_SCHEMA, schema);
   }
 
   @Test
   public void testNestedBean() {
     Schema schema =
-        JavaBeanUtils.schemaFromJavaBeanClass(NestedBean.class, GetterTypeSupplier.INSTANCE);
+        JavaBeanUtils.schemaFromJavaBeanClass(
+            new TypeDescriptor<NestedBean>() {}, GetterTypeSupplier.INSTANCE);
     SchemaTestUtils.assertSchemaEquivalent(NESTED_BEAN_SCHEMA, schema);
   }
 
@@ -86,14 +90,15 @@ public class JavaBeanUtilsTest {
   public void testPrimitiveArray() {
     Schema schema =
         JavaBeanUtils.schemaFromJavaBeanClass(
-            PrimitiveArrayBean.class, GetterTypeSupplier.INSTANCE);
+            new TypeDescriptor<PrimitiveArrayBean>() {}, GetterTypeSupplier.INSTANCE);
     SchemaTestUtils.assertSchemaEquivalent(PRIMITIVE_ARRAY_BEAN_SCHEMA, schema);
   }
 
   @Test
   public void testNestedArray() {
     Schema schema =
-        JavaBeanUtils.schemaFromJavaBeanClass(NestedArrayBean.class, GetterTypeSupplier.INSTANCE);
+        JavaBeanUtils.schemaFromJavaBeanClass(
+            new TypeDescriptor<NestedArrayBean>() {}, GetterTypeSupplier.INSTANCE);
     SchemaTestUtils.assertSchemaEquivalent(NESTED_ARRAY_BEAN_SCHEMA, schema);
   }
 
@@ -101,21 +106,23 @@ public class JavaBeanUtilsTest {
   public void testNestedCollection() {
     Schema schema =
         JavaBeanUtils.schemaFromJavaBeanClass(
-            NestedCollectionBean.class, GetterTypeSupplier.INSTANCE);
+            new TypeDescriptor<NestedCollectionBean>() {}, GetterTypeSupplier.INSTANCE);
     SchemaTestUtils.assertSchemaEquivalent(NESTED_COLLECTION_BEAN_SCHEMA, schema);
   }
 
   @Test
   public void testPrimitiveMap() {
     Schema schema =
-        JavaBeanUtils.schemaFromJavaBeanClass(PrimitiveMapBean.class, GetterTypeSupplier.INSTANCE);
+        JavaBeanUtils.schemaFromJavaBeanClass(
+            new TypeDescriptor<PrimitiveMapBean>() {}, GetterTypeSupplier.INSTANCE);
     SchemaTestUtils.assertSchemaEquivalent(PRIMITIVE_MAP_BEAN_SCHEMA, schema);
   }
 
   @Test
   public void testNestedMap() {
     Schema schema =
-        JavaBeanUtils.schemaFromJavaBeanClass(NestedMapBean.class, GetterTypeSupplier.INSTANCE);
+        JavaBeanUtils.schemaFromJavaBeanClass(
+            new TypeDescriptor<NestedMapBean>() {}, GetterTypeSupplier.INSTANCE);
     SchemaTestUtils.assertSchemaEquivalent(NESTED_MAP_BEAN_SCHEMA, schema);
   }
 

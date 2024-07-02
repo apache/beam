@@ -154,8 +154,7 @@ public class JavaBeanSchema extends GetterBasedSchemaProvider {
   @Override
   public <T> Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
     Schema schema =
-        JavaBeanUtils.schemaFromJavaBeanClass(
-            typeDescriptor.getRawType(), GetterTypeSupplier.INSTANCE);
+        JavaBeanUtils.schemaFromJavaBeanClass(typeDescriptor, GetterTypeSupplier.INSTANCE);
 
     // If there are no creator methods, then validate that we have setters for every field.
     // Otherwise, we will have no way of creating instances of the class.

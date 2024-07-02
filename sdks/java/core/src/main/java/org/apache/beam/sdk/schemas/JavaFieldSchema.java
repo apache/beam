@@ -111,8 +111,7 @@ public class JavaFieldSchema extends GetterBasedSchemaProvider {
 
   @Override
   public <T> Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
-    return POJOUtils.schemaFromPojoClass(
-        typeDescriptor.getRawType(), JavaFieldTypeSupplier.INSTANCE);
+    return POJOUtils.schemaFromPojoClass(typeDescriptor, JavaFieldTypeSupplier.INSTANCE);
   }
 
   @Override
