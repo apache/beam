@@ -69,6 +69,7 @@ public class IcebergWriteSchemaTransformProviderTest {
     Row transformConfigRow =
         Row.withSchema(new IcebergWriteSchemaTransformProvider().configurationSchema())
             .withFieldValue("table", "test_table_identifier")
+            .withFieldValue("catalog_name", "test-name")
             .withFieldValue("catalog_properties", properties)
             .build();
 
@@ -88,7 +89,12 @@ public class IcebergWriteSchemaTransformProviderTest {
     properties.put("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP);
     properties.put("warehouse", warehouse.location);
 
-    Config config = Config.builder().setTable(identifier).setCatalogProperties(properties).build();
+    Config config =
+        Config.builder()
+            .setTable(identifier)
+            .setCatalogName("name")
+            .setCatalogProperties(properties)
+            .build();
 
     PCollectionRowTuple input =
         PCollectionRowTuple.of(
@@ -120,7 +126,11 @@ public class IcebergWriteSchemaTransformProviderTest {
 
     String yamlConfig =
         String.format(
-            "table: %s\n" + "catalog_properties: \n" + "  type: %s\n" + "  warehouse: %s",
+            "table: %s\n"
+                + "catalog_name: test-name\n"
+                + "catalog_properties: \n"
+                + "  type: %s\n"
+                + "  warehouse: %s",
             identifier, CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP, warehouse.location);
     Map<String, Object> configMap = new Yaml().load(yamlConfig);
 

@@ -60,6 +60,7 @@ public class IcebergReadSchemaTransformProviderTest {
     Row transformConfigRow =
         Row.withSchema(new IcebergReadSchemaTransformProvider().configurationSchema())
             .withFieldValue("table", "test_table_identifier")
+            .withFieldValue("catalog_name", "test-name")
             .withFieldValue("catalog_properties", properties)
             .build();
 
@@ -103,6 +104,7 @@ public class IcebergReadSchemaTransformProviderTest {
     IcebergReadSchemaTransformProvider.Config readConfig =
         IcebergReadSchemaTransformProvider.Config.builder()
             .setTable(identifier)
+            .setCatalogName("name")
             .setCatalogProperties(properties)
             .build();
 
@@ -153,7 +155,11 @@ public class IcebergReadSchemaTransformProviderTest {
 
     String yamlConfig =
         String.format(
-            "table: %s\n" + "catalog_properties: \n" + "  type: %s\n" + "  warehouse: %s",
+            "table: %s\n"
+                + "catalog_name: test-name\n"
+                + "catalog_properties: \n"
+                + "  type: %s\n"
+                + "  warehouse: %s",
             identifier, CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP, warehouse.location);
     Map<String, Object> configMap = new Yaml().load(yamlConfig);
 

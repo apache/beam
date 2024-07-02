@@ -20,8 +20,6 @@ package org.apache.beam.sdk.io.iceberg;
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.util.Properties;
-import javax.annotation.Nullable;
-import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.CatalogUtil;
@@ -30,10 +28,10 @@ import org.checkerframework.dataflow.qual.Pure;
 @AutoValue
 public abstract class IcebergCatalogConfig implements Serializable {
   @Pure
-  public abstract Properties getProperties();
+  public abstract String getCatalogName();
 
   @Pure
-  public abstract @Nullable Configuration getConfiguration();
+  public abstract Properties getProperties();
 
   @Pure
   public static Builder builder() {
@@ -41,19 +39,15 @@ public abstract class IcebergCatalogConfig implements Serializable {
   }
 
   public org.apache.iceberg.catalog.Catalog catalog() {
-    Configuration conf = getConfiguration();
-    String catalogName = "apache-beam-" + ReleaseInfo.getReleaseInfo().getVersion();
-    if (conf == null) {
-      conf = new Configuration();
-    }
-    return CatalogUtil.buildIcebergCatalog(catalogName, Maps.fromProperties(getProperties()), conf);
+    return CatalogUtil.buildIcebergCatalog(
+        getCatalogName(), Maps.fromProperties(getProperties()), new Configuration());
   }
 
   @AutoValue.Builder
   public abstract static class Builder {
-    public abstract Builder setProperties(Properties props);
+    public abstract Builder setCatalogName(String catalogName);
 
-    public abstract Builder setConfiguration(@Nullable Configuration conf);
+    public abstract Builder setProperties(Properties props);
 
     public abstract IcebergCatalogConfig build();
   }

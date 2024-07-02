@@ -80,7 +80,8 @@ public class IcebergIOWriteTest implements Serializable {
     props.setProperty("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP);
     props.setProperty("warehouse", warehouse.location);
 
-    IcebergCatalogConfig catalog = IcebergCatalogConfig.builder().setProperties(props).build();
+    IcebergCatalogConfig catalog =
+        IcebergCatalogConfig.builder().setCatalogName("name").setProperties(props).build();
 
     testPipeline
         .apply("Records To Add", Create.of(TestFixtures.asRows(TestFixtures.FILE1SNAPSHOT1)))
@@ -113,7 +114,8 @@ public class IcebergIOWriteTest implements Serializable {
     props.setProperty("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP);
     props.setProperty("warehouse", warehouse.location);
 
-    IcebergCatalogConfig catalog = IcebergCatalogConfig.builder().setProperties(props).build();
+    IcebergCatalogConfig catalog =
+        IcebergCatalogConfig.builder().setCatalogName("name").setProperties(props).build();
 
     DynamicDestinations dynamicDestinations =
         new DynamicDestinations() {
@@ -202,7 +204,8 @@ public class IcebergIOWriteTest implements Serializable {
     props.setProperty("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP);
     props.setProperty("warehouse", warehouse.location);
 
-    IcebergCatalogConfig catalog = IcebergCatalogConfig.builder().setProperties(props).build();
+    IcebergCatalogConfig catalog =
+        IcebergCatalogConfig.builder().setCatalogName("name").setProperties(props).build();
 
     DynamicDestinations dynamicDestinations =
         new DynamicDestinations() {

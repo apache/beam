@@ -72,7 +72,11 @@ public class ScanSourceTest {
     BoundedSource<Row> source =
         new ScanSource(
             IcebergScanConfig.builder()
-                .setCatalogConfig(IcebergCatalogConfig.builder().setProperties(props).build())
+                .setCatalogConfig(
+                    IcebergCatalogConfig.builder()
+                        .setCatalogName("name")
+                        .setProperties(props)
+                        .build())
                 .setScanType(IcebergScanConfig.ScanType.TABLE)
                 .setTableIdentifier(simpleTable.name().replace("hadoop.", "").split("\\."))
                 .setSchema(SchemaAndRowConversions.icebergSchemaToBeamSchema(TestFixtures.SCHEMA))
@@ -110,7 +114,11 @@ public class ScanSourceTest {
     BoundedSource<Row> source =
         new ScanSource(
             IcebergScanConfig.builder()
-                .setCatalogConfig(IcebergCatalogConfig.builder().setProperties(props).build())
+                .setCatalogConfig(
+                    IcebergCatalogConfig.builder()
+                        .setCatalogName("name")
+                        .setProperties(props)
+                        .build())
                 .setScanType(IcebergScanConfig.ScanType.TABLE)
                 .setTableIdentifier(simpleTable.name().replace("hadoop.", "").split("\\."))
                 .setSchema(SchemaAndRowConversions.icebergSchemaToBeamSchema(TestFixtures.SCHEMA))
@@ -152,7 +160,11 @@ public class ScanSourceTest {
     BoundedSource<Row> source =
         new ScanSource(
             IcebergScanConfig.builder()
-                .setCatalogConfig(IcebergCatalogConfig.builder().setProperties(props).build())
+                .setCatalogConfig(
+                    IcebergCatalogConfig.builder()
+                        .setCatalogName("name")
+                        .setProperties(props)
+                        .build())
                 .setScanType(IcebergScanConfig.ScanType.TABLE)
                 .setTableIdentifier(simpleTable.name().replace("hadoop.", "").split("\\."))
                 .setSchema(SchemaAndRowConversions.icebergSchemaToBeamSchema(TestFixtures.SCHEMA))

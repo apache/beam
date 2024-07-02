@@ -77,6 +77,7 @@ public class IcebergSchemaTransformTranslationTest {
     Row transformConfigRow =
         Row.withSchema(WRITE_PROVIDER.configurationSchema())
             .withFieldValue("table", "test_table_identifier")
+            .withFieldValue("catalog_name", "test-name")
             .withFieldValue("catalog_properties", CATALOG_PROPERTIES)
             .build();
     IcebergWriteSchemaTransform writeTransform =
@@ -107,6 +108,7 @@ public class IcebergSchemaTransformTranslationTest {
     Row transformConfigRow =
         Row.withSchema(WRITE_PROVIDER.configurationSchema())
             .withFieldValue("table", "test_identifier")
+            .withFieldValue("catalog_name", "test-name")
             .withFieldValue("catalog_properties", CATALOG_PROPERTIES)
             .build();
 
@@ -157,6 +159,7 @@ public class IcebergSchemaTransformTranslationTest {
     Row transformConfigRow =
         Row.withSchema(READ_PROVIDER.configurationSchema())
             .withFieldValue("table", "test_table_identifier")
+            .withFieldValue("catalog_name", "test-name")
             .withFieldValue("catalog_properties", CATALOG_PROPERTIES)
             .build();
 
@@ -187,6 +190,7 @@ public class IcebergSchemaTransformTranslationTest {
     Row transformConfigRow =
         Row.withSchema(READ_PROVIDER.configurationSchema())
             .withFieldValue("table", identifier)
+            .withFieldValue("catalog_name", "test-name")
             .withFieldValue("catalog_properties", properties)
             .build();
 

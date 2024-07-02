@@ -72,12 +72,17 @@ public class IcebergReadSchemaTransformProvider extends TypedSchemaTransformProv
     @SchemaFieldDescription("Identifier of the Iceberg table to write to.")
     public abstract String getTable();
 
+    @SchemaFieldDescription("Name of the catalog containing the table.")
+    public abstract String getCatalogName();
+
     @SchemaFieldDescription("Configuration properties used to set up the Iceberg catalog.")
     public abstract Map<String, String> getCatalogProperties();
 
     @AutoValue.Builder
     public abstract static class Builder {
-      public abstract Builder setTable(String tables);
+      public abstract Builder setTable(String table);
+
+      public abstract Builder setCatalogName(String catalogName);
 
       public abstract Builder setCatalogProperties(Map<String, String> catalogProperties);
 
@@ -112,7 +117,9 @@ public class IcebergReadSchemaTransformProvider extends TypedSchemaTransformProv
       properties.putAll(configuration.getCatalogProperties());
 
       IcebergCatalogConfig.Builder catalogBuilder =
-          IcebergCatalogConfig.builder().setProperties(properties);
+          IcebergCatalogConfig.builder()
+              .setCatalogName(configuration.getCatalogName())
+              .setProperties(properties);
 
       PCollection<Row> output =
           input

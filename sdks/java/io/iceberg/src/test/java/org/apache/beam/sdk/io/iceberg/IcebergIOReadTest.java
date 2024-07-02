@@ -99,7 +99,7 @@ public class IcebergIOReadTest {
     props.setProperty("warehouse", warehouse.location);
 
     IcebergCatalogConfig catalogConfig =
-        IcebergCatalogConfig.builder().setProperties(props).build();
+        IcebergCatalogConfig.builder().setCatalogName("name").setProperties(props).build();
 
     PCollection<Row> output =
         testPipeline

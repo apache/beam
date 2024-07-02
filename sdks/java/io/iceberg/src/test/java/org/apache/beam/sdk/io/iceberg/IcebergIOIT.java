@@ -206,6 +206,7 @@ public class IcebergIOIT implements Serializable {
     Map<String, Object> config =
         ImmutableMap.<String, Object>builder()
             .put("table", tableId.toString())
+            .put("catalog_name", "test-name")
             .put(
                 "catalog_properties",
                 ImmutableMap.<String, String>builder()
@@ -245,6 +246,7 @@ public class IcebergIOIT implements Serializable {
     Map<String, Object> config =
         ImmutableMap.<String, Object>builder()
             .put("table", tableId.toString())
+            .put("catalog_name", "test-name")
             .put(
                 "catalog_properties",
                 ImmutableMap.<String, String>builder()
