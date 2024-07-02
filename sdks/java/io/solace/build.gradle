@@ -38,7 +38,6 @@ dependencies {
     implementation library.java.google_cloud_core
     implementation library.java.vendored_guava_32_1_2_jre
     implementation project(":sdks:java:extensions:avro")
-    implementation library.java.vendored_grpc_1_60_1
     implementation library.java.avro
     permitUnusedDeclared library.java.avro
     implementation library.java.google_api_common
