@@ -59,7 +59,7 @@ dependencies {
     testImplementation 'com.google.cloud:google-cloud-recommendations-ai:0.3.7'
     testImplementation 'com.google.cloud:google-cloud-video-intelligence:1.2.0'
     testImplementation 'com.google.cloud:google-cloud-dlp:1.1.4'
-    testImplementation project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntimeMigration")
+    testImplementation project(path: ":sdks:java:extensions:google-cloud-platform-core")
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
     testRuntimeOnly project(":runners:google-cloud-dataflow-java")
 }
