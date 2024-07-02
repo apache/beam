@@ -52,13 +52,13 @@ __all__ = [
 class ResourceHint:
   """A superclass to define resource hints."""
   # A unique URN, one per Resource Hint class.
-  urn = None  # type: Optional[str]
+  urn: Optional[str] = None
 
-  _urn_to_known_hints = {}  # type: Dict[str, type]
-  _name_to_known_hints = {}  # type: Dict[str, type]
+  _urn_to_known_hints: Dict[str, type] = {}
+  _name_to_known_hints: Dict[str, type] = {}
 
   @classmethod
-  def parse(cls, value):  # type: (str) -> Dict[str, bytes]
+  def parse(cls, value: str) -> Dict[str, bytes]:
     """Describes how to parse the hint.
     Override to specify a custom parsing logic."""
     assert cls.urn is not None
@@ -66,8 +66,7 @@ class ResourceHint:
     return {cls.urn: ResourceHint._parse_str(value)}
 
   @classmethod
-  def get_merged_value(
-      cls, outer_value, inner_value):  # type: (bytes, bytes) -> bytes
+  def get_merged_value(cls, outer_value: bytes, inner_value: bytes) -> bytes:
     """Reconciles values of a hint when the hint specified on a transform is
     also defined in an outer context, for example on a composite transform, or
     specified in the transform's execution environment.
@@ -89,8 +88,7 @@ class ResourceHint:
     return name in ResourceHint._name_to_known_hints
 
   @staticmethod
-  def register_resource_hint(
-      hint_name, hint_class):  # type: (str, type) -> None
+  def register_resource_hint(hint_name: str, hint_class: type) -> None:
     assert issubclass(hint_class, ResourceHint)
     assert hint_class.urn is not None
     ResourceHint._name_to_known_hints[hint_name] = hint_class
@@ -164,12 +162,11 @@ class MinRamHint(ResourceHint):
   urn = resource_hints.MIN_RAM_BYTES.urn
 
   @classmethod
-  def parse(cls, value):  # type: (str) -> Dict[str, bytes]
+  def parse(cls, value: str) -> Dict[str, bytes]:
     return {cls.urn: ResourceHint._parse_storage_size_str(value)}
 
   @classmethod
-  def get_merged_value(
-      cls, outer_value, inner_value):  # type: (bytes, bytes) -> bytes
+  def get_merged_value(cls, outer_value: bytes, inner_value: bytes) -> bytes:
     return ResourceHint._use_max(outer_value, inner_value)
 
 
@@ -183,8 +180,7 @@ class CpuCountHint(ResourceHint):
   urn = resource_hints.CPU_COUNT.urn
 
   @classmethod
-  def get_merged_value(
-      cls, outer_value, inner_value):  # type: (bytes, bytes) -> bytes
+  def get_merged_value(cls, outer_value: bytes, inner_value: bytes) -> bytes:
     return ResourceHint._use_max(outer_value, inner_value)
 
 
@@ -193,7 +189,7 @@ ResourceHint.register_resource_hint('cpu_count', CpuCountHint)
 ResourceHint.register_resource_hint('cpuCount', CpuCountHint)
 
 
-def parse_resource_hints(hints):  # type: (Dict[Any, Any]) -> Dict[str, bytes]
+def parse_resource_hints(hints: Dict[Any, Any]) -> Dict[str, bytes]:
   parsed_hints = {}
   for hint, value in hints.items():
     try:
@@ -208,8 +204,8 @@ def parse_resource_hints(hints):  # type: (Dict[Any, Any]) -> Dict[str, bytes]
   return parsed_hints
 
 
-def resource_hints_from_options(options):
-  # type: (Optional[PipelineOptions]) -> Dict[str, bytes]
+def resource_hints_from_options(
+    options: Optional[PipelineOptions]) -> Dict[str, bytes]:
   if options is None:
     return {}
   hints = {}
@@ -225,8 +221,8 @@ def resource_hints_from_options(options):
 
 
 def merge_resource_hints(
-    outer_hints, inner_hints
-):  # type: (Mapping[str, bytes], Mapping[str, bytes]) -> Dict[str, bytes]
+    outer_hints: Mapping[str, bytes],
+    inner_hints: Mapping[str, bytes]) -> Dict[str, bytes]:
   merged_hints = dict(inner_hints)
   for urn, outer_value in outer_hints.items():
     if urn in inner_hints:
