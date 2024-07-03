@@ -255,8 +255,7 @@ class RecordingManager:
       self,
       user_pipeline: beam.Pipeline,
       pipeline_var: str = None,
-      test_limiters: List['Limiter'] = None) -> None:
-    # noqa: F821
+      test_limiters: List['Limiter'] = None) -> None:  # noqa: F821
 
     self.user_pipeline: beam.Pipeline = user_pipeline
     self.pipeline_var: str = pipeline_var if pipeline_var else ''
@@ -265,8 +264,6 @@ class RecordingManager:
     self._test_limiters = test_limiters if test_limiters else []
 
   def _watch(self, pcolls: List[beam.pvalue.PCollection]) -> None:
-    # noqa: F821
-
     """Watch any pcollections not being watched.
 
     This allows for the underlying caching layer to identify the PCollection as
