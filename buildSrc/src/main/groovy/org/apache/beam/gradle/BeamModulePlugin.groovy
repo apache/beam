@@ -940,9 +940,27 @@ class BeamModulePlugin implements Plugin<Project> {
           + suffix)
     }
 
+    def errorProneAddModuleOpts = [
+        "--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED",
+        "--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED",
+        "--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED",
+        "--add-exports=jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED",
+        "--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED",
+        "--add-exports=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED",
+        "--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED",
+        "--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED",
+        "--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED",
+        "--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED"
+    ]
+
     // set compiler options for java version overrides to compile with a different java version
     project.ext.setJavaVerOptions = { CompileOptions options, String ver ->
-      if (ver == '11') {
+      if (ver == '8') {
+        def java8Home = project.findProperty("java8Home")
+        options.fork = true
+        options.forkOptions.javaHome = java8Home as File
+        options.compilerArgs += ['-Xlint:-path']
+      } else if (ver == '11') {
         def java11Home = project.findProperty("java11Home")
         options.fork = true
         options.forkOptions.javaHome = java11Home as File
@@ -957,18 +975,7 @@ class BeamModulePlugin implements Plugin<Project> {
         // https://github.com/tbroyer/gradle-errorprone-plugin#jdk-16-support
         options.errorprone.errorproneArgs.add("-XepDisableAllChecks")
         // The -J prefix is needed to workaround https://github.com/gradle/gradle/issues/22747
-        options.forkOptions.jvmArgs += [
-          "-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED",
-          "-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED",
-          "-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED",
-          "-J--add-exports=jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED",
-          "-J--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED",
-          "-J--add-exports=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED",
-          "-J--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED",
-          "-J--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED",
-          "-J--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED",
-          "-J--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED"
-        ]
+        options.forkOptions.jvmArgs += errorProneAddModuleOpts.collect { '-J' + it }
       } else if (ver == '21') {
         def java21Home = project.findProperty("java21Home")
         options.fork = true
@@ -980,18 +987,7 @@ class BeamModulePlugin implements Plugin<Project> {
         // Error prone requires some packages to be exported/opened for Java 17+
         // Disabling checks since this property is only used for tests
         options.errorprone.errorproneArgs.add("-XepDisableAllChecks")
-        options.forkOptions.jvmArgs += [
-          "-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED",
-          "-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED",
-          "-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED",
-          "-J--add-exports=jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED",
-          "-J--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED",
-          "-J--add-exports=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED",
-          "-J--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED",
-          "-J--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED",
-          "-J--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED",
-          "-J--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED"
-        ]
+        options.forkOptions.jvmArgs += errorProneAddModuleOpts.collect { '-J' + it }
         // TODO(https://github.com/apache/beam/issues/28963)
         // upgrade checkerFramework to enable it in Java 21
         project.checkerFramework {
@@ -1481,97 +1477,94 @@ class BeamModulePlugin implements Plugin<Project> {
         project.tasks.analyzeDependencies.enabled = false
       }
 
-      // Enable errorprone static analysis
-      project.apply plugin: 'net.ltgt.errorprone'
+      // errorprone requires java9+ compiler. It can be used with Java8 but then sets a java9+ errorproneJavac.
+      // However, the redirect ignores any task that forks and defines either a javaHome or an executable,
+      // see https://github.com/tbroyer/gradle-errorprone-plugin#jdk-8-support
+      // which means errorprone cannot run when gradle runs on Java11+ but serve `-testJavaVersion=8 -Pjava8Home` options
+      if (!(project.findProperty('testJavaVersion') == '8')) {
+        // Enable errorprone static analysis
+        project.apply plugin: 'net.ltgt.errorprone'
 
-      project.dependencies {
-        errorprone("com.google.errorprone:error_prone_core:$errorprone_version")
-        errorprone("jp.skypencil.errorprone.slf4j:errorprone-slf4j:0.1.2")
-        // At least JDk 9 compiler is required, however JDK 8 still can be used but with additional errorproneJavac
-        // configuration. For more details please see https://github.com/tbroyer/gradle-errorprone-plugin#jdk-8-support
-        errorproneJavac("com.google.errorprone:javac:9+181-r4173-1")
-      }
-
-      project.configurations.errorprone { resolutionStrategy.force "com.google.errorprone:error_prone_core:$errorprone_version" }
-
-      project.tasks.withType(JavaCompile) {
-        options.errorprone.disableWarningsInGeneratedCode = true
-        options.errorprone.excludedPaths = '(.*/)?(build/generated-src|build/generated.*avro-java|build/generated)/.*'
-
-        // Error Prone requires some packages to be exported/opened on Java versions that support modules,
-        // i.e. Java 9 and up. The flags became mandatory in Java 17 with JEP-403.
-        // The -J prefix is not needed if forkOptions.javaHome is unset,
-        // see http://github.com/gradle/gradle/issues/22747
-        if (JavaVersion.VERSION_1_8.compareTo(JavaVersion.current()) < 0
-        && options.forkOptions.javaHome == null) {
-          options.fork = true
-          options.forkOptions.jvmArgs += [
-            "--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED",
-            "--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED",
-            "--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED",
-            "--add-exports=jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED",
-            "--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED",
-            "--add-exports=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED",
-            "--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED",
-            "--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED",
-            "--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED",
-            "--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED"
-          ]
+        project.dependencies {
+          errorprone("com.google.errorprone:error_prone_core:$errorprone_version")
+          errorprone("jp.skypencil.errorprone.slf4j:errorprone-slf4j:0.1.2")
+          // At least JDk 9 compiler is required, however JDK 8 still can be used but with additional errorproneJavac
+          // configuration. For more details please see https://github.com/tbroyer/gradle-errorprone-plugin#jdk-8-support
+          if (JavaVersion.VERSION_1_8.compareTo(JavaVersion.current()) == 0) {
+            errorproneJavac("com.google.errorprone:javac:9+181-r4173-1")
+          }
         }
 
-        // TODO(https://github.com/apache/beam/issues/20955): Enable errorprone checks
-        options.errorprone.errorproneArgs.add("-Xep:AutoValueImmutableFields:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:AutoValueSubclassLeaked:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:BadImport:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:BadInstanceof:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:BigDecimalEquals:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:ComparableType:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:DoNotMockAutoValue:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:EmptyBlockTag:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:EmptyCatch:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:EqualsGetClass:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:EqualsUnsafeCast:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:EscapedEntity:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:ExtendsAutoValue:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:InlineFormatString:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:InlineMeSuggester:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:InvalidBlockTag:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:InvalidInlineTag:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:InvalidLink:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:InvalidParam:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:InvalidThrows:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:JavaTimeDefaultTimeZone:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:JavaUtilDate:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:JodaConstructors:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:MalformedInlineTag:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:MissingSummary:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:MixedMutabilityReturnType:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:PreferJavaTimeOverload:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:MutablePublicArray:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:NonCanonicalType:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:ProtectedMembersInFinalClass:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:Slf4jFormatShouldBeConst:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:Slf4jSignOnlyFormat:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:StaticAssignmentInConstructor:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:ThreadPriorityCheck:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:TimeUnitConversionChecker:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:UndefinedEquals:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:UnescapedEntity:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:UnnecessaryLambda:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:UnnecessaryMethodReference:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:UnnecessaryParentheses:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:UnrecognisedJavadocTag:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:UnsafeReflectiveConstructionCast:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:UseCorrectAssertInTests:OFF")
+        project.configurations.errorprone { resolutionStrategy.force "com.google.errorprone:error_prone_core:$errorprone_version" }
 
-        // Sometimes a static logger is preferred, which is the convention
-        // currently used in beam. See docs:
-        // https://github.com/KengoTODA/findbugs-slf4j#slf4j_logger_should_be_non_static
-        options.errorprone.errorproneArgs.add("-Xep:Slf4jLoggerShouldBeNonStatic:OFF")
+        project.tasks.withType(JavaCompile) {
+          options.errorprone.disableWarningsInGeneratedCode = true
+          options.errorprone.excludedPaths = '(.*/)?(build/generated-src|build/generated.*avro-java|build/generated)/.*'
+
+          // Error Prone requires some packages to be exported/opened on Java versions that support modules,
+          // i.e. Java 9 and up. The flags became mandatory in Java 17 with JEP-403.
+          // The -J prefix is not needed if forkOptions.javaHome is unset,
+          // see http://github.com/gradle/gradle/issues/22747
+          if (JavaVersion.VERSION_1_8.compareTo(JavaVersion.current()) < 0
+                  && options.forkOptions.javaHome == null) {
+            options.fork = true
+            options.forkOptions.jvmArgs += errorProneAddModuleOpts
+          }
+
+          // TODO(https://github.com/apache/beam/issues/20955): Enable errorprone checks
+          options.errorprone.errorproneArgs.add("-Xep:AutoValueImmutableFields:OFF")
+          options.errorprone.errorproneArgs.add("-Xep:AutoValueSubclassLeaked:OFF")
+          options.errorprone.errorproneArgs.add("-Xep:BadImport:OFF")
+          options.errorprone.errorproneArgs.add("-Xep:BadInstanceof:OFF")
+          options.errorprone.errorproneArgs.add("-Xep:BigDecimalEquals:OFF")
+          options.errorprone.errorproneArgs.add("-Xep:ComparableType:OFF")
+          options.errorprone.errorproneArgs.add("-Xep:DoNotMockAutoValue:OFF")
+          options.errorprone.errorproneArgs.add("-Xep:EmptyBlockTag:OFF")
+          options.errorprone.errorproneArgs.add("-Xep:EmptyCatch:OFF")
+          options.errorprone.errorproneArgs.add("-Xep:EqualsGetClass:OFF")
+          options.errorprone.errorproneArgs.add("-Xep:EqualsUnsafeCast:OFF")
+          options.errorprone.errorproneArgs.add("-Xep:EscapedEntity:OFF")
+          options.errorprone.errorproneArgs.add("-Xep:ExtendsAutoValue:OFF")
+          options.errorprone.errorproneArgs.add("-Xep:InlineFormatString:OFF")
+          options.errorprone.errorproneArgs.add("-Xep:InlineMeSuggester:OFF")
+          options.errorprone.errorproneArgs.add("-Xep:InvalidBlockTag:OFF")
+          options.errorprone.errorproneArgs.add("-Xep:InvalidInlineTag:OFF")
+          options.errorprone.errorproneArgs.add("-Xep:InvalidLink:OFF")
+          options.errorprone.errorproneArgs.add("-Xep:InvalidParam:OFF")
+          options.errorprone.errorproneArgs.add("-Xep:InvalidThrows:OFF")
+          options.errorprone.errorproneArgs.add("-Xep:JavaTimeDefaultTimeZone:OFF")
+          options.errorprone.errorproneArgs.add("-Xep:JavaUtilDate:OFF")
+          options.errorprone.errorproneArgs.add("-Xep:JodaConstructors:OFF")
+          options.errorprone.errorproneArgs.add("-Xep:MalformedInlineTag:OFF")
+          options.errorprone.errorproneArgs.add("-Xep:MissingSummary:OFF")
+          options.errorprone.errorproneArgs.add("-Xep:MixedMutabilityReturnType:OFF")
+          options.errorprone.errorproneArgs.add("-Xep:PreferJavaTimeOverload:OFF")
+          options.errorprone.errorproneArgs.add("-Xep:MutablePublicArray:OFF")
+          options.errorprone.errorproneArgs.add("-Xep:NonCanonicalType:OFF")
+          options.errorprone.errorproneArgs.add("-Xep:ProtectedMembersInFinalClass:OFF")
+          options.errorprone.errorproneArgs.add("-Xep:Slf4jFormatShouldBeConst:OFF")
+          options.errorprone.errorproneArgs.add("-Xep:Slf4jSignOnlyFormat:OFF")
+          options.errorprone.errorproneArgs.add("-Xep:StaticAssignmentInConstructor:OFF")
+          options.errorprone.errorproneArgs.add("-Xep:ThreadPriorityCheck:OFF")
+          options.errorprone.errorproneArgs.add("-Xep:TimeUnitConversionChecker:OFF")
+          options.errorprone.errorproneArgs.add("-Xep:UndefinedEquals:OFF")
+          options.errorprone.errorproneArgs.add("-Xep:UnescapedEntity:OFF")
+          options.errorprone.errorproneArgs.add("-Xep:UnnecessaryLambda:OFF")
+          options.errorprone.errorproneArgs.add("-Xep:UnnecessaryMethodReference:OFF")
+          options.errorprone.errorproneArgs.add("-Xep:UnnecessaryParentheses:OFF")
+          options.errorprone.errorproneArgs.add("-Xep:UnrecognisedJavadocTag:OFF")
+          options.errorprone.errorproneArgs.add("-Xep:UnsafeReflectiveConstructionCast:OFF")
+          options.errorprone.errorproneArgs.add("-Xep:UseCorrectAssertInTests:OFF")
+
+          // Sometimes a static logger is preferred, which is the convention
+          // currently used in beam. See docs:
+          // https://github.com/KengoTODA/findbugs-slf4j#slf4j_logger_should_be_non_static
+          options.errorprone.errorproneArgs.add("-Xep:Slf4jLoggerShouldBeNonStatic:OFF")
+        }
       }
 
       // if specified test java version, modify the compile and runtime versions accordingly
-      if (['11', '17', '21'].contains(project.findProperty('testJavaVersion'))) {
+      if (['8', '11', '17', '21'].contains(project.findProperty('testJavaVersion'))) {
         String ver = project.getProperty('testJavaVersion')
         def testJavaHome = project.getProperty("java${ver}Home")
 
