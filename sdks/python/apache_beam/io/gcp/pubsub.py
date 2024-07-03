@@ -37,6 +37,7 @@ from typing import List
 from typing import NamedTuple
 from typing import Optional
 from typing import Tuple
+from typing import Union
 
 from apache_beam import coders
 from apache_beam.io import iobase
@@ -357,15 +358,15 @@ class WriteToPubSub(PTransform):
     return element._to_proto_str(for_publish=True)
 
   @staticmethod
-  def bytes_to_proto_str(element: bytes) -> bytes:
+  def bytes_to_proto_str(element: Union[bytes, str]) -> bytes:
     msg = PubsubMessage(element, {})
     return msg._to_proto_str(for_publish=True)
 
   def expand(self, pcoll):
     if self.with_attributes:
-      pcoll = pcoll | 'ToProtobuf' >> Map(self.message_to_proto_str)
+      pcoll = pcoll | 'ToProtobufX' >> Map(self.message_to_proto_str)
     else:
-      pcoll = pcoll | 'ToProtobuf' >> Map(self.bytes_to_proto_str)
+      pcoll = pcoll | 'ToProtobufY' >> Map(self.bytes_to_proto_str)
     pcoll.element_type = bytes
     return pcoll | Write(self._sink)
 
