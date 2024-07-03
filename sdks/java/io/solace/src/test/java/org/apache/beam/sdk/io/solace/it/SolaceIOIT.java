@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.solace.it;
 
 import static org.junit.Assert.assertEquals;
 
+import java.io.IOException;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.solace.SolaceIO;
 import org.apache.beam.sdk.io.solace.broker.BasicAuthJcsmpSessionServiceFactory;
@@ -56,7 +57,7 @@ public class SolaceIOIT {
   @Rule public final TestPipeline readPipeline = TestPipeline.fromOptions(readPipelineOptions);
 
   @BeforeClass
-  public static void setup() {
+  public static void setup() throws IOException {
     solaceContainerManager = new SolaceContainerManager();
     solaceContainerManager.start();
   }
@@ -89,14 +90,14 @@ public class SolaceIOIT {
                 .withMaxNumConnections(1)
                 .withSempClientFactory(
                     BasicAuthSempClientFactory.builder()
-                        .host("http://localhost:8080")
+                        .host("http://localhost:" + solaceContainerManager.sempPortMapped)
                         .username("admin")
                         .password("admin")
                         .vpnName(SolaceContainerManager.VPN_NAME)
                         .build())
                 .withSessionServiceFactory(
                     BasicAuthJcsmpSessionServiceFactory.builder()
-                        .host("localhost")
+                        .host("localhost:" + solaceContainerManager.jcsmpPortMapped)
                         .username(SolaceContainerManager.USERNAME)
                         .password(SolaceContainerManager.PASSWORD)
                         .vpnName(SolaceContainerManager.VPN_NAME)

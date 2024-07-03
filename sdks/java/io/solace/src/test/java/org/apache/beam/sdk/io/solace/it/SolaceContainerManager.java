@@ -18,11 +18,13 @@
 package org.apache.beam.sdk.io.solace.it;
 
 import java.io.IOException;
+import java.net.ServerSocket;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testcontainers.containers.Container.ExecResult;
 import org.testcontainers.containers.output.Slf4jLogConsumer;
 import org.testcontainers.solace.Service;
 import org.testcontainers.solace.SolaceContainer;
@@ -36,23 +38,20 @@ public class SolaceContainerManager {
   public static final String TOPIC_NAME = "test_topic";
   private static final Logger LOG = LoggerFactory.getLogger(SolaceContainerManager.class);
   private final SolaceContainer container;
+  int jcsmpPortMapped = findAvailablePort();
+  int sempPortMapped = findAvailablePort();
 
-  public SolaceContainerManager() {
+  public SolaceContainerManager() throws IOException {
     this.container =
         new SolaceContainer(DockerImageName.parse("solace/solace-pubsub-standard:10.7")) {
           {
-            addFixedExposedPort(55555, 55555);
-            addFixedExposedPort(9000, 9000);
-            addFixedExposedPort(8080, 8080);
-            addFixedExposedPort(80, 80);
+            addFixedExposedPort(jcsmpPortMapped, 55555);
+            addFixedExposedPort(sempPortMapped, 8080);
           }
         }.withVpn(VPN_NAME)
             .withCredentials(USERNAME, PASSWORD)
-            // .withExposedPorts(Service.SMF.getPort());
             .withTopic(TOPIC_NAME, Service.SMF)
             .withLogConsumer(new Slf4jLogConsumer(LOG));
-    container.addExposedPort(8080);
-    container.addExposedPort(55555);
   }
 
   public void start() {
@@ -60,6 +59,13 @@ public class SolaceContainerManager {
   }
 
   void createQueueWithSubscriptionTopic(String queueName) {
+    executeCommand(
+        "curl",
+        "http://localhost:8080/SEMP/v2/config/msgVpns/" + VPN_NAME + "/topicEndpoints",
+        "-X",
+        "GET",
+        "-u",
+        "admin:admin");
     executeCommand(
         "curl",
         "http://localhost:8080/SEMP/v2/config/msgVpns/" + VPN_NAME + "/topicEndpoints",
@@ -105,8 +111,7 @@ public class SolaceContainerManager {
 
   private void executeCommand(String... command) {
     try {
-      org.testcontainers.containers.Container.ExecResult execResult =
-          container.execInContainer(command);
+      ExecResult execResult = container.execInContainer(command);
       if (execResult.getExitCode() != 0) {
         logCommandError(execResult.getStderr(), command);
       } else {
@@ -164,5 +169,20 @@ public class SolaceContainerManager {
     }
 
     executeCommand(command.toArray(new String[0]));
+  }
+
+  private static int findAvailablePort() throws IOException {
+    ServerSocket s = new ServerSocket(0);
+    try {
+      return s.getLocalPort();
+    } finally {
+      s.close();
+      try {
+        // Some systems don't free the port for future use immediately.
+        Thread.sleep(100);
+      } catch (InterruptedException exn) {
+        // ignore
+      }
+    }
   }
 }
