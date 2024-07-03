@@ -43,10 +43,10 @@ RUN curl -OL https://cdn.azul.com/zulu/bin/zulu17.50.19-ca-jdk17.0.11-linux_x64.
     mv /usr/local/zulu17.50.19-ca-jdk17.0.11-linux_x64 /usr/local/java
 ENV PATH="${PATH}:/usr/local/java/bin"
 #Install Gradle
-RUN curl -OL https://services.gradle.org/distributions/gradle-7.3.3-bin.zip && \
-    unzip gradle-7.3.3-bin.zip && \
-    rm gradle-7.3.3-bin.zip && \
-    mv gradle-7.3.3 /usr/local/gradle
+RUN curl -OL https://services.gradle.org/distributions/gradle-8.4-bin.zip && \
+    unzip gradle-8.4-bin.zip && \
+    rm gradle-8.4-bin.zip && \
+    mv gradle-8.4 /usr/local/gradle
 ENV PATH="${PATH}:/usr/local/gradle/bin"
 #Install GitHub CLI
 RUN curl -OL https://github.com/cli/cli/releases/download/v2.31.0/gh_2.31.0_linux_amd64.tar.gz && \
