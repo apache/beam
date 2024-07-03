@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.solace.broker;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+
 import com.google.api.client.http.GenericUrl;
 import com.google.api.client.http.HttpContent;
 import com.google.api.client.http.HttpHeaders;
@@ -31,8 +33,12 @@ import java.io.Serializable;
 import java.net.CookieManager;
 import java.net.HttpCookie;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A class to execute requests to SEMP v2 with Basic Auth authentication.
@@ -44,13 +50,17 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
  * header to refresh the token.
  */
 class SempBasicAuthClientExecutor implements Serializable {
-  private static final CookieManager COOKIE_MANAGER = new CookieManager();
+  // Every request will be repeated 2 times in case of abnormal connection failures.
+  private static final int REQUEST_NUM_RETRIES = 2;
+  private static final Map<CookieManagerKey, CookieManager> COOKIE_MANAGER_MAP =
+      new ConcurrentHashMap<CookieManagerKey, CookieManager>();
   private static final String COOKIES_HEADER = "Set-Cookie";
 
   private final String username;
   private final String messageVpn;
   private final String baseUrl;
   private final String password;
+  private final CookieManagerKey cookieManagerKey;
   private final transient HttpRequestFactory requestFactory;
 
   SempBasicAuthClientExecutor(
@@ -64,6 +74,8 @@ class SempBasicAuthClientExecutor implements Serializable {
     this.messageVpn = vpnName;
     this.password = password;
     this.requestFactory = httpRequestFactory;
+    this.cookieManagerKey = new CookieManagerKey(this.baseUrl, this.username);
+    COOKIE_MANAGER_MAP.putIfAbsent(this.cookieManagerKey, new CookieManager());
   }
 
   private static String getQueueEndpoint(String messageVpn, String queueName) {
@@ -125,9 +137,13 @@ class SempBasicAuthClientExecutor implements Serializable {
   }
 
   private HttpResponse execute(HttpRequest request) throws IOException {
-    request.setNumberOfRetries(2);
+    request.setNumberOfRetries(REQUEST_NUM_RETRIES);
     HttpHeaders httpHeaders = new HttpHeaders();
-    boolean authFromCookie = COOKIE_MANAGER.getCookieStore().getCookies().size() > 0;
+    boolean authFromCookie =
+        !checkStateNotNull(COOKIE_MANAGER_MAP.get(cookieManagerKey))
+            .getCookieStore()
+            .getCookies()
+            .isEmpty();
     if (authFromCookie) {
       setCookiesFromCookieManager(httpHeaders);
       request.setHeaders(httpHeaders);
@@ -141,10 +157,10 @@ class SempBasicAuthClientExecutor implements Serializable {
       response = request.execute();
     } catch (HttpResponseException e) {
       if (authFromCookie && e.getStatusCode() == 401) {
-        COOKIE_MANAGER.getCookieStore().removeAll();
+        checkStateNotNull(COOKIE_MANAGER_MAP.get(cookieManagerKey)).getCookieStore().removeAll();
         // execute again without cookies to refresh the token.
         return execute(request);
-      } else {
+      } else { // we might need to handle other response codes here.
         throw e;
       }
     }
@@ -155,7 +171,8 @@ class SempBasicAuthClientExecutor implements Serializable {
 
   private void setCookiesFromCookieManager(HttpHeaders httpHeaders) {
     httpHeaders.setCookie(
-        COOKIE_MANAGER.getCookieStore().getCookies().stream()
+        checkStateNotNull(COOKIE_MANAGER_MAP.get(cookieManagerKey)).getCookieStore().getCookies()
+            .stream()
             .map(s -> s.getName() + "=" + s.getValue())
             .collect(Collectors.joining(";")));
   }
@@ -164,8 +181,37 @@ class SempBasicAuthClientExecutor implements Serializable {
     List<String> cookiesHeader = headers.getHeaderStringValues(COOKIES_HEADER);
     if (cookiesHeader != null) {
       for (String cookie : cookiesHeader) {
-        COOKIE_MANAGER.getCookieStore().add(null, HttpCookie.parse(cookie).get(0));
+        checkStateNotNull(COOKIE_MANAGER_MAP.get(cookieManagerKey))
+            .getCookieStore()
+            .add(null, HttpCookie.parse(cookie).get(0));
       }
+    }
+  }
+
+  private static class CookieManagerKey implements Serializable {
+    private final String baseUrl;
+    private final String username;
+
+    CookieManagerKey(String baseUrl, String username) {
+      this.baseUrl = baseUrl;
+      this.username = username;
+    }
+
+    @Override
+    public boolean equals(@Nullable Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (!(o instanceof CookieManagerKey)) {
+        return false;
+      }
+      CookieManagerKey that = (CookieManagerKey) o;
+      return Objects.equals(baseUrl, that.baseUrl) && Objects.equals(username, that.username);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(baseUrl, username);
     }
   }
 }

@@ -20,9 +20,8 @@ package org.apache.beam.sdk.io.solace.broker;
 import com.google.api.client.http.HttpRequestFactory;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.auto.value.AutoValue;
-import org.apache.beam.sdk.io.solace.utils.SerializableSupplier;
+import org.apache.beam.sdk.util.SerializableSupplier;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
-import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -34,15 +33,15 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @AutoValue
 public abstract class BasicAuthSempClientFactory implements SempClientFactory {
 
-  public abstract String host();
+  abstract String host();
 
-  public abstract String username();
+  abstract String username();
 
-  public abstract String password();
+  abstract String password();
 
-  public abstract String vpnName();
+  abstract String vpnName();
 
-  public abstract @Nullable SerializableSupplier<HttpRequestFactory> httpRequestFactorySupplier();
+  abstract @Nullable SerializableSupplier<HttpRequestFactory> httpRequestFactorySupplier();
 
   public static Builder builder() {
     return new AutoValue_BasicAuthSempClientFactory.Builder();
@@ -74,8 +73,7 @@ public abstract class BasicAuthSempClientFactory implements SempClientFactory {
         host(), username(), password(), vpnName(), getHttpRequestFactorySupplier());
   }
 
-  @SuppressWarnings("return")
-  private @NonNull SerializableSupplier<HttpRequestFactory> getHttpRequestFactorySupplier() {
+  SerializableSupplier<HttpRequestFactory> getHttpRequestFactorySupplier() {
     SerializableSupplier<HttpRequestFactory> httpRequestSupplier = httpRequestFactorySupplier();
     return httpRequestSupplier != null
         ? httpRequestSupplier

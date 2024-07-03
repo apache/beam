@@ -25,7 +25,7 @@ import com.solacesystems.jcsmp.JCSMPFactory;
 import java.io.IOException;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.solace.data.Semp.Queue;
-import org.apache.beam.sdk.io.solace.utils.SerializableSupplier;
+import org.apache.beam.sdk.util.SerializableSupplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
