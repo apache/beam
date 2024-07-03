@@ -37,10 +37,10 @@ RUN curl -OL https://go.dev/dl/go${go_version}.linux-amd64.tar.gz && \
     rm go${go_version}.linux-amd64.tar.gz
 ENV PATH="${PATH}:/usr/local/go/bin"
 #Install Java
-RUN curl -OL https://cdn.azul.com/zulu/bin/zulu8.70.0.23-ca-jdk8.0.372-linux_x64.tar.gz && \
-    tar -C /usr/local -xzf zulu8.70.0.23-ca-jdk8.0.372-linux_x64.tar.gz && \
-    rm zulu8.70.0.23-ca-jdk8.0.372-linux_x64.tar.gz && \
-    mv /usr/local/zulu8.70.0.23-ca-jdk8.0.372-linux_x64 /usr/local/java
+RUN curl -OL https://cdn.azul.com/zulu/bin/zulu17.50.19-ca-jdk17.0.11-linux_x64.tar.gz && \
+    tar -C /usr/local -xzf zulu17.50.19-ca-jdk17.0.11-linux_x64.tar.gz && \
+    rm zulu17.50.19-ca-jdk17.0.11-linux_x64.tar.gz && \
+    mv /usr/local/zulu17.50.19-ca-jdk17.0.11-linux_x64 /usr/local/java
 ENV PATH="${PATH}:/usr/local/java/bin"
 #Install Gradle
 RUN curl -OL https://services.gradle.org/distributions/gradle-7.3.3-bin.zip && \
