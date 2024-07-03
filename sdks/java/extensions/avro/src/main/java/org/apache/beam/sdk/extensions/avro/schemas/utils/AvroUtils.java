@@ -821,7 +821,7 @@ public class AvroUtils {
         Method method = methods.get(i);
         if (ReflectUtils.isGetter(method)) {
           FieldValueTypeInformation fieldValueTypeInformation =
-              FieldValueTypeInformation.forGetter(method, i);
+              FieldValueTypeInformation.forGetter(typeDescriptor, method, i);
           String name = mapping.get(fieldValueTypeInformation.getName());
           if (name != null) {
             types.add(fieldValueTypeInformation.withName(name));
@@ -871,7 +871,8 @@ public class AvroUtils {
       for (int i = 0; i < classFields.size(); ++i) {
         java.lang.reflect.Field f = classFields.get(i);
         if (!f.isAnnotationPresent(AvroIgnore.class)) {
-          FieldValueTypeInformation typeInformation = FieldValueTypeInformation.forField(f, i);
+          FieldValueTypeInformation typeInformation =
+              FieldValueTypeInformation.forField(typeDescriptor, f, i);
           AvroName avroname = f.getAnnotation(AvroName.class);
           if (avroname != null) {
             typeInformation = typeInformation.withName(avroname.value());

@@ -27,6 +27,7 @@ import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.schemas.annotations.SchemaCaseFormat;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
@@ -126,7 +127,16 @@ public abstract class FieldValueTypeInformation implements Serializable {
   }
 
   public static FieldValueTypeInformation forField(Field field, int index) {
-    TypeDescriptor<?> type = TypeDescriptor.of(field.getGenericType());
+    return forField(null, field, index);
+  }
+
+  public static FieldValueTypeInformation forField(
+      @Nullable TypeDescriptor<?> typeDescriptor, Field field, int index) {
+    TypeDescriptor<?> type =
+        Optional.ofNullable(typeDescriptor)
+            .map(td -> (TypeDescriptor) td.resolveType(field.getGenericType()))
+            // fall back to previous behavior
+            .orElseGet(() -> TypeDescriptor.of(field.getGenericType()));
     return new AutoValue_FieldValueTypeInformation.Builder()
         .setName(getNameOverride(field.getName(), field))
         .setNumber(getNumberOverride(index, field))
@@ -134,9 +144,9 @@ public abstract class FieldValueTypeInformation implements Serializable {
         .setType(type)
         .setRawType(type.getRawType())
         .setField(field)
-        .setElementType(getIterableComponentType(field))
-        .setMapKeyType(getMapKeyType(field))
-        .setMapValueType(getMapValueType(field))
+        .setElementType(getIterableComponentType(type))
+        .setMapKeyType(getMapKeyType(type))
+        .setMapValueType(getMapValueType(type))
         .setOneOfTypes(Collections.emptyMap())
         .setDescription(getFieldDescription(field))
         .build();
@@ -185,6 +195,11 @@ public abstract class FieldValueTypeInformation implements Serializable {
   }
 
   public static FieldValueTypeInformation forGetter(Method method, int index) {
+    return forGetter(null, method, index);
+  }
+
+  public static FieldValueTypeInformation forGetter(
+      @Nullable TypeDescriptor<?> typeDescriptor, Method method, int index) {
     String name;
     if (method.getName().startsWith("get")) {
       name = ReflectUtils.stripPrefix(method.getName(), "get");
@@ -194,7 +209,12 @@ public abstract class FieldValueTypeInformation implements Serializable {
       throw new RuntimeException("Getter has wrong prefix " + method.getName());
     }
 
-    TypeDescriptor<?> type = TypeDescriptor.of(method.getGenericReturnType());
+    TypeDescriptor<?> type =
+        Optional.ofNullable(typeDescriptor)
+            .map(td -> (TypeDescriptor) td.resolveType(method.getGenericReturnType()))
+            // fall back to previous behavior
+            .orElseGet(() -> TypeDescriptor.of(method.getGenericReturnType()));
+
     boolean nullable = hasNullableReturnType(method);
     return new AutoValue_FieldValueTypeInformation.Builder()
         .setName(getNameOverride(name, method))
@@ -253,10 +273,20 @@ public abstract class FieldValueTypeInformation implements Serializable {
   }
 
   public static FieldValueTypeInformation forSetter(Method method) {
-    return forSetter(method, "set");
+    return forSetter(null, method);
   }
 
   public static FieldValueTypeInformation forSetter(Method method, String setterPrefix) {
+    return forSetter(null, method, setterPrefix);
+  }
+
+  public static FieldValueTypeInformation forSetter(
+      @Nullable TypeDescriptor<?> typeDescriptor, Method method) {
+    return forSetter(typeDescriptor, method, "set");
+  }
+
+  public static FieldValueTypeInformation forSetter(
+      @Nullable TypeDescriptor<?> typeDescriptor, Method method, String setterPrefix) {
     String name;
     if (method.getName().startsWith(setterPrefix)) {
       name = ReflectUtils.stripPrefix(method.getName(), setterPrefix);
@@ -264,7 +294,11 @@ public abstract class FieldValueTypeInformation implements Serializable {
       throw new RuntimeException("Setter has wrong prefix " + method.getName());
     }
 
-    TypeDescriptor<?> type = TypeDescriptor.of(method.getGenericParameterTypes()[0]);
+    TypeDescriptor<?> type =
+        Optional.ofNullable(typeDescriptor)
+            .map(td -> (TypeDescriptor) td.resolveType(method.getGenericParameterTypes()[0]))
+            // fall back to previous behavior
+            .orElseGet(() -> TypeDescriptor.of(method.getGenericParameterTypes()[0]));
     boolean nullable = hasSingleNullableParameter(method);
     return new AutoValue_FieldValueTypeInformation.Builder()
         .setName(name)
@@ -281,10 +315,6 @@ public abstract class FieldValueTypeInformation implements Serializable {
 
   public FieldValueTypeInformation withName(String name) {
     return toBuilder().setName(name).build();
-  }
-
-  private static FieldValueTypeInformation getIterableComponentType(Field field) {
-    return getIterableComponentType(TypeDescriptor.of(field.getGenericType()));
   }
 
   static @Nullable FieldValueTypeInformation getIterableComponentType(TypeDescriptor<?> valueType) {
@@ -306,23 +336,13 @@ public abstract class FieldValueTypeInformation implements Serializable {
         .build();
   }
 
-  // If the Field is a map type, returns the key type, otherwise returns a null reference.
-
-  private static @Nullable FieldValueTypeInformation getMapKeyType(Field field) {
-    return getMapKeyType(TypeDescriptor.of(field.getGenericType()));
-  }
-
+  // If the type is a map type, returns the key type, otherwise returns a null reference.
   private static @Nullable FieldValueTypeInformation getMapKeyType(
       TypeDescriptor<?> typeDescriptor) {
     return getMapType(typeDescriptor, 0);
   }
 
-  // If the Field is a map type, returns the value type, otherwise returns a null reference.
-
-  private static @Nullable FieldValueTypeInformation getMapValueType(Field field) {
-    return getMapType(TypeDescriptor.of(field.getGenericType()), 1);
-  }
-
+  // If the type is a map type, returns the value type, otherwise returns a null reference.
   private static @Nullable FieldValueTypeInformation getMapValueType(
       TypeDescriptor<?> typeDescriptor) {
     return getMapType(typeDescriptor, 1);
