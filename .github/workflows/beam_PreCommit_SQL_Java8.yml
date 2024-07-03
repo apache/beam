@@ -13,16 +13,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: PreCommit SQL Java11
+name: PreCommit SQL Java8
 
 on:
   push:
     tags: ['v*']
     branches: ['master', 'release-*']
-    paths: ['sdks/java/extensions/sql/**','.github/workflows/beam_PreCommit_SQL_Java11.yml']
+    paths: ['sdks/java/extensions/sql/**','.github/workflows/beam_PreCommit_SQL_Java8.yml']
   pull_request_target:
     branches: ['master', 'release-*']
-    paths: ['sdks/java/extensions/sql/**', 'release/trigger_all_tests.json', '.github/trigger_files/beam_PreCommit_SQL_Java11.json']
+    paths: ['sdks/java/extensions/sql/**', 'release/trigger_all_tests.json', '.github/trigger_files/beam_PreCommit_SQL_Java8.json']
   issue_comment:
     types: [created]
   schedule:
@@ -56,20 +56,20 @@ permissions:
   statuses: read
 
 jobs:
-  beam_PreCommit_SQL_Java11:
+  beam_PreCommit_SQL_Java8:
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     runs-on: [self-hosted, ubuntu-20.04, main]
     strategy:
       matrix:
-        job_name: [beam_PreCommit_SQL_Java11]
-        job_phrase: [Run SQL_Java11 PreCommit]
+        job_name: [beam_PreCommit_SQL_Java8]
+        job_phrase: [Run SQL_Java8 PreCommit]
     timeout-minutes: 120
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
-      github.event.comment.body == 'Run SQL_Java11 PreCommit'
+      github.event.comment.body == 'Run SQL_Java8 PreCommit'
     steps:
       - uses: actions/checkout@v4
       - name: Setup repository
@@ -81,7 +81,9 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          java-version: 11
+          java-version: |
+            8
+            11
           python-version: default
           go-version: default
       - name: Install Flutter
@@ -96,9 +98,9 @@ jobs:
           arguments: |
             -PdisableSpotlessCheck=true \
             -PdisableCheckStyle=true \
-            -PtestJavaVersion=11 \
+            -PtestJavaVersion=8 \
             -PskipCheckerFramework \
-            -Pjava11Home=$JAVA_HOME_11_X64 \
+            -Pjava8Home=$JAVA_HOME_8_X64 \
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v4
         if: ${{ !success() }}
