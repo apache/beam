@@ -85,7 +85,7 @@ class WatermarkManager(object):
             input_transform_watermarks)
 
   def get_watermarks(
-      self, applied_ptransform: AppliedPTransform) -> _TransformWatermarks:
+      self, applied_ptransform: AppliedPTransform) -> '_TransformWatermarks':
     """Gets the input and output watermarks for an AppliedPTransform.
 
     If the applied_ptransform has not processed any elements, return a
@@ -213,7 +213,7 @@ class _TransformWatermarks(object):
     self._label = str(transform)
 
   def update_input_transform_watermarks(
-      self, input_transform_watermarks: List[_TransformWatermarks]) -> None:
+      self, input_transform_watermarks: List['_TransformWatermarks']) -> None:
     with self._lock:
       self._input_transform_watermarks = input_transform_watermarks
 

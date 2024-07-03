@@ -23,7 +23,6 @@
 import uuid
 from threading import Lock
 from threading import Timer
-from typing import TYPE_CHECKING
 from typing import Any
 from typing import Iterable
 from typing import Optional
@@ -32,6 +31,7 @@ import apache_beam as beam
 from apache_beam import TimeDomain
 from apache_beam import pvalue
 from apache_beam.coders import typecoders
+from apache_beam.io.iobase import WatermarkEstimator
 from apache_beam.pipeline import AppliedPTransform
 from apache_beam.pipeline import PTransformOverride
 from apache_beam.runners.common import DoFnContext
@@ -46,9 +46,6 @@ from apache_beam.transforms.core import ProcessContinuation
 from apache_beam.transforms.ptransform import PTransform
 from apache_beam.transforms.trigger import _ReadModifyWriteStateTag
 from apache_beam.utils.windowed_value import WindowedValue
-
-if TYPE_CHECKING:
-  from apache_beam.iobase import WatermarkEstimator
 
 
 class SplittableParDoOverride(PTransformOverride):

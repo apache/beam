@@ -31,21 +31,21 @@ from typing import Optional
 from typing import Tuple
 from typing import Union
 
+from apache_beam import pvalue
+from apache_beam.pipeline import AppliedPTransform
 from apache_beam.runners.direct.direct_metrics import DirectMetrics
 from apache_beam.runners.direct.executor import TransformExecutor
 from apache_beam.runners.direct.watermark_manager import WatermarkManager
 from apache_beam.transforms import sideinputs
 from apache_beam.transforms.trigger import InMemoryUnmergedState
 from apache_beam.utils import counters
+from apache_beam.utils.timestamp import Timestamp
 
 if TYPE_CHECKING:
-  from apache_beam import pvalue
-  from apache_beam.pipeline import AppliedPTransform
   from apache_beam.runners.direct.bundle_factory import BundleFactory, _Bundle
   from apache_beam.runners.direct.util import TimerFiring
   from apache_beam.runners.direct.util import TransformResult
   from apache_beam.runners.direct.watermark_manager import _TransformWatermarks
-  from apache_beam.utils.timestamp import Timestamp
 
 
 class _ExecutionContext(object):
@@ -53,7 +53,7 @@ class _ExecutionContext(object):
 
   It holds the watermarks for that transform, as well as keyed states.
   """
-  def __init__(self, watermarks: _TransformWatermarks, keyed_states):
+  def __init__(self, watermarks: '_TransformWatermarks', keyed_states):
     self.watermarks = watermarks
     self.keyed_states = keyed_states
 
@@ -88,7 +88,7 @@ class _SideInputsContainer(object):
   It provides methods for blocking until a side-input is available and writing
   to a side input.
   """
-  def __init__(self, side_inputs: Iterable[pvalue.AsSideInput]) -> None:
+  def __init__(self, side_inputs: Iterable['pvalue.AsSideInput']) -> None:
     self._lock = threading.Lock()
     self._views: Dict[pvalue.AsSideInput, _SideInputView] = {}
     self._transform_to_side_inputs: DefaultDict[
@@ -228,7 +228,7 @@ class EvaluationContext(object):
   def __init__(
       self,
       pipeline_options,
-      bundle_factory: BundleFactory,
+      bundle_factory: 'BundleFactory',
       root_transforms,
       value_to_consumers,
       step_names,
@@ -283,9 +283,9 @@ class EvaluationContext(object):
 
   def handle_result(
       self,
-      completed_bundle: _Bundle,
+      completed_bundle: '_Bundle',
       completed_timers,
-      result: TransformResult):
+      result: 'TransformResult'):
     """Handle the provided result produced after evaluating the input bundle.
 
     Handle the provided TransformResult, produced after evaluating
@@ -339,7 +339,7 @@ class EvaluationContext(object):
       return committed_bundles
 
   def _update_side_inputs_container(
-      self, committed_bundles: Iterable[_Bundle], result: TransformResult):
+      self, committed_bundles: Iterable['_Bundle'], result: 'TransformResult'):
     """Update the side inputs container if we are outputting into a side input.
 
     Look at the result, and if it's outputing into a PCollection that we have
@@ -367,9 +367,9 @@ class EvaluationContext(object):
 
   def _commit_bundles(
       self,
-      uncommitted_bundles: Iterable[_Bundle],
-      unprocessed_bundles: Iterable[_Bundle]
-  ) -> Tuple[Tuple[_Bundle, ...], Tuple[_Bundle, ...]]:
+      uncommitted_bundles: Iterable['_Bundle'],
+      unprocessed_bundles: Iterable['_Bundle']
+  ) -> Tuple[Tuple['_Bundle', ...], Tuple['_Bundle', ...]]:
     """Commits bundles and returns a immutable set of committed bundles."""
     for in_progress_bundle in uncommitted_bundles:
       producing_applied_ptransform = in_progress_bundle.pcollection.producer
@@ -389,18 +389,18 @@ class EvaluationContext(object):
 
   def create_bundle(
       self, output_pcollection: Union[pvalue.PBegin,
-                                      pvalue.PCollection]) -> _Bundle:
+                                      pvalue.PCollection]) -> '_Bundle':
     """Create an uncommitted bundle for the specified PCollection."""
     return self._bundle_factory.create_bundle(output_pcollection)
 
   def create_empty_committed_bundle(
-      self, output_pcollection: pvalue.PCollection) -> _Bundle:
+      self, output_pcollection: pvalue.PCollection) -> '_Bundle':
     """Create empty bundle useful for triggering evaluation."""
     return self._bundle_factory.create_empty_committed_bundle(
         output_pcollection)
 
   def extract_all_timers(
-      self) -> Tuple[List[Tuple[AppliedPTransform, List[TimerFiring]]], bool]:
+      self) -> Tuple[List[Tuple[AppliedPTransform, List['TimerFiring']]], bool]:
     return self._watermark_manager.extract_all_timers()
 
   def is_done(self, transform: Optional[AppliedPTransform] = None) -> bool:
