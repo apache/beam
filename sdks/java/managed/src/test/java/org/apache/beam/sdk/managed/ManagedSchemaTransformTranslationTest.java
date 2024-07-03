@@ -25,10 +25,9 @@ import static org.apache.beam.model.pipeline.v1.ExternalTransforms.ExpansionMeth
 import static org.apache.beam.model.pipeline.v1.ExternalTransforms.SchemaTransformPayload;
 import static org.apache.beam.sdk.managed.ManagedSchemaTransformProvider.ManagedConfig;
 import static org.apache.beam.sdk.managed.ManagedSchemaTransformProvider.ManagedSchemaTransform;
-import static org.apache.beam.sdk.managed.ManagedSchemaTransformTranslation.ManagedSchemaTransformTranslator;
+import static org.apache.beam.sdk.schemas.transforms.SchemaTransformTranslation.SchemaTransformPayloadTranslator;
 import static org.apache.beam.sdk.util.construction.PTransformTranslation.MANAGED_TRANSFORM_URN;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 
 import java.net.URISyntaxException;
@@ -44,6 +43,7 @@ import org.apache.beam.sdk.managed.testing.TestSchemaTransformProvider;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
+import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.utils.YamlUtils;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.util.CoderUtils;
@@ -58,6 +58,8 @@ import org.junit.Test;
 
 public class ManagedSchemaTransformTranslationTest {
   static final ManagedSchemaTransformProvider PROVIDER = new ManagedSchemaTransformProvider(null);
+  static final SchemaTransformPayloadTranslator TRANSLATOR =
+      new SchemaTransformPayloadTranslator(PROVIDER);
 
   @Test
   public void testReCreateTransformFromRowWithConfigUrl() throws URISyntaxException {
@@ -75,17 +77,17 @@ public class ManagedSchemaTransformTranslationTest {
     ManagedSchemaTransform originalTransform =
         (ManagedSchemaTransform) PROVIDER.from(originalConfig);
 
-    ManagedSchemaTransformTranslator translator = new ManagedSchemaTransformTranslator();
-    Row configRow = translator.toConfigRow(originalTransform);
+    Row configRow = TRANSLATOR.toConfigRow(originalTransform);
 
-    ManagedSchemaTransform transformFromRow =
-        translator.fromConfigRow(configRow, PipelineOptionsFactory.create());
-    ManagedConfig configFromRow = transformFromRow.getManagedConfig();
+    SchemaTransform translatedTransform =
+        TRANSLATOR.fromConfigRow(configRow, PipelineOptionsFactory.create());
+    Row translatedConfigRow = translatedTransform.getConfigurationRow();
 
-    assertNotNull(transformFromRow.getManagedConfig());
-    assertEquals(originalConfig.getTransformIdentifier(), configFromRow.getTransformIdentifier());
-    assertEquals(originalConfig.getConfigUrl(), configFromRow.getConfigUrl());
-    assertNull(configFromRow.getConfig());
+    assertEquals(
+        originalConfig.getTransformIdentifier(),
+        translatedConfigRow.getValue("transform_identifier"));
+    assertEquals(originalConfig.getConfigUrl(), translatedConfigRow.getValue("config_url"));
+    assertNull(translatedConfigRow.getValue("config"));
   }
 
   @Test
@@ -101,17 +103,17 @@ public class ManagedSchemaTransformTranslationTest {
     ManagedSchemaTransform originalTransform =
         (ManagedSchemaTransform) PROVIDER.from(originalConfig);
 
-    ManagedSchemaTransformTranslator translator = new ManagedSchemaTransformTranslator();
-    Row configRow = translator.toConfigRow(originalTransform);
+    Row configRow = TRANSLATOR.toConfigRow(originalTransform);
 
-    ManagedSchemaTransform transformFromRow =
-        translator.fromConfigRow(configRow, PipelineOptionsFactory.create());
-    ManagedConfig configFromRow = transformFromRow.getManagedConfig();
+    SchemaTransform translatedTransform =
+        TRANSLATOR.fromConfigRow(configRow, PipelineOptionsFactory.create());
+    Row translatedConfigRow = translatedTransform.getConfigurationRow();
 
-    assertNotNull(transformFromRow.getManagedConfig());
-    assertEquals(originalConfig.getTransformIdentifier(), configFromRow.getTransformIdentifier());
-    assertEquals(configFromRow.getConfig(), yamlString);
-    assertNull(originalConfig.getConfigUrl());
+    assertEquals(
+        originalConfig.getTransformIdentifier(),
+        translatedConfigRow.getValue("transform_identifier"));
+    assertEquals(originalConfig.getConfig(), translatedConfigRow.getValue("config"));
+    assertNull(translatedConfigRow.getValue("config_url"));
   }
 
   @Test
@@ -207,14 +209,14 @@ public class ManagedSchemaTransformTranslationTest {
     assertEquals(expectedRow, rowFromSpec);
 
     // Use the information in the proto to recreate the ManagedSchemaTransform
-    ManagedSchemaTransformTranslator translator = new ManagedSchemaTransformTranslator();
-    ManagedSchemaTransform transformFromSpec =
-        translator.fromConfigRow(rowFromSpec, PipelineOptionsFactory.create());
+    SchemaTransform translatedTransform =
+        TRANSLATOR.fromConfigRow(rowFromSpec, PipelineOptionsFactory.create());
+    Row translatedConfigRow = translatedTransform.getConfigurationRow();
 
     assertEquals(
         TestSchemaTransformProvider.IDENTIFIER,
-        transformFromSpec.getManagedConfig().getTransformIdentifier());
-    assertEquals(yamlStringConfig, transformFromSpec.getManagedConfig().getConfig());
-    assertNull(transformFromSpec.getManagedConfig().getConfigUrl());
+        translatedConfigRow.getValue("transform_identifier"));
+    assertEquals(yamlStringConfig, translatedConfigRow.getValue("config"));
+    assertNull(translatedConfigRow.getValue("config_url"));
   }
 }

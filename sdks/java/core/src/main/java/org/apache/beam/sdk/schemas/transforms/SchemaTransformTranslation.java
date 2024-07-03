@@ -23,6 +23,9 @@ import static org.apache.beam.sdk.util.construction.PTransformTranslation.Transf
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.ServiceLoader;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.model.pipeline.v1.SchemaApi;
 import org.apache.beam.sdk.coders.RowCoder;
@@ -36,13 +39,24 @@ import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * A {@link TransformPayloadTranslator} implementation that translates between a Java {@link
- * SchemaTransform} and a protobuf payload for that transform.
+ * A default {@link TransformPayloadTranslator} implementation for {@link SchemaTransform}s.
+ *
+ * <p>Note: This is only eligible for registered SchemaTransform instances (using {@link
+ * SchemaTransform#register(Row, String)} or {@link TypedSchemaTransformProvider#register(Object,
+ * SchemaTransform)}).
  */
 public class SchemaTransformTranslation {
-  public abstract static class SchemaTransformPayloadTranslator<T extends SchemaTransform>
-      implements TransformPayloadTranslator<T> {
-    public abstract SchemaTransformProvider provider();
+  public static class SchemaTransformPayloadTranslator
+      implements TransformPayloadTranslator<SchemaTransform> {
+    private final SchemaTransformProvider provider;
+
+    public String identifier() {
+      return provider.identifier();
+    }
+
+    public SchemaTransformPayloadTranslator(SchemaTransformProvider provider) {
+      this.provider = provider;
+    }
 
     @Override
     public String getUrn() {
@@ -52,18 +66,19 @@ public class SchemaTransformTranslation {
     @Override
     @SuppressWarnings("argument")
     public @Nullable FunctionSpec translate(
-        AppliedPTransform<?, ?, T> application, SdkComponents components) throws IOException {
+        AppliedPTransform<?, ?, SchemaTransform> application, SdkComponents components)
+        throws IOException {
       SchemaApi.Schema expansionSchema =
-          SchemaTranslation.schemaToProto(provider().configurationSchema(), true);
+          SchemaTranslation.schemaToProto(provider.configurationSchema(), true);
       Row configRow = toConfigRow(application.getTransform());
       ByteArrayOutputStream os = new ByteArrayOutputStream();
-      RowCoder.of(provider().configurationSchema()).encode(configRow, os);
+      RowCoder.of(provider.configurationSchema()).encode(configRow, os);
 
       return FunctionSpec.newBuilder()
           .setUrn(getUrn())
           .setPayload(
               ExternalTransforms.SchemaTransformPayload.newBuilder()
-                  .setIdentifier(provider().identifier())
+                  .setIdentifier(provider.identifier())
                   .setConfigurationSchema(expansionSchema)
                   .setConfigurationRow(ByteString.copyFrom(os.toByteArray()))
                   .build()
@@ -72,8 +87,21 @@ public class SchemaTransformTranslation {
     }
 
     @Override
-    public T fromConfigRow(Row configRow, PipelineOptions options) {
-      return (T) provider().from(configRow);
+    public Row toConfigRow(SchemaTransform transform) {
+      return transform.getConfigurationRow();
     }
+
+    @Override
+    public SchemaTransform fromConfigRow(Row configRow, PipelineOptions options) {
+      return provider.from(configRow);
+    }
+  }
+
+  public static Map<String, SchemaTransformPayloadTranslator> getDefaultTranslators() {
+    Map<String, SchemaTransformPayloadTranslator> translators = new HashMap<>();
+    for (SchemaTransformProvider provider : ServiceLoader.load(SchemaTransformProvider.class)) {
+      translators.put(provider.identifier(), new SchemaTransformPayloadTranslator(provider));
+    }
+    return translators;
   }
 }

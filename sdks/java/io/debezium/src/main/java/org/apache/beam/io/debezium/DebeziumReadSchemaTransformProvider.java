@@ -26,7 +26,9 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.coders.RowCoder;
+import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
@@ -174,6 +176,7 @@ public class DebeziumReadSchemaTransformProvider
     return Collections.singletonList("output");
   }
 
+  @DefaultSchema(AutoValueSchema.class)
   @AutoValue
   public abstract static class DebeziumReadSchemaTransformConfiguration {
     public abstract String getUsername();
