@@ -82,8 +82,7 @@ jobs:
             8
       - name: run jar Java${{ matrix.java_version }} script
         run: |
-          ./gradlew :runners:direct-java:shadowJar :runners:direct-java:shadowTestJar \
-          -Dorg.gradle.java.home=$JAVA_HOME_8_X64
+          ./gradlew :runners:direct-java:shadowJar :runners:direct-java:shadowTestJar
       - name: run validatesRunner Java${{ matrix.java_version }} script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
