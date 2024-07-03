@@ -621,15 +621,18 @@ class BeamModulePlugin implements Plugin<Project> {
     def jaxb_api_version = "2.3.3"
     def jsr305_version = "3.0.2"
     def everit_json_version = "1.14.2"
+    def iceberg_version = "1.4.2"
     def kafka_version = "2.4.1"
     def log4j2_version = "2.20.0"
     def nemo_version = "0.1"
     // [bomupgrader] determined by: io.grpc:grpc-netty, consistent with: google_cloud_platform_libraries_bom
     def netty_version = "4.1.100.Final"
+    def parquet_version = "1.12.0"
     def postgres_version = "42.2.16"
     def powermock_version = "2.0.9"
     // [bomupgrader] determined by: com.google.protobuf:protobuf-java, consistent with: google_cloud_platform_libraries_bom
     def protobuf_version = "3.25.3"
+    def orc_version = "1.9.2"
     def qpid_jms_client_version = "0.61.0"
     def quickcheck_version = "1.0"
     def sbe_tool_version = "1.25.1"
@@ -804,6 +807,12 @@ class BeamModulePlugin implements Plugin<Project> {
         hamcrest                                    : "org.hamcrest:hamcrest:$hamcrest_version",
         http_client                                 : "org.apache.httpcomponents:httpclient:$httpclient_version",
         http_core                                   : "org.apache.httpcomponents:httpcore:$httpcore_version",
+        iceberg_core                                : "org.apache.iceberg:iceberg-core:$iceberg_version",
+        iceberg_api                                 : "org.apache.iceberg:iceberg-api:$iceberg_version",
+        iceberg_data                                : "org.apache.iceberg:iceberg-data:$iceberg_version",
+        iceberg_gcp                                 : "org.apache.iceberg:iceberg-gcp:$iceberg_version",
+        iceberg_parquet                             : "org.apache.iceberg:iceberg-parquet:$iceberg_version",
+        iceberg_orc                                 : "org.apache.iceberg:iceberg-orc:$iceberg_version",
         influxdb_library                            : "org.influxdb:influxdb-java:$influxdb_version",
         jackson_annotations                         : "com.fasterxml.jackson.core:jackson-annotations:$jackson_version",
         jackson_jaxb_annotations                    : "com.fasterxml.jackson.module:jackson-module-jaxb-annotations:$jackson_version",
@@ -848,6 +857,8 @@ class BeamModulePlugin implements Plugin<Project> {
         netty_tcnative_boringssl_static             : "io.netty:netty-tcnative-boringssl-static:2.0.52.Final",
         netty_transport                             : "io.netty:netty-transport:$netty_version",
         netty_transport_native_epoll                : "io.netty:netty-transport-native-epoll:$netty_version",
+        orc_core                                    : "org.apache.orc:orc-core:$orc_version",
+        parquet_column                              : "org.apache.parquet:parquet-column:$parquet_version",
         postgres                                    : "org.postgresql:postgresql:$postgres_version",
         powermock                                   : "org.powermock:powermock-module-junit4:$powermock_version",
         powermock_mockito                           : "org.powermock:powermock-api-mockito2:$powermock_version",

@@ -23,7 +23,8 @@ import java.util.stream.Collectors
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
         automaticModuleName: 'org.apache.beam.sdk.io.iceberg',
-        shadowClosure: {}
+        shadowClosure: {},
+        validateShadowJar: false,
 )
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Iceberg"
