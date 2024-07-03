@@ -19,6 +19,10 @@ import logging
 import threading
 import time
 import warnings
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Union
 
 import pandas as pd
 
@@ -75,21 +79,19 @@ class ElementStream:
     """Returns a unique id able to be displayed in a web browser."""
     return utils.obfuscate(self._cache_key, suffix)
 
-  def is_computed(self) -> boolean:
+  def is_computed(self) -> bool:
     # noqa: F821
 
     """Returns True if no more elements will be recorded."""
     return self._pcoll in ie.current_env().computed_pcollections
 
-  def is_done(self) -> boolean:
+  def is_done(self) -> bool:
     # noqa: F821
 
     """Returns True if no more new elements will be yielded."""
     return self._done
 
-  def read(self, tail: boolean = True) -> Any:
-    # noqa: F821
-
+  def read(self, tail: bool = True) -> Any:
     """Reads the elements currently recorded."""
 
     # Get the cache manager and wait until the file exists.
@@ -147,7 +149,7 @@ class Recording:
       self,
       user_pipeline: beam.Pipeline,
       pcolls: List[beam.pvalue.PCollection], # noqa: F821
-      result: beam.runner.PipelineResult,
+      result: 'beam.runner.PipelineResult',
       max_n: int,
       max_duration_secs: float,
       ):
@@ -205,9 +207,7 @@ class Recording:
     if self._result.state is PipelineState.DONE and self._set_computed:
       ie.current_env().mark_pcollection_computed(self._pcolls)
 
-  def is_computed(self) -> boolean:
-    # noqa: F821
-
+  def is_computed(self) -> bool:
     """Returns True if all PCollections are computed."""
     return all(s.is_computed() for s in self._streams.values())
 
@@ -240,7 +240,7 @@ class Recording:
     self._mark_computed.join()
     return self._result.state
 
-  def describe(self) -> dict[str, int]:
+  def describe(self) -> Dict[str, int]:
     """Returns a dictionary describing the cache and recording."""
     cache_manager = ie.current_env().get_cache_manager(self._user_pipeline)
 
@@ -255,7 +255,7 @@ class RecordingManager:
       self,
       user_pipeline: beam.Pipeline,
       pipeline_var: str = None,
-      test_limiters: list[Limiter] = None) -> None:
+      test_limiters: List['Limiter'] = None) -> None:
     # noqa: F821
 
     self.user_pipeline: beam.Pipeline = user_pipeline
@@ -336,7 +336,7 @@ class RecordingManager:
     # evict the BCJ after they complete.
     ie.current_env().evict_background_caching_job(self.user_pipeline)
 
-  def describe(self) -> dict[str, int]:
+  def describe(self) -> Dict[str, int]:
     """Returns a dictionary describing the cache and recording."""
 
     cache_manager = ie.current_env().get_cache_manager(self.user_pipeline)

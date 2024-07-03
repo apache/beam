@@ -36,6 +36,7 @@ from apache_beam import coders
 from apache_beam import io
 from apache_beam import pvalue
 from apache_beam.internal import pickler
+from apache_beam.pipeline import AppliedPTransform
 from apache_beam.runners import common
 from apache_beam.runners.common import DoFnRunner
 from apache_beam.runners.common import DoFnState
@@ -77,7 +78,6 @@ from apache_beam.utils.timestamp import Timestamp
 if TYPE_CHECKING:
   from apache_beam.io.gcp.pubsub import _PubSubSource
   from apache_beam.io.gcp.pubsub import PubsubMessage
-  from apache_beam.pipeline import AppliedPTransform
   from apache_beam.runners.direct.evaluation_context import EvaluationContext
 
 _LOGGER = logging.getLogger(__name__)
@@ -90,9 +90,9 @@ class TransformEvaluatorRegistry(object):
   """
 
   _test_evaluators_overrides: Dict[Type[core.PTransform],
-                                   Type[_TransformEvaluator]] = {}
+                                   Type['_TransformEvaluator']] = {}
 
-  def __init__(self, evaluation_context: EvaluationContext) -> None:
+  def __init__(self, evaluation_context: 'EvaluationContext') -> None:
     assert evaluation_context
     self._evaluation_context = evaluation_context
     self._evaluators: Dict[Type[core.PTransform], Type[_TransformEvaluator]] = {
@@ -232,7 +232,7 @@ class _TransformEvaluator(object):
   """An evaluator of a specific application of a transform."""
   def __init__(
       self,
-      evaluation_context: EvaluationContext,
+      evaluation_context: 'EvaluationContext',
       applied_ptransform: AppliedPTransform,
       input_committed_bundle,
       side_inputs):
@@ -652,7 +652,7 @@ class _PubSubReadEvaluator(_TransformEvaluator):
     pass
 
   def _read_from_pubsub(
-      self, timestamp_attribute) -> List[Tuple[Timestamp, PubsubMessage]]:
+      self, timestamp_attribute) -> List[Tuple[Timestamp, 'PubsubMessage']]:
     from apache_beam.io.gcp.pubsub import PubsubMessage
     from google.cloud import pubsub
 
@@ -794,7 +794,7 @@ class _ParDoEvaluator(_TransformEvaluator):
   """TransformEvaluator for ParDo transform."""
   def __init__(
       self,
-      evaluation_context: EvaluationContext,
+      evaluation_context: 'EvaluationContext',
       applied_ptransform: AppliedPTransform,
       input_committed_bundle,
       side_inputs,
