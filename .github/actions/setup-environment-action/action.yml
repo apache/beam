@@ -55,6 +55,8 @@ runs:
         cache-read-only: ${{ inputs.disable-cache }}
     - name: Install Go
       if: ${{ inputs.go-version != '' }}
-      uses: actions/setup-go@v3
+      uses: actions/setup-go@v5
       with:
-        go-version: ${{ inputs.go-version == 'default' && '1.21' || inputs.go-version }} # never set patch, to get latest patch releases.
+        go-version: ${{ inputs.go-version == 'default' && '1.22' || inputs.go-version }} # never set patch, to get latest patch releases.
+        cache-dependency-path: |
+          sdks/go.sum
