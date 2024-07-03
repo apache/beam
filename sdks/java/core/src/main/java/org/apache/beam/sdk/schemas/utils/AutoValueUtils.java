@@ -25,7 +25,9 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Parameter;
+import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.lang.reflect.TypeVariable;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -70,45 +72,55 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /** Utilities for managing AutoValue schemas. */
 @SuppressWarnings({"rawtypes"})
 public class AutoValueUtils {
+  @SuppressWarnings("unchecked")
   public static @Nullable TypeDescriptor<?> getBaseAutoValueClass(
       TypeDescriptor<?> typeDescriptor) {
     // AutoValue extensions may be nested
     @Nullable TypeDescriptor<?> baseTypeDescriptor = typeDescriptor;
     while (baseTypeDescriptor != null
         && baseTypeDescriptor.getRawType().getName().contains("AutoValue_")) {
+      TypeDescriptor<?> finalBaseTypeDescriptor = baseTypeDescriptor;
       baseTypeDescriptor =
           Optional.ofNullable(baseTypeDescriptor.getRawType().getSuperclass())
-              .map(TypeDescriptor::of)
+              .map(superClass -> finalBaseTypeDescriptor.getSupertype((Class) superClass))
               .orElse(null);
     }
     return baseTypeDescriptor;
   }
 
-  private static TypeDescriptor<?> getAutoValueGenerated(TypeDescriptor<?> typeDescriptor) {
+  @SuppressWarnings("unchecked")
+  public static TypeDescriptor<?> getAutoValueGenerated(TypeDescriptor<?> typeDescriptor) {
     String generatedClassName = getAutoValueGeneratedName(typeDescriptor.getRawType().getName());
     try {
-      return TypeDescriptor.of(Class.forName(generatedClassName));
+      return typeDescriptor.getSubtype((Class) Class.forName(generatedClassName));
     } catch (ClassNotFoundException e) {
       throw new IllegalStateException("AutoValue generated class not found: " + generatedClassName);
     }
   }
 
-  private static @Nullable Class getAutoValueGeneratedBuilder(Class<?> clazz) {
-    Class generated;
+  public static @Nullable TypeDescriptor<?> getAutoValueGeneratedBuilder(
+      TypeDescriptor<?> typeDescriptor) {
+    TypeDescriptor generated = getAutoValueGenerated(typeDescriptor);
+    String builderName = generated.getRawType().getName() + "$Builder";
     try {
-      generated = Class.forName(getAutoValueGeneratedName(clazz.getName()));
-    } catch (ClassNotFoundException e) {
-      return null;
-    }
-    // Find the first generated class
-    Class base = generated;
-    while (base != null && base.getName().contains("AutoValue_")) {
-      generated = base;
-      base = base.getSuperclass();
-    }
-    String builderName = generated.getName() + "$Builder";
-    try {
-      return Class.forName(builderName);
+      Class builderClass = Class.forName(builderName);
+      Type genericSuperClass = builderClass.getGenericSuperclass();
+      if (builderClass.getTypeParameters().length != 0 && genericSuperClass != null) {
+        // we need to get hold of a parameterized type version of the builder class - here's one way
+        // of doing it:
+        TypeDescriptor resolved = TypeDescriptor.of(genericSuperClass).getSubtype(builderClass);
+        for (int i = 0; i < builderClass.getTypeParameters().length; i++) {
+          TypeVariable typeVariable = builderClass.getTypeParameters()[i];
+          Type actualType =
+              ((ParameterizedType) typeDescriptor.getType()).getActualTypeArguments()[i];
+          // Autovalue's builder's type variables correspond 1:1 to their enclosing class' signature
+          // even to the point of having the same name, let's blindly unify them
+          resolved = resolved.where(typeVariable, actualType);
+        }
+        return resolved;
+      } else {
+        return TypeDescriptor.of(builderClass);
+      }
     } catch (ClassNotFoundException e) {
       return null;
     }
@@ -199,23 +211,25 @@ public class AutoValueUtils {
    * Try to find an accessible builder class for creating an AutoValue class. Otherwise return null.
    */
   public static @Nullable SchemaUserTypeCreator getBuilderCreator(
-      Class<?> clazz, Schema schema, FieldValueTypeSupplier fieldValueTypeSupplier) {
-    Class<?> builderClass = getAutoValueGeneratedBuilder(clazz);
-    if (builderClass == null) {
+      TypeDescriptor<?> typeDescriptor,
+      Schema schema,
+      FieldValueTypeSupplier fieldValueTypeSupplier) {
+    TypeDescriptor<?> builderTypeDescriptor = getAutoValueGeneratedBuilder(typeDescriptor);
+    if (builderTypeDescriptor == null) {
       return null;
     }
 
     Map<String, FieldValueTypeInformation> setterTypes = new HashMap<>();
 
-    ReflectUtils.getMethods(builderClass).stream()
+    ReflectUtils.getMethods(builderTypeDescriptor.getRawType()).stream()
         .filter(ReflectUtils::isSetter)
-        .map(m -> FieldValueTypeInformation.forSetter(TypeDescriptor.of(builderClass), m))
+        .map(m -> FieldValueTypeInformation.forSetter(builderTypeDescriptor, m))
         .forEach(fv -> setterTypes.putIfAbsent(fv.getName(), fv));
 
     List<FieldValueTypeInformation> setterMethods =
         Lists.newArrayList(); // The builder methods to call in order.
     List<FieldValueTypeInformation> schemaTypes =
-        fieldValueTypeSupplier.get(TypeDescriptor.of(clazz), schema);
+        fieldValueTypeSupplier.get(typeDescriptor, schema);
     for (FieldValueTypeInformation type : schemaTypes) {
       String autoValueFieldName =
           ReflectUtils.stripGetterPrefix(
@@ -227,7 +241,7 @@ public class AutoValueUtils {
       if (setterType == null) {
         throw new RuntimeException(
             "AutoValue builder class "
-                + builderClass
+                + builderTypeDescriptor
                 + " did not contain "
                 + "a setter for "
                 + autoValueFieldName);
@@ -236,11 +250,12 @@ public class AutoValueUtils {
     }
 
     Method buildMethod =
-        ReflectUtils.getMethods(builderClass).stream()
+        ReflectUtils.getMethods(builderTypeDescriptor.getRawType()).stream()
             .filter(m -> m.getName().equals("build"))
             .findAny()
             .orElseThrow(() -> new RuntimeException("No build method in builder"));
-    return createBuilderCreator(builderClass, setterMethods, buildMethod, schema, schemaTypes);
+    return createBuilderCreator(
+        builderTypeDescriptor.getRawType(), setterMethods, buildMethod, schema, schemaTypes);
   }
 
   private static final ByteBuddy BYTE_BUDDY = new ByteBuddy();
