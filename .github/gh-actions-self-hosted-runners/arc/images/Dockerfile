@@ -31,7 +31,7 @@ RUN curl -OL https://nodejs.org/dist/v18.16.0/node-v18.16.0-linux-x64.tar.xz && 
     mv /usr/local/node-v18.16.0-linux-x64 /usr/local/node
 ENV PATH="${PATH}:/usr/local/node/bin"
 #Install Go
-ARG go_version=1.21.0
+ARG go_version=1.22.4
 RUN curl -OL https://go.dev/dl/go${go_version}.linux-amd64.tar.gz && \
     tar -C /usr/local -xzf go${go_version}.linux-amd64.tar.gz && \
     rm go${go_version}.linux-amd64.tar.gz

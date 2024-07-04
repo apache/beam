@@ -736,7 +736,7 @@ class BeamModulePlugin implements Plugin<Project> {
         google_api_common                           : "com.google.api:api-common", // google_cloud_platform_libraries_bom sets version
         google_api_services_bigquery                : "com.google.apis:google-api-services-bigquery:v2-rev20240323-2.0.0",  // [bomupgrader] sets version
         google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev20240310-2.0.0",  // [bomupgrader] sets version
-        google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20240218-$google_clients_version",
+        google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20240624-$google_clients_version",
         google_api_services_healthcare              : "com.google.apis:google-api-services-healthcare:v1-rev20240130-$google_clients_version",
         google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev20220904-$google_clients_version",
         google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20240319-2.0.0",  // [bomupgrader] sets version
@@ -763,7 +763,6 @@ class BeamModulePlugin implements Plugin<Project> {
         google_cloud_vertexai                       : "com.google.cloud:google-cloud-vertexai", // google_cloud_platform_libraries_bom sets version
         google_code_gson                            : "com.google.code.gson:gson:$google_code_gson_version",
         // google-http-client's version is explicitly declared for sdks/java/maven-archetypes/examples
-        // This version should be in line with the one in com.google.cloud:libraries-bom.
         google_http_client                          : "com.google.http-client:google-http-client", // google_cloud_platform_libraries_bom sets version
         google_http_client_apache_v2                : "com.google.http-client:google-http-client-apache-v2", // google_cloud_platform_libraries_bom sets version
         google_http_client_gson                     : "com.google.http-client:google-http-client-gson", // google_cloud_platform_libraries_bom sets version
@@ -776,8 +775,7 @@ class BeamModulePlugin implements Plugin<Project> {
         grpc_alts                                   : "io.grpc:grpc-alts", // google_cloud_platform_libraries_bom sets version
         grpc_api                                    : "io.grpc:grpc-api", // google_cloud_platform_libraries_bom sets version
         grpc_auth                                   : "io.grpc:grpc-auth", // google_cloud_platform_libraries_bom sets version
-        // Once grpc-xds is added to google_cloud_platform_libraries_bom, use google_cloud_platform_libraries_bom instead.
-        grpc_census                                 : "io.grpc:grpc-census:$grpc_version",
+        grpc_census                                 : "io.grpc:grpc-census", // google_cloud_platform_libraries_bom sets version
         grpc_context                                : "io.grpc:grpc-context", // google_cloud_platform_libraries_bom sets version
         grpc_core                                   : "io.grpc:grpc-core", // google_cloud_platform_libraries_bom sets version
         grpc_google_cloud_firestore_v1              : "com.google.api.grpc:grpc-google-cloud-firestore-v1", // google_cloud_platform_libraries_bom sets version
@@ -786,12 +784,11 @@ class BeamModulePlugin implements Plugin<Project> {
         grpc_google_common_protos                   : "com.google.api.grpc:grpc-google-common-protos", // google_cloud_platform_libraries_bom sets version
         grpc_grpclb                                 : "io.grpc:grpc-grpclb", // google_cloud_platform_libraries_bom sets version
         grpc_protobuf                               : "io.grpc:grpc-protobuf", // google_cloud_platform_libraries_bom sets version
-        grpc_protobuf_lite                          : "io.grpc:grpc-protobuf-lite:$grpc_version",
+        grpc_protobuf_lite                          : "io.grpc:grpc-protobuf-lite", // google_cloud_platform_libraries_bom sets version
         grpc_netty                                  : "io.grpc:grpc-netty", // google_cloud_platform_libraries_bom sets version
         grpc_netty_shaded                           : "io.grpc:grpc-netty-shaded", // google_cloud_platform_libraries_bom sets version
         grpc_stub                                   : "io.grpc:grpc-stub", // google_cloud_platform_libraries_bom sets version
-        // Once grpc-xds is added to google_cloud_platform_libraries_bom, use google_cloud_platform_libraries_bom instead.
-        grpc_xds                                    : "io.grpc:grpc-xds:$grpc_version",
+        grpc_xds                                    : "io.grpc:grpc-xds", // google_cloud_platform_libraries_bom sets version
         guava                                       : "com.google.guava:guava:$guava_version",
         guava_testlib                               : "com.google.guava:guava-testlib:$guava_version",
         hadoop_client                               : "org.apache.hadoop:hadoop-client:$hadoop_version",
@@ -822,11 +819,11 @@ class BeamModulePlugin implements Plugin<Project> {
         jaxb_impl                                   : "com.sun.xml.bind:jaxb-impl:$jaxb_api_version",
         jcl_over_slf4j                              : "org.slf4j:jcl-over-slf4j:$slf4j_version",
         jmh_core                                    : "org.openjdk.jmh:jmh-core:$jmh_version",
-        joda_time                                   : "joda-time:joda-time:2.10.10",
+        joda_time                                   : "joda-time:joda-time:2.10.14",
         jsonassert                                  : "org.skyscreamer:jsonassert:1.5.0",
         jsr305                                      : "com.google.code.findbugs:jsr305:$jsr305_version",
         json_org                                    : "org.json:json:20231013", // Keep in sync with everit-json-schema / google_cloud_platform_libraries_bom transitive deps.
-        everit_json_schema                          : "com.github.erosb:everit-json-schema:${everit_json_version}",
+        everit_json_schema                          : "com.github.erosb:everit-json-schema:$everit_json_version",
         junit                                       : "junit:junit:4.13.1",
         jupiter_api                                 : "org.junit.jupiter:junit-jupiter-api:$jupiter_version",
         jupiter_engine                              : "org.junit.jupiter:junit-jupiter-engine:$jupiter_version",
@@ -2226,7 +2223,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
       // This sets the whole project Go version.
       // The latest stable Go version can be checked at https://go.dev/dl/
-      project.ext.goVersion = "go1.21.11"
+      project.ext.goVersion = "go1.22.4"
 
       // Minor TODO: Figure out if we can pull out the GOCMD env variable after goPrepare script
       // completion, and avoid this GOBIN substitution.
