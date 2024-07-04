@@ -68,6 +68,7 @@
 
 * Multiple RunInference instances can now share the same model instance by setting the model_identifier parameter (Python) ([#31665](https://github.com/apache/beam/issues/31665)).
 * Added options to control the number of Storage API multiplexing connections ([#31721](https://github.com/apache/beam/pull/31721))
+* Removed a 3rd party LGPL dependency from the Go SDK ([#31765](https://github.com/apache/beam/issues/31765)).
 
 ## Breaking Changes
 

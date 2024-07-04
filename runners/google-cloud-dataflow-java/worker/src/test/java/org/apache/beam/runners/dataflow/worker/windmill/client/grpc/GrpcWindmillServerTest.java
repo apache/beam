@@ -124,8 +124,16 @@ public class GrpcWindmillServerTest {
 
   @Before
   public void setUp() throws Exception {
-    String name = "Fake server for " + getClass();
+    startServerAndClient(new ArrayList<>());
+  }
 
+  @After
+  public void tearDown() throws Exception {
+    server.shutdownNow();
+  }
+
+  private void startServerAndClient(List<String> experiments) throws Exception {
+    String name = "Fake server for " + getClass();
     this.server =
         InProcessServerBuilder.forName(name)
             .fallbackHandlerRegistry(serviceRegistry)
@@ -136,15 +144,10 @@ public class GrpcWindmillServerTest {
     this.client =
         GrpcWindmillServer.newTestInstance(
             name,
-            new ArrayList<>(),
+            experiments,
             clientId,
             new FakeWindmillStubFactory(
                 () -> grpcCleanup.register(WindmillChannelFactory.inProcessChannel(name))));
-  }
-
-  @After
-  public void tearDown() throws Exception {
-    server.shutdownNow();
   }
 
   private <Stream extends StreamObserver> void maybeInjectError(Stream stream) {
@@ -880,6 +883,11 @@ public class GrpcWindmillServerTest {
   public void testStreamingGetDataHeartbeatsAsKeyedGetDataRequests() throws Exception {
     // This server records the heartbeats observed but doesn't respond.
     final Map<String, List<KeyedGetDataRequest>> getDataHeartbeats = new HashMap<>();
+    // Create a client and server different from the one in SetUp so we can add an experiment to the
+    // options passed in. This requires teardown and re-constructing the client and server
+    tearDown();
+    startServerAndClient(
+        Collections.singletonList("streaming_engine_disable_new_heartbeat_requests"));
 
     serviceRegistry.addService(
         new CloudWindmillServiceV1Alpha1ImplBase() {
@@ -973,21 +981,6 @@ public class GrpcWindmillServerTest {
 
   @Test
   public void testStreamingGetDataHeartbeatsAsHeartbeatRequests() throws Exception {
-    // Create a client and server different from the one in SetUp so we can add an experiment to the
-    // options passed in.
-    this.server =
-        InProcessServerBuilder.forName("TestServer")
-            .fallbackHandlerRegistry(serviceRegistry)
-            .executor(Executors.newFixedThreadPool(1))
-            .build()
-            .start();
-    this.client =
-        GrpcWindmillServer.newTestInstance(
-            "TestServer",
-            Collections.singletonList("streaming_engine_send_new_heartbeat_requests"),
-            clientId,
-            new FakeWindmillStubFactory(
-                () -> WindmillChannelFactory.inProcessChannel("TestServer")));
     // This server records the heartbeats observed but doesn't respond.
     final List<ComputationHeartbeatRequest> receivedHeartbeats = new ArrayList<>();
 

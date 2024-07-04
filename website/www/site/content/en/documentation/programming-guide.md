@@ -1043,6 +1043,7 @@ define your pipeline's exact data processing tasks.
 > **Note:** When you create your `DoFn`, be mindful of the [Requirements
 > for writing user code for Beam transforms](#requirements-for-writing-user-code-for-beam-transforms)
 > and ensure that your code follows them.
+> You should avoid time-consuming operations such as reading large files in `DoFn.Setup`.
 
 {{< paragraph class="language-java">}}
 A `DoFn` processes one element at a time from the input `PCollection`. When you
