@@ -6724,7 +6724,8 @@ define your pipeline&amp;rsquo;s exact data processing tasks.&lt;/p>
 &lt;blockquote>
 &lt;p>&lt;strong>Note:&lt;/strong> When you create your &lt;code>DoFn&lt;/code>, be mindful of the &lt;a href="#requirements-for-writing-user-code-for-beam-transforms">Requirements
 for writing user code for Beam transforms&lt;/a>
-and ensure that your code follows them.&lt;/p>
+and ensure that your code follows them.
+You should avoid time-consuming operations such as reading large files in &lt;code>DoFn.Setup&lt;/code>.&lt;/p>
 &lt;/blockquote>
 &lt;p class="language-java">A &lt;code>DoFn&lt;/code> processes one element at a time from the input &lt;code>PCollection&lt;/code>. When you
 create a subclass of &lt;code>DoFn&lt;/code>, you&amp;rsquo;ll need to provide type parameters that match
