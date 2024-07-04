@@ -254,11 +254,6 @@ public final class GrpcWindmillServer extends WindmillServerStub {
     dispatcherClient.consumeWindmillDispatcherEndpoints(ImmutableSet.copyOf(endpoints));
   }
 
-  @Override
-  public boolean isReady() {
-    return dispatcherClient.hasInitializedEndpoints();
-  }
-
   private synchronized void initializeLocalHost(int port) {
     this.maxBackoff = Duration.millis(500);
     if (options.isEnableStreamingEngine()) {

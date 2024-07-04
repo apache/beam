@@ -33,8 +33,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.dataflow.options.DataflowStreamingPipelineOptions;
-import org.apache.beam.runners.dataflow.worker.MetricTrackingWindmillServerStub;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.GetDataClient;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -70,7 +70,7 @@ public class SideInputStateFetcherTest {
   @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private static final String STATE_FAMILY = "state";
 
-  @Mock private MetricTrackingWindmillServerStub server;
+  @Mock private GetDataClient server;
 
   @Mock private Supplier<Closeable> readStateSupplier;
 

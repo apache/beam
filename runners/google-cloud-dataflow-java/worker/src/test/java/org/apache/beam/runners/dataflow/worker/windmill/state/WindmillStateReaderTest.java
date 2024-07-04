@@ -35,13 +35,13 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Future;
 import org.apache.beam.runners.dataflow.worker.KeyTokenInvalidException;
-import org.apache.beam.runners.dataflow.worker.MetricTrackingWindmillServerStub;
 import org.apache.beam.runners.dataflow.worker.WindmillStateTestUtils;
 import org.apache.beam.runners.dataflow.worker.WindmillTimeUtils;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.SortedListEntry;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.SortedListRange;
+import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.GetDataClient;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -97,7 +97,7 @@ public class WindmillStateReaderTest {
     WindmillStateTestUtils.assertNoReference(obj, WindmillStateReader.class);
   }
 
-  @Mock private MetricTrackingWindmillServerStub mockWindmill;
+  @Mock private GetDataClient mockWindmill;
 
   private WindmillStateReader underTest;
 

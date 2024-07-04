@@ -17,23 +17,23 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill;
 
-import java.io.PrintWriter;
-import org.apache.beam.runners.dataflow.worker.status.StatusDataProvider;
+import org.apache.beam.sdk.annotations.Internal;
 
-/** Stub for communicating with a Windmill server. */
-public abstract class WindmillServerStub
-    implements ApplianceWindmillClient, StreamingEngineWindmillClient, StatusDataProvider {
+/** Client for WindmillService via Streaming Appliance. */
+@Internal
+public interface ApplianceWindmillClient {
+  /** Get a batch of work to process. */
+  Windmill.GetWorkResponse getWork(Windmill.GetWorkRequest request);
 
-  /** Returns the amount of time the server has been throttled and resets the time to 0. */
-  public abstract long getAndResetThrottleTime();
+  /** Get additional data such as state needed to process work. */
+  Windmill.GetDataResponse getData(Windmill.GetDataRequest request);
 
-  @Override
-  public void appendSummaryHtml(PrintWriter writer) {}
+  /** Commit the work, issuing any output productions, state modifications etc. */
+  Windmill.CommitWorkResponse commitWork(Windmill.CommitWorkRequest request);
 
-  /** Generic Exception type for implementors to use to represent errors while making RPCs. */
-  public static final class RpcException extends RuntimeException {
-    public RpcException(Throwable cause) {
-      super(cause);
-    }
-  }
+  /** Get configuration data from the server. */
+  Windmill.GetConfigResponse getConfig(Windmill.GetConfigRequest request);
+
+  /** Report execution information to the server. */
+  Windmill.ReportStatsResponse reportStats(Windmill.ReportStatsRequest request);
 }

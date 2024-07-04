@@ -91,7 +91,6 @@ public final class FakeWindmillServer extends WindmillServerStub {
   private final ConcurrentHashMap<Long, Consumer<Windmill.CommitStatus>> droppedStreamingCommits;
   private int commitsRequested = 0;
   private final List<Windmill.GetDataRequest> getDataRequests = new ArrayList<>();
-  private boolean isReady = true;
   private boolean dropStreamingCommits = false;
   private final Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses;
 
@@ -523,27 +522,13 @@ public final class FakeWindmillServer extends WindmillServerStub {
   }
 
   @Override
-  public void setWindmillServiceEndpoints(Set<HostAndPort> endpoints) {
-    synchronized (this) {
-      this.dispatcherEndpoints = ImmutableSet.copyOf(endpoints);
-      isReady = true;
-    }
+  public synchronized void setWindmillServiceEndpoints(Set<HostAndPort> endpoints) {
+    this.dispatcherEndpoints = ImmutableSet.copyOf(endpoints);
   }
 
   @Override
-  public ImmutableSet<HostAndPort> getWindmillServiceEndpoints() {
-    synchronized (this) {
-      return dispatcherEndpoints;
-    }
-  }
-
-  @Override
-  public boolean isReady() {
-    return isReady;
-  }
-
-  public void setIsReady(boolean ready) {
-    this.isReady = ready;
+  public synchronized ImmutableSet<HostAndPort> getWindmillServiceEndpoints() {
+    return dispatcherEndpoints;
   }
 
   public static class ResponseQueue<T, U> {
