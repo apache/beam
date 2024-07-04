@@ -31,6 +31,7 @@ import java.util.stream.Collectors;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.method.MethodDescription.ForLoadedMethod;
+import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.dynamic.scaffold.InstrumentedType;
 import net.bytebuddy.implementation.FixedValue;
@@ -39,6 +40,7 @@ import net.bytebuddy.implementation.bytecode.ByteCodeAppender;
 import net.bytebuddy.implementation.bytecode.ByteCodeAppender.Size;
 import net.bytebuddy.implementation.bytecode.Removal;
 import net.bytebuddy.implementation.bytecode.StackManipulation;
+import net.bytebuddy.implementation.bytecode.assign.TypeCasting;
 import net.bytebuddy.implementation.bytecode.member.MethodInvocation;
 import net.bytebuddy.implementation.bytecode.member.MethodReturn;
 import net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
@@ -439,6 +441,13 @@ public class JavaBeanUtils {
       return (methodVisitor, implementationContext, instrumentedMethod) -> {
         // this + method parameters.
         int numLocals = 1 + instrumentedMethod.getParameters().size();
+        StackManipulation cast =
+            typeInformation
+                    .getRawType()
+                    .isAssignableFrom(
+                        Preconditions.checkNotNull(typeInformation.getMethod()).getReturnType())
+                ? StackManipulation.Trivial.INSTANCE
+                : TypeCasting.to(TypeDescription.ForLoadedType.of(typeInformation.getRawType()));
 
         // StackManipulation that will read the value from the class field.
         StackManipulation readValue =
@@ -449,7 +458,8 @@ public class JavaBeanUtils {
                 MethodInvocation.invoke(
                     new ForLoadedMethod(
                         Preconditions.checkNotNull(
-                            typeInformation.getMethod(), GETTER_WITH_NULL_METHOD_ERROR))));
+                            typeInformation.getMethod(), GETTER_WITH_NULL_METHOD_ERROR))),
+                cast);
 
         StackManipulation stackManipulation =
             new StackManipulation.Compound(
