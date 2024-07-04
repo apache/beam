@@ -63,12 +63,12 @@ require (
 	google.golang.org/genproto v0.0.0-20240604185151-ef581f913117
 	google.golang.org/grpc v1.64.0
 	google.golang.org/protobuf v1.34.2
-	gopkg.in/retry.v1 v1.0.3
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
+	github.com/avast/retry-go/v4 v4.6.0
 	github.com/fsouza/fake-gcs-server v1.47.7
 	golang.org/x/exp v0.0.0-20231006140011-7918f672742d
 )
@@ -83,7 +83,6 @@ require (
 	github.com/apache/arrow/go/v15 v15.0.2 // indirect
 	github.com/containerd/log v0.1.0 // indirect
 	github.com/distribution/reference v0.5.0 // indirect
-	github.com/frankban/quicktest v1.14.0 // indirect
 	github.com/go-logr/logr v1.4.1 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
