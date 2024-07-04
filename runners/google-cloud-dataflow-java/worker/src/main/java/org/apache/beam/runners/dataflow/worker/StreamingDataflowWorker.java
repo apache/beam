@@ -282,6 +282,7 @@ public class StreamingDataflowWorker {
             executorSupplier.apply("RefreshWork"),
             getDataMetricTracker::trackHeartbeats);
 
+
     WorkerStatusPages workerStatusPages =
         WorkerStatusPages.create(DEFAULT_STATUS_PORT, memoryMonitor);
     StreamingWorkerStatusPages.Builder statusPagesBuilder =
@@ -317,6 +318,7 @@ public class StreamingDataflowWorker {
             mapTaskExecutorFactory,
             workUnitExecutor,
             stateCache::forComputation,
+            getDataClient::getSideInputData,
             failureTracker,
             workFailureProcessor,
             streamingCounters,
