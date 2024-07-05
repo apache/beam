@@ -58,7 +58,6 @@ public final class ApplianceGetDataClient implements GetDataClient {
     this.activeReadThreads = 0;
   }
 
-<<<<<<< HEAD
   @Override
   public Windmill.KeyedGetDataResponse getStateData(
       String computationId, Windmill.KeyedGetDataRequest request) {

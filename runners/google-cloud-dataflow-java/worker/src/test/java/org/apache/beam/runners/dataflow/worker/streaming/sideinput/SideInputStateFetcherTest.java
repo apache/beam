@@ -70,6 +70,7 @@ public class SideInputStateFetcherTest {
   private static final String STATE_FAMILY = "state";
   @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   @Mock private GetDataClient server;
+
   @Mock private Supplier<Closeable> readStateSupplier;
 
   private static Windmill.GlobalData buildGlobalDataResponse(
