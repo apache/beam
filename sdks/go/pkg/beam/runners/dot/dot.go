@@ -24,8 +24,11 @@ import (
 	"os"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
 	dotlib "github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/dot"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/jobopts"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/universal/extworker"
 )
 
 func init() {
@@ -42,14 +45,39 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 		return nil, errors.New("must supply dot_file argument")
 	}
 
-	edges, nodes, err := p.Build()
+	edges, _, err := p.Build()
 	if err != nil {
 		return nil, errors.New("can't get data to render")
 	}
 
+	envUrn := jobopts.GetEnvironmentUrn(ctx)
+	getEnvCfg := jobopts.GetEnvironmentConfig
+
+	if jobopts.IsLoopback() {
+		// TODO(BEAM-10610): Allow user configuration of this port, rather than kernel selected.
+		srv, err := extworker.StartLoopback(ctx, 0)
+		if err != nil {
+			return nil, err
+		}
+		defer srv.Stop(ctx)
+		getEnvCfg = srv.EnvironmentConfig
+	}
+	environment, err := graphx.CreateEnvironment(ctx, envUrn, getEnvCfg)
+	if err != nil {
+		return nil, errors.WithContextf(err, "generating model pipeline")
+	}
+	pipeline, err := graphx.Marshal(edges, &graphx.Options{
+		Environment:           environment,
+		PipelineResourceHints: jobopts.GetPipelineResourceHints(),
+	})
+	if err != nil {
+		return nil, errors.WithContextf(err, "generating model pipeline")
+	}
+
 	var buf bytes.Buffer
-	if err := dotlib.Render(edges, nodes, &buf); err != nil {
+	if err := dotlib.RenderPipeline(pipeline, &buf); err != nil {
 		return nil, err
 	}
+
 	return nil, os.WriteFile(*dotFile, buf.Bytes(), 0644)
 }

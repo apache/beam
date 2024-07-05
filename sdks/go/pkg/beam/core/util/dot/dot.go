@@ -24,6 +24,7 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 )
 
 var (
@@ -137,6 +138,52 @@ func Render(edges []*graph.MultiEdge, nodes []*graph.Node, w io.Writer) error {
 		for _, ob := range edge.Output {
 			uniqNodes[ob.To].From = ob
 			err := edgeTmpl.Execute(w, struct{ From, To string }{e, ob.To.String()})
+			if err != nil {
+				return errors.Wrap(err, "render DOT failed")
+			}
+		}
+	}
+	w.Write([]byte(footer))
+	return nil
+}
+
+// RenderPipeline produces a DOT-compatible representation of the graph into the supplied io.Writer
+func RenderPipeline(p *pipeline_v1.Pipeline, w io.Writer) error {
+	// Render DOT-compatible representation of the graph from PTransforms and PCollections.
+	w.Write([]byte(header))
+	for _, transform := range p.GetComponents().GetTransforms() {
+		label := "PTransform"
+		err := nodeTmpl.Execute(w, struct{ Name, Label string }{transform.UniqueName, label})
+		if err != nil {
+			return err
+		}
+	}
+	for _, pcollection := range p.GetComponents().GetPcollections() {
+		label := "PCollection"
+		err := nodeTmpl.Execute(w, struct{ Name, Label string }{pcollection.UniqueName, label})
+		if err != nil {
+			return err
+		}
+	}
+	for _, ptransform := range p.GetComponents().GetTransforms() {
+		for _, pcollectionId := range ptransform.GetInputs() {
+			label := "PCollection to PTransform"
+			edge := fmt.Sprintf("%v->%v", pcollectionId, ptransform.UniqueName)
+			if err := edgeDefnTmpl.Execute(w, struct{ Name, Label string }{edge, label}); err != nil {
+				return errors.Wrap(err, "render DOT failed")
+			}
+			err := edgeTmpl.Execute(w, struct{ From, To string }{pcollectionId, ptransform.UniqueName})
+			if err != nil {
+				return errors.Wrap(err, "render DOT failed")
+			}
+		}
+		for _, pcollectionId := range ptransform.GetOutputs() {
+			label := "PTransform to PCollection"
+			edge := fmt.Sprintf("%v->%v", ptransform.UniqueName, pcollectionId)
+			if err := edgeDefnTmpl.Execute(w, struct{ Name, Label string }{edge, label}); err != nil {
+				return errors.Wrap(err, "render DOT failed")
+			}
+			err := edgeTmpl.Execute(w, struct{ From, To string }{ptransform.UniqueName, pcollectionId})
 			if err != nil {
 				return errors.Wrap(err, "render DOT failed")
 			}
