@@ -19,12 +19,15 @@ package org.apache.beam.sdk.io.kafka;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.kafka.KafkaIO.ReadSourceDescriptors;
@@ -49,7 +52,6 @@ import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Stopwatch;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
@@ -57,6 +59,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheLoa
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.LoadingCache;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Closeables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -95,14 +98,15 @@ import org.slf4j.LoggerFactory;
  *
  * <h4>Splitting</h4>
  *
- * <p>TODO(https://github.com/apache/beam/issues/20280): Add support for initial splitting.
+ * <p>TODO(<a href="https://github.com/apache/beam/issues/20280">...</a>): Add support for initial
+ * splitting.
  *
  * <h4>Checkpoint and Resume Processing</h4>
  *
  * <p>There are 2 types of checkpoint here: self-checkpoint which invokes by the DoFn and
  * system-checkpoint which is issued by the runner via {@link
  * org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleSplitRequest}. Every time the
- * consumer gets empty response from {@link Consumer#poll(long)}, {@link ReadFromKafkaDoFn} will
+ * consumer gets empty response from {@link Consumer#poll(Duration)}, {@link ReadFromKafkaDoFn} will
  * checkpoint the current {@link KafkaSourceDescriptor} and move to process the next element. These
  * deferred elements will be resumed by the runner as soon as possible.
  *
@@ -115,7 +119,7 @@ import org.slf4j.LoggerFactory;
  * ReadFromKafkaDoFn#restrictionTracker(KafkaSourceDescriptor, OffsetRange)} for details.
  *
  * <p>The size is computed by {@link ReadFromKafkaDoFn#getSize(KafkaSourceDescriptor, OffsetRange)}.
- * A {@link KafkaIOUtils.MovingAvg} is used to track the average size of kafka records.
+ * A {@link MovingAvg} is used to track the average size of kafka records.
  *
  * <h4>Track Watermark</h4>
  *
@@ -133,8 +137,8 @@ import org.slf4j.LoggerFactory;
  * {@link ReadFromKafkaDoFn} will stop reading from any removed {@link TopicPartition} automatically
  * by querying Kafka {@link Consumer} APIs. Please note that stopping reading may not happen as soon
  * as the {@link TopicPartition} is removed. For example, the removal could happen at the same time
- * when {@link ReadFromKafkaDoFn} performs a {@link Consumer#poll(java.time.Duration)}. In that
- * case, the {@link ReadFromKafkaDoFn} will still output the fetched records.
+ * when {@link ReadFromKafkaDoFn} performs a {@link Consumer#poll(Duration)}. In that case, the
+ * {@link ReadFromKafkaDoFn} will still output the fetched records.
  *
  * <h4>Stop Reading from Stopped {@link TopicPartition}</h4>
  *
@@ -224,7 +228,7 @@ abstract class ReadFromKafkaDoFn<K, V>
   private transient @Nullable LoadingCache<TopicPartition, AverageRecordSize> avgRecordSize;
   private static final long DEFAULT_KAFKA_POLL_TIMEOUT = 2L;
 
-  private HashMap<String, Long> perPartitionBacklogMetrics = new HashMap<String, Long>();;
+  private final HashMap<String, Long> perPartitionBacklogMetrics = new HashMap<>();
 
   @VisibleForTesting final long consumerPollingTimeout;
   @VisibleForTesting final DeserializerProvider<K> keyDeserializerProvider;
@@ -442,10 +446,18 @@ abstract class ReadFromKafkaDoFn<K, V>
 
       long expectedOffset = startOffset;
       consumer.seek(kafkaSourceDescriptor.getTopicPartition(), startOffset);
-      ConsumerRecords<byte[], byte[]> rawRecords = ConsumerRecords.empty();
+
+      KafkaConsumerPollThread pollThread = new KafkaConsumerPollThread();
+      ExecutorService backgroundThread =
+          Executors.newSingleThreadExecutor(
+              new ThreadFactoryBuilder()
+                  .setDaemon(true)
+                  .setNameFormat("KafkaConsumerPoll-thread")
+                  .build());
+      pollThread.startOnExecutor(backgroundThread, consumer);
 
       while (true) {
-        rawRecords = poll(consumer, kafkaSourceDescriptor.getTopicPartition());
+        ConsumerRecords<byte[], byte[]> rawRecords = pollThread.readRecords();
         // When there are no records available for the current TopicPartition, self-checkpoint
         // and move to process the next element.
         if (rawRecords.isEmpty()) {
@@ -585,7 +597,7 @@ abstract class ReadFromKafkaDoFn<K, V>
             .build(
                 new CacheLoader<TopicPartition, AverageRecordSize>() {
                   @Override
-                  public AverageRecordSize load(TopicPartition topicPartition) throws Exception {
+                  public AverageRecordSize load(TopicPartition topicPartition) {
                     return new AverageRecordSize();
                   }
                 });
@@ -624,7 +636,7 @@ abstract class ReadFromKafkaDoFn<K, V>
         currentConfig.containsKey(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG)
             || description.getBootStrapServers() != null);
     Map<String, Object> config = new HashMap<>(currentConfig);
-    if (description.getBootStrapServers() != null && description.getBootStrapServers().size() > 0) {
+    if (description.getBootStrapServers() != null && !description.getBootStrapServers().isEmpty()) {
       config.put(
           ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,
           String.join(",", description.getBootStrapServers()));
@@ -633,8 +645,8 @@ abstract class ReadFromKafkaDoFn<K, V>
   }
 
   private static class AverageRecordSize {
-    private MovingAvg avgRecordSize;
-    private MovingAvg avgRecordGap;
+    private final MovingAvg avgRecordSize;
+    private final MovingAvg avgRecordGap;
 
     public AverageRecordSize() {
       this.avgRecordSize = new MovingAvg();
