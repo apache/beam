@@ -19,6 +19,7 @@ import (
 	"strings"
 	"testing"
 
+	"cloud.google.com/go/storage"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
@@ -104,5 +105,46 @@ func TestGetDisableSoftDeletePolicyBucketAttrs(t *testing.T) {
 	}
 	if attrs != nil && attrs.SoftDeletePolicy.RetentionDuration != 0 {
 		t.Errorf("attrs has RetentionDuration %v which is not correct", attrs.SoftDeletePolicy.RetentionDuration)
+	}
+}
+
+func TestSoftDeletePolicyEnabled(t *testing.T) {
+	tests := []struct {
+		attrs  storage.BucketAttrs
+		result bool
+	}{
+		{
+			attrs:  storage.BucketAttrs{},
+			result: false,
+		},
+		{
+			attrs: storage.BucketAttrs{
+				SoftDeletePolicy: &storage.SoftDeletePolicy{},
+			},
+			result: false,
+		},
+		{
+			attrs: storage.BucketAttrs{
+				SoftDeletePolicy: &storage.SoftDeletePolicy{
+					RetentionDuration: 5,
+				},
+			},
+			result: true,
+		},
+		{
+			attrs: storage.BucketAttrs{
+				SoftDeletePolicy: &storage.SoftDeletePolicy{
+					RetentionDuration: 0,
+				},
+			},
+			result: false,
+		},
+	}
+	for _, test := range tests {
+		got := SoftDeletePolicyEnabled(&test.attrs)
+		want := test.result
+		if got != want {
+			t.Errorf("SoftDeletePolicyEnabled(%v) = %v, want %v", test.attrs, got, want)
+		}
 	}
 }
