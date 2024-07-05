@@ -147,7 +147,7 @@ func Render(edges []*graph.MultiEdge, nodes []*graph.Node, w io.Writer) error {
 	return nil
 }
 
-// RenderPipeline produces a DOT-compatible representation of the graph into the supplied io.Writer
+// RenderPipeline produces a DOT-compatible representation of the graph based on portable Pipeline proto into the supplied io.Writer
 func RenderPipeline(p *pipeline_v1.Pipeline, w io.Writer) error {
 	// Render DOT-compatible representation of the graph from PTransforms and PCollections.
 	w.Write([]byte(header))
@@ -166,17 +166,19 @@ func RenderPipeline(p *pipeline_v1.Pipeline, w io.Writer) error {
 		}
 	}
 	for _, ptransform := range p.GetComponents().GetTransforms() {
-		for _, pcollectionId := range ptransform.GetInputs() {
+		// Render the edges coming from PCollection to PTransform.
+		for _, pcollectionID := range ptransform.GetInputs() {
 			label := "PCollection to PTransform"
-			edge := fmt.Sprintf("%v->%v", pcollectionId, ptransform.UniqueName)
+			edge := fmt.Sprintf("%v->%v", pcollectionID, ptransform.UniqueName)
 			if err := edgeDefnTmpl.Execute(w, struct{ Name, Label string }{edge, label}); err != nil {
 				return errors.Wrap(err, "render DOT failed")
 			}
-			err := edgeTmpl.Execute(w, struct{ From, To string }{pcollectionId, ptransform.UniqueName})
+			err := edgeTmpl.Execute(w, struct{ From, To string }{pcollectionID, ptransform.UniqueName})
 			if err != nil {
 				return errors.Wrap(err, "render DOT failed")
 			}
 		}
+		// Render the edges coming from PTransform to PCollection.
 		for _, pcollectionId := range ptransform.GetOutputs() {
 			label := "PTransform to PCollection"
 			edge := fmt.Sprintf("%v->%v", ptransform.UniqueName, pcollectionId)
