@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.worker.streaming;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList.toImmutableList;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableListMultimap.flatteningToImmutableListMultimap;
 
 import java.io.PrintWriter;
 import java.util.ArrayDeque;
@@ -45,6 +46,7 @@ import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableListMultimap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multimap;
 import org.joda.time.Duration;
@@ -217,6 +219,21 @@ public final class ActiveWorkState {
         }
       }
     }
+  }
+
+  /**
+   * Returns a read only view of current active work.
+   *
+   * @implNote Do not return a reference to the underlying workQueue as iterations over it will
+   *     cause a {@link java.util.ConcurrentModificationException} as it is not a thread-safe data
+   *     structure.
+   */
+  synchronized ImmutableListMultimap<ShardedKey, RefreshableWork> getReadOnlyActiveWork() {
+    return activeWork.entrySet().stream()
+        .collect(
+            flatteningToImmutableListMultimap(
+                Entry::getKey,
+                e -> e.getValue().stream().map(ExecutableWork::work).map(Work::refreshableView)));
   }
 
   private void incrementActiveWorkBudget(Work work) {

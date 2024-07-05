@@ -17,32 +17,25 @@
  */
 package org.apache.beam.runners.dataflow.worker.streaming;
 
-import com.google.auto.value.AutoValue;
-import java.util.function.Consumer;
+import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
+import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.joda.time.Instant;
 
-/** {@link Work} instance and a processing function used to process the work. */
-@AutoValue
-public abstract class ExecutableWork implements Runnable {
+/** View of {@link Work} that exposes an interface for work refreshing. */
+@Internal
+public interface RefreshableWork {
 
-  public static ExecutableWork create(Work work, Consumer<Work> executeWorkFn) {
-    return new AutoValue_ExecutableWork(work, executeWorkFn);
-  }
+  WorkId id();
 
-  public abstract Work work();
+  boolean isRefreshable(Instant refreshDeadline);
 
-  public abstract Consumer<Work> executeWorkFn();
+  HeartbeatSender heartbeatSender();
 
-  @Override
-  public void run() {
-    executeWorkFn().accept(work());
-  }
+  ImmutableList<Windmill.LatencyAttribution> getLatencyAttributions(
+      boolean isHeartbeat, DataflowExecutionStateSampler sampler);
 
-  public final WorkId id() {
-    return work().id();
-  }
-
-  public final Windmill.WorkItem getWorkItem() {
-    return work().getWorkItem();
-  }
+  void setFailed();
 }

@@ -69,6 +69,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   protected static final int RPC_STREAM_CHUNK_SIZE = 2 << 20;
   private static final Logger LOG = LoggerFactory.getLogger(AbstractWindmillStream.class);
   protected final AtomicBoolean clientClosed;
+  private final AtomicBoolean isShutdown;
   private final AtomicLong lastSendTimeMs;
   private final Executor executor;
   private final BackOff backoff;
@@ -85,18 +86,21 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   // Indicates if the current stream in requestObserver is closed by calling close() method
   private final AtomicBoolean streamClosed;
   private @Nullable StreamObserver<RequestT> requestObserver;
+  private final String backendWorkerToken;
 
   protected AbstractWindmillStream(
       Function<StreamObserver<ResponseT>, StreamObserver<RequestT>> clientFactory,
       BackOff backoff,
       StreamObserverFactory streamObserverFactory,
       Set<AbstractWindmillStream<?, ?>> streamRegistry,
-      int logEveryNStreamFailures) {
+      int logEveryNStreamFailures,
+      String backendWorkerToken) {
+    this.backendWorkerToken = backendWorkerToken;
     this.executor =
         Executors.newSingleThreadExecutor(
             new ThreadFactoryBuilder()
                 .setDaemon(true)
-                .setNameFormat("WindmillStream-thread")
+                .setNameFormat(createThreadName(streamType(), backendWorkerToken))
                 .build());
     this.backoff = backoff;
     this.streamRegistry = streamRegistry;
@@ -111,10 +115,17 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
     this.lastErrorTime = new AtomicReference<>();
     this.sleepUntil = new AtomicLong();
     this.finishLatch = new CountDownLatch(1);
+    this.isShutdown = new AtomicBoolean(false);
     this.requestObserverSupplier =
         () ->
             streamObserverFactory.from(
                 clientFactory, new AbstractWindmillStream<RequestT, ResponseT>.ResponseObserver());
+  }
+
+  private static String createThreadName(Type streamType, String backendWorkerToken) {
+    return !backendWorkerToken.isEmpty()
+        ? String.format("%s-%s-WindmillStream-thread", streamType.name(), backendWorkerToken)
+        : String.format("%s-WindmillStream-thread", streamType.name());
   }
 
   private static long debugDuration(long nowMs, long startMs) {
@@ -255,6 +266,28 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
     return new Instant(startTimeMs.get());
   }
 
+  @Override
+  public String backendWorkerToken() {
+    return backendWorkerToken;
+  }
+
+  @Override
+  public void shutdown() {
+    if (isShutdown.compareAndSet(false, true)) {
+      close();
+    }
+  }
+
+  @Override
+  public boolean isShutdown() {
+    return isShutdown.get();
+  }
+
+  private void setLastError(String error) {
+    lastError.set(error);
+    lastErrorTime.set(DateTime.now());
+  }
+
   private class ResponseObserver implements StreamObserver<ResponseT> {
 
     @Override
@@ -336,10 +369,5 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
       }
       executor.execute(AbstractWindmillStream.this::startStream);
     }
-  }
-
-  private void setLastError(String error) {
-    lastError.set(error);
-    lastErrorTime.set(DateTime.now());
   }
 }

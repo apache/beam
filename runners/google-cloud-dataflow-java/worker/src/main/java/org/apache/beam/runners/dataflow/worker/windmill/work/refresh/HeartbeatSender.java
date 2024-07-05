@@ -15,34 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker.streaming;
+package org.apache.beam.runners.dataflow.worker.windmill.work.refresh;
 
-import com.google.auto.value.AutoValue;
-import java.util.function.Consumer;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
-
-/** {@link Work} instance and a processing function used to process the work. */
-@AutoValue
-public abstract class ExecutableWork implements Runnable {
-
-  public static ExecutableWork create(Work work, Consumer<Work> executeWorkFn) {
-    return new AutoValue_ExecutableWork(work, executeWorkFn);
-  }
-
-  public abstract Work work();
-
-  public abstract Consumer<Work> executeWorkFn();
-
-  @Override
-  public void run() {
-    executeWorkFn().accept(work());
-  }
-
-  public final WorkId id() {
-    return work().id();
-  }
-
-  public final Windmill.WorkItem getWorkItem() {
-    return work().getWorkItem();
-  }
+/** Interface for sending heartbeats. */
+@FunctionalInterface
+public interface HeartbeatSender {
+  /**
+   * Send heartbeats. Heartbeats represent WorkItem that is actively being processed belonging to
+   * the computation.
+   */
+  void sendHeartbeats(Heartbeat heartbeats);
 }

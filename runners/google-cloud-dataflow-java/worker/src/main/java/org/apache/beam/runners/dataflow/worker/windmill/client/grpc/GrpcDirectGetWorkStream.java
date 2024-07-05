@@ -43,6 +43,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.St
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemScheduler;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
+import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.DirectHeartbeatSender;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
@@ -91,6 +92,7 @@ public final class GrpcDirectGetWorkStream
   private final ConcurrentMap<Long, WorkItemBuffer> workItemBuffers;
 
   private GrpcDirectGetWorkStream(
+      String backendWorkerToken,
       Function<
               StreamObserver<StreamingGetWorkResponseChunk>,
               StreamObserver<StreamingGetWorkRequest>>
@@ -105,7 +107,12 @@ public final class GrpcDirectGetWorkStream
       Supplier<WorkCommitter> workCommitter,
       WorkItemScheduler workItemScheduler) {
     super(
-        startGetWorkRpcFn, backoff, streamObserverFactory, streamRegistry, logEveryNStreamFailures);
+        startGetWorkRpcFn,
+        backoff,
+        streamObserverFactory,
+        streamRegistry,
+        logEveryNStreamFailures,
+        backendWorkerToken);
     this.request = request;
     this.getWorkThrottleTimer = getWorkThrottleTimer;
     this.workItemScheduler = workItemScheduler;
@@ -120,6 +127,7 @@ public final class GrpcDirectGetWorkStream
   }
 
   public static GrpcDirectGetWorkStream create(
+      String backendWorkerToken,
       Function<
               StreamObserver<StreamingGetWorkResponseChunk>,
               StreamObserver<StreamingGetWorkRequest>>
@@ -135,6 +143,7 @@ public final class GrpcDirectGetWorkStream
       WorkItemScheduler workItemScheduler) {
     GrpcDirectGetWorkStream getWorkStream =
         new GrpcDirectGetWorkStream(
+            backendWorkerToken,
             startGetWorkRpcFn,
             request,
             backoff,
@@ -327,7 +336,10 @@ public final class GrpcDirectGetWorkStream
 
     private Work.ProcessingContext createProcessingContext(String computationId) {
       return Work.createProcessingContext(
-          computationId, getDataStream.get()::requestKeyedData, workCommitter.get()::commit);
+          computationId,
+          getDataStream.get()::requestKeyedData,
+          workCommitter.get()::commit,
+          DirectHeartbeatSender.create(getDataStream.get()));
     }
   }
 }

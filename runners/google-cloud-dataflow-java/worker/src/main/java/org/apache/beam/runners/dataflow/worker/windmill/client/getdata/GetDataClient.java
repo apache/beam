@@ -18,11 +18,8 @@
 package org.apache.beam.runners.dataflow.worker.windmill.client.getdata;
 
 import java.io.PrintWriter;
-import java.util.List;
-import java.util.Map;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalData;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalDataRequest;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataResponse;
 import org.apache.beam.sdk.annotations.Internal;
@@ -34,13 +31,15 @@ public interface GetDataClient {
 
   GlobalData getSideInputData(GlobalDataRequest request);
 
-  void refreshActiveWork(Map<String, List<HeartbeatRequest>> heartbeats);
-
   default void printHtml(PrintWriter writer) {}
 
   class GetDataException extends RuntimeException {
     protected GetDataException(String message, Throwable cause) {
       super(message, cause);
+    }
+
+    public GetDataException(String message) {
+      super(message);
     }
   }
 }

@@ -23,14 +23,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
-import java.util.stream.Collectors;
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.WindmillComputationKey;
 import org.apache.beam.runners.dataflow.worker.windmill.ApplianceWindmillClient;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationGetDataRequest;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
+import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.Heartbeat;
+import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.SettableFuture;
@@ -39,7 +39,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /** Appliance implementation of {@link GetDataClient}. */
 @Internal
 @ThreadSafe
-public final class ApplianceGetDataClient implements GetDataClient {
+public final class ApplianceGetDataClient implements GetDataClient, WorkRefreshClient {
   private static final int MAX_READS_PER_BATCH = 60;
   private static final int MAX_ACTIVE_READS = 10;
 
@@ -52,26 +52,12 @@ public final class ApplianceGetDataClient implements GetDataClient {
   @GuardedBy("this")
   private int activeReadThreads;
 
-  private ApplianceGetDataClient(
+  public ApplianceGetDataClient(
       ApplianceWindmillClient windmillClient, ThrottlingGetDataMetricTracker getDataMetricTracker) {
     this.windmillClient = windmillClient;
     this.getDataMetricTracker = getDataMetricTracker;
     this.pendingReadBatches = new ArrayList<>();
     this.activeReadThreads = 0;
-  }
-
-  private static List<Windmill.KeyedGetDataRequest> convertToKeyedGetDataRequests(
-      List<HeartbeatRequest> heartbeats) {
-    return heartbeats.stream()
-        .map(
-            request ->
-                Windmill.KeyedGetDataRequest.newBuilder()
-                    .setShardingKey(request.getShardingKey())
-                    .setWorkToken(request.getWorkToken())
-                    .setCacheToken(request.getCacheToken())
-                    .addAllLatencyAttribution(request.getLatencyAttributionList())
-                    .build())
-        .collect(Collectors.toList());
   }
 
   public static GetDataClient create(
@@ -120,24 +106,20 @@ public final class ApplianceGetDataClient implements GetDataClient {
    * translate the HeartbeatRequest to a KeyedGetDataRequest.
    */
   @Override
-  public void refreshActiveWork(Map<String, List<HeartbeatRequest>> heartbeats) {
+  public void refreshActiveWork(Map<HeartbeatSender, Heartbeat> heartbeats) {
     if (heartbeats.isEmpty()) {
       return;
     }
 
-    try (AutoCloseable ignored = getDataMetricTracker.trackHeartbeats(heartbeats.size())) {
-      List<ComputationGetDataRequest> requests =
-          heartbeats.entrySet().stream()
-              .map(
-                  entry ->
-                      ComputationGetDataRequest.newBuilder()
-                          .setComputationId(entry.getKey())
-                          .addAllRequests(convertToKeyedGetDataRequests(entry.getValue()))
-                          .build())
-              .collect(Collectors.toList());
-      windmillClient.getData(Windmill.GetDataRequest.newBuilder().addAllRequests(requests).build());
-    } catch (Exception e) {
-      throw new GetDataException("Error occurred refreshing heartbeats=" + heartbeats, e);
+    for (Map.Entry<HeartbeatSender, Heartbeat> heartbeatToSend : heartbeats.entrySet()) {
+      HeartbeatSender heartbeatSender = heartbeatToSend.getKey();
+      try (AutoCloseable ignored =
+          getDataMetricTracker.trackHeartbeats(
+              heartbeatToSend.getValue().heartbeatRequests().size())) {
+        heartbeatSender.sendHeartbeats(heartbeatToSend.getValue());
+      } catch (Exception e) {
+        throw new GetDataException("Error occurred refreshing heartbeats=" + heartbeatToSend, e);
+      }
     }
   }
 

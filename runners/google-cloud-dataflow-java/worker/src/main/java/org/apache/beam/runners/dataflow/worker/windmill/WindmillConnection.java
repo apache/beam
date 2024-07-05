@@ -50,13 +50,13 @@ public abstract class WindmillConnection {
   public abstract CloudWindmillServiceV1Alpha1Stub stub();
 
   @AutoValue.Builder
-  abstract static class Builder {
+  public abstract static class Builder {
     abstract Builder setBackendWorkerToken(String backendWorkerToken);
 
     public abstract Builder setDirectEndpoint(WindmillServiceAddress value);
 
-    abstract Builder setStub(CloudWindmillServiceV1Alpha1Stub stub);
+    public abstract Builder setStub(CloudWindmillServiceV1Alpha1Stub stub);
 
-    abstract WindmillConnection build();
+    public abstract WindmillConnection build();
   }
 }

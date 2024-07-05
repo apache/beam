@@ -38,6 +38,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
+import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Instant;
@@ -87,7 +88,8 @@ public class ActiveWorkStateTest {
     return Work.createProcessingContext(
         "computationId",
         (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance(),
-        ignored -> {});
+        ignored -> {},
+        mock(HeartbeatSender.class));
   }
 
   private static WorkId workId(long workToken, long cacheToken) {

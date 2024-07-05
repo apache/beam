@@ -390,7 +390,7 @@ public final class StreamingEngineClient {
     // GetWorkBudgetDistributor.
     WindmillStreamSender windmillStreamSender =
         WindmillStreamSender.create(
-            connection.stub(),
+            connection,
             GetWorkRequest.newBuilder()
                 .setClientId(clientId)
                 .setJobId(jobHeader.getJobId())

@@ -21,6 +21,7 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitStatus.OK;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
 
 import com.google.api.services.dataflow.model.MapTask;
 import java.io.IOException;
@@ -49,6 +50,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitR
 import org.apache.beam.runners.dataflow.worker.windmill.client.CloseableStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.CommitWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamPool;
+import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.Duration;
@@ -60,7 +62,6 @@ import org.junit.Test;
 import org.junit.rules.ErrorCollector;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.mockito.Mockito;
 
 @RunWith(JUnit4.class)
 public class StreamingEngineWorkCommitterTest {
@@ -84,7 +85,8 @@ public class StreamingEngineWorkCommitterTest {
             (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance(),
             ignored -> {
               throw new UnsupportedOperationException();
-            }),
+            },
+            mock(HeartbeatSender.class)),
         Instant::now,
         Collections.emptyList());
   }
@@ -93,7 +95,7 @@ public class StreamingEngineWorkCommitterTest {
     return new ComputationState(
         computationId,
         new MapTask().setSystemName("system").setStageName("stage"),
-        Mockito.mock(BoundedQueueExecutor.class),
+        mock(BoundedQueueExecutor.class),
         ImmutableMap.of(),
         null);
   }
@@ -110,7 +112,7 @@ public class StreamingEngineWorkCommitterTest {
   public void setUp() throws IOException {
     fakeWindmillServer =
         new FakeWindmillServer(
-            errorCollector, ignored -> Optional.of(Mockito.mock(ComputationState.class)));
+            errorCollector, ignored -> Optional.of(mock(ComputationState.class)));
     commitWorkStreamFactory =
         WindmillStreamPool.create(
                 1, Duration.standardMinutes(1), fakeWindmillServer::commitWorkStream)
@@ -283,6 +285,19 @@ public class StreamingEngineWorkCommitterTest {
               @Override
               public Instant startTime() {
                 return Instant.now();
+              }
+
+              @Override
+              public String backendWorkerToken() {
+                return "";
+              }
+
+              @Override
+              public void shutdown() {}
+
+              @Override
+              public boolean isShutdown() {
+                return false;
               }
             };
 

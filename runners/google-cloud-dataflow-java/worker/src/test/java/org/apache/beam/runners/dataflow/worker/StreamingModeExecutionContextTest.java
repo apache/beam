@@ -24,6 +24,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
 
 import com.google.api.services.dataflow.model.CounterMetadata;
 import com.google.api.services.dataflow.model.CounterStructuredName;
@@ -62,6 +63,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStat
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReader;
+import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -82,7 +84,6 @@ import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link StreamingModeExecutionContext}. */
@@ -135,7 +136,8 @@ public class StreamingModeExecutionContextTest {
         Work.createProcessingContext(
             COMPUTATION_ID,
             (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance(),
-            ignored -> {}),
+            ignored -> {},
+            mock(HeartbeatSender.class)),
         Instant::now,
         Collections.emptyList());
   }
@@ -241,8 +243,8 @@ public class StreamingModeExecutionContextTest {
 
   @Test
   public void extractMsecCounters() {
-    MetricsContainer metricsContainer = Mockito.mock(MetricsContainer.class);
-    ProfileScope profileScope = Mockito.mock(ProfileScope.class);
+    MetricsContainer metricsContainer = mock(MetricsContainer.class);
+    ProfileScope profileScope = mock(ProfileScope.class);
     ExecutionState start1 =
         executionContext.executionStateRegistry.getState(
             NameContext.create("stage", "original-1", "system-1", "user-1"),

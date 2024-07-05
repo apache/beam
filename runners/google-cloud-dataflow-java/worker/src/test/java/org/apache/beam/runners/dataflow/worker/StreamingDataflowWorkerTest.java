@@ -126,6 +126,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Timer;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Timer.Type;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WatermarkHold;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
+import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.CollectionCoder;
@@ -332,7 +333,8 @@ public class StreamingDataflowWorkerTest {
             Work.createProcessingContext(
                 computationId,
                 (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance(),
-                ignored -> {}),
+                ignored -> {},
+                mock(HeartbeatSender.class)),
             Instant::now,
             Collections.emptyList()),
         processWorkFn);
@@ -3406,7 +3408,8 @@ public class StreamingDataflowWorkerTest {
             Work.createProcessingContext(
                 "computationId",
                 (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance(),
-                ignored -> {}),
+                ignored -> {},
+                mock(HeartbeatSender.class)),
             clock,
             Collections.emptyList());
 
@@ -3708,7 +3711,7 @@ public class StreamingDataflowWorkerTest {
     Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
 
     assertThat(server.numGetDataRequests(), greaterThan(0));
-    Windmill.GetDataRequest heartbeat = server.getGetDataRequests().get(2);
+    Windmill.GetDataRequest heartbeat = server.getGetDataRequests().get(1);
 
     for (LatencyAttribution la :
         heartbeat

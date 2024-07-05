@@ -32,6 +32,10 @@ import org.joda.time.Instant;
 /** Superclass for streams returned by streaming Windmill methods. */
 @ThreadSafe
 public interface WindmillStream {
+
+  /** An identifier for the backend worker where the stream is sending/receiving RPCs. */
+  String backendWorkerToken();
+
   /** Indicates that no more requests will be sent. */
   void close();
 
@@ -41,6 +45,24 @@ public interface WindmillStream {
   /** Returns when the stream was opened. */
   Instant startTime();
 
+  /**
+   * Shutdown the stream. There should be no further interactions with the stream once this has been
+   * called.
+   */
+  void shutdown();
+
+  /** Reflects that {@link #shutdown()} was explicitly called. */
+  boolean isShutdown();
+
+  Type streamType();
+
+  enum Type {
+    GET_WORKER_METADATA,
+    GET_WORK,
+    GET_DATA,
+    COMMIT_WORK,
+  }
+
   /** Handle representing a stream of GetWork responses. */
   @ThreadSafe
   interface GetWorkStream extends WindmillStream {
@@ -49,6 +71,11 @@ public interface WindmillStream {
 
     /** Returns the remaining in-flight {@link GetWorkBudget}. */
     GetWorkBudget remainingBudget();
+
+    @Override
+    default Type streamType() {
+      return Type.GET_WORK;
+    }
   }
 
   /** Interface for streaming GetDataRequests to Windmill. */
@@ -65,11 +92,27 @@ public interface WindmillStream {
     void refreshActiveWork(Map<String, List<HeartbeatRequest>> heartbeats);
 
     void onHeartbeatResponse(List<Windmill.ComputationHeartbeatResponse> responses);
+
+    @Override
+    default Type streamType() {
+      return Type.GET_DATA;
+    }
   }
 
   /** Interface for streaming CommitWorkRequests to Windmill. */
   @ThreadSafe
   interface CommitWorkStream extends WindmillStream {
+    /**
+     * Returns a builder that can be used for sending requests. Each builder is not thread-safe but
+     * different builders for the same stream may be used simultaneously.
+     */
+    CommitWorkStream.RequestBatcher batcher();
+
+    @Override
+    default Type streamType() {
+      return Type.COMMIT_WORK;
+    }
+
     @NotThreadSafe
     interface RequestBatcher extends Closeable {
       /**
@@ -92,15 +135,14 @@ public interface WindmillStream {
         flush();
       }
     }
-
-    /**
-     * Returns a builder that can be used for sending requests. Each builder is not thread-safe but
-     * different builders for the same stream may be used simultaneously.
-     */
-    RequestBatcher batcher();
   }
 
   /** Interface for streaming GetWorkerMetadata requests to Windmill. */
   @ThreadSafe
-  interface GetWorkerMetadataStream extends WindmillStream {}
+  interface GetWorkerMetadataStream extends WindmillStream {
+    @Override
+    default Type streamType() {
+      return Type.GET_WORKER_METADATA;
+    }
+  }
 }

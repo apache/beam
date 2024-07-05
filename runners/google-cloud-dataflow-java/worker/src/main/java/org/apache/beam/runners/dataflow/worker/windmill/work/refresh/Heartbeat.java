@@ -15,34 +15,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker.streaming;
+package org.apache.beam.runners.dataflow.worker.windmill.work.refresh;
 
 import com.google.auto.value.AutoValue;
-import java.util.function.Consumer;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import org.apache.beam.runners.dataflow.worker.streaming.RefreshableWork;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 
-/** {@link Work} instance and a processing function used to process the work. */
+/** Heartbeat requests and the work that was used to generate the heartbeat requests. */
 @AutoValue
-public abstract class ExecutableWork implements Runnable {
+public abstract class Heartbeat {
 
-  public static ExecutableWork create(Work work, Consumer<Work> executeWorkFn) {
-    return new AutoValue_ExecutableWork(work, executeWorkFn);
+  static Heartbeat create() {
+    return new AutoValue_Heartbeat(new HashSet<>(), new HashMap<>());
   }
 
-  public abstract Work work();
+  abstract Collection<RefreshableWork> work();
 
-  public abstract Consumer<Work> executeWorkFn();
-
-  @Override
-  public void run() {
-    executeWorkFn().accept(work());
-  }
-
-  public final WorkId id() {
-    return work().id();
-  }
-
-  public final Windmill.WorkItem getWorkItem() {
-    return work().getWorkItem();
-  }
+  public abstract Map<String, List<Windmill.HeartbeatRequest>> heartbeatRequests();
 }

@@ -97,6 +97,7 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.N
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReader;
+import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -199,7 +200,8 @@ public class WorkerCustomSourcesTest {
         Work.createProcessingContext(
             COMPUTATION_ID,
             (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance(),
-            ignored -> {}),
+            ignored -> {},
+            mock(HeartbeatSender.class)),
         Instant::now,
         Collections.emptyList());
   }
@@ -1000,7 +1002,8 @@ public class WorkerCustomSourcesTest {
             Work.createProcessingContext(
                 COMPUTATION_ID,
                 (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance(),
-                gnored -> {}),
+                ignored -> {},
+                mock(HeartbeatSender.class)),
             Instant::now,
             Collections.emptyList());
     context.start(

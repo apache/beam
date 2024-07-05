@@ -17,20 +17,18 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.client.getdata;
 
-import com.google.auto.value.AutoBuilder;
 import java.io.PrintWriter;
-import java.util.List;
 import java.util.Map;
 import javax.annotation.concurrent.ThreadSafe;
-import org.apache.beam.runners.dataflow.worker.windmill.StreamingEngineWindmillClient;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.client.CloseableStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamPool;
+import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.Heartbeat;
+import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.sdk.annotations.Internal;
-import org.joda.time.Duration;
 
 /**
  * StreamingEngine implementation of {@link GetDataClient}.
@@ -40,38 +38,16 @@ import org.joda.time.Duration;
  */
 @Internal
 @ThreadSafe
-public final class StreamingEngineGetDataClient implements GetDataClient {
-  private static final Duration STREAM_TIMEOUT = Duration.standardSeconds(30);
+public final class StreamingEngineGetDataClient implements GetDataClient, WorkRefreshClient {
 
   private final WindmillStreamPool<GetDataStream> getDataStreamPool;
-  private final WindmillStreamPool<GetDataStream> heartbeatStreamPool;
   private final ThrottlingGetDataMetricTracker getDataMetricTracker;
 
-  StreamingEngineGetDataClient(
-      StreamingEngineWindmillClient windmillClient,
+  public StreamingEngineGetDataClient(
       ThrottlingGetDataMetricTracker getDataMetricTracker,
-      boolean useSeparateHeartbeatStreams,
-      int numGetDataStreams) {
+      WindmillStreamPool<GetDataStream> getDataStreamPool) {
     this.getDataMetricTracker = getDataMetricTracker;
-    this.getDataStreamPool =
-        WindmillStreamPool.create(
-            Math.max(1, numGetDataStreams), STREAM_TIMEOUT, windmillClient::getDataStream);
-    if (useSeparateHeartbeatStreams) {
-      this.heartbeatStreamPool =
-          WindmillStreamPool.create(1, STREAM_TIMEOUT, windmillClient::getDataStream);
-    } else {
-      this.heartbeatStreamPool = this.getDataStreamPool;
-    }
-  }
-
-  public static Builder builder(
-      StreamingEngineWindmillClient windmillClient,
-      ThrottlingGetDataMetricTracker getDataMetricTracker) {
-    return new AutoBuilder_StreamingEngineGetDataClient_Builder()
-        .setWindmillClient(windmillClient)
-        .setGetDataMetricTracker(getDataMetricTracker)
-        .setUseSeparateHeartbeatStreams(false)
-        .setNumGetDataStreams(1);
+    this.getDataStreamPool = getDataStreamPool;
   }
 
   @Override
@@ -96,7 +72,7 @@ public final class StreamingEngineGetDataClient implements GetDataClient {
   public Windmill.GlobalData getSideInputData(GlobalDataRequest request) {
     try (AutoCloseable ignored =
             getDataMetricTracker.trackSingleCallWithThrottling(
-                ThrottlingGetDataMetricTracker.Type.STATE);
+                ThrottlingGetDataMetricTracker.Type.SIDE_INPUT);
         CloseableStream<GetDataStream> closeableStream = getDataStreamPool.getCloseableStream()) {
       return closeableStream.stream().requestGlobalData(request);
     } catch (Exception e) {
@@ -106,41 +82,24 @@ public final class StreamingEngineGetDataClient implements GetDataClient {
   }
 
   @Override
-  public void refreshActiveWork(Map<String, List<Windmill.HeartbeatRequest>> heartbeats) {
+  public void refreshActiveWork(Map<HeartbeatSender, Heartbeat> heartbeats) {
     if (heartbeats.isEmpty()) {
       return;
     }
 
-    try (AutoCloseable ignored =
-            getDataMetricTracker.trackSingleCallWithThrottling(
-                ThrottlingGetDataMetricTracker.Type.STATE);
-        CloseableStream<GetDataStream> closeableStream = heartbeatStreamPool.getCloseableStream()) {
-      closeableStream.stream().refreshActiveWork(heartbeats);
-    } catch (Exception e) {
-      throw new GetDataException("Error occurred refreshing heartbeats=" + heartbeats, e);
+    for (Map.Entry<HeartbeatSender, Heartbeat> heartbeatToSend : heartbeats.entrySet()) {
+      try (AutoCloseable ignored =
+          getDataMetricTracker.trackHeartbeats(
+              heartbeatToSend.getValue().heartbeatRequests().size())) {
+        heartbeatToSend.getKey().sendHeartbeats(heartbeatToSend.getValue());
+      } catch (Exception e) {
+        throw new GetDataException("Error occurred refreshing heartbeats=" + heartbeatToSend, e);
+      }
     }
   }
 
   @Override
   public void printHtml(PrintWriter writer) {
     getDataMetricTracker.printHtml(writer);
-  }
-
-  @Internal
-  @AutoBuilder
-  public abstract static class Builder {
-    abstract Builder setWindmillClient(StreamingEngineWindmillClient windmillClient);
-
-    abstract Builder setGetDataMetricTracker(ThrottlingGetDataMetricTracker getDataMetricTracker);
-
-    public abstract Builder setUseSeparateHeartbeatStreams(boolean useSeparateHeartbeatStreams);
-
-    public abstract Builder setNumGetDataStreams(int numGetDataStreams);
-
-    abstract StreamingEngineGetDataClient autoBuild();
-
-    public final GetDataClient build() {
-      return autoBuild();
-    }
   }
 }

@@ -20,6 +20,7 @@ package org.apache.beam.runners.dataflow.worker.streaming;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList.toImmutableList;
 
 import com.google.auto.value.AutoValue;
+import com.google.common.base.Objects;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.EnumMap;
@@ -31,6 +32,7 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
 import org.apache.beam.runners.dataflow.worker.ActiveMessageMetadata;
@@ -46,10 +48,13 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitR
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.Commit;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReader;
+import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Represents the state of an attempt to process a {@link WorkItem} by executing user code.
@@ -58,7 +63,9 @@ import org.joda.time.Instant;
  */
 @NotThreadSafe
 @Internal
-public final class Work {
+public final class Work implements RefreshableWork {
+  private static final Logger LOG = LoggerFactory.getLogger(Work.class);
+
   private final ShardedKey shardedKey;
   private final WorkItem workItem;
   private final ProcessingContext processingContext;
@@ -68,28 +75,35 @@ public final class Work {
   private final Map<LatencyAttribution.State, Duration> totalDurationPerState;
   private final WorkId id;
   private final String latencyTrackingId;
+  private final Runnable onFailed;
   private TimedState currentState;
   private volatile boolean isFailed;
 
   private Work(
+      ShardedKey shardedKey,
       WorkItem workItem,
-      Watermarks watermarks,
       ProcessingContext processingContext,
-      Supplier<Instant> clock) {
-    this.shardedKey = ShardedKey.create(workItem.getKey(), workItem.getShardingKey());
+      Watermarks watermarks,
+      Supplier<Instant> clock,
+      Instant startTime,
+      Map<LatencyAttribution.State, Duration> totalDurationPerState,
+      WorkId id,
+      String latencyTrackingId,
+      Runnable onFailed,
+      TimedState currentState,
+      boolean isFailed) {
+    this.shardedKey = shardedKey;
     this.workItem = workItem;
-    this.processingContext = processingContext;
     this.watermarks = watermarks;
     this.clock = clock;
-    this.startTime = clock.get();
-    this.totalDurationPerState = new EnumMap<>(LatencyAttribution.State.class);
-    this.id = WorkId.of(workItem);
-    this.latencyTrackingId =
-        Long.toHexString(workItem.getShardingKey())
-            + '-'
-            + Long.toHexString(workItem.getWorkToken());
-    this.currentState = TimedState.initialState(startTime);
-    this.isFailed = false;
+    this.startTime = startTime;
+    this.totalDurationPerState = totalDurationPerState;
+    this.id = id;
+    this.latencyTrackingId = latencyTrackingId;
+    this.onFailed = onFailed;
+    this.currentState = currentState;
+    this.isFailed = isFailed;
+    this.processingContext = processingContext;
   }
 
   public static Work create(
@@ -98,7 +112,21 @@ public final class Work {
       ProcessingContext processingContext,
       Supplier<Instant> clock,
       Collection<LatencyAttribution> getWorkStreamLatencies) {
-    Work work = new Work(workItem, watermarks, processingContext, clock);
+    Instant startTime = clock.get();
+    Work work =
+        new Work(
+            ShardedKey.create(workItem.getKey(), workItem.getShardingKey()),
+            workItem,
+            processingContext,
+            watermarks,
+            clock,
+            startTime,
+            new EnumMap<>(LatencyAttribution.State.class),
+            WorkId.of(workItem),
+            buildLatencyTrackingId(workItem),
+            () -> {},
+            TimedState.initialState(startTime),
+            false);
     work.recordGetWorkStreamLatencies(getWorkStreamLatencies);
     return work;
   }
@@ -106,8 +134,10 @@ public final class Work {
   public static ProcessingContext createProcessingContext(
       String computationId,
       BiFunction<String, KeyedGetDataRequest, KeyedGetDataResponse> getKeyedDataFn,
-      Consumer<Commit> workCommitter) {
-    return ProcessingContext.create(computationId, getKeyedDataFn, workCommitter);
+      Consumer<Commit> workCommitter,
+      HeartbeatSender heartbeatSender) {
+    return ProcessingContext.create(computationId, getKeyedDataFn, workCommitter, heartbeatSender)
+        .build();
   }
 
   private static LatencyAttribution.Builder createLatencyAttributionWithActiveLatencyBreakdown(
@@ -147,6 +177,29 @@ public final class Work {
     return latencyAttribution;
   }
 
+  private static String buildLatencyTrackingId(WorkItem workItem) {
+    return Long.toHexString(workItem.getShardingKey())
+        + '-'
+        + Long.toHexString(workItem.getWorkToken());
+  }
+
+  /** Returns a new {@link Work} instance with the same state and a different failure handler. */
+  public Work withFailureHandler(Runnable onFailed) {
+    return new Work(
+        shardedKey,
+        workItem,
+        processingContext,
+        watermarks,
+        clock,
+        startTime,
+        totalDurationPerState,
+        id,
+        latencyTrackingId,
+        onFailed,
+        currentState,
+        isFailed);
+  }
+
   public WorkItem getWorkItem() {
     return workItem;
   }
@@ -180,8 +233,28 @@ public final class Work {
     this.currentState = TimedState.create(state, now);
   }
 
+  @Override
+  public boolean isRefreshable(Instant refreshDeadline) {
+    return getStartTime().isBefore(refreshDeadline) && !isFailed;
+  }
+
+  @Override
+  public HeartbeatSender heartbeatSender() {
+    return processingContext.heartbeatSender();
+  }
+
+  @Override
   public void setFailed() {
+    LOG.debug(
+        "Failing work: [computationId= "
+            + processingContext.computationId()
+            + ", key="
+            + shardedKey
+            + ", workId="
+            + id
+            + "]. The work will be retried and is not lost.");
     this.isFailed = true;
+    onFailed.run();
   }
 
   public boolean isCommitPending() {
@@ -205,6 +278,7 @@ public final class Work {
     return WindmillStateReader.forWork(this);
   }
 
+  @Override
   public WorkId id() {
     return id;
   }
@@ -216,6 +290,7 @@ public final class Work {
     }
   }
 
+  @Override
   public ImmutableList<LatencyAttribution> getLatencyAttributions(
       boolean isHeartbeat, DataflowExecutionStateSampler sampler) {
     return Arrays.stream(LatencyAttribution.State.values())
@@ -260,9 +335,53 @@ public final class Work {
     return isFailed;
   }
 
+  public String backendWorkerToken() {
+    return processingContext.backendWorkerToken();
+  }
+
   boolean isStuckCommittingAt(Instant stuckCommitDeadline) {
     return currentState.state() == Work.State.COMMITTING
         && currentState.startTime().isBefore(stuckCommitDeadline);
+  }
+
+  /** Returns a view of this {@link Work} instance for work refreshing. */
+  public RefreshableWork refreshableView() {
+    return this;
+  }
+
+  @Override
+  public boolean equals(@Nullable Object o) {
+    if (o == null) return false;
+    if (this == o) return true;
+    if (!(o instanceof Work)) return false;
+    Work work = (Work) o;
+    return isFailed == work.isFailed
+        && Objects.equal(shardedKey, work.shardedKey)
+        && Objects.equal(workItem, work.workItem)
+        && Objects.equal(processingContext, work.processingContext)
+        && Objects.equal(watermarks, work.watermarks)
+        && Objects.equal(clock, work.clock)
+        && Objects.equal(startTime, work.startTime)
+        && Objects.equal(totalDurationPerState, work.totalDurationPerState)
+        && Objects.equal(id, work.id)
+        && Objects.equal(latencyTrackingId, work.latencyTrackingId)
+        && Objects.equal(currentState, work.currentState);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hashCode(
+        shardedKey,
+        workItem,
+        processingContext,
+        watermarks,
+        clock,
+        startTime,
+        totalDurationPerState,
+        id,
+        latencyTrackingId,
+        currentState,
+        isFailed);
   }
 
   public enum State {
@@ -311,16 +430,23 @@ public final class Work {
 
   @AutoValue
   public abstract static class ProcessingContext {
+    private static final String UNKNOWN_BACKEND_WORKER_TOKEN = "";
 
-    private static ProcessingContext create(
+    private static ProcessingContext.Builder create(
         String computationId,
         BiFunction<String, KeyedGetDataRequest, KeyedGetDataResponse> getKeyedDataFn,
-        Consumer<Commit> workCommitter) {
-      return new AutoValue_Work_ProcessingContext(
-          computationId,
-          request -> Optional.ofNullable(getKeyedDataFn.apply(computationId, request)),
-          workCommitter);
+        Consumer<Commit> workCommitter,
+        HeartbeatSender heartbeatSender) {
+      return new AutoValue_Work_ProcessingContext.Builder()
+          .setBackendWorkerToken(UNKNOWN_BACKEND_WORKER_TOKEN)
+          .setComputationId(computationId)
+          .setHeartbeatSender(heartbeatSender)
+          .setWorkCommitter(workCommitter)
+          .setKeyedDataFetcher(
+              request -> Optional.ofNullable(getKeyedDataFn.apply(computationId, request)));
     }
+
+    abstract String backendWorkerToken();
 
     /** Computation that the {@link Work} belongs to. */
     public abstract String computationId();
@@ -334,5 +460,25 @@ public final class Work {
      * {@link WorkItem}.
      */
     public abstract Consumer<Commit> workCommitter();
+
+    public abstract HeartbeatSender heartbeatSender();
+
+    public abstract Builder toBuilder();
+
+    @AutoValue.Builder
+    public abstract static class Builder {
+      public abstract Builder setBackendWorkerToken(String value);
+
+      abstract Builder setComputationId(String value);
+
+      abstract Builder setKeyedDataFetcher(
+          Function<KeyedGetDataRequest, Optional<KeyedGetDataResponse>> value);
+
+      abstract Builder setWorkCommitter(Consumer<Commit> value);
+
+      abstract Builder setHeartbeatSender(HeartbeatSender value);
+
+      public abstract ProcessingContext build();
+    }
   }
 }
