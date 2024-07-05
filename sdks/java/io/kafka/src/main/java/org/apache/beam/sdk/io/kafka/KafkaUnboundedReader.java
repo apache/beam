@@ -348,7 +348,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
   private final Counter checkpointMarkCommitsSkipped =
       Metrics.counter(METRIC_NAMESPACE, CHECKPOINT_MARK_COMMITS_SKIPPED_METRIC);
 
-  private final KafkaConsumerPollThread pollThread;
+  private final transient KafkaConsumerPollThread pollThread;
 
   // Use a separate thread to read Kafka messages. Kafka Consumer does all its work including
   // network I/O inside poll(). Polling only inside #advance(), especially with a small timeout
@@ -555,7 +555,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     curBatch = Collections.emptyIterator();
 
     ConsumerRecords<byte[], byte[]> records = pollThread.readRecords();
-    if (records != null) {
+    if (!records.isEmpty()) {
       partitionStates.forEach(p -> p.recordIter = records.records(p.topicPartition).iterator());
       // cycle through the partitions in order to interleave records from each.
       curBatch = Iterators.cycle(new ArrayList<>(partitionStates));
@@ -641,7 +641,11 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
   @Override
   public void close() throws IOException {
     closed.set(true);
-    pollThread.close();
+    try {
+      pollThread.close();
+    } catch (IOException e) {
+      LOG.warn("Error shutting down poll thread", e);
+    }
     offsetFetcherThread.shutdown();
 
     boolean isShutdown = false;

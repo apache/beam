@@ -19,7 +19,12 @@ package org.apache.beam.sdk.io.kafka;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.util.concurrent.*;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
@@ -168,13 +173,14 @@ public class KafkaConsumerPollThread {
         recordsDequeuePollTimeout = recordsDequeuePollTimeout.minus(Duration.ofMillis(1));
         LOG.debug("Reducing poll timeout for reader to " + recordsDequeuePollTimeout.toMillis());
       }
-    } else if (recordsDequeuePollTimeout.compareTo(RECORDS_DEQUEUE_POLL_TIMEOUT_MAX) < 0) {
+      return ConsumerRecords.empty();
+    }
+    if (recordsDequeuePollTimeout.compareTo(RECORDS_DEQUEUE_POLL_TIMEOUT_MAX) < 0) {
       recordsDequeuePollTimeout = recordsDequeuePollTimeout.plus(Duration.ofMillis(1));
       LOG.debug("Increasing poll timeout for reader to " + recordsDequeuePollTimeout.toMillis());
       LOG.debug("Record count: " + records.count());
     }
-
-    return records == null ? ConsumerRecords.empty() : records;
+    return records;
   }
 
   /**
