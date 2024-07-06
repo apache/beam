@@ -202,7 +202,7 @@ class _InsertDocRedisSink(object):
         with self.client.pipeline() as pipe:
             # id = 1
             for element in elements:  # ML Transform passes a dictionary list. TODO: add a transform instead to suit the Vector DB functionality.
-                doc_key = f"doc_{str(element['id'])}"
+                doc_key = f"doc_{str(element['id'])}_section_{str(element['section_id'])}"
                 for k, v in element.items():
                     print(f'Inserting doc_key={doc_key}, key={k}, value={v}')
                     pipe.hset(name=doc_key, key=k, value=v)
@@ -381,7 +381,7 @@ class _InsertEmbeddingInRedisSink(object):
         self._create_client()
         with self.client.pipeline() as pipe:
             for element in elements:  # ML Transform passes a dictionary list. TODO: add a transform instead to suit the Vector DB functionality.
-                doc_key = f"doc_{str(element['id'])}"
+                doc_key = f"doc_{str(element['id'])}_section_{str(element['section_id'])}"
                 for k, v in element.items():
                     if k in self.embedded_columns:
                         v = np.array(v, dtype=np.float32).tobytes()
