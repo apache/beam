@@ -25,15 +25,15 @@ import java.util.Set;
 import org.apache.beam.sdk.metrics.StringSetResult;
 
 /**
- * Data describing the StringSet. This should retain enough detail that it can be combined with other
- * {@link StringSetData}.
+ * Data describing the StringSet. This should retain enough detail that it can be combined with
+ * other {@link StringSetData}.
  */
 @AutoValue
 public abstract class StringSetData implements Serializable {
 
   public abstract Set<String> stringSet();
 
-  /** Returns a {@link StringSetData} which consists of the given set */
+  /** Returns a {@link StringSetData} which consists of the given set. */
   public static StringSetData create(Set<String> stringSet) {
     return new AutoValue_StringSetData(stringSet);
   }
@@ -46,15 +46,15 @@ public abstract class StringSetData implements Serializable {
   /** Combines this {@link StringSetData} with other, both original StringSetData are left
    * intact. */
   public StringSetData combine(StringSetData other) {
-    // do not merge other on this as this StringSetData might hold an immutable set
-    // like in case of  EmptyStringSetData
+    // do not merge other on this as this StringSetData might hold an immutable set like in case
+    // of  EmptyStringSetData
     Set<String> merged = new HashSet<>();
     merged.addAll(this.stringSet());
     merged.addAll(other.stringSet());
     return StringSetData.create(merged);
   }
 
-  /** Returns a {@link StringSetResult} representing this {@link StringSetData} */
+  /** Returns a {@link StringSetResult} representing this {@link StringSetData}. */
   public StringSetResult extractResult() {
     return StringSetResult.create(stringSet());
   }
@@ -66,13 +66,13 @@ public abstract class StringSetData implements Serializable {
 
     private EmptyStringSetData() {}
 
-    /** Return an immutable empty set  */
+    /** Return an immutable empty set.  */
     @Override
     public Set<String> stringSet() {
       return Collections.emptySet();
     }
 
-    /** Return a {@link StringSetResult#empty()}  which is immutable empty set */
+    /** Return a {@link StringSetResult#empty()}  which is immutable empty set. */
     @Override
     public StringSetResult extractResult() {
       return StringSetResult.empty();

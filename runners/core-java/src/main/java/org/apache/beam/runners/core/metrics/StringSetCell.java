@@ -31,14 +31,15 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * Tracks the current value for a {@link StringSet} metric.
  *
  * <p>This class generally shouldn't be used directly. The only exception is within a runner where a
- * stringset is being reported for a specific step (rather than the stringset in the current context). In
- * that case retrieving the underlying cell and reporting directly to it avoids a step of
+ * counter is being reported for a specific step (rather than the counter in the current context).
+ * In that case retrieving the underlying cell and reporting directly to it avoids a step of
  * indirection.
  */
 public class StringSetCell implements StringSet, MetricCell<StringSetData> {
 
   private final DirtyState dirty = new DirtyState();
-  private final AtomicReference<StringSetData> setValue = new AtomicReference<>(StringSetData.empty());
+  private final AtomicReference<StringSetData> setValue =
+      new AtomicReference<>(StringSetData.empty());
   private final MetricName name;
 
   /**
@@ -55,7 +56,6 @@ public class StringSetCell implements StringSet, MetricCell<StringSetData> {
     setValue.set(StringSetData.empty());
     dirty.reset();
   }
-
 
   void update(StringSetData data) {
     StringSetData original;

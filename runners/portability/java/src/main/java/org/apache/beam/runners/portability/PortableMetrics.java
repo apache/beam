@@ -19,13 +19,14 @@ package org.apache.beam.runners.portability;
 
 import static org.apache.beam.runners.core.metrics.MonitoringInfoConstants.TypeUrns.DISTRIBUTION_INT64_TYPE;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoConstants.TypeUrns.LATEST_INT64_TYPE;
+import static org.apache.beam.runners.core.metrics.MonitoringInfoConstants.TypeUrns.SET_STRING_TYPE;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoConstants.TypeUrns.SUM_INT64_TYPE;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.decodeInt64Counter;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.decodeInt64Distribution;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.decodeInt64Gauge;
+import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.decodeStringSet;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -33,6 +34,7 @@ import org.apache.beam.model.jobmanagement.v1.JobApi;
 import org.apache.beam.model.pipeline.v1.MetricsApi;
 import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.GaugeData;
+import org.apache.beam.runners.core.metrics.StringSetData;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.sdk.metrics.MetricFiltering;
@@ -96,10 +98,8 @@ public class PortableMetrics extends MetricResults {
         extractDistributionMetricsFromJobMetrics(monitoringInfoList);
     Iterable<MetricResult<GaugeResult>> gaugesFromMetrics =
         extractGaugeMetricsFromJobMetrics(monitoringInfoList);
-    //TODO: Need more work here for portable metrics. Need to introduce a new urn/encoder/decoder
-    // and more for set of string.
     Iterable<MetricResult<StringSetResult>> stringSetFromMetrics =
-        extractStringSetMetricsFromJobMetrics();
+        extractStringSetMetricsFromJobMetrics(monitoringInfoList);
     return new PortableMetrics(countersFromJobMetrics, distributionsFromMetrics,
         gaugesFromMetrics, stringSetFromMetrics);
   }
@@ -135,10 +135,26 @@ public class PortableMetrics extends MetricResults {
     return MetricResult.create(key, false, result);
   }
 
-  private static Iterable<MetricResult<StringSetResult>> extractStringSetMetricsFromJobMetrics() {
-    MetricKey metricKey = MetricKey.create("not-supported",
-        MetricName.named("not-supported", "not-supported"));
-    return Collections.singleton(MetricResult.create(metricKey, false, StringSetResult.empty()));
+  private static Iterable<MetricResult<StringSetResult>> extractStringSetMetricsFromJobMetrics(
+      List<MetricsApi.MonitoringInfo> monitoringInfoList) {
+    return monitoringInfoList.stream()
+        .filter(item -> SET_STRING_TYPE.equals(item.getType()))
+        .filter(item -> item.getLabelsMap().get(NAMESPACE_LABEL) != null)
+        .map(PortableMetrics::convertStringSetMonitoringInfoToStringSet)
+        .collect(Collectors.toList());
+  }
+
+  private static MetricResult<StringSetResult> convertStringSetMonitoringInfoToStringSet(
+      MetricsApi.MonitoringInfo monitoringInfo) {
+    Map<String, String> labelsMap = monitoringInfo.getLabelsMap();
+    MetricKey key =
+        MetricKey.create(
+            labelsMap.get(STEP_NAME_LABEL),
+            MetricName.named(labelsMap.get(NAMESPACE_LABEL), labelsMap.get(METRIC_NAME_LABEL)));
+
+    StringSetData data = decodeStringSet(monitoringInfo.getPayload());
+    StringSetResult result = StringSetResult.create(data.stringSet());
+    return MetricResult.create(key, false, result);
   }
 
   private static MetricResult<DistributionResult> convertDistributionMonitoringInfoToDistribution(

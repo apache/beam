@@ -20,8 +20,8 @@ package org.apache.beam.runners.core.metrics;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import com.google.common.collect.ImmutableSet;
 import java.util.Collections;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;

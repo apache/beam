@@ -29,10 +29,12 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterab
   "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public abstract class MetricUpdates {
-
   public static final MetricUpdates EMPTY =
       MetricUpdates.create(
-          Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), Collections.emptyList());
+          Collections.emptyList(),
+          Collections.emptyList(),
+          Collections.emptyList(),
+          Collections.emptyList());
 
   /**
    * Representation of a single metric update.
@@ -52,11 +54,6 @@ public abstract class MetricUpdates {
     }
   }
 
-  /** Returns true if there are no updates in this MetricUpdates object. */
-  public boolean isEmpty() {
-    return Iterables.isEmpty(counterUpdates()) && Iterables.isEmpty(distributionUpdates()) && Iterables.isEmpty(gaugeUpdates()) && Iterables.isEmpty(stringSetUpdates());
-  }
-
   /** All the counter updates. */
   public abstract Iterable<MetricUpdate<Long>> counterUpdates();
 
@@ -73,7 +70,17 @@ public abstract class MetricUpdates {
   public static MetricUpdates create(
       Iterable<MetricUpdate<Long>> counterUpdates,
       Iterable<MetricUpdate<DistributionData>> distributionUpdates,
-      Iterable<MetricUpdate<GaugeData>> gaugeUpdates, Iterable<MetricUpdate<StringSetData>> stringSetUpdates) {
-    return new AutoValue_MetricUpdates(counterUpdates, distributionUpdates, gaugeUpdates, stringSetUpdates);
+      Iterable<MetricUpdate<GaugeData>> gaugeUpdates,
+      Iterable<MetricUpdate<StringSetData>> stringSetUpdates) {
+    return new AutoValue_MetricUpdates(
+        counterUpdates, distributionUpdates, gaugeUpdates, stringSetUpdates);
+  }
+
+  /** Returns true if there are no updates in this MetricUpdates object. */
+  public boolean isEmpty() {
+    return Iterables.isEmpty(counterUpdates())
+        && Iterables.isEmpty(distributionUpdates())
+        && Iterables.isEmpty(gaugeUpdates())
+        && Iterables.isEmpty(stringSetUpdates());
   }
 }

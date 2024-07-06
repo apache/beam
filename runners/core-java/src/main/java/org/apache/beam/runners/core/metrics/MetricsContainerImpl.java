@@ -206,7 +206,8 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
   }
 
   /**
-   * Return a {@code StringSetCell} named {@code metricName}. If it doesn't exist, return {@code null}.
+   * Return a {@code StringSetCell} named {@code metricName}.If it doesn't exist, return {@code
+   * null}.
    */
   public @Nullable StringSetCell tryGetStringSet(MetricName metricName) {
     return stringSets.tryGet(metricName);
@@ -231,7 +232,10 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
    */
   public MetricUpdates getUpdates() {
     return MetricUpdates.create(
-        extractUpdates(counters), extractUpdates(distributions), extractUpdates(gauges), extractUpdates(stringSets));
+        extractUpdates(counters),
+        extractUpdates(distributions),
+        extractUpdates(gauges),
+        extractUpdates(stringSets));
   }
 
   /** @return The MonitoringInfo metadata from the metric. */
@@ -525,9 +529,11 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
   }
 
   private void updateStringSets(
-      MetricsMap<MetricName, StringSetCell> current, MetricsMap<MetricName, StringSetCell> updates) {
+      MetricsMap<MetricName, StringSetCell> current,
+      MetricsMap<MetricName, StringSetCell> updates) {
     updates.forEach((key, value) -> current.get(key).update(value.getCumulative()));
   }
+
   @Override
   public boolean equals(@Nullable Object object) {
     if (object instanceof MetricsContainerImpl) {

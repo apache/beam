@@ -24,7 +24,6 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasItem;
 
-import com.google.common.collect.ImmutableSet;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -43,6 +42,7 @@ import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.metrics.StringSet;
 import org.apache.beam.sdk.metrics.StringSetResult;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.hamcrest.collection.IsIterableWithSize;
 import org.joda.time.Instant;
 import org.junit.Assert;

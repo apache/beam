@@ -61,6 +61,7 @@ public class DefaultMetricResults extends MetricResults {
         Iterables.filter(
             distributions, distribution -> MetricFiltering.matches(filter, distribution.getKey())),
         Iterables.filter(gauges, gauge -> MetricFiltering.matches(filter, gauge.getKey())),
-        Iterables.filter(stringSets, stringSets -> MetricFiltering.matches(filter, stringSets.getKey())));
+        Iterables.filter(
+            stringSets, stringSets -> MetricFiltering.matches(filter, stringSets.getKey())));
   }
 }

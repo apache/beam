@@ -21,8 +21,8 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 
-import com.google.common.collect.ImmutableSet;
 import org.apache.beam.sdk.metrics.MetricName;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.junit.Assert;
 import org.junit.Test;
 
