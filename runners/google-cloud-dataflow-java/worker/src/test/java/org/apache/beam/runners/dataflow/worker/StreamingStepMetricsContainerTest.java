@@ -37,11 +37,13 @@ import com.google.api.services.dataflow.model.IntegerGauge;
 import com.google.api.services.dataflow.model.Linear;
 import com.google.api.services.dataflow.model.MetricValue;
 import com.google.api.services.dataflow.model.PerStepNamespaceMetrics;
+import com.google.api.services.dataflow.model.StringList;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -57,6 +59,7 @@ import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.metrics.NoOpCounter;
 import org.apache.beam.sdk.metrics.NoOpHistogram;
+import org.apache.beam.sdk.metrics.StringSet;
 import org.apache.beam.sdk.util.HistogramData;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.hamcrest.collection.IsEmptyIterable;
@@ -71,7 +74,7 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link StreamingStepMetricsContainer}. */
 @RunWith(JUnit4.class)
 @SuppressWarnings({
-  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+    "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class StreamingStepMetricsContainerTest {
   @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
@@ -265,6 +268,58 @@ public class StreamingStepMetricsContainerTest {
 
     // Release freeze on clock.
     DateTimeUtils.setCurrentMillisSystem();
+  }
+  @Test
+  public void testStringSetUpdateExtraction() {
+    StringSet stringSet = c1.getStringSet(name1);
+    stringSet.add("ab");
+    stringSet.add("cd", "ef");
+    stringSet.add("gh");
+    stringSet.add("gh");
+
+    CounterUpdate name1Update = new CounterUpdate()
+        .setStructuredNameAndMetadata(
+            new CounterStructuredNameAndMetadata()
+                .setName(
+                    new CounterStructuredName()
+                        .setOrigin(Origin.USER.toString())
+                        .setOriginNamespace("ns")
+                        .setName("name1")
+                        .setOriginalStepName("s1"))
+                .setMetadata(new CounterMetadata().setKind(Kind.SET.toString())))
+        .setCumulative(false)
+        .setStringList(new StringList().setElements(Arrays.asList("ab", "cd", "ef", "gh")));
+
+    Iterable<CounterUpdate> updates = StreamingStepMetricsContainer.extractMetricUpdates(registry);
+    assertThat(updates, containsInAnyOrder(name1Update));
+
+    stringSet = c2.getStringSet(name2);
+    stringSet.add("ij");
+    stringSet.add("kl", "mn");
+    stringSet.add("mn");
+
+    CounterUpdate name2Update = new CounterUpdate()
+        .setStructuredNameAndMetadata(
+            new CounterStructuredNameAndMetadata()
+                .setName(
+                    new CounterStructuredName()
+                        .setOrigin(Origin.USER.toString())
+                        .setOriginNamespace("ns")
+                        .setName("name2")
+                        .setOriginalStepName("s2"))
+                .setMetadata(new CounterMetadata().setKind(Kind.SET.toString())))
+        .setCumulative(false)
+        .setStringList(new StringList().setElements(Arrays.asList("ij", "kl", "mn")));
+
+    updates = StreamingStepMetricsContainer.extractMetricUpdates(registry);
+    assertThat(updates, containsInAnyOrder(name1Update, name2Update));
+
+    c1.getStringSet(name1).add("op");
+    name1Update.setStringList(
+        new StringList().setElements(Arrays.asList("ab", "cd", "ef", "gh", "op")));
+
+    updates = StreamingStepMetricsContainer.extractMetricUpdates(registry);
+    assertThat(updates, containsInAnyOrder(name1Update, name2Update));
   }
 
   @Test

@@ -26,6 +26,7 @@ import org.apache.beam.sdk.metrics.Histogram;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
+import org.apache.beam.sdk.metrics.StringSet;
 import org.apache.beam.sdk.util.HistogramData;
 
 /**
@@ -71,6 +72,11 @@ public class DataflowMetricsContainer implements MetricsContainer {
   @Override
   public Gauge getGauge(MetricName metricName) {
     return getCurrentContainer().getGauge(metricName);
+  }
+
+  @Override
+  public StringSet getStringSet(MetricName metricName) {
+    return getCurrentContainer().getStringSet(metricName);
   }
 
   @Override

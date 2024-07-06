@@ -24,6 +24,7 @@ import com.google.api.client.util.ArrayMap;
 import com.google.api.services.dataflow.model.JobMetrics;
 import com.google.api.services.dataflow.model.MetricUpdate;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -38,6 +39,7 @@ import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
+import org.apache.beam.sdk.metrics.StringSetResult;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Objects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.BiMap;
@@ -99,12 +101,13 @@ class DataflowMetrics extends MetricResults {
     ImmutableList<MetricResult<Long>> counters = ImmutableList.of();
     ImmutableList<MetricResult<DistributionResult>> distributions = ImmutableList.of();
     ImmutableList<MetricResult<GaugeResult>> gauges = ImmutableList.of();
+    ImmutableList<MetricResult<StringSetResult>> stringSets = ImmutableList.of();
     JobMetrics jobMetrics;
     try {
       jobMetrics = getJobMetrics();
     } catch (IOException e) {
       LOG.warn("Unable to query job metrics.\n");
-      return MetricQueryResults.create(counters, distributions, gauges);
+      return MetricQueryResults.create(counters, distributions, gauges, stringSets);
     }
     metricUpdates = firstNonNull(jobMetrics.getMetrics(), Collections.emptyList());
     return populateMetricQueryResults(metricUpdates, filter);
@@ -127,12 +130,19 @@ class DataflowMetrics extends MetricResults {
     private final ImmutableList.Builder<MetricResult<Long>> counterResults;
     private final ImmutableList.Builder<MetricResult<DistributionResult>> distributionResults;
     private final ImmutableList.Builder<MetricResult<GaugeResult>> gaugeResults;
+    private final ImmutableList.Builder<MetricResult<StringSetResult>> stringSetResults;
     private final boolean isStreamingJob;
 
     DataflowMetricResultExtractor(boolean isStreamingJob) {
       counterResults = ImmutableList.builder();
       distributionResults = ImmutableList.builder();
       gaugeResults = ImmutableList.builder();
+      stringSetResults = ImmutableList.builder();
+      /* In Dataflow streaming jobs, only ATTEMPTED metrics are available.
+       * In Dataflow batch jobs, only COMMITTED metrics are available, but
+       * we must provide ATTEMPTED, so we use COMMITTED as a good approximation.
+       * Reporting the appropriate metric depending on whether it's a batch/streaming job.
+       */
       this.isStreamingJob = isStreamingJob;
     }
 
@@ -148,21 +158,15 @@ class DataflowMetrics extends MetricResults {
         // distribution metric
         DistributionResult value = getDistributionValue(committed);
         distributionResults.add(MetricResult.create(metricKey, !isStreamingJob, value));
-        /* In Dataflow streaming jobs, only ATTEMPTED metrics are available.
-         * In Dataflow batch jobs, only COMMITTED metrics are available, but
-         * we must provide ATTEMPTED, so we use COMMITTED as a good approximation.
-         * Reporting the appropriate metric depending on whether it's a batch/streaming job.
-         */
       } else if (committed.getScalar() != null && attempted.getScalar() != null) {
         // counter metric
         Long value = getCounterValue(committed);
         counterResults.add(MetricResult.create(metricKey, !isStreamingJob, value));
-        /* In Dataflow streaming jobs, only ATTEMPTED metrics are available.
-         * In Dataflow batch jobs, only COMMITTED metrics are available, but
-         * we must provide ATTEMPTED, so we use COMMITTED as a good approximation.
-         * Reporting the appropriate metric depending on whether it's a batch/streaming job.
-         */
-      } else {
+      } else if (committed.getSet() != null && attempted.getSet() != null) {
+      // stringset metric
+      StringSetResult value = getStringSetValue(committed);
+      stringSetResults.add(MetricResult.create(metricKey, !isStreamingJob, value));
+    } else {
         // This is exceptionally unexpected. We expect matching user metrics to only have the
         // value types provided by the Metrics API.
         LOG.warn(
@@ -180,6 +184,13 @@ class DataflowMetrics extends MetricResults {
         return 0L;
       }
       return ((Number) metricUpdate.getScalar()).longValue();
+    }
+
+    private StringSetResult getStringSetValue(MetricUpdate metricUpdate) {
+      if (metricUpdate.getSet() == null) {
+        return StringSetResult.empty();
+      }
+      return StringSetResult.create(new HashSet<>(((ArrayList) metricUpdate.getSet())));
     }
 
     private DistributionResult getDistributionValue(MetricUpdate metricUpdate) {
@@ -204,6 +215,10 @@ class DataflowMetrics extends MetricResults {
 
     public Iterable<MetricResult<GaugeResult>> getGaugeResults() {
       return gaugeResults.build();
+    }
+
+    public Iterable<MetricResult<StringSetResult>> geStringSetResults() {
+      return stringSetResults.build();
     }
   }
 
@@ -369,7 +384,8 @@ class DataflowMetrics extends MetricResults {
       return MetricQueryResults.create(
           extractor.getCounterResults(),
           extractor.getDistributionResults(),
-          extractor.getGaugeResults());
+          extractor.getGaugeResults(),
+          extractor.geStringSetResults());
     }
   }
 }
