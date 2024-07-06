@@ -46,11 +46,9 @@ class ChunksGeneration(PTransform):
         """
 
         Args:
-        host (str, ValueProvider): The redis host
-        port (int, ValueProvider): The redis port
-        command : command to be executed with redis client
-        batch_size(int, ValueProvider): Number of key, values pairs to write at once
-        embedded_columns (list, ValueProvider): list of column whose embedding needs to be generated
+        chunk_size : Chunk size is the maximum number of characters that a chunk can contain
+        chunk_overlap : the number of characters that should overlap between two adjacent chunks
+        chunking_strategy : Defines the way to split text
 
         Returns:
         :class:`~apache_beam.transforms.ptransform.PTransform`
@@ -118,7 +116,6 @@ class _GenerateChunksFn(DoFn):
         for i, section in enumerate(texts):
             element_copy['text'] = section
             element_copy['section_id'] = i + 1
-            # print(f'This is element before going in redis {element_copy}')
             yield element_copy
 
 
