@@ -38,13 +38,14 @@ public abstract class StringSetData implements Serializable {
     return new AutoValue_StringSetData(stringSet);
   }
 
-  /** Return  a {@link EmptyStringSetData#INSTANCE} representing an empty {@link StringSetData}. */
+  /** Return a {@link EmptyStringSetData#INSTANCE} representing an empty {@link StringSetData}. */
   public static StringSetData empty() {
     return EmptyStringSetData.INSTANCE;
   }
 
-  /** Combines this {@link StringSetData} with other, both original StringSetData are left
-   * intact. */
+  /**
+   * Combines this {@link StringSetData} with other, both original StringSetData are left intact.
+   */
   public StringSetData combine(StringSetData other) {
     // do not merge other on this as this StringSetData might hold an immutable set like in case
     // of  EmptyStringSetData
@@ -66,13 +67,13 @@ public abstract class StringSetData implements Serializable {
 
     private EmptyStringSetData() {}
 
-    /** Return an immutable empty set.  */
+    /** Return an immutable empty set. */
     @Override
     public Set<String> stringSet() {
       return Collections.emptySet();
     }
 
-    /** Return a {@link StringSetResult#empty()}  which is immutable empty set. */
+    /** Return a {@link StringSetResult#empty()} which is immutable empty set. */
     @Override
     public StringSetResult extractResult() {
       return StringSetResult.empty();

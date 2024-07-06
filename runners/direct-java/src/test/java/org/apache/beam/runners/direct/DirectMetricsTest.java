@@ -90,7 +90,9 @@ public class DirectMetricsTest {
             ImmutableList.of(
                 MetricUpdate.create(MetricKey.create("step1", NAME4), GaugeData.create(15L))),
             ImmutableList.of(
-                MetricUpdate.create(MetricKey.create("step1", NAME4), StringSetData.create(ImmutableSet.of("ab"))))));
+                MetricUpdate.create(
+                    MetricKey.create("step1", NAME4),
+                    StringSetData.create(ImmutableSet.of("ab"))))));
     metrics.commitLogical(
         bundle1,
         MetricUpdates.create(
@@ -103,7 +105,9 @@ public class DirectMetricsTest {
             ImmutableList.of(
                 MetricUpdate.create(MetricKey.create("step1", NAME4), GaugeData.create(27L))),
             ImmutableList.of(
-                MetricUpdate.create(MetricKey.create("step1", NAME4), StringSetData.create(ImmutableSet.of("cd"))))));
+                MetricUpdate.create(
+                    MetricKey.create("step1", NAME4),
+                    StringSetData.create(ImmutableSet.of("cd"))))));
 
     MetricQueryResults results = metrics.allMetrics();
     assertThat(

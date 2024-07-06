@@ -74,7 +74,7 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link StreamingStepMetricsContainer}. */
 @RunWith(JUnit4.class)
 @SuppressWarnings({
-    "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class StreamingStepMetricsContainerTest {
   @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
@@ -269,6 +269,7 @@ public class StreamingStepMetricsContainerTest {
     // Release freeze on clock.
     DateTimeUtils.setCurrentMillisSystem();
   }
+
   @Test
   public void testStringSetUpdateExtraction() {
     StringSet stringSet = c1.getStringSet(name1);
@@ -277,18 +278,19 @@ public class StreamingStepMetricsContainerTest {
     stringSet.add("gh");
     stringSet.add("gh");
 
-    CounterUpdate name1Update = new CounterUpdate()
-        .setStructuredNameAndMetadata(
-            new CounterStructuredNameAndMetadata()
-                .setName(
-                    new CounterStructuredName()
-                        .setOrigin(Origin.USER.toString())
-                        .setOriginNamespace("ns")
-                        .setName("name1")
-                        .setOriginalStepName("s1"))
-                .setMetadata(new CounterMetadata().setKind(Kind.SET.toString())))
-        .setCumulative(false)
-        .setStringList(new StringList().setElements(Arrays.asList("ab", "cd", "ef", "gh")));
+    CounterUpdate name1Update =
+        new CounterUpdate()
+            .setStructuredNameAndMetadata(
+                new CounterStructuredNameAndMetadata()
+                    .setName(
+                        new CounterStructuredName()
+                            .setOrigin(Origin.USER.toString())
+                            .setOriginNamespace("ns")
+                            .setName("name1")
+                            .setOriginalStepName("s1"))
+                    .setMetadata(new CounterMetadata().setKind(Kind.SET.toString())))
+            .setCumulative(false)
+            .setStringList(new StringList().setElements(Arrays.asList("ab", "cd", "ef", "gh")));
 
     Iterable<CounterUpdate> updates = StreamingStepMetricsContainer.extractMetricUpdates(registry);
     assertThat(updates, containsInAnyOrder(name1Update));
@@ -298,18 +300,19 @@ public class StreamingStepMetricsContainerTest {
     stringSet.add("kl", "mn");
     stringSet.add("mn");
 
-    CounterUpdate name2Update = new CounterUpdate()
-        .setStructuredNameAndMetadata(
-            new CounterStructuredNameAndMetadata()
-                .setName(
-                    new CounterStructuredName()
-                        .setOrigin(Origin.USER.toString())
-                        .setOriginNamespace("ns")
-                        .setName("name2")
-                        .setOriginalStepName("s2"))
-                .setMetadata(new CounterMetadata().setKind(Kind.SET.toString())))
-        .setCumulative(false)
-        .setStringList(new StringList().setElements(Arrays.asList("ij", "kl", "mn")));
+    CounterUpdate name2Update =
+        new CounterUpdate()
+            .setStructuredNameAndMetadata(
+                new CounterStructuredNameAndMetadata()
+                    .setName(
+                        new CounterStructuredName()
+                            .setOrigin(Origin.USER.toString())
+                            .setOriginNamespace("ns")
+                            .setName("name2")
+                            .setOriginalStepName("s2"))
+                    .setMetadata(new CounterMetadata().setKind(Kind.SET.toString())))
+            .setCumulative(false)
+            .setStringList(new StringList().setElements(Arrays.asList("ij", "kl", "mn")));
 
     updates = StreamingStepMetricsContainer.extractMetricUpdates(registry);
     assertThat(updates, containsInAnyOrder(name1Update, name2Update));

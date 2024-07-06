@@ -21,9 +21,7 @@ import com.google.auto.value.AutoValue;
 import java.util.List;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
-/**
- * The results of a query for metrics. Allows accessing all the metrics that matched the filter.
- */
+/** The results of a query for metrics. Allows accessing all the metrics that matched the filter. */
 @AutoValue
 public abstract class MetricQueryResults {
   /** Return the metric results for the counters that matched the filter. */

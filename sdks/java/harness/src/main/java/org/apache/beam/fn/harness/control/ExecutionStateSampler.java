@@ -219,7 +219,7 @@ public class ExecutionStateSampler {
 
     @Override
     public StringSet getStringSet(MetricName metricName) {
-      if(tracker.currentState != null) {
+      if (tracker.currentState != null) {
         return tracker.currentState.metricsContainer.getStringSet(metricName);
       }
       return tracker.metricsContainerRegistry.getUnboundContainer().getStringSet(metricName);

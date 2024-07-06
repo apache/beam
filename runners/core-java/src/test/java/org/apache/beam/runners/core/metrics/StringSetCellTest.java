@@ -35,7 +35,9 @@ public class StringSetCellTest {
     cell.add("pubsub");
     cell.add("bq", "spanner");
     assertEquals(cell.getCumulative().stringSet(), ImmutableSet.of("spanner", "pubsub", "bq"));
-    assertEquals("getCumulative is idempotent", cell.getCumulative().stringSet(),
+    assertEquals(
+        "getCumulative is idempotent",
+        cell.getCumulative().stringSet(),
         ImmutableSet.of("spanner", "pubsub", "bq"));
 
     assertThat(cell.getDirty().beforeCommit(), equalTo(true));
@@ -43,11 +45,11 @@ public class StringSetCellTest {
     assertThat(cell.getDirty().beforeCommit(), equalTo(false));
 
     cell.add("gcs");
-    assertEquals(cell.getCumulative().stringSet(),
-        ImmutableSet.of("spanner", "pubsub", "bq", "gcs"));
+    assertEquals(
+        cell.getCumulative().stringSet(), ImmutableSet.of("spanner", "pubsub", "bq", "gcs"));
 
-    assertThat("Adding a new value made the cell dirty", cell.getDirty().beforeCommit(),
-        equalTo(true));
+    assertThat(
+        "Adding a new value made the cell dirty", cell.getDirty().beforeCommit(), equalTo(true));
   }
 
   @Test
@@ -84,7 +86,8 @@ public class StringSetCellTest {
     StringSetCell stringSetCell = new StringSetCell(MetricName.named("namespace", "name"));
     stringSetCell.add("hello");
     Assert.assertNotEquals(stringSetCell.getDirty(), new DirtyState());
-    assertThat(stringSetCell.getCumulative().stringSet(),
+    assertThat(
+        stringSetCell.getCumulative().stringSet(),
         equalTo(StringSetData.create(ImmutableSet.of("hello")).stringSet()));
 
     stringSetCell.reset();

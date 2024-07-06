@@ -83,8 +83,8 @@ public class PortableMetrics extends MetricResults {
             this.distributions,
             (distribution) -> MetricFiltering.matches(filter, distribution.getKey())),
         Iterables.filter(this.gauges, (gauge) -> MetricFiltering.matches(filter, gauge.getKey())),
-        Iterables.filter(this.stringSets, (stringSet) -> MetricFiltering.matches(filter,
-            stringSet.getKey())));
+        Iterables.filter(
+            this.stringSets, (stringSet) -> MetricFiltering.matches(filter, stringSet.getKey())));
   }
 
   private static PortableMetrics convertMonitoringInfosToMetricResults(
@@ -100,8 +100,8 @@ public class PortableMetrics extends MetricResults {
         extractGaugeMetricsFromJobMetrics(monitoringInfoList);
     Iterable<MetricResult<StringSetResult>> stringSetFromMetrics =
         extractStringSetMetricsFromJobMetrics(monitoringInfoList);
-    return new PortableMetrics(countersFromJobMetrics, distributionsFromMetrics,
-        gaugesFromMetrics, stringSetFromMetrics);
+    return new PortableMetrics(
+        countersFromJobMetrics, distributionsFromMetrics, gaugesFromMetrics, stringSetFromMetrics);
   }
 
   private static Iterable<MetricResult<DistributionResult>>

@@ -28,8 +28,8 @@ import org.junit.rules.ExpectedException;
 
 /** Tests for {@link StringSetData}. */
 public class StringSetDataTest {
-  @Rule
-  public ExpectedException exception = ExpectedException.none();
+  @Rule public ExpectedException exception = ExpectedException.none();
+
   @Test
   public void testCreate() {
     // test empty stringset creation
@@ -67,6 +67,7 @@ public class StringSetDataTest {
     assertTrue(empty.stringSet().isEmpty());
     assertEquals(multipleElement.stringSet(), ImmutableSet.of("cd", "ef"));
   }
+
   @Test
   public void testEmpty() {
     StringSetData empty = StringSetData.empty();

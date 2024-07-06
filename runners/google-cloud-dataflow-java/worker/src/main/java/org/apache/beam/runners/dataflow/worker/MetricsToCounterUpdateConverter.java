@@ -98,8 +98,7 @@ public class MetricsToCounterUpdateConverter {
         .setIntegerGauge(integerGaugeProto);
   }
 
-  public static CounterUpdate fromStringSet(
-      MetricKey key, StringSetData stringSetData) {
+  public static CounterUpdate fromStringSet(MetricKey key, StringSetData stringSetData) {
     CounterStructuredNameAndMetadata name = structuredNameAndMetadata(key, Kind.SET);
 
     StringList stringList = new StringList();

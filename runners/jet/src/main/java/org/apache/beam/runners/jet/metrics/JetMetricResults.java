@@ -75,7 +75,9 @@ public class JetMetricResults extends MetricResults {
       updateLocalMetrics(metricsAccumulator);
     }
     return new QueryResults(
-        counters.filter(filter), distributions.filter(filter), gauges.filter(filter),
+        counters.filter(filter),
+        distributions.filter(filter),
+        gauges.filter(filter),
         stringSet.filter(filter));
   }
 
@@ -253,7 +255,8 @@ public class JetMetricResults extends MetricResults {
           .toList();
     }
 
-    private MetricResult<StringSetResult> toUpdateResult(Map.Entry<MetricKey, StringSetData> entry) {
+    private MetricResult<StringSetResult> toUpdateResult(
+        Map.Entry<MetricKey, StringSetData> entry) {
       MetricKey key = entry.getKey();
       StringSetResult stringSetResult = entry.getValue().extractResult();
       return MetricResult.create(key, stringSetResult, stringSetResult);

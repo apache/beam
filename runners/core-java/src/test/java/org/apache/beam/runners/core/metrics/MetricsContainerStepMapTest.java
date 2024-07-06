@@ -76,7 +76,8 @@ public class MetricsContainerStepMapTest {
       Metrics.distribution(MetricsContainerStepMapTest.class, DISTRIBUTION_NAME);
   private static final Gauge gauge = Metrics.gauge(MetricsContainerStepMapTest.class, GAUGE_NAME);
 
-  private static final StringSet stringSet = Metrics.stringSet(MetricsContainerStepMapTest.class, STRING_SET_NAME);
+  private static final StringSet stringSet =
+      Metrics.stringSet(MetricsContainerStepMapTest.class, STRING_SET_NAME);
 
   private static final MetricsContainerImpl metricsContainer;
 
@@ -121,8 +122,12 @@ public class MetricsContainerStepMapTest {
         false);
     assertGauge(GAUGE_NAME, step1res, STEP1, GaugeResult.create(VALUE, Instant.now()), false);
 
-    assertStringSet(STRING_SET_NAME, step1res, STEP1,
-        StringSetResult.create(ImmutableSet.of(FIRST_STRING, SECOND_STRING)), false);
+    assertStringSet(
+        STRING_SET_NAME,
+        step1res,
+        STEP1,
+        StringSetResult.create(ImmutableSet.of(FIRST_STRING, SECOND_STRING)),
+        false);
 
     MetricQueryResults step2res =
         metricResults.queryMetrics(MetricsFilter.builder().addStep(STEP2).build());
@@ -141,8 +146,12 @@ public class MetricsContainerStepMapTest {
         false);
     assertGauge(GAUGE_NAME, step2res, STEP2, GaugeResult.create(VALUE, Instant.now()), false);
 
-    assertStringSet(STRING_SET_NAME, step2res, STEP2,
-        StringSetResult.create(ImmutableSet.of(FIRST_STRING, SECOND_STRING)), false);
+    assertStringSet(
+        STRING_SET_NAME,
+        step2res,
+        STEP2,
+        StringSetResult.create(ImmutableSet.of(FIRST_STRING, SECOND_STRING)),
+        false);
 
     MetricQueryResults allres = metricResults.allMetrics();
 
@@ -302,8 +311,12 @@ public class MetricsContainerStepMapTest {
         DistributionResult.create(VALUE * 3, 2, VALUE, VALUE * 2),
         true);
     assertGauge(GAUGE_NAME, step1res, STEP1, GaugeResult.create(VALUE, Instant.now()), true);
-    assertStringSet(STRING_SET_NAME, step1res, STEP1,
-        StringSetResult.create(ImmutableSet.of(FIRST_STRING, SECOND_STRING)), false);
+    assertStringSet(
+        STRING_SET_NAME,
+        step1res,
+        STEP1,
+        StringSetResult.create(ImmutableSet.of(FIRST_STRING, SECOND_STRING)),
+        false);
 
     MetricQueryResults step2res =
         metricResults.queryMetrics(MetricsFilter.builder().addStep(STEP2).build());
@@ -321,8 +334,12 @@ public class MetricsContainerStepMapTest {
         DistributionResult.create(VALUE * 9, 6, VALUE, VALUE * 2),
         false);
     assertGauge(GAUGE_NAME, step2res, STEP2, GaugeResult.create(VALUE, Instant.now()), false);
-    assertStringSet(STRING_SET_NAME, step2res, STEP2,
-        StringSetResult.create(ImmutableSet.of(FIRST_STRING, SECOND_STRING)), false);
+    assertStringSet(
+        STRING_SET_NAME,
+        step2res,
+        STEP2,
+        StringSetResult.create(ImmutableSet.of(FIRST_STRING, SECOND_STRING)),
+        false);
 
     assertCounter(COUNTER_NAME, step2res, STEP2, VALUE * 2, true);
     assertDistribution(
@@ -332,8 +349,12 @@ public class MetricsContainerStepMapTest {
         DistributionResult.create(VALUE * 6, 4, VALUE, VALUE * 2),
         true);
     assertGauge(GAUGE_NAME, step2res, STEP2, GaugeResult.create(VALUE, Instant.now()), true);
-    assertStringSet(STRING_SET_NAME, step2res, STEP2,
-        StringSetResult.create(ImmutableSet.of(FIRST_STRING, SECOND_STRING)), true);
+    assertStringSet(
+        STRING_SET_NAME,
+        step2res,
+        STEP2,
+        StringSetResult.create(ImmutableSet.of(FIRST_STRING, SECOND_STRING)),
+        true);
 
     MetricQueryResults allres = metricResults.queryMetrics(MetricsFilter.builder().build());
 
@@ -389,8 +410,12 @@ public class MetricsContainerStepMapTest {
         DistributionResult.create(VALUE * 3, 2, VALUE, VALUE * 2),
         false);
     assertGauge(GAUGE_NAME, allres, STEP1, GaugeResult.create(VALUE, Instant.now()), false);
-    assertStringSet(STRING_SET_NAME, allres, STEP1,
-        StringSetResult.create(ImmutableSet.of(FIRST_STRING, SECOND_STRING)), false);
+    assertStringSet(
+        STRING_SET_NAME,
+        allres,
+        STEP1,
+        StringSetResult.create(ImmutableSet.of(FIRST_STRING, SECOND_STRING)),
+        false);
 
     assertCounter(COUNTER_NAME, allres, STEP2, VALUE * 2, false);
     assertDistribution(
@@ -400,8 +425,12 @@ public class MetricsContainerStepMapTest {
         DistributionResult.create(VALUE * 6, 4, VALUE, VALUE * 2),
         false);
     assertGauge(GAUGE_NAME, allres, STEP2, GaugeResult.create(VALUE, Instant.now()), false);
-    assertStringSet(STRING_SET_NAME, allres, STEP2,
-        StringSetResult.create(ImmutableSet.of(FIRST_STRING, SECOND_STRING)), false);
+    assertStringSet(
+        STRING_SET_NAME,
+        allres,
+        STEP2,
+        StringSetResult.create(ImmutableSet.of(FIRST_STRING, SECOND_STRING)),
+        false);
 
     attemptedMetrics.reset();
     metricResults = asAttemptedOnlyMetricResults(attemptedMetrics);
@@ -458,6 +487,7 @@ public class MetricsContainerStepMapTest {
         metricQueryResults.getGauges(),
         hasItem(metricsResult(NAMESPACE, name, step, expected, isCommitted)));
   }
+
   private void assertStringSet(
       String name,
       MetricQueryResults metricQueryResults,

@@ -257,11 +257,11 @@ public class DataflowMetricsTest {
     // The parser relies on the fact that one tentative and one committed metric update exist in
     // the job metrics results.
     MetricUpdate mu1 =
-        makeStringSetMetricUpdate("counterName", "counterNamespace", "s2",
-            Arrays.asList("ab", "cd"), false);
+        makeStringSetMetricUpdate(
+            "counterName", "counterNamespace", "s2", Arrays.asList("ab", "cd"), false);
     MetricUpdate mu1Tentative =
-        makeStringSetMetricUpdate("counterName", "counterNamespace", "s2",
-            Arrays.asList("ef", "gh"), true);
+        makeStringSetMetricUpdate(
+            "counterName", "counterNamespace", "s2", Arrays.asList("ef", "gh"), true);
     jobMetrics.setMetrics(ImmutableList.of(mu1, mu1Tentative));
     DataflowClient dataflowClient = mock(DataflowClient.class);
     when(dataflowClient.getJobMetrics(JOB_ID)).thenReturn(jobMetrics);
@@ -271,15 +271,19 @@ public class DataflowMetricsTest {
     assertThat(
         result.getStringSets(),
         containsInAnyOrder(
-            attemptedMetricsResult("counterNamespace", "counterName", "myStepName",
-                StringSetResult.create(
-                ImmutableSet.of("ab", "cd")))));
+            attemptedMetricsResult(
+                "counterNamespace",
+                "counterName",
+                "myStepName",
+                StringSetResult.create(ImmutableSet.of("ab", "cd")))));
     assertThat(
         result.getStringSets(),
         containsInAnyOrder(
-            committedMetricsResult("counterNamespace", "counterName", "myStepName",
-                StringSetResult.create(
-                ImmutableSet.of("ef", "gh")))));
+            committedMetricsResult(
+                "counterNamespace",
+                "counterName",
+                "myStepName",
+                StringSetResult.create(ImmutableSet.of("ef", "gh")))));
   }
 
   @Test

@@ -168,9 +168,10 @@ public class BatchModeExecutionContextTest {
     DataflowOperationContext operationContext =
         executionContext.createOperationContext(NameContextsForTests.nameContextForTest());
 
-    StringSet stringSet = operationContext
-        .metricsContainer()
-        .getStringSet(MetricName.named("namespace", "some-stringset"));
+    StringSet stringSet =
+        operationContext
+            .metricsContainer()
+            .getStringSet(MetricName.named("namespace", "some-stringset"));
     stringSet.add("ab");
     stringSet.add("cd");
 

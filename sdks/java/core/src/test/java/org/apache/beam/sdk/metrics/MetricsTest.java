@@ -28,7 +28,6 @@ import static org.junit.Assert.assertNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.google.common.collect.ImmutableSet;
 import java.io.Serializable;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.GenerateSequence;
@@ -46,6 +45,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.After;
@@ -241,12 +241,12 @@ public class MetricsTest implements Serializable {
   @RunWith(JUnit4.class)
   public static class CommittedMetricTests extends SharedTestBase {
     @Category({
-        ValidatesRunner.class,
-        UsesCommittedMetrics.class,
-        UsesCounterMetrics.class,
-        UsesDistributionMetrics.class,
-        UsesGaugeMetrics.class,
-        UsesStringSetMetrics.class
+      ValidatesRunner.class,
+      UsesCommittedMetrics.class,
+      UsesCounterMetrics.class,
+      UsesDistributionMetrics.class,
+      UsesGaugeMetrics.class,
+      UsesStringSetMetrics.class
     })
     @Test
     public void testAllCommittedMetrics() {
@@ -287,6 +287,7 @@ public class MetricsTest implements Serializable {
       MetricQueryResults metrics = queryTestMetrics(result);
       assertStringSetMetrics(metrics, true);
     }
+
     @Test
     @Category({NeedsRunner.class, UsesAttemptedMetrics.class, UsesCounterMetrics.class})
     public void testBoundedSourceMetrics() {
@@ -368,12 +369,12 @@ public class MetricsTest implements Serializable {
   @RunWith(JUnit4.class)
   public static class AttemptedMetricTests extends SharedTestBase {
     @Category({
-        ValidatesRunner.class,
-        UsesAttemptedMetrics.class,
-        UsesCounterMetrics.class,
-        UsesDistributionMetrics.class,
-        UsesGaugeMetrics.class,
-        UsesStringSetMetrics.class
+      ValidatesRunner.class,
+      UsesAttemptedMetrics.class,
+      UsesCounterMetrics.class,
+      UsesDistributionMetrics.class,
+      UsesGaugeMetrics.class,
+      UsesStringSetMetrics.class
     })
     @Test
     public void testAllAttemptedMetrics() {
@@ -445,16 +446,33 @@ public class MetricsTest implements Serializable {
   }
 
   private static void assertStringSetMetrics(MetricQueryResults metrics, boolean isCommitted) {
-    assertThat(metrics.getStringSets(),
+    assertThat(
+        metrics.getStringSets(),
         containsInAnyOrder(
-            metricsResult(NAMESPACE, "sources", "MyStep1",
-                StringSetResult.create(ImmutableSet.of("gcs")), isCommitted),
-            metricsResult(NAMESPACE, "sinks", "MyStep2",
-                StringSetResult.create(ImmutableSet.of("kafka", "bq")), isCommitted),
-            metricsResult(NAMESPACE, "sideinputs", "MyStep1",
-                StringSetResult.create(ImmutableSet.of("bigtable", "spanner")), isCommitted),
-            metricsResult(NAMESPACE, "sideinputs", "MyStep2",
-                StringSetResult.create(ImmutableSet.of("sql", "bigtable")), isCommitted)));
+            metricsResult(
+                NAMESPACE,
+                "sources",
+                "MyStep1",
+                StringSetResult.create(ImmutableSet.of("gcs")),
+                isCommitted),
+            metricsResult(
+                NAMESPACE,
+                "sinks",
+                "MyStep2",
+                StringSetResult.create(ImmutableSet.of("kafka", "bq")),
+                isCommitted),
+            metricsResult(
+                NAMESPACE,
+                "sideinputs",
+                "MyStep1",
+                StringSetResult.create(ImmutableSet.of("bigtable", "spanner")),
+                isCommitted),
+            metricsResult(
+                NAMESPACE,
+                "sideinputs",
+                "MyStep2",
+                StringSetResult.create(ImmutableSet.of("sql", "bigtable")),
+                isCommitted)));
   }
 
   private static void assertDistributionMetrics(MetricQueryResults metrics, boolean isCommitted) {

@@ -38,9 +38,10 @@ public abstract class StringSetResult {
   public static class EmptyStringSetResult extends StringSetResult {
 
     private static final EmptyStringSetResult INSTANCE = new EmptyStringSetResult();
+
     private EmptyStringSetResult() {}
 
-    /** Returns an empty immutable set */
+    /** Returns an empty immutable set. */
     @Override
     public Set<String> getStringSet() {
       return Collections.emptySet();

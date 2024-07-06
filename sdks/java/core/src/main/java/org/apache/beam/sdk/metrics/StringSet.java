@@ -17,10 +17,12 @@
  */
 package org.apache.beam.sdk.metrics;
 
-/** A metric that reports set of unique string values.
- * This metric is backed by {@link java.util.HashSet} and hence it does not maintain any ordering. */
+/**
+ * A metric that reports set of unique string values. This metric is backed by {@link
+ * java.util.HashSet} and hence it does not maintain any ordering.
+ */
 public interface StringSet extends Metric {
-  
+
   /** Add a value to this set. */
   void add(String value);
 

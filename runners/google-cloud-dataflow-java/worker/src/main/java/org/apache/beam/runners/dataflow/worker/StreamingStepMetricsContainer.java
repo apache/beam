@@ -185,7 +185,9 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
   }
 
   public Iterable<CounterUpdate> extractUpdates() {
-    return counterUpdates().append(distributionUpdates()).append(gaugeUpdates().append(stringSetUpdates()));
+    return counterUpdates()
+        .append(distributionUpdates())
+        .append(gaugeUpdates().append(stringSetUpdates()));
   }
 
   private FluentIterable<CounterUpdate> counterUpdates() {

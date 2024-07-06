@@ -163,10 +163,10 @@ class DataflowMetrics extends MetricResults {
         Long value = getCounterValue(committed);
         counterResults.add(MetricResult.create(metricKey, !isStreamingJob, value));
       } else if (committed.getSet() != null && attempted.getSet() != null) {
-      // stringset metric
-      StringSetResult value = getStringSetValue(committed);
-      stringSetResults.add(MetricResult.create(metricKey, !isStreamingJob, value));
-    } else {
+        // stringset metric
+        StringSetResult value = getStringSetValue(committed);
+        stringSetResults.add(MetricResult.create(metricKey, !isStreamingJob, value));
+      } else {
         // This is exceptionally unexpected. We expect matching user metrics to only have the
         // value types provided by the Metrics API.
         LOG.warn(

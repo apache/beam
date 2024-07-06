@@ -27,7 +27,6 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
-import com.google.common.collect.ImmutableSet;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
@@ -48,6 +47,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.util.HistogramData;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.joda.time.DateTimeUtils.MillisProvider;
 import org.joda.time.Duration;
 import org.junit.After;
@@ -423,7 +423,8 @@ public class ExecutionStateSamplerTest {
             .getMetricsContainerRegistry()
             .getContainer("ptransformId")
             .getStringSet(TEST_USER_STRING_SET.getName())
-            .getCumulative().stringSet());
+            .getCumulative()
+            .stringSet());
     assertEquals(
         1L,
         (long)
@@ -468,7 +469,8 @@ public class ExecutionStateSamplerTest {
             .getMetricsContainerRegistry()
             .getUnboundContainer()
             .getStringSet(TEST_USER_STRING_SET.getName())
-            .getCumulative().stringSet());
+            .getCumulative()
+            .stringSet());
     assertEquals(
         2L,
         (long)

@@ -234,6 +234,7 @@ class DirectMetrics extends MetricResults {
           }
           return result;
         }
+
         @Override
         public StringSetResult extract(StringSetData data) {
           return data.extractResult();
@@ -275,12 +276,16 @@ class DirectMetrics extends MetricResults {
     }
 
     ImmutableList.Builder<MetricResult<StringSetResult>> stringSetResult = ImmutableList.builder();
-    for (Entry<MetricKey, DirectMetric<StringSetData, StringSetResult>> stringSet : stringSet.entries()) {
+    for (Entry<MetricKey, DirectMetric<StringSetData, StringSetResult>> stringSet :
+        stringSet.entries()) {
       maybeExtractResult(filter, stringSetResult, stringSet);
     }
 
     return MetricQueryResults.create(
-        counterResults.build(), distributionResults.build(), gaugeResults.build(), stringSetResult.build());
+        counterResults.build(),
+        distributionResults.build(),
+        gaugeResults.build(),
+        stringSetResult.build());
   }
 
   private <ResultT> void maybeExtractResult(

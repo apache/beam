@@ -71,7 +71,6 @@ public class MonitoringInfoEncodingsTest {
     assertEquals(data, decodeInt64Gauge(payload));
   }
 
-
   @Test
   public void testStringSetEncoding() {
 
