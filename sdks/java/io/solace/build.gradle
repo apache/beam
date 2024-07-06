@@ -38,7 +38,6 @@ dependencies {
     implementation library.java.google_cloud_core
     implementation library.java.vendored_guava_32_1_2_jre
     implementation project(":sdks:java:extensions:avro")
-    implementation library.java.vendored_grpc_1_60_1
     implementation library.java.avro
     permitUnusedDeclared library.java.avro
     implementation library.java.google_api_common
@@ -47,7 +46,7 @@ dependencies {
 
     testImplementation library.java.junit
     testImplementation project(path: ":sdks:java:io:common")
-    testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
+    testImplementation project(path: ":sdks:java:testing:test-utils")
     testRuntimeOnly library.java.slf4j_jdk14
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }
