@@ -1,24 +1,13 @@
 pipeline:
   type: chain
   transforms:
-    - type: SpannerRead
+    - type: ReadFromSpanner
       config:
-        instance_id: ""
-        database_id: ""
-        table_id: "" 
+        instance_id: "spanner-test"
+        database_id: "student"
+        table_id: "student"
+        query: ""
     - type: LogForTesting
-
-providers:
-  - type: renaming
-    transforms:
-      'ReadFromSpanner': 'ReadFromSpanner'
-    config:
-      mappings:
-        'SpannerRead': 'SpannerReadSchemaTransformProvider'
-        'Identity':
-      underlying_provider:
-        type: javaJar
-        config:
-          jar: 'sdks:java:extensions:schemaio-expansion-service:shadowJar'
-        transforms:
-          SpannerRead: "beam:schematransform:org.apache.beam:spanner_read:v1"
+options:
+  project: "apache-beam-testing"
+  temp_location: "gs://temp-storage-for-end-to-end-tests/temp-it"

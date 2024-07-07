@@ -269,7 +269,7 @@
         database_id: 'database_id'
         table_id: 'table_id'
         query: 'query'
-      'ReadFromSpanner':
+      'WriteToSpanner':
         instance_id: 'instance_id'
         database_id: 'database_id'
         table_id: 'table_id'
@@ -277,6 +277,6 @@
       type: beamJar
       transforms:
         'ReadFromSpanner': 'beam:schematransform:org.apache.beam:spanner_read:v1'
-        'WriteToSpanner': 'beam:schematransform:org.apache.beam:spanner_write:v2'
+        'WriteToSpanner': 'beam:schematransform:org.apache.beam:spanner_write:v1'
       config:
-        gradle_target: 'sdks:java:extensions:sql:expansion-service:shadowJar'
+        gradle_target: 'sdks:java:io:google-cloud-platform:expansion-service:shadowJar'

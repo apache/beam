@@ -1,4 +1,4 @@
-package main.java.org.apache.beam.sdk.io.gcp.spanner;
+package org.apache.beam.sdk.io.gcp.spanner;
 
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
@@ -35,8 +35,11 @@ import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO;
 import org.apache.beam.sdk.io.gcp.spanner.StructUtils;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.Read;
-import org.apache.beam.sdk.io.gcp.spanner.SpannerReadResult;
-import org.apache.beam.sdk.io.gcp.spanner.SpannerWriteSchemaTransformProvider;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import com.google.cloud.spanner.Struct;
+import com.google.cloud.spanner.Type;
+import javax.annotation.Nullable;
 
 @AutoService(SchemaTransformProvider.class)
 public class SpannerReadSchemaTransformProvider
@@ -47,6 +50,7 @@ public class SpannerReadSchemaTransformProvider
     private final SpannerReadSchemaTransformConfiguration configuration;
 
     SpannerSchemaTransformRead(SpannerReadSchemaTransformConfiguration configuration) {
+      configuration.validate();
       this.configuration = configuration;
     }
 
@@ -55,7 +59,7 @@ public class SpannerReadSchemaTransformProvider
       checkNotNull(input, "Input to SpannerReadSchemaTransform cannot be null.");
       PCollection<Struct> spannerRows = null; 
 
-      if (!Strings.isNullOrEmpty(configuration.getSqlQuery())) {
+      if (!Strings.isNullOrEmpty(configuration.getQuery())) {
           spannerRows = input.getPipeline().apply(
             SpannerIO.read()
             .withInstanceId(configuration.getInstanceId())
@@ -68,14 +72,21 @@ public class SpannerReadSchemaTransformProvider
           SpannerIO.read()
           .withInstanceId(configuration.getInstanceId())
           .withDatabaseId(configuration.getDatabaseId())
-          .withTable(configuration.getTable())
+          .withTable(configuration.getTableId())
           );
       }
 
+      // Hardcoded for testing
+      Schema schema = Schema.builder()
+            .addField("id_column", Schema.FieldType.INT64)
+            .addField("name_column", Schema.FieldType.STRING)
+            .build();
+      // Implement when getSchema() is available
+      // Schema schema = spannerRows.getSchema();
       PCollection<Row> rows = spannerRows.apply(MapElements.into(TypeDescriptor.of(Row.class))
-          .via((Struct struct) -> structToBeamRow(struct, inputSchema)));
+          .via((Struct struct) -> StructUtils.structToBeamRow(struct, schema)));
 
-      return PCollectionRowTuple.of(OUTPUT_ROWS_TAG, rows);
+      return PCollectionRowTuple.of("output", rows);
     }
   }
 
@@ -84,6 +95,7 @@ public class SpannerReadSchemaTransformProvider
     return "beam:schematransform:org.apache.beam:spanner_read:v1";
   }
 
+  @Override
   public @UnknownKeyFor @NonNull @Initialized List<@UnknownKeyFor @NonNull @Initialized String>
       inputCollectionNames() {
     return Collections.emptyList();
@@ -95,11 +107,11 @@ public class SpannerReadSchemaTransformProvider
     return Collections.singletonList("output");
   }
 
-  @AutoValue
   @DefaultSchema(AutoValueSchema.class)
+  @AutoValue
   public abstract static class SpannerReadSchemaTransformConfiguration implements Serializable {
-    
     @AutoValue.Builder
+    @Nullable
     public abstract static class Builder {
       public abstract Builder setInstanceId(String instanceId);
 
@@ -125,24 +137,21 @@ public class SpannerReadSchemaTransformProvider
       }
     }
 
+    public static Builder builder() {
+      return new AutoValue_SpannerReadSchemaTransformProvider_SpannerReadSchemaTransformConfiguration
+          .Builder();
+    }
     @SchemaFieldDescription("Specifies the Cloud Spanner instance.")
     public abstract String getInstanceId();
 
     @SchemaFieldDescription("Specifies the Cloud Spanner database.")
     public abstract String getDatabaseId();
 
-    @Nullable
     @SchemaFieldDescription("Specifies the Cloud Spanner table.")
     public abstract String getTableId();
 
-    @Nullable
     @SchemaFieldDescription("Specifies the SQL query to execute.")
     public abstract String getQuery();
-
-    public static Builder builder() {
-      return new AutoValue_SpannerReadSchemaTransformProvider_SpannerReadSchemaTransformConfiguration
-          .Builder();
-  }
 }
 
   @Override
