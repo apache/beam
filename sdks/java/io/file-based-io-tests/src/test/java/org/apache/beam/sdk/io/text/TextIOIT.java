@@ -22,7 +22,7 @@ import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.appendTimestampS
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.readFileBasedIOITPipelineOptions;
 import static org.junit.Assert.assertNotEquals;
 
-import com.google.cloud.Timestamp;
+import java.time.Instant;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
@@ -160,13 +160,13 @@ public class TextIOIT {
 
   private void collectAndPublishMetrics(PipelineResult result) {
     String uuid = UUID.randomUUID().toString();
-    Timestamp timestamp = Timestamp.now();
+    String timestamp = Instant.now().toString();
 
     Set<Function<MetricsReader, NamedTestResult>> metricSuppliers =
-        fillMetricSuppliers(uuid, timestamp.toString());
+        fillMetricSuppliers(uuid, timestamp);
 
     final IOITMetrics metrics =
-        new IOITMetrics(metricSuppliers, result, FILEIOIT_NAMESPACE, uuid, timestamp.toString());
+        new IOITMetrics(metricSuppliers, result, FILEIOIT_NAMESPACE, uuid, timestamp);
     metrics.publishToInflux(settings);
   }
 
