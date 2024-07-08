@@ -37,6 +37,7 @@ import java.util.Set;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.util.HistogramData;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -338,10 +339,12 @@ public class MetricsContainerImplTest {
     MetricName gName = MetricName.named("namespace", "gauge");
     HistogramData.BucketType bucketType = HistogramData.LinearBuckets.of(0, 2, 5);
     MetricName hName = MetricName.named("namespace", "histogram");
+    MetricName stringSetName = MetricName.named("namespace", "stringset");
 
     MetricsContainerImpl prevContainer = new MetricsContainerImpl(null);
     prevContainer.getCounter(cName).inc(2L);
     prevContainer.getGauge(gName).set(4L);
+    prevContainer.getStringSet(stringSetName).add("ab");
     // Set buckets counts to: [1,1,1,0,0,0,1]
     prevContainer.getHistogram(hName, bucketType).update(-1);
     prevContainer.getHistogram(hName, bucketType).update(1);
@@ -351,6 +354,8 @@ public class MetricsContainerImplTest {
     MetricsContainerImpl nextContainer = new MetricsContainerImpl(null);
     nextContainer.getCounter(cName).inc(9L);
     nextContainer.getGauge(gName).set(8L);
+    nextContainer.getStringSet(stringSetName).add("cd");
+    nextContainer.getStringSet(stringSetName).add("ab");
     // Set buckets counts to: [2,4,5,0,0,0,3]
     nextContainer.getHistogram(hName, bucketType).update(-1);
     nextContainer.getHistogram(hName, bucketType).update(-1);
@@ -373,6 +378,10 @@ public class MetricsContainerImplTest {
     // Expect gauge value: 8.
     GaugeData gValue = deltaContainer.getGauge(gName).getCumulative();
     assertEquals(8L, gValue.value());
+
+    // Expect most recent value of string set which is all unique strings
+    StringSetData stringSetData = deltaContainer.getStringSet(stringSetName).getCumulative();
+    assertEquals(ImmutableSet.of("ab", "cd"), stringSetData.stringSet());
 
     // Expect bucket counts: [1,3,4,0,0,0,2]
     assertEquals(
@@ -411,6 +420,11 @@ public class MetricsContainerImplTest {
     differentGauges.getGauge(MetricName.named("namespace", "name"));
     Assert.assertNotEquals(metricsContainerImpl, differentGauges);
     Assert.assertNotEquals(metricsContainerImpl.hashCode(), differentGauges.hashCode());
+
+    MetricsContainerImpl differentStringSets = new MetricsContainerImpl("stepName");
+    differentStringSets.getStringSet(MetricName.named("namespace", "name"));
+    Assert.assertNotEquals(metricsContainerImpl, differentStringSets);
+    Assert.assertNotEquals(metricsContainerImpl.hashCode(), differentStringSets.hashCode());
   }
 
   @Test

@@ -94,6 +94,22 @@ public class Metrics {
   }
 
   /**
+   * Create a metric that can have its new value set, and is aggregated by taking the last reported
+   * value.
+   */
+  public static StringSet stringSet(String namespace, String name) {
+    return new DelegatingStringSet(MetricName.named(namespace, name));
+  }
+
+  /**
+   * Create a metric that can have its new value set, and is aggregated by taking the last reported
+   * value.
+   */
+  public static StringSet stringSet(Class<?> namespace, String name) {
+    return new DelegatingStringSet(MetricName.named(namespace, name));
+  }
+
+  /**
    * Implementation of {@link Distribution} that delegates to the instance for the current context.
    */
   private static class DelegatingDistribution implements Metric, Distribution, Serializable {
@@ -138,6 +154,36 @@ public class Metrics {
       MetricsContainer container = MetricsEnvironment.getCurrentContainer();
       if (container != null) {
         container.getGauge(name).set(value);
+      }
+    }
+
+    @Override
+    public MetricName getName() {
+      return name;
+    }
+  }
+
+  /** Implementation of {@link StringSet} that delegates to the instance for the current context. */
+  private static class DelegatingStringSet implements Metric, StringSet, Serializable {
+    private final MetricName name;
+
+    private DelegatingStringSet(MetricName name) {
+      this.name = name;
+    }
+
+    @Override
+    public void add(String value) {
+      MetricsContainer container = MetricsEnvironment.getCurrentContainer();
+      if (container != null) {
+        container.getStringSet(name).add(value);
+      }
+    }
+
+    @Override
+    public void add(String... value) {
+      MetricsContainer container = MetricsEnvironment.getCurrentContainer();
+      if (container != null) {
+        container.getStringSet(name).add(value);
       }
     }
 

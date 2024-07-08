@@ -33,6 +33,7 @@ import javax.annotation.Nonnull;
 import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.GaugeCell;
 import org.apache.beam.runners.core.metrics.MetricsMap;
+import org.apache.beam.runners.core.metrics.StringSetCell;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Gauge;
@@ -41,6 +42,7 @@ import org.apache.beam.sdk.metrics.LabeledMetricNameUtils;
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsContainer;
+import org.apache.beam.sdk.metrics.StringSet;
 import org.apache.beam.sdk.util.HistogramData;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Function;
@@ -66,6 +68,8 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
   private final ConcurrentHashMap<MetricName, AtomicLong> perWorkerCounters;
 
   private MetricsMap<MetricName, GaugeCell> gauges = new MetricsMap<>(GaugeCell::new);
+
+  private MetricsMap<MetricName, StringSetCell> stringSet = new MetricsMap<>(StringSetCell::new);
 
   private MetricsMap<MetricName, DeltaDistributionCell> distributions =
       new MetricsMap<>(DeltaDistributionCell::new);
@@ -160,6 +164,11 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
   }
 
   @Override
+  public StringSet getStringSet(MetricName metricName) {
+    return stringSet.get(metricName);
+  }
+
+  @Override
   public Histogram getPerWorkerHistogram(
       MetricName metricName, HistogramData.BucketType bucketType) {
     if (!enablePerWorkerMetrics) {
@@ -176,7 +185,9 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
   }
 
   public Iterable<CounterUpdate> extractUpdates() {
-    return counterUpdates().append(distributionUpdates()).append(gaugeUpdates());
+    return counterUpdates()
+        .append(distributionUpdates())
+        .append(gaugeUpdates().append(stringSetUpdates()));
   }
 
   private FluentIterable<CounterUpdate> counterUpdates() {
@@ -213,6 +224,20 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
                 org.joda.time.Instant timestamp = entry.getValue().getCumulative().timestamp();
                 return MetricsToCounterUpdateConverter.fromGauge(
                     MetricKey.create(stepName, entry.getKey()), value, timestamp);
+              }
+            })
+        .filter(Predicates.notNull());
+  }
+
+  private FluentIterable<CounterUpdate> stringSetUpdates() {
+    return FluentIterable.from(stringSet.entries())
+        .transform(
+            new Function<Entry<MetricName, StringSetCell>, CounterUpdate>() {
+              @Override
+              public @Nullable CounterUpdate apply(
+                  @Nonnull Map.Entry<MetricName, StringSetCell> entry) {
+                return MetricsToCounterUpdateConverter.fromStringSet(
+                    MetricKey.create(stepName, entry.getKey()), entry.getValue().getCumulative());
               }
             })
         .filter(Predicates.notNull());
