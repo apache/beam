@@ -112,8 +112,7 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
     StringSet lineageSources = Lineage.getSources();
     if (targetTable != null) {
       TableReference tableReference = targetTable.getTableReference();
-      readSessionBuilder.setTable(
-          BigQueryHelpers.toTableResourceName(tableReference));
+      readSessionBuilder.setTable(BigQueryHelpers.toTableResourceName(tableReference));
       // register the table as lineage source
       lineageSources.add(BigQueryHelpers.toTableSpec(tableReference));
     } else {
