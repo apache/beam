@@ -41,6 +41,8 @@ import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.Status;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryResourceNaming.JobType;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
+import org.apache.beam.sdk.metrics.Lineage;
+import org.apache.beam.sdk.metrics.StringSet;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -152,9 +154,10 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
     if (cachedSplitResult == null) {
       ExtractResult res = extractFiles(options);
       LOG.info("Extract job produced {} files", res.extractedFiles.size());
-
       if (res.extractedFiles.size() > 0) {
         BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
+        // emit this table ID as a lineage source
+        Lineage.getSources().add(BigQueryHelpers.toTableSpec(getTableToExtract(bqOptions)));
         final String extractDestinationDir =
             resolveTempLocation(bqOptions.getTempLocation(), "BigQueryExtractTemp", stepUuid);
         // Match all files in the destination directory to stat them in bulk.

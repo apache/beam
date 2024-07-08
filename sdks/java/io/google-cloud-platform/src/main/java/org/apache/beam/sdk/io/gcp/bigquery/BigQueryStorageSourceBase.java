@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.services.bigquery.model.Table;
+import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.bigquery.storage.v1.CreateReadSessionRequest;
 import com.google.cloud.bigquery.storage.v1.DataFormat;
@@ -33,6 +34,8 @@ import org.apache.beam.sdk.extensions.arrow.ArrowConversion;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.StorageClient;
+import org.apache.beam.sdk.metrics.Lineage;
+import org.apache.beam.sdk.metrics.StringSet;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -106,15 +109,22 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
     @Nullable Table targetTable = getTargetTable(bqOptions);
 
     ReadSession.Builder readSessionBuilder = ReadSession.newBuilder();
+    StringSet lineageSources = Lineage.getSources();
     if (targetTable != null) {
+      TableReference tableReference = targetTable.getTableReference();
       readSessionBuilder.setTable(
-          BigQueryHelpers.toTableResourceName(targetTable.getTableReference()));
+          BigQueryHelpers.toTableResourceName(tableReference));
+      // register the table as lineage source
+      lineageSources.add(BigQueryHelpers.toTableSpec(tableReference));
     } else {
       // If the table does not exist targetTable will be null.
       // Construct the table id if we can generate it. For error recording/logging.
       @Nullable String tableReferenceId = getTargetTableId(bqOptions);
       if (tableReferenceId != null) {
         readSessionBuilder.setTable(tableReferenceId);
+        // register the table as lineage source
+        TableReference tableReference = BigQueryHelpers.parseTableUrn(tableReferenceId);
+        lineageSources.add(BigQueryHelpers.toTableSpec(tableReference));
       }
     }
 
