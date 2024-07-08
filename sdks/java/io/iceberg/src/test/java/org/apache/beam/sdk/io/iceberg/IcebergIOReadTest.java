@@ -21,6 +21,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 
 import java.util.List;
+import java.util.Properties;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -93,12 +94,12 @@ public class IcebergIOReadTest {
             .map(record -> SchemaAndRowConversions.recordToRow(schema, record))
             .collect(Collectors.toList());
 
+    Properties props = new Properties();
+    props.setProperty("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP);
+    props.setProperty("warehouse", warehouse.location);
+
     IcebergCatalogConfig catalogConfig =
-        IcebergCatalogConfig.builder()
-            .setName("hadoop")
-            .setIcebergCatalogType(CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
-            .setWarehouseLocation(warehouse.location)
-            .build();
+        IcebergCatalogConfig.builder().setCatalogName("name").setProperties(props).build();
 
     PCollection<Row> output =
         testPipeline
