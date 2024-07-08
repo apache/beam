@@ -297,6 +297,10 @@ func gbkBytes(ws *pipepb.WindowingStrategy, wc, kc, vc *pipepb.Coder, toAggregat
 		outputTime = func(w typex.Window, et mtime.Time) mtime.Time {
 			return w.MaxTimestamp()
 		}
+	case pipepb.OutputTime_EARLIEST_IN_PANE, pipepb.OutputTime_LATEST_IN_PANE:
+		outputTime = func(w typex.Window, et mtime.Time) mtime.Time {
+			return et
+		}
 	default:
 		// TODO need to correct session logic if output time is different.
 		panic(fmt.Sprintf("unsupported OutputTime behavior: %v", ws.GetOutputTime()))
