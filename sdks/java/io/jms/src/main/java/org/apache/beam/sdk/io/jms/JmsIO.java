@@ -1011,7 +1011,7 @@ public class JmsIO {
      * Specify the JMS topic destination name where to send messages to dynamically. The {@link
      * JmsIO.Write} acts as a publisher on the topic.
      *
-     * <p>This method is exclusive with {@link JmsIO.Write#withQueue(String) and
+     * <p>This method is exclusive with {@link JmsIO.Write#withQueue(String)} and
      * {@link JmsIO.Write#withTopic(String)}. The user has to specify a {@link SerializableFunction}
      * that takes {@code EventT} object as a parameter, and returns the topic name depending of the content
      * of the event object.
