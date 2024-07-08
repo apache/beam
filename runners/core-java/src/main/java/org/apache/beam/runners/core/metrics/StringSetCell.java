@@ -18,13 +18,12 @@
 package org.apache.beam.runners.core.metrics;
 
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.metrics.StringSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -99,11 +98,15 @@ public class StringSetCell implements StringSet, MetricCell<StringSetData> {
 
   @Override
   public void add(String value) {
-    update(StringSetData.create(new HashSet<>(Collections.singletonList(value))));
+    // if the given value is already present in the StringSet then skip this add for efficiency
+    if (this.setValue.get().stringSet().contains(value)) {
+      return;
+    }
+    update(StringSetData.create(ImmutableSet.of(value)));
   }
 
   @Override
   public void add(String... values) {
-    update(StringSetData.create(new HashSet<>(Arrays.asList(values))));
+    update(StringSetData.create(ImmutableSet.copyOf(values)));
   }
 }

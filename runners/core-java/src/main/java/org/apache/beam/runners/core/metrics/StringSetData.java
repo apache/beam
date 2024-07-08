@@ -19,23 +19,26 @@ package org.apache.beam.runners.core.metrics;
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.metrics.StringSetResult;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 
 /**
- * Data describing the StringSet. This should retain enough detail that it can be combined with
- * other {@link StringSetData}.
+ * Data describing the StringSet. The {@link StringSetData} hold an immutable copy
+ *  of the set from which it was initially created. This should retain enough detail that it can
+ *  be combined with other {@link StringSetData}.
  */
 @AutoValue
 public abstract class StringSetData implements Serializable {
 
   public abstract Set<String> stringSet();
 
-  /** Returns a {@link StringSetData} which consists of the given set. */
-  public static StringSetData create(Set<String> stringSet) {
-    return new AutoValue_StringSetData(stringSet);
+  /** Returns a {@link StringSetData} which is made from an immutable copy of the given set. */
+  public static StringSetData create(Set<String> set) {
+    return new AutoValue_StringSetData(ImmutableSet.copyOf(set));
   }
 
   /** Return a {@link EmptyStringSetData#INSTANCE} representing an empty {@link StringSetData}. */
@@ -49,10 +52,21 @@ public abstract class StringSetData implements Serializable {
   public StringSetData combine(StringSetData other) {
     // do not merge other on this as this StringSetData might hold an immutable set like in case
     // of  EmptyStringSetData
-    Set<String> merged = new HashSet<>();
-    merged.addAll(this.stringSet());
-    merged.addAll(other.stringSet());
-    return StringSetData.create(merged);
+    Set<String> combined = new HashSet<>();
+    combined.addAll(this.stringSet());
+    combined.addAll(other.stringSet());
+    return StringSetData.create(combined);
+  }
+
+  /**
+   * Combines this {@link StringSetData} with others, all original StringSetData are left intact.
+   */
+  public StringSetData combine(Iterable<StringSetData> others) {
+    Set<String> combined = StreamSupport.stream(others.spliterator(), true)
+        .flatMap(other -> other.stringSet().stream())
+        .collect(Collectors.toSet());
+    combined.addAll(this.stringSet());
+    return StringSetData.create(combined);
   }
 
   /** Returns a {@link StringSetResult} representing this {@link StringSetData}. */
@@ -67,10 +81,10 @@ public abstract class StringSetData implements Serializable {
 
     private EmptyStringSetData() {}
 
-    /** Return an immutable empty set. */
+    /** Returns an immutable empty set. */
     @Override
     public Set<String> stringSet() {
-      return Collections.emptySet();
+      return ImmutableSet.of();
     }
 
     /** Return a {@link StringSetResult#empty()} which is immutable empty set. */

@@ -40,8 +40,7 @@ import com.google.api.services.dataflow.model.MetricStructuredName;
 import com.google.api.services.dataflow.model.MetricUpdate;
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.util.Arrays;
-import java.util.List;
+import java.util.Set;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.DataflowTemplateJob;
 import org.apache.beam.sdk.PipelineResult.State;
@@ -190,7 +189,7 @@ public class DataflowMetricsTest {
   }
 
   private MetricUpdate makeStringSetMetricUpdate(
-      String name, String namespace, String step, List<String> setValues, boolean tentative) {
+      String name, String namespace, String step, Set<String> setValues, boolean tentative) {
     MetricUpdate update = new MetricUpdate();
     update.setSet(setValues);
     return setStructuredName(update, name, namespace, step, tentative);
@@ -258,10 +257,10 @@ public class DataflowMetricsTest {
     // the job metrics results.
     MetricUpdate mu1 =
         makeStringSetMetricUpdate(
-            "counterName", "counterNamespace", "s2", Arrays.asList("ab", "cd"), false);
+            "counterName", "counterNamespace", "s2", ImmutableSet.of("ab", "cd"), false);
     MetricUpdate mu1Tentative =
         makeStringSetMetricUpdate(
-            "counterName", "counterNamespace", "s2", Arrays.asList("ef", "gh"), true);
+            "counterName", "counterNamespace", "s2", ImmutableSet.of("ab", "cd"), true);
     jobMetrics.setMetrics(ImmutableList.of(mu1, mu1Tentative));
     DataflowClient dataflowClient = mock(DataflowClient.class);
     when(dataflowClient.getJobMetrics(JOB_ID)).thenReturn(jobMetrics);
@@ -283,7 +282,7 @@ public class DataflowMetricsTest {
                 "counterNamespace",
                 "counterName",
                 "myStepName",
-                StringSetResult.create(ImmutableSet.of("ef", "gh")))));
+                StringSetResult.create(ImmutableSet.of("ab", "cd")))));
   }
 
   @Test

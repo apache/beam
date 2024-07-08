@@ -40,11 +40,14 @@ public class StringSetImpl extends AbstractMetric<StringSetData> implements Stri
 
   @Override
   public void add(String value) {
-    stringSetData.combine(StringSetData.create(ImmutableSet.of("ab")));
+    if (stringSetData.stringSet().contains(value)) {
+      return;
+    }
+    stringSetData.combine(StringSetData.create(ImmutableSet.of(value)));
   }
 
   @Override
   public void add(String... values) {
-    stringSetData.combine(StringSetData.create(new HashSet<>(Arrays.asList(values))));
+    stringSetData.combine(StringSetData.create(ImmutableSet.copyOf(values)));
   }
 }

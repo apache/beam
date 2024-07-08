@@ -229,9 +229,7 @@ class DirectMetrics extends MetricResults {
         @Override
         public StringSetData combine(Iterable<StringSetData> updates) {
           StringSetData result = StringSetData.empty();
-          for (StringSetData update : updates) {
-            result = result.combine(update);
-          }
+          result = result.combine(updates);
           return result;
         }
 

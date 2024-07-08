@@ -18,6 +18,7 @@
 package org.apache.beam.runners.core.metrics;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import java.util.Collections;
@@ -75,10 +76,9 @@ public class StringSetDataTest {
   }
 
   @Test
-  public void testNoAddToStringSetDataEmpty() {
-    exception.expect(UnsupportedOperationException.class);
+  public void testStringSetDataEmptyIsImmutable() {
     StringSetData empty = StringSetData.empty();
-    empty.stringSet().add("aa");
+    assertThrows(UnsupportedOperationException.class, () -> empty.stringSet().add("aa"));
   }
 
   @Test
@@ -91,5 +91,12 @@ public class StringSetDataTest {
     ImmutableSet<String> contents = ImmutableSet.of("ab", "cd");
     StringSetData stringSetData = StringSetData.create(contents);
     assertEquals(stringSetData.stringSet(), contents);
+  }
+
+  @Test
+  public void testExtractReturnsImmutable() {
+    StringSetData stringSetData = StringSetData.create(ImmutableSet.of("ab", "cd"));
+    // check that immutable copy is returned
+    assertThrows(UnsupportedOperationException.class, () -> stringSetData.stringSet().add("aa"));
   }
 }

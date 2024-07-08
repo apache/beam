@@ -24,11 +24,11 @@ import com.google.api.client.util.ArrayMap;
 import com.google.api.services.dataflow.model.JobMetrics;
 import com.google.api.services.dataflow.model.MetricUpdate;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
@@ -44,6 +44,7 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Objects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -190,7 +191,7 @@ class DataflowMetrics extends MetricResults {
       if (metricUpdate.getSet() == null) {
         return StringSetResult.empty();
       }
-      return StringSetResult.create(new HashSet<>(((ArrayList) metricUpdate.getSet())));
+      return StringSetResult.create(ImmutableSet.copyOf(((Set) metricUpdate.getSet())));
     }
 
     private DistributionResult getDistributionValue(MetricUpdate metricUpdate) {

@@ -18,23 +18,36 @@
 package org.apache.beam.sdk.metrics;
 
 import com.google.auto.value.AutoValue;
-import java.util.Collections;
 import java.util.Set;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 
-/** The result of a {@link StringSet} metric. */
+/** The result of a {@link StringSet} metric. The {@link StringSetResult} hold an immutable copy
+ * of the set from which it was initially created representing that a result cannot be modified
+ * once created.
+ * */
 @AutoValue
 public abstract class StringSetResult {
   public abstract Set<String> getStringSet();
 
+  /**
+   * Creates a {@link StringSetResult} from the given {@link Set} by making an immutable copy.
+   *
+   * @param s the set from which the {@link StringSetResult} should be created.
+   * @return {@link StringSetResult} containing an immutable copy of the given set.
+   */
   public static StringSetResult create(Set<String> s) {
-    return new AutoValue_StringSetResult(s);
+    return new AutoValue_StringSetResult(ImmutableSet.copyOf(s));
   }
 
+  /**
+   * @return a {@link EmptyStringSetResult}
+   */
   public static StringSetResult empty() {
     return EmptyStringSetResult.INSTANCE;
   }
 
-  /** Empty {@link StringSetResult}, representing no values reported. */
+  /** Empty {@link StringSetResult}, representing no values reported and is immutable.
+   * */
   public static class EmptyStringSetResult extends StringSetResult {
 
     private static final EmptyStringSetResult INSTANCE = new EmptyStringSetResult();
@@ -44,7 +57,7 @@ public abstract class StringSetResult {
     /** Returns an empty immutable set. */
     @Override
     public Set<String> getStringSet() {
-      return Collections.emptySet();
+      return ImmutableSet.of();
     }
   }
 }

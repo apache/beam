@@ -206,7 +206,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
   }
 
   /**
-   * Return a {@code StringSetCell} named {@code metricName}.If it doesn't exist, return {@code
+   * Return a {@code StringSetCell} named {@code metricName}. If it doesn't exist, return {@code
    * null}.
    */
   public @Nullable StringSetCell tryGetStringSet(MetricName metricName) {
@@ -418,7 +418,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
   }
 
   /**
-   * Mark all of the updates that were retrieved with the latest call to {@link #getUpdates()} as
+   * Mark all the updates that were retrieved with the latest call to {@link #getUpdates()} as
    * committed.
    */
   public void commitUpdates() {
