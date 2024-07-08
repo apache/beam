@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.core.metrics;
 
-import java.util.Arrays;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.metrics.MetricName;

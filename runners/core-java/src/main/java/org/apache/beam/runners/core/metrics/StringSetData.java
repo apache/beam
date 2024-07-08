@@ -27,9 +27,9 @@ import org.apache.beam.sdk.metrics.StringSetResult;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 
 /**
- * Data describing the StringSet. The {@link StringSetData} hold an immutable copy
- *  of the set from which it was initially created. This should retain enough detail that it can
- *  be combined with other {@link StringSetData}.
+ * Data describing the StringSet. The {@link StringSetData} hold an immutable copy of the set from
+ * which it was initially created. This should retain enough detail that it can be combined with
+ * other {@link StringSetData}.
  */
 @AutoValue
 public abstract class StringSetData implements Serializable {
@@ -62,9 +62,10 @@ public abstract class StringSetData implements Serializable {
    * Combines this {@link StringSetData} with others, all original StringSetData are left intact.
    */
   public StringSetData combine(Iterable<StringSetData> others) {
-    Set<String> combined = StreamSupport.stream(others.spliterator(), true)
-        .flatMap(other -> other.stringSet().stream())
-        .collect(Collectors.toSet());
+    Set<String> combined =
+        StreamSupport.stream(others.spliterator(), true)
+            .flatMap(other -> other.stringSet().stream())
+            .collect(Collectors.toSet());
     combined.addAll(this.stringSet());
     return StringSetData.create(combined);
   }

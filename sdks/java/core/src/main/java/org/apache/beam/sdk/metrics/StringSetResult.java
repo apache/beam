@@ -21,10 +21,11 @@ import com.google.auto.value.AutoValue;
 import java.util.Set;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 
-/** The result of a {@link StringSet} metric. The {@link StringSetResult} hold an immutable copy
- * of the set from which it was initially created representing that a result cannot be modified
- * once created.
- * */
+/**
+ * The result of a {@link StringSet} metric. The {@link StringSetResult} hold an immutable copy of
+ * the set from which it was initially created representing that a result cannot be modified once
+ * created.
+ */
 @AutoValue
 public abstract class StringSetResult {
   public abstract Set<String> getStringSet();
@@ -39,15 +40,12 @@ public abstract class StringSetResult {
     return new AutoValue_StringSetResult(ImmutableSet.copyOf(s));
   }
 
-  /**
-   * @return a {@link EmptyStringSetResult}
-   */
+  /** @return a {@link EmptyStringSetResult} */
   public static StringSetResult empty() {
     return EmptyStringSetResult.INSTANCE;
   }
 
-  /** Empty {@link StringSetResult}, representing no values reported and is immutable.
-   * */
+  /** Empty {@link StringSetResult}, representing no values reported and is immutable. */
   public static class EmptyStringSetResult extends StringSetResult {
 
     private static final EmptyStringSetResult INSTANCE = new EmptyStringSetResult();

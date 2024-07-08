@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.metrics;
 
 import static org.junit.Assert.assertEquals;
@@ -58,7 +57,8 @@ public class StringSetResultTest {
     // Test empty returns an immutable set
     StringSetResult empptyStringSetResult = StringSetResult.empty();
     assertTrue(empptyStringSetResult.getStringSet().isEmpty());
-    assertThrows(UnsupportedOperationException.class, () ->
-        empptyStringSetResult.getStringSet().add("should-fail"));
+    assertThrows(
+        UnsupportedOperationException.class,
+        () -> empptyStringSetResult.getStringSet().add("should-fail"));
   }
 }

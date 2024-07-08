@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.jet.metrics;
 
-import java.util.Arrays;
-import java.util.HashSet;
 import org.apache.beam.runners.core.metrics.StringSetData;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.StringSet;
