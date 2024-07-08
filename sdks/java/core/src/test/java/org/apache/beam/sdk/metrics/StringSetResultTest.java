@@ -21,11 +21,11 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
-import com.google.common.collect.Sets;
-import com.google.common.collect.Sets.SetView;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets.SetView;
 import org.junit.Test;
 
 public class StringSetResultTest {

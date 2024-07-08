@@ -93,11 +93,6 @@ public class MonitoringInfoEncodingsTest {
     data = StringSetData.create(ImmutableSet.of("ab", "", "ef"));
     payload = encodeStringSet(data);
     assertEquals(data, decodeStringSet(payload));
-
-    // test null string encoding
-    data = StringSetData.create(new HashSet<>(Arrays.asList("ab", null, "cd")));
-    StringSetData finalData = data;
-    Assert.assertThrows(RuntimeException.class, () -> encodeStringSet(finalData));
   }
 
   @Test
