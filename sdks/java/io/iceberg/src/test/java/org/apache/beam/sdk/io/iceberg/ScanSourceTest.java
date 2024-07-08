@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.iceberg;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.util.List;
+import java.util.Properties;
 import java.util.UUID;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -64,14 +65,17 @@ public class ScanSourceTest {
 
     PipelineOptions options = PipelineOptionsFactory.create();
 
+    Properties props = new Properties();
+    props.setProperty("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP);
+    props.setProperty("warehouse", warehouse.location);
+
     BoundedSource<Row> source =
         new ScanSource(
             IcebergScanConfig.builder()
                 .setCatalogConfig(
                     IcebergCatalogConfig.builder()
-                        .setName("hadoop")
-                        .setIcebergCatalogType(CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
-                        .setWarehouseLocation(warehouse.location)
+                        .setCatalogName("name")
+                        .setProperties(props)
                         .build())
                 .setScanType(IcebergScanConfig.ScanType.TABLE)
                 .setTableIdentifier(simpleTable.name().replace("hadoop.", "").split("\\."))
@@ -103,14 +107,17 @@ public class ScanSourceTest {
 
     PipelineOptions options = PipelineOptionsFactory.create();
 
+    Properties props = new Properties();
+    props.setProperty("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP);
+    props.setProperty("warehouse", warehouse.location);
+
     BoundedSource<Row> source =
         new ScanSource(
             IcebergScanConfig.builder()
                 .setCatalogConfig(
                     IcebergCatalogConfig.builder()
-                        .setName("hadoop")
-                        .setIcebergCatalogType(CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
-                        .setWarehouseLocation(warehouse.location)
+                        .setCatalogName("name")
+                        .setProperties(props)
                         .build())
                 .setScanType(IcebergScanConfig.ScanType.TABLE)
                 .setTableIdentifier(simpleTable.name().replace("hadoop.", "").split("\\."))
@@ -146,14 +153,17 @@ public class ScanSourceTest {
 
     PipelineOptions options = PipelineOptionsFactory.create();
 
+    Properties props = new Properties();
+    props.setProperty("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP);
+    props.setProperty("warehouse", warehouse.location);
+
     BoundedSource<Row> source =
         new ScanSource(
             IcebergScanConfig.builder()
                 .setCatalogConfig(
                     IcebergCatalogConfig.builder()
-                        .setName("hadoop")
-                        .setIcebergCatalogType(CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
-                        .setWarehouseLocation(warehouse.location)
+                        .setCatalogName("name")
+                        .setProperties(props)
                         .build())
                 .setScanType(IcebergScanConfig.ScanType.TABLE)
                 .setTableIdentifier(simpleTable.name().replace("hadoop.", "").split("\\."))
