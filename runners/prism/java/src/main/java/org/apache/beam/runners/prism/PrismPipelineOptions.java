@@ -35,7 +35,7 @@ public interface PrismPipelineOptions extends PortablePipelineOptions {
   void setPrismLocation(String prismLocation);
 
   @Description(
-      "Override the SDK\\'s version for deriving the Github Release URLs for "
+      "Override the SDK's version for deriving the Github Release URLs for "
           + "downloading a zipped prism binary, for the current platform. If "
           + "set to a Github Release page URL, then it will use that release page as a base when constructing the download URL.")
   String getPrismVersionOverride();
