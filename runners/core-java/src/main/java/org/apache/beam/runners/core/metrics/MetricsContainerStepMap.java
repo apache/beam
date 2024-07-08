@@ -154,7 +154,7 @@ public class MetricsContainerStepMap implements Serializable {
           mergeCommittedResults(
               distributions, cumulative.distributionUpdates(), DistributionData::combine);
           mergeCommittedResults(gauges, cumulative.gaugeUpdates(), GaugeData::combine);
-          mergeAttemptedResults(sets, cumulative.stringSetUpdates(), StringSetData::combine);
+          mergeCommittedResults(sets, cumulative.stringSetUpdates(), StringSetData::combine);
         });
 
     return new DefaultMetricResults(

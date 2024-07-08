@@ -74,7 +74,7 @@ public abstract class StringSetData implements Serializable {
     return StringSetResult.create(stringSet());
   }
 
-  /** Empty {@link StringSetData}, representing no values reported. */
+  /** Empty {@link StringSetData}, representing no values reported and is immutable. */
   public static class EmptyStringSetData extends StringSetData {
 
     private static final EmptyStringSetData INSTANCE = new EmptyStringSetData();

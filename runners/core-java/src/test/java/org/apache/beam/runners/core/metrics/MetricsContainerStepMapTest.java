@@ -302,6 +302,12 @@ public class MetricsContainerStepMapTest {
         DistributionResult.create(VALUE * 6, 4, VALUE, VALUE * 2),
         false);
     assertGauge(GAUGE_NAME, step1res, STEP1, GaugeResult.create(VALUE, Instant.now()), false);
+    assertStringSet(
+        STRING_SET_NAME,
+        step1res,
+        STEP1,
+        StringSetResult.create(ImmutableSet.of(FIRST_STRING, SECOND_STRING)),
+        false);
 
     assertCounter(COUNTER_NAME, step1res, STEP1, VALUE, true);
     assertDistribution(
@@ -316,7 +322,7 @@ public class MetricsContainerStepMapTest {
         step1res,
         STEP1,
         StringSetResult.create(ImmutableSet.of(FIRST_STRING, SECOND_STRING)),
-        false);
+        true);
 
     MetricQueryResults step2res =
         metricResults.queryMetrics(MetricsFilter.builder().addStep(STEP2).build());
@@ -349,6 +355,12 @@ public class MetricsContainerStepMapTest {
         DistributionResult.create(VALUE * 6, 4, VALUE, VALUE * 2),
         true);
     assertGauge(GAUGE_NAME, step2res, STEP2, GaugeResult.create(VALUE, Instant.now()), true);
+    assertStringSet(
+        STRING_SET_NAME,
+        step2res,
+        STEP2,
+        StringSetResult.create(ImmutableSet.of(FIRST_STRING, SECOND_STRING)),
+        true);
     assertStringSet(
         STRING_SET_NAME,
         step2res,
