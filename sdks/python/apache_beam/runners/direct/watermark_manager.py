@@ -28,8 +28,8 @@ from typing import Set
 from typing import Tuple
 
 from apache_beam import pipeline
-from apache_beam.pipeline import AppliedPTransform
 from apache_beam import pvalue
+from apache_beam.pipeline import AppliedPTransform
 from apache_beam.runners.direct.util import TimerFiring
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
