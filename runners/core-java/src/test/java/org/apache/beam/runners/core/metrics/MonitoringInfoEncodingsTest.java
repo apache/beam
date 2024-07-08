@@ -30,13 +30,10 @@ import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encod
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeStringSet;
 import static org.junit.Assert.assertEquals;
 
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashSet;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.joda.time.Instant;
-import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
