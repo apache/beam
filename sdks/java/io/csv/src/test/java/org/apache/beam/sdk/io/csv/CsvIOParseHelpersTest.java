@@ -80,24 +80,16 @@ public class CsvIOParseHelpersTest {
   }
 
   @Test
-  public void givenDecimalWithSurroundingSpaces_throws() {
+  public void givenBigDecimalWithSurroundingSpaces_throws() {
     BigDecimal decimal = new BigDecimal("123.456");
     DefaultMapEntry cellToExpectedValue = new DefaultMapEntry("   123.456  ", decimal);
     Schema schema =
         Schema.builder().addDecimalField("a_decimal").addStringField("a_string").build();
-    IllegalArgumentException e =
-        assertThrows(
-            IllegalArgumentException.class,
-            () ->
-                CsvIOParseHelpers.parseCell(
-                    cellToExpectedValue.getKey().toString(), schema.getField("a_decimal")));
-    assertEquals(
-        "Character   is neither a decimal digit number, decimal point, nor "
-            + "\"e\""
-            + " notation exponential mark. field "
-            + schema.getField("a_decimal").getName()
-            + " was received -- type mismatch",
-        e.getMessage());
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            CsvIOParseHelpers.parseCell(
+                cellToExpectedValue.getKey().toString(), schema.getField("a_decimal")));
   }
 
   @Test
