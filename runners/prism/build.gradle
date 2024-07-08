@@ -36,6 +36,7 @@ def modDir = project.rootDir.toPath().resolve("sdks")
 
 // prismDir is the directory containing the prism executable.
 def prismDir = modDir.resolve("go/cmd/prism")
+ext.set('buildTarget', buildTarget)
 
 // Overrides the gradle build task to build the prism executable.
 def buildTask = tasks.named("build") {
