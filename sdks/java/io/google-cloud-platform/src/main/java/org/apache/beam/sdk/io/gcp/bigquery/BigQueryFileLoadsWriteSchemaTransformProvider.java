@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryStorageWriteApiSchemaTransformProvider.BigQueryStorageWriteApiSchemaTransformConfiguration;
+import static org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryStorageWriteApiSchemaTransformProvider.BigQueryWriteConfiguration;
 
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.auto.service.AutoService;
@@ -38,7 +38,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 
 /**
  * An implementation of {@link TypedSchemaTransformProvider} for BigQuery write jobs configured
- * using {@link BigQueryStorageWriteApiSchemaTransformConfiguration}.
+ * using {@link BigQueryWriteConfiguration}.
  *
  * <p><b>Internal only:</b> This class is actively being worked on, and it will likely change. We
  * provide no backwards compatibility guarantees, and it should not be implemented outside the Beam
@@ -50,15 +50,14 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 @Internal
 @AutoService(SchemaTransformProvider.class)
 public class BigQueryFileLoadsWriteSchemaTransformProvider
-    extends TypedSchemaTransformProvider<BigQueryStorageWriteApiSchemaTransformConfiguration> {
+    extends TypedSchemaTransformProvider<BigQueryWriteConfiguration> {
 
   private static final String IDENTIFIER =
       "beam:schematransform:org.apache.beam:bigquery_fileloads:v1";
   static final String INPUT_TAG = "input";
 
   @Override
-  protected SchemaTransform from(
-      BigQueryStorageWriteApiSchemaTransformConfiguration configuration) {
+  protected SchemaTransform from(BigQueryWriteConfiguration configuration) {
     return new BigQueryWriteSchemaTransform(configuration);
   }
 
@@ -81,10 +80,9 @@ public class BigQueryFileLoadsWriteSchemaTransformProvider
     /** An instance of {@link BigQueryServices} used for testing. */
     private BigQueryServices testBigQueryServices = null;
 
-    private final BigQueryStorageWriteApiSchemaTransformConfiguration configuration;
+    private final BigQueryWriteConfiguration configuration;
 
-    BigQueryWriteSchemaTransform(
-        BigQueryStorageWriteApiSchemaTransformConfiguration configuration) {
+    BigQueryWriteSchemaTransform(BigQueryWriteConfiguration configuration) {
       configuration.validate();
       this.configuration = configuration;
     }

@@ -39,7 +39,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
 import org.apache.beam.sdk.io.gcp.bigquery.DynamicDestinations;
 import org.apache.beam.sdk.io.gcp.bigquery.TableDestination;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteResult;
-import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryStorageWriteApiSchemaTransformProvider.BigQueryStorageWriteApiSchemaTransformConfiguration;
+import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryStorageWriteApiSchemaTransformProvider.BigQueryWriteConfiguration;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
@@ -69,7 +69,7 @@ import org.joda.time.Duration;
 
 /**
  * An implementation of {@link TypedSchemaTransformProvider} for BigQuery Storage Write API jobs
- * configured via {@link BigQueryStorageWriteApiSchemaTransformConfiguration}.
+ * configured via {@link BigQueryWriteConfiguration}.
  *
  * <p><b>Internal only:</b> This class is actively being worked on, and it will likely change. We
  * provide no backwards compatibility guarantees, and it should not be implemented outside the Beam
@@ -80,7 +80,7 @@ import org.joda.time.Duration;
 })
 @AutoService(SchemaTransformProvider.class)
 public class BigQueryStorageWriteApiSchemaTransformProvider
-    extends TypedSchemaTransformProvider<BigQueryStorageWriteApiSchemaTransformConfiguration> {
+    extends TypedSchemaTransformProvider<BigQueryWriteConfiguration> {
   private static final Integer DEFAULT_TRIGGER_FREQUENCY_SECS = 5;
   private static final Duration DEFAULT_TRIGGERING_FREQUENCY =
       Duration.standardSeconds(DEFAULT_TRIGGER_FREQUENCY_SECS);
@@ -91,8 +91,7 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
   protected static final String DYNAMIC_DESTINATIONS = "DYNAMIC_DESTINATIONS";
 
   @Override
-  protected SchemaTransform from(
-      BigQueryStorageWriteApiSchemaTransformConfiguration configuration) {
+  protected SchemaTransform from(BigQueryWriteConfiguration configuration) {
     return new BigQueryStorageWriteApiSchemaTransform(configuration);
   }
 
@@ -124,14 +123,14 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
   /** Configuration for writing to BigQuery with Storage Write API. */
   @DefaultSchema(AutoValueSchema.class)
   @AutoValue
-  public abstract static class BigQueryStorageWriteApiSchemaTransformConfiguration {
+  public abstract static class BigQueryWriteConfiguration {
     @AutoValue
     public abstract static class ErrorHandling {
       @SchemaFieldDescription("The name of the output PCollection containing failed writes.")
       public abstract String getOutput();
 
       public static Builder builder() {
-        return new AutoValue_BigQueryStorageWriteApiSchemaTransformProvider_BigQueryStorageWriteApiSchemaTransformConfiguration_ErrorHandling
+        return new AutoValue_BigQueryStorageWriteApiSchemaTransformProvider_BigQueryWriteConfiguration_ErrorHandling
             .Builder();
       }
 
@@ -161,7 +160,7 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
         List<String> createDispostions =
             Arrays.stream(CreateDisposition.values()).map(Enum::name).collect(Collectors.toList());
         Preconditions.checkArgument(
-            createDispostions.contains(getCreateDisposition()),
+            createDispostions.contains(getCreateDisposition().toUpperCase()),
             "Invalid create disposition (%s) was specified. Available dispositions are: %s",
             getCreateDisposition(),
             createDispostions);
@@ -170,7 +169,7 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
         List<String> writeDispostions =
             Arrays.stream(WriteDisposition.values()).map(Enum::name).collect(Collectors.toList());
         Preconditions.checkArgument(
-            writeDispostions.contains(getWriteDisposition()),
+            writeDispostions.contains(getWriteDisposition().toUpperCase()),
             "Invalid write disposition (%s) was specified. Available dispositions are: %s",
             getWriteDisposition(),
             writeDispostions);
@@ -192,11 +191,9 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
       }
     }
 
-    /**
-     * Instantiates a {@link BigQueryStorageWriteApiSchemaTransformConfiguration.Builder} instance.
-     */
+    /** Instantiates a {@link BigQueryWriteConfiguration.Builder} instance. */
     public static Builder builder() {
-      return new AutoValue_BigQueryStorageWriteApiSchemaTransformProvider_BigQueryStorageWriteApiSchemaTransformConfiguration
+      return new AutoValue_BigQueryStorageWriteApiSchemaTransformProvider_BigQueryWriteConfiguration
           .Builder();
     }
 
@@ -251,7 +248,7 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
     @Nullable
     public abstract ErrorHandling getErrorHandling();
 
-    /** Builder for {@link BigQueryStorageWriteApiSchemaTransformConfiguration}. */
+    /** Builder for {@link BigQueryWriteConfiguration}. */
     @AutoValue.Builder
     public abstract static class Builder {
 
@@ -273,25 +270,23 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
 
       public abstract Builder setErrorHandling(ErrorHandling errorHandling);
 
-      /** Builds a {@link BigQueryStorageWriteApiSchemaTransformConfiguration} instance. */
-      public abstract BigQueryStorageWriteApiSchemaTransformProvider
-              .BigQueryStorageWriteApiSchemaTransformConfiguration
+      /** Builds a {@link BigQueryWriteConfiguration} instance. */
+      public abstract BigQueryStorageWriteApiSchemaTransformProvider.BigQueryWriteConfiguration
           build();
     }
   }
 
   /**
    * A {@link SchemaTransform} for BigQuery Storage Write API, configured with {@link
-   * BigQueryStorageWriteApiSchemaTransformConfiguration} and instantiated by {@link
+   * BigQueryWriteConfiguration} and instantiated by {@link
    * BigQueryStorageWriteApiSchemaTransformProvider}.
    */
   public static class BigQueryStorageWriteApiSchemaTransform extends SchemaTransform {
 
     private BigQueryServices testBigQueryServices = null;
-    private final BigQueryStorageWriteApiSchemaTransformConfiguration configuration;
+    private final BigQueryWriteConfiguration configuration;
 
-    BigQueryStorageWriteApiSchemaTransform(
-        BigQueryStorageWriteApiSchemaTransformConfiguration configuration) {
+    BigQueryStorageWriteApiSchemaTransform(BigQueryWriteConfiguration configuration) {
       configuration.validate();
       this.configuration = configuration;
     }
@@ -453,7 +448,7 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
         // To stay consistent with our SchemaTransform configuration naming conventions,
         // we sort lexicographically
         return SchemaRegistry.createDefault()
-            .getToRowFunction(BigQueryStorageWriteApiSchemaTransformConfiguration.class)
+            .getToRowFunction(BigQueryWriteConfiguration.class)
             .apply(configuration)
             .sorted()
             .toSnakeCase();

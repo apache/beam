@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryStorageWriteApiSchemaTransformProvider.BigQueryStorageWriteApiSchemaTransformConfiguration;
+import static org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryStorageWriteApiSchemaTransformProvider.BigQueryWriteConfiguration;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
@@ -96,8 +96,8 @@ public class BigQueryFileLoadsWriteSchemaTransformProviderTest {
   public void testLoad() throws IOException, InterruptedException {
     BigQueryFileLoadsWriteSchemaTransformProvider provider =
         new BigQueryFileLoadsWriteSchemaTransformProvider();
-    BigQueryStorageWriteApiSchemaTransformConfiguration configuration =
-        BigQueryStorageWriteApiSchemaTransformConfiguration.builder()
+    BigQueryWriteConfiguration configuration =
+        BigQueryWriteConfiguration.builder()
             .setTable(BigQueryHelpers.toTableSpec(TABLE_REFERENCE))
             .setWriteDisposition(WriteDisposition.WRITE_TRUNCATE.name())
             .setCreateDisposition(CreateDisposition.CREATE_IF_NEEDED.name())
