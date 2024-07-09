@@ -52,11 +52,10 @@ runs:
     - name: Setup Gradle
       uses: gradle/gradle-build-action@v2
       with:
-        cache-read-only: ${{ inputs.disable-cache }}
+        cache-disabled: ${{ inputs.disable-cache }}
     - name: Install Go
       if: ${{ inputs.go-version != '' }}
       uses: actions/setup-go@v5
       with:
         go-version: ${{ inputs.go-version == 'default' && '1.22' || inputs.go-version }} # never set patch, to get latest patch releases.
-        cache-dependency-path: |
-          sdks/go.sum
+        cache-dependency-path: $${{ inputs.disable-cache && '' || 'sdks/go.sum' }}
