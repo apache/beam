@@ -158,5 +158,5 @@ tzlocal==5.2
 uritemplate==4.1.1
 urllib3==2.2.1
 wrapt==1.16.0
-zipp==3.18.1
+zipp==3.19.1
 zstandard==0.22.0
