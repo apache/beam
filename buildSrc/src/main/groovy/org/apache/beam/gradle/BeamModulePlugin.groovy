@@ -900,6 +900,7 @@ class BeamModulePlugin implements Plugin<Project> {
         testcontainers_oracle                       : "org.testcontainers:oracle-xe:$testcontainers_version",
         testcontainers_postgresql                   : "org.testcontainers:postgresql:$testcontainers_version",
         testcontainers_rabbitmq                     : "org.testcontainers:rabbitmq:$testcontainers_version",
+        testcontainers_solace                       : "org.testcontainers:solace:$testcontainers_version",
         truth                                       : "com.google.truth:truth:1.1.5",
         threetenbp                                  : "org.threeten:threetenbp:1.6.8",
         vendored_grpc_1_60_1                        : "org.apache.beam:beam-vendor-grpc-1_60_1:0.2",
@@ -2223,7 +2224,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
       // This sets the whole project Go version.
       // The latest stable Go version can be checked at https://go.dev/dl/
-      project.ext.goVersion = "go1.22.4"
+      project.ext.goVersion = "go1.22.5"
 
       // Minor TODO: Figure out if we can pull out the GOCMD env variable after goPrepare script
       // completion, and avoid this GOBIN substitution.

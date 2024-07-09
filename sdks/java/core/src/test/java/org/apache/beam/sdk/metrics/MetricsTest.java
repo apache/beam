@@ -22,6 +22,7 @@ import static org.apache.beam.sdk.metrics.MetricResultsMatchers.distributionMinM
 import static org.apache.beam.sdk.metrics.MetricResultsMatchers.metricsResult;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.anyOf;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertNull;
 import static org.mockito.Mockito.verify;
@@ -37,12 +38,14 @@ import org.apache.beam.sdk.testing.UsesCommittedMetrics;
 import org.apache.beam.sdk.testing.UsesCounterMetrics;
 import org.apache.beam.sdk.testing.UsesDistributionMetrics;
 import org.apache.beam.sdk.testing.UsesGaugeMetrics;
+import org.apache.beam.sdk.testing.UsesStringSetMetrics;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.After;
@@ -85,6 +88,7 @@ public class MetricsTest implements Serializable {
 
     protected PipelineResult runPipelineWithMetrics() {
       final Counter count = Metrics.counter(MetricsTest.class, "count");
+      StringSet sideinputs = Metrics.stringSet(MetricsTest.class, "sideinputs");
       final TupleTag<Integer> output1 = new TupleTag<Integer>() {};
       final TupleTag<Integer> output2 = new TupleTag<Integer>() {};
       pipeline
@@ -104,11 +108,16 @@ public class MetricsTest implements Serializable {
                     @ProcessElement
                     public void processElement(ProcessContext c) {
                       Distribution values = Metrics.distribution(MetricsTest.class, "input");
+                      StringSet sources = Metrics.stringSet(MetricsTest.class, "sources");
                       count.inc();
                       values.update(c.element());
 
                       c.output(c.element());
                       c.output(c.element());
+                      sources.add("gcs");
+                      sources.add("gcs"); // repeated should appear once
+                      sources.add("gcs", "gcs"); // repeated should appear once
+                      sideinputs.add("bigtable", "spanner");
                     }
 
                     @DoFn.FinishBundle
@@ -125,11 +134,14 @@ public class MetricsTest implements Serializable {
                         public void processElement(ProcessContext c) {
                           Distribution values = Metrics.distribution(MetricsTest.class, "input");
                           Gauge gauge = Metrics.gauge(MetricsTest.class, "my-gauge");
+                          StringSet sinks = Metrics.stringSet(MetricsTest.class, "sinks");
                           Integer element = c.element();
                           count.inc();
                           values.update(element);
                           gauge.set(12L);
                           c.output(element);
+                          sinks.add("bq", "kafka", "kafka"); // repeated should appear once
+                          sideinputs.add("bigtable", "sql");
                           c.output(output2, element);
                         }
                       })
@@ -233,7 +245,8 @@ public class MetricsTest implements Serializable {
       UsesCommittedMetrics.class,
       UsesCounterMetrics.class,
       UsesDistributionMetrics.class,
-      UsesGaugeMetrics.class
+      UsesGaugeMetrics.class,
+      UsesStringSetMetrics.class
     })
     @Test
     public void testAllCommittedMetrics() {
@@ -265,6 +278,14 @@ public class MetricsTest implements Serializable {
       PipelineResult result = runPipelineWithMetrics();
       MetricQueryResults metrics = queryTestMetrics(result);
       assertGaugeMetrics(metrics, true);
+    }
+
+    @Category({ValidatesRunner.class, UsesCommittedMetrics.class, UsesStringSetMetrics.class})
+    @Test
+    public void testCommittedStringSetMetrics() {
+      PipelineResult result = runPipelineWithMetrics();
+      MetricQueryResults metrics = queryTestMetrics(result);
+      assertStringSetMetrics(metrics, true);
     }
 
     @Test
@@ -352,7 +373,8 @@ public class MetricsTest implements Serializable {
       UsesAttemptedMetrics.class,
       UsesCounterMetrics.class,
       UsesDistributionMetrics.class,
-      UsesGaugeMetrics.class
+      UsesGaugeMetrics.class,
+      UsesStringSetMetrics.class
     })
     @Test
     public void testAllAttemptedMetrics() {
@@ -386,6 +408,14 @@ public class MetricsTest implements Serializable {
       MetricQueryResults metrics = queryTestMetrics(result);
       assertGaugeMetrics(metrics, false);
     }
+
+    @Category({ValidatesRunner.class, UsesAttemptedMetrics.class, UsesStringSetMetrics.class})
+    @Test
+    public void testAttemptedStringSetMetrics() {
+      PipelineResult result = runPipelineWithMetrics();
+      MetricQueryResults metrics = queryTestMetrics(result);
+      assertStringSetMetrics(metrics, false);
+    }
   }
 
   private static void assertCounterMetrics(MetricQueryResults metrics, boolean isCommitted) {
@@ -412,6 +442,36 @@ public class MetricsTest implements Serializable {
                 "my-gauge",
                 "MyStep2",
                 GaugeResult.create(12L, Instant.now()),
+                isCommitted)));
+  }
+
+  private static void assertStringSetMetrics(MetricQueryResults metrics, boolean isCommitted) {
+    assertThat(
+        metrics.getStringSets(),
+        containsInAnyOrder(
+            metricsResult(
+                NAMESPACE,
+                "sources",
+                "MyStep1",
+                StringSetResult.create(ImmutableSet.of("gcs")),
+                isCommitted),
+            metricsResult(
+                NAMESPACE,
+                "sinks",
+                "MyStep2",
+                StringSetResult.create(ImmutableSet.of("kafka", "bq")),
+                isCommitted),
+            metricsResult(
+                NAMESPACE,
+                "sideinputs",
+                "MyStep1",
+                StringSetResult.create(ImmutableSet.of("bigtable", "spanner")),
+                isCommitted),
+            metricsResult(
+                NAMESPACE,
+                "sideinputs",
+                "MyStep2",
+                StringSetResult.create(ImmutableSet.of("sql", "bigtable")),
                 isCommitted)));
   }
 
@@ -458,5 +518,6 @@ public class MetricsTest implements Serializable {
     assertCounterMetrics(metrics, isCommitted);
     assertDistributionMetrics(metrics, isCommitted);
     assertGaugeMetrics(metrics, isCommitted);
+    assertStringSetMetrics(metrics, isCommitted);
   }
 }
