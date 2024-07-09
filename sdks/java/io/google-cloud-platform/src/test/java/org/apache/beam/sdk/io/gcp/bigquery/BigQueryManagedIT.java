@@ -18,29 +18,42 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
+import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryDirectReadSchemaTransformProvider;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
 import org.apache.beam.sdk.managed.Managed;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.PeriodicImpulse;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.joda.time.Duration;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+/**
+ * This class tests the execution of {@link Managed} BigQueryIO. Tests validating that the correct
+ * write transform is requested can be found in
+ * ManagedSchemaTransformProviderTest.testResolveBigQueryWrite.
+ */
 @RunWith(JUnit4.class)
 public class BigQueryManagedIT {
   private static final Schema SCHEMA =
@@ -76,18 +89,20 @@ public class BigQueryManagedIT {
   }
 
   @Test
-  public void testSimpleStorageWriteRead() {
-    String table = String.format("%s:%s.managed_read_write", PROJECT, BIG_QUERY_DATASET_ID);
+  public void testBatchFileLoadsWriteRead() {
+    String table = String.format("%s:%s.managed_file_loads_read", PROJECT, BIG_QUERY_DATASET_ID);
 
     Map<String, Object> writeConfig =
-        ImmutableMap.<String, Object>builder()
-            .put("table", table)
-            .put("create_disposition", "create_if_needed")
-            .put("at_least_once", false)
-            .build();
-    Pipeline p = Pipeline.create();
-    PCollectionRowTuple.of("input", p.apply(Create.of(ROWS)).setRowSchema(SCHEMA))
-        .apply(Managed.write(Managed.BIGQUERY_STORAGE).withConfig(writeConfig));
+        ImmutableMap.<String, Object>builder().put("table", table).build();
+
+    // file loads requires a GCS temp location
+    TestPipelineOptions options =
+        TestPipeline.testingPipelineOptions().as(TestPipelineOptions.class);
+    options.setTempLocation(options.getTempRoot());
+
+    Pipeline p = Pipeline.create(options);
+    PCollectionRowTuple.of("input", getInput(p, false))
+        .apply(Managed.write(Managed.BIGQUERY).withConfig(writeConfig));
     p.run().waitUntilFinish();
 
     Map<String, Object> readConfig =
@@ -95,9 +110,79 @@ public class BigQueryManagedIT {
     Pipeline q = Pipeline.create();
     PCollection<Row> outputRows =
         PCollectionRowTuple.empty(p)
-            .apply(Managed.read(Managed.BIGQUERY_STORAGE).withConfig(readConfig))
+            .apply(Managed.read(Managed.BIGQUERY).withConfig(readConfig))
             .get(BigQueryDirectReadSchemaTransformProvider.OUTPUT_TAG);
     PAssert.that(outputRows).containsInAnyOrder(ROWS);
     q.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testStreamingStorageWriteRead() {
+    String table = String.format("%s:%s.managed_storage_write_read", PROJECT, BIG_QUERY_DATASET_ID);
+
+    Map<String, Object> writeConfig =
+        ImmutableMap.<String, Object>builder().put("table", table).build();
+    Pipeline p = Pipeline.create();
+    PCollectionRowTuple.of("input", getInput(p, true))
+        .apply(Managed.write(Managed.BIGQUERY).withConfig(writeConfig));
+    p.run().waitUntilFinish();
+
+    Map<String, Object> readConfig =
+        ImmutableMap.<String, Object>builder().put("table", table).build();
+    Pipeline q = Pipeline.create();
+    PCollection<Row> outputRows =
+        PCollectionRowTuple.empty(p)
+            .apply(Managed.read(Managed.BIGQUERY).withConfig(readConfig))
+            .get(BigQueryDirectReadSchemaTransformProvider.OUTPUT_TAG);
+    PAssert.that(outputRows).containsInAnyOrder(ROWS);
+    q.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testStreamingStorageWriteAtLeastOnceRead() {
+    String table =
+        String.format(
+            "%s:%s.managed_storage_write_at_least_once_read", PROJECT, BIG_QUERY_DATASET_ID);
+
+    Map<String, Object> writeConfig =
+        ImmutableMap.<String, Object>builder().put("table", table).build();
+
+    DataflowPipelineOptions options =
+        PipelineOptionsFactory.create().as(DataflowPipelineOptions.class);
+    options.setDataflowServiceOptions(Collections.singletonList("streaming_mode_at_least_once"));
+    Pipeline p = Pipeline.create(options);
+
+    PCollectionRowTuple.of("input", getInput(p, true))
+        .apply(Managed.write(Managed.BIGQUERY).withConfig(writeConfig));
+    p.run().waitUntilFinish();
+
+    Map<String, Object> readConfig =
+        ImmutableMap.<String, Object>builder().put("table", table).build();
+    Pipeline q = Pipeline.create();
+    PCollection<Row> outputRows =
+        PCollectionRowTuple.empty(p)
+            .apply(Managed.read(Managed.BIGQUERY).withConfig(readConfig))
+            .get(BigQueryDirectReadSchemaTransformProvider.OUTPUT_TAG);
+    PAssert.that(outputRows).containsInAnyOrder(ROWS);
+    q.run().waitUntilFinish();
+  }
+
+  public PCollection<Row> getInput(Pipeline p, boolean isStreaming) {
+    if (isStreaming) {
+      return p.apply(
+              PeriodicImpulse.create()
+                  .stopAfter(Duration.millis(20))
+                  .withInterval(Duration.millis(1)))
+          .apply(
+              MapElements.into(TypeDescriptors.rows())
+                  .via(
+                      i ->
+                          Row.withSchema(SCHEMA)
+                              .withFieldValue("str", Long.toString(i.getMillis()))
+                              .withFieldValue("number", i.getMillis())
+                              .build()))
+          .setRowSchema(SCHEMA);
+    }
+    return p.apply(Create.of(ROWS)).setRowSchema(SCHEMA);
   }
 }

@@ -26,7 +26,7 @@ import com.google.auto.value.AutoValue;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
@@ -63,8 +63,8 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.Duration;
 
 /**
@@ -125,20 +125,6 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
   @DefaultSchema(AutoValueSchema.class)
   @AutoValue
   public abstract static class BigQueryStorageWriteApiSchemaTransformConfiguration {
-
-    static final Map<String, CreateDisposition> CREATE_DISPOSITIONS =
-        ImmutableMap.<String, CreateDisposition>builder()
-            .put(CreateDisposition.CREATE_IF_NEEDED.name(), CreateDisposition.CREATE_IF_NEEDED)
-            .put(CreateDisposition.CREATE_NEVER.name(), CreateDisposition.CREATE_NEVER)
-            .build();
-
-    static final Map<String, WriteDisposition> WRITE_DISPOSITIONS =
-        ImmutableMap.<String, WriteDisposition>builder()
-            .put(WriteDisposition.WRITE_TRUNCATE.name(), WriteDisposition.WRITE_TRUNCATE)
-            .put(WriteDisposition.WRITE_EMPTY.name(), WriteDisposition.WRITE_EMPTY)
-            .put(WriteDisposition.WRITE_APPEND.name(), WriteDisposition.WRITE_APPEND)
-            .build();
-
     @AutoValue
     public abstract static class ErrorHandling {
       @SchemaFieldDescription("The name of the output PCollection containing failed writes.")
@@ -171,21 +157,23 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
       }
 
       // validate create and write dispositions
-      if (!Strings.isNullOrEmpty(this.getCreateDisposition())) {
-        checkNotNull(
-            CREATE_DISPOSITIONS.get(this.getCreateDisposition().toUpperCase()),
-            invalidConfigMessage
-                + "Invalid create disposition (%s) was specified. Available dispositions are: %s",
-            this.getCreateDisposition(),
-            CREATE_DISPOSITIONS.keySet());
+      if (!Strings.isNullOrEmpty(getCreateDisposition())) {
+        List<String> createDispostions =
+            Arrays.stream(CreateDisposition.values()).map(Enum::name).collect(Collectors.toList());
+        Preconditions.checkArgument(
+            createDispostions.contains(getCreateDisposition()),
+            "Invalid create disposition (%s) was specified. Available dispositions are: %s",
+            getCreateDisposition(),
+            createDispostions);
       }
-      if (!Strings.isNullOrEmpty(this.getWriteDisposition())) {
-        checkNotNull(
-            WRITE_DISPOSITIONS.get(this.getWriteDisposition().toUpperCase()),
-            invalidConfigMessage
-                + "Invalid write disposition (%s) was specified. Available dispositions are: %s",
-            this.getWriteDisposition(),
-            WRITE_DISPOSITIONS.keySet());
+      if (!Strings.isNullOrEmpty(getWriteDisposition())) {
+        List<String> writeDispostions =
+            Arrays.stream(WriteDisposition.values()).map(Enum::name).collect(Collectors.toList());
+        Preconditions.checkArgument(
+            writeDispostions.contains(getWriteDisposition()),
+            "Invalid write disposition (%s) was specified. Available dispositions are: %s",
+            getWriteDisposition(),
+            writeDispostions);
       }
 
       if (this.getErrorHandling() != null) {
@@ -376,8 +364,7 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
       // Check that the input exists
-      checkArgument(input.has(INPUT_ROWS_TAG), "Missing expected input tag: %s", INPUT_ROWS_TAG);
-      PCollection<Row> inputRows = input.get(INPUT_ROWS_TAG);
+      PCollection<Row> inputRows = input.getSinglePCollection();
 
       BigQueryIO.Write<Row> write = createStorageWriteApiTransform(inputRows.getSchema());
 
@@ -503,20 +490,17 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
 
       if (!Strings.isNullOrEmpty(configuration.getCreateDisposition())) {
         CreateDisposition createDisposition =
-            BigQueryStorageWriteApiSchemaTransformConfiguration.CREATE_DISPOSITIONS.get(
-                configuration.getCreateDisposition().toUpperCase());
+            CreateDisposition.valueOf(configuration.getCreateDisposition().toUpperCase());
         write = write.withCreateDisposition(createDisposition);
       }
       if (!Strings.isNullOrEmpty(configuration.getWriteDisposition())) {
         WriteDisposition writeDisposition =
-            BigQueryStorageWriteApiSchemaTransformConfiguration.WRITE_DISPOSITIONS.get(
-                configuration.getWriteDisposition().toUpperCase());
+            WriteDisposition.valueOf(configuration.getWriteDisposition().toUpperCase());
         write = write.withWriteDisposition(writeDisposition);
       }
       if (!Strings.isNullOrEmpty(configuration.getKmsKey())) {
         write = write.withKmsKey(configuration.getKmsKey());
       }
-
       if (this.testBigQueryServices != null) {
         write = write.withTestServices(testBigQueryServices);
       }
