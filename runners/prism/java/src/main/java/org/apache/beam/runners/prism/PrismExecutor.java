@@ -23,7 +23,6 @@ import com.google.auto.value.AutoValue;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -34,7 +33,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -126,10 +124,7 @@ abstract class PrismExecutor {
 
   private void execute(ProcessBuilder processBuilder) throws IOException {
     this.process = processBuilder.start();
-    LOG.info(
-        "started {}, pid: {}",
-        String.join(" ", getCommandWithArguments()),
-        getPidOrNotAvailableWarning());
+    LOG.info("started {}", String.join(" ", getCommandWithArguments()));
   }
 
   private List<String> getCommandWithArguments() {
@@ -142,40 +137,6 @@ abstract class PrismExecutor {
 
   private ProcessBuilder createProcessBuilder() {
     return new ProcessBuilder(getCommandWithArguments());
-  }
-
-  private String getPidOrNotAvailableWarning() {
-    Long pid = getPidIfAvailable();
-    if (pid == null) {
-      return "(not available with Java environment)";
-    }
-
-    return String.valueOf(pid);
-  }
-
-  private @Nullable Long getPidIfAvailable() {
-    if (process == null) {
-      return null;
-    }
-    Field field = getPidFieldIfAvailable();
-    if (field == null) {
-      return null;
-    }
-    try {
-      return (Long) field.get(process);
-    } catch (IllegalAccessException ignored) {
-    }
-    return null;
-  }
-
-  private static @Nullable Field getPidFieldIfAvailable() {
-    try {
-      Field pidField = Process.class.getDeclaredField("pid");
-      pidField.setAccessible(true);
-      return pidField;
-    } catch (NoSuchFieldException ignored) {
-      return null;
-    }
   }
 
   @AutoValue.Builder
