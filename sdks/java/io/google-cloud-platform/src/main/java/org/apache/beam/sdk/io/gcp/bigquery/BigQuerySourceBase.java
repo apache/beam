@@ -120,6 +120,8 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
                 "Cannot start an export job since table %s does not exist",
                 BigQueryHelpers.toTableSpec(tableToExtract)));
       }
+      // emit this table ID as a lineage source
+      Lineage.getSources().add(BigQueryHelpers.dataCatalogName(tableToExtract));
 
       TableSchema schema = table.getSchema();
       JobService jobService = bqServices.getJobService(bqOptions);
@@ -156,7 +158,7 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
       if (res.extractedFiles.size() > 0) {
         BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
         // emit this table ID as a lineage source
-        Lineage.getSources().add(BigQueryHelpers.toTableSpec(getTableToExtract(bqOptions)));
+        Lineage.getSources().add(BigQueryHelpers.dataCatalogName(getTableToExtract(bqOptions)));
         final String extractDestinationDir =
             resolveTempLocation(bqOptions.getTempLocation(), "BigQueryExtractTemp", stepUuid);
         // Match all files in the destination directory to stat them in bulk.

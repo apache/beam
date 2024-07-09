@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static com.google.common.collect.testing.Helpers.assertContains;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryResourceNaming.createTempTableReference;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -45,6 +46,7 @@ import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.avro.specific.SpecificRecordBase;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
@@ -58,6 +60,10 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryResourceNaming.JobType;
 import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices;
 import org.apache.beam.sdk.io.gcp.testing.FakeDatasetService;
 import org.apache.beam.sdk.io.gcp.testing.FakeJobService;
+import org.apache.beam.sdk.metrics.Lineage;
+import org.apache.beam.sdk.metrics.MetricNameFilter;
+import org.apache.beam.sdk.metrics.MetricQueryResults;
+import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -344,6 +350,21 @@ public class BigQueryIOReadTest implements Serializable {
     assertEquals(validate, read.getValidate());
   }
 
+  private void checkLineageSourceMetric(PipelineResult pipelineResult, String tableName) {
+    MetricQueryResults lineageMetrics =
+        pipelineResult
+            .metrics()
+            .queryMetrics(
+                MetricsFilter.builder()
+                    .addNameFilter(
+                        MetricNameFilter.named(
+                            Lineage.LINEAGE_NAMESPACE, Lineage.SOURCE_METRIC_NAME))
+                    .build());
+    assertContains(
+        lineageMetrics.getStringSets().iterator().next().getCommitted().getStringSet(),
+        "bigquery:" + tableName.replace(':', '.'));
+  }
+
   @Before
   public void setUp() throws ExecutionException, IOException, InterruptedException {
     FakeDatasetService.setUp();
@@ -578,7 +599,11 @@ public class BigQueryIOReadTest implements Serializable {
                 new MyData("a", 1L, bd1, bd2),
                 new MyData("b", 2L, bd1, bd2),
                 new MyData("c", 3L, bd1, bd2)));
-    p.run();
+    PipelineResult result = p.run();
+    // Skip when direct runner splits outside of a counters context.
+    if (useTemplateCompatibility) {
+      checkLineageSourceMetric(result, "non-executing-project:somedataset.sometable");
+    }
   }
 
   @Test

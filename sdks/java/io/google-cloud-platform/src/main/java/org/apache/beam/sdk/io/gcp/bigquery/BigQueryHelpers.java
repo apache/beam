@@ -412,6 +412,11 @@ public class BigQueryHelpers {
     return sb.toString();
   }
 
+  public static String dataCatalogName(TableReference ref) {
+    return String.format(
+        "bigquery:%s.%s.%s", ref.getProjectId(), ref.getDatasetId(), ref.getTableId());
+  }
+
   static <K, V> List<V> getOrCreateMapListValue(Map<K, List<V>> map, K key) {
     return map.computeIfAbsent(key, k -> new ArrayList<>());
   }
