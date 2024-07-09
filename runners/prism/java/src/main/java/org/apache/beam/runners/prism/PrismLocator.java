@@ -245,9 +245,6 @@ class PrismLocator {
     if (parent == null) {
       return;
     }
-    if (parent.toFile().exists()) {
-      return;
-    }
     Files.createDirectories(parent);
   }
 }
