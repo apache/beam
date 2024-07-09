@@ -158,7 +158,9 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
       // validate create and write dispositions
       if (!Strings.isNullOrEmpty(getCreateDisposition())) {
         List<String> createDispostions =
-            Arrays.stream(CreateDisposition.values()).map(Enum::name).collect(Collectors.toList());
+            Arrays.stream(CreateDisposition.values())
+                .map(c -> c.name())
+                .collect(Collectors.toList());
         Preconditions.checkArgument(
             createDispostions.contains(getCreateDisposition().toUpperCase()),
             "Invalid create disposition (%s) was specified. Available dispositions are: %s",
@@ -167,7 +169,9 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
       }
       if (!Strings.isNullOrEmpty(getWriteDisposition())) {
         List<String> writeDispostions =
-            Arrays.stream(WriteDisposition.values()).map(Enum::name).collect(Collectors.toList());
+            Arrays.stream(WriteDisposition.values())
+                .map(w -> w.name())
+                .collect(Collectors.toList());
         Preconditions.checkArgument(
             writeDispostions.contains(getWriteDisposition().toUpperCase()),
             "Invalid write disposition (%s) was specified. Available dispositions are: %s",
