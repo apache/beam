@@ -377,7 +377,7 @@ Caused by: java.lang.IllegalArgumentException: Received unknown SQL Dialect 'X'.
 \tat org.apache.beam.sdk.extensions.sql.expansion.ExternalSqlTransformRegistrar$Builder.buildExternal(ExternalSqlTransformRegistrar.java:73)
 \tat org.apache.beam.sdk.extensions.sql.expansion.ExternalSqlTransformRegistrar$Builder.buildExternal(ExternalSqlTransformRegistrar.java:63)
 \tat org.apache.beam.sdk.expansion.service.ExpansionService$TransformProviderForBuilder.getTransform(ExpansionService.java:303)
-	... 12 more
+\t... 12 more
     '''.strip()
 
     core_msg = 'java.lang.RuntimeException: ACTUAL \n MULTILINE \n ERROR'

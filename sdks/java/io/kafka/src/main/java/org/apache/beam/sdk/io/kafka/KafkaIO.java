@@ -75,6 +75,7 @@ import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Redistribute;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
@@ -395,11 +396,19 @@ import org.slf4j.LoggerFactory;
  *
  * <pre>{@code
  * pipeline
- *  .apply(Create.of(KafkaSourceDescriptor.of(new TopicPartition("topic", 1)))
- *  .apply(KafkaIO.readAll()
- *          .withBootstrapServers("broker_1:9092,broker_2:9092")
- *          .withKeyDeserializer(LongDeserializer.class).
- *          .withValueDeserializer(StringDeserializer.class));
+ *  .apply(Create.of(
+ *    KafkaSourceDescriptor.of(
+ *      new TopicPartition("topic", 1),
+ *      null,
+ *      null,
+ *      null,
+ *      null,
+ *      null)))
+ *   .apply(
+ *     KafkaIO.<Long, String>readSourceDescriptors()
+ *       .withBootstrapServers("broker_1:9092,broker_2:9092")
+ *       .withKeyDeserializer(LongDeserializer.class)
+ *       .withValueDeserializer(StringDeserializer.class));
  * }</pre>
  *
  * Note that the {@code bootstrapServers} can also be populated from the {@link
@@ -412,8 +421,10 @@ import org.slf4j.LoggerFactory;
  *      new TopicPartition("topic", 1),
  *      null,
  *      null,
- *      ImmutableList.of("broker_1:9092", "broker_2:9092"))
- *  .apply(KafkaIO.readAll()
+ *      null,
+ *      null,
+ *      ImmutableList.of("broker_1:9092", "broker_2:9092"))))
+ *  .apply(KafkaIO.<Long, String>readSourceDescriptors()
  *         .withKeyDeserializer(LongDeserializer.class).
  *         .withValueDeserializer(StringDeserializer.class));
  * }</pre>
@@ -441,17 +452,19 @@ import org.slf4j.LoggerFactory;
  *
  * <pre>{@code
  * pipeline
- * .apply(Create.of(
+ *  .apply(Create.of(
  *    KafkaSourceDescriptor.of(
  *      new TopicPartition("topic", 1),
  *      null,
  *      null,
- *      ImmutableList.of("broker_1:9092", "broker_2:9092"))
- * .apply(KafkaIO.readAll()
- *          .withKeyDeserializer(LongDeserializer.class).
- *          .withValueDeserializer(StringDeserializer.class)
- *          .withProcessingTime()
- *          .commitOffsets());
+ *      null,
+ *      null,
+ *      ImmutableList.of("broker_1:9092", "broker_2:9092"))))
+ * .apply(KafkaIO.<Long, String>readSourceDescriptors()
+ *        .withKeyDeserializer(LongDeserializer.class).
+ *        .withValueDeserializer(StringDeserializer.class)
+ *        .withProcessingTime()
+ *        .commitOffsets());
  * }</pre>
  *
  * <h3>Writing to Kafka</h3>
@@ -588,6 +601,9 @@ public class KafkaIO {
         .setDynamicRead(false)
         .setTimestampPolicyFactory(TimestampPolicyFactory.withProcessingTime())
         .setConsumerPollingTimeout(2L)
+        .setRedistributed(false)
+        .setAllowDuplicates(false)
+        .setRedistributeNumKeys(0)
         .build();
   }
 
@@ -687,6 +703,15 @@ public class KafkaIO {
     public abstract boolean isDynamicRead();
 
     @Pure
+    public abstract boolean isRedistributed();
+
+    @Pure
+    public abstract boolean isAllowDuplicates();
+
+    @Pure
+    public abstract int getRedistributeNumKeys();
+
+    @Pure
     public abstract @Nullable Duration getWatchTopicPartitionDuration();
 
     @Pure
@@ -744,6 +769,12 @@ public class KafkaIO {
       abstract Builder<K, V> setDynamicRead(boolean dynamicRead);
 
       abstract Builder<K, V> setWatchTopicPartitionDuration(Duration duration);
+
+      abstract Builder<K, V> setRedistributed(boolean withRedistribute);
+
+      abstract Builder<K, V> setAllowDuplicates(boolean allowDuplicates);
+
+      abstract Builder<K, V> setRedistributeNumKeys(int redistributeNumKeys);
 
       abstract Builder<K, V> setTimestampPolicyFactory(
           TimestampPolicyFactory<K, V> timestampPolicyFactory);
@@ -840,6 +871,22 @@ public class KafkaIO {
         } else {
           builder.setConsumerPollingTimeout(2L);
         }
+
+        if (config.redistribute != null) {
+          builder.setRedistributed(config.redistribute);
+          if (config.redistributeNumKeys != null) {
+            builder.setRedistributeNumKeys((int) config.redistributeNumKeys);
+          }
+          if (config.allowDuplicates != null) {
+            builder.setAllowDuplicates(config.allowDuplicates);
+          }
+
+        } else {
+          builder.setRedistributed(false);
+          builder.setRedistributeNumKeys(0);
+          builder.setAllowDuplicates(false);
+        }
+        System.out.println("xxx builder service" + builder.toString());
       }
 
       private static <T> Coder<T> resolveCoder(Class<Deserializer<T>> deserializer) {
@@ -904,6 +951,9 @@ public class KafkaIO {
         private Boolean commitOffsetInFinalize;
         private Long consumerPollingTimeout;
         private String timestampPolicy;
+        private Integer redistributeNumKeys;
+        private Boolean redistribute;
+        private Boolean allowDuplicates;
 
         public void setConsumerConfig(Map<String, String> consumerConfig) {
           this.consumerConfig = consumerConfig;
@@ -947,6 +997,18 @@ public class KafkaIO {
 
         public void setConsumerPollingTimeout(Long consumerPollingTimeout) {
           this.consumerPollingTimeout = consumerPollingTimeout;
+        }
+
+        public void setRedistributeNumKeys(Integer redistributeNumKeys) {
+          this.redistributeNumKeys = redistributeNumKeys;
+        }
+
+        public void setRedistribute(Boolean redistribute) {
+          this.redistribute = redistribute;
+        }
+
+        public void setAllowDuplicates(Boolean allowDuplicates) {
+          this.allowDuplicates = allowDuplicates;
         }
       }
     }
@@ -993,6 +1055,30 @@ public class KafkaIO {
           (getTopics() == null || getTopics().isEmpty()) && getTopicPattern() == null,
           "Only one of topics, topicPartitions or topicPattern can be set");
       return toBuilder().setTopicPartitions(ImmutableList.copyOf(topicPartitions)).build();
+    }
+
+    /**
+     * Sets redistribute transform that hints to the runner to try to redistribute the work evenly.
+     */
+    public Read<K, V> withRedistribute() {
+      if (getRedistributeNumKeys() == 0 && isRedistributed()) {
+        LOG.warn("This will create a key per record, which is sub-optimal for most use cases.");
+      }
+      return toBuilder().setRedistributed(true).build();
+    }
+
+    public Read<K, V> withAllowDuplicates(Boolean allowDuplicates) {
+      if (!isAllowDuplicates()) {
+        LOG.warn("Setting this value without setting withRedistribute() will have no effect.");
+      }
+      return toBuilder().setAllowDuplicates(allowDuplicates).build();
+    }
+
+    public Read<K, V> withRedistributeNumKeys(int redistributeNumKeys) {
+      checkState(
+          isRedistributed(),
+          "withRedistributeNumKeys is ignored if withRedistribute() is not enabled on the transform.");
+      return toBuilder().setRedistributeNumKeys(redistributeNumKeys).build();
     }
 
     /**
@@ -1606,6 +1692,25 @@ public class KafkaIO {
                   .withMaxNumRecords(kafkaRead.getMaxNumRecords());
         }
 
+        if (kafkaRead.isRedistributed()) {
+          // fail here instead.
+          checkArgument(
+              kafkaRead.isCommitOffsetsInFinalizeEnabled(),
+              "commitOffsetsInFinalize() can't be enabled with isRedistributed");
+          PCollection<KafkaRecord<K, V>> output = input.getPipeline().apply(transform);
+          if (kafkaRead.getRedistributeNumKeys() == 0) {
+            return output.apply(
+                "Insert Redistribute",
+                Redistribute.<KafkaRecord<K, V>>arbitrarily()
+                    .withAllowDuplicates(kafkaRead.isAllowDuplicates()));
+          } else {
+            return output.apply(
+                "Insert Redistribute with Shards",
+                Redistribute.<KafkaRecord<K, V>>arbitrarily()
+                    .withAllowDuplicates(kafkaRead.isAllowDuplicates())
+                    .withNumBuckets((int) kafkaRead.getRedistributeNumKeys()));
+          }
+        }
         return input.getPipeline().apply(transform);
       }
     }
@@ -1625,6 +1730,8 @@ public class KafkaIO {
                 .withKeyDeserializerProvider(kafkaRead.getKeyDeserializerProvider())
                 .withValueDeserializerProvider(kafkaRead.getValueDeserializerProvider())
                 .withManualWatermarkEstimator()
+                .withRedistribute()
+                .withAllowDuplicates() // must be set with withRedistribute option.
                 .withTimestampPolicyFactory(kafkaRead.getTimestampPolicyFactory())
                 .withCheckStopReadingFn(kafkaRead.getCheckStopReadingFn())
                 .withConsumerPollingTimeout(kafkaRead.getConsumerPollingTimeout());
@@ -1637,6 +1744,15 @@ public class KafkaIO {
         if (kafkaRead.getBadRecordErrorHandler() != null) {
           readTransform =
               readTransform.withBadRecordErrorHandler(kafkaRead.getBadRecordErrorHandler());
+        }
+        if (kafkaRead.isRedistributed()) {
+          readTransform = readTransform.withRedistribute();
+        }
+        if (kafkaRead.isAllowDuplicates()) {
+          readTransform = readTransform.withAllowDuplicates();
+        }
+        if (kafkaRead.getRedistributeNumKeys() > 0) {
+          readTransform = readTransform.withRedistributeNumKeys(kafkaRead.getRedistributeNumKeys());
         }
         PCollection<KafkaSourceDescriptor> output;
         if (kafkaRead.isDynamicRead()) {
@@ -1666,6 +1782,22 @@ public class KafkaIO {
                   .getPipeline()
                   .apply(Impulse.create())
                   .apply(ParDo.of(new GenerateKafkaSourceDescriptor(kafkaRead)));
+        }
+        if (kafkaRead.isRedistributed()) {
+          PCollection<KafkaRecord<K, V>> pcol =
+              output.apply(readTransform).setCoder(KafkaRecordCoder.of(keyCoder, valueCoder));
+          if (kafkaRead.getRedistributeNumKeys() == 0) {
+            return pcol.apply(
+                "Insert Redistribute",
+                Redistribute.<KafkaRecord<K, V>>arbitrarily()
+                    .withAllowDuplicates(kafkaRead.isAllowDuplicates()));
+          } else {
+            return pcol.apply(
+                "Insert Redistribute with Shards",
+                Redistribute.<KafkaRecord<K, V>>arbitrarily()
+                    .withAllowDuplicates(true)
+                    .withNumBuckets((int) kafkaRead.getRedistributeNumKeys()));
+          }
         }
         return output.apply(readTransform).setCoder(KafkaRecordCoder.of(keyCoder, valueCoder));
       }
@@ -2059,6 +2191,15 @@ public class KafkaIO {
     abstract boolean isCommitOffsetEnabled();
 
     @Pure
+    abstract boolean isRedistribute();
+
+    @Pure
+    abstract boolean isAllowDuplicates();
+
+    @Pure
+    abstract int getRedistributeNumKeys();
+
+    @Pure
     abstract @Nullable TimestampPolicyFactory<K, V> getTimestampPolicyFactory();
 
     @Pure
@@ -2124,6 +2265,12 @@ public class KafkaIO {
 
       abstract ReadSourceDescriptors.Builder<K, V> setBounded(boolean bounded);
 
+      abstract ReadSourceDescriptors.Builder<K, V> setRedistribute(boolean withRedistribute);
+
+      abstract ReadSourceDescriptors.Builder<K, V> setAllowDuplicates(boolean allowDuplicates);
+
+      abstract ReadSourceDescriptors.Builder<K, V> setRedistributeNumKeys(int redistributeNumKeys);
+
       abstract ReadSourceDescriptors<K, V> build();
     }
 
@@ -2136,6 +2283,9 @@ public class KafkaIO {
           .setBadRecordRouter(BadRecordRouter.THROWING_ROUTER)
           .setBadRecordErrorHandler(new ErrorHandler.DefaultErrorHandler<>())
           .setConsumerPollingTimeout(2L)
+          .setRedistribute(false)
+          .setAllowDuplicates(false)
+          .setRedistributeNumKeys(0)
           .build()
           .withProcessingTime()
           .withMonotonicallyIncreasingWatermarkEstimator();
@@ -2293,6 +2443,19 @@ public class KafkaIO {
     public ReadSourceDescriptors<K, V> withProcessingTime() {
       return withExtractOutputTimestampFn(
           ReadSourceDescriptors.ExtractOutputTimestampFns.useProcessingTime());
+    }
+
+    /** Enable Redistribute. */
+    public ReadSourceDescriptors<K, V> withRedistribute() {
+      return toBuilder().setRedistribute(true).build();
+    }
+
+    public ReadSourceDescriptors<K, V> withAllowDuplicates() {
+      return toBuilder().setAllowDuplicates(true).build();
+    }
+
+    public ReadSourceDescriptors<K, V> withRedistributeNumKeys(int redistributeNumKeys) {
+      return toBuilder().setRedistributeNumKeys(redistributeNumKeys).build();
     }
 
     /** Use the creation time of {@link KafkaRecord} as the output timestamp. */
@@ -2485,6 +2648,12 @@ public class KafkaIO {
         }
       }
 
+      if (isRedistribute()) {
+        if (getRedistributeNumKeys() == 0) {
+          LOG.warn("This will create a key per record, which is sub-optimal for most use cases.");
+        }
+      }
+
       if (getConsumerConfig().get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG) == null) {
         LOG.warn(
             "The bootstrapServers is not set. It must be populated through the KafkaSourceDescriptor during runtime otherwise the pipeline will fail.");
@@ -2515,7 +2684,7 @@ public class KafkaIO {
                             .getSchemaRegistry()
                             .getSchemaCoder(KafkaSourceDescriptor.class),
                         recordCoder));
-        if (isCommitOffsetEnabled() && !configuredKafkaCommit()) {
+        if (isCommitOffsetEnabled() && !configuredKafkaCommit() && !isRedistribute()) {
           outputWithDescriptor =
               outputWithDescriptor
                   .apply(Reshuffle.viaRandomKey())
@@ -2526,6 +2695,7 @@ public class KafkaIO {
                               .getSchemaRegistry()
                               .getSchemaCoder(KafkaSourceDescriptor.class),
                           recordCoder));
+
           PCollection<Void> unused = outputWithDescriptor.apply(new KafkaCommitOffset<K, V>(this));
           unused.setCoder(VoidCoder.of());
         }
@@ -2665,7 +2835,7 @@ public class KafkaIO {
       abstract Builder<K, V> setProducerFactoryFn(
           @Nullable SerializableFunction<Map<String, Object>, Producer<K, V>> fn);
 
-      abstract Builder<K, V> setKeySerializer(Class<? extends Serializer<K>> serializer);
+      abstract Builder<K, V> setKeySerializer(@Nullable Class<? extends Serializer<K>> serializer);
 
       abstract Builder<K, V> setValueSerializer(Class<? extends Serializer<V>> serializer);
 

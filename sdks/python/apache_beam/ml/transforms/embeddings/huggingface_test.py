@@ -35,6 +35,7 @@ from apache_beam.testing.util import equal_to
 try:
   from apache_beam.ml.transforms.embeddings.huggingface import SentenceTransformerEmbeddings
   from apache_beam.ml.transforms.embeddings.huggingface import InferenceAPIEmbeddings
+  from PIL import Image
   import torch
 except ImportError:
   SentenceTransformerEmbeddings = None  # type: ignore
@@ -46,10 +47,17 @@ try:
 except ImportError:
   tft = None
 
+# pylint: disable=ungrouped-imports
+try:
+  from PIL import Image
+except ImportError:
+  Image = None
+
 _HF_TOKEN = os.environ.get('HF_INFERENCE_TOKEN')
 test_query = "This is a test"
 test_query_column = "feature_1"
 DEFAULT_MODEL_NAME = "sentence-transformers/all-mpnet-base-v2"
+IMAGE_MODEL_NAME = "clip-ViT-B-32"
 _parameterized_inputs = [
     ([{
         test_query_column: 'That is a happy person'
@@ -85,7 +93,7 @@ _parameterized_inputs = [
 @unittest.skipIf(
     SentenceTransformerEmbeddings is None,
     'sentence-transformers is not installed.')
-class SentenceTrasformerEmbeddingsTest(unittest.TestCase):
+class SentenceTransformerEmbeddingsTest(unittest.TestCase):
   def setUp(self) -> None:
     self.artifact_location = tempfile.mkdtemp(prefix='sentence_transformers_')
     # this bucket has TTL and will be deleted periodically
@@ -276,6 +284,48 @@ class SentenceTrasformerEmbeddingsTest(unittest.TestCase):
           ptransform_list[i]._model_handler.columns, expected_columns[i])
       self.assertEqual(
           ptransform_list[i]._model_handler._underlying.model_name, model_name)
+
+  def generateRandomImage(self, size: int):
+    imarray = np.random.rand(size, size, 3) * 255
+    return Image.fromarray(imarray.astype('uint8')).convert('RGBA')
+
+  @unittest.skipIf(Image is None, 'Pillow is not installed.')
+  def test_sentence_transformer_image_embeddings(self):
+    embedding_config = SentenceTransformerEmbeddings(
+        model_name=IMAGE_MODEL_NAME,
+        columns=[test_query_column],
+        image_model=True)
+    img = self.generateRandomImage(256)
+    with beam.Pipeline() as pipeline:
+      result_pcoll = (
+          pipeline
+          | "CreateData" >> beam.Create([{
+              test_query_column: img
+          }])
+          | "MLTransform" >> MLTransform(
+              write_artifact_location=self.artifact_location).with_transform(
+                  embedding_config))
+
+      def assert_element(element):
+        assert len(element[test_query_column]) == 512
+
+      _ = (result_pcoll | beam.Map(assert_element))
+
+  def test_sentence_transformer_images_with_str_data_types(self):
+    embedding_config = SentenceTransformerEmbeddings(
+        model_name=IMAGE_MODEL_NAME,
+        columns=[test_query_column],
+        image_model=True)
+    with self.assertRaises(TypeError):
+      with beam.Pipeline() as pipeline:
+        _ = (
+            pipeline
+            | "CreateData" >> beam.Create([{
+                test_query_column: "image.jpg"
+            }])
+            | "MLTransform" >> MLTransform(
+                write_artifact_location=self.artifact_location).with_transform(
+                    embedding_config))
 
 
 @unittest.skipIf(_HF_TOKEN is None, 'HF_TOKEN environment variable not set.')

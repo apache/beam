@@ -605,13 +605,16 @@ public class StateFetchingIterators {
       }
       prefetchedResponse = null;
 
+      ByteString tokenFromResponse = stateResponse.getGet().getContinuationToken();
+
       // If the continuation token is empty, that means we have reached EOF.
-      if (ByteString.EMPTY.equals(stateResponse.getGet().getContinuationToken())) {
+      if (ByteString.EMPTY.equals(tokenFromResponse)) {
         continuationToken = null;
       } else {
-        continuationToken = stateResponse.getGet().getContinuationToken();
+        continuationToken = tokenFromResponse;
         prefetch();
       }
+
       return stateResponse.getGet().getData();
     }
   }

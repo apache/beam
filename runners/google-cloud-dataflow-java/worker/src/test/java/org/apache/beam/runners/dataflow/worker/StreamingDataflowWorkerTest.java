@@ -1227,7 +1227,7 @@ public class StreamingDataflowWorkerTest {
         .thenReturn(makeInput(2, 0, "key", DEFAULT_SHARDING_KEY));
     server.waitForEmptyWorkQueue();
 
-    Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
+    Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(2);
 
     assertEquals(2, result.size());
     assertEquals(

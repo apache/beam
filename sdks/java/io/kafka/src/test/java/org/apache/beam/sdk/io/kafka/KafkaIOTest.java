@@ -376,7 +376,7 @@ public class KafkaIOTest {
 
   static KafkaIO.Read<Integer, Long> mkKafkaReadTransform(
       int numElements, @Nullable SerializableFunction<KV<Integer, Long>, Instant> timestampFn) {
-    return mkKafkaReadTransform(numElements, numElements, timestampFn);
+    return mkKafkaReadTransform(numElements, numElements, timestampFn, false, 0);
   }
 
   /**
@@ -386,7 +386,9 @@ public class KafkaIOTest {
   static KafkaIO.Read<Integer, Long> mkKafkaReadTransform(
       int numElements,
       @Nullable Integer maxNumRecords,
-      @Nullable SerializableFunction<KV<Integer, Long>, Instant> timestampFn) {
+      @Nullable SerializableFunction<KV<Integer, Long>, Instant> timestampFn,
+      @Nullable Boolean redistribute,
+      @Nullable Integer numKeys) {
 
     List<String> topics = ImmutableList.of("topic_a", "topic_b");
 
@@ -404,10 +406,16 @@ public class KafkaIOTest {
     }
 
     if (timestampFn != null) {
-      return reader.withTimestampFn(timestampFn);
-    } else {
-      return reader;
+      reader = reader.withTimestampFn(timestampFn);
     }
+
+    if (redistribute) {
+      if (numKeys != null) {
+        reader = reader.withRedistribute().withRedistributeNumKeys(numKeys);
+      }
+      reader = reader.withRedistribute();
+    }
+    return reader;
   }
 
   private static class AssertMultipleOf implements SerializableFunction<Iterable<Long>, Void> {
@@ -613,6 +621,42 @@ public class KafkaIOTest {
 
     kafkaIOExpectedLogs.verifyWarn(
         "When using the Flink runner with checkpointingInterval enabled");
+    p.run();
+  }
+
+  @Test
+  public void testCommitOffsetsInFinalizeAndRedistributeErrors() {
+    thrown.expect(Exception.class);
+    thrown.expectMessage("commitOffsetsInFinalize() can't be enabled with isRedistributed");
+
+    int numElements = 1000;
+
+    PCollection<Long> input =
+        p.apply(
+                mkKafkaReadTransform(numElements, numElements, new ValueAsTimestampFn(), true, 0)
+                    .withConsumerConfigUpdates(
+                        ImmutableMap.of(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, true))
+                    .withoutMetadata())
+            .apply(Values.create());
+
+    addCountingAsserts(input, numElements);
+    p.run();
+  }
+
+  @Test
+  public void testNumKeysIgnoredWithRedistributeNotEnabled() {
+    int numElements = 1000;
+
+    PCollection<Long> input =
+        p.apply(
+                mkKafkaReadTransform(numElements, numElements, new ValueAsTimestampFn(), false, 0)
+                    .withConsumerConfigUpdates(
+                        ImmutableMap.of(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, true))
+                    .withoutMetadata())
+            .apply(Values.create());
+
+    addCountingAsserts(input, numElements);
+
     p.run();
   }
 
@@ -1905,7 +1949,7 @@ public class KafkaIOTest {
 
     PCollection<Long> input =
         p.apply(
-                mkKafkaReadTransform(numElements, maxNumRecords, new ValueAsTimestampFn())
+                mkKafkaReadTransform(numElements, maxNumRecords, new ValueAsTimestampFn(), false, 0)
                     .withStartReadTime(new Instant(startTime))
                     .withoutMetadata())
             .apply(Values.create());
@@ -1929,7 +1973,7 @@ public class KafkaIOTest {
     int startTime = numElements / 20;
 
     p.apply(
-            mkKafkaReadTransform(numElements, numElements, new ValueAsTimestampFn())
+            mkKafkaReadTransform(numElements, numElements, new ValueAsTimestampFn(), false, 0)
                 .withStartReadTime(new Instant(startTime))
                 .withoutMetadata())
         .apply(Values.create());

@@ -44,6 +44,11 @@ try:
 except ImportError:
   gcsio = None  # type: ignore
 
+try:
+  from google.api_core.exceptions import NotFound
+except ImportError:
+  NotFound = None
+
 
 @unittest.skipIf(gcsio is None, 'GCP dependencies are not installed')
 class GcsIOIntegrationTest(unittest.TestCase):
@@ -145,6 +150,7 @@ class GcsIOIntegrationTest(unittest.TestCase):
 
   @pytest.mark.it_postcommit
   @mock.patch('apache_beam.io.gcp.gcsio.default_gcs_bucket_name')
+  @unittest.skipIf(NotFound is None, 'GCP dependencies are not installed')
   def test_create_default_bucket(self, mock_default_gcs_bucket_name):
     google_cloud_options = self.test_pipeline.options.view_as(
         GoogleCloudOptions)
@@ -168,7 +174,12 @@ class GcsIOIntegrationTest(unittest.TestCase):
     # remove the existing bucket with the same name as the default bucket
     existing_bucket = self.gcsio.get_bucket(overridden_bucket_name)
     if existing_bucket:
-      existing_bucket.delete()
+      try:
+        existing_bucket.delete()
+      except NotFound:
+        # Bucket existence check from get_bucket may be inaccurate due to gcs
+        # cache or delay
+        pass
 
     bucket = gcsio.get_or_create_default_gcs_bucket(google_cloud_options)
     self.assertIsNotNone(bucket)

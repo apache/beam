@@ -2709,19 +2709,26 @@ public class ParDoTest implements Serializable {
                 @StateId(countStateId) CombiningState<Integer, int[], Integer> count,
                 OutputReceiver<KV<String, Integer>> r) {
               KV<String, Integer> value = element.getValue();
-              ReadableState<Iterable<Entry<String, Integer>>> entriesView = state.entries();
               state.put(value.getKey(), value.getValue());
               count.add(1);
+
+              @Nullable Integer max = state.get("max").read();
+              state.put("max", Math.max(max == null ? 0 : max, value.getValue()));
               if (count.read() >= 4) {
-                Iterable<Map.Entry<String, Integer>> iterate = state.entries().read();
+                assertEquals(Integer.valueOf(97), state.get("a").read());
+
+                Iterable<Map.Entry<String, Integer>> entriesView = state.entries().read();
+                Iterable<String> keysView = state.keys().read();
                 // Make sure that the cached Iterable doesn't change when new elements are added,
                 // but that cached ReadableState views of the state do change.
                 state.put("BadKey", -1);
-                assertEquals(3, Iterables.size(iterate));
-                assertEquals(4, Iterables.size(entriesView.read()));
-                assertEquals(4, Iterables.size(state.entries().read()));
+                assertEquals(4, Iterables.size(entriesView));
+                assertEquals(4, Iterables.size(keysView));
+                assertEquals(5, Iterables.size(state.entries().read()));
+                assertEquals(5, Iterables.size(state.keys().read()));
+                assertEquals(Integer.valueOf(97), state.get("max").read());
 
-                for (Map.Entry<String, Integer> entry : iterate) {
+                for (Map.Entry<String, Integer> entry : entriesView) {
                   r.output(KV.of(entry.getKey(), entry.getValue()));
                 }
               }
@@ -2732,11 +2739,14 @@ public class ParDoTest implements Serializable {
           pipeline
               .apply(
                   Create.of(
-                      KV.of("hello", KV.of("a", 97)), KV.of("hello", KV.of("b", 42)),
-                      KV.of("hello", KV.of("b", 42)), KV.of("hello", KV.of("c", 12))))
+                      KV.of("hello", KV.of("a", 97)),
+                      KV.of("hello", KV.of("b", 42)),
+                      KV.of("hello", KV.of("b", 42)),
+                      KV.of("hello", KV.of("c", 12))))
               .apply(ParDo.of(fn));
 
-      PAssert.that(output).containsInAnyOrder(KV.of("a", 97), KV.of("b", 42), KV.of("c", 12));
+      PAssert.that(output)
+          .containsInAnyOrder(KV.of("a", 97), KV.of("b", 42), KV.of("c", 12), KV.of("max", 97));
       pipeline.run();
     }
 

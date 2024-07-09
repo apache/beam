@@ -274,10 +274,16 @@ public class BigQueryIOTranslation {
         if (queryTempDataset != null) {
           builder = builder.setQueryTempDataset(queryTempDataset);
         }
-        String queryTempProject = configRow.getString("query_temp_project");
-        if (queryTempProject != null) {
-          builder = builder.setQueryTempProject(queryTempProject);
+
+        if (TransformUpgrader.compareVersions(updateCompatibilityBeamVersion, "2.57.0") >= 0) {
+          // This property was added for Beam 2.57.0 hence not available when
+          // upgrading the transform from previous Beam versions.
+          String queryTempProject = configRow.getString("query_temp_project");
+          if (queryTempProject != null) {
+            builder = builder.setQueryTempProject(queryTempProject);
+          }
         }
+
         byte[] methodBytes = configRow.getBytes("method");
         if (methodBytes != null) {
           builder = builder.setMethod((TypedRead.Method) fromByteArray(methodBytes));

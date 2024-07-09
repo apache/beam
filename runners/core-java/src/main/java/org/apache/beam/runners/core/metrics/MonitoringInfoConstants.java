@@ -162,6 +162,7 @@ public final class MonitoringInfoConstants {
     public static final String BOTTOM_N_INT64_TYPE = "beam:metrics:bottom_n_int64:v1";
     public static final String BOTTOM_N_DOUBLE_TYPE = "beam:metrics:bottom_n_double:v1";
     public static final String PROGRESS_TYPE = "beam:metrics:progress:v1";
+    public static final String SET_STRING_TYPE = "beam:metrics:set_string:v1";
 
     static {
       // Validate that compile time constants match the values stored in the protos.
@@ -187,6 +188,7 @@ public final class MonitoringInfoConstants {
       checkArgument(
           BOTTOM_N_DOUBLE_TYPE.equals(getUrn(MonitoringInfoTypeUrns.Enum.BOTTOM_N_DOUBLE_TYPE)));
       checkArgument(PROGRESS_TYPE.equals(getUrn(MonitoringInfoTypeUrns.Enum.PROGRESS_TYPE)));
+      checkArgument(SET_STRING_TYPE.equals(getUrn(MonitoringInfoTypeUrns.Enum.SET_STRING_TYPE)));
     }
   }
 

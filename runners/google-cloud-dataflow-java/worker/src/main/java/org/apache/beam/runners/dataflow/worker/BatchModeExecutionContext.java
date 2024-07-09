@@ -517,7 +517,12 @@ public class BatchModeExecutionContext
                       .transform(
                           update ->
                               MetricsToCounterUpdateConverter.fromDistribution(
-                                  update.getKey(), true, update.getUpdate())));
+                                  update.getKey(), true, update.getUpdate())),
+                  FluentIterable.from(updates.stringSetUpdates())
+                      .transform(
+                          update ->
+                              MetricsToCounterUpdateConverter.fromStringSet(
+                                  update.getKey(), update.getUpdate())));
             });
   }
 

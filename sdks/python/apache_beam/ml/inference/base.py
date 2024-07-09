@@ -1130,6 +1130,7 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
       *,
       model_metadata_pcoll: beam.PCollection[ModelMetadata] = None,
       watch_model_pattern: Optional[str] = None,
+      model_identifier: Optional[str] = None,
       **kwargs):
     """
     A transform that takes a PCollection of examples (or features) for use
@@ -1154,6 +1155,12 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
           to the _RunInferenceDoFn.
         watch_model_pattern: A glob pattern used to watch a directory
           for automatic model refresh.
+        model_identifier: A string used to identify the model being loaded. You
+          can set this if you want to reuse the same model across multiple
+          RunInference steps and don't want to reload it twice. Note that using
+          the same tag for different models will lead to non-deterministic
+          results, so exercise caution when using this parameter. This only
+          impacts models which are already being shared across processes.
     """
     self._model_handler = model_handler
     self._inference_args = inference_args
@@ -1164,8 +1171,12 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
     self._watch_model_pattern = watch_model_pattern
     self._kwargs = kwargs
     # Generate a random tag to use for shared.py and multi_process_shared.py to
-    # allow us to effectively disambiguate in multi-model settings.
-    self._model_tag = uuid.uuid4().hex
+    # allow us to effectively disambiguate in multi-model settings. Only use
+    # the same tag if the model being loaded across multiple steps is actually
+    # the same.
+    self._model_tag = model_identifier
+    if model_identifier is None:
+      self._model_tag = uuid.uuid4().hex
 
   def annotations(self):
     return {

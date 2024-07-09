@@ -20,7 +20,7 @@
 # pylint:disable=line-too-long
 
 # beam-playground:
-#   name: AppromximateQuantiles
+#   name: ApproximateQuantiles
 #   description: Demonstration of ApproximateQuantiles transform usage.
 #   multifile: false
 #   default_example: false
@@ -34,7 +34,7 @@
 
 
 def approximatequantiles(test=None):
-  # [START quantiles]
+  # [START approximatequantiles]
   import apache_beam as beam
 
   with beam.Pipeline() as pipeline:

@@ -486,12 +486,10 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
         OutputT output = null;
         int port = PythonService.findAvailablePort();
         PipelineOptionsFactory.register(PythonExternalTransformOptions.class);
-        boolean useTransformService =
-            input
-                .getPipeline()
-                .getOptions()
-                .as(PythonExternalTransformOptions.class)
-                .getUseTransformService();
+        PythonExternalTransformOptions options =
+            input.getPipeline().getOptions().as(PythonExternalTransformOptions.class);
+        boolean useTransformService = options.getUseTransformService();
+        @Nullable String customBeamRequirement = options.getCustomBeamRequirement();
         boolean pythonAvailable = isPythonAvailable();
         boolean dockerAvailable = isDockerAvailable();
 
@@ -557,6 +555,9 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
               new PythonService(
                       "apache_beam.runners.portability.expansion_service_main", args.build())
                   .withExtraPackages(extraPackages);
+          if (!Strings.isNullOrEmpty(customBeamRequirement)) {
+            service = service.withCustomBeamRequirement(customBeamRequirement);
+          }
           try (AutoCloseable p = service.start()) {
             // allow more time waiting for the port ready for transient expansion service setup.
             PythonService.waitForPort("localhost", port, 60000);

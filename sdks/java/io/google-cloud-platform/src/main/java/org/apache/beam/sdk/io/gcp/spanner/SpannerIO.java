@@ -886,6 +886,10 @@ public class SpannerIO {
 
       if (getReadOperation().getQuery() != null) {
         // TODO: validate query?
+        if (getReadOperation().getTable() != null) {
+          throw new IllegalArgumentException(
+              "Both query and table cannot be specified at the same time for SpannerIO.read().");
+        }
       } else if (getReadOperation().getTable() != null) {
         // Assume read
         checkNotNull(
@@ -898,7 +902,7 @@ public class SpannerIO {
                 + " list of columns to set with withColumns method");
       } else {
         throw new IllegalArgumentException(
-            "SpannerIO.read() requires configuring query or read operation.");
+            "SpannerIO.read() requires query OR table to set with withTable OR withQuery method.");
       }
 
       ReadAll readAll =
@@ -1739,11 +1743,6 @@ public class SpannerIO {
           new PostProcessingMetricsDoFn(metrics);
 
       LOG.info("Partition metadata table that will be used is " + partitionMetadataTableName);
-      input
-          .getPipeline()
-          .getOptions()
-          .as(SpannerChangeStreamOptions.class)
-          .setMetadataTable(partitionMetadataTableName);
 
       final PCollection<byte[]> impulseOut = input.apply(Impulse.create());
       final PCollection<PartitionMetadata> partitionsOut =

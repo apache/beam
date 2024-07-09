@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
@@ -250,6 +251,9 @@ func pullDecoderNoAlloc(c *pipepb.Coder, coders map[string]*pipepb.Coder) func(i
 
 	case urns.CoderKV:
 		ccids := c.GetComponentCoderIds()
+		if len(ccids) != 2 {
+			panic(fmt.Sprintf("KV coder with more than 2 components: %s", prototext.Format(c)))
+		}
 		kd := pullDecoderNoAlloc(coders[ccids[0]], coders)
 		vd := pullDecoderNoAlloc(coders[ccids[1]], coders)
 		return func(r io.Reader) {
@@ -261,4 +265,25 @@ func pullDecoderNoAlloc(c *pipepb.Coder, coders map[string]*pipepb.Coder) func(i
 	default:
 		panic(fmt.Sprintf("unknown coder urn key: %v", urn))
 	}
+}
+
+// debugCoder is developer code to get the structure of a proto coder visible when
+// debugging coder errors in prism. It may sometimes be unused, so we do this to avoid
+// linting errors.
+var _ = debugCoder
+
+func debugCoder(cid string, coders map[string]*pipepb.Coder) string {
+	var b strings.Builder
+	b.WriteString(cid)
+	b.WriteRune('\n')
+	c := coders[cid]
+	if len(c.ComponentCoderIds) > 0 {
+		b.WriteRune('\t')
+		b.WriteString(strings.Join(c.ComponentCoderIds, ", "))
+		b.WriteRune('\n')
+		for _, ccid := range c.GetComponentCoderIds() {
+			b.WriteString(debugCoder(ccid, coders))
+		}
+	}
+	return b.String()
 }
