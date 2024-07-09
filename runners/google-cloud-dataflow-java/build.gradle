@@ -183,6 +183,7 @@ def commonLegacyExcludeCategories = [
   'org.apache.beam.sdk.testing.UsesExternalService',
   'org.apache.beam.sdk.testing.UsesDistributionMetrics',
   'org.apache.beam.sdk.testing.UsesGaugeMetrics',
+  'org.apache.beam.sdk.testing.UsesStringSetMetrics',
   'org.apache.beam.sdk.testing.UsesMultimapState',
   'org.apache.beam.sdk.testing.UsesTestStream',
   'org.apache.beam.sdk.testing.UsesParDoLifecycle',
@@ -193,6 +194,7 @@ def commonLegacyExcludeCategories = [
 def commonRunnerV2ExcludeCategories = [
         'org.apache.beam.sdk.testing.UsesExternalService',
         'org.apache.beam.sdk.testing.UsesGaugeMetrics',
+        'org.apache.beam.sdk.testing.UsesStringSetMetrics',
         'org.apache.beam.sdk.testing.UsesSetState',
         'org.apache.beam.sdk.testing.UsesMapState',
         'org.apache.beam.sdk.testing.UsesMultimapState',
