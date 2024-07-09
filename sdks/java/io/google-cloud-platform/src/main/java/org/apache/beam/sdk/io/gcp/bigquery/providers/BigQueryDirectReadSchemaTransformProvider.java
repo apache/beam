@@ -64,7 +64,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 public class BigQueryDirectReadSchemaTransformProvider
     extends TypedSchemaTransformProvider<BigQueryDirectReadSchemaTransformConfiguration> {
 
-  public static final String OUTPUT_TAG = "OUTPUT_ROWS";
+  public static final String OUTPUT_TAG = "output";
 
   @Override
   protected Class<BigQueryDirectReadSchemaTransformConfiguration> configurationClass() {
