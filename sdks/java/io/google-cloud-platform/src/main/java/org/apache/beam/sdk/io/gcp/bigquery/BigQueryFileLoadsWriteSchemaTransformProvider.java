@@ -19,14 +19,12 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryStorageWriteApiSchemaTransformProvider.BigQueryWriteConfiguration;
 
-import com.google.api.services.bigquery.model.TableRow;
 import com.google.auto.service.AutoService;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
-import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
@@ -96,7 +94,6 @@ public class BigQueryFileLoadsWriteSchemaTransformProvider
       return PCollectionRowTuple.empty(input.getPipeline());
     }
 
-    /** Instantiates a {@link BigQueryIO.Write<TableRow>} from a {@link Schema}. */
     BigQueryIO.Write<Row> toWrite() {
       BigQueryIO.Write<Row> write =
           BigQueryIO.<Row>write()
