@@ -58,7 +58,7 @@ export function someChecksFailing(reviewersToNotify: string[]): string {
 }
 
 export function stopNotifications(reason: string): string {
-  return `Stopping reviewer notifications for this pull request: ${reason}`;
+  return `Stopping reviewer notifications for this pull request: ${reason}. If you'd like to restart, comment \`assign set of reviewers\``;
 }
 
 export function remindReviewerAfterTestsPass(requester: string): string {
