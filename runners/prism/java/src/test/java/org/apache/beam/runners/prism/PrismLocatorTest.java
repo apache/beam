@@ -20,6 +20,7 @@ package org.apache.beam.runners.prism;
 import static com.google.common.truth.Truth.assertThat;
 import static org.apache.beam.runners.prism.PrismLocator.prismBinDirectory;
 import static org.apache.beam.runners.prism.PrismRunnerTest.getLocalPrismBuildOrIgnoreTest;
+import static org.junit.Assert.assertThrows;
 
 import java.io.IOException;
 import java.nio.file.FileVisitResult;
@@ -42,18 +43,20 @@ public class PrismLocatorTest {
 
   @Before
   public void setup() throws IOException {
-    Files.walkFileTree(
-        DESTINATION_DIRECTORY,
-        new SimpleFileVisitor<Path>() {
-          @Override
-          public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
-              throws IOException {
-            Files.delete(file);
-            return FileVisitResult.CONTINUE;
-          }
-        });
+    if (Files.exists(DESTINATION_DIRECTORY)) {
+      Files.walkFileTree(
+          DESTINATION_DIRECTORY,
+          new SimpleFileVisitor<Path>() {
+            @Override
+            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
+                throws IOException {
+              Files.delete(file);
+              return FileVisitResult.CONTINUE;
+            }
+          });
 
-    Files.deleteIfExists(DESTINATION_DIRECTORY);
+      Files.delete(DESTINATION_DIRECTORY);
+    }
   }
 
   @Test
@@ -92,6 +95,28 @@ public class PrismLocatorTest {
     assertThat(got).contains(DESTINATION_DIRECTORY.toString());
     Path gotPath = Paths.get(got);
     assertThat(Files.exists(gotPath)).isTrue();
+  }
+
+  @Test
+  public void givenGithubTagPrismLocationOption_thenThrows() {
+    PrismPipelineOptions options = options();
+    options.setPrismLocation(
+        "https://github.com/apache/beam/releases/tag/v2.57.0/apache_beam-v2.57.0-prism-darwin-amd64.zip");
+    PrismLocator underTest = new PrismLocator(options);
+    IllegalArgumentException error =
+        assertThrows(IllegalArgumentException.class, underTest::resolve);
+    assertThat(error.getMessage())
+        .contains(
+            "Provided --prismLocation URL is not an Apache Beam Github Release page URL or download URL");
+  }
+
+  @Test
+  public void givenPrismLocation404_thenThrows() {
+    PrismPipelineOptions options = options();
+    options.setPrismLocation("https://example.com/i/dont/exist.zip");
+    PrismLocator underTest = new PrismLocator(options);
+    RuntimeException error = assertThrows(RuntimeException.class, underTest::resolve);
+    assertThat(error.getMessage()).contains("NotFoundException");
   }
 
   private static PrismPipelineOptions options() {
