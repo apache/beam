@@ -26,11 +26,9 @@ import numpy as np
 from apache_beam.transforms import DoFn
 from apache_beam.transforms import PTransform
 from apache_beam.transforms import Reshuffle
-from apache_beam.utils.annotations import deprecated
-from apache_beam.options.value_provider import ValueProvider
-from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam import coders
 
+import redis
 import typing
 
 # Set the logging level to reduce verbose information
@@ -38,8 +36,6 @@ import logging
 
 logging.root.setLevel(logging.INFO)
 logger = logging.getLogger(__name__)
-
-import redis
 
 __all__ = ['InsertDocInRedis', 'InsertEmbeddingInRedis']
 
@@ -66,60 +62,36 @@ this means that inputs like `[k,v]` or `(k,v)` are valid.
 
 Example usage::
 
-  pipeline | WriteToRedis(host='localhost',
+  pipeline | InsertDocInRedis(host='localhost',
                           port=6379,
                           batch_size=100)
-
-
-No backward compatibility guarantees. Everything in this module is experimental.
 """
 
 
-@deprecated(since='v.1')
 class InsertDocInRedis(PTransform):
     """InsertDocInRedis is a ``PTransform`` that writes a ``PCollection`` of
     key, value tuple or 2-element array into a redis server.
     """
 
-    def __init__(self, host=None, port=None, command=None, batch_size=100):
+    def __init__(self,
+                 host: str,
+                 port: int,
+                 command: str = None,
+                 batch_size: int = 100
+                 ):
+
         """
 
         Args:
-        host (str, ValueProvider): The redis host
-        port (int, ValueProvider): The redis port
-        batch_size(int, ValueProvider): Number of key, values pairs to write at once
-        command : command to be executed with redis client
+        host (str): The redis host
+        port (int): The redis port
+        batch_size(int): Number of key, values pairs to write at once
+        command (str): command to be executed with redis client
 
         Returns:
         :class:`~apache_beam.transforms.ptransform.PTransform`
 
         """
-        if not isinstance(host, (str, unicode, ValueProvider)):
-            raise TypeError(
-                '%s: host must be string, or ValueProvider; got %r instead'
-            ) % (self.__class__.__name__, (type(host)))
-
-        if not isinstance(port, (int, ValueProvider)):
-            raise TypeError(
-                '%s: port must be int, or ValueProvider; got %r instead'
-            ) % (self.__class__.__name__, (type(port)))
-
-        if not isinstance(port, (int, ValueProvider)):
-            raise TypeError(
-                '%s: batch_size must be int, or ValueProvider; got %r instead'
-            ) % (self.__class__.__name__, (type(batch_size)))
-
-        if isinstance(host, (str, unicode)):
-            host = StaticValueProvider(str, host)
-
-        if isinstance(port, int):
-            port = StaticValueProvider(int, port)
-
-        if isinstance(command, int):
-            command = StaticValueProvider(str, command)
-
-        if isinstance(batch_size, int):
-            batch_size = StaticValueProvider(int, batch_size)
 
         self._host = host
         self._port = port
@@ -161,7 +133,7 @@ class _InsertDocRedisFn(DoFn):
         #     element = element._asdict()
         self.batch.append(element)
         self.batch_counter += 1
-        if self.batch_counter == self.batch_size.get():
+        if self.batch_counter == self.batch_size:
             self._flush()
             # yield Document(**element)
         yield element
@@ -170,7 +142,7 @@ class _InsertDocRedisFn(DoFn):
         if self.batch_counter == 0:
             return
 
-        with _InsertDocRedisSink(self.host.get(), self.port.get()) as sink:
+        with _InsertDocRedisSink(self.host, self.port) as sink:
 
             if not self.command:
                 sink.write(self.batch)
@@ -200,7 +172,6 @@ class _InsertDocRedisSink(object):
     def write(self, elements):
         self._create_client()
         with self.client.pipeline() as pipe:
-            # id = 1
             for element in elements:  # ML Transform passes a dictionary list. TODO: add a transform instead to suit the Vector DB functionality.
                 doc_key = f"doc_{str(element['id'])}_section_{str(element['section_id'])}"
                 for k, v in element.items():
@@ -239,69 +210,38 @@ this means that inputs like `[k,v]` or `(k,v)` are valid.
 
 Example usage::
 
-  pipeline | WriteToRedis(host='localhost',
+  pipeline | InsertEmbeddingInRedis(host='localhost',
                           port=6379,
                           batch_size=100)
-
-
-No backward compatibility guarantees. Everything in this module is experimental.
 """
 
 
-@deprecated(since='v.1')
 class InsertEmbeddingInRedis(PTransform):
     """WriteToRedis is a ``PTransform`` that writes a ``PCollection`` of
     key, value tuple or 2-element array into a redis server.
     """
 
-    def __init__(self, host=None, port=None, command=None, batch_size=100, embedded_columns=None):
+    def __init__(self,
+                 host: str,
+                 port: int,
+                 command: str = None,
+                 batch_size: int = 100,
+                 embedded_columns: list = []
+                 ):
+
         """
 
         Args:
-        host (str, ValueProvider): The redis host
-        port (int, ValueProvider): The redis port
-        command : command to be executed with redis client
-        batch_size(int, ValueProvider): Number of key, values pairs to write at once
-        embedded_columns (list, ValueProvider): list of column whose embedding needs to be generated
+        host (str): The redis host
+        port (int): The redis port
+        command (str): command to be executed with redis client
+        batch_size (int): Number of key, values pairs to write at once
+        embedded_columns (list): list of column whose embedding needs to be generated
 
         Returns:
         :class:`~apache_beam.transforms.ptransform.PTransform`
 
         """
-        if not isinstance(host, (str, unicode, ValueProvider)):
-            raise TypeError(
-                '%s: host must be string, or ValueProvider; got %r instead'
-            ) % (self.__class__.__name__, (type(host)))
-
-        if not isinstance(port, (int, ValueProvider)):
-            raise TypeError(
-                '%s: port must be int, or ValueProvider; got %r instead'
-            ) % (self.__class__.__name__, (type(port)))
-
-        if not isinstance(batch_size, (int, ValueProvider)):
-            raise TypeError(
-                '%s: batch_size must be int, or ValueProvider; got %r instead'
-            ) % (self.__class__.__name__, (type(batch_size)))
-
-        if not isinstance(embedded_columns, (list, ValueProvider)):
-            raise TypeError(
-                '%s: embedded_columns must be list, or ValueProvider; got %r instead'
-            ) % (self.__class__.__name__, (type(embedded_columns)))
-
-        if isinstance(host, (str, unicode)):
-            host = StaticValueProvider(str, host)
-
-        if isinstance(port, int):
-            port = StaticValueProvider(int, port)
-
-        if isinstance(command, int):
-            command = StaticValueProvider(str, command)
-
-        if isinstance(batch_size, int):
-            batch_size = StaticValueProvider(int, batch_size)
-
-        if isinstance(embedded_columns, int):
-            embedded_columns = StaticValueProvider(int, embedded_columns)
 
         self._host = host
         self._port = port
@@ -339,17 +279,15 @@ class _WriteEmbeddingInRedisFn(DoFn):
 
     def process(self, element, *args, **kwargs):
         self.batch.append(element)
-        # TODO: this counter can conflict with other nodes in execution graph. Find a better index.
         self.batch_counter += 1
-        if self.batch_counter == self.batch_size.get():
+        if self.batch_counter == self.batch_size:
             self._flush()
 
     def _flush(self):
         if self.batch_counter == 0:
             return
 
-        with _InsertEmbeddingInRedisSink(self.host.get(), self.port.get(),
-                                         self.embedded_columns if self.embedded_columns else []) as sink:
+        with _InsertEmbeddingInRedisSink(self.host, self.port, self.embedded_columns) as sink:
 
             if not self.command:
                 sink.write(self.batch)
@@ -385,7 +323,6 @@ class _InsertEmbeddingInRedisSink(object):
                 for k, v in element.items():
                     if k in self.embedded_columns:
                         v = np.array(v, dtype=np.float32).tobytes()
-                        print(f'This is name : {doc_key} and this is key : {k} and this is value : {v}')
                         pipe.hset(name=doc_key, key=f'{k}_vector', value=v)
             pipe.execute()
 
