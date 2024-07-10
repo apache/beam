@@ -331,6 +331,8 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
     public void processElement(ProcessContext c) throws Exception {
       // TODO(sjvanrossum): Refactor the write transform so this map can be indexed with topic +
       // ordering key and have bundle scoped lifetime.
+      // NOTE: A single publish request may only write to one ordering key.
+      // See https://cloud.google.com/pubsub/docs/publisher#using-ordering-keys for details.
       Map<String, OutgoingData> orderingKeyBatches = new HashMap<>();
       @MonotonicNonNull String currentOrderingKey = null;
       @Nullable OutgoingData currentBatch = null;

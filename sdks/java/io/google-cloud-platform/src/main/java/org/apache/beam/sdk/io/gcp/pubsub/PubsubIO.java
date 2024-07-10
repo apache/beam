@@ -1464,6 +1464,9 @@ public class PubsubIO {
      * enabled will receive messages published in the same region with the same ordering key in the
      * order in which they were received by the service. Note that the order in which Beam publishes
      * records to the service remains unspecified.
+     *
+     * @see <a href="https://cloud.google.com/pubsub/docs/ordering">Pub/Sub documentation on message
+     *     ordering</a>
      */
     public Write<T> withOrderingKey() {
       return toBuilder().setNeedsOrderingKey(true).build();
@@ -1610,6 +1613,8 @@ public class PubsubIO {
         }
       }
 
+      // NOTE: A single publish request may only write to one ordering key.
+      // See https://cloud.google.com/pubsub/docs/publisher#using-ordering-keys for details.
       private transient Map<KV<PubsubTopic, String>, OutgoingData> output;
 
       private transient PubsubClient pubsubClient;
