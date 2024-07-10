@@ -65,6 +65,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.hamcrest.collection.IsEmptyIterable;
 import org.hamcrest.collection.IsMapContaining;
 import org.joda.time.DateTimeUtils;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.Timeout;
@@ -271,6 +272,7 @@ public class StreamingStepMetricsContainerTest {
   }
 
   @Test
+  @Ignore("https://github.com/apache/beam/issues/31788")
   public void testStringSetUpdateExtraction() {
     StringSet stringSet = c1.getStringSet(name1);
     stringSet.add("ab");

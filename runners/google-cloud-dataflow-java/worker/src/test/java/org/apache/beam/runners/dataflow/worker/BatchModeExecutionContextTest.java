@@ -47,6 +47,7 @@ import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.metrics.StringSet;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.hamcrest.Matchers;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -162,6 +163,7 @@ public class BatchModeExecutionContextTest {
   }
 
   @Test
+  @Ignore("https://github.com/apache/beam/issues/31788")
   public void extractMetricUpdatesStringSet() {
     BatchModeExecutionContext executionContext =
         BatchModeExecutionContext.forTesting(PipelineOptionsFactory.create(), "testStage");

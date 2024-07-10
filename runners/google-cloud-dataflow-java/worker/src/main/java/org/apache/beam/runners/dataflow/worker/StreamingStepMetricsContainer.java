@@ -185,9 +185,9 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
   }
 
   public Iterable<CounterUpdate> extractUpdates() {
-    return counterUpdates()
-        .append(distributionUpdates())
-        .append(gaugeUpdates().append(stringSetUpdates()));
+    return counterUpdates().append(distributionUpdates()).append(gaugeUpdates());
+    // TODO(https://github.com/apache/beam/issues/31788): append(stringSetUpdates()) when backend
+    //  support added
   }
 
   private FluentIterable<CounterUpdate> counterUpdates() {
@@ -229,6 +229,7 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
         .filter(Predicates.notNull());
   }
 
+  @SuppressWarnings("unused") // https://github.com/apache/beam/issues/31788
   private FluentIterable<CounterUpdate> stringSetUpdates() {
     return FluentIterable.from(stringSet.entries())
         .transform(

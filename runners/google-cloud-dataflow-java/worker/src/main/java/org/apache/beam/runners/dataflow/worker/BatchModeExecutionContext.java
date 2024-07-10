@@ -517,12 +517,9 @@ public class BatchModeExecutionContext
                       .transform(
                           update ->
                               MetricsToCounterUpdateConverter.fromDistribution(
-                                  update.getKey(), true, update.getUpdate())),
-                  FluentIterable.from(updates.stringSetUpdates())
-                      .transform(
-                          update ->
-                              MetricsToCounterUpdateConverter.fromStringSet(
-                                  update.getKey(), update.getUpdate())));
+                                  update.getKey(), true, update.getUpdate())));
+              // TODO(https://github.com/apache/beam/issues/31788): append(stringSetUpdates()) when
+              //  backend support added
             });
   }
 
