@@ -206,6 +206,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
           break;
       }
 
+      // TODO(sjvanrossum): https://github.com/apache/beam/issues/31828
       // NOTE: Null and empty ordering keys are treated as equivalent.
       @Nullable String topic = dynamicTopicFn.apply(element);
       @Nullable String orderingKey = message.getOrderingKey();
@@ -330,9 +331,6 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
     public void processElement(ProcessContext c) throws Exception {
       // TODO(sjvanrossum): Refactor the write transform so this map can be indexed with topic +
       // ordering key and have bundle scoped lifetime.
-      // NB: A larger, breaking refactor could make this irrelevant with a GBK on topic + ordering
-      // key (or GroupIntoBatches with configurable shard for ShardedKey?) and unify
-      // bounded/unbounded writes and static/dynamic destinations.
       Map<String, OutgoingData> orderingKeyBatches = new HashMap<>();
       @MonotonicNonNull String currentOrderingKey = null;
       @Nullable OutgoingData currentBatch = null;
