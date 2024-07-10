@@ -975,8 +975,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
 
         RetryManager<AppendRowsResponse, AppendRowsContext> retryManager =
             new RetryManager<>(
-                Duration.standardSeconds(1),
-                Duration.standardSeconds(20),
+                Duration.standardSeconds(5),
+                Duration.standardSeconds(60),
                 maxRetries,
                 BigQuerySinkMetrics.throttledTimeCounter(
                     BigQuerySinkMetrics.RpcMethod.APPEND_ROWS));
