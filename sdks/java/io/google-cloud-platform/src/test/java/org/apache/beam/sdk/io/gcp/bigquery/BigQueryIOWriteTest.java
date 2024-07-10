@@ -711,7 +711,8 @@ public class BigQueryIOWriteTest implements Serializable {
         fakeDatasetService.getAllRows(projectId, "dataset-id", "table-id"),
         containsInAnyOrder(Iterables.toArray(elements, TableRow.class)));
 
-    checkLineageSinkMetric(pipelineResult, tableRef);
+    checkLineageSinkMetric(
+        pipelineResult, tableRef.contains(projectId) ? tableRef : projectId + ":" + tableRef);
   }
 
   public void runStreamingFileLoads(String tableRef) throws Exception {

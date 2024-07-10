@@ -209,7 +209,10 @@ class WriteRename
         // Do not copy if no temp tables are provided.
         if (!entry.getValue().isEmpty()) {
           Lineage.getSinks()
-              .add(BigQueryHelpers.dataCatalogName(entry.getKey().getTableReference()));
+              .add(
+                  BigQueryHelpers.dataCatalogName(
+                      entry.getKey().getTableReference(),
+                      c.getPipelineOptions().as(BigQueryOptions.class)));
           pendingJobs.add(startWriteRename(entry.getKey(), entry.getValue(), c, window));
         }
       }

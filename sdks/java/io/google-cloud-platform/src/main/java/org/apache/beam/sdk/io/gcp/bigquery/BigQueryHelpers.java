@@ -54,6 +54,7 @@ import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -412,7 +413,7 @@ public class BigQueryHelpers {
     return sb.toString();
   }
 
-  public static String dataCatalogName(TableReference ref) {
+  public static String dataCatalogName(TableReference ref, BigQueryOptions options) {
     String tableIdBase;
     int ix = ref.getTableId().indexOf('$');
     if (ix == -1) {
@@ -420,7 +421,15 @@ public class BigQueryHelpers {
     } else {
       tableIdBase = ref.getTableId().substring(0, ix);
     }
-    return String.format("bigquery:%s.%s.%s", ref.getProjectId(), ref.getDatasetId(), tableIdBase);
+    String projectId;
+    if (!Strings.isNullOrEmpty(ref.getProjectId())) {
+      projectId = ref.getProjectId();
+    } else if (!Strings.isNullOrEmpty(options.getBigQueryProject())) {
+      projectId = options.getBigQueryProject();
+    } else {
+      projectId = options.getProject();
+    }
+    return String.format("bigquery:%s.%s.%s", projectId, ref.getDatasetId(), tableIdBase);
   }
 
   static <K, V> List<V> getOrCreateMapListValue(Map<K, List<V>> map, K key) {

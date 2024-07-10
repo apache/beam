@@ -470,7 +470,10 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
       final DatasetService datasetService = getDatasetService(pipelineOptions);
       final WriteStreamService writeStreamService = getWriteStreamService(pipelineOptions);
 
-      Lineage.getSinks().add(BigQueryHelpers.dataCatalogName(tableDestination.getTableReference()));
+      Lineage.getSinks()
+          .add(
+              BigQueryHelpers.dataCatalogName(
+                  tableDestination.getTableReference(), bigQueryOptions));
 
       Coder<DestinationT> destinationCoder = dynamicDestinations.getDestinationCoder();
       Callable<Boolean> tryCreateTable =

@@ -118,10 +118,13 @@ public class CreateTables<DestinationT, ElementT>
                 Supplier<@Nullable TableConstraints> tableConstraintsSupplier =
                     () -> dynamicDestinations.getTableConstraints(dest);
 
+                BigQueryOptions bqOptions = context.getPipelineOptions().as(BigQueryOptions.class);
                 Lineage.getSinks()
-                    .add(BigQueryHelpers.dataCatalogName(tableDestination1.getTableReference()));
+                    .add(
+                        BigQueryHelpers.dataCatalogName(
+                            tableDestination1.getTableReference(), bqOptions));
                 return CreateTableHelpers.possiblyCreateTable(
-                    context.getPipelineOptions().as(BigQueryOptions.class),
+                    bqOptions,
                     tableDestination1,
                     schemaSupplier,
                     tableConstraintsSupplier,

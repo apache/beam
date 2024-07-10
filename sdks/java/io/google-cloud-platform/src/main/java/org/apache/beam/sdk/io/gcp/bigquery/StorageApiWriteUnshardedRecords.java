@@ -1099,7 +1099,10 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                           initializedWriteStreamService,
                           pipelineOptions.as(BigQueryOptions.class)));
       Lineage.getSinks()
-          .add(BigQueryHelpers.dataCatalogName(state.getTableDestination().getTableReference()));
+          .add(
+              BigQueryHelpers.dataCatalogName(
+                  state.getTableDestination().getTableReference(),
+                  pipelineOptions.as(BigQueryOptions.class)));
 
       OutputReceiver<BigQueryStorageApiInsertError> failedRowsReceiver = o.get(failedRowsTag);
       @Nullable

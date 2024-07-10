@@ -261,7 +261,10 @@ class WriteTables<DestinationT extends @NonNull Object>
         // This is a temp table. Create a new one for each partition and each pane.
         tableReference.setTableId(jobIdPrefix);
       } else {
-        Lineage.getSinks().add(BigQueryHelpers.dataCatalogName(tableReference));
+        Lineage.getSinks()
+            .add(
+                BigQueryHelpers.dataCatalogName(
+                    tableReference, c.getPipelineOptions().as(BigQueryOptions.class)));
       }
 
       WriteDisposition writeDisposition = firstPaneWriteDisposition;
