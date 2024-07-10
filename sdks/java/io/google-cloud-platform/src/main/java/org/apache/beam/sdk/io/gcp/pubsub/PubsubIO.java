@@ -22,7 +22,6 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import com.google.api.client.util.Clock;
 import com.google.auto.value.AutoValue;
-import com.google.protobuf.ByteString;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -85,7 +84,6 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
@@ -1644,24 +1642,22 @@ public class PubsubIO {
           throws IOException, SizeLimitExceededException {
         // Validate again here just as a sanity check.
         PreparePubsubWriteDoFn.validatePubsubMessageSize(message, maxPublishBatchByteSize);
-        byte[] payload = message.getPayload();
-        int messageSize = payload.length;
+        // NOTE: The record id is always null.
+        final OutgoingMessage msg =
+            OutgoingMessage.of(message, timestamp.getMillis(), null, message.getTopic());
+        final int messageSize = msg.getMessage().getData().size();
 
-        PubsubTopic pubsubTopic;
+        final PubsubTopic pubsubTopic;
         if (getTopicProvider() != null) {
           pubsubTopic = getTopicProvider().get();
         } else {
-          pubsubTopic =
-              PubsubTopic.fromPath(Preconditions.checkArgumentNotNull(message.getTopic()));
+          pubsubTopic = PubsubTopic.fromPath(Preconditions.checkArgumentNotNull(msg.topic()));
         }
 
-        // NOTE: Protobuf strings are non-null, null and empty keys are equivalent.
-        @Nullable String orderingKey = message.getOrderingKey();
-
         // Checking before adding the message stops us from violating max batch size or bytes
-        OutgoingData currentTopicAndOrderingKeyOutput =
+        final OutgoingData currentTopicAndOrderingKeyOutput =
             output.computeIfAbsent(
-                KV.of(pubsubTopic, Strings.emptyIfNull(orderingKey)), t -> new OutgoingData());
+                KV.of(pubsubTopic, msg.getMessage().getOrderingKey()), t -> new OutgoingData());
         if (currentTopicAndOrderingKeyOutput.messages.size() >= maxPublishBatchSize
             || (!currentTopicAndOrderingKeyOutput.messages.isEmpty()
                 && (currentTopicAndOrderingKeyOutput.bytes + messageSize)
@@ -1671,21 +1667,7 @@ public class PubsubIO {
           currentTopicAndOrderingKeyOutput.bytes = 0;
         }
 
-        Map<String, String> attributes = message.getAttributeMap();
-
-        com.google.pubsub.v1.PubsubMessage.Builder msgBuilder =
-            com.google.pubsub.v1.PubsubMessage.newBuilder()
-                .setData(ByteString.copyFrom(payload))
-                .putAllAttributes(attributes);
-
-        if (orderingKey != null) {
-          msgBuilder.setOrderingKey(orderingKey);
-        }
-
-        // NOTE: The record id is always null.
-        currentTopicAndOrderingKeyOutput.messages.add(
-            OutgoingMessage.of(
-                msgBuilder.build(), timestamp.getMillis(), null, message.getTopic()));
+        currentTopicAndOrderingKeyOutput.messages.add(msg);
         currentTopicAndOrderingKeyOutput.bytes += messageSize;
       }
 
