@@ -360,14 +360,14 @@ public class CsvIOParseHelpersTest {
             .addField("an_array", Schema.FieldType.array(Schema.FieldType.STRING))
             .addStringField("a_string")
             .build();
-    IllegalArgumentException e =
+    UnsupportedOperationException e =
         assertThrows(
-            IllegalArgumentException.class,
+            UnsupportedOperationException.class,
             () -> CsvIOParseHelpers.parseCell(counting, schema.getField("an_array")));
     assertEquals(
         "Unsupported type: "
             + schema.getField("an_array").getType()
-            + ", consider using withCustomRecordParsing: field an_array was received -- type mismatch",
+            + ", consider using withCustomRecordParsing",
         e.getMessage());
   }
 }

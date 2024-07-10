@@ -75,8 +75,8 @@ final class CsvIOParseHelpers {
         case DATETIME:
           return Instant.parse(cell);
         default:
-          throw new IllegalArgumentException(
-              "Unsupported type: " + fieldType + ", consider using withCustomRecordParsing:");
+          throw new UnsupportedOperationException(
+              "Unsupported type: " + fieldType + ", consider using withCustomRecordParsing");
       }
 
     } catch (IllegalArgumentException e) {
