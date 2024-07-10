@@ -25,22 +25,17 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
-import java.util.Iterator;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import org.apache.beam.sdk.util.ReleaseInfo;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.HashCode;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hashing;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
 
 /**
@@ -55,9 +50,8 @@ class PrismLocator {
   static final String USER_HOME_PROPERTY = "user.home";
 
   private static final String ZIP_EXT = "zip";
-  private static final String SHA512_EXT = "sha512";
   private static final ReleaseInfo RELEASE_INFO = ReleaseInfo.getReleaseInfo();
-  private static final String PRISM_BIN_PATH = ".apache_beam/cache/prism/bin";
+  static final String PRISM_BIN_PATH = ".apache_beam/cache/prism/bin";
   private static final Set<PosixFilePermission> PERMS =
       PosixFilePermissions.fromString("rwxr-xr-x");
   private static final String GITHUB_DOWNLOAD_PREFIX =
@@ -71,9 +65,8 @@ class PrismLocator {
   }
 
   /**
-   * Downloads and prepares a Prism executable for use with the {@link PrismRunner}, executed by the
-   * {@link PrismExecutor}. The returned {@link String} is the absolute path to the Prism
-   * executable.
+   * Downloads and prepares a Prism executable for use with the {@link PrismRunner}. The returned
+   * {@link String} is the absolute path to the Prism executable.
    */
   String resolve() throws IOException {
 
@@ -111,11 +104,6 @@ class PrismLocator {
   }
 
   private String resolve(URL from, Path to) throws IOException {
-    if (from.toString().startsWith(GITHUB_DOWNLOAD_PREFIX)) {
-      URL shaSumReference = new URL(from + "." + SHA512_EXT);
-      validateShaSum512(shaSumReference, from);
-    }
-
     BiConsumer<URL, Path> downloadFn = PrismLocator::download;
     if (from.getPath().endsWith(ZIP_EXT)) {
       downloadFn = PrismLocator::unzip;
@@ -182,27 +170,6 @@ class PrismLocator {
     }
   }
 
-  private static void validateShaSum512(URL shaSumReference, URL source) throws IOException {
-    try (InputStream in = shaSumReference.openStream()) {
-      String rawContent = new String(ByteStreams.toByteArray(in), StandardCharsets.UTF_8);
-      checkState(!Strings.isNullOrEmpty(rawContent));
-      String reference = "";
-      Iterator<String> split = Splitter.onPattern("\\s+").split(rawContent).iterator();
-      if (split.hasNext()) {
-        reference = split.next();
-      }
-      checkState(!Strings.isNullOrEmpty(reference));
-
-      HashCode toVerify = Hashing.sha512().hashBytes(ByteStreams.toByteArray(source.openStream()));
-      checkState(
-          reference.equals(toVerify.toString()),
-          "Expected sha512 derived from: %s does not equal expected: %s, got: %s",
-          source,
-          reference,
-          toVerify.toString());
-    }
-  }
-
   private static String getNameWithoutExtension(String path) {
     return org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Files
         .getNameWithoutExtension(path);
@@ -231,7 +198,7 @@ class PrismLocator {
     return result;
   }
 
-  private static String userHome() {
+  static String userHome() {
     return mustGetPropertyAsLowerCase(USER_HOME_PROPERTY);
   }
 
