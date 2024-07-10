@@ -420,7 +420,6 @@ public class BigQueryHelpers {
     } else {
       tableIdBase = ref.getTableId().substring(0, ix);
     }
-    System.out.println("XXX " + ref.getTableId() + " " + ix + tableIdBase);
     return String.format("bigquery:%s.%s.%s", ref.getProjectId(), ref.getDatasetId(), tableIdBase);
   }
 
