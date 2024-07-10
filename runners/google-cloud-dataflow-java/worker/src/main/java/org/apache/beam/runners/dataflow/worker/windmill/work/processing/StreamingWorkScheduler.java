@@ -23,7 +23,6 @@ import java.util.Collection;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -377,8 +376,12 @@ public final class StreamingWorkScheduler {
 
       // Blocks while executing work.
       computationWorkExecutor.executeWork(
-          executionKey, work, stateReader, localSideInputStateFetcher,
-          operationalLimits.get().maxOutputKeyBytes, operationalLimits.get().maxOutputValueBytes,
+          executionKey,
+          work,
+          stateReader,
+          localSideInputStateFetcher,
+          operationalLimits.get().maxOutputKeyBytes,
+          operationalLimits.get().maxOutputValueBytes,
           outputBuilder);
 
       if (work.isFailed()) {

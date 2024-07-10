@@ -323,12 +323,13 @@ public class StreamingDataflowWorker {
     BoundedQueueExecutor workExecutor = createWorkUnitExecutor(options);
     AtomicReference<OperationalLimits> operationalLimits =
         new AtomicReference<>(new OperationalLimits());
-    operationalLimits.getAndUpdate((limits) -> {
-      limits.maxWorkItemCommitBytes = Integer.MAX_VALUE;
-      limits.maxOutputKeyBytes = Integer.MAX_VALUE;
-      limits.maxOutputValueBytes = Integer.MAX_VALUE;
-      return limits;
-    });
+    operationalLimits.getAndUpdate(
+        (limits) -> {
+          limits.maxWorkItemCommitBytes = Integer.MAX_VALUE;
+          limits.maxOutputKeyBytes = Integer.MAX_VALUE;
+          limits.maxOutputValueBytes = Integer.MAX_VALUE;
+          return limits;
+        });
     WindmillStateCache windmillStateCache =
         WindmillStateCache.ofSizeMbs(options.getWorkerCacheMb());
     Function<String, ScheduledExecutorService> executorSupplier =
@@ -496,12 +497,13 @@ public class StreamingDataflowWorker {
     ConcurrentMap<String, StageInfo> stageInfo = new ConcurrentHashMap<>();
     AtomicReference<OperationalLimits> operationalLimits =
         new AtomicReference<>(new OperationalLimits());
-    operationalLimits.getAndUpdate((limits) -> {
-      limits.maxWorkItemCommitBytes = maxWorkItemCommitBytesOverrides;
-      limits.maxOutputKeyBytes = maxOutputKeyBytesOverride;
-      limits.maxOutputValueBytes = maxOutputValueBytesOverride;
-      return limits;
-    });
+    operationalLimits.getAndUpdate(
+        (limits) -> {
+          limits.maxWorkItemCommitBytes = maxWorkItemCommitBytesOverrides;
+          limits.maxOutputKeyBytes = maxOutputKeyBytesOverride;
+          limits.maxOutputValueBytes = maxOutputValueBytesOverride;
+          return limits;
+        });
     BoundedQueueExecutor workExecutor = createWorkUnitExecutor(options);
     WindmillStateCache stateCache = WindmillStateCache.ofSizeMbs(options.getWorkerCacheMb());
     ComputationConfig.Fetcher configFetcher =
@@ -513,9 +515,7 @@ public class StreamingDataflowWorker {
                 executorSupplier,
                 config ->
                     onPipelineConfig(
-                        config,
-                        windmillServer::setWindmillServiceEndpoints,
-                        operationalLimits))
+                        config, windmillServer::setWindmillServiceEndpoints, operationalLimits))
             : new StreamingApplianceComputationConfigFetcher(windmillServer::getConfig);
     ConcurrentMap<String, String> stateNameMap =
         new ConcurrentHashMap<>(prePopulatedStateNameMappings);
@@ -600,26 +600,29 @@ public class StreamingDataflowWorker {
       AtomicReference<OperationalLimits> operationalLimits) {
     if (config.maxWorkItemCommitBytes() != operationalLimits.get().maxWorkItemCommitBytes) {
       LOG.info("Setting maxWorkItemCommitBytes to {}", config.maxWorkItemCommitBytes());
-      operationalLimits.getAndUpdate((limits) -> {
-        limits.maxWorkItemCommitBytes = (int)config.maxWorkItemCommitBytes();
-        return limits;
-      });
+      operationalLimits.getAndUpdate(
+          (limits) -> {
+            limits.maxWorkItemCommitBytes = (int) config.maxWorkItemCommitBytes();
+            return limits;
+          });
     }
 
     if (config.maxOutputKeyBytes() != operationalLimits.get().maxOutputKeyBytes) {
       LOG.info("Setting maxOutputKeyBytes to {}", config.maxOutputKeyBytes());
-      operationalLimits.getAndUpdate((limits) -> {
-        limits.maxOutputKeyBytes = (int)config.maxOutputKeyBytes();
-        return limits;
-      });
+      operationalLimits.getAndUpdate(
+          (limits) -> {
+            limits.maxOutputKeyBytes = (int) config.maxOutputKeyBytes();
+            return limits;
+          });
     }
 
     if (config.maxOutputValueBytes() != operationalLimits.get().maxOutputValueBytes) {
       LOG.info("Setting maxOutputValueBytes to {}", config.maxOutputValueBytes());
-      operationalLimits.getAndUpdate((limits) -> {
-        limits.maxOutputValueBytes = (int)config.maxOutputValueBytes();
-        return limits;
-      });
+      operationalLimits.getAndUpdate(
+          (limits) -> {
+            limits.maxOutputValueBytes = (int) config.maxOutputValueBytes();
+            return limits;
+          });
     }
 
     if (!config.windmillServiceEndpoints().isEmpty()) {

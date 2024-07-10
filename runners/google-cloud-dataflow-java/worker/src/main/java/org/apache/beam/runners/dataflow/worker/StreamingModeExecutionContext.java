@@ -174,9 +174,13 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
   }
 
   // Use long instead?
-  public int getMaxOutputKeyBytes() { return maxOutputKeyBytes; }
+  public int getMaxOutputKeyBytes() {
+    return maxOutputKeyBytes;
+  }
 
-  public int getMaxOutputValueBytes() { return maxOutputValueBytes; }
+  public int getMaxOutputValueBytes() {
+    return maxOutputValueBytes;
+  }
 
   public boolean workIsFailed() {
     return Optional.ofNullable(work).map(Work::isFailed).orElse(false);

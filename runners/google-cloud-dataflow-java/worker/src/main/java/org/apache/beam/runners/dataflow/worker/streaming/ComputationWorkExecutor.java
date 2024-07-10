@@ -76,8 +76,15 @@ public abstract class ComputationWorkExecutor {
       int maxOutputValueBytes,
       Windmill.WorkItemCommitRequest.Builder outputBuilder)
       throws Exception {
-    context().start(key, work, stateReader, sideInputStateFetcher, maxOutputKeyBytes,
-        maxOutputValueBytes, outputBuilder);
+    context()
+        .start(
+            key,
+            work,
+            stateReader,
+            sideInputStateFetcher,
+            maxOutputKeyBytes,
+            maxOutputValueBytes,
+            outputBuilder);
     workExecutor().execute();
   }
 

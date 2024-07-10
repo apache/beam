@@ -118,7 +118,7 @@ public final class StreamingEngineComputationConfigFetcher implements Computatio
         globalConfigRefreshPeriodMillis,
         dataflowServiceClient,
         executorSupplier.apply(CONFIG_REFRESHER_THREAD_NAME),
-        /*shouldPerformOutputSizeChecks=*/true,
+        /*shouldPerformOutputSizeChecks=*/ true,
         onStreamingConfig);
   }
 

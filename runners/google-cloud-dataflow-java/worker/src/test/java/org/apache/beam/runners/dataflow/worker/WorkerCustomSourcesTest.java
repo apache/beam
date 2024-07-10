@@ -634,8 +634,8 @@ public class WorkerCustomSourcesTest {
               Watermarks.builder().setInputDataWatermark(new Instant(0)).build()),
           mock(WindmillStateReader.class),
           mock(SideInputStateFetcher.class),
-          /*maxOutputKeyBytes=*/Integer.MAX_VALUE,
-          /*maxOutputValueBytes=*/Integer.MAX_VALUE,
+          /*maxOutputKeyBytes=*/ Integer.MAX_VALUE,
+          /*maxOutputValueBytes=*/ Integer.MAX_VALUE,
           Windmill.WorkItemCommitRequest.newBuilder());
 
       @SuppressWarnings({"unchecked", "rawtypes"})
@@ -1007,8 +1007,8 @@ public class WorkerCustomSourcesTest {
         dummyWork,
         mock(WindmillStateReader.class),
         mock(SideInputStateFetcher.class),
-        /*maxOutputKeyBytes=*/Integer.MAX_VALUE,
-        /*maxOutputValueBytes=*/Integer.MAX_VALUE,
+        /*maxOutputKeyBytes=*/ Integer.MAX_VALUE,
+        /*maxOutputValueBytes=*/ Integer.MAX_VALUE,
         Windmill.WorkItemCommitRequest.newBuilder());
 
     @SuppressWarnings({"unchecked", "rawtypes"})

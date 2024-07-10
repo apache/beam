@@ -1287,18 +1287,13 @@ public class StreamingDataflowWorkerTest {
 
     StreamingDataflowWorker worker =
         makeWorker(
-            defaultWorkerParams()
-                .setInstructions(instructions)
-                .setMaxOutputKeyBytes(15)
-                .build());
+            defaultWorkerParams().setInstructions(instructions).setMaxOutputKeyBytes(15).build());
     worker.start();
 
     // This large key will cause the ExceptionCatchingFn to throw an exception, which will then
     // cause it to output a smaller key.
     String bigKey = "some_much_too_large_output_key";
-    server
-        .whenGetWorkCalled()
-        .thenReturn(makeInput(1, 0, bigKey, DEFAULT_SHARDING_KEY));
+    server.whenGetWorkCalled().thenReturn(makeInput(1, 0, bigKey, DEFAULT_SHARDING_KEY));
     server.waitForEmptyWorkQueue();
 
     Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
@@ -1322,18 +1317,13 @@ public class StreamingDataflowWorkerTest {
 
     StreamingDataflowWorker worker =
         makeWorker(
-            defaultWorkerParams()
-                .setInstructions(instructions)
-                .setMaxOutputValueBytes(15)
-                .build());
+            defaultWorkerParams().setInstructions(instructions).setMaxOutputValueBytes(15).build());
     worker.start();
 
     // The first time processing will have value "data1_a_bunch_more_data_output", which is above
     // the limit. After throwing the exception, the output should be just "data1", which is small
     // enough.
-    server
-        .whenGetWorkCalled()
-        .thenReturn(makeInput(1, 0, "key", DEFAULT_SHARDING_KEY));
+    server.whenGetWorkCalled().thenReturn(makeInput(1, 0, "key", DEFAULT_SHARDING_KEY));
     server.waitForEmptyWorkQueue();
 
     Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
