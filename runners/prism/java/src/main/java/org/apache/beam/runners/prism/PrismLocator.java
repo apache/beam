@@ -51,7 +51,7 @@ class PrismLocator {
 
   private static final String ZIP_EXT = "zip";
   private static final ReleaseInfo RELEASE_INFO = ReleaseInfo.getReleaseInfo();
-  static final String PRISM_BIN_PATH = ".apache_beam/cache/prism/bin";
+  private static final String PRISM_BIN_PATH = ".apache_beam/cache/prism/bin";
   private static final Set<PosixFilePermission> PERMS =
       PosixFilePermissions.fromString("rwxr-xr-x");
   private static final String GITHUB_DOWNLOAD_PREFIX =
@@ -101,6 +101,10 @@ class PrismLocator {
     String result = resolve(Paths.get(from), to);
     checkState(Files.exists(to), "Resolved location does not exist: %s", result);
     return result;
+  }
+
+  static Path prismBinDirectory() {
+    return Paths.get(userHome(), PRISM_BIN_PATH);
   }
 
   private String resolve(URL from, Path to) throws IOException {
@@ -198,7 +202,7 @@ class PrismLocator {
     return result;
   }
 
-  static String userHome() {
+  private static String userHome() {
     return mustGetPropertyAsLowerCase(USER_HOME_PROPERTY);
   }
 

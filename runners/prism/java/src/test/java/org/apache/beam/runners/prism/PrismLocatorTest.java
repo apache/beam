@@ -18,8 +18,7 @@
 package org.apache.beam.runners.prism;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.apache.beam.runners.prism.PrismLocator.PRISM_BIN_PATH;
-import static org.apache.beam.runners.prism.PrismLocator.userHome;
+import static org.apache.beam.runners.prism.PrismLocator.prismBinDirectory;
 import static org.apache.beam.runners.prism.PrismRunnerTest.getLocalPrismBuildOrIgnoreTest;
 
 import java.io.IOException;
@@ -39,10 +38,12 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class PrismLocatorTest {
 
+  private static final Path DESTINATION_DIRECTORY = prismBinDirectory();
+
   @Before
   public void setup() throws IOException {
     Files.walkFileTree(
-        Paths.get(userHome(), PRISM_BIN_PATH),
+        DESTINATION_DIRECTORY,
         new SimpleFileVisitor<Path>() {
           @Override
           public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
@@ -51,15 +52,18 @@ public class PrismLocatorTest {
             return FileVisitResult.CONTINUE;
           }
         });
+
+    Files.deleteIfExists(DESTINATION_DIRECTORY);
   }
 
   @Test
   public void givenVersionOverride_thenResolves() throws IOException {
+    assertThat(Files.exists(DESTINATION_DIRECTORY)).isFalse();
     PrismPipelineOptions options = options();
     options.setPrismVersionOverride("2.57.0");
     PrismLocator underTest = new PrismLocator(options);
     String got = underTest.resolve();
-    assertThat(got).contains(PRISM_BIN_PATH);
+    assertThat(got).contains(DESTINATION_DIRECTORY.toString());
     assertThat(got).contains("2.57.0");
     Path gotPath = Paths.get(got);
     assertThat(Files.exists(gotPath)).isTrue();
@@ -67,23 +71,25 @@ public class PrismLocatorTest {
 
   @Test
   public void givenHttpPrismLocationOption_thenResolves() throws IOException {
+    assertThat(Files.exists(DESTINATION_DIRECTORY)).isFalse();
     PrismPipelineOptions options = options();
     options.setPrismLocation(
         "https://github.com/apache/beam/releases/download/v2.57.0/apache_beam-v2.57.0-prism-darwin-arm64.zip");
     PrismLocator underTest = new PrismLocator(options);
     String got = underTest.resolve();
-    assertThat(got).contains(".apache_beam/cache/prism/bin/");
+    assertThat(got).contains(DESTINATION_DIRECTORY.toString());
     Path gotPath = Paths.get(got);
     assertThat(Files.exists(gotPath)).isTrue();
   }
 
   @Test
   public void givenFilePrismLocationOption_thenResolves() throws IOException {
+    assertThat(Files.exists(DESTINATION_DIRECTORY)).isFalse();
     PrismPipelineOptions options = options();
     options.setPrismLocation(getLocalPrismBuildOrIgnoreTest());
     PrismLocator underTest = new PrismLocator(options);
     String got = underTest.resolve();
-    assertThat(got).contains(PRISM_BIN_PATH);
+    assertThat(got).contains(DESTINATION_DIRECTORY.toString());
     Path gotPath = Paths.get(got);
     assertThat(Files.exists(gotPath)).isTrue();
   }
