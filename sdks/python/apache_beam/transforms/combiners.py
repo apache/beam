@@ -380,7 +380,7 @@ class _MergeTopPerBundle(core.DoFn):
         return False
 
     if self._compare or self._key:
-      heapc = []  # type: List[cy_combiners.ComparableValue]
+      heapc: List[cy_combiners.ComparableValue] = []
       for bundle in bundles:
         if not heapc:
           heapc = [
