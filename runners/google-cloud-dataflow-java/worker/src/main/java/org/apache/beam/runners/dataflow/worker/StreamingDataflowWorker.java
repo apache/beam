@@ -325,9 +325,9 @@ public class StreamingDataflowWorker {
         new AtomicReference<>(new OperationalLimits());
     operationalLimits.getAndUpdate(
         (limits) -> {
-          limits.maxWorkItemCommitBytes = Integer.MAX_VALUE;
-          limits.maxOutputKeyBytes = Integer.MAX_VALUE;
-          limits.maxOutputValueBytes = Integer.MAX_VALUE;
+          limits.maxWorkItemCommitBytes = Long.MAX_VALUE;
+          limits.maxOutputKeyBytes = Long.MAX_VALUE;
+          limits.maxOutputValueBytes = Long.MAX_VALUE;
           return limits;
         });
     WindmillStateCache windmillStateCache =
@@ -410,11 +410,11 @@ public class StreamingDataflowWorker {
 
   public static class OperationalLimits {
     // Maximum size of a commit from a single work item.
-    public int maxWorkItemCommitBytes;
+    public long maxWorkItemCommitBytes;
     // Maximum size of a single output element's serialized key.
-    public int maxOutputKeyBytes;
+    public long maxOutputKeyBytes;
     // Maximum size of a single output element's serialized value.
-    public int maxOutputValueBytes;
+    public long maxOutputValueBytes;
   }
 
   /**
@@ -491,9 +491,9 @@ public class StreamingDataflowWorker {
       Supplier<Instant> clock,
       Function<String, ScheduledExecutorService> executorSupplier,
       int localRetryTimeoutMs,
-      int maxWorkItemCommitBytesOverrides,
-      int maxOutputKeyBytesOverride,
-      int maxOutputValueBytesOverride) {
+      long maxWorkItemCommitBytesOverrides,
+      long maxOutputKeyBytesOverride,
+      long maxOutputValueBytesOverride) {
     ConcurrentMap<String, StageInfo> stageInfo = new ConcurrentHashMap<>();
     AtomicReference<OperationalLimits> operationalLimits =
         new AtomicReference<>(new OperationalLimits());
@@ -602,7 +602,7 @@ public class StreamingDataflowWorker {
       LOG.info("Setting maxWorkItemCommitBytes to {}", config.maxWorkItemCommitBytes());
       operationalLimits.getAndUpdate(
           (limits) -> {
-            limits.maxWorkItemCommitBytes = (int) config.maxWorkItemCommitBytes();
+            limits.maxWorkItemCommitBytes = config.maxWorkItemCommitBytes();
             return limits;
           });
     }
@@ -611,7 +611,7 @@ public class StreamingDataflowWorker {
       LOG.info("Setting maxOutputKeyBytes to {}", config.maxOutputKeyBytes());
       operationalLimits.getAndUpdate(
           (limits) -> {
-            limits.maxOutputKeyBytes = (int) config.maxOutputKeyBytes();
+            limits.maxOutputKeyBytes = config.maxOutputKeyBytes();
             return limits;
           });
     }
@@ -620,7 +620,7 @@ public class StreamingDataflowWorker {
       LOG.info("Setting maxOutputValueBytes to {}", config.maxOutputValueBytes());
       operationalLimits.getAndUpdate(
           (limits) -> {
-            limits.maxOutputValueBytes = (int) config.maxOutputValueBytes();
+            limits.maxOutputValueBytes = config.maxOutputValueBytes();
             return limits;
           });
     }

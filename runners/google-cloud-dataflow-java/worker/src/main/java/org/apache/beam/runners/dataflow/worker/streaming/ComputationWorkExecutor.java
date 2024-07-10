@@ -72,8 +72,8 @@ public abstract class ComputationWorkExecutor {
       Work work,
       WindmillStateReader stateReader,
       SideInputStateFetcher sideInputStateFetcher,
-      int maxOutputKeyBytes,
-      int maxOutputValueBytes,
+      long maxOutputKeyBytes,
+      long maxOutputValueBytes,
       Windmill.WorkItemCommitRequest.Builder outputBuilder)
       throws Exception {
     context()

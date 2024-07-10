@@ -293,7 +293,7 @@ public final class StreamingWorkScheduler {
       Windmill.WorkItemCommitRequest commitRequest,
       String computationId,
       Windmill.WorkItem workItem) {
-    int byteLimit = operationalLimits.get().maxWorkItemCommitBytes;
+    long byteLimit = operationalLimits.get().maxWorkItemCommitBytes;
     int commitSize = commitRequest.getSerializedSize();
     int estimatedCommitSize = commitSize < 0 ? Integer.MAX_VALUE : commitSize;
 

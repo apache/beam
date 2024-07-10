@@ -132,8 +132,8 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
   // The max*Bytes variables are updated in start() because a StreamingModeExecutionContext can
   // be used for processing many work items and these values can change during the context's
   // lifetime. start() is called for each work item.
-  private int maxOutputKeyBytes = Integer.MAX_VALUE;
-  private int maxOutputValueBytes = Integer.MAX_VALUE;
+  private long maxOutputKeyBytes = Long.MAX_VALUE;
+  private long maxOutputValueBytes = Long.MAX_VALUE;
   private Windmill.WorkItemCommitRequest.Builder outputBuilder;
 
   /**
@@ -173,12 +173,11 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     return backlogBytes;
   }
 
-  // Use long instead?
-  public int getMaxOutputKeyBytes() {
+  public long getMaxOutputKeyBytes() {
     return maxOutputKeyBytes;
   }
 
-  public int getMaxOutputValueBytes() {
+  public long getMaxOutputValueBytes() {
     return maxOutputValueBytes;
   }
 
@@ -191,8 +190,8 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       Work work,
       WindmillStateReader stateReader,
       SideInputStateFetcher sideInputStateFetcher,
-      int maxOutputKeyBytes,
-      int maxOutputValueBytes,
+      long maxOutputKeyBytes,
+      long maxOutputValueBytes,
       Windmill.WorkItemCommitRequest.Builder outputBuilder) {
     this.key = key;
     this.work = work;
