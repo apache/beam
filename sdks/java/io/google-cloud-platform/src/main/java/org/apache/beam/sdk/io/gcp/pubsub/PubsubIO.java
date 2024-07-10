@@ -1641,10 +1641,12 @@ public class PubsubIO {
       public void processElement(@Element PubsubMessage message, @Timestamp Instant timestamp)
           throws IOException, SizeLimitExceededException {
         // Validate again here just as a sanity check.
+        // TODO(sjvanrossum): https://github.com/apache/beam/issues/31800
         PreparePubsubWriteDoFn.validatePubsubMessageSize(message, maxPublishBatchByteSize);
         // NOTE: The record id is always null.
         final OutgoingMessage msg =
             OutgoingMessage.of(message, timestamp.getMillis(), null, message.getTopic());
+        // TODO(sjvanrossum): https://github.com/apache/beam/issues/31800
         final int messageSize = msg.getMessage().getData().size();
 
         final PubsubTopic pubsubTopic;
@@ -1658,6 +1660,7 @@ public class PubsubIO {
         final OutgoingData currentTopicAndOrderingKeyOutput =
             output.computeIfAbsent(
                 KV.of(pubsubTopic, msg.getMessage().getOrderingKey()), t -> new OutgoingData());
+        // TODO(sjvanrossum): https://github.com/apache/beam/issues/31800
         if (currentTopicAndOrderingKeyOutput.messages.size() >= maxPublishBatchSize
             || (!currentTopicAndOrderingKeyOutput.messages.isEmpty()
                 && (currentTopicAndOrderingKeyOutput.bytes + messageSize)
@@ -1668,6 +1671,7 @@ public class PubsubIO {
         }
 
         currentTopicAndOrderingKeyOutput.messages.add(msg);
+        // TODO(sjvanrossum): https://github.com/apache/beam/issues/31800
         currentTopicAndOrderingKeyOutput.bytes += messageSize;
       }
 

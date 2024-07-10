@@ -345,9 +345,11 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
         if (currentBatch == null) {
           currentBatch = new OutgoingData();
           currentBatch.messages.add(message);
+          // TODO(sjvanrossum): https://github.com/apache/beam/issues/31800
           currentBatch.bytes += message.getMessage().getData().size();
           orderingKeyBatches.put(currentOrderingKey, currentBatch);
         } else {
+          // TODO(sjvanrossum): https://github.com/apache/beam/issues/31800
           if (currentBatch.bytes + message.getMessage().getData().size() > publishBatchBytes) {
             // Break large (in bytes) batches into smaller.
             // (We've already broken by batch size using the trigger below, though that may
@@ -359,6 +361,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
             currentBatch.bytes = 0;
           }
           currentBatch.messages.add(message);
+          // TODO(sjvanrossum): https://github.com/apache/beam/issues/31800
           currentBatch.bytes += message.getMessage().getData().size();
         }
       }
