@@ -17,10 +17,10 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static com.google.common.collect.testing.Helpers.assertContains;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryResourceNaming.createTempTableReference;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
@@ -360,9 +360,9 @@ public class BigQueryIOReadTest implements Serializable {
                         MetricNameFilter.named(
                             Lineage.LINEAGE_NAMESPACE, Lineage.SOURCE_METRIC_NAME))
                     .build());
-    assertContains(
+    assertThat(
         lineageMetrics.getStringSets().iterator().next().getCommitted().getStringSet(),
-        "bigquery:" + tableName.replace(':', '.'));
+        contains("bigquery:" + tableName.replace(':', '.')));
   }
 
   @Before
