@@ -422,7 +422,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
    */
   private final int numShards;
 
-  /** Publish messages with an ordering key. Currently unsupported in DataflowRunner. */
+  /** Publish messages with an ordering key. Currently unsupported with DataflowRunner's Pubsub sink override. */
   private final boolean publishBatchWithOrderingKey;
 
   /** Maximum number of messages per publish. */
