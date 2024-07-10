@@ -173,10 +173,10 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
         value = encode(valueCoder, data.getValue());
       }
       if (key.size() > context.getMaxOutputKeyBytes()) {
-        throw new IOException("Key too large: " + key.size());
+        throw new OutputTooLargeException("Key too large: " + key.size());
       }
       if (value.size() > context.getMaxOutputValueBytes()) {
-        throw new IOException("Value too large: " + value.size());
+        throw new OutputTooLargeException("Value too large: " + value.size());
       }
 
       Windmill.KeyedMessageBundle.Builder keyedOutput = productionMap.get(key);

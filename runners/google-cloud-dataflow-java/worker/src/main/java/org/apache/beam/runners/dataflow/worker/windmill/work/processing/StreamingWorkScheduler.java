@@ -24,6 +24,7 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import javax.annotation.concurrent.ThreadSafe;
@@ -32,6 +33,7 @@ import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.DataflowMapTaskExecutorFactory;
 import org.apache.beam.runners.dataflow.worker.HotKeyLogger;
 import org.apache.beam.runners.dataflow.worker.ReaderCache;
+import org.apache.beam.runners.dataflow.worker.StreamingDataflowWorker;
 import org.apache.beam.runners.dataflow.worker.WorkItemCancelledException;
 import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingMDC;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
@@ -81,9 +83,7 @@ public final class StreamingWorkScheduler {
   private final HotKeyLogger hotKeyLogger;
   private final ConcurrentMap<String, StageInfo> stageInfoMap;
   private final DataflowExecutionStateSampler sampler;
-  private final AtomicInteger maxWorkItemCommitBytes;
-  private final AtomicInteger maxOutputKeyBytes;
-  private final AtomicInteger maxOutputValueBytes;
+  private final AtomicReference<StreamingDataflowWorker.OperationalLimits> operationalLimits;
 
   public StreamingWorkScheduler(
       DataflowWorkerHarnessOptions options,
@@ -97,9 +97,7 @@ public final class StreamingWorkScheduler {
       HotKeyLogger hotKeyLogger,
       ConcurrentMap<String, StageInfo> stageInfoMap,
       DataflowExecutionStateSampler sampler,
-      AtomicInteger maxWorkItemCommitBytes,
-      AtomicInteger maxOutputKeyBytes,
-      AtomicInteger maxOutputValueBytes) {
+      AtomicReference<StreamingDataflowWorker.OperationalLimits> operationalLimits) {
     this.options = options;
     this.clock = clock;
     this.computationWorkExecutorFactory = computationWorkExecutorFactory;
@@ -111,9 +109,7 @@ public final class StreamingWorkScheduler {
     this.hotKeyLogger = hotKeyLogger;
     this.stageInfoMap = stageInfoMap;
     this.sampler = sampler;
-    this.maxWorkItemCommitBytes = maxWorkItemCommitBytes;
-    this.maxOutputKeyBytes = maxOutputKeyBytes;
-    this.maxOutputValueBytes = maxOutputValueBytes;
+    this.operationalLimits = operationalLimits;
   }
 
   public static StreamingWorkScheduler create(
@@ -129,9 +125,7 @@ public final class StreamingWorkScheduler {
       StreamingCounters streamingCounters,
       HotKeyLogger hotKeyLogger,
       DataflowExecutionStateSampler sampler,
-      AtomicInteger maxWorkItemCommitBytes,
-      AtomicInteger maxOutputKeyBytes,
-      AtomicInteger maxOutputValueBytes,
+      AtomicReference<StreamingDataflowWorker.OperationalLimits> operationalLimits,
       IdGenerator idGenerator,
       ConcurrentMap<String, StageInfo> stageInfoMap) {
     ComputationWorkExecutorFactory computationWorkExecutorFactory =
@@ -156,9 +150,7 @@ public final class StreamingWorkScheduler {
         hotKeyLogger,
         stageInfoMap,
         sampler,
-        maxWorkItemCommitBytes,
-        maxOutputKeyBytes,
-        maxOutputValueBytes);
+        operationalLimits);
   }
 
   private static long computeShuffleBytesRead(Windmill.WorkItem workItem) {
@@ -302,7 +294,7 @@ public final class StreamingWorkScheduler {
       Windmill.WorkItemCommitRequest commitRequest,
       String computationId,
       Windmill.WorkItem workItem) {
-    int byteLimit = maxWorkItemCommitBytes.get();
+    int byteLimit = operationalLimits.get().maxWorkItemCommitBytes;
     int commitSize = commitRequest.getSerializedSize();
     int estimatedCommitSize = commitSize < 0 ? Integer.MAX_VALUE : commitSize;
 
@@ -385,8 +377,9 @@ public final class StreamingWorkScheduler {
 
       // Blocks while executing work.
       computationWorkExecutor.executeWork(
-          executionKey, work, stateReader, localSideInputStateFetcher, maxOutputKeyBytes.get(),
-          maxOutputValueBytes.get(), outputBuilder);
+          executionKey, work, stateReader, localSideInputStateFetcher,
+          operationalLimits.get().maxOutputKeyBytes, operationalLimits.get().maxOutputValueBytes,
+          outputBuilder);
 
       if (work.isFailed()) {
         throw new WorkItemCancelledException(workItem.getShardingKey());
