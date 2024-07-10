@@ -85,6 +85,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
@@ -1653,11 +1654,14 @@ public class PubsubIO {
           pubsubTopic =
               PubsubTopic.fromPath(Preconditions.checkArgumentNotNull(message.getTopic()));
         }
-        String orderingKey = message.getOrderingKey();
+
+        // NOTE: Protobuf strings are non-null, null and empty keys are equivalent.
+        @Nullable String orderingKey = message.getOrderingKey();
 
         // Checking before adding the message stops us from violating max batch size or bytes
         OutgoingData currentTopicAndOrderingKeyOutput =
-            output.computeIfAbsent(KV.of(pubsubTopic, orderingKey), t -> new OutgoingData());
+            output.computeIfAbsent(
+                KV.of(pubsubTopic, Strings.emptyIfNull(orderingKey)), t -> new OutgoingData());
         if (currentTopicAndOrderingKeyOutput.messages.size() >= maxPublishBatchSize
             || (!currentTopicAndOrderingKeyOutput.messages.isEmpty()
                 && (currentTopicAndOrderingKeyOutput.bytes + messageSize)
@@ -1687,7 +1691,7 @@ public class PubsubIO {
 
       @FinishBundle
       public void finishBundle() throws IOException {
-        for (Map.Entry<KV<PubsubTopic, @Nullable String>, OutgoingData> entry : output.entrySet()) {
+        for (Map.Entry<KV<PubsubTopic, String>, OutgoingData> entry : output.entrySet()) {
           publish(entry.getKey().getKey(), entry.getValue().messages);
         }
         output = null;

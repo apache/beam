@@ -73,7 +73,9 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hashing;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -205,10 +207,11 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
           break;
       }
 
+      // NOTE: Null and empty ordering keys are treated as equivalent.
       @Nullable String topic = dynamicTopicFn.apply(element);
       @Nullable String orderingKey = message.getOrderingKey();
       int shard =
-          orderingKey == null
+          Strings.isNullOrEmpty(orderingKey)
               ? ThreadLocalRandom.current().nextInt(numShards)
               : Hashing.murmur3_32_fixed().hashString(orderingKey, StandardCharsets.UTF_8).asInt();
       K key = keyFunction.apply(shard, topic);
@@ -331,8 +334,8 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
       // NB: A larger, breaking refactor could make this irrelevant with a GBK on topic + ordering
       // key (or GroupIntoBatches with configurable shard for ShardedKey?) and unify
       // bounded/unbounded writes and static/dynamic destinations.
-      Map<@Nullable String, OutgoingData> orderingKeyBatches = new HashMap<>();
-      @Nullable String currentOrderingKey = null;
+      Map<String, OutgoingData> orderingKeyBatches = new HashMap<>();
+      @MonotonicNonNull String currentOrderingKey = null;
       @Nullable OutgoingData currentBatch = null;
       for (OutgoingMessage message : c.element()) {
         // If currentBatch is null set currentOrderingKey before entering the then clause. If
@@ -341,7 +344,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
         // enter the then clause if currentBatch is null. This ensures currentBatch is initialized
         // and contains at least one element before entering the else clause if currentOrderingKey
         // is equal to messageOrderingKey.
-        @Nullable String messageOrderingKey = message.getMessage().getOrderingKey();
+        String messageOrderingKey = message.getMessage().getOrderingKey();
         if ((currentBatch == null
                 && (currentOrderingKey = messageOrderingKey) == messageOrderingKey)
             || (!Objects.equals(currentOrderingKey, messageOrderingKey)
