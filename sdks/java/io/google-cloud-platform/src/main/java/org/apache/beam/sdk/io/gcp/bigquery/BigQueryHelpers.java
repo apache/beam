@@ -413,8 +413,15 @@ public class BigQueryHelpers {
   }
 
   public static String dataCatalogName(TableReference ref) {
-    return String.format(
-        "bigquery:%s.%s.%s", ref.getProjectId(), ref.getDatasetId(), ref.getTableId());
+    String tableIdBase;
+    int ix = ref.getTableId().indexOf('$');
+    if (ix == -1) {
+      tableIdBase = ref.getTableId();
+    } else {
+      tableIdBase = ref.getTableId().substring(0, ix);
+    }
+    System.out.println("XXX " + ref.getTableId() + " " + ix + tableIdBase);
+    return String.format("bigquery:%s.%s.%s", ref.getProjectId(), ref.getDatasetId(), tableIdBase);
   }
 
   static <K, V> List<V> getOrCreateMapListValue(Map<K, List<V>> map, K key) {
