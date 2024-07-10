@@ -4507,9 +4507,9 @@ public class StreamingDataflowWorkerTest {
           .setLocalRetryTimeoutMs(-1)
           .setPublishCounters(false)
           .setClock(Instant::now)
-          .setMaxWorkItemCommitBytes(Integer.MAX_VALUE)
-          .setMaxOutputKeyBytes(Integer.MAX_VALUE)
-          .setMaxOutputValueBytes(Integer.MAX_VALUE);
+          .setMaxWorkItemCommitBytes(Long.MAX_VALUE)
+          .setMaxOutputKeyBytes(Long.MAX_VALUE)
+          .setMaxOutputValueBytes(Long.MAX_VALUE);
     }
 
     abstract ImmutableMap<String, String> stateNameMappings();
@@ -4526,11 +4526,11 @@ public class StreamingDataflowWorkerTest {
 
     abstract int localRetryTimeoutMs();
 
-    abstract int maxWorkItemCommitBytes();
+    abstract long maxWorkItemCommitBytes();
 
-    abstract int maxOutputKeyBytes();
+    abstract long maxOutputKeyBytes();
 
-    abstract int maxOutputValueBytes();
+    abstract long maxOutputValueBytes();
 
     @AutoValue.Builder
     abstract static class Builder {
@@ -4564,11 +4564,11 @@ public class StreamingDataflowWorkerTest {
 
       abstract Builder setLocalRetryTimeoutMs(int value);
 
-      abstract Builder setMaxWorkItemCommitBytes(int maxWorkItemCommitBytes);
+      abstract Builder setMaxWorkItemCommitBytes(long maxWorkItemCommitBytes);
 
-      abstract Builder setMaxOutputKeyBytes(int maxOutputKeyBytes);
+      abstract Builder setMaxOutputKeyBytes(long maxOutputKeyBytes);
 
-      abstract Builder setMaxOutputValueBytes(int maxOutputValueBytes);
+      abstract Builder setMaxOutputValueBytes(long maxOutputValueBytes);
 
       abstract StreamingDataflowWorkerTestParams build();
     }
