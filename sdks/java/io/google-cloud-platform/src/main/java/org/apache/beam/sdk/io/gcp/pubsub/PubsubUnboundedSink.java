@@ -28,7 +28,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.coders.AtomicCoder;
@@ -338,18 +337,12 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
       @MonotonicNonNull String currentOrderingKey = null;
       @Nullable OutgoingData currentBatch = null;
       for (OutgoingMessage message : c.element()) {
-        // If currentBatch is null set currentOrderingKey before entering the then clause. If
-        // currentBatch is not null and currentOrderingKey does not equal messageOrderingKey set
-        // currentOrderingKey and currentBatch before entering the then or else clause and only
-        // enter the then clause if currentBatch is null. This ensures currentBatch is initialized
-        // and contains at least one element before entering the else clause if currentOrderingKey
-        // is equal to messageOrderingKey.
         String messageOrderingKey = message.getMessage().getOrderingKey();
-        if ((currentBatch == null
-                && (currentOrderingKey = messageOrderingKey) == messageOrderingKey)
-            || (!Objects.equals(currentOrderingKey, messageOrderingKey)
-                && (currentBatch = orderingKeyBatches.get(currentOrderingKey = messageOrderingKey))
-                    == null)) {
+        if (currentOrderingKey == null || !currentOrderingKey.equals(messageOrderingKey)) {
+          currentOrderingKey = messageOrderingKey;
+          currentBatch = orderingKeyBatches.get(currentOrderingKey);
+        }
+        if (currentBatch == null) {
           currentBatch = new OutgoingData();
           currentBatch.messages.add(message);
           currentBatch.bytes += message.getMessage().getData().size();
