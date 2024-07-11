@@ -194,10 +194,10 @@ jobs:
     if: needs.check_env_variables.outputs.gcp-variables-set == 'true' && github.event_name != 'pull_request'
     steps:
       - name: Authenticate on GCP
-        uses: google-github-actions/auth@v1
+        uses: google-github-actions/setup-gcloud@v0
         with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          service_account_email: ${{ secrets.GCP_SA_EMAIL }}
+          service_account_key: ${{ secrets.GCP_SA_KEY }}
       - name: Remove existing files on GCS bucket
         run: gsutil rm -r ${{ env.GCP_PATH }} || true
 
@@ -216,12 +216,10 @@ jobs:
           name: source_zip
           path: source/
       - name: Authenticate on GCP
-        uses: google-github-actions/auth@v1
+        uses: google-github-actions/setup-gcloud@v0
         with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
-      - name: 'Set up Cloud SDK'
-        uses: google-github-actions/setup-gcloud@v2
+          service_account_email: ${{ secrets.GCP_SA_EMAIL }}
+          service_account_key: ${{ secrets.GCP_SA_KEY }}
       - name: Copy sources to GCS bucket
         run: gsutil cp -r -a public-read source/* ${{ env.GCP_PATH }}
 
@@ -345,10 +343,10 @@ jobs:
         name: wheelhouse-${{ matrix.os }}${{ (matrix.arch == 'aarch64' && '-aarch64') || '' }}
         path: wheelhouse/
     - name: Authenticate on GCP
-      uses: google-github-actions/auth@v1
+      uses: google-github-actions/setup-gcloud@v0
       with:
-        credentials_json: ${{ secrets.GCP_SA_KEY }}
-        project_id: ${{ secrets.GCP_PROJECT_ID }}
+        service_account_email: ${{ secrets.GCP_SA_EMAIL }}
+        service_account_key: ${{ secrets.GCP_SA_KEY }}
     - name: Copy wheels to GCS bucket
       run: gsutil cp -r -a public-read wheelhouse/* ${{ env.GCP_PATH }}
     - name: Create github action information file on GCS bucket
@@ -381,10 +379,10 @@ jobs:
     if: needs.check_env_variables.outputs.gcp-variables-set == 'true' && github.event_name != 'pull_request'
     steps:
     - name: Authenticate on GCP
-      uses: google-github-actions/auth@v1
+      uses: google-github-actions/setup-gcloud@v0
       with:
-        credentials_json: ${{ secrets.GCP_SA_KEY }}
-        project_id: ${{ secrets.GCP_PROJECT_ID }}
+        service_account_email: ${{ secrets.GCP_SA_EMAIL }}
+        service_account_key: ${{ secrets.GCP_SA_KEY }}
     - name: List file on Google Cloud Storage Bucket
       run: gsutil ls "${{ env.GCP_PATH }}*"
 
