@@ -292,6 +292,7 @@ public class StreamingStepMetricsContainerTest {
             .setCumulative(false)
             .setStringList(new StringList().setElements(Arrays.asList("ab", "cd", "ef", "gh")));
 
+    ((StreamingStepMetricsContainer) c1).populateStringSetUpdates = true;
     Iterable<CounterUpdate> updates = StreamingStepMetricsContainer.extractMetricUpdates(registry);
     assertThat(updates, containsInAnyOrder(name1Update));
 
@@ -314,6 +315,7 @@ public class StreamingStepMetricsContainerTest {
             .setCumulative(false)
             .setStringList(new StringList().setElements(Arrays.asList("ij", "kl", "mn")));
 
+    ((StreamingStepMetricsContainer) c2).populateStringSetUpdates = true;
     updates = StreamingStepMetricsContainer.extractMetricUpdates(registry);
     assertThat(updates, containsInAnyOrder(name1Update, name2Update));
 

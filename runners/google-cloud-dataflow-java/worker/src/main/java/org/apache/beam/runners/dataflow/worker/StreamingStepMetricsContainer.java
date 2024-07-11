@@ -23,6 +23,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -87,6 +88,9 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
   private final Duration maximumPerWorkerCounterStaleness = Duration.ofMinutes(5);
 
   private final Clock clock;
+
+  // TODO(BEAM-31814): Remove once Dataflow legacy runner supports this.
+  @VisibleForTesting boolean populateStringSetUpdates = false;
 
   private StreamingStepMetricsContainer(String stepName) {
     this.stepName = stepName;
@@ -187,7 +191,8 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
   public Iterable<CounterUpdate> extractUpdates() {
     return counterUpdates()
         .append(distributionUpdates())
-        .append(gaugeUpdates().append(stringSetUpdates()));
+        .append(gaugeUpdates())
+        .append(populateStringSetUpdates ? stringSetUpdates() : Collections.emptyList());
   }
 
   private FluentIterable<CounterUpdate> counterUpdates() {

@@ -63,6 +63,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.RetryManager.RetryType;
 import org.apache.beam.sdk.io.gcp.bigquery.StorageApiDynamicDestinations.MessageConverter;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
+import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -269,6 +270,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
     }
 
     class DestinationState {
+      private final TableDestination tableDestination;
       private final String tableUrn;
       private final String shortTableUrn;
       private String streamName = "";
@@ -300,6 +302,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       private final boolean includeCdcColumns;
 
       public DestinationState(
+          TableDestination tableDestination,
           String tableUrn,
           String shortTableUrn,
           MessageConverter<ElementT> messageConverter,
@@ -311,6 +314,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
           Callable<Boolean> tryCreateTable,
           boolean includeCdcColumns)
           throws Exception {
+        this.tableDestination = tableDestination;
         this.tableUrn = tableUrn;
         this.shortTableUrn = shortTableUrn;
         this.pendingMessages = Lists.newArrayList();
@@ -327,6 +331,10 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         if (includeCdcColumns) {
           checkState(useDefaultStream);
         }
+      }
+
+      public TableDestination getTableDestination() {
+        return tableDestination;
       }
 
       void teardown() {
@@ -1058,6 +1066,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       try {
         messageConverter = messageConverters.get(destination, dynamicDestinations, datasetService);
         return new DestinationState(
+            tableDestination1,
             tableDestination1.getTableUrn(bigQueryOptions),
             tableDestination1.getShortTableUrn(),
             messageConverter,
@@ -1097,6 +1106,11 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                           initializedDatasetService,
                           initializedWriteStreamService,
                           pipelineOptions.as(BigQueryOptions.class)));
+      Lineage.getSinks()
+          .add(
+              BigQueryHelpers.dataCatalogName(
+                  state.getTableDestination().getTableReference(),
+                  pipelineOptions.as(BigQueryOptions.class)));
 
       OutputReceiver<BigQueryStorageApiInsertError> failedRowsReceiver = o.get(failedRowsTag);
       @Nullable

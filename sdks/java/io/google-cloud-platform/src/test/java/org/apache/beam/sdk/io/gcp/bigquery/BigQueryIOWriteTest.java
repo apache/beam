@@ -28,6 +28,7 @@ import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasEntry;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -93,6 +94,7 @@ import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.io.Encoder;
 import org.apache.beam.runners.direct.DirectOptions;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -115,6 +117,10 @@ import org.apache.beam.sdk.io.gcp.bigquery.WriteTables.Result;
 import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices;
 import org.apache.beam.sdk.io.gcp.testing.FakeDatasetService;
 import org.apache.beam.sdk.io.gcp.testing.FakeJobService;
+import org.apache.beam.sdk.metrics.Lineage;
+import org.apache.beam.sdk.metrics.MetricNameFilter;
+import org.apache.beam.sdk.metrics.MetricQueryResults;
+import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
@@ -277,6 +283,20 @@ public class BigQueryIOWriteTest implements Serializable {
       new FakeBigQueryServices()
           .withDatasetService(fakeDatasetService)
           .withJobService(fakeJobService);
+
+  private void checkLineageSinkMetric(PipelineResult pipelineResult, String tableName) {
+    MetricQueryResults lineageMetrics =
+        pipelineResult
+            .metrics()
+            .queryMetrics(
+                MetricsFilter.builder()
+                    .addNameFilter(
+                        MetricNameFilter.named(Lineage.LINEAGE_NAMESPACE, Lineage.SINK_METRIC_NAME))
+                    .build());
+    assertThat(
+        lineageMetrics.getStringSets().iterator().next().getCommitted().getStringSet(),
+        hasItem("bigquery:" + tableName.replace(':', '.')));
+  }
 
   @Before
   public void setUp() throws ExecutionException, IOException, InterruptedException {
@@ -488,7 +508,7 @@ public class BigQueryIOWriteTest implements Serializable {
           .containsInAnyOrder(expectedTables);
     }
 
-    p.run();
+    PipelineResult pipelineResult = p.run();
 
     Map<Long, List<TableRow>> expectedTableRows = Maps.newHashMap();
     for (String anUserList : userList) {
@@ -505,6 +525,7 @@ public class BigQueryIOWriteTest implements Serializable {
       assertThat(
           fakeDatasetService.getAllRows("project-id", "dataset-id", "userid-" + entry.getKey()),
           containsInAnyOrder(Iterables.toArray(entry.getValue(), TableRow.class)));
+      checkLineageSinkMetric(pipelineResult, "project-id.dataset-id.userid-" + entry.getKey());
     }
   }
 
@@ -680,7 +701,7 @@ public class BigQueryIOWriteTest implements Serializable {
     }
 
     p.apply(testStream).apply(writeTransform);
-    p.run();
+    PipelineResult pipelineResult = p.run();
 
     final int projectIdSplitter = tableRef.indexOf(':');
     final String projectId =
@@ -689,6 +710,9 @@ public class BigQueryIOWriteTest implements Serializable {
     assertThat(
         fakeDatasetService.getAllRows(projectId, "dataset-id", "table-id"),
         containsInAnyOrder(Iterables.toArray(elements, TableRow.class)));
+
+    checkLineageSinkMetric(
+        pipelineResult, tableRef.contains(projectId) ? tableRef : projectId + ":" + tableRef);
   }
 
   public void runStreamingFileLoads(String tableRef) throws Exception {
@@ -828,11 +852,12 @@ public class BigQueryIOWriteTest implements Serializable {
 
     PAssert.that(result.getSuccessfulTableLoads())
         .containsInAnyOrder(new TableDestination("project-id:dataset-id.table-id", null));
-    p.run();
+    PipelineResult pipelineResult = p.run();
 
     assertThat(
         fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
         containsInAnyOrder(Iterables.toArray(elements, TableRow.class)));
+    checkLineageSinkMetric(pipelineResult, "project-id.dataset-id.table-id");
   }
 
   @Test
@@ -861,11 +886,12 @@ public class BigQueryIOWriteTest implements Serializable {
 
     PAssert.that(result.getSuccessfulTableLoads())
         .containsInAnyOrder(new TableDestination("project-id:dataset-id.table-id", null));
-    p.run();
+    PipelineResult pipelineResult = p.run();
 
     assertThat(
         fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
         containsInAnyOrder(Iterables.toArray(elements, TableRow.class)));
+    checkLineageSinkMetric(pipelineResult, "project-id.dataset-id.table-id");
   }
 
   @Test
