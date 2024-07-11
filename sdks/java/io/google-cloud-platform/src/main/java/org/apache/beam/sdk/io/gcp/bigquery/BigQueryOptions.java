@@ -124,9 +124,8 @@ public interface BigQueryOptions
   @Description(
       "When using the STORAGE_API_AT_LEAST_ONCE write method with multiplexing (ie. useStorageApiConnectionPool=true), "
           + "this option sets the maximum number of connections each pool creates. This is on a per worker, per region basis. "
-          + "This value should be greater than or equal to the total number of dynamic destinations, otherwise performance issues "
-          + "may occur due to race conditions where append operations compete over limited number of streams. If this occurs, "
-          + "individual append operations will intermittently fail but will be retried.")
+          + "If writing to many dynamic destinations (>20) and experiencing performance issues or seeing append operations competing"
+          + "for streams, consider increasing this value.")
   @Default.Integer(20)
   Integer getMaxConnectionPoolConnections();
 
