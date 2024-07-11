@@ -43,10 +43,10 @@ public class CsvIOStringToCsvRecordTest {
 
     @Override
     public PCollection<BadRecord> expand(PCollection<BadRecord> input) {
-      return input.apply(ParDo.of(new badRecordTransformFn()));
+      return input.apply(ParDo.of(new BadRecordTransformFn()));
     }
 
-    private static class badRecordTransformFn extends DoFn<BadRecord, BadRecord> {
+    private static class BadRecordTransformFn extends DoFn<BadRecord, BadRecord> {
       @DoFn.ProcessElement
       public void process(@Element BadRecord input, OutputReceiver<BadRecord> receiver) {
         System.out.println(input);
