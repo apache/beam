@@ -23,8 +23,8 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.Heartbeat;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
+import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.Heartbeats;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 
@@ -48,9 +48,9 @@ public final class FanOutWorkRefreshClient implements WorkRefreshClient {
   }
 
   @Override
-  public void refreshActiveWork(Map<HeartbeatSender, Heartbeat> heartbeats) {
+  public void refreshActiveWork(Map<HeartbeatSender, Heartbeats> heartbeats) {
     List<CompletableFuture<Void>> fanOutRefreshActiveWork = new ArrayList<>();
-    for (Map.Entry<HeartbeatSender, Heartbeat> heartbeat : heartbeats.entrySet()) {
+    for (Map.Entry<HeartbeatSender, Heartbeats> heartbeat : heartbeats.entrySet()) {
       fanOutRefreshActiveWork.add(sendHeartbeatOnStreamFuture(heartbeat));
     }
 
@@ -62,14 +62,13 @@ public final class FanOutWorkRefreshClient implements WorkRefreshClient {
   }
 
   private CompletableFuture<Void> sendHeartbeatOnStreamFuture(
-      Map.Entry<HeartbeatSender, Heartbeat> heartbeat) {
+      Map.Entry<HeartbeatSender, Heartbeats> heartbeat) {
     return CompletableFuture.runAsync(
         () -> {
           try (AutoCloseable ignored =
-              getDataMetricTracker.trackHeartbeats(
-                  heartbeat.getValue().heartbeatRequests().size())) {
+              getDataMetricTracker.trackHeartbeats(heartbeat.getValue().size())) {
             HeartbeatSender sender = heartbeat.getKey();
-            Heartbeat heartbeats = heartbeat.getValue();
+            Heartbeats heartbeats = heartbeat.getValue();
             sender.sendHeartbeats(heartbeats);
           } catch (Exception e) {
             throw new GetDataClient.GetDataException("Error refreshing heartbeats.", e);
