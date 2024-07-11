@@ -57,19 +57,36 @@ class PTransformWithErrors(beam.PTransform):
 class ErrorHandlingTest(unittest.TestCase):
   def test_error_handling(self):
     with beam.Pipeline() as p:
-      input_pcoll = p | beam.Create(['a', 'bb', 'cccc'])
+      pcoll = p | beam.Create(['a', 'bb', 'cccc'])
       with error_handling.ErrorHandler(
           beam.Map(lambda x: "error: %s" % x)) as error_handler:
-        output_pcoll = input_pcoll | PTransformWithErrors(3).with_error_handler(
+        result = pcoll | PTransformWithErrors(3).with_error_handler(
             error_handler)
       error_pcoll = error_handler.output()
 
-      assert_that(output_pcoll, equal_to(['A', 'Bb']), label='CheckGood')
+      assert_that(result, equal_to(['A', 'Bb']), label='CheckGood')
+      assert_that(error_pcoll, equal_to(['error: cccc']), label='CheckBad')
+
+  def test_error_handling_pardo(self):
+    def my_map(x, limit):
+      if len(x) > limit:
+        raise ValueError(x)
+      else:
+        return x.title()
+
+    with beam.Pipeline() as p:
+      pcoll = p | beam.Create(['a', 'bb', 'cccc'])
+      with error_handling.ErrorHandler(
+          beam.Map(lambda x: "error: %s" % x[0])) as error_handler:
+        result = pcoll | beam.Map(
+            my_map, limit=3).with_error_handler(error_handler)
+      error_pcoll = error_handler.output()
+
+      assert_that(result, equal_to(['A', 'Bb']), label='CheckGood')
       assert_that(error_pcoll, equal_to(['error: cccc']), label='CheckBad')
 
   def test_error_on_unclosed_error_handler(self):
-    with self.assertRaisesRegex(
-        RuntimeError, r'.*Unclosed error handler.*'):
+    with self.assertRaisesRegex(RuntimeError, r'.*Unclosed error handler.*'):
       with beam.Pipeline() as p:
         pcoll = p | beam.Create(['a', 'bb', 'cccc'])
         # Use this outside of a context to allow it to remain unclosed.
