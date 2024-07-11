@@ -168,7 +168,6 @@ public class StreamingDataflowWorker {
   private final DataflowWorkerHarnessOptions options;
   private final long clientId;
   private final GetDataClient getDataClient;
-  private final WorkRefreshClient workRefreshClient;
   private final MemoryMonitor memoryMonitor;
   private final Thread memoryMonitorThread;
   private final ReaderCache readerCache;
@@ -259,18 +258,6 @@ public class StreamingDataflowWorker {
             GET_DATA_STREAM_TIMEOUT,
             windmillServer::getDataStream);
 
-    if (windmillServiceEnabled) {
-      StreamingEngineGetDataClient streamingEngineGetDataClient =
-          new StreamingEngineGetDataClient(getDataMetricTracker, getDataStreamPool);
-      this.getDataClient = streamingEngineGetDataClient;
-      this.workRefreshClient = streamingEngineGetDataClient;
-    } else {
-      ApplianceGetDataClient applianceGetDataClient =
-          new ApplianceGetDataClient(windmillServer, getDataMetricTracker);
-      this.getDataClient = applianceGetDataClient;
-      this.workRefreshClient = applianceGetDataClient;
-    }
-
     // Register standard file systems.
     FileSystems.setDefaultPipelineOptions(options);
 
@@ -278,6 +265,19 @@ public class StreamingDataflowWorker {
         windmillServiceEnabled && options.getStuckCommitDurationMillis() > 0
             ? options.getStuckCommitDurationMillis()
             : 0;
+
+    WorkRefreshClient workRefreshClient;
+    if (windmillServiceEnabled) {
+      StreamingEngineGetDataClient streamingEngineGetDataClient =
+          new StreamingEngineGetDataClient(getDataMetricTracker, getDataStreamPool);
+      this.getDataClient = streamingEngineGetDataClient;
+      workRefreshClient = streamingEngineGetDataClient;
+    } else {
+      ApplianceGetDataClient applianceGetDataClient =
+          new ApplianceGetDataClient(windmillServer, getDataMetricTracker);
+      this.getDataClient = applianceGetDataClient;
+      workRefreshClient = applianceGetDataClient;
+    }
 
     this.activeWorkRefresher =
         new ActiveWorkRefresher(
@@ -914,7 +914,7 @@ public class StreamingDataflowWorker {
         // If at any point the server closes the stream, we will reconnect immediately; otherwise
         // we half-close the stream after some time and create a new one.
         if (!stream.awaitTermination(GET_WORK_STREAM_TIMEOUT_MINUTES, TimeUnit.MINUTES)) {
-          stream.close();
+          stream.halfClose();
         }
       } catch (InterruptedException e) {
         // Continue processing until !running.get()

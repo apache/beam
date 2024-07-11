@@ -186,7 +186,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
           requestObserver = requestObserverSupplier.get();
           onNewStream();
           if (clientClosed.get()) {
-            close();
+            halfClose();
           }
           return;
         }
@@ -249,7 +249,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   protected abstract void appendSpecificHtml(PrintWriter writer);
 
   @Override
-  public final synchronized void close() {
+  public final synchronized void halfClose() {
     // Synchronization of close and onCompleted necessary for correct retry logic in onNewStream.
     clientClosed.set(true);
     requestObserver().onCompleted();
@@ -274,7 +274,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   @Override
   public void shutdown() {
     if (isShutdown.compareAndSet(false, true)) {
-      close();
+      halfClose();
     }
   }
 

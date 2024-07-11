@@ -237,7 +237,7 @@ public class WindmillStreamPoolTest {
     }
 
     @Override
-    public void close() {
+    public void halfClose() {
       closed = true;
     }
 
@@ -258,7 +258,7 @@ public class WindmillStreamPoolTest {
 
     @Override
     public void shutdown() {
-      close();
+      halfClose();
     }
 
     @Override

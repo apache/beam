@@ -24,5 +24,5 @@ public interface HeartbeatSender {
    * Send heartbeats. Heartbeats represent WorkItem that is actively being processed belonging to
    * the computation.
    */
-  void sendHeartbeats(Heartbeat heartbeats);
+  void sendHeartbeats(Heartbeats heartbeats);
 }

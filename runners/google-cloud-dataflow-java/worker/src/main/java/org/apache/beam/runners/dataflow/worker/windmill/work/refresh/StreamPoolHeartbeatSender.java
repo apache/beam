@@ -37,10 +37,10 @@ public final class StreamPoolHeartbeatSender implements HeartbeatSender {
   }
 
   @Override
-  public void sendHeartbeats(Heartbeat heartbeats) {
+  public void sendHeartbeats(Heartbeats heartbeats) {
     try (CloseableStream<WindmillStream.GetDataStream> closeableStream =
         heartbeatStreamPool.getCloseableStream()) {
-      closeableStream.stream().refreshActiveWork(heartbeats.heartbeatRequests());
+      closeableStream.stream().refreshActiveWork(heartbeats.heartbeatRequests().asMap());
     } catch (Exception e) {
       LOG.warn("Error occurred sending heartbeats=[{}].", heartbeats, e);
     }

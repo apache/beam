@@ -59,11 +59,8 @@ public final class ThrottlingGetDataMetricTracker {
     getDataMetrics
         .activeHeartbeats()
         .getAndUpdate(currentActiveHeartbeats -> currentActiveHeartbeats + numHeartbeats);
-    // Active heartbeats should never drop below 0.
     return () ->
-        getDataMetrics
-            .activeHeartbeats()
-            .getAndUpdate(existing -> Math.max(existing - numHeartbeats, 0));
+        getDataMetrics.activeHeartbeats().getAndUpdate(existing -> existing - numHeartbeats);
   }
 
   public void printHtml(PrintWriter writer) {

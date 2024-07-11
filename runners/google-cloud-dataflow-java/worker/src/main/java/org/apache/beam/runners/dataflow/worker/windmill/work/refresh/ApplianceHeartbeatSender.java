@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.work.refresh;
 
-import java.util.List;
+import java.util.Collection;
 import java.util.Map;
 import java.util.function.Consumer;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
@@ -37,11 +37,11 @@ public final class ApplianceHeartbeatSender implements HeartbeatSender {
    * must translate the HeartbeatRequest to a KeyedGetDataRequest here.
    */
   @Override
-  public void sendHeartbeats(Heartbeat heartbeats) {
+  public void sendHeartbeats(Heartbeats heartbeats) {
     Windmill.GetDataRequest.Builder builder = Windmill.GetDataRequest.newBuilder();
 
-    for (Map.Entry<String, List<Windmill.HeartbeatRequest>> entry :
-        heartbeats.heartbeatRequests().entrySet()) {
+    for (Map.Entry<String, Collection<Windmill.HeartbeatRequest>> entry :
+        heartbeats.heartbeatRequests().asMap().entrySet()) {
       Windmill.ComputationGetDataRequest.Builder perComputationBuilder =
           Windmill.ComputationGetDataRequest.newBuilder();
       perComputationBuilder.setComputationId(entry.getKey());

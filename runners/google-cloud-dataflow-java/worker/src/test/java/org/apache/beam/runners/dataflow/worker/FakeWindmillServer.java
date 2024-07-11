@@ -28,6 +28,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -244,7 +245,7 @@ public final class FakeWindmillServer extends WindmillServerStub {
       }
 
       @Override
-      public void close() {
+      public void halfClose() {
         done.countDown();
       }
 
@@ -269,7 +270,7 @@ public final class FakeWindmillServer extends WindmillServerStub {
             try {
               sleepMillis(500);
             } catch (InterruptedException e) {
-              close();
+              halfClose();
               Thread.currentThread().interrupt();
             }
             continue;
@@ -355,9 +356,9 @@ public final class FakeWindmillServer extends WindmillServerStub {
       }
 
       @Override
-      public void refreshActiveWork(Map<String, List<HeartbeatRequest>> heartbeats) {
+      public void refreshActiveWork(Map<String, Collection<HeartbeatRequest>> heartbeats) {
         Windmill.GetDataRequest.Builder builder = Windmill.GetDataRequest.newBuilder();
-        for (Map.Entry<String, List<HeartbeatRequest>> entry : heartbeats.entrySet()) {
+        for (Map.Entry<String, Collection<HeartbeatRequest>> entry : heartbeats.entrySet()) {
           builder.addComputationHeartbeatRequest(
               ComputationHeartbeatRequest.newBuilder()
                   .setComputationId(entry.getKey())
@@ -373,7 +374,7 @@ public final class FakeWindmillServer extends WindmillServerStub {
       }
 
       @Override
-      public void close() {}
+      public void halfClose() {}
 
       @Override
       public boolean awaitTermination(int time, TimeUnit unit) {
@@ -469,7 +470,7 @@ public final class FakeWindmillServer extends WindmillServerStub {
       }
 
       @Override
-      public void close() {}
+      public void halfClose() {}
 
       @Override
       public boolean awaitTermination(int time, TimeUnit unit) {

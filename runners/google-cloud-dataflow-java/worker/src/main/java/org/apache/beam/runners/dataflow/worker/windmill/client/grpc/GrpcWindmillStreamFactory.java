@@ -200,7 +200,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
       Supplier<WorkCommitter> workCommitter,
       WorkItemScheduler workItemScheduler) {
     return GrpcDirectGetWorkStream.create(
-        connection.backendWorkerToken().orElse(NO_BACKEND_WORKER_TOKEN),
+        connection.backendWorkerToken(),
         responseObserver -> withDefaultDeadline(connection.stub()).getWorkStream(responseObserver),
         request,
         grpcBackOff.get(),

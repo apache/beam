@@ -138,10 +138,10 @@ public class WindmillStreamSender {
     // streaming RPCs by possibly making calls over the network. Do not close the streams unless
     // they have already been started.
     if (started.get()) {
-      getWorkStream.get().close();
-      getDataStream.get().close();
+      getWorkStream.get().halfClose();
+      getDataStream.get().halfClose();
       workCommitter.get().stop();
-      commitWorkStream.get().close();
+      commitWorkStream.get().halfClose();
     }
   }
 

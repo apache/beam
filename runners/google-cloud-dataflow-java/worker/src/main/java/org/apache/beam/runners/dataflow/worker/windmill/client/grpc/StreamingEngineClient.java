@@ -263,7 +263,7 @@ public final class StreamingEngineClient {
   @VisibleForTesting
   public synchronized void finish() {
     Preconditions.checkState(started, "StreamingEngineClient never started.");
-    getWorkerMetadataStream.get().close();
+    getWorkerMetadataStream.get().halfClose();
     getWorkBudgetRefresher.stop();
     newWorkerMetadataPublisher.shutdownNow();
     newWorkerMetadataConsumer.shutdownNow();

@@ -275,7 +275,7 @@ public class StreamingEngineWorkCommitterTest {
               }
 
               @Override
-              public void close() {}
+              public void halfClose() {}
 
               @Override
               public boolean awaitTermination(int time, TimeUnit unit) {

@@ -397,8 +397,7 @@ public final class StreamingWorkScheduler {
       computationState.releaseComputationWorkExecutor(computationWorkExecutor);
 
       work.setState(Work.State.COMMIT_QUEUED);
-      outputBuilder.addAllPerWorkItemLatencyAttributions(
-          work.getLatencyAttributions(false, sampler));
+      outputBuilder.addAllPerWorkItemLatencyAttributions(work.getLatencyAttributions(sampler));
 
       return ExecuteWorkResult.create(
           outputBuilder, stateReader.getBytesRead() + localSideInputStateFetcher.getBytesRead());

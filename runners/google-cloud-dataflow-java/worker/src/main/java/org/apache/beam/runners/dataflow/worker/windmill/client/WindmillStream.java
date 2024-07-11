@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.worker.windmill.client;
 
 import java.io.Closeable;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -37,7 +38,7 @@ public interface WindmillStream {
   String backendWorkerToken();
 
   /** Indicates that no more requests will be sent. */
-  void close();
+  void halfClose();
 
   /** Waits for the server to close its end of the connection, with timeout. */
   boolean awaitTermination(int time, TimeUnit unit) throws InterruptedException;
@@ -89,7 +90,7 @@ public interface WindmillStream {
     Windmill.GlobalData requestGlobalData(Windmill.GlobalDataRequest request);
 
     /** Tells windmill processing is ongoing for the given keys. */
-    void refreshActiveWork(Map<String, List<HeartbeatRequest>> heartbeats);
+    void refreshActiveWork(Map<String, Collection<HeartbeatRequest>> heartbeats);
 
     void onHeartbeatResponse(List<Windmill.ComputationHeartbeatResponse> responses);
 

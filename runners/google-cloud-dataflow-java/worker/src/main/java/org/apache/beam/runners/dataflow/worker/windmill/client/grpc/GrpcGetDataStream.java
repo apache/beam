@@ -23,6 +23,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Ve
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
+import java.util.Collection;
 import java.util.Deque;
 import java.util.List;
 import java.util.Map;
@@ -197,11 +198,11 @@ public final class GrpcGetDataStream
   }
 
   @Override
-  public void refreshActiveWork(Map<String, List<HeartbeatRequest>> heartbeats) {
+  public void refreshActiveWork(Map<String, Collection<HeartbeatRequest>> heartbeats) {
     StreamingGetDataRequest.Builder builder = StreamingGetDataRequest.newBuilder();
     if (sendKeyedGetDataRequests) {
       long builderBytes = 0;
-      for (Map.Entry<String, List<HeartbeatRequest>> entry : heartbeats.entrySet()) {
+      for (Map.Entry<String, Collection<HeartbeatRequest>> entry : heartbeats.entrySet()) {
         for (HeartbeatRequest request : entry.getValue()) {
           // Calculate the bytes with some overhead for proto encoding.
           long bytes = (long) entry.getKey().length() + request.getSerializedSize() + 10;
@@ -232,7 +233,7 @@ public final class GrpcGetDataStream
     } else {
       // No translation necessary, but we must still respect `RPC_STREAM_CHUNK_SIZE`.
       long builderBytes = 0;
-      for (Map.Entry<String, List<HeartbeatRequest>> entry : heartbeats.entrySet()) {
+      for (Map.Entry<String, Collection<HeartbeatRequest>> entry : heartbeats.entrySet()) {
         ComputationHeartbeatRequest.Builder computationHeartbeatBuilder =
             ComputationHeartbeatRequest.newBuilder().setComputationId(entry.getKey());
         for (HeartbeatRequest request : entry.getValue()) {

@@ -43,7 +43,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.St
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemScheduler;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
-import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.DirectHeartbeatSender;
+import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.FixedStreamHeartbeatSender;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
@@ -339,7 +339,7 @@ public final class GrpcDirectGetWorkStream
           computationId,
           getDataStream.get()::requestKeyedData,
           workCommitter.get()::commit,
-          DirectHeartbeatSender.create(getDataStream.get()));
+          FixedStreamHeartbeatSender.create(getDataStream.get()));
     }
   }
 }

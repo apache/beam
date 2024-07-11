@@ -226,9 +226,9 @@ public class WindmillStreamSenderTest {
     windmillStreamSender.startStreams();
     windmillStreamSender.closeAllStreams();
 
-    verify(mockGetWorkStream).close();
-    verify(mockGetDataStream).close();
-    verify(mockCommitWorkStream).close();
+    verify(mockGetWorkStream).halfClose();
+    verify(mockGetDataStream).halfClose();
+    verify(mockCommitWorkStream).halfClose();
   }
 
   private WindmillStreamSender newWindmillStreamSender(GetWorkBudget budget) {

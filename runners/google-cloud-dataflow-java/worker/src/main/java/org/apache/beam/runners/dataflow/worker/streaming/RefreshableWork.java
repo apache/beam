@@ -30,12 +30,14 @@ public interface RefreshableWork {
 
   WorkId id();
 
+  ShardedKey getShardedKey();
+
   boolean isRefreshable(Instant refreshDeadline);
 
   HeartbeatSender heartbeatSender();
 
-  ImmutableList<Windmill.LatencyAttribution> getLatencyAttributions(
-      boolean isHeartbeat, DataflowExecutionStateSampler sampler);
+  ImmutableList<Windmill.LatencyAttribution> getHeartbeatLatencyAttributions(
+      DataflowExecutionStateSampler sampler);
 
   void setFailed();
 }

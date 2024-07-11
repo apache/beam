@@ -98,7 +98,7 @@ public class ActiveWorkRefresherTest {
       int activeWorkRefreshPeriodMillis,
       int stuckCommitDurationMillis,
       Supplier<Collection<ComputationState>> computations,
-      Consumer<Map<HeartbeatSender, Heartbeat>> activeWorkRefresherFn) {
+      Consumer<Map<HeartbeatSender, Heartbeats>> activeWorkRefresherFn) {
     return new ActiveWorkRefresher(
         clock,
         activeWorkRefreshPeriodMillis,
@@ -164,7 +164,7 @@ public class ActiveWorkRefresherTest {
       activeWorkForComputation.add(fakeWork);
     }
 
-    Map<HeartbeatSender, Heartbeat> fanoutExpectedHeartbeats = new HashMap<>();
+    Map<HeartbeatSender, Heartbeats> fanoutExpectedHeartbeats = new HashMap<>();
     CountDownLatch heartbeatsSent = new CountDownLatch(1);
     TestClock fakeClock = new TestClock(Instant.now());
     ActiveWorkRefresher activeWorkRefresher =
@@ -186,12 +186,12 @@ public class ActiveWorkRefresherTest {
     assertThat(computationsAndWork.size())
         .isEqualTo(
             Iterables.getOnlyElement(fanoutExpectedHeartbeats.values()).heartbeatRequests().size());
-    for (Map.Entry<HeartbeatSender, Heartbeat> fanOutExpectedHeartbeat :
+    for (Map.Entry<HeartbeatSender, Heartbeats> fanOutExpectedHeartbeat :
         fanoutExpectedHeartbeats.entrySet()) {
-      for (Map.Entry<String, List<Windmill.HeartbeatRequest>> expectedHeartbeat :
-          fanOutExpectedHeartbeat.getValue().heartbeatRequests().entrySet()) {
+      for (Map.Entry<String, Collection<Windmill.HeartbeatRequest>> expectedHeartbeat :
+          fanOutExpectedHeartbeat.getValue().heartbeatRequests().asMap().entrySet()) {
         String computationId = expectedHeartbeat.getKey();
-        List<Windmill.HeartbeatRequest> heartbeatRequests = expectedHeartbeat.getValue();
+        Collection<Windmill.HeartbeatRequest> heartbeatRequests = expectedHeartbeat.getValue();
         List<Work> work =
             computationsAndWork.get(computationId).stream()
                 .map(ExecutableWork::work)

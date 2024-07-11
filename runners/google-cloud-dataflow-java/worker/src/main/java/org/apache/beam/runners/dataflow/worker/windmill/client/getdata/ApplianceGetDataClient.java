@@ -29,10 +29,11 @@ import org.apache.beam.runners.dataflow.worker.WindmillComputationKey;
 import org.apache.beam.runners.dataflow.worker.windmill.ApplianceWindmillClient;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationGetDataRequest;
-import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.Heartbeat;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
+import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.Heartbeats;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.SettableFuture;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -106,20 +107,20 @@ public final class ApplianceGetDataClient implements GetDataClient, WorkRefreshC
    * translate the HeartbeatRequest to a KeyedGetDataRequest.
    */
   @Override
-  public void refreshActiveWork(Map<HeartbeatSender, Heartbeat> heartbeats) {
-    if (heartbeats.isEmpty()) {
+  public void refreshActiveWork(Map<HeartbeatSender, Heartbeats> heartbeats) {
+    Map.Entry<HeartbeatSender, Heartbeats> heartbeat =
+        Iterables.getOnlyElement(heartbeats.entrySet());
+    HeartbeatSender heartbeatSender = heartbeat.getKey();
+    Heartbeats heartbeatToSend = heartbeat.getValue();
+
+    if (heartbeatToSend.heartbeatRequests().isEmpty()) {
       return;
     }
 
-    for (Map.Entry<HeartbeatSender, Heartbeat> heartbeatToSend : heartbeats.entrySet()) {
-      HeartbeatSender heartbeatSender = heartbeatToSend.getKey();
-      try (AutoCloseable ignored =
-          getDataMetricTracker.trackHeartbeats(
-              heartbeatToSend.getValue().heartbeatRequests().size())) {
-        heartbeatSender.sendHeartbeats(heartbeatToSend.getValue());
-      } catch (Exception e) {
-        throw new GetDataException("Error occurred refreshing heartbeats=" + heartbeatToSend, e);
-      }
+    try (AutoCloseable ignored = getDataMetricTracker.trackHeartbeats(heartbeatToSend.size())) {
+      heartbeatSender.sendHeartbeats(heartbeatToSend);
+    } catch (Exception e) {
+      throw new GetDataException("Error occurred refreshing heartbeats=" + heartbeatToSend, e);
     }
   }
 

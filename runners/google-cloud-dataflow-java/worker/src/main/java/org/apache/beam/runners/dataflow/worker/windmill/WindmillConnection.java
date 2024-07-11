@@ -27,6 +27,8 @@ import org.apache.beam.sdk.annotations.Internal;
 @AutoValue
 @Internal
 public abstract class WindmillConnection {
+  private static final String NO_BACKEND_WORKER_TOKEN = "";
+
   public static WindmillConnection from(
       Endpoint windmillEndpoint,
       Function<Endpoint, CloudWindmillServiceV1Alpha1Stub> endpointToStubFn) {
@@ -40,10 +42,11 @@ public abstract class WindmillConnection {
   }
 
   public static Builder builder() {
-    return new AutoValue_WindmillConnection.Builder();
+    return new AutoValue_WindmillConnection.Builder()
+        .setBackendWorkerToken(NO_BACKEND_WORKER_TOKEN);
   }
 
-  public abstract Optional<String> backendWorkerToken();
+  public abstract String backendWorkerToken();
 
   public abstract Optional<WindmillServiceAddress> directEndpoint();
 

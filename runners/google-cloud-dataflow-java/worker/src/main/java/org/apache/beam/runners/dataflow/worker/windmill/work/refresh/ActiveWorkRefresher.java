@@ -17,10 +17,10 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.work.refresh;
 
-import java.util.ArrayList;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap.toImmutableMap;
+
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -30,9 +30,8 @@ import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.RefreshableWork;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Table;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -56,7 +55,7 @@ public final class ActiveWorkRefresher {
   private final DataflowExecutionStateSampler sampler;
   private final int stuckCommitDurationMillis;
   private final ScheduledExecutorService activeWorkRefreshExecutor;
-  private final Consumer<Map<HeartbeatSender, Heartbeat>> heartbeatSender;
+  private final Consumer<Map<HeartbeatSender, Heartbeats>> heartbeatSender;
 
   public ActiveWorkRefresher(
       Supplier<Instant> clock,
@@ -65,7 +64,7 @@ public final class ActiveWorkRefresher {
       Supplier<Collection<ComputationState>> computations,
       DataflowExecutionStateSampler sampler,
       ScheduledExecutorService activeWorkRefreshExecutor,
-      Consumer<Map<HeartbeatSender, Heartbeat>> heartbeatSender) {
+      Consumer<Map<HeartbeatSender, Heartbeats>> heartbeatSender) {
     this.clock = clock;
     this.activeWorkRefreshPeriodMillis = activeWorkRefreshPeriodMillis;
     this.stuckCommitDurationMillis = stuckCommitDurationMillis;
@@ -73,6 +72,16 @@ public final class ActiveWorkRefresher {
     this.sampler = sampler;
     this.activeWorkRefreshExecutor = activeWorkRefreshExecutor;
     this.heartbeatSender = heartbeatSender;
+  }
+
+  private static Windmill.HeartbeatRequest createHeartbeatRequest(
+      RefreshableWork work, DataflowExecutionStateSampler sampler) {
+    return Windmill.HeartbeatRequest.newBuilder()
+        .setShardingKey(work.getShardedKey().shardingKey())
+        .setWorkToken(work.id().workToken())
+        .setCacheToken(work.id().cacheToken())
+        .addAllLatencyAttribution(work.getHeartbeatLatencyAttributions(sampler))
+        .build();
   }
 
   @SuppressWarnings("FutureReturnValueIgnored")
@@ -119,32 +128,21 @@ public final class ActiveWorkRefresher {
   private void refreshActiveWork() {
     Instant refreshDeadline = clock.get().minus(Duration.millis(activeWorkRefreshPeriodMillis));
 
-    Map<HeartbeatSender, Heartbeat> fannedOutHeartbeatRequests = new HashMap<>();
+    Map<HeartbeatSender, Heartbeats.Builder> heartbeatsBySender = new HashMap<>();
 
+    // Aggregate the heartbeats across computations by HeartbeatSender for correct fan out.
     for (ComputationState computationState : computations.get()) {
-      String computationId = computationState.getComputationId();
-
-      // Get heartbeat requests for computation's current active work, aggregated by GetDataStream
-      // to correctly fan-out the heartbeat requests.
-      Table<HeartbeatSender, RefreshableWork, HeartbeatRequest> heartbeats =
-          HeartbeatRequests.getRefreshableKeyHeartbeats(
-              computationState.currentActiveWorkReadOnly(), refreshDeadline, sampler);
-
-      // Aggregate the heartbeats across computations by GetDataStream for correct fan out.
-      for (Table.Cell<HeartbeatSender, RefreshableWork, HeartbeatRequest> heartbeatsPerStream :
-          heartbeats.cellSet()) {
-        Heartbeat heartbeat =
-            fannedOutHeartbeatRequests.computeIfAbsent(
-                heartbeatsPerStream.getRowKey(), ignored -> Heartbeat.create());
-        heartbeat.work().add(heartbeatsPerStream.getColumnKey());
-        List<HeartbeatRequest> existingHeartbeatsForComputation =
-            heartbeat
-                .heartbeatRequests()
-                .computeIfAbsent(computationId, ignored -> new ArrayList<>());
-        existingHeartbeatsForComputation.add(heartbeatsPerStream.getValue());
+      for (RefreshableWork work : computationState.getRefreshableWork(refreshDeadline)) {
+        heartbeatsBySender
+            .computeIfAbsent(work.heartbeatSender(), ignored -> Heartbeats.builder())
+            .addWork(work)
+            .addHeartbeatRequest(
+                computationState.getComputationId(), createHeartbeatRequest(work, sampler));
       }
     }
 
-    heartbeatSender.accept(fannedOutHeartbeatRequests);
+    heartbeatSender.accept(
+        heartbeatsBySender.entrySet().stream()
+            .collect(toImmutableMap(Map.Entry::getKey, e -> e.getValue().build())));
   }
 }

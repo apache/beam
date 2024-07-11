@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.work.refresh;
 
+import java.util.Objects;
 import org.apache.beam.runners.dataflow.worker.streaming.RefreshableWork;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.sdk.annotations.Internal;
@@ -31,22 +32,23 @@ import org.slf4j.LoggerFactory;
  *     <p>{@link #equals(Object)} and {@link #hashCode()} implementations delegate to internal
  *     {@link GetDataStream} implementations so that requests can be grouped and sent on the same
  *     stream instance.
+ *     <p>This class is a stateless decorator to the underlying stream.
  */
 @Internal
-public final class DirectHeartbeatSender implements HeartbeatSender {
-  private static final Logger LOG = LoggerFactory.getLogger(DirectHeartbeatSender.class);
+public final class FixedStreamHeartbeatSender implements HeartbeatSender {
+  private static final Logger LOG = LoggerFactory.getLogger(FixedStreamHeartbeatSender.class);
   private final GetDataStream getDataStream;
 
-  private DirectHeartbeatSender(GetDataStream getDataStream) {
+  private FixedStreamHeartbeatSender(GetDataStream getDataStream) {
     this.getDataStream = getDataStream;
   }
 
-  public static DirectHeartbeatSender create(GetDataStream getDataStream) {
-    return new DirectHeartbeatSender(getDataStream);
+  public static FixedStreamHeartbeatSender create(GetDataStream getDataStream) {
+    return new FixedStreamHeartbeatSender(getDataStream);
   }
 
   @Override
-  public void sendHeartbeats(Heartbeat heartbeats) {
+  public void sendHeartbeats(Heartbeats heartbeats) {
     if (getDataStream.isShutdown()) {
       LOG.warn(
           "Trying to refresh work w/ {} heartbeats on stream={} after work has moved off of worker."
@@ -55,18 +57,18 @@ public final class DirectHeartbeatSender implements HeartbeatSender {
           heartbeats.heartbeatRequests().size());
       heartbeats.work().forEach(RefreshableWork::setFailed);
     } else {
-      getDataStream.refreshActiveWork(heartbeats.heartbeatRequests());
+      getDataStream.refreshActiveWork(heartbeats.heartbeatRequests().asMap());
     }
   }
 
   @Override
   public int hashCode() {
-    return getDataStream.hashCode();
+    return Objects.hash(FixedStreamHeartbeatSender.class, getDataStream);
   }
 
   @Override
   public boolean equals(Object obj) {
-    return obj instanceof DirectHeartbeatSender
-        && getDataStream.equals(((DirectHeartbeatSender) obj).getDataStream);
+    return obj instanceof FixedStreamHeartbeatSender
+        && getDataStream.equals(((FixedStreamHeartbeatSender) obj).getDataStream);
   }
 }

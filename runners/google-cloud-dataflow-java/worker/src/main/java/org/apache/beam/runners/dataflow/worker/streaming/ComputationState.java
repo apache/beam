@@ -28,6 +28,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableListMultimap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multimap;
@@ -147,6 +148,10 @@ public class ComputationState {
 
   public ImmutableListMultimap<ShardedKey, RefreshableWork> currentActiveWorkReadOnly() {
     return activeWorkState.getReadOnlyActiveWork();
+  }
+
+  public ImmutableList<RefreshableWork> getRefreshableWork(Instant refreshDeadline) {
+    return activeWorkState.getRefreshableWork(refreshDeadline);
   }
 
   public GetWorkBudget getActiveWorkBudget() {
