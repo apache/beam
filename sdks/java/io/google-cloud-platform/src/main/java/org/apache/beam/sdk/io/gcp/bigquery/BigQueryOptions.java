@@ -111,11 +111,11 @@ public interface BigQueryOptions
 
   @Description(
       "When using the STORAGE_API_AT_LEAST_ONCE write method with multiplexing (ie. useStorageApiConnectionPool=true), "
-          + "this option sets the minimum number of connections each pool creates. This is on a per worker, per region basis. "
-          + "Note that in practice, the minimum number of connections created is the minimum of this value and "
-          + "(numStorageWriteApiStreamAppendClients x num destinations). BigQuery will create this many connections at first "
-          + "and will only create more connections if the current ones are \"overwhelmed\". Consider increasing this value if "
-          + "you are running into performance issues.")
+          + "this option sets the minimum number of connections each pool creates before any connections are shared. This is "
+          + "on a per worker, per region basis. Note that in practice, the minimum number of connections created is the minimum "
+          + "of this value and (numStorageWriteApiStreamAppendClients x num destinations). BigQuery will create this many "
+          + "connections at first and will only create more connections if the current ones are \"overwhelmed\". Consider "
+          + "increasing this value if you are running into performance issues.")
   @Default.Integer(2)
   Integer getMinConnectionPoolConnections();
 
