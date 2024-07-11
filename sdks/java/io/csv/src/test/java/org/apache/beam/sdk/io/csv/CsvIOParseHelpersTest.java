@@ -33,7 +33,7 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link CsvIOParseHelpers}. */
 @RunWith(JUnit4.class)
 public class CsvIOParseHelpersTest {
-  
+
   /** Tests for {@link CsvIOParseHelpers#validate(CSVFormat)}. */
   @Test
   public void givenCSVFormatWithHeader_validates() {
@@ -104,9 +104,7 @@ public class CsvIOParseHelpersTest {
   /** End of tests for {@link CsvIOParseHelpers#validate(CSVFormat)}. */
   //////////////////////////////////////////////////////////////////////////////////////////////
 
-  /**
-   * Tests for {@link CsvIOParseHelpers#parseCell(String, Schema.Field)}
-   */
+  /** Tests for {@link CsvIOParseHelpers#parseCell(String, Schema.Field)}. */
   @Test
   public void ignoresCaseFormat() {
     String allCapsBool = "TRUE";
@@ -444,20 +442,16 @@ public class CsvIOParseHelpersTest {
             + ", consider using withCustomRecordParsing",
         e.getMessage());
   }
-  
-  /** End of tests for {@link CsvIOParseHelpers#parseCell(String, Schema.Field)}.*/
+
+  /** End of tests for {@link CsvIOParseHelpers#parseCell(String, Schema.Field)}. */
   //////////////////////////////////////////////////////////////////////////////////////////////
 
-  /**
-   * Return a {@link CSVFormat} with a header.
-   */
+  /** Return a {@link CSVFormat} with a header. */
   private static CSVFormat csvFormatWithHeader() {
     return csvFormat().withHeader("foo", "bar");
   }
 
-  /**
-   * Return a {@link CSVFormat} with no header.
-   */
+  /** Return a {@link CSVFormat} with no header. */
   private static CSVFormat csvFormat() {
     return CSVFormat.DEFAULT;
   }
