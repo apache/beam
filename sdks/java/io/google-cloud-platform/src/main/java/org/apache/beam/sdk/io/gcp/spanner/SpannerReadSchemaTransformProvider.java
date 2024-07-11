@@ -55,6 +55,7 @@ public class SpannerReadSchemaTransformProvider
       if (!Strings.isNullOrEmpty(configuration.getQuery())) {
           spannerRows = input.getPipeline().apply(
             SpannerIO.read()
+            .withProjectId(configuration.getProjectId())
             .withInstanceId(configuration.getInstanceId())
             .withDatabaseId(configuration.getDatabaseId())
             .withQuery(configuration.getQuery())
@@ -63,9 +64,11 @@ public class SpannerReadSchemaTransformProvider
       else {
         spannerRows = input.getPipeline().apply(
           SpannerIO.read()
+          .withProjectId(configuration.getProjectId())
           .withInstanceId(configuration.getInstanceId())
           .withDatabaseId(configuration.getDatabaseId())
           .withTable(configuration.getTableId())
+          .withColumns(configuration.getColumns())
           );
       }
 
@@ -106,28 +109,28 @@ public class SpannerReadSchemaTransformProvider
     @AutoValue.Builder
     @Nullable
     public abstract static class Builder {
-  
+      public abstract Builder setProjectId(String projectId);
       public abstract Builder setInstanceId(String instanceId);
-
       public abstract Builder setDatabaseId(String databaseId);
-
       public abstract Builder setTableId(String tableId);
-
       public abstract Builder setQuery(String query);
-
+      public abstract Builder setColumns(List<String> columns);
       public abstract SpannerReadSchemaTransformConfiguration build();
     }
 
     public void validate() {
       String invalidConfigMessage = "Invalid Cloud Spanner Read configuration: ";
       if (!Strings.isNullOrEmpty(this.getQuery())) {
+        checkNotNull(this.getProjectId(), invalidConfigMessage + "Project ID must be specified for SQL query.");
         checkNotNull(this.getInstanceId(), invalidConfigMessage + "Instance ID must be specified for SQL query.");
         checkNotNull(this.getDatabaseId(), invalidConfigMessage + "Database ID must be specified for SQL query.");
       } 
       else {
-        checkNotNull(this.getTableId(), invalidConfigMessage + "Table name must be specified.");
+        checkNotNull(this.getProjectId(), invalidConfigMessage + "Project ID must be specified for table read.");
+        checkNotNull(this.getTableId(), invalidConfigMessage + "Table name must be specified for table read.");
         checkNotNull(this.getInstanceId(), invalidConfigMessage + "Instance ID must be specified for table read.");
         checkNotNull(this.getDatabaseId(), invalidConfigMessage + "Database ID must be specified for table read.");
+        checkNotNull(this.getColumns(), invalidConfigMessage + "Columns must be specified for table read.");
       }
     }
 
@@ -135,6 +138,10 @@ public class SpannerReadSchemaTransformProvider
       return new AutoValue_SpannerReadSchemaTransformProvider_SpannerReadSchemaTransformConfiguration
           .Builder();
     }
+    @SchemaFieldDescription("Specifies the GCP project ID.")
+    @Nullable
+    public abstract String getProjectId();
+
     @SchemaFieldDescription("Specifies the Cloud Spanner instance.")
     @Nullable
     public abstract String getInstanceId();
@@ -150,6 +157,10 @@ public class SpannerReadSchemaTransformProvider
     @SchemaFieldDescription("Specifies the SQL query to execute.")
     @Nullable
     public abstract String getQuery();
+
+    @SchemaFieldDescription("Specifies the columns to read from the table.")
+    @Nullable
+    public abstract List<String> getColumns(); 
 }
 
   @Override

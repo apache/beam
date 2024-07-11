@@ -3,11 +3,13 @@ pipeline:
   transforms:
     - type: ReadFromSpanner
       config:
+        project_id: "apache-beam-testing"
         instance_id: "spanner-test"
         database_id: "student"
         table_id: "student"
-        query: ""
+        columns:
+         - "id_column"
+         - "name_column"
     - type: LogForTesting
 options:
-  project: "apache-beam-testing"
   temp_location: "gs://temp-storage-for-end-to-end-tests/temp-it"

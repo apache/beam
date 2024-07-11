@@ -265,10 +265,12 @@
   config:
     mappings:
       'ReadFromSpanner':
+        project_id: 'project_id'
         instance_id: 'instance_id'
         database_id: 'database_id'
         table_id: 'table_id'
         query: 'query'
+        columns: 'columns'
       'WriteToSpanner':
         instance_id: 'instance_id'
         database_id: 'database_id'
