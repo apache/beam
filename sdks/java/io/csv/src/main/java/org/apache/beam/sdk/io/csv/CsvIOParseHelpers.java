@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.csv;
 
+import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.schemas.Schema;
@@ -48,8 +50,38 @@ final class CsvIOParseHelpers {
    * Parse the given {@link String} cell of the CSV record based on the given field's {@link
    * Schema.FieldType}.
    */
-  // TODO(https://github.com/apache/beam/issues/31719): implement method.
   static Object parseCell(String cell, Schema.Field field) {
-    return "";
+    Schema.FieldType fieldType = field.getType();
+    try {
+      switch (fieldType.getTypeName()) {
+        case STRING:
+          return cell;
+        case INT16:
+          return Short.parseShort(cell);
+        case INT32:
+          return Integer.parseInt(cell);
+        case INT64:
+          return Long.parseLong(cell);
+        case BOOLEAN:
+          return Boolean.parseBoolean(cell);
+        case BYTE:
+          return Byte.parseByte(cell);
+        case DECIMAL:
+          return new BigDecimal(cell);
+        case DOUBLE:
+          return Double.parseDouble(cell);
+        case FLOAT:
+          return Float.parseFloat(cell);
+        case DATETIME:
+          return Instant.parse(cell);
+        default:
+          throw new UnsupportedOperationException(
+              "Unsupported type: " + fieldType + ", consider using withCustomRecordParsing");
+      }
+
+    } catch (IllegalArgumentException e) {
+      throw new IllegalArgumentException(
+          e.getMessage() + " field " + field.getName() + " was received -- type mismatch");
+    }
   }
 }
