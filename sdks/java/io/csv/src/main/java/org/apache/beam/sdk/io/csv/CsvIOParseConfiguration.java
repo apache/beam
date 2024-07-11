@@ -83,7 +83,6 @@ abstract class CsvIOParseConfiguration {
     private static class BadRecordTransformFn extends DoFn<BadRecord, BadRecord> {
       @ProcessElement
       public void process(@Element BadRecord input, OutputReceiver<BadRecord> receiver) {
-        System.out.println(input);
         receiver.output(input);
       }
     }
