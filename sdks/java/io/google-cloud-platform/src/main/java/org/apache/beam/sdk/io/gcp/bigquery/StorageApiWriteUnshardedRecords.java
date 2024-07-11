@@ -811,6 +811,9 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                   .inc(numRowsRetried);
 
               appendFailures.inc();
+              if (quotaError) {
+                return RetryType.RETRY_QUOTA;
+              }
               return RetryType.RETRY_ALL_OPERATIONS;
             },
             c -> {
@@ -967,8 +970,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
 
         RetryManager<AppendRowsResponse, AppendRowsContext> retryManager =
             new RetryManager<>(
-                Duration.standardSeconds(5),
-                Duration.standardSeconds(60),
+                Duration.standardSeconds(1),
+                Duration.standardSeconds(20),
                 maxRetries,
                 BigQuerySinkMetrics.throttledTimeCounter(
                     BigQuerySinkMetrics.RpcMethod.APPEND_ROWS));
