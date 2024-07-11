@@ -17,11 +17,10 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
-
 import com.google.api.core.ApiFuture;
 import com.google.api.core.ApiFutureCallback;
 import com.google.api.core.ApiFutures;
+import java.io.IOException;
 import java.time.Instant;
 import java.util.Queue;
 import java.util.concurrent.CountDownLatch;
@@ -52,6 +51,9 @@ import org.joda.time.Duration;
 class RetryManager<ResultT, ContextT extends Context<ResultT>> {
   private Queue<Operation<ResultT, ContextT>> operations;
   private final BackOff backoff;
+
+  // Longer backoff for quota errors because AppendRows throughput takes a long time to cool off
+  private final BackOff quotaBackoff;
   private static final ExecutorService executor =
       Executors.newCachedThreadPool(
           new ThreadFactoryBuilder().setNameFormat("BeamBQRetryManager-%d").build());
@@ -61,7 +63,9 @@ class RetryManager<ResultT, ContextT extends Context<ResultT>> {
     // The in-flight operations will not be retried.
     DONT_RETRY,
     // All operations will be retried.
-    RETRY_ALL_OPERATIONS
+    RETRY_ALL_OPERATIONS,
+    // Retry operations due to a quota error. Tells RetryManager to wait longer between retries
+    RETRY_QUOTA
   };
 
   static class WrappedFailure extends Throwable {
@@ -85,6 +89,13 @@ class RetryManager<ResultT, ContextT extends Context<ResultT>> {
             .withMaxBackoff(maxBackoff)
             .withMaxRetries(maxRetries)
             .backoff();
+
+    quotaBackoff =
+        FluentBackoff.DEFAULT
+            .withInitialBackoff(initialBackoff.multipliedBy(5))
+            .withMaxBackoff(maxBackoff.multipliedBy(3))
+            .withMaxRetries(maxRetries)
+            .backoff();
   }
 
   RetryManager(
@@ -94,6 +105,14 @@ class RetryManager<ResultT, ContextT extends Context<ResultT>> {
         FluentBackoff.DEFAULT
             .withInitialBackoff(initialBackoff)
             .withMaxBackoff(maxBackoff)
+            .withMaxRetries(maxRetries)
+            .withThrottledTimeCounter(throttledTimeCounter)
+            .backoff();
+
+    quotaBackoff =
+        FluentBackoff.DEFAULT
+            .withInitialBackoff(initialBackoff.multipliedBy(5))
+            .withMaxBackoff(maxBackoff.multipliedBy(3))
             .withMaxRetries(maxRetries)
             .withThrottledTimeCounter(throttledTimeCounter)
             .backoff();
@@ -313,10 +332,9 @@ class RetryManager<ResultT, ContextT extends Context<ResultT>> {
         if (retryType == RetryType.DONT_RETRY) {
           operations.clear();
         } else {
-          checkState(RetryType.RETRY_ALL_OPERATIONS == retryType);
-          if (!BackOffUtils.next(Sleeper.DEFAULT, backoff)) {
-            throw new RuntimeException(failure);
-          }
+          sleepOrFail(
+              retryType == RetryType.RETRY_ALL_OPERATIONS ? backoff : quotaBackoff, failure);
+
           for (Operation<ResultT, ?> awaitOperation : operations) {
             awaitOperation.await();
           }
@@ -328,6 +346,13 @@ class RetryManager<ResultT, ContextT extends Context<ResultT>> {
         operation.onSuccess.accept(operation.context);
         operations.remove();
       }
+    }
+  }
+
+  private void sleepOrFail(BackOff backoff, @Nullable Throwable failure)
+      throws IOException, InterruptedException {
+    if (!BackOffUtils.next(Sleeper.DEFAULT, backoff)) {
+      throw new RuntimeException(failure);
     }
   }
 }
