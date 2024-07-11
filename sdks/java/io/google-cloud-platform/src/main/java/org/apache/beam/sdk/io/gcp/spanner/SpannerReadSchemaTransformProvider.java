@@ -2,14 +2,9 @@ package org.apache.beam.sdk.io.gcp.spanner;
 
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
-import com.google.cloud.spanner.Mutation;
 import java.io.Serializable;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
-import java.util.stream.Collectors;
-import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
@@ -18,16 +13,11 @@ import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.FlatMapElements;
 import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterators;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
@@ -41,6 +31,9 @@ import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.Type;
 import javax.annotation.Nullable;
 
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 @AutoService(SchemaTransformProvider.class)
 public class SpannerReadSchemaTransformProvider
     extends TypedSchemaTransformProvider<
@@ -86,7 +79,7 @@ public class SpannerReadSchemaTransformProvider
       PCollection<Row> rows = spannerRows.apply(MapElements.into(TypeDescriptor.of(Row.class))
           .via((Struct struct) -> StructUtils.structToBeamRow(struct, schema)));
 
-      return PCollectionRowTuple.of("output", rows);
+          return PCollectionRowTuple.of("output", rows.setRowSchema(schema));
     }
   }
 
@@ -113,6 +106,7 @@ public class SpannerReadSchemaTransformProvider
     @AutoValue.Builder
     @Nullable
     public abstract static class Builder {
+  
       public abstract Builder setInstanceId(String instanceId);
 
       public abstract Builder setDatabaseId(String databaseId);
@@ -142,15 +136,19 @@ public class SpannerReadSchemaTransformProvider
           .Builder();
     }
     @SchemaFieldDescription("Specifies the Cloud Spanner instance.")
+    @Nullable
     public abstract String getInstanceId();
 
     @SchemaFieldDescription("Specifies the Cloud Spanner database.")
+    @Nullable
     public abstract String getDatabaseId();
 
     @SchemaFieldDescription("Specifies the Cloud Spanner table.")
+    @Nullable
     public abstract String getTableId();
 
     @SchemaFieldDescription("Specifies the SQL query to execute.")
+    @Nullable
     public abstract String getQuery();
 }
 
