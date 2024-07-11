@@ -838,20 +838,21 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
               if (successfulRowsReceiver != null) {
                 Descriptor descriptor = null;
                 try {
-                  descriptor = TableRowToStorageApiProto.wrapDescriptorProto(
-                      Preconditions.checkStateNotNull(appendClientInfo)
-                          .getDescriptor());
+                  descriptor =
+                      TableRowToStorageApiProto.wrapDescriptorProto(
+                          Preconditions.checkStateNotNull(appendClientInfo).getDescriptor());
                 } catch (DescriptorValidationException e) {
-                  LOG.warn("Failure getting proto descriptor. Successful output will not be produced.", e);
+                  LOG.warn(
+                      "Failure getting proto descriptor. Successful output will not be produced.",
+                      e);
                 }
-                if(descriptor != null) {
+                if (descriptor != null) {
                   for (int i = 0; i < c.protoRows.getSerializedRowsCount(); ++i) {
                     ByteString rowBytes = c.protoRows.getSerializedRowsList().get(i);
                     try {
                       TableRow row =
                           TableRowToStorageApiProto.tableRowFromMessage(
-                              DynamicMessage.parseFrom(descriptor, rowBytes),
-                              true);
+                              DynamicMessage.parseFrom(descriptor, rowBytes), true);
                       org.joda.time.Instant timestamp = c.timestamps.get(i);
                       successfulRowsReceiver.outputWithTimestamp(row, timestamp);
                     } catch (Exception e) {
