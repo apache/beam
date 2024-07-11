@@ -1,0 +1,77 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+import logging
+import unittest
+
+import apache_beam as beam
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
+from apache_beam.transforms import error_handling
+
+
+class PTransformWithErrors(beam.PTransform):
+  def __init__(self, limit):
+    self._limit = limit
+    self._error_handler = None
+
+  def with_error_handler(self, error_handler):
+    self._error_handler = error_handler
+    return self
+
+  def expand(self, pcoll):
+    limit = self._limit
+
+    def process(element):
+      if len(element) < limit:
+        return element.title()
+      else:
+        return beam.pvalue.TaggedOutput('bad', element)
+
+    def raise_on_everything(element):
+      raise VaulueError(element)
+
+    good, bad = pcoll | beam.Map(process).with_outputs('bad', main='good')
+    if self._error_handler:
+      self._error_handler.add_error_pcollection(bad)
+    else:
+      # Will throw an exception if there are any bad elements.
+      bad | beam.Map(raise_on_everything)
+    return good
+
+
+class ErrorHandlingTest(unittest.TestCase):
+  def test_error_handling(self):
+    with beam.Pipeline() as p:
+      input_pcoll = p | beam.Create(['a', 'bb', 'cccc'])
+      with error_handling.ErrorHandler(
+          beam.Map(lambda x: "error: %s" % x)) as error_handler:
+        output_pcoll = input_pcoll | PTransformWithErrors(3).with_error_handler(
+            error_handler)
+      error_pcoll = error_handler.output()
+
+      assert_that(output_pcoll, equal_to(['A', 'Bb']), label='CheckGood')
+      assert_that(error_pcoll, equal_to(['error: cccc']), label='CheckBad')
+
+  def test_error_on_unclosed_error_handler(self):
+    with self.assertRaisesRegex(
+        RuntimeError, r'.*Unclosed error handler.*'):
+      with beam.Pipeline() as p:
+        pcoll = p | beam.Create(['a', 'bb', 'cccc'])
+        # Use this outside of a context to allow it to remain unclosed.
+        error_handler = error_handling.ErrorHandler(beam.Map(lambda x: x))
+        _ = pcoll | PTransformWithErrors(3).with_error_handler(error_handler)
