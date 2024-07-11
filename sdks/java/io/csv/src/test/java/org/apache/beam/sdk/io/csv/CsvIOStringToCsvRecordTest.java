@@ -28,7 +28,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.commons.csv.CSVFormat;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.runner.RunWith;
 
 /** Tests for {@link CsvIOStringToCsvRecord}. */
 public class CsvIOStringToCsvRecordTest {
