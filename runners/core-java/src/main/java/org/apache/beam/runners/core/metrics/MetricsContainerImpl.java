@@ -424,11 +424,11 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
           }
         });
     stringSets.forEach(
-        (metricName, gaugeCell) -> {
-          if (gaugeCell.getDirty().beforeCommit()) {
+        (metricName, stringSetCell) -> {
+          if (stringSetCell.getDirty().beforeCommit()) {
             String shortId = getShortId(metricName, this::stringSetToMonitoringMetadata, shortIds);
             if (shortId != null) {
-              builder.put(shortId, encodeStringSet(gaugeCell.getCumulative()));
+              builder.put(shortId, encodeStringSet(stringSetCell.getCumulative()));
             }
           }
         });
