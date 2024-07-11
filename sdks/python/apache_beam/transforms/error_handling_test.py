@@ -54,6 +54,13 @@ class PTransformWithErrors(beam.PTransform):
     return good
 
 
+def exception_throwing_map(x, limit):
+  if len(x) > limit:
+    raise ValueError(x)
+  else:
+    return x.title()
+
+
 class ErrorHandlingTest(unittest.TestCase):
   def test_error_handling(self):
     with beam.Pipeline() as p:
@@ -68,18 +75,12 @@ class ErrorHandlingTest(unittest.TestCase):
       assert_that(error_pcoll, equal_to(['error: cccc']), label='CheckBad')
 
   def test_error_handling_pardo(self):
-    def my_map(x, limit):
-      if len(x) > limit:
-        raise ValueError(x)
-      else:
-        return x.title()
-
     with beam.Pipeline() as p:
       pcoll = p | beam.Create(['a', 'bb', 'cccc'])
       with error_handling.ErrorHandler(
           beam.Map(lambda x: "error: %s" % x[0])) as error_handler:
         result = pcoll | beam.Map(
-            my_map, limit=3).with_error_handler(error_handler)
+            exception_throwing_map, limit=3).with_error_handler(error_handler)
       error_pcoll = error_handler.output()
 
       assert_that(result, equal_to(['A', 'Bb']), label='CheckGood')
@@ -92,3 +93,25 @@ class ErrorHandlingTest(unittest.TestCase):
         # Use this outside of a context to allow it to remain unclosed.
         error_handler = error_handling.ErrorHandler(beam.Map(lambda x: x))
         _ = pcoll | PTransformWithErrors(3).with_error_handler(error_handler)
+
+  def test_collecting_error_handler(self):
+    with beam.Pipeline() as p:
+      pcoll = p | beam.Create(['a', 'bb', 'cccc'])
+      with error_handling.CollectingErrorHandler() as error_handler:
+        result = pcoll | beam.Map(
+            exception_throwing_map, limit=3).with_error_handler(error_handler)
+      error_pcoll = error_handler.output() | beam.Map(lambda x: x[0])
+
+      assert_that(result, equal_to(['A', 'Bb']), label='CheckGood')
+      assert_that(error_pcoll, equal_to(['cccc']), label='CheckBad')
+
+  def test_error_on_collecting_error_handler_without_output_retrieval(self):
+    with self.assertRaisesRegex(
+        RuntimeError,
+        r'.*CollectingErrorHandler requires the output to be retrieved.*'):
+      with beam.Pipeline() as p:
+        pcoll = p | beam.Create(['a', 'bb', 'cccc'])
+        with error_handling.CollectingErrorHandler() as error_handler:
+          result = pcoll | beam.Map(
+              exception_throwing_map,
+              limit=3).with_error_handler(error_handler)

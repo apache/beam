@@ -76,7 +76,7 @@ class ErrorHandler:
     self._closed = True
 
   def output(self):
-    """Returns
+    """Returns result of applying the error consumer to the error pcollections.
     """
     if not self._closed:
       raise RuntimeError(
@@ -96,3 +96,31 @@ class ErrorHandler:
     if not self._closed:
       raise RuntimeError(
           "Unclosed error handler initialized at %s" % self._creation_traceback)
+
+
+class _IdentityPTransform(transforms.PTransform):
+  def expand(self, pcoll):
+    return pcoll
+
+
+class CollectingErrorHandler(ErrorHandler):
+  """An ErrorHandler that simply collects all errors for further processing.
+
+  This ErrorHandler requires the set of errors be retrieved via `output()`
+  and consumed (or explicitly discarded).
+  """
+  def __init__(self):
+    super().__init__(_IdentityPTransform())
+    self._creation_traceback = traceback.format_stack()[-2]
+    self._output_accessed = False
+
+  def output(self):
+    self._output_accessed = True
+    return super().output()
+
+  def verify_closed(self):
+    if not self._output_accessed:
+      raise RuntimeError(
+          "CollectingErrorHandler requires the output to be retrieved. "
+          "Initialized at %s" % self._creation_traceback)
+    return super().verify_closed()
