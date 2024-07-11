@@ -52,7 +52,7 @@ dependencies {
   runtimeOnly "org.apache.httpcomponents:httpclient:4.5.12"
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation project(path: ":sdks:java:extensions:avro", configuration: "testRuntimeMigration")
-  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
+  testImplementation project(path: ":sdks:java:io:common")
   testImplementation "io.findify:s3mock_2.12:0.2.6"
   testImplementation library.java.commons_lang3
   testImplementation library.java.hamcrest

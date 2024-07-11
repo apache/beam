@@ -38,9 +38,9 @@ public class HashingFn extends CombineFn<String, HashingFn.Accum, String> {
 
   /** Serializable Class to store the HashCode of input String. */
   public static class Accum implements Serializable {
-    HashCode hashCode = null;
+    @Nullable HashCode hashCode;
 
-    public Accum(HashCode value) {
+    public Accum(@Nullable HashCode value) {
       this.hashCode = value;
     }
 

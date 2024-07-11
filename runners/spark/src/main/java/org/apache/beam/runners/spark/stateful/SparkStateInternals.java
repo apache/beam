@@ -19,7 +19,11 @@ package org.apache.beam.runners.spark.stateful;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateTag;
@@ -28,12 +32,14 @@ import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.ListCoder;
+import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.MapState;
 import org.apache.beam.sdk.state.MultimapState;
 import org.apache.beam.sdk.state.OrderedListState;
 import org.apache.beam.sdk.state.ReadableState;
+import org.apache.beam.sdk.state.ReadableStates;
 import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateContext;
@@ -44,6 +50,7 @@ import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.CombineFnUtil;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.HashBasedTable;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Table;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
@@ -119,11 +126,10 @@ class SparkStateInternals<K> implements StateInternals {
 
     @Override
     public <KeyT, ValueT> MapState<KeyT, ValueT> bindMap(
-        StateTag<MapState<KeyT, ValueT>> spec,
+        StateTag<MapState<KeyT, ValueT>> address,
         Coder<KeyT> mapKeyCoder,
         Coder<ValueT> mapValueCoder) {
-      throw new UnsupportedOperationException(
-          String.format("%s is not supported", MapState.class.getSimpleName()));
+      return new SparkMapState<>(namespace, address, MapCoder.of(mapKeyCoder, mapValueCoder));
     }
 
     @Override
@@ -356,6 +362,142 @@ class SparkStateInternals<K> implements StateInternals {
     @Override
     public AccumT mergeAccumulators(Iterable<AccumT> accumulators) {
       return combineFn.mergeAccumulators(accumulators);
+    }
+  }
+
+  private final class SparkMapState<MapKeyT, MapValueT>
+      extends AbstractState<Map<MapKeyT, MapValueT>> implements MapState<MapKeyT, MapValueT> {
+
+    private SparkMapState(
+        StateNamespace namespace,
+        StateTag<? extends State> address,
+        Coder<Map<MapKeyT, MapValueT>> coder) {
+      super(namespace, address, coder);
+    }
+
+    @Override
+    public ReadableState<MapValueT> get(MapKeyT key) {
+      return getOrDefault(key, null);
+    }
+
+    @Override
+    public ReadableState<MapValueT> getOrDefault(MapKeyT key, @Nullable MapValueT defaultValue) {
+      return new ReadableState<MapValueT>() {
+        @Override
+        public MapValueT read() {
+          Map<MapKeyT, MapValueT> sparkMapState = readValue();
+          if (sparkMapState == null) {
+            return defaultValue;
+          }
+          return sparkMapState.getOrDefault(key, defaultValue);
+        }
+
+        @Override
+        public ReadableState<MapValueT> readLater() {
+          return this;
+        }
+      };
+    }
+
+    @Override
+    public void put(MapKeyT key, MapValueT value) {
+      Map<MapKeyT, MapValueT> sparkMapState = readValue();
+      if (sparkMapState == null) {
+        sparkMapState = new HashMap<>();
+      }
+      sparkMapState.put(key, value);
+      writeValue(sparkMapState);
+    }
+
+    @Override
+    public ReadableState<MapValueT> computeIfAbsent(
+        MapKeyT key, Function<? super MapKeyT, ? extends MapValueT> mappingFunction) {
+      Map<MapKeyT, MapValueT> sparkMapState = readValue();
+      MapValueT current = sparkMapState.get(key);
+      if (current == null) {
+        put(key, mappingFunction.apply(key));
+      }
+      return ReadableStates.immediate(current);
+    }
+
+    @Override
+    public void remove(MapKeyT key) {
+      Map<MapKeyT, MapValueT> sparkMapState = readValue();
+      sparkMapState.remove(key);
+      writeValue(sparkMapState);
+    }
+
+    @Override
+    public ReadableState<Iterable<MapKeyT>> keys() {
+      return new ReadableState<Iterable<MapKeyT>>() {
+        @Override
+        public Iterable<MapKeyT> read() {
+          Map<MapKeyT, MapValueT> sparkMapState = readValue();
+          if (sparkMapState == null) {
+            return Collections.emptyList();
+          }
+          return sparkMapState.keySet();
+        }
+
+        @Override
+        public ReadableState<Iterable<MapKeyT>> readLater() {
+          return this;
+        }
+      };
+    }
+
+    @Override
+    public ReadableState<Iterable<MapValueT>> values() {
+      return new ReadableState<Iterable<MapValueT>>() {
+        @Override
+        public Iterable<MapValueT> read() {
+          Map<MapKeyT, MapValueT> sparkMapState = readValue();
+          if (sparkMapState == null) {
+            return Collections.emptyList();
+          }
+          Iterable<MapValueT> result = readValue().values();
+          return result != null ? ImmutableList.copyOf(result) : Collections.emptyList();
+        }
+
+        @Override
+        public ReadableState<Iterable<MapValueT>> readLater() {
+          return this;
+        }
+      };
+    }
+
+    @Override
+    public ReadableState<Iterable<Map.Entry<MapKeyT, MapValueT>>> entries() {
+      return new ReadableState<Iterable<Map.Entry<MapKeyT, MapValueT>>>() {
+        @Override
+        public Iterable<Map.Entry<MapKeyT, MapValueT>> read() {
+          Map<MapKeyT, MapValueT> sparkMapState = readValue();
+          if (sparkMapState == null) {
+            return Collections.emptyList();
+          }
+          return sparkMapState.entrySet();
+        }
+
+        @Override
+        public ReadableState<Iterable<Map.Entry<MapKeyT, MapValueT>>> readLater() {
+          return this;
+        }
+      };
+    }
+
+    @Override
+    public ReadableState<Boolean> isEmpty() {
+      return new ReadableState<Boolean>() {
+        @Override
+        public Boolean read() {
+          return stateTable.get(namespace.stringKey(), address.getId()) == null;
+        }
+
+        @Override
+        public ReadableState<Boolean> readLater() {
+          return this;
+        }
+      };
     }
   }
 

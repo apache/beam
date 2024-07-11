@@ -28,6 +28,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.commons.csv.CSVFormat;
 
 /** Stores parameters needed for CSV record parsing. */

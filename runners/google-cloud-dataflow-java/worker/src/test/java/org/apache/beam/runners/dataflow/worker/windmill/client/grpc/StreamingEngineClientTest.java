@@ -181,8 +181,7 @@ public class StreamingEngineClientTest {
         getWorkBudgetDistributor,
         dispatcherClient,
         CLIENT_ID,
-        ignored -> mock(WorkCommitter.class),
-        ignored -> {});
+        ignored -> mock(WorkCommitter.class));
   }
 
   @Test
@@ -238,7 +237,7 @@ public class StreamingEngineClientTest {
         .createDirectGetWorkStream(
             any(), eq(getWorkRequest(0, 0)), any(), any(), any(), eq(noOpProcessWorkItemFn()));
 
-    verify(streamFactory, times(2)).createGetDataStream(any(), any(), eq(false), any());
+    verify(streamFactory, times(2)).createGetDataStream(any(), any());
     verify(streamFactory, times(2)).createCommitWorkStream(any(), any());
   }
 

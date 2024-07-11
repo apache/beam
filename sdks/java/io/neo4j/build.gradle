@@ -31,8 +31,8 @@ dependencies {
     implementation library.java.vendored_guava_32_1_2_jre
     testImplementation library.java.junit
     testImplementation library.java.hamcrest
-    testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
-    testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
+    testImplementation project(path: ":sdks:java:io:common")
+    testImplementation project(path: ":sdks:java:testing:test-utils")
     testImplementation "org.testcontainers:neo4j:1.16.2"
     testRuntimeOnly library.java.slf4j_jdk14
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")

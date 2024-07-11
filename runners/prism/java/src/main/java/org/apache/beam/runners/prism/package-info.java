@@ -15,14 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.io.requestresponse;
 
-import java.io.Serializable;
-import java.util.function.Supplier;
-
-/**
- * A union of a {@link Supplier} and {@link Serializable}, enabling configuration with {@link T}
- * types that are not {@link Serializable}.
- */
-@FunctionalInterface
-public interface SerializableSupplier<T> extends Supplier<T>, Serializable {}
+/** Support for executing a pipeline on Prism. */
+package org.apache.beam.runners.prism;

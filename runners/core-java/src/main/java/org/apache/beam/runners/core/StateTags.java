@@ -257,6 +257,14 @@ public class StateTags {
         new StructuredId(setTag.getId()), StateSpecs.convertToMapSpecInternal(setTag.getSpec()));
   }
 
+  public static <KeyT, ValueT> StateTag<MultimapState<KeyT, ValueT>> convertToMultiMapTagInternal(
+      StateTag<MapState<KeyT, ValueT>> mapTag) {
+    StateSpec<MapState<KeyT, ValueT>> spec = mapTag.getSpec();
+    StateSpec<MultimapState<KeyT, ValueT>> multimapSpec =
+        StateSpecs.convertToMultimapSpecInternal(spec);
+    return new SimpleStateTag<>(new StructuredId(mapTag.getId()), multimapSpec);
+  }
+
   private static class StructuredId implements Serializable {
     private final StateKind kind;
     private final String rawId;

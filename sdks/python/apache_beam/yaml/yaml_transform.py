@@ -29,10 +29,12 @@ from typing import List
 from typing import Mapping
 from typing import Set
 
+import jinja2
 import yaml
 from yaml.loader import SafeLoader
 
 import apache_beam as beam
+from apache_beam.io.filesystems import FileSystems
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.transforms.fully_qualified_named_transform import FullyQualifiedNamedTransform
 from apache_beam.yaml import yaml_provider
@@ -160,9 +162,10 @@ class SafeLineLoader(SafeLoader):
   def strip_metadata(cls, spec, tagged_str=True):
     if isinstance(spec, Mapping):
       return {
-          key: cls.strip_metadata(value, tagged_str)
-          for key,
-          value in spec.items() if key not in ('__line__', '__uuid__')
+          cls.strip_metadata(key, tagged_str):
+          cls.strip_metadata(value, tagged_str)
+          for (key, value) in spec.items()
+          if key not in ('__line__', '__uuid__')
       }
     elif isinstance(spec, Iterable) and not isinstance(spec, (str, bytes)):
       return [cls.strip_metadata(value, tagged_str) for value in spec]
@@ -967,6 +970,22 @@ def preprocess(spec, verbose=False, known_transforms=None):
       print('=' * 20, phase, '=' * 20)
       pprint.pprint(spec)
   return spec
+
+
+class _BeamFileIOLoader(jinja2.BaseLoader):
+  def get_source(self, environment, path):
+    with FileSystems.open(path) as fin:
+      source = fin.read().decode()
+    return source, path, lambda: True
+
+
+def expand_jinja(
+    jinja_template: str, jinja_variables: Mapping[str, Any]) -> str:
+  return (  # keep formatting
+      jinja2.Environment(
+          undefined=jinja2.StrictUndefined, loader=_BeamFileIOLoader())
+      .from_string(jinja_template)
+      .render(**jinja_variables))
 
 
 class YamlTransform(beam.PTransform):

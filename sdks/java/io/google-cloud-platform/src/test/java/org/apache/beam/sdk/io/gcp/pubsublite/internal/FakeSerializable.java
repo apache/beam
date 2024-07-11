@@ -20,7 +20,7 @@ package org.apache.beam.sdk.io.gcp.pubsublite.internal;
 import java.io.Serializable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
-import org.apache.beam.sdk.testing.SerializableMatchers.SerializableSupplier;
+import org.apache.beam.sdk.util.SerializableSupplier;
 
 /**
  * A FakeSerializable hides a non-serializable object in a static map and returns a handle into the
