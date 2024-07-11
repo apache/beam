@@ -22,7 +22,10 @@ import java.util.Arrays;
 import java.util.Collections;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.*;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.commons.csv.CSVFormat;
@@ -44,7 +47,7 @@ public class CsvIOStringToCsvRecordTest {
     }
 
     private static class badRecordTransformFn extends DoFn<BadRecord, BadRecord> {
-      @ProcessElement
+      @DoFn.ProcessElement
       public void process(@Element BadRecord input, OutputReceiver<BadRecord> receiver) {
         System.out.println(input);
         receiver.output(input);
