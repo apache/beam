@@ -26,9 +26,10 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataReq
 import org.apache.beam.runners.dataflow.worker.windmill.client.CloseableStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamPool;
-import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.Heartbeat;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
+import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.Heartbeats;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 
 /**
  * StreamingEngine implementation of {@link GetDataClient}.
@@ -82,19 +83,20 @@ public final class StreamingEngineGetDataClient implements GetDataClient, WorkRe
   }
 
   @Override
-  public void refreshActiveWork(Map<HeartbeatSender, Heartbeat> heartbeats) {
-    if (heartbeats.isEmpty()) {
+  public void refreshActiveWork(Map<HeartbeatSender, Heartbeats> heartbeats) {
+    Map.Entry<HeartbeatSender, Heartbeats> heartbeat =
+        Iterables.getOnlyElement(heartbeats.entrySet());
+    HeartbeatSender heartbeatSender = heartbeat.getKey();
+    Heartbeats heartbeatToSend = heartbeat.getValue();
+
+    if (heartbeatToSend.heartbeatRequests().isEmpty()) {
       return;
     }
 
-    for (Map.Entry<HeartbeatSender, Heartbeat> heartbeatToSend : heartbeats.entrySet()) {
-      try (AutoCloseable ignored =
-          getDataMetricTracker.trackHeartbeats(
-              heartbeatToSend.getValue().heartbeatRequests().size())) {
-        heartbeatToSend.getKey().sendHeartbeats(heartbeatToSend.getValue());
-      } catch (Exception e) {
-        throw new GetDataException("Error occurred refreshing heartbeats=" + heartbeatToSend, e);
-      }
+    try (AutoCloseable ignored = getDataMetricTracker.trackHeartbeats(heartbeatToSend.size())) {
+      heartbeatSender.sendHeartbeats(heartbeatToSend);
+    } catch (Exception e) {
+      throw new GetDataException("Error occurred refreshing heartbeats=" + heartbeatToSend, e);
     }
   }
 

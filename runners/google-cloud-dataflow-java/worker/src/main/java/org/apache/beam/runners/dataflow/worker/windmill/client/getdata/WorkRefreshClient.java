@@ -18,10 +18,10 @@
 package org.apache.beam.runners.dataflow.worker.windmill.client.getdata;
 
 import java.util.Map;
-import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.Heartbeat;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
+import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.Heartbeats;
 
 /** Client for requesting work refresh via heartbeats. */
 public interface WorkRefreshClient {
-  void refreshActiveWork(Map<HeartbeatSender, Heartbeat> heartbeats);
+  void refreshActiveWork(Map<HeartbeatSender, Heartbeats> heartbeats);
 }
