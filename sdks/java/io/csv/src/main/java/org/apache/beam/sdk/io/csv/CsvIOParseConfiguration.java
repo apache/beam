@@ -28,7 +28,6 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.commons.csv.CSVFormat;
 
 /** Stores parameters needed for CSV record parsing. */
@@ -43,11 +42,7 @@ abstract class CsvIOParseConfiguration {
     return new AutoValue_CsvIOParseConfiguration.Builder();
   }
 
-  /**
-   * The expected <a
-   * href="https://javadoc.io/doc/org.apache.commons/commons-csv/1.8/org/apache/commons/csv/CSVFormat.html">CSVFormat</a>
-   * of the parsed CSV record.
-   */
+  /** The expected {@link CSVFormat} of the parsed CSV record. */
   abstract CSVFormat getCsvFormat();
 
   /** The expected {@link Schema} of the target type. */
