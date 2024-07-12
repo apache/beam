@@ -21,8 +21,6 @@ import java.io.IOException;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
-import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
@@ -36,25 +34,18 @@ import org.apache.commons.csv.CSVRecord;
 class CsvIOStringToCsvRecord
     extends PTransform<PCollection<String>, PCollection<Iterable<String>>> {
   private final CSVFormat csvFormat;
-  private final PTransform<PCollection<BadRecord>, PCollection<BadRecord>> errorHandlerTransform;
 
-  CsvIOStringToCsvRecord(
-      CSVFormat csvFormat,
-      PTransform<PCollection<BadRecord>, PCollection<BadRecord>> errorHandlerTransform) {
+  CsvIOStringToCsvRecord(CSVFormat csvFormat) {
     this.csvFormat = csvFormat;
-    this.errorHandlerTransform = errorHandlerTransform;
   }
 
   /**
-   * Creates {@link PCollection<CSVRecord>} or emits {@link ErrorHandler.BadRecordErrorHandler} from
-   * {@link PCollection<String>} for future processing to Row or custom type.
+   * Creates {@link PCollection<CSVRecord>} from {@link PCollection<String>} for future processing
+   * to Row or custom type.
    */
   @Override
   public PCollection<Iterable<String>> expand(PCollection<String> input) {
-    try (ErrorHandler.BadRecordErrorHandler<PCollection<BadRecord>> errorHandler =
-        input.getPipeline().registerBadRecordErrorHandler(errorHandlerTransform)) {
-      return input.apply(ParDo.of(new ProcessLineToRecordFn()));
-    }
+    return input.apply(ParDo.of(new ProcessLineToRecordFn()));
   }
 
   /** Processes each line in order to convert it to a {@link CSVRecord}. */

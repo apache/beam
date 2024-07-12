@@ -23,10 +23,6 @@ import java.util.Collections;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.commons.csv.CSVFormat;
 import org.junit.Rule;
@@ -36,31 +32,12 @@ import org.junit.Test;
 public class CsvIOStringToCsvRecordTest {
   @Rule public final TestPipeline pipeline = TestPipeline.create();
 
-  private static final BadRecordOutput BAD_RECORD_OUTPUT = new BadRecordOutput();
-
-  private static class BadRecordOutput
-      extends PTransform<PCollection<BadRecord>, PCollection<BadRecord>> {
-
-    @Override
-    public PCollection<BadRecord> expand(PCollection<BadRecord> input) {
-      return input.apply(ParDo.of(new BadRecordTransformFn()));
-    }
-
-    private static class BadRecordTransformFn extends DoFn<BadRecord, BadRecord> {
-      @DoFn.ProcessElement
-      public void process(@Element BadRecord input, OutputReceiver<BadRecord> receiver) {
-        System.out.println(input);
-        receiver.output(input);
-      }
-    }
-  }
-
   @Test
   public void testSingleLineCsvRecord() throws IOException {
     String csvRecord = "a,1";
     PCollection<String> input = pipeline.apply(Create.of(csvRecord));
 
-    CsvIOStringToCsvRecord underTest = new CsvIOStringToCsvRecord(csvFormat(), BAD_RECORD_OUTPUT);
+    CsvIOStringToCsvRecord underTest = new CsvIOStringToCsvRecord(csvFormat());
     PAssert.that(input.apply(underTest))
         .containsInAnyOrder(Collections.singletonList(Arrays.asList("a", "1")));
 
@@ -74,7 +51,7 @@ public class CsvIOStringToCsvRecordTest {
     PCollection<String> input = pipeline.apply(Create.of(csvRecords));
 
     CsvIOStringToCsvRecord underTest =
-        new CsvIOStringToCsvRecord(csvFormat().withRecordSeparator('\n'), BAD_RECORD_OUTPUT);
+        new CsvIOStringToCsvRecord(csvFormat().withRecordSeparator('\n'));
     PAssert.that(input.apply(underTest))
         .containsInAnyOrder(
             Arrays.asList(
@@ -91,7 +68,7 @@ public class CsvIOStringToCsvRecordTest {
     PCollection<String> input = pipeline.apply(Create.of(csvRecords));
 
     CsvIOStringToCsvRecord underTest =
-        new CsvIOStringToCsvRecord(csvFormat().withSkipHeaderRecord(), BAD_RECORD_OUTPUT);
+        new CsvIOStringToCsvRecord(csvFormat().withSkipHeaderRecord());
     PAssert.that(input.apply(underTest))
         .containsInAnyOrder(Arrays.asList(Arrays.asList("a", "1"), Arrays.asList("b", "2")));
 
@@ -104,7 +81,7 @@ public class CsvIOStringToCsvRecordTest {
     PCollection<String> input = pipeline.apply(Create.of(csvRecords));
 
     CsvIOStringToCsvRecord underTest =
-        new CsvIOStringToCsvRecord(csvFormat().withCommentMarker('#'), BAD_RECORD_OUTPUT);
+        new CsvIOStringToCsvRecord(csvFormat().withCommentMarker('#'));
     PAssert.that(input.apply(underTest))
         .containsInAnyOrder(
             Arrays.asList(
@@ -121,7 +98,7 @@ public class CsvIOStringToCsvRecordTest {
     PCollection<String> input = pipeline.apply(Create.of(csvRecords));
 
     CsvIOStringToCsvRecord underTest =
-        new CsvIOStringToCsvRecord(csvFormat().withIgnoreEmptyLines(), BAD_RECORD_OUTPUT);
+        new CsvIOStringToCsvRecord(csvFormat().withIgnoreEmptyLines());
     PAssert.that(input.apply(underTest))
         .containsInAnyOrder(
             Arrays.asList(
@@ -141,7 +118,7 @@ public class CsvIOStringToCsvRecordTest {
     PCollection<String> input = pipeline.apply(Create.of(csvRecord));
 
     CsvIOStringToCsvRecord underTest =
-        new CsvIOStringToCsvRecord(csvFormat().withIgnoreSurroundingSpaces(), BAD_RECORD_OUTPUT);
+        new CsvIOStringToCsvRecord(csvFormat().withIgnoreSurroundingSpaces());
     PAssert.that(input.apply(underTest))
         .containsInAnyOrder(Collections.singletonList(Arrays.asList("Seattle", "WA")));
 
@@ -154,7 +131,7 @@ public class CsvIOStringToCsvRecordTest {
     PCollection<String> input = pipeline.apply(Create.of(csvRecord));
 
     CsvIOStringToCsvRecord underTest =
-        new CsvIOStringToCsvRecord(csvFormat().withTrailingDelimiter(), BAD_RECORD_OUTPUT);
+        new CsvIOStringToCsvRecord(csvFormat().withTrailingDelimiter());
     PAssert.that(input.apply(underTest))
         .containsInAnyOrder(Collections.singletonList(Arrays.asList("a", "b", "c")));
 
