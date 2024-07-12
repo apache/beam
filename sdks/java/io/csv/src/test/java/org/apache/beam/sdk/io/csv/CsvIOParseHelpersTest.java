@@ -115,6 +115,38 @@ public class CsvIOParseHelpersTest {
   /** End of tests for {@link CsvIOParseHelpers#validate(CSVFormat)}. */
   //////////////////////////////////////////////////////////////////////////////////////////////
 
+  /** Tests for {@link CsvIOParseHelpers#validate(CSVFormat, Schema)}. */
+  @Test
+  public void givenNullableSchemaFieldNotPresentInHeader_validates() {
+    CSVFormat format = csvFormat().withHeader("foo", "bar");
+    Schema schema =
+        Schema.of(
+            Schema.Field.of("foo", Schema.FieldType.STRING),
+            Schema.Field.of("bar", Schema.FieldType.STRING),
+            Schema.Field.nullable("baz", Schema.FieldType.STRING));
+    CsvIOParseHelpers.validate(format, schema);
+  }
+
+  @Test
+  public void givenRequiredSchemaFieldNotPresentInHeader_throwsException() {
+    CSVFormat format = csvFormat().withHeader("foo", "bar");
+    Schema schema =
+        Schema.of(
+            Schema.Field.of("foo", Schema.FieldType.STRING),
+            Schema.Field.of("bar", Schema.FieldType.STRING),
+            Schema.Field.of("baz", Schema.FieldType.STRING));
+    String gotMessage =
+        assertThrows(
+                IllegalArgumentException.class, () -> CsvIOParseHelpers.validate(format, schema))
+            .getMessage();
+    assertEquals(
+        "Illegal class org.apache.commons.csv.CSVFormat: required org.apache.beam.sdk.schemas.Schema field 'baz' not found in header",
+        gotMessage);
+  }
+
+  /** End of tests for {@link CsvIOParseHelpers#validate(CSVFormat, Schema)}. */
+  //////////////////////////////////////////////////////////////////////////////////////////////
+
   /** Tests for {@link CsvIOParseHelpers#parseCell(String, Schema.Field)}. */
   @Test
   public void ignoresCaseFormat() {
