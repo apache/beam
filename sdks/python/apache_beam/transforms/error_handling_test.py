@@ -43,14 +43,14 @@ class PTransformWithErrors(beam.PTransform):
         return beam.pvalue.TaggedOutput('bad', element)
 
     def raise_on_everything(element):
-      raise VaulueError(element)
+      raise ValueError(element)
 
     good, bad = pcoll | beam.Map(process).with_outputs('bad', main='good')
     if self._error_handler:
       self._error_handler.add_error_pcollection(bad)
     else:
       # Will throw an exception if there are any bad elements.
-      bad | beam.Map(raise_on_everything)
+      _ = bad | beam.Map(raise_on_everything)
     return good
 
 
@@ -112,6 +112,11 @@ class ErrorHandlingTest(unittest.TestCase):
       with beam.Pipeline() as p:
         pcoll = p | beam.Create(['a', 'bb', 'cccc'])
         with error_handling.CollectingErrorHandler() as error_handler:
-          result = pcoll | beam.Map(
+          _ = pcoll | beam.Map(
               exception_throwing_map,
               limit=3).with_error_handler(error_handler)
+
+
+if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
+  unittest.main()
