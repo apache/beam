@@ -114,7 +114,7 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
       TableReference tableReference = targetTable.getTableReference();
       readSessionBuilder.setTable(BigQueryHelpers.toTableResourceName(tableReference));
       // register the table as lineage source
-      lineageSources.add(BigQueryHelpers.dataCatalogName(tableReference));
+      lineageSources.add(BigQueryHelpers.dataCatalogName(tableReference, bqOptions));
     } else {
       // If the table does not exist targetTable will be null.
       // Construct the table id if we can generate it. For error recording/logging.
@@ -123,7 +123,7 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
         readSessionBuilder.setTable(tableReferenceId);
         // register the table as lineage source
         TableReference tableReference = BigQueryHelpers.parseTableUrn(tableReferenceId);
-        lineageSources.add(BigQueryHelpers.dataCatalogName(tableReference));
+        lineageSources.add(BigQueryHelpers.dataCatalogName(tableReference, bqOptions));
       }
     }
 
