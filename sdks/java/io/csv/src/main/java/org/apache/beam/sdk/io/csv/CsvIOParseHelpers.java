@@ -38,13 +38,21 @@ final class CsvIOParseHelpers {
   static void validate(CSVFormat format) {
     String[] header =
         checkArgumentNotNull(format.getHeader(), "Illegal %s: header is required", CSVFormat.class);
+
     checkArgument(header.length > 0, "Illegal %s: header cannot be empty", CSVFormat.class);
+
     checkArgument(
         !format.getAllowMissingColumnNames(),
         "Illegal %s: cannot allow missing column names",
         CSVFormat.class);
+
     checkArgument(
         !format.getIgnoreHeaderCase(), "Illegal %s: cannot ignore header case", CSVFormat.class);
+
+    checkArgument(
+        !format.getAllowDuplicateHeaderNames(),
+        "Illegal %s: cannot allow duplicate header names",
+        CSVFormat.class);
 
     for (String columnName : header) {
       checkArgument(

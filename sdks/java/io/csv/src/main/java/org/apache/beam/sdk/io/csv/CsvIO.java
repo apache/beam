@@ -57,14 +57,17 @@ import org.apache.commons.csv.CSVFormat;
  *
  * <h3>Valid CSVFormat Configuration</h3>
  *
- * <p></>A <a
+ * <p>A <a
  * href="https://javadoc.io/static/org.apache.commons/commons-csv/1.8/org/apache/commons/csv/CSVFormat.html">{@code
- * CSVFormat}</a> must meet the following conditions to be considered valid when parsing CSV:
+ * CSVFormat}</a> must meet the following conditions to be considered valid when reading CSV:
  *
  * <ul>
  *   <li>{@code String[]} <a
  *       href="https://javadoc.io/static/org.apache.commons/commons-csv/1.8/org/apache/commons/csv/CSVFormat.html#withHeader-java.lang.Class-">header</a>
  *       - must contain at least one column name, and all column names must be non-empty.
+ *   <li>{@code boolean} <a
+ *       href="https://javadoc.io/static/org.apache.commons/commons-csv/1.8/org/apache/commons/csv/CSVFormat.html#withAllowDuplicateHeaderNames--">allowDuplicateHeaderNames</a>
+ *       - must be false.
  *   <li>{@code boolean} <a
  *       href="https://javadoc.io/static/org.apache.commons/commons-csv/1.8/org/apache/commons/csv/CSVFormat.html#withAllowMissingColumnNames--">allowMissingColumnNames
  *       </a> - must be false.
@@ -81,8 +84,6 @@ import org.apache.commons.csv.CSVFormat;
  * library</a>.
  *
  * <ul>
- *   <li>{@code boolean} <a
- *       href="https://javadoc.io/static/org.apache.commons/commons-csv/1.8/org/apache/commons/csv/CSVFormat.html#withAllowDuplicateHeaderNames--">allowDuplicateHeaderNames</a>
  *   <li>{@code boolean} <a
  *       href="https://javadoc.io/static/org.apache.commons/commons-csv/1.8/org/apache/commons/csv/CSVFormat.html#withAutoFlush-boolean-">autoFlush</a>
  *   <li>{@code char} <a

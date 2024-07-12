@@ -101,6 +101,17 @@ public class CsvIOParseHelpersTest {
         "Illegal class org.apache.commons.csv.CSVFormat: cannot ignore header case", gotMessage);
   }
 
+  @Test
+  public void givenCSVFormatThatAllowsDuplicateHeaderNames_throwsException() {
+    CSVFormat format = csvFormatWithHeader().withAllowDuplicateHeaderNames(true);
+    String gotMessage =
+        assertThrows(IllegalArgumentException.class, () -> CsvIOParseHelpers.validate(format))
+            .getMessage();
+    assertEquals(
+        "Illegal class org.apache.commons.csv.CSVFormat: cannot allow duplicate header names",
+        gotMessage);
+  }
+
   /** End of tests for {@link CsvIOParseHelpers#validate(CSVFormat)}. */
   //////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -446,13 +457,13 @@ public class CsvIOParseHelpersTest {
   /** End of tests for {@link CsvIOParseHelpers#parseCell(String, Schema.Field)}. */
   //////////////////////////////////////////////////////////////////////////////////////////////
 
-  /** Return a {@link CSVFormat} with a header. */
+  /** Return a {@link CSVFormat} with a header and with no duplicate header names allowed. */
   private static CSVFormat csvFormatWithHeader() {
     return csvFormat().withHeader("foo", "bar");
   }
 
-  /** Return a {@link CSVFormat} with no header. */
+  /** Return a {@link CSVFormat} with no header and with no duplicate header names allowed. */
   private static CSVFormat csvFormat() {
-    return CSVFormat.DEFAULT;
+    return CSVFormat.DEFAULT.withAllowDuplicateHeaderNames(false);
   }
 }
