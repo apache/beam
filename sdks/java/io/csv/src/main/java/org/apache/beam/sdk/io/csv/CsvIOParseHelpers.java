@@ -19,8 +19,7 @@ package org.apache.beam.sdk.io.csv;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.commons.csv.CSVFormat;
 
@@ -41,9 +40,34 @@ final class CsvIOParseHelpers {
    * Build a {@link List} of {@link Schema.Field}s corresponding to the expected position of each
    * field within the CSV record.
    */
-  // TODO(https://github.com/apache/beam/issues/31718): implement method.
-  static List<Schema.Field> mapFieldPositions(CSVFormat format, Schema schema) {
-    return new ArrayList<>();
+  static Map<Integer, Schema.Field> mapFieldPositions(CSVFormat format, Schema schema) {
+    List<String> header = Arrays.asList(format.getHeader());
+    Map<Integer, Schema.Field> indexToFieldMap = new HashMap<>();
+    for (Schema.Field field : schema.getFields()) {
+      int index = getIndex(header, field);
+      if (index >= 0) {
+        indexToFieldMap.put(index, field);
+      }
+    }
+    return indexToFieldMap;
+  }
+
+  /**
+   * Attains expected index from {@link CSVFormat's} header matching a given {@link Schema.Field}.
+   */
+  private static int getIndex(List<String> header, Schema.Field field) {
+    String fieldName = field.getName();
+    boolean presentInHeader = header.contains(fieldName);
+    boolean isNullable = field.getType().getNullable();
+    if (presentInHeader) {
+      return header.indexOf(fieldName);
+    }
+    if (isNullable) {
+      return -1;
+    }
+
+    throw new IllegalArgumentException(
+        String.format("header does not contain required %s field: %s", Schema.class, fieldName));
   }
 
   /**
