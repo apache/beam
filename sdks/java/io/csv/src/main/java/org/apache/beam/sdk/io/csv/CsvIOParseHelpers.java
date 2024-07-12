@@ -17,18 +17,50 @@
  */
 package org.apache.beam.sdk.io.csv;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.commons.csv.CSVFormat;
 
 /** A utility class containing shared methods for parsing CSV records. */
 final class CsvIOParseHelpers {
-  /** Validate the {@link CSVFormat} for CSV record parsing requirements. */
-  // TODO(https://github.com/apache/beam/issues/31712): implement method.
-  static void validate(CSVFormat format) {}
+  /**
+   * Validate the {@link CSVFormat} for CSV record parsing requirements. See the public-facing
+   * "Reading CSV Files" section of the {@link CsvIO} documentation for information regarding which
+   * {@link CSVFormat} parameters are checked during validation.
+   */
+  static void validate(CSVFormat format) {
+    String[] header =
+        checkArgumentNotNull(format.getHeader(), "Illegal %s: header is required", CSVFormat.class);
+
+    checkArgument(header.length > 0, "Illegal %s: header cannot be empty", CSVFormat.class);
+
+    checkArgument(
+        !format.getAllowMissingColumnNames(),
+        "Illegal %s: cannot allow missing column names",
+        CSVFormat.class);
+
+    checkArgument(
+        !format.getIgnoreHeaderCase(), "Illegal %s: cannot ignore header case", CSVFormat.class);
+
+    checkArgument(
+        !format.getAllowDuplicateHeaderNames(),
+        "Illegal %s: cannot allow duplicate header names",
+        CSVFormat.class);
+
+    for (String columnName : header) {
+      checkArgument(
+          !Strings.isNullOrEmpty(columnName),
+          "Illegal %s: column name is required",
+          CSVFormat.class);
+    }
+  }
 
   /**
    * Validate the {@link CSVFormat} in relation to the {@link Schema} for CSV record parsing
