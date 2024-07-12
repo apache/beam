@@ -117,7 +117,7 @@ public class CsvIOParseHelpersTest {
         e.getMessage());
   }
 
-  /** End of tests for {@link CsvIOParseHelpers#mapFieldPositions(CSVFormat, Schema)} */
+  /** End of tests for {@link CsvIOParseHelpers#mapFieldPositions(CSVFormat, Schema)}. */
   //////////////////////////////////////////////////////////////////////////////////////////////////////////
   @Test
   public void ignoresCaseFormat() {
