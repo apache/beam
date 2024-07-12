@@ -316,7 +316,6 @@ public class StreamingDataflowWorker {
     this.workerStatusReporter = workerStatusReporter;
     this.streamingCounters = streamingCounters;
     this.memoryMonitor = memoryMonitor;
-
     this.streamingWorkScheduler =
         StreamingWorkScheduler.create(
             options,
@@ -325,7 +324,6 @@ public class StreamingDataflowWorker {
             mapTaskExecutorFactory,
             workUnitExecutor,
             stateCache::forComputation,
-            getDataClient::getSideInputData,
             failureTracker,
             workFailureProcessor,
             streamingCounters,

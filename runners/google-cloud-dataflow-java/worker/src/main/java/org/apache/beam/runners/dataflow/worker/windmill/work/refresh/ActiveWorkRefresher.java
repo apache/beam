@@ -30,7 +30,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.RefreshableWork;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
 import org.apache.beam.sdk.annotations.Internal;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -72,16 +72,6 @@ public final class ActiveWorkRefresher {
     this.sampler = sampler;
     this.activeWorkRefreshExecutor = activeWorkRefreshExecutor;
     this.heartbeatSender = heartbeatSender;
-  }
-
-  private static Windmill.HeartbeatRequest createHeartbeatRequest(
-      RefreshableWork work, DataflowExecutionStateSampler sampler) {
-    return Windmill.HeartbeatRequest.newBuilder()
-        .setShardingKey(work.getShardedKey().shardingKey())
-        .setWorkToken(work.id().workToken())
-        .setCacheToken(work.id().cacheToken())
-        .addAllLatencyAttribution(work.getHeartbeatLatencyAttributions(sampler))
-        .build();
   }
 
   @SuppressWarnings("FutureReturnValueIgnored")
@@ -136,13 +126,21 @@ public final class ActiveWorkRefresher {
         heartbeatsBySender
             .computeIfAbsent(work.heartbeatSender(), ignored -> Heartbeats.builder())
             .addWork(work)
-            .addHeartbeatRequest(
-                computationState.getComputationId(), createHeartbeatRequest(work, sampler));
+            .addHeartbeatRequest(computationState.getComputationId(), createHeartbeatRequest(work));
       }
     }
 
     heartbeatSender.accept(
         heartbeatsBySender.entrySet().stream()
             .collect(toImmutableMap(Map.Entry::getKey, e -> e.getValue().build())));
+  }
+
+  private HeartbeatRequest createHeartbeatRequest(RefreshableWork work) {
+    return HeartbeatRequest.newBuilder()
+        .setShardingKey(work.getShardedKey().shardingKey())
+        .setWorkToken(work.id().workToken())
+        .setCacheToken(work.id().cacheToken())
+        .addAllLatencyAttribution(work.getHeartbeatLatencyAttributions(sampler))
+        .build();
   }
 }

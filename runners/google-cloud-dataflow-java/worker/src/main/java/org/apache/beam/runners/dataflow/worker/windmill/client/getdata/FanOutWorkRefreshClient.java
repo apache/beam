@@ -27,6 +27,8 @@ import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSe
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.Heartbeats;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * {@link WorkRefreshClient} that fans out heartbeats to all {@link HeartbeatSender}(s) in parallel
@@ -34,6 +36,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurren
  */
 @Internal
 public final class FanOutWorkRefreshClient implements WorkRefreshClient {
+  private static final Logger LOG = LoggerFactory.getLogger(FanOutWorkRefreshClient.class);
   private static final String FAN_OUT_REFRESH_WORK_EXECUTOR_NAME =
       "FanOutActiveWorkRefreshExecutor";
 
@@ -44,7 +47,13 @@ public final class FanOutWorkRefreshClient implements WorkRefreshClient {
     this.getDataMetricTracker = getDataMetricTracker;
     this.fanOutActiveWorkRefreshExecutor =
         Executors.newCachedThreadPool(
-            new ThreadFactoryBuilder().setNameFormat(FAN_OUT_REFRESH_WORK_EXECUTOR_NAME).build());
+            new ThreadFactoryBuilder()
+                // FanOutWorkRefreshClient runs as a background process, don't let failures crash
+                // the worker.
+                .setUncaughtExceptionHandler(
+                    (t, e) -> LOG.error("Unexpected failure in {}", t.getName(), e))
+                .setNameFormat(FAN_OUT_REFRESH_WORK_EXECUTOR_NAME)
+                .build());
   }
 
   @Override
@@ -71,7 +80,11 @@ public final class FanOutWorkRefreshClient implements WorkRefreshClient {
             Heartbeats heartbeats = heartbeat.getValue();
             sender.sendHeartbeats(heartbeats);
           } catch (Exception e) {
-            throw new GetDataClient.GetDataException("Error refreshing heartbeats.", e);
+            LOG.error(
+                "Unable to send {} heartbeats to {}.",
+                heartbeat.getValue().size(),
+                heartbeat.getKey(),
+                new GetDataClient.GetDataException("Error refreshing heartbeats.", e));
           }
         },
         fanOutActiveWorkRefreshExecutor);

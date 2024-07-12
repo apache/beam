@@ -118,7 +118,6 @@ public final class StreamingWorkScheduler {
       DataflowMapTaskExecutorFactory mapTaskExecutorFactory,
       BoundedQueueExecutor workExecutor,
       Function<String, WindmillStateCache.ForComputation> stateCacheFactory,
-      Function<Windmill.GlobalDataRequest, Windmill.GlobalData> fetchGlobalDataFn,
       FailureTracker failureTracker,
       WorkFailureProcessor workFailureProcessor,
       StreamingCounters streamingCounters,

@@ -71,4 +71,9 @@ public final class FixedStreamHeartbeatSender implements HeartbeatSender {
     return obj instanceof FixedStreamHeartbeatSender
         && getDataStream.equals(((FixedStreamHeartbeatSender) obj).getDataStream);
   }
+
+  @Override
+  public String toString() {
+    return "HeartbeatSender-" + getDataStream.backendWorkerToken();
+  }
 }
