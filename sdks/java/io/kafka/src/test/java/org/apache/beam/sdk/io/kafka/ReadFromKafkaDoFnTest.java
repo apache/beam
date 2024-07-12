@@ -515,7 +515,7 @@ public class ReadFromKafkaDoFnTest {
   public void testProcessElementWhenTopicPartitionIsRemoved() throws Exception {
     MockMultiOutputReceiver receiver = new MockMultiOutputReceiver();
     consumer.setRemoved();
-    consumer.setNumOfRecordsPerPoll(10);
+    consumer.setNumOfRecordsPerPoll(-1);
     OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(0L, Long.MAX_VALUE));
     ProcessContinuation result =
         dofnInstance.processElement(
