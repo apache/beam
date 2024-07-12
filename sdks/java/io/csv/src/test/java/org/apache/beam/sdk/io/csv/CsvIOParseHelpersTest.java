@@ -113,7 +113,8 @@ public class CsvIOParseHelpersTest {
                 CsvIOParseHelpers.mapFieldPositions(
                     csvFormat().withHeader("an_integer", "a_string"), schema));
     assertEquals(
-        "Header does not contain field: " + schema.getField("another_string").getName(),
+        "header does not contain required class org.apache.beam.sdk.schemas.Schema field: "
+            + schema.getField("another_string").getName(),
         e.getMessage());
   }
 
