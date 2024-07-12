@@ -36,6 +36,88 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class CsvIOParseHelpersTest {
 
+  /** Tests for {@link CsvIOParseHelpers#validate(CSVFormat)}. */
+  @Test
+  public void givenCSVFormatWithHeader_validates() {
+    CSVFormat format = csvFormatWithHeader();
+    CsvIOParseHelpers.validate(format);
+  }
+
+  @Test
+  public void givenCSVFormatWithNullHeader_throwsException() {
+    CSVFormat format = csvFormat();
+    String gotMessage =
+        assertThrows(IllegalArgumentException.class, () -> CsvIOParseHelpers.validate(format))
+            .getMessage();
+    assertEquals("Illegal class org.apache.commons.csv.CSVFormat: header is required", gotMessage);
+  }
+
+  @Test
+  public void givenCSVFormatWithEmptyHeader_throwsException() {
+    CSVFormat format = csvFormat().withHeader();
+    String gotMessage =
+        assertThrows(IllegalArgumentException.class, () -> CsvIOParseHelpers.validate(format))
+            .getMessage();
+    assertEquals(
+        "Illegal class org.apache.commons.csv.CSVFormat: header cannot be empty", gotMessage);
+  }
+
+  @Test
+  public void givenCSVFormatWithHeaderContainingEmptyString_throwsException() {
+    CSVFormat format = csvFormat().withHeader("", "bar");
+    String gotMessage =
+        assertThrows(IllegalArgumentException.class, () -> CsvIOParseHelpers.validate(format))
+            .getMessage();
+    assertEquals(
+        "Illegal class org.apache.commons.csv.CSVFormat: column name is required", gotMessage);
+  }
+
+  @Test
+  public void givenCSVFormatWithHeaderContainingNull_throwsException() {
+    CSVFormat format = csvFormat().withHeader(null, "bar");
+    String gotMessage =
+        assertThrows(IllegalArgumentException.class, () -> CsvIOParseHelpers.validate(format))
+            .getMessage();
+    assertEquals(
+        "Illegal class org.apache.commons.csv.CSVFormat: column name is required", gotMessage);
+  }
+
+  @Test
+  public void givenCSVFormatThatAllowsMissingColumnNames_throwsException() {
+    CSVFormat format = csvFormatWithHeader().withAllowMissingColumnNames(true);
+    String gotMessage =
+        assertThrows(IllegalArgumentException.class, () -> CsvIOParseHelpers.validate(format))
+            .getMessage();
+    assertEquals(
+        "Illegal class org.apache.commons.csv.CSVFormat: cannot allow missing column names",
+        gotMessage);
+  }
+
+  @Test
+  public void givenCSVFormatThatIgnoresHeaderCase_throwsException() {
+    CSVFormat format = csvFormatWithHeader().withIgnoreHeaderCase(true);
+    String gotMessage =
+        assertThrows(IllegalArgumentException.class, () -> CsvIOParseHelpers.validate(format))
+            .getMessage();
+    assertEquals(
+        "Illegal class org.apache.commons.csv.CSVFormat: cannot ignore header case", gotMessage);
+  }
+
+  @Test
+  public void givenCSVFormatThatAllowsDuplicateHeaderNames_throwsException() {
+    CSVFormat format = csvFormatWithHeader().withAllowDuplicateHeaderNames(true);
+    String gotMessage =
+        assertThrows(IllegalArgumentException.class, () -> CsvIOParseHelpers.validate(format))
+            .getMessage();
+    assertEquals(
+        "Illegal class org.apache.commons.csv.CSVFormat: cannot allow duplicate header names",
+        gotMessage);
+  }
+
+  /** End of tests for {@link CsvIOParseHelpers#validate(CSVFormat)}. */
+  //////////////////////////////////////////////////////////////////////////////////////////////
+
+  /** Tests for {@link CsvIOParseHelpers#parseCell(String, Schema.Field)}. */
   @Test
   public void testHeaderWithComments() {
     String[] comments = {"first line", "second line", "third line"};
@@ -462,5 +544,15 @@ public class CsvIOParseHelpersTest {
   ////////////////////////////////////////////////////////////////////////////////////////////
   private static CSVFormat csvFormat() {
     return CSVFormat.DEFAULT;
+  //////////////////////////////////////////////////////////////////////////////////////////////
+
+  /** Return a {@link CSVFormat} with a header and with no duplicate header names allowed. */
+  private static CSVFormat csvFormatWithHeader() {
+    return csvFormat().withHeader("foo", "bar");
+  }
+
+  /** Return a {@link CSVFormat} with no header and with no duplicate header names allowed. */
+  private static CSVFormat csvFormat() {
+    return CSVFormat.DEFAULT.withAllowDuplicateHeaderNames(false);
   }
 }
