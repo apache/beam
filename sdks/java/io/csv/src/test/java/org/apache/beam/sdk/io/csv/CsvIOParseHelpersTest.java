@@ -542,9 +542,6 @@ public class CsvIOParseHelpersTest {
 
   /** End of tests for {@link CsvIOParseHelpers#parseCell(String, Schema.Field)}. */
   ////////////////////////////////////////////////////////////////////////////////////////////
-  private static CSVFormat csvFormat() {
-    return CSVFormat.DEFAULT;
-  //////////////////////////////////////////////////////////////////////////////////////////////
 
   /** Return a {@link CSVFormat} with a header and with no duplicate header names allowed. */
   private static CSVFormat csvFormatWithHeader() {
