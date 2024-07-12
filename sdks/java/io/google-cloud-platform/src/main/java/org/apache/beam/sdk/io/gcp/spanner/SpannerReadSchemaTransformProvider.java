@@ -54,7 +54,7 @@ public class SpannerReadSchemaTransformProvider
 
       if (!Strings.isNullOrEmpty(configuration.getQuery())) {
           spannerRows = input.getPipeline().apply(
-            SpannerIO.read()
+            SpannerIO.readWithSchema()
             .withProjectId(configuration.getProjectId())
             .withInstanceId(configuration.getInstanceId())
             .withDatabaseId(configuration.getDatabaseId())
@@ -63,7 +63,7 @@ public class SpannerReadSchemaTransformProvider
       } 
       else {
         spannerRows = input.getPipeline().apply(
-          SpannerIO.read()
+          SpannerIO.readWithSchema()
           .withProjectId(configuration.getProjectId())
           .withInstanceId(configuration.getInstanceId())
           .withDatabaseId(configuration.getDatabaseId())
@@ -73,12 +73,14 @@ public class SpannerReadSchemaTransformProvider
       }
 
       // Hardcoded for testing
+      /*
       Schema schema = Schema.builder()
             .addField("id_column", Schema.FieldType.INT64)
             .addField("name_column", Schema.FieldType.STRING)
             .build();
+      */
       // Implement when getSchema() is available
-      // Schema schema = spannerRows.getSchema();
+      Schema schema = spannerRows.getSchema();
       PCollection<Row> rows = spannerRows.apply(MapElements.into(TypeDescriptor.of(Row.class))
           .via((Struct struct) -> StructUtils.structToBeamRow(struct, schema)));
 
