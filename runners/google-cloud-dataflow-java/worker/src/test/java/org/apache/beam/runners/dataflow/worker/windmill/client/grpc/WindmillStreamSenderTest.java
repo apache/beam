@@ -34,6 +34,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.Co
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
+import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.GetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemScheduler;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
@@ -108,6 +109,7 @@ public class WindmillStreamSenderTest {
             any(ThrottleTimer.class),
             any(),
             any(),
+            any(),
             eq(workItemScheduler));
 
     verify(streamFactory).createGetDataStream(eq(connection.stub()), any(ThrottleTimer.class));
@@ -137,6 +139,7 @@ public class WindmillStreamSenderTest {
                     .setMaxBytes(byteBudget)
                     .build()),
             any(ThrottleTimer.class),
+            any(),
             any(),
             any(),
             eq(workItemScheduler));
@@ -175,6 +178,7 @@ public class WindmillStreamSenderTest {
             any(ThrottleTimer.class),
             any(),
             any(),
+            any(),
             eq(workItemScheduler));
 
     verify(streamFactory, times(1))
@@ -210,6 +214,7 @@ public class WindmillStreamSenderTest {
             any(ThrottleTimer.class),
             any(),
             any(),
+            any(),
             eq(workItemScheduler)))
         .thenReturn(mockGetWorkStream);
 
@@ -226,9 +231,9 @@ public class WindmillStreamSenderTest {
     windmillStreamSender.startStreams();
     windmillStreamSender.closeAllStreams();
 
-    verify(mockGetWorkStream).halfClose();
-    verify(mockGetDataStream).halfClose();
-    verify(mockCommitWorkStream).halfClose();
+    verify(mockGetWorkStream).shutdown();
+    verify(mockGetDataStream).shutdown();
+    verify(mockCommitWorkStream).shutdown();
   }
 
   private WindmillStreamSender newWindmillStreamSender(GetWorkBudget budget) {
@@ -243,6 +248,7 @@ public class WindmillStreamSenderTest {
         budget,
         streamFactory,
         workItemScheduler,
+        ignored -> mock(GetDataClient.class),
         ignored -> mock(WorkCommitter.class));
   }
 }

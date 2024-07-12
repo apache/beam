@@ -36,6 +36,7 @@ import java.util.stream.Collectors;
 import org.apache.beam.runners.dataflow.worker.streaming.config.ComputationConfig;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.GetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
@@ -69,12 +70,27 @@ public class ComputationStateCacheTest {
             Watermarks.builder().setInputDataWatermark(Instant.now()).build(),
             Work.createProcessingContext(
                 "computationId",
-                (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance(),
+                createMockGetDataClient(),
                 ignored -> {},
                 mock(HeartbeatSender.class)),
             Instant::now,
             Collections.emptyList()),
         ignored -> {});
+  }
+
+  private static GetDataClient createMockGetDataClient() {
+    return new GetDataClient() {
+      @Override
+      public Windmill.KeyedGetDataResponse getStateData(
+          String computation, Windmill.KeyedGetDataRequest request) {
+        return Windmill.KeyedGetDataResponse.getDefaultInstance();
+      }
+
+      @Override
+      public Windmill.GlobalData getSideInputData(Windmill.GlobalDataRequest request) {
+        return Windmill.GlobalData.getDefaultInstance();
+      }
+    };
   }
 
   @Before

@@ -27,14 +27,14 @@ import java.util.IntSummaryStatistics;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
-import java.util.function.BiFunction;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.function.Supplier;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
 import org.apache.beam.runners.dataflow.worker.ActiveMessageMetadata;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalData;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution;
@@ -45,6 +45,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.Commit;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
+import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.GetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReader;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.sdk.annotations.Internal;
@@ -106,10 +107,10 @@ public final class Work implements RefreshableWork {
 
   public static ProcessingContext createProcessingContext(
       String computationId,
-      BiFunction<String, KeyedGetDataRequest, KeyedGetDataResponse> getKeyedDataFn,
+      GetDataClient getDataClient,
       Consumer<Commit> workCommitter,
       HeartbeatSender heartbeatSender) {
-    return ProcessingContext.create(computationId, getKeyedDataFn, workCommitter, heartbeatSender);
+    return ProcessingContext.create(computationId, getDataClient, workCommitter, heartbeatSender);
   }
 
   private static LatencyAttribution.Builder createLatencyAttributionWithActiveLatencyBreakdown(
@@ -163,7 +164,11 @@ public final class Work implements RefreshableWork {
   }
 
   public Optional<KeyedGetDataResponse> fetchKeyedState(KeyedGetDataRequest keyedGetDataRequest) {
-    return processingContext.keyedDataFetcher().apply(keyedGetDataRequest);
+    return processingContext.fetchKeyedState(keyedGetDataRequest);
+  }
+
+  public GlobalData fetchSideInput(GlobalDataRequest request) {
+    return processingContext.getDataClient().getSideInputData(request);
   }
 
   public Watermarks watermarks() {
@@ -344,22 +349,18 @@ public final class Work implements RefreshableWork {
 
     private static ProcessingContext create(
         String computationId,
-        BiFunction<String, KeyedGetDataRequest, KeyedGetDataResponse> getKeyedDataFn,
+        GetDataClient getDataClient,
         Consumer<Commit> workCommitter,
         HeartbeatSender heartbeatSender) {
       return new AutoValue_Work_ProcessingContext(
-          computationId,
-          request -> Optional.ofNullable(getKeyedDataFn.apply(computationId, request)),
-          heartbeatSender,
-          workCommitter);
+          computationId, getDataClient, heartbeatSender, workCommitter);
     }
 
     /** Computation that the {@link Work} belongs to. */
     public abstract String computationId();
 
     /** Handles GetData requests to streaming backend. */
-    public abstract Function<KeyedGetDataRequest, Optional<KeyedGetDataResponse>>
-        keyedDataFetcher();
+    public abstract GetDataClient getDataClient();
 
     public abstract HeartbeatSender heartbeatSender();
 
@@ -368,5 +369,9 @@ public final class Work implements RefreshableWork {
      * {@link WorkItem}.
      */
     public abstract Consumer<Commit> workCommitter();
+
+    private Optional<KeyedGetDataResponse> fetchKeyedState(KeyedGetDataRequest request) {
+      return Optional.ofNullable(getDataClient().getStateData(computationId(), request));
+    }
   }
 }

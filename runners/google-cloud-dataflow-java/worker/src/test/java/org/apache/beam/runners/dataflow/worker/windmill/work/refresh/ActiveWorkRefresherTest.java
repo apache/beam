@@ -47,6 +47,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.GetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.direct.Clock;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
@@ -93,6 +94,21 @@ public class ActiveWorkRefresherTest {
         stateCache);
   }
 
+  private static GetDataClient createMockGetDataClient() {
+    return new GetDataClient() {
+      @Override
+      public Windmill.KeyedGetDataResponse getStateData(
+          String computation, Windmill.KeyedGetDataRequest request) {
+        return Windmill.KeyedGetDataResponse.getDefaultInstance();
+      }
+
+      @Override
+      public Windmill.GlobalData getSideInputData(Windmill.GlobalDataRequest request) {
+        return Windmill.GlobalData.getDefaultInstance();
+      }
+    };
+  }
+
   private ActiveWorkRefresher createActiveWorkRefresher(
       Supplier<Instant> clock,
       int activeWorkRefreshPeriodMillis,
@@ -126,10 +142,7 @@ public class ActiveWorkRefresherTest {
                 .build(),
             Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
             Work.createProcessingContext(
-                "computationId",
-                (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance(),
-                ignored -> {},
-                heartbeatSender),
+                "computationId", createMockGetDataClient(), ignored -> {}, heartbeatSender),
             A_LONG_TIME_AGO,
             ImmutableList.of()),
         processWork);

@@ -126,6 +126,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Timer;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Timer.Type;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WatermarkHold;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
+import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.GetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
@@ -315,6 +316,20 @@ public class StreamingDataflowWorkerTest {
     return createMockWork(shardedKey, workToken, computationId, ignored -> {});
   }
 
+  private static GetDataClient createMockGetDataClient() {
+    return new GetDataClient() {
+      @Override
+      public KeyedGetDataResponse getStateData(String computation, KeyedGetDataRequest request) {
+        return KeyedGetDataResponse.getDefaultInstance();
+      }
+
+      @Override
+      public Windmill.GlobalData getSideInputData(Windmill.GlobalDataRequest request) {
+        return Windmill.GlobalData.getDefaultInstance();
+      }
+    };
+  }
+
   private static ExecutableWork createMockWork(
       ShardedKey shardedKey, long workToken, Consumer<Work> processWorkFn) {
     return createMockWork(shardedKey, workToken, "computationId", processWorkFn);
@@ -332,7 +347,7 @@ public class StreamingDataflowWorkerTest {
             Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
             Work.createProcessingContext(
                 computationId,
-                (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance(),
+                createMockGetDataClient(),
                 ignored -> {},
                 mock(HeartbeatSender.class)),
             Instant::now,
@@ -3407,7 +3422,7 @@ public class StreamingDataflowWorkerTest {
             Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
             Work.createProcessingContext(
                 "computationId",
-                (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance(),
+                createMockGetDataClient(),
                 ignored -> {},
                 mock(HeartbeatSender.class)),
             clock,

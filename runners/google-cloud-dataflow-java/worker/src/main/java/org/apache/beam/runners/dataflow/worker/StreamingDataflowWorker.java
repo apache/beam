@@ -865,10 +865,7 @@ public class StreamingDataflowWorker {
               workItem,
               watermarks.setOutputDataWatermark(workItem.getOutputDataWatermark()).build(),
               Work.createProcessingContext(
-                  computationId,
-                  getDataClient::getStateData,
-                  workCommitter::commit,
-                  heartbeatSender),
+                  computationId, getDataClient, workCommitter::commit, heartbeatSender),
               /* getWorkStreamLatencies= */ Collections.emptyList());
         }
       }
@@ -904,7 +901,7 @@ public class StreamingDataflowWorker {
                                     .build(),
                                 Work.createProcessingContext(
                                     computationState.getComputationId(),
-                                    getDataClient::getStateData,
+                                    getDataClient,
                                     workCommitter::commit,
                                     heartbeatSender),
                                 getWorkStreamLatencies);

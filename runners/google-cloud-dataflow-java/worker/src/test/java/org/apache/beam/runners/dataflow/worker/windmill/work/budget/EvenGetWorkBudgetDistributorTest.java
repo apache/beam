@@ -33,6 +33,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillConnection;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
+import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.GetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillStreamFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.WindmillStreamSender;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
@@ -260,6 +261,7 @@ public class EvenGetWorkBudgetDistributorTest {
                     .build())
             .build(),
         (workItem, watermarks, processingContext, ackWorkItemQueued, getWorkStreamLatencies) -> {},
+        ignored -> mock(GetDataClient.class),
         ignored -> mock(WorkCommitter.class));
   }
 }

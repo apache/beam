@@ -45,6 +45,8 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkerMetadataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
+import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.DirectGetDataClient;
+import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.ThrottlingGetDataMetricTracker;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCachingStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemScheduler;
@@ -91,6 +93,7 @@ public final class StreamingEngineClient {
   private final Supplier<GetWorkerMetadataStream> getWorkerMetadataStream;
   private final Queue<WindmillEndpoints> newWindmillEndpoints;
   private final Function<WindmillStream.CommitWorkStream, WorkCommitter> workCommitterFactory;
+  private final ThrottlingGetDataMetricTracker getDataMetricTracker;
 
   /** Writes are guarded by synchronization, reads are lock free. */
   private final AtomicReference<StreamingEngineConnectionState> connections;
@@ -107,8 +110,10 @@ public final class StreamingEngineClient {
       GetWorkBudgetDistributor getWorkBudgetDistributor,
       GrpcDispatcherClient dispatcherClient,
       long clientId,
-      Function<WindmillStream.CommitWorkStream, WorkCommitter> workCommitterFactory) {
+      Function<WindmillStream.CommitWorkStream, WorkCommitter> workCommitterFactory,
+      ThrottlingGetDataMetricTracker getDataMetricTracker) {
     this.jobHeader = jobHeader;
+    this.getDataMetricTracker = getDataMetricTracker;
     this.started = false;
     this.streamFactory = streamFactory;
     this.workItemScheduler = workItemScheduler;
@@ -171,7 +176,8 @@ public final class StreamingEngineClient {
       ChannelCachingStubFactory channelCachingStubFactory,
       GetWorkBudgetDistributor getWorkBudgetDistributor,
       GrpcDispatcherClient dispatcherClient,
-      Function<WindmillStream.CommitWorkStream, WorkCommitter> workCommitterFactory) {
+      Function<WindmillStream.CommitWorkStream, WorkCommitter> workCommitterFactory,
+      ThrottlingGetDataMetricTracker getDataMetricTracker) {
     return new StreamingEngineClient(
         jobHeader,
         totalGetWorkBudget,
@@ -181,7 +187,8 @@ public final class StreamingEngineClient {
         getWorkBudgetDistributor,
         dispatcherClient,
         /* clientId= */ new Random().nextLong(),
-        workCommitterFactory);
+        workCommitterFactory,
+        getDataMetricTracker);
   }
 
   @VisibleForTesting
@@ -194,7 +201,8 @@ public final class StreamingEngineClient {
       GetWorkBudgetDistributor getWorkBudgetDistributor,
       GrpcDispatcherClient dispatcherClient,
       long clientId,
-      Function<WindmillStream.CommitWorkStream, WorkCommitter> workCommitterFactory) {
+      Function<WindmillStream.CommitWorkStream, WorkCommitter> workCommitterFactory,
+      ThrottlingGetDataMetricTracker getDataMetricTracker) {
     StreamingEngineClient streamingEngineClient =
         new StreamingEngineClient(
             jobHeader,
@@ -205,7 +213,8 @@ public final class StreamingEngineClient {
             getWorkBudgetDistributor,
             dispatcherClient,
             clientId,
-            workCommitterFactory);
+            workCommitterFactory,
+            getDataMetricTracker);
     streamingEngineClient.start();
     return streamingEngineClient;
   }
@@ -240,7 +249,7 @@ public final class StreamingEngineClient {
    * Fetches {@link GetDataStream} mapped to globalDataKey if one exists, or defaults to {@link
    * GetDataStream} pointing to dispatcher.
    */
-  public GetDataStream getGlobalDataStream(String globalDataKey) {
+  private GetDataStream getGlobalDataStream(String globalDataKey) {
     return Optional.ofNullable(connections.get().globalDataStreams().get(globalDataKey))
         .map(Supplier::get)
         .orElseGet(
@@ -400,6 +409,9 @@ public final class StreamingEngineClient {
             GetWorkBudget.noBudget(),
             streamFactory,
             workItemScheduler,
+            getDataStream ->
+                DirectGetDataClient.create(
+                    getDataStream, this::getGlobalDataStream, getDataMetricTracker),
             workCommitterFactory);
     windmillStreamSender.startStreams();
     return windmillStreamSender;

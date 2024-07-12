@@ -28,9 +28,11 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.Co
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
+import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.GetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.StreamingEngineThrottleTimers;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemScheduler;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
+import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.FixedStreamHeartbeatSender;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers;
 
@@ -70,6 +72,7 @@ public class WindmillStreamSender {
       AtomicReference<GetWorkBudget> getWorkBudget,
       GrpcWindmillStreamFactory streamingEngineStreamFactory,
       WorkItemScheduler workItemScheduler,
+      Function<GetDataStream, GetDataClient> getDataClientFactory,
       Function<CommitWorkStream, WorkCommitter> workCommitterFactory) {
     this.started = new AtomicBoolean(false);
     this.getWorkBudget = getWorkBudget;
@@ -98,7 +101,8 @@ public class WindmillStreamSender {
                     connection,
                     withRequestBudget(getWorkRequest, getWorkBudget.get()),
                     streamingEngineThrottleTimers.getWorkThrottleTimer(),
-                    getDataStream,
+                    () -> FixedStreamHeartbeatSender.create(getDataStream.get()),
+                    () -> getDataClientFactory.apply(getDataStream.get()),
                     workCommitter,
                     workItemScheduler));
   }
@@ -109,6 +113,7 @@ public class WindmillStreamSender {
       GetWorkBudget getWorkBudget,
       GrpcWindmillStreamFactory streamingEngineStreamFactory,
       WorkItemScheduler workItemScheduler,
+      Function<GetDataStream, GetDataClient> getDataClientFactory,
       Function<CommitWorkStream, WorkCommitter> workCommitterFactory) {
     return new WindmillStreamSender(
         connection,
@@ -116,6 +121,7 @@ public class WindmillStreamSender {
         new AtomicReference<>(getWorkBudget),
         streamingEngineStreamFactory,
         workItemScheduler,
+        getDataClientFactory,
         workCommitterFactory);
   }
 
@@ -138,10 +144,10 @@ public class WindmillStreamSender {
     // streaming RPCs by possibly making calls over the network. Do not close the streams unless
     // they have already been started.
     if (started.get()) {
-      getWorkStream.get().halfClose();
-      getDataStream.get().halfClose();
+      getWorkStream.get().shutdown();
+      getDataStream.get().shutdown();
       workCommitter.get().stop();
-      commitWorkStream.get().halfClose();
+      commitWorkStream.get().shutdown();
     }
   }
 

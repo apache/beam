@@ -45,10 +45,12 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.Ge
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkerMetadataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
+import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.GetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemReceiver;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemScheduler;
+import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.FluentBackoff;
@@ -196,7 +198,8 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
       WindmillConnection connection,
       GetWorkRequest request,
       ThrottleTimer getWorkThrottleTimer,
-      Supplier<GetDataStream> getDataStream,
+      Supplier<HeartbeatSender> heartbeatSender,
+      Supplier<GetDataClient> getDataClient,
       Supplier<WorkCommitter> workCommitter,
       WorkItemScheduler workItemScheduler) {
     return GrpcDirectGetWorkStream.create(
@@ -208,7 +211,8 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         streamRegistry,
         logEveryNStreamFailures,
         getWorkThrottleTimer,
-        getDataStream,
+        heartbeatSender,
+        getDataClient,
         workCommitter,
         workItemScheduler);
   }
