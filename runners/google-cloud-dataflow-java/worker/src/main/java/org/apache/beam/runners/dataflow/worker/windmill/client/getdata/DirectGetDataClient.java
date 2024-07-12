@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.client.getdata;
 
-import java.util.function.Supplier;
+import java.util.function.Function;
 import org.apache.beam.runners.dataflow.worker.WorkItemCancelledException;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
@@ -28,23 +28,24 @@ import org.apache.beam.sdk.annotations.Internal;
 public final class DirectGetDataClient implements GetDataClient {
 
   private final GetDataStream directGetDataStream;
-  private final Supplier<GetDataStream> sideInputGetDataStream;
+  private final Function<String, GetDataStream> sideInputGetDataStreamFactory;
   private final ThrottlingGetDataMetricTracker getDataMetricTracker;
 
   private DirectGetDataClient(
       GetDataStream directGetDataStream,
-      Supplier<GetDataStream> sideInputGetDataStream,
+      Function<String, GetDataStream> sideInputGetDataStreamFactory,
       ThrottlingGetDataMetricTracker getDataMetricTracker) {
     this.directGetDataStream = directGetDataStream;
-    this.sideInputGetDataStream = sideInputGetDataStream;
+    this.sideInputGetDataStreamFactory = sideInputGetDataStreamFactory;
     this.getDataMetricTracker = getDataMetricTracker;
   }
 
   public static GetDataClient create(
       GetDataStream getDataStream,
-      Supplier<GetDataStream> sideInputGetDataStream,
+      Function<String, GetDataStream> sideInputGetDataStreamFactory,
       ThrottlingGetDataMetricTracker getDataMetricTracker) {
-    return new DirectGetDataClient(getDataStream, sideInputGetDataStream, getDataMetricTracker);
+    return new DirectGetDataClient(
+        getDataStream, sideInputGetDataStreamFactory, getDataMetricTracker);
   }
 
   @Override
@@ -74,7 +75,8 @@ public final class DirectGetDataClient implements GetDataClient {
 
   @Override
   public Windmill.GlobalData getSideInputData(Windmill.GlobalDataRequest request) {
-    GetDataStream sideInputGetDataStream = this.sideInputGetDataStream.get();
+    GetDataStream sideInputGetDataStream =
+        sideInputGetDataStreamFactory.apply(request.getDataId().getTag());
     if (sideInputGetDataStream.isShutdown()) {
       throw new GetDataException(
           "Error occurred fetching side input for tag=" + request.getDataId());
