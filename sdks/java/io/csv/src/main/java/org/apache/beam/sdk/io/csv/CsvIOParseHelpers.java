@@ -36,7 +36,7 @@ final class CsvIOParseHelpers {
    * "Reading CSV Files" section of the {@link CsvIO} documentation for information regarding which
    * {@link CSVFormat} parameters are checked during validation.
    */
-  static void validate(CSVFormat format) {
+  static void validateCsvFormat(CSVFormat format) {
     String[] header =
         checkArgumentNotNull(format.getHeader(), "Illegal %s: header is required", CSVFormat.class);
 
@@ -67,7 +67,7 @@ final class CsvIOParseHelpers {
    * Validate the {@link CSVFormat} in relation to the {@link Schema} for CSV record parsing
    * requirements.
    */
-  static void validate(CSVFormat format, Schema schema) {
+  static void validateCsvFormatWithSchema(CSVFormat format, Schema schema) {
     List<String> header = Arrays.asList(format.getHeader());
     for (Schema.Field field : schema.getFields()) {
       String fieldName = field.getName();
