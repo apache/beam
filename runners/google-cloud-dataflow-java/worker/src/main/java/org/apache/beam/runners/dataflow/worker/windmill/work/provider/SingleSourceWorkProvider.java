@@ -78,13 +78,13 @@ public abstract class SingleSourceWorkProvider implements WorkProvider {
   }
 
   public static SingleSourceWorkProviderBuilder.Builder builder() {
-    return new AutoValue_SingleWorkProviderBuilder.Builder();
+    return new AutoValue_SingleSourceWorkProvider_SingleSourceWorkProviderBuilder.Builder();
   }
 
   @SuppressWarnings("FutureReturnValueIgnored")
   @Override
   public final void start() {
-    if (isRunning.compareAndSet(true, false) && !workProviderExecutor.isShutdown()) {
+    if (isRunning.compareAndSet(false, true) && !workProviderExecutor.isShutdown()) {
       workProviderExecutor.submit(
           () -> {
             LOG.info("Dispatch starting");
@@ -149,7 +149,7 @@ public abstract class SingleSourceWorkProvider implements WorkProvider {
 
       abstract SingleSourceWorkProviderBuilder autoBuild();
 
-      public final WorkProvider buildForAppliance(Supplier<Windmill.GetWorkResponse> getWorkFn) {
+      public final WorkProvider build(Supplier<Windmill.GetWorkResponse> getWorkFn) {
         SingleSourceWorkProviderBuilder params = autoBuild();
         return new ApplianceWorkProvider(
             params.workCommitter(),
@@ -161,7 +161,7 @@ public abstract class SingleSourceWorkProvider implements WorkProvider {
             getWorkFn);
       }
 
-      public final WorkProvider buildForStreamingEngine(
+      public final WorkProvider build(
           Function<WorkItemReceiver, WindmillStream.GetWorkStream> getWorkStreamFactory) {
         SingleSourceWorkProviderBuilder params = autoBuild();
         return new StreamingEngineWorkProvider(
