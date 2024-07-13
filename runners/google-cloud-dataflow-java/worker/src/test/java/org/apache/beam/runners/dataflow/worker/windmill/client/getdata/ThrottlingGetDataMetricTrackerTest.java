@@ -29,10 +29,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
-<<<<<<< HEAD
-=======
-import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.ThrottlingGetDataMetricTracker.Type;
->>>>>>> 1f33ccf26bb (address PR comments)
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -48,11 +44,7 @@ public class ThrottlingGetDataMetricTrackerTest {
 
   @Test
   public void testTrackFetchStateDataWithThrottling() throws InterruptedException {
-<<<<<<< HEAD
     doNothing().when(memoryMonitor).waitForResources(anyString());
-=======
-    doNothing().when(memoryMonitor).waitForResources(eq(Type.STATE.debugName()));
->>>>>>> 1f33ccf26bb (address PR comments)
     CountDownLatch processCall = new CountDownLatch(1);
     CountDownLatch callProcessing = new CountDownLatch(1);
     CountDownLatch processingDone = new CountDownLatch(1);
@@ -88,11 +80,7 @@ public class ThrottlingGetDataMetricTrackerTest {
 
   @Test
   public void testTrackSideInputFetchWithThrottling() throws InterruptedException {
-<<<<<<< HEAD
     doNothing().when(memoryMonitor).waitForResources(anyString());
-=======
-    doNothing().when(memoryMonitor).waitForResources(eq(Type.SIDE_INPUT.debugName()));
->>>>>>> 1f33ccf26bb (address PR comments)
     CountDownLatch processCall = new CountDownLatch(1);
     CountDownLatch callProcessing = new CountDownLatch(1);
     CountDownLatch processingDone = new CountDownLatch(1);
