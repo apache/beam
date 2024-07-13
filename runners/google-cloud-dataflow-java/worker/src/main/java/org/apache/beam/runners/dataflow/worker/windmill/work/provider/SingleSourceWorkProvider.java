@@ -33,6 +33,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemReceiver;
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.StreamingWorkScheduler;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.slf4j.Logger;
@@ -78,40 +79,39 @@ public abstract class SingleSourceWorkProvider implements WorkProvider {
   }
 
   public static SingleSourceWorkProviderBuilder.Builder builder() {
-    return new AutoValue_SingleWorkProviderBuilder.Builder();
+    return new AutoValue_SingleSourceWorkProvider_SingleSourceWorkProviderBuilder.Builder();
   }
 
   @SuppressWarnings("FutureReturnValueIgnored")
   @Override
   public final void start() {
-    if (isRunning.compareAndSet(true, false) && !workProviderExecutor.isShutdown()) {
-      workProviderExecutor.submit(
-          () -> {
-            LOG.info("Dispatch starting");
-            dispatchLoop();
-            LOG.info("Dispatch done");
-          });
-      workCommitter.start();
-    }
+    Preconditions.checkState(
+        isRunning.compareAndSet(false, true), "{} calls to WorkProvider.start()", getClass());
+    workProviderExecutor.submit(
+        () -> {
+          LOG.info("Dispatch starting");
+          dispatchLoop();
+          LOG.info("Dispatch done");
+        });
+    workCommitter.start();
   }
 
   @Override
   public final void shutdown() {
-    if (isRunning.get() && !workProviderExecutor.isShutdown()) {
-      workProviderExecutor.shutdown();
-      boolean isTerminated = false;
-      try {
-        isTerminated = workProviderExecutor.awaitTermination(10, TimeUnit.SECONDS);
-      } catch (InterruptedException e) {
-        LOG.warn("Unable to shutdown WorkProvider");
-      }
-
-      if (!isTerminated) {
-        workProviderExecutor.shutdownNow();
-      }
-      workCommitter.stop();
-      isRunning.set(false);
+    Preconditions.checkState(
+        isRunning.compareAndSet(true, false), "{} calls to WorkProvider.shutdown()", getClass());
+    workProviderExecutor.shutdown();
+    boolean isTerminated = false;
+    try {
+      isTerminated = workProviderExecutor.awaitTermination(10, TimeUnit.SECONDS);
+    } catch (InterruptedException e) {
+      LOG.warn("Unable to shutdown WorkProvider");
     }
+
+    if (!isTerminated) {
+      workProviderExecutor.shutdownNow();
+    }
+    workCommitter.stop();
   }
 
   protected abstract void dispatchLoop();
@@ -149,7 +149,7 @@ public abstract class SingleSourceWorkProvider implements WorkProvider {
 
       abstract SingleSourceWorkProviderBuilder autoBuild();
 
-      public final WorkProvider buildForAppliance(Supplier<Windmill.GetWorkResponse> getWorkFn) {
+      public final WorkProvider build(Supplier<Windmill.GetWorkResponse> getWorkFn) {
         SingleSourceWorkProviderBuilder params = autoBuild();
         return new ApplianceWorkProvider(
             params.workCommitter(),
@@ -161,7 +161,7 @@ public abstract class SingleSourceWorkProvider implements WorkProvider {
             getWorkFn);
       }
 
-      public final WorkProvider buildForStreamingEngine(
+      public final WorkProvider build(
           Function<WorkItemReceiver, WindmillStream.GetWorkStream> getWorkStreamFactory) {
         SingleSourceWorkProviderBuilder params = autoBuild();
         return new StreamingEngineWorkProvider(

@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
+package org.apache.beam.runners.dataflow.worker.windmill.work.provider;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -49,12 +49,15 @@ import org.apache.beam.runners.dataflow.worker.windmill.WindmillConnection;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.ThrottlingGetDataMetricTracker;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcDispatcherClient;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillStreamFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCachingStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannelFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.testing.FakeWindmillStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemScheduler;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudgetDistributor;
+import org.apache.beam.runners.dataflow.worker.windmill.work.budget.HasGetWorkBudget;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Server;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.inprocess.InProcessServerBuilder;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.inprocess.InProcessSocketAddress;
@@ -76,7 +79,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
-public class StreamingEngineClientTest {
+public class FanOutStreamingEngineWorkProviderTest {
   private static final WindmillServiceAddress DEFAULT_WINDMILL_SERVICE_ADDRESS =
       WindmillServiceAddress.create(HostAndPort.fromParts(WindmillChannelFactory.LOCALHOST, 443));
   private static final ImmutableMap<String, WorkerMetadataResponse.Endpoint> DEFAULT =
@@ -113,7 +116,7 @@ public class StreamingEngineClientTest {
   private Server fakeStreamingEngineServer;
   private CountDownLatch getWorkerMetadataReady;
   private GetWorkerMetadataTestStub fakeGetWorkerMetadataStub;
-  private StreamingEngineClient streamingEngineClient;
+  private FanOutStreamingEngineWorkProvider fanOutStreamingEngineWorkProvider;
 
   private static WorkItemScheduler noOpProcessWorkItemFn() {
     return (workItem,
@@ -163,16 +166,16 @@ public class StreamingEngineClientTest {
 
   @After
   public void cleanUp() {
-    Preconditions.checkNotNull(streamingEngineClient).finish();
+    Preconditions.checkNotNull(fanOutStreamingEngineWorkProvider).shutdown();
     fakeStreamingEngineServer.shutdownNow();
     stubFactory.shutdown();
   }
 
-  private StreamingEngineClient newStreamingEngineClient(
+  private FanOutStreamingEngineWorkProvider newStreamingEngineClient(
       GetWorkBudget getWorkBudget,
       GetWorkBudgetDistributor getWorkBudgetDistributor,
       WorkItemScheduler workItemScheduler) {
-    return StreamingEngineClient.forTesting(
+    return FanOutStreamingEngineWorkProvider.forTesting(
         JOB_HEADER,
         getWorkBudget,
         streamFactory,
@@ -194,7 +197,7 @@ public class StreamingEngineClientTest {
     TestGetWorkBudgetDistributor getWorkBudgetDistributor =
         spy(new TestGetWorkBudgetDistributor(numBudgetDistributionsExpected));
 
-    streamingEngineClient =
+    fanOutStreamingEngineWorkProvider =
         newStreamingEngineClient(
             GetWorkBudget.builder().setItems(items).setBytes(bytes).build(),
             getWorkBudgetDistributor,
@@ -216,7 +219,7 @@ public class StreamingEngineClientTest {
     waitForWorkerMetadataToBeConsumed(getWorkBudgetDistributor);
 
     StreamingEngineConnectionState currentConnections =
-        streamingEngineClient.getCurrentConnections();
+        fanOutStreamingEngineWorkProvider.getCurrentConnections();
 
     assertEquals(2, currentConnections.windmillConnections().size());
     assertEquals(2, currentConnections.windmillStreams().size());
@@ -250,7 +253,7 @@ public class StreamingEngineClientTest {
   public void testScheduledBudgetRefresh() throws InterruptedException {
     TestGetWorkBudgetDistributor getWorkBudgetDistributor =
         spy(new TestGetWorkBudgetDistributor(2));
-    streamingEngineClient =
+    fanOutStreamingEngineWorkProvider =
         newStreamingEngineClient(
             GetWorkBudget.builder().setItems(1L).setBytes(1L).build(),
             getWorkBudgetDistributor,
@@ -273,7 +276,7 @@ public class StreamingEngineClientTest {
     int metadataCount = 2;
     TestGetWorkBudgetDistributor getWorkBudgetDistributor =
         spy(new TestGetWorkBudgetDistributor(metadataCount));
-    streamingEngineClient =
+    fanOutStreamingEngineWorkProvider =
         newStreamingEngineClient(
             GetWorkBudget.builder().setItems(1).setBytes(1).build(),
             getWorkBudgetDistributor,
@@ -311,11 +314,12 @@ public class StreamingEngineClientTest {
     fakeGetWorkerMetadataStub.injectWorkerMetadata(secondWorkerMetadata);
     waitForWorkerMetadataToBeConsumed(getWorkBudgetDistributor);
     StreamingEngineConnectionState currentConnections =
-        streamingEngineClient.getCurrentConnections();
+        fanOutStreamingEngineWorkProvider.getCurrentConnections();
     assertEquals(1, currentConnections.windmillConnections().size());
     assertEquals(1, currentConnections.windmillStreams().size());
     Set<String> workerTokens =
-        streamingEngineClient.getCurrentConnections().windmillConnections().values().stream()
+        fanOutStreamingEngineWorkProvider.getCurrentConnections().windmillConnections().values()
+            .stream()
             .map(WindmillConnection::backendWorkerToken)
             .collect(Collectors.toSet());
 
@@ -362,7 +366,7 @@ public class StreamingEngineClientTest {
 
     TestGetWorkBudgetDistributor getWorkBudgetDistributor =
         spy(new TestGetWorkBudgetDistributor(workerMetadataResponses.size()));
-    streamingEngineClient =
+    fanOutStreamingEngineWorkProvider =
         newStreamingEngineClient(
             GetWorkBudget.builder().setItems(1).setBytes(1).build(),
             getWorkBudgetDistributor,
@@ -439,8 +443,8 @@ public class StreamingEngineClientTest {
     }
 
     @Override
-    public void distributeBudget(
-        ImmutableCollection<WindmillStreamSender> streams, GetWorkBudget getWorkBudget) {
+    public <T extends HasGetWorkBudget> void distributeBudget(
+        ImmutableCollection<T> streams, GetWorkBudget getWorkBudget) {
       streams.forEach(stream -> stream.adjustBudget(getWorkBudget.items(), getWorkBudget.bytes()));
       getWorkBudgetDistributorTriggered.countDown();
     }

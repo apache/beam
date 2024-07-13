@@ -189,7 +189,6 @@ dependencies {
     implementation project(":runners:core-java")
     implementation project(":runners:java-fn-execution")
     implementation project(path: ":runners:google-cloud-dataflow-java:worker:windmill", configuration: "shadow")
-    implementation project(path: ':sdks:java:core')
     shadow library.java.vendored_guava_32_1_2_jre
 
     implementation library.java.google_auth_library_credentials

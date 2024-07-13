@@ -35,20 +35,11 @@ import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQuerySinkMetrics;
-import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 
 /** Contains a few of the stage specific fields. E.g. metrics container registry, counters etc. */
 @AutoValue
 public abstract class StageInfo {
-
-  // TODO(https://github.com/apache/beam/issues/19632): Update throttling counters to use generic
-  // throttling-msecs metric.
-  private static final MetricName BIGQUERY_STREAMING_INSERT_THROTTLE_TIME =
-      MetricName.named(
-          "org.apache.beam.sdk.io.gcp.bigquery.BigQueryServicesImpl$DatasetServiceImpl",
-          "throttling-msecs");
-
   public static StageInfo create(String stageName, String systemName) {
     NameContext nameContext = NameContext.newBuilder(stageName).setSystemName(systemName).build();
     CounterSet deltaCounters = new CounterSet();
@@ -107,15 +98,7 @@ public abstract class StageInfo {
   private void translateKnownStepCounters(CounterUpdate stepCounterUpdate) {
     CounterStructuredName structuredName =
         stepCounterUpdate.getStructuredNameAndMetadata().getName();
-
-    if ((THROTTLING_MSECS_METRIC_NAME.getNamespace().equals(structuredName.getOriginNamespace())
-            && THROTTLING_MSECS_METRIC_NAME.getName().equals(structuredName.getName()))
-        || (BIGQUERY_STREAMING_INSERT_THROTTLE_TIME
-                .getNamespace()
-                .equals(structuredName.getOriginNamespace())
-            && BIGQUERY_STREAMING_INSERT_THROTTLE_TIME
-                .getName()
-                .equals(structuredName.getName()))) {
+    if (THROTTLE_TIME_COUNTER_NAME.equals(structuredName.getName())) {
       long msecs = DataflowCounterUpdateExtractor.splitIntToLong(stepCounterUpdate.getInteger());
       if (msecs > 0) {
         throttledMsecs().addValue(msecs);
