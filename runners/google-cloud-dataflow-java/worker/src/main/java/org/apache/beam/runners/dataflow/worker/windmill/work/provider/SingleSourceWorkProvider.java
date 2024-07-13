@@ -150,6 +150,7 @@ public abstract class SingleSourceWorkProvider implements WorkProvider {
       abstract SingleSourceWorkProviderBuilder autoBuild();
 
       public final WorkProvider build(Supplier<Windmill.GetWorkResponse> getWorkFn) {
+
         SingleSourceWorkProviderBuilder params = autoBuild();
         return new ApplianceWorkProvider(
             params.workCommitter(),
