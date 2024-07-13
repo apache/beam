@@ -23,6 +23,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
@@ -35,7 +36,7 @@ final class CsvIOParseHelpers {
    * "Reading CSV Files" section of the {@link CsvIO} documentation for information regarding which
    * {@link CSVFormat} parameters are checked during validation.
    */
-  static void validate(CSVFormat format) {
+  static void validateCsvFormat(CSVFormat format) {
     String[] header =
         checkArgumentNotNull(format.getHeader(), "Illegal %s: header is required", CSVFormat.class);
 
@@ -66,8 +67,20 @@ final class CsvIOParseHelpers {
    * Validate the {@link CSVFormat} in relation to the {@link Schema} for CSV record parsing
    * requirements.
    */
-  // TODO(https://github.com/apache/beam/issues/31716): implement method.
-  static void validate(CSVFormat format, Schema schema) {}
+  static void validateCsvFormatWithSchema(CSVFormat format, Schema schema) {
+    List<String> header = Arrays.asList(format.getHeader());
+    for (Schema.Field field : schema.getFields()) {
+      String fieldName = field.getName();
+      if (!field.getType().getNullable()) {
+        checkArgument(
+            header.contains(fieldName),
+            "Illegal %s: required %s field '%s' not found in header",
+            CSVFormat.class,
+            Schema.class.getTypeName(),
+            fieldName);
+      }
+    }
+  }
 
   /**
    * Build a {@link List} of {@link Schema.Field}s corresponding to the expected position of each

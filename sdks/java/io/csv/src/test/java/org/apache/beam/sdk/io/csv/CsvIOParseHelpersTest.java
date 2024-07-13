@@ -34,18 +34,19 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class CsvIOParseHelpersTest {
 
-  /** Tests for {@link CsvIOParseHelpers#validate(CSVFormat)}. */
+  /** Tests for {@link CsvIOParseHelpers#validateCsvFormat(CSVFormat)}. */
   @Test
   public void givenCSVFormatWithHeader_validates() {
     CSVFormat format = csvFormatWithHeader();
-    CsvIOParseHelpers.validate(format);
+    CsvIOParseHelpers.validateCsvFormat(format);
   }
 
   @Test
   public void givenCSVFormatWithNullHeader_throwsException() {
     CSVFormat format = csvFormat();
     String gotMessage =
-        assertThrows(IllegalArgumentException.class, () -> CsvIOParseHelpers.validate(format))
+        assertThrows(
+                IllegalArgumentException.class, () -> CsvIOParseHelpers.validateCsvFormat(format))
             .getMessage();
     assertEquals("Illegal class org.apache.commons.csv.CSVFormat: header is required", gotMessage);
   }
@@ -54,7 +55,8 @@ public class CsvIOParseHelpersTest {
   public void givenCSVFormatWithEmptyHeader_throwsException() {
     CSVFormat format = csvFormat().withHeader();
     String gotMessage =
-        assertThrows(IllegalArgumentException.class, () -> CsvIOParseHelpers.validate(format))
+        assertThrows(
+                IllegalArgumentException.class, () -> CsvIOParseHelpers.validateCsvFormat(format))
             .getMessage();
     assertEquals(
         "Illegal class org.apache.commons.csv.CSVFormat: header cannot be empty", gotMessage);
@@ -64,7 +66,8 @@ public class CsvIOParseHelpersTest {
   public void givenCSVFormatWithHeaderContainingEmptyString_throwsException() {
     CSVFormat format = csvFormat().withHeader("", "bar");
     String gotMessage =
-        assertThrows(IllegalArgumentException.class, () -> CsvIOParseHelpers.validate(format))
+        assertThrows(
+                IllegalArgumentException.class, () -> CsvIOParseHelpers.validateCsvFormat(format))
             .getMessage();
     assertEquals(
         "Illegal class org.apache.commons.csv.CSVFormat: column name is required", gotMessage);
@@ -74,7 +77,8 @@ public class CsvIOParseHelpersTest {
   public void givenCSVFormatWithHeaderContainingNull_throwsException() {
     CSVFormat format = csvFormat().withHeader(null, "bar");
     String gotMessage =
-        assertThrows(IllegalArgumentException.class, () -> CsvIOParseHelpers.validate(format))
+        assertThrows(
+                IllegalArgumentException.class, () -> CsvIOParseHelpers.validateCsvFormat(format))
             .getMessage();
     assertEquals(
         "Illegal class org.apache.commons.csv.CSVFormat: column name is required", gotMessage);
@@ -84,7 +88,8 @@ public class CsvIOParseHelpersTest {
   public void givenCSVFormatThatAllowsMissingColumnNames_throwsException() {
     CSVFormat format = csvFormatWithHeader().withAllowMissingColumnNames(true);
     String gotMessage =
-        assertThrows(IllegalArgumentException.class, () -> CsvIOParseHelpers.validate(format))
+        assertThrows(
+                IllegalArgumentException.class, () -> CsvIOParseHelpers.validateCsvFormat(format))
             .getMessage();
     assertEquals(
         "Illegal class org.apache.commons.csv.CSVFormat: cannot allow missing column names",
@@ -95,7 +100,8 @@ public class CsvIOParseHelpersTest {
   public void givenCSVFormatThatIgnoresHeaderCase_throwsException() {
     CSVFormat format = csvFormatWithHeader().withIgnoreHeaderCase(true);
     String gotMessage =
-        assertThrows(IllegalArgumentException.class, () -> CsvIOParseHelpers.validate(format))
+        assertThrows(
+                IllegalArgumentException.class, () -> CsvIOParseHelpers.validateCsvFormat(format))
             .getMessage();
     assertEquals(
         "Illegal class org.apache.commons.csv.CSVFormat: cannot ignore header case", gotMessage);
@@ -105,14 +111,48 @@ public class CsvIOParseHelpersTest {
   public void givenCSVFormatThatAllowsDuplicateHeaderNames_throwsException() {
     CSVFormat format = csvFormatWithHeader().withAllowDuplicateHeaderNames(true);
     String gotMessage =
-        assertThrows(IllegalArgumentException.class, () -> CsvIOParseHelpers.validate(format))
+        assertThrows(
+                IllegalArgumentException.class, () -> CsvIOParseHelpers.validateCsvFormat(format))
             .getMessage();
     assertEquals(
         "Illegal class org.apache.commons.csv.CSVFormat: cannot allow duplicate header names",
         gotMessage);
   }
 
-  /** End of tests for {@link CsvIOParseHelpers#validate(CSVFormat)}. */
+  /** End of tests for {@link CsvIOParseHelpers#validateCsvFormat(CSVFormat)}. */
+  //////////////////////////////////////////////////////////////////////////////////////////////
+
+  /** Tests for {@link CsvIOParseHelpers#validateCsvFormatWithSchema(CSVFormat, Schema)}. */
+  @Test
+  public void givenNullableSchemaFieldNotPresentInHeader_validates() {
+    CSVFormat format = csvFormat().withHeader("foo", "bar");
+    Schema schema =
+        Schema.of(
+            Schema.Field.of("foo", Schema.FieldType.STRING),
+            Schema.Field.of("bar", Schema.FieldType.STRING),
+            Schema.Field.nullable("baz", Schema.FieldType.STRING));
+    CsvIOParseHelpers.validateCsvFormatWithSchema(format, schema);
+  }
+
+  @Test
+  public void givenRequiredSchemaFieldNotPresentInHeader_throwsException() {
+    CSVFormat format = csvFormat().withHeader("foo", "bar");
+    Schema schema =
+        Schema.of(
+            Schema.Field.of("foo", Schema.FieldType.STRING),
+            Schema.Field.of("bar", Schema.FieldType.STRING),
+            Schema.Field.of("baz", Schema.FieldType.STRING));
+    String gotMessage =
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> CsvIOParseHelpers.validateCsvFormatWithSchema(format, schema))
+            .getMessage();
+    assertEquals(
+        "Illegal class org.apache.commons.csv.CSVFormat: required org.apache.beam.sdk.schemas.Schema field 'baz' not found in header",
+        gotMessage);
+  }
+
+  /** End of tests for {@link CsvIOParseHelpers#validateCsvFormatWithSchema(CSVFormat, Schema)}. */
   //////////////////////////////////////////////////////////////////////////////////////////////
 
   /** Tests for {@link CsvIOParseHelpers#parseCell(String, Schema.Field)}. */
