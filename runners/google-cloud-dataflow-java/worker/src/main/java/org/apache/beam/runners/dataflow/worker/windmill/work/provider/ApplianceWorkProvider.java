@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.work.provider;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
+
 import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -33,7 +35,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.work.processing.Streamin
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -77,7 +78,7 @@ final class ApplianceWorkProvider extends SingleSourceWorkProvider {
         } catch (WindmillServerStub.RpcException e) {
           LOG.warn("GetWork failed, retrying:", e);
         }
-        Uninterruptibles.sleepUninterruptibly(backoff, TimeUnit.MILLISECONDS);
+        sleepUninterruptibly(backoff, TimeUnit.MILLISECONDS);
         backoff = Math.min(1000, backoff * 2);
       } while (isRunning.get());
       for (final Windmill.ComputationWorkItems computationWork : workResponse.getWorkList()) {
