@@ -79,6 +79,7 @@ final class ApplianceWorkProvider extends SingleSourceWorkProvider {
           LOG.warn("GetWork failed, retrying:", e);
         }
         sleepUninterruptibly(backoff, TimeUnit.MILLISECONDS);
+
         backoff = Math.min(1000, backoff * 2);
       } while (isRunning.get());
       for (final Windmill.ComputationWorkItems computationWork : workResponse.getWorkList()) {
