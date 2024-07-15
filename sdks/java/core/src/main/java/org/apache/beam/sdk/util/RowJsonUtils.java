@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.util.RowJson.UnsupportedRowJsonException;
 import org.apache.beam.sdk.values.Row;
@@ -50,14 +51,20 @@ public class RowJsonUtils {
       return;
     }
     try {
-      Class<?> unused = Class.forName("com.fasterxml.jackson.core.StreamReadConstraints");
+      Class<?> streamReadConstraints =
+          Class.forName("com.fasterxml.jackson.core.StreamReadConstraints");
 
-      com.fasterxml.jackson.core.StreamReadConstraints.overrideDefaultStreamReadConstraints(
-          com.fasterxml.jackson.core.StreamReadConstraints.builder()
-              .maxStringLength(newLimit)
-              .build());
+      Object builder = streamReadConstraints.getMethod("builder").invoke(null);
+      builder.getClass().getMethod("maxStringLength", int.class).invoke(builder, newLimit);
+      Object constraints = builder.getClass().getMethod("build").invoke(builder);
+
+      streamReadConstraints
+          .getMethod("overrideDefaultStreamReadConstraints")
+          .invoke(null, constraints);
     } catch (ClassNotFoundException e) {
       // <2.15, do nothing
+    } catch (InvocationTargetException | IllegalAccessException | NoSuchMethodException e) {
+      throw new IllegalStateException("Unable to increase default stream read constraints", e);
     }
     defaultBufferLimit = newLimit;
   }
