@@ -119,11 +119,11 @@ dependencies {
   implementation library.java.vendored_grpc_1_60_1
   testImplementation library.java.guava_testlib
   testImplementation library.java.junit
-  testImplementation project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntimeMigration")
+  testImplementation project(path: ":sdks:java:io:google-cloud-platform")
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation project(path: ":sdks:java:extensions:avro")
-  testImplementation project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntimeMigration")
-  testImplementation project(path: ":sdks:java:extensions:python", configuration: "testRuntimeMigration")
+  testImplementation project(path: ":sdks:java:extensions:google-cloud-platform-core")
+  testImplementation project(path: ":sdks:java:extensions:python")
   testImplementation library.java.google_cloud_dataflow_java_proto_library_all
   testImplementation library.java.jackson_dataformat_yaml
   testImplementation library.java.mockito_core
@@ -135,7 +135,7 @@ dependencies {
   examplesJavaIntegrationTest project(project.path)
   examplesJavaIntegrationTest project(path: ":examples:java", configuration: "testRuntimeMigration")
   googleCloudPlatformIntegrationTest project(project.path)
-  googleCloudPlatformIntegrationTest project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntimeMigration")
+  googleCloudPlatformIntegrationTest project(path: ":sdks:java:io:google-cloud-platform")
 }
 
 def dataflowProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'

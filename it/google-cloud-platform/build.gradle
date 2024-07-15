@@ -87,10 +87,10 @@ dependencies {
     provided 'com.google.api.grpc:proto-google-cloud-secretmanager-v1'
 
     testImplementation project(path: ":sdks:java:io:google-cloud-platform")
-    testImplementation project(path: ":sdks:java:extensions:protobuf", configuration: "testRuntimeMigration")
+    testImplementation project(path: ":sdks:java:extensions:protobuf")
     testImplementation project(path: ":sdks:java:io:synthetic")
     testImplementation library.java.mockito_inline
-    testImplementation project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntimeMigration")
+    testImplementation project(path: ":sdks:java:extensions:google-cloud-platform-core")
     testImplementation project(path: ":runners:direct-java", configuration: "shadow")
     testRuntimeOnly library.java.slf4j_simple
 }
