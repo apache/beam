@@ -41,12 +41,6 @@ jobs:
       uses: actions/checkout@v4
       with:
         ref: ${{ github.event.pull_request.head.sha }}
-    - name: Authenticate on GCP
-      if: github.ref == 'refs/heads/master'
-      uses: google-github-actions/auth@v1
-      with:
-        credentials_json: ${{ secrets.GCP_SA_KEY }}
-        project_id: ${{ secrets.GCP_PROJECT_ID }}
     - name: GCloud Docker credential helper
       run: |
         gcloud auth configure-docker ${{env.docker_registry}}
