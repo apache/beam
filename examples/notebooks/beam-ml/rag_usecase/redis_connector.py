@@ -30,6 +30,7 @@ from apache_beam import coders
 
 import redis
 import typing
+from typing import Optional
 
 # Set the logging level to reduce verbose information
 import logging
@@ -49,7 +50,7 @@ class Document(typing.NamedTuple):
 
 coders.registry.register_coder(Document, coders.RowCoder)
 
-"""This module implements IO classes to read write data on Redis.
+"""This module implements IO classes to read write documents in Redis.
 
 
 Insert Doc in Redis:
@@ -76,7 +77,7 @@ class InsertDocInRedis(PTransform):
     def __init__(self,
                  host: str,
                  port: int,
-                 command: str = None,
+                 command: Optional[str] = None,
                  batch_size: int = 100
                  ):
 
@@ -197,7 +198,7 @@ class _InsertDocRedisSink(object):
             self.client.close()
 
 
-"""This module implements IO classes to read write data on Redis.
+"""This module implements IO classes to read write text Embeddings in Redis.
 
 
 Insert Embedding in Redis :
@@ -224,7 +225,7 @@ class InsertEmbeddingInRedis(PTransform):
     def __init__(self,
                  host: str,
                  port: int,
-                 command: str = None,
+                 command: Optional[str] = None,
                  batch_size: int = 100,
                  embedded_columns: list = []
                  ):
