@@ -38,6 +38,7 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.io.aws2.kinesis.KinesisIO.Read;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.joda.time.Instant;
@@ -253,6 +254,16 @@ class ShardReadersPool {
 
   Instant getLatestRecordTimestamp() {
     return getMinTimestamp(ShardRecordsIterator::getLatestRecordTimestamp);
+  }
+
+  Instant getEventTimestamp(KinesisRecord record) {
+    ImmutableList<ShardRecordsIterator> shardRecordsIterators =
+        shardIteratorsMap.get().values().asList();
+
+    if (shardRecordsIterators.isEmpty()) {
+      return null;
+    }
+    return shardRecordsIterators.get(0).getEventTime(record);
   }
 
   private Instant getMinTimestamp(Function<ShardRecordsIterator, Instant> timestampExtractor) {
