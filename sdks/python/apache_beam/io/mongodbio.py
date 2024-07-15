@@ -92,6 +92,8 @@ try:
   from bson import json_util
   from bson import objectid
   from bson.objectid import ObjectId
+  from bson.codec_options import CodecOptions
+  from bson.datetime_ms import DatetimeConversion
 
   # pymongo also internally depends on bson.
   from pymongo import ASCENDING
@@ -263,6 +265,14 @@ class _BoundedMongoSource(iobase.BoundedSource):
     self.projection = projection
     self.spec = extra_client_params
     self.bucket_auto = bucket_auto
+    self.codec_options = CodecOptions(datetime_conversion=DatetimeConversion.DATETIME_AUTO)
+    """
+    This line sets up the MongoDB client to use DatetimeConversion.DATETIME_AUTO, 
+    which returns a DatetimeMS object if the timestamp is out of the range for 
+    the standard datetime object. Otherwise, it returns a standard datetime object.
+    The codec options were specifically added to the `read` and `_get_head_document_id` methods
+    to ensure the BSON DatetimeMS objects are handled correctly during document retrieval.
+    """
 
   def estimate_size(self):
     with MongoClient(self.uri, **self.spec) as client:
@@ -406,10 +416,11 @@ class _BoundedMongoSource(iobase.BoundedSource):
       an iterator of data read by the source.
     """
     with MongoClient(self.uri, **self.spec) as client:
+      db = client.get_database(self.db, codec_options=self.codec_options)
       all_filters = self._merge_id_filter(
           range_tracker.start_position(), range_tracker.stop_position())
       docs_cursor = (
-          client[self.db][self.coll].find(
+          db[self.coll].find(
               filter=all_filters,
               projection=self.projection).sort([("_id", ASCENDING)]))
       for doc in docs_cursor:
@@ -546,8 +557,9 @@ class _BoundedMongoSource(iobase.BoundedSource):
 
   def _get_head_document_id(self, sort_order):
     with MongoClient(self.uri, **self.spec) as client:
+      db = client.get_database(self.db, codec_options=self.codec_options)
       cursor = (
-          client[self.db][self.coll].find(filter={}, projection=[]).sort([
+          db[self.coll].find(filter={}, projection=[]).sort([
               ("_id", sort_order)
           ]).limit(1))
       try:
