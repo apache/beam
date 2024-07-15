@@ -61,7 +61,7 @@ class RetryManager<ResultT, ContextT extends Context<ResultT>> {
     // The in-flight operations will not be retried.
     DONT_RETRY,
     // All operations will be retried.
-    RETRY_ALL_OPERATIONS,
+    RETRY_ALL_OPERATIONS
   };
 
   static class WrappedFailure extends Throwable {
