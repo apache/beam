@@ -55,6 +55,10 @@ dependencies {
     implementation "org.apache.iceberg:iceberg-orc:$iceberg_version"
     implementation library.java.hadoop_common
 
+    testImplementation library.java.hadoop_client
+    testImplementation library.java.bigdataoss_gcsio
+    testImplementation library.java.bigdataoss_gcs_connector
+    testImplementation library.java.bigdataoss_util_hadoop
     testImplementation "org.apache.iceberg:iceberg-gcp:$iceberg_version"
     testImplementation "org.apache.iceberg:iceberg-data:$iceberg_version"
     testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
