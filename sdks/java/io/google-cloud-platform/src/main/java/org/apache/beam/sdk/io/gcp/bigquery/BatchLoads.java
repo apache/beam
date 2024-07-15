@@ -24,7 +24,6 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
-import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
@@ -122,8 +121,11 @@ class BatchLoads<DestinationT, ElementT>
   static final int FILE_TRIGGERING_RECORD_COUNT = 500000;
   // If user triggering is supplied, we will trigger the file write after this many bytes are
   // written.
+  private static final int UPLOAD_CHUNK_SIZE_GRANULARITY = 8 * 1024 * 1024;
   static final int DEFAULT_FILE_TRIGGERING_BYTE_COUNT =
-      AsyncWriteChannelOptions.UPLOAD_CHUNK_SIZE_DEFAULT; // 64MiB as of now
+      Runtime.getRuntime().maxMemory() < 512 * 1024 * 1024
+          ? UPLOAD_CHUNK_SIZE_GRANULARITY
+          : 8 * UPLOAD_CHUNK_SIZE_GRANULARITY; // 64MiB as of now
 
   // If using auto-sharding for unbounded data, we batch the records before triggering file write
   // to avoid generating too many small files.
