@@ -17,28 +17,23 @@
  */
 package org.apache.beam.sdk.util.construction.resources;
 
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
-
-import java.io.File;
 import java.io.IOException;
-import java.io.OutputStream;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.options.FileStagingOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.util.ZipFiles;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Funnels;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hasher;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hashing;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Utilities for working with classpath resources for pipelines. */
+@SuppressWarnings({"deprecation", "unchecked"})
 public class PipelineResources {
   private static final Logger LOG = LoggerFactory.getLogger(PipelineResources.class);
 
@@ -129,32 +124,33 @@ public class PipelineResources {
     return stagedFiles;
   }
 
-  private static String packageDirectoriesToStage(File directoryToStage, String tmpJarLocation) {
-    String hash = calculateDirectoryContentHash(directoryToStage);
-    String pathForJar = getUniqueJarPath(hash, tmpJarLocation);
-    try {
-      ZipFiles.zipDirectoryOverwrite(directoryToStage, new File(pathForJar));
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-    return pathForJar;
-  }
+  //  private static String packageDirectoriesToStage(File directoryToStage, String tmpJarLocation)
+  // {
+  //    String hash = calculateDirectoryContentHash(directoryToStage);
+  //    String pathForJar = getUniqueJarPath(hash, tmpJarLocation);
+  //    try {
+  //      ZipFiles.zipDirectoryOverwrite(directoryToStage, new File(pathForJar));
+  //    } catch (IOException e) {
+  //      throw new RuntimeException(e);
+  //    }
+  //    return pathForJar;
+  //  }
 
-  private static String calculateDirectoryContentHash(File directoryToStage) {
-    Hasher hasher = Hashing.sha256().newHasher();
-    try (OutputStream hashStream = Funnels.asOutputStream(hasher)) {
-      ZipFiles.zipDirectory(directoryToStage, hashStream);
-      return hasher.hash().toString();
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-  }
+  //  private static String calculateDirectoryContentHash(File directoryToStage) {
+  //    Hasher hasher = Hashing.sha256().newHasher();
+  //    try (OutputStream hashStream = Funnels.asOutputStream(hasher)) {
+  //      ZipFiles.zipDirectory(directoryToStage, hashStream);
+  //      return hasher.hash().toString();
+  //    } catch (IOException e) {
+  //      throw new RuntimeException(e);
+  //    }
+  //  }
 
-  private static String getUniqueJarPath(String contentHash, String tmpJarLocation) {
-    checkArgument(
-        !Strings.isNullOrEmpty(tmpJarLocation),
-        "Please provide temporary location for storing the jar files.");
-
-    return String.format("%s%s%s.jar", tmpJarLocation, File.separator, contentHash);
-  }
+  //  private static String getUniqueJarPath(String contentHash, String tmpJarLocation) {
+  //    checkArgument(
+  //        !Strings.isNullOrEmpty(tmpJarLocation),
+  //        "Please provide temporary location for storing the jar files.");
+  //
+  //    return String.format("%s%s%s.jar", tmpJarLocation, File.separator, contentHash);
+  //  }
 }

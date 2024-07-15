@@ -43,5 +43,6 @@ public interface FileStagingOptions extends PipelineOptions {
   @Description("Option to bypass FilesToStage step")
   @Default.Boolean(false)
   Boolean getBypassFilesToStage();
+
   void setBypassFilesToStage(Boolean bypass);
 }

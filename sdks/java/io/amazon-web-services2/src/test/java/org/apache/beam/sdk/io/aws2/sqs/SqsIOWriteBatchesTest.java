@@ -346,29 +346,34 @@ public class SqsIOWriteBatchesTest {
 
   @Test
   public void testWriteBatchesToDynamicWithStrictTimeout() {
+    // Mock the SQS sendMessageBatch method to return a completed future with an empty response
     when(sqs.sendMessageBatch(any(SendMessageBatchRequest.class)))
-        .thenReturn(completedFuture(SendMessageBatchResponse.builder().build()));
+            .thenReturn(completedFuture(SendMessageBatchResponse.builder().build()));
 
+    // Create a PCollection of integers and apply transformations to simulate message batching with delays
     p.apply(Create.of(5))
-        .apply(ParDo.of(new CreateMessages()))
-        .apply(
-            // simulate delay between messages > batch timeout
-            SqsIO.<String>writeBatches()
-                .withEntryMapper(withDelay(millis(100), SET_MESSAGE_BODY))
-                .withBatchTimeout(millis(150), true)
-                .to(msg -> Integer.valueOf(msg) % 2 == 0 ? "even" : "uneven"));
+            .apply(ParDo.of(new CreateMessages()))
+            .apply(
+                    // SqsIO writeBatches with entry mapper introducing delay and strict batch timeout
+                    SqsIO.<String>writeBatches()
+                            .withEntryMapper(withDelay(millis(100), SET_MESSAGE_BODY))
+                            .withBatchTimeout(millis(150), true)
+                            .to(msg -> Integer.valueOf(msg) % 2 == 0 ? "even" : "uneven"));
 
+    // Run the pipeline and wait for it to finish
     p.run().waitUntilFinish();
 
+    // Create entries for verification
     SendMessageBatchRequestEntry[] entries = entries(range(0, 5));
-    // using strict timeouts batches, batches are timed out by a separate thread before any 2nd
-    // entry
+
+    // Verify that each message is sent in separate batches due to the strict timeout
     verify(sqs).sendMessageBatch(request("even", entries[0]));
     verify(sqs).sendMessageBatch(request("uneven", entries[1]));
     verify(sqs).sendMessageBatch(request("even", entries[2]));
     verify(sqs).sendMessageBatch(request("uneven", entries[3]));
     verify(sqs).sendMessageBatch(request("even", entries[4]));
   }
+
 
   @Test
   public void testWriteBatchesToDynamicWithStrictTimeoutAtHighVolume() {

@@ -32,6 +32,7 @@ import javax.annotation.Nonnull;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.options.FileStagingOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -70,7 +71,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.SetMul
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.apache.beam.sdk.options.FileStagingOptions;
 
 /**
  * A {@link Pipeline} manages a directed acyclic graph of {@link PTransform PTransforms}, and the
