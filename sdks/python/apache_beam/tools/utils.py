@@ -20,6 +20,7 @@
 # pytype: skip-file
 
 import collections
+import cProfile
 import gc
 import importlib
 import os
@@ -70,10 +71,11 @@ class BenchmarkConfig(NamedTuple):
   size: int
   num_runs: int
 
+  def name(self):
+    return getattr(self.benchmark, '__name__', str(self.benchmark))
+
   def __str__(self):
-    return "%s, %s element(s)" % (
-        getattr(self.benchmark, '__name__', str(self.benchmark)),
-        str(self.size))
+    return "%s, %s element(s)" % (self.name(), str(self.size))
 
 
 class LinearRegressionBenchmarkConfig(NamedTuple):
@@ -102,14 +104,15 @@ class LinearRegressionBenchmarkConfig(NamedTuple):
   increment: int
   num_runs: int
 
+  def name(self):
+    return getattr(self.benchmark, '__name__', str(self.benchmark))
+
   def __str__(self):
     return "%s, %s element(s) at start, %s growth per run" % (
-        getattr(self.benchmark, '__name__', str(self.benchmark)),
-        str(self.starting_point),
-        str(self.increment))
+        self.name(), str(self.starting_point), str(self.increment))
 
 
-def run_benchmarks(benchmark_suite, verbose=True):
+def run_benchmarks(benchmark_suite, verbose=True, profile_filename_base=None):
   """Runs benchmarks, and collects execution times.
 
   A simple instrumentation to run a callable several times, collect and print
@@ -118,17 +121,25 @@ def run_benchmarks(benchmark_suite, verbose=True):
   Args:
     benchmark_suite: A list of BenchmarkConfig.
     verbose: bool, whether to print benchmark results to stdout.
+    profile_filename_base: str, if present each benchmark will be profiled and
+      have stats dumped to per-benchmark files beginning with this prefix.
 
   Returns:
     A dictionary of the form string -> list of floats. Keys of the dictionary
     are benchmark names, values are execution times in seconds for each run.
   """
+  profiler = cProfile.Profile() if profile_filename_base else None
+
   def run(benchmark: BenchmarkFactoryFn, size: int):
     # Contain each run of a benchmark inside a function so that any temporary
     # objects can be garbage-collected after the run.
     benchmark_instance_callable = benchmark(size)
     start = time.time()
+    if profiler:
+      profiler.enable()
     _ = benchmark_instance_callable()
+    if profiler:
+      profiler.disable()
     return time.time() - start
 
   cost_series = collections.defaultdict(list)
@@ -161,6 +172,13 @@ def run_benchmarks(benchmark_suite, verbose=True):
 
       # Incrementing the size of the benchmark run by the step size
       size += step
+
+    if profiler:
+      filename = profile_filename_base + benchmark_config.name() + '.prof'
+      if verbose:
+        print("Dumping profile to " + filename)
+      profiler.dump_stats(filename)
+
     if verbose:
       print("")
 
