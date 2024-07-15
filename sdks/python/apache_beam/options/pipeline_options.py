@@ -81,6 +81,11 @@ def _static_value_provider_of(value_type):
 
   return _f
 
+def get_all_subclasses(cls):
+    """Returns all subclasses of a class, recursively."""
+    return set(cls.__subclasses__()).union(
+        [s for c in cls.__subclasses__() for s in get_all_subclasses(c)])
+
 
 class _BeamArgumentParser(argparse.ArgumentParser):
   """An ArgumentParser that supports ValueProvider options.
@@ -326,7 +331,7 @@ class PipelineOptions(HasDisplayData):
     # instance of each subclass to avoid conflicts.
     subset = {}
     parser = _BeamArgumentParser()
-    for cls in PipelineOptions.__subclasses__():
+    for cls in get_all_subclasses(PipelineOptions):
       subset[str(cls)] = cls
     for cls in subset.values():
       cls._add_argparse_args(parser)  # pylint: disable=protected-access
