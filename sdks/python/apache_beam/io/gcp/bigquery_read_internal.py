@@ -24,7 +24,7 @@ import collections
 import decimal
 import json
 import logging
-import random
+import secrets
 import time
 import uuid
 from typing import TYPE_CHECKING
@@ -255,7 +255,8 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
     if not table_reference.projectId:
       table_reference.projectId = self._get_project()
 
-    schema, metadata_list = self._export_files(self.bq, element, table_reference)
+    schema, metadata_list = self._export_files(
+        self.bq, element, table_reference)
 
     for metadata in metadata_list:
       yield self._create_source(metadata.path, schema)
@@ -302,7 +303,7 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
         self._job_name,
         self._source_uuid,
         bigquery_tools.BigQueryJobTypes.QUERY,
-        '%s_%s' % (int(time.time()), random.randint(0, 1000)))
+        '%s_%s' % (int(time.time()), secrets.token_hex(3)))
     job = bq._start_query_job(
         self._get_project(),
         element.query,
