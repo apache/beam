@@ -68,6 +68,7 @@ import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.sdk.options.FileStagingOptions;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.hamcrest.Matchers;
@@ -78,6 +79,10 @@ import org.junit.rules.ExpectedException;
 import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.junit.Assert.assertFalse;
+import org.junit.Assert.assertTrue;
+import org.mockito.Mockito.verify;
+import org.mockito.Mockito.when;
 
 /** Tests for Pipeline. */
 @RunWith(JUnit4.class)
@@ -139,6 +144,48 @@ public class PipelineTest {
     // Same as testPipelineOptionsImplException, but verify we check the options set in run()
     thrown.expect(IllegalArgumentException.class);
     Pipeline.create().run(pipelineOptions);
+  }
+
+  @Test
+  public void testBypassFilesToStageEnabled() {
+      // Create pipeline options and enable bypassFilesToStage
+      FileStagingOptions options = PipelineOptionsFactory.as(FileStagingOptions.class);
+      options.setBypassFilesToStage(true);
+
+      // Create the pipeline with the options
+      Pipeline pipeline = Pipeline.create(options);
+
+      // Verify that the bypassFilesToStage option is enabled
+      assertTrue(options.getBypassFilesToStage());
+
+      // Mock the runner and run the pipeline
+      PipelineRunner runner = mock(PipelineRunner.class);
+      when(runner.run(pipeline)).thenReturn(mock(PipelineResult.class));
+      pipeline.run();
+
+      // Verify that the runner executed with the correct options
+      verify(runner).run(pipeline);
+  }
+
+  @Test
+  public void testBypassFilesToStageDisabled() {
+      // Create pipeline options and disable bypassFilesToStage
+      FileStagingOptions options = PipelineOptionsFactory.as(FileStagingOptions.class);
+      options.setBypassFilesToStage(false);
+
+      // Create the pipeline with the options
+      Pipeline pipeline = Pipeline.create(options);
+
+      // Verify that the bypassFilesToStage option is disabled
+      assertFalse(options.getBypassFilesToStage());
+
+      // Mock the runner and run the pipeline
+      PipelineRunner runner = mock(PipelineRunner.class);
+      when(runner.run(pipeline)).thenReturn(mock(PipelineResult.class));
+      pipeline.run();
+
+      // Verify that the runner executed with the correct options
+      verify(runner).run(pipeline);
   }
 
   @Test

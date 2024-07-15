@@ -165,9 +165,15 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
 
     pipeline.replaceAll(SparkTransformOverrides.getDefaultOverrides(pipelineOptions.isStreaming()));
 
-    prepareFilesToStage(pipelineOptions);
+    // Check for the bypassFilesToStage option
+    if (!shouldBypassFilesToStage(pipelineOptions)) {
+      prepareFilesToStage(pipelineOptions);
+    } else {
+      LOG.info("Bypassing FilesToStage as per configuration.");
+    }
 
     if (pipelineOptions.isStreaming()) {
+      // Streaming mode execution
       CheckpointDir checkpointDir = new CheckpointDir(pipelineOptions.getCheckpointDir());
       SparkRunnerStreamingContextFactory streamingContextFactory =
           new SparkRunnerStreamingContextFactory(pipeline, pipelineOptions, checkpointDir);
@@ -206,6 +212,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
 
       result = new SparkPipelineResult.StreamingMode(startPipeline, jssc);
     } else {
+      // Batch mode execution
       JavaSparkContext jsc = SparkContextFactory.getSparkContext(pipelineOptions);
       final EvaluationContext evaluationContext =
           new EvaluationContext(jsc, pipeline, pipelineOptions);
@@ -242,6 +249,10 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
     metricsPusher.start();
 
     return result;
+  }
+
+  private boolean shouldBypassFilesToStage(PipelineOptions options) {
+    return options.as(FileStagingOptions.class).getBypassFilesToStage();
   }
 
   private void registerMetricsSource(String appName) {

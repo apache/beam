@@ -70,6 +70,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.SetMul
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.apache.beam.sdk.options.FileStagingOptions;
 
 /**
  * A {@link Pipeline} manages a directed acyclic graph of {@link PTransform PTransforms}, and the
@@ -315,6 +316,10 @@ public class Pipeline {
    * by the options.
    */
   public PipelineResult run(PipelineOptions options) {
+    // Cast to FileStagingOptions to set the new option
+    FileStagingOptions stagingOptions = options.as(FileStagingOptions.class);
+    stagingOptions.setBypassFilesToStage(true); // Enable bypassing FilesToStage
+
     PipelineRunner<? extends PipelineResult> runner = PipelineRunner.fromOptions(options);
     // Ensure all of the nodes are fully specified before a PipelineRunner gets access to the
     // pipeline.

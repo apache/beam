@@ -94,28 +94,39 @@ public class PipelineResources {
   }
 
   /**
-   * Goes through the list of files that need to be staged on runner. Fails if the directory does
-   * not exist and packages the ones that exist. This is necessary for runners that require
-   * filesToStage to be jars only.
+   * Goes through the list of files that need to be staged on the runner. If the file does not exist
+   * on the specified location, it copies it to the temporary directory. This method now supports
+   * both local file systems and HDFS.
    *
    * @param resourcesToStage list of resources that need to be staged
    * @param tmpJarLocation temporary directory to store the jars
    * @return A list of absolute paths to resources (jar files)
-   * @throws IllegalStateException if the directory to be staged does not exist
+   * @throws RuntimeException if there is an error accessing the file system or staging the files
    */
   public static List<String> prepareFilesForStaging(
       List<String> resourcesToStage, String tmpJarLocation) {
-    return resourcesToStage.stream()
-        .map(File::new)
-        .map(
-            file -> {
-              Preconditions.checkState(
-                  file.exists(), "To-be-staged file does not exist: '%s'", file);
-              return file.isDirectory()
-                  ? packageDirectoriesToStage(file, tmpJarLocation)
-                  : file.getAbsolutePath();
-            })
-        .collect(Collectors.toList());
+    Configuration conf = new Configuration();
+    FileSystem fs;
+    try {
+      fs = FileSystem.get(conf);
+    } catch (IOException e) {
+      throw new RuntimeException("Failed to get FileSystem", e);
+    }
+
+    List<String> stagedFiles = new ArrayList<>();
+    for (String resource : resourcesToStage) {
+      Path srcPath = new Path(resource);
+      Path destPath = new Path(tmpJarLocation, srcPath.getName());
+      try {
+        if (!fs.exists(destPath)) {
+          fs.copyFromLocalFile(srcPath, destPath);
+        }
+        stagedFiles.add(destPath.toString());
+      } catch (IOException e) {
+        throw new RuntimeException("Error staging file: " + resource, e);
+      }
+    }
+    return stagedFiles;
   }
 
   private static String packageDirectoriesToStage(File directoryToStage, String tmpJarLocation) {
