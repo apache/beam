@@ -54,11 +54,6 @@ dependencies {
     implementation "org.apache.iceberg:iceberg-parquet:$iceberg_version"
     implementation "org.apache.iceberg:iceberg-orc:$iceberg_version"
     implementation library.java.hadoop_common
-    // Needed when using a hadoop catalog type
-    runtimeOnly library.java.hadoop_client
-    // Needed when using GCS as a warehouse location
-    runtimeOnly library.java.bigdataoss_gcsio
-    runtimeOnly library.java.bigdataoss_gcs_connector
 
     testImplementation "org.apache.iceberg:iceberg-gcp:$iceberg_version"
     testImplementation "org.apache.iceberg:iceberg-data:$iceberg_version"

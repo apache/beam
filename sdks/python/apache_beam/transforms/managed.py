@@ -49,7 +49,6 @@ Available transforms are:
 
 - **Kafka**
 - **Iceberg**
-- **BigQuery**
 
 **Note:** inputs and outputs need to be PCollections of Beam
 :py:class:`apache_beam.pvalue.Row` elements.
@@ -69,19 +68,16 @@ from apache_beam.transforms.ptransform import PTransform
 
 ICEBERG = "iceberg"
 KAFKA = "kafka"
-BIGQUERY = "bigquery"
 _MANAGED_IDENTIFIER = "beam:transform:managed:v1"
 _GRADLE_TARGETS = {
     "sdks:java:io:expansion-service:shadowJar": [KAFKA, ICEBERG],
-    "sdks:java:io:google-cloud-platform:expansion-service:shadowJar": [
-        BIGQUERY
-    ]
 }
 
-__all__ = ["ICEBERG", "KAFKA", "BIGQUERY", "Read", "Write"]
+__all__ = ["ICEBERG", "KAFKA", "Read", "Write"]
 
 
 class _ManagedTransform(PTransform):
+  """Base class for Managed Transforms."""
   def __init__(
       self,
       underlying_identifier: str,
@@ -109,7 +105,6 @@ class Read(_ManagedTransform):
   READ_TRANSFORMS = {
       ICEBERG: "beam:schematransform:org.apache.beam:iceberg_read:v1",
       KAFKA: "beam:schematransform:org.apache.beam:kafka_read:v1",
-      BIGQUERY: "beam:schematransform:org.apache.beam:bigquery_storage_read:v1"
   }
 
   def __init__(
@@ -138,7 +133,6 @@ class Write(_ManagedTransform):
   WRITE_TRANSFORMS = {
       ICEBERG: "beam:schematransform:org.apache.beam:iceberg_write:v1",
       KAFKA: "beam:schematransform:org.apache.beam:kafka_write:v1",
-      BIGQUERY: "beam:schematransform:org.apache.beam:bigquery_storage_write:v2"
   }
 
   def __init__(
@@ -151,8 +145,8 @@ class Write(_ManagedTransform):
     identifier = self.WRITE_TRANSFORMS.get(sink.lower())
     if not identifier:
       raise ValueError(
-          f"An unsupported source was specified: '{sink}'. Please specify "
-          f"one of the following sources: {self.WRITE_TRANSFORMS.keys()}")
+          f"An unsupported sink was specified: '{sink}'. Please specify "
+          f"one of the following sinks: {self.WRITE_TRANSFORMS.keys()}")
 
     expansion_service = _resolve_expansion_service(
         sink, identifier, expansion_service)
