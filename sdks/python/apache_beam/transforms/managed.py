@@ -76,31 +76,7 @@ _GRADLE_TARGETS = {
 __all__ = ["ICEBERG", "KAFKA", "Read", "Write"]
 
 
-class _ManagedTransform(PTransform):
-  """Base class for Managed Transforms."""
-  def __init__(
-      self,
-      underlying_identifier: str,
-      config: Optional[Dict[str, Any]] = None,
-      config_url: Optional[str] = None,
-      expansion_service=None):
-    super().__init__()
-    self._underlying_identifier = underlying_identifier
-    self._yaml_config = yaml.dump(config)
-    self._config_url = config_url
-    self._expansion_service = expansion_service
-
-  def expand(self, input):
-    return input | SchemaAwareExternalTransform(
-        identifier=_MANAGED_IDENTIFIER,
-        expansion_service=self._expansion_service,
-        rearrange_based_on_discovery=True,
-        transform_identifier=self._underlying_identifier,
-        config=self._yaml_config,
-        config_url=self._config_url)
-
-
-class Read(_ManagedTransform):
+class Read(PTransform):
   """Read using Managed Transforms"""
   READ_TRANSFORMS = {
       ICEBERG: "beam:schematransform:org.apache.beam:iceberg_read:v1",
@@ -113,6 +89,7 @@ class Read(_ManagedTransform):
       config: Optional[Dict[str, Any]] = None,
       config_url: Optional[str] = None,
       expansion_service=None):
+    super().__init__()
     self._source = source
     identifier = self.READ_TRANSFORMS.get(source.lower())
     if not identifier:
@@ -120,15 +97,26 @@ class Read(_ManagedTransform):
           f"An unsupported source was specified: '{source}'. Please specify "
           f"one of the following sources: {self.READ_TRANSFORMS.keys()}")
 
-    expansion_service = _resolve_expansion_service(
+    self._expansion_service = _resolve_expansion_service(
         source, identifier, expansion_service)
-    super().__init__(identifier, config, config_url, expansion_service)
+    self._underlying_identifier = identifier
+    self._yaml_config = yaml.dump(config)
+    self._config_url = config_url
+
+  def expand(self, input):
+    return input | SchemaAwareExternalTransform(
+        identifier=_MANAGED_IDENTIFIER,
+        expansion_service=self._expansion_service,
+        rearrange_based_on_discovery=True,
+        transform_identifier=self._underlying_identifier,
+        config=self._yaml_config,
+        config_url=self._config_url)
 
   def default_label(self) -> str:
     return "Managed Read(%s)" % self._source.upper()
 
 
-class Write(_ManagedTransform):
+class Write(PTransform):
   """Write using Managed Transforms"""
   WRITE_TRANSFORMS = {
       ICEBERG: "beam:schematransform:org.apache.beam:iceberg_write:v1",
@@ -141,6 +129,7 @@ class Write(_ManagedTransform):
       config: Optional[Dict[str, Any]] = None,
       config_url: Optional[str] = None,
       expansion_service=None):
+    super().__init__()
     self._sink = sink
     identifier = self.WRITE_TRANSFORMS.get(sink.lower())
     if not identifier:
@@ -148,9 +137,20 @@ class Write(_ManagedTransform):
           f"An unsupported sink was specified: '{sink}'. Please specify "
           f"one of the following sinks: {self.WRITE_TRANSFORMS.keys()}")
 
-    expansion_service = _resolve_expansion_service(
+    self._expansion_service = _resolve_expansion_service(
         sink, identifier, expansion_service)
-    super().__init__(identifier, config, config_url, expansion_service)
+    self._underlying_identifier = identifier
+    self._yaml_config = yaml.dump(config)
+    self._config_url = config_url
+
+  def expand(self, input):
+    return input | SchemaAwareExternalTransform(
+        identifier=_MANAGED_IDENTIFIER,
+        expansion_service=self._expansion_service,
+        rearrange_based_on_discovery=True,
+        transform_identifier=self._underlying_identifier,
+        config=self._yaml_config,
+        config_url=self._config_url)
 
   def default_label(self) -> str:
     return "Managed Write(%s)" % self._sink.upper()
