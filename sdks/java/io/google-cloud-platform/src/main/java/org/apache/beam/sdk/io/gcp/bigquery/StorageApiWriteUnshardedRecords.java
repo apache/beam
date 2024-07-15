@@ -771,7 +771,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                 invalidateWriteStream();
                 allowedRetry = 5;
               } else {
-                allowedRetry = 10;
+                allowedRetry = 35;
               }
 
               // Maximum number of times we retry before we fail the work item.
@@ -819,9 +819,6 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                   .inc(numRowsRetried);
 
               appendFailures.inc();
-              if (quotaError) {
-                return RetryType.RETRY_QUOTA;
-              }
               return RetryType.RETRY_ALL_OPERATIONS;
             },
             c -> {
