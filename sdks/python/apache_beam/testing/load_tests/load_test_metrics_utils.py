@@ -199,7 +199,7 @@ class MetricsReader(object):
       bq_table=None,
       bq_dataset=None,
       publish_to_bq=False,
-      influxdb_options=None,  # type: Optional[InfluxDBMetricsPublisherOptions]
+      influxdb_options: Optional['InfluxDBMetricsPublisherOptions'] = None,
       namespace=None,
       filters=None):
     """Initializes :class:`MetricsReader` .
@@ -524,37 +524,31 @@ class BigQueryClient(object):
 class InfluxDBMetricsPublisherOptions(object):
   def __init__(
       self,
-      measurement,  # type: str
-      db_name,  # type: str
-      hostname,  # type: str
-      user=None,  # type: Optional[str]
-      password=None  # type: Optional[str]
-    ):
+      measurement: str,
+      db_name: str,
+      hostname: str,
+      user: Optional[str] = None,
+      password: Optional[str] = None):
     self.measurement = measurement
     self.db_name = db_name
     self.hostname = hostname
     self.user = user
     self.password = password
 
-  def validate(self):
-    # type: () -> bool
+  def validate(self) -> bool:
     return bool(self.measurement) and bool(self.db_name)
 
-  def http_auth_enabled(self):
-    # type: () -> bool
+  def http_auth_enabled(self) -> bool:
     return self.user is not None and self.password is not None
 
 
 class InfluxDBMetricsPublisher(MetricsPublisher):
   """Publishes collected metrics to InfluxDB database."""
-  def __init__(
-      self,
-      options  # type: InfluxDBMetricsPublisherOptions
-  ):
+  def __init__(self, options: InfluxDBMetricsPublisherOptions):
     self.options = options
 
-  def publish(self, results):
-    # type: (List[Mapping[str, Union[float, str, int]]]) -> None
+  def publish(
+      self, results: List[Mapping[str, Union[float, str, int]]]) -> None:
     url = '{}/write'.format(self.options.hostname)
     payload = self._build_payload(results)
     query_str = {'db': self.options.db_name, 'precision': 's'}
@@ -575,8 +569,8 @@ class InfluxDBMetricsPublisher(MetricsPublisher):
             'with an error message: %s' %
             (response.status_code, content['error']))
 
-  def _build_payload(self, results):
-    # type: (List[Mapping[str, Union[float, str, int]]]) -> str
+  def _build_payload(
+      self, results: List[Mapping[str, Union[float, str, int]]]) -> str:
     def build_kv(mapping, key):
       return '{}={}'.format(key, mapping[key])
 

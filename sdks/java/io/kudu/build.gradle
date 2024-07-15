@@ -49,7 +49,7 @@ dependencies {
   implementation "org.apache.kudu:kudu-client:$kudu_version"
   implementation library.java.slf4j_api
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
-  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
+  testImplementation project(path: ":sdks:java:io:common")
   testImplementation library.java.junit
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")

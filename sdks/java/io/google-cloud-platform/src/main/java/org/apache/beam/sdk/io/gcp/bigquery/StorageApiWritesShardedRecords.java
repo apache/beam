@@ -62,6 +62,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.RetryManager.RetryType;
 import org.apache.beam.sdk.io.gcp.bigquery.StorageApiFlushAndFinalizeDoFn.Operation;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
+import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
@@ -242,6 +243,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
     BigQueryOptions bigQueryOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
     final long splitSize = bigQueryOptions.getStorageApiAppendThresholdBytes();
     final long maxRequestSize = bigQueryOptions.getStorageWriteApiMaxRequestSize();
+    final int maxRetries = bigQueryOptions.getStorageWriteApiMaxRetries();
 
     String operationName = input.getName() + "/" + getName();
     TupleTagList tupleTagList = TupleTagList.of(failedRowsTag);
@@ -252,7 +254,9 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
     PCollectionTuple writeRecordsResult =
         input.apply(
             "Write Records",
-            ParDo.of(new WriteRecordsDoFn(operationName, streamIdleTime, splitSize, maxRequestSize))
+            ParDo.of(
+                    new WriteRecordsDoFn(
+                        operationName, streamIdleTime, splitSize, maxRequestSize, maxRetries))
                 .withSideInputs(dynamicDestinations.getSideInputs())
                 .withOutputTags(flushTag, tupleTagList));
 
@@ -340,13 +344,19 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
     private final Duration streamIdleTime;
     private final long splitSize;
     private final long maxRequestSize;
+    private final int maxRetries;
 
     public WriteRecordsDoFn(
-        String operationName, Duration streamIdleTime, long splitSize, long maxRequestSize) {
+        String operationName,
+        Duration streamIdleTime,
+        long splitSize,
+        long maxRequestSize,
+        int maxRetries) {
       this.messageConverters = new TwoLevelMessageConverterCache<>(operationName);
       this.streamIdleTime = streamIdleTime;
       this.splitSize = splitSize;
       this.maxRequestSize = maxRequestSize;
+      this.maxRetries = maxRetries;
     }
 
     @StartBundle
@@ -459,6 +469,11 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
       final String shortTableId = tableDestination.getShortTableUrn();
       final DatasetService datasetService = getDatasetService(pipelineOptions);
       final WriteStreamService writeStreamService = getWriteStreamService(pipelineOptions);
+
+      Lineage.getSinks()
+          .add(
+              BigQueryHelpers.dataCatalogName(
+                  tableDestination.getTableReference(), bigQueryOptions));
 
       Coder<DestinationT> destinationCoder = dynamicDestinations.getDestinationCoder();
       Callable<Boolean> tryCreateTable =
@@ -819,7 +834,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
           new RetryManager<>(
               Duration.standardSeconds(1),
               Duration.standardSeconds(20),
-              500,
+              maxRetries,
               BigQuerySinkMetrics.throttledTimeCounter(BigQuerySinkMetrics.RpcMethod.APPEND_ROWS));
       int numAppends = 0;
       for (SplittingIterable.Value splitValue : messages) {

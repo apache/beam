@@ -38,7 +38,6 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.hadoop.conf.Configuration;
@@ -109,7 +108,6 @@ public class IcebergIOIT implements Serializable {
 
     catalogHadoopConf = new Configuration();
     catalogHadoopConf.set("fs.gs.project.id", options.getProject());
-    catalogHadoopConf.set("fs.gs.auth.type", "SERVICE_ACCOUNT_JSON_KEYFILE");
     catalogHadoopConf.set(
         "fs.gs.auth.service.account.json.keyfile", System.getenv("GOOGLE_APPLICATION_CREDENTIALS"));
   }
@@ -208,20 +206,19 @@ public class IcebergIOIT implements Serializable {
     Map<String, Object> config =
         ImmutableMap.<String, Object>builder()
             .put("table", tableId.toString())
+            .put("catalog_name", "test-name")
             .put(
-                "catalog_config",
+                "catalog_properties",
                 ImmutableMap.<String, String>builder()
-                    .put("catalog_name", "hadoop")
-                    .put("catalog_type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
-                    .put("warehouse_location", warehouseLocation)
+                    .put("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
+                    .put("warehouse", warehouseLocation)
                     .build())
             .build();
 
-    PCollectionRowTuple output =
-        PCollectionRowTuple.empty(readPipeline)
-            .apply(Managed.read(Managed.ICEBERG).withConfig(config));
+    PCollection<Row> rows =
+        readPipeline.apply(Managed.read(Managed.ICEBERG).withConfig(config)).getSinglePCollection();
 
-    PAssert.that(output.get("output")).containsInAnyOrder(expectedRows);
+    PAssert.that(rows).containsInAnyOrder(expectedRows);
     readPipeline.run().waitUntilFinish();
   }
 
@@ -249,17 +246,17 @@ public class IcebergIOIT implements Serializable {
     Map<String, Object> config =
         ImmutableMap.<String, Object>builder()
             .put("table", tableId.toString())
+            .put("catalog_name", "test-name")
             .put(
-                "catalog_config",
+                "catalog_properties",
                 ImmutableMap.<String, String>builder()
-                    .put("catalog_name", "hadoop")
-                    .put("catalog_type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
-                    .put("warehouse_location", warehouseLocation)
+                    .put("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
+                    .put("warehouse", warehouseLocation)
                     .build())
             .build();
 
     PCollection<Row> input = writePipeline.apply(Create.of(inputRows)).setRowSchema(BEAM_SCHEMA);
-    PCollectionRowTuple.of("input", input).apply(Managed.write(Managed.ICEBERG).withConfig(config));
+    input.apply(Managed.write(Managed.ICEBERG).withConfig(config));
 
     writePipeline.run().waitUntilFinish();
 

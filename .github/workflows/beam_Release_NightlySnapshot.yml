@@ -37,9 +37,7 @@ permissions:
   statuses: read
 
 env:
-    GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
-    GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
-    GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+    DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
 
 jobs:
   beam_Release_NightlySnapshot:
@@ -64,6 +62,7 @@ jobs:
         uses: ./.github/actions/setup-environment-action
         with:
           java-version: default
+          disable-cache: true
       - name: Auth on snapshot repository
         run: |
           mkdir -p ${HOME}/.m2

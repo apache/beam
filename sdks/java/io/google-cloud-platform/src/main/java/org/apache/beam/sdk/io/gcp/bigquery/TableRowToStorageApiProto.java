@@ -50,6 +50,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
 import java.util.AbstractMap;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -484,11 +485,11 @@ public class TableRowToStorageApiProto {
       throws SchemaConversionException {
     DynamicMessage.Builder builder = DynamicMessage.newBuilder(descriptor);
     for (final Map.Entry<String, Object> entry : map.entrySet()) {
-      @Nullable
-      FieldDescriptor fieldDescriptor = descriptor.findFieldByName(entry.getKey().toLowerCase());
+      String key = entry.getKey().toLowerCase();
+      @Nullable FieldDescriptor fieldDescriptor = descriptor.findFieldByName(key);
       if (fieldDescriptor == null) {
         if (unknownFields != null) {
-          unknownFields.set(entry.getKey().toLowerCase(), entry.getValue());
+          unknownFields.set(key, entry.getValue());
         }
         if (ignoreUnknownValues) {
           continue;
@@ -505,12 +506,19 @@ public class TableRowToStorageApiProto {
           schemaInformation.getSchemaForField(entry.getKey());
       try {
         Supplier<@Nullable TableRow> getNestedUnknown =
-            () ->
-                (unknownFields == null)
-                    ? null
-                    : (TableRow)
-                        unknownFields.computeIfAbsent(
-                            entry.getKey().toLowerCase(), k -> new TableRow());
+            () -> {
+              if (unknownFields == null) {
+                return null;
+              }
+              TableRow nestedUnknown = new TableRow();
+              if (fieldDescriptor.isRepeated()) {
+                ((List<TableRow>)
+                        (unknownFields.computeIfAbsent(key, k -> new ArrayList<TableRow>())))
+                    .add(nestedUnknown);
+                return nestedUnknown;
+              }
+              return (TableRow) unknownFields.computeIfAbsent(key, k -> nestedUnknown);
+            };
 
         @Nullable
         Object value =
@@ -523,6 +531,15 @@ public class TableRowToStorageApiProto {
                 getNestedUnknown);
         if (value != null) {
           builder.setField(fieldDescriptor, value);
+        }
+        // For STRUCT fields, we add a placeholder to unknownFields using the getNestedUnknown
+        // supplier (in case we encounter unknown nested fields). If the placeholder comes out
+        // to be empty, we should clean it up
+        if (fieldSchemaInformation.getType().equals(TableFieldSchema.Type.STRUCT)
+            && unknownFields != null
+            && unknownFields.get(key) instanceof Map
+            && ((Map<?, ?>) unknownFields.get(key)).isEmpty()) {
+          unknownFields.remove(key);
         }
       } catch (Exception e) {
         throw new SchemaDoesntMatchException(

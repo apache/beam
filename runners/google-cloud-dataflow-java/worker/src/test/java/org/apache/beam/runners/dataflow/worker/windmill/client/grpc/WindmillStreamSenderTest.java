@@ -107,7 +107,7 @@ public class WindmillStreamSenderTest {
             any(),
             eq(workItemScheduler));
 
-    verify(streamFactory).createGetDataStream(eq(stub), any(ThrottleTimer.class), eq(false), any());
+    verify(streamFactory).createGetDataStream(eq(stub), any(ThrottleTimer.class));
     verify(streamFactory).createCommitWorkStream(eq(stub), any(ThrottleTimer.class));
   }
 
@@ -138,8 +138,7 @@ public class WindmillStreamSenderTest {
             any(),
             eq(workItemScheduler));
 
-    verify(streamFactory, times(1))
-        .createGetDataStream(eq(stub), any(ThrottleTimer.class), eq(false), any());
+    verify(streamFactory, times(1)).createGetDataStream(eq(stub), any(ThrottleTimer.class));
     verify(streamFactory, times(1)).createCommitWorkStream(eq(stub), any(ThrottleTimer.class));
   }
 
@@ -173,8 +172,7 @@ public class WindmillStreamSenderTest {
             any(),
             eq(workItemScheduler));
 
-    verify(streamFactory, times(1))
-        .createGetDataStream(eq(stub), any(ThrottleTimer.class), eq(false), any());
+    verify(streamFactory, times(1)).createGetDataStream(eq(stub), any(ThrottleTimer.class));
     verify(streamFactory, times(1)).createCommitWorkStream(eq(stub), any(ThrottleTimer.class));
   }
 
@@ -208,8 +206,7 @@ public class WindmillStreamSenderTest {
             eq(workItemScheduler)))
         .thenReturn(mockGetWorkStream);
 
-    when(mockStreamFactory.createGetDataStream(
-            eq(stub), any(ThrottleTimer.class), eq(false), any()))
+    when(mockStreamFactory.createGetDataStream(eq(stub), any(ThrottleTimer.class)))
         .thenReturn(mockGetDataStream);
     when(mockStreamFactory.createCommitWorkStream(eq(stub), any(ThrottleTimer.class)))
         .thenReturn(mockCommitWorkStream);
@@ -239,7 +236,6 @@ public class WindmillStreamSenderTest {
         budget,
         streamFactory,
         workItemScheduler,
-        ignored -> mock(WorkCommitter.class),
-        ignored -> {});
+        ignored -> mock(WorkCommitter.class));
   }
 }

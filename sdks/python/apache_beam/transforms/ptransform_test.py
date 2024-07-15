@@ -1075,6 +1075,17 @@ class SelectTest(unittest.TestCase):
           ]),
           label='CheckFromAttrs')
 
+  def test_type_inference(self):
+    with TestPipeline() as p:
+      input_rows = p | beam.Create([beam.Row(s='abc', i=1)])
+      output_rows = input_rows | beam.Select(
+          's', 'i', s_again='s', expr=lambda x: x.i + 1)
+      field_types = dict(output_rows.element_type._fields)
+      self.assertEqual(field_types['s'], str)
+      self.assertEqual(field_types['i'], int)
+      self.assertEqual(field_types['s_again'], str)
+      self.assertEqual(field_types['expr'], int)
+
 
 @beam.ptransform_fn
 def SamplePTransform(pcoll):

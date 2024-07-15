@@ -52,11 +52,17 @@
      Flatten: 'beam:schematransform:org.apache.beam:yaml:flatten:v1'
      LogForTesting: 'beam:schematransform:org.apache.beam:yaml:log_for_testing:v1'
 
+- type: 'python'
+  config: {}
+  transforms:
+    MLTransform: 'apache_beam.yaml.yaml_ml.ml_transform'
+
 - type: renaming
   transforms:
     'MapToFields-java': 'MapToFields-java'
     'MapToFields-generic': 'MapToFields-java'
     'Filter-java': 'Filter-java'
+    'Filter-generic': 'Filter-java'
     'Explode': 'Explode'
   config:
     mappings:
@@ -68,20 +74,24 @@
         append: 'append'
         drop: 'drop'
         fields: 'fields'
-        error_handling: 'errorHandling'
+        error_handling: 'error_handling'
       'MapToFields-java':
         language: 'language'
         append: 'append'
         drop: 'drop'
         fields: 'fields'
-        error_handling: 'errorHandling'
+        error_handling: 'error_handling'
+      'Filter-generic':
+        language: 'language'
+        keep: 'keep'
+        error_handling: 'error_handling'
       'Filter-java':
         language: 'language'
         keep: 'keep'
-        error_handling: 'errorHandling'
+        error_handling: 'error_handling'
       'Explode':
         fields: 'fields'
-        cross_product: 'crossProduct'
+        cross_product: 'cross_product'
     underlying_provider:
       type: beamJar
       transforms:

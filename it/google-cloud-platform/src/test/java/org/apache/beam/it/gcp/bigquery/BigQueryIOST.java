@@ -296,6 +296,11 @@ public final class BigQueryIOST extends IOStressTestBase {
                 .withSchema(schema)
                 .withCustomGcsTempLocation(ValueProvider.StaticValueProvider.of(tempLocation)));
 
+    String experiments =
+        configuration.writeMethod.equals(STORAGE_API_AT_LEAST_ONCE_METHOD)
+            ? GcpOptions.STREAMING_ENGINE_EXPERIMENT + ",streaming_mode_at_least_once"
+            : GcpOptions.STREAMING_ENGINE_EXPERIMENT;
+
     PipelineLauncher.LaunchConfig options =
         PipelineLauncher.LaunchConfig.builder("write-bigquery")
             .setSdk(PipelineLauncher.Sdk.JAVA)
@@ -307,7 +312,7 @@ public final class BigQueryIOST extends IOStressTestBase {
                     .toString())
             .addParameter("numWorkers", String.valueOf(configuration.numWorkers))
             .addParameter("maxNumWorkers", String.valueOf(configuration.maxNumWorkers))
-            .addParameter("experiments", GcpOptions.STREAMING_ENGINE_EXPERIMENT)
+            .addParameter("experiments", experiments)
             .build();
 
     PipelineLauncher.LaunchInfo launchInfo = pipelineLauncher.launch(project, region, options);
@@ -329,9 +334,17 @@ public final class BigQueryIOST extends IOStressTestBase {
 
     // Depending on writing method there might be duplicates on different sides (read or write).
     if (configuration.writeMethod.equals(STORAGE_API_AT_LEAST_ONCE_METHOD)) {
-      assertTrue(rowCount >= numRecords);
+      assertTrue(
+          String.format(
+              "Number of rows in the table (%d) is less than the expected number (%d). Missing records: %d",
+              rowCount, (long) numRecords, (long) numRecords - rowCount),
+          rowCount >= numRecords);
     } else {
-      assertTrue(numRecords >= rowCount);
+      assertTrue(
+          String.format(
+              "Number of rows in the table (%d) is greater than the expected number (%d).",
+              rowCount, (long) numRecords),
+          numRecords >= rowCount);
     }
 
     // export metrics

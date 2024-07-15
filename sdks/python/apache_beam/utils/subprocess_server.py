@@ -243,7 +243,11 @@ class SubprocessServer(object):
       if process.poll() is not None:
         break
       logging.debug("Sending SIGINT to process")
-      process.send_signal(signal.SIGINT)
+      try:
+        process.send_signal(signal.SIGINT)
+      except ValueError:
+        # process.send_signal raises a ValueError on Windows.
+        process.terminate()
       time.sleep(1)
     if process.poll() is None:
       process.kill()

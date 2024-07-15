@@ -1846,6 +1846,9 @@ public class BigtableIOTest {
       }
       return currentRow;
     }
+
+    @Override
+    public void close() {}
   }
 
   /** A {@link FakeBigtableReader} implementation that throw exceptions at given stage. */

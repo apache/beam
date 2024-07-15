@@ -126,19 +126,6 @@ public class Redistribute {
   }
 
   /**
-   * @param <K> The type of key being reshuffled on.
-   * @param <V> The type of value being reshuffled.
-   */
-  public static class RedistributeByKeyAllowingDuplicates<K, V>
-      extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, V>>> {
-
-    @Override
-    public PCollection<KV<K, V>> expand(PCollection<KV<K, V>> input) {
-      return input.apply(Redistribute.byKey());
-    }
-  }
-
-  /**
    * Noop transform that hints to the runner to try to redistribute the work evenly, or via whatever
    * clever strategy the runner comes up with.
    */

@@ -45,18 +45,18 @@ class Profile(object):
 
   SORTBY = 'cumulative'
 
-  profile_output = None  # type: str
-  stats = None  # type: pstats.Stats
+  profile_output: str
+  stats: pstats.Stats
 
   def __init__(
       self,
-      profile_id, # type: str
-      profile_location=None, # type: Optional[str]
-      log_results=False, # type: bool
-      file_copy_fn=None, # type: Optional[Callable[[str, str], None]]
-      time_prefix='%Y-%m-%d_%H_%M_%S-', # type: str
-      enable_cpu_profiling=False, # type: bool
-      enable_memory_profiling=False, # type: bool
+      profile_id: str,
+      profile_location: Optional[str] = None,
+      log_results: bool = False,
+      file_copy_fn: Optional[Callable[[str, str], None]] = None,
+      time_prefix: str = '%Y-%m-%d_%H_%M_%S-',
+      enable_cpu_profiling: bool = False,
+      enable_memory_profiling: bool = False,
   ):
     """Creates a Profile object.
 
@@ -139,8 +139,7 @@ class Profile(object):
     filesystems.FileSystems.rename([dest + '.tmp'], [dest])
 
   @staticmethod
-  def factory_from_options(options):
-    # type: (...) -> Optional[Callable[..., Profile]]
+  def factory_from_options(options) -> Optional[Callable[..., 'Profile']]:
     if options.profile_cpu or options.profile_memory:
 
       def create_profiler(profile_id, **kwargs):
@@ -156,8 +155,7 @@ class Profile(object):
     return None
 
   def _upload_profile_data(
-      self, profile_location, dir, data, write_binary=True):
-    # type: (...) -> str
+      self, profile_location, dir, data, write_binary=True) -> str:
     dump_location = os.path.join(
         profile_location,
         dir,

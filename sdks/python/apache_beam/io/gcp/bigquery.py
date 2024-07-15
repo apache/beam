@@ -296,13 +296,12 @@ method) could look like::
        | MyOperationAfterWriteToBQ())
 
 Attributes can be accessed using dot notation or bracket notation:
-```
+
 result.failed_rows                  <--> result['FailedRows']
 result.failed_rows_with_errors      <--> result['FailedRowsWithErrors']
 result.destination_load_jobid_pairs <--> result['destination_load_jobid_pairs']
 result.destination_file_pairs       <--> result['destination_file_pairs']
 result.destination_copy_jobid_pairs <--> result['destination_copy_jobid_pairs']
-```
 
 Writing with Storage Write API using Cross Language
 ---------------------------------------------------
@@ -2599,13 +2598,13 @@ class StorageWriteToBigQuery(PTransform):
             expansion_service=self._expansion_service,
             rearrange_based_on_discovery=True,
             table=table,
-            createDisposition=self._create_disposition,
-            writeDisposition=self._write_disposition,
-            triggeringFrequencySeconds=self._triggering_frequency,
-            autoSharding=self._with_auto_sharding,
-            numStreams=self._num_storage_api_streams,
-            useAtLeastOnceSemantics=self._use_at_least_once,
-            errorHandling={
+            create_disposition=self._create_disposition,
+            write_disposition=self._write_disposition,
+            triggering_frequency_seconds=self._triggering_frequency,
+            auto_sharding=self._with_auto_sharding,
+            num_streams=self._num_storage_api_streams,
+            use_at_least_once_semantics=self._use_at_least_once,
+            error_handling={
                 'output': StorageWriteToBigQuery.FAILED_ROWS_WITH_ERRORS
             }))
 

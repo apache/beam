@@ -50,7 +50,6 @@ import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.construction.BeamUrns;
 import org.apache.beam.sdk.util.construction.PipelineTranslation;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.InvalidProtocolBufferException;
@@ -91,7 +90,7 @@ public class ManagedSchemaTransformTranslationTest {
 
   @Test
   public void testReCreateTransformFromRowWithConfig() {
-    String yamlString = "extraString: abc\n" + "extraInteger: 123";
+    String yamlString = "extra_string: abc\n" + "extra_integer: 123";
 
     ManagedConfig originalConfig =
         ManagedConfig.builder()
@@ -130,8 +129,8 @@ public class ManagedSchemaTransformTranslationTest {
             .setRowSchema(inputSchema);
     Map<String, Object> underlyingConfig =
         ImmutableMap.<String, Object>builder()
-            .put("extraString", "abc")
-            .put("extraInteger", 123)
+            .put("extra_string", "abc")
+            .put("extra_integer", 123)
             .build();
     String yamlStringConfig = YamlUtils.yamlStringFromMap(underlyingConfig);
     Managed.ManagedTransform transform =
@@ -141,7 +140,7 @@ public class ManagedSchemaTransformTranslationTest {
             .setIdentifier(TestSchemaTransformProvider.IDENTIFIER)
             .build()
             .withConfig(underlyingConfig);
-    PCollectionRowTuple.of("input", input).apply(transform).get("output");
+    input.apply(transform);
 
     // Then translate the pipeline to a proto and extract the ManagedSchemaTransform's proto
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);

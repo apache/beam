@@ -224,6 +224,8 @@ ignore_identifiers = [
   '_BundleFinalizerParam',
   '_RestrictionDoFnParam',
   '_WatermarkEstimatorParam',
+  '_BundleContextParam',
+  '_SetupContextParam',
 
   # Sphinx cannot find this py:class reference target
   'callable',

@@ -153,7 +153,6 @@ def create_test_methods(spec):
         for pipeline_spec in spec['pipelines']:
           with beam.Pipeline(options=PipelineOptions(
               pickle_library='cloudpickle',
-              yaml_experimental_features=['Combine'],
               **yaml_transform.SafeLineLoader.strip_metadata(pipeline_spec.get(
                   'options', {})))) as p:
             yaml_transform.expand_pipeline(

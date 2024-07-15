@@ -93,8 +93,8 @@ dependencies {
   testImplementation project(":sdks:java:managed")
   testImplementation project(path: ":sdks:java:extensions:avro", configuration: "testRuntimeMigration")
   testImplementation project(path: ":sdks:java:extensions:protobuf", configuration: "testRuntimeMigration")
-  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
-  testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
+  testImplementation project(path: ":sdks:java:io:common")
+  testImplementation project(path: ":sdks:java:testing:test-utils")
   // For testing Cross-language transforms
   testImplementation library.java.avro
   testImplementation library.java.junit
