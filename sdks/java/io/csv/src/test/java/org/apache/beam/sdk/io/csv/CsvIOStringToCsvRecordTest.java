@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.csv;
 
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import org.apache.beam.sdk.testing.PAssert;
@@ -33,7 +32,7 @@ public class CsvIOStringToCsvRecordTest {
   @Rule public final TestPipeline pipeline = TestPipeline.create();
 
   @Test
-  public void testSingleLineCsvRecord() throws IOException {
+  public void testSingleLineCsvRecord() {
     String csvRecord = "a,1";
     PCollection<String> input = pipeline.apply(Create.of(csvRecord));
 
@@ -45,7 +44,7 @@ public class CsvIOStringToCsvRecordTest {
   }
 
   @Test
-  public void testMultiLineCsvRecord() throws IOException {
+  public void testMultiLineCsvRecord() {
     String csvRecords =
         "\"a\r\n1\",\"a\r\n2\"" + "\n" + "\"b\r\n1\",\"b\r\n2\"" + "\n" + "\"c\r\n1\",\"c\r\n2\"";
     PCollection<String> input = pipeline.apply(Create.of(csvRecords));
@@ -63,7 +62,7 @@ public class CsvIOStringToCsvRecordTest {
   }
 
   @Test
-  public void testCsvRecordsWithSkipHeaderRecord() throws IOException {
+  public void testCsvRecordsWithSkipHeaderRecord() {
     String csvRecords = "a_string,an_integer\na,1\nb,2\n";
     PCollection<String> input = pipeline.apply(Create.of(csvRecords));
 
@@ -76,7 +75,7 @@ public class CsvIOStringToCsvRecordTest {
   }
 
   @Test
-  public void testCsvRecordsWithCommentMarker() throws IOException {
+  public void testCsvRecordsWithCommentMarker() {
     String csvRecords = "#leaving a comment\n" + "a,1,1.1\nb,2,2.2\nc,3,3.3";
     PCollection<String> input = pipeline.apply(Create.of(csvRecords));
 
@@ -93,7 +92,7 @@ public class CsvIOStringToCsvRecordTest {
   }
 
   @Test
-  public void testCsvRecordsWithIgnoreEmptyLines() throws IOException {
+  public void testCsvRecordsWithIgnoreEmptyLines() {
     String csvRecords = "line1\nline2\nline3\nline4\nline5\n\n\nline6";
     PCollection<String> input = pipeline.apply(Create.of(csvRecords));
 
@@ -113,7 +112,7 @@ public class CsvIOStringToCsvRecordTest {
   }
 
   @Test
-  public void testCsvRecordWithIgnoreSurroundingSpaces() throws IOException {
+  public void testCsvRecordWithIgnoreSurroundingSpaces() {
     String csvRecord = "    Seattle     ,   WA   ";
     PCollection<String> input = pipeline.apply(Create.of(csvRecord));
 
@@ -126,7 +125,7 @@ public class CsvIOStringToCsvRecordTest {
   }
 
   @Test
-  public void testCsvRecordWithTrailingDelimiter() throws IOException {
+  public void testCsvRecordWithTrailingDelimiter() {
     String csvRecord = "a,b,c,";
     PCollection<String> input = pipeline.apply(Create.of(csvRecord));
 

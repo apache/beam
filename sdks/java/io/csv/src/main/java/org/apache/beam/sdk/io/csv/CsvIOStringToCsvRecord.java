@@ -31,7 +31,7 @@ import org.apache.commons.csv.CSVRecord;
  * outputs a {@link PCollection<CSVRecord>} with potential {@link PCollection<CsvIOParseError>} for
  * targeted error detection.
  */
-class CsvIOStringToCsvRecord
+final class CsvIOStringToCsvRecord
     extends PTransform<PCollection<String>, PCollection<Iterable<String>>> {
   private final CSVFormat csvFormat;
 
