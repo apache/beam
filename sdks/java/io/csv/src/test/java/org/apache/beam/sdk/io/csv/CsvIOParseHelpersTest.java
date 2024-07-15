@@ -23,7 +23,9 @@ import static org.junit.Assert.assertThrows;
 import java.math.BigDecimal;
 import java.time.DateTimeException;
 import java.time.Instant;
+import java.util.Map;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.commons.collections.keyvalue.DefaultMapEntry;
 import org.apache.commons.csv.CSVFormat;
 import org.junit.Test;
@@ -154,6 +156,92 @@ public class CsvIOParseHelpersTest {
 
   /** End of tests for {@link CsvIOParseHelpers#validateCsvFormatWithSchema(CSVFormat, Schema)}. */
   //////////////////////////////////////////////////////////////////////////////////////////////
+  /** Tests for {@link CsvIOParseHelpers#mapFieldPositions(CSVFormat, Schema)}. */
+  @Test
+  public void testHeaderWithComments() {
+    String[] comments = {"first line", "second line", "third line"};
+    Schema schema =
+        Schema.builder().addStringField("a_string").addStringField("another_string").build();
+    ImmutableMap<Integer, Schema.Field> want =
+        ImmutableMap.of(0, schema.getField("a_string"), 1, schema.getField("another_string"));
+    Map<Integer, Schema.Field> got =
+        CsvIOParseHelpers.mapFieldPositions(
+            csvFormat()
+                .withHeader("a_string", "another_string")
+                .withHeaderComments((Object) comments),
+            schema);
+    assertEquals(want, got);
+  }
+
+  @Test
+  public void givenMatchingHeaderAndSchemaField_mapsPositions() {
+    Schema schema =
+        Schema.builder()
+            .addStringField("a_string")
+            .addDoubleField("a_double")
+            .addInt32Field("an_integer")
+            .build();
+    ImmutableMap<Integer, Schema.Field> want =
+        ImmutableMap.of(
+            0,
+            schema.getField("a_string"),
+            1,
+            schema.getField("an_integer"),
+            2,
+            schema.getField("a_double"));
+    Map<Integer, Schema.Field> got =
+        CsvIOParseHelpers.mapFieldPositions(
+            csvFormat().withHeader("a_string", "an_integer", "a_double"), schema);
+    assertEquals(want, got);
+  }
+
+  @Test
+  public void givenSchemaContainsNullableFieldTypes() {
+    Schema schema =
+        Schema.builder()
+            .addNullableStringField("a_string")
+            .addDoubleField("a_double")
+            .addInt32Field("an_integer")
+            .addDateTimeField("a_datetime")
+            .addNullableStringField("another_string")
+            .build();
+    ImmutableMap<Integer, Schema.Field> want =
+        ImmutableMap.of(
+            0,
+            schema.getField("an_integer"),
+            1,
+            schema.getField("a_double"),
+            2,
+            schema.getField("a_datetime"));
+    Map<Integer, Schema.Field> got =
+        CsvIOParseHelpers.mapFieldPositions(
+            csvFormat().withHeader("an_integer", "a_double", "a_datetime"), schema);
+    assertEquals(want, got);
+  }
+
+  @Test
+  public void givenNonNullableHeaderAndSchemaFieldMismatch_throws() {
+    Schema schema =
+        Schema.builder()
+            .addStringField("another_string")
+            .addInt32Field("an_integer")
+            .addStringField("a_string")
+            .build();
+    IllegalArgumentException e =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                CsvIOParseHelpers.mapFieldPositions(
+                    csvFormat().withHeader("an_integer", "a_string"), schema));
+    assertEquals(
+        "header does not contain required class org.apache.beam.sdk.schemas.Schema field: "
+            + schema.getField("another_string").getName(),
+        e.getMessage());
+  }
+
+  /** End of tests for {@link CsvIOParseHelpers#mapFieldPositions(CSVFormat, Schema)} */
+
+  ////////////////////////////////////////////////////////////////////////////////////////////
 
   /** Tests for {@link CsvIOParseHelpers#parseCell(String, Schema.Field)}. */
   @Test
