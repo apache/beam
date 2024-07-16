@@ -62,6 +62,7 @@ final class GrpcGetWorkStream
       ThrottleTimer getWorkThrottleTimer,
       WorkItemReceiver receiver) {
     super(
+        LOG,
         "GetWorkStream",
         startGetWorkRpcFn,
         backoff,
@@ -114,15 +115,14 @@ final class GrpcGetWorkStream
                     .setMaxBytes(moreBytes))
             .build();
 
-    executor()
-        .execute(
-            () -> {
-              try {
-                send(extension);
-              } catch (IllegalStateException e) {
-                // Stream was closed.
-              }
-            });
+    executeSafely(
+        () -> {
+          try {
+            send(extension);
+          } catch (IllegalStateException e) {
+            // Stream was closed.
+          }
+        });
   }
 
   @Override
@@ -132,6 +132,9 @@ final class GrpcGetWorkStream
     inflightBytes.set(request.getMaxBytes());
     send(StreamingGetWorkRequest.newBuilder().setRequest(request).build());
   }
+
+  @Override
+  protected void shutdownInternal() {}
 
   @Override
   protected boolean hasPendingRequests() {

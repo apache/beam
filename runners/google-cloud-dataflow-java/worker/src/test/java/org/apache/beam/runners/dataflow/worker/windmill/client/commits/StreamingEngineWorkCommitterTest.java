@@ -35,6 +35,7 @@ import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -160,11 +161,18 @@ public class StreamingEngineWorkCommitterTest {
   }
 
   @Test
-  public void testCommit_handlesFailedCommits() {
+  public void testCommit_handlesFailedCommits() throws InterruptedException {
+    int numFailedCommits = 5;
+    CountDownLatch completeCommitProcessed = new CountDownLatch(numFailedCommits);
     Set<CompleteCommit> completeCommits = new HashSet<>();
-    workCommitter = createWorkCommitter(completeCommits::add);
+    workCommitter =
+        createWorkCommitter(
+            completeCommit -> {
+              completeCommits.add(completeCommit);
+              completeCommitProcessed.countDown();
+            });
     List<Commit> commits = new ArrayList<>();
-    for (int i = 1; i <= 10; i++) {
+    for (int i = 1; i <= numFailedCommits * 2; i++) {
       Work work = createMockWork(i);
       // Fail half of the work.
       if (i % 2 == 0) {
@@ -181,10 +189,11 @@ public class StreamingEngineWorkCommitterTest {
     }
 
     workCommitter.start();
-    commits.parallelStream().forEach(workCommitter::commit);
+    commits.forEach(workCommitter::commit);
 
     Map<Long, WorkItemCommitRequest> committed =
-        fakeWindmillServer.waitForAndGetCommits(commits.size() / 2);
+        fakeWindmillServer.waitForAndGetCommits(numFailedCommits);
+    completeCommitProcessed.await();
 
     for (Commit commit : commits) {
       if (commit.work().isFailed()) {
