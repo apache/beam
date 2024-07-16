@@ -85,9 +85,7 @@ class BatchRowsAsDataFrame(beam.PTransform):
         | beam.Map(converter.produce_batch))
 
 
-def generate_proxy(element_type):
-  # type: (type) -> pd.DataFrame
-
+def generate_proxy(element_type: type) -> pd.DataFrame:
   """Generate a proxy pandas object for the given PCollection element_type.
 
   Currently only supports generating a DataFrame proxy from a schema-aware
@@ -106,9 +104,8 @@ def generate_proxy(element_type):
     return proxy
 
 
-def element_type_from_dataframe(proxy, include_indexes=False):
-  # type: (pd.DataFrame, bool) -> type
-
+def element_type_from_dataframe(
+    proxy: pd.DataFrame, include_indexes: bool = False) -> type:
   """Generate an element_type for an element-wise PCollection from a proxy
   pandas object. Currently only supports converting the element_type for
   a schema-aware PCollection to a proxy DataFrame.
