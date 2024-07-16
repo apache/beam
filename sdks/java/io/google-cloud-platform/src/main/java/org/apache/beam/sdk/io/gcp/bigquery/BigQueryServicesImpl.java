@@ -575,7 +575,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
     private final long maxRowBatchSize;
     // aggregate the total time spent in exponential backoff
     private final Counter throttlingMsecs =
-        Metrics.counter(DatasetServiceImpl.class, "throttling-msecs");
+        Metrics.counter(DatasetServiceImpl.class, Metrics.THROTTLE_TIME_COUNTER_NAME);
 
     private @Nullable BoundedExecutorService executor;
 
@@ -1663,7 +1663,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
   static class StorageClientImpl implements StorageClient {
 
     public static final Counter THROTTLING_MSECS =
-        Metrics.counter(StorageClientImpl.class, "throttling-msecs");
+        Metrics.counter(StorageClientImpl.class, Metrics.THROTTLE_TIME_COUNTER_NAME);
 
     private transient long unreportedDelay = 0L;
 

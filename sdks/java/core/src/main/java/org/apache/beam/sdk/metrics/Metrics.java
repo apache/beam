@@ -109,6 +109,13 @@ public class Metrics {
     return new DelegatingStringSet(MetricName.named(namespace, name));
   }
 
+  /*
+   * A dedicated namespace for client throttling time. User DoFn can increment this metrics and then
+   * runner will put back pressure on scaling decision, if supported.
+   */
+  public static final String THROTTLE_TIME_NAMESPACE = "beam-throttling-metrics";
+  public static final String THROTTLE_TIME_COUNTER_NAME = "throttling-msecs";
+
   /**
    * Implementation of {@link Distribution} that delegates to the instance for the current context.
    */
