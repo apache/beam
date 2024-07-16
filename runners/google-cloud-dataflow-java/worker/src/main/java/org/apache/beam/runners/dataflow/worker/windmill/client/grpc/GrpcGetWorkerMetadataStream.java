@@ -65,6 +65,7 @@ public final class GrpcGetWorkerMetadataStream
       ThrottleTimer getWorkerMetadataThrottleTimer,
       Consumer<WindmillEndpoints> serverMappingConsumer) {
     super(
+        LOG,
         "GetWorkerMetadataStream",
         startGetWorkerMetadataRpcFn,
         backoff,
@@ -102,8 +103,8 @@ public final class GrpcGetWorkerMetadataStream
             metadataVersion,
             getWorkerMetadataThrottleTimer,
             serverMappingUpdater);
-    LOG.info("Started GetWorkerMetadataStream. {}", getWorkerMetadataStream);
     getWorkerMetadataStream.startStream();
+    LOG.info("Started GetWorkerMetadataStream. {}", getWorkerMetadataStream);
     return getWorkerMetadataStream;
   }
 
@@ -132,9 +133,8 @@ public final class GrpcGetWorkerMetadataStream
         // If the currentMetadataVersion is greater than or equal to one in the response, the
         // response data is stale, and we do not want to do anything.
         LOG.info(
-            "Received WorkerMetadataResponse={}; Received metadata version={}; Current metadata version={}. "
+            "Received metadata version={}; Current metadata version={}. "
                 + "Skipping update because received stale metadata",
-            response,
             response.getMetadataVersion(),
             this.metadataVersion);
       }
@@ -144,9 +144,12 @@ public final class GrpcGetWorkerMetadataStream
   }
 
   @Override
-  protected synchronized void onNewStream() {
+  protected void onNewStream() {
     send(workerMetadataRequest);
   }
+
+  @Override
+  protected void shutdownInternal() {}
 
   @Override
   protected boolean hasPendingRequests() {

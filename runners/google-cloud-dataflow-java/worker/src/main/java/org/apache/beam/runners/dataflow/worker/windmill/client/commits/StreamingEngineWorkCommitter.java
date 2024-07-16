@@ -136,7 +136,7 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
   }
 
   private void drainCommitQueue() {
-    Commit queuedCommit = commitQueue.poll();
+    @Nullable Commit queuedCommit = commitQueue.poll();
     while (queuedCommit != null) {
       failCommit(queuedCommit);
       queuedCommit = commitQueue.poll();

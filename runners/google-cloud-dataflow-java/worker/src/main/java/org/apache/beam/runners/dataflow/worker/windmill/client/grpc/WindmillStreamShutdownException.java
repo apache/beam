@@ -15,17 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker.windmill.work.provider;
+package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 
-import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream;
 
 /**
- * Provides {@link org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem}(s) for
- * processing.
+ * Indicates that a {@link WindmillStream#shutdown()} was called while waiting for some internal
+ * operation to complete. Most common use of this exception should be conversion to a {@link
+ * org.apache.beam.runners.dataflow.worker.WorkItemCancelledException} as the {@link
+ * org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem} being processed by {@link
+ * WindmillStream}.
  */
-@Internal
-public interface WorkProvider {
-  void start();
-
-  void shutdown();
+final class WindmillStreamShutdownException extends RuntimeException {
+  WindmillStreamShutdownException(String message) {
+    super(message);
+  }
 }

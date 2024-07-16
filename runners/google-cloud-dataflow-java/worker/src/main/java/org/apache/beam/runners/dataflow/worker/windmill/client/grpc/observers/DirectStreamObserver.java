@@ -78,17 +78,21 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
           // buffer periodically. This reduces the overhead of blocking while still restricting
           // memory because there is a limited # of streams, and we have a max messages size of 2MB.
           if (++messagesSinceReady <= messagesBetweenIsReadyChecks) {
-            outboundObserver.onNext(value);
+            tryOnNext(value);
             return;
           }
           // If we awaited previously and timed out, wait for the same phase. Otherwise we're
           // careful to observe the phase before observing isReady.
           if (awaitPhase < 0) {
             awaitPhase = phaser.getPhase();
+            // If getPhase() returns a value less than 0, the phaser has been terminated.
+            if (awaitPhase < 0) {
+              return;
+            }
           }
           if (outboundObserver.isReady()) {
             messagesSinceReady = 0;
-            outboundObserver.onNext(value);
+            tryOnNext(value);
             return;
           }
         }
@@ -98,19 +102,32 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
         // channel has become ready.  This doesn't always seem to be the case (despite
         // documentation stating otherwise) so we poll periodically and enforce an overall
         // timeout related to the stream deadline.
-        phaser.awaitAdvanceInterruptibly(awaitPhase, waitSeconds, TimeUnit.SECONDS);
+        int nextPhase = phaser.awaitAdvanceInterruptibly(awaitPhase, waitSeconds, TimeUnit.SECONDS);
+        // If nextPhase is a value less than 0, the phaser has been terminated.
+        if (nextPhase < 0) {
+          return;
+        }
+
         synchronized (lock) {
           messagesSinceReady = 0;
-          outboundObserver.onNext(value);
+          tryOnNext(value);
           return;
         }
       } catch (TimeoutException e) {
+        if (isTerminated()) {
+          return;
+        }
+
         totalSecondsWaited += waitSeconds;
         if (totalSecondsWaited > deadlineSeconds) {
-          LOG.error(
-              "Exceeded timeout waiting for the outboundObserver to become ready meaning "
-                  + "that the stream deadline was not respected.");
-          throw new RuntimeException(e);
+          throw new StreamObserverCancelledException(
+              "Waited "
+                  + totalSecondsWaited
+                  + "s which exceeds deadline of "
+                  + deadlineSeconds
+                  + "s for the outboundObserver to become ready meaning "
+                  + "that the stream deadline was not respected.",
+              e);
         }
         if (totalSecondsWaited > 30) {
           LOG.info(
@@ -121,13 +138,30 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
         waitSeconds = waitSeconds * 2;
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
-        throw new RuntimeException(e);
+        throw new StreamObserverCancelledException(e);
       }
     }
   }
 
+  /**
+   * Only send the next value if the phaser is not terminated by the time we acquire the lock since
+   * the phaser can be terminated at any time.
+   */
+  private void tryOnNext(T value) {
+    synchronized (lock) {
+      if (!isTerminated()) {
+        outboundObserver.onNext(value);
+      }
+    }
+  }
+
+  private boolean isTerminated() {
+    return phaser.isTerminated() && phaser.getPhase() < 0;
+  }
+
   @Override
   public void onError(Throwable t) {
+    phaser.forceTermination();
     synchronized (lock) {
       outboundObserver.onError(t);
     }
@@ -135,6 +169,7 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
 
   @Override
   public void onCompleted() {
+    phaser.forceTermination();
     synchronized (lock) {
       outboundObserver.onCompleted();
     }

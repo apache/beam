@@ -47,8 +47,9 @@ public interface WindmillStream {
   Instant startTime();
 
   /**
-   * Shutdown the stream. There should be no further interactions with the stream once this has been
-   * called.
+   * Shuts down the stream. No further interactions should be made with the stream, and the stream
+   * will no longer try to connect internally. Any pending retries or in-flight requests will be
+   * cancelled and all responses dropped and considered invalid.
    */
   void shutdown();
 
@@ -85,7 +86,7 @@ public interface WindmillStream {
      * Returns a builder that can be used for sending requests. Each builder is not thread-safe but
      * different builders for the same stream may be used simultaneously.
      */
-    CommitWorkStream.RequestBatcher batcher();
+    RequestBatcher batcher();
 
     @NotThreadSafe
     interface RequestBatcher extends Closeable {
