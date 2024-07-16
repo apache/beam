@@ -82,13 +82,13 @@ jobs:
           cluster_name: io-datastores
           k8s_namespace: ${{ matrix.job_name }}-${{ github.run_id }}
           remove_finalizer:  memsqlclusters.memsql.com/sdb-cluster
-      - name: Install Singlestore operator
+      - name: Install SingleStore operator
         run: | 
           kubectl apply -f ${{github.workspace}}/.test-infra/kubernetes/singlestore/sdb-rbac.yaml
           kubectl apply -f ${{github.workspace}}/.test-infra/kubernetes/singlestore/sdb-cluster-crd.yaml
           kubectl apply -f ${{github.workspace}}/.test-infra/kubernetes/singlestore/sdb-operator.yaml
           kubectl wait --for=condition=Ready pod -l name=sdb-operator --timeout=120s
-      - name: Install Singlestore cluster
+      - name: Install SingleStore cluster
         id: install_singlestore
         run: |
           kubectl apply -f ${{github.workspace}}/.test-infra/kubernetes/singlestore/sdb-cluster.yaml
