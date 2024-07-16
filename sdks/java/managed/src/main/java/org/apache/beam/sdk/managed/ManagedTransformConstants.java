@@ -48,10 +48,8 @@ public class ManagedTransformConstants {
   public static final String KAFKA_WRITE = "beam:schematransform:org.apache.beam:kafka_write:v1";
   public static final String BIGQUERY_READ =
       "beam:schematransform:org.apache.beam:bigquery_storage_read:v1";
-  public static final String BIGQUERY_STORAGE_WRITE =
+  public static final String BIGQUERY_WRITE =
       "beam:schematransform:org.apache.beam:bigquery_storage_write:v2";
-  public static final String BIGQUERY_FILE_LOADS =
-      "beam:schematransform:org.apache.beam:bigquery_fileloads:v1";
 
   private static final Map<String, String> KAFKA_READ_MAPPINGS =
       ImmutableMap.<String, String>builder().put("data_format", "format").build();
@@ -76,7 +74,6 @@ public class ManagedTransformConstants {
           .put(KAFKA_READ, KAFKA_READ_MAPPINGS)
           .put(KAFKA_WRITE, KAFKA_WRITE_MAPPINGS)
           .put(BIGQUERY_READ, BIGQUERY_READ_MAPPINGS)
-          .put(BIGQUERY_STORAGE_WRITE, BIGQUERY_WRITE_MAPPINGS)
-          .put(BIGQUERY_FILE_LOADS, BIGQUERY_WRITE_MAPPINGS)
+          .put(BIGQUERY_WRITE, BIGQUERY_WRITE_MAPPINGS)
           .build();
 }

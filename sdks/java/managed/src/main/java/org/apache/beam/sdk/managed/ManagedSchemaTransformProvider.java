@@ -32,10 +32,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
 import javax.annotation.Nullable;
-import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.MatchResult;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
@@ -46,7 +44,6 @@ import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.schemas.utils.YamlUtils;
-import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
@@ -120,8 +117,7 @@ public class ManagedSchemaTransformProvider
           "Please specify a config or a config URL, but not both.");
     }
 
-    @VisibleForTesting
-    Map<String, Object> resolveUnderlyingConfig(PipelineOptions options) {
+    private Map<String, Object> resolveUnderlyingConfig() {
       String yamlTransformConfig = getConfig();
       // If YAML string is empty, then attempt to read from YAML file
       if (Strings.isNullOrEmpty(yamlTransformConfig)) {
@@ -136,75 +132,49 @@ public class ManagedSchemaTransformProvider
         }
       }
 
-      Map<String, Object> config = YamlUtils.yamlStringToMap(yamlTransformConfig);
-      return maybeModify(config, options);
-    }
-
-    private Map<String, Object> maybeModify(Map<String, Object> config, PipelineOptions options) {
-      DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
-      if (getTransformIdentifier().equals(ManagedTransformConstants.BIGQUERY_STORAGE_WRITE)
-          && dataflowOptions.getDataflowServiceOptions() != null
-          && dataflowOptions.getDataflowServiceOptions().contains("streaming_mode_at_least_once")) {
-        config.put("at_least_once", true);
-      }
-      return config;
-    }
-
-    @VisibleForTesting
-    String resolveUnderlyingTransform(PCollectionRowTuple input) {
-      String identifier = getTransformIdentifier();
-      if (identifier.equals(ManagedTransformConstants.BIGQUERY_STORAGE_WRITE)) {
-        if (input.getSinglePCollection().isBounded().equals(PCollection.IsBounded.BOUNDED)) {
-          return ManagedTransformConstants.BIGQUERY_FILE_LOADS;
-        }
-      }
-
-      return identifier;
+      return YamlUtils.yamlStringToMap(yamlTransformConfig);
     }
   }
 
   @Override
   protected SchemaTransform from(ManagedConfig managedConfig) {
     managedConfig.validate();
-    return new ManagedSchemaTransform(managedConfig, getAllProviders());
+    SchemaTransformProvider schemaTransformProvider =
+        Preconditions.checkNotNull(
+            getAllProviders().get(managedConfig.getTransformIdentifier()),
+            "Could not find a transform with the identifier "
+                + "%s. This could be either due to the dependency with the "
+                + "transform not being available in the classpath or due to "
+                + "the specified transform not being supported.",
+            managedConfig.getTransformIdentifier());
+
+    return new ManagedSchemaTransform(managedConfig, schemaTransformProvider);
   }
 
   static class ManagedSchemaTransform extends SchemaTransform {
     private final ManagedConfig managedConfig;
-    private final Map<String, SchemaTransformProvider> transformProviders;
+    private final Row underlyingRowConfig;
+    private final SchemaTransformProvider underlyingTransformProvider;
 
     ManagedSchemaTransform(
-        ManagedConfig managedConfig, Map<String, SchemaTransformProvider> transformProviders) {
-      this.transformProviders = transformProviders;
+        ManagedConfig managedConfig, SchemaTransformProvider underlyingTransformProvider) {
+      // parse config before expansion to check if it matches underlying transform's config schema
+      Schema transformConfigSchema = underlyingTransformProvider.configurationSchema();
+      Row underlyingRowConfig;
+      try {
+        underlyingRowConfig = getRowConfig(managedConfig, transformConfigSchema);
+      } catch (Exception e) {
+        throw new IllegalArgumentException(
+            "Encountered an error when retrieving a Row configuration", e);
+      }
+
+      this.underlyingRowConfig = underlyingRowConfig;
+      this.underlyingTransformProvider = underlyingTransformProvider;
       this.managedConfig = managedConfig;
     }
 
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
-      String identifier = managedConfig.resolveUnderlyingTransform(input);
-      Map<String, Object> underlyingConfig =
-          managedConfig.resolveUnderlyingConfig(input.getPipeline().getOptions());
-
-      System.out.println("providers: " + transformProviders);
-
-      SchemaTransformProvider underlyingTransformProvider =
-          Preconditions.checkNotNull(
-              transformProviders.get(identifier),
-              "Could not find a transform with the identifier "
-                  + "%s. This could be either due to the dependency with the "
-                  + "transform not being available in the classpath or due to "
-                  + "the specified transform not being supported.",
-              identifier);
-      Schema transformConfigSchema = underlyingTransformProvider.configurationSchema();
-
-      Row underlyingRowConfig;
-      try {
-        underlyingRowConfig = getRowConfig(identifier, underlyingConfig, transformConfigSchema);
-      } catch (Exception e) {
-        throw new IllegalArgumentException(
-            "Encountered an error when retrieving Row configuration", e);
-      }
-
       LOG.debug(
           "Building transform \"{}\" with Row configuration: {}",
           underlyingTransformProvider.identifier(),
@@ -235,12 +205,12 @@ public class ManagedSchemaTransformProvider
   // May return an empty row (perhaps the underlying transform doesn't have any required
   // parameters)
   @VisibleForTesting
-  static Row getRowConfig(
-      String identifier, Map<String, Object> configMap, Schema transformSchema) {
-    // The config Row object will be used to build the underlying SchemaTransform.
-    // If a mapping for the SchemaTransform exists, we use it to update parameter names and align
-    // with the underlying config schema
-    Map<String, String> mapping = MAPPINGS.get(identifier);
+  static Row getRowConfig(ManagedConfig config, Schema transformSchema) {
+    Map<String, Object> configMap = config.resolveUnderlyingConfig();
+    // Build a config Row that will be used to build the underlying SchemaTransform.
+    // If a mapping for the SchemaTransform exists, we use it to update parameter names to align
+    // with the underlying SchemaTransform config schema
+    Map<String, String> mapping = MAPPINGS.get(config.getTransformIdentifier());
     if (mapping != null && configMap != null) {
       Map<String, Object> remappedConfig = new HashMap<>();
       for (Map.Entry<String, Object> entry : configMap.entrySet()) {

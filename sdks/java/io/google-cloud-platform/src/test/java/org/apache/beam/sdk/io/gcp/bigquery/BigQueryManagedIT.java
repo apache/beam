@@ -50,9 +50,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * This class tests the execution of {@link Managed} BigQueryIO. Tests validating that the correct
- * write transform is requested can be found in
- * ManagedSchemaTransformProviderTest.testResolveBigQueryWrite.
+ * This class tests the execution of {@link Managed} BigQueryIO.
  */
 @RunWith(JUnit4.class)
 public class BigQueryManagedIT {
@@ -89,69 +87,12 @@ public class BigQueryManagedIT {
   }
 
   @Test
-  public void testBatchFileLoadsWriteRead() {
-    String table = String.format("%s:%s.managed_file_loads_read", PROJECT, BIG_QUERY_DATASET_ID);
-
-    Map<String, Object> writeConfig =
-        ImmutableMap.<String, Object>builder().put("table", table).build();
-
-    // file loads requires a GCS temp location
-    TestPipelineOptions options =
-        TestPipeline.testingPipelineOptions().as(TestPipelineOptions.class);
-    options.setTempLocation(options.getTempRoot());
-
-    Pipeline p = Pipeline.create(options);
-    PCollectionRowTuple.of("input", getInput(p, false))
-        .apply(Managed.write(Managed.BIGQUERY).withConfig(writeConfig));
-    p.run().waitUntilFinish();
-
-    Map<String, Object> readConfig =
-        ImmutableMap.<String, Object>builder().put("table", table).build();
-    Pipeline q = Pipeline.create();
-    PCollection<Row> outputRows =
-        PCollectionRowTuple.empty(p)
-            .apply(Managed.read(Managed.BIGQUERY).withConfig(readConfig))
-            .get(BigQueryDirectReadSchemaTransformProvider.OUTPUT_TAG);
-    PAssert.that(outputRows).containsInAnyOrder(ROWS);
-    q.run().waitUntilFinish();
-  }
-
-  @Test
   public void testStreamingStorageWriteRead() {
     String table = String.format("%s:%s.managed_storage_write_read", PROJECT, BIG_QUERY_DATASET_ID);
 
     Map<String, Object> writeConfig =
         ImmutableMap.<String, Object>builder().put("table", table).build();
     Pipeline p = Pipeline.create();
-    PCollectionRowTuple.of("input", getInput(p, true))
-        .apply(Managed.write(Managed.BIGQUERY).withConfig(writeConfig));
-    p.run().waitUntilFinish();
-
-    Map<String, Object> readConfig =
-        ImmutableMap.<String, Object>builder().put("table", table).build();
-    Pipeline q = Pipeline.create();
-    PCollection<Row> outputRows =
-        PCollectionRowTuple.empty(p)
-            .apply(Managed.read(Managed.BIGQUERY).withConfig(readConfig))
-            .get(BigQueryDirectReadSchemaTransformProvider.OUTPUT_TAG);
-    PAssert.that(outputRows).containsInAnyOrder(ROWS);
-    q.run().waitUntilFinish();
-  }
-
-  @Test
-  public void testStreamingStorageWriteAtLeastOnceRead() {
-    String table =
-        String.format(
-            "%s:%s.managed_storage_write_at_least_once_read", PROJECT, BIG_QUERY_DATASET_ID);
-
-    Map<String, Object> writeConfig =
-        ImmutableMap.<String, Object>builder().put("table", table).build();
-
-    DataflowPipelineOptions options =
-        PipelineOptionsFactory.create().as(DataflowPipelineOptions.class);
-    options.setDataflowServiceOptions(Collections.singletonList("streaming_mode_at_least_once"));
-    Pipeline p = Pipeline.create(options);
-
     PCollectionRowTuple.of("input", getInput(p, true))
         .apply(Managed.write(Managed.BIGQUERY).withConfig(writeConfig));
     p.run().waitUntilFinish();

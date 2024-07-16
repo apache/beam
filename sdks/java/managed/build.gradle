@@ -28,9 +28,6 @@ ext.summary = """Library that provides managed IOs."""
 
 dependencies {
     implementation project(path: ":sdks:java:core", configuration: "shadow")
-    implementation project(":runners:google-cloud-dataflow-java")
-    implementation project(":sdks:java:io:google-cloud-platform")
-    implementation project(":sdks:java:extensions:google-cloud-platform-core")
     implementation library.java.vendored_guava_32_1_2_jre
     implementation library.java.slf4j_api
 
