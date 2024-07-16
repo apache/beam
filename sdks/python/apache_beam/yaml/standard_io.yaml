@@ -275,7 +275,6 @@
         instance_id: 'instance_id'
         database_id: 'database_id'
         table_id: 'table_id'
-        error_handling: 'error_handling'
     underlying_provider:
       type: beamJar
       transforms:

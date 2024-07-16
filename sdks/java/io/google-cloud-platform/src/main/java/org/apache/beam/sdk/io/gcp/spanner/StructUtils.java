@@ -29,8 +29,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.StreamSupport;
-
-import com.google.spanner.v1.StructType;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -39,20 +37,6 @@ import org.joda.time.Instant;
 import org.joda.time.ReadableDateTime;
 
 final class StructUtils {
-
-  private static final SpannerIO.Read.ToBeamRowFunction
-      STRUCT_TO_BEAM_ROW_FUNCTION = schema -> (Struct struct) -> structToBeamRow(struct, schema);
-
-  public static SpannerIO.Read.ToBeamRowFunction structToBeamRow() {
-    return STRUCT_TO_BEAM_ROW_FUNCTION;
-  }
-
-  private static final SpannerIO.Read.FromBeamRowFunction
-      STRUCT_FROM_BEAM_ROW_FUNCTION = ignored -> StructUtils::beamRowToStruct;
-
-  public static SpannerIO.Read.FromBeamRowFunction structFromBeamRow() {
-    return STRUCT_FROM_BEAM_ROW_FUNCTION;
-  }
 
   // It's not possible to pass nulls as values even with a field is nullable
   @SuppressWarnings({
@@ -66,36 +50,6 @@ final class StructUtils {
                 (map, field) -> map.put(field.getName(), getStructValue(struct, field)),
                 Map::putAll);
     return Row.withSchema(schema).withFieldValues(structValues).build();
-  }
-
-  public static Schema StructTypeToBeamRowSchema(StructType structType) {
-    Schema.Builder beamSchema = Schema.builder();
-    structType.getFieldsList().forEach(field -> beamSchema.addField(Schema.Field.of(field.getName(), convertSpannerTypeToBeamFieldType(field.getType()))));
-    return beamSchema.build();
-  }
-
-  public static Schema.FieldType convertSpannerTypeToBeamFieldType(com.google.spanner.v1.Type spannerType) {
-    switch (spannerType.getCode()) {
-      case BOOL:
-        return Schema.FieldType.BOOLEAN;
-      case BYTES:
-        return Schema.FieldType.BYTES;
-      case TIMESTAMP:
-      case DATE:
-        return Schema.FieldType.DATETIME;
-      case INT64:
-        return Schema.FieldType.INT64;
-      case FLOAT32:
-        return Schema.FieldType.FLOAT;
-      case FLOAT64:
-        return Schema.FieldType.DOUBLE;
-      case NUMERIC:
-        return Schema.FieldType.DECIMAL;
-      case ARRAY:
-      case STRUCT:
-      default:
-        return Schema.FieldType.STRING;
-    }
   }
 
   public static Struct beamRowToStruct(Row row) {

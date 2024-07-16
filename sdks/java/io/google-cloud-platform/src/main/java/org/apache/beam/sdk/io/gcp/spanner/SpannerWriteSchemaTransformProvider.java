@@ -183,10 +183,6 @@ public class SpannerWriteSchemaTransformProvider
     @SchemaFieldDescription("Specifies the Cloud Spanner table.")
     public abstract String getTableId();
 
-    @SchemaFieldDescription("Specifies Error Handling.")
-    @Nullable
-    public abstract ErrorHandling getErrorHandling();
-
     public static Builder builder() {
       return new AutoValue_SpannerWriteSchemaTransformProvider_SpannerWriteSchemaTransformConfiguration
           .Builder();
@@ -200,48 +196,7 @@ public class SpannerWriteSchemaTransformProvider
 
       public abstract Builder setTableId(String tableId);
 
-      public abstract Builder setErrorHandling(ErrorHandling errorHandling);
-
       public abstract SpannerWriteSchemaTransformConfiguration build();
-    }
-
-    @AutoValue
-    public abstract static class ErrorHandling {
-      @SchemaFieldDescription("The name of the output PCollection containing failed writes.")
-      public abstract String getOutput();
-
-      public static Builder builder() {
-        return new AutoValue_SpannerWriteSchemaTransformProvider_SpannerWriteSchemaTransformConfiguration_ErrorHandling
-            .Builder();
-      }
-
-      @AutoValue.Builder
-      public abstract static class Builder {
-        public abstract Builder setOutput(String output);
-        public abstract ErrorHandling build();
-      }
-    }
-
-    public void validate() {
-      String invalidConfigMessage = "Invalid Spanner Write configuration: ";
-
-      checkArgument(
-          !Strings.isNullOrEmpty(this.getInstanceId()),
-          invalidConfigMessage + "Instance ID for a Spanner Write must be specified.");
-      
-      checkArgument(
-          !Strings.isNullOrEmpty(this.setDatabaseId()),
-          invalidConfigMessage + "Database ID for a Spanner Write must be specified.");
-
-      checkArgument(
-          !Strings.isNullOrEmpty(this.setTableId()),
-          invalidConfigMessage + "Table ID for a Spanner Write must be specified.");
-
-      if (this.getErrorHandling() != null) {
-        checkArgument(
-            !Strings.isNullOrEmpty(this.getErrorHandling().getOutput()),
-            invalidConfigMessage + "Output must not be empty if error handling specified.");
-      }
     }
   }
 }
