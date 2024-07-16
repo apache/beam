@@ -84,15 +84,16 @@ public abstract class GoogleCloudSecretProvider extends SessionPropertiesProvide
   @AutoValue.Builder
   public abstract static class Builder {
 
-    /** Username to be used to authenticate with the broker */
+    /** Username to be used to authenticate with the broker. */
     public abstract Builder username(String username);
 
     /**
-     * The location of the broker, including port details if it is not listening in the default port
+     * The location of the broker, including port details if it is not listening in the default
+     * port.
      */
     public abstract Builder host(String host);
 
-    /** The Secret Manager secret name where the password is stored */
+    /** The Secret Manager secret name where the password is stored. */
     public abstract Builder passwordSecretName(String name);
 
     /** Optional. Solace broker VPN name. If not set, "default" is used. */
@@ -146,10 +147,13 @@ public abstract class GoogleCloudSecretProvider extends SessionPropertiesProvide
     HttpURLConnection connection = (HttpURLConnection) metadataUrl.openConnection();
     connection.setRequestProperty("Metadata-Flavor", "Google");
 
-    BufferedReader reader =
+    String output;
+    try (BufferedReader reader =
         new BufferedReader(
-            new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8));
-    String output = reader.readLine();
+            new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8))) {
+      output = reader.readLine();
+    }
+
     if (output == null || output.isEmpty()) {
       LOG.error(
           "Cannot retrieve project id from VM metadata, please set a project id in your GoogleCloudSecretProvider.");

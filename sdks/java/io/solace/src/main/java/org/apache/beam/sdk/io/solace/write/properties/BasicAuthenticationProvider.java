@@ -60,14 +60,15 @@ public abstract class BasicAuthenticationProvider extends SessionPropertiesProvi
 
   @AutoValue.Builder
   public abstract static class Builder {
-    /** Username to be used to authenticate with the broker */
+    /** Username to be used to authenticate with the broker. */
     public abstract Builder username(String username);
 
-    /** Password to be used to authenticate with the broker */
+    /** Password to be used to authenticate with the broker. */
     public abstract Builder password(String password);
 
     /**
-     * The location of the broker, including port details if it is not listening in the default port
+     * The location of the broker, including port details if it is not listening in the default
+     * port.
      */
     public abstract Builder host(String host);
 
