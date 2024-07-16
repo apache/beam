@@ -1,0 +1,46 @@
+pipeline:
+  transforms:
+    - type: ReadFromSpanner
+      name: ReadShipments
+      # Columns: shipment_id, customer_id, shipment_date, shipment_cost, customer_name, customer_email
+      config:
+        project_id: 'apache-beam-testing'
+        instance_id: 'shipment-test'
+        database_id: 'shipment'
+        query: 'SELECT * FROM shipments'
+
+    - type: Filter
+      name: FilterShipments
+      input: ReadShipments
+      config:
+        language: python
+        keep: "customer_id == 'C1'"
+
+    - type: MapToFields
+      name: MapFieldsForSpanner
+      input: FilterShipments
+      config:
+        language: python
+        fields:
+          shipment_id: shipment_id
+          customer_id: customer_id
+          shipment_date: shipment_date
+          shipment_cost: shipment_cost
+          customer_name: customer_name
+          customer_email: customer_email
+          shipment_cost_category:
+            callable: |
+              def categorize_cost(row):
+                  cost = float(row[3])
+                  if cost < 50:
+                      return 'Low Cost'
+                  elif cost < 200:
+                      return 'Medium Cost'
+                  else:
+                      return 'High Cost'
+                
+    - type: WriteToCsv
+      name: WriteBig
+      input: MapFieldsForSpanner
+      config:
+        path: sdks/python/apache_beam/yaml/examples/shipments.csv
