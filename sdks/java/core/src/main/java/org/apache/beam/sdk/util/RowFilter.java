@@ -44,6 +44,7 @@ public class RowFilter {
    * with dot-notation. Throws a helpful error in the case where a field doesn't exist, or if a
    * nested field could not be reached.
    */
+  @VisibleForTesting
   static void validateSchemaContainsFields(
       Schema schema, List<String> specifiedFields, String operation) {
     Set<String> notFound = new HashSet<>();
@@ -158,7 +159,7 @@ public class RowFilter {
    * ["foo.bar.baz", "foo.abc", "xyz"] --> {"foo": ["bar.baz", "abc"], "xyz": []}
    */
   @VisibleForTesting
-  Map<String, List<String>> getFieldTree(List<String> fields) {
+  static Map<String, List<String>> getFieldTree(List<String> fields) {
     Map<String, List<String>> fieldTree = Maps.newHashMap();
 
     for (String field : fields) {
@@ -180,7 +181,7 @@ public class RowFilter {
    */
   @VisibleForTesting
   @Nullable
-  Row copyWithNewSchema(@Nullable Row row, Schema newSchema) {
+  static Row copyWithNewSchema(@Nullable Row row, Schema newSchema) {
     if (row == null) {
       return null;
     }
@@ -200,9 +201,13 @@ public class RowFilter {
     return Row.withSchema(newSchema).withFieldValues(values).build();
   }
 
-  /** Returns a new {@link Schema} with the specified fields removed. */
+  /**
+   * Returns a new {@link Schema} with the specified fields removed.
+   *
+   * <p>No guarantee that field ordering will remain the same.
+   */
   @VisibleForTesting
-  Schema elideFields(Schema schema, List<String> fieldsToElide) {
+  static Schema elideFields(Schema schema, List<String> fieldsToElide) {
     if (fieldsToElide.isEmpty()) {
       return schema;
     }
@@ -213,6 +218,7 @@ public class RowFilter {
       String root = fieldAndDescendents.getKey();
       List<String> nestedFields = fieldAndDescendents.getValue();
       Schema.Field fieldToRemove = schema.getField(root);
+      Schema.FieldType typeToRemove = fieldToRemove.getType();
 
       // Base case: we're at the specified field to remove.
       if (nestedFields.isEmpty()) {
@@ -220,15 +226,17 @@ public class RowFilter {
       } else {
         // Otherwise, we're asked to remove a nested field. Verify current field is ROW type
         Preconditions.checkArgument(
-            fieldToRemove.getType().getTypeName().equals(Schema.TypeName.ROW),
+            typeToRemove.getTypeName().equals(Schema.TypeName.ROW),
             "Expected type %s for specified nested field '%s', but instead got type %s.",
             Schema.TypeName.ROW,
             root,
-            fieldToRemove.getType().getTypeName());
+            typeToRemove.getTypeName());
 
-        Schema nestedSchema = Preconditions.checkNotNull(fieldToRemove.getType().getRowSchema());
+        Schema nestedSchema = Preconditions.checkNotNull(typeToRemove.getRowSchema());
         Schema newNestedSchema = elideFields(nestedSchema, nestedFields);
-        Schema.Field modifiedField = Schema.Field.of(root, Schema.FieldType.row(newNestedSchema));
+        Schema.Field modifiedField =
+            Schema.Field.of(root, Schema.FieldType.row(newNestedSchema))
+                .withNullable(typeToRemove.getNullable());
 
         // Replace with modified field
         newFieldsList.set(newFieldsList.indexOf(fieldToRemove), modifiedField);
@@ -237,9 +245,13 @@ public class RowFilter {
     return new Schema(newFieldsList);
   }
 
-  /** Returns a new {@link Schema} with only the specified fields kept. */
+  /**
+   * Returns a new {@link Schema} with only the specified fields kept.
+   *
+   * <p>No guarantee that field ordering will remain the same.
+   */
   @VisibleForTesting
-  Schema keepFields(Schema schema, List<String> fieldsToKeep) {
+  static Schema keepFields(Schema schema, List<String> fieldsToKeep) {
     if (fieldsToKeep.isEmpty()) {
       return schema;
     }
@@ -250,21 +262,24 @@ public class RowFilter {
       String root = fieldAndDescendents.getKey();
       List<String> nestedFields = fieldAndDescendents.getValue();
       Schema.Field fieldToKeep = schema.getField(root);
+      Schema.FieldType typeToKeep = fieldToKeep.getType();
 
       // Base case: we're at the specified field to keep, and we can skip this conditional.
       // Otherwise: we're asked to keep a nested field, so we dig deeper to determine which nested
       // fields to keep
       if (!nestedFields.isEmpty()) {
         Preconditions.checkArgument(
-            fieldToKeep.getType().getTypeName().equals(Schema.TypeName.ROW),
+            typeToKeep.getTypeName().equals(Schema.TypeName.ROW),
             "Expected type %s for specified nested field '%s', but instead got type %s.",
             Schema.TypeName.ROW,
             root,
-            fieldToKeep.getType().getTypeName());
+            typeToKeep.getTypeName());
 
-        Schema nestedSchema = Preconditions.checkNotNull(fieldToKeep.getType().getRowSchema());
+        Schema nestedSchema = Preconditions.checkNotNull(typeToKeep.getRowSchema());
         Schema newNestedSchema = keepFields(nestedSchema, nestedFields);
-        fieldToKeep = Schema.Field.of(root, Schema.FieldType.row(newNestedSchema));
+        fieldToKeep =
+            Schema.Field.of(root, Schema.FieldType.row(newNestedSchema))
+                .withNullable(typeToKeep.getNullable());
       }
       newFieldsList.add(fieldToKeep);
     }
