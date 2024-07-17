@@ -67,6 +67,7 @@
 ## New Features / Improvements
 
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Added a new test for RedistributeAfterSlidingWindowsAndGroupByKey function in the Java SDK ([#31234](https://github.com/apache/beam/issues/31234)).
 
 ## Breaking Changes
 
@@ -81,11 +82,13 @@
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Security Fixes
+
 * Fixed (CVE-YYYY-NNNN)[https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN] (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Known Issues
 
 * ([#X](https://github.com/apache/beam/issues/X)).
+
 
 # [2.58.0] - Unreleased
 
