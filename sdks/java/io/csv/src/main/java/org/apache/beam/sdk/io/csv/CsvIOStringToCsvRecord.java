@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.io.csv;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -32,7 +34,7 @@ import org.apache.commons.csv.CSVRecord;
  * targeted error detection.
  */
 final class CsvIOStringToCsvRecord
-    extends PTransform<PCollection<String>, PCollection<Iterable<String>>> {
+    extends PTransform<PCollection<String>, PCollection<List<String>>> {
   private final CSVFormat csvFormat;
 
   CsvIOStringToCsvRecord(CSVFormat csvFormat) {
@@ -44,18 +46,27 @@ final class CsvIOStringToCsvRecord
    * to Row or custom type.
    */
   @Override
-  public PCollection<Iterable<String>> expand(PCollection<String> input) {
+  public PCollection<List<String>> expand(PCollection<String> input) {
     return input.apply(ParDo.of(new ProcessLineToRecordFn()));
   }
 
   /** Processes each line in order to convert it to a {@link CSVRecord}. */
-  private class ProcessLineToRecordFn extends DoFn<String, Iterable<String>> {
+  private class ProcessLineToRecordFn extends DoFn<String, List<String>> {
     @ProcessElement
-    public void process(@Element String line, OutputReceiver<Iterable<String>> receiver)
+    public void process(@Element String line, OutputReceiver<List<String>> receiver)
         throws IOException {
       for (CSVRecord record : CSVParser.parse(line, csvFormat).getRecords()) {
-        receiver.output(record);
+        receiver.output(csvRecordtoList(record));
       }
     }
+  }
+
+  /** Creates a {@link List<String>} containing {@link CSVRecord} values. */
+  private List<String> csvRecordtoList(CSVRecord record) {
+    List<String> cells = new ArrayList<>();
+    for (String cell : record) {
+      cells.add(cell);
+    }
+    return cells;
   }
 }
