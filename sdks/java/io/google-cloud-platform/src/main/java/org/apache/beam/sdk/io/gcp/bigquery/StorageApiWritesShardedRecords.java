@@ -62,6 +62,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.RetryManager.RetryType;
 import org.apache.beam.sdk.io.gcp.bigquery.StorageApiFlushAndFinalizeDoFn.Operation;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
+import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
@@ -468,6 +469,11 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
       final String shortTableId = tableDestination.getShortTableUrn();
       final DatasetService datasetService = getDatasetService(pipelineOptions);
       final WriteStreamService writeStreamService = getWriteStreamService(pipelineOptions);
+
+      Lineage.getSinks()
+          .add(
+              BigQueryHelpers.dataCatalogName(
+                  tableDestination.getTableReference(), bigQueryOptions));
 
       Coder<DestinationT> destinationCoder = dynamicDestinations.getDestinationCoder();
       Callable<Boolean> tryCreateTable =

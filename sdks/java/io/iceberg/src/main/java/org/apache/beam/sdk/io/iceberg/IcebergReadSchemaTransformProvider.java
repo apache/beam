@@ -21,19 +21,21 @@ import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Properties;
 import org.apache.beam.sdk.io.iceberg.IcebergReadSchemaTransformProvider.Config;
 import org.apache.beam.sdk.managed.ManagedTransformConstants;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.iceberg.catalog.TableIdentifier;
 
 /**
@@ -47,7 +49,6 @@ public class IcebergReadSchemaTransformProvider extends TypedSchemaTransformProv
 
   @Override
   protected SchemaTransform from(Config configuration) {
-    configuration.validate();
     return new IcebergReadSchemaTransform(configuration);
   }
 
@@ -68,21 +69,24 @@ public class IcebergReadSchemaTransformProvider extends TypedSchemaTransformProv
       return new AutoValue_IcebergReadSchemaTransformProvider_Config.Builder();
     }
 
+    @SchemaFieldDescription("Identifier of the Iceberg table to write to.")
     public abstract String getTable();
 
-    public abstract IcebergSchemaTransformCatalogConfig getCatalogConfig();
+    @SchemaFieldDescription("Name of the catalog containing the table.")
+    public abstract String getCatalogName();
+
+    @SchemaFieldDescription("Configuration properties used to set up the Iceberg catalog.")
+    public abstract Map<String, String> getCatalogProperties();
 
     @AutoValue.Builder
     public abstract static class Builder {
-      public abstract Builder setTable(String tables);
+      public abstract Builder setTable(String table);
 
-      public abstract Builder setCatalogConfig(IcebergSchemaTransformCatalogConfig catalogConfig);
+      public abstract Builder setCatalogName(String catalogName);
+
+      public abstract Builder setCatalogProperties(Map<String, String> catalogProperties);
 
       public abstract Config build();
-    }
-
-    public void validate() {
-      getCatalogConfig().validate();
     }
   }
 
@@ -109,17 +113,13 @@ public class IcebergReadSchemaTransformProvider extends TypedSchemaTransformProv
 
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
-      IcebergSchemaTransformCatalogConfig catalogConfig = configuration.getCatalogConfig();
+      Properties properties = new Properties();
+      properties.putAll(configuration.getCatalogProperties());
 
       IcebergCatalogConfig.Builder catalogBuilder =
-          IcebergCatalogConfig.builder().setName(catalogConfig.getCatalogName());
-
-      if (!Strings.isNullOrEmpty(catalogConfig.getCatalogType())) {
-        catalogBuilder = catalogBuilder.setIcebergCatalogType(catalogConfig.getCatalogType());
-      }
-      if (!Strings.isNullOrEmpty(catalogConfig.getWarehouseLocation())) {
-        catalogBuilder = catalogBuilder.setWarehouseLocation(catalogConfig.getWarehouseLocation());
-      }
+          IcebergCatalogConfig.builder()
+              .setCatalogName(configuration.getCatalogName())
+              .setProperties(properties);
 
       PCollection<Row> output =
           input

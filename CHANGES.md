@@ -53,7 +53,7 @@
 * ([#X](https://github.com/apache/beam/issues/X)).
 -->
 
-# [2.58.0] - Unreleased
+# [2.59.0] - Unreleased
 
 ## Highlights
 
@@ -66,7 +66,7 @@
 
 ## New Features / Improvements
 
-* Multiple RunInference instances can now share the same model instance by setting the model_identifier parameter (Python) ([#31665](https://github.com/apache/beam/issues/31665)).
+* X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Breaking Changes
 
@@ -78,6 +78,47 @@
 
 ## Bugfixes
 
+* Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+
+## Security Fixes
+* Fixed (CVE-YYYY-NNNN)[https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN] (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).
+
+## Known Issues
+
+* ([#X](https://github.com/apache/beam/issues/X)).
+
+# [2.58.0] - Unreleased
+
+## Highlights
+
+* New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
+* New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
+
+## I/Os
+
+* Support for [Solace](https://solace.com/) source (`SolaceIO.Read`) added (Java) ([#31440](https://github.com/apache/beam/issues/31440)).
+
+## New Features / Improvements
+
+* Multiple RunInference instances can now share the same model instance by setting the model_identifier parameter (Python) ([#31665](https://github.com/apache/beam/issues/31665)).
+* Added options to control the number of Storage API multiplexing connections ([#31721](https://github.com/apache/beam/pull/31721))
+* [BigQueryIO] Better handling for batch Storage Write API when it hits AppendRows throughput quota ([#31837](https://github.com/apache/beam/pull/31837))
+* [IcebergIO] All specified catalog properties are passed through to the connector ([#31726](https://github.com/apache/beam/pull/31726))
+* Removed a 3rd party LGPL dependency from the Go SDK ([#31765](https://github.com/apache/beam/issues/31765)).
+* Support for MapState and SetState when using Dataflow Runner v1 with Streaming Engine (Java) ([[#18200](https://github.com/apache/beam/issues/18200)])
+
+## Breaking Changes
+
+* X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
+* [IcebergIO] IcebergCatalogConfig was changed to support specifying catalog properties in a key-store fashion ([#31726](https://github.com/apache/beam/pull/31726))
+
+## Deprecations
+
+* X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
+
+## Bugfixes
+
+* [BigQueryIO] Fixed a bug in batch Storage Write API that frequently exhausted concurrent connections quota ([#31710](https://github.com/apache/beam/pull/31710))
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Security Fixes

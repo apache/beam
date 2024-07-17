@@ -635,9 +635,14 @@ final class FirestoreV1ReadFn {
     /** {@inheritDoc} */
     @Override
     public final void startBundle(StartBundleContext c) {
-      String project = c.getPipelineOptions().as(GcpOptions.class).getProject();
+      String project = c.getPipelineOptions().as(FirestoreOptions.class).getFirestoreProject();
+      if (project == null) {
+        project = c.getPipelineOptions().as(GcpOptions.class).getProject();
+      }
       projectId =
-          requireNonNull(project, "project must be defined on GcpOptions of PipelineOptions");
+          requireNonNull(
+              project,
+              "project must be defined on FirestoreOptions or GcpOptions of PipelineOptions");
       firestoreStub = firestoreStatefulComponentFactory.getFirestoreStub(c.getPipelineOptions());
     }
 

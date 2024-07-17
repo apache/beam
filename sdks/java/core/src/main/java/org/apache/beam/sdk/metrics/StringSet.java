@@ -15,14 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.io.requestresponse;
-
-import java.io.Serializable;
-import java.util.function.Supplier;
+package org.apache.beam.sdk.metrics;
 
 /**
- * A union of a {@link Supplier} and {@link Serializable}, enabling configuration with {@link T}
- * types that are not {@link Serializable}.
+ * A metric that reports set of unique string values. This metric is backed by {@link
+ * java.util.HashSet} and hence it does not maintain any ordering.
  */
-@FunctionalInterface
-public interface SerializableSupplier<T> extends Supplier<T>, Serializable {}
+public interface StringSet extends Metric {
+
+  /** Add a value to this set. */
+  void add(String value);
+
+  /** Add values to this set. */
+  default void add(String... values) {
+    for (String value : values) {
+      add(value);
+    }
+  }
+}
