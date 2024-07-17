@@ -30,11 +30,12 @@ import org.apache.commons.csv.CSVRecord;
  */
 // TODO(https://github.com/apache/beam/issues/31873): implement class after all dependencies are
 // completed.
-class CsvIOParseKV<T> extends PTransform<PCollection<KV<String, CSVRecord>>, PCollection<T>> {
+class CsvIOParseKV<T>
+    extends PTransform<PCollection<KV<String, Iterable<String>>>, PCollection<T>> {
 
   // TODO(https://github.com/apache/beam/issues/31873): implement method.
   @Override
-  public PCollection<T> expand(PCollection<KV<String, CSVRecord>> input) {
-    return input.apply(ParDo.of(new DoFn<KV<String, CSVRecord>, T>() {}));
+  public PCollection<T> expand(PCollection<KV<String, Iterable<String>>> input) {
+    return input.apply(ParDo.of(new DoFn<KV<String, Iterable<String>>, T>() {}));
   }
 }
