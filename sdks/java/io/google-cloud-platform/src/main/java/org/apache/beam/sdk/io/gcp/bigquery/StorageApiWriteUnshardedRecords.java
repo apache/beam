@@ -32,6 +32,8 @@ import com.google.cloud.bigquery.storage.v1.WriteStream;
 import com.google.cloud.bigquery.storage.v1.WriteStream.Type;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.DescriptorProtos;
+import com.google.protobuf.Descriptors.Descriptor;
+import com.google.protobuf.Descriptors.DescriptorValidationException;
 import com.google.protobuf.DynamicMessage;
 import io.grpc.Status;
 import java.io.IOException;
@@ -834,21 +836,28 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                   c, BigQuerySinkMetrics.RpcMethod.APPEND_ROWS, shortTableUrn);
 
               if (successfulRowsReceiver != null) {
-                for (int i = 0; i < c.protoRows.getSerializedRowsCount(); ++i) {
-                  ByteString rowBytes = c.protoRows.getSerializedRowsList().get(i);
-                  try {
-                    TableRow row =
-                        TableRowToStorageApiProto.tableRowFromMessage(
-                            DynamicMessage.parseFrom(
-                                TableRowToStorageApiProto.wrapDescriptorProto(
-                                    Preconditions.checkStateNotNull(appendClientInfo)
-                                        .getDescriptor()),
-                                rowBytes),
-                            true);
-                    org.joda.time.Instant timestamp = c.timestamps.get(i);
-                    successfulRowsReceiver.outputWithTimestamp(row, timestamp);
-                  } catch (Exception e) {
-                    LOG.warn("Failure parsing TableRow", e);
+                Descriptor descriptor = null;
+                try {
+                  descriptor =
+                      TableRowToStorageApiProto.wrapDescriptorProto(
+                          Preconditions.checkStateNotNull(appendClientInfo).getDescriptor());
+                } catch (DescriptorValidationException e) {
+                  LOG.warn(
+                      "Failure getting proto descriptor. Successful output will not be produced.",
+                      e);
+                }
+                if (descriptor != null) {
+                  for (int i = 0; i < c.protoRows.getSerializedRowsCount(); ++i) {
+                    ByteString rowBytes = c.protoRows.getSerializedRowsList().get(i);
+                    try {
+                      TableRow row =
+                          TableRowToStorageApiProto.tableRowFromMessage(
+                              DynamicMessage.parseFrom(descriptor, rowBytes), true);
+                      org.joda.time.Instant timestamp = c.timestamps.get(i);
+                      successfulRowsReceiver.outputWithTimestamp(row, timestamp);
+                    } catch (Exception e) {
+                      LOG.warn("Failure parsing TableRow", e);
+                    }
                   }
                 }
               }
