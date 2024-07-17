@@ -15,14 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.io.requestresponse;
+package org.apache.beam.sdk.io.csv;
 
-import java.io.Serializable;
-import java.util.function.Supplier;
+import org.apache.beam.sdk.util.SerializableUtils;
+import org.junit.Test;
 
-/**
- * A union of a {@link Supplier} and {@link Serializable}, enabling configuration with {@link T}
- * types that are not {@link Serializable}.
- */
-@FunctionalInterface
-public interface SerializableSupplier<T> extends Supplier<T>, Serializable {}
+/** Contains tests for {@link CsvIOParseKV}. */
+public class CsvIOParseKVTest {
+  @Test
+  public void isSerializable() {
+    SerializableUtils.ensureSerializable(CsvIOParseKV.class);
+  }
+}

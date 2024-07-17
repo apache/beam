@@ -773,7 +773,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                 invalidateWriteStream();
                 allowedRetry = 5;
               } else {
-                allowedRetry = 10;
+                allowedRetry = 35;
               }
 
               // Maximum number of times we retry before we fail the work item.

@@ -15,11 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.gcp.bigtable.changestreams.dofn;
+package org.apache.beam.sdk.io.csv;
 
-import java.io.Serializable;
-import java.util.function.Supplier;
+import org.apache.beam.sdk.util.SerializableUtils;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
-/** Union of Supplier and Serializable interfaces to allow serialized supplier for testing. */
-@FunctionalInterface
-interface SerializableSupplier<T> extends Supplier<T>, Serializable {}
+/** Tests for {@link CsvIOParse}. */
+@RunWith(JUnit4.class)
+public class CsvIOParseTest {
+  @Test
+  public void isSerializable() {
+    SerializableUtils.ensureSerializable(CsvIOParse.class);
+  }
+}

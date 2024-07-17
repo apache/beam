@@ -187,6 +187,17 @@ message MonitoringInfoSpecs {
       }]
     }];
 
+    // Represents a set of strings seen across bundles.
+    USER_SET_STRING = 21 [(monitoring_info_spec) = {
+      urn: "beam:metric:user:set_string:v1",
+      type: "beam:metrics:set_string:v1",
+      required_labels: ["PTRANSFORM", "NAMESPACE", "NAME"],
+      annotations: [{
+        key: "description",
+        value: "URN utilized to report user metric."
+      }]
+    }];
+
     // General monitored state information which contains structured information
     // which does not fit into a typical metric format. See MonitoringTableData
     // for more details.
