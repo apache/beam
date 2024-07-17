@@ -104,9 +104,9 @@ Official [source code download](https://downloads.apache.org/beam/2.57.0/apache-
 [Release notes](https://github.com/apache/beam/releases/tag/v2.58.0)
 
 ### 2.57.0 (2024-06-26)
-Official [source code download](https://downloads.apache.org/beam/2.57.0/apache-beam-2.57.0-source-release.zip).
-[SHA-512](https://downloads.apache.org/beam/2.57.0/apache-beam-2.57.0-source-release.zip.sha512).
-[signature](https://downloads.apache.org/beam/2.57.0/apache-beam-2.57.0-source-release.zip.asc).
+Official [source code download](https://archive.apache.org/beam/2.57.0/apache-beam-2.57.0-source-release.zip).
+[SHA-512](https://archive.apache.org/beam/2.57.0/apache-beam-2.57.0-source-release.zip.sha512).
+[signature](https://archive.apache.org/beam/2.57.0/apache-beam-2.57.0-source-release.zip.asc).
 
 [Release notes](https://github.com/apache/beam/releases/tag/v2.57.0)
 
