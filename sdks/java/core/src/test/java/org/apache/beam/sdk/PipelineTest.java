@@ -18,6 +18,7 @@
 package org.apache.beam.sdk;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.instanceOf;
@@ -48,16 +49,12 @@ import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.ValidatesRunner;
-import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.Flatten;
-import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.Max;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SimpleFunction;
-import org.apache.beam.sdk.transforms.Sum;
+import org.apache.beam.sdk.transforms.*;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.UserCodeException;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
@@ -71,6 +68,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterab
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.hamcrest.Matchers;
+import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -78,6 +76,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import java.util.Arrays;
 
 /** Tests for Pipeline. */
 @RunWith(JUnit4.class)
@@ -565,5 +564,53 @@ public class PipelineTest {
               TaggedPValue.of(original.getKey(), original.getValue()),
               TaggedPValue.of(replacement.getKey(), replacement.getValue())));
     }
+  }
+
+  @Test
+  public void testRedistributeAfterSlidingWindowsAndGroupByKey() {
+    // Use the existing TestPipeline rule
+    PCollection<KV<String, Integer>> input = pipeline.apply(Create.of(
+        KV.of("key1", 1),
+        KV.of("key2", 2),
+        KV.of("key1", 3),
+        KV.of("key3", 4)
+    ));
+
+    // Apply the Window transform
+    PCollection<KV<String, Integer>> windowed = input.apply(Window.<KV<String, Integer>>into(FixedWindows.of(Duration.standardMinutes(1))));
+
+    // Apply the Redistribute.byKey() transform
+    PCollection<KV<String, Integer>> redistributed = windowed.apply(Redistribute.byKey());
+
+    // Apply GroupByKey to verify the contents after redistribution
+    PCollection<KV<String, Iterable<Integer>>> grouped = redistributed.apply(GroupByKey.create());
+
+    // Add intermediate assertion to verify grouping correctness
+    PAssert.that(grouped).satisfies((SerializableFunction<Iterable<KV<String, Iterable<Integer>>>, Void>) inputIterable -> {
+      for (KV<String, Iterable<Integer>> element : inputIterable) {
+        String key = element.getKey();
+        Iterable<Integer> values = element.getValue();
+        if (key.equals("key1")) {
+          assertThat(values, containsInAnyOrder(1, 3));
+        } else if (key.equals("key2")) {
+          assertThat(values, containsInAnyOrder(2));
+        } else if (key.equals("key3")) {
+          assertThat(values, containsInAnyOrder(4));
+        } else {
+          fail("Unexpected key: " + key);
+        }
+      }
+      return null;
+    });
+
+    // Add final assertions to verify the overall output
+    PAssert.that(grouped).containsInAnyOrder(
+        KV.of("key1", Arrays.asList(1, 3)),
+        KV.of("key2", Arrays.asList(2)),
+        KV.of("key3", Arrays.asList(4))
+    );
+
+    // Run the pipeline
+    pipeline.run().waitUntilFinish();
   }
 }

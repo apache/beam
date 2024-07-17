@@ -3,8 +3,8 @@
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
  * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
+ * to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
@@ -118,6 +118,7 @@ public class Redistribute {
                       }
                     }
                   }))
+          .apply("Redistribute", ParDo.of(new RedistributeFn<>()))
           .apply("RestoreMetadata", new RestoreMetadata<>())
           // Set the windowing strategy directly, so that it doesn't get counted as the user having
           // set allowed lateness.
@@ -160,6 +161,7 @@ public class Redistribute {
       return input
           .apply("Pair with random key", ParDo.of(new AssignShardFn<>(numBuckets)))
           .apply(Redistribute.<Integer, T>byKey().withAllowDuplicates(this.allowDuplicates))
+          .apply("Redistribute", ParDo.of(new RedistributeFn<>()))
           .apply(Values.create());
     }
   }
@@ -282,6 +284,13 @@ public class Redistribute {
           .put(RedistributeByKey.class, new RedistributeByKeyTranslator())
           .put(RedistributeArbitrarily.class, new RedistributeArbitrarilyTranslator())
           .build();
+    }
+  }
+
+  static class RedistributeFn<T> extends DoFn<T, T> {
+    @ProcessElement
+    public void processElement(ProcessContext c, BoundedWindow window) {
+      c.outputWithTimestamp(c.element(), c.timestamp());
     }
   }
 }
