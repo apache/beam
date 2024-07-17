@@ -28,6 +28,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -76,7 +77,6 @@ import org.junit.rules.ExpectedException;
 import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import java.util.Arrays;
 
 /** Tests for Pipeline. */
 @RunWith(JUnit4.class)
@@ -569,15 +569,13 @@ public class PipelineTest {
   @Test
   public void testRedistributeAfterSlidingWindowsAndGroupByKey() {
     // Use the existing TestPipeline rule
-    PCollection<KV<String, Integer>> input = pipeline.apply(Create.of(
-        KV.of("key1", 1),
-        KV.of("key2", 2),
-        KV.of("key1", 3),
-        KV.of("key3", 4)
-    ));
+    PCollection<KV<String, Integer>> input =
+        pipeline.apply(
+            Create.of(KV.of("key1", 1), KV.of("key2", 2), KV.of("key1", 3), KV.of("key3", 4)));
 
     // Apply the Window transform
-    PCollection<KV<String, Integer>> windowed = input.apply(Window.<KV<String, Integer>>into(FixedWindows.of(Duration.standardMinutes(1))));
+    PCollection<KV<String, Integer>> windowed =
+        input.apply(Window.<KV<String, Integer>>into(FixedWindows.of(Duration.standardMinutes(1))));
 
     // Apply the Redistribute.byKey() transform
     PCollection<KV<String, Integer>> redistributed = windowed.apply(Redistribute.byKey());
@@ -586,29 +584,32 @@ public class PipelineTest {
     PCollection<KV<String, Iterable<Integer>>> grouped = redistributed.apply(GroupByKey.create());
 
     // Add intermediate assertion to verify grouping correctness
-    PAssert.that(grouped).satisfies((SerializableFunction<Iterable<KV<String, Iterable<Integer>>>, Void>) inputIterable -> {
-      for (KV<String, Iterable<Integer>> element : inputIterable) {
-        String key = element.getKey();
-        Iterable<Integer> values = element.getValue();
-        if (key.equals("key1")) {
-          assertThat(values, containsInAnyOrder(1, 3));
-        } else if (key.equals("key2")) {
-          assertThat(values, containsInAnyOrder(2));
-        } else if (key.equals("key3")) {
-          assertThat(values, containsInAnyOrder(4));
-        } else {
-          fail("Unexpected key: " + key);
-        }
-      }
-      return null;
-    });
+    PAssert.that(grouped)
+        .satisfies(
+            (SerializableFunction<Iterable<KV<String, Iterable<Integer>>>, Void>)
+                inputIterable -> {
+                  for (KV<String, Iterable<Integer>> element : inputIterable) {
+                    String key = element.getKey();
+                    Iterable<Integer> values = element.getValue();
+                    if (key.equals("key1")) {
+                      assertThat(values, containsInAnyOrder(1, 3));
+                    } else if (key.equals("key2")) {
+                      assertThat(values, containsInAnyOrder(2));
+                    } else if (key.equals("key3")) {
+                      assertThat(values, containsInAnyOrder(4));
+                    } else {
+                      fail("Unexpected key: " + key);
+                    }
+                  }
+                  return null;
+                });
 
     // Add final assertions to verify the overall output
-    PAssert.that(grouped).containsInAnyOrder(
-        KV.of("key1", Arrays.asList(1, 3)),
-        KV.of("key2", Arrays.asList(2)),
-        KV.of("key3", Arrays.asList(4))
-    );
+    PAssert.that(grouped)
+        .containsInAnyOrder(
+            KV.of("key1", Arrays.asList(1, 3)),
+            KV.of("key2", Arrays.asList(2)),
+            KV.of("key3", Arrays.asList(4)));
 
     // Run the pipeline
     pipeline.run().waitUntilFinish();

@@ -40,6 +40,7 @@ import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.util.Sleeper;
+import org.apache.beam.sdk.util.Context;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Queues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.joda.time.Duration;
