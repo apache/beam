@@ -26,6 +26,8 @@ import java.io.IOException;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.joda.time.Duration;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -35,6 +37,17 @@ import org.junit.runners.JUnit4;
 public class PrismPipelineResultTest {
 
   final PrismExecutor exec = executor();
+
+  @Before
+  public void setUp() throws IOException {
+    exec.execute();
+    assertThat(exec.isAlive()).isTrue();
+  }
+
+  @After
+  public void tearDown() {
+    assertThat(exec.isAlive()).isFalse();
+  }
 
   @Test
   public void givenTerminated_reportsState() {
@@ -97,6 +110,7 @@ public class PrismPipelineResultTest {
     when(delegate.metrics()).thenReturn(mock(MetricResults.class));
     PrismPipelineResult underTest = new PrismPipelineResult(delegate, exec::stop);
     assertThat(underTest.metrics()).isNotNull();
+    exec.stop();
   }
 
   @Test

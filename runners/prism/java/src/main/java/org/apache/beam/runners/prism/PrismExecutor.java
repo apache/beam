@@ -87,6 +87,14 @@ abstract class PrismExecutor {
     }
   }
 
+  /** Reports whether the Prism executable {@link Process#isAlive()}. */
+  boolean isAlive() {
+    if (process == null) {
+      return false;
+    }
+    return process.isAlive();
+  }
+
   /**
    * Execute the {@link ProcessBuilder} that starts the Prism service. Redirects output to STDOUT.
    */
