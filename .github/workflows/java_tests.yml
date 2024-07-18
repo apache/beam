@@ -162,11 +162,10 @@ jobs:
       fail-fast: false
       matrix:
         os: [[self-hosted, ubuntu-20.04, main], windows-latest]
+    # TODO(https://github.com/apache/beam/issues/31848) run on Dataflow after fixes credential on macOS/win GHA runner
     if: |
-      needs.check_gcp_variables.outputs.gcp-variables-set == 'true' && (
-        (github.event_name == 'push' || github.event_name == 'schedule') ||
+      needs.check_gcp_variables.outputs.gcp-variables-set == 'true' &&
         (github.event_name == 'workflow_dispatch' && github.event.inputs.runDataflow == 'true')
-      )
     steps:
       - name: Check out code
         uses: actions/checkout@v4

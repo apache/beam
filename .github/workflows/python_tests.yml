@@ -153,6 +153,8 @@ jobs:
 
   python_wordcount_dataflow:
     name: 'Python Wordcount Dataflow'
+    # TODO(https://github.com/apache/beam/issues/31848) run on Dataflow after fixes credential on macOS/win GHA runner
+    if: (github.event_name == 'workflow_dispatch' && github.event.inputs.runDataflow == 'true')
     needs:
       - build_python_sdk_source
     runs-on: ${{ matrix.os }}
