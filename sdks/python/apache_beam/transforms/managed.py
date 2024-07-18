@@ -18,23 +18,28 @@
 """Managed Transforms.
 
 This module builds and instantiates turnkey transforms that can be managed by
-the underlying runner.
+the underlying runner. This means the runner may upgrade the transform to a more
+optimal/updated version without requiring the user to do anything.
 
 Using Managed Transforms
 ========================
-Managed transforms have a defined configuration and can be built using an
+Managed turnkey transforms have a defined configuration and can be built using an
 inline :class:`dict` like so::
 
   results = p | beam.managed.Read(
                     beam.managed.ICEBERG,
-                    config={"param_1": "foo",
-                            "param_2": "bar"})
+                    config={"table": "foo",
+                            "catalog_name": "bar",
+                            "catalog_properties": {
+                                "prop1": "value1",
+                                "prop2": "value2"}})
 
 A YAML configuration file can also be used to build a Managed transform. Say we
 have the following `config.yaml` file::
 
-  param_1: "foo"
-  param_2: "bar"
+  topic: "foo"
+  bootstrap_servers: "localhost:1234"
+  format: "AVRO"
 
 Simply provide the location to the file like so::
 
@@ -47,13 +52,14 @@ Available transforms
 ====================
 Available transforms are:
 
-- **Kafka**
-- **Iceberg**
+- **Kafka Read and Write**
+- **Iceberg Read and Write**
 
-**Note:** inputs and outputs need to be PCollections of Beam
+**Note:** inputs and outputs need to be PCollection(s) of Beam
 :py:class:`apache_beam.pvalue.Row` elements.
 
-**Note:** This Managed API uses Java's ManagedSchemaTransform under the hood.
+**Note:** Today, all managed transforms are essentially cross-language
+transforms, and Java's ManagedSchemaTransform is used under the hood.
 """
 
 from typing import Any
@@ -69,7 +75,7 @@ from apache_beam.transforms.ptransform import PTransform
 ICEBERG = "iceberg"
 KAFKA = "kafka"
 _MANAGED_IDENTIFIER = "beam:transform:managed:v1"
-_GRADLE_TARGETS = {
+_EXPANSION_SERVICE_JAR_TARGETS = {
     "sdks:java:io:expansion-service:shadowJar": [KAFKA, ICEBERG],
 }
 
@@ -78,7 +84,7 @@ __all__ = ["ICEBERG", "KAFKA", "Read", "Write"]
 
 class Read(PTransform):
   """Read using Managed Transforms"""
-  READ_TRANSFORMS = {
+  _READ_TRANSFORMS = {
       ICEBERG: "beam:schematransform:org.apache.beam:iceberg_read:v1",
       KAFKA: "beam:schematransform:org.apache.beam:kafka_read:v1",
   }
@@ -91,11 +97,11 @@ class Read(PTransform):
       expansion_service=None):
     super().__init__()
     self._source = source
-    identifier = self.READ_TRANSFORMS.get(source.lower())
+    identifier = self._READ_TRANSFORMS.get(source.lower())
     if not identifier:
       raise ValueError(
           f"An unsupported source was specified: '{source}'. Please specify "
-          f"one of the following sources: {self.READ_TRANSFORMS.keys()}")
+          f"one of the following sources: {list(self._READ_TRANSFORMS.keys())}")
 
     self._expansion_service = _resolve_expansion_service(
         source, identifier, expansion_service)
@@ -118,7 +124,7 @@ class Read(PTransform):
 
 class Write(PTransform):
   """Write using Managed Transforms"""
-  WRITE_TRANSFORMS = {
+  _WRITE_TRANSFORMS = {
       ICEBERG: "beam:schematransform:org.apache.beam:iceberg_write:v1",
       KAFKA: "beam:schematransform:org.apache.beam:kafka_write:v1",
   }
@@ -131,11 +137,11 @@ class Write(PTransform):
       expansion_service=None):
     super().__init__()
     self._sink = sink
-    identifier = self.WRITE_TRANSFORMS.get(sink.lower())
+    identifier = self._WRITE_TRANSFORMS.get(sink.lower())
     if not identifier:
       raise ValueError(
           f"An unsupported sink was specified: '{sink}'. Please specify "
-          f"one of the following sinks: {self.WRITE_TRANSFORMS.keys()}")
+          f"one of the following sinks: {list(self._WRITE_TRANSFORMS.keys())}")
 
     self._expansion_service = _resolve_expansion_service(
         sink, identifier, expansion_service)
@@ -162,7 +168,7 @@ def _resolve_expansion_service(
     return expansion_service
 
   default_target = None
-  for gradle_target, transforms in _GRADLE_TARGETS.items():
+  for gradle_target, transforms in _EXPANSION_SERVICE_JAR_TARGETS.items():
     if transform_name.lower() in transforms:
       default_target = gradle_target
       break
