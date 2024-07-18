@@ -1006,18 +1006,18 @@ write to BigQuery, and create a cluster of machines for running containers (for 
   In comment area, type in `Run Python ReleaseCandidate` to trigger validation.
 
 * **Python Leaderboard & GameStats**
-  * **Get staging RC** `wget https://dist.apache.org/repos/dist/dev/beam/2.5.0/* `
+  * **Get staging RC** `wget https://dist.apache.org/repos/dist/dev/beam/2.XX.0/* `
   * **Verify the hashes**
 
     ```
-    sha512sum -c apache_beam-2.5.0-python.tar.gz.sha512
-    sha512sum -c apache_beam-2.5.0-source-release.tar.gz.sha512
+    sha512sum -c apache_beam-2.XX.0-python.tar.gz.sha512
+    sha512sum -c apache_beam-2.XX.0-source-release.tar.gz.sha512
     ```
   * **Build SDK**
 
     ```
     sudo apt-get install unzip
-    unzip apache_beam-2.5.0-source-release.tar.gz
+    unzip apache_beam-2.XX.0-source-release.tar.gz
     python setup.py sdist
     ```
   * **Setup virtual environment**
@@ -1030,8 +1030,8 @@ write to BigQuery, and create a cluster of machines for running containers (for 
   * **Install SDK**
 
     ```
-    pip install dist/apache_beam-2.5.0.tar.gz
-    pip install dist/apache_beam-2.5.0.tar.gz[gcp]
+    pip install dist/apache_beam-2.XX.0.tar.gz
+    pip install dist/apache_beam-2.XX.0.tar.gz[gcp]
     ```
   * **Setup GCP**
 
