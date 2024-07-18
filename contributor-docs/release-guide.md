@@ -1010,14 +1010,14 @@ write to BigQuery, and create a cluster of machines for running containers (for 
   * **Verify the hashes**
 
     ```
-    sha512sum -c apache-beam-2.5.0-python.tar.gz.sha512
-    sha512sum -c apache-beam-2.5.0-source-release.tar.gz.sha512
+    sha512sum -c apache_beam-2.5.0-python.tar.gz.sha512
+    sha512sum -c apache_beam-2.5.0-source-release.tar.gz.sha512
     ```
   * **Build SDK**
 
     ```
     sudo apt-get install unzip
-    unzip apache-beam-2.5.0-source-release.tar.gz
+    unzip apache_beam-2.5.0-source-release.tar.gz
     python setup.py sdist
     ```
   * **Setup virtual environment**
@@ -1030,8 +1030,8 @@ write to BigQuery, and create a cluster of machines for running containers (for 
   * **Install SDK**
 
     ```
-    pip install dist/apache-beam-2.5.0.tar.gz
-    pip install dist/apache-beam-2.5.0.tar.gz[gcp]
+    pip install dist/apache_beam-2.5.0.tar.gz
+    pip install dist/apache_beam-2.5.0.tar.gz[gcp]
     ```
   * **Setup GCP**
 
