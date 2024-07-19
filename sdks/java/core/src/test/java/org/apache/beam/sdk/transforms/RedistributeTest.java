@@ -285,12 +285,12 @@ public class RedistributeTest implements Serializable {
   @Category(ValidatesRunner.class)
   public void testRedistributeAfterSlidingWindowsAndGroupByKey() {
     PCollection<KV<String, Iterable<Integer>>> input =
-            pipeline
-                    .apply(
-                            Create.of(GBK_TESTABLE_KVS)
-                                    .withCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())))
-                    .apply(Window.into(SlidingWindows.of(Duration.standardMinutes(10L))))
-                    .apply(GroupByKey.create());
+        pipeline
+            .apply(
+                Create.of(GBK_TESTABLE_KVS)
+                    .withCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())))
+            .apply(Window.into(SlidingWindows.of(Duration.standardMinutes(10L))))
+            .apply(GroupByKey.create());
 
     PCollection<KV<String, Iterable<Integer>>> output = input.apply(Redistribute.arbitrarily());
 
