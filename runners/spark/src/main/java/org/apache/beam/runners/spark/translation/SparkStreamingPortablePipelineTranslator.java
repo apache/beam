@@ -111,8 +111,11 @@ public class SparkStreamingPortablePipelineTranslator
         PTransformTranslation.RESHUFFLE_URN,
         SparkStreamingPortablePipelineTranslator::translateReshuffle);
     translatorMap.put(
-        "urn:beam:transform:redistribute:v1", // Add the appropriate URN for Redistribute
-        SparkStreamingPortablePipelineTranslator::translateRedistribute);
+        PTransformTranslation.REDISTRIBUTE_BY_KEY_URN,
+        SparkStreamingPortablePipelineTranslator::translateRedistributeByKey);
+    translatorMap.put(
+        PTransformTranslation.REDISTRIBUTE_ARBITRARILY_URN,
+        SparkStreamingPortablePipelineTranslator::translateRedistributeArbitrarily);
     this.urnToTransformTranslator = translatorMap.build();
   }
 
@@ -392,5 +395,56 @@ public class SparkStreamingPortablePipelineTranslator
 
     context.pushDataset(
             getOutputId(transformNode), new UnboundedDataset<>(outputDStream, streamSources));
+  }
+  private static <K, V> void translateRedistributeByKey(
+          PTransformNode transformNode,
+          RunnerApi.Pipeline pipeline,
+          SparkStreamingTranslationContext context) {
+    String inputId = getInputId(transformNode);
+    UnboundedDataset<KV<K, V>> inputDataset =
+            (UnboundedDataset<KV<K, V>>) context.popDataset(inputId);
+    List<Integer> streamSources = inputDataset.getStreamSources();
+    JavaDStream<WindowedValue<KV<K, V>>> inputDStream = inputDataset.getDStream();
+
+    // Apply a Redistribute by key transformation
+    JavaPairDStream<K, V> pairDStream = inputDStream.mapToPair(
+            windowedValue -> new Tuple2<>(windowedValue.getValue().getKey(), windowedValue.getValue().getValue())
+    );
+    JavaPairDStream<K, V> redistributedDStream = pairDStream.transformToPair(
+            rdd -> rdd.partitionBy(new org.apache.spark.HashPartitioner(rdd.getNumPartitions()))
+    );
+    JavaDStream<WindowedValue<KV<K, V>>> outputDStream = redistributedDStream.map(
+            tuple2 -> WindowedValue.of(
+                    KV.of(tuple2._1, tuple2._2),
+                    BoundedWindow.TIMESTAMP_MIN_VALUE,
+                    GlobalWindow.INSTANCE,
+                    PaneInfo.NO_FIRING)
+    );
+
+    context.pushDataset(getOutputId(transformNode), new UnboundedDataset<>(outputDStream, streamSources));
+  }
+
+  private static <K, V> void translateRedistributeArbitrarily(
+          PTransformNode transformNode,
+          RunnerApi.Pipeline pipeline,
+          SparkStreamingTranslationContext context) {
+    String inputId = getInputId(transformNode);
+    UnboundedDataset<KV<K, V>> inputDataset =
+            (UnboundedDataset<KV<K, V>>) context.popDataset(inputId);
+    List<Integer> streamSources = inputDataset.getStreamSources();
+    JavaDStream<WindowedValue<KV<K, V>>> inputDStream = inputDataset.getDStream();
+
+    // Apply a Redistribute arbitrarily transformation
+    JavaDStream<WindowedValue<KV<K, V>>> redistributedDStream = inputDStream.transform(rdd -> {
+      JavaRDD<WindowedValue<KV<K, V>>> redistributedRDD = rdd.mapPartitions(iter -> {
+        List<WindowedValue<KV<K, V>>> output = new ArrayList<>();
+        iter.forEachRemaining(output::add);
+        Collections.shuffle(output);
+        return output.iterator();
+      });
+      return redistributedRDD;
+    });
+
+    context.pushDataset(getOutputId(transformNode), new UnboundedDataset<>(redistributedDStream, streamSources));
   }
 }
