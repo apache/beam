@@ -286,13 +286,26 @@ Integration tests differ from standard pipelines in the following ways:
 * They have a default timeout of 15 minutes.
 * The pipeline options are set in the system property `beamTestPipelineOptions`.
 
-To configure the test, you need to set the property `-DbeamTestPipelineOptions=[...]`. This property sets the runner that the test uses.
-
-The following example demonstrates how to run an integration test by using the command line. This example includes the options required to run the pipeline on the Dataflow runner.
+To configure the test pipeline, you need to set the property `-DbeamTestPipelineOptions=[...]`. This property sets the pipeline option that the test uses, for example,
 
 ```
 -DbeamTestPipelineOptions='["--runner=TestDataflowRunner","--project=mygcpproject","--region=us-central1","--stagingLocation=gs://mygcsbucket/path"]'
 ```
+
+For some projects, `beamTestPipelineOptions` is explicitly configured in `build.gradle`.
+Checkout the sources of the corresponding build file for setting. For example,
+in `sdks/java/io/google-cloud-platform/build.gradle`, it sets `beamTestPipelineOptions`
+from project properties 'gcpProject', 'gcpTempRoot', etc, and when not assigned,
+it defaults to `apache-beam-testing` GCP project. To run the test in your own project,
+assign these project properties with command line:
+
+```
+./gradlew :sdks:java:io:google-cloud-platform:integrationTest -PgcpProject=<mygcpproject> -PgcpTempRoot=<gs://mygcsbucket/path>
+```
+
+Some other projects (e.g. `sdks/java/io/jdbc`, `sdks/java/io/kafka`) does not
+assemble (overwrite) `beamTestPipelineOptions` in `build.gradle`, then just set
+it explicitly with `-DbeamTestPipelineOptions='[...]'`, as aforementioned.
 
 #### Write integration tests
 
