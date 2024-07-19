@@ -17,11 +17,17 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import org.apache.beam.sdk.io.GenerateSequence;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -46,11 +52,12 @@ public class PubsubWriteIT {
   private PubsubClient pubsubClient;
 
   private TopicPath testTopic;
+  private String project;
 
   @Before
   public void setup() throws IOException {
     PubsubOptions options = TestPipeline.testingPipelineOptions().as(PubsubOptions.class);
-    String project = options.getProject();
+    project = options.getProject();
     pubsubClient = PubsubGrpcClient.FACTORY.newClient(null, null, options);
     testTopic =
         PubsubClient.topicPathFromName(project, "pubsub-write-" + Instant.now().getMillis());
@@ -101,5 +108,56 @@ public class PubsubWriteIT {
         .apply(Create.of(new PubsubMessage(payload, attributes)))
         .apply(PubsubIO.writeMessages().to(testTopic.getPath()));
     pipeline.run();
+  }
+
+  @Test
+  public void testBoundedWriteMessageWithAttributesAndMessageIdAndOrderingKey() throws IOException {
+    TopicPath testTopicPath =
+        PubsubClient.topicPathFromName(
+            project, "pubsub-write-ordering-key-" + Instant.now().getMillis());
+    pubsubClient.createTopic(testTopicPath);
+    SubscriptionPath testSubscriptionPath =
+        pubsubClient.createRandomSubscription(
+            PubsubClient.projectPathFromId(project), testTopicPath, 10);
+
+    byte[] payload = RandomStringUtils.randomAscii(1_000_000).getBytes(StandardCharsets.UTF_8);
+    Map<String, String> attributes =
+        ImmutableMap.<String, String>builder()
+            .put("id", "1")
+            .put("description", RandomStringUtils.randomAscii(100))
+            .build();
+
+    PubsubMessage outgoingMessage =
+        new PubsubMessage(payload, attributes, "test_message", "111222");
+
+    pipeline
+        .apply(Create.of(outgoingMessage).withCoder(PubsubMessageSchemaCoder.getSchemaCoder()))
+        .apply(PubsubIO.writeMessagesWithOrderingKey().to(testTopicPath.getPath()));
+    pipeline.run().waitUntilFinish();
+
+    List<PubsubClient.IncomingMessage> incomingMessages =
+        pubsubClient.pull(Instant.now().getMillis(), testSubscriptionPath, 1, true);
+
+    // sometimes the first pull comes up short. try 4 pulls to avoid flaky false-negatives
+    int numPulls = 1;
+    while (incomingMessages.isEmpty()) {
+      if (numPulls >= 4) {
+        throw new RuntimeException(
+            String.format("Pulled %s times from PubSub but retrieved no elements.", numPulls));
+      }
+      incomingMessages =
+          pubsubClient.pull(Instant.now().getMillis(), testSubscriptionPath, 1, true);
+      numPulls++;
+    }
+    assertEquals(1, incomingMessages.size());
+
+    com.google.pubsub.v1.PubsubMessage incomingMessage = incomingMessages.get(0).message();
+    assertTrue(
+        Arrays.equals(outgoingMessage.getPayload(), incomingMessage.getData().toByteArray()));
+    assertEquals(outgoingMessage.getAttributeMap(), incomingMessage.getAttributesMap());
+    assertEquals(outgoingMessage.getOrderingKey(), incomingMessage.getOrderingKey());
+
+    pubsubClient.deleteSubscription(testSubscriptionPath);
+    pubsubClient.deleteTopic(testTopicPath);
   }
 }
