@@ -59,6 +59,8 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.sdk.transforms.Reshuffle;
+import org.apache.spark.streaming.api.java.JavaPairDStream;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.broadcast.Broadcast;
@@ -108,6 +110,9 @@ public class SparkStreamingPortablePipelineTranslator
     translatorMap.put(
         PTransformTranslation.RESHUFFLE_URN,
         SparkStreamingPortablePipelineTranslator::translateReshuffle);
+    translatorMap.put(
+        "urn:beam:transform:redistribute:v1", // Add the appropriate URN for Redistribute
+        SparkStreamingPortablePipelineTranslator::translateRedistribute);
     this.urnToTransformTranslator = translatorMap.build();
   }
 
@@ -357,5 +362,35 @@ public class SparkStreamingPortablePipelineTranslator
   public SparkStreamingTranslationContext createTranslationContext(
       JavaSparkContext jsc, SparkPipelineOptions options, JobInfo jobInfo) {
     return new SparkStreamingTranslationContext(jsc, options, jobInfo);
+  }
+
+  private static <K, V> void translateRedistribute(
+          PTransformNode transformNode,
+          RunnerApi.Pipeline pipeline,
+          SparkStreamingTranslationContext context) {
+    String inputId = getInputId(transformNode);
+    UnboundedDataset<KV<K, Iterable<V>>> inputDataset =
+            (UnboundedDataset<KV<K, Iterable<V>>>) context.popDataset(inputId);
+    List<Integer> streamSources = inputDataset.getStreamSources();
+    JavaDStream<WindowedValue<KV<K, Iterable<V>>>> inputDStream = inputDataset.getDStream();
+
+    // Apply a Redistribute (reshuffle) transformation
+    JavaPairDStream<K, Iterable<V>> pairDStream = inputDStream.mapToPair(
+            windowedValue -> new Tuple2<>(windowedValue.getValue().getKey(), windowedValue.getValue().getValue())
+    );
+    JavaPairDStream<K, Iterable<V>> redistributedDStream = pairDStream.transformToPair(
+            rdd -> rdd.partitionBy(new org.apache.spark.HashPartitioner(rdd.getNumPartitions()))
+    );
+
+    JavaDStream<WindowedValue<KV<K, Iterable<V>>>> outputDStream = redistributedDStream.map(
+            tuple2 -> WindowedValue.of(
+                    KV.of(tuple2._1, tuple2._2),
+                    BoundedWindow.TIMESTAMP_MIN_VALUE,
+                    GlobalWindow.INSTANCE,
+                    PaneInfo.NO_FIRING)
+    );
+
+    context.pushDataset(
+            getOutputId(transformNode), new UnboundedDataset<>(outputDStream, streamSources));
   }
 }

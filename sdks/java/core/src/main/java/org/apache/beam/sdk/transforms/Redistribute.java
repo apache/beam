@@ -118,7 +118,6 @@ public class Redistribute {
                       }
                     }
                   }))
-          .apply("Redistribute", ParDo.of(new RedistributeFn<>()))
           .apply("RestoreMetadata", new RestoreMetadata<>())
           // Set the windowing strategy directly, so that it doesn't get counted as the user having
           // set allowed lateness.
@@ -161,7 +160,6 @@ public class Redistribute {
       return input
           .apply("Pair with random key", ParDo.of(new AssignShardFn<>(numBuckets)))
           .apply(Redistribute.<Integer, T>byKey().withAllowDuplicates(this.allowDuplicates))
-          .apply("Redistribute", ParDo.of(new RedistributeFn<>()))
           .apply(Values.create());
     }
   }
@@ -284,13 +282,6 @@ public class Redistribute {
           .put(RedistributeByKey.class, new RedistributeByKeyTranslator())
           .put(RedistributeArbitrarily.class, new RedistributeArbitrarilyTranslator())
           .build();
-    }
-  }
-
-  static class RedistributeFn<T> extends DoFn<T, T> {
-    @ProcessElement
-    public void processElement(ProcessContext c, BoundedWindow window) {
-      c.outputWithTimestamp(c.element(), c.timestamp());
     }
   }
 }

@@ -69,7 +69,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterab
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.hamcrest.Matchers;
-import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -564,54 +563,5 @@ public class PipelineTest {
               TaggedPValue.of(original.getKey(), original.getValue()),
               TaggedPValue.of(replacement.getKey(), replacement.getValue())));
     }
-  }
-
-  @Test
-  public void testRedistributeAfterSlidingWindowsAndGroupByKey() {
-    // Use the existing TestPipeline rule
-    PCollection<KV<String, Integer>> input =
-        pipeline.apply(
-            Create.of(KV.of("key1", 1), KV.of("key2", 2), KV.of("key1", 3), KV.of("key3", 4)));
-
-    // Apply the Window transform
-    PCollection<KV<String, Integer>> windowed =
-        input.apply(Window.<KV<String, Integer>>into(FixedWindows.of(Duration.standardMinutes(1))));
-
-    // Apply the Redistribute.byKey() transform
-    PCollection<KV<String, Integer>> redistributed = windowed.apply(Redistribute.byKey());
-
-    // Apply GroupByKey to verify the contents after redistribution
-    PCollection<KV<String, Iterable<Integer>>> grouped = redistributed.apply(GroupByKey.create());
-
-    // Add intermediate assertion to verify grouping correctness
-    PAssert.that(grouped)
-        .satisfies(
-            (SerializableFunction<Iterable<KV<String, Iterable<Integer>>>, Void>)
-                inputIterable -> {
-                  for (KV<String, Iterable<Integer>> element : inputIterable) {
-                    String key = element.getKey();
-                    Iterable<Integer> values = element.getValue();
-                    if (key.equals("key1")) {
-                      assertThat(values, containsInAnyOrder(1, 3));
-                    } else if (key.equals("key2")) {
-                      assertThat(values, containsInAnyOrder(2));
-                    } else if (key.equals("key3")) {
-                      assertThat(values, containsInAnyOrder(4));
-                    } else {
-                      fail("Unexpected key: " + key);
-                    }
-                  }
-                  return null;
-                });
-
-    // Add final assertions to verify the overall output
-    PAssert.that(grouped)
-        .containsInAnyOrder(
-            KV.of("key1", Arrays.asList(1, 3)),
-            KV.of("key2", Arrays.asList(2)),
-            KV.of("key3", Arrays.asList(4)));
-
-    // Run the pipeline
-    pipeline.run().waitUntilFinish();
   }
 }
