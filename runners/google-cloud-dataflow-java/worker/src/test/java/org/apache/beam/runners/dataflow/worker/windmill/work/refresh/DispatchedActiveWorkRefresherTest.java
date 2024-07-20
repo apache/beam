@@ -207,7 +207,7 @@ public class DispatchedActiveWorkRefresherTest {
     int stuckCommitDurationMillis = 100;
     Table<ComputationState, ExecutableWork, WindmillStateCache.ForComputation> computations =
         HashBasedTable.create();
-    WindmillStateCache stateCache = WindmillStateCache.ofSizeMbs(100);
+    WindmillStateCache stateCache = WindmillStateCache.builder().setSizeMb(100).build();
     ByteString key = ByteString.EMPTY;
     for (int i = 0; i < 5; i++) {
       WindmillStateCache.ForComputation perComputationStateCache =

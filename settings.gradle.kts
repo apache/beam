@@ -153,6 +153,7 @@ include(":runners:jet")
 include(":runners:local-java")
 include(":runners:portability:java")
 include(":runners:prism")
+include(":runners:prism:java")
 include(":runners:spark:3")
 include(":runners:spark:3:job-server")
 include(":runners:spark:3:job-server:container")
@@ -362,3 +363,5 @@ include("sdks:java:io:iceberg")
 findProject(":sdks:java:io:iceberg")?.name = "iceberg"
 include("sdks:java:io:solace")
 findProject(":sdks:java:io:solace")?.name = "solace"
+include("sdks:java:extensions:combiners")
+findProject(":sdks:java:extensions:combiners")?.name = "combiners"

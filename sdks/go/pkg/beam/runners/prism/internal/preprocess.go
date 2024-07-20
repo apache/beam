@@ -106,11 +106,6 @@ func (p *preprocessor) preProcessGraph(comps *pipepb.Components, j *jobservices.
 			// If there's an unknown urn, and it's not composite, simply add it to the leaves.
 			if len(t.GetSubtransforms()) == 0 {
 				leaves[tid] = struct{}{}
-			} else {
-				slog.Info("composite transform has unknown urn",
-					slog.Group("transform", slog.String("ID", tid),
-						slog.String("name", t.GetUniqueName()),
-						slog.String("urn", spec.GetUrn())))
 			}
 			continue
 		}

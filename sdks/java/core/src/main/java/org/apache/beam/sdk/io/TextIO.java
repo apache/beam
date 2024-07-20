@@ -700,6 +700,15 @@ public class TextIO {
     /** A function that converts UserT to a String, for writing to the file. */
     abstract @Nullable SerializableFunction<UserT, String> getFormatFunction();
 
+    /** Batch size for input records. */
+    abstract @Nullable Integer getBatchSize();
+
+    /** Batch size in bytes for input records. */
+    abstract @Nullable Integer getBatchSizeBytes();
+
+    /** Batch max buffering duration for input records. */
+    abstract @Nullable Duration getBatchMaxBufferingDuration();
+
     /** Whether to write windowed output files. */
     abstract boolean getWindowedWrites();
 
@@ -756,6 +765,13 @@ public class TextIO {
 
       abstract Builder<UserT, DestinationT> setNumShards(
           @Nullable ValueProvider<Integer> numShards);
+
+      abstract Builder<UserT, DestinationT> setBatchSize(@Nullable Integer batchSize);
+
+      abstract Builder<UserT, DestinationT> setBatchSizeBytes(@Nullable Integer batchSizeBytes);
+
+      abstract Builder<UserT, DestinationT> setBatchMaxBufferingDuration(
+          @Nullable Duration batchMaxBufferingDuration);
 
       abstract Builder<UserT, DestinationT> setWindowedWrites(boolean windowedWrites);
 
@@ -866,6 +882,38 @@ public class TextIO {
     public TypedWrite<UserT, DestinationT> withFormatFunction(
         @Nullable SerializableFunction<UserT, String> formatFunction) {
       return toBuilder().setFormatFunction(formatFunction).build();
+    }
+
+    /**
+     * Returns a new {@link TypedWrite} that will batch the input records using specified batch
+     * size. The default value is {@link WriteFiles#FILE_TRIGGERING_RECORD_COUNT}.
+     *
+     * <p>This option is used only for writing unbounded data with auto-sharding.
+     */
+    public TypedWrite<UserT, DestinationT> withBatchSize(@Nullable Integer batchSize) {
+      return toBuilder().setBatchSize(batchSize).build();
+    }
+
+    /**
+     * Returns a new {@link TypedWrite} that will batch the input records using specified batch size
+     * in bytes. The default value is {@link WriteFiles#FILE_TRIGGERING_BYTE_COUNT}.
+     *
+     * <p>This option is used only for writing unbounded data with auto-sharding.
+     */
+    public TypedWrite<UserT, DestinationT> withBatchSizeBytes(@Nullable Integer batchSizeBytes) {
+      return toBuilder().setBatchSizeBytes(batchSizeBytes).build();
+    }
+
+    /**
+     * Returns a new {@link TypedWrite} that will batch the input records using specified max
+     * buffering duration. The default value is {@link
+     * WriteFiles#FILE_TRIGGERING_RECORD_BUFFERING_DURATION}.
+     *
+     * <p>This option is used only for writing unbounded data with auto-sharding.
+     */
+    public TypedWrite<UserT, DestinationT> withBatchMaxBufferingDuration(
+        @Nullable Duration batchMaxBufferingDuration) {
+      return toBuilder().setBatchMaxBufferingDuration(batchMaxBufferingDuration).build();
     }
 
     /** Set the base directory used to generate temporary files. */
@@ -1119,6 +1167,15 @@ public class TextIO {
       if (getSkipIfEmpty()) {
         write = write.withSkipIfEmpty();
       }
+      if (getBatchSize() != null) {
+        write = write.withBatchSize(getBatchSize());
+      }
+      if (getBatchSizeBytes() != null) {
+        write = write.withBatchSizeBytes(getBatchSizeBytes());
+      }
+      if (getBatchMaxBufferingDuration() != null) {
+        write = write.withBatchMaxBufferingDuration(getBatchMaxBufferingDuration());
+      }
       return input.apply("WriteFiles", write);
     }
 
@@ -1289,6 +1346,21 @@ public class TextIO {
     /** See {@link TypedWrite#withNoSpilling}. */
     public Write withNoSpilling() {
       return new Write(inner.withNoSpilling());
+    }
+
+    /** See {@link TypedWrite#withBatchSize(Integer)}. */
+    public Write withBatchSize(@Nullable Integer batchSize) {
+      return new Write(inner.withBatchSize(batchSize));
+    }
+
+    /** See {@link TypedWrite#withBatchSizeBytes(Integer)}. */
+    public Write withBatchSizeBytes(@Nullable Integer batchSizeBytes) {
+      return new Write(inner.withBatchSizeBytes(batchSizeBytes));
+    }
+
+    /** See {@link TypedWrite#withBatchMaxBufferingDuration(Duration)}. */
+    public Write withBatchMaxBufferingDuration(@Nullable Duration batchMaxBufferingDuration) {
+      return new Write(inner.withBatchMaxBufferingDuration(batchMaxBufferingDuration));
     }
 
     /**

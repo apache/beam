@@ -108,7 +108,8 @@ public class StorageApiWriteRecordsInconsistent<DestinationT, ElementT>
                         createDisposition,
                         kmsKey,
                         usesCdc,
-                        defaultMissingValueInterpretation))
+                        defaultMissingValueInterpretation,
+                        bigQueryOptions.getStorageWriteApiMaxRetries()))
                 .withOutputTags(finalizeTag, tupleTagList)
                 .withSideInputs(dynamicDestinations.getSideInputs()));
     result.get(failedRowsTag).setCoder(failedRowsCoder);

@@ -22,9 +22,13 @@ import unittest
 
 import yaml
 
+import apache_beam as beam
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 from apache_beam.yaml import yaml_provider
 from apache_beam.yaml.yaml_provider import YamlProviders
 from apache_beam.yaml.yaml_transform import SafeLineLoader
+from apache_beam.yaml.yaml_transform import YamlTransform
 
 
 class WindowIntoTest(unittest.TestCase):
@@ -141,6 +145,60 @@ class ProviderParsingTest(unittest.TestCase):
         self.EXTRA_PROVIDER,
     ],
                      flattened)
+
+
+class YamlDefinedProider(unittest.TestCase):
+  def test_yaml_define_provider(self):
+    providers = '''
+    - type: yaml
+      transforms:
+        Range:
+          config_schema:
+            properties:
+              end: {type: integer}
+          requires_inputs: false
+          body: |
+            type: Create
+            config:
+              elements:
+                {% for ix in range(end) %}
+                - {{ix}}
+                {% endfor %}
+        Power:
+          config_schema:
+            properties:
+              n: {type: integer}
+          body:
+            type: chain
+            transforms:
+              - type: MapToFields
+                config:
+                  language: python
+                  append: true
+                  fields:
+                    power: "element**{{n}}"
+    '''
+
+    pipeline = '''
+    type: chain
+    transforms:
+      - type: Range
+        config:
+          end: 4
+      - type: Power
+        config:
+          n: 2
+    '''
+
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      result = p | YamlTransform(
+          pipeline,
+          providers=yaml_provider.parse_providers(
+              yaml.load(providers, Loader=SafeLineLoader)))
+      assert_that(
+          result | beam.Map(lambda x: (x.element, x.power)),
+          equal_to([(0, 0), (1, 1), (2, 4), (3, 9)]))
 
 
 if __name__ == '__main__':

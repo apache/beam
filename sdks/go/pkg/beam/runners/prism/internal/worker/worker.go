@@ -28,6 +28,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
@@ -139,7 +140,15 @@ func (wk *W) Stop() {
 	wk.stopped.Store(true)
 	close(wk.InstReqs)
 	close(wk.DataReqs)
-	wk.server.Stop()
+
+	// Give the SDK side 5 seconds to gracefully stop, before
+	// hard stopping all RPCs.
+	tim := time.AfterFunc(5*time.Second, func() {
+		wk.server.Stop()
+	})
+	wk.server.GracefulStop()
+	tim.Stop()
+
 	wk.lis.Close()
 	slog.Debug("stopped", "worker", wk)
 }

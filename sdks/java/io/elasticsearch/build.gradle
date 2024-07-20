@@ -36,5 +36,5 @@ dependencies {
   implementation "org.apache.httpcomponents:httpasyncclient:4.1.4"
   implementation "org.apache.httpcomponents:httpcore-nio:4.4.12"
   implementation "org.elasticsearch.client:elasticsearch-rest-client:7.17.22"
-  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
+  testImplementation project(path: ":sdks:java:io:common")
 }

@@ -22,6 +22,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/urns"
@@ -195,7 +196,8 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jo
 
 	// Inspect Windowing strategies for unsupported features.
 	for wsID, ws := range job.Pipeline.GetComponents().GetWindowingStrategies() {
-		check("WindowingStrategy.AllowedLateness", ws.GetAllowedLateness(), int64(0))
+		check("WindowingStrategy.AllowedLateness", ws.GetAllowedLateness(), int64(0), mtime.MaxTimestamp.Milliseconds())
+
 		// Both Closing behaviors are identical without additional trigger firings.
 		check("WindowingStrategy.ClosingBehaviour", ws.GetClosingBehavior(), pipepb.ClosingBehavior_EMIT_IF_NONEMPTY, pipepb.ClosingBehavior_EMIT_ALWAYS)
 		check("WindowingStrategy.AccumulationMode", ws.GetAccumulationMode(), pipepb.AccumulationMode_DISCARDING)
@@ -204,16 +206,25 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jo
 		}
 		if !bypassedWindowingStrategies[wsID] {
 			check("WindowingStrategy.OnTimeBehavior", ws.GetOnTimeBehavior(), pipepb.OnTimeBehavior_FIRE_IF_NONEMPTY, pipepb.OnTimeBehavior_FIRE_ALWAYS)
-			check("WindowingStrategy.OutputTime", ws.GetOutputTime(), pipepb.OutputTime_END_OF_WINDOW)
-			// Non nil triggers should fail.
+
+			// Allow earliest and latest in pane to unblock running python tasks.
+			// Tests actually using the set behavior will fail.
+			check("WindowingStrategy.OutputTime", ws.GetOutputTime(), pipepb.OutputTime_END_OF_WINDOW,
+				pipepb.OutputTime_EARLIEST_IN_PANE, pipepb.OutputTime_LATEST_IN_PANE)
+			// Non default triggers should fail.
 			if ws.GetTrigger().GetDefault() == nil {
 				dt := &pipepb.Trigger{
 					Trigger: &pipepb.Trigger_Default_{},
 				}
+				// Allow Never and Always triggers to unblock iteration on Java and Python SDKs.
+				// Without multiple firings, these will be very similar to the default trigger.
 				nt := &pipepb.Trigger{
 					Trigger: &pipepb.Trigger_Never_{},
 				}
-				check("WindowingStrategy.Trigger", ws.GetTrigger().String(), dt.String(), nt.String())
+				at := &pipepb.Trigger{
+					Trigger: &pipepb.Trigger_Always_{},
+				}
+				check("WindowingStrategy.Trigger", ws.GetTrigger().String(), dt.String(), nt.String(), at.String())
 			}
 		}
 	}

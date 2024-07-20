@@ -15,11 +15,5 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.gcp.bigtable.changestreams.dofn;
-
-import java.io.Serializable;
-import java.util.function.Supplier;
-
-/** Union of Supplier and Serializable interfaces to allow serialized supplier for testing. */
-@FunctionalInterface
-interface SerializableSupplier<T> extends Supplier<T>, Serializable {}
+/** Common test fixture for Beam IOs. */
+package org.apache.beam.sdk.io.common;

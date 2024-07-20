@@ -300,7 +300,7 @@ class StandardCodersTest(unittest.TestCase):
   # Used when --fix is passed.
 
   fix = False
-  to_fix = {}  # type: Dict[Tuple[int, bytes], bytes]
+  to_fix: Dict[Tuple[int, bytes], bytes] = {}
 
   @classmethod
   def tearDownClass(cls):

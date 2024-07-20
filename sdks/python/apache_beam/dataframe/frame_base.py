@@ -38,7 +38,7 @@ from apache_beam.dataframe import partitionings
 
 class DeferredBase(object):
 
-  _pandas_type_map = {}  # type: Dict[Union[type, None], type]
+  _pandas_type_map: Dict[Union[type, None], type] = {}
 
   def __init__(self, expr):
     self._expr = expr
@@ -197,8 +197,8 @@ def _proxy_method(
     inplace=False,
     base=None,
     *,
-    requires_partition_by,  # type: partitionings.Partitioning
-    preserves_partition_by,  # type: partitionings.Partitioning
+    requires_partition_by: partitionings.Partitioning,
+    preserves_partition_by: partitionings.Partitioning,
 ):
   if name is None:
     name, func = name_and_func(func)
@@ -227,14 +227,14 @@ def _elementwise_function(
 
 
 def _proxy_function(
-    func,  # type: Union[Callable, str]
-    name=None,  # type: Optional[str]
-    restrictions=None,  # type: Optional[Dict[str, Union[Any, List[Any]]]]
-    inplace=False,  # type: bool
-    base=None,  # type: Optional[type]
+    func: Union[Callable, str],
+    name: Optional[str] = None,
+    restrictions: Optional[Dict[str, Union[Any, List[Any]]]] = None,
+    inplace: bool = False,
+    base: Optional[type] = None,
     *,
-    requires_partition_by,  # type: partitionings.Partitioning
-    preserves_partition_by,  # type: partitionings.Partitioning
+    requires_partition_by: partitionings.Partitioning,
+    preserves_partition_by: partitionings.Partitioning,
 ):
 
   if name is None:
