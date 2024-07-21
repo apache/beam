@@ -48,6 +48,20 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterat
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
+import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.FailureMode;
+
+import org.apache.beam.sdk.schemas.transforms.providers.ErrorHandling;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import javax.annotation.Nullable;
+import org.apache.beam.sdk.schemas.Schema.Field;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.transforms.DoFn;
+
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 
 @AutoService(SchemaTransformProvider.class)
 public class SpannerWriteSchemaTransformProvider
@@ -98,8 +112,20 @@ public class SpannerWriteSchemaTransformProvider
       }
     }
 
+    private static class NoOutputDoFn<T> extends DoFn<T, Row> {
+      @ProcessElement
+      public void process(ProcessContext c) {}
+    }
+
     @Override
     public PCollectionRowTuple expand(@NonNull PCollectionRowTuple input) {
+      boolean handleErrors = ErrorHandling.hasOutput(configuration.getErrorHandling());
+      FailureMode failureMode;
+      if (handleErrors)
+        failureMode = SpannerIO.FailureMode.REPORT_FAILURES;
+      else
+        failureMode = SpannerIO.FailureMode.FAIL_FAST;
+
       SpannerWriteResult result =
           input
               .get("input")
@@ -112,17 +138,26 @@ public class SpannerWriteSchemaTransformProvider
                                   Objects.requireNonNull(row))) {}))
               .apply(
                   SpannerIO.write()
+                      .withProjectId(configuration.getProjectId())
                       .withDatabaseId(configuration.getDatabaseId())
                       .withInstanceId(configuration.getInstanceId())
-                      .withFailureMode(SpannerIO.FailureMode.REPORT_FAILURES));
+                      .withFailureMode(failureMode));
+
+      PCollection<Row> postWrite =
+        result
+            .getFailedMutations()
+            .apply("post-write", ParDo.of(new NoOutputDoFn<MutationGroup>()))
+            .setRowSchema(Schema.of());
+
+      if (!handleErrors) 
+        return PCollectionRowTuple.of("post-write", postWrite);
+    
+      Schema inputSchema = input.get("input").getSchema();
       Schema failureSchema =
-          Schema.builder()
-              .addStringField("operation")
-              .addStringField("instanceId")
-              .addStringField("databaseId")
-              .addStringField("tableId")
-              .addStringField("mutationData")
-              .build();
+          Schema.of(
+            Field.of("failed_row", FieldType.STRING),
+            Field.of("error_message", FieldType.row(inputSchema)));
+
       PCollection<Row> failures =
           result
               .getFailedMutations()
@@ -134,22 +169,18 @@ public class SpannerWriteSchemaTransformProvider
                                   .map(
                                       mutation ->
                                           Row.withSchema(failureSchema)
-                                              .addValue(mutation.getOperation().toString())
-                                              .addValue(configuration.getInstanceId())
-                                              .addValue(configuration.getDatabaseId())
-                                              .addValue(mutation.getTable())
-                                              // TODO(pabloem): Figure out how to represent
-                                              // mutation
-                                              //  contents in DLQ
-                                              .addValue(
-                                                  Iterators.toString(
-                                                      mutation.getValues().iterator()))
-                                              .build())
-                                  .collect(Collectors.toList())))
+                                            .withFieldValue("error_message", String.format("%s operation failed at instance: %s, database: %s, table: %s",
+                                              mutation.getOperation().toString(), configuration.getInstanceId(), configuration.getDatabaseId(), mutation.getTable()))
+                                            //.withFieldValue("failed_row", Iterators.toString(mutation.getValues().iterator()))
+                                            .withFieldValue("failed_row", MutationUtils.createRowFromMutation(inputSchema, mutation))
+                                          .build())
+                                          .collect(Collectors.toList())))
+                                  
               .setRowSchema(failureSchema)
               .apply("error-count", ParDo.of(new ElementCounterFn("Spanner-write-error-counter")))
               .setRowSchema(failureSchema);
-      return PCollectionRowTuple.of("failures", failures).and("errors", failures);
+
+      return PCollectionRowTuple.of("post-write", postWrite).and(configuration.getErrorHandling().getOutput(), failures);
     }
   }
 
@@ -167,20 +198,27 @@ public class SpannerWriteSchemaTransformProvider
   @Override
   public @UnknownKeyFor @NonNull @Initialized List<@UnknownKeyFor @NonNull @Initialized String>
       outputCollectionNames() {
-    return Arrays.asList("failures", "errors");
+      return Collections.singletonList("post-write");
   }
 
   @AutoValue
   @DefaultSchema(AutoValueSchema.class)
   public abstract static class SpannerWriteSchemaTransformConfiguration implements Serializable {
 
+    @SchemaFieldDescription("Specifies the GCP project ID.")
+    @Nullable
+    public abstract String getProjectId();
+
     @SchemaFieldDescription("Specifies the Cloud Spanner instance.")
+    @Nullable
     public abstract String getInstanceId();
 
     @SchemaFieldDescription("Specifies the Cloud Spanner database.")
+    @Nullable
     public abstract String getDatabaseId();
 
     @SchemaFieldDescription("Specifies the Cloud Spanner table.")
+    @Nullable
     public abstract String getTableId();
 
     @SchemaFieldDescription("Specifies Error Handling.")
@@ -193,7 +231,10 @@ public class SpannerWriteSchemaTransformProvider
     }
 
     @AutoValue.Builder
+    @Nullable
     public abstract static class Builder {
+      public abstract Builder setProjectId(String projectId);
+
       public abstract Builder setInstanceId(String instanceId);
 
       public abstract Builder setDatabaseId(String databaseId);
@@ -204,44 +245,24 @@ public class SpannerWriteSchemaTransformProvider
 
       public abstract SpannerWriteSchemaTransformConfiguration build();
     }
-
-    @AutoValue
-    public abstract static class ErrorHandling {
-      @SchemaFieldDescription("The name of the output PCollection containing failed writes.")
-      public abstract String getOutput();
-
-      public static Builder builder() {
-        return new AutoValue_SpannerWriteSchemaTransformProvider_SpannerWriteSchemaTransformConfiguration_ErrorHandling
-            .Builder();
-      }
-
-      @AutoValue.Builder
-      public abstract static class Builder {
-        public abstract Builder setOutput(String output);
-        public abstract ErrorHandling build();
-      }
-    }
-
     public void validate() {
       String invalidConfigMessage = "Invalid Spanner Write configuration: ";
 
       checkArgument(
-          !Strings.isNullOrEmpty(this.getInstanceId()),
-          invalidConfigMessage + "Instance ID for a Spanner Write must be specified.");
+        !Strings.isNullOrEmpty(this.getProjectId()),
+        invalidConfigMessage + "Project ID for a Spanner Write must be specified.");
+
+      checkArgument(
+        !Strings.isNullOrEmpty(this.getInstanceId()),
+        invalidConfigMessage + "Instance ID for a Spanner Write must be specified.");
       
       checkArgument(
-          !Strings.isNullOrEmpty(this.setDatabaseId()),
-          invalidConfigMessage + "Database ID for a Spanner Write must be specified.");
+        !Strings.isNullOrEmpty(this.getDatabaseId()),
+        invalidConfigMessage + "Database ID for a Spanner Write must be specified.");
 
       checkArgument(
-          !Strings.isNullOrEmpty(this.setTableId()),
-          invalidConfigMessage + "Table ID for a Spanner Write must be specified.");
-
-      if (this.getErrorHandling() != null) {
-        checkArgument(
-            !Strings.isNullOrEmpty(this.getErrorHandling().getOutput()),
-            invalidConfigMessage + "Output must not be empty if error handling specified.");
-      }
+        !Strings.isNullOrEmpty(this.getTableId()),
+        invalidConfigMessage + "Table ID for a Spanner Write must be specified.");
     }
   }
 }

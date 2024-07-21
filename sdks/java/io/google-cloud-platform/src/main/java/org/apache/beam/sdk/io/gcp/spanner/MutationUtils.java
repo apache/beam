@@ -35,6 +35,9 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.ReadableDateTime;
+import java.util.Iterator;
+import com.google.cloud.spanner.Value;
+import com.google.cloud.spanner.Type;
 
 final class MutationUtils {
   private MutationUtils() {}
@@ -349,6 +352,44 @@ final class MutationUtils {
             String.format(
                 "Unsupported iterable type '%s' while translating row to struct.",
                 beamIterableType.getTypeName()));
+    }
+  }
+
+  public static Row createRowFromMutation(Schema schema, Mutation mutation) {
+//use asMap 
+    Row.Builder rowBuilder = Row.withSchema(schema);
+    Iterable<Value> values = mutation.getValues();
+    Iterator<Value> valuesItr = values.iterator();
+
+    while (valuesItr.hasNext()) {
+      Value value = valuesItr.next();
+      rowBuilder.addValue(convertValueToBeamFieldType(value));
+    }
+    return rowBuilder.build();
+  }
+
+  public static Object convertValueToBeamFieldType(Value value) {
+    switch (value.getType().getCode()) {
+      case BOOL:
+        return value.getBool();
+      case BYTES:
+        return value.getBytes();
+      case DATE:
+        return value.getDate();
+      case INT64:
+        return value.getInt64();
+      case FLOAT64:
+        return value.getFloat64();
+      case NUMERIC:
+        return value.getNumeric();
+      case TIMESTAMP:
+        return value.getTimestamp();
+      case STRING:
+        return value.getString();
+      //case ARRAY:
+      //case STRUCT
+      default:
+        return value.toString();
     }
   }
 }
