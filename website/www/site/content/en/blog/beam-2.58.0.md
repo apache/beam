@@ -25,7 +25,7 @@ See the [download page](/get-started/downloads/#2570-2024-07-22) for this releas
 
 <!--more-->
 
-For more information on changes in 2.57.0, check out the [detailed release notes](https://github.com/apache/beam/milestone/22).
+For more information about changes in 2.58.0, check out the [detailed release notes](https://github.com/apache/beam/milestone/22).
 
 ## I/Os
 
@@ -37,14 +37,14 @@ For more information on changes in 2.57.0, check out the [detailed release notes
 * Added options to control the number of Storage API multiplexing connections ([#31721](https://github.com/apache/beam/pull/31721))
 * [BigQueryIO] Better handling for batch Storage Write API when it hits AppendRows throughput quota ([#31837](https://github.com/apache/beam/pull/31837))
 * [IcebergIO] All specified catalog properties are passed through to the connector ([#31726](https://github.com/apache/beam/pull/31726))
-* Removed a 3rd party LGPL dependency from the Go SDK ([#31765](https://github.com/apache/beam/issues/31765)).
-* Support for MapState and SetState when using Dataflow Runner v1 with Streaming Engine (Java) ([[#18200](https://github.com/apache/beam/issues/18200)])
+* Removed a third-party LGPL dependency from the Go SDK ([#31765](https://github.com/apache/beam/issues/31765)).
+* Support for `MapState` and `SetState` when using Dataflow Runner v1 with Streaming Engine (Java) ([[#18200](https://github.com/apache/beam/issues/18200)])
 
 ## Breaking Changes
 
-* [IcebergIO] IcebergCatalogConfig was changed to support specifying catalog properties in a key-store fashion ([#31726](https://github.com/apache/beam/pull/31726))
+* [IcebergIO] `IcebergCatalogConfig` was changed to support specifying catalog properties in a key-store fashion ([#31726](https://github.com/apache/beam/pull/31726))
 
-## Bugfixes
+## Bug fixes
 
 * [BigQueryIO] Fixed a bug in batch Storage Write API that frequently exhausted concurrent connections quota ([#31710](https://github.com/apache/beam/pull/31710))
 
