@@ -181,6 +181,10 @@ import org.slf4j.LoggerFactory;
  *
  * }</pre>
  *
+ * <h2>Writing</h2>
+ *
+ * TBD
+ *
  * <h3>Authentication</h3>
  *
  * <p>When reading from Solace, the user must use {@link
@@ -208,6 +212,12 @@ public class SolaceIO {
         }
       };
   private static final boolean DEFAULT_DEDUPLICATE_RECORDS = false;
+
+  // Part of the new write connector, documentation to be updated in upcoming pull requests
+  public enum SubmissionMode {
+    HIGHER_THROUGHPUT,
+    LOWER_LATENCY
+  }
 
   /** Get a {@link Topic} object from the topic name. */
   static Topic topicFromName(String topicName) {
