@@ -66,7 +66,8 @@ import org.slf4j.LoggerFactory;
  * <p>The connector ensures that no two threads will be calling that method at the same time, so you
  * don't have to take any specific precautions to avoid race conditions.
  *
- * <p>For basic authentication, use {@link BasicAuthJcsmpSessionService} and {@link BasicAuthJcsmpSessionServiceFactory}.
+ * <p>For basic authentication, use {@link BasicAuthJcsmpSessionService} and {@link
+ * BasicAuthJcsmpSessionServiceFactory}.
  *
  * <p>For other situations, you need to extend this class. For instance:
  *
