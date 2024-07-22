@@ -15,26 +15,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.solace.write.properties;
+package org.apache.beam.sdk.io.solace.broker;
 
 import static org.junit.Assert.assertEquals;
 
 import com.solacesystems.jcsmp.JCSMPProperties;
-import org.apache.beam.sdk.io.solace.SolaceIO.SubmissionMode;
+import org.apache.beam.sdk.io.solace.MockSessionService;
+import org.apache.beam.sdk.io.solace.SolaceIO;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
-public class SessionPropertiesProviderTest {
-
+public class OverrideWriterPropertiesTest {
   @Test
   public void testOverrideForHigherThroughput() {
-    SubmissionMode mode = SubmissionMode.HIGHER_THROUGHPUT;
-    MockSessionPropertiesProvider provider = new MockSessionPropertiesProvider(mode);
+    SolaceIO.SubmissionMode mode = SolaceIO.SubmissionMode.HIGHER_THROUGHPUT;
+    MockSessionService service = new MockSessionService(null, 0, mode);
 
     // Test HIGHER_THROUGHPUT mode
-    JCSMPProperties props = provider.initializeSessionProperties(mode);
+    JCSMPProperties props = service.initializeWriteSessionProperties(mode);
     assertEquals(false, props.getBooleanProperty(JCSMPProperties.MESSAGE_CALLBACK_ON_REACTOR));
     assertEquals(
         Long.valueOf(255),
@@ -43,11 +43,11 @@ public class SessionPropertiesProviderTest {
 
   @Test
   public void testOverrideForLowerLatency() {
-    SubmissionMode mode = SubmissionMode.LOWER_LATENCY;
-    MockSessionPropertiesProvider provider = new MockSessionPropertiesProvider(mode);
+    SolaceIO.SubmissionMode mode = SolaceIO.SubmissionMode.LOWER_LATENCY;
+    MockSessionService service = new MockSessionService(null, 0, mode);
 
     // Test HIGHER_THROUGHPUT mode
-    JCSMPProperties props = provider.initializeSessionProperties(mode);
+    JCSMPProperties props = service.initializeWriteSessionProperties(mode);
     assertEquals(true, props.getBooleanProperty(JCSMPProperties.MESSAGE_CALLBACK_ON_REACTOR));
     assertEquals(
         Long.valueOf(50),

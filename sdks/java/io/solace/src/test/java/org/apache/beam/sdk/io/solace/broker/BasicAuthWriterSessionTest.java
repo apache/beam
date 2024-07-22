@@ -15,47 +15,57 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.solace.write.properties;
+package org.apache.beam.sdk.io.solace.broker;
 
+import static org.apache.beam.sdk.io.solace.broker.SessionService.DEFAULT_VPN_NAME;
 import static org.junit.Assert.assertEquals;
 
+import com.solacesystems.jcsmp.JCSMPFactory;
 import com.solacesystems.jcsmp.JCSMPProperties;
-import org.apache.beam.sdk.io.solace.SolaceIO.SubmissionMode;
+import com.solacesystems.jcsmp.Queue;
+import org.apache.beam.sdk.io.solace.SolaceIO;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
-public class BasicAuthenticationProviderTest {
+public class BasicAuthWriterSessionTest {
   private final String username = "Some Username";
   private final String password = "Some Password";
   private final String host = "Some Host";
   private final String vpn = "Some non default VPN";
-  private BasicAuthenticationProvider providerNoVpn;
-  private BasicAuthenticationProvider providerWithVpn;
+  SessionService withVpn;
+  SessionService withoutVpn;
 
   @Before
   public void setUp() throws Exception {
-    providerNoVpn =
-        BasicAuthenticationProvider.builder()
-            .username(username)
-            .password(password)
-            .host(host)
-            .build();
-    providerWithVpn =
-        BasicAuthenticationProvider.builder()
+    Queue q = JCSMPFactory.onlyInstance().createQueue("test-queue");
+
+    BasicAuthJcsmpSessionServiceFactory factoryWithVpn =
+        BasicAuthJcsmpSessionServiceFactory.builder()
             .username(username)
             .password(password)
             .host(host)
             .vpnName(vpn)
             .build();
+    factoryWithVpn.setQueue(q);
+    withVpn = factoryWithVpn.create();
+
+    BasicAuthJcsmpSessionServiceFactory factoryNoVpn =
+        BasicAuthJcsmpSessionServiceFactory.builder()
+            .username(username)
+            .password(password)
+            .host(host)
+            .build();
+    factoryNoVpn.setQueue(q);
+    withoutVpn = factoryNoVpn.create();
   }
 
   @Test
   public void testAuthProperties() {
-    SubmissionMode mode = SubmissionMode.HIGHER_THROUGHPUT;
-    JCSMPProperties props = providerNoVpn.initializeSessionProperties(mode);
+    SolaceIO.SubmissionMode mode = SolaceIO.SubmissionMode.HIGHER_THROUGHPUT;
+    JCSMPProperties props = withoutVpn.initializeWriteSessionProperties(mode);
     assertEquals(username, props.getStringProperty(JCSMPProperties.USERNAME));
     assertEquals(password, props.getStringProperty(JCSMPProperties.PASSWORD));
     assertEquals(host, props.getStringProperty(JCSMPProperties.HOST));
@@ -66,17 +76,17 @@ public class BasicAuthenticationProviderTest {
 
   @Test
   public void testVpnNames() {
-    SubmissionMode mode = SubmissionMode.LOWER_LATENCY;
-    JCSMPProperties propsNoVpn = providerNoVpn.initializeSessionProperties(mode);
-    assertEquals("default", propsNoVpn.getStringProperty(JCSMPProperties.VPN_NAME));
-    JCSMPProperties propsWithVpn = providerWithVpn.initializeSessionProperties(mode);
+    SolaceIO.SubmissionMode mode = SolaceIO.SubmissionMode.LOWER_LATENCY;
+    JCSMPProperties propsWithoutVpn = withoutVpn.initializeWriteSessionProperties(mode);
+    assertEquals(DEFAULT_VPN_NAME, propsWithoutVpn.getStringProperty(JCSMPProperties.VPN_NAME));
+    JCSMPProperties propsWithVpn = withVpn.initializeWriteSessionProperties(mode);
     assertEquals(vpn, propsWithVpn.getStringProperty(JCSMPProperties.VPN_NAME));
   }
 
   @Test
   public void testOverrideWithHigherThroughput() {
-    SubmissionMode mode = SubmissionMode.HIGHER_THROUGHPUT;
-    JCSMPProperties props = providerNoVpn.initializeSessionProperties(mode);
+    SolaceIO.SubmissionMode mode = SolaceIO.SubmissionMode.HIGHER_THROUGHPUT;
+    JCSMPProperties props = withoutVpn.initializeWriteSessionProperties(mode);
 
     assertEquals(false, props.getBooleanProperty(JCSMPProperties.MESSAGE_CALLBACK_ON_REACTOR));
     assertEquals(
@@ -86,8 +96,8 @@ public class BasicAuthenticationProviderTest {
 
   @Test
   public void testOverrideWithLowerLatency() {
-    SubmissionMode mode = SubmissionMode.LOWER_LATENCY;
-    JCSMPProperties props = providerNoVpn.initializeSessionProperties(mode);
+    SolaceIO.SubmissionMode mode = SolaceIO.SubmissionMode.LOWER_LATENCY;
+    JCSMPProperties props = withoutVpn.initializeWriteSessionProperties(mode);
     assertEquals(true, props.getBooleanProperty(JCSMPProperties.MESSAGE_CALLBACK_ON_REACTOR));
     assertEquals(
         Long.valueOf(50),

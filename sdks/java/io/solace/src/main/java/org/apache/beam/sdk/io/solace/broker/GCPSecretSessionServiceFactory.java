@@ -15,12 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.solace.write.properties;
+package org.apache.beam.sdk.io.solace.broker;
+
+import static org.apache.beam.sdk.io.solace.broker.SessionService.DEFAULT_VPN_NAME;
 
 import com.google.auto.value.AutoValue;
 import com.google.cloud.secretmanager.v1.SecretManagerServiceClient;
 import com.google.cloud.secretmanager.v1.SecretVersionName;
-import com.solacesystems.jcsmp.JCSMPProperties;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -33,7 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * This class implements a {@link SessionPropertiesProvider} that retrieve the basic authentication
+ * This class implements a {@link SessionServiceFactory} that retrieve the basic authentication
  * credentials from a Google Cloud Secret Manager secret.
  *
  * <p>It can be used to avoid having to pass the password as an option of your pipeline. For this
@@ -42,24 +43,27 @@ import org.slf4j.LoggerFactory;
  * account. For other runners, set the credentials in the pipeline options using {@link
  * org.apache.beam.sdk.extensions.gcp.options.GcpOptions}.
  *
- * <p>It also shows how to implement a {@link SessionPropertiesProvider} that depends on using
- * external resources to retrieve the Solace session properties. In this case, using the Google
- * Cloud Secrete Manager client.
+ * <p>It also shows how to implement a {@link SessionServiceFactory} that depends on using external
+ * resources to retrieve the Solace session properties. In this case, using the Google Cloud Secrete
+ * Manager client.
  *
  * <p>Example of how to create the provider object:
  *
  * <pre>{@code
- * GoogleCloudSecretProvider provider =
- *     GoogleCloudSecretProvider.builder()
+ * GCPSecretSessionServiceFactory factory =
+ *     GCPSecretSessionServiceFactory.builder()
  *         .username("user")
  *         .host("host:port")
  *         .passwordSecretName("secret-name")
  *         .build();
+ *
+ * SessionService serviceUsingGCPSecret = factory.create();
  * }</pre>
  */
 @AutoValue
-public abstract class GoogleCloudSecretProvider extends SessionPropertiesProvider {
-  private static final Logger LOG = LoggerFactory.getLogger(GoogleCloudSecretProvider.class);
+public abstract class GCPSecretSessionServiceFactory extends SessionServiceFactory {
+
+  private static final Logger LOG = LoggerFactory.getLogger(GCPSecretSessionServiceFactory.class);
 
   private static final String PROJECT_NOT_FOUND = "PROJECT-NOT-FOUND";
 
@@ -75,8 +79,8 @@ public abstract class GoogleCloudSecretProvider extends SessionPropertiesProvide
 
   public abstract String passwordSecretVersion();
 
-  public static Builder builder() {
-    return new AutoValue_GoogleCloudSecretProvider.Builder()
+  public static GCPSecretSessionServiceFactory.Builder builder() {
+    return new AutoValue_GCPSecretSessionServiceFactory.Builder()
         .passwordSecretVersion("latest")
         .vpnName(DEFAULT_VPN_NAME);
   }
@@ -85,48 +89,50 @@ public abstract class GoogleCloudSecretProvider extends SessionPropertiesProvide
   public abstract static class Builder {
 
     /** Username to be used to authenticate with the broker. */
-    public abstract Builder username(String username);
+    public abstract GCPSecretSessionServiceFactory.Builder username(String username);
 
     /**
      * The location of the broker, including port details if it is not listening in the default
      * port.
      */
-    public abstract Builder host(String host);
+    public abstract GCPSecretSessionServiceFactory.Builder host(String host);
 
     /** The Secret Manager secret name where the password is stored. */
-    public abstract Builder passwordSecretName(String name);
+    public abstract GCPSecretSessionServiceFactory.Builder passwordSecretName(String name);
 
     /** Optional. Solace broker VPN name. If not set, "default" is used. */
-    public abstract Builder vpnName(String name);
+    public abstract GCPSecretSessionServiceFactory.Builder vpnName(String name);
 
     /**
      * Optional for Dataflow or VMs running on Google Cloud. The project id of the project where the
      * secret is stored. If not set, the project id where the job is running is used.
      */
-    public abstract Builder secretManagerProjectId(String id);
+    public abstract GCPSecretSessionServiceFactory.Builder secretManagerProjectId(String id);
 
     /** Optional. Solace broker password secret version. If not set, "latest" is used. */
-    public abstract Builder passwordSecretVersion(String version);
+    public abstract GCPSecretSessionServiceFactory.Builder passwordSecretVersion(String version);
 
-    // Validate and set project name only if it is not passed by the user
-    public abstract GoogleCloudSecretProvider build();
+    public abstract GCPSecretSessionServiceFactory build();
   }
 
   @Override
-  public JCSMPProperties initializeSessionProperties(JCSMPProperties baseProperties) {
+  public SessionService create() {
     String password = null;
     try {
       password = retrieveSecret();
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
-    return BasicAuthenticationProvider.builder()
-        .username(username())
-        .host(host())
-        .password(password)
-        .vpnName(vpnName())
-        .build()
-        .initializeSessionProperties(baseProperties);
+
+    BasicAuthJcsmpSessionServiceFactory factory =
+        BasicAuthJcsmpSessionServiceFactory.builder()
+            .username(username())
+            .host(host())
+            .password(password)
+            .vpnName(vpnName())
+            .build();
+
+    return factory.create();
   }
 
   private String retrieveSecret() throws IOException {
