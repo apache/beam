@@ -62,6 +62,10 @@ final class CsvIOParseHelpers {
           "Illegal %s: column name is required",
           CSVFormat.class);
     }
+    checkArgument(
+        !format.getSkipHeaderRecord(),
+        "Illegal %s: cannot skip header record because the header is already accounted for",
+        CSVFormat.class);
   }
 
   /**

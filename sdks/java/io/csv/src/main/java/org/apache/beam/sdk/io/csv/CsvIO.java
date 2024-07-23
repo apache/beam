@@ -74,6 +74,9 @@ import org.apache.commons.csv.CSVFormat;
  *   <li>{@code boolean} <a
  *       href="https://javadoc.io/static/org.apache.commons/commons-csv/1.8/org/apache/commons/csv/CSVFormat.html#withIgnoreHeaderCase--">ignoreHeaderCase</a>
  *       - must be false.
+ *   <li>{@code boolean} <a
+ *       href="https://javadoc.io/static/org.apache.commons/commons-csv/1.8/org/apache/commons/csv/CSVFormat.html#withSkipHeaderRecord--">skipHeaderRecord</a>
+ *       - must be false. The header is already accounted for during parsing.
  * </ul>
  *
  * <h4>Ignored CSVFormat parameters</h4>

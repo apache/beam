@@ -20,6 +20,9 @@ package org.apache.beam.sdk.io.csv;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.sdk.coders.ListCoder;
+import org.apache.beam.sdk.coders.NullableCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -47,14 +50,21 @@ final class CsvIOStringToCsvRecord
    */
   @Override
   public PCollection<List<String>> expand(PCollection<String> input) {
-    return input.apply(ParDo.of(new ProcessLineToRecordFn()));
+    return input
+        .apply(ParDo.of(new ProcessLineToRecordFn()))
+        .setCoder(ListCoder.of(NullableCoder.of(StringUtf8Coder.of())));
   }
 
   /** Processes each line in order to convert it to a {@link CSVRecord}. */
   private class ProcessLineToRecordFn extends DoFn<String, List<String>> {
+    private final String headerLine = headerLine(csvFormat);
+
     @ProcessElement
     public void process(@Element String line, OutputReceiver<List<String>> receiver)
         throws IOException {
+      if (headerLine.equals(line)) {
+        return;
+      }
       for (CSVRecord record : CSVParser.parse(line, csvFormat).getRecords()) {
         receiver.output(csvRecordtoList(record));
       }
@@ -68,5 +78,10 @@ final class CsvIOStringToCsvRecord
       cells.add(cell);
     }
     return cells;
+  }
+
+  /** Returns a formatted line of the CSVFormat header. */
+  static String headerLine(CSVFormat csvFormat) {
+    return String.join(String.valueOf(csvFormat.getDelimiter()), csvFormat.getHeader());
   }
 }

@@ -121,6 +121,18 @@ public class CsvIOParseHelpersTest {
         gotMessage);
   }
 
+  @Test
+  public void givenCSVFormatThatSkipsHeaderRecord_throwsException() {
+    CSVFormat format = csvFormatWithHeader().withSkipHeaderRecord(true);
+    String gotMessage =
+        assertThrows(
+                IllegalArgumentException.class, () -> CsvIOParseHelpers.validateCsvFormat(format))
+            .getMessage();
+    assertEquals(
+        "Illegal class org.apache.commons.csv.CSVFormat: cannot skip header record because the header is already accounted for",
+        gotMessage);
+  }
+
   /** End of tests for {@link CsvIOParseHelpers#validateCsvFormat(CSVFormat)}. */
   //////////////////////////////////////////////////////////////////////////////////////////////
 
