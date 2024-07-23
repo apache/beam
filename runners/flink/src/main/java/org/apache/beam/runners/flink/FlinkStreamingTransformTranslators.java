@@ -389,6 +389,9 @@ class FlinkStreamingTransformTranslators {
               new SerializablePipelineOptions(context.getPipelineOptions()),
               parallelism);
 
+      TypeInformation<WindowedValue<T>> typeInfo =
+          context.getTypeInfo(output);
+
       DataStream<WindowedValue<T>> source;
       try {
         source =
@@ -396,7 +399,8 @@ class FlinkStreamingTransformTranslators {
                 .getExecutionEnvironment()
                 .fromSource(
                     flinkBoundedSource, WatermarkStrategy.noWatermarks(), fullName, outputTypeInfo)
-                .uid(fullName);
+                .uid(fullName)
+                .returns(typeInfo);
       } catch (Exception e) {
         throw new RuntimeException("Error while translating BoundedSource: " + rawSource, e);
       }
