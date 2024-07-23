@@ -20,36 +20,38 @@ package org.apache.beam.sdk.io.iceberg;
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.data.GenericRecord;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.types.Type;
 import org.apache.iceberg.types.Types;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 
-class SchemaAndRowConversions {
+public class IcebergUtils {
 
-  private SchemaAndRowConversions() {}
+  private IcebergUtils() {}
 
-  static final Map<Schema.FieldType, Type> BEAM_TYPES_TO_ICEBERG_TYPES =
-      ImmutableMap.<Schema.FieldType, Type>builder()
-          .put(Schema.FieldType.BOOLEAN, Types.BooleanType.get())
-          .put(Schema.FieldType.INT32, Types.IntegerType.get())
-          .put(Schema.FieldType.INT64, Types.LongType.get())
-          .put(Schema.FieldType.FLOAT, Types.FloatType.get())
-          .put(Schema.FieldType.DOUBLE, Types.DoubleType.get())
-          .put(Schema.FieldType.STRING, Types.StringType.get())
-          .put(Schema.FieldType.BYTES, Types.BinaryType.get())
+  private static final Map<Schema.TypeName, Type> BEAM_TYPES_TO_ICEBERG_TYPES =
+      ImmutableMap.<Schema.TypeName, Type>builder()
+          .put(Schema.TypeName.BOOLEAN, Types.BooleanType.get())
+          .put(Schema.TypeName.INT32, Types.IntegerType.get())
+          .put(Schema.TypeName.INT64, Types.LongType.get())
+          .put(Schema.TypeName.FLOAT, Types.FloatType.get())
+          .put(Schema.TypeName.DOUBLE, Types.DoubleType.get())
+          .put(Schema.TypeName.STRING, Types.StringType.get())
+          .put(Schema.TypeName.BYTES, Types.BinaryType.get())
           .build();
 
-  public static Schema.FieldType icebergTypeToBeamFieldType(final Type type) {
+  private static Schema.FieldType icebergTypeToBeamFieldType(final Type type) {
     switch (type.typeId()) {
       case BOOLEAN:
         return Schema.FieldType.BOOLEAN;
@@ -86,7 +88,7 @@ class SchemaAndRowConversions {
     throw new RuntimeException("Unrecognized IcebergIO Type");
   }
 
-  public static Schema.Field icebergFieldToBeamField(final Types.NestedField field) {
+  private static Schema.Field icebergFieldToBeamField(final Types.NestedField field) {
     return Schema.Field.of(field.name(), icebergTypeToBeamFieldType(field.type()))
         .withNullable(field.isOptional());
   }
@@ -99,7 +101,7 @@ class SchemaAndRowConversions {
     return builder.build();
   }
 
-  public static Schema icebergStructTypeToBeamSchema(final Types.StructType struct) {
+  private static Schema icebergStructTypeToBeamSchema(final Types.StructType struct) {
     Schema.Builder builder = Schema.builder();
     for (Types.NestedField f : struct.fields()) {
       builder.addField(icebergFieldToBeamField(f));
@@ -107,28 +109,120 @@ class SchemaAndRowConversions {
     return builder.build();
   }
 
-  public static Types.NestedField beamFieldToIcebergField(int fieldId, final Schema.Field field) {
-    @Nullable Type icebergType = BEAM_TYPES_TO_ICEBERG_TYPES.get(field.getType());
+  /**
+   * Represents an Object (in practice, either {@link Type} or {@link Types.NestedField}) along with
+   * the most recent (max) ID that has been used to build this object.
+   *
+   * <p>Iceberg Schema fields are required to have unique IDs. This includes unique IDs for a {@link
+   * Types.ListType}'s collection type, a {@link Types.MapType}'s key type and value type, and
+   * nested {@link Types.StructType}s. When constructing any of these types, we use multiple unique
+   * ID's for the type's components. The {@code maxId} in this object represents the most recent ID
+   * used after building this type. This helps signal that the next field we construct should have
+   * an ID greater than this one.
+   */
+  private static class ObjectAndMaxId<T> {
+    int maxId;
+    T object;
 
-    if (icebergType != null) {
-      return Types.NestedField.of(
-          fieldId, field.getType().getNullable(), field.getName(), icebergType);
-    } else {
-      return Types.NestedField.of(
-          fieldId, field.getType().getNullable(), field.getName(), Types.StringType.get());
+    ObjectAndMaxId(int id, T object) {
+      this.maxId = id;
+      this.object = object;
     }
   }
 
+  private static ObjectAndMaxId<Type> beamFieldTypeToIcebergFieldType(
+      int fieldId, Schema.FieldType beamType) {
+    if (BEAM_TYPES_TO_ICEBERG_TYPES.containsKey(beamType.getTypeName())) {
+      return new ObjectAndMaxId<>(fieldId, BEAM_TYPES_TO_ICEBERG_TYPES.get(beamType.getTypeName()));
+    } else if (beamType.getTypeName().isCollectionType()) { // ARRAY or ITERABLE
+      // List ID needs to be unique from the NestedField that contains this ListType
+      int listId = fieldId + 1;
+      Schema.FieldType beamCollectionType =
+          Preconditions.checkArgumentNotNull(beamType.getCollectionElementType());
+      Type icebergCollectionType =
+          beamFieldTypeToIcebergFieldType(listId, beamCollectionType).object;
+
+      boolean elementTypeIsNullable =
+          Preconditions.checkArgumentNotNull(beamType.getCollectionElementType()).getNullable();
+
+      Type listType =
+          elementTypeIsNullable
+              ? Types.ListType.ofOptional(listId, icebergCollectionType)
+              : Types.ListType.ofRequired(listId, icebergCollectionType);
+
+      return new ObjectAndMaxId<>(listId, listType);
+    } else if (beamType.getTypeName().isMapType()) { // MAP
+      // key and value IDs need to be unique from the NestedField that contains this MapType
+      int keyId = fieldId + 1;
+      int valueId = fieldId + 2;
+
+      Schema.FieldType beamKeyType = Preconditions.checkArgumentNotNull(beamType.getMapKeyType());
+      Schema.FieldType beamValueType =
+          Preconditions.checkArgumentNotNull(beamType.getMapValueType());
+
+      Type icebergKeyType = beamFieldTypeToIcebergFieldType(keyId, beamKeyType).object;
+      Type icebergValueType = beamFieldTypeToIcebergFieldType(valueId, beamValueType).object;
+
+      Type mapType =
+          beamValueType.getNullable()
+              ? Types.MapType.ofOptional(keyId, valueId, icebergKeyType, icebergValueType)
+              : Types.MapType.ofRequired(keyId, valueId, icebergKeyType, icebergValueType);
+
+      return new ObjectAndMaxId<>(valueId, mapType);
+    } else if (beamType.getTypeName().isCompositeType()) { // ROW
+      // Nested field IDs need to be unique from the field that contains this StructType
+      int nestedFieldId = fieldId;
+
+      Schema nestedSchema = Preconditions.checkArgumentNotNull(beamType.getRowSchema());
+      List<Types.NestedField> nestedFields = new ArrayList<>(nestedSchema.getFieldCount());
+      for (Schema.Field field : nestedSchema.getFields()) {
+        Types.NestedField nestedField = beamFieldToIcebergField(++nestedFieldId, field).object;
+        nestedFields.add(nestedField);
+      }
+
+      Type structType = Types.StructType.of(nestedFields);
+
+      return new ObjectAndMaxId<>(nestedFieldId, structType);
+    }
+
+    return new ObjectAndMaxId<>(fieldId, Types.StringType.get());
+  }
+
+  private static ObjectAndMaxId<Types.NestedField> beamFieldToIcebergField(
+      int fieldId, final Schema.Field field) {
+    ObjectAndMaxId<Type> typeAndMaxId = beamFieldTypeToIcebergFieldType(fieldId, field.getType());
+    Type icebergType = typeAndMaxId.object;
+    int id = typeAndMaxId.maxId;
+
+    Types.NestedField icebergField =
+        Types.NestedField.of(fieldId, field.getType().getNullable(), field.getName(), icebergType);
+
+    return new ObjectAndMaxId<>(id, icebergField);
+  }
+
+  /**
+   * Converts a Beam {@link Schema} to an Iceberg {@link org.apache.iceberg.Schema}.
+   *
+   * <p>The following unsupported Beam types will be defaulted to {@link Types.StringType}:
+   * <li>{@link Schema.TypeName.DECIMAL}
+   * <li>{@link Schema.TypeName.DATETIME}
+   * <li>{@link Schema.TypeName.LOGICAL_TYPE}
+   */
   public static org.apache.iceberg.Schema beamSchemaToIcebergSchema(final Schema schema) {
     Types.NestedField[] fields = new Types.NestedField[schema.getFieldCount()];
-    int fieldId = 0;
-    for (Schema.Field f : schema.getFields()) {
-      fields[fieldId++] = beamFieldToIcebergField(fieldId, f);
+    int nextId = 1;
+    for (int i = 0; i < schema.getFieldCount(); i++) {
+      Schema.Field beamField = schema.getField(i);
+      ObjectAndMaxId<Types.NestedField> fieldAndMaxId = beamFieldToIcebergField(nextId, beamField);
+      Types.NestedField field = fieldAndMaxId.object;
+      fields[i] = field;
+
+      nextId = fieldAndMaxId.maxId + 1;
     }
     return new org.apache.iceberg.Schema(fields);
   }
 
-  public static Record rowToRecord(org.apache.iceberg.Schema schema, Row row) {
+  public static Record beamRowToIcebergRecord(org.apache.iceberg.Schema schema, Row row) {
     return copyRowIntoRecord(GenericRecord.create(schema), row);
   }
 
@@ -191,13 +285,15 @@ class SchemaAndRowConversions {
                         copyRowIntoRecord(GenericRecord.create(field.type().asStructType()), row)));
         break;
       case LIST:
-        throw new UnsupportedOperationException("List fields are not yet supported.");
+        Optional.ofNullable(value.getArray(name)).ifPresent(list -> rec.setField(name, list));
+        break;
       case MAP:
-        throw new UnsupportedOperationException("Map fields are not yet supported.");
+        Optional.ofNullable(value.getMap(name)).ifPresent(v -> rec.setField(name, v));
+        break;
     }
   }
 
-  public static Row recordToRow(Schema schema, Record record) {
+  public static Row icebergRecordToBeamRow(Schema schema, Record record) {
     Row.Builder rowBuilder = Row.withSchema(schema);
     for (Schema.Field field : schema.getFields()) {
       switch (field.getType().getTypeName()) {
@@ -221,20 +317,14 @@ class SchemaAndRowConversions {
           long longValue = (long) record.getField(field.getName());
           rowBuilder.addValue(longValue);
           break;
-        case DECIMAL:
-          // Iceberg and Beam both use BigDecimal
-          rowBuilder.addValue(record.getField(field.getName()));
-          break;
-        case FLOAT:
-          // Iceberg and Beam both use float
-          rowBuilder.addValue(record.getField(field.getName()));
-          break;
-        case DOUBLE:
-          // Iceberg and Beam both use double
-          rowBuilder.addValue(record.getField(field.getName()));
-          break;
-        case STRING:
-          // Iceberg and Beam both use String
+        case DECIMAL: // Iceberg and Beam both use BigDecimal
+        case FLOAT: // Iceberg and Beam both use float
+        case DOUBLE: // Iceberg and Beam both use double
+        case STRING: // Iceberg and Beam both use String
+        case BOOLEAN: // Iceberg and Beam both use String
+        case ARRAY:
+        case ITERABLE:
+        case MAP:
           rowBuilder.addValue(record.getField(field.getName()));
           break;
         case DATETIME:
@@ -242,27 +332,17 @@ class SchemaAndRowConversions {
           long millis = (long) record.getField(field.getName());
           rowBuilder.addValue(new DateTime(millis, DateTimeZone.UTC));
           break;
-        case BOOLEAN:
-          // Iceberg and Beam both use String
-          rowBuilder.addValue(record.getField(field.getName()));
-          break;
         case BYTES:
           // Iceberg uses ByteBuffer; Beam uses byte[]
           rowBuilder.addValue(((ByteBuffer) record.getField(field.getName())).array());
           break;
-        case ARRAY:
-          throw new UnsupportedOperationException("Array fields are not yet supported.");
-        case ITERABLE:
-          throw new UnsupportedOperationException("Iterable fields are not yet supported.");
-        case MAP:
-          throw new UnsupportedOperationException("Map fields are not yet supported.");
         case ROW:
           Record nestedRecord = (Record) record.getField(field.getName());
           Schema nestedSchema =
               checkArgumentNotNull(
                   field.getType().getRowSchema(),
                   "Corrupted schema: Row type did not have associated nested schema.");
-          Row nestedRow = recordToRow(nestedSchema, nestedRecord);
+          Row nestedRow = icebergRecordToBeamRow(nestedSchema, nestedRecord);
           rowBuilder.addValue(nestedRow);
           break;
         case LOGICAL_TYPE:

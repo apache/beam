@@ -91,7 +91,7 @@ public class TestFixtures {
     ArrayList<Row> rows = new ArrayList<>();
     for (Record record : records) {
       rows.add(
-          Row.withSchema(SchemaAndRowConversions.icebergSchemaToBeamSchema(SCHEMA))
+          Row.withSchema(IcebergUtils.icebergSchemaToBeamSchema(SCHEMA))
               .withFieldValue("id", record.getField("id"))
               .withFieldValue("data", record.getField("data"))
               .build());

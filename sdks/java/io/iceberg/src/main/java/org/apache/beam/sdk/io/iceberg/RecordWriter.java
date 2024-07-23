@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
-import static org.apache.beam.sdk.io.iceberg.SchemaAndRowConversions.rowToRecord;
+import static org.apache.beam.sdk.io.iceberg.IcebergUtils.beamRowToIcebergRecord;
 
 import java.io.IOException;
 import org.apache.beam.sdk.values.Row;
@@ -80,7 +80,7 @@ class RecordWriter {
   }
 
   public void write(Row row) {
-    Record record = rowToRecord(table.schema(), row);
+    Record record = beamRowToIcebergRecord(table.schema(), row);
     icebergDataWriter.write(record);
   }
 
