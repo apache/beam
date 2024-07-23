@@ -115,7 +115,12 @@ class _InsertDocRedisFn(DoFn):
     credentials to connect to redis DB
     """
 
-    def __init__(self, host, port, command, batch_size):
+    def __init__(self,
+                 host: str,
+                 port: int,
+                 command: Optional[str] = None,
+                 batch_size: int = 100
+                 ):
         self.host = host
         self.port = port
         self.command = command
@@ -134,7 +139,7 @@ class _InsertDocRedisFn(DoFn):
         #     element = element._asdict()
         self.batch.append(element)
         self.batch_counter += 1
-        if self.batch_counter == self.batch_size:
+        if self.batch_counter >= self.batch_size:
             self._flush()
             # yield Document(**element)
         yield element
@@ -160,7 +165,10 @@ class _InsertDocRedisSink(object):
     and write insertion logic in redis
     """
 
-    def __init__(self, host, port):
+    def __init__(self,
+                 host: str,
+                 port: int
+                 ):
         self.host = host
         self.port = port
         self.client = None
@@ -265,7 +273,13 @@ class _WriteEmbeddingInRedisFn(DoFn):
     to connect to redis DB
     """
 
-    def __init__(self, host, port, command, batch_size, embedded_columns):
+    def __init__(self,
+                 host: str,
+                 port: int,
+                 command: Optional[str] = None,
+                 batch_size: int = 100,
+                 embedded_columns: list = []
+                 ):
         self.host = host
         self.port = port
         self.command = command
@@ -281,7 +295,7 @@ class _WriteEmbeddingInRedisFn(DoFn):
     def process(self, element, *args, **kwargs):
         self.batch.append(element)
         self.batch_counter += 1
-        if self.batch_counter == self.batch_size:
+        if self.batch_counter >= self.batch_size:
             self._flush()
 
     def _flush(self):
@@ -305,7 +319,11 @@ class _InsertEmbeddingInRedisSink(object):
     and write text embedding  in redis DB
     """
 
-    def __init__(self, host, port, embedded_columns):
+    def __init__(self,
+                 host: str,
+                 port: int,
+                 embedded_columns: list = []
+                 ):
         self.host = host
         self.port = port
         self.client = None
