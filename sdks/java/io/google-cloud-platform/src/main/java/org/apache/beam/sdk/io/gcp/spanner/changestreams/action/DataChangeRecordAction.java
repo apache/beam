@@ -85,6 +85,7 @@ public class DataChangeRecordAction {
 
     final String token = partition.getPartitionToken();
     LOG.debug("[{}] Processing data record {}", token, record.getCommitTimestamp());
+    LOG.info("[{}] Processing data record {}", token, record);
 
     final Timestamp commitTimestamp = record.getCommitTimestamp();
     final Instant commitInstant = new Instant(commitTimestamp.toSqlTimestamp().getTime());

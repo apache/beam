@@ -25,13 +25,15 @@ import com.google.cloud.spanner.Options.RpcPriority;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Statement;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.InitialPartition;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Responsible for making change stream queries for a given partition. The result will be given back
  * as a {@link ResultSet}, which can be consumed until the stream is finished.
  */
 public class ChangeStreamDao {
-
+  private static final Logger LOG = LoggerFactory.getLogger(ChangeStreamDao.class);
   private final String changeStreamName;
   private final DatabaseClient databaseClient;
   private final RpcPriority rpcPriority;
@@ -127,6 +129,7 @@ public class ChangeStreamDao {
               .to(heartbeatMillis)
               .build();
     }
+    LOG.info("Change Stream Statement: [{}] ", statement.toString());
     final ResultSet resultSet =
         databaseClient
             .singleUse()
