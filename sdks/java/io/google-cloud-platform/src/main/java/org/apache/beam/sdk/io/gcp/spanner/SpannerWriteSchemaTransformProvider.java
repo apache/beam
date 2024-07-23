@@ -221,6 +221,7 @@ public class SpannerWriteSchemaTransformProvider
     @Nullable
     public abstract String getTableId();
 
+    @SchemaFieldDescription("Specifies how to handle errors.")
     @Nullable
     public abstract ErrorHandling getErrorHandling();
 
