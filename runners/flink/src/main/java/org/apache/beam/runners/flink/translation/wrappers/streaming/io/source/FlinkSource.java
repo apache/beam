@@ -118,8 +118,20 @@ public abstract class FlinkSource<T, OutputT>
   @Override
   public SplitEnumerator<FlinkSourceSplit<T>, Map<Integer, List<FlinkSourceSplit<T>>>>
       createEnumerator(SplitEnumeratorContext<FlinkSourceSplit<T>> enumContext) throws Exception {
-    return new FlinkSourceSplitEnumerator<>(
-        enumContext, beamSource, serializablePipelineOptions.get(), numSplits);
+
+    if(boundedness == Boundedness.BOUNDED) {
+      return new LazyFlinkSourceSplitEnumerator<>(
+        enumContext,
+        beamSource,
+        serializablePipelineOptions.get(),
+        numSplits);
+    } else {
+      return new FlinkSourceSplitEnumerator<>(
+        enumContext,
+        beamSource,
+        serializablePipelineOptions.get(),
+        numSplits);
+    }
   }
 
   @Override
@@ -128,9 +140,8 @@ public abstract class FlinkSource<T, OutputT>
           SplitEnumeratorContext<FlinkSourceSplit<T>> enumContext,
           Map<Integer, List<FlinkSourceSplit<T>>> checkpoint)
           throws Exception {
-    FlinkSourceSplitEnumerator<T> enumerator =
-        new FlinkSourceSplitEnumerator<>(
-            enumContext, beamSource, serializablePipelineOptions.get(), numSplits);
+    SplitEnumerator<FlinkSourceSplit<T>, Map<Integer, List<FlinkSourceSplit<T>>>> enumerator =
+      createEnumerator(enumContext);
     checkpoint.forEach(
         (subtaskId, splitsForSubtask) -> enumerator.addSplitsBack(splitsForSubtask, subtaskId));
     return enumerator;

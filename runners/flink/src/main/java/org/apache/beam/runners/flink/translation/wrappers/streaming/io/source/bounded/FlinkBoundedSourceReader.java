@@ -100,6 +100,11 @@ public class FlinkBoundedSourceReader<T> extends FlinkSourceReaderBase<T, Window
   @Override
   public InputStatus pollNext(ReaderOutput<WindowedValue<T>> output) throws Exception {
     checkExceptionAndMaybeThrow();
+
+    if(currentReader == null && currentSplitId == -1) {
+      context.sendSplitRequest();
+    }
+
     if (currentReader == null && !moveToNextNonEmptyReader()) {
       // Nothing to read for now.
       if (noMoreSplits()) {
@@ -137,6 +142,7 @@ public class FlinkBoundedSourceReader<T> extends FlinkSourceReaderBase<T, Window
         LOG.debug("Finished reading from {}", currentSplitId);
         currentReader = null;
         currentSplitId = -1;
+        context.sendSplitRequest();
       }
       // Always return MORE_AVAILABLE here regardless of the availability of next record. If there
       // is no more
