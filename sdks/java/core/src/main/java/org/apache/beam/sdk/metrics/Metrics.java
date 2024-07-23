@@ -93,18 +93,12 @@ public class Metrics {
     return new DelegatingGauge(MetricName.named(namespace, name));
   }
 
-  /**
-   * Create a metric that can have its new value set, and is aggregated by taking the last reported
-   * value.
-   */
+  /** Create a metric that accumulates and reports set of unique string values. */
   public static StringSet stringSet(String namespace, String name) {
     return new DelegatingStringSet(MetricName.named(namespace, name));
   }
 
-  /**
-   * Create a metric that can have its new value set, and is aggregated by taking the last reported
-   * value.
-   */
+  /** Create a metric that accumulates and reports set of unique string values. */
   public static StringSet stringSet(Class<?> namespace, String name) {
     return new DelegatingStringSet(MetricName.named(namespace, name));
   }
