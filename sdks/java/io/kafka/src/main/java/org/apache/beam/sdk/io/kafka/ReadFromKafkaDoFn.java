@@ -436,19 +436,6 @@ abstract class ReadFromKafkaDoFn<K, V>
         "Creating Kafka consumer for process continuation for {}",
         kafkaSourceDescriptor.getTopicPartition());
     try (Consumer<byte[], byte[]> consumer = consumerFactoryFn.apply(updatedConsumerConfig)) {
-      // Check whether current TopicPartition is still available to read.
-      Set<TopicPartition> existingTopicPartitions = new HashSet<>();
-      for (List<PartitionInfo> topicPartitionList : consumer.listTopics().values()) {
-        topicPartitionList.forEach(
-            partitionInfo -> {
-              existingTopicPartitions.add(
-                  new TopicPartition(partitionInfo.topic(), partitionInfo.partition()));
-            });
-      }
-      if (!existingTopicPartitions.contains(kafkaSourceDescriptor.getTopicPartition())) {
-        return ProcessContinuation.stop();
-      }
-
       ConsumerSpEL.evaluateAssign(
           consumer, ImmutableList.of(kafkaSourceDescriptor.getTopicPartition()));
       long startOffset = tracker.currentRestriction().getFrom();
@@ -462,6 +449,10 @@ abstract class ReadFromKafkaDoFn<K, V>
         // When there are no records available for the current TopicPartition, self-checkpoint
         // and move to process the next element.
         if (rawRecords.isEmpty()) {
+          if (!topicPartitionExists(
+              kafkaSourceDescriptor.getTopicPartition(), consumer.listTopics())) {
+            return ProcessContinuation.stop();
+          }
           if (timestampPolicy != null) {
             updateWatermarkManually(timestampPolicy, watermarkEstimator, tracker);
           }
@@ -520,6 +511,23 @@ abstract class ReadFromKafkaDoFn<K, V>
         }
       }
     }
+  }
+
+  private boolean topicPartitionExists(
+      TopicPartition topicPartition, Map<String, List<PartitionInfo>> topicListMap) {
+    // Check if the current TopicPartition still exists.
+    Set<TopicPartition> existingTopicPartitions = new HashSet<>();
+    for (List<PartitionInfo> topicPartitionList : topicListMap.values()) {
+      topicPartitionList.forEach(
+          partitionInfo -> {
+            existingTopicPartitions.add(
+                new TopicPartition(partitionInfo.topic(), partitionInfo.partition()));
+          });
+    }
+    if (!existingTopicPartitions.contains(topicPartition)) {
+      return false;
+    }
+    return true;
   }
 
   // see https://github.com/apache/beam/issues/25962
