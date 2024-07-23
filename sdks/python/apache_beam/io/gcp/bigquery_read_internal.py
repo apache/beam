@@ -236,7 +236,7 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
     else:
       raise ValueError("temp_dataset has to be either str or DatasetReference")
 
-  def setup(self):
+  def start_bundle(self):
     self.bq = bigquery_tools.BigQueryWrapper(
         temp_dataset_id=self._get_temp_dataset_id(),
         client=bigquery_tools.BigQueryWrapper._bigquery_client(self.options))
@@ -267,7 +267,7 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
           table_reference.datasetId,
           table_reference.tableId)
 
-  def teardown(self):
+  def finish_bundle(self):
     if self.bq.created_temp_dataset:
       self.bq.clean_up_temporary_dataset(self._get_project())
 
