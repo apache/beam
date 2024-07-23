@@ -257,3 +257,29 @@
         'WriteToJdbc': 'beam:schematransform:org.apache.beam:jdbc_write:v1'
       config:
         gradle_target: 'sdks:java:extensions:schemaio-expansion-service:shadowJar'
+
+- type: renaming
+  transforms:
+    'ReadFromSpanner': 'ReadFromSpanner'
+    'WriteToSpanner': 'WriteToSpanner'
+  config:
+    mappings:
+      'ReadFromSpanner':
+        project_id: 'project_id'
+        instance_id: 'instance_id'
+        database_id: 'database_id'
+        table_id: 'table_id'
+        query: 'query'
+        columns: 'columns'
+      'WriteToSpanner':
+        instance_id: 'instance_id'
+        database_id: 'database_id'
+        table_id: 'table_id'
+        error_handling: 'error_handling'
+    underlying_provider:
+      type: beamJar
+      transforms:
+        'ReadFromSpanner': 'beam:schematransform:org.apache.beam:spanner_read:v1'
+        'WriteToSpanner': 'beam:schematransform:org.apache.beam:spanner_write:v1'
+      config:
+        gradle_target: 'sdks:java:io:google-cloud-platform:expansion-service:shadowJar'
