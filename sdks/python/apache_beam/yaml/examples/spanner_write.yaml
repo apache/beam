@@ -1,0 +1,28 @@
+pipeline:
+  transforms:
+    - type: Create
+      name: CreateRows
+      config:
+        elements:
+          - shipment_id: "S6"
+            customer_id: "C5"
+            shipment_date: "2024-07-02"
+            shipment_cost: "150.0"
+            customer_name: "Derek"
+            customer_email: "derek@example.com"          
+
+    - type: WriteToSpanner
+      name: WriteSpanner
+      input: CreateRows
+      config:
+        project_id: 'apache-beam-testing'
+        instance_id: 'shipment-test'
+        database_id: 'shipment'
+        table_id: 'shipments'
+        error_handling: 
+          output: my_error_output
+
+    - type: WriteToJson
+      input: WriteSpanner.my_error_output
+      config:
+        path: errors.json
