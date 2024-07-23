@@ -385,10 +385,33 @@ final class MutationUtils {
         return value.getTimestamp();
       case STRING:
         return value.getString();
-      //case ARRAY:
-      //case STRUCT
+      case JSON:
+        return value.getJson();
+      case ARRAY:
+        switch (value.getType().getArrayElementType().getCode()) {
+          case BOOL:
+              return value.getBoolArray();
+          case BYTES:
+              return value.getBytesArray();
+          case DATE:
+              return value.getDateArray();
+          case INT64:
+              return value.getInt64Array();
+          case FLOAT64:
+              return value.getFloat64Array();
+          case NUMERIC:
+              return value.getNumericArray();
+          case TIMESTAMP:
+              return value.getTimestampArray();
+          case STRING:
+              return value.getStringArray();
+          case JSON:
+              return value.getJsonArray();
+          default:
+            return value.toString();
+      }
       default:
         return value.toString();
-      }
+    }
   }
 }
