@@ -1198,7 +1198,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
   </tr>
   <tr>
     <td>
-      <a href="https://beam-pyio.github.io/">Beam PyIO (Collection of Python IO connectors)</a>
+      <a href="https://github.com/beam-pyio">Beam PyIO (Collection of Python IO connectors)</a>
     </td>
     <td class="present">✔</td>
     <td class="present">✔</td>
@@ -1210,7 +1210,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>Not available</td>
     <td>Not available</td>
     <td class="present">✔</td>
-    <td class="present">✘</td>
+    <td class="present">✔</td>
   </tr>
 </table>
 </div>
