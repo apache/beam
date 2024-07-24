@@ -22,6 +22,11 @@ import os
 import tempfile
 import unittest
 
+import yaml
+from apache_beam.yaml.yaml_transform import SafeLineLoader
+
+from apache_beam.yaml.yaml_transform import expand_pipeline
+
 import apache_beam as beam
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -369,6 +374,70 @@ class YamlTransformE2ETest(unittest.TestCase):
               config: %s
           ''' % (annotations['yaml_type'], annotations['yaml_args']))
       assert_that(result, equal_to([100, 105, 110, 115]))
+
+
+class ExpandPipelineWithProvidersTest(unittest.TestCase):
+
+  INCLUDED_PROVIDER = {
+      'type': 'python',
+      'transforms': {
+          'CustomCreate': 'apache_beam.yaml.yaml_provider.YamlProviders.create'
+      }
+  }
+  tempdir = None
+  to_include = None
+
+  @classmethod
+  def setUpClass(cls):
+    cls.tempdir = tempfile.TemporaryDirectory()
+    cls.to_include = os.path.join(cls.tempdir.name, 'providers.yaml')
+    with open(cls.to_include, 'w') as fout:
+      yaml.dump([cls.INCLUDED_PROVIDER], fout)
+
+  @classmethod
+  def tearDownClass(cls):
+    cls.tempdir.cleanup()
+
+  def test_inline_provider(self):
+    pipeline_yaml = f'''
+      pipeline:
+        type: chain
+        transforms:
+          - type: CustomCreate
+            input: __explicitly_empty__
+            config:
+              elements: [1, 2, 3]
+      providers:
+        - include: {self.to_include} 
+        '''
+
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      result = expand_pipeline(
+          p, yaml.load(pipeline_yaml, Loader=SafeLineLoader))
+      assert_that(result | beam.Map(lambda x: x.element), equal_to([1, 2, 3]))
+
+  def test_python_provider(self):
+    pipeline_yaml = '''
+      pipeline:
+        type: chain
+        transforms:
+          - type: CustomCreate
+            input: __explicitly_empty__
+            config:
+              elements: [1, 2, 3]
+      providers:
+        - type: python
+          config: {}
+          transforms:
+            CustomCreate: apache_beam.yaml.yaml_provider.YamlProviders.create
+        '''
+
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      result = expand_pipeline(
+          p, yaml.load(pipeline_yaml, Loader=SafeLineLoader))
+      assert_that(result | beam.Map(lambda x: x.element), equal_to([1, 2, 3]))
 
 
 class ErrorHandlingTest(unittest.TestCase):
