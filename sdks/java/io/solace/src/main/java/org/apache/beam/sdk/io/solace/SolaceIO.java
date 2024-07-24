@@ -293,7 +293,7 @@ public class SolaceIO {
 
     @VisibleForTesting final Configuration.Builder<T> configurationBuilder;
 
-    public Read(Configuration.Builder<T> configurationBuilder) {
+    private Read(Configuration.Builder<T> configurationBuilder) {
       this.configurationBuilder = configurationBuilder;
     }
 
