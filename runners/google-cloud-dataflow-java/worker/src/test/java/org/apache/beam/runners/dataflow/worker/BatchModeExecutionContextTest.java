@@ -43,6 +43,7 @@ import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.ProfileSc
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.MetricName;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.metrics.StringSet;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -266,7 +267,7 @@ public class BatchModeExecutionContextTest {
             .getCounter(
                 MetricName.named(
                     BatchModeExecutionContext.DATASTORE_THROTTLE_TIME_NAMESPACE,
-                    BatchModeExecutionContext.THROTTLE_TIME_COUNTER_NAME));
+                    Metrics.THROTTLE_TIME_COUNTER_NAME));
     counter.inc(12000);
     counter.inc(17000);
     counter.inc(1000);
