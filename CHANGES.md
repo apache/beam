@@ -89,7 +89,7 @@
 
 # [2.58.0] - Unreleased
 
-## I/Os
+## Highlights
 
 * Support for [Solace](https://solace.com/) source (`SolaceIO.Read`) added (Java) ([#31440](https://github.com/apache/beam/issues/31440)).
 
