@@ -27,7 +27,7 @@ public class OutputTooLargeException extends RuntimeException {
   }
 
   /** Returns whether an exception was caused by a {@link OutputTooLargeException}. */
-  public static boolean isOutputTooLargeException(Throwable t) {
+  public static boolean isCausedByOutputTooLargeException(Throwable t) {
     while (t != null) {
       if (t instanceof OutputTooLargeException) {
         return true;

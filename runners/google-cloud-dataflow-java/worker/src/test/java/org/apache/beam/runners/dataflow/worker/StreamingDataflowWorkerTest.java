@@ -549,7 +549,6 @@ public class StreamingDataflowWorkerTest {
       List<Long> inputs,
       List<Timer> timers)
       throws Exception {
-    // Windmill.GetWorkResponse.Builder builder = Windmill.GetWorkResponse.newBuilder();
     Windmill.WorkItem.Builder builder = Windmill.WorkItem.newBuilder();
     builder.setKey(DEFAULT_KEY_BYTES);
     builder.setShardingKey(DEFAULT_SHARDING_KEY);

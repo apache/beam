@@ -24,6 +24,7 @@ import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.dataflow.worker.DataflowMapTaskExecutor;
 import org.apache.beam.runners.dataflow.worker.DataflowWorkExecutor;
+import org.apache.beam.runners.dataflow.worker.OperationalLimits;
 import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ElementCounter;
@@ -72,19 +73,11 @@ public abstract class ComputationWorkExecutor {
       Work work,
       WindmillStateReader stateReader,
       SideInputStateFetcher sideInputStateFetcher,
-      long maxOutputKeyBytes,
-      long maxOutputValueBytes,
+      OperationalLimits operationalLimits,
       Windmill.WorkItemCommitRequest.Builder outputBuilder)
       throws Exception {
     context()
-        .start(
-            key,
-            work,
-            stateReader,
-            sideInputStateFetcher,
-            maxOutputKeyBytes,
-            maxOutputValueBytes,
-            outputBuilder);
+        .start(key, work, stateReader, sideInputStateFetcher, operationalLimits, outputBuilder);
     workExecutor().execute();
   }
 

@@ -154,8 +154,7 @@ public class StreamingModeExecutionContextTest {
             Watermarks.builder().setInputDataWatermark(new Instant(1000)).build()),
         stateReader,
         sideInputStateFetcher,
-        /*maxOutputKeyBytes=*/ Integer.MAX_VALUE,
-        /*maxOutputValueBytes=*/ Integer.MAX_VALUE,
+        OperationalLimits.builder().build(),
         outputBuilder);
 
     TimerInternals timerInternals = stepContext.timerInternals();
@@ -205,8 +204,7 @@ public class StreamingModeExecutionContextTest {
             Watermarks.builder().setInputDataWatermark(new Instant(1000)).build()),
         stateReader,
         sideInputStateFetcher,
-        /*maxOutputKeyBytes=*/ Integer.MAX_VALUE,
-        /*maxOutputValueBytes=*/ Integer.MAX_VALUE,
+        OperationalLimits.builder().build(),
         outputBuilder);
     TimerInternals timerInternals = stepContext.timerInternals();
     assertTrue(timerTimestamp.isBefore(timerInternals.currentProcessingTime()));

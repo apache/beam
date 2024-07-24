@@ -31,8 +31,8 @@ import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.DataflowMapTaskExecutorFactory;
 import org.apache.beam.runners.dataflow.worker.HotKeyLogger;
+import org.apache.beam.runners.dataflow.worker.OperationalLimits;
 import org.apache.beam.runners.dataflow.worker.ReaderCache;
-import org.apache.beam.runners.dataflow.worker.StreamingDataflowWorker;
 import org.apache.beam.runners.dataflow.worker.WorkItemCancelledException;
 import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingMDC;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
@@ -82,7 +82,7 @@ public final class StreamingWorkScheduler {
   private final HotKeyLogger hotKeyLogger;
   private final ConcurrentMap<String, StageInfo> stageInfoMap;
   private final DataflowExecutionStateSampler sampler;
-  private final AtomicReference<StreamingDataflowWorker.OperationalLimits> operationalLimits;
+  private final AtomicReference<OperationalLimits> operationalLimits;
 
   public StreamingWorkScheduler(
       DataflowWorkerHarnessOptions options,
@@ -96,7 +96,7 @@ public final class StreamingWorkScheduler {
       HotKeyLogger hotKeyLogger,
       ConcurrentMap<String, StageInfo> stageInfoMap,
       DataflowExecutionStateSampler sampler,
-      AtomicReference<StreamingDataflowWorker.OperationalLimits> operationalLimits) {
+      AtomicReference<OperationalLimits> operationalLimits) {
     this.options = options;
     this.clock = clock;
     this.computationWorkExecutorFactory = computationWorkExecutorFactory;
@@ -124,7 +124,7 @@ public final class StreamingWorkScheduler {
       StreamingCounters streamingCounters,
       HotKeyLogger hotKeyLogger,
       DataflowExecutionStateSampler sampler,
-      AtomicReference<StreamingDataflowWorker.OperationalLimits> operationalLimits,
+      AtomicReference<OperationalLimits> operationalLimits,
       IdGenerator idGenerator,
       ConcurrentMap<String, StageInfo> stageInfoMap) {
     ComputationWorkExecutorFactory computationWorkExecutorFactory =
@@ -380,8 +380,7 @@ public final class StreamingWorkScheduler {
           work,
           stateReader,
           localSideInputStateFetcher,
-          operationalLimits.get().maxOutputKeyBytes,
-          operationalLimits.get().maxOutputValueBytes,
+          operationalLimits.get(),
           outputBuilder);
 
       if (work.isFailed()) {
