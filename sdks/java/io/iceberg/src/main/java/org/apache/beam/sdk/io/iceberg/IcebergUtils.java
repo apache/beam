@@ -36,7 +36,10 @@ import org.apache.iceberg.types.Types;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 
+/** Utilities for converting between Beam and Iceberg types. */
 public class IcebergUtils {
+  // This is made public for users convenience, as many may have more experience working with
+  // Iceberg types.
 
   private IcebergUtils() {}
 
@@ -93,6 +96,7 @@ public class IcebergUtils {
         .withNullable(field.isOptional());
   }
 
+  /** Converts an Iceberg {@link org.apache.iceberg.Schema} to a Beam {@link Schema}. */
   public static Schema icebergSchemaToBeamSchema(final org.apache.iceberg.Schema schema) {
     Schema.Builder builder = Schema.builder();
     for (Types.NestedField f : schema.columns()) {
@@ -210,18 +214,20 @@ public class IcebergUtils {
    */
   public static org.apache.iceberg.Schema beamSchemaToIcebergSchema(final Schema schema) {
     Types.NestedField[] fields = new Types.NestedField[schema.getFieldCount()];
-    int nextId = 1;
+    int nextIcebergFieldId = 1;
     for (int i = 0; i < schema.getFieldCount(); i++) {
       Schema.Field beamField = schema.getField(i);
-      ObjectAndMaxId<Types.NestedField> fieldAndMaxId = beamFieldToIcebergField(nextId, beamField);
+      ObjectAndMaxId<Types.NestedField> fieldAndMaxId =
+          beamFieldToIcebergField(nextIcebergFieldId, beamField);
       Types.NestedField field = fieldAndMaxId.object;
       fields[i] = field;
 
-      nextId = fieldAndMaxId.maxId + 1;
+      nextIcebergFieldId = fieldAndMaxId.maxId + 1;
     }
     return new org.apache.iceberg.Schema(fields);
   }
 
+  /** Converts a Beam {@link Row} to an Iceberg {@link Record}. */
   public static Record beamRowToIcebergRecord(org.apache.iceberg.Schema schema, Row row) {
     return copyRowIntoRecord(GenericRecord.create(schema), row);
   }
@@ -293,6 +299,7 @@ public class IcebergUtils {
     }
   }
 
+  /** Converts an Iceberg {@link Record} to a Beam {@link Row}. */
   public static Row icebergRecordToBeamRow(Schema schema, Record record) {
     Row.Builder rowBuilder = Row.withSchema(schema);
     for (Schema.Field field : schema.getFields()) {
