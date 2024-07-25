@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker.windmill.work.refresh;
 
 import java.util.Objects;
 import org.apache.beam.runners.dataflow.worker.streaming.RefreshableWork;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.sdk.annotations.Internal;
 import org.slf4j.Logger;
@@ -49,15 +50,24 @@ public final class FixedStreamHeartbeatSender implements HeartbeatSender {
 
   @Override
   public void sendHeartbeats(Heartbeats heartbeats) {
-    if (getDataStream.isShutdown()) {
+    String threadName = Thread.currentThread().getName();
+    try {
+      String backendWorkerToken = getDataStream.backendWorkerToken();
+      if (!backendWorkerToken.isEmpty()) {
+        // Decorate the thread name w/ the backendWorkerToken for debugging. Resets the thread's
+        // name after sending the heartbeats succeeds or fails.
+        Thread.currentThread().setName(threadName + "-" + backendWorkerToken);
+      }
+      getDataStream.refreshActiveWork(heartbeats.heartbeatRequests().asMap());
+    } catch (WindmillStream.WindmillStreamShutdownException e) {
       LOG.warn(
           "Trying to refresh work w/ {} heartbeats on stream={} after work has moved off of worker."
               + " heartbeats",
           getDataStream.backendWorkerToken(),
           heartbeats.heartbeatRequests().size());
       heartbeats.work().forEach(RefreshableWork::setFailed);
-    } else {
-      getDataStream.refreshActiveWork(heartbeats.heartbeatRequests().asMap());
+    } finally {
+      Thread.currentThread().setName(threadName);
     }
   }
 

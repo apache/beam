@@ -17,7 +17,11 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.work.refresh;
 
-/** Interface for sending heartbeats. */
+/**
+ * Interface for sending heartbeats.
+ *
+ * @implNote Batching/grouping of heartbeats is performed by HeartbeatSender equality.
+ */
 @FunctionalInterface
 public interface HeartbeatSender {
   /**

@@ -19,19 +19,24 @@ package org.apache.beam.runners.dataflow.worker.windmill.work.refresh;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap.toImmutableMap;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.RefreshableWork;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -48,14 +53,17 @@ import org.slf4j.LoggerFactory;
 @Internal
 public final class ActiveWorkRefresher {
   private static final Logger LOG = LoggerFactory.getLogger(ActiveWorkRefresher.class);
+  private static final String FAN_OUT_REFRESH_WORK_EXECUTOR_NAME =
+      "FanOutActiveWorkRefreshExecutor-%d";
 
   private final Supplier<Instant> clock;
   private final int activeWorkRefreshPeriodMillis;
   private final Supplier<Collection<ComputationState>> computations;
   private final DataflowExecutionStateSampler sampler;
   private final int stuckCommitDurationMillis;
+  private final HeartbeatTracker heartbeatTracker;
   private final ScheduledExecutorService activeWorkRefreshExecutor;
-  private final Consumer<Map<HeartbeatSender, Heartbeats>> heartbeatSender;
+  private final ExecutorService fanOutActiveWorkRefreshExecutor;
 
   public ActiveWorkRefresher(
       Supplier<Instant> clock,
@@ -64,14 +72,23 @@ public final class ActiveWorkRefresher {
       Supplier<Collection<ComputationState>> computations,
       DataflowExecutionStateSampler sampler,
       ScheduledExecutorService activeWorkRefreshExecutor,
-      Consumer<Map<HeartbeatSender, Heartbeats>> heartbeatSender) {
+      HeartbeatTracker heartbeatTracker) {
     this.clock = clock;
     this.activeWorkRefreshPeriodMillis = activeWorkRefreshPeriodMillis;
     this.stuckCommitDurationMillis = stuckCommitDurationMillis;
     this.computations = computations;
     this.sampler = sampler;
     this.activeWorkRefreshExecutor = activeWorkRefreshExecutor;
-    this.heartbeatSender = heartbeatSender;
+    this.heartbeatTracker = heartbeatTracker;
+    this.fanOutActiveWorkRefreshExecutor =
+        Executors.newCachedThreadPool(
+            new ThreadFactoryBuilder()
+                // Work refresh runs as a background process, don't let failures crash
+                // the worker.
+                .setUncaughtExceptionHandler(
+                    (t, e) -> LOG.error("Unexpected failure in {}", t.getName(), e))
+                .setNameFormat(FAN_OUT_REFRESH_WORK_EXECUTOR_NAME)
+                .build());
   }
 
   @SuppressWarnings("FutureReturnValueIgnored")
@@ -115,9 +132,41 @@ public final class ActiveWorkRefresher {
     }
   }
 
+  /** Create {@link Heartbeats} and group them by {@link HeartbeatSender}. */
   private void refreshActiveWork() {
     Instant refreshDeadline = clock.get().minus(Duration.millis(activeWorkRefreshPeriodMillis));
+    Map<HeartbeatSender, Heartbeats> heartbeatsBySender =
+        aggregateHeartbeatsBySender(refreshDeadline);
 
+    if (heartbeatsBySender.isEmpty()) {
+      return;
+    }
+
+    if (heartbeatsBySender.size() == 1) {
+      // If there is a single HeartbeatSender, just use the calling thread to send heartbeats.
+      Map.Entry<HeartbeatSender, Heartbeats> heartbeat =
+          Iterables.getOnlyElement(heartbeatsBySender.entrySet());
+      sendHeartbeat(heartbeat);
+    } else {
+      // If there are multiple HeartbeatSenders, send out the heartbeats in parallel using the
+      // fanOutActiveWorkRefreshExecutor.
+      List<CompletableFuture<Void>> fanOutRefreshActiveWork = new ArrayList<>();
+      for (Map.Entry<HeartbeatSender, Heartbeats> heartbeat : heartbeatsBySender.entrySet()) {
+        fanOutRefreshActiveWork.add(
+            CompletableFuture.runAsync(
+                () -> sendHeartbeat(heartbeat), fanOutActiveWorkRefreshExecutor));
+      }
+
+      // Don't block until we kick off all the refresh active work RPCs.
+      @SuppressWarnings("rawtypes")
+      CompletableFuture<Void> parallelFanOutRefreshActiveWork =
+          CompletableFuture.allOf(fanOutRefreshActiveWork.toArray(new CompletableFuture[0]));
+      parallelFanOutRefreshActiveWork.join();
+    }
+  }
+
+  /** Aggregate the heartbeats across computations by HeartbeatSender for correct fan out. */
+  private Map<HeartbeatSender, Heartbeats> aggregateHeartbeatsBySender(Instant refreshDeadline) {
     Map<HeartbeatSender, Heartbeats.Builder> heartbeatsBySender = new HashMap<>();
 
     // Aggregate the heartbeats across computations by HeartbeatSender for correct fan out.
@@ -125,22 +174,30 @@ public final class ActiveWorkRefresher {
       for (RefreshableWork work : computationState.getRefreshableWork(refreshDeadline)) {
         heartbeatsBySender
             .computeIfAbsent(work.heartbeatSender(), ignored -> Heartbeats.builder())
-            .addWork(work)
-            .addHeartbeatRequest(computationState.getComputationId(), createHeartbeatRequest(work));
+            .add(computationState.getComputationId(), work, sampler);
       }
     }
 
-    heartbeatSender.accept(
-        heartbeatsBySender.entrySet().stream()
-            .collect(toImmutableMap(Map.Entry::getKey, e -> e.getValue().build())));
+    return heartbeatsBySender.entrySet().stream()
+        .collect(toImmutableMap(Map.Entry::getKey, e -> e.getValue().build()));
   }
 
-  private HeartbeatRequest createHeartbeatRequest(RefreshableWork work) {
-    return HeartbeatRequest.newBuilder()
-        .setShardingKey(work.getShardedKey().shardingKey())
-        .setWorkToken(work.id().workToken())
-        .setCacheToken(work.id().cacheToken())
-        .addAllLatencyAttribution(work.getHeartbeatLatencyAttributions(sampler))
-        .build();
+  private void sendHeartbeat(Map.Entry<HeartbeatSender, Heartbeats> heartbeat) {
+    try (AutoCloseable ignored = heartbeatTracker.trackHeartbeats(heartbeat.getValue().size())) {
+      HeartbeatSender sender = heartbeat.getKey();
+      Heartbeats heartbeats = heartbeat.getValue();
+      sender.sendHeartbeats(heartbeats);
+    } catch (Exception e) {
+      LOG.error(
+          "Unable to send {} heartbeats to {}.",
+          heartbeat.getValue().size(),
+          heartbeat.getKey(),
+          e);
+    }
+  }
+
+  @FunctionalInterface
+  public interface HeartbeatTracker {
+    AutoCloseable trackHeartbeats(int numHeartbeats);
   }
 }

@@ -35,7 +35,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
-import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.GetDataClient;
+import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -89,27 +89,12 @@ public class WorkFailureProcessorTest {
             Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
             Work.createProcessingContext(
                 "computationId",
-                createMockGetDataClient(),
+                new FakeGetDataClient(),
                 ignored -> {},
                 mock(HeartbeatSender.class)),
             clock,
             new ArrayList<>()),
         processWorkFn);
-  }
-
-  private static GetDataClient createMockGetDataClient() {
-    return new GetDataClient() {
-      @Override
-      public Windmill.KeyedGetDataResponse getStateData(
-          String computation, Windmill.KeyedGetDataRequest request) {
-        return Windmill.KeyedGetDataResponse.getDefaultInstance();
-      }
-
-      @Override
-      public Windmill.GlobalData getSideInputData(Windmill.GlobalDataRequest request) {
-        return Windmill.GlobalData.getDefaultInstance();
-      }
-    };
   }
 
   private static ExecutableWork createWork(Consumer<Work> processWorkFn) {

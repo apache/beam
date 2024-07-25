@@ -27,18 +27,30 @@ import org.apache.beam.sdk.annotations.Internal;
 /** Client for streaming backend GetData API. */
 @Internal
 public interface GetDataClient {
-  KeyedGetDataResponse getStateData(String computation, KeyedGetDataRequest request);
+  /**
+   * Issues a blocking call to fetch state data for a specific computation and {@link
+   * org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem}.
+   *
+   * @throws GetDataException when there was an unexpected error during the attempted fetch.
+   */
+  KeyedGetDataResponse getStateData(String computationId, KeyedGetDataRequest request)
+      throws GetDataException;
 
-  GlobalData getSideInputData(GlobalDataRequest request);
+  /**
+   * Issues a blocking call to fetch side input data.
+   *
+   * @throws GetDataException when there was an unexpected error during the attempted fetch.
+   */
+  GlobalData getSideInputData(GlobalDataRequest request) throws GetDataException;
 
-  default void printHtml(PrintWriter writer) {}
+  void printHtml(PrintWriter writer);
 
-  class GetDataException extends RuntimeException {
-    protected GetDataException(String message, Throwable cause) {
+  final class GetDataException extends RuntimeException {
+    GetDataException(String message, Throwable cause) {
       super(message, cause);
     }
 
-    public GetDataException(String message) {
+    GetDataException(String message) {
       super(message);
     }
   }

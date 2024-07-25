@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.worker.windmill.work.refresh;
 
 import com.google.auto.value.AutoValue;
+import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.streaming.RefreshableWork;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -45,9 +46,21 @@ public abstract class Heartbeats {
 
     abstract ImmutableList.Builder<RefreshableWork> workBuilder();
 
-    public final Builder addWork(RefreshableWork work) {
+    public final Builder add(
+        String computationId, RefreshableWork work, DataflowExecutionStateSampler sampler) {
       workBuilder().add(work);
+      addHeartbeatRequest(computationId, createHeartbeatRequest(work, sampler));
       return this;
+    }
+
+    private Windmill.HeartbeatRequest createHeartbeatRequest(
+        RefreshableWork work, DataflowExecutionStateSampler sampler) {
+      return Windmill.HeartbeatRequest.newBuilder()
+          .setShardingKey(work.getShardedKey().shardingKey())
+          .setWorkToken(work.id().workToken())
+          .setCacheToken(work.id().cacheToken())
+          .addAllLatencyAttribution(work.getHeartbeatLatencyAttributions(sampler))
+          .build();
     }
 
     abstract Builder setHeartbeatRequests(
@@ -56,10 +69,9 @@ public abstract class Heartbeats {
     abstract ImmutableListMultimap.Builder<String, Windmill.HeartbeatRequest>
         heartbeatRequestsBuilder();
 
-    public final Builder addHeartbeatRequest(
+    private void addHeartbeatRequest(
         String computationId, Windmill.HeartbeatRequest heartbeatRequest) {
       heartbeatRequestsBuilder().put(computationId, heartbeatRequest);
-      return this;
     }
 
     public abstract Heartbeats build();

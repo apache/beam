@@ -32,7 +32,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
-import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.GetDataClient;
+import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -68,7 +68,7 @@ public class BoundedQueueExecutorTest {
             Watermarks.builder().setInputDataWatermark(Instant.now()).build(),
             Work.createProcessingContext(
                 "computationId",
-                createMockGetDataClient(),
+                new FakeGetDataClient(),
                 ignored -> {},
                 mock(HeartbeatSender.class)),
             Instant::now,
@@ -76,32 +76,15 @@ public class BoundedQueueExecutorTest {
         executeWorkFn);
   }
 
-  private static GetDataClient createMockGetDataClient() {
-    return new GetDataClient() {
-      @Override
-      public Windmill.KeyedGetDataResponse getStateData(
-          String computation, Windmill.KeyedGetDataRequest request) {
-        return Windmill.KeyedGetDataResponse.getDefaultInstance();
-      }
-
-      @Override
-      public Windmill.GlobalData getSideInputData(Windmill.GlobalDataRequest request) {
-        return Windmill.GlobalData.getDefaultInstance();
+  private Runnable createSleepProcessWorkFn(CountDownLatch start, CountDownLatch stop) {
+    return () -> {
+      start.countDown();
+      try {
+        stop.await();
+      } catch (Exception e) {
+        throw new RuntimeException(e);
       }
     };
-  }
-
-  private Runnable createSleepProcessWorkFn(CountDownLatch start, CountDownLatch stop) {
-    Runnable runnable =
-        () -> {
-          start.countDown();
-          try {
-            stop.await();
-          } catch (Exception e) {
-            throw new RuntimeException(e);
-          }
-        };
-    return runnable;
   }
 
   @Before

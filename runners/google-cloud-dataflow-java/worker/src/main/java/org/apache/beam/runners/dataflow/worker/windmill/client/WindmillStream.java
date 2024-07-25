@@ -52,18 +52,6 @@ public interface WindmillStream {
    */
   void shutdown();
 
-  /** Reflects that {@link #shutdown()} was explicitly called. */
-  boolean isShutdown();
-
-  Type streamType();
-
-  enum Type {
-    GET_WORKER_METADATA,
-    GET_WORK,
-    GET_DATA,
-    COMMIT_WORK,
-  }
-
   /** Handle representing a stream of GetWork responses. */
   @ThreadSafe
   interface GetWorkStream extends WindmillStream {
@@ -72,11 +60,6 @@ public interface WindmillStream {
 
     /** Returns the remaining in-flight {@link GetWorkBudget}. */
     GetWorkBudget remainingBudget();
-
-    @Override
-    default Type streamType() {
-      return Type.GET_WORK;
-    }
   }
 
   /** Interface for streaming GetDataRequests to Windmill. */
@@ -93,11 +76,6 @@ public interface WindmillStream {
     void refreshActiveWork(Map<String, Collection<HeartbeatRequest>> heartbeats);
 
     void onHeartbeatResponse(List<Windmill.ComputationHeartbeatResponse> responses);
-
-    @Override
-    default Type streamType() {
-      return Type.GET_DATA;
-    }
   }
 
   /** Interface for streaming CommitWorkRequests to Windmill. */
@@ -108,11 +86,6 @@ public interface WindmillStream {
      * different builders for the same stream may be used simultaneously.
      */
     CommitWorkStream.RequestBatcher batcher();
-
-    @Override
-    default Type streamType() {
-      return Type.COMMIT_WORK;
-    }
 
     @NotThreadSafe
     interface RequestBatcher extends Closeable {
@@ -140,10 +113,11 @@ public interface WindmillStream {
 
   /** Interface for streaming GetWorkerMetadata requests to Windmill. */
   @ThreadSafe
-  interface GetWorkerMetadataStream extends WindmillStream {
-    @Override
-    default Type streamType() {
-      return Type.GET_WORKER_METADATA;
+  interface GetWorkerMetadataStream extends WindmillStream {}
+
+  class WindmillStreamShutdownException extends RuntimeException {
+    public WindmillStreamShutdownException(String message) {
+      super(message);
     }
   }
 }

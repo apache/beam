@@ -50,13 +50,12 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitR
 import org.apache.beam.runners.dataflow.worker.windmill.client.CloseableStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.CommitWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamPool;
-import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.GetDataClient;
+import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -68,7 +67,7 @@ import org.junit.runners.JUnit4;
 public class StreamingEngineWorkCommitterTest {
 
   @Rule public ErrorCollector errorCollector = new ErrorCollector();
-  private StreamingEngineWorkCommitter workCommitter;
+  private WorkCommitter workCommitter;
   private FakeWindmillServer fakeWindmillServer;
   private Supplier<CloseableStream<CommitWorkStream>> commitWorkStreamFactory;
 
@@ -83,28 +82,13 @@ public class StreamingEngineWorkCommitterTest {
         Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
         Work.createProcessingContext(
             "computationId",
-            createMockGetDataClient(),
+            new FakeGetDataClient(),
             ignored -> {
               throw new UnsupportedOperationException();
             },
             mock(HeartbeatSender.class)),
         Instant::now,
         Collections.emptyList());
-  }
-
-  private static GetDataClient createMockGetDataClient() {
-    return new GetDataClient() {
-      @Override
-      public Windmill.KeyedGetDataResponse getStateData(
-          String computation, Windmill.KeyedGetDataRequest request) {
-        return Windmill.KeyedGetDataResponse.getDefaultInstance();
-      }
-
-      @Override
-      public Windmill.GlobalData getSideInputData(Windmill.GlobalDataRequest request) {
-        return Windmill.GlobalData.getDefaultInstance();
-      }
-    };
   }
 
   private static ComputationState createComputationState(String computationId) {
@@ -135,14 +119,11 @@ public class StreamingEngineWorkCommitterTest {
             ::getCloseableStream;
   }
 
-  @After
-  public void cleanUp() {
-    workCommitter.stop();
-  }
-
-  private StreamingEngineWorkCommitter createWorkCommitter(
-      Consumer<CompleteCommit> onCommitComplete) {
-    return StreamingEngineWorkCommitter.create(commitWorkStreamFactory, 1, onCommitComplete);
+  private WorkCommitter createWorkCommitter(Consumer<CompleteCommit> onCommitComplete) {
+    return StreamingEngineWorkCommitter.builder()
+        .setCommitWorkStreamFactory(commitWorkStreamFactory)
+        .setOnCommitComplete(onCommitComplete)
+        .build();
   }
 
   @Test
@@ -174,6 +155,8 @@ public class StreamingEngineWorkCommitterTest {
       assertThat(request).isEqualTo(commit.request());
       assertThat(completeCommits).contains(asCompleteCommit(commit, Windmill.CommitStatus.OK));
     }
+
+    workCommitter.stop();
   }
 
   @Test
@@ -214,6 +197,8 @@ public class StreamingEngineWorkCommitterTest {
             .containsEntry(commit.work().getWorkItem().getWorkToken(), commit.request());
       }
     }
+
+    workCommitter.stop();
   }
 
   @Test
@@ -266,6 +251,8 @@ public class StreamingEngineWorkCommitterTest {
           .contains(asCompleteCommit(commit, expectedCommitStatus.get(commit.work().id())));
     }
     assertThat(completeCommits.size()).isEqualTo(commits.size());
+
+    workCommitter.stop();
   }
 
   @Test
@@ -310,11 +297,6 @@ public class StreamingEngineWorkCommitterTest {
 
               @Override
               public void shutdown() {}
-
-              @Override
-              public boolean isShutdown() {
-                return false;
-              }
             };
 
     commitWorkStreamFactory =
@@ -359,7 +341,12 @@ public class StreamingEngineWorkCommitterTest {
             ::getCloseableStream;
     Set<CompleteCommit> completeCommits = Collections.newSetFromMap(new ConcurrentHashMap<>());
     workCommitter =
-        StreamingEngineWorkCommitter.create(commitWorkStreamFactory, 5, completeCommits::add);
+        StreamingEngineWorkCommitter.builder()
+            .setCommitWorkStreamFactory(commitWorkStreamFactory)
+            .setNumCommitSenders(5)
+            .setOnCommitComplete(completeCommits::add)
+            .build();
+
     List<Commit> commits = new ArrayList<>();
     for (int i = 1; i <= 500; i++) {
       Work work = createMockWork(i);
@@ -384,5 +371,7 @@ public class StreamingEngineWorkCommitterTest {
       assertThat(request).isEqualTo(commit.request());
       assertThat(completeCommits).contains(asCompleteCommit(commit, Windmill.CommitStatus.OK));
     }
+
+    workCommitter.stop();
   }
 }

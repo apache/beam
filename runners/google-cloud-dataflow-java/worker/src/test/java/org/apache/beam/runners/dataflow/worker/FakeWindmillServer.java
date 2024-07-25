@@ -240,11 +240,6 @@ public final class FakeWindmillServer extends WindmillServerStub {
       public void shutdown() {}
 
       @Override
-      public boolean isShutdown() {
-        return false;
-      }
-
-      @Override
       public void halfClose() {
         done.countDown();
       }
@@ -314,11 +309,6 @@ public final class FakeWindmillServer extends WindmillServerStub {
 
       @Override
       public void shutdown() {}
-
-      @Override
-      public boolean isShutdown() {
-        return false;
-      }
 
       @Override
       public Windmill.KeyedGetDataResponse requestKeyedData(
@@ -400,11 +390,6 @@ public final class FakeWindmillServer extends WindmillServerStub {
 
       @Override
       public void shutdown() {}
-
-      @Override
-      public boolean isShutdown() {
-        return false;
-      }
 
       @Override
       public RequestBatcher batcher() {

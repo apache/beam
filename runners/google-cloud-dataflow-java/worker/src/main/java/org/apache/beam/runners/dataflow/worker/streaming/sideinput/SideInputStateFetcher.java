@@ -34,6 +34,7 @@ import org.apache.beam.runners.dataflow.worker.WindmillTimeUtils;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalData;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalDataRequest;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -52,6 +53,7 @@ import org.slf4j.LoggerFactory;
 
 /** Class responsible for fetching side input state from the streaming backend. */
 @NotThreadSafe
+@Internal
 public class SideInputStateFetcher {
   private static final Logger LOG = LoggerFactory.getLogger(SideInputStateFetcher.class);
 

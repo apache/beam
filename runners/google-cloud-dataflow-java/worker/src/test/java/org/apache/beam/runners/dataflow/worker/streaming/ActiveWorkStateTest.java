@@ -32,7 +32,7 @@ import java.util.Map;
 import java.util.Optional;
 import org.apache.beam.runners.dataflow.worker.streaming.ActiveWorkState.ActivateWorkResult;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
-import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.GetDataClient;
+import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
@@ -82,22 +82,7 @@ public class ActiveWorkStateTest {
 
   private static Work.ProcessingContext createWorkProcessingContext() {
     return Work.createProcessingContext(
-        "computationId", createMockGetDataClient(), ignored -> {}, mock(HeartbeatSender.class));
-  }
-
-  private static GetDataClient createMockGetDataClient() {
-    return new GetDataClient() {
-      @Override
-      public Windmill.KeyedGetDataResponse getStateData(
-          String computation, Windmill.KeyedGetDataRequest request) {
-        return Windmill.KeyedGetDataResponse.getDefaultInstance();
-      }
-
-      @Override
-      public Windmill.GlobalData getSideInputData(Windmill.GlobalDataRequest request) {
-        return Windmill.GlobalData.getDefaultInstance();
-      }
-    };
+        "computationId", new FakeGetDataClient(), ignored -> {}, mock(HeartbeatSender.class));
   }
 
   private static WorkId workId(long workToken, long cacheToken) {

@@ -29,18 +29,15 @@ import org.apache.beam.runners.dataflow.worker.WindmillComputationKey;
 import org.apache.beam.runners.dataflow.worker.windmill.ApplianceWindmillClient;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationGetDataRequest;
-import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
-import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.Heartbeats;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.SettableFuture;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Appliance implementation of {@link GetDataClient}. */
 @Internal
 @ThreadSafe
-public final class ApplianceGetDataClient implements GetDataClient, WorkRefreshClient {
+public final class ApplianceGetDataClient implements GetDataClient {
   private static final int MAX_READS_PER_BATCH = 60;
   private static final int MAX_ACTIVE_READS = 10;
 
@@ -61,19 +58,12 @@ public final class ApplianceGetDataClient implements GetDataClient, WorkRefreshC
     this.activeReadThreads = 0;
   }
 
-  public static GetDataClient create(
-      ApplianceWindmillClient windmillClient, ThrottlingGetDataMetricTracker getDataMetricTracker) {
-    return new ApplianceGetDataClient(windmillClient, getDataMetricTracker);
-  }
-
   @Override
   public Windmill.KeyedGetDataResponse getStateData(
-      String computation, Windmill.KeyedGetDataRequest request) {
-    try (AutoCloseable ignored =
-        getDataMetricTracker.trackSingleCallWithThrottling(
-            ThrottlingGetDataMetricTracker.Type.STATE)) {
+      String computationId, Windmill.KeyedGetDataRequest request) {
+    try (AutoCloseable ignored = getDataMetricTracker.trackStateDataFetchWithThrottling()) {
       SettableFuture<Windmill.KeyedGetDataResponse> response = SettableFuture.create();
-      ReadBatch batch = addToReadBatch(new QueueEntry(computation, request, response));
+      ReadBatch batch = addToReadBatch(new QueueEntry(computationId, request, response));
       if (batch != null) {
         issueReadBatch(batch);
       }
@@ -81,7 +71,7 @@ public final class ApplianceGetDataClient implements GetDataClient, WorkRefreshC
     } catch (Exception e) {
       throw new GetDataException(
           "Error occurred fetching state for computation="
-              + computation
+              + computationId
               + ", key="
               + request.getShardingKey(),
           e);
@@ -90,37 +80,13 @@ public final class ApplianceGetDataClient implements GetDataClient, WorkRefreshC
 
   @Override
   public Windmill.GlobalData getSideInputData(Windmill.GlobalDataRequest request) {
-    try (AutoCloseable ignored =
-        getDataMetricTracker.trackSingleCallWithThrottling(
-            ThrottlingGetDataMetricTracker.Type.STATE)) {
+    try (AutoCloseable ignored = getDataMetricTracker.trackSideInputFetchWithThrottling()) {
       return windmillClient
           .getData(Windmill.GetDataRequest.newBuilder().addGlobalDataFetchRequests(request).build())
           .getGlobalData(0);
     } catch (Exception e) {
       throw new GetDataException(
           "Error occurred fetching side input for tag=" + request.getDataId(), e);
-    }
-  }
-
-  /**
-   * Appliance sends heartbeats (used to refresh active work) as KeyedGetDataRequests. So we must
-   * translate the HeartbeatRequest to a KeyedGetDataRequest.
-   */
-  @Override
-  public void refreshActiveWork(Map<HeartbeatSender, Heartbeats> heartbeats) {
-    Map.Entry<HeartbeatSender, Heartbeats> heartbeat =
-        Iterables.getOnlyElement(heartbeats.entrySet());
-    HeartbeatSender heartbeatSender = heartbeat.getKey();
-    Heartbeats heartbeatToSend = heartbeat.getValue();
-
-    if (heartbeatToSend.heartbeatRequests().isEmpty()) {
-      return;
-    }
-
-    try (AutoCloseable ignored = getDataMetricTracker.trackHeartbeats(heartbeatToSend.size())) {
-      heartbeatSender.sendHeartbeats(heartbeatToSend);
-    } catch (Exception e) {
-      throw new GetDataException("Error occurred refreshing heartbeats=" + heartbeatToSend, e);
     }
   }
 
@@ -133,7 +99,8 @@ public final class ApplianceGetDataClient implements GetDataClient, WorkRefreshC
 
   private void issueReadBatch(ReadBatch batch) {
     try {
-      Preconditions.checkState(batch.startRead.get());
+      // Possibly block until the batch is allowed to start.
+      batch.startRead.get();
     } catch (InterruptedException e) {
       // We don't expect this thread to be interrupted. To simplify handling, we just fall through
       // to issuing the call.
@@ -191,7 +158,7 @@ public final class ApplianceGetDataClient implements GetDataClient, WorkRefreshC
         } else {
           // Notify the thread responsible for issuing the next batch read.
           ReadBatch startBatch = pendingReadBatches.remove(0);
-          startBatch.startRead.set(true);
+          startBatch.startRead.set(null);
         }
       }
     }
@@ -227,13 +194,13 @@ public final class ApplianceGetDataClient implements GetDataClient, WorkRefreshC
     }
     ReadBatch batch = new ReadBatch();
     batch.reads.add(entry);
-    batch.startRead.set(true);
+    batch.startRead.set(null);
     return batch;
   }
 
   private static final class ReadBatch {
     ArrayList<QueueEntry> reads = new ArrayList<>();
-    SettableFuture<Boolean> startRead = SettableFuture.create();
+    SettableFuture<Void> startRead = SettableFuture.create();
   }
 
   private static final class QueueEntry {

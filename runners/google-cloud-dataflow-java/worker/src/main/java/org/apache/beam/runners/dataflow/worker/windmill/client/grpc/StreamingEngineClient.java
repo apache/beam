@@ -45,7 +45,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkerMetadataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
-import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.DirectGetDataClient;
+import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.StreamGetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.ThrottlingGetDataMetricTracker;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCachingStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
@@ -410,7 +410,7 @@ public final class StreamingEngineClient {
             streamFactory,
             workItemScheduler,
             getDataStream ->
-                DirectGetDataClient.create(
+                StreamGetDataClient.create(
                     getDataStream, this::getGlobalDataStream, getDataMetricTracker),
             workCommitterFactory);
     windmillStreamSender.startStreams();

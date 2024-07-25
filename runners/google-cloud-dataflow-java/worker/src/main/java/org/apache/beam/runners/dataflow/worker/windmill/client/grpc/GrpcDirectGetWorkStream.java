@@ -110,6 +110,7 @@ public final class GrpcDirectGetWorkStream
       Supplier<WorkCommitter> workCommitter,
       WorkItemScheduler workItemScheduler) {
     super(
+        "GetWorkStream",
         startGetWorkRpcFn,
         backoff,
         streamObserverFactory,
@@ -120,8 +121,6 @@ public final class GrpcDirectGetWorkStream
     this.getWorkThrottleTimer = getWorkThrottleTimer;
     this.workItemScheduler = workItemScheduler;
     this.workItemBuffers = new ConcurrentHashMap<>();
-    // Use the same GetDataStream and CommitWorkStream instances to process all the work in this
-    // stream.
     this.heartbeatSender = Suppliers.memoize(heartbeatSender::get);
     this.workCommitter = Suppliers.memoize(workCommitter::get);
     this.getDataClient = Suppliers.memoize(getDataClient::get);

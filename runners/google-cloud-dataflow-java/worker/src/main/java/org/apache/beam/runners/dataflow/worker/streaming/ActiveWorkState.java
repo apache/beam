@@ -206,14 +206,17 @@ public final class ActiveWorkState {
         .collect(
             flatteningToImmutableListMultimap(
                 Entry::getKey,
-                e -> e.getValue().stream().map(ExecutableWork::work).map(Work::refreshableView)));
+                e ->
+                    e.getValue().stream()
+                        .map(ExecutableWork::work)
+                        .map(work -> (RefreshableWork) work)));
   }
 
   synchronized ImmutableList<RefreshableWork> getRefreshableWork(Instant refreshDeadline) {
     return activeWork.values().stream()
         .flatMap(Deque::stream)
         .map(ExecutableWork::work)
-        .filter(work -> work.isRefreshable(refreshDeadline))
+        .filter(work -> !work.isFailed() && work.getStartTime().isBefore(refreshDeadline))
         .collect(toImmutableList());
   }
 

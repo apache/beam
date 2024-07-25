@@ -65,6 +65,7 @@ public final class GrpcGetWorkerMetadataStream
       ThrottleTimer getWorkerMetadataThrottleTimer,
       Consumer<WindmillEndpoints> serverMappingConsumer) {
     super(
+        "GetWorkerMetadataStream",
         startGetWorkerMetadataRpcFn,
         backoff,
         streamObserverFactory,

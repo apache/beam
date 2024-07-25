@@ -73,6 +73,7 @@ public final class GrpcGetWorkStream
       ThrottleTimer getWorkThrottleTimer,
       WorkItemReceiver receiver) {
     super(
+        "GetWorkStream",
         startGetWorkRpcFn,
         backoff,
         streamObserverFactory,

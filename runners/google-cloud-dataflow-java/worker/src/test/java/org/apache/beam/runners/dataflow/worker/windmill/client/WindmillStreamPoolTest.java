@@ -260,15 +260,5 @@ public class WindmillStreamPoolTest {
     public void shutdown() {
       halfClose();
     }
-
-    @Override
-    public boolean isShutdown() {
-      return closed;
-    }
-
-    @Override
-    public Type streamType() {
-      return Type.GET_DATA;
-    }
   }
 }

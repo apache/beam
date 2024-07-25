@@ -150,10 +150,6 @@ public final class Work implements RefreshableWork {
     return latencyAttribution;
   }
 
-  public RefreshableWork refreshableView() {
-    return this;
-  }
-
   public WorkItem getWorkItem() {
     return workItem;
   }
@@ -207,11 +203,6 @@ public final class Work implements RefreshableWork {
 
   public String getLatencyTrackingId() {
     return latencyTrackingId;
-  }
-
-  @Override
-  public boolean isRefreshable(Instant refreshDeadline) {
-    return !isFailed && getStartTime().isBefore(refreshDeadline);
   }
 
   @Override

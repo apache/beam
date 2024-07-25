@@ -95,7 +95,7 @@ import org.apache.beam.runners.dataflow.worker.testing.TestCountingSource;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.NativeReaderIterator;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
-import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.GetDataClient;
+import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReader;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
@@ -199,24 +199,9 @@ public class WorkerCustomSourcesTest {
         workItem,
         watermarks,
         Work.createProcessingContext(
-            COMPUTATION_ID, createMockGetDataClient(), ignored -> {}, mock(HeartbeatSender.class)),
+            COMPUTATION_ID, new FakeGetDataClient(), ignored -> {}, mock(HeartbeatSender.class)),
         Instant::now,
         Collections.emptyList());
-  }
-
-  private static GetDataClient createMockGetDataClient() {
-    return new GetDataClient() {
-      @Override
-      public Windmill.KeyedGetDataResponse getStateData(
-          String computation, Windmill.KeyedGetDataRequest request) {
-        return Windmill.KeyedGetDataResponse.getDefaultInstance();
-      }
-
-      @Override
-      public Windmill.GlobalData getSideInputData(Windmill.GlobalDataRequest request) {
-        return Windmill.GlobalData.getDefaultInstance();
-      }
-    };
   }
 
   private static class SourceProducingSubSourcesInSplit extends MockSource {
@@ -1014,7 +999,7 @@ public class WorkerCustomSourcesTest {
             Watermarks.builder().setInputDataWatermark(new Instant(0)).build(),
             Work.createProcessingContext(
                 COMPUTATION_ID,
-                createMockGetDataClient(),
+                new FakeGetDataClient(),
                 ignored -> {},
                 mock(HeartbeatSender.class)),
             Instant::now,

@@ -69,6 +69,7 @@ public final class GrpcCommitWorkStream
       AtomicLong idGenerator,
       int streamingRpcBatchLimit) {
     super(
+        "CommitWorkStream",
         startCommitWorkRpcFn,
         backoff,
         streamObserverFactory,

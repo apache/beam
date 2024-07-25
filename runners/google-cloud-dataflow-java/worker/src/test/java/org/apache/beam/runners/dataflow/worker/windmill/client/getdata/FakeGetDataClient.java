@@ -17,11 +17,23 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.client.getdata;
 
-import java.util.Map;
-import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
-import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.Heartbeats;
+import java.io.PrintWriter;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 
-/** Client for requesting work refresh via heartbeats. */
-public interface WorkRefreshClient {
-  void refreshActiveWork(Map<HeartbeatSender, Heartbeats> heartbeats);
+/** Fake {@link GetDataClient} implementation for testing. */
+public final class FakeGetDataClient implements GetDataClient {
+  @Override
+  public Windmill.KeyedGetDataResponse getStateData(
+      String computationId, Windmill.KeyedGetDataRequest request) throws GetDataException {
+    return Windmill.KeyedGetDataResponse.getDefaultInstance();
+  }
+
+  @Override
+  public Windmill.GlobalData getSideInputData(Windmill.GlobalDataRequest request)
+      throws GetDataException {
+    return Windmill.GlobalData.getDefaultInstance();
+  }
+
+  @Override
+  public void printHtml(PrintWriter writer) {}
 }

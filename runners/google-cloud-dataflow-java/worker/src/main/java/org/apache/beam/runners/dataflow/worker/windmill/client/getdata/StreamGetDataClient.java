@@ -17,25 +17,27 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.client.getdata;
 
+import java.io.PrintWriter;
 import java.util.function.Function;
 import org.apache.beam.runners.dataflow.worker.WorkItemCancelledException;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.sdk.annotations.Internal;
 
 /** {@link GetDataClient} that fetches data directly from a specific {@link GetDataStream}. */
 @Internal
-public final class DirectGetDataClient implements GetDataClient {
+public final class StreamGetDataClient implements GetDataClient {
 
-  private final GetDataStream directGetDataStream;
+  private final GetDataStream getDataStream;
   private final Function<String, GetDataStream> sideInputGetDataStreamFactory;
   private final ThrottlingGetDataMetricTracker getDataMetricTracker;
 
-  private DirectGetDataClient(
-      GetDataStream directGetDataStream,
+  private StreamGetDataClient(
+      GetDataStream getDataStream,
       Function<String, GetDataStream> sideInputGetDataStreamFactory,
       ThrottlingGetDataMetricTracker getDataMetricTracker) {
-    this.directGetDataStream = directGetDataStream;
+    this.getDataStream = getDataStream;
     this.sideInputGetDataStreamFactory = sideInputGetDataStreamFactory;
     this.getDataMetricTracker = getDataMetricTracker;
   }
@@ -44,51 +46,56 @@ public final class DirectGetDataClient implements GetDataClient {
       GetDataStream getDataStream,
       Function<String, GetDataStream> sideInputGetDataStreamFactory,
       ThrottlingGetDataMetricTracker getDataMetricTracker) {
-    return new DirectGetDataClient(
+    return new StreamGetDataClient(
         getDataStream, sideInputGetDataStreamFactory, getDataMetricTracker);
   }
 
+  /**
+   * @throws WorkItemCancelledException when the fetch fails due to the stream being shutdown,
+   *     indicating that the {@link
+   *     org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem} that triggered the
+   *     fetch has been cancelled.
+   */
   @Override
   public Windmill.KeyedGetDataResponse getStateData(
-      String computation, Windmill.KeyedGetDataRequest request) {
-    if (directGetDataStream.isShutdown()) {
+      String computationId, Windmill.KeyedGetDataRequest request) throws GetDataException {
+    try (AutoCloseable ignored = getDataMetricTracker.trackStateDataFetchWithThrottling()) {
+      return getDataStream.requestKeyedData(computationId, request);
+    } catch (WindmillStream.WindmillStreamShutdownException e) {
       throw new WorkItemCancelledException(request.getShardingKey());
-    }
-
-    try (AutoCloseable ignored =
-        getDataMetricTracker.trackSingleCallWithThrottling(
-            ThrottlingGetDataMetricTracker.Type.STATE)) {
-      return directGetDataStream.requestKeyedData(computation, request);
     } catch (Exception e) {
-      if (directGetDataStream.isShutdown()) {
-        throw new WorkItemCancelledException(request.getShardingKey());
-      }
-
       throw new GetDataException(
           "Error occurred fetching state for computation="
-              + computation
+              + computationId
               + ", key="
               + request.getShardingKey(),
           e);
     }
   }
 
+  /**
+   * @throws WorkItemCancelledException when the fetch fails due to the stream being shutdown,
+   *     indicating that the {@link
+   *     org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem} that triggered the
+   *     fetch has been cancelled.
+   */
   @Override
-  public Windmill.GlobalData getSideInputData(Windmill.GlobalDataRequest request) {
+  public Windmill.GlobalData getSideInputData(Windmill.GlobalDataRequest request)
+      throws GetDataException {
     GetDataStream sideInputGetDataStream =
         sideInputGetDataStreamFactory.apply(request.getDataId().getTag());
-    if (sideInputGetDataStream.isShutdown()) {
-      throw new GetDataException(
-          "Error occurred fetching side input for tag=" + request.getDataId());
-    }
-
-    try (AutoCloseable ignored =
-        getDataMetricTracker.trackSingleCallWithThrottling(
-            ThrottlingGetDataMetricTracker.Type.SIDE_INPUT)) {
+    try (AutoCloseable ignored = getDataMetricTracker.trackSideInputFetchWithThrottling()) {
       return sideInputGetDataStream.requestGlobalData(request);
+    } catch (WindmillStream.WindmillStreamShutdownException e) {
+      throw new WorkItemCancelledException(e);
     } catch (Exception e) {
       throw new GetDataException(
           "Error occurred fetching side input for tag=" + request.getDataId(), e);
     }
+  }
+
+  @Override
+  public void printHtml(PrintWriter writer) {
+    getDataMetricTracker.printHtml(writer);
   }
 }

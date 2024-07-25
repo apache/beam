@@ -90,6 +90,7 @@ public final class GrpcGetDataStream
       boolean sendKeyedGetDataRequests,
       Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses) {
     super(
+        "GetDataStream",
         startGetDataRpcFn,
         backoff,
         streamObserverFactory,
@@ -199,6 +200,10 @@ public final class GrpcGetDataStream
 
   @Override
   public void refreshActiveWork(Map<String, Collection<HeartbeatRequest>> heartbeats) {
+    if (isShutdown()) {
+      throw new WindmillStreamShutdownException("Unable to refresh work for shutdown stream.");
+    }
+
     StreamingGetDataRequest.Builder builder = StreamingGetDataRequest.newBuilder();
     if (sendKeyedGetDataRequests) {
       long builderBytes = 0;
