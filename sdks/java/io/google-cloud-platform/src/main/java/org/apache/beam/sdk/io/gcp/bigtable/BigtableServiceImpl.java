@@ -436,14 +436,19 @@ class BigtableServiceImpl implements BigtableService {
         int startCmp = StartPoint.extract(rowRange).compareTo(new StartPoint(lastKey, true));
         int endCmp = EndPoint.extract(rowRange).compareTo(new EndPoint(lastKey, true));
 
-        if (startCmp > 0) {
-          // If the startKey is passed the split point than add the whole range
-          segment.addRowRanges(rowRange);
-        } else if (endCmp > 0) {
-          // Row is split, remove all read rowKeys and split RowSet at last buffered Row
-          RowRange subRange = rowRange.toBuilder().setStartKeyOpen(lastKey).build();
-          segment.addRowRanges(subRange);
+        if (endCmp <= 0){
+          // range end is on or left of the split: skip
+          continue;
         }
+
+        RowRange.Builder newRange = rowRange.toBuilder();
+        if (startCmp > 0){
+          // If the startKey is passed the split point than add the whole range
+          segment.addRowRanges(newRange.build());
+        } else {
+          // Row is split, remove all read rowKeys and split RowSet at last buffered Row          
+          segment.addRowRanges(newRange.setStartKeyOpen(lastKey).build());
+        } 
       }
       if (segment.getRowRangesCount() == 0) {
         return null;
