@@ -36,11 +36,6 @@ public interface GetDataClient {
   KeyedGetDataResponse getStateData(String computationId, KeyedGetDataRequest request)
       throws GetDataException;
 
-  /**
-   * Issues a blocking call to fetch side input data.
-   *
-   * @throws GetDataException when there was an unexpected error during the attempted fetch.
-   */
   GlobalData getSideInputData(GlobalDataRequest request) throws GetDataException;
 
   void printHtml(PrintWriter writer);
