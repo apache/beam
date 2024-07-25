@@ -32,9 +32,9 @@ import org.apache.beam.sdk.values.PCollection;
 class CsvIOParse<T> extends PTransform<PCollection<String>, PCollection<T>> {
 
   /** Stores required parameters for parsing. */
-  private final CsvIOParseConfiguration.Builder configBuilder;
+  private final CsvIOParseConfiguration.Builder<T> configBuilder;
 
-  CsvIOParse(CsvIOParseConfiguration.Builder configBuilder) {
+  CsvIOParse(CsvIOParseConfiguration.Builder<T> configBuilder) {
     this.configBuilder = configBuilder;
   }
 
