@@ -112,6 +112,7 @@
 
 * X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
 * [IcebergIO] IcebergCatalogConfig was changed to support specifying catalog properties in a key-store fashion ([#31726](https://github.com/apache/beam/pull/31726))
+* [SpannerIO] Added validation that query and table cannot be specified at the same time for SpannerIO.read(). Previously withQuery overrides withTable, if set ([#24956](https://github.com/apache/beam/issues/24956)).
 
 ## Deprecations
 
