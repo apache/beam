@@ -1064,5 +1064,5 @@ def expand_pipeline(
   return YamlTransform(
       pipeline_as_composite(pipeline_spec['pipeline']),
       yaml_provider.merge_providers(
-          pipeline_spec.get('providers', []), providers or
-          {})).expand(beam.pvalue.PBegin(pipeline))
+          yaml_provider.parse_providers(pipeline_spec.get('providers', [])),
+          providers or {})).expand(beam.pvalue.PBegin(pipeline))
