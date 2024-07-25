@@ -23,10 +23,18 @@ from langchain_text_splitters import SentenceTransformersTokenTextSplitter
 
 from apache_beam.transforms import DoFn
 from apache_beam.transforms import PTransform
+from enum import Enum
+
 
 __all__ = [
     'ChunksGeneration',
+    'ChunkingStrategy'
 ]
+
+class ChunkingStrategy(Enum):
+    SPLIT_BY_CHARACTER = 0
+    RECURSIVE_SPLIT_BY_CHARACTER = 1
+    SPLIT_BY_TOKENS = 2
 
 
 class ChunksGeneration(PTransform):
@@ -82,8 +90,8 @@ class _GenerateChunksFn(DoFn):
 
     def process(self, element, *args, **kwargs):
 
-        # For split by character
-        if self.chunking_strategy == 'split by character':
+        # For recursive split by character
+        if self.chunking_strategy == ChunkingStrategy.RECURSIVE_SPLIT_BY_CHARACTER:
             text_splitter = RecursiveCharacterTextSplitter(
                 chunk_size=self.chunk_size,
                 chunk_overlap=self.chunk_overlap,
@@ -91,8 +99,8 @@ class _GenerateChunksFn(DoFn):
                 is_separator_regex=False,
             )
 
-        # For  reversesplit by character
-        if self.chunking_strategy == 'reverse split by character':
+        # For  split by character
+        elif self.chunking_strategy == ChunkingStrategy.SPLIT_BY_CHARACTER:
             text_splitter = CharacterTextSplitter(
                 chunk_size=self.chunk_size,
                 chunk_overlap=self.chunk_overlap,
@@ -101,11 +109,14 @@ class _GenerateChunksFn(DoFn):
             )
 
         # For split by tokens
-        if self.chunking_strategy == 'split by tokens':
+        elif self.chunking_strategy == ChunkingStrategy.SPLIT_BY_TOKENS:
             text_splitter = SentenceTransformersTokenTextSplitter(
                 chunk_overlap=self.chunk_overlap,
                 model_name='all-MiniLM-L6-v2'
             )
+
+        else:
+            raise ValueError(f"Invalid chunking strategy: {self.chunking_strategy}")
 
         texts = text_splitter.split_text(element['text'])[:]
 
