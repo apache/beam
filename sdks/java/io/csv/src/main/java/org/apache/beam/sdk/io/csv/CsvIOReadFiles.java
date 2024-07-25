@@ -31,9 +31,9 @@ import org.apache.beam.sdk.values.PCollection;
 //  dependencies are completed.
 class CsvIOReadFiles<T> extends PTransform<PCollection<FileIO.ReadableFile>, PCollection<T>> {
   /** Stores required parameters for parsing. */
-  private final CsvIOParseConfiguration.Builder configBuilder;
+  private final CsvIOParseConfiguration.Builder<T> configBuilder;
 
-  CsvIOReadFiles(CsvIOParseConfiguration.Builder configBuilder) {
+  CsvIOReadFiles(CsvIOParseConfiguration.Builder<T> configBuilder) {
     this.configBuilder = configBuilder;
   }
 
