@@ -20,6 +20,11 @@ package org.apache.beam.sdk.schemas;
 import java.util.List;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
+/**
+ * A newer version of {@link GetterBasedSchemaProvider}, which works with {@link TypeDescriptor}s,
+ * and which by default throws an {@link UnsupportedOperationException} in the old, {@link Class}
+ * based methods.
+ */
 @SuppressWarnings("rawtypes")
 public abstract class GetterBasedSchemaProviderV2 extends GetterBasedSchemaProvider {
   @Override
