@@ -39,7 +39,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
   "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes"
 })
-public class AutoValueSchema extends GetterBasedSchemaProvider {
+public class AutoValueSchema extends GetterBasedSchemaProviderV2 {
   /** {@link FieldValueTypeSupplier} that's based on AutoValue getters. */
   @VisibleForTesting
   public static class AbstractGetterTypeSupplier implements FieldValueTypeSupplier {

@@ -50,7 +50,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
  * on the schema.
  */
 @SuppressWarnings({"nullness", "rawtypes"})
-public class JavaFieldSchema extends GetterBasedSchemaProvider {
+public class JavaFieldSchema extends GetterBasedSchemaProviderV2 {
   /** {@link FieldValueTypeSupplier} that's based on public fields. */
   @VisibleForTesting
   public static class JavaFieldTypeSupplier implements FieldValueTypeSupplier {

@@ -53,7 +53,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
   "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes"
 })
-public class JavaBeanSchema extends GetterBasedSchemaProvider {
+public class JavaBeanSchema extends GetterBasedSchemaProviderV2 {
   /** {@link FieldValueTypeSupplier} that's based on getter methods. */
   @VisibleForTesting
   public static class GetterTypeSupplier implements FieldValueTypeSupplier {
@@ -120,19 +120,22 @@ public class JavaBeanSchema extends GetterBasedSchemaProvider {
                 if (t.getMethod().getAnnotation(SchemaFieldNumber.class) != null) {
                   throw new RuntimeException(
                       String.format(
-                          "@SchemaFieldNumber can only be used on getters in Java Beans. Found on setter '%s'",
+                          "@SchemaFieldNumber can only be used on getters in Java Beans. Found on"
+                              + " setter '%s'",
                           t.getMethod().getName()));
                 }
                 if (t.getMethod().getAnnotation(SchemaFieldName.class) != null) {
                   throw new RuntimeException(
                       String.format(
-                          "@SchemaFieldName can only be used on getters in Java Beans. Found on setter '%s'",
+                          "@SchemaFieldName can only be used on getters in Java Beans. Found on"
+                              + " setter '%s'",
                           t.getMethod().getName()));
                 }
                 if (t.getMethod().getAnnotation(SchemaCaseFormat.class) != null) {
                   throw new RuntimeException(
                       String.format(
-                          "@SchemaCaseFormat can only be used on getters in Java Beans. Found on setter '%s'",
+                          "@SchemaCaseFormat can only be used on getters in Java Beans. Found on"
+                              + " setter '%s'",
                           t.getMethod().getName()));
                 }
                 return t;

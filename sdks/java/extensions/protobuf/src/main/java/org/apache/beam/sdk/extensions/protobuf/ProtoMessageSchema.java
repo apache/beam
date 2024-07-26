@@ -28,7 +28,7 @@ import java.util.Map;
 import org.apache.beam.sdk.extensions.protobuf.ProtoByteBuddyUtils.ProtoTypeConversionsFactory;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
-import org.apache.beam.sdk.schemas.GetterBasedSchemaProvider;
+import org.apache.beam.sdk.schemas.GetterBasedSchemaProviderV2;
 import org.apache.beam.sdk.schemas.RowMessages;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
@@ -49,7 +49,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
   "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
-public class ProtoMessageSchema extends GetterBasedSchemaProvider {
+public class ProtoMessageSchema extends GetterBasedSchemaProviderV2 {
 
   private static final class ProtoClassFieldValueTypeSupplier implements FieldValueTypeSupplier {
     @Override

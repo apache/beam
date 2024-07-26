@@ -38,7 +38,7 @@ import org.apache.beam.sdk.schemas.CachingFactory;
 import org.apache.beam.sdk.schemas.Factory;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
-import org.apache.beam.sdk.schemas.GetterBasedSchemaProvider;
+import org.apache.beam.sdk.schemas.GetterBasedSchemaProviderV2;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaUserTypeCreator;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -60,7 +60,7 @@ import software.amazon.awssdk.utils.builder.SdkBuilder;
  * software.amazon.awssdk.services.dynamodb.model.AttributeValue DynamoDB AttributeValue} ({@link
  * org.apache.beam.sdk.io.aws2.dynamodb.AttributeValueCoder coder}).
  */
-public class AwsSchemaProvider extends GetterBasedSchemaProvider {
+public class AwsSchemaProvider extends GetterBasedSchemaProviderV2 {
   /** Byte-code generated {@link SdkBuilder} factories. */
   @SuppressWarnings("rawtypes") // Crashes checker otherwise
   private static final Map<Class, AwsBuilderFactory> FACTORIES = Maps.newConcurrentMap();
