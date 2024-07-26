@@ -17,22 +17,58 @@
  */
 package org.apache.beam.sdk.io.solace;
 
+import com.google.auto.value.AutoValue;
+import com.solacesystems.jcsmp.BytesXMLMessage;
+import org.apache.beam.sdk.io.solace.SolaceIO.SubmissionMode;
 import org.apache.beam.sdk.io.solace.broker.SessionService;
 import org.apache.beam.sdk.io.solace.broker.SessionServiceFactory;
+import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
-public class MockSessionServiceFactory extends SessionServiceFactory {
-  SessionService sessionService;
+@AutoValue
+public abstract class MockSessionServiceFactory extends SessionServiceFactory {
+  public abstract @Nullable SubmissionMode mode();
 
-  public MockSessionServiceFactory(SessionService clientService) {
-    this.sessionService = clientService;
+  public abstract @Nullable SerializableFunction<Integer, BytesXMLMessage> recordFn();
+
+  public abstract int minMessagesReceived();
+
+  public abstract boolean useEmptySessionMock();
+
+  public static Builder builder() {
+    return new AutoValue_MockSessionServiceFactory.Builder()
+        .minMessagesReceived(0)
+        .useEmptySessionMock(false);
   }
 
   public static SessionServiceFactory getDefaultMock() {
-    return new MockSessionServiceFactory(new MockEmptySessionService());
+    return MockSessionServiceFactory.builder().build();
+  }
+
+  @AutoValue.Builder
+  public abstract static class Builder {
+    public abstract Builder mode(@Nullable SubmissionMode mode);
+
+    public abstract Builder recordFn(
+        @Nullable SerializableFunction<Integer, BytesXMLMessage> recordFn);
+
+    public abstract Builder minMessagesReceived(int minMessagesReceived);
+
+    public abstract Builder useEmptySessionMock(boolean useEmptySessionMock);
+
+    public abstract MockSessionServiceFactory build();
   }
 
   @Override
   public SessionService create() {
-    return sessionService;
+    if (useEmptySessionMock()) {
+      return MockEmptySessionService.create();
+    } else {
+      return MockSessionService.builder()
+          .recordFn(recordFn())
+          .minMessagesReceived(minMessagesReceived())
+          .mode(mode())
+          .build();
+    }
   }
 }

@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.solace.broker;
 
 import static org.apache.beam.sdk.io.solace.broker.SessionService.DEFAULT_VPN_NAME;
-import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import com.google.auto.value.AutoValue;
 
@@ -65,11 +64,15 @@ public abstract class BasicAuthJcsmpSessionServiceFactory extends SessionService
 
   @Override
   public SessionService create() {
-    return new BasicAuthJcsmpSessionService(
-        checkStateNotNull(queue, "SolaceIO.Read: Queue is not set.").getName(),
-        host(),
-        username(),
-        password(),
-        vpnName());
+    BasicAuthJcsmpSessionService.Builder builder = BasicAuthJcsmpSessionService.builder();
+    if (queue != null) {
+      builder = builder.queueName(queue.getName());
+    }
+    return builder
+        .host(host())
+        .username(username())
+        .password(password())
+        .vpnName(vpnName())
+        .build();
   }
 }
