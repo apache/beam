@@ -17,12 +17,14 @@
  */
 package org.apache.beam.sdk.io.solace;
 
+import static org.apache.beam.sdk.values.TypeDescriptors.strings;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import com.solacesystems.jcsmp.BytesXMLMessage;
+import com.solacesystems.jcsmp.DeliveryMode;
 import com.solacesystems.jcsmp.Destination;
 import com.solacesystems.jcsmp.Queue;
 import com.solacesystems.jcsmp.Topic;
@@ -31,8 +33,11 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.io.solace.SolaceIO.Read;
@@ -44,11 +49,14 @@ import org.apache.beam.sdk.io.solace.data.SolaceDataUtils;
 import org.apache.beam.sdk.io.solace.data.SolaceDataUtils.SimpleRecord;
 import org.apache.beam.sdk.io.solace.read.SolaceCheckpointMark;
 import org.apache.beam.sdk.io.solace.read.UnboundedSolaceSource;
+import org.apache.beam.sdk.io.solace.write.SolaceOutput;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -61,9 +69,10 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
-public class SolaceIOTest {
+public class SolaceIOReadTest {
 
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
+  @Rule public final transient TestPipeline writePipeline = TestPipeline.create();
 
   private Read<Record> getDefaultRead() {
     return SolaceIO.read()
@@ -131,6 +140,49 @@ public class SolaceIOTest {
     // Assert results
     PAssert.that(events).containsInAnyOrder(expected);
     pipeline.run();
+  }
+
+  @Test
+  public void testWriteMessages() {
+    TestStream<KV<String, String>> testStream =
+        TestStream.create(KvCoder.of(AvroCoder.of(String.class), AvroCoder.of(String.class)))
+            .addElements(
+                KV.of("450", "payload0"), KV.of("451", "payload1"), KV.of("452", "payload2"))
+            .advanceWatermarkToInfinity();
+
+    SolaceIO.SubmissionMode mode = SolaceIO.SubmissionMode.LOWER_LATENCY;
+    MockSessionService service = new MockSessionService(mode);
+    SessionServiceFactory fakeSessionServiceFactory = new MockSessionServiceFactory(service);
+
+    PCollection<KV<String, String>> kvs = writePipeline.apply("Test stream", testStream);
+
+    PCollection<Record> records =
+        kvs.apply(
+            "To Record",
+            MapElements.into(TypeDescriptor.of(Record.class))
+                .via(kv -> SolaceDataUtils.getSolaceRecord(kv.getValue(), kv.getKey())));
+
+    SolaceOutput output =
+        records.apply(
+            "Write to Solace",
+            SolaceIO.write()
+                .to(Solace.Queue.fromName("queue"))
+                .withSubmissionMode(mode)
+                .withWriterType(SolaceIO.WriterType.STREAMING)
+                .withDeliveryMode(DeliveryMode.PERSISTENT)
+                .withSessionServiceFactory(fakeSessionServiceFactory));
+
+    PCollection<String> ids =
+        output
+            .getSuccessfulPublish()
+            .apply(
+                "Get message ids",
+                MapElements.into(strings()).via(Solace.PublishResult::getMessageId));
+
+    PAssert.that(ids).containsInAnyOrder("450", "451", "452");
+    PAssert.that(output.getFailedPublish()).empty();
+
+    writePipeline.run();
   }
 
   @Test
@@ -205,17 +257,22 @@ public class SolaceIOTest {
   @Test
   public void testReadMessagesWithDeduplicationOnReplicationGroupMessageId() {
     // Broker that creates input data
+
+    String id0 = UUID.randomUUID().toString();
+    String id1 = UUID.randomUUID().toString();
+    String id2 = UUID.randomUUID().toString();
+
     MockSessionService mockClientService =
         new MockSessionService(
             index -> {
               List<BytesXMLMessage> messages =
                   ImmutableList.of(
                       SolaceDataUtils.getBytesXmlMessage(
-                          "payload_test0", null, null, new ReplicationGroupMessageIdImpl(2L, 1L)),
+                          "payload_test0", id0, null, new ReplicationGroupMessageIdImpl(2L, 1L)),
                       SolaceDataUtils.getBytesXmlMessage(
-                          "payload_test1", null, null, new ReplicationGroupMessageIdImpl(2L, 2L)),
+                          "payload_test1", id1, null, new ReplicationGroupMessageIdImpl(2L, 2L)),
                       SolaceDataUtils.getBytesXmlMessage(
-                          "payload_test2", null, null, new ReplicationGroupMessageIdImpl(2L, 2L)));
+                          "payload_test2", id2, null, new ReplicationGroupMessageIdImpl(2L, 2L)));
               return getOrNull(index, messages);
             },
             3);
@@ -227,10 +284,13 @@ public class SolaceIOTest {
     List<Solace.Record> expected = new ArrayList<>();
     expected.add(
         SolaceDataUtils.getSolaceRecord(
-            "payload_test0", null, new ReplicationGroupMessageIdImpl(2L, 1L)));
+            "payload_test0", id0, new ReplicationGroupMessageIdImpl(2L, 1L)));
     expected.add(
         SolaceDataUtils.getSolaceRecord(
-            "payload_test1", null, new ReplicationGroupMessageIdImpl(2L, 2L)));
+            "payload_test1", id1, new ReplicationGroupMessageIdImpl(2L, 2L)));
+    expected.add(
+        SolaceDataUtils.getSolaceRecord(
+            "payload_test2", id2, new ReplicationGroupMessageIdImpl(2L, 2L)));
 
     // Run the pipeline
     PCollection<Solace.Record> events =

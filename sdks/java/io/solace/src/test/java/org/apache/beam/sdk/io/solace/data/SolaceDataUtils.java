@@ -100,7 +100,7 @@ public class SolaceDataUtils {
             : DEFAULT_REPLICATION_GROUP_ID.toString();
 
     return Solace.Record.builder()
-        .setPayload(ByteBuffer.wrap(payload.getBytes(StandardCharsets.UTF_8)))
+        .setPayload(payload.getBytes(StandardCharsets.UTF_8))
         .setMessageId(messageId)
         .setDestination(
             Solace.Destination.builder()
@@ -116,7 +116,7 @@ public class SolaceDataUtils {
         .setTimeToLive(1000L)
         .setSenderTimestamp(null)
         .setReplicationGroupMessageId(replicationGroupMessageIdString)
-        .setAttachmentBytes(ByteBuffer.wrap(new byte[0]))
+        .setAttachmentBytes(new byte[0])
         .build();
   }
 

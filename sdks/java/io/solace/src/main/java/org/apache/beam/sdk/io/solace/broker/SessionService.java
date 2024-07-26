@@ -121,10 +121,18 @@ public abstract class SessionService implements Serializable {
   public abstract boolean isClosed();
 
   /**
-   * Creates a MessageReceiver object for receiving messages from Solace. Typically, this object is
-   * created from the session instance.
+   * Returns a MessageReceiver object for receiving messages from Solace. If it is the first time
+   * this method is used, the receiver is created from the session instance, otherwise it returns
+   * the receiver created initially.
    */
-  public abstract MessageReceiver createReceiver();
+  public abstract MessageReceiver getReceiver();
+
+  /**
+   * Returns a MessageProducer object for publishing messages to Solace. If it is the first time
+   * this method is used, the producer is created from the session instance, otherwise it returns
+   * the producer created initially.
+   */
+  public abstract MessageProducer getProducer();
 
   /**
    * Override this method and provide your specific properties, including all those related to

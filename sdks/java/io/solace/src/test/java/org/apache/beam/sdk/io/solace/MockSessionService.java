@@ -18,35 +18,41 @@
 package org.apache.beam.sdk.io.solace;
 
 import com.solacesystems.jcsmp.BytesXMLMessage;
+import com.solacesystems.jcsmp.DeliveryMode;
+import com.solacesystems.jcsmp.Destination;
 import com.solacesystems.jcsmp.JCSMPProperties;
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.io.solace.SolaceIO.SubmissionMode;
+import org.apache.beam.sdk.io.solace.broker.MessageProducer;
 import org.apache.beam.sdk.io.solace.broker.MessageReceiver;
+import org.apache.beam.sdk.io.solace.broker.PublishResultHandler;
 import org.apache.beam.sdk.io.solace.broker.SessionService;
+import org.apache.beam.sdk.io.solace.data.Solace;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class MockSessionService extends SessionService {
 
-  private final SerializableFunction<Integer, BytesXMLMessage> getRecordFn;
+  private final @Nullable SerializableFunction<Integer, BytesXMLMessage> getRecordFn;
   private MessageReceiver messageReceiver = null;
+  private MockProducer messageProducer = null;
   private final int minMessagesReceived;
   private final @Nullable SubmissionMode mode;
 
   public MockSessionService(
-      SerializableFunction<Integer, BytesXMLMessage> getRecordFn,
-      int minMessagesReceived,
-      @Nullable SubmissionMode mode) {
+      SerializableFunction<Integer, BytesXMLMessage> getRecordFn, int minMessagesReceived) {
     this.getRecordFn = getRecordFn;
     this.minMessagesReceived = minMessagesReceived;
-    this.mode = mode;
+    this.mode = null;
   }
 
-  public MockSessionService(
-      SerializableFunction<Integer, BytesXMLMessage> getRecordFn, int minMessagesReceived) {
-    this(getRecordFn, minMessagesReceived, null);
+  public MockSessionService(SubmissionMode mode) {
+    this.getRecordFn = null;
+    this.minMessagesReceived = 0;
+    this.mode = mode;
   }
 
   @Override
@@ -58,7 +64,7 @@ public class MockSessionService extends SessionService {
   }
 
   @Override
-  public MessageReceiver createReceiver() {
+  public MessageReceiver getReceiver() {
     if (messageReceiver == null) {
       messageReceiver = new MockReceiver(getRecordFn, minMessagesReceived);
     }
@@ -66,7 +72,27 @@ public class MockSessionService extends SessionService {
   }
 
   @Override
+  public MessageProducer getProducer() {
+    if (messageProducer == null) {
+      messageProducer = new MockProducer(new PublishResultHandler());
+    }
+    return messageProducer;
+  }
+
+  @Override
   public void connect() {}
+
+  @Override
+  public JCSMPProperties initializeSessionProperties(JCSMPProperties baseProperties) {
+    // Let's override some properties that will be overriden by the connector
+    // Opposite of the mode, to test that is overriden
+    baseProperties.setProperty(
+        JCSMPProperties.MESSAGE_CALLBACK_ON_REACTOR, mode == SubmissionMode.HIGHER_THROUGHPUT);
+
+    baseProperties.setProperty(JCSMPProperties.PUB_ACK_WINDOW_SIZE, 87);
+
+    return baseProperties;
+  }
 
   public static class MockReceiver implements MessageReceiver, Serializable {
     private final AtomicInteger counter = new AtomicInteger();
@@ -101,15 +127,49 @@ public class MockSessionService extends SessionService {
     }
   }
 
-  @Override
-  public JCSMPProperties initializeSessionProperties(JCSMPProperties baseProperties) {
-    // Let's override some properties that will be overriden by the connector
-    // Opposite of the mode, to test that is overriden
-    baseProperties.setProperty(
-        JCSMPProperties.MESSAGE_CALLBACK_ON_REACTOR, mode == SubmissionMode.HIGHER_THROUGHPUT);
+  public static class MockProducer extends MessageProducer implements Serializable {
+    private final PublishResultHandler handler;
 
-    baseProperties.setProperty(JCSMPProperties.PUB_ACK_WINDOW_SIZE, 87);
+    public MockProducer(PublishResultHandler handler) {
+      this.handler = handler;
+    }
 
-    return baseProperties;
+    @Override
+    public void publishSingleMessage(
+        Solace.Record msg,
+        Destination topicOrQueue,
+        boolean useCorrelationKeyLatency,
+        DeliveryMode deliveryMode) {
+      if (useCorrelationKeyLatency) {
+        handler.responseReceivedEx(
+            Solace.PublishResult.builder()
+                .setPublished(true)
+                .setMessageId(msg.getMessageId())
+                .build());
+      } else {
+        handler.responseReceivedEx(msg.getMessageId());
+      }
+    }
+
+    @Override
+    public int publishBatch(
+        List<Solace.Record> records,
+        boolean useCorrelationKeyLatency,
+        SerializableFunction<Solace.Record, Destination> destinationFn,
+        DeliveryMode deliveryMode) {
+      for (Solace.Record record : records) {
+        this.publishSingleMessage(
+            record, destinationFn.apply(record), useCorrelationKeyLatency, deliveryMode);
+      }
+      return records.size();
+    }
+
+    @Override
+    public boolean isClosed() {
+      return false;
+    }
+
+    @Override
+    public void close() {}
   }
 }

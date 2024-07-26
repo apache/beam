@@ -28,7 +28,10 @@ import com.solacesystems.jcsmp.JCSMPFactory;
 import com.solacesystems.jcsmp.JCSMPProperties;
 import com.solacesystems.jcsmp.JCSMPSession;
 import com.solacesystems.jcsmp.Queue;
+import com.solacesystems.jcsmp.XMLMessageProducer;
 import java.io.IOException;
+import java.util.Objects;
+import java.util.concurrent.Callable;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.solace.RetryCallableManager;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
@@ -47,6 +50,7 @@ public class BasicAuthJcsmpSessionService extends SessionService {
   private final String vpnName;
   @Nullable private JCSMPSession jcsmpSession;
   @Nullable private MessageReceiver messageReceiver;
+  @Nullable private MessageProducer messageProducer;
   private final RetryCallableManager retryCallableManager = RetryCallableManager.create();
 
   /**
@@ -79,6 +83,9 @@ public class BasicAuthJcsmpSessionService extends SessionService {
           if (messageReceiver != null) {
             messageReceiver.close();
           }
+          if (messageProducer != null) {
+            messageProducer.close();
+          }
           if (!isClosed()) {
             checkStateNotNull(jcsmpSession).closeSession();
           }
@@ -88,16 +95,45 @@ public class BasicAuthJcsmpSessionService extends SessionService {
   }
 
   @Override
-  public MessageReceiver createReceiver() {
-    this.messageReceiver =
-        retryCallableManager.retryCallable(
-            this::createFlowReceiver, ImmutableSet.of(JCSMPException.class));
+  public MessageReceiver getReceiver() {
+    if (this.messageReceiver == null) {
+      this.messageReceiver =
+          retryCallableManager.retryCallable(
+              this::createFlowReceiver, ImmutableSet.of(JCSMPException.class));
+    }
     return this.messageReceiver;
+  }
+
+  @Override
+  public MessageProducer getProducer() {
+    if (this.messageProducer == null) {
+      this.messageProducer =
+          retryCallableManager.retryCallable(
+              this::createXMLMessageProducer, ImmutableSet.of(JCSMPException.class));
+    }
+    return this.messageProducer;
   }
 
   @Override
   public boolean isClosed() {
     return jcsmpSession == null || jcsmpSession.isClosed();
+  }
+
+  private MessageProducer createXMLMessageProducer() throws JCSMPException, IOException {
+    if (isClosed()) {
+      connectSession();
+    }
+
+    @SuppressWarnings("nullness")
+    Callable<XMLMessageProducer> initProducer =
+        () -> Objects.requireNonNull(jcsmpSession).getMessageProducer(new PublishResultHandler());
+
+    XMLMessageProducer producer =
+        retryCallableManager.retryCallable(initProducer, ImmutableSet.of(JCSMPException.class));
+    if (producer == null) {
+      throw new IOException("SolaceIO.Write: Could not create producer, producer object is null");
+    }
+    return new SolaceMessageProducer(producer);
   }
 
   private MessageReceiver createFlowReceiver() throws JCSMPException, IOException {

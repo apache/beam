@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.solace;
 
 import com.solacesystems.jcsmp.JCSMPProperties;
+import org.apache.beam.sdk.io.solace.broker.MessageProducer;
 import org.apache.beam.sdk.io.solace.broker.MessageReceiver;
 import org.apache.beam.sdk.io.solace.broker.SessionService;
 
@@ -36,7 +37,12 @@ public class MockEmptySessionService extends SessionService {
   }
 
   @Override
-  public MessageReceiver createReceiver() {
+  public MessageReceiver getReceiver() {
+    throw new UnsupportedOperationException(exceptionMessage);
+  }
+
+  @Override
+  public MessageProducer getProducer() {
     throw new UnsupportedOperationException(exceptionMessage);
   }
 
