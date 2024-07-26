@@ -183,7 +183,7 @@ public class BigtableServiceImplTest {
     Assert.assertEquals(expectedRow, underTest.getCurrentRow());
     Assert.assertFalse(underTest.advance());
 
-    verifyMetricWasSet("google.bigtable.v2.ReadRows", "ok", 1);
+    verifyMetricWasSet("google.bigtable.v2.ReadRowsLol", "ok", 1);
   }
 
   /**
