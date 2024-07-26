@@ -25,10 +25,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
-import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.compat.SplitEnumeratorCompat;
 import org.apache.beam.sdk.io.BoundedSource;
-import org.apache.beam.sdk.io.FileBasedSource;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -148,32 +146,12 @@ public class FlinkSourceSplitEnumerator<T>
     // NoOp
   }
 
-  private long getDesiredSizeBytes(int numSplits, BoundedSource<T> boundedSource) throws Exception {
-    long totalSize = boundedSource.getEstimatedSizeBytes(pipelineOptions);
-    long defaultSplitSize = totalSize / numSplits;
-    long maxSplitSize = 0;
-    if (pipelineOptions != null) {
-      maxSplitSize = pipelineOptions.as(FlinkPipelineOptions.class).getFileInputSplitMaxSizeMB();
-    }
-    if (beamSource instanceof FileBasedSource && maxSplitSize > 0) {
-      // Most of the time parallelism is < number of files in source.
-      // Each file becomes a unique split which commonly create skew.
-      // This limits the size of splits to reduce skew.
-      return Math.min(defaultSplitSize, maxSplitSize * 1024 * 1024);
-    } else {
-      return defaultSplitSize;
-    }
-  }
-
   // -------------- Private helper methods ----------------------
   private List<? extends Source<T>> splitBeamSource() throws Exception {
     if (beamSource instanceof BoundedSource) {
       BoundedSource<T> boundedSource = (BoundedSource<T>) beamSource;
-      long desiredSizeBytes = getDesiredSizeBytes(numSplits, boundedSource);
-      List<? extends BoundedSource<T>> splits =
-          ((BoundedSource<T>) beamSource).split(desiredSizeBytes, pipelineOptions);
-      LOG.info("Split bounded source {} in {} splits", beamSource, splits.size());
-      return splits;
+      long desiredSizeBytes = boundedSource.getEstimatedSizeBytes(pipelineOptions) / numSplits;
+      return boundedSource.split(desiredSizeBytes, pipelineOptions);
     } else if (beamSource instanceof UnboundedSource) {
       List<? extends UnboundedSource<T, ?>> splits =
           ((UnboundedSource<T, ?>) beamSource).split(numSplits, pipelineOptions);
