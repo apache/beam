@@ -19,7 +19,6 @@ package org.apache.beam.runners.dataflow.worker;
 
 import com.google.api.services.dataflow.model.CounterUpdate;
 import com.google.api.services.dataflow.model.SideInputInfo;
-import java.util.Collections;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.core.InMemoryStateInternals;
@@ -78,9 +77,6 @@ public class BatchModeExecutionContext
   protected static final String BIGQUERY_READ_THROTTLE_TIME_NAMESPACE =
       "org.apache.beam.sdk.io.gcp.bigquery.BigQueryServicesImpl$StorageClientImpl";
 
-  // TODO(BEAM-31814): Remove once Dataflow legacy runner supports this.
-  private final boolean populateStringSetMetrics;
-
   private BatchModeExecutionContext(
       CounterFactory counterFactory,
       Cache<?, WeightedValue<?>> dataCache,
@@ -88,8 +84,7 @@ public class BatchModeExecutionContext
       ReaderFactory readerFactory,
       PipelineOptions options,
       DataflowExecutionStateTracker executionStateTracker,
-      DataflowExecutionStateRegistry executionStateRegistry,
-      boolean populateStringSetMetrics) {
+      DataflowExecutionStateRegistry executionStateRegistry) {
     super(
         counterFactory,
         createMetricsContainerRegistry(),
@@ -102,7 +97,6 @@ public class BatchModeExecutionContext
     this.dataCache = dataCache;
     this.containerRegistry =
         (MetricsContainerRegistry<MetricsContainerImpl>) getMetricsContainerRegistry();
-    this.populateStringSetMetrics = populateStringSetMetrics;
   }
 
   private static MetricsContainerRegistry<MetricsContainerImpl> createMetricsContainerRegistry() {
@@ -138,8 +132,7 @@ public class BatchModeExecutionContext
             counterFactory,
             options,
             "test-work-item-id"),
-        stateRegistry,
-        true);
+        stateRegistry);
   }
 
   public static BatchModeExecutionContext forTesting(PipelineOptions options, String stageName) {
@@ -252,8 +245,7 @@ public class BatchModeExecutionContext
             counterFactory,
             options,
             workItemId),
-        executionStateRegistry,
-        false);
+        executionStateRegistry);
   }
 
   /** Create a new {@link StepContext}. */
@@ -523,10 +515,7 @@ public class BatchModeExecutionContext
                           update ->
                               MetricsToCounterUpdateConverter.fromDistribution(
                                   update.getKey(), true, update.getUpdate())),
-                  FluentIterable.from(
-                          populateStringSetMetrics
-                              ? updates.stringSetUpdates()
-                              : Collections.emptyList())
+                  FluentIterable.from(updates.stringSetUpdates())
                       .transform(
                           update ->
                               MetricsToCounterUpdateConverter.fromStringSet(
