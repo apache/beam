@@ -46,6 +46,7 @@ public class BasicAuthJcsmpSessionService extends SessionService {
   private final String password;
   private final String vpnName;
   @Nullable private JCSMPSession jcsmpSession;
+  @Nullable private MessageReceiver messageReceiver;
   private final RetryCallableManager retryCallableManager = RetryCallableManager.create();
 
   /**
@@ -73,12 +74,14 @@ public class BasicAuthJcsmpSessionService extends SessionService {
 
   @Override
   public void close() {
-    if (isClosed()) {
-      return;
-    }
     retryCallableManager.retryCallable(
         () -> {
-          checkStateNotNull(jcsmpSession).closeSession();
+          if (messageReceiver != null) {
+            messageReceiver.close();
+          }
+          if (!isClosed()) {
+            checkStateNotNull(jcsmpSession).closeSession();
+          }
           return 0;
         },
         ImmutableSet.of(IOException.class));
@@ -86,8 +89,10 @@ public class BasicAuthJcsmpSessionService extends SessionService {
 
   @Override
   public MessageReceiver createReceiver() {
-    return retryCallableManager.retryCallable(
-        this::createFlowReceiver, ImmutableSet.of(JCSMPException.class));
+    this.messageReceiver =
+        retryCallableManager.retryCallable(
+            this::createFlowReceiver, ImmutableSet.of(JCSMPException.class));
+    return this.messageReceiver;
   }
 
   @Override

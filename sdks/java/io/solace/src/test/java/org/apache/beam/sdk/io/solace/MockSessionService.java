@@ -93,6 +93,9 @@ public class MockSessionService extends SessionService {
     }
 
     @Override
+    public void close() {}
+
+    @Override
     public boolean isEOF() {
       return counter.get() >= minMessagesReceived;
     }

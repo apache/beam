@@ -18,9 +18,11 @@
 package org.apache.beam.sdk.io.csv;
 
 import com.google.auto.value.AutoValue;
+import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -28,18 +30,19 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.Row;
 import org.apache.commons.csv.CSVFormat;
 
 /** Stores parameters needed for CSV record parsing. */
 @AutoValue
-abstract class CsvIOParseConfiguration {
+abstract class CsvIOParseConfiguration<T> implements Serializable {
 
   /** A Dead Letter Queue that returns potential errors with {@link BadRecord}. */
   final PTransform<PCollection<BadRecord>, PCollection<BadRecord>> errorHandlerTransform =
       new BadRecordOutput();
 
-  static Builder builder() {
-    return new AutoValue_CsvIOParseConfiguration.Builder();
+  static <T> Builder<T> builder() {
+    return new AutoValue_CsvIOParseConfiguration.Builder<>();
   }
 
   /** The expected {@link CSVFormat} of the parsed CSV record. */
@@ -51,20 +54,30 @@ abstract class CsvIOParseConfiguration {
   /** A map of the {@link Schema.Field#getName()} to the custom CSV processing lambda. */
   abstract Map<String, SerializableFunction<String, Object>> getCustomProcessingMap();
 
+  /** The expected {@link Coder} of the target type. */
+  abstract Coder<T> getCoder();
+
+  /** A {@link SerializableFunction} that converts from Row to the target type. */
+  abstract SerializableFunction<Row, T> getFromRowFn();
+
   @AutoValue.Builder
-  abstract static class Builder {
-    abstract Builder setCsvFormat(CSVFormat csvFormat);
+  abstract static class Builder<T> implements Serializable {
+    abstract Builder<T> setCsvFormat(CSVFormat csvFormat);
 
-    abstract Builder setSchema(Schema schema);
+    abstract Builder<T> setSchema(Schema schema);
 
-    abstract Builder setCustomProcessingMap(
+    abstract Builder<T> setCustomProcessingMap(
         Map<String, SerializableFunction<String, Object>> customProcessingMap);
+
+    abstract Builder<T> setCoder(Coder<T> coder);
+
+    abstract Builder<T> setFromRowFn(SerializableFunction<Row, T> fromRowFn);
 
     abstract Optional<Map<String, SerializableFunction<String, Object>>> getCustomProcessingMap();
 
-    abstract CsvIOParseConfiguration autoBuild();
+    abstract CsvIOParseConfiguration<T> autoBuild();
 
-    final CsvIOParseConfiguration build() {
+    final CsvIOParseConfiguration<T> build() {
       if (!getCustomProcessingMap().isPresent()) {
         setCustomProcessingMap(new HashMap<>());
       }
