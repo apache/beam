@@ -21,13 +21,12 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 
 import java.math.BigDecimal;
-import java.time.DateTimeException;
-import java.time.Instant;
 import java.util.Map;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.commons.collections.keyvalue.DefaultMapEntry;
 import org.apache.commons.csv.CSVFormat;
+import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -382,20 +381,20 @@ public class CsvIOParseHelpersTest {
   }
 
   @Test
-  public void givenDatetimeWithSurroundingSpaces() throws DateTimeException {
+  public void givenDatetimeWithSurroundingSpaces() {
     Instant datetime = Instant.parse("1234-01-23T10:00:05.000Z");
     DefaultMapEntry cellToExpectedValue =
         new DefaultMapEntry("   1234-01-23T10:00:05.000Z   ", datetime);
     Schema schema =
         Schema.builder().addDateTimeField("a_datetime").addStringField("a_string").build();
-    DateTimeException e =
+    IllegalArgumentException e =
         assertThrows(
-            DateTimeException.class,
+            IllegalArgumentException.class,
             () ->
                 CsvIOParseHelpers.parseCell(
                     cellToExpectedValue.getKey().toString(), schema.getField("a_datetime")));
     assertEquals(
-        "Text " + "'   1234-01-23T10:00:05.000Z   '" + " could not be parsed at index 0",
+        "Invalid format: \"   1234-01-23T10:00:05.000Z   \" field a_datetime was received -- type mismatch",
         e.getMessage());
   }
 
