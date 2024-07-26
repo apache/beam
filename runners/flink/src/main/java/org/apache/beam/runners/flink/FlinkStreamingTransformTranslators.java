@@ -389,8 +389,7 @@ class FlinkStreamingTransformTranslators {
               new SerializablePipelineOptions(context.getPipelineOptions()),
               parallelism);
 
-      TypeInformation<WindowedValue<T>> typeInfo =
-          context.getTypeInfo(output);
+      TypeInformation<WindowedValue<T>> typeInfo = context.getTypeInfo(output);
 
       DataStream<WindowedValue<T>> source;
       try {
