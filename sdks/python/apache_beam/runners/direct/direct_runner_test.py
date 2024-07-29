@@ -117,7 +117,7 @@ class DirectPipelineResultTest(unittest.TestCase):
     hc.assert_that(gauge_result.committed.value, hc.equal_to(5))
     hc.assert_that(gauge_result.attempted.value, hc.equal_to(5))
 
-    str_set_result = metrics['stringsets'][0]
+    str_set_result = metrics['string_sets'][0]
     hc.assert_that(
         str_set_result.key,
         hc.equal_to(MetricKey('Do', MetricName(namespace, 'element_str_set'))))

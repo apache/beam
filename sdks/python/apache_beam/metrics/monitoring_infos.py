@@ -316,7 +316,7 @@ def user_set_string(namespace, name, metric, ptransform=None):
   if isinstance(metric, list):
     metric = coders.IterableCoder(coders.StrUtf8Coder()).encode(metric)
   return create_monitoring_info(
-      USER_STRING_SET_URN, SET_STRING_TYPE, metric, labels)
+      USER_STRING_SET_URN, STRING_SET_TYPE, metric, labels)
 
 
 def create_monitoring_info(urn, type_urn, payload, labels=None):
