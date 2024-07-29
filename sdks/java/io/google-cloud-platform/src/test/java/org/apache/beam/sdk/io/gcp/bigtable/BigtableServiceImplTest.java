@@ -254,43 +254,44 @@ public class BigtableServiceImplTest {
   public void testReadSingleRangeAtSegmentLimit() throws Exception {
     RowSet.Builder ranges = RowSet.newBuilder();
     ranges.addRowRanges(
-            generateRowRange(
-                    generateByteString(DEFAULT_PREFIX, SEGMENT_SIZE), generateByteString(DEFAULT_PREFIX, SEGMENT_SIZE-1)));
-
+        generateRowRange(
+            generateByteString(DEFAULT_PREFIX, SEGMENT_SIZE),
+            generateByteString(DEFAULT_PREFIX, SEGMENT_SIZE - 1)));
 
     // Set up Callable to be returned by stub.createReadRowsCallable()
     ServerStreamingCallable<Query, Row> mockCallable = Mockito.mock(ServerStreamingCallable.class);
     List<List<Row>> expectedResults =
-            ImmutableList.of(
-                    generateSegmentResult(DEFAULT_PREFIX, 0, SEGMENT_SIZE),
-                    ImmutableList.of());
+        ImmutableList.of(
+            generateSegmentResult(DEFAULT_PREFIX, 0, SEGMENT_SIZE), ImmutableList.of());
 
     // Return multiple answers when mockCallable is called
-    doAnswer(new MultipleAnswer<Row>(ImmutableList.of(
-            generateSegmentResult(DEFAULT_PREFIX, 0, SEGMENT_SIZE),
-            generateSegmentResult(DEFAULT_PREFIX, SEGMENT_SIZE, SEGMENT_SIZE*2),
-            ImmutableList.of())))
-            .when(mockCallable)
-            .call(any(Query.class), any(ResponseObserver.class), any(ApiCallContext.class));
+    doAnswer(
+            new MultipleAnswer<Row>(
+                ImmutableList.of(
+                    generateSegmentResult(DEFAULT_PREFIX, 0, SEGMENT_SIZE),
+                    generateSegmentResult(DEFAULT_PREFIX, SEGMENT_SIZE, SEGMENT_SIZE * 2),
+                    ImmutableList.of())))
+        .when(mockCallable)
+        .call(any(Query.class), any(ResponseObserver.class), any(ApiCallContext.class));
 
     when(mockStub.createReadRowsCallable(any(RowAdapter.class))).thenReturn(mockCallable);
     ServerStreamingCallable<Query, Row> callable =
-            mockStub.createReadRowsCallable(new BigtableServiceImpl.BigtableRowProtoAdapter());
+        mockStub.createReadRowsCallable(new BigtableServiceImpl.BigtableRowProtoAdapter());
     // Set up client to return callable
     when(mockBigtableDataClient.readRowsCallable(any(RowAdapter.class))).thenReturn(callable);
     when(mockBigtableSource.getTableId()).thenReturn(StaticValueProvider.of(TABLE_ID));
 
     BigtableService.Reader underTest =
-            new BigtableServiceImpl.BigtableSegmentReaderImpl(
-                    mockBigtableDataClient,
-                    bigtableDataSettings.getProjectId(),
-                    bigtableDataSettings.getInstanceId(),
-                    mockBigtableSource.getTableId().get(),
-                    ranges.build(),
-                    RowFilter.getDefaultInstance(),
-                    SEGMENT_SIZE,
-                    DEFAULT_BYTE_SEGMENT_SIZE,
-                    mockCallMetric);
+        new BigtableServiceImpl.BigtableSegmentReaderImpl(
+            mockBigtableDataClient,
+            bigtableDataSettings.getProjectId(),
+            bigtableDataSettings.getInstanceId(),
+            mockBigtableSource.getTableId().get(),
+            ranges.build(),
+            RowFilter.getDefaultInstance(),
+            SEGMENT_SIZE,
+            DEFAULT_BYTE_SEGMENT_SIZE,
+            mockCallMetric);
 
     List<Row> actualResults = new ArrayList<>();
     Assert.assertTrue(underTest.start());
@@ -299,8 +300,8 @@ public class BigtableServiceImplTest {
     } while (underTest.advance());
 
     Assert.assertEquals(
-            expectedResults.stream().flatMap(Collection::stream).collect(Collectors.toList()),
-            actualResults);
+        expectedResults.stream().flatMap(Collection::stream).collect(Collectors.toList()),
+        actualResults);
 
     Mockito.verify(mockCallMetric, Mockito.times(2)).call("ok");
   }
