@@ -221,6 +221,7 @@ jobs:
     env:
       CIBW_ARCHS_LINUX: ${{matrix.arch}}
     runs-on: ${{ matrix.os_python.runner }}
+    timeout-minutes: 480
     strategy:
       matrix:
         os_python: [
