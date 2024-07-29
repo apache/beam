@@ -478,6 +478,8 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, em *eng
 	col := clonePColToBundle(stg.primaryInput)
 	if newCID, err := lpUnknownCoders(col.GetCoderId(), coders, comps.GetCoders()); err == nil && col.GetCoderId() != newCID {
 		col.CoderId = newCID
+	} else if err != nil {
+		return fmt.Errorf("buildDescriptor: couldn't rewrite coder %q for primary input pcollection %q: %w", col.GetCoderId(), stg.primaryInput, err)
 	}
 
 	wInCid, err := makeWindowedValueCoder(stg.primaryInput, comps, coders)
@@ -508,6 +510,8 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, em *eng
 		col := clonePColToBundle(pid)
 		if newCID, err := lpUnknownCoders(col.GetCoderId(), coders, comps.GetCoders()); err == nil && col.GetCoderId() != newCID {
 			col.CoderId = newCID
+		} else if err != nil {
+			return fmt.Errorf("buildDescriptor: coder  couldn't rewrite coder %q for internal pcollection %q: %w", col.GetCoderId(), pid, err)
 		}
 	}
 	// Add coders for all windowing strategies.
