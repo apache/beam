@@ -221,6 +221,7 @@ jobs:
     env:
       CIBW_ARCHS_LINUX: ${{matrix.arch}}
     runs-on: ${{ matrix.os_python.runner }}
+    timeout-minutes: 480
     strategy:
       matrix:
         os_python: [
@@ -236,7 +237,6 @@ jobs:
             arch: aarch64
     steps:
     - name: Download python source distribution from artifacts
-      if: ${{ needs.build_source.outputs.is_rc == 0 }}
       # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
       uses: actions/download-artifact@v3
       with:
@@ -260,7 +260,6 @@ jobs:
       # note: sync cibuildwheel version with gradle task sdks:python:bdistPy* steps
       run: pip install cibuildwheel==2.17.0 setuptools
     - name: Build wheel
-      if: ${{ needs.build_source.outputs.is_rc == 0 }}
       working-directory: apache-beam-source
       env:
         CIBW_BUILD: ${{ matrix.os_python.python }}
@@ -273,7 +272,6 @@ jobs:
       if: startsWith(matrix.os_python.os, 'macos')
       run: brew install coreutils
     - name: Add checksums
-      if: ${{ needs.build_source.outputs.is_rc == 0 }}
       working-directory: apache-beam-source/wheelhouse/
       run: |
         for file in *.whl; do
@@ -281,7 +279,6 @@ jobs:
         done
       shell: bash
     - name: Upload wheels as artifacts
-      if: ${{ needs.build_source.outputs.is_rc == 0 }}
       # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
       uses: actions/upload-artifact@v3
       with:
