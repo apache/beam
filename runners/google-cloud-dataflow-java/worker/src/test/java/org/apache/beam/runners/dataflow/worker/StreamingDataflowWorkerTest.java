@@ -848,9 +848,7 @@ public class StreamingDataflowWorkerTest {
             streamingDataflowWorkerTestParams.clock(),
             streamingDataflowWorkerTestParams.executorSupplier(),
             streamingDataflowWorkerTestParams.localRetryTimeoutMs(),
-            streamingDataflowWorkerTestParams.maxWorkItemCommitBytes(),
-            streamingDataflowWorkerTestParams.maxOutputKeyBytes(),
-            streamingDataflowWorkerTestParams.maxOutputValueBytes());
+            streamingDataflowWorkerTestParams.operationalLimits());
     this.computationStateCache = worker.getComputationStateCache();
     return worker;
   }
@@ -1217,7 +1215,8 @@ public class StreamingDataflowWorkerTest {
         makeWorker(
             defaultWorkerParams()
                 .setInstructions(instructions)
-                .setMaxWorkItemCommitBytes(1000)
+                .setOperationalLimits(
+                    OperationalLimits.builder().setMaxWorkItemCommitBytes(1000).build())
                 .publishCounters()
                 .build());
     worker.start();
@@ -1286,7 +1285,10 @@ public class StreamingDataflowWorkerTest {
 
     StreamingDataflowWorker worker =
         makeWorker(
-            defaultWorkerParams().setInstructions(instructions).setMaxOutputKeyBytes(15).build());
+            defaultWorkerParams()
+                .setInstructions(instructions)
+                .setOperationalLimits(OperationalLimits.builder().setMaxOutputKeyBytes(15).build())
+                .build());
     worker.start();
 
     // This large key will cause the ExceptionCatchingFn to throw an exception, which will then
@@ -1316,7 +1318,11 @@ public class StreamingDataflowWorkerTest {
 
     StreamingDataflowWorker worker =
         makeWorker(
-            defaultWorkerParams().setInstructions(instructions).setMaxOutputValueBytes(15).build());
+            defaultWorkerParams()
+                .setInstructions(instructions)
+                .setOperationalLimits(
+                    OperationalLimits.builder().setMaxOutputValueBytes(15).build())
+                .build());
     worker.start();
 
     // The first time processing will have value "data1_a_bunch_more_data_output", which is above
@@ -4506,9 +4512,7 @@ public class StreamingDataflowWorkerTest {
           .setLocalRetryTimeoutMs(-1)
           .setPublishCounters(false)
           .setClock(Instant::now)
-          .setMaxWorkItemCommitBytes(Long.MAX_VALUE)
-          .setMaxOutputKeyBytes(Long.MAX_VALUE)
-          .setMaxOutputValueBytes(Long.MAX_VALUE);
+          .setOperationalLimits(OperationalLimits.builder().build());
     }
 
     abstract ImmutableMap<String, String> stateNameMappings();
@@ -4525,11 +4529,7 @@ public class StreamingDataflowWorkerTest {
 
     abstract int localRetryTimeoutMs();
 
-    abstract long maxWorkItemCommitBytes();
-
-    abstract long maxOutputKeyBytes();
-
-    abstract long maxOutputValueBytes();
+    abstract OperationalLimits operationalLimits();
 
     @AutoValue.Builder
     abstract static class Builder {
@@ -4563,11 +4563,7 @@ public class StreamingDataflowWorkerTest {
 
       abstract Builder setLocalRetryTimeoutMs(int value);
 
-      abstract Builder setMaxWorkItemCommitBytes(long maxWorkItemCommitBytes);
-
-      abstract Builder setMaxOutputKeyBytes(long maxOutputKeyBytes);
-
-      abstract Builder setMaxOutputValueBytes(long maxOutputValueBytes);
+      abstract Builder setOperationalLimits(OperationalLimits operationalLimits);
 
       abstract StreamingDataflowWorkerTestParams build();
     }

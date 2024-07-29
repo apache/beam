@@ -475,17 +475,9 @@ public class StreamingDataflowWorker {
       Supplier<Instant> clock,
       Function<String, ScheduledExecutorService> executorSupplier,
       int localRetryTimeoutMs,
-      long maxWorkItemCommitBytesOverrides,
-      long maxOutputKeyBytesOverride,
-      long maxOutputValueBytesOverride) {
+      OperationalLimits limits) {
     ConcurrentMap<String, StageInfo> stageInfo = new ConcurrentHashMap<>();
-    AtomicReference<OperationalLimits> operationalLimits =
-        new AtomicReference<>(
-            OperationalLimits.builder()
-                .setMaxWorkItemCommitBytes(maxWorkItemCommitBytesOverrides)
-                .setMaxOutputKeyBytes(maxOutputKeyBytesOverride)
-                .setMaxOutputValueBytes(maxOutputValueBytesOverride)
-                .build());
+    AtomicReference<OperationalLimits> operationalLimits = new AtomicReference<>(limits);
     BoundedQueueExecutor workExecutor = createWorkUnitExecutor(options);
     WindmillStateCache stateCache = WindmillStateCache.ofSizeMbs(options.getWorkerCacheMb());
     ComputationConfig.Fetcher configFetcher =

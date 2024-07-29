@@ -72,7 +72,7 @@ public final class StreamingEngineComputationConfigFetcher implements Computatio
   private final long globalConfigRefreshPeriodMillis;
   private final WorkUnitClient dataflowServiceClient;
   private final ScheduledExecutorService globalConfigRefresher;
-  private final boolean shouldPerformOutputSizeChecks;
+  private final boolean shouldThrowExceptionsOnLargeOutput;
   private final Consumer<StreamingEnginePipelineConfig> onStreamingConfig;
   private final AtomicBoolean hasReceivedGlobalConfig;
 
@@ -81,12 +81,12 @@ public final class StreamingEngineComputationConfigFetcher implements Computatio
       long globalConfigRefreshPeriodMillis,
       WorkUnitClient dataflowServiceClient,
       ScheduledExecutorService globalConfigRefresher,
-      boolean shouldPerformOutputSizeChecks,
+      boolean shouldThrowExceptionsOnLargeOutput,
       Consumer<StreamingEnginePipelineConfig> onStreamingConfig) {
     this.globalConfigRefreshPeriodMillis = globalConfigRefreshPeriodMillis;
     this.dataflowServiceClient = dataflowServiceClient;
     this.globalConfigRefresher = globalConfigRefresher;
-    this.shouldPerformOutputSizeChecks = shouldPerformOutputSizeChecks;
+    this.shouldThrowExceptionsOnLargeOutput = shouldThrowExceptionsOnLargeOutput;
     this.onStreamingConfig = onStreamingConfig;
     this.hasReceivedGlobalConfig = new AtomicBoolean(hasReceivedGlobalConfig);
   }
@@ -94,7 +94,7 @@ public final class StreamingEngineComputationConfigFetcher implements Computatio
   public static StreamingEngineComputationConfigFetcher create(
       long globalConfigRefreshPeriodMillis,
       WorkUnitClient dataflowServiceClient,
-      boolean shouldPerformOutputSizeChecks,
+      boolean shouldThrowExceptionsOnLargeOutput,
       Consumer<StreamingEnginePipelineConfig> onStreamingConfig) {
     return new StreamingEngineComputationConfigFetcher(
         /* hasReceivedGlobalConfig= */ false,
@@ -102,7 +102,7 @@ public final class StreamingEngineComputationConfigFetcher implements Computatio
         dataflowServiceClient,
         Executors.newSingleThreadScheduledExecutor(
             new ThreadFactoryBuilder().setNameFormat(CONFIG_REFRESHER_THREAD_NAME).build()),
-        shouldPerformOutputSizeChecks,
+        shouldThrowExceptionsOnLargeOutput,
         onStreamingConfig);
   }
 
@@ -118,7 +118,7 @@ public final class StreamingEngineComputationConfigFetcher implements Computatio
         globalConfigRefreshPeriodMillis,
         dataflowServiceClient,
         executorSupplier.apply(CONFIG_REFRESHER_THREAD_NAME),
-        /*shouldPerformOutputSizeChecks=*/ true,
+        /*shouldThrowExceptionsOnLargeOutput=*/ true,
         onStreamingConfig);
   }
 
@@ -164,7 +164,7 @@ public final class StreamingEngineComputationConfigFetcher implements Computatio
   }
 
   private StreamingEnginePipelineConfig createPipelineConfig(
-      StreamingConfigTask config, boolean shouldPerformOutputSizeChecks) {
+      StreamingConfigTask config, boolean shouldThrowExceptionsOnLargeOutput) {
     StreamingEnginePipelineConfig.Builder pipelineConfig = StreamingEnginePipelineConfig.builder();
     if (config.getUserStepToStateFamilyNameMap() != null) {
       pipelineConfig.setUserStepToStateFamilyNameMap(config.getUserStepToStateFamilyNameMap());
@@ -194,7 +194,7 @@ public final class StreamingEngineComputationConfigFetcher implements Computatio
       pipelineConfig.setMaxWorkItemCommitBytes(config.getMaxWorkItemCommitBytes().intValue());
     }
 
-    if (shouldPerformOutputSizeChecks && config.getOperationalLimits() != null) {
+    if (shouldThrowExceptionsOnLargeOutput && config.getOperationalLimits() != null) {
       if (config.getOperationalLimits().getMaxKeyBytes() > 0
           && config.getOperationalLimits().getMaxKeyBytes() <= Integer.MAX_VALUE) {
         pipelineConfig.setMaxOutputKeyBytes(config.getOperationalLimits().getMaxKeyBytes());
@@ -292,7 +292,7 @@ public final class StreamingEngineComputationConfigFetcher implements Computatio
 
   private Optional<StreamingEnginePipelineConfig> fetchGlobalConfig() {
     return fetchConfigWithRetry(dataflowServiceClient::getGlobalStreamingConfigWorkItem)
-        .map(config -> createPipelineConfig(config, shouldPerformOutputSizeChecks));
+        .map(config -> createPipelineConfig(config, shouldThrowExceptionsOnLargeOutput));
   }
 
   @FunctionalInterface
