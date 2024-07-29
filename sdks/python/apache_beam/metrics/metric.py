@@ -167,7 +167,7 @@ class MetricResults(object):
   COUNTERS = "counters"
   DISTRIBUTIONS = "distributions"
   GAUGES = "gauges"
-  STRINGSETS = "stringsets"
+  STRINGSETS = "string_sets"
 
   @staticmethod
   def _matches_name(filter: 'MetricsFilter', metric_key: 'MetricKey') -> bool:
@@ -233,7 +233,7 @@ class MetricResults(object):
           "counters": [MetricResult(counter_key, committed, attempted), ...],
           "distributions": [MetricResult(dist_key, committed, attempted), ...],
           "gauges": [],  // Empty list if nothing matched the filter.
-          "stringsets": [] [MetricResult(string_set_key, committed, attempted),
+          "string_sets": [] [MetricResult(string_set_key, committed, attempted),
                             ...]
         }
 
