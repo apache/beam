@@ -28,6 +28,7 @@ import java.util.UUID;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.data.GenericRecord;
 import org.apache.iceberg.data.Record;
@@ -124,7 +125,8 @@ public class IcebergUtils {
    * used after building this type. This helps signal that the next field we construct should have
    * an ID greater than this one.
    */
-  private static class ObjectAndMaxId<T> {
+  @VisibleForTesting
+  static class ObjectAndMaxId<T> {
     int maxId;
     T object;
 
@@ -134,7 +136,16 @@ public class IcebergUtils {
     }
   }
 
-  private static ObjectAndMaxId<Type> beamFieldTypeToIcebergFieldType(
+  /**
+   * Given a Beam {@link Schema.FieldType} and an index, returns an Iceberg {@link Type} and the
+   * maximum index after building the Iceberg Type. This assumes the input index is already in use
+   * (usually by the parent {@link Types.NestedField}, and will start building the Iceberg type from
+   * index + 1.
+   *
+   * <p>Returns this information in an {@link ObjectAndMaxId<Type>} instance.
+   */
+  @VisibleForTesting
+  static ObjectAndMaxId<Type> beamFieldTypeToIcebergFieldType(
       int fieldId, Schema.FieldType beamType) {
     if (BEAM_TYPES_TO_ICEBERG_TYPES.containsKey(beamType.getTypeName())) {
       return new ObjectAndMaxId<>(fieldId, BEAM_TYPES_TO_ICEBERG_TYPES.get(beamType.getTypeName()));
@@ -143,8 +154,9 @@ public class IcebergUtils {
       int listId = fieldId + 1;
       Schema.FieldType beamCollectionType =
           Preconditions.checkArgumentNotNull(beamType.getCollectionElementType());
-      Type icebergCollectionType =
-          beamFieldTypeToIcebergFieldType(listId, beamCollectionType).object;
+
+      ObjectAndMaxId<Type> listInfo = beamFieldTypeToIcebergFieldType(listId, beamCollectionType);
+      Type icebergCollectionType = listInfo.object;
 
       boolean elementTypeIsNullable =
           Preconditions.checkArgumentNotNull(beamType.getCollectionElementType()).getNullable();
@@ -154,39 +166,47 @@ public class IcebergUtils {
               ? Types.ListType.ofOptional(listId, icebergCollectionType)
               : Types.ListType.ofRequired(listId, icebergCollectionType);
 
-      return new ObjectAndMaxId<>(listId, listType);
+      return new ObjectAndMaxId<>(listInfo.maxId, listType);
     } else if (beamType.getTypeName().isMapType()) { // MAP
       // key and value IDs need to be unique from the NestedField that contains this MapType
       int keyId = fieldId + 1;
       int valueId = fieldId + 2;
+      int maxId = valueId;
 
       Schema.FieldType beamKeyType = Preconditions.checkArgumentNotNull(beamType.getMapKeyType());
+      ObjectAndMaxId<Type> keyInfo = beamFieldTypeToIcebergFieldType(maxId, beamKeyType);
+      Type icebergKeyType = keyInfo.object;
+      maxId = keyInfo.maxId;
+
       Schema.FieldType beamValueType =
           Preconditions.checkArgumentNotNull(beamType.getMapValueType());
-
-      Type icebergKeyType = beamFieldTypeToIcebergFieldType(keyId, beamKeyType).object;
-      Type icebergValueType = beamFieldTypeToIcebergFieldType(valueId, beamValueType).object;
+      ObjectAndMaxId<Type> valueInfo = beamFieldTypeToIcebergFieldType(maxId, beamValueType);
+      Type icebergValueType = valueInfo.object;
+      maxId = valueInfo.maxId;
 
       Type mapType =
           beamValueType.getNullable()
               ? Types.MapType.ofOptional(keyId, valueId, icebergKeyType, icebergValueType)
               : Types.MapType.ofRequired(keyId, valueId, icebergKeyType, icebergValueType);
 
-      return new ObjectAndMaxId<>(valueId, mapType);
+      return new ObjectAndMaxId<>(maxId, mapType);
     } else if (beamType.getTypeName().isCompositeType()) { // ROW
       // Nested field IDs need to be unique from the field that contains this StructType
-      int nestedFieldId = fieldId;
+      int maxFieldId = fieldId;
 
       Schema nestedSchema = Preconditions.checkArgumentNotNull(beamType.getRowSchema());
       List<Types.NestedField> nestedFields = new ArrayList<>(nestedSchema.getFieldCount());
       for (Schema.Field field : nestedSchema.getFields()) {
-        Types.NestedField nestedField = beamFieldToIcebergField(++nestedFieldId, field).object;
+        ObjectAndMaxId<Types.NestedField> converted = beamFieldToIcebergField(++maxFieldId, field);
+        Types.NestedField nestedField = converted.object;
         nestedFields.add(nestedField);
+
+        maxFieldId = converted.maxId;
       }
 
       Type structType = Types.StructType.of(nestedFields);
 
-      return new ObjectAndMaxId<>(nestedFieldId, structType);
+      return new ObjectAndMaxId<>(maxFieldId, structType);
     }
 
     return new ObjectAndMaxId<>(fieldId, Types.StringType.get());

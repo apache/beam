@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.sdk.io.iceberg.IcebergUtils.ObjectAndMaxId;
+import static org.apache.beam.sdk.io.iceberg.IcebergUtils.beamFieldTypeToIcebergFieldType;
 import static org.apache.iceberg.types.Types.NestedField.optional;
 import static org.apache.iceberg.types.Types.NestedField.required;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -294,6 +296,237 @@ public class IcebergUtilsTest {
 
   @RunWith(JUnit4.class)
   public static class SchemaTests {
+    private static class BeamFieldTypeTestCase {
+      final int icebergFieldId;
+      final Schema.FieldType beamType;
+      final int expectedMaxId;
+      final Type expectedIcebergType;
+
+      BeamFieldTypeTestCase(
+          int icebergFieldId,
+          Schema.FieldType beamType,
+          int expectedMaxId,
+          Type expectedIcebergType) {
+        this.icebergFieldId = icebergFieldId;
+        this.beamType = beamType;
+        this.expectedMaxId = expectedMaxId;
+        this.expectedIcebergType = expectedIcebergType;
+      }
+    }
+
+    private void checkTypes(List<BeamFieldTypeTestCase> testCases) {
+      for (BeamFieldTypeTestCase testCase : testCases) {
+        ObjectAndMaxId<Type> ret =
+            beamFieldTypeToIcebergFieldType(testCase.icebergFieldId, testCase.beamType);
+
+        assertEquals(testCase.expectedMaxId, ret.maxId);
+        checkEquals(testCase.expectedIcebergType, ret.object);
+      }
+    }
+
+    private void checkEquals(Type expected, Type actual) {
+      if (expected.isListType() && actual.isListType()) {
+        Type nestedExpected = expected.asListType().elementType();
+        Type nestedActual = actual.asListType().elementType();
+
+        assertEquals(nestedExpected.typeId(), nestedActual.typeId());
+        checkEquals(nestedExpected, nestedActual);
+      } else {
+        assertEquals(expected, actual);
+      }
+    }
+
+    @Test
+    public void testPrimitiveBeamFieldTypeToIcebergFieldType() {
+      List<BeamFieldTypeTestCase> primitives =
+          Arrays.asList(
+              new BeamFieldTypeTestCase(1, Schema.FieldType.BOOLEAN, 1, Types.BooleanType.get()),
+              new BeamFieldTypeTestCase(3, Schema.FieldType.INT32, 3, Types.IntegerType.get()),
+              new BeamFieldTypeTestCase(6, Schema.FieldType.INT64, 6, Types.LongType.get()),
+              new BeamFieldTypeTestCase(10, Schema.FieldType.FLOAT, 10, Types.FloatType.get()),
+              new BeamFieldTypeTestCase(7, Schema.FieldType.DOUBLE, 7, Types.DoubleType.get()),
+              new BeamFieldTypeTestCase(11, Schema.FieldType.STRING, 11, Types.StringType.get()),
+              new BeamFieldTypeTestCase(15, Schema.FieldType.BYTES, 15, Types.BinaryType.get()));
+
+      checkTypes(primitives);
+    }
+
+    @Test
+    public void testArrayBeamFieldTypeToIcebergFieldType() {
+      // Iceberg sets one field ID for the List type itself and another field ID for the collection
+      // type.
+      List<BeamFieldTypeTestCase> listTypes =
+          Arrays.asList(
+              new BeamFieldTypeTestCase(
+                  1,
+                  Schema.FieldType.array(Schema.FieldType.BOOLEAN),
+                  2,
+                  Types.ListType.ofRequired(1, Types.BooleanType.get())),
+              new BeamFieldTypeTestCase(
+                  3,
+                  Schema.FieldType.iterable(Schema.FieldType.INT32),
+                  4,
+                  Types.ListType.ofRequired(3, Types.IntegerType.get())),
+              new BeamFieldTypeTestCase(
+                  6,
+                  Schema.FieldType.array(Schema.FieldType.INT64),
+                  7,
+                  Types.ListType.ofRequired(6, Types.LongType.get())),
+              new BeamFieldTypeTestCase(
+                  10,
+                  Schema.FieldType.array(Schema.FieldType.FLOAT),
+                  11,
+                  Types.ListType.ofRequired(10, Types.FloatType.get())),
+              new BeamFieldTypeTestCase(
+                  7,
+                  Schema.FieldType.iterable(Schema.FieldType.DOUBLE),
+                  8,
+                  Types.ListType.ofRequired(7, Types.DoubleType.get())),
+              new BeamFieldTypeTestCase(
+                  11,
+                  Schema.FieldType.array(Schema.FieldType.STRING),
+                  12,
+                  Types.ListType.ofRequired(11, Types.StringType.get())),
+              new BeamFieldTypeTestCase(
+                  15,
+                  Schema.FieldType.iterable(Schema.FieldType.BYTES),
+                  16,
+                  Types.ListType.ofRequired(15, Types.BinaryType.get())),
+              new BeamFieldTypeTestCase(
+                  23,
+                  Schema.FieldType.array(
+                      Schema.FieldType.array(Schema.FieldType.iterable(Schema.FieldType.STRING))),
+                  26,
+                  Types.ListType.ofRequired(
+                      23,
+                      Types.ListType.ofRequired(
+                          24, Types.ListType.ofRequired(25, Types.StringType.get())))));
+
+      checkTypes(listTypes);
+    }
+
+    @Test
+    public void testStructBeamFieldTypeToIcebergFieldType() {
+      // Iceberg sets one field ID for each nested type.
+      List<BeamFieldTypeTestCase> listTypes =
+          Arrays.asList(
+              new BeamFieldTypeTestCase(
+                  1,
+                  Schema.FieldType.row(Schema.builder().addStringField("str").build()),
+                  2,
+                  Types.StructType.of(
+                      Types.NestedField.required(2, "str", Types.StringType.get()))),
+              new BeamFieldTypeTestCase(
+                  3,
+                  Schema.FieldType.row(Schema.builder().addInt32Field("int").build()),
+                  4,
+                  Types.StructType.of(
+                      Types.NestedField.required(4, "int", Types.IntegerType.get()))),
+              new BeamFieldTypeTestCase(
+                  0,
+                  Schema.FieldType.row(BEAM_SCHEMA_PRIMITIVE),
+                  7,
+                  Types.StructType.of(ICEBERG_SCHEMA_PRIMITIVE.columns())),
+              new BeamFieldTypeTestCase(
+                  15,
+                  Schema.FieldType.row(
+                      Schema.builder()
+                          .addArrayField("arr", Schema.FieldType.STRING)
+                          .addNullableStringField("str")
+                          .build()),
+                  18,
+                  Types.StructType.of(
+                      Types.NestedField.required(
+                          16, "arr", Types.ListType.ofRequired(17, Types.StringType.get())),
+                      Types.NestedField.optional(18, "str", Types.StringType.get()))),
+              new BeamFieldTypeTestCase(
+                  20,
+                  Schema.FieldType.row(
+                      Schema.builder()
+                          .addRowField(
+                              "row",
+                              Schema.builder()
+                                  .addRowField(
+                                      "nested_row", Schema.builder().addStringField("str").build())
+                                  .build())
+                          .addNullableRowField(
+                              "nullable_row", Schema.builder().addInt64Field("long").build())
+                          .build()),
+                  25,
+                  Types.StructType.of(
+                      Types.NestedField.required(
+                          21,
+                          "row",
+                          Types.StructType.of(
+                              Types.NestedField.required(
+                                  22,
+                                  "nested_row",
+                                  Types.StructType.of(
+                                      Types.NestedField.required(
+                                          23, "str", Types.StringType.get()))))),
+                      Types.NestedField.optional(
+                          24,
+                          "nullable_row",
+                          Types.StructType.of(
+                              Types.NestedField.required(25, "long", Types.LongType.get()))))));
+
+      checkTypes(listTypes);
+    }
+
+    @Test
+    public void testMapBeamFieldTypeToIcebergFieldType() {
+      List<BeamFieldTypeTestCase> primitives =
+          Arrays.asList(
+              new BeamFieldTypeTestCase(
+                  1,
+                  Schema.FieldType.map(Schema.FieldType.STRING, Schema.FieldType.INT32),
+                  3,
+                  Types.MapType.ofRequired(2, 3, Types.StringType.get(), Types.IntegerType.get())),
+              new BeamFieldTypeTestCase(
+                  6,
+                  Schema.FieldType.map(
+                      Schema.FieldType.FLOAT, Schema.FieldType.array(Schema.FieldType.STRING)),
+                  9,
+                  Types.MapType.ofRequired(
+                      7,
+                      8,
+                      Types.FloatType.get(),
+                      Types.ListType.ofRequired(9, Types.StringType.get()))),
+              new BeamFieldTypeTestCase(
+                  10,
+                  Schema.FieldType.map(
+                      Schema.FieldType.STRING,
+                      Schema.FieldType.map(
+                          Schema.FieldType.BOOLEAN,
+                          Schema.FieldType.map(Schema.FieldType.STRING, Schema.FieldType.INT32))),
+                  16,
+                  Types.MapType.ofRequired(
+                      11,
+                      12,
+                      Types.StringType.get(),
+                      Types.MapType.ofRequired(
+                          13,
+                          14,
+                          Types.BooleanType.get(),
+                          Types.MapType.ofRequired(
+                              15, 16, Types.StringType.get(), Types.IntegerType.get())))),
+              new BeamFieldTypeTestCase(
+                  15,
+                  Schema.FieldType.map(
+                      Schema.FieldType.row(Schema.builder().addStringField("str").build()),
+                      Schema.FieldType.row(Schema.builder().addInt32Field("int").build())),
+                  19,
+                  Types.MapType.ofRequired(
+                      16,
+                      17,
+                      Types.StructType.of(
+                          Types.NestedField.required(18, "str", Types.StringType.get())),
+                      Types.StructType.of(
+                          Types.NestedField.required(19, "int", Types.IntegerType.get())))));
+
+      checkTypes(primitives);
+    }
+
     static final Schema BEAM_SCHEMA_PRIMITIVE =
         Schema.builder()
             .addInt32Field("int")
