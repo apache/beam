@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner;
 
-import static org.apache.beam.sdk.io.gcp.spanner.StructUtils.StructTypeToBeamRowSchema;
+import static org.apache.beam.sdk.io.gcp.spanner.StructUtils.structTypeToBeamRowSchema;
 
 import com.google.cloud.spanner.KeySet;
 import com.google.cloud.spanner.Options;
@@ -50,7 +50,7 @@ class SpannerTableSourceDef implements SpannerSourceDef {
       try (ReadContext readContext = spannerAccessor.getDatabaseClient().singleUse()) {
         ResultSet result = readContext.read(table, KeySet.all(), columns, Options.limit(1));
         if (result.next()) {
-          beamSchema = StructTypeToBeamRowSchema(result.getMetadata().getRowType(), true);
+          beamSchema = structTypeToBeamRowSchema(result.getMetadata().getRowType(), true);
         } else {
           throw new SpannerSchemaRetrievalException("Cannot find Spanner table.");
         }

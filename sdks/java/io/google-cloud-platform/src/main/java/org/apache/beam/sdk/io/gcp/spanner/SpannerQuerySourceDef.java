@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner;
 
-import static org.apache.beam.sdk.io.gcp.spanner.StructUtils.StructTypeToBeamRowSchema;
+import static org.apache.beam.sdk.io.gcp.spanner.StructUtils.structTypeToBeamRowSchema;
 
 import com.google.cloud.spanner.ReadContext;
 import com.google.cloud.spanner.ResultSet;
@@ -46,7 +46,7 @@ class SpannerQuerySourceDef implements SpannerSourceDef {
       try (ReadContext readContext = spannerAccessor.getDatabaseClient().singleUse()) {
         ResultSet result = readContext.analyzeQuery(query, ReadContext.QueryAnalyzeMode.PLAN);
         result.next();
-        beamSchema = StructTypeToBeamRowSchema(result.getMetadata().getRowType(), true);
+        beamSchema = structTypeToBeamRowSchema(result.getMetadata().getRowType(), true);
       }
     } catch (Exception e) {
       throw new SpannerSchemaRetrievalException("Exception while trying to retrieve schema", e);

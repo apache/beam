@@ -67,7 +67,7 @@ final class StructUtils {
     return Row.withSchema(schema).withFieldValues(structValues).build();
   }
 
-  public static Schema StructTypeToBeamRowSchema(StructType structType, boolean isRead) {
+  public static Schema structTypeToBeamRowSchema(StructType structType, boolean isRead) {
     Schema.Builder beamSchema = Schema.builder();
     structType
         .getFieldsList()

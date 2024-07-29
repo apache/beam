@@ -267,7 +267,7 @@ public class StructUtilsTest {
   @Test
   public void testStructTypeToBeamRowSchema() {
     assertEquals(
-        StructUtils.StructTypeToBeamRowSchema(createStructType(), true), createRowSchema());
+        StructUtils.structTypeToBeamRowSchema(createStructType(), true), createRowSchema());
   }
 
   @Test
@@ -281,7 +281,7 @@ public class StructUtilsTest {
     Exception exception =
         assertThrows(
             IllegalArgumentException.class,
-            () -> StructUtils.StructTypeToBeamRowSchema(StructTypeWithStruct, true));
+            () -> StructUtils.structTypeToBeamRowSchema(StructTypeWithStruct, true));
     checkMessage(
         "Error processing struct to row: Unsupported type 'STRUCT'.", exception.getMessage());
   }
