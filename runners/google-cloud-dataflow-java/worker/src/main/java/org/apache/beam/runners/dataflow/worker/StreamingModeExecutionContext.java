@@ -180,6 +180,10 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     return operationalLimits.maxOutputValueBytes;
   }
 
+  public boolean throwExceptionsForLargeOutput() {
+    return operationalLimits.throwExceptionOnLargeOutput;
+  }
+
   public boolean workIsFailed() {
     return Optional.ofNullable(work).map(Work::isFailed).orElse(false);
   }

@@ -27,11 +27,18 @@ public class OperationalLimits {
   public final long maxOutputKeyBytes;
   // Maximum size of a single output element's serialized value.
   public final long maxOutputValueBytes;
+  // Whether to throw an exception when processing output that violates any of the given limits.
+  public final boolean throwExceptionOnLargeOutput;
 
-  OperationalLimits(long maxWorkItemCommitBytes, long maxOutputKeyBytes, long maxOutputValueBytes) {
+  OperationalLimits(
+      long maxWorkItemCommitBytes,
+      long maxOutputKeyBytes,
+      long maxOutputValueBytes,
+      boolean throwExceptionOnLargeOutput) {
     this.maxWorkItemCommitBytes = maxWorkItemCommitBytes;
     this.maxOutputKeyBytes = maxOutputKeyBytes;
     this.maxOutputValueBytes = maxOutputValueBytes;
+    this.throwExceptionOnLargeOutput = throwExceptionOnLargeOutput;
   }
 
   @AutoBuilder(ofClass = OperationalLimits.class)
@@ -42,6 +49,8 @@ public class OperationalLimits {
 
     Builder setMaxOutputValueBytes(long bytes);
 
+    Builder setThrowExceptionOnLargeOutput(boolean shouldThrow);
+
     OperationalLimits build();
   }
 
@@ -49,6 +58,7 @@ public class OperationalLimits {
     return new AutoBuilder_OperationalLimits_Builder()
         .setMaxWorkItemCommitBytes(Long.MAX_VALUE)
         .setMaxOutputKeyBytes(Long.MAX_VALUE)
-        .setMaxOutputValueBytes(Long.MAX_VALUE);
+        .setMaxOutputValueBytes(Long.MAX_VALUE)
+        .setThrowExceptionOnLargeOutput(false);
   }
 }

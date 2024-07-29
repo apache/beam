@@ -72,7 +72,6 @@ public final class StreamingEngineComputationConfigFetcher implements Computatio
   private final long globalConfigRefreshPeriodMillis;
   private final WorkUnitClient dataflowServiceClient;
   private final ScheduledExecutorService globalConfigRefresher;
-  private final boolean shouldThrowExceptionsOnLargeOutput;
   private final Consumer<StreamingEnginePipelineConfig> onStreamingConfig;
   private final AtomicBoolean hasReceivedGlobalConfig;
 
@@ -81,12 +80,10 @@ public final class StreamingEngineComputationConfigFetcher implements Computatio
       long globalConfigRefreshPeriodMillis,
       WorkUnitClient dataflowServiceClient,
       ScheduledExecutorService globalConfigRefresher,
-      boolean shouldThrowExceptionsOnLargeOutput,
       Consumer<StreamingEnginePipelineConfig> onStreamingConfig) {
     this.globalConfigRefreshPeriodMillis = globalConfigRefreshPeriodMillis;
     this.dataflowServiceClient = dataflowServiceClient;
     this.globalConfigRefresher = globalConfigRefresher;
-    this.shouldThrowExceptionsOnLargeOutput = shouldThrowExceptionsOnLargeOutput;
     this.onStreamingConfig = onStreamingConfig;
     this.hasReceivedGlobalConfig = new AtomicBoolean(hasReceivedGlobalConfig);
   }
@@ -94,7 +91,6 @@ public final class StreamingEngineComputationConfigFetcher implements Computatio
   public static StreamingEngineComputationConfigFetcher create(
       long globalConfigRefreshPeriodMillis,
       WorkUnitClient dataflowServiceClient,
-      boolean shouldThrowExceptionsOnLargeOutput,
       Consumer<StreamingEnginePipelineConfig> onStreamingConfig) {
     return new StreamingEngineComputationConfigFetcher(
         /* hasReceivedGlobalConfig= */ false,
@@ -102,7 +98,6 @@ public final class StreamingEngineComputationConfigFetcher implements Computatio
         dataflowServiceClient,
         Executors.newSingleThreadScheduledExecutor(
             new ThreadFactoryBuilder().setNameFormat(CONFIG_REFRESHER_THREAD_NAME).build()),
-        shouldThrowExceptionsOnLargeOutput,
         onStreamingConfig);
   }
 
@@ -118,7 +113,6 @@ public final class StreamingEngineComputationConfigFetcher implements Computatio
         globalConfigRefreshPeriodMillis,
         dataflowServiceClient,
         executorSupplier.apply(CONFIG_REFRESHER_THREAD_NAME),
-        /*shouldThrowExceptionsOnLargeOutput=*/ true,
         onStreamingConfig);
   }
 
@@ -163,8 +157,7 @@ public final class StreamingEngineComputationConfigFetcher implements Computatio
     }
   }
 
-  private StreamingEnginePipelineConfig createPipelineConfig(
-      StreamingConfigTask config, boolean shouldThrowExceptionsOnLargeOutput) {
+  private StreamingEnginePipelineConfig createPipelineConfig(StreamingConfigTask config) {
     StreamingEnginePipelineConfig.Builder pipelineConfig = StreamingEnginePipelineConfig.builder();
     if (config.getUserStepToStateFamilyNameMap() != null) {
       pipelineConfig.setUserStepToStateFamilyNameMap(config.getUserStepToStateFamilyNameMap());
@@ -194,7 +187,7 @@ public final class StreamingEngineComputationConfigFetcher implements Computatio
       pipelineConfig.setMaxWorkItemCommitBytes(config.getMaxWorkItemCommitBytes().intValue());
     }
 
-    if (shouldThrowExceptionsOnLargeOutput && config.getOperationalLimits() != null) {
+    if (config.getOperationalLimits() != null) {
       if (config.getOperationalLimits().getMaxKeyBytes() > 0
           && config.getOperationalLimits().getMaxKeyBytes() <= Integer.MAX_VALUE) {
         pipelineConfig.setMaxOutputKeyBytes(config.getOperationalLimits().getMaxKeyBytes());
@@ -292,7 +285,7 @@ public final class StreamingEngineComputationConfigFetcher implements Computatio
 
   private Optional<StreamingEnginePipelineConfig> fetchGlobalConfig() {
     return fetchConfigWithRetry(dataflowServiceClient::getGlobalStreamingConfigWorkItem)
-        .map(config -> createPipelineConfig(config, shouldThrowExceptionsOnLargeOutput));
+        .map(config -> createPipelineConfig(config));
   }
 
   @FunctionalInterface
