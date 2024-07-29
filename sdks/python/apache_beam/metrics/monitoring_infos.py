@@ -72,12 +72,12 @@ DISTRIBUTION_INT64_TYPE = (
     common_urns.monitoring_info_types.DISTRIBUTION_INT64_TYPE.urn)
 LATEST_INT64_TYPE = common_urns.monitoring_info_types.LATEST_INT64_TYPE.urn
 PROGRESS_TYPE = common_urns.monitoring_info_types.PROGRESS_TYPE.urn
-SET_STRING_TYPE = common_urns.monitoring_info_types.SET_STRING_TYPE.urn
+STRING_SET_TYPE = common_urns.monitoring_info_types.SET_STRING_TYPE.urn
 
 COUNTER_TYPES = set([SUM_INT64_TYPE])
 DISTRIBUTION_TYPES = set([DISTRIBUTION_INT64_TYPE])
 GAUGE_TYPES = set([LATEST_INT64_TYPE])
-STRING_SET_TYPES = set([SET_STRING_TYPE])
+STRING_SET_TYPES = set([STRING_SET_TYPE])
 
 # TODO(migryz) extract values from beam_fn_api.proto::MonitoringInfoLabels
 PCOLLECTION_LABEL = (

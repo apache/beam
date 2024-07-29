@@ -312,7 +312,6 @@ class StringSetCell(MetricCell):
 
   def to_runner_api_monitoring_info_impl(self, name, transform_id):
     from apache_beam.metrics import monitoring_infos
-    # return monitoring_infos.set
 
     return monitoring_infos.user_set_string(
         name.namespace,
