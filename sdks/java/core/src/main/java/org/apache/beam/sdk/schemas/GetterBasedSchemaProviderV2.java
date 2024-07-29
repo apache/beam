@@ -22,14 +22,13 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * A newer version of {@link GetterBasedSchemaProvider}, which works with {@link TypeDescriptor}s,
- * and which by default throws an {@link UnsupportedOperationException} in the old, {@link Class}
- * based methods.
+ * and which by default delegates the old, {@link Class} based methods, to the new ones.
  */
 @SuppressWarnings("rawtypes")
 public abstract class GetterBasedSchemaProviderV2 extends GetterBasedSchemaProvider {
   @Override
   public List<FieldValueGetter> fieldValueGetters(Class<?> targetClass, Schema schema) {
-    throw new UnsupportedOperationException();
+    return fieldValueGetters(TypeDescriptor.of(targetClass), schema);
   }
 
   @Override
@@ -39,7 +38,7 @@ public abstract class GetterBasedSchemaProviderV2 extends GetterBasedSchemaProvi
   @Override
   public List<FieldValueTypeInformation> fieldValueTypeInformations(
       Class<?> targetClass, Schema schema) {
-    throw new UnsupportedOperationException();
+    return fieldValueTypeInformations(TypeDescriptor.of(targetClass), schema);
   }
 
   @Override
@@ -48,7 +47,7 @@ public abstract class GetterBasedSchemaProviderV2 extends GetterBasedSchemaProvi
 
   @Override
   public SchemaUserTypeCreator schemaTypeCreator(Class<?> targetClass, Schema schema) {
-    throw new UnsupportedOperationException();
+    return schemaTypeCreator(TypeDescriptor.of(targetClass), schema);
   }
 
   @Override
