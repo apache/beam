@@ -30,6 +30,7 @@ import com.google.api.client.googleapis.services.json.AbstractGoogleJsonClientRe
 import com.google.api.client.http.HttpHeaders;
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.http.HttpStatusCodes;
+import com.google.api.client.http.HttpTransport;
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.Sleeper;
 import com.google.api.services.storage.Storage;
@@ -262,8 +263,17 @@ public class GcsUtil {
             .setAppName("Beam")
             .setGrpcEnabled(shouldUseGrpc)
             .build();
-    googleCloudStorage =
-        createGoogleCloudStorage(googleCloudStorageOptions, storageClient, credentials);
+    try {
+      googleCloudStorage =
+          createGoogleCloudStorage(
+              googleCloudStorageOptions,
+              credentials,
+              storageClient.getRequestFactory().getTransport(),
+              httpRequestInitializer);
+    } catch (IOException e) {
+      LOG.error("Failed to initialize Google Cloud Storage", e);
+      throw new RuntimeException(e);
+    }
     this.batchRequestSupplier =
         () -> {
           // Capture reference to this so that the most recent storageClient and initializer
@@ -681,7 +691,10 @@ public class GcsUtil {
         googleCloudStorageOptions.toBuilder().setWriteChannelOptions(wcOptions).build();
     GoogleCloudStorage gcpStorage =
         createGoogleCloudStorage(
-            newGoogleCloudStorageOptions, this.storageClient, this.credentials);
+            newGoogleCloudStorageOptions,
+            this.credentials,
+            this.storageClient.getRequestFactory().getTransport(),
+            this.httpRequestInitializer);
     StorageResourceId resourceId =
         new StorageResourceId(
             path.getBucket(),
@@ -723,8 +736,17 @@ public class GcsUtil {
   }
 
   GoogleCloudStorage createGoogleCloudStorage(
-      GoogleCloudStorageOptions options, Storage storage, Credentials credentials) {
-    return new GoogleCloudStorageImpl(options, storage, credentials);
+      GoogleCloudStorageOptions options,
+      Credentials credentials,
+      @Nullable HttpTransport httpTransport,
+      @Nullable HttpRequestInitializer httpRequestInitializer)
+      throws IOException {
+    return GoogleCloudStorageImpl.builder()
+        .setOptions(options)
+        .setCredentials(credentials)
+        .setHttpTransport(httpTransport)
+        .setHttpRequestInitializer(httpRequestInitializer)
+        .build();
   }
 
   /**

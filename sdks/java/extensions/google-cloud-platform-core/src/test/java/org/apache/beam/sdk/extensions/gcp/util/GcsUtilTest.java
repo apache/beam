@@ -973,7 +973,7 @@ public class GcsUtilTest {
     GcsOptions pipelineOptions = gcsOptionsWithTestCredential();
     GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
     GoogleCloudStorageReadOptions readOptions =
-        GoogleCloudStorageReadOptions.builder().setFastFailOnNotFound(false).build();
+        GoogleCloudStorageReadOptions.builder().setFastFailOnNotFoundEnabled(false).build();
     SeekableByteChannel channel =
         gcsUtil.open(GcsPath.fromComponents("testbucket", "testobject"), readOptions);
     channel.close();
@@ -991,7 +991,7 @@ public class GcsUtilTest {
             .setProjectId("my_project")
             .build());
     GoogleCloudStorageReadOptions readOptions =
-        GoogleCloudStorageReadOptions.builder().setFastFailOnNotFound(true).build();
+        GoogleCloudStorageReadOptions.builder().setFastFailOnNotFoundEnabled(true).build();
     assertThrows(
         IOException.class,
         () -> gcsUtil.open(GcsPath.fromComponents("testbucket", "testbucket"), readOptions));
@@ -1606,8 +1606,10 @@ public class GcsUtilTest {
             .thenReturn(Channels.newChannel(new ByteArrayOutputStream()));
       } else {
         SeekableByteChannel seekableByteChannel = new SeekableInMemoryByteChannel(readPayload);
-        Mockito.when(googleCloudStorageMock.open(Mockito.any())).thenReturn(seekableByteChannel);
-        Mockito.when(googleCloudStorageMock.open(Mockito.any(), Mockito.any()))
+        Mockito.when(googleCloudStorageMock.open(Mockito.any(StorageResourceId.class)))
+            .thenReturn(seekableByteChannel);
+        Mockito.when(
+                googleCloudStorageMock.open(Mockito.any(StorageResourceId.class), Mockito.any()))
             .thenReturn(seekableByteChannel);
       }
       return gcsUtilMock;
@@ -1655,7 +1657,10 @@ public class GcsUtilTest {
 
     @Override
     GoogleCloudStorage createGoogleCloudStorage(
-        GoogleCloudStorageOptions options, Storage storage, Credentials credentials) {
+        GoogleCloudStorageOptions options,
+        Credentials credentials,
+        @Nullable HttpTransport httpTransport,
+        @Nullable HttpRequestInitializer httpRequestInitializern) {
       return googleCloudStorage;
     }
   }
