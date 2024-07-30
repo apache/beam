@@ -40,8 +40,7 @@ class WorkerIdInterceptor(grpc.UnaryUnaryClientInterceptor,
   # Unique worker Id for this worker.
   _worker_id = os.environ.get('WORKER_ID')
 
-  def __init__(self, worker_id=None):
-    # type: (Optional[str]) -> None
+  def __init__(self, worker_id: Optional[str] = None) -> None:
     if worker_id:
       self._worker_id = worker_id
 

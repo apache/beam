@@ -1099,7 +1099,7 @@ public class TableRowToStorageApiProto {
       FieldDescriptor fieldDescriptor = field.getKey();
       Object fieldValue = field.getValue();
       if (includeCdcColumns || !StorageApiCDC.COLUMNS.contains(fieldDescriptor.getName())) {
-        tableRow.putIfAbsent(
+        tableRow.put(
             fieldDescriptor.getName(),
             jsonValueFromMessageValue(fieldDescriptor, fieldValue, true));
       }

@@ -55,6 +55,72 @@ import org.apache.commons.csv.CSVFormat;
  * <p>Reading from CSV files is not yet implemented. Please see <a
  * href="https://github.com/apache/beam/issues/24552">https://github.com/apache/beam/issues/24552</a>.
  *
+ * <h3>Valid CSVFormat Configuration</h3>
+ *
+ * <p>A <a
+ * href="https://javadoc.io/static/org.apache.commons/commons-csv/1.8/org/apache/commons/csv/CSVFormat.html">{@code
+ * CSVFormat}</a> must meet the following conditions to be considered valid when reading CSV:
+ *
+ * <ul>
+ *   <li>{@code String[]} <a
+ *       href="https://javadoc.io/static/org.apache.commons/commons-csv/1.8/org/apache/commons/csv/CSVFormat.html#withHeader-java.lang.Class-">header</a>
+ *       - must contain at least one column name, and all column names must be non-empty.
+ *   <li>{@code boolean} <a
+ *       href="https://javadoc.io/static/org.apache.commons/commons-csv/1.8/org/apache/commons/csv/CSVFormat.html#withAllowDuplicateHeaderNames--">allowDuplicateHeaderNames</a>
+ *       - must be false.
+ *   <li>{@code boolean} <a
+ *       href="https://javadoc.io/static/org.apache.commons/commons-csv/1.8/org/apache/commons/csv/CSVFormat.html#withAllowMissingColumnNames--">allowMissingColumnNames
+ *       </a> - must be false.
+ *   <li>{@code boolean} <a
+ *       href="https://javadoc.io/static/org.apache.commons/commons-csv/1.8/org/apache/commons/csv/CSVFormat.html#withIgnoreHeaderCase--">ignoreHeaderCase</a>
+ *       - must be false.
+ *   <li>{@code boolean} <a
+ *       href="https://javadoc.io/static/org.apache.commons/commons-csv/1.8/org/apache/commons/csv/CSVFormat.html#withSkipHeaderRecord--">skipHeaderRecord</a>
+ *       - must be false. The header is already accounted for during parsing.
+ * </ul>
+ *
+ * <h4>Ignored CSVFormat parameters</h4>
+ *
+ * <p>The following {@code CSVFormat} parameters are either not relevant for parsing CSV or are
+ * validated satisfactorily by the <a
+ * href="https://javadoc.io/doc/org.apache.commons/commons-csv/1.8/index.html">Apache Commons CSV
+ * library</a>.
+ *
+ * <ul>
+ *   <li>{@code boolean} <a
+ *       href="https://javadoc.io/static/org.apache.commons/commons-csv/1.8/org/apache/commons/csv/CSVFormat.html#withAutoFlush-boolean-">autoFlush</a>
+ *   <li>{@code char} <a
+ *       href="https://javadoc.io/static/org.apache.commons/commons-csv/1.8/org/apache/commons/csv/CSVFormat.html#withCommentMarker-char-">commentMarker</a>
+ *   <li>{@code char} <a
+ *       href="https://javadoc.io/static/org.apache.commons/commons-csv/1.8/org/apache/commons/csv/CSVFormat.html#withDelimiter-char-">delimiter</a>
+ *   <li>{@code char} <a
+ *       href="https://javadoc.io/static/org.apache.commons/commons-csv/1.8/org/apache/commons/csv/CSVFormat.html#withEscape-char-">escape</a>
+ *   <li>{@code char} <a
+ *       href="https://javadoc.io/static/org.apache.commons/commons-csv/1.8/org/apache/commons/csv/CSVFormat.html#withQuote-char-">quote</a>
+ *   <li>{@code org.apache.commons.csv.QuoteMode} <a
+ *       href="https://javadoc.io/static/org.apache.commons/commons-csv/1.8/org/apache/commons/csv/CSVFormat.html#withQuoteMode-org.apache.commons.csv.QuoteMode-">quoteMode</a>
+ *   <li>{@code String} <a
+ *       href="https://javadoc.io/static/org.apache.commons/commons-csv/1.8/org/apache/commons/csv/CSVFormat.html#withNullString-java.lang.String-">nullString</a>
+ *   <li>{@code char} <a
+ *       href="https://javadoc.io/static/org.apache.commons/commons-csv/1.8/org/apache/commons/csv/CSVFormat.html#withRecordSeparator-char-">recordSeparator</a>
+ *   <li><a
+ *       href="https://javadoc.io/static/org.apache.commons/commons-csv/1.8/org/apache/commons/csv/CSVFormat.html#withSystemRecordSeparator--">systemRecordSeparator</a>
+ *   <li><a
+ *       href="https://javadoc.io/static/org.apache.commons/commons-csv/1.8/org/apache/commons/csv/CSVFormat.html#withFirstRecordAsHeader--">firstRecordAsHeader</a>
+ *   <li>{@code java.lang.Object...} <a
+ *       href="https://javadoc.io/static/org.apache.commons/commons-csv/1.8/org/apache/commons/csv/CSVFormat.html#withHeaderComments-java.lang.Object...-">headerComments</a>
+ *   <li>{@code boolean} <a
+ *       href="https://javadoc.io/static/org.apache.commons/commons-csv/1.8/org/apache/commons/csv/CSVFormat.html#withIgnoreEmptyLines--">ignoreEmptyLines</a>
+ *   <li>{@code boolean} <a
+ *       href="https://javadoc.io/static/org.apache.commons/commons-csv/1.8/org/apache/commons/csv/CSVFormat.html#withIgnoreSurroundingSpaces--">ignoreSurroundingSpaces</a>
+ *   <li>{@code boolean} <a
+ *       href="https://javadoc.io/static/org.apache.commons/commons-csv/1.8/org/apache/commons/csv/CSVFormat.html#withTrim--">trim</a>
+ *   <li>{@code boolean} <a
+ *       href="https://javadoc.io/static/org.apache.commons/commons-csv/1.8/org/apache/commons/csv/CSVFormat.html#withSkipHeaderRecord--">skipHeaderRecord</a>
+ *   <li>{@code boolean} <a
+ *       href="https://javadoc.io/static/org.apache.commons/commons-csv/1.8/org/apache/commons/csv/CSVFormat.html#withTrailingDelimiter--">trailingDelimiter</a>
+ * </ul>
+ *
  * <h2>Writing CSV files</h2>
  *
  * <p>To write a {@link PCollection} to one or more CSV files, use {@link CsvIO.Write}, using {@link

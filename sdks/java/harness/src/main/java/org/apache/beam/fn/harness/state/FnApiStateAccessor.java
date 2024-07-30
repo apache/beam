@@ -813,14 +813,8 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
   private Cache<?, ?> getCacheFor(StateKey stateKey) {
     switch (stateKey.getTypeCase()) {
       case BAG_USER_STATE:
-        for (CacheToken token : cacheTokens.get()) {
-          if (!token.hasUserState()) {
-            continue;
-          }
-          return Caches.subCache(processWideCache, token, stateKey);
-        }
-        break;
       case MULTIMAP_KEYS_USER_STATE:
+      case ORDERED_LIST_USER_STATE:
         for (CacheToken token : cacheTokens.get()) {
           if (!token.hasUserState()) {
             continue;

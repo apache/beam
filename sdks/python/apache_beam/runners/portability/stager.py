@@ -214,7 +214,8 @@ class Stager(object):
           os.path.join(tempfile.gettempdir(), 'dataflow-requirements-cache') if
           (setup_options.requirements_cache is None) else
           setup_options.requirements_cache)
-      if not os.path.exists(requirements_cache_path):
+      if (setup_options.requirements_cache != SKIP_REQUIREMENTS_CACHE and
+          not os.path.exists(requirements_cache_path)):
         os.makedirs(requirements_cache_path)
 
       # Stage a requirements file if present.

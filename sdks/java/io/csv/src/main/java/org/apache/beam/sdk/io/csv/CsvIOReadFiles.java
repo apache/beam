@@ -17,38 +17,32 @@
  */
 package org.apache.beam.sdk.io.csv;
 
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.FileIO;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
-import org.apache.beam.sdk.values.TupleTag;
 
 /**
  * Skeleton for error handling in CsvIO that transforms a {@link FileIO.ReadableFile} into the
  * result of parsing.
  */
 // TODO(https://github.com/apache/beam/issues/31736): Plan completion in future PR after
-// dependencies are completed.
-class CsvIOReadFiles<T> extends PTransform<PCollection<FileIO.ReadableFile>, CsvIOParseResult<T>> {
+//  dependencies are completed.
+class CsvIOReadFiles<T> extends PTransform<PCollection<FileIO.ReadableFile>, PCollection<T>> {
   /** Stores required parameters for parsing. */
-  private final CsvIOParseConfiguration.Builder configBuilder;
+  private final CsvIOParseConfiguration.Builder<T> configBuilder;
 
-  CsvIOReadFiles(CsvIOParseConfiguration.Builder configBuilder) {
+  CsvIOReadFiles(CsvIOParseConfiguration.Builder<T> configBuilder) {
     this.configBuilder = configBuilder;
   }
 
   /** {@link PTransform} that parses and relays the filename associated with each error. */
-  // TODO: complete expand method to unsure parsing from FileIO.ReadableFile to CsvIOParseResult.
   @Override
-  public CsvIOParseResult<T> expand(PCollection<FileIO.ReadableFile> input) {
+  public PCollection<T> expand(PCollection<FileIO.ReadableFile> input) {
     // TODO(https://github.com/apache/beam/issues/31736): Needed to prevent check errors, will
-    // remove with future PR.
+    //  remove with future PR.
     configBuilder.build();
-    TupleTag<T> outputTag = new TupleTag<>();
-    TupleTag<CsvIOParseError> errorTag = new TupleTag<>();
-    Pipeline p = input.getPipeline();
-    PCollectionTuple tuple = PCollectionTuple.empty(p);
-    return CsvIOParseResult.of(outputTag, errorTag, tuple);
+    return input.apply(ParDo.of(new DoFn<FileIO.ReadableFile, T>() {}));
   }
 }

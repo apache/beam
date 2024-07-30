@@ -109,6 +109,28 @@ public interface BigQueryOptions
 
   void setNumStorageWriteApiStreamAppendClients(Integer value);
 
+  @Description(
+      "When using the STORAGE_API_AT_LEAST_ONCE write method with multiplexing (ie. useStorageApiConnectionPool=true), "
+          + "this option sets the minimum number of connections each pool creates before any connections are shared. This is "
+          + "on a per worker, per region basis. Note that in practice, the minimum number of connections created is the minimum "
+          + "of this value and (numStorageWriteApiStreamAppendClients x num destinations). BigQuery will create this many "
+          + "connections at first and will only create more connections if the current ones are \"overwhelmed\". Consider "
+          + "increasing this value if you are running into performance issues.")
+  @Default.Integer(2)
+  Integer getMinConnectionPoolConnections();
+
+  void setMinConnectionPoolConnections(Integer value);
+
+  @Description(
+      "When using the STORAGE_API_AT_LEAST_ONCE write method with multiplexing (ie. useStorageApiConnectionPool=true), "
+          + "this option sets the maximum number of connections each pool creates. This is on a per worker, per region basis. "
+          + "If writing to many dynamic destinations (>20) and experiencing performance issues or seeing append operations competing"
+          + "for streams, consider increasing this value.")
+  @Default.Integer(20)
+  Integer getMaxConnectionPoolConnections();
+
+  void setMaxConnectionPoolConnections(Integer value);
+
   @Description("The max number of messages inflight that we expect each connection will retain.")
   @Default.Long(1000)
   Long getStorageWriteMaxInflightRequests();
@@ -122,6 +144,11 @@ public interface BigQueryOptions
 
   void setStorageWriteMaxInflightBytes(Long value);
 
+  @Description(
+      "Enables multiplexing mode, where multiple tables can share the same connection. Only available when writing with STORAGE_API_AT_LEAST_ONCE"
+          + " mode. This is recommended if your write operation is creating 20+ connections. When using multiplexing, consider tuning "
+          + "the number of connections created by the connection pool with minConnectionPoolConnections and maxConnectionPoolConnections. "
+          + "For more information, see https://cloud.google.com/bigquery/docs/write-api-best-practices#connection_pool_management")
   @Default.Boolean(false)
   Boolean getUseStorageApiConnectionPool();
 
