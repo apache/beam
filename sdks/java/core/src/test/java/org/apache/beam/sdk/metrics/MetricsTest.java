@@ -20,6 +20,7 @@ package org.apache.beam.sdk.metrics;
 import static org.apache.beam.sdk.metrics.MetricResultsMatchers.attemptedMetricsResult;
 import static org.apache.beam.sdk.metrics.MetricResultsMatchers.distributionMinMax;
 import static org.apache.beam.sdk.metrics.MetricResultsMatchers.metricsResult;
+import static org.apache.beam.sdk.testing.SerializableMatchers.greaterThan;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -28,9 +29,17 @@ import static org.junit.Assert.assertNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.io.IOException;
 import java.io.Serializable;
+import java.util.List;
+import java.util.NoSuchElementException;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.GenerateSequence;
+import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesAttemptedMetrics;
@@ -45,6 +54,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -415,6 +425,121 @@ public class MetricsTest implements Serializable {
       PipelineResult result = runPipelineWithMetrics();
       MetricQueryResults metrics = queryTestMetrics(result);
       assertStringSetMetrics(metrics, false);
+    }
+
+    @Test
+    @Category({ValidatesRunner.class, UsesAttemptedMetrics.class, UsesCounterMetrics.class})
+    public void testBoundedSourceMetricsInSplit() {
+      pipeline.apply(Read.from(new CountingSourceWithMetrics(0, 10)));
+      PipelineResult pipelineResult = pipeline.run();
+      MetricQueryResults metrics =
+          pipelineResult
+              .metrics()
+              .queryMetrics(
+                  MetricsFilter.builder()
+                      .addNameFilter(
+                          MetricNameFilter.named(
+                              CountingSourceWithMetrics.class,
+                              CountingSourceWithMetrics.SPLIT_NAME))
+                      .addNameFilter(
+                          MetricNameFilter.named(
+                              CountingSourceWithMetrics.class,
+                              CountingSourceWithMetrics.ADVANCE_NAME))
+                      .build());
+      assertThat(
+          metrics.getCounters(),
+          hasItem(
+              attemptedMetricsResult(
+                  CountingSourceWithMetrics.class.getName(),
+                  CountingSourceWithMetrics.ADVANCE_NAME,
+                  null, // step name varies depending on the runner
+                  10L)));
+      assertThat(
+          metrics.getCounters(),
+          hasItem(
+              metricsResult(
+                  CountingSourceWithMetrics.class.getName(),
+                  CountingSourceWithMetrics.SPLIT_NAME,
+                  null, // step name varies depending on the runner
+                  greaterThan(0L),
+                  false)));
+    }
+  }
+
+  public static class CountingSourceWithMetrics extends BoundedSource<Integer> {
+    public static final String SPLIT_NAME = "num-split";
+    public static final String ADVANCE_NAME = "num-advance";
+    private static Counter splitCounter =
+        Metrics.counter(CountingSourceWithMetrics.class, SPLIT_NAME);
+    private static Counter advanceCounter =
+        Metrics.counter(CountingSourceWithMetrics.class, ADVANCE_NAME);
+    private final int start;
+    private final int end;
+
+    @Override
+    public List<? extends BoundedSource<Integer>> split(
+        long desiredBundleSizeBytes, PipelineOptions options) {
+      splitCounter.inc();
+      // simply split the current source into two
+      if (end - start >= 2) {
+        int mid = (start + end + 1) / 2;
+        return ImmutableList.of(
+            new CountingSourceWithMetrics(start, mid), new CountingSourceWithMetrics(mid, end));
+      }
+      return null;
+    }
+
+    @Override
+    public long getEstimatedSizeBytes(PipelineOptions options) {
+      return 0;
+    }
+
+    @Override
+    public BoundedReader<Integer> createReader(PipelineOptions options) {
+      return new CountingReader();
+    }
+
+    public CountingSourceWithMetrics(int start, int end) {
+      this.start = start;
+      this.end = end;
+    }
+
+    @Override
+    public Coder<Integer> getOutputCoder() {
+      return VarIntCoder.of();
+    }
+
+    public class CountingReader extends BoundedSource.BoundedReader<Integer> {
+      private int current;
+
+      @Override
+      public boolean start() throws IOException {
+        return current < end;
+      }
+
+      @Override
+      public boolean advance() {
+        ++current;
+        advanceCounter.inc();
+        return current < end;
+      }
+
+      @Override
+      public Integer getCurrent() throws NoSuchElementException {
+        return current;
+      }
+
+      @Override
+      public void close() {}
+
+      @Override
+      public BoundedSource<Integer> getCurrentSource() {
+        return null;
+      }
+
+      public CountingReader() {
+        current = start;
+      }
     }
   }
 
