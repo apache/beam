@@ -108,7 +108,7 @@ example above:</p><div class='language-java snippet'><div class="notebook-skip c
 </span></span></span><span class=line><span class=cl><span class=c1></span><span class=n>String</span> <span class=n>sql</span> <span class=o>=</span>
 </span></span><span class=line><span class=cl>    <span class=s>&#34;SELECT f_int1, squaresum(f_int2) &#34;</span>
 </span></span><span class=line><span class=cl>      <span class=o>+</span> <span class=s>&#34;FROM PCOLLECTION &#34;</span>
-</span></span><span class=line><span class=cl>      <span class=o>+</span> <span class=s>&#34;GROUP BY f_int2&#34;</span><span class=o>;</span>
+</span></span><span class=line><span class=cl>      <span class=o>+</span> <span class=s>&#34;GROUP BY f_int1&#34;</span><span class=o>;</span>
 </span></span><span class=line><span class=cl>
 </span></span><span class=line><span class=cl><span class=c1>// Create and apply the PTransform representing the query.
 </span></span></span><span class=line><span class=cl><span class=c1>// Register the UDAFs used in the query by calling &#39;.registerUdaf()&#39; by
