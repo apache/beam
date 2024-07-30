@@ -41,7 +41,6 @@ from redis.commands.search.query import Query
 
 import apache_beam as beam
 from apache_beam.transforms.enrichment import EnrichmentSourceHandler
-from apache_beam.transforms.enrichment_handlers.utils import ExceptionLevel
 
 __all__ = [
     'RedisEnrichmentHandler',
@@ -64,7 +63,7 @@ class RedisEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
     hybrid_fields (str): fields to be selected
     k (int): Value of K in KNN algorithm for searching in redis
   """
-  
+
   def __init__(
       self,
       redis_host: str,
@@ -98,19 +97,18 @@ class RedisEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
     Args:
     request: the input `beam.Row` to enrich.
     """
-    
-    
+
+
     # read embedding vector for user query
 
     embedded_query = request['text']
-    
-    
+
+
      # Prepare the Query
     base_query = f'{self.hybrid_fields}=>[KNN {self.k} @{self.vector_field} $vector AS vector_score]'
     query = (
         Query(base_query)
          .return_fields(*self.return_fields)
-        #  .sort_by("vector_score")
          .paging(0, self.k)
          .dialect(2)
     )
@@ -121,4 +119,4 @@ class RedisEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
     results = self.client.ft(self.index_name).search(query, params_dict)
 
     return beam.Row(text=embedded_query), beam.Row(docs = results.docs)
-  
+

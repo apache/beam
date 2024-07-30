@@ -17,38 +17,21 @@
 
 from __future__ import absolute_import
 
-import logging
-from past.builtins import unicode
-
 import apache_beam as beam
 import numpy as np
 
 from apache_beam.transforms import DoFn
 from apache_beam.transforms import PTransform
 from apache_beam.transforms import Reshuffle
-from apache_beam import coders
+
 
 import redis
-import typing
 from typing import Optional
 
-# Set the logging level to reduce verbose information
-import logging
-
-logging.root.setLevel(logging.INFO)
-logger = logging.getLogger(__name__)
 
 __all__ = ['InsertDocInRedis', 'InsertEmbeddingInRedis']
 
 
-class Document(typing.NamedTuple):
-    id: str
-    url: str
-    title: str
-    text: str
-
-
-coders.registry.register_coder(Document, coders.RowCoder)
 
 """This module implements IO classes to read write documents in Redis.
 
@@ -86,8 +69,8 @@ class InsertDocInRedis(PTransform):
         Args:
         host (str): The redis host
         port (int): The redis port
-        batch_size(int): Number of key, values pairs to write at once
         command (str): command to be executed with redis client
+        batch_size(int): Number of key, values pairs to write at once
 
         Returns:
         :class:`~apache_beam.transforms.ptransform.PTransform`
@@ -106,7 +89,6 @@ class InsertDocInRedis(PTransform):
                                                                               self._port,
                                                                               self._command,
                                                                               self._batch_size)
-                                                            # .with_output_types(Document)
                                                             )
 
 
@@ -135,13 +117,10 @@ class _InsertDocRedisFn(DoFn):
         self._flush()
 
     def process(self, element, *args, **kwargs):
-        # if type(element) is not dict:
-        #     element = element._asdict()
         self.batch.append(element)
         self.batch_counter += 1
         if self.batch_counter >= self.batch_size:
             self._flush()
-            # yield Document(**element)
         yield element
 
     def _flush(self):
@@ -181,7 +160,7 @@ class _InsertDocRedisSink(object):
     def write(self, elements):
         self._create_client()
         with self.client.pipeline() as pipe:
-            for element in elements:  # ML Transform passes a dictionary list. TODO: add a transform instead to suit the Vector DB functionality.
+            for element in elements:
                 doc_key = f"doc_{str(element['id'])}_section_{str(element['section_id'])}"
                 for k, v in element.items():
                     print(f'Inserting doc_key={doc_key}, key={k}, value={v}')
@@ -337,7 +316,7 @@ class _InsertEmbeddingInRedisSink(object):
     def write(self, elements):
         self._create_client()
         with self.client.pipeline() as pipe:
-            for element in elements:  # ML Transform passes a dictionary list. TODO: add a transform instead to suit the Vector DB functionality.
+            for element in elements:
                 doc_key = f"doc_{str(element['id'])}_section_{str(element['section_id'])}"
                 for k, v in element.items():
                     if k in self.embedded_columns:
