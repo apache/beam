@@ -290,6 +290,12 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
     lastErrorTime.set(DateTime.now());
   }
 
+  public static class WindmillStreamShutdownException extends RuntimeException {
+    public WindmillStreamShutdownException(String message) {
+      super(message);
+    }
+  }
+
   private class ResponseObserver implements StreamObserver<ResponseT> {
 
     @Override

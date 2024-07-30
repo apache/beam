@@ -208,8 +208,7 @@ public final class ActiveWorkState {
                 Entry::getKey,
                 e ->
                     e.getValue().stream()
-                        .map(ExecutableWork::work)
-                        .map(work -> (RefreshableWork) work)));
+                        .map(executableWork -> (RefreshableWork) executableWork.work())));
   }
 
   synchronized ImmutableList<RefreshableWork> getRefreshableWork(Instant refreshDeadline) {

@@ -47,6 +47,7 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
   private static final Logger LOG = LoggerFactory.getLogger(StreamingEngineWorkCommitter.class);
   private static final int TARGET_COMMIT_BATCH_KEYS = 5;
   private static final int MAX_COMMIT_QUEUE_BYTES = 500 << 20; // 500MB
+  private static final String NO_BACKEND_WORKER_TOKEN = "";
 
   private final Supplier<CloseableStream<CommitWorkStream>> commitWorkStreamFactory;
   private final WeightedBoundedQueue<Commit> commitQueue;
@@ -84,7 +85,7 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
 
   public static Builder builder() {
     return new AutoBuilder_StreamingEngineWorkCommitter_Builder()
-        .setBackendWorkerToken("")
+        .setBackendWorkerToken(NO_BACKEND_WORKER_TOKEN)
         .setNumCommitSenders(1);
   }
 
@@ -222,7 +223,7 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
    */
   private @Nullable Commit expandBatch(CommitWorkStream.RequestBatcher batcher) {
     int commits = 1;
-    while (isRunning.get()) {
+    while (true) {
       Commit commit;
       try {
         if (commits < TARGET_COMMIT_BATCH_KEYS) {
@@ -231,6 +232,7 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
           commit = commitQueue.poll();
         }
       } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
         return null;
       }
 
@@ -249,8 +251,6 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
       }
       commits++;
     }
-
-    return null;
   }
 
   @AutoBuilder

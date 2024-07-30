@@ -198,6 +198,9 @@ public class StreamingDataflowWorker {
       GrpcWindmillStreamFactory windmillStreamFactory,
       Function<String, ScheduledExecutorService> executorSupplier,
       ConcurrentMap<String, StageInfo> stageInfoMap) {
+    // Register standard file systems.
+    FileSystems.setDefaultPipelineOptions(options);
+
     this.configFetcher = configFetcher;
     this.computationStateCache = computationStateCache;
     this.stateCache = windmillStateCache;
@@ -330,9 +333,6 @@ public class StreamingDataflowWorker {
             maxWorkItemCommitBytes,
             ID_GENERATOR,
             stageInfoMap);
-
-    // Register standard file systems.
-    FileSystems.setDefaultPipelineOptions(options);
 
     LOG.debug("windmillServiceEnabled: {}", windmillServiceEnabled);
     LOG.debug("WindmillServiceEndpoint: {}", options.getWindmillServiceEndpoint());

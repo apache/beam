@@ -30,8 +30,7 @@ import org.apache.beam.sdk.annotations.Internal;
 /**
  * StreamingEngine implementation of {@link GetDataClient}.
  *
- * @implNote Uses {@link WindmillStreamPool} to send requests. Depending on options, may use a
- *     dedicated stream pool for heartbeats.
+ * @implNote Uses {@link WindmillStreamPool} to send requests.
  */
 @Internal
 @ThreadSafe

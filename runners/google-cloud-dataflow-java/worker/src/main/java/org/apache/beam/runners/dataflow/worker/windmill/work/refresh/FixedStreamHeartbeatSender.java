@@ -18,8 +18,9 @@
 package org.apache.beam.runners.dataflow.worker.windmill.work.refresh;
 
 import java.util.Objects;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.streaming.RefreshableWork;
-import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.AbstractWindmillStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.sdk.annotations.Internal;
 import org.slf4j.Logger;
@@ -50,16 +51,17 @@ public final class FixedStreamHeartbeatSender implements HeartbeatSender {
 
   @Override
   public void sendHeartbeats(Heartbeats heartbeats) {
-    String threadName = Thread.currentThread().getName();
+    @Nullable String originalThreadName = null;
     try {
       String backendWorkerToken = getDataStream.backendWorkerToken();
       if (!backendWorkerToken.isEmpty()) {
         // Decorate the thread name w/ the backendWorkerToken for debugging. Resets the thread's
         // name after sending the heartbeats succeeds or fails.
-        Thread.currentThread().setName(threadName + "-" + backendWorkerToken);
+        originalThreadName = Thread.currentThread().getName();
+        Thread.currentThread().setName(originalThreadName + "-" + backendWorkerToken);
       }
       getDataStream.refreshActiveWork(heartbeats.heartbeatRequests().asMap());
-    } catch (WindmillStream.WindmillStreamShutdownException e) {
+    } catch (AbstractWindmillStream.WindmillStreamShutdownException e) {
       LOG.warn(
           "Trying to refresh work w/ {} heartbeats on stream={} after work has moved off of worker."
               + " heartbeats",
@@ -67,7 +69,9 @@ public final class FixedStreamHeartbeatSender implements HeartbeatSender {
           heartbeats.heartbeatRequests().size());
       heartbeats.work().forEach(RefreshableWork::setFailed);
     } finally {
-      Thread.currentThread().setName(threadName);
+      if (originalThreadName != null) {
+        Thread.currentThread().setName(originalThreadName);
+      }
     }
   }
 

@@ -114,10 +114,4 @@ public interface WindmillStream {
   /** Interface for streaming GetWorkerMetadata requests to Windmill. */
   @ThreadSafe
   interface GetWorkerMetadataStream extends WindmillStream {}
-
-  class WindmillStreamShutdownException extends RuntimeException {
-    public WindmillStreamShutdownException(String message) {
-      super(message);
-    }
-  }
 }

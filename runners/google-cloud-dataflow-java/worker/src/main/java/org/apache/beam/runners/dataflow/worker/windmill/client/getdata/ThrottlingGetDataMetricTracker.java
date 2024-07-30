@@ -72,9 +72,8 @@ public final class ThrottlingGetDataMetricTracker {
    * metric after the call is finished.
    */
   public AutoCloseable trackHeartbeats(int numHeartbeats) {
-    activeHeartbeats.getAndUpdate(
-        currentActiveHeartbeats -> currentActiveHeartbeats + numHeartbeats);
-    return () -> activeHeartbeats.getAndUpdate(existing -> existing - numHeartbeats);
+    activeHeartbeats.getAndAdd(numHeartbeats);
+    return () -> activeHeartbeats.getAndAdd(-numHeartbeats);
   }
 
   public void printHtml(PrintWriter writer) {

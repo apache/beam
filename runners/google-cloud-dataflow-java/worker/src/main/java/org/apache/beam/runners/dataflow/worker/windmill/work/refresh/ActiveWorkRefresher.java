@@ -30,12 +30,12 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.RefreshableWork;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -82,13 +82,7 @@ public final class ActiveWorkRefresher {
     this.heartbeatTracker = heartbeatTracker;
     this.fanOutActiveWorkRefreshExecutor =
         Executors.newCachedThreadPool(
-            new ThreadFactoryBuilder()
-                // Work refresh runs as a background process, don't let failures crash
-                // the worker.
-                .setUncaughtExceptionHandler(
-                    (t, e) -> LOG.error("Unexpected failure in {}", t.getName(), e))
-                .setNameFormat(FAN_OUT_REFRESH_WORK_EXECUTOR_NAME)
-                .build());
+            new ThreadFactoryBuilder().setNameFormat(FAN_OUT_REFRESH_WORK_EXECUTOR_NAME).build());
   }
 
   @SuppressWarnings("FutureReturnValueIgnored")
@@ -132,37 +126,28 @@ public final class ActiveWorkRefresher {
     }
   }
 
-  /** Create {@link Heartbeats} and group them by {@link HeartbeatSender}. */
   private void refreshActiveWork() {
     Instant refreshDeadline = clock.get().minus(Duration.millis(activeWorkRefreshPeriodMillis));
     Map<HeartbeatSender, Heartbeats> heartbeatsBySender =
         aggregateHeartbeatsBySender(refreshDeadline);
 
-    if (heartbeatsBySender.isEmpty()) {
-      return;
-    }
+    List<CompletableFuture<Void>> fanOutRefreshActiveWork = new ArrayList<>();
 
-    if (heartbeatsBySender.size() == 1) {
-      // If there is a single HeartbeatSender, just use the calling thread to send heartbeats.
-      Map.Entry<HeartbeatSender, Heartbeats> heartbeat =
-          Iterables.getOnlyElement(heartbeatsBySender.entrySet());
-      sendHeartbeat(heartbeat);
-    } else {
-      // If there are multiple HeartbeatSenders, send out the heartbeats in parallel using the
-      // fanOutActiveWorkRefreshExecutor.
-      List<CompletableFuture<Void>> fanOutRefreshActiveWork = new ArrayList<>();
-      for (Map.Entry<HeartbeatSender, Heartbeats> heartbeat : heartbeatsBySender.entrySet()) {
+    // Send the first heartbeat on the calling thread, and fan out the rest via the
+    // fanOutActiveWorkRefreshExecutor.
+    @Nullable Map.Entry<HeartbeatSender, Heartbeats> firstHeartbeat = null;
+    for (Map.Entry<HeartbeatSender, Heartbeats> heartbeat : heartbeatsBySender.entrySet()) {
+      if (firstHeartbeat == null) {
+        firstHeartbeat = heartbeat;
+      } else {
         fanOutRefreshActiveWork.add(
             CompletableFuture.runAsync(
-                () -> sendHeartbeat(heartbeat), fanOutActiveWorkRefreshExecutor));
+                () -> sendHeartbeatSafely(heartbeat), fanOutActiveWorkRefreshExecutor));
       }
-
-      // Don't block until we kick off all the refresh active work RPCs.
-      @SuppressWarnings("rawtypes")
-      CompletableFuture<Void> parallelFanOutRefreshActiveWork =
-          CompletableFuture.allOf(fanOutRefreshActiveWork.toArray(new CompletableFuture[0]));
-      parallelFanOutRefreshActiveWork.join();
     }
+
+    sendHeartbeatSafely(firstHeartbeat);
+    fanOutRefreshActiveWork.forEach(CompletableFuture::join);
   }
 
   /** Aggregate the heartbeats across computations by HeartbeatSender for correct fan out. */
@@ -182,7 +167,11 @@ public final class ActiveWorkRefresher {
         .collect(toImmutableMap(Map.Entry::getKey, e -> e.getValue().build()));
   }
 
-  private void sendHeartbeat(Map.Entry<HeartbeatSender, Heartbeats> heartbeat) {
+  /**
+   * Send the {@link Heartbeats} using the {@link HeartbeatSender}. Safe since exceptions are caught
+   * and logged.
+   */
+  private void sendHeartbeatSafely(Map.Entry<HeartbeatSender, Heartbeats> heartbeat) {
     try (AutoCloseable ignored = heartbeatTracker.trackHeartbeats(heartbeat.getValue().size())) {
       HeartbeatSender sender = heartbeat.getKey();
       Heartbeats heartbeats = heartbeat.getValue();

@@ -26,7 +26,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 
 /** Heartbeat requests and the work that was used to generate the heartbeat requests. */
 @AutoValue
-public abstract class Heartbeats {
+abstract class Heartbeats {
 
   static Heartbeats.Builder builder() {
     return new AutoValue_Heartbeats.Builder();
@@ -34,22 +34,24 @@ public abstract class Heartbeats {
 
   abstract ImmutableList<RefreshableWork> work();
 
-  public abstract ImmutableListMultimap<String, Windmill.HeartbeatRequest> heartbeatRequests();
+  abstract ImmutableListMultimap<String, Windmill.HeartbeatRequest> heartbeatRequests();
 
-  public final int size() {
+  final int size() {
     return heartbeatRequests().asMap().size();
   }
 
   @AutoValue.Builder
-  public abstract static class Builder {
-    abstract Builder setWork(ImmutableList<RefreshableWork> value);
+  abstract static class Builder {
 
     abstract ImmutableList.Builder<RefreshableWork> workBuilder();
 
-    public final Builder add(
+    abstract ImmutableListMultimap.Builder<String, Windmill.HeartbeatRequest>
+        heartbeatRequestsBuilder();
+
+    final Builder add(
         String computationId, RefreshableWork work, DataflowExecutionStateSampler sampler) {
       workBuilder().add(work);
-      addHeartbeatRequest(computationId, createHeartbeatRequest(work, sampler));
+      heartbeatRequestsBuilder().put(computationId, createHeartbeatRequest(work, sampler));
       return this;
     }
 
@@ -63,17 +65,6 @@ public abstract class Heartbeats {
           .build();
     }
 
-    abstract Builder setHeartbeatRequests(
-        ImmutableListMultimap<String, Windmill.HeartbeatRequest> value);
-
-    abstract ImmutableListMultimap.Builder<String, Windmill.HeartbeatRequest>
-        heartbeatRequestsBuilder();
-
-    private void addHeartbeatRequest(
-        String computationId, Windmill.HeartbeatRequest heartbeatRequest) {
-      heartbeatRequestsBuilder().put(computationId, heartbeatRequest);
-    }
-
-    public abstract Heartbeats build();
+    abstract Heartbeats build();
   }
 }
