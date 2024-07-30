@@ -39,10 +39,12 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.client.AbstractWindmillStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
+import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.GetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemScheduler;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
+import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
@@ -80,8 +82,9 @@ public final class GrpcDirectGetWorkStream
   private final GetWorkRequest request;
   private final WorkItemScheduler workItemScheduler;
   private final ThrottleTimer getWorkThrottleTimer;
-  private final Supplier<GetDataStream> getDataStream;
+  private final Supplier<HeartbeatSender> heartbeatSender;
   private final Supplier<WorkCommitter> workCommitter;
+  private final Supplier<GetDataClient> getDataClient;
 
   /**
    * Map of stream IDs to their buffers. Used to aggregate streaming gRPC response chunks as they
@@ -91,6 +94,7 @@ public final class GrpcDirectGetWorkStream
   private final ConcurrentMap<Long, WorkItemBuffer> workItemBuffers;
 
   private GrpcDirectGetWorkStream(
+      String backendWorkerToken,
       Function<
               StreamObserver<StreamingGetWorkResponseChunk>,
               StreamObserver<StreamingGetWorkRequest>>
@@ -101,25 +105,32 @@ public final class GrpcDirectGetWorkStream
       Set<AbstractWindmillStream<?, ?>> streamRegistry,
       int logEveryNStreamFailures,
       ThrottleTimer getWorkThrottleTimer,
-      Supplier<GetDataStream> getDataStream,
+      Supplier<HeartbeatSender> heartbeatSender,
+      Supplier<GetDataClient> getDataClient,
       Supplier<WorkCommitter> workCommitter,
       WorkItemScheduler workItemScheduler) {
     super(
-        startGetWorkRpcFn, backoff, streamObserverFactory, streamRegistry, logEveryNStreamFailures);
+        "GetWorkStream",
+        startGetWorkRpcFn,
+        backoff,
+        streamObserverFactory,
+        streamRegistry,
+        logEveryNStreamFailures,
+        backendWorkerToken);
     this.request = request;
     this.getWorkThrottleTimer = getWorkThrottleTimer;
     this.workItemScheduler = workItemScheduler;
     this.workItemBuffers = new ConcurrentHashMap<>();
-    // Use the same GetDataStream and CommitWorkStream instances to process all the work in this
-    // stream.
-    this.getDataStream = Suppliers.memoize(getDataStream::get);
+    this.heartbeatSender = Suppliers.memoize(heartbeatSender::get);
     this.workCommitter = Suppliers.memoize(workCommitter::get);
+    this.getDataClient = Suppliers.memoize(getDataClient::get);
     this.inFlightBudget = new AtomicReference<>(GetWorkBudget.noBudget());
     this.nextBudgetAdjustment = new AtomicReference<>(GetWorkBudget.noBudget());
     this.pendingResponseBudget = new AtomicReference<>(GetWorkBudget.noBudget());
   }
 
   public static GrpcDirectGetWorkStream create(
+      String backendWorkerToken,
       Function<
               StreamObserver<StreamingGetWorkResponseChunk>,
               StreamObserver<StreamingGetWorkRequest>>
@@ -130,11 +141,13 @@ public final class GrpcDirectGetWorkStream
       Set<AbstractWindmillStream<?, ?>> streamRegistry,
       int logEveryNStreamFailures,
       ThrottleTimer getWorkThrottleTimer,
-      Supplier<GetDataStream> getDataStream,
+      Supplier<HeartbeatSender> heartbeatSender,
+      Supplier<GetDataClient> getDataClient,
       Supplier<WorkCommitter> workCommitter,
       WorkItemScheduler workItemScheduler) {
     GrpcDirectGetWorkStream getWorkStream =
         new GrpcDirectGetWorkStream(
+            backendWorkerToken,
             startGetWorkRpcFn,
             request,
             backoff,
@@ -142,7 +155,8 @@ public final class GrpcDirectGetWorkStream
             streamRegistry,
             logEveryNStreamFailures,
             getWorkThrottleTimer,
-            getDataStream,
+            heartbeatSender,
+            getDataClient,
             workCommitter,
             workItemScheduler);
     getWorkStream.startStream();
@@ -327,7 +341,7 @@ public final class GrpcDirectGetWorkStream
 
     private Work.ProcessingContext createProcessingContext(String computationId) {
       return Work.createProcessingContext(
-          computationId, getDataStream.get()::requestKeyedData, workCommitter.get()::commit);
+          computationId, getDataClient.get(), workCommitter.get()::commit, heartbeatSender.get());
     }
   }
 }

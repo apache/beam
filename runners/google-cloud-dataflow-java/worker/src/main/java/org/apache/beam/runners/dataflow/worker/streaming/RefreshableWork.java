@@ -15,25 +15,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker.windmill;
+package org.apache.beam.runners.dataflow.worker.streaming;
 
-import java.io.PrintWriter;
-import org.apache.beam.runners.dataflow.worker.status.StatusDataProvider;
+import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
+import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
-/** Stub for communicating with a Windmill server. */
-public abstract class WindmillServerStub
-    implements ApplianceWindmillClient, StreamingEngineWindmillClient, StatusDataProvider {
+/** View of {@link Work} that exposes an interface for work refreshing. */
+@Internal
+public interface RefreshableWork {
 
-  /** Returns the amount of time the server has been throttled and resets the time to 0. */
-  public abstract long getAndResetThrottleTime();
+  WorkId id();
 
-  @Override
-  public void appendSummaryHtml(PrintWriter writer) {}
+  ShardedKey getShardedKey();
 
-  /** Generic Exception type for implementors to use to represent errors while making RPCs. */
-  public static final class RpcException extends RuntimeException {
-    public RpcException(Throwable cause) {
-      super(cause);
-    }
-  }
+  HeartbeatSender heartbeatSender();
+
+  ImmutableList<Windmill.LatencyAttribution> getHeartbeatLatencyAttributions(
+      DataflowExecutionStateSampler sampler);
+
+  void setFailed();
 }

@@ -15,25 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker.windmill;
+package org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers;
 
-import java.io.PrintWriter;
-import org.apache.beam.runners.dataflow.worker.status.StatusDataProvider;
+import org.apache.beam.sdk.annotations.Internal;
 
-/** Stub for communicating with a Windmill server. */
-public abstract class WindmillServerStub
-    implements ApplianceWindmillClient, StreamingEngineWindmillClient, StatusDataProvider {
+@Internal
+public final class StreamObserverCancelledException extends RuntimeException {
+  public StreamObserverCancelledException(Throwable cause) {
+    super(cause);
+  }
 
-  /** Returns the amount of time the server has been throttled and resets the time to 0. */
-  public abstract long getAndResetThrottleTime();
-
-  @Override
-  public void appendSummaryHtml(PrintWriter writer) {}
-
-  /** Generic Exception type for implementors to use to represent errors while making RPCs. */
-  public static final class RpcException extends RuntimeException {
-    public RpcException(Throwable cause) {
-      super(cause);
-    }
+  public StreamObserverCancelledException(String message, Throwable cause) {
+    super(message, cause);
   }
 }

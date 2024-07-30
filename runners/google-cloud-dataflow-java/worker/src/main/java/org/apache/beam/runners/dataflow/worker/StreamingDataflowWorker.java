@@ -66,12 +66,17 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribut
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
 import org.apache.beam.runners.dataflow.worker.windmill.appliance.JniWindmillApplianceServer;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamPool;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.CompleteCommit;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.StreamingApplianceWorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.StreamingEngineWorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
+import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.ApplianceGetDataClient;
+import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.GetDataClient;
+import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.StreamPoolGetDataClient;
+import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.ThrottlingGetDataMetricTracker;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.ChannelzServlet;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcDispatcherClient;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillServer;
@@ -87,7 +92,9 @@ import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.StreamingEngineFailureTracker;
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.WorkFailureProcessor;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.ActiveWorkRefresher;
-import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.ActiveWorkRefreshers;
+import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.ApplianceHeartbeatSender;
+import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
+import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.StreamPoolHeartbeatSender;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.JvmInitializers;
@@ -127,6 +134,7 @@ public class StreamingDataflowWorker {
   static final int GET_WORK_STREAM_TIMEOUT_MINUTES = 3;
   static final Duration COMMIT_STREAM_TIMEOUT = Duration.standardMinutes(1);
   private static final Logger LOG = LoggerFactory.getLogger(StreamingDataflowWorker.class);
+  private static final Duration GET_DATA_STREAM_TIMEOUT = Duration.standardSeconds(30);
 
   /** The idGenerator to generate unique id globally. */
   private static final IdGenerator ID_GENERATOR = IdGenerators.decrementingLongs();
@@ -150,7 +158,7 @@ public class StreamingDataflowWorker {
   private final AtomicBoolean running = new AtomicBoolean();
   private final DataflowWorkerHarnessOptions options;
   private final long clientId;
-  private final MetricTrackingWindmillServerStub metricTrackingWindmillServer;
+  private final GetDataClient getDataClient;
   private final MemoryMonitor memoryMonitor;
   private final Thread memoryMonitorThread;
   private final ReaderCache readerCache;
@@ -160,6 +168,7 @@ public class StreamingDataflowWorker {
   private final StreamingWorkerStatusReporter workerStatusReporter;
   private final StreamingCounters streamingCounters;
   private final StreamingWorkScheduler streamingWorkScheduler;
+  private final HeartbeatSender heartbeatSender;
 
   private StreamingDataflowWorker(
       WindmillServerStub windmillServer,
@@ -181,6 +190,9 @@ public class StreamingDataflowWorker {
       GrpcWindmillStreamFactory windmillStreamFactory,
       Function<String, ScheduledExecutorService> executorSupplier,
       ConcurrentMap<String, StageInfo> stageInfoMap) {
+    // Register standard file systems.
+    FileSystems.setDefaultPipelineOptions(options);
+
     this.configFetcher = configFetcher;
     this.computationStateCache = computationStateCache;
     this.stateCache = windmillStateCache;
@@ -199,12 +211,16 @@ public class StreamingDataflowWorker {
 
     this.workCommitter =
         windmillServiceEnabled
-            ? StreamingEngineWorkCommitter.create(
-                WindmillStreamPool.create(
-                        numCommitThreads, COMMIT_STREAM_TIMEOUT, windmillServer::commitWorkStream)
-                    ::getCloseableStream,
-                numCommitThreads,
-                this::onCompleteCommit)
+            ? StreamingEngineWorkCommitter.builder()
+                .setCommitWorkStreamFactory(
+                    WindmillStreamPool.create(
+                            numCommitThreads,
+                            COMMIT_STREAM_TIMEOUT,
+                            windmillServer::commitWorkStream)
+                        ::getCloseableStream)
+                .setNumCommitSenders(numCommitThreads)
+                .setOnCommitComplete(this::onCompleteCommit)
+                .build()
             : StreamingApplianceWorkCommitter.create(
                 windmillServer::commitWork, this::onCompleteCommit);
 
@@ -230,29 +246,41 @@ public class StreamingDataflowWorker {
     dispatchThread.setName("DispatchThread");
     this.clientId = clientId;
     this.windmillServer = windmillServer;
-    this.metricTrackingWindmillServer =
-        MetricTrackingWindmillServerStub.builder(windmillServer, memoryMonitor)
-            .setUseStreamingRequests(windmillServiceEnabled)
-            .setUseSeparateHeartbeatStreams(options.getUseSeparateWindmillHeartbeatStreams())
-            .setNumGetDataStreams(options.getWindmillGetDataStreamCount())
-            .build();
 
-    // Register standard file systems.
-    FileSystems.setDefaultPipelineOptions(options);
+    ThrottlingGetDataMetricTracker getDataMetricTracker =
+        new ThrottlingGetDataMetricTracker(memoryMonitor);
 
-    int stuckCommitDurationMillis =
-        windmillServiceEnabled && options.getStuckCommitDurationMillis() > 0
-            ? options.getStuckCommitDurationMillis()
-            : 0;
+    int stuckCommitDurationMillis;
+    if (windmillServiceEnabled) {
+      WindmillStreamPool<GetDataStream> getDataStreamPool =
+          WindmillStreamPool.create(
+              Math.max(1, options.getWindmillGetDataStreamCount()),
+              GET_DATA_STREAM_TIMEOUT,
+              windmillServer::getDataStream);
+      this.getDataClient = new StreamPoolGetDataClient(getDataMetricTracker, getDataStreamPool);
+      this.heartbeatSender =
+          new StreamPoolHeartbeatSender(
+              options.getUseSeparateWindmillHeartbeatStreams()
+                  ? WindmillStreamPool.create(
+                      1, GET_DATA_STREAM_TIMEOUT, windmillServer::getDataStream)
+                  : getDataStreamPool);
+      stuckCommitDurationMillis =
+          options.getStuckCommitDurationMillis() > 0 ? options.getStuckCommitDurationMillis() : 0;
+    } else {
+      this.getDataClient = new ApplianceGetDataClient(windmillServer, getDataMetricTracker);
+      this.heartbeatSender = new ApplianceHeartbeatSender(windmillServer::getData);
+      stuckCommitDurationMillis = 0;
+    }
+
     this.activeWorkRefresher =
-        ActiveWorkRefreshers.createDispatchedActiveWorkRefresher(
+        new ActiveWorkRefresher(
             clock,
             options.getActiveWorkRefreshPeriodMillis(),
             stuckCommitDurationMillis,
             computationStateCache::getAllPresentComputations,
             sampler,
-            metricTrackingWindmillServer::refreshActiveWork,
-            executorSupplier.apply("RefreshWork"));
+            executorSupplier.apply("RefreshWork"),
+            getDataMetricTracker::trackHeartbeats);
 
     WorkerStatusPages workerStatusPages =
         WorkerStatusPages.create(DEFAULT_STATUS_PORT, memoryMonitor);
@@ -265,7 +293,7 @@ public class StreamingDataflowWorker {
             .setStateCache(stateCache)
             .setComputationStateCache(computationStateCache)
             .setCurrentActiveCommitBytes(workCommitter::currentActiveCommitBytes)
-            .setGetDataStatusProvider(metricTrackingWindmillServer::printHtml)
+            .setGetDataStatusProvider(getDataClient::printHtml)
             .setWorkUnitExecutor(workUnitExecutor);
 
     this.statusPages =
@@ -281,7 +309,6 @@ public class StreamingDataflowWorker {
     this.workerStatusReporter = workerStatusReporter;
     this.streamingCounters = streamingCounters;
     this.memoryMonitor = memoryMonitor;
-
     this.streamingWorkScheduler =
         StreamingWorkScheduler.create(
             options,
@@ -290,7 +317,6 @@ public class StreamingDataflowWorker {
             mapTaskExecutorFactory,
             workUnitExecutor,
             stateCache::forComputation,
-            metricTrackingWindmillServer::getSideInputData,
             failureTracker,
             workFailureProcessor,
             streamingCounters,
@@ -829,7 +855,7 @@ public class StreamingDataflowWorker {
               workItem,
               watermarks.setOutputDataWatermark(workItem.getOutputDataWatermark()).build(),
               Work.createProcessingContext(
-                  computationId, metricTrackingWindmillServer::getStateData, workCommitter::commit),
+                  computationId, getDataClient, workCommitter::commit, heartbeatSender),
               /* getWorkStreamLatencies= */ Collections.emptyList());
         }
       }
@@ -865,8 +891,9 @@ public class StreamingDataflowWorker {
                                     .build(),
                                 Work.createProcessingContext(
                                     computationState.getComputationId(),
-                                    metricTrackingWindmillServer::getStateData,
-                                    workCommitter::commit),
+                                    getDataClient,
+                                    workCommitter::commit,
+                                    heartbeatSender),
                                 getWorkStreamLatencies);
                           }));
       try {
@@ -874,7 +901,7 @@ public class StreamingDataflowWorker {
         // If at any point the server closes the stream, we will reconnect immediately; otherwise
         // we half-close the stream after some time and create a new one.
         if (!stream.awaitTermination(GET_WORK_STREAM_TIMEOUT_MINUTES, TimeUnit.MINUTES)) {
-          stream.close();
+          stream.halfClose();
         }
       } catch (InterruptedException e) {
         // Continue processing until !running.get()

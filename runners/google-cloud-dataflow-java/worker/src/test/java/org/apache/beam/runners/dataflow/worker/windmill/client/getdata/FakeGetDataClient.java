@@ -15,25 +15,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker.windmill;
+package org.apache.beam.runners.dataflow.worker.windmill.client.getdata;
 
 import java.io.PrintWriter;
-import org.apache.beam.runners.dataflow.worker.status.StatusDataProvider;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 
-/** Stub for communicating with a Windmill server. */
-public abstract class WindmillServerStub
-    implements ApplianceWindmillClient, StreamingEngineWindmillClient, StatusDataProvider {
-
-  /** Returns the amount of time the server has been throttled and resets the time to 0. */
-  public abstract long getAndResetThrottleTime();
+/** Fake {@link GetDataClient} implementation for testing. */
+public final class FakeGetDataClient implements GetDataClient {
+  @Override
+  public Windmill.KeyedGetDataResponse getStateData(
+      String computationId, Windmill.KeyedGetDataRequest request) throws GetDataException {
+    return Windmill.KeyedGetDataResponse.getDefaultInstance();
+  }
 
   @Override
-  public void appendSummaryHtml(PrintWriter writer) {}
-
-  /** Generic Exception type for implementors to use to represent errors while making RPCs. */
-  public static final class RpcException extends RuntimeException {
-    public RpcException(Throwable cause) {
-      super(cause);
-    }
+  public Windmill.GlobalData getSideInputData(Windmill.GlobalDataRequest request)
+      throws GetDataException {
+    return Windmill.GlobalData.getDefaultInstance();
   }
+
+  @Override
+  public void printHtml(PrintWriter writer) {}
 }

@@ -15,25 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker.windmill;
+package org.apache.beam.runners.dataflow.worker.windmill.work.refresh;
 
-import java.io.PrintWriter;
-import org.apache.beam.runners.dataflow.worker.status.StatusDataProvider;
-
-/** Stub for communicating with a Windmill server. */
-public abstract class WindmillServerStub
-    implements ApplianceWindmillClient, StreamingEngineWindmillClient, StatusDataProvider {
-
-  /** Returns the amount of time the server has been throttled and resets the time to 0. */
-  public abstract long getAndResetThrottleTime();
-
-  @Override
-  public void appendSummaryHtml(PrintWriter writer) {}
-
-  /** Generic Exception type for implementors to use to represent errors while making RPCs. */
-  public static final class RpcException extends RuntimeException {
-    public RpcException(Throwable cause) {
-      super(cause);
-    }
-  }
+/**
+ * Interface for sending heartbeats.
+ *
+ * @implNote Batching/grouping of heartbeats is performed by HeartbeatSender equality.
+ */
+@FunctionalInterface
+public interface HeartbeatSender {
+  /**
+   * Send heartbeats. Heartbeats represent WorkItem that is actively being processed belonging to
+   * the computation.
+   */
+  void sendHeartbeats(Heartbeats heartbeats);
 }

@@ -44,6 +44,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.streaming.harness.StreamingCounters;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
+import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcherFactory;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.Commit;
@@ -74,7 +75,7 @@ public final class StreamingWorkScheduler {
   private final DataflowWorkerHarnessOptions options;
   private final Supplier<Instant> clock;
   private final ComputationWorkExecutorFactory computationWorkExecutorFactory;
-  private final SideInputStateFetcher sideInputStateFetcher;
+  private final SideInputStateFetcherFactory sideInputStateFetcherFactory;
   private final FailureTracker failureTracker;
   private final WorkFailureProcessor workFailureProcessor;
   private final StreamingCommitFinalizer commitFinalizer;
@@ -88,7 +89,7 @@ public final class StreamingWorkScheduler {
       DataflowWorkerHarnessOptions options,
       Supplier<Instant> clock,
       ComputationWorkExecutorFactory computationWorkExecutorFactory,
-      SideInputStateFetcher sideInputStateFetcher,
+      SideInputStateFetcherFactory sideInputStateFetcherFactory,
       FailureTracker failureTracker,
       WorkFailureProcessor workFailureProcessor,
       StreamingCommitFinalizer commitFinalizer,
@@ -100,7 +101,7 @@ public final class StreamingWorkScheduler {
     this.options = options;
     this.clock = clock;
     this.computationWorkExecutorFactory = computationWorkExecutorFactory;
-    this.sideInputStateFetcher = sideInputStateFetcher;
+    this.sideInputStateFetcherFactory = sideInputStateFetcherFactory;
     this.failureTracker = failureTracker;
     this.workFailureProcessor = workFailureProcessor;
     this.commitFinalizer = commitFinalizer;
@@ -118,7 +119,6 @@ public final class StreamingWorkScheduler {
       DataflowMapTaskExecutorFactory mapTaskExecutorFactory,
       BoundedQueueExecutor workExecutor,
       Function<String, WindmillStateCache.ForComputation> stateCacheFactory,
-      Function<Windmill.GlobalDataRequest, Windmill.GlobalData> fetchGlobalDataFn,
       FailureTracker failureTracker,
       WorkFailureProcessor workFailureProcessor,
       StreamingCounters streamingCounters,
@@ -141,7 +141,7 @@ public final class StreamingWorkScheduler {
         options,
         clock,
         computationWorkExecutorFactory,
-        new SideInputStateFetcher(fetchGlobalDataFn, options),
+        SideInputStateFetcherFactory.fromOptions(options),
         failureTracker,
         workFailureProcessor,
         StreamingCommitFinalizer.create(workExecutor),
@@ -348,7 +348,8 @@ public final class StreamingWorkScheduler {
 
     try {
       WindmillStateReader stateReader = work.createWindmillStateReader();
-      SideInputStateFetcher localSideInputStateFetcher = sideInputStateFetcher.byteTrackingView();
+      SideInputStateFetcher localSideInputStateFetcher =
+          sideInputStateFetcherFactory.createSideInputStateFetcher(work::fetchSideInput);
 
       // If the read output KVs, then we can decode Windmill's byte key into userland
       // key object and provide it to the execution context for use with per-key state.
@@ -403,8 +404,7 @@ public final class StreamingWorkScheduler {
       computationState.releaseComputationWorkExecutor(computationWorkExecutor);
 
       work.setState(Work.State.COMMIT_QUEUED);
-      outputBuilder.addAllPerWorkItemLatencyAttributions(
-          work.getLatencyAttributions(false, sampler));
+      outputBuilder.addAllPerWorkItemLatencyAttributions(work.getLatencyAttributions(sampler));
 
       return ExecuteWorkResult.create(
           outputBuilder, stateReader.getBytesRead() + localSideInputStateFetcher.getBytesRead());
