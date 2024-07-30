@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.io.csv.CsvIOStringToCsvRecord.headerLine;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -47,12 +48,14 @@ public class CsvIOStringToCsvRecordTest {
             Create.of(headerLine(csvFormat), "#should skip me", "a,1,1.1", "b,2,2.2", "c,3,3.3"));
 
     CsvIOStringToCsvRecord underTest = new CsvIOStringToCsvRecord(csvFormat);
-    PAssert.that(input.apply(underTest))
+    CsvIOParseResult<List<String>> result = input.apply(underTest);
+    PAssert.that(result.getOutput())
         .containsInAnyOrder(
             Arrays.asList(
                 Arrays.asList("a", "1", "1.1"),
                 Arrays.asList("b", "2", "2.2"),
                 Arrays.asList("c", "3", "3.3")));
+    PAssert.that(result.getErrors()).empty();
 
     pipeline.run();
   }
@@ -65,13 +68,15 @@ public class CsvIOStringToCsvRecordTest {
             Create.of(headerLine(csvFormat), "#comment", "a,1,1.1", "b,2,2.2", "c,3,3.3"));
 
     CsvIOStringToCsvRecord underTest = new CsvIOStringToCsvRecord(csvFormat);
-    PAssert.that(input.apply(underTest))
+    CsvIOParseResult<List<String>> result = input.apply(underTest);
+    PAssert.that(result.getOutput())
         .containsInAnyOrder(
             Arrays.asList(
                 Collections.singletonList("#comment"),
                 Arrays.asList("a", "1", "1.1"),
                 Arrays.asList("b", "2", "2.2"),
                 Arrays.asList("c", "3", "3.3")));
+    PAssert.that(result.getErrors()).empty();
 
     pipeline.run();
   }
@@ -83,12 +88,14 @@ public class CsvIOStringToCsvRecordTest {
         pipeline.apply(Create.of(headerLine(csvFormat), "a;1;1.1", "b;2;2.2", "c;3;3.3"));
 
     CsvIOStringToCsvRecord underTest = new CsvIOStringToCsvRecord(csvFormat);
-    PAssert.that(input.apply(underTest))
+    CsvIOParseResult<List<String>> result = input.apply(underTest);
+    PAssert.that(result.getOutput())
         .containsInAnyOrder(
             Arrays.asList(
                 Arrays.asList("a", "1", "1.1"),
                 Arrays.asList("b", "2", "2.2"),
                 Arrays.asList("c", "3", "3.3")));
+    PAssert.that(result.getErrors()).empty();
 
     pipeline.run();
   }
@@ -100,12 +107,14 @@ public class CsvIOStringToCsvRecordTest {
         pipeline.apply(Create.of(headerLine(csvFormat), "a$,b,1,1.1", "b,2,2.2", "c,3,3.3"));
 
     CsvIOStringToCsvRecord underTest = new CsvIOStringToCsvRecord(csvFormat);
-    PAssert.that(input.apply(underTest))
+    CsvIOParseResult<List<String>> result = input.apply(underTest);
+    PAssert.that(result.getOutput())
         .containsInAnyOrder(
             Arrays.asList(
                 Arrays.asList("a,b", "1", "1.1"),
                 Arrays.asList("b", "2", "2.2"),
                 Arrays.asList("c", "3", "3.3")));
+    PAssert.that(result.getErrors()).empty();
 
     pipeline.run();
   }
@@ -117,12 +126,14 @@ public class CsvIOStringToCsvRecordTest {
         pipeline.apply(Create.of(headerLine(csvFormat), "a,1,1.1", "b,2,2.2", "c,3,3.3"));
 
     CsvIOStringToCsvRecord underTest = new CsvIOStringToCsvRecord(csvFormat);
-    PAssert.that(input.apply(underTest))
+    CsvIOParseResult<List<String>> result = input.apply(underTest);
+    PAssert.that(result.getOutput())
         .containsInAnyOrder(
             Arrays.asList(
                 Arrays.asList("a", "1", "1.1"),
                 Arrays.asList("b", "2", "2.2"),
                 Arrays.asList("c", "3", "3.3")));
+    PAssert.that(result.getErrors()).empty();
 
     pipeline.run();
   }
@@ -134,12 +145,14 @@ public class CsvIOStringToCsvRecordTest {
         pipeline.apply(Create.of(headerLine(csvFormat), "a,1,1.1", "", "b,2,2.2", "", "c,3,3.3"));
 
     CsvIOStringToCsvRecord underTest = new CsvIOStringToCsvRecord(csvFormat);
-    PAssert.that(input.apply(underTest))
+    CsvIOParseResult<List<String>> result = input.apply(underTest);
+    PAssert.that(result.getOutput())
         .containsInAnyOrder(
             Arrays.asList(
                 Arrays.asList("a", "1", "1.1"),
                 Arrays.asList("b", "2", "2.2"),
                 Arrays.asList("c", "3", "3.3")));
+    PAssert.that(result.getErrors()).empty();
 
     pipeline.run();
   }
@@ -151,12 +164,14 @@ public class CsvIOStringToCsvRecordTest {
         pipeline.apply(Create.of(headerLine(csvFormat), "a,1,1.1", "", "b,2,2.2", "", "c,3,3.3"));
 
     CsvIOStringToCsvRecord underTest = new CsvIOStringToCsvRecord(csvFormat);
-    PAssert.that(input.apply(underTest))
+    CsvIOParseResult<List<String>> result = input.apply(underTest);
+    PAssert.that(result.getOutput())
         .containsInAnyOrder(
             Arrays.asList(
                 Arrays.asList("a", "1", "1.1"),
                 Arrays.asList("b", "2", "2.2"),
                 Arrays.asList("c", "3", "3.3")));
+    PAssert.that(result.getErrors()).empty();
 
     pipeline.run();
   }
@@ -173,12 +188,14 @@ public class CsvIOStringToCsvRecordTest {
                 "c,3,   3.3         "));
 
     CsvIOStringToCsvRecord underTest = new CsvIOStringToCsvRecord(csvFormat);
-    PAssert.that(input.apply(underTest))
+    CsvIOParseResult<List<String>> result = input.apply(underTest);
+    PAssert.that(result.getOutput())
         .containsInAnyOrder(
             Arrays.asList(
                 Arrays.asList("a", "1", "1.1"),
                 Arrays.asList("b", "2", "2.2"),
                 Arrays.asList("c", "3", "3.3")));
+    PAssert.that(result.getErrors()).empty();
 
     pipeline.run();
   }
@@ -195,12 +212,14 @@ public class CsvIOStringToCsvRecordTest {
                 "c,3,   3.3         "));
 
     CsvIOStringToCsvRecord underTest = new CsvIOStringToCsvRecord(csvFormat);
-    PAssert.that(input.apply(underTest))
+    CsvIOParseResult<List<String>> result = input.apply(underTest);
+    PAssert.that(result.getOutput())
         .containsInAnyOrder(
             Arrays.asList(
                 Arrays.asList("  a  ", "1", "1.1"),
                 Arrays.asList("b", "        2     ", "2.2"),
                 Arrays.asList("c", "3", "   3.3         ")));
+    PAssert.that(result.getErrors()).empty();
 
     pipeline.run();
   }
@@ -212,12 +231,14 @@ public class CsvIOStringToCsvRecordTest {
         pipeline.apply(Create.of(headerLine(csvFormat), "a,1,🐼", "b,🐼,2.2", "🐼,3,3.3"));
 
     CsvIOStringToCsvRecord underTest = new CsvIOStringToCsvRecord(csvFormat);
-    PAssert.that(input.apply(underTest))
+    CsvIOParseResult<List<String>> result = input.apply(underTest);
+    PAssert.that(result.getOutput())
         .containsInAnyOrder(
             Arrays.asList(
                 Arrays.asList("a", "1", null),
                 Arrays.asList("b", null, "2.2"),
                 Arrays.asList(null, "3", "3.3")));
+    PAssert.that(result.getErrors()).empty();
 
     pipeline.run();
   }
@@ -229,12 +250,14 @@ public class CsvIOStringToCsvRecordTest {
         pipeline.apply(Create.of(headerLine(csvFormat), "a,1,🐼", "b,🐼,2.2", "🐼,3,3.3"));
 
     CsvIOStringToCsvRecord underTest = new CsvIOStringToCsvRecord(csvFormat);
-    PAssert.that(input.apply(underTest))
+    CsvIOParseResult<List<String>> result = input.apply(underTest);
+    PAssert.that(result.getOutput())
         .containsInAnyOrder(
             Arrays.asList(
                 Arrays.asList("a", "1", "🐼"),
                 Arrays.asList("b", "🐼", "2.2"),
                 Arrays.asList("🐼", "3", "3.3")));
+    PAssert.that(result.getErrors()).empty();
 
     pipeline.run();
   }
@@ -246,12 +269,15 @@ public class CsvIOStringToCsvRecordTest {
         pipeline.apply(Create.of(headerLine(csvFormat), ":a,:,1,1.1", "b,2,2.2", "c,3,3.3"));
 
     CsvIOStringToCsvRecord underTest = new CsvIOStringToCsvRecord(csvFormat);
-    PAssert.that(input.apply(underTest))
+    CsvIOParseResult<List<String>> result = input.apply(underTest);
+    PAssert.that(result.getOutput())
         .containsInAnyOrder(
             Arrays.asList(
                 Arrays.asList("a,", "1", "1.1"),
                 Arrays.asList("b", "2", "2.2"),
                 Arrays.asList("c", "3", "3.3")));
+    PAssert.that(result.getErrors()).empty();
+
     pipeline.run();
   }
 
@@ -267,12 +293,14 @@ public class CsvIOStringToCsvRecordTest {
                 "\"c\",\"3\",\"3.3\""));
 
     CsvIOStringToCsvRecord underTest = new CsvIOStringToCsvRecord(csvFormat);
-    PAssert.that(input.apply(underTest))
+    CsvIOParseResult<List<String>> result = input.apply(underTest);
+    PAssert.that(result.getOutput())
         .containsInAnyOrder(
             Arrays.asList(
                 Arrays.asList("a", "1", "1.1"),
                 Arrays.asList("b", "2", "2.2"),
                 Arrays.asList("c", "3", "3.3")));
+    PAssert.that(result.getErrors()).empty();
 
     pipeline.run();
   }
@@ -289,12 +317,14 @@ public class CsvIOStringToCsvRecordTest {
                 "\"c\",\"3\",\"3.3\""));
 
     CsvIOStringToCsvRecord underTest = new CsvIOStringToCsvRecord(csvFormat);
-    PAssert.that(input.apply(underTest))
+    CsvIOParseResult<List<String>> result = input.apply(underTest);
+    PAssert.that(result.getOutput())
         .containsInAnyOrder(
             Arrays.asList(
                 Arrays.asList("a", "1", null),
                 Arrays.asList("b", "2", "2.2"),
                 Arrays.asList("c", "3", "3.3")));
+    PAssert.that(result.getErrors()).empty();
 
     pipeline.run();
   }
@@ -306,12 +336,15 @@ public class CsvIOStringToCsvRecordTest {
         pipeline.apply(Create.of(headerLine(csvFormat), "\"a,\",1,1.1", "b,2,2.2", "c,3,3.3"));
 
     CsvIOStringToCsvRecord underTest = new CsvIOStringToCsvRecord(csvFormat);
-    PAssert.that(input.apply(underTest))
+    CsvIOParseResult<List<String>> result = input.apply(underTest);
+    PAssert.that(result.getOutput())
         .containsInAnyOrder(
             Arrays.asList(
                 Arrays.asList("a,", "1", "1.1"),
                 Arrays.asList("b", "2", "2.2"),
                 Arrays.asList("c", "3", "3.3")));
+    PAssert.that(result.getErrors()).empty();
+
     pipeline.run();
   }
 
@@ -323,12 +356,15 @@ public class CsvIOStringToCsvRecordTest {
             Create.of(headerLine(csvFormat), "\"a\",1,1.1", "\"b\",2,2.2", "\"c\",3,3.3"));
 
     CsvIOStringToCsvRecord underTest = new CsvIOStringToCsvRecord(csvFormat);
-    PAssert.that(input.apply(underTest))
+    CsvIOParseResult<List<String>> result = input.apply(underTest);
+    PAssert.that(result.getOutput())
         .containsInAnyOrder(
             Arrays.asList(
                 Arrays.asList("a", "1", "1.1"),
                 Arrays.asList("b", "2", "2.2"),
                 Arrays.asList("c", "3", "3.3")));
+    PAssert.that(result.getErrors()).empty();
+
     pipeline.run();
   }
 
@@ -339,12 +375,15 @@ public class CsvIOStringToCsvRecordTest {
         pipeline.apply(Create.of(headerLine(csvFormat), "a,1,1.1", "b,2,2.2", "c,3,3.3"));
 
     CsvIOStringToCsvRecord underTest = new CsvIOStringToCsvRecord(csvFormat);
-    PAssert.that(input.apply(underTest))
+    CsvIOParseResult<List<String>> result = input.apply(underTest);
+    PAssert.that(result.getOutput())
         .containsInAnyOrder(
             Arrays.asList(
                 Arrays.asList("a", "1", "1.1"),
                 Arrays.asList("b", "2", "2.2"),
                 Arrays.asList("c", "3", "3.3")));
+    PAssert.that(result.getErrors()).empty();
+
     pipeline.run();
   }
 
@@ -355,10 +394,13 @@ public class CsvIOStringToCsvRecordTest {
         pipeline.apply(Create.of(headerLine(csvFormat), "a,1,1.1😆b,2,2.2😆c,3,3.3"));
 
     CsvIOStringToCsvRecord underTest = new CsvIOStringToCsvRecord(csvFormat);
-    PAssert.that(input.apply(underTest))
+    CsvIOParseResult<List<String>> result = input.apply(underTest);
+    PAssert.that(result.getOutput())
         .containsInAnyOrder(
             Collections.singletonList(
                 Arrays.asList("a", "1", "1.1😆b", "2", "2.2😆c", "3", "3.3")));
+    PAssert.that(result.getErrors()).empty();
+
     pipeline.run();
   }
 
@@ -373,12 +415,15 @@ public class CsvIOStringToCsvRecordTest {
                 "a,1,1.1" + systemRecordSeparator + "b,2,2.2" + systemRecordSeparator + "c,3,3.3"));
 
     CsvIOStringToCsvRecord underTest = new CsvIOStringToCsvRecord(csvFormat);
-    PAssert.that(input.apply(underTest))
+    CsvIOParseResult<List<String>> result = input.apply(underTest);
+    PAssert.that(result.getOutput())
         .containsInAnyOrder(
             Arrays.asList(
                 Arrays.asList("a", "1", "1.1"),
                 Arrays.asList("b", "2", "2.2"),
                 Arrays.asList("c", "3", "3.3")));
+    PAssert.that(result.getErrors()).empty();
+
     pipeline.run();
   }
 
@@ -389,12 +434,15 @@ public class CsvIOStringToCsvRecordTest {
         pipeline.apply(Create.of(headerLine(csvFormat), "a,1,1.1,", "b,2,2.2,", "c,3,3.3,"));
 
     CsvIOStringToCsvRecord underTest = new CsvIOStringToCsvRecord(csvFormat);
-    PAssert.that(input.apply(underTest))
+    CsvIOParseResult<List<String>> result = input.apply(underTest);
+    PAssert.that(result.getOutput())
         .containsInAnyOrder(
             Arrays.asList(
                 Arrays.asList("a", "1", "1.1"),
                 Arrays.asList("b", "2", "2.2"),
                 Arrays.asList("c", "3", "3.3")));
+    PAssert.that(result.getErrors()).empty();
+
     pipeline.run();
   }
 
@@ -405,12 +453,15 @@ public class CsvIOStringToCsvRecordTest {
         pipeline.apply(Create.of(headerLine(csvFormat), "a,1,1.1,", "b,2,2.2,", "c,3,3.3,"));
 
     CsvIOStringToCsvRecord underTest = new CsvIOStringToCsvRecord(csvFormat);
-    PAssert.that(input.apply(underTest))
+    CsvIOParseResult<List<String>> result = input.apply(underTest);
+    PAssert.that(result.getOutput())
         .containsInAnyOrder(
             Arrays.asList(
                 Arrays.asList("a", "1", "1.1", ""),
                 Arrays.asList("b", "2", "2.2", ""),
                 Arrays.asList("c", "3", "3.3", "")));
+    PAssert.that(result.getErrors()).empty();
+
     pipeline.run();
   }
 
@@ -426,12 +477,14 @@ public class CsvIOStringToCsvRecordTest {
                 "c,3,   3.3         "));
 
     CsvIOStringToCsvRecord underTest = new CsvIOStringToCsvRecord(csvFormat);
-    PAssert.that(input.apply(underTest))
+    CsvIOParseResult<List<String>> result = input.apply(underTest);
+    PAssert.that(result.getOutput())
         .containsInAnyOrder(
             Arrays.asList(
                 Arrays.asList("a", "1", "1.1"),
                 Arrays.asList("b", "2", "2.2"),
                 Arrays.asList("c", "3", "3.3")));
+    PAssert.that(result.getErrors()).empty();
 
     pipeline.run();
   }
@@ -448,12 +501,14 @@ public class CsvIOStringToCsvRecordTest {
                 "c,3,   3.3         "));
 
     CsvIOStringToCsvRecord underTest = new CsvIOStringToCsvRecord(csvFormat);
-    PAssert.that(input.apply(underTest))
+    CsvIOParseResult<List<String>> result = input.apply(underTest);
+    PAssert.that(result.getOutput())
         .containsInAnyOrder(
             Arrays.asList(
                 Arrays.asList("  a  ", "1", "1.1"),
                 Arrays.asList("b", "        2     ", "2.2"),
                 Arrays.asList("c", "3", "   3.3         ")));
+    PAssert.that(result.getErrors()).empty();
 
     pipeline.run();
   }
@@ -464,8 +519,10 @@ public class CsvIOStringToCsvRecordTest {
     PCollection<String> input = pipeline.apply(Create.of(csvRecord));
 
     CsvIOStringToCsvRecord underTest = new CsvIOStringToCsvRecord(csvFormat());
-    PAssert.that(input.apply(underTest))
+    CsvIOParseResult<List<String>> result = input.apply(underTest);
+    PAssert.that(result.getOutput())
         .containsInAnyOrder(Collections.singletonList(Arrays.asList("a", "1")));
+    PAssert.that(result.getErrors()).empty();
 
     pipeline.run();
   }
@@ -478,12 +535,14 @@ public class CsvIOStringToCsvRecordTest {
 
     CsvIOStringToCsvRecord underTest =
         new CsvIOStringToCsvRecord(csvFormat().withRecordSeparator('\n'));
-    PAssert.that(input.apply(underTest))
+    CsvIOParseResult<List<String>> result = input.apply(underTest);
+    PAssert.that(result.getOutput())
         .containsInAnyOrder(
             Arrays.asList(
                 Arrays.asList("a\r\n1", "a\r\n2"),
                 Arrays.asList("b\r\n1", "b\r\n2"),
                 Arrays.asList("c\r\n1", "c\r\n2")));
+    PAssert.that(result.getErrors()).empty();
 
     pipeline.run();
   }
