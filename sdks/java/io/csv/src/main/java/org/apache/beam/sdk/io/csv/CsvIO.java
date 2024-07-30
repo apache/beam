@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.csv;
 
 import static java.util.Objects.requireNonNull;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.sdk.values.TypeDescriptors.rows;
 import static org.apache.beam.sdk.values.TypeDescriptors.strings;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
@@ -37,6 +38,9 @@ import org.apache.beam.sdk.io.WriteFilesResult;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.schemas.SchemaProvider;
+import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -44,6 +48,7 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.commons.csv.CSVFormat;
 
@@ -338,6 +343,50 @@ public class CsvIO {
         .setTextIOWrite(createDefaultTextIOWrite(to))
         .setCSVFormat(csvFormat)
         .build();
+  }
+
+  /**
+   * Instantiates a {@link CsvIOParse} for parsing custom Schema-mapped types from {@link CSVFormat}
+   * and {@link Class<T>}.
+   */
+  public static <T> CsvIOParse<T> parse(Class<T> klass, CSVFormat csvFormat) {
+    CsvIOParseHelpers.validateCsvFormat(csvFormat);
+    SchemaProvider provider = new DefaultSchema.DefaultSchemaProvider();
+    TypeDescriptor<T> type = TypeDescriptor.of(klass);
+    Schema schema =
+        checkStateNotNull(
+            provider.schemaFor(type),
+            "Illegal %s: Schema could not be generated from given %s class",
+            Schema.class,
+            klass);
+    CsvIOParseHelpers.validateCsvFormatWithSchema(csvFormat, schema);
+    SerializableFunction<Row, T> fromRowFn =
+        checkStateNotNull(
+            provider.fromRowFunction(type),
+            "FromRowFn could not be generated from the given %s class",
+            klass);
+    SerializableFunction<T, Row> toRowFn =
+        checkStateNotNull(
+            provider.toRowFunction(type),
+            "ToRowFn could not be generated from the given %s class",
+            klass);
+    SchemaCoder<T> coder = SchemaCoder.of(schema, type, toRowFn, fromRowFn);
+    CsvIOParseConfiguration.Builder<T> builder = CsvIOParseConfiguration.builder();
+    builder.setCsvFormat(csvFormat).setSchema(schema).setCoder(coder).setFromRowFn(fromRowFn);
+    return CsvIOParse.<T>builder().setConfigBuilder(builder).build();
+  }
+
+  /**
+   * Instantiates a {@link CsvIOParse} for parsing {@link Row} from {@link CSVFormat} and {@link
+   * Schema}.
+   */
+  public static CsvIOParse<Row> parseRows(Schema schema, CSVFormat csvFormat) {
+    CsvIOParseHelpers.validateCsvFormat(csvFormat);
+    CsvIOParseHelpers.validateCsvFormatWithSchema(csvFormat, schema);
+    RowCoder coder = RowCoder.of(schema);
+    CsvIOParseConfiguration.Builder<Row> builder = CsvIOParseConfiguration.builder();
+    builder.setCsvFormat(csvFormat).setSchema(schema).setCoder(coder).setFromRowFn(row -> row);
+    return CsvIOParse.<Row>builder().setConfigBuilder(builder).build();
   }
 
   /** {@link PTransform} for writing CSV files. */
