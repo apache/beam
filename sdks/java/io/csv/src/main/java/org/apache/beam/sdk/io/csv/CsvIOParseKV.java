@@ -17,9 +17,8 @@
  */
 package org.apache.beam.sdk.io.csv;
 
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.commons.csv.CSVRecord;
@@ -31,11 +30,17 @@ import org.apache.commons.csv.CSVRecord;
 // TODO(https://github.com/apache/beam/issues/31873): implement class after all dependencies are
 // completed.
 class CsvIOParseKV<T>
-    extends PTransform<PCollection<KV<String, Iterable<String>>>, PCollection<T>> {
+    extends PTransform<PCollection<KV<String, Iterable<String>>>, CsvIOParseResult<T>> {
+
+  private final Coder<T> outputCoder;
+
+  private CsvIOParseKV(Coder<T> outputCoder) {
+    this.outputCoder = outputCoder;
+  }
 
   // TODO(https://github.com/apache/beam/issues/31873): implement method.
   @Override
-  public PCollection<T> expand(PCollection<KV<String, Iterable<String>>> input) {
-    return input.apply(ParDo.of(new DoFn<KV<String, Iterable<String>>, T>() {}));
+  public CsvIOParseResult<T> expand(PCollection<KV<String, Iterable<String>>> input) {
+    return CsvIOParseResult.empty(input.getPipeline(), outputCoder);
   }
 }

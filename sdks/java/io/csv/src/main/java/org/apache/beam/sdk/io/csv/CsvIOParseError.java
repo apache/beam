@@ -17,9 +17,18 @@
  */
 package org.apache.beam.sdk.io.csv;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+
 import com.google.auto.value.AutoValue;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.schemas.SchemaProvider;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
@@ -35,6 +44,21 @@ public abstract class CsvIOParseError {
   static Builder builder() {
     return new AutoValue_CsvIOParseError.Builder();
   }
+
+  private static final SchemaProvider SCHEMA_PROVIDER = new AutoValueSchema();
+
+  private static final TypeDescriptor<CsvIOParseError> TYPE =
+      TypeDescriptor.of(CsvIOParseError.class);
+
+  private static final Schema SCHEMA = checkStateNotNull(SCHEMA_PROVIDER.schemaFor(TYPE));
+
+  private static final SerializableFunction<CsvIOParseError, Row> TO_ROW_FN =
+      checkStateNotNull(SCHEMA_PROVIDER.toRowFunction(TYPE));
+
+  private static final SerializableFunction<Row, CsvIOParseError> FROM_ROW_FN =
+      checkStateNotNull(SCHEMA_PROVIDER.fromRowFunction(TYPE));
+
+  static final Coder<CsvIOParseError> CODER = SchemaCoder.of(SCHEMA, TYPE, TO_ROW_FN, FROM_ROW_FN);
 
   /** The caught {@link Exception#getMessage()}. */
   public abstract String getMessage();
