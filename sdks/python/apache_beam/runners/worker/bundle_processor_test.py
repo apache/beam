@@ -314,6 +314,14 @@ class DataSamplingTest(unittest.TestCase):
                   ])
           })
       self.assertEqual(samples, expected)
+
+      # Since data was successfully processed, there should be a
+      # beam:metric:sampled_byte_size:v1 metric
+      self.assertTrue([
+          val for val in processor.monitoring_infos()
+          if val.urn == "beam:metric:sampled_byte_size:v1"
+      ])
+
     finally:
       data_sampler.stop()
 
@@ -381,6 +389,13 @@ class DataSamplingTest(unittest.TestCase):
 
       with self.assertRaisesRegex(RuntimeError, 'expected exception'):
         processor.process_bundle('instruction_id')
+
+      # Since no data was successfully processed, ensure no metrics for
+      # beam:metric:sampled_byte_size:v1 were processed
+      self.assertFalse([
+          val for val in processor.monitoring_infos()
+          if val.urn == "beam:metric:sampled_byte_size:v1"
+      ])
 
       # NOTE: The expected sample comes from the input PCollection. This is very
       # important because there can be coder issues if the sample is put in the

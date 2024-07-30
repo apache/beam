@@ -1257,7 +1257,18 @@ class BundleProcessor(object):
       all_monitoring_infos_dict.update(
           op.monitoring_infos(transform_id, dict(tag_to_pcollection_id)))
 
-    return list(all_monitoring_infos_dict.values())
+    # Filter distributions that have values of zero counts.
+    filtered_dict = {}
+    for key, value in all_monitoring_infos_dict.items():
+      if value.type != "beam:metrics:distribution_int64:v1":
+        filtered_dict[key] = all_monitoring_infos_dict[key]
+      else:
+        coder = coders.VarIntCoder()
+        count, _, _, _ =   monitoring_infos._decode_distribution(
+          coder, value.payload)
+        if (count > 0):
+          filtered_dict[key] = all_monitoring_infos_dict[key]
+    return list(filtered_dict.values())
 
   def shutdown(self):
     # type: () -> None
