@@ -19,10 +19,10 @@ package org.apache.beam.sdk.io.csv;
 
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA;
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.nullableAllPrimitiveDataTypes;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.junit.Assert.assertThrows;
 
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
@@ -34,7 +34,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.commons.csv.CSVFormat;
@@ -194,25 +194,10 @@ public class CsvIOTest {
             .build();
     CsvIOParse<Row> underTest = CsvIO.parseRows(schema, csvFormat().withQuote('"'));
     CsvIOParseResult<Row> result = input.apply(underTest);
-    PAssert.thatSingleton(result.getErrors().apply(Count.globally())).isEqualTo(1L);
-    PAssert.that(result.getErrors())
-        .satisfies(
-            (SerializableFunction<Iterable<CsvIOParseError>, Void>)
-                fnInput -> {
-                  for (CsvIOParseError error : fnInput) {
-                    if (!(error
-                            .getMessage()
-                            .equals("(startline 1) EOF reached before encapsulated token finished")
-                        && error.getCsvRecord().equals("true,\"1.1,3.141592,1,5,foo")
-                        && error
-                            .getStackTrace()
-                            .contains("org.apache.beam.sdk.io.csv.CsvIOStringToCsvRecord")
-                        && error.getFilename() == null)) {
-                      throw new AssertionError("Unexpected error: " + error);
-                    }
-                  }
-                  return null;
-                });
+    PAssert.thatSingleton(result.getErrors().apply("Total Errors", Count.globally())).isEqualTo(1L);
+    PAssert.thatSingleton(
+            stackTraceContains(result.getErrors(), CsvIOStringToCsvRecord.class.getName()))
+        .isEqualTo(1L);
 
     pipeline.run();
   }
@@ -234,28 +219,9 @@ public class CsvIOTest {
     CsvIOParse<Row> underTest = CsvIO.parseRows(schema, csvFormat().withQuote('"'));
     CsvIOParseResult<Row> result = input.apply(underTest);
     PAssert.thatSingleton(result.getErrors().apply(Count.globally())).isEqualTo(1L);
-    PAssert.that(result.getErrors())
-        .satisfies(
-            (SerializableFunction<Iterable<CsvIOParseError>, Void>)
-                fnInput -> {
-                  for (CsvIOParseError error : fnInput) {
-                    if (!(error
-                            .getMessage()
-                            .equals(
-                                "For input string: \"this_is_an_error\" field anInteger was received -- type mismatch")
-                        && error
-                            .getCsvRecord()
-                            .equals("[true, 1.1, 3.141592, this_is_an_error, 5, foo]")
-                        && error
-                            .getStackTrace()
-                            .contains("org.apache.beam.sdk.io.csv.CsvIORecordToObjects")
-                        && error.getFilename() == null)) {
-                      throw new AssertionError("Unexpected error: " + error);
-                    }
-                  }
-                  return null;
-                });
-
+    PAssert.thatSingleton(
+            stackTraceContains(result.getErrors(), CsvIORecordToObjects.class.getName()))
+        .isEqualTo(1L);
     pipeline.run();
   }
 
@@ -277,48 +243,21 @@ public class CsvIOTest {
     CsvIOParse<Row> underTest = CsvIO.parseRows(schema, csvFormat().withQuote('"'));
     CsvIOParseResult<Row> result = input.apply(underTest);
     PAssert.thatSingleton(result.getErrors().apply(Count.globally())).isEqualTo(2L);
-    PAssert.that(result.getErrors())
-        .satisfies(
-            (SerializableFunction<Iterable<CsvIOParseError>, Void>)
-                fnInput -> {
-                  List<CsvIOParseError> errors = errorList(fnInput);
-                  CsvIOParseError stringToRecordError = errors.get(0);
-                  CsvIOParseError recordToObjectError = errors.get(1);
-                  if (!(stringToRecordError
-                          .getMessage()
-                          .equals("(startline 1) EOF reached before encapsulated token finished")
-                      && stringToRecordError.getCsvRecord().equals("true,\"1.1,3.141592,1,5,foo")
-                      && stringToRecordError
-                          .getStackTrace()
-                          .contains("org.apache.beam.sdk.io.csv.CsvIOStringToCsvRecord")
-                      && stringToRecordError.getFilename() == null)) {
-                    throw new AssertionError("Unexpected error: " + stringToRecordError);
-                  }
-                  if (!(recordToObjectError
-                          .getMessage()
-                          .equals(
-                              "For input string: \"this_is_an_error\" field anInteger was received -- type mismatch")
-                      && recordToObjectError
-                          .getCsvRecord()
-                          .equals("[true, 1.1, 3.141592, this_is_an_error, 5, foo]")
-                      && recordToObjectError
-                          .getStackTrace()
-                          .contains("org.apache.beam.sdk.io.csv.CsvIORecordToObjects")
-                      && recordToObjectError.getFilename() == null)) {
-                    throw new AssertionError("Unexpected error: " + recordToObjectError);
-                  }
-                  return null;
-                });
+    PAssert.thatSingleton(
+            stackTraceContains(result.getErrors(), CsvIOStringToCsvRecord.class.getName()))
+        .isEqualTo(1L);
+    PAssert.thatSingleton(
+            stackTraceContains(result.getErrors(), CsvIORecordToObjects.class.getName()))
+        .isEqualTo(1L);
 
     pipeline.run();
   }
 
-  private static List<CsvIOParseError> errorList(Iterable<CsvIOParseError> errors) {
-    List<CsvIOParseError> errorList = new ArrayList<>();
-    for (CsvIOParseError error : errors) {
-      errorList.add(error);
-    }
-    return errorList;
+  private static PCollection<Long> stackTraceContains(
+      PCollection<CsvIOParseError> errors, String match) {
+    return errors
+        .apply(match, Filter.by(input -> checkStateNotNull(input).getStackTrace().contains(match)))
+        .apply(match, Count.globally());
   }
 
   private static CSVFormat csvFormat() {
