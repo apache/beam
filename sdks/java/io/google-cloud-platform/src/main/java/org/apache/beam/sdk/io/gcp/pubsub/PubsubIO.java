@@ -514,7 +514,7 @@ public class PubsubIO {
     }
 
     public String dataCatalogName() {
-      return String.format("pubsub:topic:%s/%s", project, topic);
+      return String.format("pubsub:topic:%s.%s", project, topic);
     }
 
     @Override
