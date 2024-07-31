@@ -1,0 +1,11 @@
+{
+  "commentedAboutFailingChecks": false,
+  "reviewersAssignedForLabels": {
+    "python": "shunping",
+    "website": "kennknowles"
+  },
+  "nextAction": "Reviewers",
+  "stopReviewerNotifications": false,
+  "remindAfterTestsPass": [],
+  "committerAssigned": false
+}
