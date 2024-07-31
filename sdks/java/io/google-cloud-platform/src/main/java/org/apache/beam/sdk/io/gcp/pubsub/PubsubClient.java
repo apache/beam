@@ -257,6 +257,10 @@ public abstract class PubsubClient implements Closeable {
       return String.format("/subscriptions/%s/%s", projectId, subscriptionName);
     }
 
+    public String getDataCatalogName() {
+      return String.format("pubsub:subscriptions:%s.%s", projectId, subscriptionName);
+    }
+
     @Override
     public boolean equals(@Nullable Object o) {
       if (this == o) {
@@ -293,6 +297,7 @@ public abstract class PubsubClient implements Closeable {
 
   /** Path representing a Pubsub topic. */
   public static class TopicPath implements Serializable {
+    // Format: "projects/<project>/topics/<topic>"
     private final String path;
 
     TopicPath(String path) {
@@ -308,6 +313,12 @@ public abstract class PubsubClient implements Closeable {
 
       checkState(splits.size() == 4, "Malformed topic path %s", path);
       return splits.get(3);
+    }
+
+    public String getDataCatalogName() {
+      List<String> splits = Splitter.on('/').splitToList(path);
+      checkState(splits.size() == 4, "Malformed topic path %s", path);
+      return String.format("pubsub:topic:%s.%s", splits.get(1), splits.get(3));
     }
 
     public String getFullPath() {

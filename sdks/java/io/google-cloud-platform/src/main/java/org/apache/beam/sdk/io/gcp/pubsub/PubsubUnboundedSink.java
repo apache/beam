@@ -41,6 +41,7 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.OutgoingMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.PubsubClientFactory;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
 import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.metrics.SinkMetrics;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -231,6 +232,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
     /** Client on which to talk to Pubsub. Null until created by {@link #startBundle}. */
     private transient @Nullable PubsubClient pubsubClient;
 
+    private transient boolean reportedLineage;
     private final Counter batchCounter = Metrics.counter(WriterFn.class, "batches");
     private final Counter elementCounter = SinkMetrics.elementsWritten();
     private final Counter byteCounter = SinkMetrics.bytesWritten();
@@ -280,6 +282,11 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
         topicPath =
             PubsubClient.topicPathFromPath(
                 org.apache.beam.sdk.util.Preconditions.checkStateNotNull(messages.get(0).topic()));
+      }
+      if (!reportedLineage) {
+        // Elements within same WriteFn has same topic. Report Lineage once.
+        Lineage.getSinks().add(topicPath.getDataCatalogName());
+        reportedLineage = true;
       }
       int n = pubsubClient.publish(topicPath, messages);
       checkState(
