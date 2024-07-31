@@ -125,14 +125,14 @@ public interface DataflowStreamingPipelineOptions extends PipelineOptions {
   void setWindmillMessagesBetweenIsReadyChecks(int value);
 
   @Description("If true, a most a single active rpc will be used per channel.")
-  @Default.Boolean(false)
+  @Default.InstanceFactory(EnabledOnStreamingEngine.class)
   boolean getUseWindmillIsolatedChannels();
 
   void setUseWindmillIsolatedChannels(boolean value);
 
   @Description(
       "If true, separate streaming rpcs will be used for heartbeats instead of sharing streams with state reads.")
-  @Default.Boolean(false)
+  @Default.InstanceFactory(EnabledOnStreamingEngine.class)
   boolean getUseSeparateWindmillHeartbeatStreams();
 
   void setUseSeparateWindmillHeartbeatStreams(boolean value);
@@ -300,6 +300,15 @@ public interface DataflowStreamingPipelineOptions extends PipelineOptions {
       DataflowWorkerHarnessOptions streamingOptions =
           options.as(DataflowWorkerHarnessOptions.class);
       return streamingOptions.isEnableStreamingEngine() ? Integer.MAX_VALUE : 1;
+    }
+  }
+
+  class EnabledOnStreamingEngine implements DefaultValueFactory<Boolean> {
+    @Override
+    public Boolean create(PipelineOptions options) {
+      DataflowWorkerHarnessOptions streamingOptions =
+          options.as(DataflowWorkerHarnessOptions.class);
+      return streamingOptions.isEnableStreamingEngine();
     }
   }
 }
