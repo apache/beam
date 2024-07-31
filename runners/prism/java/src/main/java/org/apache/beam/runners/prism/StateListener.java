@@ -19,6 +19,9 @@ package org.apache.beam.runners.prism;
 
 import org.apache.beam.sdk.PipelineResult;
 
+/** Listens for {@link PipelineResult.State} changes reported by the {@link StateWatcher}. */
 interface StateListener {
+
+  /** Callback invoked when {@link StateWatcher} discovers a {@link PipelineResult.State} change. */
   void onStateChanged(PipelineResult.State state);
 }

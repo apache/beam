@@ -30,13 +30,23 @@ import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ChannelCredentials;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.InsecureChannelCredentials;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.netty.NettyChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPort;
 
+/**
+ * {@link StateWatcher} {@link #watch}es for and reports {@link PipelineResult.State} changes to
+ * {@link StateListener}s.
+ */
 @AutoValue
 abstract class StateWatcher implements AutoCloseable {
 
   private Optional<PipelineResult.State> latestState = Optional.empty();
 
+  /**
+   * Instantiates a {@link StateWatcher} with {@link InsecureChannelCredentials}. {@link
+   * StateWatcher} will report to each {@link StateListener} of {@param listeners} of any changed
+   * {@link PipelineResult.State}.
+   */
   static StateWatcher insecure(String endpoint, StateListener... listeners) {
     return StateWatcher.builder()
         .setEndpoint(HostAndPort.fromString(endpoint))
@@ -45,6 +55,12 @@ abstract class StateWatcher implements AutoCloseable {
         .build();
   }
 
+  /**
+   * Watch for a Job's {@link PipelineResult.State} change. A {@link
+   * org.apache.beam.model.jobmanagement.v1.JobApi.GetJobStateRequest} identifies a Job to watch via
+   * its {@link JobApi.GetJobStateRequest#getJobId()}. The method is blocking until the {@link
+   * JobApi.JobStateEvent} {@link StreamObserver#onCompleted()}.
+   */
   void watch(String jobId) {
     JobApi.GetJobStateRequest request =
         JobApi.GetJobStateRequest.newBuilder().setJobId(jobId).build();
