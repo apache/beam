@@ -568,7 +568,7 @@ func handleSideInput(link engine.LinkID, comps *pipepb.Components, transforms ma
 	if err != nil {
 		return nil, err
 	}
-	
+
 	switch si := sis[link.Local]; si.GetAccessPattern().GetUrn() {
 	case urns.SideInputIterable:
 		slog.Debug("urnSideInputIterable",
