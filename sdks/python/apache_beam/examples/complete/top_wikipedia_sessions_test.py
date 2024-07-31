@@ -29,6 +29,9 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
 
+# TODO: Unit test top_wikipedia_sessions.extract_user_and_timestamp, etc.
+
+
 class ComputeTopSessionsTest(unittest.TestCase):
 
   EDITS = [
