@@ -81,7 +81,7 @@ class _GenerateChunksFn(DoFn):
             self,
             chunk_size: int,
             chunk_overlap: int,
-            chunking_strategy: str
+            chunking_strategy: ChunkingStrategy
     ):
 
         self.chunk_size = chunk_size
