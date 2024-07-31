@@ -25,7 +25,7 @@ from apache_beam.runners.portability.job_server import JavaJarJobServer
 
 class JavaJarJobServerStub(JavaJarJobServer):
   def java_arguments(
-      self, job_port, artifact_port, expansion_port, artifacts_dir):
+      self, job_port, artifact_port, expansion_port, artifacts_dir, jar_cache_dir):
     return [
         '--artifacts-dir',
         artifacts_dir,
@@ -35,13 +35,15 @@ class JavaJarJobServerStub(JavaJarJobServer):
         artifact_port,
         '--expansion-port',
         expansion_port
+        '--jar_cache_dir',
+        jar_cache_dir
     ]
 
   def path_to_jar(self):
     return '/path/to/jar'
 
   @staticmethod
-  def local_jar(url):
+  def local_jar(url, jar_cache_dir):
     return url
 
 
@@ -54,6 +56,7 @@ class JavaJarJobServerTest(unittest.TestCase):
         '--artifacts_dir=/path/to/artifacts/',
         '--job_server_java_launcher=/path/to/java',
         '--job_server_jvm_properties=-Dsome.property=value'
+        '--jar_cache_dir=/path/to/cache_dir'
     ])
     job_server = JavaJarJobServerStub(pipeline_options)
     subprocess_cmd, endpoint = job_server.subprocess_cmd_and_endpoint()
@@ -72,6 +75,8 @@ class JavaJarJobServerTest(unittest.TestCase):
             8098,
             '--expansion-port',
             8097
+            '--jar-cache-dir',
+            '/path/to/cache_dir'
         ])
     self.assertEqual(endpoint, 'localhost:8099')
 
