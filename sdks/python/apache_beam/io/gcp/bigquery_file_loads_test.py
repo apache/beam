@@ -426,6 +426,7 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     job_reference = bigquery_api.JobReference()
     job_reference.projectId = 'project1'
     job_reference.jobId = 'job_name1'
+    job_reference.location = 'US'
     result_job = bigquery_api.Job()
     result_job.jobReference = job_reference
 
@@ -481,6 +482,7 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     job_reference = bigquery_api.JobReference()
     job_reference.projectId = 'loadJobProject'
     job_reference.jobId = 'job_name1'
+    job_reference.location = 'US'
 
     result_job = bigquery_api.Job()
     result_job.jobReference = job_reference
@@ -515,6 +517,7 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     job_reference = bigquery_api.JobReference()
     job_reference.projectId = 'loadJobProject'
     job_reference.jobId = 'job_name1'
+    job_reference.location = 'US'
     result_job = mock.Mock()
     result_job.jobReference = job_reference
 
@@ -567,10 +570,12 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     job_1.jobReference = bigquery_api.JobReference()
     job_1.jobReference.projectId = 'project1'
     job_1.jobReference.jobId = 'jobId1'
+    job_1.jobReference.location = 'US'
     job_2 = bigquery_api.Job()
     job_2.jobReference = bigquery_api.JobReference()
     job_2.jobReference.projectId = 'project1'
     job_2.jobReference.jobId = 'jobId2'
+    job_2.jobReference.location = 'US'
 
     job_1_waiting = mock.Mock()
     job_1_waiting.status.state = 'RUNNING'
@@ -610,10 +615,12 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     job_1.jobReference = bigquery_api.JobReference()
     job_1.jobReference.projectId = 'project1'
     job_1.jobReference.jobId = 'jobId1'
+    job_1.jobReference.location = 'US'
     job_2 = bigquery_api.Job()
     job_2.jobReference = bigquery_api.JobReference()
     job_2.jobReference.projectId = 'project1'
     job_2.jobReference.jobId = 'jobId2'
+    job_2.jobReference.location = 'US'
 
     job_1_waiting = mock.Mock()
     job_1_waiting.status.state = 'RUNNING'
@@ -650,6 +657,7 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     job_reference = bigquery_api.JobReference()
     job_reference.projectId = 'project1'
     job_reference.jobId = 'job_name1'
+    job_reference.location = 'US'
     result_job = mock.Mock()
     result_job.jobReference = job_reference
 
@@ -732,6 +740,7 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     job_reference = bigquery_api.JobReference()
     job_reference.projectId = 'project1'
     job_reference.jobId = 'job_name1'
+    job_reference.location = 'US'
     result_job = mock.Mock()
     result_job.jobReference = job_reference
 
@@ -774,6 +783,7 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     job_reference = bigquery_api.JobReference()
     job_reference.projectId = 'project1'
     job_reference.jobId = 'job_name1'
+    job_reference.location = 'US'
     result_job = bigquery_api.Job()
     result_job.jobReference = job_reference
 
