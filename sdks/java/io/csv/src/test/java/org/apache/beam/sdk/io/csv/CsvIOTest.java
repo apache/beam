@@ -17,15 +17,24 @@
  */
 package org.apache.beam.sdk.io.csv;
 
+import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA;
+import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.nullableAllPrimitiveDataTypes;
+import static org.junit.Assert.assertThrows;
+
+import java.io.Serializable;
 import java.util.Arrays;
+import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.common.SchemaAwareJavaBeans;
+import org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.NullableAllPrimitiveDataTypes;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.Row;
 import org.apache.commons.csv.CSVFormat;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -37,26 +46,150 @@ public class CsvIOTest {
       new String[] {"aBoolean", "aDouble", "aFloat", "anInteger", "aLong", "aString"};
 
   @Test
-  public void givenIncorrectCellValueForCustomType_throws() {
+  public void parseRows() {
     Pipeline pipeline = Pipeline.create();
     PCollection<String> input =
         csvRecords(
             pipeline,
             "# This is a comment",
             "aBoolean,aDouble,aFloat,anInteger,aLong,aString",
-            "true,1.0,2.0,3.51234,4,foo");
-    CsvIOParse<SchemaAwareJavaBeans.NullableAllPrimitiveDataTypes> underTest =
-        CsvIO.parse(SchemaAwareJavaBeans.NullableAllPrimitiveDataTypes.class, csvFormat());
-    CsvIOParseResult<SchemaAwareJavaBeans.NullableAllPrimitiveDataTypes> result =
-        input.apply(underTest);
-    PAssert.thatSingleton(result.getErrors().apply(Count.globally())).isEqualTo(1L);
+            "true,1.0,2.0,3,4,foo",
+            "N/A,6.0,7.0,8,9,bar",
+            "false,12.0,14.0,8,24,\"foo\nbar\"",
+            "true,1.0,2.0,3,4,foo$,bar");
+    List<Row> want =
+        Arrays.asList(
+            Row.withSchema(NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA)
+                .withFieldValue("aBoolean", true)
+                .withFieldValue("aDouble", 1.0)
+                .withFieldValue("aFloat", 2.0f)
+                .withFieldValue("anInteger", 3)
+                .withFieldValue("aLong", 4L)
+                .withFieldValue("aString", "foo")
+                .build(),
+            Row.withSchema(NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA)
+                .withFieldValue("aBoolean", null)
+                .withFieldValue("aDouble", 6.0)
+                .withFieldValue("aFloat", 7.0f)
+                .withFieldValue("anInteger", 8)
+                .withFieldValue("aLong", 9L)
+                .withFieldValue("aString", "bar")
+                .build(),
+            Row.withSchema(NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA)
+                .withFieldValue("aBoolean", false)
+                .withFieldValue("aDouble", 12.0)
+                .withFieldValue("aFloat", 14.0f)
+                .withFieldValue("anInteger", 8)
+                .withFieldValue("aLong", 24L)
+                .withFieldValue("aString", "foo\nbar")
+                .build(),
+            Row.withSchema(NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA)
+                .withFieldValue("aBoolean", true)
+                .withFieldValue("aDouble", 1.0)
+                .withFieldValue("aFloat", 2.0f)
+                .withFieldValue("anInteger", 3)
+                .withFieldValue("aLong", 4L)
+                .withFieldValue("aString", "foo,bar")
+                .build());
+
+    CsvIOParse<Row> underTest =
+        CsvIO.parseRows(NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA, csvFormat());
+    CsvIOParseResult<Row> result = input.apply(underTest);
+    PAssert.that(result.getOutput()).containsInAnyOrder(want);
+    PAssert.that(result.getErrors()).empty();
+
     pipeline.run();
   }
 
   @Test
-  public void parseRowsTest() {
+  public void parsesPOJOs() {
     Pipeline pipeline = Pipeline.create();
+    PCollection<String> input =
+        csvRecords(
+            pipeline,
+            "# This is a comment",
+            "aBoolean,aDouble,aFloat,anInteger,aLong,aString",
+            "true,1.0,2.0,3,4,foo",
+            "N/A,6.0,7.0,8,9,bar",
+            "false,12.0,14.0,8,24,\"foo\nbar\"",
+            "true,1.0,2.0,3,4,foo$,bar");
+    List<SchemaAwareJavaBeans.NullableAllPrimitiveDataTypes> want =
+        Arrays.asList(
+            nullableAllPrimitiveDataTypes(true, 1.0d, 2.0f, 3, 4L, "foo"),
+            nullableAllPrimitiveDataTypes(null, 6.0d, 7.0f, 8, 9L, "bar"),
+            nullableAllPrimitiveDataTypes(false, 12.0d, 14.0f, 8, 24L, "foo\nbar"),
+            nullableAllPrimitiveDataTypes(true, 1.0d, 2.0f, 3, 4L, "foo,bar"));
 
+    CsvIOParse<NullableAllPrimitiveDataTypes> underTest =
+        CsvIO.parse(NullableAllPrimitiveDataTypes.class, csvFormat());
+    CsvIOParseResult<NullableAllPrimitiveDataTypes> result = input.apply(underTest);
+    PAssert.that(result.getOutput()).containsInAnyOrder(want);
+    PAssert.that(result.getErrors()).empty();
+
+    pipeline.run();
+  }
+
+  @Test
+  public void givenInvalidCsvFormat_throws() {
+    Pipeline pipeline = Pipeline.create();
+    CSVFormat csvFormat =
+        CSVFormat.DEFAULT
+            .withHeader("a_string", "an_integer", "a_double")
+            .withAllowDuplicateHeaderNames(true);
+    Schema schema =
+        Schema.builder()
+            .addStringField("a_string")
+            .addInt32Field("an_integer")
+            .addDoubleField("a_double")
+            .build();
+    assertThrows(IllegalArgumentException.class, () -> CsvIO.parseRows(schema, csvFormat));
+    pipeline.run();
+  }
+
+  @Test
+  public void givenMismatchedCsvFormatAndSchema_throws() {
+    Pipeline pipeline = Pipeline.create();
+    CSVFormat csvFormat =
+        CSVFormat.DEFAULT
+            .withHeader("a_string", "an_integer", "a_double")
+            .withAllowDuplicateHeaderNames(true);
+    Schema schema = Schema.builder().addStringField("a_string").addDoubleField("a_double").build();
+    assertThrows(IllegalArgumentException.class, () -> CsvIO.parseRows(schema, csvFormat));
+    pipeline.run();
+  }
+
+  @Test
+  public void givenNullSchema_throws() {
+    Pipeline pipeline = Pipeline.create();
+    assertThrows(NullPointerException.class, () -> CsvIO.parseRows(null, csvFormat()));
+    pipeline.run();
+  }
+
+  @Test
+  public void givenNonSchemaMappedClass_throws() {
+    Pipeline pipeline = Pipeline.create();
+    CSVFormat csvFormat =
+        CSVFormat.DEFAULT
+            .withHeader("a_string", "an_integer", "a_double")
+            .withAllowDuplicateHeaderNames(false);
+    assertThrows(
+        IllegalStateException.class, () -> CsvIO.parse(NonSchemaMappedPojo.class, csvFormat));
+    pipeline.run();
+  }
+
+  @Test
+  public void givenMismatchedCellAndSchemaField_throws() {
+    Pipeline pipeline = Pipeline.create();
+    PCollection<String> input =
+        csvRecords(
+            pipeline,
+            "# This is a comment",
+            "aBoolean,aDouble,aFloat,anInteger,aLong,aString",
+            "true,1.0,2.0,invalid_integer_value,4,foo");
+    CsvIOParse<Row> underTest =
+        CsvIO.parseRows(NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA, csvFormat());
+    CsvIOParseResult<Row> result = input.apply(underTest);
+    PAssert.thatSingleton(result.getErrors().apply(Count.globally())).isEqualTo(1L);
     pipeline.run();
   }
 
@@ -65,12 +198,36 @@ public class CsvIOTest {
         .withAllowDuplicateHeaderNames(false)
         .withHeader(HEADER)
         .withCommentMarker('#')
-        .withNullString("🏵")
+        .withNullString("N/A")
         .withEscape('$');
   }
 
   private static PCollection<String> csvRecords(Pipeline pipeline, String... lines) {
     return pipeline.apply(
         Create.of(Arrays.asList(lines)).withCoder(NullableCoder.of(StringUtf8Coder.of())));
+  }
+
+  private static class NonSchemaMappedPojo implements Serializable {
+    private final String aString;
+    private final Integer anInteger;
+    private final Double aDouble;
+
+    private NonSchemaMappedPojo(String aString, Integer anInteger, Double aDouble) {
+      this.aString = aString;
+      this.anInteger = anInteger;
+      this.aDouble = aDouble;
+    }
+
+    public String getAString() {
+      return aString;
+    }
+
+    public Integer getAnInteger() {
+      return anInteger;
+    }
+
+    public Double getADouble() {
+      return aDouble;
+    }
   }
 }
