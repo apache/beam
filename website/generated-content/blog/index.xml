@@ -3038,6 +3038,7 @@ See the &lt;a href="/get-started/downloads/#2490-2023-07-17">download page&lt;/a
 &lt;ul>
 &lt;li>Long-running Python pipelines might experience a memory leak: &lt;a href="https://github.com/apache/beam/issues/28246">#28246&lt;/a>.&lt;/li>
 &lt;li>Python SDK&amp;rsquo;s cross-language Bigtable sink mishandles records that don&amp;rsquo;t have an explicit timestamp set: &lt;a href="https://github.com/apache/beam/issues/28632">#28632&lt;/a>. To avoid this issue, set explicit timestamps for all records before writing to Bigtable.&lt;/li>
+&lt;li>Python pipelines using the &lt;code>--impersonate_service_account&lt;/code> option with BigQuery IOs might fail on Dataflow (&lt;a href="https://github.com/apache/beam/issues/32030">#32030&lt;/a>). This is fixed in 2.59.0 release.&lt;/li>
 &lt;/ul>
 &lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
 &lt;p>According to git shortlog, the following people contributed to the 2.49.0 release. Thank you to all contributors!&lt;/p>
