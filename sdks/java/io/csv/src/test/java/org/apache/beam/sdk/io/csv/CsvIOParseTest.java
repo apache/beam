@@ -161,56 +161,6 @@ public class CsvIOParseTest {
     pipeline.run();
   }
 
-  @Test
-  public void givenIncorrectCsvFormat_throws() {
-    // PCollection<String> records =
-    //     csvRecords(
-    //         pipeline,
-    //         "# This is a comment",
-    //         "aBoolean,aDouble,aFloat,anInteger,aLong,aString",
-    //         "true,1.0,2.0,3,4,foo",
-    //         "🏵,6.0,7.0,8,9,bar",
-    //         "false,12.0,14.0,8,24,\"foo\nbar\"",
-    //         "true,1.0,2.0,3,4,foo$,bar");
-    // CsvIOParseResult<NullableAllPrimitiveDataTypes> result =
-    //     records.apply(
-    //         underTest(
-    //             NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA,
-    //             CSVFormat.DEFAULT.withHeader("aBoolean,aDouble,aFloat,anInteger"),
-    //             emptyCustomProcessingMap(),
-    //             nullableAllPrimitiveDataTypesFromRowFn(),
-    //             NULLABLE_ALL_PRIMITIVE_DATA_TYPES_CODER));
-    // assertEquals("", result.getErrors());
-  }
-
-  @Test
-  public void givenInvalidCellWithIncorrectSchemaFieldType_throws() {
-    // PCollection<String> records =
-    //     csvRecords(
-    //         pipeline,
-    //         "# This is a comment",
-    //         "aBoolean,aDouble,aFloat,anInteger,aLong,aString",
-    //         "true,1.0,2.0,3,4.000,foo");
-    //
-    // CsvIOParseResult<NullableAllPrimitiveDataTypes> result =
-    //     records.apply(
-    //         underTest(
-    //             NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA,
-    //             csvFormat(),
-    //             emptyCustomProcessingMap(),
-    //             nullableAllPrimitiveDataTypesFromRowFn(),
-    //             NULLABLE_ALL_PRIMITIVE_DATA_TYPES_CODER));
-    // PAssert.that(result.getErrors()).containsInAnyOrder(CsvIOParseError.builder().setMessage("For
-    // input string: \"4.000\" field aLong was received -- type mismatch")
-    //         .setCsvRecord("[true, 1.0, 2.0, 3, 4.000, foo]")
-    //         .setObservedTimestamp(result.getErrors()..getObservedTimestamp())
-    //         .setStackTrace("java.lang.IllegalArgumentException: For input string: \"4.000\" field
-    // aLong was received -- type mismatch")
-    //     .build());
-    //
-    // pipeline.run();
-  }
-
   private static CSVFormat csvFormat() {
     return CSVFormat.DEFAULT
         .withAllowDuplicateHeaderNames(false)

@@ -84,7 +84,7 @@ final class CsvIOStringToCsvRecord
         for (CSVRecord record : csvParser.getRecords()) {
           receiver.get(outputTag).output(csvRecordtoList(record));
         }
-      } catch (RuntimeException | IOException e) {
+      } catch (IOException e) {
         receiver
             .get(errorTag)
             .output(
