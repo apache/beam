@@ -30,7 +30,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/jsonx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
-	protov1 "github.com/golang/protobuf/proto"
 	protov2 "google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
@@ -51,7 +50,7 @@ type jsonCoder interface {
 	json.Unmarshaler
 }
 
-var protoMessageType = reflect.TypeOf((*protov1.Message)(nil)).Elem()
+var protoMessageType = reflect.TypeOf((*protov2.Message)(nil)).Elem()
 var protoReflectMessageType = reflect.TypeOf((*protoreflect.ProtoMessage)(nil)).Elem()
 var jsonCoderType = reflect.TypeOf((*jsonCoder)(nil)).Elem()
 
@@ -276,8 +275,6 @@ func protoEnc(in T) ([]byte, error) {
 	switch it := in.(type) {
 	case protoreflect.ProtoMessage:
 		p = it
-	case protov1.Message:
-		p = protov1.MessageV2(it)
 	}
 	b, err := protov2.MarshalOptions{Deterministic: true}.Marshal(p)
 	if err != nil {
@@ -293,8 +290,6 @@ func protoDec(t reflect.Type, in []byte) (T, error) {
 	switch it := reflect.New(t.Elem()).Interface().(type) {
 	case protoreflect.ProtoMessage:
 		p = it
-	case protov1.Message:
-		p = protov1.MessageV2(it)
 	}
 	err := protov2.UnmarshalOptions{}.Unmarshal(in, p)
 	if err != nil {

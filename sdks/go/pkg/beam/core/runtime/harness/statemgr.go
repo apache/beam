@@ -28,9 +28,9 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
-	"github.com/golang/protobuf/proto"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/encoding/prototext"
 )
 
 type writeTypeEnum int32
@@ -633,7 +633,8 @@ func (c *StateChannel) read(ctx context.Context) {
 		if !ok {
 			// This can happen if Send returns an error that write handles, but
 			// the message was actually sent.
-			log.Errorf(ctx, "StateChannel[%v].read: no consumer for state response: %v", c.id, proto.MarshalTextString(msg))
+			bytes, _ := prototext.Marshal(msg)
+			log.Errorf(ctx, "StateChannel[%v].read: no consumer for state response: %v", c.id, string(bytes))
 			continue
 		}
 
@@ -641,7 +642,7 @@ func (c *StateChannel) read(ctx context.Context) {
 		case ch <- msg:
 			// ok
 		default:
-			panic(fmt.Sprintf("StateChannel[%v].read: failed to consume state response: %v", c.id, proto.MarshalTextString(msg)))
+			panic(fmt.Sprintf("StateChannel[%v].read: failed to consume state response: %v", c.id, msg.String()))
 		}
 	}
 }

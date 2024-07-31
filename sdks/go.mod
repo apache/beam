@@ -39,7 +39,6 @@ require (
 	github.com/docker/go-connections v0.5.0
 	github.com/dustin/go-humanize v1.0.1
 	github.com/go-sql-driver/mysql v1.8.1
-	github.com/golang/protobuf v1.5.4 // TODO(danoliveira): Fully replace this with google.golang.org/protobuf
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.6.0
 	github.com/johannesboyne/gofakes3 v0.0.0-20221110173912-32fb85c5aed6
@@ -70,6 +69,7 @@ require (
 require (
 	github.com/avast/retry-go/v4 v4.6.0
 	github.com/fsouza/fake-gcs-server v1.47.7
+	github.com/golang/protobuf v1.5.4
 	golang.org/x/exp v0.0.0-20231006140011-7918f672742d
 )
 
