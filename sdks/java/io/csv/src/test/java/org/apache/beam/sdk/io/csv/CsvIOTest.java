@@ -22,6 +22,7 @@ import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.nullableAllPrim
 import static org.junit.Assert.assertThrows;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
@@ -33,6 +34,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.commons.csv.CSVFormat;
@@ -178,19 +180,145 @@ public class CsvIOTest {
   }
 
   @Test
-  public void givenMismatchedCellAndSchemaField_throws() {
+  public void givenStringToRecordError_emits() {
     Pipeline pipeline = Pipeline.create();
-    PCollection<String> input =
-        csvRecords(
-            pipeline,
-            "# This is a comment",
-            "aBoolean,aDouble,aFloat,anInteger,aLong,aString",
-            "true,1.0,2.0,invalid_integer_value,4,foo");
-    CsvIOParse<Row> underTest =
-        CsvIO.parseRows(NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA, csvFormat());
+    PCollection<String> input = pipeline.apply(Create.of("true,\"1.1,3.141592,1,5,foo"));
+    Schema schema =
+        Schema.builder()
+            .addBooleanField("aBoolean")
+            .addDoubleField("aDouble")
+            .addFloatField("aFloat")
+            .addInt32Field("anInteger")
+            .addInt64Field("aLong")
+            .addStringField("aString")
+            .build();
+    CsvIOParse<Row> underTest = CsvIO.parseRows(schema, csvFormat().withQuote('"'));
     CsvIOParseResult<Row> result = input.apply(underTest);
     PAssert.thatSingleton(result.getErrors().apply(Count.globally())).isEqualTo(1L);
+    PAssert.that(result.getErrors())
+        .satisfies(
+            (SerializableFunction<Iterable<CsvIOParseError>, Void>)
+                fnInput -> {
+                  for (CsvIOParseError error : fnInput) {
+                    if (!(error
+                            .getMessage()
+                            .equals("(startline 1) EOF reached before encapsulated token finished")
+                        && error.getCsvRecord().equals("true,\"1.1,3.141592,1,5,foo")
+                        && error
+                            .getStackTrace()
+                            .contains("org.apache.beam.sdk.io.csv.CsvIOStringToCsvRecord")
+                        && error.getFilename() == null)) {
+                      throw new AssertionError("Unexpected error: " + error);
+                    }
+                  }
+                  return null;
+                });
+
     pipeline.run();
+  }
+
+  @Test
+  public void givenRecordToObjectError_emits() {
+    Pipeline pipeline = Pipeline.create();
+    PCollection<String> input =
+        pipeline.apply(Create.of("true,1.1,3.141592,this_is_an_error,5,foo"));
+    Schema schema =
+        Schema.builder()
+            .addBooleanField("aBoolean")
+            .addDoubleField("aDouble")
+            .addFloatField("aFloat")
+            .addInt32Field("anInteger")
+            .addInt64Field("aLong")
+            .addStringField("aString")
+            .build();
+    CsvIOParse<Row> underTest = CsvIO.parseRows(schema, csvFormat().withQuote('"'));
+    CsvIOParseResult<Row> result = input.apply(underTest);
+    PAssert.thatSingleton(result.getErrors().apply(Count.globally())).isEqualTo(1L);
+    PAssert.that(result.getErrors())
+        .satisfies(
+            (SerializableFunction<Iterable<CsvIOParseError>, Void>)
+                fnInput -> {
+                  for (CsvIOParseError error : fnInput) {
+                    if (!(error
+                            .getMessage()
+                            .equals(
+                                "For input string: \"this_is_an_error\" field anInteger was received -- type mismatch")
+                        && error
+                            .getCsvRecord()
+                            .equals("[true, 1.1, 3.141592, this_is_an_error, 5, foo]")
+                        && error
+                            .getStackTrace()
+                            .contains("org.apache.beam.sdk.io.csv.CsvIORecordToObjects")
+                        && error.getFilename() == null)) {
+                      throw new AssertionError("Unexpected error: " + error);
+                    }
+                  }
+                  return null;
+                });
+
+    pipeline.run();
+  }
+
+  @Test
+  public void givenStringToRecordError_RecordToObjectError_emits() {
+    Pipeline pipeline = Pipeline.create();
+    PCollection<String> input =
+        pipeline.apply(
+            Create.of("true,\"1.1,3.141592,1,5,foo", "true,1.1,3.141592,this_is_an_error,5,foo"));
+    Schema schema =
+        Schema.builder()
+            .addBooleanField("aBoolean")
+            .addDoubleField("aDouble")
+            .addFloatField("aFloat")
+            .addInt32Field("anInteger")
+            .addInt64Field("aLong")
+            .addStringField("aString")
+            .build();
+    CsvIOParse<Row> underTest = CsvIO.parseRows(schema, csvFormat().withQuote('"'));
+    CsvIOParseResult<Row> result = input.apply(underTest);
+    PAssert.thatSingleton(result.getErrors().apply(Count.globally())).isEqualTo(2L);
+    PAssert.that(result.getErrors())
+        .satisfies(
+            (SerializableFunction<Iterable<CsvIOParseError>, Void>)
+                fnInput -> {
+                  List<CsvIOParseError> errors = errorList(fnInput);
+                  CsvIOParseError stringToRecordError = errors.get(0);
+                  CsvIOParseError recordToObjectError = errors.get(1);
+                  if (!(stringToRecordError
+                          .getMessage()
+                          .equals("(startline 1) EOF reached before encapsulated token finished")
+                      && stringToRecordError.getCsvRecord().equals("true,\"1.1,3.141592,1,5,foo")
+                      && stringToRecordError
+                          .getStackTrace()
+                          .contains("org.apache.beam.sdk.io.csv.CsvIOStringToCsvRecord")
+                      && stringToRecordError.getFilename() == null)) {
+                    throw new AssertionError("Unexpected error: " + stringToRecordError);
+                  }
+                  if (!(recordToObjectError
+                          .getMessage()
+                          .equals(
+                              "For input string: \"this_is_an_error\" field anInteger was received -- type mismatch")
+                      && recordToObjectError
+                          .getCsvRecord()
+                          .equals("[true, 1.1, 3.141592, this_is_an_error, 5, foo]")
+                      && recordToObjectError
+                          .getStackTrace()
+                          .contains("org.apache.beam.sdk.io.csv.CsvIORecordToObjects")
+                      && recordToObjectError.getFilename() == null)) {
+                    throw new AssertionError("Unexpected error: " + recordToObjectError);
+                  }
+                  return null;
+                });
+
+    pipeline.run();
+  }
+
+  private static List<CsvIOParseError> errorList(Iterable<CsvIOParseError> errors) {
+    List<CsvIOParseError> errorList = new ArrayList<>();
+    for (CsvIOParseError error : errors) {
+      errorList.add(error);
+    }
+    return errorList;
   }
 
   private static CSVFormat csvFormat() {
