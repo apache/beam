@@ -275,7 +275,11 @@ progress:
 }
 
 func getSideInputs(t *pipepb.PTransform) (map[string]*pipepb.SideInput, error) {
-	if t.GetSpec().GetUrn() != urns.TransformParDo {
+	switch t.GetSpec().GetUrn() {
+	case urns.TransformParDo, urns.TransformProcessSizedElements, urns.TransformPairWithRestriction, urns.TransformSplitAndSize, urns.TransformTruncate:
+		// Intentionally empty since these are permitted to have side inputs.
+	default:
+		// Nothing else is allowed to have side inputs.
 		return nil, nil
 	}
 	// TODO, memoize this, so we don't need to repeatedly unmarshal.
@@ -334,6 +338,7 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, em *eng
 		return col
 	}
 
+	// Update coders for Stateful transforms.
 	for _, tid := range stg.transforms {
 		t := comps.GetTransforms()[tid]
 
@@ -461,10 +466,11 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, em *eng
 			}
 			// Update side inputs to point to new PCollection with any replaced coders.
 			transforms[si.Transform].GetInputs()[si.Local] = newGlobal
+			// TODO: replace si.Global with newGlobal?
 		}
-		prepSide, err := handleSideInput(si, comps, coders, em)
+		prepSide, err := handleSideInput(si, comps, transforms, pcollections, coders, em)
 		if err != nil {
-			slog.Error("buildDescriptor: handleSideInputs", err, slog.String("transformID", si.Transform))
+			slog.Error("buildDescriptor: handleSideInputs", "error", err, slog.String("transformID", si.Transform))
 			return err
 		}
 		prepareSides = append(prepareSides, prepSide)
@@ -556,13 +562,13 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, em *eng
 }
 
 // handleSideInput returns a closure that will look up the data for a side input appropriate for the given watermark.
-func handleSideInput(link engine.LinkID, comps *pipepb.Components, coders map[string]*pipepb.Coder, em *engine.ElementManager) (func(b *worker.B, watermark mtime.Time), error) {
-	t := comps.GetTransforms()[link.Transform]
+func handleSideInput(link engine.LinkID, comps *pipepb.Components, transforms map[string]*pipepb.PTransform, pcols map[string]*pipepb.PCollection, coders map[string]*pipepb.Coder, em *engine.ElementManager) (func(b *worker.B, watermark mtime.Time), error) {
+	t := transforms[link.Transform]
 	sis, err := getSideInputs(t)
 	if err != nil {
 		return nil, err
 	}
-
+	
 	switch si := sis[link.Local]; si.GetAccessPattern().GetUrn() {
 	case urns.SideInputIterable:
 		slog.Debug("urnSideInputIterable",
@@ -570,7 +576,7 @@ func handleSideInput(link engine.LinkID, comps *pipepb.Components, coders map[st
 			slog.String("local", link.Local),
 			slog.String("global", link.Global))
 
-		col := comps.GetPcollections()[link.Global]
+		col := pcols[link.Global]
 		// The returned coders are unused here, but they add the side input coders
 		// to the stage components for use SDK side.
 
@@ -594,7 +600,7 @@ func handleSideInput(link engine.LinkID, comps *pipepb.Components, coders map[st
 			slog.String("sourceTransform", t.GetUniqueName()),
 			slog.String("local", link.Local),
 			slog.String("global", link.Global))
-		col := comps.GetPcollections()[link.Global]
+		col := pcols[link.Global]
 
 		kvc := comps.GetCoders()[col.GetCoderId()]
 		if kvc.GetSpec().GetUrn() != urns.CoderKV {
@@ -633,7 +639,7 @@ func handleSideInput(link engine.LinkID, comps *pipepb.Components, coders map[st
 			}] = windowed
 		}, nil
 	default:
-		return nil, fmt.Errorf("local input %v (global %v) uses accesspattern %v", link.Local, link.Global, si.GetAccessPattern().GetUrn())
+		return nil, fmt.Errorf("local input %v (global %v) uses accesspattern %v", link.Local, link.Global, prototext.Format(si.GetAccessPattern()))
 	}
 }
 

@@ -452,7 +452,7 @@ func (wk *W) State(state fnpb.BeamFnState_StateServer) error {
 				// TODO: move data handling to be pcollection based.
 
 				key := req.GetStateKey()
-				slog.Debug("StateRequest_Get", prototext.Format(req), "bundle", b)
+				slog.Debug("StateRequest_Get", "request", prototext.Format(req), "bundle", b)
 				var data [][]byte
 				switch key.GetType().(type) {
 				case *fnpb.StateKey_IterableSideInput_:
