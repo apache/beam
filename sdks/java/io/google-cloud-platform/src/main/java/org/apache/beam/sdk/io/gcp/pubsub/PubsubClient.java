@@ -39,12 +39,15 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Precondit
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** An (abstract) helper class for talking to Pubsub via an underlying transport. */
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public abstract class PubsubClient implements Closeable {
+  private static final Logger LOG = LoggerFactory.getLogger(PubsubClient.class);
   private static final Map<String, SerializableFunction<String, Schema>>
       schemaTypeToConversionFnMap =
           ImmutableMap.of(
@@ -258,7 +261,7 @@ public abstract class PubsubClient implements Closeable {
     }
 
     public String getDataCatalogName() {
-      return String.format("pubsub:subscriptions:%s.%s", projectId, subscriptionName);
+      return String.format("pubsub:subscription:%s.%s", projectId, subscriptionName);
     }
 
     @Override
@@ -315,10 +318,24 @@ public abstract class PubsubClient implements Closeable {
       return splits.get(3);
     }
 
+    /**
+     * Returns the data catalog name. Format "pubsub:topic:`project`.`topic`" This method is
+     * fail-safe. If topic path is malformed, it returns an empty string.
+     */
     public String getDataCatalogName() {
       List<String> splits = Splitter.on('/').splitToList(path);
-      checkState(splits.size() == 4, "Malformed topic path %s", path);
-      return String.format("pubsub:topic:%s.%s", splits.get(1), splits.get(3));
+      if (splits.size() == 4) {
+        // well-formed path
+        return String.format("pubsub:topic:%s.%s", splits.get(1), splits.get(3));
+      } else {
+        // Mal-formed path. It is either a test fixture or user error and will fail on publish.
+        // We do not throw exception instead return empty string here.
+        LOG.warn(
+            "Cannot get data catalog name for malformed topic path {}. Expected format: "
+                + "projects/<project>/topics/<topic>",
+            path);
+        return "";
+      }
     }
 
     public String getFullPath() {

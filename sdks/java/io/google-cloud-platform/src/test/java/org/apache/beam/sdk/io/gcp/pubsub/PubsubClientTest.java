@@ -179,7 +179,7 @@ public class PubsubClientTest {
     TopicPath path = PubsubClient.topicPathFromName("test", "something");
     assertEquals("projects/test/topics/something", path.getPath());
     assertEquals("/topics/test/something", path.getFullPath());
-    assertEquals("pubsub:topics:test/something", path.getFullPath());
+    assertEquals("pubsub:topic:test.something", path.getDataCatalogName());
   }
 
   @Test
