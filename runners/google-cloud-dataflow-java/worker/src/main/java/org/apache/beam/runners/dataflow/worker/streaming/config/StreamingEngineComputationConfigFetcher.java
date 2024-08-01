@@ -188,11 +188,13 @@ public final class StreamingEngineComputationConfigFetcher implements Computatio
     }
 
     if (config.getOperationalLimits() != null) {
-      if (config.getOperationalLimits().getMaxKeyBytes() > 0
+      if (config.getOperationalLimits().getMaxKeyBytes() != null
+          && config.getOperationalLimits().getMaxKeyBytes() > 0
           && config.getOperationalLimits().getMaxKeyBytes() <= Integer.MAX_VALUE) {
         pipelineConfig.setMaxOutputKeyBytes(config.getOperationalLimits().getMaxKeyBytes());
       }
-      if (config.getOperationalLimits().getMaxProductionOutputBytes() > 0
+      if (config.getOperationalLimits().getMaxProductionOutputBytes() != null
+          && config.getOperationalLimits().getMaxProductionOutputBytes() > 0
           && config.getOperationalLimits().getMaxProductionOutputBytes() <= Integer.MAX_VALUE) {
         pipelineConfig.setMaxOutputValueBytes(
             config.getOperationalLimits().getMaxProductionOutputBytes());
