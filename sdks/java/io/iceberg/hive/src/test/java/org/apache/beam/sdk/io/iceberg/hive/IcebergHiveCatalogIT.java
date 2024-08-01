@@ -70,6 +70,13 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 
+/**
+ * Read and write test for {@link Managed} {@link org.apache.beam.sdk.io.iceberg.IcebergIO} using
+ * {@link HiveCatalog}.
+ *
+ * <p>Spins up a local Hive metastore to manage the Iceberg table. Warehouse path is set to a GCS
+ * bucket.
+ */
 public class IcebergHiveCatalogIT {
   private static final Schema DOUBLY_NESTED_ROW_SCHEMA =
       Schema.builder()
