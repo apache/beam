@@ -17,28 +17,23 @@
  */
 package org.apache.beam.sdk.util.construction.resources;
 
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
-
-import java.io.File;
 import java.io.IOException;
-import java.io.OutputStream;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.options.FileStagingOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.util.ZipFiles;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Funnels;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hasher;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hashing;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Utilities for working with classpath resources for pipelines. */
+@SuppressWarnings({"deprecation", "unchecked"})
 public class PipelineResources {
   private static final Logger LOG = LoggerFactory.getLogger(PipelineResources.class);
 
@@ -94,56 +89,68 @@ public class PipelineResources {
   }
 
   /**
-   * Goes through the list of files that need to be staged on runner. Fails if the directory does
-   * not exist and packages the ones that exist. This is necessary for runners that require
-   * filesToStage to be jars only.
+   * Goes through the list of files that need to be staged on the runner. If the file does not exist
+   * on the specified location, it copies it to the temporary directory. This method now supports
+   * both local file systems and HDFS.
    *
    * @param resourcesToStage list of resources that need to be staged
    * @param tmpJarLocation temporary directory to store the jars
    * @return A list of absolute paths to resources (jar files)
-   * @throws IllegalStateException if the directory to be staged does not exist
+   * @throws RuntimeException if there is an error accessing the file system or staging the files
    */
   public static List<String> prepareFilesForStaging(
       List<String> resourcesToStage, String tmpJarLocation) {
-    return resourcesToStage.stream()
-        .map(File::new)
-        .map(
-            file -> {
-              Preconditions.checkState(
-                  file.exists(), "To-be-staged file does not exist: '%s'", file);
-              return file.isDirectory()
-                  ? packageDirectoriesToStage(file, tmpJarLocation)
-                  : file.getAbsolutePath();
-            })
-        .collect(Collectors.toList());
-  }
-
-  private static String packageDirectoriesToStage(File directoryToStage, String tmpJarLocation) {
-    String hash = calculateDirectoryContentHash(directoryToStage);
-    String pathForJar = getUniqueJarPath(hash, tmpJarLocation);
+    Configuration conf = new Configuration();
+    FileSystem fs;
     try {
-      ZipFiles.zipDirectoryOverwrite(directoryToStage, new File(pathForJar));
+      fs = FileSystem.get(conf);
     } catch (IOException e) {
-      throw new RuntimeException(e);
+      throw new RuntimeException("Failed to get FileSystem", e);
     }
-    return pathForJar;
-  }
 
-  private static String calculateDirectoryContentHash(File directoryToStage) {
-    Hasher hasher = Hashing.sha256().newHasher();
-    try (OutputStream hashStream = Funnels.asOutputStream(hasher)) {
-      ZipFiles.zipDirectory(directoryToStage, hashStream);
-      return hasher.hash().toString();
-    } catch (IOException e) {
-      throw new RuntimeException(e);
+    List<String> stagedFiles = new ArrayList<>();
+    for (String resource : resourcesToStage) {
+      Path srcPath = new Path(resource);
+      Path destPath = new Path(tmpJarLocation, srcPath.getName());
+      try {
+        if (!fs.exists(destPath)) {
+          fs.copyFromLocalFile(srcPath, destPath);
+        }
+        stagedFiles.add(destPath.toString());
+      } catch (IOException e) {
+        throw new RuntimeException("Error staging file: " + resource, e);
+      }
     }
+    return stagedFiles;
   }
 
-  private static String getUniqueJarPath(String contentHash, String tmpJarLocation) {
-    checkArgument(
-        !Strings.isNullOrEmpty(tmpJarLocation),
-        "Please provide temporary location for storing the jar files.");
+  //  private static String packageDirectoriesToStage(File directoryToStage, String tmpJarLocation)
+  // {
+  //    String hash = calculateDirectoryContentHash(directoryToStage);
+  //    String pathForJar = getUniqueJarPath(hash, tmpJarLocation);
+  //    try {
+  //      ZipFiles.zipDirectoryOverwrite(directoryToStage, new File(pathForJar));
+  //    } catch (IOException e) {
+  //      throw new RuntimeException(e);
+  //    }
+  //    return pathForJar;
+  //  }
 
-    return String.format("%s%s%s.jar", tmpJarLocation, File.separator, contentHash);
-  }
+  //  private static String calculateDirectoryContentHash(File directoryToStage) {
+  //    Hasher hasher = Hashing.sha256().newHasher();
+  //    try (OutputStream hashStream = Funnels.asOutputStream(hasher)) {
+  //      ZipFiles.zipDirectory(directoryToStage, hashStream);
+  //      return hasher.hash().toString();
+  //    } catch (IOException e) {
+  //      throw new RuntimeException(e);
+  //    }
+  //  }
+
+  //  private static String getUniqueJarPath(String contentHash, String tmpJarLocation) {
+  //    checkArgument(
+  //        !Strings.isNullOrEmpty(tmpJarLocation),
+  //        "Please provide temporary location for storing the jar files.");
+  //
+  //    return String.format("%s%s%s.jar", tmpJarLocation, File.separator, contentHash);
+  //  }
 }

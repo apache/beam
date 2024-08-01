@@ -32,6 +32,7 @@ import javax.annotation.Nonnull;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.options.FileStagingOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -315,6 +316,10 @@ public class Pipeline {
    * by the options.
    */
   public PipelineResult run(PipelineOptions options) {
+    // Cast to FileStagingOptions to set the new option
+    FileStagingOptions stagingOptions = options.as(FileStagingOptions.class);
+    stagingOptions.setBypassFilesToStage(true); // Enable bypassing FilesToStage
+
     PipelineRunner<? extends PipelineResult> runner = PipelineRunner.fromOptions(options);
     // Ensure all of the nodes are fully specified before a PipelineRunner gets access to the
     // pipeline.
