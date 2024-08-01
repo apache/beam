@@ -272,6 +272,7 @@
         query: 'query'
         columns: 'columns'
       'WriteToSpanner':
+        project: 'project_id'
         instance: 'instance_id'
         database: 'database_id'
         table: 'table_id'
