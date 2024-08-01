@@ -316,7 +316,7 @@ class DataSamplingTest(unittest.TestCase):
       self.assertEqual(samples, expected)
 
       # Since data was successfully processed, there should be a
-      # beam:metric:sampled_byte_size:v1 metric
+      # beam:metric:sampled_byte_size:v1 metric.
       self.assertTrue([
           val for val in processor.monitoring_infos()
           if val.urn == "beam:metric:sampled_byte_size:v1"
@@ -390,8 +390,8 @@ class DataSamplingTest(unittest.TestCase):
       with self.assertRaisesRegex(RuntimeError, 'expected exception'):
         processor.process_bundle('instruction_id')
 
-      # Since no data was successfully processed, ensure no metrics for
-      # beam:metric:sampled_byte_size:v1 were processed
+      # Since data was not successfully processed, there should not be a
+      # beam:metric:sampled_byte_size:v1 metric.
       self.assertFalse([
           val for val in processor.monitoring_infos()
           if val.urn == "beam:metric:sampled_byte_size:v1"

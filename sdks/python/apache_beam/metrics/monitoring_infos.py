@@ -214,6 +214,11 @@ def int64_user_distribution(namespace, name, metric, ptransform=None):
     ptransform: The ptransform id used as a label.
   """
   labels = create_labels(ptransform=ptransform, namespace=namespace, name=name)
+  if metric.count <= 0:
+    raise TypeError(
+        'Expected a non zero distribution count for %s metric but received %s' %
+        (metric, metric.count))
+
   payload = _encode_distribution(
       coders.VarIntCoder(), metric.count, metric.sum, metric.min, metric.max)
   return create_monitoring_info(
@@ -232,6 +237,10 @@ def int64_distribution(urn, metric, ptransform=None, pcollection=None):
     pcollection: The pcollection id used as a label.
   """
   labels = create_labels(ptransform=ptransform, pcollection=pcollection)
+  if metric.count <= 0:
+    raise TypeError(
+        'Expected a non zero distribution count for %s metric but received %s' %
+        (metric, metric.count))
   payload = _encode_distribution(
       coders.VarIntCoder(), metric.count, metric.sum, metric.min, metric.max)
   return create_monitoring_info(urn, DISTRIBUTION_INT64_TYPE, payload, labels)
