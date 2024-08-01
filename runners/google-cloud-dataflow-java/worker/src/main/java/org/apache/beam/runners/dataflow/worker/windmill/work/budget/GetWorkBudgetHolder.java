@@ -18,10 +18,10 @@
 package org.apache.beam.runners.dataflow.worker.windmill.work.budget;
 
 /**
- * Represents something that has/holds some {@link
+ * Represents something that holds some {@link
  * org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget}
  */
-public interface HasGetWorkBudget {
+public interface GetWorkBudgetHolder {
   void adjustBudget(long itemsDelta, long bytesDelta);
 
   default void adjustBudget(GetWorkBudget adjustment) {

@@ -57,7 +57,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.testing.FakeWindmillStub
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemScheduler;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudgetDistributor;
-import org.apache.beam.runners.dataflow.worker.windmill.work.budget.HasGetWorkBudget;
+import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudgetHolder;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Server;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.inprocess.InProcessServerBuilder;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.inprocess.InProcessSocketAddress;
@@ -443,7 +443,7 @@ public class FanOutStreamingEngineWorkProviderTest {
     }
 
     @Override
-    public <T extends HasGetWorkBudget> void distributeBudget(
+    public <T extends GetWorkBudgetHolder> void distributeBudget(
         ImmutableCollection<T> streams, GetWorkBudget getWorkBudget) {
       streams.forEach(stream -> stream.adjustBudget(getWorkBudget.items(), getWorkBudget.bytes()));
       getWorkBudgetDistributorTriggered.countDown();

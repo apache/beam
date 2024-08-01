@@ -87,6 +87,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.StreamingEngineFailureTracker;
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.WorkFailureProcessor;
 import org.apache.beam.runners.dataflow.worker.windmill.work.provider.SingleSourceWorkProvider;
+import org.apache.beam.runners.dataflow.worker.windmill.work.provider.SingleSourceWorkProvider.GetWorkSender;
 import org.apache.beam.runners.dataflow.worker.windmill.work.provider.WorkProvider;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.ActiveWorkRefresher;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.ApplianceHeartbeatSender;
@@ -266,22 +267,15 @@ public final class StreamingDataflowWorker {
       statusPagesBuilder
           .setDebugCapture(
               new DebugCapture.Manager(options, workerStatusPages.getDebugCapturePages()))
-          .setChannelzServlet(new ChannelzServlet(CHANNELZ_PATH, options, windmillServer))
+          .setChannelzServlet(
+              new ChannelzServlet(
+                  CHANNELZ_PATH, options, windmillServer::getWindmillServiceEndpoints))
           .setWindmillStreamFactory(windmillStreamFactory);
     } else {
       getDataClient = new ApplianceGetDataClient(windmillServer, getDataMetricTracker);
       heartbeatSender = new ApplianceHeartbeatSender(windmillServer::getData);
       stuckCommitDurationMillis = 0;
     }
-
-    SingleSourceWorkProvider.SingleSourceWorkProviderBuilder.Builder workProviderBuilder =
-        SingleSourceWorkProvider.builder()
-            .setStreamingWorkScheduler(streamingWorkScheduler)
-            .setWorkCommitter(workCommitter)
-            .setGetDataClient(getDataClient)
-            .setComputationStateFetcher(this.computationStateCache::get)
-            .setWaitForResources(() -> memoryMonitor.waitForResources("GetWork"))
-            .setHeartbeatSender(heartbeatSender);
 
     this.activeWorkRefresher =
         new ActiveWorkRefresher(
@@ -314,9 +308,19 @@ public final class StreamingDataflowWorker {
             .build();
 
     this.workProvider =
-        windmillServiceEnabled
-            ? workProviderBuilder.build(receiver -> windmillServer.getWorkStream(request, receiver))
-            : workProviderBuilder.build(() -> windmillServer.getWork(request));
+        SingleSourceWorkProvider.builder()
+            .setStreamingWorkScheduler(streamingWorkScheduler)
+            .setWorkCommitter(workCommitter)
+            .setGetDataClient(getDataClient)
+            .setComputationStateFetcher(this.computationStateCache::get)
+            .setWaitForResources(() -> memoryMonitor.waitForResources("GetWork"))
+            .setHeartbeatSender(heartbeatSender)
+            .setGetWorkSender(
+                windmillServiceEnabled
+                    ? GetWorkSender.forStreamingEngine(
+                        receiver -> windmillServer.getWorkStream(request, receiver))
+                    : GetWorkSender.forAppliance(() -> windmillServer.getWork(request)))
+            .build();
 
     LOG.debug("windmillServiceEnabled: {}", windmillServiceEnabled);
     LOG.debug("WindmillServiceEndpoint: {}", options.getWindmillServiceEndpoint());

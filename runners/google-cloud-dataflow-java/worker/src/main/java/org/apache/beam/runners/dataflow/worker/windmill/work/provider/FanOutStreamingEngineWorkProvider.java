@@ -157,15 +157,7 @@ public final class FanOutStreamingEngineWorkProvider implements WorkProvider {
 
   private static ExecutorService singleThreadedExecutorServiceOf(String threadName) {
     return Executors.newSingleThreadScheduledExecutor(
-        new ThreadFactoryBuilder()
-            .setNameFormat(threadName)
-            .setUncaughtExceptionHandler(
-                (t, e) -> {
-                  LOG.error(
-                      "{} failed due to uncaught exception during execution. ", t.getName(), e);
-                  throw new StreamingEngineClientException(e);
-                })
-            .build());
+        new ThreadFactoryBuilder().setNameFormat(threadName).build());
   }
 
   /**
@@ -429,12 +421,5 @@ public final class FanOutStreamingEngineWorkProvider implements WorkProvider {
         .directEndpoint()
         .map(channelCachingStubFactory::createWindmillServiceStub)
         .orElseGet(dispatcherClient::getWindmillServiceStub);
-  }
-
-  private static class StreamingEngineClientException extends IllegalStateException {
-
-    private StreamingEngineClientException(Throwable exception) {
-      super(exception);
-    }
   }
 }
