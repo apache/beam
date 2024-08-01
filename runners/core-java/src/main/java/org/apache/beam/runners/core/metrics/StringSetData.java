@@ -19,7 +19,6 @@ package org.apache.beam.runners.core.metrics;
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
-import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
