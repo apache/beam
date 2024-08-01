@@ -265,16 +265,16 @@
   config:
     mappings:
       'ReadFromSpanner':
-        project_id: 'project_id'
-        instance_id: 'instance_id'
-        database_id: 'database_id'
-        table_id: 'table_id'
+        project: 'project_id'
+        instance: 'instance_id'
+        database: 'database_id'
+        table: 'table_id'
         query: 'query'
         columns: 'columns'
       'WriteToSpanner':
-        instance_id: 'instance_id'
-        database_id: 'database_id'
-        table_id: 'table_id'
+        instance: 'instance_id'
+        database: 'database_id'
+        table: 'table_id'
         error_handling: 'error_handling'
     underlying_provider:
       type: beamJar
