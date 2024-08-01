@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -213,10 +214,12 @@ class WriteUngroupedRowsToFiles
       return catalog;
     }
 
-    private RecordWriter createAndInsertWriter(IcebergDestination destination, BoundedWindow window)
+    private RecordWriter createAndInsertWriter(
+        IcebergDestination destination, BoundedWindow window, Schema dataSchema)
         throws IOException {
       RecordWriter writer =
-          new RecordWriter(getCatalog(), destination, filename + "-" + UUID.randomUUID());
+          new RecordWriter(
+              getCatalog(), destination, filename + "-" + UUID.randomUUID(), dataSchema);
       getWindows().put(destination, window);
       getWriters().put(destination, writer);
       return writer;
@@ -227,7 +230,8 @@ class WriteUngroupedRowsToFiles
      * reached the maximum number of writers and should spill any records associated.
      */
     @Nullable
-    RecordWriter getWriterIfPossible(IcebergDestination destination, BoundedWindow window)
+    RecordWriter getWriterIfPossible(
+        IcebergDestination destination, BoundedWindow window, Schema dataSchema)
         throws IOException {
 
       RecordWriter existingWriter = getWriters().get(destination);
@@ -239,7 +243,7 @@ class WriteUngroupedRowsToFiles
         return null;
       }
 
-      return createAndInsertWriter(destination, window);
+      return createAndInsertWriter(destination, window, dataSchema);
     }
 
     @StartBundle
@@ -255,7 +259,7 @@ class WriteUngroupedRowsToFiles
       IcebergDestination destination = dynamicDestinations.instantiateDestination(destMetadata);
 
       // Spill record if writer cannot be created
-      RecordWriter writer = getWriterIfPossible(destination, window);
+      RecordWriter writer = getWriterIfPossible(destination, window, data.getSchema());
       if (writer == null) {
         out.get(SPILLED_ROWS_TAG).output(element);
         return;
@@ -270,7 +274,7 @@ class WriteUngroupedRowsToFiles
                     .setManifestFile(writer.getManifestFile())
                     .setTableIdentifier(destination.getTableIdentifier())
                     .build());
-        writer = createAndInsertWriter(destination, window);
+        writer = createAndInsertWriter(destination, window, data.getSchema());
       }
 
       // Actually write the data

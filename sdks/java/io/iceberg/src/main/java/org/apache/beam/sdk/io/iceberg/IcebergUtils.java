@@ -34,6 +34,7 @@ import org.apache.iceberg.data.GenericRecord;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.types.Type;
 import org.apache.iceberg.types.Types;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 
@@ -319,63 +320,59 @@ public class IcebergUtils {
     }
   }
 
+  private static @Nullable Object icebergValueToBeamValue(Schema.Field field, Record record) {
+    boolean isNullable = field.getType().getNullable();
+    @Nullable Object icebergValue = record.getField(field.getName());
+    if (icebergValue == null) {
+      if (isNullable) {
+        return null;
+      }
+      throw new RuntimeException(
+          String.format("Received null value for required field '%s'.", field.getName()));
+    }
+
+    switch (field.getType().getTypeName()) {
+      case BYTE:
+      case INT16:
+      case INT32:
+      case INT64:
+      case DECIMAL: // Iceberg and Beam both use BigDecimal
+      case FLOAT: // Iceberg and Beam both use float
+      case DOUBLE: // Iceberg and Beam both use double
+      case STRING: // Iceberg and Beam both use String
+      case BOOLEAN: // Iceberg and Beam both use String
+      case ARRAY:
+      case ITERABLE:
+      case MAP:
+        return icebergValue;
+      case DATETIME:
+        // Iceberg uses a long for millis; Beam uses joda time DateTime
+        long millis = (long) icebergValue;
+        return new DateTime(millis, DateTimeZone.UTC);
+      case BYTES:
+        // Iceberg uses ByteBuffer; Beam uses byte[]
+        return ((ByteBuffer) icebergValue).array();
+      case ROW:
+        Record nestedRecord = (Record) icebergValue;
+        Schema nestedSchema =
+            checkArgumentNotNull(
+                field.getType().getRowSchema(),
+                "Corrupted schema: Row type did not have associated nested schema.");
+        return icebergRecordToBeamRow(nestedSchema, nestedRecord);
+      case LOGICAL_TYPE:
+        throw new UnsupportedOperationException(
+            "Cannot convert iceberg field to Beam logical type");
+      default:
+        throw new UnsupportedOperationException(
+            "Unsupported Beam type: " + field.getType().getTypeName());
+    }
+  }
+
   /** Converts an Iceberg {@link Record} to a Beam {@link Row}. */
   public static Row icebergRecordToBeamRow(Schema schema, Record record) {
     Row.Builder rowBuilder = Row.withSchema(schema);
     for (Schema.Field field : schema.getFields()) {
-      switch (field.getType().getTypeName()) {
-        case BYTE:
-          // I guess allow anything we can cast here
-          byte byteValue = (byte) record.getField(field.getName());
-          rowBuilder.addValue(byteValue);
-          break;
-        case INT16:
-          // I guess allow anything we can cast here
-          short shortValue = (short) record.getField(field.getName());
-          rowBuilder.addValue(shortValue);
-          break;
-        case INT32:
-          // I guess allow anything we can cast here
-          int intValue = (int) record.getField(field.getName());
-          rowBuilder.addValue(intValue);
-          break;
-        case INT64:
-          // I guess allow anything we can cast here
-          long longValue = (long) record.getField(field.getName());
-          rowBuilder.addValue(longValue);
-          break;
-        case DECIMAL: // Iceberg and Beam both use BigDecimal
-        case FLOAT: // Iceberg and Beam both use float
-        case DOUBLE: // Iceberg and Beam both use double
-        case STRING: // Iceberg and Beam both use String
-        case BOOLEAN: // Iceberg and Beam both use String
-        case ARRAY:
-        case ITERABLE:
-        case MAP:
-          rowBuilder.addValue(record.getField(field.getName()));
-          break;
-        case DATETIME:
-          // Iceberg uses a long for millis; Beam uses joda time DateTime
-          long millis = (long) record.getField(field.getName());
-          rowBuilder.addValue(new DateTime(millis, DateTimeZone.UTC));
-          break;
-        case BYTES:
-          // Iceberg uses ByteBuffer; Beam uses byte[]
-          rowBuilder.addValue(((ByteBuffer) record.getField(field.getName())).array());
-          break;
-        case ROW:
-          Record nestedRecord = (Record) record.getField(field.getName());
-          Schema nestedSchema =
-              checkArgumentNotNull(
-                  field.getType().getRowSchema(),
-                  "Corrupted schema: Row type did not have associated nested schema.");
-          Row nestedRow = icebergRecordToBeamRow(nestedSchema, nestedRecord);
-          rowBuilder.addValue(nestedRow);
-          break;
-        case LOGICAL_TYPE:
-          throw new UnsupportedOperationException(
-              "Cannot convert iceberg field to Beam logical type");
-      }
+      rowBuilder.addValue(icebergValueToBeamValue(field, record));
     }
     return rowBuilder.build();
   }

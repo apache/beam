@@ -101,8 +101,8 @@ public class IcebergReadSchemaTransformProviderTest {
     properties.put("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP);
     properties.put("warehouse", warehouse.location);
 
-    IcebergReadSchemaTransformProvider.Config readConfig =
-        IcebergReadSchemaTransformProvider.Config.builder()
+    SchemaTransformConfiguration readConfig =
+        SchemaTransformConfiguration.builder()
             .setTable(identifier)
             .setCatalogName("name")
             .setCatalogProperties(properties)

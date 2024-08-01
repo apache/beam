@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.iceberg;
 
 import java.io.IOException;
 import java.util.UUID;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -26,8 +27,10 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.ShardedKey;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.iceberg.catalog.Catalog;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 class WriteGroupedRowsToFiles
     extends PTransform<
@@ -75,17 +78,20 @@ class WriteGroupedRowsToFiles
       return catalog;
     }
 
-    private RecordWriter createWriter(IcebergDestination destination) throws IOException {
-      return new RecordWriter(getCatalog(), destination, "-" + UUID.randomUUID());
+    private RecordWriter createWriter(IcebergDestination destination, @Nullable Schema dataSchema)
+        throws IOException {
+      return new RecordWriter(getCatalog(), destination, "-" + UUID.randomUUID(), dataSchema);
     }
 
     @ProcessElement
     public void processElement(
         ProcessContext c, @Element KV<ShardedKey<Row>, Iterable<Row>> element) throws Exception {
+      @Nullable Row peekFirstRow = Iterables.getFirst(element.getValue(), null);
+      @Nullable Schema dataSchema = peekFirstRow != null ? peekFirstRow.getSchema() : null;
 
       Row destMetadata = element.getKey().getKey();
       IcebergDestination destination = dynamicDestinations.instantiateDestination(destMetadata);
-      RecordWriter writer = createWriter(destination);
+      RecordWriter writer = createWriter(destination, dataSchema);
 
       for (Row e : element.getValue()) {
         writer.write(e);
