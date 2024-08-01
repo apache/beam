@@ -29,7 +29,7 @@ class ErrorHandler:
   a fluent manner, disaggregating the error processing specification from
   the main processing chain.
 
-  They is typically used as follows::
+  This is typically used as follows::
 
     with error_handling.ErrorHandler(WriteToSomewhere(...)) as error_handler:
       result = pcoll | SomeTransform().with_error_handler(error_handler)
