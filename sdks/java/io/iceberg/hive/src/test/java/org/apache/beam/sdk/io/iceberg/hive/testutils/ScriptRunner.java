@@ -47,7 +47,7 @@ public class ScriptRunner {
   private final PrintWriter logWriter = new PrintWriter(System.out);
   private final PrintWriter errorLogWriter = new PrintWriter(System.err);
 
-  /** Default constructor */
+  /** Default constructor. */
   public ScriptRunner(Connection connection, boolean autoCommit, boolean stopOnError) {
     this.connection = connection;
     this.autoCommit = autoCommit;
@@ -55,7 +55,7 @@ public class ScriptRunner {
   }
 
   /**
-   * Runs an SQL script (read in using the Reader parameter)
+   * Runs an SQL script (read in using the Reader parameter).
    *
    * @param reader - the source of the script
    */
@@ -78,7 +78,7 @@ public class ScriptRunner {
   }
 
   /**
-   * Runs an SQL script (read in using the Reader parameter) using the connection passed in
+   * Runs an SQL script (read in using the Reader parameter) using the connection passed in.
    *
    * @param conn - the connection to use for the script
    * @param reader - the source of the script
