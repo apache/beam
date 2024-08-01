@@ -28,6 +28,8 @@ import com.google.cloud.spanner.Key;
 import com.google.cloud.spanner.Mutation;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -356,15 +358,11 @@ final class MutationUtils {
     }
   }
   public static Row createRowFromMutation(Schema schema, Mutation mutation) {
-    Row.Builder rowBuilder = Row.withSchema(schema);
-    Iterable<Value> values = mutation.getValues();
-    Iterator<Value> valuesItr = values.iterator();
-    
-    while (valuesItr.hasNext()) {
-      Value value = valuesItr.next();
-      rowBuilder.addValue(convertValueToBeamFieldType(value));
-    }
-    return rowBuilder.build();
+    HashMap <String, Object> mutationHashMap = new HashMap<String, Object>();
+    mutation.asMap().forEach(
+        (column, value) -> mutationHashMap.put(column, convertValueToBeamFieldType(value)));
+    Map<String, Object> mutationMap = new HashMap<String, Object>(mutationHashMap);
+    return Row.withSchema(schema).withFieldValues(mutationMap).build();
   }
     
   public static Object convertValueToBeamFieldType(Value value) {

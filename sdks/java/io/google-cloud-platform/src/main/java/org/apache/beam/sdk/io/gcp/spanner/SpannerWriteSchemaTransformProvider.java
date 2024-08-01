@@ -171,7 +171,7 @@ public class SpannerWriteSchemaTransformProvider
                                       mutation ->
                                           Row.withSchema(failureSchema)
                                             .withFieldValue("error_message", String.format("%s operation failed at instance: %s, database: %s, table: %s",
-                                              mutation.getOperation().toString(), configuration.getInstanceId(), configuration.getDatabaseId(), mutation.getTable()))
+                                              mutation.getOperation(), configuration.getInstanceId(), configuration.getDatabaseId(), mutation.getTable()))
                                             .withFieldValue("failed_row", MutationUtils.createRowFromMutation(inputSchema, mutation))
                                           .build())
                                           .collect(Collectors.toList())))
@@ -198,7 +198,7 @@ public class SpannerWriteSchemaTransformProvider
   @Override
   public @UnknownKeyFor @NonNull @Initialized List<@UnknownKeyFor @NonNull @Initialized String>
       outputCollectionNames() {
-    return Collections.singletonList("post-write");
+    return Arrays.asList("post-write", "errors");
   }
 
   @AutoValue
@@ -206,19 +206,15 @@ public class SpannerWriteSchemaTransformProvider
   public abstract static class SpannerWriteSchemaTransformConfiguration implements Serializable {
 
     @SchemaFieldDescription("Specifies the GCP project.")
-    @Nullable
     public abstract String getProjectId();
 
     @SchemaFieldDescription("Specifies the Cloud Spanner instance.")
-    @Nullable
     public abstract String getInstanceId();
 
     @SchemaFieldDescription("Specifies the Cloud Spanner database.")
-    @Nullable
     public abstract String getDatabaseId();
 
     @SchemaFieldDescription("Specifies the Cloud Spanner table.")
-    @Nullable
     public abstract String getTableId();
 
     @SchemaFieldDescription("Specifies how to handle errors.")
@@ -263,12 +259,6 @@ public class SpannerWriteSchemaTransformProvider
       checkArgument(
         !Strings.isNullOrEmpty(this.getTableId()),
         invalidConfigMessage + "Table ID for a Spanner Write must be specified.");
-
-      if (this.getErrorHandling() != null) {
-        checkArgument(
-            !Strings.isNullOrEmpty(this.getErrorHandling().getOutput()),
-            invalidConfigMessage + "Output must not be empty if error handling specified.");
-      }
     }
   }
 }
