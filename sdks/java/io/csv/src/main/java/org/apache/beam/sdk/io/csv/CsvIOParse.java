@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.csv;
 import com.google.auto.value.AutoValue;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -28,7 +29,10 @@ import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 
-/** {@link PTransform} for Parsing CSV Record Strings into Schema-mapped target type. */
+/**
+ * {@link PTransform} for Parsing CSV Record Strings into {@link Schema}-mapped target types. {@link
+ * CsvIOParse} is not instantiated directly but via {@link CsvIO#parse} or {@link CsvIO#parseRows}.
+ */
 @AutoValue
 public abstract class CsvIOParse<T> extends PTransform<PCollection<String>, CsvIOParseResult<T>> {
 
