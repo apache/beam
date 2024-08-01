@@ -99,7 +99,7 @@ final class CsvIOStringToCsvRecord
   }
 
   /** Creates a {@link List<String>} containing {@link CSVRecord} values. */
-  private static List<String> csvRecordtoList(CSVRecord record) {
+  static List<String> csvRecordtoList(CSVRecord record) {
     List<String> cells = new ArrayList<>();
     for (String cell : record) {
       cells.add(cell);
