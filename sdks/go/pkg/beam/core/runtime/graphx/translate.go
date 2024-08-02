@@ -1210,7 +1210,7 @@ func (m *marshaller) addWindowingStrategy(w *window.WindowingStrategy) (string, 
 
 func (m *marshaller) internWindowingStrategy(w *pipepb.WindowingStrategy) string {
 	key := w.String()
-	if id, exists := m.windowing2id[string(key)]; exists {
+	if id, exists := m.windowing2id[(key)]; exists {
 		return id
 	}
 

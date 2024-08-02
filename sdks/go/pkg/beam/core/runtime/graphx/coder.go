@@ -616,7 +616,7 @@ func (b *CoderMarshaller) internRowCoder(schema *pipepb.Schema) string {
 
 func (b *CoderMarshaller) internCoder(coder *pipepb.Coder) string {
 	key := coder.String()
-	if id, exists := b.coder2id[string(key)]; exists {
+	if id, exists := b.coder2id[(key)]; exists {
 		return id
 	}
 

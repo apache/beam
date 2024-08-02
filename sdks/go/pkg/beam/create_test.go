@@ -157,7 +157,5 @@ func (t *testProto) Unmarshal(b []byte) error {
 // Ensure testProto is detected as a proto.Message and can be (un)marshalled by
 // the proto library.
 var (
-	_ proto.Message     = &testProto{}
-	_ proto.Marshaler   = &testProto{}
-	_ proto.Unmarshaler = &testProto{}
+	_ proto.Message = &testProto{}
 )
