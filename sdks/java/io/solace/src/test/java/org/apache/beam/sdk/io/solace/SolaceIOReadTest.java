@@ -72,7 +72,6 @@ import org.junit.runners.JUnit4;
 public class SolaceIOReadTest {
 
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
-  @Rule public final transient TestPipeline writePipeline = TestPipeline.create();
 
   private Read<Record> getDefaultRead() {
     return SolaceIO.read()
@@ -140,49 +139,6 @@ public class SolaceIOReadTest {
     // Assert results
     PAssert.that(events).containsInAnyOrder(expected);
     pipeline.run();
-  }
-
-  @Test
-  public void testWriteMessages() {
-    TestStream<KV<String, String>> testStream =
-        TestStream.create(KvCoder.of(AvroCoder.of(String.class), AvroCoder.of(String.class)))
-            .addElements(
-                KV.of("450", "payload0"), KV.of("451", "payload1"), KV.of("452", "payload2"))
-            .advanceWatermarkToInfinity();
-
-    SolaceIO.SubmissionMode mode = SolaceIO.SubmissionMode.LOWER_LATENCY;
-    MockSessionService service = new MockSessionService(mode);
-    SessionServiceFactory fakeSessionServiceFactory = new MockSessionServiceFactory(service);
-
-    PCollection<KV<String, String>> kvs = writePipeline.apply("Test stream", testStream);
-
-    PCollection<Record> records =
-        kvs.apply(
-            "To Record",
-            MapElements.into(TypeDescriptor.of(Record.class))
-                .via(kv -> SolaceDataUtils.getSolaceRecord(kv.getValue(), kv.getKey())));
-
-    SolaceOutput output =
-        records.apply(
-            "Write to Solace",
-            SolaceIO.write()
-                .to(Solace.Queue.fromName("queue"))
-                .withSubmissionMode(mode)
-                .withWriterType(SolaceIO.WriterType.STREAMING)
-                .withDeliveryMode(DeliveryMode.PERSISTENT)
-                .withSessionServiceFactory(fakeSessionServiceFactory));
-
-    PCollection<String> ids =
-        output
-            .getSuccessfulPublish()
-            .apply(
-                "Get message ids",
-                MapElements.into(strings()).via(Solace.PublishResult::getMessageId));
-
-    PAssert.that(ids).containsInAnyOrder("450", "451", "452");
-    PAssert.that(output.getFailedPublish()).empty();
-
-    writePipeline.run();
   }
 
   @Test
