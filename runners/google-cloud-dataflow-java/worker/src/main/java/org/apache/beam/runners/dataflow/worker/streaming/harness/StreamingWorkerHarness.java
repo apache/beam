@@ -15,16 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker.windmill.work.provider;
+package org.apache.beam.runners.dataflow.worker.streaming.harness;
 
 import org.apache.beam.sdk.annotations.Internal;
 
-/**
- * Provides {@link org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem}(s) for
- * processing.
- */
+/** Provides an interface to start streaming worker processing. */
 @Internal
-public interface WorkProvider {
+public interface StreamingWorkerHarness {
   void start();
 
   void shutdown();

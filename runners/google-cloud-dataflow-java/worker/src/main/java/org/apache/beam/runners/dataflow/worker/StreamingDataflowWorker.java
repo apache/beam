@@ -52,7 +52,10 @@ import org.apache.beam.runners.dataflow.worker.streaming.config.ComputationConfi
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingApplianceComputationConfigFetcher;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingEngineComputationConfigFetcher;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingEnginePipelineConfig;
+import org.apache.beam.runners.dataflow.worker.streaming.harness.SingleSourceWorkerHarness;
+import org.apache.beam.runners.dataflow.worker.streaming.harness.SingleSourceWorkerHarness.GetWorkSender;
 import org.apache.beam.runners.dataflow.worker.streaming.harness.StreamingCounters;
+import org.apache.beam.runners.dataflow.worker.streaming.harness.StreamingWorkerHarness;
 import org.apache.beam.runners.dataflow.worker.streaming.harness.StreamingWorkerStatusPages;
 import org.apache.beam.runners.dataflow.worker.streaming.harness.StreamingWorkerStatusReporter;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
@@ -86,9 +89,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.StreamingApplianceFailureTracker;
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.StreamingEngineFailureTracker;
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.WorkFailureProcessor;
-import org.apache.beam.runners.dataflow.worker.windmill.work.provider.SingleSourceWorkProvider;
-import org.apache.beam.runners.dataflow.worker.windmill.work.provider.SingleSourceWorkProvider.GetWorkSender;
-import org.apache.beam.runners.dataflow.worker.windmill.work.provider.WorkProvider;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.ActiveWorkRefresher;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.ApplianceHeartbeatSender;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
@@ -154,7 +154,7 @@ public final class StreamingDataflowWorker {
   private final ComputationConfig.Fetcher configFetcher;
   private final ComputationStateCache computationStateCache;
   private final BoundedQueueExecutor workUnitExecutor;
-  private final WorkProvider workProvider;
+  private final StreamingWorkerHarness streamingWorkerHarness;
   private final AtomicBoolean running = new AtomicBoolean();
   private final DataflowWorkerHarnessOptions options;
   private final BackgroundMemoryMonitor memoryMonitor;
@@ -307,8 +307,8 @@ public final class StreamingDataflowWorker {
             .setMaxBytes(MAX_GET_WORK_FETCH_BYTES)
             .build();
 
-    this.workProvider =
-        SingleSourceWorkProvider.builder()
+    this.streamingWorkerHarness =
+        SingleSourceWorkerHarness.builder()
             .setStreamingWorkScheduler(streamingWorkScheduler)
             .setWorkCommitter(workCommitter)
             .setGetDataClient(getDataClient)
@@ -772,7 +772,7 @@ public final class StreamingDataflowWorker {
     running.set(true);
     configFetcher.start();
     memoryMonitor.start();
-    workProvider.start();
+    streamingWorkerHarness.start();
     sampler.start();
     workerStatusReporter.start();
     activeWorkRefresher.start();
@@ -790,7 +790,7 @@ public final class StreamingDataflowWorker {
       activeWorkRefresher.stop();
       statusPages.stop();
       running.set(false);
-      workProvider.shutdown();
+      streamingWorkerHarness.shutdown();
       memoryMonitor.shutdown();
       workUnitExecutor.shutdown();
       computationStateCache.closeAndInvalidateAll();

@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker.windmill.work.provider;
+package org.apache.beam.runners.dataflow.worker.streaming.harness;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -79,7 +79,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
-public class FanOutStreamingEngineWorkProviderTest {
+public class FanOutStreamingEngineWorkerHarnessTest {
   private static final WindmillServiceAddress DEFAULT_WINDMILL_SERVICE_ADDRESS =
       WindmillServiceAddress.create(HostAndPort.fromParts(WindmillChannelFactory.LOCALHOST, 443));
   private static final ImmutableMap<String, WorkerMetadataResponse.Endpoint> DEFAULT =
@@ -116,7 +116,7 @@ public class FanOutStreamingEngineWorkProviderTest {
   private Server fakeStreamingEngineServer;
   private CountDownLatch getWorkerMetadataReady;
   private GetWorkerMetadataTestStub fakeGetWorkerMetadataStub;
-  private FanOutStreamingEngineWorkProvider fanOutStreamingEngineWorkProvider;
+  private FanOutStreamingEngineWorkerHarness fanOutStreamingEngineWorkProvider;
 
   private static WorkItemScheduler noOpProcessWorkItemFn() {
     return (workItem, watermarks, processingContext, getWorkStreamLatencies) -> {};
@@ -167,11 +167,11 @@ public class FanOutStreamingEngineWorkProviderTest {
     stubFactory.shutdown();
   }
 
-  private FanOutStreamingEngineWorkProvider newStreamingEngineClient(
+  private FanOutStreamingEngineWorkerHarness newStreamingEngineClient(
       GetWorkBudget getWorkBudget,
       GetWorkBudgetDistributor getWorkBudgetDistributor,
       WorkItemScheduler workItemScheduler) {
-    return FanOutStreamingEngineWorkProvider.forTesting(
+    return FanOutStreamingEngineWorkerHarness.forTesting(
         JOB_HEADER,
         getWorkBudget,
         streamFactory,

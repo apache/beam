@@ -15,13 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker.windmill.work.provider;
+package org.apache.beam.runners.dataflow.worker.streaming.harness;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
 
 import com.google.auto.value.AutoBuilder;
 import com.google.auto.value.AutoOneOf;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
@@ -50,12 +49,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * {@link WorkProvider} implementations that fetch {@link
+ * {@link StreamingWorkerHarness} implementations that fetch {@link
  * org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem}(s) from a single source.
  */
 @Internal
-public final class SingleSourceWorkProvider implements WorkProvider {
-  private static final Logger LOG = LoggerFactory.getLogger(SingleSourceWorkProvider.class);
+public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
+  private static final Logger LOG = LoggerFactory.getLogger(SingleSourceWorkerHarness.class);
   private static final int GET_WORK_STREAM_TIMEOUT_MINUTES = 3;
 
   private final AtomicBoolean isRunning;
@@ -68,7 +67,7 @@ public final class SingleSourceWorkProvider implements WorkProvider {
   private final ExecutorService workProviderExecutor;
   private final GetWorkSender getWorkSender;
 
-  SingleSourceWorkProvider(
+  SingleSourceWorkerHarness(
       WorkCommitter workCommitter,
       GetDataClient getDataClient,
       HeartbeatSender heartbeatSender,
@@ -93,15 +92,17 @@ public final class SingleSourceWorkProvider implements WorkProvider {
     this.getWorkSender = getWorkSender;
   }
 
-  public static SingleSourceWorkProvider.Builder builder() {
-    return new AutoBuilder_SingleSourceWorkProvider_Builder();
+  public static SingleSourceWorkerHarness.Builder builder() {
+    return new AutoBuilder_SingleSourceWorkerHarness_Builder();
   }
 
   @SuppressWarnings("FutureReturnValueIgnored")
   @Override
   public void start() {
     Preconditions.checkState(
-        isRunning.compareAndSet(false, true), "{} calls to WorkProvider.start()", getClass());
+        isRunning.compareAndSet(false, true),
+        "Multiple calls to {}.start() are not allowed.",
+        getClass());
     workCommitter.start();
     workProviderExecutor.submit(
         () -> {
@@ -127,13 +128,15 @@ public final class SingleSourceWorkProvider implements WorkProvider {
   @Override
   public void shutdown() {
     Preconditions.checkState(
-        isRunning.compareAndSet(true, false), "{} calls to WorkProvider.shutdown()", getClass());
+        isRunning.compareAndSet(true, false),
+        "Multiple calls to {}.shutdown() are not allowed.",
+        getClass());
     workProviderExecutor.shutdown();
     boolean isTerminated = false;
     try {
       isTerminated = workProviderExecutor.awaitTermination(10, TimeUnit.SECONDS);
     } catch (InterruptedException e) {
-      LOG.warn("Unable to shutdown WorkProvider");
+      LOG.warn("Unable to shutdown {}", getClass());
     }
 
     if (!isTerminated) {
@@ -147,11 +150,11 @@ public final class SingleSourceWorkProvider implements WorkProvider {
     while (isRunning.get()) {
       WindmillStream.GetWorkStream stream =
           getWorkStreamFactory.apply(
-              (String computationId,
-                  Instant inputDataWatermark,
-                  Instant synchronizedProcessingTime,
-                  Windmill.WorkItem workItem,
-                  Collection<Windmill.LatencyAttribution> getWorkStreamLatencies) ->
+              (computationId,
+                  inputDataWatermark,
+                  synchronizedProcessingTime,
+                  workItem,
+                  getWorkStreamLatencies) ->
                   computationStateFetcher
                       .apply(computationId)
                       .ifPresent(
@@ -161,7 +164,8 @@ public final class SingleSourceWorkProvider implements WorkProvider {
                                 computationState,
                                 workItem,
                                 Watermarks.builder()
-                                    .setInputDataWatermark(inputDataWatermark)
+                                    .setInputDataWatermark(
+                                        Preconditions.checkNotNull(inputDataWatermark))
                                     .setSynchronizedProcessingTime(synchronizedProcessingTime)
                                     .setOutputDataWatermark(workItem.getOutputDataWatermark())
                                     .build(),
@@ -202,7 +206,8 @@ public final class SingleSourceWorkProvider implements WorkProvider {
         sleepUninterruptibly(backoff, TimeUnit.MILLISECONDS);
         backoff = Math.min(1000, backoff * 2);
       } while (isRunning.get());
-      for (Windmill.ComputationWorkItems computationWork : workResponse.getWorkList()) {
+      for (Windmill.ComputationWorkItems computationWork :
+          Preconditions.checkNotNull(workResponse).getWorkList()) {
         String computationId = computationWork.getComputationId();
         Optional<ComputationState> maybeComputationState =
             computationStateFetcher.apply(computationId);
@@ -250,7 +255,7 @@ public final class SingleSourceWorkProvider implements WorkProvider {
 
     Builder setGetWorkSender(GetWorkSender getWorkSender);
 
-    SingleSourceWorkProvider build();
+    SingleSourceWorkerHarness build();
   }
 
   @AutoOneOf(GetWorkSender.Kind.class)
@@ -258,11 +263,12 @@ public final class SingleSourceWorkProvider implements WorkProvider {
 
     public static GetWorkSender forStreamingEngine(
         Function<WorkItemReceiver, WindmillStream.GetWorkStream> getWorkStreamFactory) {
-      return AutoOneOf_SingleSourceWorkProvider_GetWorkSender.streamingEngine(getWorkStreamFactory);
+      return AutoOneOf_SingleSourceWorkerHarness_GetWorkSender.streamingEngine(
+          getWorkStreamFactory);
     }
 
     public static GetWorkSender forAppliance(Supplier<Windmill.GetWorkResponse> getWorkFn) {
-      return AutoOneOf_SingleSourceWorkProvider_GetWorkSender.appliance(getWorkFn);
+      return AutoOneOf_SingleSourceWorkerHarness_GetWorkSender.appliance(getWorkFn);
     }
 
     abstract Function<WorkItemReceiver, WindmillStream.GetWorkStream> streamingEngine();
