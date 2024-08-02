@@ -71,6 +71,7 @@ import org.apache.beam.runners.core.metrics.ServiceCallMetric;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO.BigtableSource;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
 import org.apache.beam.sdk.metrics.Distribution;
+import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
@@ -212,6 +213,11 @@ class BigtableServiceImpl implements BigtableService {
         exhausted = true;
       }
     }
+
+    @Override
+    public void reportLineage() {
+      Lineage.getSinks().add(String.format("bigtable:%s.%s.%s", projectId, instanceId, tableId));
+    }
   }
 
   @VisibleForTesting
@@ -225,6 +231,9 @@ class BigtableServiceImpl implements BigtableService {
     private final int refillSegmentWaterMark;
     private final long maxSegmentByteSize;
     private ServiceCallMetric serviceCallMetric;
+    private final String projectId;
+    private final String instanceId;
+    private final String tableId;
 
     private static class UpstreamResults {
       private final List<Row> rows;
@@ -308,10 +317,18 @@ class BigtableServiceImpl implements BigtableService {
       // Asynchronously refill buffer when there is 10% of the elements are left
       this.refillSegmentWaterMark =
           Math.max(1, (int) (request.getRowsLimit() * WATERMARK_PERCENTAGE));
+      this.projectId = projectId;
+      this.instanceId = instanceId;
+      this.tableId = tableId;
     }
 
     @Override
     public void close() {}
+
+    @Override
+    public void reportLineage() {
+      Lineage.getSinks().add(String.format("bigtable:%s.%s.%s", projectId, instanceId, tableId));
+    }
 
     @Override
     public boolean start() throws IOException {
@@ -576,6 +593,11 @@ class BigtableServiceImpl implements BigtableService {
         }
         throw e;
       }
+    }
+
+    @Override
+    public void reportLineage() {
+      Lineage.getSinks().add(String.format("bigtable:%s.%s.%s", projectId, instanceId, tableId));
     }
 
     private ServiceCallMetric createServiceCallMetric() {
