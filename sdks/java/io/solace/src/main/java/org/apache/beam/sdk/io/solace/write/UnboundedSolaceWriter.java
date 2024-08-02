@@ -152,19 +152,22 @@ public final class UnboundedSolaceWriter {
       long minFailed = Long.MAX_VALUE;
       long maxFailed = 0;
 
-      if (getCurrentBundleTimestamp() == null) {
-        LOG.error(
-            "SolaceIO.Write: Bundle timestamp is null. Did you forget to call"
-                + " setCurrentBundleTimestamp() in your process method?");
-      }
-
-      if (getCurrentBundleTimestamp() == null) {
-        LOG.error(
-            "SolaceIO.Write: Bundle window is null. Did you forget to call"
-                + " setCurrentBundleWindow() in your process method?");
-      }
-
       Solace.PublishResult result = PublishResultsReceiver.pollResults();
+
+      if (result != null) {
+        if (getCurrentBundleTimestamp() == null) {
+          LOG.error(
+              "SolaceIO.Write: Bundle timestamp is null. Did you forget to call"
+                  + " setCurrentBundleTimestamp() in your process method?");
+        }
+
+        if (getCurrentBundleTimestamp() == null) {
+          LOG.error(
+              "SolaceIO.Write: Bundle window is null. Did you forget to call"
+                  + " setCurrentBundleWindow() in your process method?");
+        }
+      }
+
       while (result != null) {
         Long latency = result.getLatencyMilliseconds();
 

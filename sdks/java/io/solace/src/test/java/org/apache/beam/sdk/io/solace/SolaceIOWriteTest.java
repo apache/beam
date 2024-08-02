@@ -29,7 +29,6 @@ import org.apache.beam.sdk.io.solace.data.Solace;
 import org.apache.beam.sdk.io.solace.data.Solace.Record;
 import org.apache.beam.sdk.io.solace.data.SolaceDataUtils;
 import org.apache.beam.sdk.io.solace.write.SolaceOutput;
-import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
@@ -38,10 +37,10 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -61,7 +60,10 @@ public class SolaceIOWriteTest {
     assert keys.size() == payloads.size();
 
     for (int k = 0; k < keys.size(); k++) {
-      kvBuilder = kvBuilder.addElements(KV.of(keys.get(k), payloads.get(k)));
+      kvBuilder =
+          kvBuilder
+              .addElements(KV.of(keys.get(k), payloads.get(k)))
+              .advanceProcessingTime(Duration.standardSeconds(60));
     }
 
     TestStream<KV<String, String>> testStream = kvBuilder.advanceWatermarkToInfinity();
@@ -97,7 +99,6 @@ public class SolaceIOWriteTest {
   }
 
   @Test
-  @Category(NeedsRunner.class)
   public void testWriteLatencyStreaming() {
     SolaceIO.SubmissionMode mode = SolaceIO.SubmissionMode.LOWER_LATENCY;
     SolaceIO.WriterType writerType = SolaceIO.WriterType.STREAMING;
@@ -112,7 +113,6 @@ public class SolaceIOWriteTest {
   }
 
   @Test
-  @Category(NeedsRunner.class)
   public void testWriteThroughputStreaming() {
     SolaceIO.SubmissionMode mode = SolaceIO.SubmissionMode.HIGHER_THROUGHPUT;
     SolaceIO.WriterType writerType = SolaceIO.WriterType.STREAMING;
@@ -127,7 +127,6 @@ public class SolaceIOWriteTest {
   }
 
   @Test
-  @Category(NeedsRunner.class)
   public void testWriteLatencyBatched() {
     SolaceIO.SubmissionMode mode = SolaceIO.SubmissionMode.LOWER_LATENCY;
     SolaceIO.WriterType writerType = SolaceIO.WriterType.BATCHED;
@@ -142,7 +141,6 @@ public class SolaceIOWriteTest {
   }
 
   @Test
-  @Category(NeedsRunner.class)
   public void testWriteThroughputBatched() {
     SolaceIO.SubmissionMode mode = SolaceIO.SubmissionMode.HIGHER_THROUGHPUT;
     SolaceIO.WriterType writerType = SolaceIO.WriterType.BATCHED;

@@ -54,7 +54,7 @@ final class SolaceWriteSessionsHandler {
       new AtomicReference<>(Optional.empty());
   private static final Object createProducersLock = new Object();
 
-  private static final AtomicBoolean producersCreated = new AtomicBoolean(false);
+  private static final AtomicBoolean creatingProducersGuard = new AtomicBoolean(false);
 
   private static final ConcurrentHashMap<Integer, SessionService> sessionsMap =
       new ConcurrentHashMap<>(DEFAULT_WRITER_CLIENTS_PER_WORKER);
@@ -68,6 +68,7 @@ final class SolaceWriteSessionsHandler {
       throws UnknownHostException {
     this.producersMapCardinality = producersMapCardinality;
     this.sessionServiceFactory = sessionServiceFactory;
+    creatingProducersGuard.set(false);
     createAllSessions();
   }
 
@@ -103,10 +104,12 @@ final class SolaceWriteSessionsHandler {
 
   private void createAllSessions() throws UnknownHostException {
     synchronized (createProducersLock) {
-      // Return from the blocking call immediately if it was already executed
-      if (producersCreated.get()) {
+      // Return from the blocking call immediately if it was already executed in a parallel thread
+      if (creatingProducersGuard.get()) {
         return;
       }
+
+      creatingProducersGuard.set(true);
 
       long threadId = Thread.currentThread().getId();
       String workerName = InetAddress.getLocalHost().getHostName();
@@ -149,8 +152,6 @@ final class SolaceWriteSessionsHandler {
           latency,
           workerName,
           threadId);
-
-      producersCreated.set(true);
     }
   }
 
@@ -164,7 +165,7 @@ final class SolaceWriteSessionsHandler {
    * session.
    */
   public void resetAndRecreate() throws JCSMPException, UnknownHostException {
-    producersCreated.set(false);
+    creatingProducersGuard.set(false);
     disconnectFromSolace();
     createAllSessions();
   }
