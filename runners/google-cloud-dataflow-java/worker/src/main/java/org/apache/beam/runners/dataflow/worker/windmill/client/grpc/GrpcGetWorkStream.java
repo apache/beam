@@ -17,19 +17,13 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 
-import java.io.IOException;
 import java.io.PrintWriter;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
-import javax.annotation.Nullable;
-import org.apache.beam.runners.dataflow.worker.WindmillTimeUtils;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkRequest;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingGetWorkRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingGetWorkRequestExtension;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingGetWorkResponseChunk;
@@ -40,22 +34,16 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.Thrott
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemReceiver;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.sdk.util.BackOff;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
-import org.joda.time.Instant;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public final class GrpcGetWorkStream
     extends AbstractWindmillStream<StreamingGetWorkRequest, StreamingGetWorkResponseChunk>
     implements GetWorkStream {
 
-  private static final Logger LOG = LoggerFactory.getLogger(GrpcGetWorkStream.class);
-
   private final GetWorkRequest request;
   private final WorkItemReceiver receiver;
   private final ThrottleTimer getWorkThrottleTimer;
-  private final Map<Long, GrpcGetWorkStream.WorkItemBuffer> buffers;
+  private final Map<Long, GetWorkItemBuffer> buffers;
   private final AtomicLong inflightMessages;
   private final AtomicLong inflightBytes;
 
@@ -170,14 +158,22 @@ public final class GrpcGetWorkStream
   protected void onResponse(StreamingGetWorkResponseChunk chunk) {
     getWorkThrottleTimer.stop();
 
-    GrpcGetWorkStream.WorkItemBuffer buffer =
-        buffers.computeIfAbsent(
-            chunk.getStreamId(), unused -> new GrpcGetWorkStream.WorkItemBuffer());
+    GetWorkItemBuffer buffer =
+        buffers.computeIfAbsent(chunk.getStreamId(), unused -> new GetWorkItemBuffer());
     buffer.append(chunk);
 
     if (chunk.getRemainingBytesForWorkItem() == 0) {
       long size = buffer.bufferedSize();
-      buffer.runAndReset();
+      buffer
+          .flushToWorkItem()
+          .ifPresent(
+              constructedWorkItem ->
+                  receiver.receiveWork(
+                      constructedWorkItem.computationMetadata().computationId(),
+                      constructedWorkItem.computationMetadata().inputDataWatermark(),
+                      constructedWorkItem.computationMetadata().synchronizedProcessingTime(),
+                      constructedWorkItem.workItem(),
+                      constructedWorkItem.latencyAttributions()));
 
       // Record the fact that there are now fewer outstanding messages and bytes on the stream.
       long numInflight = inflightMessages.decrementAndGet();
@@ -212,64 +208,5 @@ public final class GrpcGetWorkStream
         .setBytes(request.getMaxBytes() - inflightBytes.get())
         .setItems(request.getMaxItems() - inflightMessages.get())
         .build();
-  }
-
-  private class WorkItemBuffer {
-    private final GetWorkTimingInfosTracker workTimingInfosTracker;
-    private String computation;
-    @Nullable private Instant inputDataWatermark;
-    @Nullable private Instant synchronizedProcessingTime;
-    private ByteString data;
-    private long bufferedSize;
-
-    @SuppressWarnings("initialization.fields.uninitialized")
-    WorkItemBuffer() {
-      workTimingInfosTracker = new GetWorkTimingInfosTracker(System::currentTimeMillis);
-      data = ByteString.EMPTY;
-      bufferedSize = 0;
-    }
-
-    @SuppressWarnings("NullableProblems")
-    private void setMetadata(Windmill.ComputationWorkItemMetadata metadata) {
-      this.computation = metadata.getComputationId();
-      this.inputDataWatermark =
-          WindmillTimeUtils.windmillToHarnessWatermark(metadata.getInputDataWatermark());
-      this.synchronizedProcessingTime =
-          WindmillTimeUtils.windmillToHarnessWatermark(
-              metadata.getDependentRealtimeInputWatermark());
-    }
-
-    private void append(StreamingGetWorkResponseChunk chunk) {
-      if (chunk.hasComputationMetadata()) {
-        setMetadata(chunk.getComputationMetadata());
-      }
-
-      this.data = data.concat(chunk.getSerializedWorkItem());
-      this.bufferedSize += chunk.getSerializedWorkItem().size();
-      workTimingInfosTracker.addTimingInfo(chunk.getPerWorkItemTimingInfosList());
-    }
-
-    private long bufferedSize() {
-      return bufferedSize;
-    }
-
-    private void runAndReset() {
-      try {
-        Windmill.WorkItem workItem = Windmill.WorkItem.parseFrom(data.newInput());
-        List<LatencyAttribution> getWorkStreamLatencies =
-            workTimingInfosTracker.getLatencyAttributions();
-        receiver.receiveWork(
-            computation,
-            inputDataWatermark,
-            synchronizedProcessingTime,
-            workItem,
-            getWorkStreamLatencies);
-      } catch (IOException e) {
-        LOG.error("Failed to parse work item from stream: ", e);
-      }
-      workTimingInfosTracker.reset();
-      data = ByteString.EMPTY;
-      bufferedSize = 0;
-    }
   }
 }

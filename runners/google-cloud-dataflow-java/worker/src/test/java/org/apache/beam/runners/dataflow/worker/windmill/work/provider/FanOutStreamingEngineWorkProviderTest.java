@@ -119,11 +119,7 @@ public class FanOutStreamingEngineWorkProviderTest {
   private FanOutStreamingEngineWorkProvider fanOutStreamingEngineWorkProvider;
 
   private static WorkItemScheduler noOpProcessWorkItemFn() {
-    return (workItem,
-        watermarks,
-        processingContext,
-        ackWorkItemQueued,
-        getWorkStreamLatencies) -> {};
+    return (workItem, watermarks, processingContext, getWorkStreamLatencies) -> {};
   }
 
   private static GetWorkRequest getWorkRequest(long items, long bytes) {

@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 
-import com.google.auto.value.AutoValue;
-import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -26,12 +24,9 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import javax.annotation.Nullable;
-import org.apache.beam.runners.dataflow.worker.WindmillTimeUtils;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationWorkItemMetadata;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingGetWorkRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingGetWorkResponseChunk;
@@ -40,6 +35,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.AbstractWindmillS
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.GetDataClient;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GetWorkItemBuffer.ConstructedWorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemScheduler;
@@ -47,13 +43,9 @@ import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudge
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.util.BackOff;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers;
-import org.joda.time.Instant;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Implementation of {@link GetWorkStream} that passes along a specific {@link
@@ -66,7 +58,6 @@ import org.slf4j.LoggerFactory;
 public final class GrpcDirectGetWorkStream
     extends AbstractWindmillStream<StreamingGetWorkRequest, StreamingGetWorkResponseChunk>
     implements GetWorkStream {
-  private static final Logger LOG = LoggerFactory.getLogger(GrpcDirectGetWorkStream.class);
   private static final StreamingGetWorkRequest HEALTH_CHECK_REQUEST =
       StreamingGetWorkRequest.newBuilder()
           .setRequestExtension(
@@ -90,8 +81,10 @@ public final class GrpcDirectGetWorkStream
    * Map of stream IDs to their buffers. Used to aggregate streaming gRPC response chunks as they
    * come in. Once all chunks for a response has been received, the chunk is processed and the
    * buffer is cleared.
+   *
+   * @implNote Buffers are not persisted across stream restarts.
    */
-  private final ConcurrentMap<Long, WorkItemBuffer> workItemBuffers;
+  private final ConcurrentMap<Long, GetWorkItemBuffer> workItemBuffers;
 
   private GrpcDirectGetWorkStream(
       String backendWorkerToken,
@@ -163,7 +156,8 @@ public final class GrpcDirectGetWorkStream
     return getWorkStream;
   }
 
-  private static Watermarks createWatermarks(WorkItem workItem, ComputationMetadata metadata) {
+  private static Watermarks createWatermarks(
+      WorkItem workItem, GetWorkItemBuffer.ComputationMetadata metadata) {
     return Watermarks.builder()
         .setInputDataWatermark(metadata.inputDataWatermark())
         .setOutputDataWatermark(workItem.getOutputDataWatermark())
@@ -240,16 +234,37 @@ public final class GrpcDirectGetWorkStream
   @Override
   protected void onResponse(StreamingGetWorkResponseChunk chunk) {
     getWorkThrottleTimer.stop();
-    WorkItemBuffer workItemBuffer =
-        workItemBuffers.computeIfAbsent(chunk.getStreamId(), unused -> new WorkItemBuffer());
+    GetWorkItemBuffer workItemBuffer =
+        workItemBuffers.computeIfAbsent(chunk.getStreamId(), unused -> new GetWorkItemBuffer());
     workItemBuffer.append(chunk);
 
     // The entire WorkItem has been received, it is ready to be processed.
     if (chunk.getRemainingBytesForWorkItem() == 0) {
-      workItemBuffer.runAndReset();
+      long size = workItemBuffer.bufferedSize();
+      workItemBuffer.flushToWorkItem().ifPresent(this::consumeWorkItem);
       // Record the fact that there are now fewer outstanding messages and bytes on the stream.
-      inFlightBudget.updateAndGet(budget -> budget.subtract(1, workItemBuffer.bufferedSize()));
+      inFlightBudget.updateAndGet(budget -> budget.subtract(1, size));
     }
+  }
+
+  private void consumeWorkItem(ConstructedWorkItem constructedWorkItem) {
+    WorkItem workItem = constructedWorkItem.workItem();
+    GetWorkItemBuffer.ComputationMetadata metadata = constructedWorkItem.computationMetadata();
+    pendingResponseBudget.getAndUpdate(budget -> budget.apply(1, workItem.getSerializedSize()));
+    try {
+      workItemScheduler.scheduleWork(
+          workItem,
+          createWatermarks(workItem, Preconditions.checkNotNull(metadata)),
+          createProcessingContext(Preconditions.checkNotNull(metadata.computationId())),
+          constructedWorkItem.latencyAttributions());
+    } finally {
+      pendingResponseBudget.getAndUpdate(budget -> budget.apply(-1, -workItem.getSerializedSize()));
+    }
+  }
+
+  private Work.ProcessingContext createProcessingContext(String computationId) {
+    return Work.createProcessingContext(
+        computationId, getDataClient.get(), workCommitter.get()::commit, heartbeatSender.get());
   }
 
   @Override
@@ -258,7 +273,7 @@ public final class GrpcDirectGetWorkStream
   }
 
   @Override
-  public synchronized void adjustBudget(long itemsDelta, long bytesDelta) {
+  public void adjustBudget(long itemsDelta, long bytesDelta) {
     nextBudgetAdjustment.set(nextBudgetAdjustment.get().apply(itemsDelta, bytesDelta));
     sendRequestExtension();
   }
@@ -273,75 +288,5 @@ public final class GrpcDirectGetWorkStream
     return currentPendingResponseBudget
         .apply(currentNextBudgetAdjustment)
         .apply(currentInflightBudget);
-  }
-
-  private synchronized void updatePendingResponseBudget(long itemsDelta, long bytesDelta) {
-    pendingResponseBudget.set(pendingResponseBudget.get().apply(itemsDelta, bytesDelta));
-  }
-
-  @AutoValue
-  abstract static class ComputationMetadata {
-    private static ComputationMetadata fromProto(ComputationWorkItemMetadata metadataProto) {
-      return new AutoValue_GrpcDirectGetWorkStream_ComputationMetadata(
-          metadataProto.getComputationId(),
-          WindmillTimeUtils.windmillToHarnessWatermark(metadataProto.getInputDataWatermark()),
-          WindmillTimeUtils.windmillToHarnessWatermark(
-              metadataProto.getDependentRealtimeInputWatermark()));
-    }
-
-    abstract String computationId();
-
-    abstract Instant inputDataWatermark();
-
-    abstract Instant synchronizedProcessingTime();
-  }
-
-  private class WorkItemBuffer {
-    private final GetWorkTimingInfosTracker workTimingInfosTracker;
-    private ByteString data;
-    private @Nullable ComputationMetadata metadata;
-
-    private WorkItemBuffer() {
-      workTimingInfosTracker = new GetWorkTimingInfosTracker(System::currentTimeMillis);
-      data = ByteString.EMPTY;
-      this.metadata = null;
-    }
-
-    private void append(StreamingGetWorkResponseChunk chunk) {
-      if (chunk.hasComputationMetadata()) {
-        this.metadata = ComputationMetadata.fromProto(chunk.getComputationMetadata());
-      }
-
-      this.data = data.concat(chunk.getSerializedWorkItem());
-      workTimingInfosTracker.addTimingInfo(chunk.getPerWorkItemTimingInfosList());
-    }
-
-    private long bufferedSize() {
-      return data.size();
-    }
-
-    private void runAndReset() {
-      try {
-        WorkItem workItem = WorkItem.parseFrom(data.newInput());
-        updatePendingResponseBudget(1, workItem.getSerializedSize());
-        workItemScheduler.scheduleWork(
-            workItem,
-            createWatermarks(workItem, Preconditions.checkNotNull(metadata)),
-            createProcessingContext(Preconditions.checkNotNull(metadata.computationId())),
-            // After the work item is successfully queued or dropped by ActiveWorkState, remove it
-            // from the pendingResponseBudget.
-            queuedWorkItem -> updatePendingResponseBudget(-1, -workItem.getSerializedSize()),
-            workTimingInfosTracker.getLatencyAttributions());
-      } catch (IOException e) {
-        LOG.error("Failed to parse work item from stream: ", e);
-      }
-      workTimingInfosTracker.reset();
-      data = ByteString.EMPTY;
-    }
-
-    private Work.ProcessingContext createProcessingContext(String computationId) {
-      return Work.createProcessingContext(
-          computationId, getDataClient.get(), workCommitter.get()::commit, heartbeatSender.get());
-    }
   }
 }
