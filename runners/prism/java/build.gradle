@@ -27,6 +27,7 @@ ext.summary = "Support for executing a pipeline on Prism."
 
 dependencies {
     implementation project(path: ":model:job-management", configuration: "shadow")
+    implementation project(path: ":model:pipeline", configuration: "shadow")
     implementation project(path: ":sdks:java:core", configuration: "shadow")
     implementation project(":runners:portability:java")
 
