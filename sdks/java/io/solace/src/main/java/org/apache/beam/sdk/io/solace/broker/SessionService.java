@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.solace.broker;
 import com.solacesystems.jcsmp.JCSMPProperties;
 import java.io.Serializable;
 import org.apache.beam.sdk.io.solace.SolaceIO;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,21 +70,23 @@ import org.slf4j.LoggerFactory;
  * <p>For basic authentication, use {@link BasicAuthJcsmpSessionService} and {@link
  * BasicAuthJcsmpSessionServiceFactory}.
  *
- * <p>For other situations, you need to extend this class. For instance:
+ * <p>For other situations, you need to extend this class and implement the `equals` method, so two
+ * instances of your class can be compared by value. We recommend using AutoValue for that. For
+ * instance:
  *
  * <pre>{@code
+ * {@literal }@AutoValue
  * public class MySessionService extends SessionService {
- *   private final String authToken;
+ *   abstract String authToken();
  *
- *   public MySessionService(String token) {
- *    this.oauthToken = token;
- *    ...
+ *   public static MySessionService create(String authToken) {
+ *       return new AutoValue_MySessionService(authToken);
  *   }
  *
  *   {@literal }@Override
  *   public JCSMPProperties initializeSessionProperties(JCSMPProperties baseProps) {
  *     baseProps.setProperty(JCSMPProperties.AUTHENTICATION_SCHEME, JCSMPProperties.AUTHENTICATION_SCHEME_OAUTH2);
- *     baseProps.setProperty(JCSMPProperties.OAUTH2_ACCESS_TOKEN, authToken);
+ *     baseProps.setProperty(JCSMPProperties.OAUTH2_ACCESS_TOKEN, authToken());
  *     return props;
  *   }
  *
@@ -154,6 +157,20 @@ public abstract class SessionService implements Serializable {
    * </ul>
    */
   public abstract JCSMPProperties initializeSessionProperties(JCSMPProperties baseProperties);
+
+  /**
+   * You need to override this method to be able to compare these objects by value. We recommend
+   * using AutoValue for that.
+   */
+  @Override
+  public abstract boolean equals(@Nullable Object other);
+
+  /**
+   * You need to override this method to be able to compare these objects by value. We recommend
+   * using AutoValue for that.
+   */
+  @Override
+  public abstract int hashCode();
 
   /**
    * This method will be called by the write connector when a new session is started.

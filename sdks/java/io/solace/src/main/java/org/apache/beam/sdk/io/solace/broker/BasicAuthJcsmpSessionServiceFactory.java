@@ -65,11 +65,12 @@ public abstract class BasicAuthJcsmpSessionServiceFactory extends SessionService
 
   @Override
   public SessionService create() {
-    return new BasicAuthJcsmpSessionService(
-        checkStateNotNull(queue, "SolaceIO.Read: Queue is not set.").getName(),
-        host(),
-        username(),
-        password(),
-        vpnName());
+    return BasicAuthJcsmpSessionService.builder()
+        .queueName(checkStateNotNull(queue, "SolaceIO.Read: Queue is not set.").getName())
+        .host(host())
+        .username(username())
+        .password(password())
+        .vpnName(vpnName())
+        .build();
   }
 }

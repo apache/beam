@@ -77,8 +77,8 @@ public class SolaceIOWriteTest {
 
   private SolaceOutput getWriteTransform(
       SolaceIO.SubmissionMode mode, SolaceIO.WriterType writerType, Pipeline p) {
-    MockSessionService service = new MockSessionService(mode);
-    SessionServiceFactory fakeSessionServiceFactory = new MockSessionServiceFactory(service);
+    MockSessionService service = MockSessionService.builder().mode(mode).build();
+    SessionServiceFactory fakeSessionServiceFactory = MockSessionServiceFactory.of(service);
 
     PCollection<Record> records = getRecords(p);
     return records.apply(

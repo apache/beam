@@ -23,7 +23,6 @@ import static org.apache.beam.sdk.io.solace.SolaceIO.Write.SUCCESSFUL_PUBLISH_TA
 import com.solacesystems.jcsmp.BytesXMLMessage;
 import com.solacesystems.jcsmp.DeliveryMode;
 import com.solacesystems.jcsmp.Destination;
-import com.solacesystems.jcsmp.JCSMPException;
 import com.solacesystems.jcsmp.JCSMPFactory;
 import com.solacesystems.jcsmp.JCSMPSendMultipleEntry;
 import java.net.UnknownHostException;
@@ -63,8 +62,6 @@ public final class UnboundedSolaceWriter {
 
     // This is the batch limit supported by the send multiple JCSMP API method.
     static final int SOLACE_BATCH_LIMIT = 50;
-    private @Nullable SolaceWriteSessionsHandler sessionsHandler;
-
     private final Distribution latencyPublish =
         Metrics.distribution(SolaceIO.Write.class, "latency_publish_ms");
 
@@ -101,22 +98,10 @@ public final class UnboundedSolaceWriter {
       this.batchToEmit = new ArrayList<>();
     }
 
-    @Setup
-    public void setup() throws UnknownHostException {
-      sessionsHandler =
-          sessionsHandler == null
-              ? SolaceWriteSessionsHandler.instance(producersMapCardinality, sessionServiceFactory)
-              : sessionsHandler;
-    }
-
     @Teardown
     public void teardown() {
-      if (sessionsHandler == null) {
-        throw new IllegalStateException(
-            "SolaceIO.Write: Sessions handler is null in TearDown method");
-      }
-
-      sessionsHandler.disconnectFromSolace();
+      SolaceWriteSessionsHandler.disconnectFromSolace(
+          sessionServiceFactory, producersMapCardinality);
     }
 
     public void updateProducerIndex() {
@@ -132,13 +117,9 @@ public final class UnboundedSolaceWriter {
       batchToEmit.clear();
     }
 
-    public SessionService solaceSessionService() throws UnknownHostException, JCSMPException {
-      if (sessionsHandler == null) {
-        throw new IllegalStateException(
-            "SolaceIO.Write: Sessions handler is null in solaceSessionService method");
-      }
-
-      return sessionsHandler.getSessionService(currentBundleProducerIndex);
+    public SessionService solaceSessionService() {
+      return SolaceWriteSessionsHandler.getSessionService(
+          currentBundleProducerIndex, sessionServiceFactory);
     }
 
     public void publishResults(BeamContextWrapper context) {
@@ -327,14 +308,6 @@ public final class UnboundedSolaceWriter {
 
     public void setCurrentBundleWindow(BoundedWindow bundleWindow) {
       this.bundleWindow = bundleWindow;
-    }
-
-    public SolaceWriteSessionsHandler sessionsHandlerRef() {
-      if (sessionsHandler == null) {
-        throw new IllegalStateException(
-            "SolaceIO.Write: Sessions handler is null in sessionHandlerRef method.");
-      }
-      return sessionsHandler;
     }
 
     /**
