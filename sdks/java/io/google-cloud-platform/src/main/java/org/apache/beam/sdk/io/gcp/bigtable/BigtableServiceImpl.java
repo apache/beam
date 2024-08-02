@@ -216,7 +216,7 @@ class BigtableServiceImpl implements BigtableService {
 
     @Override
     public void reportLineage() {
-      Lineage.getSinks().add(String.format("bigtable:%s.%s.%s", projectId, instanceId, tableId));
+      Lineage.getSources().add(String.format("bigtable:%s.%s.%s", projectId, instanceId, tableId));
     }
   }
 
@@ -327,7 +327,7 @@ class BigtableServiceImpl implements BigtableService {
 
     @Override
     public void reportLineage() {
-      Lineage.getSinks().add(String.format("bigtable:%s.%s.%s", projectId, instanceId, tableId));
+      Lineage.getSources().add(String.format("bigtable:%s.%s.%s", projectId, instanceId, tableId));
     }
 
     @Override

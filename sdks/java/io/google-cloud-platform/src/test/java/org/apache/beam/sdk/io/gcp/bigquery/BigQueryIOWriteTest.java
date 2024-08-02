@@ -118,9 +118,8 @@ import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices;
 import org.apache.beam.sdk.io.gcp.testing.FakeDatasetService;
 import org.apache.beam.sdk.io.gcp.testing.FakeJobService;
 import org.apache.beam.sdk.metrics.Lineage;
-import org.apache.beam.sdk.metrics.MetricNameFilter;
-import org.apache.beam.sdk.metrics.MetricQueryResults;
-import org.apache.beam.sdk.metrics.MetricsFilter;
+import org.apache.beam.sdk.metrics.MetricResult;
+import org.apache.beam.sdk.metrics.StringSetResult;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
@@ -285,16 +284,10 @@ public class BigQueryIOWriteTest implements Serializable {
           .withJobService(fakeJobService);
 
   private void checkLineageSinkMetric(PipelineResult pipelineResult, String tableName) {
-    MetricQueryResults lineageMetrics =
-        pipelineResult
-            .metrics()
-            .queryMetrics(
-                MetricsFilter.builder()
-                    .addNameFilter(
-                        MetricNameFilter.named(Lineage.LINEAGE_NAMESPACE, Lineage.SINK_METRIC_NAME))
-                    .build());
+    MetricResult<StringSetResult> lineageMetrics =
+        Lineage.query(pipelineResult.metrics(), Lineage.Type.SINK).iterator().next();
     assertThat(
-        lineageMetrics.getStringSets().iterator().next().getCommitted().getStringSet(),
+        lineageMetrics.getCommitted().getStringSet(),
         hasItem("bigquery:" + tableName.replace(':', '.')));
   }
 
