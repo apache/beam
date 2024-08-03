@@ -96,7 +96,6 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
     return new AutoBuilder_SingleSourceWorkerHarness_Builder();
   }
 
-  @SuppressWarnings("FutureReturnValueIgnored")
   @Override
   public void start() {
     Preconditions.checkState(
@@ -104,7 +103,7 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
         "Multiple calls to {}.start() are not allowed.",
         getClass());
     workCommitter.start();
-    workProviderExecutor.submit(
+    workProviderExecutor.execute(
         () -> {
           getDispatchLoop().run();
           LOG.info("Dispatch done");

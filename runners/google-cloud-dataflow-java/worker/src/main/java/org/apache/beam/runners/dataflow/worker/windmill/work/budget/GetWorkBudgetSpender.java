@@ -18,10 +18,10 @@
 package org.apache.beam.runners.dataflow.worker.windmill.work.budget;
 
 /**
- * Represents something that holds some {@link
+ * Represents something that spends {@link
  * org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget}
  */
-public interface GetWorkBudgetHolder {
+public interface GetWorkBudgetSpender {
   void adjustBudget(long itemsDelta, long bytesDelta);
 
   default void adjustBudget(GetWorkBudget adjustment) {

@@ -27,6 +27,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
  */
 @Internal
 public interface GetWorkBudgetDistributor {
-  <T extends GetWorkBudgetHolder> void distributeBudget(
+  <T extends GetWorkBudgetSpender> void distributeBudget(
       ImmutableCollection<T> streams, GetWorkBudget getWorkBudget);
 }

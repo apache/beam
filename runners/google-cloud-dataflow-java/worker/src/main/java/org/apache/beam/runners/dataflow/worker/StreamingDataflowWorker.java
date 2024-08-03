@@ -434,9 +434,10 @@ public final class StreamingDataflowWorker {
     ComputationConfig.Fetcher configFetcher;
     WindmillServerStub windmillServer;
     ComputationStateCache computationStateCache;
-    GrpcDispatcherClient dispatcherClient = GrpcDispatcherClient.create(createStubFactory(options));
     GrpcWindmillStreamFactory windmillStreamFactory;
     if (options.isEnableStreamingEngine()) {
+      GrpcDispatcherClient dispatcherClient =
+          GrpcDispatcherClient.create(createStubFactory(options));
       configFetcher =
           StreamingEngineComputationConfigFetcher.create(
               options.getGlobalConfigRefreshPeriod().getMillis(),
@@ -465,7 +466,10 @@ public final class StreamingDataflowWorker {
                     options.getWindmillServiceStreamingRpcHealthCheckPeriodMs())
                 .build();
         windmillServer =
-            GrpcWindmillServer.create(options, windmillStreamFactory, dispatcherClient);
+            GrpcWindmillServer.create(
+                options,
+                windmillStreamFactory,
+                GrpcDispatcherClient.create(createStubFactory(options)));
       } else {
         windmillStreamFactory = windmillStreamFactoryBuilder.build();
         windmillServer = new JniWindmillApplianceServer(options.getLocalWindmillHostport());

@@ -29,6 +29,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingGetWor
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingGetWorkResponseChunk;
 import org.apache.beam.runners.dataflow.worker.windmill.client.AbstractWindmillStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GetWorkResponseChunkAssembler.AssembledWorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemReceiver;
@@ -36,14 +37,14 @@ import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudge
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
 
-public final class GrpcGetWorkStream
+final class GrpcGetWorkStream
     extends AbstractWindmillStream<StreamingGetWorkRequest, StreamingGetWorkResponseChunk>
     implements GetWorkStream {
 
   private final GetWorkRequest request;
   private final WorkItemReceiver receiver;
   private final ThrottleTimer getWorkThrottleTimer;
-  private final Map<Long, GetWorkItemBuffer> buffers;
+  private final Map<Long, GetWorkResponseChunkAssembler> workItemAssemblers;
   private final AtomicLong inflightMessages;
   private final AtomicLong inflightBytes;
 
@@ -71,7 +72,7 @@ public final class GrpcGetWorkStream
     this.request = request;
     this.getWorkThrottleTimer = getWorkThrottleTimer;
     this.receiver = receiver;
-    this.buffers = new ConcurrentHashMap<>();
+    this.workItemAssemblers = new ConcurrentHashMap<>();
     this.inflightMessages = new AtomicLong();
     this.inflightBytes = new AtomicLong();
   }
@@ -126,7 +127,7 @@ public final class GrpcGetWorkStream
 
   @Override
   protected synchronized void onNewStream() {
-    buffers.clear();
+    workItemAssemblers.clear();
     inflightMessages.set(request.getMaxItems());
     inflightBytes.set(request.getMaxBytes());
     send(StreamingGetWorkRequest.newBuilder().setRequest(request).build());
@@ -142,7 +143,7 @@ public final class GrpcGetWorkStream
     // Number of buffers is same as distinct workers that sent work on this stream.
     writer.format(
         "GetWorkStream: %d buffers, %d inflight messages allowed, %d inflight bytes allowed",
-        buffers.size(), inflightMessages.intValue(), inflightBytes.intValue());
+        workItemAssemblers.size(), inflightMessages.intValue(), inflightBytes.intValue());
   }
 
   @Override
@@ -157,38 +158,33 @@ public final class GrpcGetWorkStream
   @Override
   protected void onResponse(StreamingGetWorkResponseChunk chunk) {
     getWorkThrottleTimer.stop();
+    workItemAssemblers
+        .computeIfAbsent(chunk.getStreamId(), unused -> new GetWorkResponseChunkAssembler())
+        .append(chunk)
+        .ifPresent(this::consumeAssembledWorkItem);
+  }
 
-    GetWorkItemBuffer buffer =
-        buffers.computeIfAbsent(chunk.getStreamId(), unused -> new GetWorkItemBuffer());
-    buffer.append(chunk);
+  private void consumeAssembledWorkItem(AssembledWorkItem assembledWorkItem) {
+    receiver.receiveWork(
+        assembledWorkItem.computationMetadata().computationId(),
+        assembledWorkItem.computationMetadata().inputDataWatermark(),
+        assembledWorkItem.computationMetadata().synchronizedProcessingTime(),
+        assembledWorkItem.workItem(),
+        assembledWorkItem.latencyAttributions());
 
-    if (chunk.getRemainingBytesForWorkItem() == 0) {
-      long size = buffer.bufferedSize();
-      buffer
-          .flushToWorkItem()
-          .ifPresent(
-              constructedWorkItem ->
-                  receiver.receiveWork(
-                      constructedWorkItem.computationMetadata().computationId(),
-                      constructedWorkItem.computationMetadata().inputDataWatermark(),
-                      constructedWorkItem.computationMetadata().synchronizedProcessingTime(),
-                      constructedWorkItem.workItem(),
-                      constructedWorkItem.latencyAttributions()));
+    // Record the fact that there are now fewer outstanding messages and bytes on the stream.
+    long numInflight = inflightMessages.decrementAndGet();
+    long bytesInflight = inflightBytes.addAndGet(-assembledWorkItem.bufferedSize());
 
-      // Record the fact that there are now fewer outstanding messages and bytes on the stream.
-      long numInflight = inflightMessages.decrementAndGet();
-      long bytesInflight = inflightBytes.addAndGet(-size);
-
-      // If the outstanding items or bytes limit has gotten too low, top both off with a
-      // GetWorkExtension.  The goal is to keep the limits relatively close to their maximum
-      // values without sending too many extension requests.
-      if (numInflight < request.getMaxItems() / 2 || bytesInflight < request.getMaxBytes() / 2) {
-        long moreItems = request.getMaxItems() - numInflight;
-        long moreBytes = request.getMaxBytes() - bytesInflight;
-        inflightMessages.getAndAdd(moreItems);
-        inflightBytes.getAndAdd(moreBytes);
-        sendRequestExtension(moreItems, moreBytes);
-      }
+    // If the outstanding items or bytes limit has gotten too low, top both off with a
+    // GetWorkExtension.  The goal is to keep the limits relatively close to their maximum
+    // values without sending too many extension requests.
+    if (numInflight < request.getMaxItems() / 2 || bytesInflight < request.getMaxBytes() / 2) {
+      long moreItems = request.getMaxItems() - numInflight;
+      long moreBytes = request.getMaxBytes() - bytesInflight;
+      inflightMessages.getAndAdd(moreItems);
+      inflightBytes.getAndAdd(moreBytes);
+      sendRequestExtension(moreItems, moreBytes);
     }
   }
 

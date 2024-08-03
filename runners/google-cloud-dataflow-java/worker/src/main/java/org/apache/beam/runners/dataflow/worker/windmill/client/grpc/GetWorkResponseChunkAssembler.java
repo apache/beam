@@ -36,32 +36,32 @@ import org.slf4j.LoggerFactory;
  * {@link ByteString} buffer of {@link
  * org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingGetWorkResponseChunk}(s).
  *
- * <p>Once all serialized chunks of an {@link WorkItem} have been received, provides functionality
- * to flush (deserialize) the chunk of bytes into a {@link WorkItem}.
+ * <p>Once all serialized chunks of an {@link WorkItem} have been received flushes (deserializes)
+ * the chunk of bytes and metadata into an {@link AssembledWorkItem}.
  *
  * @implNote This class is not thread safe, and provides no synchronization underneath.
  */
 @NotThreadSafe
-final class GetWorkItemBuffer {
-  private static final Logger LOG = LoggerFactory.getLogger(GetWorkItemBuffer.class);
+final class GetWorkResponseChunkAssembler {
+  private static final Logger LOG = LoggerFactory.getLogger(GetWorkResponseChunkAssembler.class);
 
   private final GetWorkTimingInfosTracker workTimingInfosTracker;
   private @Nullable ComputationMetadata metadata;
   private ByteString data;
   private long bufferedSize;
 
-  GetWorkItemBuffer() {
+  GetWorkResponseChunkAssembler() {
     workTimingInfosTracker = new GetWorkTimingInfosTracker(System::currentTimeMillis);
     data = ByteString.EMPTY;
     bufferedSize = 0;
     metadata = null;
   }
 
-  long bufferedSize() {
-    return bufferedSize;
-  }
-
-  void append(Windmill.StreamingGetWorkResponseChunk chunk) {
+  /**
+   * Appends the response chunk bytes to the {@link #data }byte buffer. Return the assembled
+   * WorkItem if all response chunks for a WorkItem have been received.
+   */
+  Optional<AssembledWorkItem> append(Windmill.StreamingGetWorkResponseChunk chunk) {
     if (chunk.hasComputationMetadata()) {
       metadata = ComputationMetadata.fromProto(chunk.getComputationMetadata());
     }
@@ -69,6 +69,9 @@ final class GetWorkItemBuffer {
     data = data.concat(chunk.getSerializedWorkItem());
     bufferedSize += chunk.getSerializedWorkItem().size();
     workTimingInfosTracker.addTimingInfo(chunk.getPerWorkItemTimingInfosList());
+
+    // If the entire WorkItem has been received, assemble the WorkItem.
+    return chunk.getRemainingBytesForWorkItem() == 0 ? flushToWorkItem() : Optional.empty();
   }
 
   /**
@@ -76,14 +79,14 @@ final class GetWorkItemBuffer {
    * data byte string and tracking metadata afterwards, whether the {@link WorkItem} deserialization
    * was successful or not.
    */
-  Optional<ConstructedWorkItem> flushToWorkItem() {
+  private Optional<AssembledWorkItem> flushToWorkItem() {
     try {
-      ConstructedWorkItem workItem =
-          ConstructedWorkItem.create(
+      return Optional.of(
+          AssembledWorkItem.create(
               WorkItem.parseFrom(data.newInput()),
               Preconditions.checkNotNull(metadata),
-              workTimingInfosTracker.getLatencyAttributions());
-      return Optional.of(workItem);
+              workTimingInfosTracker.getLatencyAttributions(),
+              bufferedSize));
     } catch (IOException e) {
       LOG.error("Failed to parse work item from stream: ", e);
     } finally {
@@ -99,7 +102,7 @@ final class GetWorkItemBuffer {
   abstract static class ComputationMetadata {
     private static ComputationMetadata fromProto(
         Windmill.ComputationWorkItemMetadata metadataProto) {
-      return new AutoValue_GetWorkItemBuffer_ComputationMetadata(
+      return new AutoValue_GetWorkResponseChunkAssembler_ComputationMetadata(
           metadataProto.getComputationId(),
           WindmillTimeUtils.windmillToHarnessWatermark(metadataProto.getInputDataWatermark()),
           WindmillTimeUtils.windmillToHarnessWatermark(
@@ -114,14 +117,15 @@ final class GetWorkItemBuffer {
   }
 
   @AutoValue
-  abstract static class ConstructedWorkItem {
+  abstract static class AssembledWorkItem {
 
-    private static ConstructedWorkItem create(
+    private static AssembledWorkItem create(
         WorkItem workItem,
         ComputationMetadata computationMetadata,
-        List<Windmill.LatencyAttribution> latencyAttributions) {
-      return new AutoValue_GetWorkItemBuffer_ConstructedWorkItem(
-          workItem, computationMetadata, latencyAttributions);
+        List<Windmill.LatencyAttribution> latencyAttributions,
+        long size) {
+      return new AutoValue_GetWorkResponseChunkAssembler_AssembledWorkItem(
+          workItem, computationMetadata, latencyAttributions, size);
     }
 
     abstract WorkItem workItem();
@@ -129,5 +133,7 @@ final class GetWorkItemBuffer {
     abstract ComputationMetadata computationMetadata();
 
     abstract List<Windmill.LatencyAttribution> latencyAttributions();
+
+    abstract long bufferedSize();
   }
 }

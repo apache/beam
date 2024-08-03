@@ -32,7 +32,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Evenly distributes the provided budget across the available {@link GetWorkBudgetHolder}(s). */
+/** Evenly distributes the provided budget across the available {@link GetWorkBudgetSpender}(s). */
 @Internal
 final class EvenGetWorkBudgetDistributor implements GetWorkBudgetDistributor {
   private static final Logger LOG = LoggerFactory.getLogger(EvenGetWorkBudgetDistributor.class);
@@ -49,7 +49,7 @@ final class EvenGetWorkBudgetDistributor implements GetWorkBudgetDistributor {
   }
 
   @Override
-  public <T extends GetWorkBudgetHolder> void distributeBudget(
+  public <T extends GetWorkBudgetSpender> void distributeBudget(
       ImmutableCollection<T> budgetOwners, GetWorkBudget getWorkBudget) {
     if (budgetOwners.isEmpty()) {
       LOG.debug("Cannot distribute budget to no owners.");
@@ -64,17 +64,17 @@ final class EvenGetWorkBudgetDistributor implements GetWorkBudgetDistributor {
     Map<T, GetWorkBudget> desiredBudgets = computeDesiredBudgets(budgetOwners, getWorkBudget);
 
     for (Entry<T, GetWorkBudget> streamAndDesiredBudget : desiredBudgets.entrySet()) {
-      GetWorkBudgetHolder getWorkBudgetHolder = streamAndDesiredBudget.getKey();
+      GetWorkBudgetSpender getWorkBudgetSpender = streamAndDesiredBudget.getKey();
       GetWorkBudget desired = streamAndDesiredBudget.getValue();
-      GetWorkBudget remaining = getWorkBudgetHolder.remainingBudget();
+      GetWorkBudget remaining = getWorkBudgetSpender.remainingBudget();
       if (isBelowFiftyPercentOfTarget(remaining, desired)) {
         GetWorkBudget adjustment = desired.subtract(remaining);
-        getWorkBudgetHolder.adjustBudget(adjustment);
+        getWorkBudgetSpender.adjustBudget(adjustment);
       }
     }
   }
 
-  private <T extends GetWorkBudgetHolder> ImmutableMap<T, GetWorkBudget> computeDesiredBudgets(
+  private <T extends GetWorkBudgetSpender> ImmutableMap<T, GetWorkBudget> computeDesiredBudgets(
       ImmutableCollection<T> streams, GetWorkBudget totalGetWorkBudget) {
     GetWorkBudget activeWorkBudget = activeWorkBudgetSupplier.get();
     LOG.info("Current active work budget: {}", activeWorkBudget);
