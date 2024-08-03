@@ -118,8 +118,6 @@ import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices;
 import org.apache.beam.sdk.io.gcp.testing.FakeDatasetService;
 import org.apache.beam.sdk.io.gcp.testing.FakeJobService;
 import org.apache.beam.sdk.metrics.Lineage;
-import org.apache.beam.sdk.metrics.MetricResult;
-import org.apache.beam.sdk.metrics.StringSetResult;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
@@ -284,10 +282,8 @@ public class BigQueryIOWriteTest implements Serializable {
           .withJobService(fakeJobService);
 
   private void checkLineageSinkMetric(PipelineResult pipelineResult, String tableName) {
-    MetricResult<StringSetResult> lineageMetrics =
-        Lineage.query(pipelineResult.metrics(), Lineage.Type.SINK).iterator().next();
     assertThat(
-        lineageMetrics.getCommitted().getStringSet(),
+        Lineage.query(pipelineResult.metrics(), Lineage.Type.SINK),
         hasItem("bigquery:" + tableName.replace(':', '.')));
   }
 

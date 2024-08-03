@@ -2030,7 +2030,9 @@ public class BigtableIO {
                   && rangeTracker.tryReturnRecordAt(
                       true, makeByteKey(reader.getCurrentRow().getKey())))
               || rangeTracker.markDone();
+      LOG.warn("called start");
       if (hasRecord) {
+        LOG.warn("called has record");
         ++recordsReturned;
         source.reportLineageOnce(reader);
       }

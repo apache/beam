@@ -34,7 +34,6 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.metrics.Lineage;
-import org.apache.beam.sdk.metrics.StringSetResult;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -150,12 +149,11 @@ public class BigtableReadIT {
   }
 
   private void checkLineageSourceMetric(PipelineResult r, String tableId) {
-    // Only check lineage metrics on direct runner until Dataflow runner v2 supported report back
+    // TODO(https://github.com/apache/beam/issues/32071) test malformed,
+    //   when pipeline.run() os non-blocking, the metrics are not available by the time of query
     if (options.getRunner().getName().contains("DirectRunner")) {
-      StringSetResult lineageMetrics =
-          Lineage.query(r.metrics(), Lineage.Type.SOURCE).iterator().next().getCommitted();
       assertThat(
-          lineageMetrics.getStringSet(),
+          Lineage.query(r.metrics(), Lineage.Type.SOURCE),
           hasItem(String.format("bigtable:%s.%s.%s", project, options.getInstanceId(), tableId)));
     }
   }

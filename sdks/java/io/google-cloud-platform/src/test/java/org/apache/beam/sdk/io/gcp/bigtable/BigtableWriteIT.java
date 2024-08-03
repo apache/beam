@@ -44,7 +44,6 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.metrics.Lineage;
-import org.apache.beam.sdk.metrics.StringSetResult;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.testing.PAssert;
@@ -422,10 +421,8 @@ public class BigtableWriteIT implements Serializable {
   private void checkLineageSinkMetric(PipelineResult r, String tableId) {
     // Only check lineage metrics on direct runner until Dataflow runner v2 supported report back
     if (options.getRunner().getName().contains("DirectRunner")) {
-      StringSetResult lineageMetrics =
-          Lineage.query(r.metrics(), Lineage.Type.SINK).iterator().next().getCommitted();
       assertThat(
-          lineageMetrics.getStringSet(),
+          Lineage.query(r.metrics(), Lineage.Type.SINK),
           hasItem(String.format("bigtable:%s.%s.%s", project, options.getInstanceId(), tableId)));
     }
   }
