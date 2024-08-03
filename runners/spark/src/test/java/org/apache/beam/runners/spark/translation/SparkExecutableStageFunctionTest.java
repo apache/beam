@@ -22,6 +22,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.verifyZeroInteractions;
@@ -62,7 +63,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
 /** Unit tests for {@link SparkExecutableStageFunction}. */
@@ -105,7 +105,7 @@ public class SparkExecutableStageFunctionTest {
         .thenReturn(remoteBundle);
     @SuppressWarnings("unchecked")
     ImmutableMap<String, FnDataReceiver> inputReceiver =
-        ImmutableMap.of("input", Mockito.mock(FnDataReceiver.class));
+        ImmutableMap.of("input", mock(FnDataReceiver.class));
     when(remoteBundle.getInputReceivers()).thenReturn(inputReceiver);
     when(metricsAccumulator.value()).thenReturn(stepMap);
     when(stepMap.getContainer(any())).thenReturn(container);
@@ -124,12 +124,12 @@ public class SparkExecutableStageFunctionTest {
   public void expectedInputsAreSent() throws Exception {
     SparkExecutableStageFunction<Integer, ?> function = getFunction(Collections.emptyMap());
 
-    RemoteBundle bundle = Mockito.mock(RemoteBundle.class);
+    RemoteBundle bundle = mock(RemoteBundle.class);
     when(stageBundleFactory.getBundle(any(), any(), any(), any(BundleProgressHandler.class)))
         .thenReturn(bundle);
 
     @SuppressWarnings("unchecked")
-    FnDataReceiver<WindowedValue<?>> receiver = Mockito.mock(FnDataReceiver.class);
+    FnDataReceiver<WindowedValue<?>> receiver = mock(FnDataReceiver.class);
     when(bundle.getInputReceivers()).thenReturn(ImmutableMap.of(inputId, receiver));
 
     WindowedValue<Integer> one = WindowedValue.valueInGlobalWindow(1);
@@ -215,7 +215,7 @@ public class SparkExecutableStageFunctionTest {
           @Override
           public ProcessBundleDescriptors.ExecutableProcessBundleDescriptor
               getProcessBundleDescriptor() {
-            return Mockito.mock(ProcessBundleDescriptors.ExecutableProcessBundleDescriptor.class);
+            return mock(ProcessBundleDescriptors.ExecutableProcessBundleDescriptor.class);
           }
 
           @Override

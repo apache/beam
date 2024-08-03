@@ -39,11 +39,8 @@ import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesTestStream;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Redistribute.AssignShardFn;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.transforms.windowing.Sessions;
+import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.PTransformTranslation;
@@ -289,13 +286,12 @@ public class RedistributeTest implements Serializable {
   @Test
   @Category(ValidatesRunner.class)
   public void testRedistributeAfterSlidingWindowsAndGroupByKey() {
-
     PCollection<KV<String, Iterable<Integer>>> input =
         pipeline
             .apply(
                 Create.of(GBK_TESTABLE_KVS)
                     .withCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())))
-            .apply(Window.into(FixedWindows.of(Duration.standardMinutes(10L))))
+            .apply(Window.into(SlidingWindows.of(Duration.standardMinutes(10L))))
             .apply(GroupByKey.create());
 
     PCollection<KV<String, Iterable<Integer>>> output = input.apply(Redistribute.arbitrarily());
