@@ -79,7 +79,7 @@ public class ScanSourceTest {
                         .build())
                 .setScanType(IcebergScanConfig.ScanType.TABLE)
                 .setTableIdentifier(simpleTable.name().replace("hadoop.", "").split("\\."))
-                .setSchema(SchemaAndRowConversions.icebergSchemaToBeamSchema(TestFixtures.SCHEMA))
+                .setSchema(IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA))
                 .build());
 
     BoundedSource.BoundedReader<Row> reader = source.createReader(options);
@@ -121,7 +121,7 @@ public class ScanSourceTest {
                         .build())
                 .setScanType(IcebergScanConfig.ScanType.TABLE)
                 .setTableIdentifier(simpleTable.name().replace("hadoop.", "").split("\\."))
-                .setSchema(SchemaAndRowConversions.icebergSchemaToBeamSchema(TestFixtures.SCHEMA))
+                .setSchema(IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA))
                 .build());
 
     // Input data for this test is tiny so try a number of very small split sizes
@@ -167,7 +167,7 @@ public class ScanSourceTest {
                         .build())
                 .setScanType(IcebergScanConfig.ScanType.TABLE)
                 .setTableIdentifier(simpleTable.name().replace("hadoop.", "").split("\\."))
-                .setSchema(SchemaAndRowConversions.icebergSchemaToBeamSchema(TestFixtures.SCHEMA))
+                .setSchema(IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA))
                 .build());
 
     // Input data for this test is tiny so make sure to split and get a few, but so they can be

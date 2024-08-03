@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker.windmill.client.commits;
 
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertNotNull;
+import static org.mockito.Mockito.mock;
 
 import com.google.api.services.dataflow.model.MapTask;
 import com.google.common.truth.Correspondence;
@@ -35,6 +36,8 @@ import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
+import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.Instant;
@@ -45,7 +48,6 @@ import org.junit.Test;
 import org.junit.rules.ErrorCollector;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.mockito.Mockito;
 
 @RunWith(JUnit4.class)
 public class StreamingApplianceWorkCommitterTest {
@@ -64,10 +66,11 @@ public class StreamingApplianceWorkCommitterTest {
         Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
         Work.createProcessingContext(
             "computationId",
-            (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance(),
+            new FakeGetDataClient(),
             ignored -> {
               throw new UnsupportedOperationException();
-            }),
+            },
+            mock(HeartbeatSender.class)),
         Instant::now,
         Collections.emptyList());
   }
@@ -76,7 +79,7 @@ public class StreamingApplianceWorkCommitterTest {
     return new ComputationState(
         computationId,
         new MapTask().setSystemName("system").setStageName("stage"),
-        Mockito.mock(BoundedQueueExecutor.class),
+        mock(BoundedQueueExecutor.class),
         ImmutableMap.of(),
         null);
   }
@@ -90,7 +93,7 @@ public class StreamingApplianceWorkCommitterTest {
   public void setUp() {
     fakeWindmillServer =
         new FakeWindmillServer(
-            errorCollector, ignored -> Optional.of(Mockito.mock(ComputationState.class)));
+            errorCollector, ignored -> Optional.of(mock(ComputationState.class)));
   }
 
   @After

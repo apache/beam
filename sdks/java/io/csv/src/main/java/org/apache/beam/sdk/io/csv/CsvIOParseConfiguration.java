@@ -24,22 +24,13 @@ import java.util.Map;
 import java.util.Optional;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
-import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.commons.csv.CSVFormat;
 
 /** Stores parameters needed for CSV record parsing. */
 @AutoValue
 abstract class CsvIOParseConfiguration<T> implements Serializable {
-
-  /** A Dead Letter Queue that returns potential errors with {@link BadRecord}. */
-  final PTransform<PCollection<BadRecord>, PCollection<BadRecord>> errorHandlerTransform =
-      new BadRecordOutput();
 
   static <T> Builder<T> builder() {
     return new AutoValue_CsvIOParseConfiguration.Builder<>();
@@ -82,22 +73,6 @@ abstract class CsvIOParseConfiguration<T> implements Serializable {
         setCustomProcessingMap(new HashMap<>());
       }
       return autoBuild();
-    }
-  }
-
-  private static class BadRecordOutput
-      extends PTransform<PCollection<BadRecord>, PCollection<BadRecord>> {
-
-    @Override
-    public PCollection<BadRecord> expand(PCollection<BadRecord> input) {
-      return input.apply(ParDo.of(new BadRecordTransformFn()));
-    }
-
-    private static class BadRecordTransformFn extends DoFn<BadRecord, BadRecord> {
-      @ProcessElement
-      public void process(@Element BadRecord input, OutputReceiver<BadRecord> receiver) {
-        receiver.output(input);
-      }
     }
   }
 }

@@ -34,11 +34,17 @@ public abstract class StreamingEnginePipelineConfig {
   public static StreamingEnginePipelineConfig.Builder builder() {
     return new AutoValue_StreamingEnginePipelineConfig.Builder()
         .setMaxWorkItemCommitBytes(DEFAULT_MAX_WORK_ITEM_COMMIT_BYTES)
+        .setMaxOutputKeyBytes(Long.MAX_VALUE)
+        .setMaxOutputValueBytes(Long.MAX_VALUE)
         .setUserStepToStateFamilyNameMap(new HashMap<>())
         .setWindmillServiceEndpoints(ImmutableSet.of());
   }
 
   public abstract long maxWorkItemCommitBytes();
+
+  public abstract long maxOutputKeyBytes();
+
+  public abstract long maxOutputValueBytes();
 
   public abstract Map<String, String> userStepToStateFamilyNameMap();
 
@@ -47,6 +53,10 @@ public abstract class StreamingEnginePipelineConfig {
   @AutoValue.Builder
   public abstract static class Builder {
     public abstract Builder setMaxWorkItemCommitBytes(long value);
+
+    public abstract Builder setMaxOutputKeyBytes(long value);
+
+    public abstract Builder setMaxOutputValueBytes(long value);
 
     public abstract Builder setUserStepToStateFamilyNameMap(Map<String, String> value);
 

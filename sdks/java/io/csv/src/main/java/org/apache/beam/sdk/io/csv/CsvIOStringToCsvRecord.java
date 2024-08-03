@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.csv;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -27,9 +28,14 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
+import org.joda.time.Instant;
 
 /**
  * {@link CsvIOStringToCsvRecord} is a class that takes a {@link PCollection<String>} input and
@@ -37,8 +43,13 @@ import org.apache.commons.csv.CSVRecord;
  * targeted error detection.
  */
 final class CsvIOStringToCsvRecord
-    extends PTransform<PCollection<String>, PCollection<List<String>>> {
+    extends PTransform<PCollection<String>, CsvIOParseResult<List<String>>> {
+
   private final CSVFormat csvFormat;
+
+  private final TupleTag<List<String>> outputTag = new TupleTag<List<String>>() {};
+
+  private final TupleTag<CsvIOParseError> errorTag = new TupleTag<CsvIOParseError>() {};
 
   CsvIOStringToCsvRecord(CSVFormat csvFormat) {
     this.csvFormat = csvFormat;
@@ -49,10 +60,15 @@ final class CsvIOStringToCsvRecord
    * to Row or custom type.
    */
   @Override
-  public PCollection<List<String>> expand(PCollection<String> input) {
-    return input
-        .apply(ParDo.of(new ProcessLineToRecordFn()))
-        .setCoder(ListCoder.of(NullableCoder.of(StringUtf8Coder.of())));
+  public CsvIOParseResult<List<String>> expand(PCollection<String> input) {
+    PCollectionTuple pct =
+        input.apply(
+            ProcessLineToRecordFn.class.getSimpleName(),
+            ParDo.of(new ProcessLineToRecordFn())
+                .withOutputTags(outputTag, TupleTagList.of(errorTag)));
+
+    return CsvIOParseResult.of(
+        outputTag, ListCoder.of(NullableCoder.of(StringUtf8Coder.of())), errorTag, pct);
   }
 
   /** Processes each line in order to convert it to a {@link CSVRecord}. */
@@ -60,13 +76,24 @@ final class CsvIOStringToCsvRecord
     private final String headerLine = headerLine(csvFormat);
 
     @ProcessElement
-    public void process(@Element String line, OutputReceiver<List<String>> receiver)
-        throws IOException {
+    public void process(@Element String line, MultiOutputReceiver receiver) {
       if (headerLine.equals(line)) {
         return;
       }
-      for (CSVRecord record : CSVParser.parse(line, csvFormat).getRecords()) {
-        receiver.output(csvRecordtoList(record));
+      try (CSVParser csvParser = CSVParser.parse(line, csvFormat)) {
+        for (CSVRecord record : csvParser.getRecords()) {
+          receiver.get(outputTag).output(csvRecordtoList(record));
+        }
+      } catch (RuntimeException | IOException e) {
+        receiver
+            .get(errorTag)
+            .output(
+                CsvIOParseError.builder()
+                    .setCsvRecord(line)
+                    .setMessage(Optional.ofNullable(e.getMessage()).orElse(""))
+                    .setObservedTimestamp(Instant.now())
+                    .setStackTrace(Throwables.getStackTraceAsString(e))
+                    .build());
       }
     }
   }

@@ -90,7 +90,6 @@ def portableValidatesRunnerTask(String name, boolean docker) {
             excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
             excludeCategories 'org.apache.beam.sdk.testing.UsesFailureMessage'
             excludeCategories 'org.apache.beam.sdk.testing.UsesGaugeMetrics'
-            excludeCategories 'org.apache.beam.sdk.testing.UsesStringSetMetrics'
             excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
             excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
             excludeCategories 'org.apache.beam.sdk.testing.UsesMultimapState'

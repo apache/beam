@@ -35,7 +35,6 @@ import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.nullableAllPrim
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.timeContaining;
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.timeContainingFromRowFn;
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.timeContainingToRowFn;
-import static org.junit.Assert.assertThrows;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -55,6 +54,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.SerializableUtils;
@@ -135,7 +135,9 @@ public class CsvIORecordToObjectsTest {
             emptyCustomProcessingMap(),
             ROW_ROW_SERIALIZABLE_FUNCTION,
             ALL_PRIMITIVE_DATA_TYPES_ROW_CODER);
-    PAssert.that(input.apply(underTest)).containsInAnyOrder(want);
+    CsvIOParseResult<Row> result = input.apply(underTest);
+    PAssert.that(result.getOutput()).containsInAnyOrder(want);
+    PAssert.that(result.getErrors()).empty();
     pipeline.run();
   }
 
@@ -152,7 +154,9 @@ public class CsvIORecordToObjectsTest {
             emptyCustomProcessingMap(),
             allPrimitiveDataTypesFromRowFn(),
             ALL_PRIMITIVE_DATA_TYPES_CODER);
-    PAssert.that(input.apply(underTest)).containsInAnyOrder(want);
+    CsvIOParseResult<AllPrimitiveDataTypes> result = input.apply(underTest);
+    PAssert.that(result.getOutput()).containsInAnyOrder(want);
+    PAssert.that(result.getErrors()).empty();
     pipeline.run();
   }
 
@@ -176,7 +180,9 @@ public class CsvIORecordToObjectsTest {
             emptyCustomProcessingMap(),
             ROW_ROW_SERIALIZABLE_FUNCTION,
             NULLABLE_ALL_PRIMITIVE_DATA_TYPES_ROW_CODER);
-    PAssert.that(input.apply(underTest)).containsInAnyOrder(want);
+    CsvIOParseResult<Row> result = input.apply(underTest);
+    PAssert.that(result.getOutput()).containsInAnyOrder(want);
+    PAssert.that(result.getErrors()).empty();
     pipeline.run();
   }
 
@@ -193,7 +199,9 @@ public class CsvIORecordToObjectsTest {
             emptyCustomProcessingMap(),
             nullableAllPrimitiveDataTypesFromRowFn(),
             NULLABLE_ALL_PRIMITIVE_DATA_TYPES_CODER);
-    PAssert.that(input.apply(underTest)).containsInAnyOrder(want);
+    CsvIOParseResult<NullableAllPrimitiveDataTypes> result = input.apply(underTest);
+    PAssert.that(result.getOutput()).containsInAnyOrder(want);
+    PAssert.that(result.getErrors()).empty();
     pipeline.run();
   }
 
@@ -214,8 +222,10 @@ public class CsvIORecordToObjectsTest {
             emptyCustomProcessingMap(),
             allPrimitiveDataTypesFromRowFn(),
             ALL_PRIMITIVE_DATA_TYPES_CODER);
-    input.apply(underTest);
-    assertThrows(Pipeline.PipelineExecutionException.class, pipeline::run);
+    CsvIOParseResult<AllPrimitiveDataTypes> result = input.apply(underTest);
+    PAssert.that(result.getOutput()).empty();
+    PAssert.thatSingleton(result.getErrors().apply(Count.globally())).isEqualTo(1L);
+    pipeline.run();
   }
 
   @Test
@@ -228,7 +238,9 @@ public class CsvIORecordToObjectsTest {
             emptyCustomProcessingMap(),
             ROW_ROW_SERIALIZABLE_FUNCTION,
             NULLABLE_ALL_PRIMITIVE_DATA_TYPES_ROW_CODER);
-    PAssert.that(input.apply(underTest)).empty();
+    CsvIOParseResult<Row> result = input.apply(underTest);
+    PAssert.that(result.getOutput()).empty();
+    PAssert.that(result.getErrors()).empty();
     pipeline.run();
   }
 
@@ -242,7 +254,9 @@ public class CsvIORecordToObjectsTest {
             emptyCustomProcessingMap(),
             allPrimitiveDataTypesFromRowFn(),
             ALL_PRIMITIVE_DATA_TYPES_CODER);
-    PAssert.that(input.apply(underTest)).empty();
+    CsvIOParseResult<AllPrimitiveDataTypes> result = input.apply(underTest);
+    PAssert.that(result.getOutput()).empty();
+    PAssert.that(result.getErrors()).empty();
     pipeline.run();
   }
 
@@ -270,7 +284,9 @@ public class CsvIORecordToObjectsTest {
             timeContainingCustomProcessingMap(),
             ROW_ROW_SERIALIZABLE_FUNCTION,
             TIME_CONTAINING_ROW_CODER);
-    PAssert.that(input.apply(underTest)).containsInAnyOrder(want);
+    CsvIOParseResult<Row> result = input.apply(underTest);
+    PAssert.that(result.getOutput()).containsInAnyOrder(want);
+    PAssert.that(result.getErrors()).empty();
     pipeline.run();
   }
 
@@ -295,7 +311,9 @@ public class CsvIORecordToObjectsTest {
             timeContainingCustomProcessingMap(),
             timeContainingFromRowFn(),
             TIME_CONTAINING_POJO_CODER);
-    PAssert.that(input.apply(underTest)).containsInAnyOrder(want);
+    CsvIOParseResult<TimeContaining> result = input.apply(underTest);
+    PAssert.that(result.getOutput()).containsInAnyOrder(want);
+    PAssert.that(result.getErrors()).empty();
     pipeline.run();
   }
 
@@ -310,8 +328,11 @@ public class CsvIORecordToObjectsTest {
             emptyCustomProcessingMap(),
             allPrimitiveDataTypesFromRowFn(),
             ALL_PRIMITIVE_DATA_TYPES_CODER);
-    input.apply(underTest);
-    assertThrows(Pipeline.PipelineExecutionException.class, pipeline::run);
+    CsvIOParseResult<AllPrimitiveDataTypes> result = input.apply(underTest);
+    PAssert.that(result.getOutput()).empty();
+    PAssert.thatSingleton(result.getErrors().apply(Count.globally())).isEqualTo(1L);
+
+    pipeline.run();
   }
 
   @Test
@@ -328,8 +349,11 @@ public class CsvIORecordToObjectsTest {
             timeContainingCustomProcessingMap(),
             timeContainingFromRowFn(),
             TIME_CONTAINING_POJO_CODER);
-    input.apply(underTest);
-    assertThrows(Pipeline.PipelineExecutionException.class, pipeline::run);
+    CsvIOParseResult<TimeContaining> result = input.apply(underTest);
+    PAssert.that(result.getOutput()).empty();
+    PAssert.thatSingleton(result.getErrors().apply(Count.globally())).isEqualTo(1L);
+
+    pipeline.run();
   }
 
   private static PCollection<List<String>> csvRecords(Pipeline pipeline, String... cells) {

@@ -20,17 +20,25 @@ package org.apache.beam.sdk.metrics;
 import static org.apache.beam.sdk.metrics.MetricResultsMatchers.attemptedMetricsResult;
 import static org.apache.beam.sdk.metrics.MetricResultsMatchers.distributionMinMax;
 import static org.apache.beam.sdk.metrics.MetricResultsMatchers.metricsResult;
+import static org.apache.beam.sdk.testing.SerializableMatchers.greaterThan;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.anyOf;
-import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.io.IOException;
 import java.io.Serializable;
+import java.util.List;
+import java.util.NoSuchElementException;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.GenerateSequence;
+import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesAttemptedMetrics;
@@ -45,7 +53,9 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.hamcrest.Matcher;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.After;
@@ -416,17 +426,136 @@ public class MetricsTest implements Serializable {
       MetricQueryResults metrics = queryTestMetrics(result);
       assertStringSetMetrics(metrics, false);
     }
+
+    @Test
+    @Category({ValidatesRunner.class, UsesAttemptedMetrics.class, UsesCounterMetrics.class})
+    public void testBoundedSourceMetricsInSplit() {
+      pipeline.apply(Read.from(new CountingSourceWithMetrics(0, 10)));
+      PipelineResult pipelineResult = pipeline.run();
+      MetricQueryResults metrics =
+          pipelineResult
+              .metrics()
+              .queryMetrics(
+                  MetricsFilter.builder()
+                      .addNameFilter(
+                          MetricNameFilter.named(
+                              CountingSourceWithMetrics.class,
+                              CountingSourceWithMetrics.SPLIT_NAME))
+                      .addNameFilter(
+                          MetricNameFilter.named(
+                              CountingSourceWithMetrics.class,
+                              CountingSourceWithMetrics.ADVANCE_NAME))
+                      .build());
+      assertThat(
+          metrics.getCounters(),
+          hasItem(
+              attemptedMetricsResult(
+                  CountingSourceWithMetrics.class.getName(),
+                  CountingSourceWithMetrics.ADVANCE_NAME,
+                  null, // step name varies depending on the runner
+                  10L)));
+      assertThat(
+          metrics.getCounters(),
+          hasItem(
+              metricsResult(
+                  CountingSourceWithMetrics.class.getName(),
+                  CountingSourceWithMetrics.SPLIT_NAME,
+                  null, // step name varies depending on the runner
+                  greaterThan(0L),
+                  false)));
+    }
+  }
+
+  public static class CountingSourceWithMetrics extends BoundedSource<Integer> {
+    public static final String SPLIT_NAME = "num-split";
+    public static final String ADVANCE_NAME = "num-advance";
+    private static Counter splitCounter =
+        Metrics.counter(CountingSourceWithMetrics.class, SPLIT_NAME);
+    private static Counter advanceCounter =
+        Metrics.counter(CountingSourceWithMetrics.class, ADVANCE_NAME);
+    private final int start;
+    private final int end;
+
+    @Override
+    public List<? extends BoundedSource<Integer>> split(
+        long desiredBundleSizeBytes, PipelineOptions options) {
+      splitCounter.inc();
+      // simply split the current source into two
+      if (end - start >= 2) {
+        int mid = (start + end + 1) / 2;
+        return ImmutableList.of(
+            new CountingSourceWithMetrics(start, mid), new CountingSourceWithMetrics(mid, end));
+      }
+      return null;
+    }
+
+    @Override
+    public long getEstimatedSizeBytes(PipelineOptions options) {
+      return 0;
+    }
+
+    @Override
+    public BoundedReader<Integer> createReader(PipelineOptions options) {
+      return new CountingReader();
+    }
+
+    public CountingSourceWithMetrics(int start, int end) {
+      this.start = start;
+      this.end = end;
+    }
+
+    @Override
+    public Coder<Integer> getOutputCoder() {
+      return VarIntCoder.of();
+    }
+
+    public class CountingReader extends BoundedSource.BoundedReader<Integer> {
+      private int current;
+
+      @Override
+      public boolean start() throws IOException {
+        return current < end;
+      }
+
+      @Override
+      public boolean advance() {
+        ++current;
+        advanceCounter.inc();
+        return current < end;
+      }
+
+      @Override
+      public Integer getCurrent() throws NoSuchElementException {
+        return current;
+      }
+
+      @Override
+      public void close() {}
+
+      @Override
+      public BoundedSource<Integer> getCurrentSource() {
+        return null;
+      }
+
+      public CountingReader() {
+        current = start;
+      }
+    }
+  }
+
+  private static <T> Matcher<MetricResult<T>> metricsResultPatchStep(
+      final String name, final String step, final T value, final boolean isCommitted) {
+    return anyOf(
+        metricsResult(NAMESPACE, name, step, value, isCommitted),
+        // portable runner adds a suffix for metrics initiated outside anonymous pardo
+        metricsResult(NAMESPACE, name, step + "-ParMultiDo-Anonymous-", value, isCommitted));
   }
 
   private static void assertCounterMetrics(MetricQueryResults metrics, boolean isCommitted) {
+    System.out.println(metrics.getCounters());
     assertThat(
         metrics.getCounters(),
-        anyOf(
-            // Step names are different for portable and non-portable runners.
-            hasItem(metricsResult(NAMESPACE, "count", "MyStep1", 3L, isCommitted)),
-            hasItem(
-                metricsResult(
-                    NAMESPACE, "count", "MyStep1-ParMultiDo-Anonymous-", 3L, isCommitted))));
+        hasItem(metricsResultPatchStep("count", "MyStep1", 3L, isCommitted)));
 
     assertThat(
         metrics.getCounters(),
@@ -446,27 +575,36 @@ public class MetricsTest implements Serializable {
   }
 
   private static void assertStringSetMetrics(MetricQueryResults metrics, boolean isCommitted) {
+    // TODO(https://github.com/apache/beam/issues/32001) use containsInAnyOrder once portableMetrics
+    //   duplicate metrics issue fixed
     assertThat(
         metrics.getStringSets(),
-        containsInAnyOrder(
-            metricsResult(
-                NAMESPACE,
+        hasItem(
+            metricsResultPatchStep(
                 "sources",
                 "MyStep1",
                 StringSetResult.create(ImmutableSet.of("gcs")),
-                isCommitted),
+                isCommitted)));
+    assertThat(
+        metrics.getStringSets(),
+        hasItem(
             metricsResult(
                 NAMESPACE,
                 "sinks",
                 "MyStep2",
                 StringSetResult.create(ImmutableSet.of("kafka", "bq")),
-                isCommitted),
-            metricsResult(
-                NAMESPACE,
+                isCommitted)));
+    assertThat(
+        metrics.getStringSets(),
+        hasItem(
+            metricsResultPatchStep(
                 "sideinputs",
                 "MyStep1",
                 StringSetResult.create(ImmutableSet.of("bigtable", "spanner")),
-                isCommitted),
+                isCommitted)));
+    assertThat(
+        metrics.getStringSets(),
+        hasItem(
             metricsResult(
                 NAMESPACE,
                 "sideinputs",
@@ -478,22 +616,9 @@ public class MetricsTest implements Serializable {
   private static void assertDistributionMetrics(MetricQueryResults metrics, boolean isCommitted) {
     assertThat(
         metrics.getDistributions(),
-        anyOf(
-            // Step names are different for portable and non-portable runners.
-            hasItem(
-                metricsResult(
-                    NAMESPACE,
-                    "input",
-                    "MyStep1",
-                    DistributionResult.create(26L, 3L, 5L, 13L),
-                    isCommitted)),
-            hasItem(
-                metricsResult(
-                    NAMESPACE,
-                    "input",
-                    "MyStep1-ParMultiDo-Anonymous-",
-                    DistributionResult.create(26L, 3L, 5L, 13L),
-                    isCommitted))));
+        hasItem(
+            metricsResultPatchStep(
+                "input", "MyStep1", DistributionResult.create(26L, 3L, 5L, 13L), isCommitted)));
 
     assertThat(
         metrics.getDistributions(),

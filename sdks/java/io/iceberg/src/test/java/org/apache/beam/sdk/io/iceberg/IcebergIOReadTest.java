@@ -70,7 +70,7 @@ public class IcebergIOReadTest {
     TableIdentifier tableId =
         TableIdentifier.of("default", "table" + Long.toString(UUID.randomUUID().hashCode(), 16));
     Table simpleTable = warehouse.createTable(tableId, TestFixtures.SCHEMA);
-    final Schema schema = SchemaAndRowConversions.icebergSchemaToBeamSchema(TestFixtures.SCHEMA);
+    final Schema schema = IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA);
 
     simpleTable
         .newFastAppend()
@@ -91,7 +91,7 @@ public class IcebergIOReadTest {
                 TestFixtures.FILE2SNAPSHOT1,
                 TestFixtures.FILE3SNAPSHOT1)
             .flatMap(List::stream)
-            .map(record -> SchemaAndRowConversions.recordToRow(schema, record))
+            .map(record -> IcebergUtils.icebergRecordToBeamRow(schema, record))
             .collect(Collectors.toList());
 
     Properties props = new Properties();
@@ -105,9 +105,7 @@ public class IcebergIOReadTest {
         testPipeline
             .apply(IcebergIO.readRows(catalogConfig).from(tableId))
             .apply(ParDo.of(new PrintRow()))
-            .setCoder(
-                RowCoder.of(
-                    SchemaAndRowConversions.icebergSchemaToBeamSchema(TestFixtures.SCHEMA)));
+            .setCoder(RowCoder.of(IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA)));
 
     PAssert.that(output)
         .satisfies(

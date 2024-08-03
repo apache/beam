@@ -33,13 +33,13 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillMetadataServiceV1Alpha1Grpc;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
@@ -48,6 +48,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkerMetadataR
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillConnection;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
+import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.ThrottlingGetDataMetricTracker;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCachingStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannelFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.testing.FakeWindmillStubFactory;
@@ -97,7 +98,6 @@ public class StreamingEngineClientTest {
           .build();
 
   @Rule public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
-  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private final MutableHandlerRegistry serviceRegistry = new MutableHandlerRegistry();
   private final GrpcWindmillStreamFactory streamFactory =
       spy(GrpcWindmillStreamFactory.of(JOB_HEADER).build());
@@ -109,7 +109,7 @@ public class StreamingEngineClientTest {
   private final GrpcDispatcherClient dispatcherClient =
       GrpcDispatcherClient.forTesting(
           stubFactory, new ArrayList<>(), new ArrayList<>(), new HashSet<>());
-
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private Server fakeStreamingEngineServer;
   private CountDownLatch getWorkerMetadataReady;
   private GetWorkerMetadataTestStub fakeGetWorkerMetadataStub;
@@ -181,7 +181,8 @@ public class StreamingEngineClientTest {
         getWorkBudgetDistributor,
         dispatcherClient,
         CLIENT_ID,
-        ignored -> mock(WorkCommitter.class));
+        ignored -> mock(WorkCommitter.class),
+        new ThrottlingGetDataMetricTracker(mock(MemoryMonitor.class)));
   }
 
   @Test
@@ -222,8 +223,6 @@ public class StreamingEngineClientTest {
     Set<String> workerTokens =
         currentConnections.windmillConnections().values().stream()
             .map(WindmillConnection::backendWorkerToken)
-            .filter(Optional::isPresent)
-            .map(Optional::get)
             .collect(Collectors.toSet());
 
     assertTrue(workerTokens.contains(workerToken));
@@ -235,7 +234,13 @@ public class StreamingEngineClientTest {
 
     verify(streamFactory, times(2))
         .createDirectGetWorkStream(
-            any(), eq(getWorkRequest(0, 0)), any(), any(), any(), eq(noOpProcessWorkItemFn()));
+            any(),
+            eq(getWorkRequest(0, 0)),
+            any(),
+            any(),
+            any(),
+            any(),
+            eq(noOpProcessWorkItemFn()));
 
     verify(streamFactory, times(2)).createGetDataStream(any(), any());
     verify(streamFactory, times(2)).createCommitWorkStream(any(), any());
@@ -312,8 +317,6 @@ public class StreamingEngineClientTest {
     Set<String> workerTokens =
         streamingEngineClient.getCurrentConnections().windmillConnections().values().stream()
             .map(WindmillConnection::backendWorkerToken)
-            .filter(Optional::isPresent)
-            .map(Optional::get)
             .collect(Collectors.toSet());
 
     assertFalse(workerTokens.contains(workerToken));

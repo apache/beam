@@ -44,6 +44,7 @@ from apache_beam.metrics.metricbase import Counter
 from apache_beam.metrics.metricbase import Distribution
 from apache_beam.metrics.metricbase import Gauge
 from apache_beam.metrics.metricbase import MetricName
+from apache_beam.metrics.metricbase import StringSet
 
 if TYPE_CHECKING:
   from apache_beam.metrics.execution import MetricKey
@@ -115,6 +116,23 @@ class Metrics(object):
     namespace = Metrics.get_namespace(namespace)
     return Metrics.DelegatingGauge(MetricName(namespace, name))
 
+  @staticmethod
+  def string_set(
+      namespace: Union[Type, str], name: str) -> 'Metrics.DelegatingStringSet':
+    """Obtains or creates a String set metric.
+
+    String set metrics are restricted to string values.
+
+    Args:
+      namespace: A class or string that gives the namespace to a metric
+      name: A string that gives a unique name to a metric
+
+    Returns:
+      A StringSet object.
+    """
+    namespace = Metrics.get_namespace(namespace)
+    return Metrics.DelegatingStringSet(MetricName(namespace, name))
+
   class DelegatingCounter(Counter):
     """Metrics Counter that Delegates functionality to MetricsEnvironment."""
     def __init__(
@@ -138,11 +156,18 @@ class Metrics(object):
       super().__init__(metric_name)
       self.set = MetricUpdater(cells.GaugeCell, metric_name)  # type: ignore[assignment]
 
+  class DelegatingStringSet(StringSet):
+    """Metrics StringSet that Delegates functionality to MetricsEnvironment."""
+    def __init__(self, metric_name: MetricName) -> None:
+      super().__init__(metric_name)
+      self.add = MetricUpdater(cells.StringSetCell, metric_name)  # type: ignore[assignment]
+
 
 class MetricResults(object):
   COUNTERS = "counters"
   DISTRIBUTIONS = "distributions"
   GAUGES = "gauges"
+  STRINGSETS = "string_sets"
 
   @staticmethod
   def _matches_name(filter: 'MetricsFilter', metric_key: 'MetricKey') -> bool:
@@ -207,11 +232,13 @@ class MetricResults(object):
         {
           "counters": [MetricResult(counter_key, committed, attempted), ...],
           "distributions": [MetricResult(dist_key, committed, attempted), ...],
-          "gauges": []  // Empty list if nothing matched the filter.
+          "gauges": [],  // Empty list if nothing matched the filter.
+          "string_sets": [] [MetricResult(string_set_key, committed, attempted),
+                            ...]
         }
 
     The committed / attempted values are DistributionResult / GaugeResult / int
-    objects.
+    / set objects.
     """
     raise NotImplementedError
 
