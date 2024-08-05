@@ -29,22 +29,22 @@ import org.apache.beam.sdk.util.construction.PipelineTranslation;
 import org.apache.beam.sdk.util.construction.SdkComponents;
 
 /**
- * The {@link ArtifactResolver} converts a {@link Pipeline} to a {@link RunnerApi.Pipeline} via
+ * The {@link PrismArtifactResolver} converts a {@link Pipeline} to a {@link RunnerApi.Pipeline} via
  * resolving {@link RunnerApi.ArtifactInformation}.
  */
 @AutoValue
-abstract class ArtifactResolver {
+abstract class PrismArtifactResolver {
 
   /**
-   * Instantiates a {@link ArtifactResolver} from the {@param pipeline}, applying defaults to the
+   * Instantiates a {@link PrismArtifactResolver} from the {@param pipeline}, applying defaults to the
    * remaining dependencies.
    */
-  static ArtifactResolver of(Pipeline pipeline) {
-    return ArtifactResolver.builder().setPipeline(pipeline).build();
+  static PrismArtifactResolver of(Pipeline pipeline) {
+    return PrismArtifactResolver.builder().setPipeline(pipeline).build();
   }
 
   static Builder builder() {
-    return new AutoValue_ArtifactResolver.Builder();
+    return new AutoValue_Prism_ArtifactResolver.Builder();
   }
 
   /**
@@ -58,14 +58,14 @@ abstract class ArtifactResolver {
   }
 
   /**
-   * {@link ArtifactResolver} delegates to {@link
+   * {@link PrismArtifactResolver} delegates to {@link
    * org.apache.beam.sdk.util.construction.ArtifactResolver} to transform {@link
    * RunnerApi.ArtifactInformation}. Defaults to {@link DefaultArtifactResolver#INSTANCE} if not
    * set.
    */
   abstract org.apache.beam.sdk.util.construction.ArtifactResolver getDelegate();
 
-  /** The {@link Pipeline} from which {@link ArtifactResolver#resolvePipelineProto()}. */
+  /** The {@link Pipeline} from which {@link PrismArtifactResolver#resolvePipelineProto()}. */
   abstract Pipeline getPipeline();
 
   /**
@@ -92,9 +92,9 @@ abstract class ArtifactResolver {
 
     abstract Optional<Pipeline> getPipeline();
 
-    abstract ArtifactResolver autoBuild();
+    abstract PrismArtifactResolver autoBuild();
 
-    final ArtifactResolver build() {
+    final PrismArtifactResolver build() {
       if (!getDelegate().isPresent()) {
         setDelegate(DefaultArtifactResolver.INSTANCE);
       }

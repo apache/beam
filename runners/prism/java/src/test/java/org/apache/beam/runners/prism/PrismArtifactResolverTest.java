@@ -27,14 +27,14 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Tests for {@link ArtifactResolver}. */
+/** Tests for {@link PrismArtifactResolver}. */
 @RunWith(JUnit4.class)
-public class ArtifactResolverTest {
+public class PrismArtifactResolverTest {
   @Test
   public void resolvesPipeline() {
     Pipeline pipeline = Pipeline.create();
     pipeline.apply(Impulse.create());
-    ArtifactResolver underTest = ArtifactResolver.of(pipeline);
+    PrismArtifactResolver underTest = PrismArtifactResolver.of(pipeline);
     RunnerApi.Pipeline pipelineProto = underTest.resolvePipelineProto();
     RunnerApi.Components components = pipelineProto.getComponents();
     assertThat(components.getTransformsMap()).containsKey("Impulse");
