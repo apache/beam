@@ -53,6 +53,7 @@ import org.apache.beam.sdk.io.azure.options.BlobstoreOptions;
 import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MoveOptions;
+import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
@@ -448,5 +449,19 @@ class AzureBlobStoreFileSystem extends FileSystem<AzfsResourceId> {
           singleResourceSpec);
     }
     return AzfsResourceId.fromUri(singleResourceSpec);
+  }
+
+  @Override
+  protected void reportLineage(AzfsResourceId resourceId, Lineage.Type type) {
+    if (!Strings.isNullOrEmpty(resourceId.getBlob())) {
+      Lineage.get(type)
+          .add(
+              String.format(
+                  "abs:%s.%s.%s",
+                  resourceId.getAccount(), resourceId.getContainer(), resourceId.getBlob()));
+    } else {
+      Lineage.get(type)
+          .add(String.format("abs:%s.%s", resourceId.getAccount(), resourceId.getContainer()));
+    }
   }
 }

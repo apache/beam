@@ -39,6 +39,18 @@ public class Lineage {
     return SINKS;
   }
 
+  /** {@link StringSet} representing {@link Type}. */
+  public static StringSet get(Type type) {
+    switch (type) {
+      case SOURCE:
+        return getSources();
+      case SINK:
+        return getSinks();
+      default:
+        throw new IllegalArgumentException(String.format("Unsupported Lineage type: %s", type));
+    }
+  }
+
   /** Query {@link StringSet} metrics from {@link MetricResults}. */
   public static Set<String> query(MetricResults results, Type type) {
     MetricsFilter filter =
