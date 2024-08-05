@@ -53,7 +53,7 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
   private final int maxMessagesBeforeCheck;
 
   private final Object lock = new Object();
-  private int numMessages = -1;
+  private int numMessages;
 
   public DirectStreamObserver(Phaser phaser, CallStreamObserver<T> outboundObserver) {
     this(phaser, outboundObserver, DEFAULT_MAX_MESSAGES_BEFORE_CHECK);
@@ -61,9 +61,12 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
 
   DirectStreamObserver(
       Phaser phaser, CallStreamObserver<T> outboundObserver, int maxMessagesBeforeCheck) {
-    this.phaser = phaser;
-    this.outboundObserver = outboundObserver;
-    this.maxMessagesBeforeCheck = maxMessagesBeforeCheck;
+    synchronized (this.lock) {
+      this.phaser = phaser;
+      this.outboundObserver = outboundObserver;
+      this.maxMessagesBeforeCheck = maxMessagesBeforeCheck;
+      this.numMessages = -1;
+    }
   }
 
   @Override
