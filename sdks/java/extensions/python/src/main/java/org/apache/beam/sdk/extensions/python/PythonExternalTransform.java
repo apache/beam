@@ -22,6 +22,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -61,7 +62,6 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -499,7 +499,8 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
           requirementsFile.deleteOnExit();
           try (Writer fout =
               new OutputStreamWriter(
-                  new FileOutputStream(requirementsFile.getAbsolutePath()), Charsets.UTF_8)) {
+                  new FileOutputStream(requirementsFile.getAbsolutePath()),
+                  StandardCharsets.UTF_8)) {
             for (String pkg : extraPackages) {
               fout.write(pkg);
               fout.write('\n');
