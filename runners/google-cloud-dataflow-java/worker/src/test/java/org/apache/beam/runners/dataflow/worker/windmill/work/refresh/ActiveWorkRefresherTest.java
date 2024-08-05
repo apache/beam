@@ -197,6 +197,7 @@ public class ActiveWorkRefresherTest {
               Correspondence.from(
                   (Windmill.HeartbeatRequest h, Work w) -> {
                     assert h != null;
+                    assert w != null;
                     return h.getWorkToken() == w.getWorkItem().getWorkToken()
                         && h.getCacheToken() == w.getWorkItem().getWorkToken()
                         && h.getShardingKey() == w.getWorkItem().getShardingKey();
@@ -215,7 +216,6 @@ public class ActiveWorkRefresherTest {
     int activeWorkRefreshPeriodMillis = 100;
 
     List<ComputationState> computations = new ArrayList<>();
-    Map<String, List<ExecutableWork>> computationsAndWork = new HashMap<>();
     for (int i = 0; i < 5; i++) {
       ComputationState computationState = createComputationState(i);
       computations.add(computationState);
