@@ -40,7 +40,9 @@ from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.runners.portability import portable_runner_test
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.transforms import window
 from apache_beam.transforms.sql import SqlTransform
+from apache_beam.utils import timestamp
 
 # Run as
 #
@@ -177,6 +179,23 @@ class PrismRunnerTest(portable_runner_test.PortableRunnerTest):
         PortableOptions).environment_options = self.environment_options
 
     return options
+
+  # Slightly more robust session window test:
+  # Validates that an inner grouping doesn't duplicate data either.
+  # Copied also because the timestamp in fn_runner_test.py isn't being
+  # inferred correctly as seconds for some reason, but as micros.
+  # The belabored specification is validating the timestamp type works at least.
+  # See https://github.com/apache/beam/issues/32085
+  def test_windowing(self):
+    with self.create_pipeline() as p:
+      res = (
+          p
+          | beam.Create([1, 2, 100, 101, 102, 123])
+          | beam.Map(lambda t: window.TimestampedValue(('k', t), timestamp.Timestamp.of(t).micros))
+          | beam.WindowInto(beam.transforms.window.Sessions(10))
+          | beam.GroupByKey()
+          | beam.Map(lambda k_vs1: (k_vs1[0], sorted(k_vs1[1]))))
+      assert_that(res, equal_to([('k', [1, 2]), ('k', [100, 101, 102]), ('k', [123])]))
 
   # Can't read host files from within docker, read a "local" file there.
   def test_read(self):
