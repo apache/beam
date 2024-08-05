@@ -15,18 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker.windmill.work.budget;
+package org.apache.beam.runners.dataflow.worker.streaming.harness;
 
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableCollection;
 
-/**
- * Distributes the total {@link GetWorkBudget} amongst the {@link
- * org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream}(s) to
- * Windmill.
- */
+/** Provides an interface to start streaming worker processing. */
 @Internal
-public interface GetWorkBudgetDistributor {
-  <T extends GetWorkBudgetSpender> void distributeBudget(
-      ImmutableCollection<T> streams, GetWorkBudget getWorkBudget);
+public interface StreamingWorkerHarness {
+  void start();
+
+  void shutdown();
 }

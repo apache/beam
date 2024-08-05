@@ -17,16 +17,16 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.work.budget;
 
-import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableCollection;
-
 /**
- * Distributes the total {@link GetWorkBudget} amongst the {@link
- * org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream}(s) to
- * Windmill.
+ * Represents something that spends {@link
+ * org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget}
  */
-@Internal
-public interface GetWorkBudgetDistributor {
-  <T extends GetWorkBudgetSpender> void distributeBudget(
-      ImmutableCollection<T> streams, GetWorkBudget getWorkBudget);
+public interface GetWorkBudgetSpender {
+  void adjustBudget(long itemsDelta, long bytesDelta);
+
+  default void adjustBudget(GetWorkBudget adjustment) {
+    adjustBudget(adjustment.items(), adjustment.bytes());
+  }
+
+  GetWorkBudget remainingBudget();
 }
