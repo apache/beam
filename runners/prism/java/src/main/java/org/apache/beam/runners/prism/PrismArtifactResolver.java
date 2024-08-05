@@ -44,7 +44,7 @@ abstract class PrismArtifactResolver {
   }
 
   static Builder builder() {
-    return new AutoValue_Prism_ArtifactResolver.Builder();
+    return new AutoValue_PrismArtifactResolver.Builder();
   }
 
   /**
