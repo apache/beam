@@ -36,8 +36,8 @@ import org.apache.beam.sdk.util.construction.SdkComponents;
 abstract class PrismArtifactResolver {
 
   /**
-   * Instantiates a {@link PrismArtifactResolver} from the {@param pipeline}, applying defaults to the
-   * remaining dependencies.
+   * Instantiates a {@link PrismArtifactResolver} from the {@param pipeline}, applying defaults to
+   * the remaining dependencies.
    */
   static PrismArtifactResolver of(Pipeline pipeline) {
     return PrismArtifactResolver.builder().setPipeline(pipeline).build();
