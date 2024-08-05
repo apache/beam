@@ -25,6 +25,7 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	"google.golang.org/api/option"
 )
 
@@ -61,6 +62,41 @@ func Upload(ctx context.Context, client *storage.Client, project, bucket, object
 	}
 	return fmt.Sprintf("gs://%s/%s", bucket, object), nil
 
+}
+
+// SoftDeletePolicyEnabled checks whether soft delete policy is enabled.
+// Note that soft delete policy is disabled when RetentionDuration is zero. Otherwise,
+// soft delete policy is enabled by default.
+func SoftDeletePolicyEnabled(attrs *storage.BucketAttrs) bool {
+	if attrs == nil || attrs.SoftDeletePolicy == nil {
+		return false
+	}
+	return attrs.SoftDeletePolicy.RetentionDuration > 0
+}
+
+// WarnIfSoftDeletePolicyEnabled warns if the soft delete policy is enabled for the temporary bucket.
+func WarnIfSoftDeletePolicyEnabled(ctx context.Context, client *storage.Client, bucket string) {
+	exists, err := BucketExists(ctx, client, bucket)
+	if err != nil {
+		panic("Fail to check BucketExists.")
+	}
+	// If the bucket does not exist, we don't need to check further.
+	if !exists {
+		return
+	}
+	attrs, err := client.Bucket(bucket).Attrs(ctx)
+	if err != nil {
+		panic("Cannot get BucketAttributes for the bucket.")
+	}
+	enabled := SoftDeletePolicyEnabled(attrs)
+	if enabled && bucket == "tmp" {
+		log.Warnf(ctx, "Bucket specified in has soft-delete policy enabled."+
+			" To avoid being billed for unnecessary storage costs, turn"+
+			" off the soft delete feature on buckets that your Dataflow"+
+			" jobs use for temporary and staging storage. For more information,"+
+			" see https://cloud.google.com/storage/docs/use-soft-delete"+
+			"#remove-soft-delete-policy.")
+	}
 }
 
 // Get BucketAttrs with RetentionDuration of SoftDeletePolicy set to zero for disabling SoftDeletePolicy.
