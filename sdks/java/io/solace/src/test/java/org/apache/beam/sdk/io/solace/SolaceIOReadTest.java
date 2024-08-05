@@ -31,6 +31,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
@@ -61,7 +62,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
-public class SolaceIOTest {
+public class SolaceIOReadTest {
 
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
@@ -102,19 +103,21 @@ public class SolaceIOTest {
   public void testReadMessages() {
     // Broker that creates input data
     MockSessionService mockClientService =
-        new MockSessionService(
-            index -> {
-              List<BytesXMLMessage> messages =
-                  ImmutableList.of(
-                      SolaceDataUtils.getBytesXmlMessage("payload_test0", "450"),
-                      SolaceDataUtils.getBytesXmlMessage("payload_test1", "451"),
-                      SolaceDataUtils.getBytesXmlMessage("payload_test2", "452"));
-              return getOrNull(index, messages);
-            },
-            3);
+        MockSessionService.builder()
+            .recordFn(
+                index -> {
+                  List<BytesXMLMessage> messages =
+                      ImmutableList.of(
+                          SolaceDataUtils.getBytesXmlMessage("payload_test0", "450"),
+                          SolaceDataUtils.getBytesXmlMessage("payload_test1", "451"),
+                          SolaceDataUtils.getBytesXmlMessage("payload_test2", "452"));
+                  return getOrNull(index, messages);
+                })
+            .minMessagesReceived(3)
+            .build();
 
     SessionServiceFactory fakeSessionServiceFactory =
-        new MockSessionServiceFactory(mockClientService);
+        MockSessionServiceFactory.of(mockClientService);
 
     // Expected data
     List<Solace.Record> expected = new ArrayList<>();
@@ -137,19 +140,21 @@ public class SolaceIOTest {
   public void testReadMessagesWithDeduplication() {
     // Broker that creates input data
     MockSessionService mockClientService =
-        new MockSessionService(
-            index -> {
-              List<BytesXMLMessage> messages =
-                  ImmutableList.of(
-                      SolaceDataUtils.getBytesXmlMessage("payload_test0", "450"),
-                      SolaceDataUtils.getBytesXmlMessage("payload_test1", "451"),
-                      SolaceDataUtils.getBytesXmlMessage("payload_test2", "451"));
-              return getOrNull(index, messages);
-            },
-            3);
+        MockSessionService.builder()
+            .recordFn(
+                index -> {
+                  List<BytesXMLMessage> messages =
+                      ImmutableList.of(
+                          SolaceDataUtils.getBytesXmlMessage("payload_test0", "450"),
+                          SolaceDataUtils.getBytesXmlMessage("payload_test1", "451"),
+                          SolaceDataUtils.getBytesXmlMessage("payload_test2", "451"));
+                  return getOrNull(index, messages);
+                })
+            .minMessagesReceived(3)
+            .build();
 
     SessionServiceFactory fakeSessionServiceFactory =
-        new MockSessionServiceFactory(mockClientService);
+        MockSessionServiceFactory.of(mockClientService);
 
     // Expected data
     List<Solace.Record> expected = new ArrayList<>();
@@ -172,18 +177,20 @@ public class SolaceIOTest {
   public void testReadMessagesWithoutDeduplication() {
     // Broker that creates input data
     MockSessionService mockClientService =
-        new MockSessionService(
-            index -> {
-              List<BytesXMLMessage> messages =
-                  ImmutableList.of(
-                      SolaceDataUtils.getBytesXmlMessage("payload_test0", "450"),
-                      SolaceDataUtils.getBytesXmlMessage("payload_test1", "451"),
-                      SolaceDataUtils.getBytesXmlMessage("payload_test2", "451"));
-              return getOrNull(index, messages);
-            },
-            3);
+        MockSessionService.builder()
+            .recordFn(
+                index -> {
+                  List<BytesXMLMessage> messages =
+                      ImmutableList.of(
+                          SolaceDataUtils.getBytesXmlMessage("payload_test0", "450"),
+                          SolaceDataUtils.getBytesXmlMessage("payload_test1", "451"),
+                          SolaceDataUtils.getBytesXmlMessage("payload_test2", "451"));
+                  return getOrNull(index, messages);
+                })
+            .minMessagesReceived(3)
+            .build();
     SessionServiceFactory fakeSessionServiceFactory =
-        new MockSessionServiceFactory(mockClientService);
+        MockSessionServiceFactory.of(mockClientService);
 
     // Expected data
     List<Solace.Record> expected = new ArrayList<>();
@@ -205,32 +212,51 @@ public class SolaceIOTest {
   @Test
   public void testReadMessagesWithDeduplicationOnReplicationGroupMessageId() {
     // Broker that creates input data
+
+    String id0 = UUID.randomUUID().toString();
+    String id1 = UUID.randomUUID().toString();
+    String id2 = UUID.randomUUID().toString();
+
     MockSessionService mockClientService =
-        new MockSessionService(
-            index -> {
-              List<BytesXMLMessage> messages =
-                  ImmutableList.of(
-                      SolaceDataUtils.getBytesXmlMessage(
-                          "payload_test0", null, null, new ReplicationGroupMessageIdImpl(2L, 1L)),
-                      SolaceDataUtils.getBytesXmlMessage(
-                          "payload_test1", null, null, new ReplicationGroupMessageIdImpl(2L, 2L)),
-                      SolaceDataUtils.getBytesXmlMessage(
-                          "payload_test2", null, null, new ReplicationGroupMessageIdImpl(2L, 2L)));
-              return getOrNull(index, messages);
-            },
-            3);
+        MockSessionService.builder()
+            .recordFn(
+                index -> {
+                  List<BytesXMLMessage> messages =
+                      ImmutableList.of(
+                          SolaceDataUtils.getBytesXmlMessage(
+                              "payload_test0",
+                              id0,
+                              null,
+                              new ReplicationGroupMessageIdImpl(2L, 1L)),
+                          SolaceDataUtils.getBytesXmlMessage(
+                              "payload_test1",
+                              id1,
+                              null,
+                              new ReplicationGroupMessageIdImpl(2L, 2L)),
+                          SolaceDataUtils.getBytesXmlMessage(
+                              "payload_test2",
+                              id2,
+                              null,
+                              new ReplicationGroupMessageIdImpl(2L, 2L)));
+                  return getOrNull(index, messages);
+                })
+            .minMessagesReceived(3)
+            .build();
 
     SessionServiceFactory fakeSessionServiceFactory =
-        new MockSessionServiceFactory(mockClientService);
+        MockSessionServiceFactory.of(mockClientService);
 
     // Expected data
     List<Solace.Record> expected = new ArrayList<>();
     expected.add(
         SolaceDataUtils.getSolaceRecord(
-            "payload_test0", null, new ReplicationGroupMessageIdImpl(2L, 1L)));
+            "payload_test0", id0, new ReplicationGroupMessageIdImpl(2L, 1L)));
     expected.add(
         SolaceDataUtils.getSolaceRecord(
-            "payload_test1", null, new ReplicationGroupMessageIdImpl(2L, 2L)));
+            "payload_test1", id1, new ReplicationGroupMessageIdImpl(2L, 2L)));
+    expected.add(
+        SolaceDataUtils.getSolaceRecord(
+            "payload_test2", id2, new ReplicationGroupMessageIdImpl(2L, 2L)));
 
     // Run the pipeline
     PCollection<Solace.Record> events =
@@ -248,18 +274,21 @@ public class SolaceIOTest {
   public void testReadWithCoderAndParseFnAndTimestampFn() {
     // Broker that creates input data
     MockSessionService mockClientService =
-        new MockSessionService(
-            index -> {
-              List<BytesXMLMessage> messages =
-                  ImmutableList.of(
-                      SolaceDataUtils.getBytesXmlMessage("payload_test0", "450"),
-                      SolaceDataUtils.getBytesXmlMessage("payload_test1", "451"),
-                      SolaceDataUtils.getBytesXmlMessage("payload_test2", "452"));
-              return getOrNull(index, messages);
-            },
-            3);
+        MockSessionService.builder()
+            .recordFn(
+                index -> {
+                  List<BytesXMLMessage> messages =
+                      ImmutableList.of(
+                          SolaceDataUtils.getBytesXmlMessage("payload_test0", "450"),
+                          SolaceDataUtils.getBytesXmlMessage("payload_test1", "451"),
+                          SolaceDataUtils.getBytesXmlMessage("payload_test2", "452"));
+                  return getOrNull(index, messages);
+                })
+            .minMessagesReceived(3)
+            .build();
+
     SessionServiceFactory fakeSessionServiceFactory =
-        new MockSessionServiceFactory(mockClientService);
+        MockSessionServiceFactory.of(mockClientService);
 
     // Expected data
     List<SimpleRecord> expected = new ArrayList<>();
@@ -357,22 +386,27 @@ public class SolaceIOTest {
     AtomicInteger countAckMessages = new AtomicInteger(0);
 
     // Broker that creates input data
+
     MockSessionService mockClientService =
-        new MockSessionService(
-            index -> {
-              List<BytesXMLMessage> messages = new ArrayList<>();
-              for (int i = 0; i < 10; i++) {
-                messages.add(
-                    SolaceDataUtils.getBytesXmlMessage(
-                        "payload_test" + i, "45" + i, (num) -> countAckMessages.incrementAndGet()));
-              }
-              countConsumedMessages.incrementAndGet();
-              return getOrNull(index, messages);
-            },
-            10);
+        MockSessionService.builder()
+            .recordFn(
+                index -> {
+                  List<BytesXMLMessage> messages = new ArrayList<>();
+                  for (int i = 0; i < 10; i++) {
+                    messages.add(
+                        SolaceDataUtils.getBytesXmlMessage(
+                            "payload_test" + i,
+                            "45" + i,
+                            (num) -> countAckMessages.incrementAndGet()));
+                  }
+                  countConsumedMessages.incrementAndGet();
+                  return getOrNull(index, messages);
+                })
+            .minMessagesReceived(10)
+            .build();
 
     SessionServiceFactory fakeSessionServiceFactory =
-        new MockSessionServiceFactory(mockClientService);
+        MockSessionServiceFactory.of(mockClientService);
     Read<Record> spec = getDefaultRead().withSessionServiceFactory(fakeSessionServiceFactory);
 
     UnboundedSolaceSource<Record> initialSource = getSource(spec, pipeline);
@@ -407,20 +441,25 @@ public class SolaceIOTest {
 
     // Broker that creates input data
     MockSessionService mockClientService =
-        new MockSessionService(
-            index -> {
-              List<BytesXMLMessage> messages = new ArrayList<>();
-              for (int i = 0; i < 10; i++) {
-                messages.add(
-                    SolaceDataUtils.getBytesXmlMessage(
-                        "payload_test" + i, "45" + i, (num) -> countAckMessages.incrementAndGet()));
-              }
-              countConsumedMessages.incrementAndGet();
-              return getOrNull(index, messages);
-            },
-            10);
+        MockSessionService.builder()
+            .recordFn(
+                index -> {
+                  List<BytesXMLMessage> messages = new ArrayList<>();
+                  for (int i = 0; i < 10; i++) {
+                    messages.add(
+                        SolaceDataUtils.getBytesXmlMessage(
+                            "payload_test" + i,
+                            "45" + i,
+                            (num) -> countAckMessages.incrementAndGet()));
+                  }
+                  countConsumedMessages.incrementAndGet();
+                  return getOrNull(index, messages);
+                })
+            .minMessagesReceived(10)
+            .build();
+
     SessionServiceFactory fakeSessionServiceFactory =
-        new MockSessionServiceFactory(mockClientService);
+        MockSessionServiceFactory.of(mockClientService);
 
     Read<Record> spec =
         getDefaultRead()
@@ -467,21 +506,25 @@ public class SolaceIOTest {
 
     // Broker that creates input data
     MockSessionService mockClientService =
-        new MockSessionService(
-            index -> {
-              List<BytesXMLMessage> messages = new ArrayList<>();
-              for (int i = 0; i < messagesToProcess; i++) {
-                messages.add(
-                    SolaceDataUtils.getBytesXmlMessage(
-                        "payload_test" + i, "45" + i, (num) -> countAckMessages.incrementAndGet()));
-              }
-              countConsumedMessages.incrementAndGet();
-              return getOrNull(index, messages);
-            },
-            10);
+        MockSessionService.builder()
+            .recordFn(
+                index -> {
+                  List<BytesXMLMessage> messages = new ArrayList<>();
+                  for (int i = 0; i < messagesToProcess; i++) {
+                    messages.add(
+                        SolaceDataUtils.getBytesXmlMessage(
+                            "payload_test" + i,
+                            "45" + i,
+                            (num) -> countAckMessages.incrementAndGet()));
+                  }
+                  countConsumedMessages.incrementAndGet();
+                  return getOrNull(index, messages);
+                })
+            .minMessagesReceived(10)
+            .build();
 
     SessionServiceFactory fakeSessionServiceFactory =
-        new MockSessionServiceFactory(mockClientService);
+        MockSessionServiceFactory.of(mockClientService);
     Read<Record> spec =
         getDefaultRead()
             .withSessionServiceFactory(fakeSessionServiceFactory)
@@ -558,19 +601,21 @@ public class SolaceIOTest {
   @Test
   public void testTopicEncoding() {
     MockSessionService mockClientService =
-        new MockSessionService(
-            index -> {
-              List<BytesXMLMessage> messages =
-                  ImmutableList.of(
-                      SolaceDataUtils.getBytesXmlMessage("payload_test0", "450"),
-                      SolaceDataUtils.getBytesXmlMessage("payload_test1", "451"),
-                      SolaceDataUtils.getBytesXmlMessage("payload_test2", "452"));
-              return getOrNull(index, messages);
-            },
-            3);
+        MockSessionService.builder()
+            .recordFn(
+                index -> {
+                  List<BytesXMLMessage> messages =
+                      ImmutableList.of(
+                          SolaceDataUtils.getBytesXmlMessage("payload_test0", "450"),
+                          SolaceDataUtils.getBytesXmlMessage("payload_test1", "451"),
+                          SolaceDataUtils.getBytesXmlMessage("payload_test2", "452"));
+                  return getOrNull(index, messages);
+                })
+            .minMessagesReceived(3)
+            .build();
 
     SessionServiceFactory fakeSessionServiceFactory =
-        new MockSessionServiceFactory(mockClientService);
+        MockSessionServiceFactory.of(mockClientService);
 
     // Run
     PCollection<Solace.Record> events =

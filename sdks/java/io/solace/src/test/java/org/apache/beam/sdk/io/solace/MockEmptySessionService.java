@@ -17,13 +17,20 @@
  */
 package org.apache.beam.sdk.io.solace;
 
+import com.google.auto.value.AutoValue;
 import com.solacesystems.jcsmp.JCSMPProperties;
+import org.apache.beam.sdk.io.solace.broker.MessageProducer;
 import org.apache.beam.sdk.io.solace.broker.MessageReceiver;
 import org.apache.beam.sdk.io.solace.broker.SessionService;
 
-public class MockEmptySessionService extends SessionService {
+@AutoValue
+public abstract class MockEmptySessionService extends SessionService {
 
   String exceptionMessage = "This is an empty client, use a MockSessionService instead.";
+
+  public static MockEmptySessionService create() {
+    return new AutoValue_MockEmptySessionService();
+  }
 
   @Override
   public void close() {
@@ -36,7 +43,12 @@ public class MockEmptySessionService extends SessionService {
   }
 
   @Override
-  public MessageReceiver createReceiver() {
+  public MessageReceiver getReceiver() {
+    throw new UnsupportedOperationException(exceptionMessage);
+  }
+
+  @Override
+  public MessageProducer getProducer() {
     throw new UnsupportedOperationException(exceptionMessage);
   }
 

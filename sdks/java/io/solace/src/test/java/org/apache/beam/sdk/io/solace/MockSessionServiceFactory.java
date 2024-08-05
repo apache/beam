@@ -17,22 +17,24 @@
  */
 package org.apache.beam.sdk.io.solace;
 
+import com.google.auto.value.AutoValue;
 import org.apache.beam.sdk.io.solace.broker.SessionService;
 import org.apache.beam.sdk.io.solace.broker.SessionServiceFactory;
 
-public class MockSessionServiceFactory extends SessionServiceFactory {
-  SessionService sessionService;
+@AutoValue
+public abstract class MockSessionServiceFactory extends SessionServiceFactory {
+  public abstract SessionService sessionService();
 
-  public MockSessionServiceFactory(SessionService clientService) {
-    this.sessionService = clientService;
+  public static MockSessionServiceFactory of(SessionService sessionService) {
+    return new AutoValue_MockSessionServiceFactory(sessionService);
   }
 
   public static SessionServiceFactory getDefaultMock() {
-    return new MockSessionServiceFactory(new MockEmptySessionService());
+    return MockSessionServiceFactory.of(MockEmptySessionService.create());
   }
 
   @Override
   public SessionService create() {
-    return sessionService;
+    return sessionService();
   }
 }
