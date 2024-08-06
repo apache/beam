@@ -204,7 +204,8 @@ public final class GrpcDirectGetWorkStream
       send(
           StreamingGetWorkRequest.newBuilder()
               .setRequest(
-                  request.toBuilder()
+                  request
+                      .toBuilder()
                       .setMaxBytes(budgetAdjustment.bytes())
                       .setMaxItems(budgetAdjustment.items()))
               .build());

@@ -25,4 +25,6 @@ public interface StreamingWorkerHarness {
   void start();
 
   void shutdown();
+
+  long getAndResetThrottleTime();
 }
