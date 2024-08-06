@@ -17,49 +17,42 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import java.io.Serializable;
+import java.util.function.Function;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-import java.io.Serializable;
-import java.util.function.Function;
-
-/**
- * Tests for {@link SerializableComparator}.
- */
+/** Tests for {@link SerializableComparator}. */
 @RunWith(JUnit4.class)
 public class SerializableComparatorTest {
 
-    /**
-     * Basic test of {@link SerializableComparator} being {@link java.io.Serializable}.
-     */
-    @Test
-    public void testIfImplementsSerializable() {
-        SerializableFunction<String, Integer> fn = Integer::parseInt;
+  /** Basic test of {@link SerializableComparator} being {@link java.io.Serializable}. */
+  @Test
+  public void testIfImplementsSerializable() {
+    SerializableFunction<String, Integer> fn = Integer::parseInt;
 
-        SerializableComparator<String> cmp = SerializableComparator.comparing(fn);
-        Assert.assertTrue(cmp instanceof Serializable);
-    }
+    SerializableComparator<String> cmp = SerializableComparator.comparing(fn);
+    Assert.assertTrue(cmp instanceof Serializable);
+  }
 
-    /**
-     * Tests if {@link SerializableComparator#comparing(Function)} throws a
-     * {@link java.lang.NullPointerException} if <code>null<code/> is passed to it.
-     */
-    @Test(expected = NullPointerException.class)
-    public void testIfNPEThrownForNullFunction() {
-        SerializableComparator.comparing(null);
-    }
+  /**
+   * Tests if {@link SerializableComparator#comparing(Function)} throws a {@link
+   * java.lang.NullPointerException} if <code>null</code> is passed to it.
+   */
+  @Test(expected = NullPointerException.class)
+  public void testIfNPEThrownForNullFunction() {
+    SerializableComparator.comparing(null);
+  }
 
-    /**
-     * Tests the basic comparison function of the {@link SerializableComparator} returned.
-     */
-    @Test
-    public void testBasicComparison() {
-        SerializableFunction<String, Integer> fn = Integer::parseInt;
-        SerializableComparator<String> cmp = SerializableComparator.comparing(fn);
+  /** Tests the basic comparison function of the {@link SerializableComparator} returned. */
+  @Test
+  public void testBasicComparison() {
+    SerializableFunction<String, Integer> fn = Integer::parseInt;
+    SerializableComparator<String> cmp = SerializableComparator.comparing(fn);
 
-        Assert.assertTrue(cmp.compare("1", "10") < 0);
-        Assert.assertTrue(cmp.compare("9", "6") > 0);
-    }
+    Assert.assertTrue(cmp.compare("1", "10") < 0);
+    Assert.assertTrue(cmp.compare("9", "6") > 0);
+  }
 }
