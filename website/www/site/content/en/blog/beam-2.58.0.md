@@ -43,7 +43,7 @@ For more information about changes in 2.58.0, check out the [detailed release no
 ## Breaking Changes
 
 * [IcebergIO] `IcebergCatalogConfig` was changed to support specifying catalog properties in a key-store fashion ([#31726](https://github.com/apache/beam/pull/31726))
-* [SpannerIO] Added validation that query and table cannot be specified at the same time for SpannerIO.read(). Previously withQuery overrides withTable, if set ([#24956](https://github.com/apache/beam/issues/24956)).
+* [SpannerIO] Added validation that query and table cannot be specified at the same time for `SpannerIO.read()`. Previously `withQuery` overrides `withTable`, if set ([#24956](https://github.com/apache/beam/issues/24956)).
 
 ## Bug fixes
 
@@ -51,7 +51,7 @@ For more information about changes in 2.58.0, check out the [detailed release no
 
 ## List of Contributors
 
-According to git shortlog, the following people contributed to the 2.57.0 release. Thank you to all contributors!
+According to git shortlog, the following people contributed to the 2.58.0 release. Thank you to all contributors!
 
 Ahmed Abualsaud
 
