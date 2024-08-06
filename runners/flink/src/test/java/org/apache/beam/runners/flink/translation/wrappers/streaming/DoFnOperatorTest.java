@@ -149,7 +149,7 @@ public class DoFnOperatorTest {
 
     TupleTag<String> outputTag = new TupleTag<>("main-output");
 
-    DoFnOperator<String, String> doFnOperator =
+    DoFnOperator<String, String, String> doFnOperator =
         new DoFnOperator<>(
             new IdentityDoFn<>(),
             "stepName",
@@ -211,7 +211,7 @@ public class DoFnOperatorTest {
             .put(additionalOutput2, 2)
             .build();
 
-    DoFnOperator<String, String> doFnOperator =
+    DoFnOperator<String, String, String> doFnOperator =
         new DoFnOperator<>(
             new MultiOutputDoFn(additionalOutput1, additionalOutput2),
             "stepName",
@@ -353,7 +353,7 @@ public class DoFnOperatorTest {
 
     TupleTag<String> outputTag = new TupleTag<>("main-output");
 
-    DoFnOperator<Integer, String> doFnOperator =
+    DoFnOperator<Integer, Integer, String> doFnOperator =
         new DoFnOperator<>(
             fn,
             "stepName",
@@ -441,8 +441,8 @@ public class DoFnOperatorTest {
     KeySelector<WindowedValue<KV<String, String>>, ByteBuffer> keySelector =
         e -> FlinkKeyUtils.encodeKey(e.getValue().getKey(), StringUtf8Coder.of());
 
-    DoFnOperator<KV<String, String>, KV<String, String>> doFnOperator =
-        new DoFnOperator<KV<String, String>, KV<String, String>>(
+    DoFnOperator<KV<String, String>, KV<String, String>, KV<String, String>> doFnOperator =
+        new DoFnOperator<KV<String, String>, KV<String, String>, KV<String, String>>(
             new IdentityDoFn<>(),
             "stepName",
             coder,
@@ -616,7 +616,7 @@ public class DoFnOperatorTest {
 
     TupleTag<String> outputTag = new TupleTag<>("main-output");
 
-    DoFnOperator<Integer, String> doFnOperator =
+    DoFnOperator<Integer, Integer, String> doFnOperator =
         new DoFnOperator<>(
             fn,
             "stepName",
@@ -866,7 +866,7 @@ public class DoFnOperatorTest {
     KeySelector<WindowedValue<KV<String, Integer>>, ByteBuffer> keySelector =
         e -> FlinkKeyUtils.encodeKey(e.getValue().getKey(), StringUtf8Coder.of());
 
-    DoFnOperator<KV<String, Integer>, KV<String, Integer>> doFnOperator =
+    DoFnOperator<KV<String, Integer>, KV<String, Integer>, KV<String, Integer>> doFnOperator =
         new DoFnOperator<>(
             fn,
             "stepName",
@@ -917,7 +917,7 @@ public class DoFnOperatorTest {
       keySelector = value -> FlinkKeyUtils.encodeKey(value.getValue(), keyCoder);
     }
 
-    DoFnOperator<String, String> doFnOperator =
+    DoFnOperator<String, String, String> doFnOperator =
         new DoFnOperator<>(
             new IdentityDoFn<>(),
             "stepName",
@@ -1115,7 +1115,7 @@ public class DoFnOperatorTest {
                   .put(2, view2)
                   .build();
 
-          DoFnOperator<String, String> doFnOperator =
+          DoFnOperator<String, String, String> doFnOperator =
               new DoFnOperator<>(
                   new IdentityDoFn<>(),
                   "stepName",
@@ -1158,7 +1158,7 @@ public class DoFnOperatorTest {
                   .put(2, view2)
                   .build();
 
-          DoFnOperator<String, String> doFnOperator =
+          DoFnOperator<String, String, String> doFnOperator =
               new DoFnOperator<>(
                   new IdentityDoFn<>(),
                   "stepName",
@@ -1261,7 +1261,7 @@ public class DoFnOperatorTest {
                   .put(2, view2)
                   .build();
 
-          DoFnOperator<String, String> doFnOperator =
+          DoFnOperator<String, String, String> doFnOperator =
               new DoFnOperator<>(
                   new IdentityDoFn<>(),
                   "stepName",
@@ -1305,7 +1305,7 @@ public class DoFnOperatorTest {
                   .put(2, view2)
                   .build();
 
-          DoFnOperator<String, String> doFnOperator =
+          DoFnOperator<String, String, String> doFnOperator =
               new DoFnOperator<>(
                   new IdentityDoFn<>(),
                   "stepName",
@@ -1504,7 +1504,7 @@ public class DoFnOperatorTest {
           TypeInformation<K> keyCoderInfo,
           KeySelector<WindowedValue<InT>, K> keySelector)
           throws Exception {
-    DoFnOperator<InT, OutT> doFnOperator =
+    DoFnOperator<InT, InT, OutT> doFnOperator =
         new DoFnOperator<>(
             fn,
             "stepName",
@@ -1554,7 +1554,7 @@ public class DoFnOperatorTest {
             WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE),
             new SerializablePipelineOptions(options));
 
-    DoFnOperator<String, String> doFnOperator =
+    DoFnOperator<String, String, String> doFnOperator =
         new DoFnOperator<>(
             doFn,
             "stepName",
@@ -1603,7 +1603,7 @@ public class DoFnOperatorTest {
 
     testHarness.close();
 
-    DoFnOperator<String, String> newDoFnOperator =
+    DoFnOperator<String, String, String> newDoFnOperator =
         new DoFnOperator<>(
             doFn,
             "stepName",
@@ -1702,7 +1702,7 @@ public class DoFnOperatorTest {
             WindowedValue.getFullCoder(kvCoder.getValueCoder(), GlobalWindow.Coder.INSTANCE),
             new SerializablePipelineOptions(options));
 
-    DoFnOperator<KV<String, String>, String> doFnOperator =
+    DoFnOperator<KV<String, String>, KV<String, String>, String> doFnOperator =
         new DoFnOperator<>(
             doFn,
             "stepName",
@@ -1819,7 +1819,7 @@ public class DoFnOperatorTest {
             WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE),
             new SerializablePipelineOptions(options));
 
-    Supplier<DoFnOperator<String, String>> doFnOperatorSupplier =
+    Supplier<DoFnOperator<String, String, String>> doFnOperatorSupplier =
         () ->
             new DoFnOperator<>(
                 new IdentityDoFn<>(),
@@ -1838,7 +1838,7 @@ public class DoFnOperatorTest {
                 DoFnSchemaInformation.create(),
                 Collections.emptyMap());
 
-    DoFnOperator<String, String> doFnOperator = doFnOperatorSupplier.get();
+    DoFnOperator<String, String, String> doFnOperator = doFnOperatorSupplier.get();
     OneInputStreamOperatorTestHarness<WindowedValue<String>, WindowedValue<String>> testHarness =
         new OneInputStreamOperatorTestHarness<>(doFnOperator);
 
@@ -1943,7 +1943,7 @@ public class DoFnOperatorTest {
             WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE),
             new SerializablePipelineOptions(options));
 
-    Supplier<DoFnOperator<String, String>> doFnOperatorSupplier =
+    Supplier<DoFnOperator<String, String, String>> doFnOperatorSupplier =
         () ->
             new DoFnOperator<>(
                 doFn,
@@ -1962,7 +1962,7 @@ public class DoFnOperatorTest {
                 DoFnSchemaInformation.create(),
                 Collections.emptyMap());
 
-    DoFnOperator<String, String> doFnOperator = doFnOperatorSupplier.get();
+    DoFnOperator<String, String, String> doFnOperator = doFnOperatorSupplier.get();
     OneInputStreamOperatorTestHarness<WindowedValue<String>, WindowedValue<String>> testHarness =
         new OneInputStreamOperatorTestHarness<>(doFnOperator);
 
@@ -2054,7 +2054,7 @@ public class DoFnOperatorTest {
             WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE),
             new SerializablePipelineOptions(options));
 
-    Supplier<DoFnOperator<String, String>> doFnOperatorSupplier =
+    Supplier<DoFnOperator<String, String, String>> doFnOperatorSupplier =
         () ->
             new DoFnOperator<>(
                 doFn,
@@ -2073,7 +2073,7 @@ public class DoFnOperatorTest {
                 DoFnSchemaInformation.create(),
                 Collections.emptyMap());
 
-    DoFnOperator<String, String> doFnOperator = doFnOperatorSupplier.get();
+    DoFnOperator<String, String, String> doFnOperator = doFnOperatorSupplier.get();
     OneInputStreamOperatorTestHarness<WindowedValue<String>, WindowedValue<String>> testHarness =
         new OneInputStreamOperatorTestHarness<>(doFnOperator);
 
@@ -2151,7 +2151,7 @@ public class DoFnOperatorTest {
             WindowedValue.getFullCoder(kvCoder, GlobalWindow.Coder.INSTANCE),
             new SerializablePipelineOptions(options));
 
-    Supplier<DoFnOperator<KV<String, String>, KV<String, String>>> doFnOperatorSupplier =
+    Supplier<DoFnOperator<KV<String, String>, KV<String, String>, KV<String, String>>> doFnOperatorSupplier =
         () ->
             new DoFnOperator<>(
                 doFn,
@@ -2170,7 +2170,7 @@ public class DoFnOperatorTest {
                 DoFnSchemaInformation.create(),
                 Collections.emptyMap());
 
-    DoFnOperator<KV<String, String>, KV<String, String>> doFnOperator = doFnOperatorSupplier.get();
+    DoFnOperator<KV<String, String>, KV<String, String>, KV<String, String>> doFnOperator = doFnOperatorSupplier.get();
     OneInputStreamOperatorTestHarness<
             WindowedValue<KV<String, String>>, WindowedValue<KV<String, String>>>
         testHarness =
@@ -2307,7 +2307,7 @@ public class DoFnOperatorTest {
             WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE),
             new SerializablePipelineOptions(options));
 
-    DoFnOperator<String, String> doFnOperator =
+    DoFnOperator<String, String, String> doFnOperator =
         new DoFnOperator<>(
             new IdentityDoFn<String>() {
               @FinishBundle
@@ -2346,7 +2346,7 @@ public class DoFnOperatorTest {
 
   @Test
   public void testAccumulatorRegistrationOnOperatorClose() throws Exception {
-    DoFnOperator<String, String> doFnOperator = getOperatorForCleanupInspection();
+    DoFnOperator<String, String, String> doFnOperator = getOperatorForCleanupInspection();
     OneInputStreamOperatorTestHarness<WindowedValue<String>, WindowedValue<String>> testHarness =
         new OneInputStreamOperatorTestHarness<>(doFnOperator);
 
@@ -2382,7 +2382,7 @@ public class DoFnOperatorTest {
     assertThat(typeCache.size(), is(0));
   }
 
-  private static DoFnOperator<String, String> getOperatorForCleanupInspection() {
+  private static DoFnOperator<String, String, String> getOperatorForCleanupInspection() {
     FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
     options.setParallelism(4);
 
