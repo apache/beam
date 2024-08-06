@@ -49,6 +49,7 @@ import org.apache.beam.sdk.extensions.protobuf.ProtoDynamicMessageSchema;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.OutgoingMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
+import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
@@ -510,6 +511,10 @@ public class PubsubIO {
       } else {
         return topic;
       }
+    }
+
+    public String dataCatalogName() {
+      return String.format("pubsub:topic:%s.%s", project, topic);
     }
 
     @Override
@@ -1616,6 +1621,10 @@ public class PubsubIO {
       public void finishBundle() throws IOException {
         for (Map.Entry<PubsubTopic, OutgoingData> entry : output.entrySet()) {
           publish(entry.getKey(), entry.getValue().messages);
+        }
+        // Report lineage for all topics seen
+        for (PubsubTopic topic : output.keySet()) {
+          Lineage.getSinks().add(topic.dataCatalogName());
         }
         output = null;
         pubsubClient.close();
