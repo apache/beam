@@ -27,6 +27,7 @@ import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -144,9 +145,9 @@ import org.slf4j.LoggerFactory;
   "keyfor",
   "nullness"
 }) // TODO(https://github.com/apache/beam/issues/20497)
-public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<WindowedValue<OutputT>>
-    implements OneInputStreamOperator<WindowedValue<InputT>, WindowedValue<OutputT>>,
-        TwoInputStreamOperator<WindowedValue<InputT>, RawUnionValue, WindowedValue<OutputT>>,
+public class DoFnOperator<PreInputT, InputT, OutputT> extends AbstractStreamOperator<WindowedValue<OutputT>>
+    implements OneInputStreamOperator<WindowedValue<PreInputT>, WindowedValue<OutputT>>,
+        TwoInputStreamOperator<WindowedValue<PreInputT>, RawUnionValue, WindowedValue<OutputT>>,
         Triggerable<ByteBuffer, TimerData> {
 
   private static final Logger LOG = LoggerFactory.getLogger(DoFnOperator.class);
@@ -356,6 +357,11 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
   // the DoFn
   protected DoFn<InputT, OutputT> getDoFn() {
     return doFn;
+  }
+
+  protected Iterable<WindowedValue<InputT>> preProcess(WindowedValue<PreInputT> input) {
+    // Assume Input is PreInputT
+    return Collections.singletonList((WindowedValue<InputT>) input);
   }
 
   // allow overriding this, for example SplittableDoFnOperator will not create a
@@ -727,30 +733,34 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
   }
 
   @Override
-  public final void processElement(StreamRecord<WindowedValue<InputT>> streamRecord) {
-    checkInvokeStartBundle();
-    LOG.trace("Processing element {} in {}", streamRecord.getValue().getValue(), doFn.getClass());
-    long oldHold = keyCoder != null ? keyedStateInternals.minWatermarkHoldMs() : -1L;
-    doFnRunner.processElement(streamRecord.getValue());
-    checkInvokeFinishBundleByCount();
-    emitWatermarkIfHoldChanged(oldHold);
+  public final void processElement(StreamRecord<WindowedValue<PreInputT>> streamRecord) {
+    for (WindowedValue<InputT> e : preProcess(streamRecord.getValue())) {
+      checkInvokeStartBundle();
+      LOG.trace("Processing element {} in {}", streamRecord.getValue().getValue(), doFn.getClass());
+      long oldHold = keyCoder != null ? keyedStateInternals.minWatermarkHoldMs() : -1L;
+      doFnRunner.processElement(e);
+      checkInvokeFinishBundleByCount();
+      emitWatermarkIfHoldChanged(oldHold);
+    }
   }
 
   @Override
-  public final void processElement1(StreamRecord<WindowedValue<InputT>> streamRecord)
+  public final void processElement1(StreamRecord<WindowedValue<PreInputT>> streamRecord)
       throws Exception {
-    checkInvokeStartBundle();
-    Iterable<WindowedValue<InputT>> justPushedBack =
-        pushbackDoFnRunner.processElementInReadyWindows(streamRecord.getValue());
+    for (WindowedValue<InputT> e : preProcess(streamRecord.getValue())) {
+      checkInvokeStartBundle();
+      Iterable<WindowedValue<InputT>> justPushedBack =
+          pushbackDoFnRunner.processElementInReadyWindows(e);
 
-    long min = pushedBackWatermark;
-    for (WindowedValue<InputT> pushedBackValue : justPushedBack) {
-      min = Math.min(min, pushedBackValue.getTimestamp().getMillis());
-      pushedBackElementsHandler.pushBack(pushedBackValue);
+      long min = pushedBackWatermark;
+      for (WindowedValue<InputT> pushedBackValue : justPushedBack) {
+        min = Math.min(min, pushedBackValue.getTimestamp().getMillis());
+        pushedBackElementsHandler.pushBack(pushedBackValue);
+      }
+      pushedBackWatermark = min;
+
+      checkInvokeFinishBundleByCount();
     }
-    pushedBackWatermark = min;
-
-    checkInvokeFinishBundleByCount();
   }
 
   /**
