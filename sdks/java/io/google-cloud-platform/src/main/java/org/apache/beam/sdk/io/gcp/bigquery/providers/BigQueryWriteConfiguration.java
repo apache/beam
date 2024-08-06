@@ -33,7 +33,11 @@ import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 
-/** Configuration for writing to BigQuery with Storage Write API. */
+/**
+ * Configuration for writing to BigQuery with SchemaTransforms. Used by {@link
+ * BigQueryStorageWriteApiSchemaTransformProvider} and {@link
+ * org.apache.beam.sdk.io.gcp.bigquery.BigQueryFileLoadsWriteSchemaTransformProvider}.
+ */
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
 public abstract class BigQueryWriteConfiguration {
