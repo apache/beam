@@ -400,6 +400,7 @@ from apache_beam.io.iobase import SDFBoundedSourceReader
 from apache_beam.io.iobase import SourceBundle
 from apache_beam.io.textio import _TextSource as TextSource
 from apache_beam.metrics import Metrics
+from apache_beam.metrics.metric import Lineage
 from apache_beam.options import value_provider as vp
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
@@ -809,6 +810,11 @@ class _CustomBigQuerySource(BoundedSource):
             self.table_reference.get(), project=self._get_project())
       elif not self.table_reference.projectId:
         self.table_reference.projectId = self._get_project()
+      Lineage.sources().add(
+          'bigquery',
+          self.table_reference.projectId,
+          self.table_reference.datasetId,
+          self.table_reference.tableId)
 
       schema, metadata_list = self._export_files(bq)
       self.export_result = _BigQueryExportResult(
@@ -1154,6 +1160,11 @@ class _CustomBigQueryStorageSource(BoundedSource):
 
       requested_session = bq_storage.types.ReadSession()
       requested_session.table = 'projects/{}/datasets/{}/tables/{}'.format(
+          self.table_reference.projectId,
+          self.table_reference.datasetId,
+          self.table_reference.tableId)
+      Lineage.sources().add(
+          "bigquery",
           self.table_reference.projectId,
           self.table_reference.datasetId,
           self.table_reference.tableId)
