@@ -35,11 +35,11 @@ dependencies {
   implementation "jline:jline:2.14.6"
   permitUnusedDeclared "jline:jline:2.14.6" // BEAM-11761
   implementation "sqlline:sqlline:1.4.0"
-  implementation library.java.vendored_guava_32_1_2_jre
   implementation library.java.vendored_calcite_1_28_0
   permitUnusedDeclared library.java.vendored_calcite_1_28_0
   testImplementation project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntimeMigration")
   testImplementation library.java.junit
+  testImplementation library.java.vendored_guava_32_1_2_jre
   // Depending on outputs so integrationTest can run with only test dependencies.
   // This enables us to test the JDBC jar being loaded on a custom classloader.
   integrationTest sourceSets.test.output

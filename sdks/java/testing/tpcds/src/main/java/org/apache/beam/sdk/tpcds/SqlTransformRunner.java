@@ -21,6 +21,7 @@ import static java.util.stream.Collectors.toList;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -56,7 +57,6 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlIdentifier;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.util.SqlBasicVisitor;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Resources;
 import org.apache.commons.csv.CSVFormat;
@@ -212,7 +212,7 @@ public class SqlTransformRunner {
   private static org.apache.avro.Schema getAvroSchema(String tableName) throws IOException {
     String path = "schemas_avro/" + tableName + ".json";
     return new org.apache.avro.Schema.Parser()
-        .parse(Resources.toString(Resources.getResource(path), Charsets.UTF_8));
+        .parse(Resources.toString(Resources.getResource(path), StandardCharsets.UTF_8));
   }
 
   static org.apache.avro.Schema getProjectedSchema(
