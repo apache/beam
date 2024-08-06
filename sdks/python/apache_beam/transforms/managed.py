@@ -18,13 +18,15 @@
 """Managed Transforms.
 
 This module builds and instantiates turnkey transforms that can be managed by
-the underlying runner. This means the runner may upgrade the transform to a more
-optimal/updated version without requiring the user to do anything.
+the underlying runner. This means the runner can upgrade the transform to a
+more optimal/updated version without requiring the user to do anything. It may
+also replace the transform with something entirely different if it chooses to.
+By default, however, the specified transform will remain unchanged.
 
 Using Managed Transforms
 ========================
-Managed turnkey transforms have a defined configuration and can be built using an
-inline :class:`dict` like so::
+Managed turnkey transforms have a defined configuration and can be built using
+an inline :class:`dict` like so::
 
   results = p | beam.managed.Read(
                     beam.managed.ICEBERG,
