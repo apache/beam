@@ -191,11 +191,14 @@ class PrismRunnerTest(portable_runner_test.PortableRunnerTest):
       res = (
           p
           | beam.Create([1, 2, 100, 101, 102, 123])
-          | beam.Map(lambda t: window.TimestampedValue(('k', t), timestamp.Timestamp.of(t).micros))
+          | beam.Map(
+              lambda t: window.TimestampedValue(
+                  ('k', t), timestamp.Timestamp.of(t).micros))
           | beam.WindowInto(beam.transforms.window.Sessions(10))
           | beam.GroupByKey()
           | beam.Map(lambda k_vs1: (k_vs1[0], sorted(k_vs1[1]))))
-      assert_that(res, equal_to([('k', [1, 2]), ('k', [100, 101, 102]), ('k', [123])]))
+      assert_that(
+          res, equal_to([('k', [1, 2]), ('k', [100, 101, 102]), ('k', [123])]))
 
   # Can't read host files from within docker, read a "local" file there.
   def test_read(self):
@@ -239,8 +242,8 @@ class PrismRunnerTest(portable_runner_test.PortableRunnerTest):
                 timestamp_policy=ReadFromKafka.create_time_policy,
                 expansion_service=self.get_expansion_service()))
     self.assertTrue(
-        'No resolvable bootstrap urls given in bootstrap.servers' in str(
-            ctx.exception),
+        'No resolvable bootstrap urls given in bootstrap.servers'
+        in str(ctx.exception),
         'Expected to fail due to invalid bootstrap.servers, but '
         'failed due to:\n%s' % str(ctx.exception))
 
