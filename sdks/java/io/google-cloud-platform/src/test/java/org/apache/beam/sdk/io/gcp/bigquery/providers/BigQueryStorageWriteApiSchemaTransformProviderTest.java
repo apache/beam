@@ -33,7 +33,6 @@ import java.util.stream.Collectors;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
 import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryStorageWriteApiSchemaTransformProvider.BigQueryStorageWriteApiSchemaTransform;
-import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryStorageWriteApiSchemaTransformProvider.BigQueryWriteConfiguration;
 import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices;
 import org.apache.beam.sdk.io.gcp.testing.FakeDatasetService;
 import org.apache.beam.sdk.io.gcp.testing.FakeJobService;
@@ -183,7 +182,7 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
 
   @Test
   public void testWriteToDynamicDestinations() throws Exception {
-    String dynamic = BigQueryStorageWriteApiSchemaTransformProvider.DYNAMIC_DESTINATIONS;
+    String dynamic = BigQueryWriteConfiguration.DYNAMIC_DESTINATIONS;
     BigQueryWriteConfiguration config =
         BigQueryWriteConfiguration.builder().setTable(dynamic).build();
 
