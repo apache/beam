@@ -70,10 +70,10 @@ from typing import Optional
 
 import yaml
 
+from apache_beam.portability.common_urns import ManagedTransforms
 from apache_beam.transforms.external import BeamJarExpansionService
 from apache_beam.transforms.external import SchemaAwareExternalTransform
 from apache_beam.transforms.ptransform import PTransform
-from apache_beam.portability.common_urns import ManagedTransforms
 
 ICEBERG = "iceberg"
 KAFKA = "kafka"
