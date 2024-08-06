@@ -1,6 +1,6 @@
 ---
 title:  "Apache Beam 2.58.0"
-date:   2024-07-22 13:00:00 -0800
+date:   2024-08-06 13:00:00 -0800
 categories:
   - blog
   - release
@@ -21,7 +21,7 @@ limitations under the License.
 
 We are happy to present the new 2.58.0 release of Beam.
 This release includes both improvements and new functionality.
-See the [download page](/get-started/downloads/#2570-2024-07-22) for this release.
+See the [download page](/get-started/downloads/#2580-2024-08-06) for this release.
 
 <!--more-->
 
