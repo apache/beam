@@ -105,7 +105,7 @@ public class KafkaReadSchemaTransformProvider
 
   @Override
   public String identifier() {
-    return getUrn(ExternalTransforms.ManagedTransforms.Urns.ICEBERG_WRITE);
+    return getUrn(ExternalTransforms.ManagedTransforms.Urns.KAFKA_READ);
   }
 
   @Override
