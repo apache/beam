@@ -73,12 +73,17 @@ import yaml
 from apache_beam.transforms.external import BeamJarExpansionService
 from apache_beam.transforms.external import SchemaAwareExternalTransform
 from apache_beam.transforms.ptransform import PTransform
+from apache_beam.portability.common_urns import ManagedTransforms
 
 ICEBERG = "iceberg"
 KAFKA = "kafka"
+BIGQUERY = "bigquery"
 _MANAGED_IDENTIFIER = "beam:transform:managed:v1"
 _EXPANSION_SERVICE_JAR_TARGETS = {
     "sdks:java:io:expansion-service:shadowJar": [KAFKA, ICEBERG],
+    "sdks:java:io:google-cloud-platform:expansion-service:shadowJar": [
+        BIGQUERY
+    ],
 }
 
 __all__ = ["ICEBERG", "KAFKA", "Read", "Write"]
@@ -87,8 +92,9 @@ __all__ = ["ICEBERG", "KAFKA", "Read", "Write"]
 class Read(PTransform):
   """Read using Managed Transforms"""
   _READ_TRANSFORMS = {
-      ICEBERG: "beam:schematransform:org.apache.beam:iceberg_read:v1",
-      KAFKA: "beam:schematransform:org.apache.beam:kafka_read:v1",
+      ICEBERG: ManagedTransforms.Urns.ICEBERG_READ.urn,
+      KAFKA: ManagedTransforms.Urns.KAFKA_READ.urn,
+      BIGQUERY: ManagedTransforms.Urns.BIGQUERY_READ.urn,
   }
 
   def __init__(
@@ -127,8 +133,9 @@ class Read(PTransform):
 class Write(PTransform):
   """Write using Managed Transforms"""
   _WRITE_TRANSFORMS = {
-      ICEBERG: "beam:schematransform:org.apache.beam:iceberg_write:v1",
-      KAFKA: "beam:schematransform:org.apache.beam:kafka_write:v1",
+      ICEBERG: ManagedTransforms.Urns.ICEBERG_WRITE.urn,
+      KAFKA: ManagedTransforms.Urns.KAFKA_WRITE.urn,
+      BIGQUERY: ManagedTransforms.Urns.BIGQUERY_WRITE.urn,
   }
 
   def __init__(

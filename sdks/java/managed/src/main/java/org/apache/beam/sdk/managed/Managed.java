@@ -17,11 +17,14 @@
  */
 package org.apache.beam.sdk.managed;
 
+import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
+
 import com.google.auto.value.AutoValue;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
+import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
@@ -87,13 +90,13 @@ public class Managed {
   // Supported SchemaTransforms
   public static final Map<String, String> READ_TRANSFORMS =
       ImmutableMap.<String, String>builder()
-          .put(ICEBERG, ManagedTransformConstants.ICEBERG_READ)
-          .put(KAFKA, ManagedTransformConstants.KAFKA_READ)
+          .put(ICEBERG, getUrn(ExternalTransforms.ManagedTransforms.Urns.ICEBERG_READ))
+          .put(KAFKA, getUrn(ExternalTransforms.ManagedTransforms.Urns.KAFKA_READ))
           .build();
   public static final Map<String, String> WRITE_TRANSFORMS =
       ImmutableMap.<String, String>builder()
-          .put(ICEBERG, ManagedTransformConstants.ICEBERG_WRITE)
-          .put(KAFKA, ManagedTransformConstants.KAFKA_WRITE)
+          .put(ICEBERG, getUrn(ExternalTransforms.ManagedTransforms.Urns.ICEBERG_WRITE))
+          .put(KAFKA, getUrn(ExternalTransforms.ManagedTransforms.Urns.KAFKA_WRITE))
           .build();
 
   /**
