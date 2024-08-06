@@ -150,7 +150,7 @@ public class BigtableReadIT {
 
   private void checkLineageSourceMetric(PipelineResult r, String tableId) {
     // TODO(https://github.com/apache/beam/issues/32071) test malformed,
-    //   when pipeline.run() os non-blocking, the metrics are not available by the time of query
+    //   when pipeline.run() is non-blocking, the metrics are not available by the time of query
     if (options.getRunner().getName().contains("DirectRunner")) {
       assertThat(
           Lineage.query(r.metrics(), Lineage.Type.SOURCE),
