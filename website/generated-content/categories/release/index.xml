@@ -1,4 +1,81 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – release</title><link>/categories/release/</link><description>Recent content in release on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Wed, 26 Jun 2024 13:00:00 -0800</lastBuildDate><atom:link href="/categories/release/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.57.0</title><link>/blog/beam-2.57.0/</link><pubDate>Wed, 26 Jun 2024 13:00:00 -0800</pubDate><guid>/blog/beam-2.57.0/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – release</title><link>/categories/release/</link><description>Recent content in release on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Tue, 06 Aug 2024 13:00:00 -0800</lastBuildDate><atom:link href="/categories/release/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.58.0</title><link>/blog/beam-2.58.0/</link><pubDate>Tue, 06 Aug 2024 13:00:00 -0800</pubDate><guid>/blog/beam-2.58.0/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>We are happy to present the new 2.58.0 release of Beam.
+This release includes both improvements and new functionality.
+See the &lt;a href="/get-started/downloads/#2580-2024-08-06">download page&lt;/a> for this release.&lt;/p>
+&lt;p>For more information about changes in 2.58.0, check out the &lt;a href="https://github.com/apache/beam/milestone/22">detailed release notes&lt;/a>.&lt;/p>
+&lt;h2 id="ios">I/Os&lt;/h2>
+&lt;ul>
+&lt;li>Support for &lt;a href="https://solace.com/">Solace&lt;/a> source (&lt;code>SolaceIO.Read&lt;/code>) added (Java) (&lt;a href="https://github.com/apache/beam/issues/31440">#31440&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
+&lt;ul>
+&lt;li>Multiple RunInference instances can now share the same model instance by setting the model_identifier parameter (Python) (&lt;a href="https://github.com/apache/beam/issues/31665">#31665&lt;/a>).&lt;/li>
+&lt;li>Added options to control the number of Storage API multiplexing connections (&lt;a href="https://github.com/apache/beam/pull/31721">#31721&lt;/a>)&lt;/li>
+&lt;li>[BigQueryIO] Better handling for batch Storage Write API when it hits AppendRows throughput quota (&lt;a href="https://github.com/apache/beam/pull/31837">#31837&lt;/a>)&lt;/li>
+&lt;li>[IcebergIO] All specified catalog properties are passed through to the connector (&lt;a href="https://github.com/apache/beam/pull/31726">#31726&lt;/a>)&lt;/li>
+&lt;li>Removed a third-party LGPL dependency from the Go SDK (&lt;a href="https://github.com/apache/beam/issues/31765">#31765&lt;/a>).&lt;/li>
+&lt;li>Support for &lt;code>MapState&lt;/code> and &lt;code>SetState&lt;/code> when using Dataflow Runner v1 with Streaming Engine (Java) ([&lt;a href="https://github.com/apache/beam/issues/18200">#18200&lt;/a>])&lt;/li>
+&lt;/ul>
+&lt;h2 id="breaking-changes">Breaking Changes&lt;/h2>
+&lt;ul>
+&lt;li>[IcebergIO] &lt;code>IcebergCatalogConfig&lt;/code> was changed to support specifying catalog properties in a key-store fashion (&lt;a href="https://github.com/apache/beam/pull/31726">#31726&lt;/a>)&lt;/li>
+&lt;li>[SpannerIO] Added validation that query and table cannot be specified at the same time for &lt;code>SpannerIO.read()&lt;/code>. Previously &lt;code>withQuery&lt;/code> overrides &lt;code>withTable&lt;/code>, if set (&lt;a href="https://github.com/apache/beam/issues/24956">#24956&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="bug-fixes">Bug fixes&lt;/h2>
+&lt;ul>
+&lt;li>[BigQueryIO] Fixed a bug in batch Storage Write API that frequently exhausted concurrent connections quota (&lt;a href="https://github.com/apache/beam/pull/31710">#31710&lt;/a>)&lt;/li>
+&lt;/ul>
+&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
+&lt;p>According to git shortlog, the following people contributed to the 2.58.0 release. Thank you to all contributors!&lt;/p>
+&lt;p>Ahmed Abualsaud&lt;/p>
+&lt;p>Ahmet Altay&lt;/p>
+&lt;p>Alexandre Moueddene&lt;/p>
+&lt;p>Alexey Romanenko&lt;/p>
+&lt;p>Andrew Crites&lt;/p>
+&lt;p>Bartosz Zablocki&lt;/p>
+&lt;p>Celeste Zeng&lt;/p>
+&lt;p>Chamikara Jayalath&lt;/p>
+&lt;p>Clay Johnson&lt;/p>
+&lt;p>Damon Douglass&lt;/p>
+&lt;p>Danny McCormick&lt;/p>
+&lt;p>Dilnaz Amanzholova&lt;/p>
+&lt;p>Florian Bernard&lt;/p>
+&lt;p>Francis O&amp;rsquo;Hara&lt;/p>
+&lt;p>George Ma&lt;/p>
+&lt;p>Israel Herraiz&lt;/p>
+&lt;p>Jack McCluskey&lt;/p>
+&lt;p>Jaehyeon Kim&lt;/p>
+&lt;p>James Roseman&lt;/p>
+&lt;p>Kenneth Knowles&lt;/p>
+&lt;p>Maciej Szwaja&lt;/p>
+&lt;p>Michel Davit&lt;/p>
+&lt;p>Minh Son Nguyen&lt;/p>
+&lt;p>Naireen&lt;/p>
+&lt;p>Niel Markwick&lt;/p>
+&lt;p>Oliver Cardoza&lt;/p>
+&lt;p>Robert Bradshaw&lt;/p>
+&lt;p>Robert Burke&lt;/p>
+&lt;p>Rohit Sinha&lt;/p>
+&lt;p>S. Veyrié&lt;/p>
+&lt;p>Sam Whittle&lt;/p>
+&lt;p>Shunping Huang&lt;/p>
+&lt;p>Svetak Sundhar&lt;/p>
+&lt;p>TongruiLi&lt;/p>
+&lt;p>Tony Tang&lt;/p>
+&lt;p>Valentyn Tymofieiev&lt;/p>
+&lt;p>Vitaly Terentyev&lt;/p>
+&lt;p>Yi Hu&lt;/p></description></item><item><title>Blog: Apache Beam 2.57.0</title><link>/blog/beam-2.57.0/</link><pubDate>Wed, 26 Jun 2024 13:00:00 -0800</pubDate><guid>/blog/beam-2.57.0/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -4994,76 +5071,4 @@ See the &lt;a href="/get-started/downloads/#290-2018-12-13">download page&lt;/a>
 &lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
 &lt;p>According to git shortlog, the following people contributed
 to the 2.9.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Adam Horky, Ahmet Altay, Alan Myrvold, Alex Amato, Alexey Romanenko, Andrea Foegler, Andrew Fulton, Andrew Pilloud, Ankur Goenka, Anton Kedin, Babu, Ben Song, Bingfeng Shu, Boyuan Zhang, Brian Martin, Brian Quinlan, Chamikara Jayalath, Charles Chen, Christian Schneider, Colm O hEigeartaigh, Cory Brzycki, CraigChambersG, Daniel Oliveira, David Moravek, Dusan Rychnovsky, Etienne Chauchot, Eugene Kirpichov, Fabien Rousseau, Gleb Kanterov, Heejong Lee, Henning Rohde, Ismaël Mejía, Jan Lukavský, Jaromir Vanek, Jason Kuster, Jean-Baptiste Onofré, Jeff Klukas, Jeroen Steggink, Julien Tournay, Jára Vaněk, Katarzyna Kucharczyk, Keisuke Kondo, Kenneth Knowles, Liam Miller-Cushon, Luke Cwik, Manu Zhang, Mark Liu, Maximilian Michels, Melissa Pashniak, Micah Wylde, Michael Luckey, Mike Pedersen, Mikhail Gryzykhin, Novotnik, Petr, Ondrej Kvasnicka, Pablo Estrada, Pavel Slechta, Raghu Angadi, Reuven Lax, Robbe Sneyders, Robert Bradshaw, Robert Burke, Ruoyu Liu, Ruoyun Huang, Sam Rohde, Sam sam, Scott Wegner, Simon Plovyt, Thomas Weise, Tim Robertson, Tomas Novak, Udi Meiri, Vaclav Plajt, Valentyn Tymofieiev, Varun Dhussa, Vojtech Janota, Wout Scheepers, Xinyu Liu, XuMingmin, Yifan Zou, Yueyang Qiu, akedin, amaliujia, connelloG, flyisland, huygaa11, jasonkuster, jglezt, kkpoon, mareksimunek, matthiasa4, melissa, mingmxu, nielm, reuvenlax, robbe, ruoyu90, splovyt, svXaverius, &lt;a href="mailto:vaclav.plajt@gmail.com">vaclav.plajt@gmail.com&lt;/a>, xinyuiscool, xitep, Łukasz Gajowy&lt;/p></description></item><item><title>Blog: Apache Beam 2.8.0</title><link>/blog/beam-2.8.0/</link><pubDate>Mon, 29 Oct 2018 00:00:01 -0800</pubDate><guid>/blog/beam-2.8.0/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>We are happy to present the new 2.8.0 release of Beam. This release includes both improvements and new functionality.
-See the &lt;a href="/get-started/downloads/#280-2018-10-26">download page&lt;/a> for this release.&lt;/p>
-&lt;p>For more information on changes in 2.8.0, check out the
-&lt;a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12343985">detailed release notes&lt;/a>.&lt;/p>
-&lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
-&lt;h2 id="known-issues">Known Issues&lt;/h2>
-&lt;ul>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-4783">BEAM-4783&lt;/a> Performance degradations in certain situations when Spark runner is used.&lt;/li>
-&lt;/ul>
-&lt;h3 id="dependency-upgrades">Dependency Upgrades&lt;/h3>
-&lt;ul>
-&lt;li>Elastic Search dependency upgraded to 6.3.2&lt;/li>
-&lt;li>google-cloud-pubsub dependency upgraded to 0.35.4&lt;/li>
-&lt;li>google-api-client dependency upgraded to 1.24.1&lt;/li>
-&lt;li>Updated Flink Runner to 1.5.3&lt;/li>
-&lt;li>Updated Spark runner to Spark version 2.3.2&lt;/li>
-&lt;/ul>
-&lt;h3 id="sdks">SDKs&lt;/h3>
-&lt;ul>
-&lt;li>Python SDK added support for user state and timers.&lt;/li>
-&lt;li>Go SDK added support for side inputs.&lt;/li>
-&lt;/ul>
-&lt;h3 id="portability">Portability&lt;/h3>
-&lt;ul>
-&lt;li>&lt;a href="/roadmap/portability/#python-on-flink">Python on Flink MVP&lt;/a> completed.&lt;/li>
-&lt;/ul>
-&lt;h3 id="ios">I/Os&lt;/h3>
-&lt;ul>
-&lt;li>Fixes to RedisIO non-prefix read operations.&lt;/li>
-&lt;/ul>
-&lt;h2 id="miscellaneous-fixes">Miscellaneous Fixes&lt;/h2>
-&lt;ul>
-&lt;li>Several bug fixes and performance improvements.&lt;/li>
-&lt;/ul>
-&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
-&lt;p>According to git shortlog, the following people contributed
-to the 2.8.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Adam Horky, Ahmet Altay, Alan Myrvold, Aleksandr Kokhaniukov,
-Alex Amato, Alexey Romanenko, Aljoscha Krettek, Andrew Fulton,
-Andrew Pilloud, Ankur Goenka, Anton Kedin, Babu, Batkhuyag Batsaikhan, Ben Song,
-Bingfeng Shu, Boyuan Zhang, Chamikara Jayalath, Charles Chen,
-Christian Schneider, Cody Schroeder, Colm O hEigeartaigh, Daniel Mills,
-Daniel Oliveira, Dat Tran, David Moravek, Dusan Rychnovsky, Etienne Chauchot,
-Eugene Kirpichov, Gleb Kanterov, Heejong Lee, Henning Rohde, Ismaël Mejía,
-Jan Lukavský, Jaromir Vanek, Jean-Baptiste Onofré, Jeff Klukas, Joar Wandborg,
-Jozef Vilcek, Julien Phalip, Julien Tournay, Juta, Jára Vaněk,
-Katarzyna Kucharczyk, Kengo Seki, Kenneth Knowles, Kevin Si, Kirill Kozlov,
-Kyle Winkelman, Logan HAUSPIE, Lukasz Cwik, Manu Zhang, Mark Liu,
-Matthias Baetens, Matthias Feys, Maximilian Michels, Melissa Pashniak,
-Micah Wylde, Michael Luckey, Mike Pedersen, Mikhail Gryzykhin, Novotnik,
-Petr, Ondrej Kvasnicka, Pablo Estrada, PaulVelthuis93, Pavel Slechta,
-Rafael Fernández, Raghu Angadi, Renat, Reuven Lax, Robbe Sneyders,
-Robert Bradshaw, Robert Burke, Rodrigo Benenson, Rong Ou, Ruoyun Huang,
-Ryan Williams, Sam Rohde, Scott Wegner, Shinsuke Sugaya, Shnitz, Simon P,
-Sindy Li, Stephen Lumenta, Stijn Decubber, Thomas Weise, Tomas Novak,
-Tomas Roos, Udi Meiri, Vaclav Plajt, Valentyn Tymofieiev, Vitalii Tverdokhlib,
-Xinyu Liu, XuMingmin, Yifan Zou, Yuan, Yueyang Qiu, aalbatross, amaliujia,
-cclauss, connelloG, daidokoro, deepyaman, djhworld, flyisland, huygaa11,
-jasonkuster, jglezt, kkpoon, mareksimunek, nielm, svXaverius, timrobertson100,
-&lt;a href="mailto:vaclav.plajt@gmail.com">vaclav.plajt@gmail.com&lt;/a>, vitaliytv, vvarma, xiliu, xinyuiscool, xitep,
-Łukasz Gajowy.&lt;/p></description></item></channel></rss>
+&lt;p>Adam Horky, Ahmet Altay, Alan Myrvold, Alex Amato, Alexey Romanenko, Andrea Foegler, Andrew Fulton, Andrew Pilloud, Ankur Goenka, Anton Kedin, Babu, Ben Song, Bingfeng Shu, Boyuan Zhang, Brian Martin, Brian Quinlan, Chamikara Jayalath, Charles Chen, Christian Schneider, Colm O hEigeartaigh, Cory Brzycki, CraigChambersG, Daniel Oliveira, David Moravek, Dusan Rychnovsky, Etienne Chauchot, Eugene Kirpichov, Fabien Rousseau, Gleb Kanterov, Heejong Lee, Henning Rohde, Ismaël Mejía, Jan Lukavský, Jaromir Vanek, Jason Kuster, Jean-Baptiste Onofré, Jeff Klukas, Jeroen Steggink, Julien Tournay, Jára Vaněk, Katarzyna Kucharczyk, Keisuke Kondo, Kenneth Knowles, Liam Miller-Cushon, Luke Cwik, Manu Zhang, Mark Liu, Maximilian Michels, Melissa Pashniak, Micah Wylde, Michael Luckey, Mike Pedersen, Mikhail Gryzykhin, Novotnik, Petr, Ondrej Kvasnicka, Pablo Estrada, Pavel Slechta, Raghu Angadi, Reuven Lax, Robbe Sneyders, Robert Bradshaw, Robert Burke, Ruoyu Liu, Ruoyun Huang, Sam Rohde, Sam sam, Scott Wegner, Simon Plovyt, Thomas Weise, Tim Robertson, Tomas Novak, Udi Meiri, Vaclav Plajt, Valentyn Tymofieiev, Varun Dhussa, Vojtech Janota, Wout Scheepers, Xinyu Liu, XuMingmin, Yifan Zou, Yueyang Qiu, akedin, amaliujia, connelloG, flyisland, huygaa11, jasonkuster, jglezt, kkpoon, mareksimunek, matthiasa4, melissa, mingmxu, nielm, reuvenlax, robbe, ruoyu90, splovyt, svXaverius, &lt;a href="mailto:vaclav.plajt@gmail.com">vaclav.plajt@gmail.com&lt;/a>, xinyuiscool, xitep, Łukasz Gajowy&lt;/p></description></item></channel></rss>

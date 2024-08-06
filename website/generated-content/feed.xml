@@ -1,4 +1,81 @@
-<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Apache Beam</title><description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.</description><link>/</link><generator>Hugo -- gohugo.io</generator><item><title>Apache Beam 2.57.0</title><description>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Apache Beam</title><description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.</description><link>/</link><generator>Hugo -- gohugo.io</generator><item><title>Apache Beam 2.58.0</title><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>We are happy to present the new 2.58.0 release of Beam.
+This release includes both improvements and new functionality.
+See the &lt;a href="/get-started/downloads/#2580-2024-08-06">download page&lt;/a> for this release.&lt;/p>
+&lt;p>For more information about changes in 2.58.0, check out the &lt;a href="https://github.com/apache/beam/milestone/22">detailed release notes&lt;/a>.&lt;/p>
+&lt;h2 id="ios">I/Os&lt;/h2>
+&lt;ul>
+&lt;li>Support for &lt;a href="https://solace.com/">Solace&lt;/a> source (&lt;code>SolaceIO.Read&lt;/code>) added (Java) (&lt;a href="https://github.com/apache/beam/issues/31440">#31440&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
+&lt;ul>
+&lt;li>Multiple RunInference instances can now share the same model instance by setting the model_identifier parameter (Python) (&lt;a href="https://github.com/apache/beam/issues/31665">#31665&lt;/a>).&lt;/li>
+&lt;li>Added options to control the number of Storage API multiplexing connections (&lt;a href="https://github.com/apache/beam/pull/31721">#31721&lt;/a>)&lt;/li>
+&lt;li>[BigQueryIO] Better handling for batch Storage Write API when it hits AppendRows throughput quota (&lt;a href="https://github.com/apache/beam/pull/31837">#31837&lt;/a>)&lt;/li>
+&lt;li>[IcebergIO] All specified catalog properties are passed through to the connector (&lt;a href="https://github.com/apache/beam/pull/31726">#31726&lt;/a>)&lt;/li>
+&lt;li>Removed a third-party LGPL dependency from the Go SDK (&lt;a href="https://github.com/apache/beam/issues/31765">#31765&lt;/a>).&lt;/li>
+&lt;li>Support for &lt;code>MapState&lt;/code> and &lt;code>SetState&lt;/code> when using Dataflow Runner v1 with Streaming Engine (Java) ([&lt;a href="https://github.com/apache/beam/issues/18200">#18200&lt;/a>])&lt;/li>
+&lt;/ul>
+&lt;h2 id="breaking-changes">Breaking Changes&lt;/h2>
+&lt;ul>
+&lt;li>[IcebergIO] &lt;code>IcebergCatalogConfig&lt;/code> was changed to support specifying catalog properties in a key-store fashion (&lt;a href="https://github.com/apache/beam/pull/31726">#31726&lt;/a>)&lt;/li>
+&lt;li>[SpannerIO] Added validation that query and table cannot be specified at the same time for &lt;code>SpannerIO.read()&lt;/code>. Previously &lt;code>withQuery&lt;/code> overrides &lt;code>withTable&lt;/code>, if set (&lt;a href="https://github.com/apache/beam/issues/24956">#24956&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="bug-fixes">Bug fixes&lt;/h2>
+&lt;ul>
+&lt;li>[BigQueryIO] Fixed a bug in batch Storage Write API that frequently exhausted concurrent connections quota (&lt;a href="https://github.com/apache/beam/pull/31710">#31710&lt;/a>)&lt;/li>
+&lt;/ul>
+&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
+&lt;p>According to git shortlog, the following people contributed to the 2.58.0 release. Thank you to all contributors!&lt;/p>
+&lt;p>Ahmed Abualsaud&lt;/p>
+&lt;p>Ahmet Altay&lt;/p>
+&lt;p>Alexandre Moueddene&lt;/p>
+&lt;p>Alexey Romanenko&lt;/p>
+&lt;p>Andrew Crites&lt;/p>
+&lt;p>Bartosz Zablocki&lt;/p>
+&lt;p>Celeste Zeng&lt;/p>
+&lt;p>Chamikara Jayalath&lt;/p>
+&lt;p>Clay Johnson&lt;/p>
+&lt;p>Damon Douglass&lt;/p>
+&lt;p>Danny McCormick&lt;/p>
+&lt;p>Dilnaz Amanzholova&lt;/p>
+&lt;p>Florian Bernard&lt;/p>
+&lt;p>Francis O&amp;rsquo;Hara&lt;/p>
+&lt;p>George Ma&lt;/p>
+&lt;p>Israel Herraiz&lt;/p>
+&lt;p>Jack McCluskey&lt;/p>
+&lt;p>Jaehyeon Kim&lt;/p>
+&lt;p>James Roseman&lt;/p>
+&lt;p>Kenneth Knowles&lt;/p>
+&lt;p>Maciej Szwaja&lt;/p>
+&lt;p>Michel Davit&lt;/p>
+&lt;p>Minh Son Nguyen&lt;/p>
+&lt;p>Naireen&lt;/p>
+&lt;p>Niel Markwick&lt;/p>
+&lt;p>Oliver Cardoza&lt;/p>
+&lt;p>Robert Bradshaw&lt;/p>
+&lt;p>Robert Burke&lt;/p>
+&lt;p>Rohit Sinha&lt;/p>
+&lt;p>S. Veyrié&lt;/p>
+&lt;p>Sam Whittle&lt;/p>
+&lt;p>Shunping Huang&lt;/p>
+&lt;p>Svetak Sundhar&lt;/p>
+&lt;p>TongruiLi&lt;/p>
+&lt;p>Tony Tang&lt;/p>
+&lt;p>Valentyn Tymofieiev&lt;/p>
+&lt;p>Vitaly Terentyev&lt;/p>
+&lt;p>Yi Hu&lt;/p></description><link>/blog/beam-2.58.0/</link><pubDate>Tue, 06 Aug 2024 13:00:00 -0800</pubDate><guid>/blog/beam-2.58.0/</guid><category>blog</category><category>release</category></item><item><title>Apache Beam 2.57.0</title><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -1990,102 +2067,4 @@ alt="Streamed data size">&lt;/p>
 &lt;p>Optimizing Apache Beam streaming workloads for low latency and efficient execution requires careful analysis and decision-making, and the right configurations.&lt;/p>
 &lt;p>Considering the scenario discussed in this article, it is essential to consider factors like overall CPU utilization, throughput and latency per stage, &lt;code>PCollection&lt;/code> sizes, wall time per stage, write mode, and transport formats, in addition to writing the right pipeline for the workload.&lt;/p>
 &lt;p>Our experiments revealed that using the &lt;code>StorageWrite&lt;/code> API, autosharding for writes, and Avro &lt;code>GenericRecords&lt;/code> as the transport format yielded the most efficient results. Relaxing the consistency for writes can further improve performance.&lt;/p>
-&lt;p>The accompanying &lt;a href="https://github.com/prodriguezdefino/apache-beam-streaming-tests">Github repository&lt;/a> contains a test suite that you can use to replicate the analysis on your Google Cloud project or with a different runner setup. Feel free to take it for a spin. Comments and PRs are always welcome.&lt;/p></description><link>/blog/scaling-streaming-workload/</link><pubDate>Wed, 03 Jan 2024 00:00:01 -0800</pubDate><guid>/blog/scaling-streaming-workload/</guid><category>blog</category></item><item><title>Build a scalable, self-managed streaming infrastructure with Beam and Flink: Tackling Autoscaling Challenges - Part 2</title><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;h1 id="build-a-scalable-self-managed-streaming-infrastructure-with-flink-tackling-autoscaling-challenges---part-2">Build a scalable, self-managed streaming infrastructure with Flink: Tackling Autoscaling Challenges - Part 2&lt;/h1>
-&lt;p>Welcome to Part 2 of our in-depth series about building and managing a service for Apache Beam Flink on Kubernetes. In this segment, we&amp;rsquo;re taking a closer look at the hurdles we encountered while implementing autoscaling. These challenges weren&amp;rsquo;t just roadblocks. They were opportunities for us to innovate and enhance our system. Let’s break down these issues, understand their context, and explore the solutions we developed.&lt;/p>
-&lt;h2 id="understand-apache-beam-backlog-metrics-in-the-flink-runner-environment">Understand Apache Beam backlog metrics in the Flink runner environment&lt;/h2>
-&lt;p>&lt;strong>The Challenge:&lt;/strong> In our current setup, we are using Apache Flink for processing data streams. However, we&amp;rsquo;ve encountered a puzzling issue: our Flink job isn&amp;rsquo;t showing the backlog metrics from Apache Beam. These metrics are critical for understanding the state and performance of our data pipelines.&lt;/p>
-&lt;p>&lt;strong>What We Found:&lt;/strong> Interestingly, we noticed that the metrics are actually being generated in &lt;code>KafkaIO&lt;/code>, which is a part of our data pipeline that handles Kafka streams. But when we try to monitor these metrics through the Apache Flink Metric system, we can&amp;rsquo;t find them. We suspected that there might be an issue with the integration (or &amp;lsquo;wiring&amp;rsquo;) between Apache Beam and Apache Flink.&lt;/p>
-&lt;p>&lt;strong>Digging Deeper:&lt;/strong> On closer inspection, we found that the metrics should be emitted during the &amp;lsquo;Checkpointing&amp;rsquo; phase of the data stream processing. During this crucial step, the system takes a snapshot of the stream&amp;rsquo;s state, and the metrics are typically metrics that are generated for unbounded sources. Unbounded sources are sources that continuously stream data, like Kafka.&lt;/p>
-&lt;p>&lt;strong>A Potential Solution:&lt;/strong> We believe the root of the problem lies in how the metric context is set during the checkpointing phase. A disconnect appears to prevent the Beam metrics from being properly captured in the Flink Metric system. We proposed a fix for this issue, which you can review and contribute to on our GitHub pull request: &lt;a href="https://github.com/apache/beam/pull/29793">Apache Beam PR #29793&lt;/a>.&lt;/p>
-&lt;p>&lt;img class="center-block"
-src="/images/blog/apache-beam-flink-and-kubernetes-part2/flink-backlog-metrics.png"
-alt="Apache Flink Beam Backlog Metrics">&lt;/p>
-&lt;h2 id="overcoming-challenges-in-checkpoint-size-reduction-for-autoscaling-beam-jobs">Overcoming challenges in checkpoint size reduction for autoscaling Beam jobs&lt;/h2>
-&lt;p>In this section we will discuss strategies for reducing the size of checkpoints in autoscaling Apache Beam jobs, focusing on efficient checkpointing in Apache Flink and optimizing bundle sizes and PipelineOptions to manage frequent checkpoint timeouts and large-scale job requirements.&lt;/p>
-&lt;h3 id="understand-the-basics-of-checkpointing-in-apache-flink">Understand the basics of checkpointing in Apache Flink&lt;/h3>
-&lt;p>In stream processing, maintaining state consistency and fault tolerance is crucial. Apache Flink achieves this through a process called &lt;em>checkpointing&lt;/em>. Checkpointing periodically captures the state of a job&amp;rsquo;s operators and stores it in a stable storage location, like Google Cloud Storage or AWS S3. Specifically, Flink checkpoints a job every ten seconds and allows up to one minute for this process to complete. This process is vital for ensuring that, in case of failures, the job can resume from the last checkpoint, providing exactly-once semantics and fault tolerance.&lt;/p>
-&lt;h3 id="the-role-of-bundles-in-apache-beam">The role of bundles in Apache Beam&lt;/h3>
-&lt;p>Apache Beam introduces the concept of a &lt;em>bundle&lt;/em>. A bundle is essentially a group of elements that are processed together. This step enhances processing efficiency and throughput by reducing the overhead of handling each element separately. For more information, see &lt;a href="https://beam.apache.org/documentation/runtime/model/#bundling-and-persistence">Bundling and persistence&lt;/a>. In the Flink runner &lt;a href="https://beam.apache.org/releases/javadoc/2.52.0/org/apache/beam/runners/flink/FlinkPipelineOptions.html#getMaxBundleSize--">default configuration&lt;/a>, a bundle&amp;rsquo;s default size is 1000 elements with a one-second timeout. However, based on our performance tests, we adjusted the bundle size to &lt;em>10,000 elements with a 10-second timeout&lt;/em>.&lt;/p>
-&lt;h3 id="challenge-frequent-checkpoint-timeouts">Challenge: frequent checkpoint timeouts&lt;/h3>
-&lt;p>When we configured checkpointing every 10 seconds, we faced frequent checkpoint timeouts, often exceeding 1 minute. This was due to the large size of the checkpoints.&lt;/p>
-&lt;h3 id="solution-manage-checkpoint-size">Solution: Manage checkpoint size&lt;/h3>
-&lt;p>In Apache Beam Flink jobs, the &lt;code>finishBundleBeforeCheckpointing&lt;/code> option plays a pivotal role. When enabled, it ensures that all bundles are completely processed before initiating a checkpoint. This results in checkpoints that only contain the state post-bundle completion, significantly reducing checkpoint size. Initially, our checkpoints were around 2 MB per pipeline. With this change, they consistently dropped to 150 KB.&lt;/p>
-&lt;h3 id="address-the-checkpoint-size-in-large-scale-jobs">Address the checkpoint size in large-scale jobs&lt;/h3>
-&lt;p>Despite reducing checkpoint sizes, a 150 KB checkpoint every ten seconds can still be substantial, especially in jobs that run multiple pipelines. For instance, with 100 pipelines in a single job, this size balloons to 15 MB per 10-second interval.&lt;/p>
-&lt;h3 id="further-optimization-reduce-checkpoint-size-with-pipelineoptions">Further optimization: reduce checkpoint size with PipelineOptions&lt;/h3>
-&lt;p>We discovered that due to a specific issue (BEAM-8577), our Flink runner was including our large &lt;code>PipelineOptions&lt;/code> objects in every checkpoint. We solved this problem by removing unnecessary application-related options from &lt;code>PipelineOptions&lt;/code>, further reducing the checkpoint size to a more manageable 10 KB per pipeline.&lt;/p>
-&lt;h2 id="kafka-reader-wait-time-solving-autoscaling-challenges-in-beam-jobs">Kafka Reader wait time: solving autoscaling challenges in Beam jobs&lt;/h2>
-&lt;h3 id="understand-unaligned-checkpointing">Understand unaligned checkpointing&lt;/h3>
-&lt;p>In our system, we use unaligned checkpointing to speed up the process of checkpointing, which is essential for ensuring data consistency in distributed systems. However, when we activated the &lt;code>finishBundleBeforeCheckpointing&lt;/code> feature, we began facing checkpoint timeout issues and delays in checkpointing steps. Apache Beam leverages Apache Flink&amp;rsquo;s legacy source implementation for processing unbounded sources. In Flink, tasks are categorized into two types: source tasks and non-source tasks.&lt;/p>
-&lt;ul>
-&lt;li>&lt;strong>Source tasks&lt;/strong>: fetch data from external systems into a Flink job&lt;/li>
-&lt;li>&lt;strong>Non-source tasks&lt;/strong>: process the incoming data&lt;/li>
-&lt;/ul>
-&lt;p>&lt;img class="center-block"
-src="/images/blog/apache-beam-flink-and-kubernetes-part2/kafkaio-wait-reader.png"
-alt="Apache Flink Task Types">&lt;/p>
-&lt;p>In the standard configuration, non-source tasks check for an available buffer before pulling data. If source tasks don&amp;rsquo;t perform this check, they might experience checkpointing delays in writing data to the output buffer. This delay affects the efficiency of unaligned checkpoints, which are only recognized by legacy source tasks when an output buffer is available.&lt;/p>
-&lt;h3 id="address-the-challenge-with-unboundedsourcewrapper-in-beam">Address the challenge with UnboundedSourceWrapper in Beam&lt;/h3>
-&lt;p>To solve this problem, Apache Flink introduced a new source implementation that operates in a pull mode. In this mode, a task checks for a free buffer before fetching data, aligning with the approach of non-source tasks.&lt;/p>
-&lt;p>However, the legacy source, still used by Apache Beam&amp;rsquo;s Flink Runner, operates in a push mode. It sends data to downstream tasks immediately. This setup might create bottlenecks when buffers are full, causing delays in detecting unaligned checkpoint barriers.&lt;/p>
-&lt;h3 id="our-solution">Our solution&lt;/h3>
-&lt;p>Despite its deprecation, Apache Beam&amp;rsquo;s Flink Runner still uses the legacy source implementation. To address its issues, we implemented our modifications and the quick workarounds suggested in &lt;a href="https://issues.apache.org/jira/browse/FLINK-26759">FLINK-26759&lt;/a>. These enhancements are detailed in our &lt;a href="#">Pull Request&lt;/a>. You can also find more information about unaligned checkpoint issues in the &lt;a href="https://blog.51cto.com/u_14286418/7000028">Flink Unaligned Checkpoint&lt;/a> blog post.&lt;/p>
-&lt;p>&lt;img class="center-block"
-src="/images/blog/apache-beam-flink-and-kubernetes-part2/checkpoint_monitoring-history-subtasks.png"
-alt="Apache Flink UI Checkpoint History">&lt;/p>
-&lt;h2 id="address-slow-reads-in-high-traffic-scenarios">Address slow reads in high-traffic scenarios&lt;/h2>
-&lt;p>In our journey with Apache Beam and the Flink Runner, we encountered a significant challenge similar to one documented in the post &lt;a href="https://antonio-si.medium.com/how-intuit-debug-consumer-lags-in-apache-beam-22ca3b39602e">How Intuit Debug Consumer Lags in Apache Beam&lt;/a> by &lt;a href="https://antonio-si.medium.com/">Antonio Si&lt;/a> in his experience at Intuit. Their real-time data processing pipelines had increasing Kafka consumer lag, particularly with topics experiencing high message traffic. This issue was traced to Apache Beam&amp;rsquo;s handling of Kafka partitions through &lt;code>UnboundedSourceWrapper&lt;/code> and &lt;code>KafkaUnboundedReader&lt;/code>. Specifically, for topics with lower traffic, the processing thread paused unnecessarily, delaying the processing of high-traffic topics. We faced a parallel situation in our system, where the imbalance in processing speeds between high- and low-traffic topics led to inefficiencies.&lt;/p>
-&lt;p>&lt;img class="center-block"
-src="/images/blog/apache-beam-flink-and-kubernetes-part2/adaptive-timeout-kafka.png"
-alt="UnboundedSourceWrapper Design">&lt;/p>
-&lt;p>To resolve this issue, we developed an innovative solution: an adaptive timeout strategy in &lt;code>KafkaIO&lt;/code>. This strategy dynamically adjusts the timeout duration based on the traffic of each topic. For low-traffic topics, it shortens the timeout, preventing unnecessary delays. For high-traffic topics, it extends the timeout, providing more processing opportunities. This approach is detailed in our recent pull request.&lt;/p>
-&lt;h2 id="unbalanced-partition-distribution-in-beam-job-autoscaling">Unbalanced partition distribution in Beam job autoscaling&lt;/h2>
-&lt;p>At the heart of this system is the adaptive scheduler, a component designed for rapid resource allocation. It intelligently adjusts the number of parallel tasks (parallelism) a job performs based on the availability of computing slots. These slots are like individual workstations, each capable of handling certain parts of the job.&lt;/p>
-&lt;p>However, we encountered a problem. Our jobs consist of multiple independent pipelines, each needing its own set of resources. Initially, the system tended to overburden the first few workers by assigning them more tasks, while others remained underutilized. This issue was due to the way Flink allocated tasks, favoring the first workers for each pipeline.&lt;/p>
-&lt;p>&lt;img class="center-block"
-src="/images/blog/apache-beam-flink-and-kubernetes-part2/flink-partition-assignment.png"
-alt="Flink split assignment on slots">&lt;/p>
-&lt;p>To address this issue, we developed a custom patch for Flink&amp;rsquo;s &lt;em>SlotSharingSlotAllocator&lt;/em>, a component responsible for task distribution. This patch ensures a more balanced workload distribution across all available workers, improving efficiency and preventing bottlenecks.
-With this improvement, each worker gets a fair share of tasks, leading to better resource utilization and smoother operation of our Beam Jobs.&lt;/p>
-&lt;h2 id="drain-support-in-kubernetes-operator-with-flink">Drain support in Kubernetes Operator with Flink&lt;/h2>
-&lt;h3 id="the-challenge">The challenge&lt;/h3>
-&lt;p>In the world of data processing with Apache Flink, a common task is to manage and update data-processing jobs. These jobs could be either stateful, where they remember past data, or stateless, where they don&amp;rsquo;t.&lt;/p>
-&lt;p>In the past, when we needed to update or delete a Flink job managed by the Kubernetes Operator, the system saved the current state of the job using a savepoint or checkpoint. However, a crucial step was missing: the system didn&amp;rsquo;t stop the job from processing new data (this is what we mean by draining the job). This oversight could lead to two major issues:&lt;/p>
-&lt;ol>
-&lt;li>&lt;strong>For stateful jobs:&lt;/strong> potential data inconsistencies, because the job might process new data that wasn&amp;rsquo;t accounted for in the savepoint&lt;/li>
-&lt;li>&lt;strong>For stateless jobs:&lt;/strong> data duplication, because the job might reprocess data it already processed&lt;/li>
-&lt;/ol>
-&lt;h3 id="the-solution-drain-function">The solution: drain function&lt;/h3>
-&lt;p>This is where the update referenced as &lt;a href="https://issues.apache.org/jira/browse/FLINK-32700">FLINK-32700&lt;/a> is needed. This update introduced a drain function. Think of it as telling the job, &amp;ldquo;Finish what you&amp;rsquo;re currently processing, but don&amp;rsquo;t take on anything new.&amp;rdquo; Here&amp;rsquo;s how it works:&lt;/p>
-&lt;ol>
-&lt;li>&lt;strong>Stop new data:&lt;/strong> The job stops reading new input.&lt;/li>
-&lt;li>&lt;strong>Mark the source:&lt;/strong> The job marks the source with an infinite watermark. Think of this watermark as a marker that tells the system that there&amp;rsquo;s no more new data to process.&lt;/li>
-&lt;li>&lt;strong>Propagate through the pipeline:&lt;/strong> This marker is then passed through the job&amp;rsquo;s processing pipeline, ensuring that every part of the job knows not to expect any new data.&lt;/li>
-&lt;/ol>
-&lt;p>This seemingly small change has a big impact. It ensures that when a job is updated or deleted, the data it processes remains consistent and accurate. This is crucial for any data-processing task, because it maintains the integrity and reliability of the data. Furthermore, in cases where the drainage fails, you can cancel the job without needing a savepoint, which adds a layer of flexibility and safety to the whole process.&lt;/p>
-&lt;h2 id="conclusion">Conclusion&lt;/h2>
-&lt;p>As we conclude Part 2 of our series on building and managing Apache Beam Flink services on Kubernetes, it&amp;rsquo;s evident that the journey of implementing autoscaling has been both challenging and enlightening. The obstacles we faced, from understanding Apache Beam backlog metrics in the Flink Runner environment to addressing slow reads in high-traffic scenarios, pushed us to develop innovative solutions and deepen our understanding of streaming infrastructure.&lt;/p>
-&lt;p>Our exploration into the intricacies of checkpointing, Kafka Reader wait times, and unbalanced partition distribution revealed the complexities of autoscaling Beam jobs. These challenges prompted us to devise strategies like the adaptive timeout in &lt;code>KafkaIO&lt;/code> and the balanced workload distribution in Flink&amp;rsquo;s &lt;code>SlotSharingSlotAllocator&lt;/code>. Additionally, the introduction of the drain support in Kubernetes Operator with Flink marks a significant advancement in managing stateful and stateless jobs effectively.&lt;/p>
-&lt;p>This journey has not only enhanced the robustness and efficiency of our system but has also contributed valuable insights to the broader community working with Apache Beam and Flink. We hope that our experiences and solutions will aid others facing similar challenges in their projects.&lt;/p>
-&lt;p>Stay tuned for our next blog post, where we&amp;rsquo;ll delve into the specifics of autoscaling in Apache Beam. We&amp;rsquo;ll break down the concepts, strategies, and best practices to effectively scale your Beam jobs. Thank you for following our series, and we look forward to sharing more of our journey and learnings with you.&lt;/p>
-&lt;h2 id="acknowledgements">Acknowledgements&lt;/h2>
-&lt;p>This is a large effort to build the new infrastructure and to migrate the large customer based applications from cloud provider managed streaming infrastructure to self-managed, Flink-based infrastructure at scale. Thanks the Palo Alto Networks CDL streaming team who helped to make this happen: Kishore Pola, Andrew Park, Hemant Kumar, Manan Mangal, Helen Jiang, Mandy Wang, Praveen Kumar Pasupuleti, JM Teo, Rishabh Kedia, Talat Uyarer, Naitk Dani, and David He.&lt;/p>
-&lt;hr>
-&lt;p>&lt;strong>Explore More:&lt;/strong>&lt;/p>
-&lt;ul>
-&lt;li>&lt;a href="https://beam.apache.org/blog/apache-beam-flink-and-kubernetes/">Part 1: Introduction to Building and Managing Apache Beam Flink Services on Kubernetes&lt;/a>&lt;/li>
-&lt;/ul>
-&lt;p>&lt;em>Join the conversation and share your experiences on our &lt;a href="https://beam.apache.org/community/">Community&lt;/a> or contribute to our ongoing projects on &lt;a href="https://github.com/apache/beam">GitHub&lt;/a>. Your feedback is invaluable. If you have any comments or questions about this series, please feel free to reach out to us via &lt;a href="https://beam.apache.org/community/contact-us/">User Mailist&lt;/a>&lt;/em>&lt;/p>
-&lt;p>&lt;em>Stay connected with us for more updates and insights into Apache Beam, Flink, and Kubernetes.&lt;/em>&lt;/p></description><link>/blog/apache-beam-flink-and-kubernetes-part2/</link><pubDate>Mon, 18 Dec 2023 09:00:00 -0400</pubDate><guid>/blog/apache-beam-flink-and-kubernetes-part2/</guid><category>blog</category></item></channel></rss>
+&lt;p>The accompanying &lt;a href="https://github.com/prodriguezdefino/apache-beam-streaming-tests">Github repository&lt;/a> contains a test suite that you can use to replicate the analysis on your Google Cloud project or with a different runner setup. Feel free to take it for a spin. Comments and PRs are always welcome.&lt;/p></description><link>/blog/scaling-streaming-workload/</link><pubDate>Wed, 03 Jan 2024 00:00:01 -0800</pubDate><guid>/blog/scaling-streaming-workload/</guid><category>blog</category></item></channel></rss>

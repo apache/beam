@@ -1,4 +1,81 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Blogs</title><link>/blog/</link><description>Recent content in Blogs on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Wed, 26 Jun 2024 13:00:00 -0800</lastBuildDate><atom:link href="/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.57.0</title><link>/blog/beam-2.57.0/</link><pubDate>Wed, 26 Jun 2024 13:00:00 -0800</pubDate><guid>/blog/beam-2.57.0/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Blogs</title><link>/blog/</link><description>Recent content in Blogs on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Tue, 06 Aug 2024 13:00:00 -0800</lastBuildDate><atom:link href="/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.58.0</title><link>/blog/beam-2.58.0/</link><pubDate>Tue, 06 Aug 2024 13:00:00 -0800</pubDate><guid>/blog/beam-2.58.0/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>We are happy to present the new 2.58.0 release of Beam.
+This release includes both improvements and new functionality.
+See the &lt;a href="/get-started/downloads/#2580-2024-08-06">download page&lt;/a> for this release.&lt;/p>
+&lt;p>For more information about changes in 2.58.0, check out the &lt;a href="https://github.com/apache/beam/milestone/22">detailed release notes&lt;/a>.&lt;/p>
+&lt;h2 id="ios">I/Os&lt;/h2>
+&lt;ul>
+&lt;li>Support for &lt;a href="https://solace.com/">Solace&lt;/a> source (&lt;code>SolaceIO.Read&lt;/code>) added (Java) (&lt;a href="https://github.com/apache/beam/issues/31440">#31440&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
+&lt;ul>
+&lt;li>Multiple RunInference instances can now share the same model instance by setting the model_identifier parameter (Python) (&lt;a href="https://github.com/apache/beam/issues/31665">#31665&lt;/a>).&lt;/li>
+&lt;li>Added options to control the number of Storage API multiplexing connections (&lt;a href="https://github.com/apache/beam/pull/31721">#31721&lt;/a>)&lt;/li>
+&lt;li>[BigQueryIO] Better handling for batch Storage Write API when it hits AppendRows throughput quota (&lt;a href="https://github.com/apache/beam/pull/31837">#31837&lt;/a>)&lt;/li>
+&lt;li>[IcebergIO] All specified catalog properties are passed through to the connector (&lt;a href="https://github.com/apache/beam/pull/31726">#31726&lt;/a>)&lt;/li>
+&lt;li>Removed a third-party LGPL dependency from the Go SDK (&lt;a href="https://github.com/apache/beam/issues/31765">#31765&lt;/a>).&lt;/li>
+&lt;li>Support for &lt;code>MapState&lt;/code> and &lt;code>SetState&lt;/code> when using Dataflow Runner v1 with Streaming Engine (Java) ([&lt;a href="https://github.com/apache/beam/issues/18200">#18200&lt;/a>])&lt;/li>
+&lt;/ul>
+&lt;h2 id="breaking-changes">Breaking Changes&lt;/h2>
+&lt;ul>
+&lt;li>[IcebergIO] &lt;code>IcebergCatalogConfig&lt;/code> was changed to support specifying catalog properties in a key-store fashion (&lt;a href="https://github.com/apache/beam/pull/31726">#31726&lt;/a>)&lt;/li>
+&lt;li>[SpannerIO] Added validation that query and table cannot be specified at the same time for &lt;code>SpannerIO.read()&lt;/code>. Previously &lt;code>withQuery&lt;/code> overrides &lt;code>withTable&lt;/code>, if set (&lt;a href="https://github.com/apache/beam/issues/24956">#24956&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="bug-fixes">Bug fixes&lt;/h2>
+&lt;ul>
+&lt;li>[BigQueryIO] Fixed a bug in batch Storage Write API that frequently exhausted concurrent connections quota (&lt;a href="https://github.com/apache/beam/pull/31710">#31710&lt;/a>)&lt;/li>
+&lt;/ul>
+&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
+&lt;p>According to git shortlog, the following people contributed to the 2.58.0 release. Thank you to all contributors!&lt;/p>
+&lt;p>Ahmed Abualsaud&lt;/p>
+&lt;p>Ahmet Altay&lt;/p>
+&lt;p>Alexandre Moueddene&lt;/p>
+&lt;p>Alexey Romanenko&lt;/p>
+&lt;p>Andrew Crites&lt;/p>
+&lt;p>Bartosz Zablocki&lt;/p>
+&lt;p>Celeste Zeng&lt;/p>
+&lt;p>Chamikara Jayalath&lt;/p>
+&lt;p>Clay Johnson&lt;/p>
+&lt;p>Damon Douglass&lt;/p>
+&lt;p>Danny McCormick&lt;/p>
+&lt;p>Dilnaz Amanzholova&lt;/p>
+&lt;p>Florian Bernard&lt;/p>
+&lt;p>Francis O&amp;rsquo;Hara&lt;/p>
+&lt;p>George Ma&lt;/p>
+&lt;p>Israel Herraiz&lt;/p>
+&lt;p>Jack McCluskey&lt;/p>
+&lt;p>Jaehyeon Kim&lt;/p>
+&lt;p>James Roseman&lt;/p>
+&lt;p>Kenneth Knowles&lt;/p>
+&lt;p>Maciej Szwaja&lt;/p>
+&lt;p>Michel Davit&lt;/p>
+&lt;p>Minh Son Nguyen&lt;/p>
+&lt;p>Naireen&lt;/p>
+&lt;p>Niel Markwick&lt;/p>
+&lt;p>Oliver Cardoza&lt;/p>
+&lt;p>Robert Bradshaw&lt;/p>
+&lt;p>Robert Burke&lt;/p>
+&lt;p>Rohit Sinha&lt;/p>
+&lt;p>S. Veyrié&lt;/p>
+&lt;p>Sam Whittle&lt;/p>
+&lt;p>Shunping Huang&lt;/p>
+&lt;p>Svetak Sundhar&lt;/p>
+&lt;p>TongruiLi&lt;/p>
+&lt;p>Tony Tang&lt;/p>
+&lt;p>Valentyn Tymofieiev&lt;/p>
+&lt;p>Vitaly Terentyev&lt;/p>
+&lt;p>Yi Hu&lt;/p></description></item><item><title>Blog: Apache Beam 2.57.0</title><link>/blog/beam-2.57.0/</link><pubDate>Wed, 26 Jun 2024 13:00:00 -0800</pubDate><guid>/blog/beam-2.57.0/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -7156,81 +7233,4 @@ Williams, Robert Bradshaw, Robert Burke, Rui Wang, Sam Rohde, Sam Whittle,
 Shehzaad Nakhoda, Shehzaad Nakhoda, Siyuan Chen, Sonam Ramchand, Steve Niemitz,
 sychen, Sylvain Veyrié, Tim Robertson, Tobias Kaymak, Tomasz Szerszeń, Tomasz
 Szerszeń, Tomo Suzuki, Tyson Hamilton, Udi Meiri, Valentyn Tymofieiev, Yichi
-Zhang, Yifan Mai, Yixing Zhang, Yoshiki Obata&lt;/p></description></item><item><title>Blog: Apache Beam 2.28.0</title><link>/blog/beam-2.28.0/</link><pubDate>Mon, 22 Feb 2021 12:00:00 -0800</pubDate><guid>/blog/beam-2.28.0/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>We are happy to present the new 2.28.0 release of Apache Beam. This release includes both improvements and new functionality.
-See the &lt;a href="/get-started/downloads/#2280-2021-02-22">download page&lt;/a> for this release.
-For more information on changes in 2.28.0, check out the
-&lt;a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12349499">detailed release notes&lt;/a>.&lt;/p>
-&lt;h2 id="highlights">Highlights&lt;/h2>
-&lt;ul>
-&lt;li>Many improvements related to Parquet support (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11460">BEAM-11460&lt;/a>, &lt;a href="https://issues.apache.org/jira/browse/BEAM-8202">BEAM-8202&lt;/a>, and &lt;a href="https://issues.apache.org/jira/browse/BEAM-11526">BEAM-11526&lt;/a>)&lt;/li>
-&lt;li>Hash Functions in BeamSQL (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10074">BEAM-10074&lt;/a>)&lt;/li>
-&lt;li>Hash functions in ZetaSQL (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11624">BEAM-11624&lt;/a>)&lt;/li>
-&lt;li>Create ApproximateDistinct using HLL Impl (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10324">BEAM-10324&lt;/a>)&lt;/li>
-&lt;/ul>
-&lt;h2 id="ios">I/Os&lt;/h2>
-&lt;ul>
-&lt;li>SpannerIO supports using BigDecimal for Numeric fields (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11643">BEAM-11643&lt;/a>)&lt;/li>
-&lt;li>Add Beam schema support to ParquetIO (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11526">BEAM-11526&lt;/a>)&lt;/li>
-&lt;li>Support ParquetTable Writer (&lt;a href="https://issues.apache.org/jira/browse/BEAM-8202">BEAM-8202&lt;/a>)&lt;/li>
-&lt;li>GCP BigQuery sink (streaming inserts) uses runner determined sharding (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11408">BEAM-11408&lt;/a>)&lt;/li>
-&lt;li>PubSub support types: TIMESTAMP, DATE, TIME, DATETIME (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11533">BEAM-11533&lt;/a>)&lt;/li>
-&lt;/ul>
-&lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
-&lt;ul>
-&lt;li>ParquetIO add methods &lt;em>readGenericRecords&lt;/em> and &lt;em>readFilesGenericRecords&lt;/em> can read files with an unknown schema. See &lt;a href="https://github.com/apache/beam/pull/13554">PR-13554&lt;/a> and (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11460">BEAM-11460&lt;/a>)&lt;/li>
-&lt;li>Added support for thrift in KafkaTableProvider (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11482">BEAM-11482&lt;/a>)&lt;/li>
-&lt;li>Added support for HadoopFormatIO to skip key/value clone (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11457">BEAM-11457&lt;/a>)&lt;/li>
-&lt;li>Support Conversion to GenericRecords in Convert.to transform (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11571">BEAM-11571&lt;/a>).&lt;/li>
-&lt;li>Support writes for Parquet Tables in Beam SQL (&lt;a href="https://issues.apache.org/jira/browse/BEAM-8202">BEAM-8202&lt;/a>).&lt;/li>
-&lt;li>Support reading Parquet files with unknown schema (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11460">BEAM-11460&lt;/a>)&lt;/li>
-&lt;li>Support user configurable Hadoop Configuration flags for ParquetIO (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11527">BEAM-11527&lt;/a>)&lt;/li>
-&lt;li>Expose commit_offset_in_finalize and timestamp_policy to ReadFromKafka (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11677">BEAM-11677&lt;/a>)&lt;/li>
-&lt;li>S3 options does not provided to boto3 client while using FlinkRunner and Beam worker pool container (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11799">BEAM-11799&lt;/a>)&lt;/li>
-&lt;li>HDFS not deduplicating identical configuration paths (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11329">BEAM-11329&lt;/a>)&lt;/li>
-&lt;li>Hash Functions in BeamSQL (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10074">BEAM-10074&lt;/a>)&lt;/li>
-&lt;li>Create ApproximateDistinct using HLL Impl (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10324">BEAM-10324&lt;/a>)&lt;/li>
-&lt;li>Add Beam schema support to ParquetIO (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11526">BEAM-11526&lt;/a>)&lt;/li>
-&lt;li>Add a Deque Encoder (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11538">BEAM-11538&lt;/a>)&lt;/li>
-&lt;li>Hash functions in ZetaSQL (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11624">BEAM-11624&lt;/a>)&lt;/li>
-&lt;li>Refactor ParquetTableProvider (&lt;a href="https://issues.apache.org/jira/browse/">&lt;/a>)&lt;/li>
-&lt;li>Add JVM properties to JavaJobServer (&lt;a href="https://issues.apache.org/jira/browse/BEAM-8344">BEAM-8344&lt;/a>)&lt;/li>
-&lt;li>Single source of truth for supported Flink versions (&lt;a href="https://issues.apache.org/jira/browse/">&lt;/a>)&lt;/li>
-&lt;li>Use metric for Python BigQuery streaming insert API latency logging (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11018">BEAM-11018&lt;/a>)&lt;/li>
-&lt;li>Use metric for Java BigQuery streaming insert API latency logging (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11032">BEAM-11032&lt;/a>)&lt;/li>
-&lt;li>Upgrade Flink runner to Flink versions 1.12.1 and 1.11.3 (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11697">BEAM-11697&lt;/a>)&lt;/li>
-&lt;li>Upgrade Beam base image to use Tensorflow 2.4.1 (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11762">BEAM-11762&lt;/a>)&lt;/li>
-&lt;li>Create Beam GCP BOM (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11665">BEAM-11665&lt;/a>)&lt;/li>
-&lt;/ul>
-&lt;h2 id="breaking-changes">Breaking Changes&lt;/h2>
-&lt;ul>
-&lt;li>The Java artifacts &amp;ldquo;beam-sdks-java-io-kinesis&amp;rdquo;, &amp;ldquo;beam-sdks-java-io-google-cloud-platform&amp;rdquo;, and
-&amp;ldquo;beam-sdks-java-extensions-sql-zetasql&amp;rdquo; declare Guava 30.1-jre dependency (It was 25.1-jre in Beam 2.27.0).
-This new Guava version may introduce dependency conflicts if your project or dependencies rely
-on removed APIs. If affected, ensure to use an appropriate Guava version via &lt;code>dependencyManagement&lt;/code> in Maven and
-&lt;code>force&lt;/code> in Gradle.&lt;/li>
-&lt;/ul>
-&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
-&lt;p>According to git shortlog, the following people contributed to the 2.28.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Ahmet Altay, Alex Amato, Alexey Romanenko, Allen Pradeep Xavier, Anant Damle, Artur Khanin,
-Boyuan Zhang, Brian Hulette, Chamikara Jayalath, Chris Roth, Costi Ciudatu, Damon Douglas,
-Daniel Collins, Daniel Oliveira, David Cavazos, David Huntsperger, Elliotte Rusty Harold,
-Emily Ye, Etienne Chauchot, Etta Rapp, Evan Palmer, Eyal, Filip Krakowski, Fokko Driesprong,
-Heejong Lee, Ismaël Mejía, janeliulwq, Jan Lukavský, John Edmonds, Jozef Vilcek, Kenneth Knowles
-Ke Wu, kileys, Kyle Weaver, MabelYC, masahitojp, Masato Nakamura, Milena Bukal, Miraç Vuslat Başaran,
-Nelson Osacky, Niel Markwick, Ning Kang, omarismail94, Pablo Estrada, Piotr Szuberski,
-ramazan-yapparov, Reuven Lax, Reza Rokni, rHermes, Robert Bradshaw, Robert Burke, Robert Gruener,
-Romster, Rui Wang, Sam Whittle, shehzaadn-vd, Siyuan Chen, Sonam Ramchand, Tobiasz Kędzierski,
-Tomo Suzuki, tszerszen, tvalentyn, Tyson Hamilton, Udi Meiri, Xinbin Huang, Yichi Zhang,
-Yifan Mai, yoshiki.obata, Yueyang Qiu, Yusaku Matsuki&lt;/p></description></item></channel></rss>
+Zhang, Yifan Mai, Yixing Zhang, Yoshiki Obata&lt;/p></description></item></channel></rss>
