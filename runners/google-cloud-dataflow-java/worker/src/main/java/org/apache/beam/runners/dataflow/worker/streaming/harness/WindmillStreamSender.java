@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
+package org.apache.beam.runners.dataflow.worker.streaming.harness;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -29,9 +29,11 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.Ge
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.GetDataClient;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillStreamFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.StreamingEngineThrottleTimers;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemScheduler;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
+import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudgetSpender;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.FixedStreamHeartbeatSender;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers;
@@ -57,7 +59,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers
  */
 @Internal
 @ThreadSafe
-public class WindmillStreamSender {
+final class WindmillStreamSender implements GetWorkBudgetSpender {
   private final AtomicBoolean started;
   private final AtomicReference<GetWorkBudget> getWorkBudget;
   private final Supplier<GetWorkStream> getWorkStream;
@@ -107,7 +109,7 @@ public class WindmillStreamSender {
                     workItemScheduler));
   }
 
-  public static WindmillStreamSender create(
+  static WindmillStreamSender create(
       WindmillConnection connection,
       GetWorkRequest getWorkRequest,
       GetWorkBudget getWorkBudget,
@@ -151,6 +153,7 @@ public class WindmillStreamSender {
     }
   }
 
+  @Override
   public void adjustBudget(long itemsDelta, long bytesDelta) {
     getWorkBudget.set(getWorkBudget.get().apply(itemsDelta, bytesDelta));
     if (started.get()) {
@@ -158,19 +161,16 @@ public class WindmillStreamSender {
     }
   }
 
-  public void adjustBudget(GetWorkBudget adjustment) {
-    adjustBudget(adjustment.items(), adjustment.bytes());
-  }
-
-  public GetWorkBudget remainingGetWorkBudget() {
+  @Override
+  public GetWorkBudget remainingBudget() {
     return started.get() ? getWorkStream.get().remainingBudget() : getWorkBudget.get();
   }
 
-  public long getAndResetThrottleTime() {
+  long getAndResetThrottleTime() {
     return streamingEngineThrottleTimers.getAndResetThrottleTime();
   }
 
-  public long getCurrentActiveCommitBytes() {
+  long getCurrentActiveCommitBytes() {
     return started.get() ? workCommitter.get().currentActiveCommitBytes() : 0;
   }
 }

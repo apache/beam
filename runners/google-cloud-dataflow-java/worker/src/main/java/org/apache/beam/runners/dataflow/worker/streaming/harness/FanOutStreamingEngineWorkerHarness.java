@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
+package org.apache.beam.runners.dataflow.worker.streaming.harness;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap.toImmutableMap;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet.toImmutableSet;
@@ -47,6 +47,8 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.Ge
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.StreamGetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.ThrottlingGetDataMetricTracker;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcDispatcherClient;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillStreamFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCachingStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemScheduler;
@@ -68,16 +70,19 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Client for StreamingEngine. Given a {@link GetWorkBudget}, divides the budget and starts the
- * {@link WindmillStream.GetWorkStream}(s).
+ * {@link StreamingWorkerHarness} implementation that manages fan out to multiple backend
+ * destinations. Given a {@link GetWorkBudget}, divides the budget and starts the {@link
+ * WindmillStream.GetWorkStream}(s).
  */
 @Internal
 @CheckReturnValue
 @ThreadSafe
-public final class StreamingEngineClient {
-  private static final Logger LOG = LoggerFactory.getLogger(StreamingEngineClient.class);
+public final class FanOutStreamingEngineWorkerHarness implements StreamingWorkerHarness {
+  private static final Logger LOG =
+      LoggerFactory.getLogger(FanOutStreamingEngineWorkerHarness.class);
   private static final String PUBLISH_NEW_WORKER_METADATA_THREAD = "PublishNewWorkerMetadataThread";
   private static final String CONSUME_NEW_WORKER_METADATA_THREAD = "ConsumeNewWorkerMetadataThread";
+
   private final JobHeader jobHeader;
   private final GrpcWindmillStreamFactory streamFactory;
   private final WorkItemScheduler workItemScheduler;
@@ -101,7 +106,7 @@ public final class StreamingEngineClient {
   private volatile boolean started;
 
   @SuppressWarnings("FutureReturnValueIgnored")
-  private StreamingEngineClient(
+  private FanOutStreamingEngineWorkerHarness(
       JobHeader jobHeader,
       GetWorkBudget totalGetWorkBudget,
       GrpcWindmillStreamFactory streamFactory,
@@ -152,23 +157,15 @@ public final class StreamingEngineClient {
 
   private static ExecutorService singleThreadedExecutorServiceOf(String threadName) {
     return Executors.newSingleThreadScheduledExecutor(
-        new ThreadFactoryBuilder()
-            .setNameFormat(threadName)
-            .setUncaughtExceptionHandler(
-                (t, e) -> {
-                  LOG.error(
-                      "{} failed due to uncaught exception during execution. ", t.getName(), e);
-                  throw new StreamingEngineClientException(e);
-                })
-            .build());
+        new ThreadFactoryBuilder().setNameFormat(threadName).build());
   }
 
   /**
-   * Creates an instance of {@link StreamingEngineClient} in a non-started state.
+   * Creates an instance of {@link FanOutStreamingEngineWorkerHarness} in a non-started state.
    *
    * @implNote Does not block the calling thread. Callers must explicitly call {@link #start()}.
    */
-  public static StreamingEngineClient create(
+  public static FanOutStreamingEngineWorkerHarness create(
       JobHeader jobHeader,
       GetWorkBudget totalGetWorkBudget,
       GrpcWindmillStreamFactory streamingEngineStreamFactory,
@@ -178,7 +175,7 @@ public final class StreamingEngineClient {
       GrpcDispatcherClient dispatcherClient,
       Function<WindmillStream.CommitWorkStream, WorkCommitter> workCommitterFactory,
       ThrottlingGetDataMetricTracker getDataMetricTracker) {
-    return new StreamingEngineClient(
+    return new FanOutStreamingEngineWorkerHarness(
         jobHeader,
         totalGetWorkBudget,
         streamingEngineStreamFactory,
@@ -192,7 +189,7 @@ public final class StreamingEngineClient {
   }
 
   @VisibleForTesting
-  static StreamingEngineClient forTesting(
+  static FanOutStreamingEngineWorkerHarness forTesting(
       JobHeader jobHeader,
       GetWorkBudget totalGetWorkBudget,
       GrpcWindmillStreamFactory streamFactory,
@@ -203,8 +200,8 @@ public final class StreamingEngineClient {
       long clientId,
       Function<WindmillStream.CommitWorkStream, WorkCommitter> workCommitterFactory,
       ThrottlingGetDataMetricTracker getDataMetricTracker) {
-    StreamingEngineClient streamingEngineClient =
-        new StreamingEngineClient(
+    FanOutStreamingEngineWorkerHarness fanOutStreamingEngineWorkProvider =
+        new FanOutStreamingEngineWorkerHarness(
             jobHeader,
             totalGetWorkBudget,
             streamFactory,
@@ -215,11 +212,12 @@ public final class StreamingEngineClient {
             clientId,
             workCommitterFactory,
             getDataMetricTracker);
-    streamingEngineClient.start();
-    return streamingEngineClient;
+    fanOutStreamingEngineWorkProvider.start();
+    return fanOutStreamingEngineWorkProvider;
   }
 
   @SuppressWarnings("ReturnValueIgnored")
+  @Override
   public synchronized void start() {
     Preconditions.checkState(!started, "StreamingEngineClient cannot start twice.");
     // Starts the stream, this value is memoized.
@@ -270,7 +268,8 @@ public final class StreamingEngineClient {
   }
 
   @VisibleForTesting
-  public synchronized void finish() {
+  @Override
+  public synchronized void shutdown() {
     Preconditions.checkState(started, "StreamingEngineClient never started.");
     getWorkerMetadataStream.get().halfClose();
     getWorkBudgetRefresher.stop();
@@ -334,10 +333,13 @@ public final class StreamingEngineClient {
         .collect(
             toImmutableMap(
                 Function.identity(),
-                // Reuse existing stubs if they exist.
                 endpoint ->
-                    currentConnections.getOrDefault(
-                        endpoint, WindmillConnection.from(endpoint, this::createWindmillStub))));
+                    // Reuse existing stubs if they exist. Optional.orElseGet only calls the
+                    // supplier if the value is not present, preventing constructing expensive
+                    // objects.
+                    Optional.ofNullable(currentConnections.get(endpoint))
+                        .orElseGet(
+                            () -> WindmillConnection.from(endpoint, this::createWindmillStub))));
   }
 
   private synchronized ImmutableMap<WindmillConnection, WindmillStreamSender>
@@ -422,12 +424,5 @@ public final class StreamingEngineClient {
         .directEndpoint()
         .map(channelCachingStubFactory::createWindmillServiceStub)
         .orElseGet(dispatcherClient::getWindmillServiceStub);
-  }
-
-  private static class StreamingEngineClientException extends IllegalStateException {
-
-    private StreamingEngineClientException(Throwable exception) {
-      super(exception);
-    }
   }
 }

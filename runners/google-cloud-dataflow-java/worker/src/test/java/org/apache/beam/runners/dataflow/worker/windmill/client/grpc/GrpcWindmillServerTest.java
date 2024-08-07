@@ -1142,7 +1142,13 @@ public class GrpcWindmillServerTest {
                         StreamingGetWorkResponseChunk.newBuilder()
                             .setStreamId(id)
                             .setSerializedWorkItem(serializedResponse)
-                            .setRemainingBytesForWorkItem(0);
+                            .setRemainingBytesForWorkItem(0)
+                            .setComputationMetadata(
+                                ComputationWorkItemMetadata.newBuilder()
+                                    .setComputationId("computation")
+                                    .setInputDataWatermark(1L)
+                                    .setDependentRealtimeInputWatermark(1L)
+                                    .build());
                     try {
                       responseObserver.onNext(builder.build());
                     } catch (IllegalStateException e) {
@@ -1175,9 +1181,7 @@ public class GrpcWindmillServerTest {
                 @Nullable Instant inputDataWatermark,
                 Instant synchronizedProcessingTime,
                 Windmill.WorkItem workItem,
-                Collection<LatencyAttribution> getWorkStreamLatencies) -> {
-              latch.countDown();
-            });
+                Collection<LatencyAttribution> getWorkStreamLatencies) -> latch.countDown());
     // Wait for 100 items or 30 seconds.
     assertTrue(latch.await(30, TimeUnit.SECONDS));
     // Confirm that we report at least as much throttle time as our server sent errors for.  We will

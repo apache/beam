@@ -171,6 +171,7 @@ public class PubsubClientTest {
     SubscriptionPath path = PubsubClient.subscriptionPathFromName("test", "something");
     assertEquals("projects/test/subscriptions/something", path.getPath());
     assertEquals("/subscriptions/test/something", path.getFullPath());
+    assertEquals("pubsub:subscription:test.something", path.getDataCatalogName());
   }
 
   @Test
@@ -178,6 +179,7 @@ public class PubsubClientTest {
     TopicPath path = PubsubClient.topicPathFromName("test", "something");
     assertEquals("projects/test/topics/something", path.getPath());
     assertEquals("/topics/test/something", path.getFullPath());
+    assertEquals("pubsub:topic:test.something", path.getDataCatalogName());
   }
 
   @Test

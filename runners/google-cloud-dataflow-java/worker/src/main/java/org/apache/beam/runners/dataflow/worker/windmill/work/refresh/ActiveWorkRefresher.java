@@ -130,6 +130,9 @@ public final class ActiveWorkRefresher {
     Instant refreshDeadline = clock.get().minus(Duration.millis(activeWorkRefreshPeriodMillis));
     Map<HeartbeatSender, Heartbeats> heartbeatsBySender =
         aggregateHeartbeatsBySender(refreshDeadline);
+    if (heartbeatsBySender.isEmpty()) {
+      return;
+    }
 
     List<CompletableFuture<Void>> fanOutRefreshActiveWork = new ArrayList<>();
 

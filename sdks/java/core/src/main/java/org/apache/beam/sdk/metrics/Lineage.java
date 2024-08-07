@@ -17,17 +17,17 @@
  */
 package org.apache.beam.sdk.metrics;
 
+import java.util.HashSet;
+import java.util.Set;
+
 /**
  * Standard collection of metrics used to record source and sinks information for lineage tracking.
  */
 public class Lineage {
-
   public static final String LINEAGE_NAMESPACE = "lineage";
-  public static final String SOURCE_METRIC_NAME = "sources";
-  public static final String SINK_METRIC_NAME = "sinks";
-
-  private static final StringSet SOURCES = Metrics.stringSet(LINEAGE_NAMESPACE, SOURCE_METRIC_NAME);
-  private static final StringSet SINKS = Metrics.stringSet(LINEAGE_NAMESPACE, SINK_METRIC_NAME);
+  private static final StringSet SOURCES =
+      Metrics.stringSet(LINEAGE_NAMESPACE, Type.SOURCE.toString());
+  private static final StringSet SINKS = Metrics.stringSet(LINEAGE_NAMESPACE, Type.SINK.toString());
 
   /** {@link StringSet} representing sources and optionally side inputs. */
   public static StringSet getSources() {
@@ -37,5 +37,36 @@ public class Lineage {
   /** {@link StringSet} representing sinks. */
   public static StringSet getSinks() {
     return SINKS;
+  }
+
+  /** Query {@link StringSet} metrics from {@link MetricResults}. */
+  public static Set<String> query(MetricResults results, Type type) {
+    MetricsFilter filter =
+        MetricsFilter.builder()
+            .addNameFilter(MetricNameFilter.named(LINEAGE_NAMESPACE, type.toString()))
+            .build();
+    Set<String> result = new HashSet<>();
+    for (MetricResult<StringSetResult> metrics : results.queryMetrics(filter).getStringSets()) {
+      result.addAll(metrics.getCommitted().getStringSet());
+      result.addAll(metrics.getAttempted().getStringSet());
+    }
+    return result;
+  }
+
+  /** Lineage metrics resource types. */
+  public enum Type {
+    SOURCE("source"),
+    SINK("sink");
+
+    private final String name;
+
+    Type(String name) {
+      this.name = name;
+    }
+
+    @Override
+    public String toString() {
+      return name;
+    }
   }
 }

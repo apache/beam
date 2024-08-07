@@ -1586,6 +1586,15 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     except BaseException as e:
       if self._metrics_collector:
         self._metrics_collector.failed_batches_counter.inc()
+      if (e is pickle.PickleError and
+          self._model_handler.share_model_across_processes()):
+        raise TypeError(
+            'Pickling error encountered while running inference. '
+            'This may be caused by trying to send unpickleable '
+            'data to a model which is shared across processes. '
+            'For more information, see '
+            'https://beam.apache.org/documentation/ml/large-language-modeling/#pickling-errors'  # pylint: disable=line-too-long
+        ) from e
       raise e
     predictions = list(result_generator)
 

@@ -74,6 +74,7 @@ func decodeTimer(keyDec func(io.Reader) []byte, usesGlobalWindow bool, raw []byt
 			timestamp:     firing,
 			holdTimestamp: hold,
 			pane:          pane,
+			sequence:      len(ret),
 		})
 	}
 	return keyBytes, tag, ret
