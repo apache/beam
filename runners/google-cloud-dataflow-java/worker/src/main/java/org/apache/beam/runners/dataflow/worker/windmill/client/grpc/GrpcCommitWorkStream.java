@@ -40,10 +40,11 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.Thrott
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class GrpcCommitWorkStream
+final class GrpcCommitWorkStream
     extends AbstractWindmillStream<StreamingCommitWorkRequest, StreamingCommitResponse>
     implements CommitWorkStream {
   private static final Logger LOG = LoggerFactory.getLogger(GrpcCommitWorkStream.class);
@@ -69,6 +70,7 @@ public final class GrpcCommitWorkStream
       AtomicLong idGenerator,
       int streamingRpcBatchLimit) {
     super(
+        LOG,
         "CommitWorkStream",
         startCommitWorkRpcFn,
         backoff,
@@ -83,7 +85,7 @@ public final class GrpcCommitWorkStream
     this.streamingRpcBatchLimit = streamingRpcBatchLimit;
   }
 
-  public static GrpcCommitWorkStream create(
+  static GrpcCommitWorkStream create(
       String backendWorkerToken,
       Function<StreamObserver<StreamingCommitResponse>, StreamObserver<StreamingCommitWorkRequest>>
           startCommitWorkRpcFn,
@@ -117,7 +119,7 @@ public final class GrpcCommitWorkStream
   }
 
   @Override
-  protected synchronized void onNewStream() {
+  protected void onNewStream() {
     send(StreamingCommitWorkRequest.newBuilder().setHeader(jobHeader).build());
     try (Batcher resendBatcher = new Batcher()) {
       for (Map.Entry<Long, PendingRequest> entry : pending.entrySet()) {
@@ -163,7 +165,7 @@ public final class GrpcCommitWorkStream
         continue;
       }
       PendingRequest done = pending.remove(requestId);
-      if (done == null) {
+      if (done == null && !isShutdown()) {
         LOG.error("Got unknown commit request ID: {}", requestId);
       } else {
         try {
@@ -183,6 +185,12 @@ public final class GrpcCommitWorkStream
   }
 
   @Override
+  protected void shutdownInternal() {
+    pending.values().forEach(pendingRequest -> pendingRequest.onDone.accept(CommitStatus.ABORTED));
+    pending.clear();
+  }
+
+  @Override
   protected void startThrottleTimer() {
     commitWorkThrottleTimer.start();
   }
@@ -191,6 +199,7 @@ public final class GrpcCommitWorkStream
     if (requests.isEmpty()) {
       return;
     }
+
     if (requests.size() == 1) {
       Map.Entry<Long, PendingRequest> elem = requests.entrySet().iterator().next();
       if (elem.getValue().request.getSerializedSize()
@@ -255,7 +264,7 @@ public final class GrpcCommitWorkStream
     synchronized (this) {
       pending.put(id, pendingRequest);
       for (int i = 0;
-          i < serializedCommit.size();
+          i < serializedCommit.size() && !isShutdown();
           i += AbstractWindmillStream.RPC_STREAM_CHUNK_SIZE) {
         int end = i + AbstractWindmillStream.RPC_STREAM_CHUNK_SIZE;
         ByteString chunk = serializedCommit.substring(i, Math.min(end, serializedCommit.size()));
@@ -325,21 +334,24 @@ public final class GrpcCommitWorkStream
     /** Flushes any pending work items to the wire. */
     @Override
     public void flush() {
-      flushInternal(queue);
-      queuedBytes = 0;
-      queue.clear();
+      if (!isShutdown()) {
+        flushInternal(queue);
+        queuedBytes = 0;
+        queue.clear();
+      }
     }
 
     void add(long id, PendingRequest request) {
-      assert (canAccept(request.getBytes()));
+      Preconditions.checkState(canAccept(request.getBytes()));
       queuedBytes += request.getBytes();
       queue.put(id, request);
     }
 
     private boolean canAccept(long requestBytes) {
-      return queue.isEmpty()
-          || (queue.size() < streamingRpcBatchLimit
-              && (requestBytes + queuedBytes) < AbstractWindmillStream.RPC_STREAM_CHUNK_SIZE);
+      return !isShutdown()
+          && (queue.isEmpty()
+              || (queue.size() < streamingRpcBatchLimit
+                  && (requestBytes + queuedBytes) < AbstractWindmillStream.RPC_STREAM_CHUNK_SIZE));
     }
   }
 }
