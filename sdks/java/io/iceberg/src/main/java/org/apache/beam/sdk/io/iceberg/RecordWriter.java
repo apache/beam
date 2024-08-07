@@ -26,6 +26,7 @@ import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.ManifestFiles;
 import org.apache.iceberg.ManifestWriter;
+import org.apache.iceberg.PartitionKey;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.avro.Avro;
 import org.apache.iceberg.catalog.Catalog;
@@ -52,6 +53,7 @@ class RecordWriter {
     this.table = table;
     this.absoluteFilename = table.location() + "/" + filename;
     OutputFile outputFile = table.io().newOutputFile(absoluteFilename);
+    PartitionKey partitionKey = new PartitionKey(table.spec(), table.schema());
 
     switch (fileFormat) {
       case AVRO:
@@ -60,6 +62,7 @@ class RecordWriter {
                 .createWriterFunc(org.apache.iceberg.data.avro.DataWriter::create)
                 .schema(table.schema())
                 .withSpec(table.spec())
+                .withPartition(partitionKey)
                 .overwrite()
                 .build();
         break;
@@ -69,6 +72,7 @@ class RecordWriter {
                 .createWriterFunc(GenericParquetWriter::buildWriter)
                 .schema(table.schema())
                 .withSpec(table.spec())
+                .withPartition(partitionKey)
                 .overwrite()
                 .build();
         break;
