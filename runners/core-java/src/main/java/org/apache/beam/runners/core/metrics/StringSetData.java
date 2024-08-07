@@ -19,7 +19,6 @@ package org.apache.beam.runners.core.metrics;
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
-import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -50,12 +49,16 @@ public abstract class StringSetData implements Serializable {
    * Combines this {@link StringSetData} with other, both original StringSetData are left intact.
    */
   public StringSetData combine(StringSetData other) {
-    // do not merge other on this as this StringSetData might hold an immutable set like in case
-    // of  EmptyStringSetData
-    Set<String> combined = new HashSet<>();
-    combined.addAll(this.stringSet());
-    combined.addAll(other.stringSet());
-    return StringSetData.create(combined);
+    if (this.stringSet().isEmpty()) {
+      return other;
+    } else if (other.stringSet().isEmpty()) {
+      return this;
+    } else {
+      ImmutableSet.Builder<String> combined = ImmutableSet.builder();
+      combined.addAll(this.stringSet());
+      combined.addAll(other.stringSet());
+      return StringSetData.create(combined.build());
+    }
   }
 
   /**

@@ -20,8 +20,8 @@ package org.apache.beam.sdk.io;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.Writer;
+import java.nio.charset.StandardCharsets;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Files;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -38,7 +38,7 @@ public class TextRowCountEstimatorTest {
   @Test
   public void testNonEmptyFiles() throws Exception {
     File file1 = temporaryFolder.newFile("file1.txt");
-    Writer writer = Files.newWriter(file1, Charsets.UTF_8);
+    Writer writer = Files.newWriter(file1, StandardCharsets.UTF_8);
     for (int i = 0; i < 100; i++) {
       writer.write("123123123\n");
     }
@@ -47,7 +47,7 @@ public class TextRowCountEstimatorTest {
     temporaryFolder.newFolder("testfolder");
     temporaryFolder.newFolder("testfolder2");
     file1 = temporaryFolder.newFile("testfolder/test2.txt");
-    writer = Files.newWriter(file1, Charsets.UTF_8);
+    writer = Files.newWriter(file1, StandardCharsets.UTF_8);
     for (int i = 0; i < 50; i++) {
       writer.write("123123123\n");
     }
@@ -71,7 +71,7 @@ public class TextRowCountEstimatorTest {
   @Test
   public void testEmptyFile() throws Exception {
     File file1 = temporaryFolder.newFile("file1.txt");
-    Writer writer = Files.newWriter(file1, Charsets.UTF_8);
+    Writer writer = Files.newWriter(file1, StandardCharsets.UTF_8);
     for (int i = 0; i < 100; i++) {
       writer.write("\n");
     }
@@ -86,7 +86,7 @@ public class TextRowCountEstimatorTest {
   @Test(expected = TextRowCountEstimator.NoEstimationException.class)
   public void lotsOfNewLines() throws Exception {
     File file1 = temporaryFolder.newFile("file1.txt");
-    Writer writer = Files.newWriter(file1, Charsets.UTF_8);
+    Writer writer = Files.newWriter(file1, StandardCharsets.UTF_8);
     for (int i = 0; i < 1000; i++) {
       writer.write("\n");
     }

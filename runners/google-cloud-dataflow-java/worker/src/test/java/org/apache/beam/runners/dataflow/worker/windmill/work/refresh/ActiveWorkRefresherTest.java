@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.worker.windmill.work.refresh;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
@@ -194,10 +195,13 @@ public class ActiveWorkRefresherTest {
       assertThat(heartbeatRequests)
           .comparingElementsUsing(
               Correspondence.from(
-                  (Windmill.HeartbeatRequest h, Work w) ->
-                      h.getWorkToken() == w.getWorkItem().getWorkToken()
-                          && h.getCacheToken() == w.getWorkItem().getWorkToken()
-                          && h.getShardingKey() == w.getWorkItem().getShardingKey(),
+                  (Windmill.HeartbeatRequest h, Work w) -> {
+                    assert h != null;
+                    assert w != null;
+                    return h.getWorkToken() == w.getWorkItem().getWorkToken()
+                        && h.getCacheToken() == w.getWorkItem().getWorkToken()
+                        && h.getShardingKey() == w.getWorkItem().getShardingKey();
+                  },
                   "heartbeatRequest's and Work's workTokens, cacheTokens, and shardingKeys should be equal."))
           .containsExactlyElementsIn(work);
     }
@@ -205,6 +209,32 @@ public class ActiveWorkRefresherTest {
     activeWorkRefresher.stop();
     // Free the work processing threads.
     workIsProcessed.countDown();
+  }
+
+  @Test
+  public void testEmptyActiveWorkRefresh() throws InterruptedException {
+    int activeWorkRefreshPeriodMillis = 100;
+
+    List<ComputationState> computations = new ArrayList<>();
+    for (int i = 0; i < 5; i++) {
+      ComputationState computationState = createComputationState(i);
+      computations.add(computationState);
+    }
+
+    CountDownLatch heartbeatsSent = new CountDownLatch(1);
+    TestClock fakeClock = new TestClock(Instant.now());
+    ActiveWorkRefresher activeWorkRefresher =
+        createActiveWorkRefresher(
+            fakeClock::now,
+            activeWorkRefreshPeriodMillis,
+            0,
+            () -> computations,
+            heartbeats -> heartbeatsSent::countDown);
+
+    activeWorkRefresher.start();
+    fakeClock.advance(Duration.millis(activeWorkRefreshPeriodMillis * 2));
+    assertFalse(heartbeatsSent.await(500, TimeUnit.MILLISECONDS));
+    activeWorkRefresher.stop();
   }
 
   @Test

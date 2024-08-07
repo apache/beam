@@ -20,6 +20,7 @@ package org.apache.beam.runners.flink;
 import java.io.File;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.security.Permission;
 import java.util.Collection;
@@ -30,7 +31,6 @@ import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.construction.resources.PipelineResources;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
@@ -200,7 +200,7 @@ public class FlinkSubmissionTest {
             RestOptions.PORT.key(),
             flinkCluster.getRestPort());
 
-    Files.write(file.toPath(), config.getBytes(Charsets.UTF_8));
+    Files.write(file.toPath(), config.getBytes(StandardCharsets.UTF_8));
 
     // Create a new environment with the location of the Flink config for CliFrontend
     ImmutableMap<String, String> newEnv =

@@ -30,6 +30,7 @@ dependencies {
     implementation project(path: ":model:pipeline", configuration: "shadow")
     implementation project(path: ":sdks:java:core", configuration: "shadow")
     implementation project(path: ":sdks:java:harness", configuration: "shadow")
+    implementation project(":runners:java-fn-execution")
     implementation project(":runners:portability:java")
 
     implementation library.java.joda_time

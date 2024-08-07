@@ -1337,6 +1337,7 @@ public class BigtableIO {
     private transient Set<KV<BigtableWriteException, BoundedWindow>> badRecords = null;
     // Due to callback thread not supporting Beam metrics, Record pending metrics and report later.
     private transient long pendingThrottlingMsecs;
+    private transient boolean reportedLineage;
 
     // Assign serviceEntry in startBundle and clear it in tearDown.
     @Nullable private BigtableServiceEntry serviceEntry;
@@ -1480,6 +1481,10 @@ public class BigtableIO {
               throttlingMsecs.inc(excessTime);
             }
           }
+          if (!reportedLineage) {
+            bigtableWriter.reportLineage();
+            reportedLineage = true;
+          }
           bigtableWriter = null;
         }
 
@@ -1612,6 +1617,7 @@ public class BigtableIO {
     private final BigtableConfig config;
     private final BigtableReadOptions readOptions;
     private @Nullable Long estimatedSizeBytes;
+    private transient boolean reportedLineage;
 
     private final BigtableServiceFactory.ConfigId configId;
 
@@ -1989,6 +1995,13 @@ public class BigtableIO {
     public ValueProvider<String> getTableId() {
       return readOptions.getTableId();
     }
+
+    void reportLineageOnce(BigtableService.Reader reader) {
+      if (!reportedLineage) {
+        reader.reportLineage();
+        reportedLineage = true;
+      }
+    }
   }
 
   private static class BigtableReader extends BoundedReader<Row> {
@@ -2019,6 +2032,7 @@ public class BigtableIO {
               || rangeTracker.markDone();
       if (hasRecord) {
         ++recordsReturned;
+        source.reportLineageOnce(reader);
       }
       return hasRecord;
     }

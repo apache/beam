@@ -27,6 +27,7 @@ import static org.mockito.Mockito.when;
 import com.google.api.client.util.Lists;
 import com.google.common.collect.Maps;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -48,7 +49,6 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Range;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.BaseEncoding;
@@ -1151,8 +1151,8 @@ public class WindmillStateReaderTest {
                     .addFetchRanges(SortedListRange.newBuilder().setStart(beginning).setLimit(end))
                     .setFetchMaxBytes(WindmillStateReader.MAX_ORDERED_LIST_BYTES));
 
-    final ByteString CONT_1 = ByteString.copyFrom("CONTINUATION_1", Charsets.UTF_8);
-    final ByteString CONT_2 = ByteString.copyFrom("CONTINUATION_2", Charsets.UTF_8);
+    final ByteString CONT_1 = ByteString.copyFrom("CONTINUATION_1", StandardCharsets.UTF_8);
+    final ByteString CONT_2 = ByteString.copyFrom("CONTINUATION_2", StandardCharsets.UTF_8);
     Windmill.KeyedGetDataResponse.Builder response1 =
         Windmill.KeyedGetDataResponse.newBuilder()
             .setKey(DATA_KEY)
@@ -1327,7 +1327,7 @@ public class WindmillStateReaderTest {
                     .setStateFamily(STATE_FAMILY)
                     .setFetchMaxBytes(WindmillStateReader.MAX_TAG_VALUE_PREFIX_BYTES));
 
-    final ByteString CONT = ByteString.copyFrom("CONTINUATION", Charsets.UTF_8);
+    final ByteString CONT = ByteString.copyFrom("CONTINUATION", StandardCharsets.UTF_8);
     Windmill.KeyedGetDataResponse.Builder response1 =
         Windmill.KeyedGetDataResponse.newBuilder()
             .setKey(DATA_KEY)
