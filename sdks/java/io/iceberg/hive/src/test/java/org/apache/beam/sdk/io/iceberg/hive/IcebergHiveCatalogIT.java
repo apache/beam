@@ -238,7 +238,7 @@ public class IcebergHiveCatalogIT {
   @Test
   public void testWriteWithHiveCatalog() {
     TableIdentifier tableIdentifier =
-        TableIdentifier.parse(String.format("%s.%s", TEST_DB, TEST_TABLE));
+        TableIdentifier.parse(String.format("%s.%s", TEST_DB, TEST_TABLE + "_write_test"));
     catalog.createTable(tableIdentifier, IcebergUtils.beamSchemaToIcebergSchema(BEAM_SCHEMA));
 
     List<Row> inputRows =

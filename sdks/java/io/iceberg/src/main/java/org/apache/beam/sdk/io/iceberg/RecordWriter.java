@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.iceberg;
 import static org.apache.beam.sdk.io.iceberg.IcebergUtils.beamRowToIcebergRecord;
 
 import java.io.IOException;
-import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.FileFormat;
@@ -35,7 +34,6 @@ import org.apache.iceberg.data.parquet.GenericParquetWriter;
 import org.apache.iceberg.io.DataWriter;
 import org.apache.iceberg.io.OutputFile;
 import org.apache.iceberg.parquet.Parquet;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 class RecordWriter {
 
@@ -44,30 +42,23 @@ class RecordWriter {
   private final Table table;
   private final String absoluteFilename;
 
-  RecordWriter(
-      Catalog catalog, IcebergDestination destination, String filename, @Nullable Schema dataSchema)
+  RecordWriter(Catalog catalog, IcebergDestination destination, String filename)
       throws IOException {
     this(
-        catalog.loadTable(destination.getTableIdentifier()),
-        destination.getFileFormat(),
-        filename,
-        dataSchema);
+        catalog.loadTable(destination.getTableIdentifier()), destination.getFileFormat(), filename);
   }
 
-  RecordWriter(Table table, FileFormat fileFormat, String filename, @Nullable Schema dataSchema)
-      throws IOException {
+  RecordWriter(Table table, FileFormat fileFormat, String filename) throws IOException {
     this.table = table;
     this.absoluteFilename = table.location() + "/" + filename;
     OutputFile outputFile = table.io().newOutputFile(absoluteFilename);
-    org.apache.iceberg.Schema writerSchema =
-        dataSchema == null ? table.schema() : IcebergUtils.beamSchemaToIcebergSchema(dataSchema);
 
     switch (fileFormat) {
       case AVRO:
         icebergDataWriter =
             Avro.writeData(outputFile)
                 .createWriterFunc(org.apache.iceberg.data.avro.DataWriter::create)
-                .schema(writerSchema)
+                .schema(table.schema())
                 .withSpec(table.spec())
                 .overwrite()
                 .build();
@@ -76,7 +67,7 @@ class RecordWriter {
         icebergDataWriter =
             Parquet.writeData(outputFile)
                 .createWriterFunc(GenericParquetWriter::buildWriter)
-                .schema(writerSchema)
+                .schema(table.schema())
                 .withSpec(table.spec())
                 .overwrite()
                 .build();
