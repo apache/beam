@@ -33,7 +33,6 @@ import java.util.stream.Collectors;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
 import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryStorageWriteApiSchemaTransformProvider.BigQueryStorageWriteApiSchemaTransform;
-import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryStorageWriteApiSchemaTransformProvider.BigQueryStorageWriteApiSchemaTransformConfiguration;
 import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices;
 import org.apache.beam.sdk.io.gcp.testing.FakeDatasetService;
 import org.apache.beam.sdk.io.gcp.testing.FakeJobService;
@@ -105,15 +104,14 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
 
   @Test
   public void testInvalidConfig() {
-    List<BigQueryStorageWriteApiSchemaTransformConfiguration.Builder> invalidConfigs =
+    List<BigQueryWriteConfiguration.Builder> invalidConfigs =
         Arrays.asList(
-            BigQueryStorageWriteApiSchemaTransformConfiguration.builder()
-                .setTable("not_a_valid_table_spec"),
-            BigQueryStorageWriteApiSchemaTransformConfiguration.builder()
+            BigQueryWriteConfiguration.builder().setTable("not_a_valid_table_spec"),
+            BigQueryWriteConfiguration.builder()
                 .setTable("project:dataset.table")
                 .setCreateDisposition("INVALID_DISPOSITION"));
 
-    for (BigQueryStorageWriteApiSchemaTransformConfiguration.Builder config : invalidConfigs) {
+    for (BigQueryWriteConfiguration.Builder config : invalidConfigs) {
       assertThrows(
           Exception.class,
           () -> {
@@ -122,13 +120,11 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
     }
   }
 
-  public PCollectionRowTuple runWithConfig(
-      BigQueryStorageWriteApiSchemaTransformConfiguration config) {
+  public PCollectionRowTuple runWithConfig(BigQueryWriteConfiguration config) {
     return runWithConfig(config, ROWS);
   }
 
-  public PCollectionRowTuple runWithConfig(
-      BigQueryStorageWriteApiSchemaTransformConfiguration config, List<Row> inputRows) {
+  public PCollectionRowTuple runWithConfig(BigQueryWriteConfiguration config, List<Row> inputRows) {
     BigQueryStorageWriteApiSchemaTransformProvider provider =
         new BigQueryStorageWriteApiSchemaTransformProvider();
 
@@ -173,8 +169,8 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
   @Test
   public void testSimpleWrite() throws Exception {
     String tableSpec = "project:dataset.simple_write";
-    BigQueryStorageWriteApiSchemaTransformConfiguration config =
-        BigQueryStorageWriteApiSchemaTransformConfiguration.builder().setTable(tableSpec).build();
+    BigQueryWriteConfiguration config =
+        BigQueryWriteConfiguration.builder().setTable(tableSpec).build();
 
     runWithConfig(config, ROWS);
     p.run().waitUntilFinish();
@@ -186,9 +182,9 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
 
   @Test
   public void testWriteToDynamicDestinations() throws Exception {
-    String dynamic = BigQueryStorageWriteApiSchemaTransformProvider.DYNAMIC_DESTINATIONS;
-    BigQueryStorageWriteApiSchemaTransformConfiguration config =
-        BigQueryStorageWriteApiSchemaTransformConfiguration.builder().setTable(dynamic).build();
+    String dynamic = BigQueryWriteConfiguration.DYNAMIC_DESTINATIONS;
+    BigQueryWriteConfiguration config =
+        BigQueryWriteConfiguration.builder().setTable(dynamic).build();
 
     String baseTableSpec = "project:dataset.dynamic_write_";
 
@@ -224,8 +220,8 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
   @Test
   public void testInputElementCount() throws Exception {
     String tableSpec = "project:dataset.input_count";
-    BigQueryStorageWriteApiSchemaTransformConfiguration config =
-        BigQueryStorageWriteApiSchemaTransformConfiguration.builder().setTable(tableSpec).build();
+    BigQueryWriteConfiguration config =
+        BigQueryWriteConfiguration.builder().setTable(tableSpec).build();
 
     runWithConfig(config);
     PipelineResult result = p.run();
@@ -254,13 +250,11 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
   @Test
   public void testFailedRows() throws Exception {
     String tableSpec = "project:dataset.write_with_fail";
-    BigQueryStorageWriteApiSchemaTransformConfiguration config =
-        BigQueryStorageWriteApiSchemaTransformConfiguration.builder()
+    BigQueryWriteConfiguration config =
+        BigQueryWriteConfiguration.builder()
             .setTable(tableSpec)
             .setErrorHandling(
-                BigQueryStorageWriteApiSchemaTransformConfiguration.ErrorHandling.builder()
-                    .setOutput("FailedRows")
-                    .build())
+                BigQueryWriteConfiguration.ErrorHandling.builder().setOutput("FailedRows").build())
             .build();
 
     String failValue = "fail_me";
@@ -307,13 +301,11 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
   @Test
   public void testErrorCount() throws Exception {
     String tableSpec = "project:dataset.error_count";
-    BigQueryStorageWriteApiSchemaTransformConfiguration config =
-        BigQueryStorageWriteApiSchemaTransformConfiguration.builder()
+    BigQueryWriteConfiguration config =
+        BigQueryWriteConfiguration.builder()
             .setTable(tableSpec)
             .setErrorHandling(
-                BigQueryStorageWriteApiSchemaTransformConfiguration.ErrorHandling.builder()
-                    .setOutput("FailedRows")
-                    .build())
+                BigQueryWriteConfiguration.ErrorHandling.builder().setOutput("FailedRows").build())
             .build();
 
     Function<TableRow, Boolean> shouldFailRow =
