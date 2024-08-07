@@ -35,7 +35,6 @@ import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.StorageClient;
 import org.apache.beam.sdk.metrics.Lineage;
-import org.apache.beam.sdk.metrics.StringSet;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -109,12 +108,12 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
     @Nullable Table targetTable = getTargetTable(bqOptions);
 
     ReadSession.Builder readSessionBuilder = ReadSession.newBuilder();
-    StringSet lineageSources = Lineage.getSources();
+    Lineage lineage = Lineage.getSources();
     if (targetTable != null) {
       TableReference tableReference = targetTable.getTableReference();
       readSessionBuilder.setTable(BigQueryHelpers.toTableResourceName(tableReference));
       // register the table as lineage source
-      lineageSources.add(BigQueryHelpers.dataCatalogName(tableReference, bqOptions));
+      lineage.add("bigquery", BigQueryHelpers.dataCatalogSegments(tableReference, bqOptions));
     } else {
       // If the table does not exist targetTable will be null.
       // Construct the table id if we can generate it. For error recording/logging.
@@ -123,7 +122,7 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
         readSessionBuilder.setTable(tableReferenceId);
         // register the table as lineage source
         TableReference tableReference = BigQueryHelpers.parseTableUrn(tableReferenceId);
-        lineageSources.add(BigQueryHelpers.dataCatalogName(tableReference, bqOptions));
+        lineage.add("bigquery", BigQueryHelpers.dataCatalogSegments(tableReference, bqOptions));
       }
     }
 

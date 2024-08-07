@@ -263,7 +263,8 @@ class WriteTables<DestinationT extends @NonNull Object>
       } else {
         Lineage.getSinks()
             .add(
-                BigQueryHelpers.dataCatalogName(
+                "bigquery",
+                BigQueryHelpers.dataCatalogSegments(
                     tableReference, c.getPipelineOptions().as(BigQueryOptions.class)));
       }
 

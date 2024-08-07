@@ -398,12 +398,12 @@ public class FileSystems {
 
   /** Report source {@link Lineage} metrics for resource id. */
   public static void reportSourceLineage(ResourceId resourceId) {
-    getFileSystemInternal(resourceId.getScheme()).reportLineage(resourceId, Lineage.Type.SOURCE);
+    getFileSystemInternal(resourceId.getScheme()).reportLineage(resourceId, Lineage.getSources());
   }
 
   /** Report sink {@link Lineage} metrics for resource id. */
   public static void reportSinkLineage(ResourceId resourceId) {
-    getFileSystemInternal(resourceId.getScheme()).reportLineage(resourceId, Lineage.Type.SINK);
+    getFileSystemInternal(resourceId.getScheme()).reportLineage(resourceId, Lineage.getSinks());
   }
 
   private static class FilterResult {

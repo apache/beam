@@ -37,6 +37,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Objects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
@@ -260,8 +261,8 @@ public abstract class PubsubClient implements Closeable {
       return String.format("/subscriptions/%s/%s", projectId, subscriptionName);
     }
 
-    public String getDataCatalogName() {
-      return String.format("pubsub:subscription:%s.%s", projectId, subscriptionName);
+    public List<String> getDataCatalogSegments() {
+      return ImmutableList.of(projectId, subscriptionName);
     }
 
     @Override
@@ -319,14 +320,14 @@ public abstract class PubsubClient implements Closeable {
     }
 
     /**
-     * Returns the data catalog name. Format "pubsub:topic:`project`.`topic`" This method is
-     * fail-safe. If topic path is malformed, it returns an empty string.
+     * Returns the data catalog segments. This method is fail-safe. If topic path is malformed, it
+     * returns an empty string.
      */
-    public String getDataCatalogName() {
+    public List<String> getDataCatalogSegments() {
       List<String> splits = Splitter.on('/').splitToList(path);
       if (splits.size() == 4) {
         // well-formed path
-        return String.format("pubsub:topic:%s.%s", splits.get(1), splits.get(3));
+        return ImmutableList.of(splits.get(1), splits.get(3));
       } else {
         // Mal-formed path. It is either a test fixture or user error and will fail on publish.
         // We do not throw exception instead return empty string here.
@@ -334,7 +335,7 @@ public abstract class PubsubClient implements Closeable {
             "Cannot get data catalog name for malformed topic path {}. Expected format: "
                 + "projects/<project>/topics/<topic>",
             path);
-        return "";
+        return ImmutableList.of();
       }
     }
 

@@ -162,5 +162,5 @@ public abstract class FileSystem<ResourceIdT extends ResourceId> {
    *
    * <p>Unless override by FileSystem implementations, default to no-op.
    */
-  protected void reportLineage(ResourceIdT unusedId, Lineage.Type unusedType) {}
+  protected void reportLineage(ResourceIdT unusedId, Lineage unusedLineage) {}
 }

@@ -216,10 +216,10 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
   }
 
   @Override
-  protected void reportLineage(GcsResourceId resourceId, Lineage.Type type) {
+  protected void reportLineage(GcsResourceId resourceId, Lineage lineage) {
     GcsPath path = resourceId.getGcsPath();
     if (!path.getBucket().isEmpty()) {
-      Lineage.get(type).add(String.format("gcs:%s.%s", path.getBucket(), path.getObject()));
+      lineage.add("gcs", ImmutableList.of(path.getBucket(), path.getObject()));
     } else {
       LOG.warn("Report Lineage on relative path {} is unsupported", path.getObject());
     }
