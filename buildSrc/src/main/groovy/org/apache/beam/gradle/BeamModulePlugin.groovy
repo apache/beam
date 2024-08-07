@@ -1978,8 +1978,8 @@ class BeamModulePlugin implements Plugin<Project> {
                     def dependencyNode = dependenciesNode.appendNode('dependency')
                     def appendClassifier = { dep ->
                       dep.artifacts.each { art ->
-                        if (art.hasProperty('archiveClassifier')) {
-                          dependencyNode.appendNode('archiveClassifier', art.archiveClassifier)
+                        if (art.hasProperty('classifier')) {
+                          dependencyNode.appendNode('classifier', art.classifier)
                         }
                       }
                     }
