@@ -141,7 +141,7 @@ public class FlinkExecutionEnvironments {
       }
     }
 
-    // Set the correct parallelism, required by UnboundedSourceWrapper to generate consistent
+    // Set the correct parallelism, required by FlinkUnboundedSource to generate consistent
     // splits.
     final int parallelism;
     if (flinkBatchEnv instanceof CollectionEnvironment) {
@@ -230,7 +230,7 @@ public class FlinkExecutionEnvironments {
       LOG.info("Using Flink Master URL {}:{}.", hostAndPort.getHost(), hostAndPort.getPort());
     }
 
-    // Set the parallelism, required by UnboundedSourceWrapper to generate consistent splits.
+    // Set the parallelism, required by FlinkUnboundedSource to generate consistent splits.
     final int parallelism =
         determineParallelism(
             options.getParallelism(), flinkStreamEnv.getParallelism(), flinkConfiguration);
