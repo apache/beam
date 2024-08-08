@@ -113,7 +113,7 @@ except PackageNotFoundError:
   # `pipenv` package managers.
   pass
 
-REQUIRED_CYTHON_VERSION = '0.28.1'
+REQUIRED_CYTHON_VERSION = '3.0.0'
 try:
   _CYTHON_VERSION = distribution('cython').version
   if parse_version(_CYTHON_VERSION) < parse_version(REQUIRED_CYTHON_VERSION):
