@@ -72,7 +72,8 @@ public class ProtoMessageSchema extends GetterBasedSchemaProviderV2 {
             Method method = getProtoGetter(methods, oneOfField.getName(), oneOfField.getType());
             oneOfTypes.put(
                 oneOfField.getName(),
-                FieldValueTypeInformation.forGetter(method, i).withName(field.getName()));
+                FieldValueTypeInformation.forGetter(typeDescriptor, method, i)
+                    .withName(field.getName()));
           }
           // Add an entry that encapsulates information about all possible getters.
           types.add(
@@ -82,7 +83,9 @@ public class ProtoMessageSchema extends GetterBasedSchemaProviderV2 {
         } else {
           // This is a simple field. Add the getter.
           Method method = getProtoGetter(methods, field.getName(), field.getType());
-          types.add(FieldValueTypeInformation.forGetter(method, i).withName(field.getName()));
+          types.add(
+              FieldValueTypeInformation.forGetter(typeDescriptor, method, i)
+                  .withName(field.getName()));
         }
       }
       return types;
@@ -117,7 +120,7 @@ public class ProtoMessageSchema extends GetterBasedSchemaProviderV2 {
       TypeDescriptor<?> targetTypeDescriptor, Schema schema) {
     SchemaUserTypeCreator creator =
         ProtoByteBuddyUtils.getBuilderCreator(
-            targetTypeDescriptor.getRawType(), schema, new ProtoClassFieldValueTypeSupplier());
+            targetTypeDescriptor, schema, new ProtoClassFieldValueTypeSupplier());
     if (creator == null) {
       throw new RuntimeException("Cannot create creator for " + targetTypeDescriptor);
     }

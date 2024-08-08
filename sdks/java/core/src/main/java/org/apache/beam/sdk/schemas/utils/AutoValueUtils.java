@@ -199,7 +199,7 @@ public class AutoValueUtils {
     Map<String, FieldValueTypeInformation> setterTypes =
         ReflectUtils.getMethods(builderClass).stream()
             .filter(ReflectUtils::isSetter)
-            .map(FieldValueTypeInformation::forSetter)
+            .map(m -> FieldValueTypeInformation.forSetter(TypeDescriptor.of(builderClass), m))
             .collect(Collectors.toMap(FieldValueTypeInformation::getName, Function.identity()));
 
     List<FieldValueTypeInformation> setterMethods =

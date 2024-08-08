@@ -1018,34 +1018,41 @@ class ProtoByteBuddyUtils {
 
   public static @Nullable <ProtoBuilderT extends MessageLite.Builder>
       SchemaUserTypeCreator getBuilderCreator(
-          Class<?> protoClass, Schema schema, FieldValueTypeSupplier fieldValueTypeSupplier) {
-    Class<ProtoBuilderT> builderClass = getProtoGeneratedBuilder(protoClass);
+          TypeDescriptor<?> protoTypeDescriptor,
+          Schema schema,
+          FieldValueTypeSupplier fieldValueTypeSupplier) {
+    Class<ProtoBuilderT> builderClass = getProtoGeneratedBuilder(protoTypeDescriptor.getRawType());
     if (builderClass == null) {
       return null;
     }
     Multimap<String, Method> methods = ReflectUtils.getMethodsMap(builderClass);
     List<FieldValueSetter<ProtoBuilderT, Object>> setters =
         schema.getFields().stream()
-            .map(f -> getProtoFieldValueSetter(f, methods, builderClass))
+            .map(f -> getProtoFieldValueSetter(protoTypeDescriptor, f, methods, builderClass))
             .collect(Collectors.toList());
-    return createBuilderCreator(protoClass, builderClass, setters, schema);
+    return createBuilderCreator(protoTypeDescriptor.getRawType(), builderClass, setters, schema);
   }
 
   private static <ProtoBuilderT extends MessageLite.Builder>
       FieldValueSetter<ProtoBuilderT, Object> getProtoFieldValueSetter(
-          Field field, Multimap<String, Method> methods, Class<ProtoBuilderT> builderClass) {
+          TypeDescriptor<?> typeDescriptor,
+          Field field,
+          Multimap<String, Method> methods,
+          Class<ProtoBuilderT> builderClass) {
     if (field.getType().isLogicalType(OneOfType.IDENTIFIER)) {
       OneOfType oneOfType = field.getType().getLogicalType(OneOfType.class);
       TreeMap<Integer, FieldValueSetter<ProtoBuilderT, Object>> oneOfSetters = Maps.newTreeMap();
       for (Field oneOfField : oneOfType.getOneOfSchema().getFields()) {
-        FieldValueSetter setter = getProtoFieldValueSetter(oneOfField, methods, builderClass);
+        FieldValueSetter setter =
+            getProtoFieldValueSetter(typeDescriptor, oneOfField, methods, builderClass);
         oneOfSetters.put(getFieldNumber(oneOfField), setter);
       }
       return createOneOfSetter(field.getName(), oneOfSetters, builderClass);
     } else {
       Method method = getProtoSetter(methods, field.getName(), field.getType());
       return JavaBeanUtils.createSetter(
-          FieldValueTypeInformation.forSetter(method, protoSetterPrefix(field.getType())),
+          FieldValueTypeInformation.forSetter(
+              typeDescriptor, method, protoSetterPrefix(field.getType())),
           new ProtoTypeConversionsFactory());
     }
   }

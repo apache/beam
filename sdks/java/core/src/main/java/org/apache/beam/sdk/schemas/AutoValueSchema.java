@@ -62,7 +62,7 @@ public class AutoValueSchema extends GetterBasedSchemaProviderV2 {
               .collect(Collectors.toList());
       List<FieldValueTypeInformation> types = Lists.newArrayListWithCapacity(methods.size());
       for (int i = 0; i < methods.size(); ++i) {
-        types.add(FieldValueTypeInformation.forGetter(methods.get(i), i));
+        types.add(FieldValueTypeInformation.forGetter(typeDescriptor, methods.get(i), i));
       }
       types.sort(Comparator.comparing(FieldValueTypeInformation::getNumber));
       validateFieldNumbers(types);

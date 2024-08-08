@@ -68,7 +68,7 @@ public class JavaBeanSchema extends GetterBasedSchemaProviderV2 {
               .collect(Collectors.toList());
       List<FieldValueTypeInformation> types = Lists.newArrayListWithCapacity(methods.size());
       for (int i = 0; i < methods.size(); ++i) {
-        types.add(FieldValueTypeInformation.forGetter(methods.get(i), i));
+        types.add(FieldValueTypeInformation.forGetter(typeDescriptor, methods.get(i), i));
       }
       types.sort(Comparator.comparing(FieldValueTypeInformation::getNumber));
       validateFieldNumbers(types);
@@ -114,7 +114,7 @@ public class JavaBeanSchema extends GetterBasedSchemaProviderV2 {
       return ReflectUtils.getMethods(typeDescriptor.getRawType()).stream()
           .filter(ReflectUtils::isSetter)
           .filter(m -> !m.isAnnotationPresent(SchemaIgnore.class))
-          .map(FieldValueTypeInformation::forSetter)
+          .map(m -> FieldValueTypeInformation.forSetter(typeDescriptor, m))
           .map(
               t -> {
                 if (t.getMethod().getAnnotation(SchemaFieldNumber.class) != null) {

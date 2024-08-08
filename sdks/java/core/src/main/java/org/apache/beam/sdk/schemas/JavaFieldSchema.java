@@ -64,7 +64,7 @@ public class JavaFieldSchema extends GetterBasedSchemaProviderV2 {
               .collect(Collectors.toList());
       List<FieldValueTypeInformation> types = Lists.newArrayListWithCapacity(fields.size());
       for (int i = 0; i < fields.size(); ++i) {
-        types.add(FieldValueTypeInformation.forField(fields.get(i), i));
+        types.add(FieldValueTypeInformation.forField(typeDescriptor, fields.get(i), i));
       }
       types.sort(Comparator.comparing(FieldValueTypeInformation::getNumber));
       validateFieldNumbers(types);
