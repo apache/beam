@@ -40,6 +40,7 @@ from typing import Type
 from typing import Union
 
 from apache_beam.metrics import cells
+from apache_beam.metrics.execution import MetricResult
 from apache_beam.metrics.execution import MetricUpdater
 from apache_beam.metrics.metricbase import Counter
 from apache_beam.metrics.metricbase import Distribution
@@ -224,7 +225,7 @@ class MetricResults(object):
   def query(
       self,
       filter: Optional['MetricsFilter'] = None
-  ) -> Dict[str, List['MetricResults']]:
+  ) -> Dict[str, List['MetricResult']]:
     """Queries the runner for existing user metrics that match the filter.
 
     It should return a dictionary, with lists of each kind of metric, and
@@ -321,24 +322,24 @@ class Lineage:
       SINK: Metrics.string_set(LINEAGE_NAMESPACE, SINK)
   }
 
-  def __init__(self, label):
+  def __init__(self, label: str) -> None:
     """Create a Lineage with valid babel (:data:`~Lineage.SOURCE` or
     :data:`~Lineage.SINK`)
     """
     self.metric = Lineage._METRICS[label]
 
   @classmethod
-  def sources(cls):
+  def sources(cls) -> 'Lineage':
     return cls(Lineage.SOURCE)
 
   @classmethod
-  def sinks(cls):
+  def sinks(cls) -> 'Lineage':
     return cls(Lineage.SINK)
 
   _RESERVED_CHARS = re.compile(r'[:\s.]')
 
   @staticmethod
-  def wrap_segment(segment: str):
+  def wrap_segment(segment: str) -> str:
     """Wrap segment to valid segment name.
 
     Specifically, If there are reserved chars (colon, whitespace, dot), escape
@@ -372,7 +373,7 @@ class Lineage:
     self.metric.add(self.get_fq_name(system, *segments, route=route))
 
   @staticmethod
-  def query(results: MetricResults, label: str):
+  def query(results: MetricResults, label: str) -> Set[str]:
     if not label in Lineage._METRICS:
       raise ValueError("Label {} does not exist for Lineage", label)
     response = results.query(
