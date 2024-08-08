@@ -22,6 +22,7 @@ import java.io.IOException;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.sdk.io.Source;
+import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptions;
 
@@ -67,6 +68,20 @@ public class ReaderInvocationUtil<OutputT, ReaderT extends Source.Reader<OutputT
       }
     } else {
       return reader.advance();
+    }
+  }
+
+  public UnboundedSource.CheckpointMark invokeCheckpointMark(
+      UnboundedSource.UnboundedReader<OutputT> reader) throws IOException {
+    if (enableMetrics) {
+      try (Closeable ignored =
+          MetricsEnvironment.scopedMetricsContainer(container.getMetricsContainer(stepName))) {
+        UnboundedSource.CheckpointMark result = reader.getCheckpointMark();
+        container.updateMetrics(stepName);
+        return result;
+      }
+    } else {
+      return reader.getCheckpointMark();
     }
   }
 }
