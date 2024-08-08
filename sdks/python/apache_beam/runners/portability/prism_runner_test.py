@@ -208,20 +208,19 @@ class PrismRunnerTest(portable_runner_test.PortableRunnerTest):
     timer_spec = userstate.TimerSpec('timer', userstate.TimeDomain.WATERMARK)
 
     class TimerDoFn(beam.DoFn):
-      def process(
-          self,
-          element,
-          timer=beam.DoFn.TimerParam(timer_spec)):
+
+      def process(self, element, timer=beam.DoFn.TimerParam(timer_spec)):
         unused_key, ts = element
         timer.set(ts)
         timer.set(2 * ts)
 
       @userstate.on_timer(timer_spec)
-      def process_timer(self, 
+      def process_timer(
+          self,
           ts=beam.DoFn.TimestampParam,
           timer=beam.DoFn.TimerParam(timer_spec)):
         timer.set(timestamp.Timestamp(micros=2 * ts.micros))
-        timer.clear() # Shouldn't fire again
+        timer.clear()  # Shouldn't fire again
         yield 'fired'
 
     with self.create_pipeline() as p:
