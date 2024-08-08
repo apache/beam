@@ -2151,26 +2151,28 @@ public class DoFnOperatorTest {
             WindowedValue.getFullCoder(kvCoder, GlobalWindow.Coder.INSTANCE),
             new SerializablePipelineOptions(options));
 
-    Supplier<DoFnOperator<KV<String, String>, KV<String, String>, KV<String, String>>> doFnOperatorSupplier =
-        () ->
-            new DoFnOperator<>(
-                doFn,
-                "stepName",
-                windowedValueCoder,
-                Collections.emptyMap(),
-                outputTag,
-                Collections.emptyList(),
-                outputManagerFactory,
-                WindowingStrategy.globalDefault(),
-                new HashMap<>(), /* side-input mapping */
-                Collections.emptyList(), /* side inputs */
-                options,
-                keyCoder,
-                keySelector,
-                DoFnSchemaInformation.create(),
-                Collections.emptyMap());
+    Supplier<DoFnOperator<KV<String, String>, KV<String, String>, KV<String, String>>>
+        doFnOperatorSupplier =
+            () ->
+                new DoFnOperator<>(
+                    doFn,
+                    "stepName",
+                    windowedValueCoder,
+                    Collections.emptyMap(),
+                    outputTag,
+                    Collections.emptyList(),
+                    outputManagerFactory,
+                    WindowingStrategy.globalDefault(),
+                    new HashMap<>(), /* side-input mapping */
+                    Collections.emptyList(), /* side inputs */
+                    options,
+                    keyCoder,
+                    keySelector,
+                    DoFnSchemaInformation.create(),
+                    Collections.emptyMap());
 
-    DoFnOperator<KV<String, String>, KV<String, String>, KV<String, String>> doFnOperator = doFnOperatorSupplier.get();
+    DoFnOperator<KV<String, String>, KV<String, String>, KV<String, String>> doFnOperator =
+        doFnOperatorSupplier.get();
     OneInputStreamOperatorTestHarness<
             WindowedValue<KV<String, String>>, WindowedValue<KV<String, String>>>
         testHarness =
