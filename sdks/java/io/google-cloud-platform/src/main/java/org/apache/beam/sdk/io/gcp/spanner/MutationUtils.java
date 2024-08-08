@@ -28,6 +28,8 @@ import com.google.cloud.spanner.Key;
 import com.google.cloud.spanner.Mutation;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -35,6 +37,10 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.ReadableDateTime;
+
+import java.util.Iterator;
+import com.google.cloud.spanner.Value;
+import com.google.cloud.spanner.Type;
 
 final class MutationUtils {
   private MutationUtils() {}
@@ -349,6 +355,61 @@ final class MutationUtils {
             String.format(
                 "Unsupported iterable type '%s' while translating row to struct.",
                 beamIterableType.getTypeName()));
+    }
+  }
+  public static Row createRowFromMutation(Schema schema, Mutation mutation) {
+    HashMap <String, Object> mutationHashMap = new HashMap<String, Object>();
+    mutation.asMap().forEach(
+        (column, value) -> mutationHashMap.put(column, convertValueToBeamFieldType(value)));
+    Map<String, Object> mutationMap = new HashMap<String, Object>(mutationHashMap);
+    return Row.withSchema(schema).withFieldValues(mutationMap).build();
+  }
+    
+  public static Object convertValueToBeamFieldType(Value value) {
+    switch (value.getType().getCode()) {
+      case BOOL:
+        return value.getBool();
+      case BYTES:
+        return value.getBytes();
+      case DATE:
+        return value.getDate();
+      case INT64:
+        return value.getInt64();
+      case FLOAT64:
+        return value.getFloat64();
+      case NUMERIC:
+        return value.getNumeric();
+      case TIMESTAMP:
+        return value.getTimestamp();
+      case STRING:
+        return value.getString();
+      case JSON:
+        return value.getJson();
+      case ARRAY:
+        switch (value.getType().getArrayElementType().getCode()) {
+          case BOOL:
+              return value.getBoolArray();
+          case BYTES:
+              return value.getBytesArray();
+          case DATE:
+              return value.getDateArray();
+          case INT64:
+              return value.getInt64Array();
+          case FLOAT64:
+              return value.getFloat64Array();
+          case NUMERIC:
+              return value.getNumericArray();
+          case TIMESTAMP:
+              return value.getTimestampArray();
+          case STRING:
+              return value.getStringArray();
+          case JSON:
+              return value.getJsonArray();
+          default:
+            return value.toString();
+      }
+      default:
+        return value.toString();
     }
   }
 }
