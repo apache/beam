@@ -15,8 +15,6 @@
 # limitations under the License.
 #
 
-# cython: language_level=3
-
 """
 This module is for internal use only; no backwards-compatibility guarantees.
 

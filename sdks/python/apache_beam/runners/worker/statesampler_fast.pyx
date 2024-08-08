@@ -15,8 +15,6 @@
 # limitations under the License.
 #
 
-# cython: language_level=3
-
 """State sampler for tracking time spent in execution steps.
 
 The state sampler profiles the time spent in each step of a pipeline.
