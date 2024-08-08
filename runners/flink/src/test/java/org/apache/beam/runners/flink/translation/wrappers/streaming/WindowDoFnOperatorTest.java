@@ -1,73 +1,75 @@
-///*
-// * Licensed to the Apache Software Foundation (ASF) under one
-// * or more contributor license agreements.  See the NOTICE file
-// * distributed with this work for additional information
-// * regarding copyright ownership.  The ASF licenses this file
-// * to you under the Apache License, Version 2.0 (the
-// * "License"); you may not use this file except in compliance
-// * with the License.  You may obtain a copy of the License at
-// *
-// *     http://www.apache.org/licenses/LICENSE-2.0
-// *
-// * Unless required by applicable law or agreed to in writing, software
-// * distributed under the License is distributed on an "AS IS" BASIS,
-// * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// * See the License for the specific language governing permissions and
-// * limitations under the License.
-// */
-//package org.apache.beam.runners.flink.translation.wrappers.streaming;
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.beam.runners.flink.translation.wrappers.streaming;
 //
-//import static java.util.Collections.emptyList;
-//import static java.util.Collections.emptyMap;
-//import static org.apache.beam.runners.flink.translation.wrappers.streaming.StreamRecordStripper.stripStreamRecordFromWindowedValue;
-//import static org.apache.beam.sdk.transforms.windowing.PaneInfo.NO_FIRING;
-//import static org.apache.beam.sdk.transforms.windowing.PaneInfo.Timing.ON_TIME;
-//import static org.hamcrest.MatcherAssert.assertThat;
-//import static org.hamcrest.Matchers.containsInAnyOrder;
-//import static org.hamcrest.core.Is.is;
-//import static org.joda.time.Duration.standardMinutes;
-//import static org.junit.Assert.assertEquals;
+// import static java.util.Collections.emptyList;
+// import static java.util.Collections.emptyMap;
+// import static
+// org.apache.beam.runners.flink.translation.wrappers.streaming.StreamRecordStripper.stripStreamRecordFromWindowedValue;
+// import static org.apache.beam.sdk.transforms.windowing.PaneInfo.NO_FIRING;
+// import static org.apache.beam.sdk.transforms.windowing.PaneInfo.Timing.ON_TIME;
+// import static org.hamcrest.MatcherAssert.assertThat;
+// import static org.hamcrest.Matchers.containsInAnyOrder;
+// import static org.hamcrest.core.Is.is;
+// import static org.joda.time.Duration.standardMinutes;
+// import static org.junit.Assert.assertEquals;
 //
-//import java.io.ByteArrayOutputStream;
-//import java.nio.ByteBuffer;
-//import org.apache.beam.runners.core.KeyedWorkItem;
-//import org.apache.beam.runners.core.SystemReduceFn;
-//import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
-//import org.apache.beam.runners.flink.FlinkPipelineOptions;
-//import org.apache.beam.runners.flink.translation.wrappers.streaming.DoFnOperator.MultiOutputOutputManagerFactory;
-//import org.apache.beam.sdk.coders.Coder;
-//import org.apache.beam.sdk.coders.CoderRegistry;
-//import org.apache.beam.sdk.coders.KvCoder;
-//import org.apache.beam.sdk.coders.VarLongCoder;
-//import org.apache.beam.sdk.transforms.Sum;
-//import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-//import org.apache.beam.sdk.transforms.windowing.FixedWindows;
-//import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
-//import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-//import org.apache.beam.sdk.util.AppliedCombineFn;
-//import org.apache.beam.sdk.util.WindowedValue;
-//import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
-//import org.apache.beam.sdk.values.KV;
-//import org.apache.beam.sdk.values.TupleTag;
-//import org.apache.beam.sdk.values.WindowingStrategy;
-//import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
-//import org.apache.flink.api.java.functions.KeySelector;
-//import org.apache.flink.api.java.typeutils.GenericTypeInfo;
-//import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
-//import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-//import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
-//import org.joda.time.Duration;
-//import org.joda.time.Instant;
-//import org.junit.Test;
-//import org.junit.runner.RunWith;
-//import org.junit.runners.JUnit4;
+// import java.io.ByteArrayOutputStream;
+// import java.nio.ByteBuffer;
+// import org.apache.beam.runners.core.KeyedWorkItem;
+// import org.apache.beam.runners.core.SystemReduceFn;
+// import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
+// import org.apache.beam.runners.flink.FlinkPipelineOptions;
+// import
+// org.apache.beam.runners.flink.translation.wrappers.streaming.DoFnOperator.MultiOutputOutputManagerFactory;
+// import org.apache.beam.sdk.coders.Coder;
+// import org.apache.beam.sdk.coders.CoderRegistry;
+// import org.apache.beam.sdk.coders.KvCoder;
+// import org.apache.beam.sdk.coders.VarLongCoder;
+// import org.apache.beam.sdk.transforms.Sum;
+// import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+// import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+// import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+// import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+// import org.apache.beam.sdk.util.AppliedCombineFn;
+// import org.apache.beam.sdk.util.WindowedValue;
+// import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
+// import org.apache.beam.sdk.values.KV;
+// import org.apache.beam.sdk.values.TupleTag;
+// import org.apache.beam.sdk.values.WindowingStrategy;
+// import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+// import org.apache.flink.api.java.functions.KeySelector;
+// import org.apache.flink.api.java.typeutils.GenericTypeInfo;
+// import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+// import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+// import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
+// import org.joda.time.Duration;
+// import org.joda.time.Instant;
+// import org.junit.Test;
+// import org.junit.runner.RunWith;
+// import org.junit.runners.JUnit4;
 //
-///** Tests for {@link WindowDoFnOperator}. */
-//@RunWith(JUnit4.class)
-//@SuppressWarnings({
+/// ** Tests for {@link WindowDoFnOperator}. */
+// @RunWith(JUnit4.class)
+// @SuppressWarnings({
 //  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-//})
-//public class WindowDoFnOperatorTest {
+// })
+// public class WindowDoFnOperatorTest {
 //
 //  @Test
 //  public void testRestore() throws Exception {
@@ -129,7 +131,8 @@
 //        testHarness = createTestHarness(windowDoFnOperator);
 //    testHarness.open();
 //
-//    DoFnOperator<KV<Long, Long>, KeyedWorkItem<Long, Long>, KV<Long, Long>>.FlinkTimerInternals timerInternals =
+//    DoFnOperator<KV<Long, Long>, KeyedWorkItem<Long, Long>, KV<Long, Long>>.FlinkTimerInternals
+// timerInternals =
 //        windowDoFnOperator.timerInternals;
 //
 //    // process elements
@@ -184,7 +187,8 @@
 //        stripStreamRecordFromWindowedValue(testHarness.getOutput()),
 //        containsInAnyOrder(
 //            WindowedValue.of(
-//                KV.of(1L, 100L), new Instant(99), window, PaneInfo.createPane(true, true, ON_TIME)),
+//                KV.of(1L, 100L), new Instant(99), window, PaneInfo.createPane(true, true,
+// ON_TIME)),
 //            WindowedValue.of(
 //                KV.of(2L, 150L),
 //                new Instant(199),
@@ -238,7 +242,8 @@
 //
 //  private KeyedOneInputStreamOperatorTestHarness<
 //          ByteBuffer, WindowedValue<KeyedWorkItem<Long, Long>>, WindowedValue<KV<Long, Long>>>
-//      createTestHarness(WindowDoFnOperator<Long, Long, Long> windowDoFnOperator) throws Exception {
+//      createTestHarness(WindowDoFnOperator<Long, Long, Long> windowDoFnOperator) throws Exception
+// {
 //    return new KeyedOneInputStreamOperatorTestHarness<>(
 //        windowDoFnOperator,
 //        (KeySelector<WindowedValue<KeyedWorkItem<Long, Long>>, ByteBuffer>)
@@ -263,7 +268,8 @@
 //    private IntervalWindow window;
 //
 //    StreamRecord<WindowedValue<KeyedWorkItem<Long, Long>>> toStreamRecord() {
-//      WindowedValue<Long> item = WindowedValue.of(value, new Instant(timestamp), window, NO_FIRING);
+//      WindowedValue<Long> item = WindowedValue.of(value, new Instant(timestamp), window,
+// NO_FIRING);
 //      WindowedValue<KeyedWorkItem<Long, Long>> keyedItem =
 //          WindowedValue.of(
 //              new SingletonKeyedWorkItem<>(key, item), new Instant(timestamp), window, NO_FIRING);
@@ -307,4 +313,4 @@
 //      }
 //    }
 //  }
-//}
+// }
