@@ -38,7 +38,7 @@ type timerRet struct {
 	windows  []typex.Window
 }
 
-// decodeTimerIter extracts timers to to elements for insertion into their keyed queues,
+// decodeTimerIter extracts timers to elements for insertion into their keyed queues,
 // through a go iterator function, to be called by the caller with their processing function.
 //
 // For each timer, a key, tag, windowed elements, and the window set are returned.
