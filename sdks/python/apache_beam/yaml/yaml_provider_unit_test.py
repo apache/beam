@@ -147,7 +147,7 @@ class ProviderParsingTest(unittest.TestCase):
                      flattened)
 
 
-class YamlDefinedProider(unittest.TestCase):
+class YamlDefinedProviderTest(unittest.TestCase):
   def test_yaml_define_provider(self):
     providers = '''
     - type: yaml

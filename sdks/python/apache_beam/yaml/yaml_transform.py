@@ -115,6 +115,10 @@ def explicitly_empty():
 
 
 def is_explicitly_empty(io):
+  if isinstance(io, str):
+    return is_explicitly_empty({io: None})
+  elif isinstance(io, dict) and 'input' in io:
+    return is_explicitly_empty({io['input']: None})
   return io == explicitly_empty()
 
 
