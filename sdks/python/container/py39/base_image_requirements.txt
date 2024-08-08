@@ -36,7 +36,7 @@ cloudpickle==2.2.1
 cramjam==2.8.3
 crcmod==1.7
 cryptography==42.0.5
-Cython==0.29.37
+Cython==3.0.10
 Deprecated==1.2.14
 deprecation==2.1.0
 dill==0.3.1.1
