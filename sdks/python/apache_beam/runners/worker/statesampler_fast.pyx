@@ -57,7 +57,7 @@ cdef extern from "crossplatform_time.h" nogil:
     long tv_nsec  # nanoseconds
   int clock_gettime(int clock_id, timespec *result)
 
-cdef inline int64_t get_nsec_time() nogil:
+cdef inline int64_t get_nsec_time() noexcept nogil:
   """Get current time as microseconds since Unix epoch."""
   cdef timespec current_time
   # First argument value of 0 corresponds to CLOCK_REALTIME.
