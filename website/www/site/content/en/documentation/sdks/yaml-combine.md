@@ -103,7 +103,7 @@ As with all transforms, `Combine` can take a windowing parameter
 - type: Combine
   windowing:
     type: fixed
-    size: 60
+    size: 60s
   config:
     group_by: col1
     combine:
@@ -118,7 +118,7 @@ parameters from upstream, e.g.
 - type: WindowInto
   windowing:
     type: fixed
-    size: 60
+    size: 60s
 - type: Combine
   config:
     group_by: col1
