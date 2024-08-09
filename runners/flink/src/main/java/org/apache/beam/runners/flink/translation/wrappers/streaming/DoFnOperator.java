@@ -271,7 +271,7 @@ public class DoFnOperator<PreInputT, InputT, OutputT> extends AbstractStreamOper
 
   /** Constructor for DoFnOperator. */
   public DoFnOperator(
-      DoFn<InputT, OutputT> doFn,
+      @Nullable DoFn<InputT, OutputT> doFn,
       String stepName,
       Coder<WindowedValue<InputT>> inputWindowedCoder,
       Map<TupleTag<?>, Coder<?>> outputCoders,
@@ -282,8 +282,8 @@ public class DoFnOperator<PreInputT, InputT, OutputT> extends AbstractStreamOper
       Map<Integer, PCollectionView<?>> sideInputTagMapping,
       Collection<PCollectionView<?>> sideInputs,
       PipelineOptions options,
-      Coder<?> keyCoder,
-      KeySelector<WindowedValue<InputT>, ?> keySelector,
+      @Nullable Coder<?> keyCoder,
+      @Nullable KeySelector<WindowedValue<InputT>, ?> keySelector,
       DoFnSchemaInformation doFnSchemaInformation,
       Map<String, PCollectionView<?>> sideInputMapping) {
     this.doFn = doFn;
@@ -1055,7 +1055,7 @@ public class DoFnOperator<PreInputT, InputT, OutputT> extends AbstractStreamOper
   }
 
   @Override
-  public final void snapshotState(StateSnapshotContext context) throws Exception {
+  public void snapshotState(StateSnapshotContext context) throws Exception {
     if (checkpointStats != null) {
       checkpointStats.snapshotStart(context.getCheckpointId());
     }
