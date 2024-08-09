@@ -201,9 +201,9 @@ class PrismRunnerTest(portable_runner_test.PortableRunnerTest):
       assert_that(
           res, equal_to([('k', [1, 2]), ('k', [100, 101, 102]), ('k', [123])]))
 
-  # The fn_runner_test.py version of this test doesn't execute the process method
-  # for some reason. Overridden here to validate that the cleared timer won't
-  # re-fire.
+  # The fn_runner_test.py version of this test doesn't execute the process
+  # method for some reason. Overridden here to validate that the cleared
+  # timer won't re-fire.
   def test_pardo_timers_clear(self):
     timer_spec = userstate.TimerSpec('timer', userstate.TimeDomain.WATERMARK)
 
