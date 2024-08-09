@@ -94,7 +94,6 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (*jo
 	// Queue initial state of the job.
 	job.state.Store(jobpb.JobState_STOPPED)
 	s.jobs[job.key] = job
-	fmt.Println("preparing job:", job.key)
 
 	if err := isSupported(job.Pipeline.GetRequirements()); err != nil {
 		job.Failed(err)
