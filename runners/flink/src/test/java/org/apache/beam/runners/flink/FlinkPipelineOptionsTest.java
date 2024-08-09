@@ -139,7 +139,7 @@ public class FlinkPipelineOptionsTest {
     TupleTag<String> mainTag = new TupleTag<>("main-output");
 
     Coder<WindowedValue<String>> coder = WindowedValue.getValueOnlyCoder(StringUtf8Coder.of());
-    DoFnOperator<String, String> doFnOperator =
+    DoFnOperator<String, String, String> doFnOperator =
         new DoFnOperator<>(
             new TestDoFn(),
             "stepName",
@@ -161,7 +161,7 @@ public class FlinkPipelineOptionsTest {
     final byte[] serialized = SerializationUtils.serialize(doFnOperator);
 
     @SuppressWarnings("unchecked")
-    DoFnOperator<Object, Object> deserialized = SerializationUtils.deserialize(serialized);
+    DoFnOperator<Object, Object, Object> deserialized = SerializationUtils.deserialize(serialized);
 
     TypeInformation<WindowedValue<Object>> typeInformation =
         TypeInformation.of(new TypeHint<WindowedValue<Object>>() {});

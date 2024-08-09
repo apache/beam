@@ -430,24 +430,16 @@ public class FlinkStreamingPortablePipelineTranslator
     WindowedValue.FullWindowedValueCoder<KeyedWorkItem<K, V>> windowedWorkItemCoder =
         WindowedValue.getFullCoder(workItemCoder, windowingStrategy.getWindowFn().windowCoder());
 
-    CoderTypeInformation<WindowedValue<KeyedWorkItem<K, V>>> workItemTypeInfo =
-        new CoderTypeInformation<>(windowedWorkItemCoder, context.getPipelineOptions());
-
-    DataStream<WindowedValue<KeyedWorkItem<K, V>>> workItemStream =
-        inputDataStream
-            .flatMap(
-                new FlinkStreamingTransformTranslators.ToKeyedWorkItem<>(
-                    context.getPipelineOptions()))
-            .returns(workItemTypeInfo)
-            .name("ToKeyedWorkItem");
-
     WorkItemKeySelector<K, V> keySelector =
         new WorkItemKeySelector<>(
             inputElementCoder.getKeyCoder(),
             new SerializablePipelineOptions(context.getPipelineOptions()));
 
-    KeyedStream<WindowedValue<KeyedWorkItem<K, V>>, ByteBuffer> keyedWorkItemStream =
-        workItemStream.keyBy(keySelector);
+    KeyedStream<WindowedValue<KV<K, V>>, ByteBuffer> keyedWorkItemStream =
+        inputDataStream.keyBy(
+            new KvToByteBufferKeySelector(
+                inputElementCoder.getKeyCoder(),
+                new SerializablePipelineOptions(context.getPipelineOptions())));
 
     SystemReduceFn<K, V, Iterable<V>, Iterable<V>, BoundedWindow> reduceFn =
         SystemReduceFn.buffering(inputElementCoder.getValueCoder());
@@ -872,7 +864,7 @@ public class FlinkStreamingPortablePipelineTranslator
             tagsToIds,
             new SerializablePipelineOptions(context.getPipelineOptions()));
 
-    DoFnOperator<InputT, OutputT> doFnOperator =
+    DoFnOperator<InputT, InputT, OutputT> doFnOperator =
         new ExecutableStageDoFnOperator<>(
             transform.getUniqueName(),
             windowedInputCoder,

@@ -19,6 +19,7 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
 import static org.apache.beam.runners.core.TimerInternals.TimerData;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -50,7 +51,7 @@ import org.apache.flink.api.java.functions.KeySelector;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class WindowDoFnOperator<K, InputT, OutputT>
-    extends DoFnOperator<KeyedWorkItem<K, InputT>, KV<K, OutputT>> {
+    extends DoFnOperator<KV<K, InputT>, KeyedWorkItem<K, InputT>, KV<K, OutputT>> {
 
   private final SystemReduceFn<K, InputT, ?, OutputT, BoundedWindow> systemReduceFn;
 
@@ -85,6 +86,25 @@ public class WindowDoFnOperator<K, InputT, OutputT>
         Collections.emptyMap());
 
     this.systemReduceFn = systemReduceFn;
+  }
+
+  @Override
+  protected Iterable<WindowedValue<KeyedWorkItem<K, InputT>>> preProcess(
+      WindowedValue<KV<K, InputT>> inWithMultipleWindows) {
+    // we need to wrap each one work item per window for now
+    // since otherwise the PushbackSideInputRunner will not correctly
+    // determine whether side inputs are ready
+    //
+    // this is tracked as https://github.com/apache/beam/issues/18358
+    ArrayList<WindowedValue<KeyedWorkItem<K, InputT>>> inputs = new ArrayList<>();
+    for (WindowedValue<KV<K, InputT>> in : inWithMultipleWindows.explodeWindows()) {
+      SingletonKeyedWorkItem<K, InputT> workItem =
+          new SingletonKeyedWorkItem<>(
+              in.getValue().getKey(), in.withValue(in.getValue().getValue()));
+
+      inputs.add(in.withValue(workItem));
+    }
+    return inputs;
   }
 
   @Override
