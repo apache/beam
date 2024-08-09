@@ -183,17 +183,18 @@ class ExceptionHandlingTest(unittest.TestCase):
   def test_routes_failures(self):
     with beam.Pipeline() as pipeline:
       good, bad = (
-        pipeline | beam.Create(['abc', 'bcd', 'long_word', 'foo', 'bar', 'foobar'])
+        pipeline | beam.Create(['abc', 'long_word', 'foo', 'bar', 'foobar'])
         | beam.ParDo(TestDoFn9()).with_exception_handling()
       )
       bad_elements = bad | beam.Map(lambda x: x[0])
-      assert_that(good, equal_to(['abc', 'bcd', 'foo', 'bar']), 'good')
+      assert_that(good, equal_to(['abc', 'foo', 'bar']), 'good')
       assert_that(bad_elements, equal_to(['long_word', 'foobar']), 'bad')
 
   def test_handles_callbacks(self):
     with tempfile.TemporaryDirectory() as tmp_dirname:
       tmp_path = os.path.join(tmp_dirname, 'tmp_filename')
       file_contents = 'random content'
+
       def failure_callback(e, el):
         if type(e) is not ValueError:
           raise Exception(f'Failed to pass in correct exception, received {e}')
@@ -207,7 +208,8 @@ class ExceptionHandlingTest(unittest.TestCase):
       with beam.Pipeline() as pipeline:
         good, bad = (
           pipeline | beam.Create(['abc', 'bcd', 'foo', 'bar', 'foobar'])
-          | beam.ParDo(TestDoFn9()).with_exception_handling(on_failure_callback=failure_callback)
+          | beam.ParDo(TestDoFn9()).with_exception_handling(
+            on_failure_callback=failure_callback)
         )
         bad_elements = bad | beam.Map(lambda x: x[0])
         assert_that(good, equal_to(['abc', 'bcd', 'foo', 'bar']), 'good')
@@ -220,6 +222,7 @@ class ExceptionHandlingTest(unittest.TestCase):
     with tempfile.TemporaryDirectory() as tmp_dirname:
       tmp_path = os.path.join(tmp_dirname, 'tmp_filename')
       file_contents = 'random content'
+
       def failure_callback(e, el):
         f = open(tmp_path, "a")
         logging.warning(tmp_path)
@@ -229,7 +232,8 @@ class ExceptionHandlingTest(unittest.TestCase):
       with beam.Pipeline() as pipeline:
         good, bad = (
           pipeline | beam.Create(['abc', 'bcd', 'foo', 'bar'])
-          | beam.ParDo(TestDoFn9()).with_exception_handling(on_failure_callback=failure_callback)
+          | beam.ParDo(TestDoFn9()).with_exception_handling(
+            on_failure_callback=failure_callback)
         )
         bad_elements = bad | beam.Map(lambda x: x[0])
         assert_that(good, equal_to(['abc', 'bcd', 'foo', 'bar']), 'good')

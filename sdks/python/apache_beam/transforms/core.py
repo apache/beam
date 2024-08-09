@@ -1574,7 +1574,7 @@ class ParDo(PTransformWithSideInputs):
       threshold_windowing=None,
       timeout=None,
       on_failure_callback: typing.Optional[typing.Callable[
-        [Exception, typing.Any], None]] = None):
+          [Exception, typing.Any], None]] = None):
     """Automatically provides a dead letter output for skipping bad records.
     This can allow a pipeline to continue successfully rather than fail or
     continuously throw errors on retry when bad elements are encountered.
@@ -2266,7 +2266,11 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
       wrapped_fn = self._fn
     result = pcoll | ParDo(
         _ExceptionHandlingWrapperDoFn(
-            wrapped_fn, self._dead_letter_tag, self._exc_class, self._partial, self._on_failure_callback),
+            wrapped_fn,
+            self._dead_letter_tag,
+            self._exc_class,
+            self._partial,
+            self._on_failure_callback),
         *self._args,
         **self._kwargs).with_outputs(
             self._dead_letter_tag, main=self._main_tag, allow_unknown_tags=True)
@@ -2305,7 +2309,8 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
 
 
 class _ExceptionHandlingWrapperDoFn(DoFn):
-  def __init__(self, fn, dead_letter_tag, exc_class, partial, on_failure_callback):
+  def __init__(
+      self, fn, dead_letter_tag, exc_class, partial, on_failure_callback):
     self._fn = fn
     self._dead_letter_tag = dead_letter_tag
     self._exc_class = exc_class
