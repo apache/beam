@@ -605,18 +605,23 @@ class Operation(object):
         receiver.opcounter.element_counter.value(),
         pcollection=pcollection_id,
     )
-
-    (unused_mean, sum, count, min, max) = (
-        receiver.opcounter.mean_byte_counter.value())
-
-    sampled_byte_count = monitoring_infos.int64_distribution(
-        monitoring_infos.SAMPLED_BYTE_SIZE_URN,
-        DistributionData(sum, count, min, max),
-        pcollection=pcollection_id,
-    )
     all_monitoring_infos[monitoring_infos.to_key(elem_count_mi)] = elem_count_mi
-    all_monitoring_infos[monitoring_infos.to_key(
-        sampled_byte_count)] = sampled_byte_count
+
+    try:
+      (unused_mean, sum, count, min, max) = (
+          receiver.opcounter.mean_byte_counter.value())
+      sampled_byte_count = monitoring_infos.int64_distribution(
+          monitoring_infos.SAMPLED_BYTE_SIZE_URN,
+          DistributionData(sum, count, min, max),
+          pcollection=pcollection_id,
+      )
+      all_monitoring_infos[monitoring_infos.to_key(
+          sampled_byte_count)] = sampled_byte_count
+    except Exception:
+      _LOGGER.debug(
+          "Unable to create distribution for pcollection %s for urn %s",
+          pcollection_id,
+          monitoring_infos.SAMPLED_BYTE_SIZE_URN)
 
     return all_monitoring_infos
 
@@ -1025,11 +1030,19 @@ class DoOperation(Operation):
         infos[monitoring_infos.to_key(mi)] = mi
         (unused_mean, sum, count, min, max) = (
             receiver.opcounter.mean_byte_counter.value())
-        sampled_byte_count = monitoring_infos.int64_distribution(
-            monitoring_infos.SAMPLED_BYTE_SIZE_URN,
-            DistributionData(sum, count, min, max),
-            pcollection=pcollection_id)
-        infos[monitoring_infos.to_key(sampled_byte_count)] = sampled_byte_count
+        try:
+          sampled_byte_count = monitoring_infos.int64_distribution(
+              monitoring_infos.SAMPLED_BYTE_SIZE_URN,
+              DistributionData(sum, count, min, max),
+              pcollection=pcollection_id)
+          infos[monitoring_infos.to_key(
+              sampled_byte_count)] = sampled_byte_count
+        except Exception:
+          _LOGGER.debug(
+              "Unable to create distribution for pcollection %s for urn %s",
+              pcollection_id,
+              monitoring_infos.SAMPLED_BYTE_SIZE_URN)
+          pass
     return infos
 
   def _get_runtime_performance_hints(self):
