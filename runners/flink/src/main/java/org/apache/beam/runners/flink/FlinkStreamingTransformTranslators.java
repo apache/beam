@@ -53,8 +53,10 @@ import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.Fl
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.bounded.FlinkBoundedSource;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.unbounded.FlinkUnboundedSource;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
@@ -66,6 +68,7 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineFnBase.GlobalCombineFn;
+import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.Impulse;
@@ -97,6 +100,7 @@ import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
@@ -1047,129 +1051,170 @@ class FlinkStreamingTransformTranslators {
           || ((Combine.PerKey) transform).getSideInputs().isEmpty();
     }
 
-    /*
-        private GlobalCombineFn<? super InputT, ?, ?> toPartialFlinkCombineFn(GlobalCombineFn<? super InputT, ?, OutputT> combineFn) {
+    private static <InputT, OutputT>
+        GlobalCombineFn<? super InputT, Object, Object> toPartialFlinkCombineFn(
+            GlobalCombineFn<? super InputT, ?, OutputT> combineFn) {
 
-          if(combineFn instanceof Combine.CombineFn) {
-            return new Combine.CombineFn<InputT, Object, Object>() {
+      if (combineFn instanceof Combine.CombineFn) {
+        return new Combine.CombineFn<InputT, Object, Object>() {
 
-              Combine.CombineFn<? super InputT, Object, OutputT> fn =
-                  (Combine.CombineFn<? super InputT, Object, OutputT>) combineFn;
+          @SuppressWarnings("unchecked")
+          final Combine.CombineFn<InputT, Object, OutputT> fn =
+              (Combine.CombineFn<InputT, Object, OutputT>) combineFn;
 
-              @Override
-              public Object createAccumulator() {
-                return fn.createAccumulator();
-              }
-
-              @Override
-              public Object addInput(Object mutableAccumulator, InputT input) {
-                return fn.addInput(mutableAccumulator, input);
-              }
-
-              @Override
-              public Object mergeAccumulators(Iterable<Object> accumulators) {
-                return fn.mergeAccumulators(accumulators);
-              }
-
-              @Override
-              public Object extractOutput(Object accumulator) {
-                return accumulator;
-              }
-            };
-          } else if (combineFn instanceof CombineWithContext.CombineFnWithContext){
-            return new CombineWithContext.CombineFnWithContext<InputT, Object, Object>() {
-              CombineWithContext.CombineFnWithContext<? super InputT, Object, OutputT> fn =
-                  (CombineWithContext.CombineFnWithContext<? super InputT, Object, OutputT>) combineFn;
-              @Override
-              public Object createAccumulator(CombineWithContext.Context c) {
-                return fn.createAccumulator(c);
-              }
-
-              @Override
-              public Object addInput(Object accumulator, InputT input, CombineWithContext.Context c) {
-                return fn.addInput(accumulator, input, c);
-              }
-
-              @Override
-              public Object mergeAccumulators(Iterable<Object> accumulators, CombineWithContext.Context c) {
-                return fn.mergeAccumulators(accumulators, c);
-              }
-
-              @Override
-              public Object extractOutput(Object accumulator, CombineWithContext.Context c) {
-                return accumulator;
-              }
-            };
+          @Override
+          public Object createAccumulator() {
+            return fn.createAccumulator();
           }
 
-          throw new IllegalArgumentException("Unsupported CombineFn implementation: " + combineFn.getClass());
-        }
-
-        private GlobalCombineFn<?, ?, OutputT> toFinalFlinkCombineFn(GlobalCombineFn<? super InputT, ?, OutputT> combineFn) {
-
-          if(combineFn instanceof Combine.CombineFn) {
-            return new Combine.CombineFn<Object, Object, OutputT>() {
-              Combine.CombineFn<? super InputT, Object, OutputT> fn =
-                  (Combine.CombineFn<? super InputT, Object, OutputT>) combineFn;
-              @Override
-              public Object createAccumulator() {
-                return fn.createAccumulator();
-              }
-
-              @Override
-              public Object addInput(Object mutableAccumulator, Object input) {
-                return fn.mergeAccumulators(ImmutableList.of(mutableAccumulator, input));
-              }
-
-              @Override
-              public Object mergeAccumulators(Iterable<Object> accumulators) {
-                return fn.mergeAccumulators(accumulators);
-              }
-
-              @Override
-              public OutputT extractOutput(Object accumulator) {
-                return fn.extractOutput(accumulator);
-              }
-            };
-          } else if (combineFn instanceof CombineWithContext.CombineFnWithContext){
-            return new CombineWithContext.CombineFnWithContext<Object, Object, OutputT>() {
-              CombineWithContext.CombineFnWithContext<? super InputT, Object, OutputT> fn =
-                  (CombineWithContext.CombineFnWithContext<? super InputT, Object, OutputT>) combineFn;
-              @Override
-              public Object createAccumulator(CombineWithContext.Context c) {
-                return fn.createAccumulator(c);
-              }
-
-              @Override
-              public Object addInput(Object accumulator, Object input, CombineWithContext.Context c) {
-                return fn.mergeAccumulators(ImmutableList.of(accumulator, input), c);
-              }
-
-              @Override
-              public Object mergeAccumulators(Iterable<Object> accumulators, CombineWithContext.Context c) {
-                return fn.mergeAccumulators(accumulators, c);
-              }
-
-              @Override
-              public OutputT extractOutput(Object accumulator, CombineWithContext.Context c) {
-                return fn.extractOutput(accumulator, c);
-              }
-            };
+          @Override
+          public Coder<Object> getAccumulatorCoder(CoderRegistry registry, Coder<InputT> inputCoder)
+              throws CannotProvideCoderException {
+            return fn.getAccumulatorCoder(registry, inputCoder);
           }
-          throw new IllegalArgumentException("Unsupported CombineFn implementation: " + combineFn.getClass());
-        }
-    */
 
-    private WindowDoFnOperator<K, InputT, OutputT> getDoFnOperator(
-        FlinkStreamingTranslationContext context,
-        PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>> transform,
-        GlobalCombineFn<? super InputT, ?, OutputT> combineFn,
-        Map<Integer, PCollectionView<?>> sideInputTagMapping,
-        List<PCollectionView<?>> sideInputs) {
+          @Override
+          public Object addInput(Object mutableAccumulator, InputT input) {
+            return fn.addInput(mutableAccumulator, input);
+          }
+
+          @Override
+          public Object mergeAccumulators(Iterable<Object> accumulators) {
+            return fn.mergeAccumulators(accumulators);
+          }
+
+          @Override
+          public Object extractOutput(Object accumulator) {
+            return accumulator;
+          }
+        };
+      } else if (combineFn instanceof CombineWithContext.CombineFnWithContext) {
+        return new CombineWithContext.CombineFnWithContext<InputT, Object, Object>() {
+          @SuppressWarnings("unchecked")
+          final CombineWithContext.CombineFnWithContext<InputT, Object, OutputT> fn =
+              (CombineWithContext.CombineFnWithContext<InputT, Object, OutputT>) combineFn;
+
+          @Override
+          public Object createAccumulator(CombineWithContext.Context c) {
+            return fn.createAccumulator(c);
+          }
+
+          @Override
+          public Coder<Object> getAccumulatorCoder(CoderRegistry registry, Coder<InputT> inputCoder)
+              throws CannotProvideCoderException {
+            return fn.getAccumulatorCoder(registry, inputCoder);
+          }
+
+          @Override
+          public Object addInput(Object accumulator, InputT input, CombineWithContext.Context c) {
+            return fn.addInput(accumulator, input, c);
+          }
+
+          @Override
+          public Object mergeAccumulators(
+              Iterable<Object> accumulators, CombineWithContext.Context c) {
+            return fn.mergeAccumulators(accumulators, c);
+          }
+
+          @Override
+          public Object extractOutput(Object accumulator, CombineWithContext.Context c) {
+            return accumulator;
+          }
+        };
+      }
+
+      throw new IllegalArgumentException(
+          "Unsupported CombineFn implementation: " + combineFn.getClass());
+    }
+
+    private static <InputT, OutputT> GlobalCombineFn<Object, Object, OutputT> toFinalFlinkCombineFn(
+        GlobalCombineFn<? super InputT, ?, OutputT> combineFn, Coder<InputT> inputTCoder) {
+
+      if (combineFn instanceof Combine.CombineFn) {
+        return new Combine.CombineFn<Object, Object, OutputT>() {
+
+          @SuppressWarnings("unchecked")
+          final Combine.CombineFn<InputT, Object, OutputT> fn =
+              (Combine.CombineFn<InputT, Object, OutputT>) combineFn;
+
+          @Override
+          public Object createAccumulator() {
+            return fn.createAccumulator();
+          }
+
+          @Override
+          public Coder<Object> getAccumulatorCoder(CoderRegistry registry, Coder<Object> inputCoder)
+              throws CannotProvideCoderException {
+            return fn.getAccumulatorCoder(registry, inputTCoder);
+          }
+
+          @Override
+          public Object addInput(Object mutableAccumulator, Object input) {
+            return fn.mergeAccumulators(ImmutableList.of(mutableAccumulator, input));
+          }
+
+          @Override
+          public Object mergeAccumulators(Iterable<Object> accumulators) {
+            return fn.mergeAccumulators(accumulators);
+          }
+
+          @Override
+          public OutputT extractOutput(Object accumulator) {
+            return fn.extractOutput(accumulator);
+          }
+        };
+      } else if (combineFn instanceof CombineWithContext.CombineFnWithContext) {
+        return new CombineWithContext.CombineFnWithContext<Object, Object, OutputT>() {
+
+          @SuppressWarnings("unchecked")
+          final CombineWithContext.CombineFnWithContext<InputT, Object, OutputT> fn =
+              (CombineWithContext.CombineFnWithContext<InputT, Object, OutputT>) combineFn;
+
+          @Override
+          public Object createAccumulator(CombineWithContext.Context c) {
+            return fn.createAccumulator(c);
+          }
+
+          @Override
+          public Coder<Object> getAccumulatorCoder(CoderRegistry registry, Coder<Object> inputCoder)
+              throws CannotProvideCoderException {
+            return fn.getAccumulatorCoder(registry, inputTCoder);
+          }
+
+          @Override
+          public Object addInput(Object accumulator, Object input, CombineWithContext.Context c) {
+            return fn.mergeAccumulators(ImmutableList.of(accumulator, input), c);
+          }
+
+          @Override
+          public Object mergeAccumulators(
+              Iterable<Object> accumulators, CombineWithContext.Context c) {
+            return fn.mergeAccumulators(accumulators, c);
+          }
+
+          @Override
+          public OutputT extractOutput(Object accumulator, CombineWithContext.Context c) {
+            return fn.extractOutput(accumulator, c);
+          }
+        };
+      }
+      throw new IllegalArgumentException(
+          "Unsupported CombineFn implementation: " + combineFn.getClass());
+    }
+
+    private static <K, InputC, OutputC, InputT, OutputT>
+        WindowDoFnOperator<K, InputC, OutputC> getDoFnOperator(
+            FlinkStreamingTranslationContext context,
+            PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>> transform,
+            KvCoder<K, InputC> inputKvCoder,
+            Coder<WindowedValue<KV<K, OutputC>>> outputCoder,
+            GlobalCombineFn<? super InputC, ?, OutputC> combineFn,
+            Map<Integer, PCollectionView<?>> sideInputTagMapping,
+            List<PCollectionView<?>> sideInputs) {
 
       // Naming
       String fullName = getCurrentTransformName(context);
-      TupleTag<KV<K, OutputT>> mainTag = new TupleTag<>("main output");
+      TupleTag<KV<K, OutputC>> mainTag = new TupleTag<>("main output");
 
       // input infos
       PCollection<KV<K, InputT>> input = context.getInput(transform);
@@ -1180,31 +1225,26 @@ class FlinkStreamingTransformTranslators {
           new SerializablePipelineOptions(context.getPipelineOptions());
 
       // Coders
-      KvCoder<K, InputT> inputKvCoder = (KvCoder<K, InputT>) input.getCoder();
       Coder<K> keyCoder = inputKvCoder.getKeyCoder();
 
-      SingletonKeyedWorkItemCoder<K, InputT> workItemCoder =
+      SingletonKeyedWorkItemCoder<K, InputC> workItemCoder =
           SingletonKeyedWorkItemCoder.of(
               keyCoder,
               inputKvCoder.getValueCoder(),
-              input.getWindowingStrategy().getWindowFn().windowCoder());
+              windowingStrategy.getWindowFn().windowCoder());
 
-      WindowedValue.FullWindowedValueCoder<KeyedWorkItem<K, InputT>> windowedWorkItemCoder =
-          WindowedValue.getFullCoder(
-              workItemCoder, input.getWindowingStrategy().getWindowFn().windowCoder());
-
-      Coder<WindowedValue<KV<K, OutputT>>> outputCoder =
-          context.getWindowedInputCoder(context.getOutput(transform));
+      WindowedValue.FullWindowedValueCoder<KeyedWorkItem<K, InputC>> windowedWorkItemCoder =
+          WindowedValue.getFullCoder(workItemCoder, windowingStrategy.getWindowFn().windowCoder());
 
       // Combining fn
-      SystemReduceFn<K, InputT, ?, OutputT, BoundedWindow> reduceFn =
+      SystemReduceFn<K, InputC, ?, OutputC, BoundedWindow> reduceFn =
           SystemReduceFn.combining(
               keyCoder,
               AppliedCombineFn.withInputCoder(
                   combineFn, input.getPipeline().getCoderRegistry(), inputKvCoder));
 
       // Key selector
-      WorkItemKeySelector<K, InputT> workItemKeySelector =
+      WorkItemKeySelector<K, InputC> workItemKeySelector =
           new WorkItemKeySelector<>(keyCoder, serializablePipelineOptions);
 
       return new WindowDoFnOperator<>(
@@ -1233,17 +1273,21 @@ class FlinkStreamingTransformTranslators {
 
       KvCoder<K, InputT> inputKvCoder = (KvCoder<K, InputT>) input.getCoder();
       Coder<K> keyCoder = inputKvCoder.getKeyCoder();
+      Coder<WindowedValue<KV<K, OutputT>>> outputCoder =
+          context.getWindowedInputCoder(context.getOutput(transform));
 
       DataStream<WindowedValue<KV<K, InputT>>> inputDataStream = context.getInputDataStream(input);
 
       SerializablePipelineOptions serializablePipelineOptions =
           new SerializablePipelineOptions(context.getPipelineOptions());
 
-      GlobalCombineFn<? super InputT, ?, OutputT> combineFn = ((Combine.PerKey) transform).getFn();
+      @SuppressWarnings("unchecked")
+      GlobalCombineFn<InputT, ?, OutputT> combineFn = ((Combine.PerKey) transform).getFn();
 
       TypeInformation<WindowedValue<KV<K, OutputT>>> outputTypeInfo =
           context.getTypeInfo(context.getOutput(transform));
 
+      @SuppressWarnings("unchecked")
       List<PCollectionView<?>> sideInputs = ((Combine.PerKey) transform).getSideInputs();
 
       KeyedStream<WindowedValue<KV<K, InputT>>, ByteBuffer> keyedStream =
@@ -1251,12 +1295,74 @@ class FlinkStreamingTransformTranslators {
               new KvToByteBufferKeySelector<>(keyCoder, serializablePipelineOptions));
 
       if (sideInputs.isEmpty()) {
-        WindowDoFnOperator<K, InputT, OutputT> doFnOperator =
-            getDoFnOperator(
-                context, transform, combineFn, new HashMap<>(), Collections.emptyList());
+        SingleOutputStreamOperator<WindowedValue<KV<K, OutputT>>> outDataStream;
 
-        SingleOutputStreamOperator<WindowedValue<KV<K, OutputT>>> outDataStream =
-            keyedStream.transform(fullName, outputTypeInfo, doFnOperator).uid(fullName);
+        if (!context.isStreaming()) {
+          Coder<WindowedValue<KV<K, Object>>> windowedAccumCoder;
+          KvCoder<K, Object> accumKvCoder;
+          try {
+            @SuppressWarnings("unchecked")
+            Coder<Object> accumulatorCoder =
+                (Coder<Object>)
+                    combineFn.getAccumulatorCoder(
+                        input.getPipeline().getCoderRegistry(), inputKvCoder.getValueCoder());
+
+            accumKvCoder = KvCoder.of(inputKvCoder.getKeyCoder(), accumulatorCoder);
+
+            windowedAccumCoder =
+                WindowedValue.getFullCoder(
+                    accumKvCoder, input.getWindowingStrategy().getWindowFn().windowCoder());
+          } catch (CannotProvideCoderException e) {
+            throw new RuntimeException(e);
+          }
+
+          // Pre-aggregate inputs before shuffle. Will output instances of combineFn's AccumT
+          WindowDoFnOperator<K, InputT, Object> partialDoFnOperator =
+              getDoFnOperator(
+                  context,
+                  transform,
+                  inputKvCoder,
+                  windowedAccumCoder,
+                  toPartialFlinkCombineFn(combineFn),
+                  new HashMap<>(),
+                  Collections.emptyList());
+
+          // final aggregation from AccumT to OutputT
+          WindowDoFnOperator<K, Object, OutputT> finalDoFnOperator =
+              getDoFnOperator(
+                  context,
+                  transform,
+                  accumKvCoder,
+                  outputCoder,
+                  toFinalFlinkCombineFn(combineFn, inputKvCoder.getValueCoder()),
+                  new HashMap<>(),
+                  Collections.emptyList());
+
+          String partialName = "Combine: " + fullName;
+          CoderTypeInformation<WindowedValue<KV<K, Object>>> partialTypeInfo =
+              new CoderTypeInformation<>(windowedAccumCoder, context.getPipelineOptions());
+
+          outDataStream =
+              inputDataStream
+                  .transform(partialName, partialTypeInfo, partialDoFnOperator)
+                  .uid(partialName)
+                  .keyBy(new KvToByteBufferKeySelector<>(keyCoder, serializablePipelineOptions))
+                  .transform(fullName, outputTypeInfo, finalDoFnOperator)
+                  .uid(fullName);
+        } else {
+          WindowDoFnOperator<K, InputT, OutputT> doFnOperator =
+              getDoFnOperator(
+                  context,
+                  transform,
+                  inputKvCoder,
+                  outputCoder,
+                  combineFn,
+                  new HashMap<>(),
+                  Collections.emptyList());
+
+          outDataStream =
+              keyedStream.transform(fullName, outputTypeInfo, doFnOperator).uid(fullName);
+        }
 
         context.setOutputDataStream(context.getOutput(transform), outDataStream);
       } else {
@@ -1264,7 +1370,14 @@ class FlinkStreamingTransformTranslators {
             transformSideInputs(sideInputs, context);
 
         WindowDoFnOperator<K, InputT, OutputT> doFnOperator =
-            getDoFnOperator(context, transform, combineFn, transformSideInputs.f0, sideInputs);
+            getDoFnOperator(
+                context,
+                transform,
+                inputKvCoder,
+                outputCoder,
+                combineFn,
+                transformSideInputs.f0,
+                sideInputs);
 
         // we have to manually contruct the two-input transform because we're not
         // allowed to have only one input keyed, normally.
