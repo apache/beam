@@ -907,7 +907,6 @@ func (em *ElementManager) triageTimers(d TentativeData, inputInfo PColInfo, stag
 	}
 
 	if len(pendingEventTimers) > 0 {
-		fmt.Println("pendingEventTimers", len(pendingEventTimers), pendingEventTimers)
 		count := stage.AddPending(pendingEventTimers)
 		em.addPending(count)
 	}
