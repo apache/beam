@@ -19,10 +19,17 @@ package org.apache.beam.sdk.io.csv;
 
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA;
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.NULLABLE_ALL_PRIMITIVE_DATA_TYPES_TYPE_DESCRIPTOR;
+import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.TIME_CONTAINING_SCHEMA;
+import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.TIME_CONTAINING_TYPE_DESCRIPTOR;
+import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.TimeContaining;
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.nullableAllPrimitiveDataTypes;
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.nullableAllPrimitiveDataTypesFromRowFn;
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.nullableAllPrimitiveDataTypesToRowFn;
+import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.timeContaining;
+import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.timeContainingFromRowFn;
+import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.timeContainingToRowFn;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -38,17 +45,22 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.apache.commons.csv.CSVFormat;
+import org.joda.time.Instant;
+import org.joda.time.format.DateTimeFormat;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+/** Tests for {@link CsvIOParse}. */
 @RunWith(JUnit4.class)
 public class CsvIOParseTest {
 
@@ -61,6 +73,12 @@ public class CsvIOParseTest {
               NULLABLE_ALL_PRIMITIVE_DATA_TYPES_TYPE_DESCRIPTOR,
               nullableAllPrimitiveDataTypesToRowFn(),
               nullableAllPrimitiveDataTypesFromRowFn());
+  private static final Coder<TimeContaining> TIME_CONTAINING_CODER =
+      SchemaCoder.of(
+          TIME_CONTAINING_SCHEMA,
+          TIME_CONTAINING_TYPE_DESCRIPTOR,
+          timeContainingToRowFn(),
+          timeContainingFromRowFn());
   private static final SerializableFunction<Row, Row> ROW_ROW_SERIALIZABLE_FUNCTION = row -> row;
   @Rule public final TestPipeline pipeline = TestPipeline.create();
 
@@ -120,7 +138,7 @@ public class CsvIOParseTest {
             underTest(
                 NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA,
                 csvFormat(),
-                emptyCustomProcessingMap(),
+                new HashMap<>(),
                 ROW_ROW_SERIALIZABLE_FUNCTION,
                 RowCoder.of(NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA)));
     PAssert.that(result.getOutput()).containsInAnyOrder(want);
@@ -152,7 +170,7 @@ public class CsvIOParseTest {
             underTest(
                 NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA,
                 csvFormat(),
-                emptyCustomProcessingMap(),
+                new HashMap<>(),
                 nullableAllPrimitiveDataTypesFromRowFn(),
                 NULLABLE_ALL_PRIMITIVE_DATA_TYPES_CODER));
     PAssert.that(result.getOutput()).containsInAnyOrder(want);
@@ -162,64 +180,96 @@ public class CsvIOParseTest {
   }
 
   @Test
-  public void givenCustomRecordParsingLambdas_parsesRows() {
+  public void givenSingleCustomParsingLambda_parsesPOJOs() {
     PCollection<String> records =
         csvRecords(
-            pipeline, "aBoolean,aDouble,aFloat,anInteger,aLong,aString", "true,1.0,2.0,3,4,foo");
-    Row want =
-        Row.withSchema(NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA)
-            .withFieldValue("aBoolean", false)
-            .withFieldValue("aDouble", 2.0)
-            .withFieldValue("aFloat", 4.0f)
-            .withFieldValue("anInteger", 6)
-            .withFieldValue("aLong", 8L)
-            .withFieldValue("aString", "foofoo")
-            .build();
-    CsvIOParse<Row> underTest =
+            pipeline,
+            "instant,instantList",
+            "2024-01-23T10:00:05.000Z,10-00-05-2024-01-23;12-59-59-2024-01-24");
+    TimeContaining want =
+        timeContaining(
+            Instant.parse("2024-01-23T10:00:05.000Z"),
+            Arrays.asList(
+                Instant.parse("2024-01-23T10:00:05.000Z"),
+                Instant.parse("2024-01-24T12:59:59.000Z")));
+
+    CsvIOParse<TimeContaining> underTest =
         underTest(
-                NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA,
-                csvFormat(),
-                emptyCustomProcessingMap(),
-                ROW_ROW_SERIALIZABLE_FUNCTION,
-                RowCoder.of(NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA))
-            .withCustomRecordParsing(
-                "aBoolean",
-                (SerializableFunction<String, Object>) input -> !Boolean.parseBoolean(input),
-                Boolean.class)
-            .withCustomRecordParsing(
-                "aDouble",
-                (SerializableFunction<String, Object>) input -> Double.parseDouble(input) * 2,
-                Double.class)
-            .withCustomRecordParsing(
-                "aFloat",
-                (SerializableFunction<String, Object>) input -> Float.parseFloat(input) * 2,
-                Float.class)
-            .withCustomRecordParsing(
-                "anInteger",
-                (SerializableFunction<String, Object>) input -> Integer.parseInt(input) * 2,
-                Integer.class)
-            .withCustomRecordParsing(
-                "aLong",
-                (SerializableFunction<String, Object>) input -> Long.parseLong(input) * 2,
-                Long.class)
-            .withCustomRecordParsing(
-                "aString",
-                (SerializableFunction<String, Object>) input -> input + input,
-                String.class);
-    CsvIOParseResult<Row> result = records.apply(underTest);
+                TIME_CONTAINING_SCHEMA,
+                CSVFormat.DEFAULT
+                    .withHeader("instant", "instantList")
+                    .withAllowDuplicateHeaderNames(false),
+                new HashMap<>(),
+                timeContainingFromRowFn(),
+                TIME_CONTAINING_CODER)
+            .withCustomRecordParsing("instantList", instantListParsingLambda());
+
+    CsvIOParseResult<TimeContaining> result = records.apply(underTest);
     PAssert.that(result.getOutput()).containsInAnyOrder(want);
     PAssert.that(result.getErrors()).empty();
+
     pipeline.run();
   }
 
   @Test
-  public void givenCustomRecordParsingLambdas_parsesToPOJO() {}
+  public void givenMultipleCustomParsingLambdas_parsesPOJOs() {
+    PCollection<String> records =
+        csvRecords(
+            pipeline,
+            "instant,instantList",
+            "2024-01-23@10:00:05,10-00-05-2024-01-23;12-59-59-2024-01-24");
+    TimeContaining want =
+        timeContaining(
+            Instant.parse("2024-01-23T10:00:05.000Z"),
+            Arrays.asList(
+                Instant.parse("2024-01-23T10:00:05.000Z"),
+                Instant.parse("2024-01-24T12:59:59.000Z")));
+
+    CsvIOParse<TimeContaining> underTest =
+        underTest(
+                TIME_CONTAINING_SCHEMA,
+                CSVFormat.DEFAULT
+                    .withHeader("instant", "instantList")
+                    .withAllowDuplicateHeaderNames(false),
+                new HashMap<>(),
+                timeContainingFromRowFn(),
+                TIME_CONTAINING_CODER)
+            .withCustomRecordParsing(
+                "instant",
+                input ->
+                    DateTimeFormat.forPattern("yyyy-MM-dd@HH:mm:ss")
+                        .parseDateTime(input)
+                        .toInstant())
+            .withCustomRecordParsing("instantList", instantListParsingLambda());
+
+    CsvIOParseResult<TimeContaining> result = records.apply(underTest);
+    PAssert.that(result.getOutput()).containsInAnyOrder(want);
+    PAssert.that(result.getErrors()).empty();
+
+    pipeline.run();
+  }
 
   @Test
-  public void givenCustomRecordParsingFieldNameNotPresentInSchema_throws() {}
+  public void givenCustomParsingError_emits() {
+    PCollection<String> records =
+        csvRecords(pipeline, "instant,instantList", "2024-01-23T10:00:05.000Z,BAD CELL");
+    CsvIOParse<TimeContaining> underTest =
+        underTest(
+                TIME_CONTAINING_SCHEMA,
+                CSVFormat.DEFAULT
+                    .withHeader("instant", "instantList")
+                    .withAllowDuplicateHeaderNames(false),
+                new HashMap<>(),
+                timeContainingFromRowFn(),
+                TIME_CONTAINING_CODER)
+            .withCustomRecordParsing("instantList", instantListParsingLambda());
 
-  @Test
-  public void givenCustomRecordParsingLambdaOutputTypeNotCompatibleWithSchemaFieldType_throws() {}
+    CsvIOParseResult<TimeContaining> result = records.apply(underTest);
+    PAssert.that(result.getOutput()).empty();
+    PAssert.thatSingleton(result.getErrors().apply(Count.globally())).isEqualTo(1L);
+
+    pipeline.run();
+  }
 
   private static CSVFormat csvFormat() {
     return CSVFormat.DEFAULT
@@ -251,7 +301,16 @@ public class CsvIOParseTest {
     return CsvIOParse.<T>builder().setConfigBuilder(configBuilder).build();
   }
 
-  private static Map<String, SerializableFunction<String, Object>> emptyCustomProcessingMap() {
-    return new HashMap<>();
+  private static SerializableFunction<String, List<Instant>> instantListParsingLambda() {
+    return input -> {
+      Iterable<String> cells = Splitter.on(';').split(input);
+      ;
+      List<Instant> output = new ArrayList<>();
+      for (String cell : cells) {
+        output.add(
+            DateTimeFormat.forPattern("HH-mm-ss-yyyy-MM-dd").parseDateTime(cell).toInstant());
+      }
+      return output;
+    };
   }
 }
