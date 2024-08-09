@@ -48,7 +48,7 @@ except for dependency on `engine.TentativeData` which will likely be removed at 
 
 `internal` AKA the package in this directory root. Contains fhe job execution
 flow. Jobs are sent to it from `jobservices`, and those jobs are then executed by coordinating
-with the `engine` and `worker` packages, and handlers urn.
+with the `engine` and `worker` packages, and handlers.
 Most configurable behavior is determined here.
 
 `web` contains a web server to visualize aspects of the runner, and should never be
