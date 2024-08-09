@@ -878,8 +878,7 @@ public class FlinkStateInternals<K> implements StateInternals {
       this.namespaceSerializer = namespaceSerializer;
 
       flinkStateDescriptor =
-          new ValueStateDescriptor<>(
-              stateId, new CoderTypeSerializer<>(accumCoder, fasterCopy));
+          new ValueStateDescriptor<>(stateId, new CoderTypeSerializer<>(accumCoder, fasterCopy));
     }
 
     @Override
@@ -1047,8 +1046,7 @@ public class FlinkStateInternals<K> implements StateInternals {
       this.namespaceSerializer = namespaceSerializer;
 
       flinkStateDescriptor =
-          new ValueStateDescriptor<>(
-              stateId, new CoderTypeSerializer<>(accumCoder, fasterCopy));
+          new ValueStateDescriptor<>(stateId, new CoderTypeSerializer<>(accumCoder, fasterCopy));
     }
 
     @Override
@@ -1560,9 +1558,7 @@ public class FlinkStateInternals<K> implements StateInternals {
       this.flinkStateBackend = flinkStateBackend;
       this.flinkStateDescriptor =
           new MapStateDescriptor<>(
-              stateId,
-              new CoderTypeSerializer<>(coder, fasterCopy),
-              BooleanSerializer.INSTANCE);
+              stateId, new CoderTypeSerializer<>(coder, fasterCopy), BooleanSerializer.INSTANCE);
     }
 
     @Override
@@ -1765,9 +1761,7 @@ public class FlinkStateInternals<K> implements StateInternals {
         keyedStateBackend.getOrCreateKeyedState(
             namespaceSerializer,
             new MapStateDescriptor<>(
-                id,
-                new CoderTypeSerializer<>(elemCoder, fasterCopy),
-                BooleanSerializer.INSTANCE));
+                id, new CoderTypeSerializer<>(elemCoder, fasterCopy), BooleanSerializer.INSTANCE));
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
@@ -1800,8 +1794,7 @@ public class FlinkStateInternals<K> implements StateInternals {
         keyedStateBackend.getOrCreateKeyedState(
             namespaceSerializer,
             new ListStateDescriptor<>(
-                id,
-                new CoderTypeSerializer<>(TimestampedValueCoder.of(elemCoder), fasterCopy)));
+                id, new CoderTypeSerializer<>(TimestampedValueCoder.of(elemCoder), fasterCopy)));
       } catch (Exception e) {
         throw new RuntimeException(e);
       }

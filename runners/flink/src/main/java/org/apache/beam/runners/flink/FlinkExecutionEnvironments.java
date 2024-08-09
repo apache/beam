@@ -237,12 +237,15 @@ public class FlinkExecutionEnvironments {
     flinkStreamEnv.setParallelism(parallelism);
     if (options.getMaxParallelism() > 0) {
       flinkStreamEnv.setMaxParallelism(options.getMaxParallelism());
-    } else if(!options.isStreaming()) {
+    } else if (!options.isStreaming()) {
       // In Flink maxParallelism defines the number of keyGroups.
-      // (see https://github.com/apache/flink/blob/e9dd4683f758b463d0b5ee18e49cecef6a70c5cf/flink-runtime/src/main/java/org/apache/flink/runtime/state/KeyGroupRangeAssignment.java#L76)
+      // (see
+      // https://github.com/apache/flink/blob/e9dd4683f758b463d0b5ee18e49cecef6a70c5cf/flink-runtime/src/main/java/org/apache/flink/runtime/state/KeyGroupRangeAssignment.java#L76)
       // The default value (parallelism * 1.5)
-      // (see https://github.com/apache/flink/blob/e9dd4683f758b463d0b5ee18e49cecef6a70c5cf/flink-runtime/src/main/java/org/apache/flink/runtime/state/KeyGroupRangeAssignment.java#L137-L147)
+      // (see
+      // https://github.com/apache/flink/blob/e9dd4683f758b463d0b5ee18e49cecef6a70c5cf/flink-runtime/src/main/java/org/apache/flink/runtime/state/KeyGroupRangeAssignment.java#L137-L147)
       // create a lot of skew so we force maxParallelism = parallelism in Batch mode.
+      LOG.info("Setting maxParallelism to {}", parallelism);
       flinkStreamEnv.setMaxParallelism(parallelism);
     }
     // set parallelism in the options (required by some execution code)
