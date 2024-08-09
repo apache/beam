@@ -271,6 +271,22 @@ def create_test_method(test_type, test_name, test_yaml):
 
 def parse_test_methods(markdown_lines):
   # pylint: disable=too-many-nested-blocks
+
+  def extract_inputs(input_spec):
+    if not input_spec:
+      return set()
+    elif isinstance(input_spec, str):
+      return set([input_spec.split('.')[0]])
+    elif isinstance(input_spec, list):
+      return set.union(*[extract_inputs(v) for v in input_spec])
+    elif isinstance(input_spec, dict):
+      return set.union(*[extract_inputs(v) for v in input_spec.values()])
+    else:
+      raise ValueError("Misformed inputs: " + input_spec)
+
+  def extract_name(input_spec):
+    return input_spec.get('name', input_spec.get('type'))
+
   code_lines = None
   for ix, line in enumerate(markdown_lines):
     line = line.rstrip()
@@ -287,23 +303,6 @@ def parse_test_methods(markdown_lines):
             if is_chain:
               undefined_inputs = set(['input'])
             else:
-
-              def extract_inputs(input_spec):
-                if not input_spec:
-                  return set()
-                elif isinstance(input_spec, str):
-                  return set([input_spec.split('.')[0]])
-                elif isinstance(input_spec, list):
-                  return set.union(*[extract_inputs(v) for v in input_spec])
-                elif isinstance(input_spec, dict):
-                  return set.union(
-                      *[extract_inputs(v) for v in input_spec.values()])
-                else:
-                  raise ValueError("Misformed inputs: " + input_spec)
-
-              def extract_name(input_spec):
-                return input_spec.get('name', input_spec.get('type'))
-
               undefined_inputs = set.union(
                   *[extract_inputs(spec.get('input')) for spec in specs]) - set(
                       extract_name(spec) for spec in specs)
