@@ -118,7 +118,7 @@ from the YAML file, use the
 command:
 
 ```
-gcloud beta dataflow yaml run $JOB_NAME \
+gcloud dataflow yaml run $JOB_NAME \
   --yaml-pipeline-file=pipeline.yaml \
   --region=$REGION
 ```

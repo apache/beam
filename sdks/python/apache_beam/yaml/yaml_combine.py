@@ -70,7 +70,7 @@ def normalize_combine(spec):
     def normalize_agg(dest, agg):
       if isinstance(agg, str):
         agg = {'fn': agg}
-      if 'value' not in agg and spec.get('language') != 'sql':
+      if 'value' not in agg and config.get('language') != 'sql':
         agg['value'] = dest
       if isinstance(agg['fn'], str):
         agg['fn'] = {'type': agg['fn']}

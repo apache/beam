@@ -123,6 +123,8 @@ define a `beam.PTransform` inline, e.g.
     constructor: __constructor__
     kwargs:
       source: |
+        import apache_beam as beam
+        
         class MyPTransform(beam.PTransform):
           def __init__(self, inc):
             self._inc = inc
@@ -150,6 +152,8 @@ In this case one can simply write
     constructor: __callable__
     kwargs:
       source: |
+        import apache_beam as beam
+        
         def my_ptransform(pcoll, inc):
           return pcoll | beam.Map(lambda x: beam.Row(a=x.col2 + inc))
 
@@ -197,6 +201,8 @@ providers:
     config: {}
     transforms:
       'ToCase': |
+        import apache_beam as beam
+        
         @beam.ptransform_fn
         def ToCase(pcoll, upper):
           if upper:
