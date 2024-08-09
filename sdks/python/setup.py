@@ -155,7 +155,7 @@ else:
 # Exclude 1.5.0 and 1.5.1 because of
 # https://github.com/pandas-dev/pandas/issues/45725
 dataframe_dependency = [
-    'pandas>=1.4.3,!=1.5.0,!=1.5.1,<2.2;python_version>="3.8"',
+    'pandas>=1.4.3,!=1.5.0,!=1.5.1,<2.3;python_version>="3.8"',
 ]
 
 
@@ -440,7 +440,7 @@ if __name__ == '__main__':
               'google-cloud-datastore>=2.0.0,<3',
               'google-cloud-pubsub>=2.1.0,<3',
               'google-cloud-pubsublite>=1.2.0,<2',
-              'google-cloud-storage>=2.16.0,<3',
+              'google-cloud-storage>=2.18.2,<3',
               # GCP packages required by tests
               'google-cloud-bigquery>=2.0.0,<4',
               'google-cloud-bigquery-storage>=2.6.3,<3',

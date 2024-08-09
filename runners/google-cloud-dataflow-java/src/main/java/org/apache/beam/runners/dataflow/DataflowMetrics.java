@@ -24,11 +24,11 @@ import com.google.api.client.util.ArrayMap;
 import com.google.api.services.dataflow.model.JobMetrics;
 import com.google.api.services.dataflow.model.MetricUpdate;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
@@ -191,7 +191,7 @@ class DataflowMetrics extends MetricResults {
       if (metricUpdate.getSet() == null) {
         return StringSetResult.empty();
       }
-      return StringSetResult.create(ImmutableSet.copyOf(((Set) metricUpdate.getSet())));
+      return StringSetResult.create(ImmutableSet.copyOf(((Collection) metricUpdate.getSet())));
     }
 
     private DistributionResult getDistributionValue(MetricUpdate metricUpdate) {

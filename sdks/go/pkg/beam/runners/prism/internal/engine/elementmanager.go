@@ -45,6 +45,14 @@ type element struct {
 	holdTimestamp          mtime.Time // only used for Timers
 	pane                   typex.PaneInfo
 	transform, family, tag string // only used for Timers.
+	// Used to ensure ordering within a key when sorting the heap,
+	// which isn't using a stable sort.
+	// Since ordering is weak across multiple bundles, it needs only
+	// be consistent between exiting a stage and entering a stateful stage.
+	// No synchronization is required in specifying this,
+	// since keyed elements are only processed by a single bundle at a time,
+	// if stateful stages are concerned.
+	sequence int
 
 	elmBytes []byte // When nil, indicates this is a timer.
 	keyBytes []byte
@@ -103,7 +111,8 @@ func (h elementHeap) Less(i, j int) bool {
 		} else if h[i].IsData() && h[j].IsTimer() {
 			return true // i before j.
 		}
-		// They're the same kind, fall through to timestamp less for consistency.
+		// They're the same kind, so compare by the sequence value.
+		return h[i].sequence < h[j].sequence
 	}
 	// Otherwise compare by timestamp.
 	return h[i].timestamp < h[j].timestamp
@@ -211,6 +220,16 @@ func (em *ElementManager) AddStage(ID string, inputIDs, outputIDs []string, side
 	for _, input := range inputIDs {
 		em.consumers[input] = append(em.consumers[input], ss.ID)
 	}
+
+	// In very rare cases, we can have a stage without any inputs, such as a flatten.
+	// In that case, there's nothing that will start the watermark refresh cycle,
+	// so we must do it here.
+	if len(inputIDs) == 0 {
+		refreshes := singleSet(ss.ID)
+		em.addToTestStreamImpulseSet(refreshes)
+		em.addRefreshes(refreshes)
+	}
+
 	for _, side := range ss.sides {
 		// Note that we use the StageID as the global ID in the value since we need
 		// to be able to look up the consuming stage, from the global PCollectionID.
@@ -265,14 +284,19 @@ func (em *ElementManager) Impulse(stageID string) {
 	}
 	refreshes := stage.updateWatermarks(em)
 
-	// Since impulses are synthetic, we need to simulate them properly
-	// if a pipeline is only test stream driven.
+	em.addToTestStreamImpulseSet(refreshes)
+	em.addRefreshes(refreshes)
+}
+
+// addToTestStreamImpulseSet adds to the set of stages to refresh on pipeline start.
+// We keep this separate since impulses are synthetic. In a test stream driven pipeline
+// these will need to be stimulated separately, to ensure the test stream has progressed.
+func (em *ElementManager) addToTestStreamImpulseSet(refreshes set[string]) {
 	if em.impulses == nil {
 		em.impulses = refreshes
 	} else {
 		em.impulses.merge(refreshes)
 	}
-	em.addRefreshes(refreshes)
 }
 
 type RunBundle struct {
@@ -470,7 +494,19 @@ func (em *ElementManager) checkForQuiescence(advanced set[string]) error {
 		outW := ss.OutputWatermark()
 		upPCol, upW := ss.UpstreamWatermark()
 		upS := em.pcolParents[upPCol]
+		if upS == "" {
+			upS = "IMPULSE  " // (extra spaces to allow print to align better.)
+		}
 		stageState = append(stageState, fmt.Sprintln(id, "watermark in", inW, "out", outW, "upstream", upW, "from", upS, "pending", ss.pending, "byKey", ss.pendingByKeys, "inprogressKeys", ss.inprogressKeys, "byBundle", ss.inprogressKeysByBundle, "holds", ss.watermarkHolds.heap, "holdCounts", ss.watermarkHolds.counts, "holdsInBundle", ss.inprogressHoldsByBundle, "pttEvents", ss.processingTimeTimers.toFire))
+
+		var outputConsumers, sideConsumers []string
+		for _, col := range ss.outputIDs {
+			outputConsumers = append(outputConsumers, em.consumers[col]...)
+			for _, l := range em.sideConsumers[col] {
+				sideConsumers = append(sideConsumers, l.Global)
+			}
+		}
+		stageState = append(stageState, fmt.Sprintf("\tsideInputs: %v outputCols: %v outputConsumers: %v sideConsumers: %v\n", ss.sides, ss.outputIDs, outputConsumers, sideConsumers))
 	}
 	return errors.Errorf("nothing in progress and no refreshes with non zero pending elements: %v\n%v", v, strings.Join(stageState, ""))
 }
@@ -661,6 +697,7 @@ func reElementResiduals(residuals []Residual, inputInfo PColInfo, rb RunBundle) 
 					pane:      pn,
 					elmBytes:  elmBytes,
 					keyBytes:  keyBytes,
+					sequence:  len(unprocessedElements),
 				})
 		}
 	}
@@ -677,6 +714,7 @@ func reElementResiduals(residuals []Residual, inputInfo PColInfo, rb RunBundle) 
 // PersistBundle takes in the stage ID, ID of the bundle associated with the pending
 // input elements, and the committed output elements.
 func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PColInfo, d TentativeData, inputInfo PColInfo, residuals Residuals) {
+	var seq int
 	for output, data := range d.Raw {
 		info := col2Coders[output]
 		var newPending []element
@@ -716,18 +754,20 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 							pane:      pn,
 							elmBytes:  elmBytes,
 							keyBytes:  keyBytes,
+							sequence:  seq,
 						})
+					seq++
 				}
 			}
 		}
 		consumers := em.consumers[output]
-		slog.Debug("PersistBundle: bundle has downstream consumers.", "bundle", rb, slog.Int("newPending", len(newPending)), "consumers", consumers)
+		sideConsumers := em.sideConsumers[output]
+		slog.Debug("PersistBundle: bundle has downstream consumers.", "bundle", rb, slog.Int("newPending", len(newPending)), "consumers", consumers, "sideConsumers", sideConsumers)
 		for _, sID := range consumers {
 			consumer := em.stages[sID]
 			count := consumer.AddPending(newPending)
 			em.addPending(count)
 		}
-		sideConsumers := em.sideConsumers[output]
 		for _, link := range sideConsumers {
 			consumer := em.stages[link.Global]
 			consumer.AddPendingSide(newPending, link.Transform, link.Local)

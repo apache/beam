@@ -53,7 +53,7 @@
 * ([#X](https://github.com/apache/beam/issues/X)).
 -->
 
-# [2.58.0] - Unreleased
+# [2.59.0] - Unreleased
 
 ## Highlights
 
@@ -62,19 +62,18 @@
 
 ## I/Os
 
-* Support for [Solace](https://solace.com/) source (`SolaceIO.Read`) added (Java) ([#31440](https://github.com/apache/beam/issues/31440)).
+* Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Improvements to the performance of BigqueryIO when using withPropagateSuccessfulStorageApiWrites(true) method (Java) ([#31840](https://github.com/apache/beam/pull/31840)).
 
 ## New Features / Improvements
 
-* Multiple RunInference instances can now share the same model instance by setting the model_identifier parameter (Python) ([#31665](https://github.com/apache/beam/issues/31665)).
-* [IcebergIO] All specified catalog properties are passed through to the connector ([#31726](https://github.com/apache/beam/pull/31726))
-* Removed a 3rd party LGPL dependency from the Go SDK ([#31765](https://github.com/apache/beam/issues/31765)).
-* Support for MapState and SetState when using Dataflow Runner v1 with Streaming Engine (Java) ([[#18200](https://github.com/apache/beam/issues/18200)])
+* X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Go SDK Minimum Go Version updated to 1.21 ([#32092](https://github.com/apache/beam/pull/32092)).
+* Updated Go protobuf package to new version (Go) ([#21515](https://github.com/apache/beam/issues/21515)).
 
 ## Breaking Changes
 
 * X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
-* [IcebergIO] IcebergCatalogConfig was changed to support specifying catalog properties in a key-store fashion ([#31726](https://github.com/apache/beam/pull/31726))
 
 ## Deprecations
 
@@ -82,7 +81,7 @@
 
 ## Bugfixes
 
-* Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Fixed incorrect service account impersonation flow for Python pipelines using BigQuery IOs ([#32030](https://github.com/apache/beam/issues/32030)).
 
 ## Security Fixes
 * Fixed (CVE-YYYY-NNNN)[https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN] (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).
@@ -90,6 +89,31 @@
 ## Known Issues
 
 * ([#X](https://github.com/apache/beam/issues/X)).
+
+# [2.58.0] - 2024-08-06
+
+## Highlights
+
+* Support for [Solace](https://solace.com/) source (`SolaceIO.Read`) added (Java) ([#31440](https://github.com/apache/beam/issues/31440)).
+
+## New Features / Improvements
+
+* Multiple RunInference instances can now share the same model instance by setting the model_identifier parameter (Python) ([#31665](https://github.com/apache/beam/issues/31665)).
+* Added options to control the number of Storage API multiplexing connections ([#31721](https://github.com/apache/beam/pull/31721))
+* [BigQueryIO] Better handling for batch Storage Write API when it hits AppendRows throughput quota ([#31837](https://github.com/apache/beam/pull/31837))
+* [IcebergIO] All specified catalog properties are passed through to the connector ([#31726](https://github.com/apache/beam/pull/31726))
+* Removed a 3rd party LGPL dependency from the Go SDK ([#31765](https://github.com/apache/beam/issues/31765)).
+* Support for MapState and SetState when using Dataflow Runner v1 with Streaming Engine (Java) ([[#18200](https://github.com/apache/beam/issues/18200)])
+
+## Breaking Changes
+
+* [IcebergIO] IcebergCatalogConfig was changed to support specifying catalog properties in a key-store fashion ([#31726](https://github.com/apache/beam/pull/31726))
+* [SpannerIO] Added validation that query and table cannot be specified at the same time for SpannerIO.read(). Previously withQuery overrides withTable, if set ([#24956](https://github.com/apache/beam/issues/24956)).
+
+## Bugfixes
+
+* [BigQueryIO] Fixed a bug in batch Storage Write API that frequently exhausted concurrent connections quota ([#31710](https://github.com/apache/beam/pull/31710))
+* Fixed a logging issue where Python worker dependency installation logs sometimes were not emitted in a timely manner ([#31977](https://github.com/apache/beam/pull/31977))
 
 # [2.57.0] - 2024-06-26
 
@@ -487,6 +511,7 @@ as a workaround, a copy of "old" `CountingSource` class should be placed into a 
 ## Known Issues
 
 * Long-running Python pipelines might experience a memory leak: [#28246](https://github.com/apache/beam/issues/28246).
+* Python pipelines using the `--impersonate_service_account` option with BigQuery IOs might fail on Dataflow ([#32030](https://github.com/apache/beam/issues/32030)). This is fixed in 2.59.0 release.
 
 
 # [2.48.0] - 2023-05-31

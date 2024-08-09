@@ -15,22 +15,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
+package org.apache.beam.runners.dataflow.worker.streaming.harness;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import javax.annotation.concurrent.ThreadSafe;
-import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkRequest;
+import org.apache.beam.runners.dataflow.worker.windmill.WindmillConnection;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.CommitWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
+import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.GetDataClient;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillStreamFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.StreamingEngineThrottleTimers;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemScheduler;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
+import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudgetSpender;
+import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.FixedStreamHeartbeatSender;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers;
 
@@ -55,7 +59,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers
  */
 @Internal
 @ThreadSafe
-public class WindmillStreamSender {
+final class WindmillStreamSender implements GetWorkBudgetSpender {
   private final AtomicBoolean started;
   private final AtomicReference<GetWorkBudget> getWorkBudget;
   private final Supplier<GetWorkStream> getWorkStream;
@@ -65,11 +69,12 @@ public class WindmillStreamSender {
   private final StreamingEngineThrottleTimers streamingEngineThrottleTimers;
 
   private WindmillStreamSender(
-      CloudWindmillServiceV1Alpha1Stub stub,
+      WindmillConnection connection,
       GetWorkRequest getWorkRequest,
       AtomicReference<GetWorkBudget> getWorkBudget,
       GrpcWindmillStreamFactory streamingEngineStreamFactory,
       WorkItemScheduler workItemScheduler,
+      Function<GetDataStream, GetDataClient> getDataClientFactory,
       Function<CommitWorkStream, WorkCommitter> workCommitterFactory) {
     this.started = new AtomicBoolean(false);
     this.getWorkBudget = getWorkBudget;
@@ -83,39 +88,42 @@ public class WindmillStreamSender {
         Suppliers.memoize(
             () ->
                 streamingEngineStreamFactory.createGetDataStream(
-                    stub, streamingEngineThrottleTimers.getDataThrottleTimer()));
+                    connection.stub(), streamingEngineThrottleTimers.getDataThrottleTimer()));
     this.commitWorkStream =
         Suppliers.memoize(
             () ->
                 streamingEngineStreamFactory.createCommitWorkStream(
-                    stub, streamingEngineThrottleTimers.commitWorkThrottleTimer()));
+                    connection.stub(), streamingEngineThrottleTimers.commitWorkThrottleTimer()));
     this.workCommitter =
         Suppliers.memoize(() -> workCommitterFactory.apply(commitWorkStream.get()));
     this.getWorkStream =
         Suppliers.memoize(
             () ->
                 streamingEngineStreamFactory.createDirectGetWorkStream(
-                    stub,
+                    connection,
                     withRequestBudget(getWorkRequest, getWorkBudget.get()),
                     streamingEngineThrottleTimers.getWorkThrottleTimer(),
-                    getDataStream,
+                    () -> FixedStreamHeartbeatSender.create(getDataStream.get()),
+                    () -> getDataClientFactory.apply(getDataStream.get()),
                     workCommitter,
                     workItemScheduler));
   }
 
-  public static WindmillStreamSender create(
-      CloudWindmillServiceV1Alpha1Stub stub,
+  static WindmillStreamSender create(
+      WindmillConnection connection,
       GetWorkRequest getWorkRequest,
       GetWorkBudget getWorkBudget,
       GrpcWindmillStreamFactory streamingEngineStreamFactory,
       WorkItemScheduler workItemScheduler,
+      Function<GetDataStream, GetDataClient> getDataClientFactory,
       Function<CommitWorkStream, WorkCommitter> workCommitterFactory) {
     return new WindmillStreamSender(
-        stub,
+        connection,
         getWorkRequest,
         new AtomicReference<>(getWorkBudget),
         streamingEngineStreamFactory,
         workItemScheduler,
+        getDataClientFactory,
         workCommitterFactory);
   }
 
@@ -138,13 +146,14 @@ public class WindmillStreamSender {
     // streaming RPCs by possibly making calls over the network. Do not close the streams unless
     // they have already been started.
     if (started.get()) {
-      getWorkStream.get().close();
-      getDataStream.get().close();
+      getWorkStream.get().shutdown();
+      getDataStream.get().shutdown();
       workCommitter.get().stop();
-      commitWorkStream.get().close();
+      commitWorkStream.get().shutdown();
     }
   }
 
+  @Override
   public void adjustBudget(long itemsDelta, long bytesDelta) {
     getWorkBudget.set(getWorkBudget.get().apply(itemsDelta, bytesDelta));
     if (started.get()) {
@@ -152,19 +161,16 @@ public class WindmillStreamSender {
     }
   }
 
-  public void adjustBudget(GetWorkBudget adjustment) {
-    adjustBudget(adjustment.items(), adjustment.bytes());
-  }
-
-  public GetWorkBudget remainingGetWorkBudget() {
+  @Override
+  public GetWorkBudget remainingBudget() {
     return started.get() ? getWorkStream.get().remainingBudget() : getWorkBudget.get();
   }
 
-  public long getAndResetThrottleTime() {
+  long getAndResetThrottleTime() {
     return streamingEngineThrottleTimers.getAndResetThrottleTime();
   }
 
-  public long getCurrentActiveCommitBytes() {
+  long getCurrentActiveCommitBytes() {
     return started.get() ? workCommitter.get().currentActiveCommitBytes() : 0;
   }
 }

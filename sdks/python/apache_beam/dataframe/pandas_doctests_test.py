@@ -557,6 +557,7 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series': ['ser.iloc[0] = 999'],
         },
         not_implemented_ok={
+            'pandas.core.series.Series.case_when': ['*'],
             'pandas.core.series.Series.transform': [
                 # str arg not supported. Tested with np.sum in
                 # frames_test.py::DeferredFrameTest::test_groupby_transform_sum

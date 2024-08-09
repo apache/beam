@@ -108,8 +108,7 @@ public class IcebergIOIT implements Serializable {
 
     catalogHadoopConf = new Configuration();
     catalogHadoopConf.set("fs.gs.project.id", options.getProject());
-    catalogHadoopConf.set(
-        "fs.gs.auth.service.account.json.keyfile", System.getenv("GOOGLE_APPLICATION_CREDENTIALS"));
+    catalogHadoopConf.set("fs.gs.auth.type", "APPLICATION_DEFAULT");
   }
 
   @Before
@@ -135,8 +134,7 @@ public class IcebergIOIT implements Serializable {
           .addByteArrayField("bytes")
           .build();
 
-  static final Schema ICEBERG_SCHEMA =
-      SchemaAndRowConversions.beamSchemaToIcebergSchema(BEAM_SCHEMA);
+  static final Schema ICEBERG_SCHEMA = IcebergUtils.beamSchemaToIcebergSchema(BEAM_SCHEMA);
 
   Map<String, Object> getValues(int num) {
     String strNum = Integer.toString(num);
@@ -239,7 +237,7 @@ public class IcebergIOIT implements Serializable {
 
     List<Row> inputRows =
         inputRecords.stream()
-            .map(record -> SchemaAndRowConversions.recordToRow(BEAM_SCHEMA, record))
+            .map(record -> IcebergUtils.icebergRecordToBeamRow(BEAM_SCHEMA, record))
             .collect(Collectors.toList());
 
     // Write with Beam

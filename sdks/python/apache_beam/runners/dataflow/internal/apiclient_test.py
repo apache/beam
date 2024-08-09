@@ -321,6 +321,43 @@ class UtilTest(unittest.TestCase):
 
     self._verify_dataflow_container_image_override(pipeline_options)
 
+  def _verify_dataflow_container_image_override_rc(self, pipeline_options):
+    pipeline = Pipeline(options=pipeline_options)
+    pipeline | Create([1, 2, 3]) | ParDo(DoFn())  # pylint:disable=expression-not-assigned
+
+    dummy_env = DockerEnvironment(
+        container_image='apache/beam_dummy_name:2.00.0RC10')
+    proto_pipeline, _ = pipeline.to_runner_api(
+        return_context=True, default_environment=dummy_env)
+
+    # Accessing non-public method for testing.
+    apiclient.DataflowApplicationClient._apply_sdk_environment_overrides(
+        proto_pipeline, {}, pipeline_options)
+
+    from apache_beam.utils import proto_utils
+    found_override = False
+    trimed_rc = True
+    for env in proto_pipeline.components.environments.values():
+      docker_payload = proto_utils.parse_Bytes(
+          env.payload, beam_runner_api_pb2.DockerPayload)
+      if docker_payload.container_image.startswith(
+          names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY):
+        found_override = True
+        if docker_payload.container_image.split(':')[-1] != '2.00.0':
+          trimed_rc = False
+
+    self.assertTrue(found_override)
+    self.assertTrue(trimed_rc)
+
+  def test_dataflow_container_image_override_rc(self):
+    pipeline_options = PipelineOptions([
+        '--experiments=use_runner_v2',
+        '--temp_location',
+        'gs://any-location/temp'
+    ])
+
+    self._verify_dataflow_container_image_override_rc(pipeline_options)
+
   def _verify_non_apache_container_not_overridden(self, pipeline_options):
     pipeline = Pipeline(options=pipeline_options)
     pipeline | Create([1, 2, 3]) | ParDo(DoFn())  # pylint:disable=expression-not-assigned

@@ -102,8 +102,7 @@ public class IcebergWriteSchemaTransformProviderTest {
             testPipeline
                 .apply(
                     "Records To Add", Create.of(TestFixtures.asRows(TestFixtures.FILE1SNAPSHOT1)))
-                .setRowSchema(
-                    SchemaAndRowConversions.icebergSchemaToBeamSchema(TestFixtures.SCHEMA)));
+                .setRowSchema(IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA)));
 
     PCollection<Row> result =
         input
@@ -137,7 +136,7 @@ public class IcebergWriteSchemaTransformProviderTest {
     PCollection<Row> inputRows =
         testPipeline
             .apply("Records To Add", Create.of(TestFixtures.asRows(TestFixtures.FILE1SNAPSHOT1)))
-            .setRowSchema(SchemaAndRowConversions.icebergSchemaToBeamSchema(TestFixtures.SCHEMA));
+            .setRowSchema(IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA));
     PCollection<Row> result =
         inputRows.apply(Managed.write(Managed.ICEBERG).withConfig(configMap)).get(OUTPUT_TAG);
 

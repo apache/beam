@@ -168,8 +168,10 @@ $defs:
 
   providerOrProviderInclude:
     if:
-      properties:
-        include {}
+      allOf: [
+        { properties: { include: { type: string }}},
+        { required: [ "include" ] }
+      ]
     then:
       $ref: '#/$defs/providerInclude'
     else:
