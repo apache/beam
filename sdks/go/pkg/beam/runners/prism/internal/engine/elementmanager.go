@@ -869,14 +869,20 @@ func (em *ElementManager) triageTimers(d TentativeData, inputInfo PColInfo, stag
 	for tentativeKey, timers := range d.timers {
 		keyToTimers := map[timerKey]element{}
 		for _, t := range timers {
-			key, tag, elms := decodeTimer(inputInfo.KeyDec, true, t)
-			for _, e := range elms {
-				keyToTimers[timerKey{key: string(key), tag: tag, win: e.window}] = e
-			}
-			if len(elms) == 0 {
-				// TODO(lostluck): Determine best way to mark a timer cleared.
-				continue
-			}
+			// TODO: Call in a for:range loop when Beam's minimum Go version hits 1.23.0
+			iter := decodeTimerIter(inputInfo.KeyDec, true, t)
+			iter(func(ret timerRet) bool {
+				for _, e := range ret.elms {
+					keyToTimers[timerKey{key: string(ret.keyBytes), tag: ret.tag, win: e.window}] = e
+				}
+				if len(ret.elms) == 0 {
+					for _, w := range ret.windows {
+						delete(keyToTimers, timerKey{key: string(ret.keyBytes), tag: ret.tag, win: w})
+					}
+				}
+				// Indicate we'd like to continue iterating.
+				return true
+			})
 		}
 
 		for _, elm := range keyToTimers {
