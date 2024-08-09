@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NavigableSet;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -327,6 +328,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
    * otherwise.
    */
   private RestrictionTracker<RestrictionT, PositionT> currentTracker;
+  /**
+   * If non-null, set to true after currentTracker has had a tryClaim issued on it. Used to ignore
+   * checkpoint split requests if no progress was made.
+   */
+  private AtomicBoolean currentTrackerClaimed;
 
   /**
    * Only valid during {@link #processTimer} and {@link #processOnWindowExpiration}, null otherwise.
@@ -877,12 +883,15 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     currentElement = elem.withValue(elem.getValue().getKey());
     currentRestriction = elem.getValue().getValue().getKey();
     currentWatermarkEstimatorState = elem.getValue().getValue().getValue();
+    currentTrackerClaimed = new AtomicBoolean(false);
     currentTracker =
         RestrictionTrackers.observe(
             doFnInvoker.invokeNewTracker(processContext),
             new ClaimObserver<PositionT>() {
               @Override
-              public void onClaimed(PositionT position) {}
+              public void onClaimed(PositionT position) {
+                currentTrackerClaimed.lazySet(true);
+              }
 
               @Override
               public void onClaimFailed(PositionT position) {}
@@ -894,6 +903,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       currentRestriction = null;
       currentWatermarkEstimatorState = null;
       currentTracker = null;
+      currentTrackerClaimed = null;
     }
 
     this.stateAccessor.finalizeState();
@@ -909,12 +919,15 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           (Iterator<BoundedWindow>) elem.getWindows().iterator();
       while (windowIterator.hasNext()) {
         currentWindow = windowIterator.next();
+        currentTrackerClaimed = new AtomicBoolean(false);
         currentTracker =
             RestrictionTrackers.observe(
                 doFnInvoker.invokeNewTracker(processContext),
                 new ClaimObserver<PositionT>() {
                   @Override
-                  public void onClaimed(PositionT position) {}
+                  public void onClaimed(PositionT position) {
+                    currentTrackerClaimed.lazySet(true);
+                  }
 
                   @Override
                   public void onClaimFailed(PositionT position) {}
@@ -927,6 +940,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       currentWatermarkEstimatorState = null;
       currentWindow = null;
       currentTracker = null;
+      currentTrackerClaimed = null;
     }
 
     this.stateAccessor.finalizeState();
@@ -937,6 +951,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     currentElement = elem.withValue(elem.getValue().getKey().getKey());
     currentRestriction = elem.getValue().getKey().getValue().getKey();
     currentWatermarkEstimatorState = elem.getValue().getKey().getValue().getValue();
+    // For truncation, we don't set currentTrackerClaimed so that we enable checkpointing even if no
+    // progress is made.
     currentTracker =
         RestrictionTrackers.observe(
             doFnInvoker.invokeNewTracker(processContext),
@@ -989,6 +1005,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         currentRestriction = elem.getValue().getKey().getValue().getKey();
         currentWatermarkEstimatorState = elem.getValue().getKey().getValue().getValue();
         currentWindow = currentWindows.get(windowCurrentIndex);
+        // We leave currentTrackerClaimed unset as we want to split regardless of if tryClaim is
+        // called.
         currentTracker =
             RestrictionTrackers.observe(
                 doFnInvoker.invokeNewTracker(processContext),
@@ -1081,12 +1099,15 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         currentRestriction = elem.getValue().getKey().getValue().getKey();
         currentWatermarkEstimatorState = elem.getValue().getKey().getValue().getValue();
         currentWindow = currentWindows.get(windowCurrentIndex);
+        currentTrackerClaimed = new AtomicBoolean(false);
         currentTracker =
             RestrictionTrackers.observe(
                 doFnInvoker.invokeNewTracker(processContext),
                 new ClaimObserver<PositionT>() {
                   @Override
-                  public void onClaimed(PositionT position) {}
+                  public void onClaimed(PositionT position) {
+                    currentTrackerClaimed.lazySet(true);
+                  }
 
                   @Override
                   public void onClaimFailed(PositionT position) {}
@@ -1276,6 +1297,13 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     synchronized (splitLock) {
       // There is nothing to split if we are between truncate processing calls.
       if (currentWindow == null) {
+        return null;
+      }
+      // We are requesting a checkpoint but have not yet progressed on the restriction, skip
+      // request.
+      if (fractionOfRemainder == 0
+          && currentTrackerClaimed != null
+          && !currentTrackerClaimed.get()) {
         return null;
       }
 
@@ -1626,6 +1654,12 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     synchronized (splitLock) {
       // There is nothing to split if we are between element and restriction processing calls.
       if (currentTracker == null) {
+        return null;
+      }
+      // The tracker has not yet been claimed meaning that a checkpoint won't meaningfully advance.
+      if (fractionOfRemainder == 0
+          && currentTrackerClaimed != null
+          && !currentTrackerClaimed.get()) {
         return null;
       }
       // Make sure to get the output watermark before we split to ensure that the lower bound
