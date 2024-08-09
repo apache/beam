@@ -27,7 +27,6 @@ import java.util.function.Function;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateTag;
-import org.apache.beam.runners.core.StateTag.StateBinder;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.InstantCoder;
@@ -42,11 +41,13 @@ import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.ReadableStates;
 import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.state.State;
+import org.apache.beam.sdk.state.StateBinder;
 import org.apache.beam.sdk.state.StateContext;
+import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
-import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
+import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.CombineFnUtil;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.HashBasedTable;
@@ -96,45 +97,47 @@ class SparkStateInternals<K> implements StateInternals {
   @Override
   public <T extends State> T state(
       StateNamespace namespace, StateTag<T> address, StateContext<?> c) {
-    return address.bind(new SparkStateBinder(namespace, c));
+    return address.getSpec().bind(address.getId(), new SparkStateBinder(namespace, c));
   }
 
   private class SparkStateBinder implements StateBinder {
     private final StateNamespace namespace;
-    private final StateContext<?> c;
+    private final StateContext<?> stateContext;
 
-    private SparkStateBinder(StateNamespace namespace, StateContext<?> c) {
+    private SparkStateBinder(StateNamespace namespace, StateContext<?> stateContext) {
       this.namespace = namespace;
-      this.c = c;
+      this.stateContext = stateContext;
     }
 
     @Override
-    public <T> ValueState<T> bindValue(StateTag<ValueState<T>> address, Coder<T> coder) {
-      return new SparkValueState<>(namespace, address, coder);
+    public <T> ValueState<T> bindValue(String id, StateSpec<ValueState<T>> spec, Coder<T> coder) {
+      return new SparkValueState<>(namespace, id, coder);
     }
 
     @Override
-    public <T> BagState<T> bindBag(StateTag<BagState<T>> address, Coder<T> elemCoder) {
-      return new SparkBagState<>(namespace, address, elemCoder);
+    public <T> BagState<T> bindBag(String id, StateSpec<BagState<T>> spec, Coder<T> elemCoder) {
+      return new SparkBagState<>(namespace, id, elemCoder);
     }
 
     @Override
-    public <T> SetState<T> bindSet(StateTag<SetState<T>> spec, Coder<T> elemCoder) {
+    public <T> SetState<T> bindSet(String id, StateSpec<SetState<T>> spec, Coder<T> elemCoder) {
       throw new UnsupportedOperationException(
           String.format("%s is not supported", SetState.class.getSimpleName()));
     }
 
     @Override
     public <KeyT, ValueT> MapState<KeyT, ValueT> bindMap(
-        StateTag<MapState<KeyT, ValueT>> address,
+        String id,
+        StateSpec<MapState<KeyT, ValueT>> spec,
         Coder<KeyT> mapKeyCoder,
         Coder<ValueT> mapValueCoder) {
-      return new SparkMapState<>(namespace, address, MapCoder.of(mapKeyCoder, mapValueCoder));
+      return new SparkMapState<>(namespace, id, MapCoder.of(mapKeyCoder, mapValueCoder));
     }
 
     @Override
     public <KeyT, ValueT> MultimapState<KeyT, ValueT> bindMultimap(
-        StateTag<MultimapState<KeyT, ValueT>> spec,
+        String id,
+        StateSpec<MultimapState<KeyT, ValueT>> spec,
         Coder<KeyT> keyCoder,
         Coder<ValueT> valueCoder) {
       throw new UnsupportedOperationException(
@@ -143,50 +146,51 @@ class SparkStateInternals<K> implements StateInternals {
 
     @Override
     public <T> OrderedListState<T> bindOrderedList(
-        StateTag<OrderedListState<T>> spec, Coder<T> elemCoder) {
+        String id, StateSpec<OrderedListState<T>> spec, Coder<T> elemCoder) {
       throw new UnsupportedOperationException(
           String.format("%s is not supported", OrderedListState.class.getSimpleName()));
     }
 
     @Override
-    public <InputT, AccumT, OutputT> CombiningState<InputT, AccumT, OutputT> bindCombiningValue(
-        StateTag<CombiningState<InputT, AccumT, OutputT>> address,
+    public <InputT, AccumT, OutputT> CombiningState<InputT, AccumT, OutputT> bindCombining(
+        String id,
+        StateSpec<CombiningState<InputT, AccumT, OutputT>> spec,
         Coder<AccumT> accumCoder,
         CombineFn<InputT, AccumT, OutputT> combineFn) {
-      return new SparkCombiningState<>(namespace, address, accumCoder, combineFn);
+      return new SparkCombiningState<>(namespace, id, accumCoder, combineFn);
     }
 
     @Override
     public <InputT, AccumT, OutputT>
-        CombiningState<InputT, AccumT, OutputT> bindCombiningValueWithContext(
-            StateTag<CombiningState<InputT, AccumT, OutputT>> address,
+        CombiningState<InputT, AccumT, OutputT> bindCombiningWithContext(
+            String id,
+            StateSpec<CombiningState<InputT, AccumT, OutputT>> spec,
             Coder<AccumT> accumCoder,
-            CombineFnWithContext<InputT, AccumT, OutputT> combineFn) {
+            CombineWithContext.CombineFnWithContext<InputT, AccumT, OutputT> combineFn) {
       return new SparkCombiningState<>(
-          namespace, address, accumCoder, CombineFnUtil.bindContext(combineFn, c));
+          namespace, id, accumCoder, CombineFnUtil.bindContext(combineFn, stateContext));
     }
 
     @Override
     public WatermarkHoldState bindWatermark(
-        StateTag<WatermarkHoldState> address, TimestampCombiner timestampCombiner) {
-      return new SparkWatermarkHoldState(namespace, address, timestampCombiner);
+        String id, StateSpec<WatermarkHoldState> spec, TimestampCombiner timestampCombiner) {
+      return new SparkWatermarkHoldState(namespace, id, timestampCombiner);
     }
   }
 
   private class AbstractState<T> {
     final StateNamespace namespace;
-    final StateTag<? extends State> address;
+    final String id;
     final Coder<T> coder;
 
-    private AbstractState(
-        StateNamespace namespace, StateTag<? extends State> address, Coder<T> coder) {
+    private AbstractState(StateNamespace namespace, String id, Coder<T> coder) {
       this.namespace = namespace;
-      this.address = address;
+      this.id = id;
       this.coder = coder;
     }
 
     T readValue() {
-      byte[] buf = stateTable.get(namespace.stringKey(), address.getId());
+      byte[] buf = stateTable.get(namespace.stringKey(), id);
       if (buf != null) {
         return CoderHelpers.fromByteArray(buf, coder);
       }
@@ -194,12 +198,11 @@ class SparkStateInternals<K> implements StateInternals {
     }
 
     void writeValue(T input) {
-      stateTable.put(
-          namespace.stringKey(), address.getId(), CoderHelpers.toByteArray(input, coder));
+      stateTable.put(namespace.stringKey(), id, CoderHelpers.toByteArray(input, coder));
     }
 
     public void clear() {
-      stateTable.remove(namespace.stringKey(), address.getId());
+      stateTable.remove(namespace.stringKey(), id);
     }
 
     @Override
@@ -212,22 +215,21 @@ class SparkStateInternals<K> implements StateInternals {
       }
       @SuppressWarnings("unchecked")
       AbstractState<?> that = (AbstractState<?>) o;
-      return namespace.equals(that.namespace) && address.equals(that.address);
+      return namespace.equals(that.namespace) && id.equals(that.id);
     }
 
     @Override
     public int hashCode() {
       int result = namespace.hashCode();
-      result = 31 * result + address.hashCode();
+      result = 31 * result + id.hashCode();
       return result;
     }
   }
 
   private class SparkValueState<T> extends AbstractState<T> implements ValueState<T> {
 
-    private SparkValueState(
-        StateNamespace namespace, StateTag<ValueState<T>> address, Coder<T> coder) {
-      super(namespace, address, coder);
+    private SparkValueState(StateNamespace namespace, String id, Coder<T> coder) {
+      super(namespace, id, coder);
     }
 
     @Override
@@ -252,10 +254,8 @@ class SparkStateInternals<K> implements StateInternals {
     private final TimestampCombiner timestampCombiner;
 
     SparkWatermarkHoldState(
-        StateNamespace namespace,
-        StateTag<WatermarkHoldState> address,
-        TimestampCombiner timestampCombiner) {
-      super(namespace, address, InstantCoder.of());
+        StateNamespace namespace, String id, TimestampCombiner timestampCombiner) {
+      super(namespace, id, InstantCoder.of());
       this.timestampCombiner = timestampCombiner;
     }
 
@@ -287,7 +287,7 @@ class SparkStateInternals<K> implements StateInternals {
 
         @Override
         public Boolean read() {
-          return stateTable.get(namespace.stringKey(), address.getId()) == null;
+          return stateTable.get(namespace.stringKey(), id) == null;
         }
       };
     }
@@ -299,22 +299,22 @@ class SparkStateInternals<K> implements StateInternals {
   }
 
   @SuppressWarnings("TypeParameterShadowing")
-  private class SparkCombiningState<K, InputT, AccumT, OutputT> extends AbstractState<AccumT>
+  private class SparkCombiningState<KeyT, InputT, AccumT, OutputT> extends AbstractState<AccumT>
       implements CombiningState<InputT, AccumT, OutputT> {
 
     private final CombineFn<InputT, AccumT, OutputT> combineFn;
 
     private SparkCombiningState(
         StateNamespace namespace,
-        StateTag<CombiningState<InputT, AccumT, OutputT>> address,
+        String id,
         Coder<AccumT> coder,
         CombineFn<InputT, AccumT, OutputT> combineFn) {
-      super(namespace, address, coder);
+      super(namespace, id, coder);
       this.combineFn = combineFn;
     }
 
     @Override
-    public SparkCombiningState<K, InputT, AccumT, OutputT> readLater() {
+    public SparkCombiningState<KeyT, InputT, AccumT, OutputT> readLater() {
       return this;
     }
 
@@ -348,7 +348,7 @@ class SparkStateInternals<K> implements StateInternals {
 
         @Override
         public Boolean read() {
-          return stateTable.get(namespace.stringKey(), address.getId()) == null;
+          return stateTable.get(namespace.stringKey(), id) == null;
         }
       };
     }
@@ -369,10 +369,8 @@ class SparkStateInternals<K> implements StateInternals {
       extends AbstractState<Map<MapKeyT, MapValueT>> implements MapState<MapKeyT, MapValueT> {
 
     private SparkMapState(
-        StateNamespace namespace,
-        StateTag<? extends State> address,
-        Coder<Map<MapKeyT, MapValueT>> coder) {
-      super(namespace, address, coder);
+        StateNamespace namespace, String id, Coder<Map<MapKeyT, MapValueT>> coder) {
+      super(namespace, id, coder);
     }
 
     @Override
@@ -490,7 +488,7 @@ class SparkStateInternals<K> implements StateInternals {
       return new ReadableState<Boolean>() {
         @Override
         public Boolean read() {
-          return stateTable.get(namespace.stringKey(), address.getId()) == null;
+          return stateTable.get(namespace.stringKey(), id) == null;
         }
 
         @Override
@@ -502,8 +500,8 @@ class SparkStateInternals<K> implements StateInternals {
   }
 
   private final class SparkBagState<T> extends AbstractState<List<T>> implements BagState<T> {
-    private SparkBagState(StateNamespace namespace, StateTag<BagState<T>> address, Coder<T> coder) {
-      super(namespace, address, ListCoder.of(coder));
+    private SparkBagState(StateNamespace namespace, String id, Coder<T> coder) {
+      super(namespace, id, ListCoder.of(coder));
     }
 
     @Override
@@ -537,7 +535,7 @@ class SparkStateInternals<K> implements StateInternals {
 
         @Override
         public Boolean read() {
-          return stateTable.get(namespace.stringKey(), address.getId()) == null;
+          return stateTable.get(namespace.stringKey(), id) == null;
         }
       };
     }
