@@ -48,7 +48,7 @@ runs:
       uses: actions/setup-java@v3
       with:
         distribution: 'temurin'
-        java-version: ${{ inputs.java-version == 'default' && '8' || inputs.java-version }}
+        java-version: ${{ inputs.java-version == 'default' && '17' || inputs.java-version }}
     - name: Setup Gradle
       uses: gradle/gradle-build-action@v2
       with:

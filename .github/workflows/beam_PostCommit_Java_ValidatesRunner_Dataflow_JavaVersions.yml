@@ -82,8 +82,7 @@ jobs:
             8
       - name: run jar Java${{ matrix.java_version }} script
         run: |
-          ./gradlew runners:google-cloud-dataflow-java:testJar :runners:google-cloud-dataflow-java:worker:shadowJar \
-          -Dorg.gradle.java.home=$JAVA_HOME_8_X64
+          ./gradlew runners:google-cloud-dataflow-java:testJar :runners:google-cloud-dataflow-java:worker:shadowJar
       - name: run validatesRunner Java${{ matrix.java_version }} script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
