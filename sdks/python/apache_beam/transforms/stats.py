@@ -15,8 +15,6 @@
 # limitations under the License.
 #
 
-# cython: language_level=3
-
 """This module has all statistic related transforms.
 
 This ApproximateUnique class will be deprecated [1]. PLease look into using

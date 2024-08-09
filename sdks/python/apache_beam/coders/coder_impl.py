@@ -15,8 +15,6 @@
 # limitations under the License.
 #
 
-# cython: language_level=3
-
 """Coder implementations.
 
 The actual encode/decode implementations are split off from coders to

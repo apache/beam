@@ -15,8 +15,6 @@
 # limitations under the License.
 #
 
-# cython: language_level=3
-
 """
 This file contains metric cell classes. A metric cell is used to accumulate
 in-memory changes to a metric. It represents a specific metric in a single

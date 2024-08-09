@@ -15,8 +15,6 @@
 # limitations under the License.
 #
 
-# cython: language_level=3
-
 """Worker operations executor."""
 
 # pytype: skip-file
