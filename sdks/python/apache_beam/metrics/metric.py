@@ -314,8 +314,8 @@ class Lineage:
   for lineage tracking."""
 
   LINEAGE_NAMESPACE = "lineage"
-  SOURCE = "source"
-  SINK = "sink"
+  SOURCE = "sources"
+  SINK = "sinks"
 
   _METRICS = {
       SOURCE: Metrics.string_set(LINEAGE_NAMESPACE, SOURCE),
