@@ -21,6 +21,7 @@ import java.io.Serializable;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Ordering;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /**
@@ -39,8 +40,13 @@ import org.joda.time.Instant;
 class WatermarkPolicy<T> implements Serializable {
   private WatermarkParameters<T> watermarkParameters;
 
-  static <T> WatermarkPolicy<T> create(SerializableFunction<T, Instant> timestampFunction) {
-    return new WatermarkPolicy<T>(WatermarkParameters.<T>create(timestampFunction));
+  static <T> WatermarkPolicy<T> create(
+      SerializableFunction<T, Instant> timestampFunction, Duration watermarkIdleDurationThreshold) {
+    return new WatermarkPolicy<T>(
+        WatermarkParameters.<T>builder()
+            .setTimestampFn(timestampFunction)
+            .setWatermarkIdleDurationThreshold(watermarkIdleDurationThreshold)
+            .build());
   }
 
   private WatermarkPolicy(WatermarkParameters<T> watermarkParameters) {

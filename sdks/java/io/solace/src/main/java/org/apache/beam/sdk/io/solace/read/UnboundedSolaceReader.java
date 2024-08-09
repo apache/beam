@@ -62,7 +62,9 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
 
   public UnboundedSolaceReader(UnboundedSolaceSource<T> currentSource) {
     this.currentSource = currentSource;
-    this.watermarkPolicy = WatermarkPolicy.create(currentSource.getTimestampFn());
+    this.watermarkPolicy =
+        WatermarkPolicy.create(
+            currentSource.getTimestampFn(), currentSource.getWatermarkIdleDurationThreshold());
     this.sessionService = currentSource.getSessionServiceFactory().create();
     this.sempClient = currentSource.getSempClientFactory().create();
   }
