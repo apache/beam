@@ -55,8 +55,8 @@ public class Lineage {
 
   /** Lineage metrics resource types. */
   public enum Type {
-    SOURCE("source"),
-    SINK("sink");
+    SOURCE("sources"),
+    SINK("sinks");
 
     private final String name;
 
