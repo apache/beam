@@ -60,11 +60,18 @@ abstract class CsvIOParseConfiguration<T> implements Serializable {
     abstract Builder<T> setCustomProcessingMap(
         Map<String, SerializableFunction<String, Object>> customProcessingMap);
 
+    abstract Optional<Map<String, SerializableFunction<String, Object>>> getCustomProcessingMap();
+
+    final Map<String, SerializableFunction<String, Object>> getOrCreateCustomProcessingMap() {
+      if (!getCustomProcessingMap().isPresent()) {
+        setCustomProcessingMap(new HashMap<>());
+      }
+      return getCustomProcessingMap().get();
+    }
+
     abstract Builder<T> setCoder(Coder<T> coder);
 
     abstract Builder<T> setFromRowFn(SerializableFunction<Row, T> fromRowFn);
-
-    abstract Optional<Map<String, SerializableFunction<String, Object>>> getCustomProcessingMap();
 
     abstract CsvIOParseConfiguration<T> autoBuild();
 
@@ -72,6 +79,7 @@ abstract class CsvIOParseConfiguration<T> implements Serializable {
       if (!getCustomProcessingMap().isPresent()) {
         setCustomProcessingMap(new HashMap<>());
       }
+
       return autoBuild();
     }
   }

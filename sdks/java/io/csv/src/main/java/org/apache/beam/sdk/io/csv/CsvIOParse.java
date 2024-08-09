@@ -28,6 +28,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
+import org.checkerframework.checker.nullness.qual.NonNull;
 
 /**
  * {@link PTransform} for Parsing CSV Record Strings into {@link Schema}-mapped target types. {@link
@@ -43,9 +44,30 @@ public abstract class CsvIOParse<T> extends PTransform<PCollection<String>, CsvI
     return new AutoValue_CsvIOParse.Builder<>();
   }
 
-  // TODO(https://github.com/apache/beam/issues/31875): Implement in future PR.
-  public CsvIOParse<T> withCustomRecordParsing(
-      Map<String, SerializableFunction<String, Object>> customProcessingMap) {
+  /**
+   * Configures custom cell parsing.
+   *
+   * <h2>Example</h2>
+   *
+   * <pre>{@code
+   * CsvIO.parse().withCustomRecordParsing("listOfInts", cell-> {
+   *
+   *  List<Integer> result = new ArrayList<>();
+   *  for (String stringValue: Splitter.on(";").split(cell)) {
+   *    result.add(Integer.parseInt(stringValue));
+   *  }
+   *
+   * });
+   * }</pre>
+   */
+  public <OutputT extends @NonNull Object> CsvIOParse<T> withCustomRecordParsing(
+      String fieldName, SerializableFunction<String, OutputT> customRecordParsingFn) {
+
+    Map<String, SerializableFunction<String, Object>> customProcessingMap =
+        getConfigBuilder().getOrCreateCustomProcessingMap();
+
+    customProcessingMap.put(fieldName, customRecordParsingFn::apply);
+    getConfigBuilder().setCustomProcessingMap(customProcessingMap);
     return this;
   }
 
