@@ -47,7 +47,6 @@ class ChunksGeneration(PTransform):
             chunk_size: int,
             chunk_overlap: int,
             chunking_strategy: ChunkingStrategy
-
     ):
         """
 
