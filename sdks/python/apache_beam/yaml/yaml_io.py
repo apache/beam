@@ -214,9 +214,13 @@ def _create_parser(
     format,
     schema: Any) -> Tuple[schema_pb2.Schema, Callable[[bytes], beam.Row]]:
 
-  if format.islower():
-    format = format.upper()
-    logging.warning('Lowercase formats will be deprecated in version 2.60')
+  format = format.upper()
+
+  def _validate_schema():
+    if not schema:
+      raise ValueError(
+          f'{format} format requires valid {format} schema to be passed to '
+          f'schema parameter.')
 
   if format == 'RAW':
     if schema:
@@ -225,9 +229,11 @@ def _create_parser(
         schema_pb2.Schema(fields=[schemas.schema_field('payload', bytes)]),
         lambda payload: beam.Row(payload=payload))
   elif format == 'JSON':
+    _validate_schema()
     beam_schema = json_utils.json_schema_to_beam_schema(schema)
     return beam_schema, json_utils.json_parser(beam_schema, schema)
   elif format == 'AVRO':
+    _validate_schema()
     beam_schema = avroio.avro_schema_to_beam_schema(schema)
     covert_to_row = avroio.avro_dict_to_beam_row(schema, beam_schema)
     # pylint: disable=line-too-long
