@@ -46,8 +46,8 @@ type timerRet struct {
 // If the timer has been cleared, no elements will be returned. Any existing timers
 // for the tag *must* be cleared from the pending queue. The windows associated with
 // the clear are provided to be able to delete pending timers.
-func decodeTimerIter(keyDec func(io.Reader) []byte, usesGlobalWindow bool, raw []byte) func(yeild func(timerRet) bool) {
-	return func(yeild func(timerRet) bool) {
+func decodeTimerIter(keyDec func(io.Reader) []byte, usesGlobalWindow bool, raw []byte) func(func(timerRet) bool) {
+	return func(yield func(timerRet) bool) {
 		for len(raw) > 0 {
 			keyBytes := keyDec(bytes.NewBuffer(raw))
 			d := decoder{raw: raw, cursor: len(keyBytes)}
@@ -69,7 +69,7 @@ func decodeTimerIter(keyDec func(io.Reader) []byte, usesGlobalWindow bool, raw [
 			clear := d.Bool()
 			hold := mtime.MaxTimestamp
 			if clear {
-				if !yeild(timerRet{keyBytes, tag, nil, ws}) {
+				if !yield(timerRet{keyBytes, tag, nil, ws}) {
 					return // Halt iteration if yeild returns false.
 				}
 				// Otherwise continue handling the remaining bytes.
@@ -95,7 +95,7 @@ func decodeTimerIter(keyDec func(io.Reader) []byte, usesGlobalWindow bool, raw [
 				})
 			}
 
-			if !yeild(timerRet{keyBytes, tag, elms, ws}) {
+			if !yield(timerRet{keyBytes, tag, elms, ws}) {
 				return // Halt iteration if yeild returns false.
 			}
 			// Otherwise continue handling the remaining bytes.
