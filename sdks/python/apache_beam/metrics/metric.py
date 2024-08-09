@@ -323,7 +323,7 @@ class Lineage:
   }
 
   def __init__(self, label: str) -> None:
-    """Create a Lineage with valid babel (:data:`~Lineage.SOURCE` or
+    """Create a Lineage with valid label (:data:`~Lineage.SOURCE` or
     :data:`~Lineage.SINK`)
     """
     self.metric = Lineage._METRICS[label]
