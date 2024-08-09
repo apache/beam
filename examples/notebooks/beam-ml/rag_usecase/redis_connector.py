@@ -28,6 +28,11 @@ from apache_beam.transforms import Reshuffle
 import redis
 from typing import Optional
 
+# Set the logging level to reduce verbose information
+import logging
+
+logging.root.setLevel(logging.INFO)
+logger = logging.getLogger(__name__)
 
 __all__ = ['InsertDocInRedis', 'InsertEmbeddingInRedis']
 
@@ -160,13 +165,16 @@ class _InsertDocRedisSink(object):
     def write(self, elements):
         self._create_client()
         with self.client.pipeline() as pipe:
+            logger.info(f'Inserting documents in Redis. Total docs: {len(elements)}')
             for element in elements:
                 doc_key = f"doc_{str(element['id'])}_section_{str(element['section_id'])}"
                 for k, v in element.items():
-                    print(f'Inserting doc_key={doc_key}, key={k}, value={v}')
+                    logger.debug(f'Inserting doc_key={doc_key}, key={k}, value={v}')
                     pipe.hset(name=doc_key, key=k, value=v)
 
             pipe.execute()
+            logger.info(f'Inserting documents complete.')
+
 
     def execute_command(self, command, elements):
         self._create_client()
