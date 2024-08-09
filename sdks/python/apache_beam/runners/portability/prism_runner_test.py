@@ -208,7 +208,6 @@ class PrismRunnerTest(portable_runner_test.PortableRunnerTest):
     timer_spec = userstate.TimerSpec('timer', userstate.TimeDomain.WATERMARK)
 
     class TimerDoFn(beam.DoFn):
-
       def process(self, element, timer=beam.DoFn.TimerParam(timer_spec)):
         unused_key, ts = element
         timer.set(ts)
