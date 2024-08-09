@@ -687,6 +687,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
             distinctFilenames.get(finalFilename));
         distinctFilenames.put(finalFilename, result);
         outputFilenames.add(KV.of(result, finalFilename));
+        FileSystems.reportSinkLineage(finalFilename);
       }
       return outputFilenames;
     }

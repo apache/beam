@@ -210,7 +210,8 @@ class WriteRename
         if (!entry.getValue().isEmpty()) {
           Lineage.getSinks()
               .add(
-                  BigQueryHelpers.dataCatalogName(
+                  "bigquery",
+                  BigQueryHelpers.dataCatalogSegments(
                       entry.getKey().getTableReference(),
                       c.getPipelineOptions().as(BigQueryOptions.class)));
           pendingJobs.add(startWriteRename(entry.getKey(), entry.getValue(), c, window));

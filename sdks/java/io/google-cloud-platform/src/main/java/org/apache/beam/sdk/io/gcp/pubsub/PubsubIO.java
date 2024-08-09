@@ -85,6 +85,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
@@ -513,8 +514,8 @@ public class PubsubIO {
       }
     }
 
-    public String dataCatalogName() {
-      return String.format("pubsub:topic:%s.%s", project, topic);
+    public List<String> dataCatalogSegments() {
+      return ImmutableList.of(project, topic);
     }
 
     @Override
@@ -1624,7 +1625,7 @@ public class PubsubIO {
         }
         // Report lineage for all topics seen
         for (PubsubTopic topic : output.keySet()) {
-          Lineage.getSinks().add(topic.dataCatalogName());
+          Lineage.getSinks().add("pubsub", "topic", topic.dataCatalogSegments());
         }
         output = null;
         pubsubClient.close();

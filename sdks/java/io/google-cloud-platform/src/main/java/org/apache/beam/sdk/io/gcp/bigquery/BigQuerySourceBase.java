@@ -121,7 +121,8 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
                 BigQueryHelpers.toTableSpec(tableToExtract)));
       }
       // emit this table ID as a lineage source
-      Lineage.getSources().add(BigQueryHelpers.dataCatalogName(tableToExtract, bqOptions));
+      Lineage.getSources()
+          .add("bigquery", BigQueryHelpers.dataCatalogSegments(tableToExtract, bqOptions));
 
       TableSchema schema = table.getSchema();
       JobService jobService = bqServices.getJobService(bqOptions);
