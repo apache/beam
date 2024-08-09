@@ -2336,7 +2336,7 @@ class _ExceptionHandlingWrapperDoFn(DoFn):
         try:
           self._on_failure_callback(exn, args[0])
         except Exception as e:
-          logging.warning(f'on_failure_callback failed with error: {e}')
+          logging.warning('on_failure_callback failed with error: %s', e)
       yield pvalue.TaggedOutput(
           self._dead_letter_tag,
           (
