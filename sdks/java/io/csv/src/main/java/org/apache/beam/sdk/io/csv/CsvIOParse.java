@@ -18,6 +18,9 @@
 package org.apache.beam.sdk.io.csv;
 
 import com.google.auto.value.AutoValue;
+import java.math.BigDecimal;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.schemas.Schema;
@@ -28,6 +31,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
+import org.joda.time.ReadableDateTime;
 
 /**
  * {@link PTransform} for Parsing CSV Record Strings into {@link Schema}-mapped target types. {@link
@@ -43,9 +47,20 @@ public abstract class CsvIOParse<T> extends PTransform<PCollection<String>, CsvI
     return new AutoValue_CsvIOParse.Builder<>();
   }
 
-  // TODO(https://github.com/apache/beam/issues/31875): Implement in future PR.
-  public CsvIOParse<T> withCustomRecordParsing(
-      Map<String, SerializableFunction<String, Object>> customProcessingMap) {
+  public <OutputT> CsvIOParse<T> withCustomRecordParsing(
+      String fieldName,
+      SerializableFunction<String, Object> customRecordParsingFn,
+      Class<OutputT> outputClass) {
+
+    validateCustomRecordParsing(getConfigBuilder().build().getSchema(), fieldName, outputClass);
+
+    Map<String, SerializableFunction<String, Object>> customProcessingMap = new HashMap<>();
+    if (getConfigBuilder().getCustomProcessingMap().isPresent()) {
+      customProcessingMap.putAll(getConfigBuilder().getCustomProcessingMap().get());
+    }
+
+    customProcessingMap.put(fieldName, customRecordParsingFn);
+    getConfigBuilder().setCustomProcessingMap(customProcessingMap);
     return this;
   }
 
@@ -62,6 +77,35 @@ public abstract class CsvIOParse<T> extends PTransform<PCollection<String>, CsvI
   @Override
   public CsvIOParseResult<T> expand(PCollection<String> input) {
     CsvIOParseConfiguration<T> configuration = getConfigBuilder().build();
+    //        Schema schema = configuration.getSchema();
+    //        Map<String, SerializableFunction<String, Object>> customProcessingMap =
+    //     configuration.getCustomProcessingMap();
+    //        Map<String, Object> allTypes = new HashMap<>();
+    //        for(Schema.Field field : schema.getFields()) {
+    //          allTypes.put(field.getName(), field.getType());
+    //        }
+    //        for(Map.Entry<String, SerializableFunction<String, Object>> entry :
+    //     customProcessingMap.entrySet()) {
+    //            Object checkingClass = allTypes.get(entry.getKey());
+    //    //      Object checkingClass = entry.getValue().apply(); // how to get string from
+    ////     serializable to put into apply
+    //          // need to access object by itself
+    //          String fieldName = entry.getKey();
+    //          // problems with getting class, says class is unknown and connot compare the class
+    //          Class<T> parseClass = (schema).getField(fieldName).getType().getClass();
+    //          if(!parseClass.isInstance(checkingClass)) {
+    //            throw new IllegalArgumentException("Custom parsing type mismatch with Serializable
+    // Function");
+    //          }
+    //
+    //    //      // could this potentially have different values?
+    //    //      if(!((value.hashCode()) == parseClass.hashCode())){
+    //    //        throw new IllegalArgumentException("Custom parsing type mismatch with
+    // Serializable
+    ////     Function");
+    //    //      }
+    //        }
+    //
 
     CsvIOStringToCsvRecord stringToCsvRecord =
         new CsvIOStringToCsvRecord(configuration.getCsvFormat());
@@ -80,5 +124,35 @@ public abstract class CsvIOParse<T> extends PTransform<PCollection<String>, CsvI
 
     PCollectionTuple result = PCollectionTuple.of(outputTag, output).and(errorTag, errors);
     return CsvIOParseResult.of(outputTag, configuration.getCoder(), errorTag, result);
+  }
+
+  private static <OutputT> void validateCustomRecordParsing(
+      Schema schema, String fieldName, Class<OutputT> outputClass) {
+    Schema.Field field = schema.getField(fieldName);
+    Schema.TypeName typeName = field.getType().getTypeName();
+
+    if ((typeName.equals(Schema.TypeName.STRING) && !String.class.isAssignableFrom(outputClass))
+        || (typeName.equals(Schema.TypeName.INT16) && !Short.class.isAssignableFrom(outputClass))
+        || (typeName.equals(Schema.TypeName.INT32) && !Integer.class.isAssignableFrom(outputClass))
+        || (typeName.equals(Schema.TypeName.INT64) && !Long.class.isAssignableFrom(outputClass))
+        || (typeName.equals(Schema.TypeName.BOOLEAN)
+            && !Boolean.class.isAssignableFrom(outputClass))
+        || (typeName.equals(Schema.TypeName.BYTE) && !Byte.class.isAssignableFrom(outputClass))
+        || (typeName.equals(Schema.TypeName.DECIMAL)
+            && !BigDecimal.class.isAssignableFrom(outputClass))
+        || (typeName.equals(Schema.TypeName.DOUBLE) && !Double.class.isAssignableFrom(outputClass))
+        || (typeName.equals(Schema.TypeName.FLOAT) && !Float.class.isAssignableFrom(outputClass))
+        || (typeName.equals(Schema.TypeName.DATETIME)
+            && !ReadableDateTime.class.isAssignableFrom(outputClass))
+        || (typeName.equals(Schema.TypeName.ARRAY)
+            && !Collection.class.isAssignableFrom(outputClass))
+        || (typeName.equals(Schema.TypeName.ITERABLE)
+            && !Iterable.class.isAssignableFrom(outputClass))
+        || (typeName.equals(Schema.TypeName.MAP) && !Map.class.isAssignableFrom(outputClass))) {
+      throw new IllegalArgumentException(
+          String.format(
+              "Schema.FieldType %s does not support the provided output class %s",
+              typeName, outputClass));
+    }
   }
 }
