@@ -488,6 +488,7 @@ public class Environments {
     capabilities.add(BeamUrns.getUrn(Primitives.TO_STRING));
     capabilities.add(BeamUrns.getUrn(StandardProtocols.Enum.DATA_SAMPLING));
     capabilities.add(BeamUrns.getUrn(StandardProtocols.Enum.SDK_CONSUMING_RECEIVED_DATA));
+    capabilities.add(BeamUrns.getUrn(StandardProtocols.Enum.ORDERED_LIST_STATE));
     return capabilities.build();
   }
 
