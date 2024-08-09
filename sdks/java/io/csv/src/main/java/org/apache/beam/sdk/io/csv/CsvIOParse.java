@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.csv;
 
 import com.google.auto.value.AutoValue;
 import java.math.BigDecimal;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,7 +30,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
-import org.joda.time.ReadableDateTime;
+import org.joda.time.base.AbstractInstant;
 
 /**
  * {@link PTransform} for Parsing CSV Record Strings into {@link Schema}-mapped target types. {@link
@@ -52,7 +51,7 @@ public abstract class CsvIOParse<T> extends PTransform<PCollection<String>, CsvI
       SerializableFunction<String, Object> customRecordParsingFn,
       Class<OutputT> outputClass) {
 
-    validateCustomRecordParsing(getConfigBuilder().build().getSchema(), fieldName, outputClass);
+    validateCustomRecordParsingFn(getConfigBuilder().build().getSchema(), fieldName, outputClass);
 
     Map<String, SerializableFunction<String, Object>> customProcessingMap = new HashMap<>();
     if (getConfigBuilder().getCustomProcessingMap().isPresent()) {
@@ -126,32 +125,27 @@ public abstract class CsvIOParse<T> extends PTransform<PCollection<String>, CsvI
     return CsvIOParseResult.of(outputTag, configuration.getCoder(), errorTag, result);
   }
 
-  private static <OutputT> void validateCustomRecordParsing(
+  private static <OutputT> void validateCustomRecordParsingFn(
       Schema schema, String fieldName, Class<OutputT> outputClass) {
     Schema.Field field = schema.getField(fieldName);
     Schema.TypeName typeName = field.getType().getTypeName();
 
-    if ((typeName.equals(Schema.TypeName.STRING) && !String.class.isAssignableFrom(outputClass))
-        || (typeName.equals(Schema.TypeName.INT16) && !Short.class.isAssignableFrom(outputClass))
-        || (typeName.equals(Schema.TypeName.INT32) && !Integer.class.isAssignableFrom(outputClass))
-        || (typeName.equals(Schema.TypeName.INT64) && !Long.class.isAssignableFrom(outputClass))
+    if ((typeName.equals(Schema.TypeName.STRING) && !outputClass.isAssignableFrom(String.class))
+        || (typeName.equals(Schema.TypeName.INT16) && !outputClass.isAssignableFrom(Short.class))
+        || (typeName.equals(Schema.TypeName.INT32) && !outputClass.isAssignableFrom(Integer.class))
+        || (typeName.equals(Schema.TypeName.INT64) && !outputClass.isAssignableFrom(Long.class))
         || (typeName.equals(Schema.TypeName.BOOLEAN)
-            && !Boolean.class.isAssignableFrom(outputClass))
-        || (typeName.equals(Schema.TypeName.BYTE) && !Byte.class.isAssignableFrom(outputClass))
+            && !outputClass.isAssignableFrom(Boolean.class))
+        || (typeName.equals(Schema.TypeName.BYTE) && !outputClass.isAssignableFrom(Byte.class))
         || (typeName.equals(Schema.TypeName.DECIMAL)
-            && !BigDecimal.class.isAssignableFrom(outputClass))
-        || (typeName.equals(Schema.TypeName.DOUBLE) && !Double.class.isAssignableFrom(outputClass))
-        || (typeName.equals(Schema.TypeName.FLOAT) && !Float.class.isAssignableFrom(outputClass))
+            && !outputClass.isAssignableFrom(BigDecimal.class))
+        || (typeName.equals(Schema.TypeName.DOUBLE) && !outputClass.isAssignableFrom(Double.class))
+        || (typeName.equals(Schema.TypeName.FLOAT) && !outputClass.isAssignableFrom(Float.class))
         || (typeName.equals(Schema.TypeName.DATETIME)
-            && !ReadableDateTime.class.isAssignableFrom(outputClass))
-        || (typeName.equals(Schema.TypeName.ARRAY)
-            && !Collection.class.isAssignableFrom(outputClass))
-        || (typeName.equals(Schema.TypeName.ITERABLE)
-            && !Iterable.class.isAssignableFrom(outputClass))
-        || (typeName.equals(Schema.TypeName.MAP) && !Map.class.isAssignableFrom(outputClass))) {
+            && !outputClass.isAssignableFrom(AbstractInstant.class))) {
       throw new IllegalArgumentException(
           String.format(
-              "Schema.FieldType %s does not support the provided output class %s",
+              "Schema.FieldType %s does not support the output class %s of the custom record parsing function",
               typeName, outputClass));
     }
   }

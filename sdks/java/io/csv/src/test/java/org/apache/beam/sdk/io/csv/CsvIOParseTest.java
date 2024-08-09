@@ -161,6 +161,66 @@ public class CsvIOParseTest {
     pipeline.run();
   }
 
+  @Test
+  public void givenCustomRecordParsingLambdas_parsesRows() {
+    PCollection<String> records =
+        csvRecords(
+            pipeline, "aBoolean,aDouble,aFloat,anInteger,aLong,aString", "true,1.0,2.0,3,4,foo");
+    Row want =
+        Row.withSchema(NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA)
+            .withFieldValue("aBoolean", false)
+            .withFieldValue("aDouble", 2.0)
+            .withFieldValue("aFloat", 4.0f)
+            .withFieldValue("anInteger", 6)
+            .withFieldValue("aLong", 8L)
+            .withFieldValue("aString", "foofoo")
+            .build();
+    CsvIOParse<Row> underTest =
+        underTest(
+                NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA,
+                csvFormat(),
+                emptyCustomProcessingMap(),
+                ROW_ROW_SERIALIZABLE_FUNCTION,
+                RowCoder.of(NULLABLE_ALL_PRIMITIVE_DATA_TYPES_SCHEMA))
+            .withCustomRecordParsing(
+                "aBoolean",
+                (SerializableFunction<String, Object>) input -> !Boolean.parseBoolean(input),
+                Boolean.class)
+            .withCustomRecordParsing(
+                "aDouble",
+                (SerializableFunction<String, Object>) input -> Double.parseDouble(input) * 2,
+                Double.class)
+            .withCustomRecordParsing(
+                "aFloat",
+                (SerializableFunction<String, Object>) input -> Float.parseFloat(input) * 2,
+                Float.class)
+            .withCustomRecordParsing(
+                "anInteger",
+                (SerializableFunction<String, Object>) input -> Integer.parseInt(input) * 2,
+                Integer.class)
+            .withCustomRecordParsing(
+                "aLong",
+                (SerializableFunction<String, Object>) input -> Long.parseLong(input) * 2,
+                Long.class)
+            .withCustomRecordParsing(
+                "aString",
+                (SerializableFunction<String, Object>) input -> input + input,
+                String.class);
+    CsvIOParseResult<Row> result = records.apply(underTest);
+    PAssert.that(result.getOutput()).containsInAnyOrder(want);
+    PAssert.that(result.getErrors()).empty();
+    pipeline.run();
+  }
+
+  @Test
+  public void givenCustomRecordParsingLambdas_parsesToPOJO() {}
+
+  @Test
+  public void givenCustomRecordParsingFieldNameNotPresentInSchema_throws() {}
+
+  @Test
+  public void givenCustomRecordParsingLambdaOutputTypeNotCompatibleWithSchemaFieldType_throws() {}
+
   private static CSVFormat csvFormat() {
     return CSVFormat.DEFAULT
         .withAllowDuplicateHeaderNames(false)
