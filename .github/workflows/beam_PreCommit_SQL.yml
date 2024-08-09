@@ -81,7 +81,7 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          java-version: 11
+          java-version: default
       - name: Build and Test
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
