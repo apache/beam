@@ -63,7 +63,7 @@ field name
       col2: sum
 ```
 
-One can aggregate over may fields at once
+One can aggregate over many fields at once
 
 ```
 - type: Combine
