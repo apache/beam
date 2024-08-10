@@ -17,25 +17,19 @@
 
 from __future__ import absolute_import
 
-import logging
-
 import apache_beam as beam
 
 from apache_beam.transforms import DoFn
 from apache_beam.transforms import PTransform
 from apache_beam.transforms import Reshuffle
-from apache_beam import coders
 
-
-import typing
+from typing import Optional
 from opensearchpy import OpenSearch
 
-import os 
+import os
 from dotenv import load_dotenv
 
-
 load_dotenv()
-
 
 # Set the logging level to reduce verbose information
 import logging
@@ -43,11 +37,7 @@ import logging
 logging.root.setLevel(logging.INFO)
 logger = logging.getLogger(__name__)
 
-
-__all__ = ['InsertDocInOpenSearch','InsertEmbeddingInOpenSearch']
-
-
-
+__all__ = ['InsertDocInOpenSearch', 'InsertEmbeddingInOpenSearch']
 
 """This module implements IO classes to read document in Opensearch.
 
@@ -64,29 +54,35 @@ Example usage::
 
   pipeline | InsertDocInOpenSearch(host='localhost',
                           port=6379,
+                          username='admin',
+                          password='admin'
                           batch_size=100)
 
 
 No backward compatibility guarantees. Everything in this module is experimental.
 """
+
+
 class InsertDocInOpenSearch(PTransform):
     """InsertDocInOpensearch is a ``PTransform`` that writes a ``PCollection`` of
     key, value tuple or 2-element array into a Opensearch server.
     """
 
-    def __init__(self, 
-                 host:str, 
-                 port:int,
-                 username:str, 
-                 password:str, 
-                 batch_size:int=100
-        ):
+    def __init__(self,
+                 host: str,
+                 port: int,
+                 username: Optional[str] = os.getenv("USERNAME"),
+                 password: Optional[str] = os.getenv("PASSWORD"),
+                 batch_size: int = 100
+                 ):
         """
 
         Args:
-        host (str, ValueProvider): The Opensearch host
-        port (int, ValueProvider): The Opensearch port
-        batch_size(int, ValueProvider): Number of key, values pairs to write at once
+        host (str): The redis host
+        port (int): The redis port
+        username (str): username of OpenSearch DB
+        password (str): password of OpenSearch DB
+        batch_size(int): Number of key, values pairs to write at once
 
         Returns:
         :class:`~apache_beam.transforms.ptransform.PTransform`
@@ -95,7 +91,7 @@ class InsertDocInOpenSearch(PTransform):
 
         self.host = host
         self.port = port
-        self.username= username
+        self.username = username
         self.password = password
         self._batch_size = batch_size
 
@@ -103,28 +99,28 @@ class InsertDocInOpenSearch(PTransform):
         return pcoll \
                | "Reshuffle for Opensearch Insert" >> Reshuffle() \
                | "Insert document into Opensearch" >> beam.ParDo(_InsertDocOpenSearchFn(self.host,
-                                        self.port,
-                                        self.username,
-                                        self.password,
-                                        self._batch_size)
-               )
+                                                                                        self.port,
+                                                                                        self.username,
+                                                                                        self.password,
+                                                                                        self._batch_size)
+                                                                 )
 
 
 class _InsertDocOpenSearchFn(DoFn):
-    """Abstract class that takes in Opensearch  
+    """Abstract class that takes in Opensearch
     credentials to connect to Opensearch DB
     """
-    
-    def __init__(self, 
-                 host:str, 
-                 port:int, 
-                 username:str,
-                 password:str,
-                 batch_size:int=100
-        ):
+
+    def __init__(self,
+                 host: str,
+                 port: int,
+                 username: str,
+                 password: str,
+                 batch_size: int = 100
+                 ):
         self.host = host
         self.port = port
-        self.username= username
+        self.username = username
         self.password = password
         self.batch_size = batch_size
 
@@ -133,39 +129,37 @@ class _InsertDocOpenSearchFn(DoFn):
 
         self.text_col = None
 
-
     def finish_bundle(self):
         self._flush()
 
-    def process(self, element, *args, **kwargs):     
+    def process(self, element, *args, **kwargs):
         self.batch.append(element)
         self.batch_counter += 1
         if self.batch_counter >= self.batch_size:
-            self._flush() 
+            self._flush()
         yield element
 
     def _flush(self):
-        if self.batch_counter == 0: 
+        if self.batch_counter == 0:
             return
 
-        with _InsertDocOpenSearchSink(self.host, self.port, self.username,self.password) as sink:
-
+        with _InsertDocOpenSearchSink(self.host, self.port, self.username, self.password) as sink:
             sink.write(self.batch)
             self.batch_counter = 0
             self.batch = list()
 
 
-
 class _InsertDocOpenSearchSink(object):
-    """Class where we create Opensearch client 
+    """Class where we create Opensearch client
     and write insertion logic in Opensearch
     """
-    
-    def __init__(self, 
-                 host:str, 
-                 port:int, 
-                 username:str,
-                 password:str):
+
+    def __init__(self,
+                 host: str,
+                 port: int,
+                 username: str = os.getenv("USERNAME"),
+                 password: str = os.getenv("PASSWORD")
+                 ):
         self.host = host
         self.port = port
         self.username = username
@@ -175,29 +169,28 @@ class _InsertDocOpenSearchSink(object):
     def _create_client(self):
         if self.client is None:
             http_auth = [self.username, self.password]
-            self.client = OpenSearch(hosts = [f'{self.host}:{self.port}'],
-                                    http_auth = http_auth,
-                                    verify_certs = False)
-
+            self.client = OpenSearch(hosts=[f'{self.host}:{self.port}'],
+                                     http_auth=http_auth,
+                                     verify_certs=False)
 
     def write(self, elements):
         self._create_client()
         documents = []
-        for element in elements: 
+        for element in elements:
             documents.extend([{
-                    "index": {
-                    "_index": "embeddings-index", 
-                    "_id" : str(element["id"]),
-                    }
-                }, {
-                    "url" : element["url"],
-                    "title" : element["title"],
-                    "text" : element["text"],
-                    "section_id" : element["section_id"]
-                }])
-        
-            print(f'Inside insert Doc in DB{element}')
-        self.client.bulk(body = documents, refresh = True)
+                "index": {
+                    "_index": "embeddings-index",
+                    "_id": str(element["id"]),
+                }
+            }, {
+                "url": element["url"],
+                "title": element["title"],
+                "text": element["text"],
+                "section_id": element["section_id"]
+            }])
+
+            logger.info(f'Inside insert Doc in DB{element}')
+        self.client.bulk(body=documents, refresh=True)
 
     def __enter__(self):
         self._create_client()
@@ -206,8 +199,6 @@ class _InsertDocOpenSearchSink(object):
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self.client is not None:
             self.client.close()
-
-
 
 
 """This module implements IO classes to read text Embeddings in Opensearch.
@@ -231,26 +222,29 @@ Example usage::
 No backward compatibility guarantees. Everything in this module is experimental.
 """
 
+
 class InsertEmbeddingInOpenSearch(PTransform):
     """WriteToOpensearch is a ``PTransform`` that writes a ``PCollection`` of
     key, value tuple or 2-element array into a Opensearch server.
     """
 
-    def __init__(self, 
-                 host:str, 
-                 port:int, 
-                 username:str, 
-                 password:str,
-                 batch_size:int=100, 
-                 embedded_columns:list=[]
-        ):
+    def __init__(self,
+                 host: str,
+                 port: int,
+                 username: Optional[str] = os.getenv("USERNAME"),
+                 password: Optional[str] = os.getenv("PASSWORD"),
+                 batch_size: int = 100,
+                 embedded_columns: list = []
+                 ):
         """
 
         Args:
-        host (str, ValueProvider): The Opensearch host
-        port (int, ValueProvider): The Opensearch port
-        batch_size(int, ValueProvider): Number of key, values pairs to write at once
-        embedded_columns (list, ValueProvider): list of column whose embedding needs to be generated
+        host (str): The Opensearch host
+        port (int): The Opensearch port
+        username (str): username of OpenSearch DB
+        password (str): password of OpenSearch DB
+        batch_size(int): Number of key, values pairs to write at once
+        embedded_columns (list): list of column whose embedding needs to be generated
 
         Returns:
         :class:`~apache_beam.transforms.ptransform.PTransform`
@@ -268,25 +262,25 @@ class InsertEmbeddingInOpenSearch(PTransform):
         return pcoll \
                | "Reshuffle for Embedding in Opensearch Insert" >> Reshuffle() \
                | "Write `Embeddings` to Opensearch" >> beam.ParDo(_WriteEmbeddingInOpenSearchFn(self.host,
-                                          self.port,
-                                          self.username,
-                                          self.password,
-                                          self.batch_size,
-                                          self.embedded_columns))
+                                                                                                self.port,
+                                                                                                self.username,
+                                                                                                self.password,
+                                                                                                self.batch_size,
+                                                                                                self.embedded_columns))
 
 
 class _WriteEmbeddingInOpenSearchFn(DoFn):
-    """Abstract class that takes in Opensearch  credentials 
+    """Abstract class that takes in Opensearch  credentials
     to connect to Opensearch DB
     """
-    
-    def __init__(self, 
-                 host:str, 
-                 port:int, 
-                 username:str,
-                 password:str,
-                 batch_size:int=100,
-                 embedded_columns:list=[]):
+
+    def __init__(self,
+                 host: str,
+                 port: int,
+                 username: str,
+                 password: str,
+                 batch_size: int = 100,
+                 embedded_columns: list = []):
         self.host = host
         self.port = port
         self.username = username
@@ -310,8 +304,8 @@ class _WriteEmbeddingInOpenSearchFn(DoFn):
         if self.batch_counter == 0:
             return
 
-        with _InsertEmbeddingInOpenSearchSink(self.host, self.port, self.username, self.password, self.embedded_columns) as sink:
-
+        with _InsertEmbeddingInOpenSearchSink(self.host, self.port, self.username, self.password,
+                                              self.embedded_columns) as sink:
             sink.write(self.batch)
 
             self.batch_counter = 0
@@ -319,15 +313,15 @@ class _WriteEmbeddingInOpenSearchFn(DoFn):
 
 
 class _InsertEmbeddingInOpenSearchSink(object):
-    """Class where we create Opensearch client 
+    """Class where we create Opensearch client
     and write text embedding  in Opensearch DB
     """
-    
-    def __init__(self, host:str, 
-                 port:int, 
-                 username:str,
-                 password:str,
-                 embedded_columns:list=[]):
+
+    def __init__(self, host: str,
+                 port: int,
+                 username: str,
+                 password: str,
+                 embedded_columns: list = []):
         self.host = host
         self.port = port
         self.username = username
@@ -338,46 +332,39 @@ class _InsertEmbeddingInOpenSearchSink(object):
     def _create_client(self):
         if self.client is None:
             http_auth = [self.username, self.password]
-            self.client = OpenSearch(hosts = [f'{self.host}:{self.port}'],
-                                    http_auth = http_auth,
-                                    verify_certs = False
-        )
+            self.client = OpenSearch(hosts=[f'{self.host}:{self.port}'],
+                                     http_auth=http_auth,
+                                     verify_certs=False
+                                     )
 
-        
     def write(self, elements):
         self._create_client()
         documents = []
         for element in elements:
-            print(f'Insert Embeddings in opensearch DB {element}')
+            logger.info(f'Insert Embeddings in opensearch DB {element}')
             doc_update = {
-                "url" : element["url"],
-                "section_id" : element["section_id"]
+                "url": element["url"],
+                "section_id": element["section_id"]
             }
-            
-            for k,v in element.items():
+
+            for k, v in element.items():
                 if k in self.embedded_columns:
                     doc_update[f"{k}_vector"] = v
-                        
-            documents.extend([{
-                            "update": {
-                            "_index": "embeddings-index", 
-                            "_id" : str(element["id"]),
-                            }
-                        }, { 
-                            "doc": doc_update
-                        }])
-                    
-        
-        print(f'Inside insert Doc in DB{documents}')
-        self.client.bulk(documents)
 
+            documents.extend([{
+                "update": {
+                    "_index": "embeddings-index",
+                    "_id": str(element["id"]),
+                }
+            }, {
+                "doc": doc_update
+            }])
+        self.client.bulk(documents)
 
     def __enter__(self):
         self._create_client()
         return self
 
-
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self.client is not None:
             self.client.close()
-
