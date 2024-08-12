@@ -731,7 +731,7 @@ class BeamModulePlugin implements Plugin<Project> {
         google_ads                                  : "com.google.api-ads:google-ads:$google_ads_version",
         google_ads_stubs_v14                        : "com.google.api-ads:google-ads-stubs-v14:$google_ads_version",
         google_api_client                           : "com.google.api-client:google-api-client:$google_clients_version", // for the libraries using $google_clients_version below.
-        google_api_client_jackson2                  : "com.google.api-client:google-api-client-jackson2:$google_clients_version",
+        google_api_client_gson                      : "com.google.api-client:google-api-client-gson:$google_clients_version",
         google_api_client_java6                     : "com.google.api-client:google-api-client-java6:$google_clients_version",
         google_api_common                           : "com.google.api:api-common", // google_cloud_platform_libraries_bom sets version
         google_api_services_bigquery                : "com.google.apis:google-api-services-bigquery:v2-rev20240323-2.0.0",  // [bomupgrader] sets version
@@ -768,7 +768,7 @@ class BeamModulePlugin implements Plugin<Project> {
         google_http_client_apache_v2                : "com.google.http-client:google-http-client-apache-v2", // google_cloud_platform_libraries_bom sets version
         google_http_client_gson                     : "com.google.http-client:google-http-client-gson", // google_cloud_platform_libraries_bom sets version
         google_http_client_jackson                  : "com.google.http-client:google-http-client-jackson:1.29.2",
-        google_http_client_jackson2                 : "com.google.http-client:google-http-client-jackson2", // google_cloud_platform_libraries_bom sets version
+        google_http_client_gson                     : "com.google.http-client:google-http-client-gson", // google_cloud_platform_libraries_bom sets version
         google_http_client_protobuf                 : "com.google.http-client:google-http-client-protobuf", // google_cloud_platform_libraries_bom sets version
         google_oauth_client                         : "com.google.oauth-client:google-oauth-client:$google_oauth_clients_version",
         google_oauth_client_java6                   : "com.google.oauth-client:google-oauth-client-java6:$google_oauth_clients_version",
