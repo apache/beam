@@ -607,9 +607,9 @@ class Operation(object):
     )
     all_monitoring_infos[monitoring_infos.to_key(elem_count_mi)] = elem_count_mi
 
-    try:
-      (unused_mean, sum, count, min, max) = (
-          receiver.opcounter.mean_byte_counter.value())
+    (unused_mean, sum, count, min, max) = (
+        receiver.opcounter.mean_byte_counter.value())
+    if (count > 0):
       sampled_byte_count = monitoring_infos.int64_distribution(
           monitoring_infos.SAMPLED_BYTE_SIZE_URN,
           DistributionData(sum, count, min, max),
@@ -617,7 +617,7 @@ class Operation(object):
       )
       all_monitoring_infos[monitoring_infos.to_key(
           sampled_byte_count)] = sampled_byte_count
-    except Exception:
+    else:
       _LOGGER.debug(
           "Unable to create distribution for pcollection %s for urn %s",
           pcollection_id,
@@ -1030,14 +1030,14 @@ class DoOperation(Operation):
         infos[monitoring_infos.to_key(mi)] = mi
         (unused_mean, sum, count, min, max) = (
             receiver.opcounter.mean_byte_counter.value())
-        try:
+        if (count > 0):
           sampled_byte_count = monitoring_infos.int64_distribution(
               monitoring_infos.SAMPLED_BYTE_SIZE_URN,
               DistributionData(sum, count, min, max),
               pcollection=pcollection_id)
           infos[monitoring_infos.to_key(
               sampled_byte_count)] = sampled_byte_count
-        except Exception:
+        else:
           _LOGGER.debug(
               "Unable to create distribution for pcollection %s for urn %s",
               pcollection_id,

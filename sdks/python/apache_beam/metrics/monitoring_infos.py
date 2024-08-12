@@ -20,6 +20,7 @@
 # pytype: skip-file
 
 import collections
+import logging
 import time
 from functools import reduce
 from typing import FrozenSet
@@ -115,6 +116,8 @@ BIGTABLE_PROJECT_ID_LABEL = (
 INSTANCE_ID_LABEL = (
     common_urns.monitoring_info_labels.INSTANCE_ID.label_props.name)
 TABLE_ID_LABEL = common_urns.monitoring_info_labels.TABLE_ID.label_props.name
+
+_LOGGER = logging.getLogger(__name__)
 
 
 def extract_counter_value(monitoring_info_proto):
@@ -213,16 +216,18 @@ def int64_user_distribution(namespace, name, metric, ptransform=None):
     metric: The DistributionData for the metric.
     ptransform: The ptransform id used as a label.
   """
-  labels = create_labels(ptransform=ptransform, namespace=namespace, name=name)
   if metric.count <= 0:
-    raise TypeError(
+    _LOGGER.debug(
         'Expected a non zero distribution count for %s metric but received %s' %
-        (metric, metric.count))
-
-  payload = _encode_distribution(
-      coders.VarIntCoder(), metric.count, metric.sum, metric.min, metric.max)
-  return create_monitoring_info(
-      USER_DISTRIBUTION_URN, DISTRIBUTION_INT64_TYPE, payload, labels)
+        (metric.name, metric.count))
+    return
+  else:
+    labels = create_labels(
+        ptransform=ptransform, namespace=namespace, name=name)
+    payload = _encode_distribution(
+        coders.VarIntCoder(), metric.count, metric.sum, metric.min, metric.max)
+    return create_monitoring_info(
+        USER_DISTRIBUTION_URN, DISTRIBUTION_INT64_TYPE, payload, labels)
 
 
 def int64_distribution(urn, metric, ptransform=None, pcollection=None):
@@ -236,14 +241,16 @@ def int64_distribution(urn, metric, ptransform=None, pcollection=None):
     ptransform: The ptransform id used as a label.
     pcollection: The pcollection id used as a label.
   """
-  labels = create_labels(ptransform=ptransform, pcollection=pcollection)
   if metric.count <= 0:
-    raise TypeError(
+    _LOGGER.debug(
         'Expected a non zero distribution count for %s metric but received %s' %
-        (metric, metric.count))
-  payload = _encode_distribution(
-      coders.VarIntCoder(), metric.count, metric.sum, metric.min, metric.max)
-  return create_monitoring_info(urn, DISTRIBUTION_INT64_TYPE, payload, labels)
+        (metric.name, metric.count))
+    return
+  else:
+    labels = create_labels(ptransform=ptransform, pcollection=pcollection)
+    payload = _encode_distribution(
+        coders.VarIntCoder(), metric.count, metric.sum, metric.min, metric.max)
+    return create_monitoring_info(urn, DISTRIBUTION_INT64_TYPE, payload, labels)
 
 
 def int64_user_gauge(namespace, name, metric, ptransform=None):
