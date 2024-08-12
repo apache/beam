@@ -45,19 +45,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A writer that opens and closes {@link RecordWriter}s as necessary for multiple tables, and
- * multiple partitions within each table. If the Iceberg {@link Table} is un-partitioned, the data
- * is written normally.
+ * A writer that manages multiple {@link RecordWriter}s to write to multiple tables and partitions.
+ * Assigns one writer per partition. If the Iceberg {@link Table} is un-partitioned, the data is
+ * written normally using one {@link RecordWriter}. At a given moment, the number of open data
+ * writers should be less than or equal to the number of total partitions (across all destinations).
  *
- * <p>Each table has a {@link DestinationState} that creates a new {@link RecordWriter} for each
- * partition encountered. If a {@link RecordWriter} is inactive for 5 minutes, the {@link
- * DestinationState} will automatically close it to free up resources.
- *
- * <p>At any moment, the number of open data writers is at most equal to the number of partitions
- * across destinations. Closing this {@link PartitionedRecordWriter} will close all {@link
- * RecordWriter}s contained within.
+ * <p>Maintains writers in a cache. If a {@link RecordWriter} is inactive for 5 minutes, the {@link
+ * DestinationState} will automatically close it to free up resources. Closing this {@link
+ * PartitionedRecordWriter} will close all of its underlying {@link RecordWriter}s.
  */
-public class PartitionedRecordWriter implements Serializable {
+class PartitionedRecordWriter implements Serializable {
   private static final Logger LOG = LoggerFactory.getLogger(PartitionedRecordWriter.class);
 
   class DestinationState {
@@ -96,8 +93,9 @@ public class PartitionedRecordWriter implements Serializable {
                             "Closing record writer for table '{}'" + message,
                             icebergDestination.getTableIdentifier());
                         recordWriter.getValue().close();
+                        openWriters--;
                         manifestFiles
-                            .computeIfAbsent(icebergDestination, d -> Lists.newArrayList())
+                            .computeIfAbsent(icebergDestination, unused -> Lists.newArrayList())
                             .add(
                                 WindowedValue.of(
                                     recordWriter.getValue().getManifestFile(),
@@ -116,11 +114,16 @@ public class PartitionedRecordWriter implements Serializable {
               .build();
     }
 
-    void write(Record record, BoundedWindow window, PaneInfo pane)
+    boolean write(Record record, BoundedWindow window, PaneInfo pane)
         throws IOException, ExecutionException {
       partitionKey.partition(record);
+      // if we're already saturated and a writer doesn't exist for this partition, return false.
+      if (!writers.asMap().containsKey(partitionKey) && openWriters >= maxNumWriters) {
+        return false;
+      }
       RecordWriter writer = fetchWriterForPartition(partitionKey, window, pane);
       writer.write(record);
+      return true;
     }
 
     private RecordWriter fetchWriterForPartition(
@@ -147,8 +150,11 @@ public class PartitionedRecordWriter implements Serializable {
 
     private RecordWriter createWriter(PartitionKey partitionKey) {
       try {
-        return new RecordWriter(
-            catalog, icebergDestination, fileSuffix + "-" + UUID.randomUUID(), partitionKey);
+        RecordWriter writer =
+            new RecordWriter(
+                catalog, icebergDestination, fileSuffix + "-" + UUID.randomUUID(), partitionKey);
+        openWriters++;
+        return writer;
       } catch (IOException e) {
         throw new RuntimeException(
             String.format(
@@ -181,6 +187,7 @@ public class PartitionedRecordWriter implements Serializable {
   private final String fileSuffix;
   private final long maxFileSize;
   private final int maxNumWriters;
+  private int openWriters = 0;
   private Map<IcebergDestination, DestinationState> destinations = Maps.newHashMap();
   private final Map<IcebergDestination, List<WindowedValue<ManifestFile>>> totalManifestFiles =
       Maps.newHashMap();
@@ -196,13 +203,13 @@ public class PartitionedRecordWriter implements Serializable {
   /**
    * Fetches the {@link RecordWriter} for the appropriate partition in this destination and writes
    * the record.
+   *
+   * <p>If the writer is saturated (i.e. has hit the specified maximum of open writers), the record
+   * is rejected and returns {@code false}.
    */
   public boolean write(
       IcebergDestination icebergDestination, Row row, BoundedWindow window, PaneInfo pane)
       throws IOException, ExecutionException {
-    if (destinations.size() > maxNumWriters) {
-      return false;
-    }
     DestinationState destinationState =
         destinations.computeIfAbsent(
             icebergDestination,
@@ -212,8 +219,7 @@ public class PartitionedRecordWriter implements Serializable {
             });
 
     Record icebergRecord = IcebergUtils.beamRowToIcebergRecord(destinationState.schema, row);
-    destinationState.write(icebergRecord, window, pane);
-    return true;
+    return destinationState.write(icebergRecord, window, pane);
   }
 
   /** Closes all remaining writers and collects all their {@link ManifestFile}s. */
@@ -229,6 +235,11 @@ public class PartitionedRecordWriter implements Serializable {
       state.manifestFiles.clear();
     }
     destinations.clear();
+    Preconditions.checkArgument(
+        openWriters == 0,
+        "Expected all data writers to be closed, but found %s data writer(s) still open",
+        getClass().getSimpleName(),
+        openWriters);
     isClosed = true;
   }
 
