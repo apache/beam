@@ -941,16 +941,16 @@ class BeamModulePlugin implements Plugin<Project> {
     }
 
     def errorProneAddModuleOpts = [
-        "--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED",
-        "--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED",
-        "--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED",
-        "--add-exports=jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED",
-        "--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED",
-        "--add-exports=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED",
-        "--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED",
-        "--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED",
-        "--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED",
-        "--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED"
+      "--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED",
+      "--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED",
+      "--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED",
+      "--add-exports=jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED",
+      "--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED",
+      "--add-exports=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED",
+      "--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED",
+      "--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED",
+      "--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED",
+      "--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED"
     ]
 
     // set compiler options for java version overrides to compile with a different java version
@@ -1506,7 +1506,7 @@ class BeamModulePlugin implements Plugin<Project> {
           // The -J prefix is not needed if forkOptions.javaHome is unset,
           // see http://github.com/gradle/gradle/issues/22747
           if (JavaVersion.VERSION_1_8.compareTo(JavaVersion.current()) < 0
-                  && options.forkOptions.javaHome == null) {
+          && options.forkOptions.javaHome == null) {
             options.fork = true
             options.forkOptions.jvmArgs += errorProneAddModuleOpts
           }
