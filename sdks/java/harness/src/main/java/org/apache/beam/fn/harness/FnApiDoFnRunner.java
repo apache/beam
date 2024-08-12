@@ -119,6 +119,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.util.Durations;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
@@ -332,7 +333,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
    * If non-null, set to true after currentTracker has had a tryClaim issued on it. Used to ignore
    * checkpoint split requests if no progress was made.
    */
-  private AtomicBoolean currentTrackerClaimed;
+  private @Nullable AtomicBoolean currentTrackerClaimed;
 
   /**
    * Only valid during {@link #processTimer} and {@link #processOnWindowExpiration}, null otherwise.
@@ -888,9 +889,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         RestrictionTrackers.observe(
             doFnInvoker.invokeNewTracker(processContext),
             new ClaimObserver<PositionT>() {
+              private final AtomicBoolean claimed = Preconditions.checkNotNull(currentTrackerClaimed);
+
               @Override
               public void onClaimed(PositionT position) {
-                currentTrackerClaimed.lazySet(true);
+                claimed.lazySet(true);
               }
 
               @Override
@@ -924,9 +927,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             RestrictionTrackers.observe(
                 doFnInvoker.invokeNewTracker(processContext),
                 new ClaimObserver<PositionT>() {
+                  private final AtomicBoolean claimed = Preconditions.checkNotNull(currentTrackerClaimed);
+
                   @Override
                   public void onClaimed(PositionT position) {
-                    currentTrackerClaimed.lazySet(true);
+                    claimed.lazySet(true);
                   }
 
                   @Override
@@ -1104,9 +1109,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             RestrictionTrackers.observe(
                 doFnInvoker.invokeNewTracker(processContext),
                 new ClaimObserver<PositionT>() {
+                  private final AtomicBoolean claimed = Preconditions.checkNotNull(currentTrackerClaimed);
+
                   @Override
                   public void onClaimed(PositionT position) {
-                    currentTrackerClaimed.lazySet(true);
+                    claimed.lazySet(true);
                   }
 
                   @Override
