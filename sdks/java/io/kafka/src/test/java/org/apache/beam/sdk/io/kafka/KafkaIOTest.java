@@ -117,6 +117,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurren
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.MockConsumer;
 import org.apache.kafka.clients.consumer.OffsetAndTimestamp;
 import org.apache.kafka.clients.consumer.OffsetResetStrategy;
@@ -186,6 +187,129 @@ public class KafkaIOTest {
   private static final String TIMESTAMP_START_MILLIS_CONFIG = "test.timestamp.start.millis";
   private static final String TIMESTAMP_TYPE_CONFIG = "test.timestamp.type";
 
+  static class CustomMockConsumer<K, V> extends MockConsumer<K, V> {
+
+    final List<TopicPartition> partitions = new ArrayList<>();
+    Map<TopicPartition, List<ConsumerRecord<byte[], byte[]>>> records = new HashMap<>();
+    Map<String, List<PartitionInfo>> partitionMap = new HashMap<>();
+    int pollCounter = 0;
+
+    // This is updated when reader assigns partitions.
+    AtomicReference<List<TopicPartition>> assignedPartitions =
+        new AtomicReference<>(Collections.<TopicPartition>emptyList());
+
+    long[] offsets;
+
+    public CustomMockConsumer(
+        List<String> topics,
+        int partitionsPerTopic,
+        int numElements,
+        OffsetResetStrategy offsetResetStrategy,
+        Map<String, Object> config,
+        SerializableFunction<Integer, byte[]> keyFunction,
+        SerializableFunction<Integer, byte[]> valueFunction) {
+
+      super(offsetResetStrategy);
+
+      for (String topic : topics) {
+        List<PartitionInfo> partIds = new ArrayList<>(partitionsPerTopic);
+        for (int i = 0; i < partitionsPerTopic; i++) {
+          TopicPartition tp = new TopicPartition(topic, i);
+          partitions.add(tp);
+          partIds.add(new PartitionInfo(topic, i, null, null, null));
+          records.put(tp, new ArrayList<>());
+        }
+        partitionMap.put(topic, partIds);
+      }
+
+      int numPartitions = partitions.size();
+      offsets = new long[numPartitions];
+
+      long timestampStartMillis =
+          (Long)
+              config.getOrDefault(TIMESTAMP_START_MILLIS_CONFIG, LOG_APPEND_START_TIME.getMillis());
+      TimestampType timestampType =
+          TimestampType.forName(
+              (String)
+                  config.getOrDefault(
+                      TIMESTAMP_TYPE_CONFIG, TimestampType.LOG_APPEND_TIME.toString()));
+
+      for (int i = 0; i < numElements; i++) {
+        int pIdx = i % numPartitions;
+        TopicPartition tp = partitions.get(pIdx);
+
+        byte[] key = keyFunction.apply(i);
+        byte[] value = valueFunction.apply(i);
+
+        records
+            .get(tp)
+            .add(
+                new ConsumerRecord<byte[], byte[]>(
+                    tp.topic(),
+                    tp.partition(),
+                    offsets[pIdx]++,
+                    timestampStartMillis + Duration.standardSeconds(i).getMillis(),
+                    timestampType,
+                    0,
+                    key.length,
+                    value.length,
+                    key,
+                    value));
+      }
+
+      for (String topic : topics) {
+        super.updatePartitions(topic, partitionMap.get(topic));
+      }
+    }
+
+    public int pollCounter() {
+      return pollCounter;
+    }
+
+    @Override
+    public synchronized void assign(final Collection<TopicPartition> assigned) {
+      super.assign(assigned);
+      assignedPartitions.set(ImmutableList.copyOf(assigned));
+      for (TopicPartition tp : assigned) {
+        updateBeginningOffsets(ImmutableMap.of(tp, 0L));
+        updateEndOffsets(ImmutableMap.of(tp, (long) records.get(tp).size()));
+      }
+    }
+
+    // Add a count for each time poll is triggered.
+    @Override
+    public synchronized ConsumerRecords<K, V> poll(java.time.Duration timeout) {
+      ConsumerRecords<K, V> records = super.poll(timeout);
+      pollCounter++;
+      return records;
+    }
+
+    // Needed to support older Consumer versions
+    @Override
+    public synchronized ConsumerRecords<K, V> poll(long timeout) {
+      ConsumerRecords<K, V> records = super.poll(timeout);
+      pollCounter++;
+      return records;
+    }
+
+    // Override offsetsForTimes() in order to look up the offsets by timestamp.
+    @Override
+    public synchronized Map<TopicPartition, OffsetAndTimestamp> offsetsForTimes(
+        Map<TopicPartition, Long> timestampsToSearch) {
+      return timestampsToSearch.entrySet().stream()
+          .map(
+              e -> {
+                // In test scope, timestamp == offset.
+                long maxOffset = offsets[partitions.indexOf(e.getKey())];
+                long offset = e.getValue();
+                OffsetAndTimestamp value =
+                    (offset >= maxOffset) ? null : new OffsetAndTimestamp(offset, offset);
+                return new SimpleEntry<>(e.getKey(), value);
+              })
+          .collect(Collectors.toMap(SimpleEntry::getKey, SimpleEntry::getValue));
+    }
+  }
+
   // Update mock consumer with records distributed among the given topics, each with given number
   // of partitions. Records are assigned in round-robin order among the partitions.
   private static MockConsumer<byte[], byte[]> mkMockConsumer(
@@ -196,93 +320,15 @@ public class KafkaIOTest {
       Map<String, Object> config,
       SerializableFunction<Integer, byte[]> keyFunction,
       SerializableFunction<Integer, byte[]> valueFunction) {
-
-    final List<TopicPartition> partitions = new ArrayList<>();
-    final Map<TopicPartition, List<ConsumerRecord<byte[], byte[]>>> records = new HashMap<>();
-    Map<String, List<PartitionInfo>> partitionMap = new HashMap<>();
-
-    for (String topic : topics) {
-      List<PartitionInfo> partIds = new ArrayList<>(partitionsPerTopic);
-      for (int i = 0; i < partitionsPerTopic; i++) {
-        TopicPartition tp = new TopicPartition(topic, i);
-        partitions.add(tp);
-        partIds.add(new PartitionInfo(topic, i, null, null, null));
-        records.put(tp, new ArrayList<>());
-      }
-      partitionMap.put(topic, partIds);
-    }
-
-    int numPartitions = partitions.size();
-    final long[] offsets = new long[numPartitions];
-
-    long timestampStartMillis =
-        (Long)
-            config.getOrDefault(TIMESTAMP_START_MILLIS_CONFIG, LOG_APPEND_START_TIME.getMillis());
-    TimestampType timestampType =
-        TimestampType.forName(
-            (String)
-                config.getOrDefault(
-                    TIMESTAMP_TYPE_CONFIG, TimestampType.LOG_APPEND_TIME.toString()));
-
-    for (int i = 0; i < numElements; i++) {
-      int pIdx = i % numPartitions;
-      TopicPartition tp = partitions.get(pIdx);
-
-      byte[] key = keyFunction.apply(i);
-      byte[] value = valueFunction.apply(i);
-
-      records
-          .get(tp)
-          .add(
-              new ConsumerRecord<>(
-                  tp.topic(),
-                  tp.partition(),
-                  offsets[pIdx]++,
-                  timestampStartMillis + Duration.standardSeconds(i).getMillis(),
-                  timestampType,
-                  0,
-                  key.length,
-                  value.length,
-                  key,
-                  value));
-    }
-
-    // This is updated when reader assigns partitions.
-    final AtomicReference<List<TopicPartition>> assignedPartitions =
-        new AtomicReference<>(Collections.<TopicPartition>emptyList());
-
-    final MockConsumer<byte[], byte[]> consumer =
-        new MockConsumer<byte[], byte[]>(offsetResetStrategy) {
-          @Override
-          public synchronized void assign(final Collection<TopicPartition> assigned) {
-            super.assign(assigned);
-            assignedPartitions.set(ImmutableList.copyOf(assigned));
-            for (TopicPartition tp : assigned) {
-              updateBeginningOffsets(ImmutableMap.of(tp, 0L));
-              updateEndOffsets(ImmutableMap.of(tp, (long) records.get(tp).size()));
-            }
-          }
-          // Override offsetsForTimes() in order to look up the offsets by timestamp.
-          @Override
-          public synchronized Map<TopicPartition, OffsetAndTimestamp> offsetsForTimes(
-              Map<TopicPartition, Long> timestampsToSearch) {
-            return timestampsToSearch.entrySet().stream()
-                .map(
-                    e -> {
-                      // In test scope, timestamp == offset.
-                      long maxOffset = offsets[partitions.indexOf(e.getKey())];
-                      long offset = e.getValue();
-                      OffsetAndTimestamp value =
-                          (offset >= maxOffset) ? null : new OffsetAndTimestamp(offset, offset);
-                      return new SimpleEntry<>(e.getKey(), value);
-                    })
-                .collect(Collectors.toMap(SimpleEntry::getKey, SimpleEntry::getValue));
-          }
-        };
-
-    for (String topic : topics) {
-      consumer.updatePartitions(topic, partitionMap.get(topic));
-    }
+    CustomMockConsumer<byte[], byte[]> customMockConsumer =
+        new CustomMockConsumer<byte[], byte[]>(
+            topics,
+            partitionsPerTopic,
+            numElements,
+            offsetResetStrategy,
+            config,
+            keyFunction,
+            valueFunction);
 
     // MockConsumer does not maintain any relationship between partition seek position and the
     // records added. e.g. if we add 10 records to a partition and then seek to end of the
@@ -296,18 +342,19 @@ public class KafkaIOTest {
           public void run() {
             // add all the records with offset >= current partition position.
             int recordsAdded = 0;
-            for (TopicPartition tp : assignedPartitions.get()) {
-              long curPos = consumer.position(tp);
-              for (ConsumerRecord<byte[], byte[]> r : records.get(tp)) {
+            for (TopicPartition tp : customMockConsumer.assignedPartitions.get()) {
+              long curPos = customMockConsumer.position(tp);
+              for (ConsumerRecord<byte[], byte[]> r : customMockConsumer.records.get(tp)) {
                 if (r.offset() >= curPos) {
-                  consumer.addRecord(r);
+                  customMockConsumer.addRecord(r);
                   recordsAdded++;
                 }
               }
             }
             if (recordsAdded == 0) {
               if (config.get("inject.error.at.eof") != null) {
-                consumer.setException(new KafkaException("Injected error in consumer.poll()"));
+                customMockConsumer.setException(
+                    new KafkaException("Injected error in consumer.poll()"));
               }
               // MockConsumer.poll(timeout) does not actually wait even when there aren't any
               // records.
@@ -316,12 +363,12 @@ public class KafkaIOTest {
               // TODO: BEAM-4086: testUnboundedSourceWithoutBoundedWrapper() occasionally hangs
               //     without this wait. Need to look into it.
             }
-            consumer.schedulePollTask(this);
+            customMockConsumer.schedulePollTask(this);
           }
         };
 
-    consumer.schedulePollTask(recordEnqueueTask);
-    return consumer;
+    customMockConsumer.schedulePollTask(recordEnqueueTask);
+    return customMockConsumer;
   }
 
   private static class ConsumerFactoryFn
@@ -1197,6 +1244,25 @@ public class KafkaIOTest {
         throw new RuntimeException(e);
       }
     }
+  }
+
+  // Ensure that the reader waits for consumer poll before returning from nextBatch.
+  @Test
+  public void testNextBatch() throws Exception {
+    int numElements = 10;
+
+    // create a single split:
+    UnboundedSource<KafkaRecord<Integer, Long>, KafkaCheckpointMark> source =
+        mkKafkaReadTransform(numElements, new ValueAsTimestampFn())
+            .makeSource()
+            .split(1, PipelineOptionsFactory.create())
+            .get(0);
+
+    UnboundedReader<KafkaRecord<Integer, Long>> reader = source.createReader(null, null);
+    reader.start();
+
+    advanceOnce(reader, true);
+    assertTrue(((CustomMockConsumer) (((KafkaUnboundedReader) reader).consumer)).pollCounter() > 0);
   }
 
   @Test
