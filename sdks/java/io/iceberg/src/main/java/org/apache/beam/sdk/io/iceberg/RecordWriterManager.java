@@ -195,11 +195,10 @@ class RecordWriterManager implements Serializable {
   @VisibleForTesting
   final Map<WindowedValue<IcebergDestination>, DestinationState> destinations = Maps.newHashMap();
 
-  @VisibleForTesting
   private final Map<WindowedValue<IcebergDestination>, List<ManifestFile>> totalManifestFiles =
       Maps.newHashMap();
 
-  @VisibleForTesting boolean isClosed = false;
+  private boolean isClosed = false;
 
   RecordWriterManager(Catalog catalog, String filePrefix, long maxFileSize, int maxNumWriters) {
     this.catalog = catalog;
@@ -241,6 +240,10 @@ class RecordWriterManager implements Serializable {
       // removing writers from the state's cache will trigger the logic to collect each writer's
       // data file.
       state.writers.invalidateAll();
+      if (state.dataFiles.isEmpty()) {
+        continue;
+      }
+
       OutputFile outputFile =
           state.fileIO.newOutputFile(state.getManifestFileLocation(windowedDestination.getPane()));
 
@@ -278,7 +281,7 @@ class RecordWriterManager implements Serializable {
    * called.
    */
   public Map<WindowedValue<IcebergDestination>, List<ManifestFile>> getManifestFiles() {
-    Preconditions.checkArgument(
+    Preconditions.checkState(
         isClosed,
         "Please close this %s before retrieving its manifest files.",
         getClass().getSimpleName());

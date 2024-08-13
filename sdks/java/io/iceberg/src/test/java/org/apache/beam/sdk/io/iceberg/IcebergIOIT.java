@@ -84,6 +84,7 @@ public class IcebergIOIT implements Serializable {
   private static final org.apache.beam.sdk.schemas.Schema BEAM_SCHEMA =
       org.apache.beam.sdk.schemas.Schema.builder()
           .addStringField("str")
+          .addInt64Field("modulo_5")
           .addBooleanField("bool")
           .addInt32Field("int")
           .addRowField("row", NESTED_ROW_SCHEMA)
@@ -110,7 +111,8 @@ public class IcebergIOIT implements Serializable {
                   .build();
 
           return Row.withSchema(BEAM_SCHEMA)
-              .addValue("str_value_" + strNum)
+              .addValue("value_" + strNum)
+              .addValue(num % 5)
               .addValue(num % 2 == 0)
               .addValue(Integer.valueOf(strNum))
               .addValue(nestedRow)
@@ -209,9 +211,10 @@ public class IcebergIOIT implements Serializable {
     TableScan tableScan = table.newScan().project(ICEBERG_SCHEMA);
     List<Record> writtenRecords = new ArrayList<>();
     for (CombinedScanTask task : tableScan.planTasks()) {
-      InputFilesDecryptor decryptor = new InputFilesDecryptor(task, table.io(), table.encryption());
+      InputFilesDecryptor descryptor =
+          new InputFilesDecryptor(task, table.io(), table.encryption());
       for (FileScanTask fileTask : task.files()) {
-        InputFile inputFile = decryptor.getInputFile(fileTask);
+        InputFile inputFile = descryptor.getInputFile(fileTask);
         CloseableIterable<Record> iterable =
             Parquet.read(inputFile)
                 .split(fileTask.start(), fileTask.length())
@@ -287,11 +290,13 @@ public class IcebergIOIT implements Serializable {
 
   @Test
   public void testWritePartitionedData() {
+    // For an example row where bool=true, modulo_5=3, str=value_303,
+    // this partition spec will create a partition like: /bool=true/modulo_5=3/str_trunc=value_3/
     PartitionSpec partitionSpec =
         PartitionSpec.builderFor(ICEBERG_SCHEMA)
-            .identity("str")
             .identity("bool")
-            .identity("int")
+            .identity("modulo_5")
+            .truncate("str", "value_x".length())
             .build();
     Table table = catalog.createTable(tableId, ICEBERG_SCHEMA, partitionSpec);
 

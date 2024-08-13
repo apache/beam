@@ -17,8 +17,11 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
@@ -37,6 +40,7 @@ import org.apache.iceberg.PartitionKey;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.hadoop.HadoopCatalog;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -67,60 +71,124 @@ public class RecordWriterManagerTest {
 
   @Before
   public void setUp() {
-    TableIdentifier tableIdentifier =
-        TableIdentifier.of("default", "table_" + testName.getMethodName());
+    windowedDestination =
+        getWindowedDestination("table_" + testName.getMethodName(), PARTITION_SPEC);
+    catalog = new HadoopCatalog(new Configuration(), warehouse.location);
+  }
+
+  private WindowedValue<IcebergDestination> getWindowedDestination(
+      String tableName, @Nullable PartitionSpec partitionSpec) {
+    TableIdentifier tableIdentifier = TableIdentifier.of("default", tableName);
+
+    warehouse.createTable(tableIdentifier, ICEBERG_SCHEMA, partitionSpec);
+
     IcebergDestination icebergDestination =
         IcebergDestination.builder()
             .setFileFormat(FileFormat.PARQUET)
             .setTableIdentifier(tableIdentifier)
             .build();
-    windowedDestination =
-        WindowedValue.of(
-            icebergDestination,
-            GlobalWindow.TIMESTAMP_MAX_VALUE,
-            GlobalWindow.INSTANCE,
-            PaneInfo.NO_FIRING);
-    warehouse.createTable(tableIdentifier, ICEBERG_SCHEMA, PARTITION_SPEC);
-    catalog = new HadoopCatalog(new Configuration(), warehouse.location);
+    return WindowedValue.of(
+        icebergDestination,
+        GlobalWindow.TIMESTAMP_MAX_VALUE,
+        GlobalWindow.INSTANCE,
+        PaneInfo.NO_FIRING);
+  }
+
+  @Test
+  public void testCreateNewWriterForEachDestination() throws IOException {
+    // Writer manager with a maximum limit of 3 writers
+    RecordWriterManager writerManager = new RecordWriterManager(catalog, "test_file_name", 1000, 3);
+    assertEquals(0, writerManager.openWriters);
+
+    boolean writeSuccess;
+
+    WindowedValue<IcebergDestination> dest1 = getWindowedDestination("dest1", null);
+    WindowedValue<IcebergDestination> dest2 = getWindowedDestination("dest2", null);
+    WindowedValue<IcebergDestination> dest3 = getWindowedDestination("dest3", PARTITION_SPEC);
+    WindowedValue<IcebergDestination> dest4 = getWindowedDestination("dest4", null);
+
+    // dest1
+    // This is a new destination so a new writer will be created.
+    Row row = Row.withSchema(BEAM_SCHEMA).addValues(1, "aaa", true).build();
+    writeSuccess = writerManager.write(dest1, row);
+    assertTrue(writeSuccess);
+    assertEquals(1, writerManager.openWriters);
+
+    // dest2
+    // This is a new destination so a new writer will be created.
+    row = Row.withSchema(BEAM_SCHEMA).addValues(1, "aaa", true).build();
+    writeSuccess = writerManager.write(dest2, row);
+    assertTrue(writeSuccess);
+    assertEquals(2, writerManager.openWriters);
+
+    // dest3, partition: [aaa, true]
+    // This is a new destination so a new writer will be created.
+    row = Row.withSchema(BEAM_SCHEMA).addValues(1, "aaa", true).build();
+    writeSuccess = writerManager.write(dest3, row);
+    assertTrue(writeSuccess);
+    assertEquals(3, writerManager.openWriters);
+
+    // dest4
+    // This is a new destination, but the writer manager is saturated with 3 writers. reject the
+    // record
+    row = Row.withSchema(BEAM_SCHEMA).addValues(1, "aaa", true).build();
+    writeSuccess = writerManager.write(dest4, row);
+    assertFalse(writeSuccess);
+    assertEquals(3, writerManager.openWriters);
+
+    // dest3, partition: [aaa, false]
+    // new partition, but the writer manager is saturated with 3 writers. reject the record
+    row = Row.withSchema(BEAM_SCHEMA).addValues(1, "aaa", false).build();
+    writeSuccess = writerManager.write(dest3, row);
+    assertFalse(writeSuccess);
+    assertEquals(3, writerManager.openWriters);
+
+    // Closing PartitionRecordWriter will close all writers.
+    writerManager.close();
+    assertEquals(0, writerManager.openWriters);
+
+    // We should only have 3 manifest files (one for each destination we wrote to)
+    assertEquals(3, writerManager.getManifestFiles().keySet().size());
+    assertThat(writerManager.getManifestFiles().keySet(), containsInAnyOrder(dest1, dest2, dest3));
   }
 
   @Test
   public void testCreateNewWriterForEachPartition() throws IOException {
     // Writer manager with a maximum limit of 3 writers
-    RecordWriterManager writerManager = new RecordWriterManager(catalog, "test_file_name", 100, 3);
+    RecordWriterManager writerManager = new RecordWriterManager(catalog, "test_file_name", 1000, 3);
     assertEquals(0, writerManager.openWriters);
 
     boolean writeSuccess;
 
-    // The following row will have new partition: [aaa, true].
+    // partition: [aaa, true].
     // This is a new partition so a new writer will be created.
     Row row = Row.withSchema(BEAM_SCHEMA).addValues(1, "aaa", true).build();
     writeSuccess = writerManager.write(windowedDestination, row);
     assertTrue(writeSuccess);
     assertEquals(1, writerManager.openWriters);
 
-    // The following row will have new partition: [bbb, false].
+    // partition: [bbb, false].
     // This is a new partition so a new writer will be created.
     row = Row.withSchema(BEAM_SCHEMA).addValues(2, "bbb", false).build();
     writeSuccess = writerManager.write(windowedDestination, row);
     assertTrue(writeSuccess);
     assertEquals(2, writerManager.openWriters);
 
-    // The following row will have existing partition: [bbb, false].
+    // partition: [bbb, false].
     // A writer already exists for this partition, so no new writers are created.
     row = Row.withSchema(BEAM_SCHEMA).addValues(3, "bbbaaa", false).build();
     writeSuccess = writerManager.write(windowedDestination, row);
     assertTrue(writeSuccess);
     assertEquals(2, writerManager.openWriters);
 
-    // The following row will have new partition: [bbb, true].
+    // partition: [bbb, true].
     // This is a new partition so a new writer will be created.
     row = Row.withSchema(BEAM_SCHEMA).addValues(4, "bbb123", true).build();
     writeSuccess = writerManager.write(windowedDestination, row);
     assertTrue(writeSuccess);
     assertEquals(3, writerManager.openWriters);
 
-    // The following row will have new partition: [aaa, false].
+    // partition: [aaa, false].
     // The writerManager is already saturated with three writers. This record is rejected.
     row = Row.withSchema(BEAM_SCHEMA).addValues(5, "aaa123", false).build();
     writeSuccess = writerManager.write(windowedDestination, row);
@@ -131,6 +199,7 @@ public class RecordWriterManagerTest {
     writerManager.close();
     assertEquals(0, writerManager.openWriters);
 
+    assertEquals(1, writerManager.getManifestFiles().size());
     ManifestFile manifestFile =
         Iterables.getOnlyElement(writerManager.getManifestFiles().get(windowedDestination));
 
@@ -183,5 +252,15 @@ public class RecordWriterManagerTest {
 
     writerManager.close();
     assertEquals(0, writerManager.openWriters);
+  }
+
+  @Test
+  public void testRequireClosingBeforeFetchingManifestFiles() {
+    RecordWriterManager writerManager = new RecordWriterManager(catalog, "test_file_name", 100, 2);
+    Row row = Row.withSchema(BEAM_SCHEMA).addValues(1, "aaa", true).build();
+    writerManager.write(windowedDestination, row);
+    assertEquals(1, writerManager.openWriters);
+
+    assertThrows(IllegalStateException.class, writerManager::getManifestFiles);
   }
 }
