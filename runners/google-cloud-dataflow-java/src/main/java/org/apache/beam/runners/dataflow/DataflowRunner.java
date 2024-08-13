@@ -1398,10 +1398,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     if (hasExperiment(options, "upload_graph") && useUnifiedWorker(options)) {
-      List<String> experiments = options.getExperiments();
-      while (experiments.contains("upload_graph")) {
-        experiments.remove("upload_graph");
-      }
+      ArrayList<String> experiments = new ArrayList<>(options.getExperiments());
+      while (experiments.remove("upload_graph")) {}
       options.setExperiments(experiments);
       LOG.warn(
           "The upload_graph experiment was specified, but it does not apply "
