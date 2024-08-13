@@ -264,10 +264,10 @@ have goroutines managed by GRPC itself. Call this G goroutines.
 
 When RunJob is called, the server starts a goroutine with the Job Executor function.
 
-The Job Executor function will start goroutines for each worker environment in order
-to manage workers. One for manageing the environment itself, such as a docker container,
-and one for the FnAPI server for that environment, to communicate with the SDK Worker
-in that environment. These will persist for the lifetime of the job.
+The Job Executor function will start goroutines for each worker Environment in order
+to manage workers. One for managing the Environment itself, such as a docker container,
+and one for the FnAPI server for that Environment, to communicate with the SDK Worker
+in that Environment. These will persist for the lifetime of the job.
 
 After producing stages for the job the Job Executor goroutine will wait on Bundles
 from the ElementManager, and execute them in parallel.
@@ -308,6 +308,7 @@ For each Job:
 * 2 for the ElementManager
 
 For each Environment:
+* 2 for the Environment itself
 * 3*2 + 1 for the FnAPI Control, Data, State, and Logging Streams
 * G for the worker's GRPC server.
 
@@ -316,24 +317,24 @@ For each Bundle:
 
 Letting E be the number of environments in the job, and B maximum number of parallel bundles:
 
-Total Goroutines = G + (1 + 2) + E*(3*2 +1 + G) + B(1)
+Total Goroutines = G + (1 + 2) + E*(3*2 +1 + 2 + G) + B(1)
 
-Total Goroutines = G + 3 + 7E + E*G + B
+Total Goroutines = G + 3 + 9E + E*G + B
 
-Total Goroutines = G(E + 1) + 7E + B + 3
+Total Goroutines = G(E + 1) + 9E + B + 3
 
 So for a job J with 1 eviroment, and the default maximum parallel bundles, 8:
 
-Total Goroutines for Job J = G((1) + 1) + 7(1) + (8) + 3
+Total Goroutines for Job J = G((1) + 1) + 9(1) + (8) + 3
 
-Total Goroutines for Job J = 2G + 7 + 8 + 3
+Total Goroutines for Job J = 2G + 9 + 8 + 3
 
-Total Goroutines for Job J = 2G + 18
+Total Goroutines for Job J = 2G + 20
 
-2 GRPC servers + 18 goroutines may sound like a lot, but most processes in a Prism instance
-are waiting for some trigger to execute, or some timers to go off. FnAPI messages are multiplexed
-so the expectation is the data service goroutines will be the busiest moving data back and forth
-from the SDK.
+2 GRPC servers + 20 goroutines may sound like a lot, but most processes in a Prism instance
+are waiting for some trigger to execute. They are not busy waiting or spin looping.
+FnAPI messages are multiplexed so the expectation is the data service goroutines will
+be the busiest moving data back and forth from the SDK.
 
 A consequence of this approach is the need to take care in locking shared resources and data
 when they may be accessed by multiple goroutines. In particular, is all done in the ElementManager
@@ -345,6 +346,11 @@ what can most dynamically scale out, as bundle generation is handled by the sing
 evaluation thread. This may include migrating handling of data responses away from the Data
 received goroutine and into the Bundle processing goroutine, so bundles are less likely to 
 block each other.
+
+As one G of goroutines is the single Job Management instance for prism itself, and the other is
+for the worker endpoint, these are no wasted either. Prism can assign uniques names to workers
+to be able to identify which job they're a part of, so it's possible to avoid the per job and
+worker grpc service, and multiplex from there.  (See https://github.com/apache/beam/issues/32167)
 
 ## Durability Model
 
