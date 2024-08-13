@@ -154,8 +154,8 @@ abstract class ReadFromKafkaDoFn<K, V>
 
   // private static final int OFFSET_UPDATE_INTERVAL_SECONDS = 1;
 
-  private transient ScheduledExecutorService backlogFetcherThread =
-      Executors.newSingleThreadScheduledExecutor();
+  // private transient ScheduledExecutorService backlogFetcherThread =
+  //     Executors.newSingleThreadScheduledExecutor();
   private Map<String, Object> updatedConsumerConfig;
 
   static <K, V> ReadFromKafkaDoFn<K, V> create(
@@ -203,7 +203,7 @@ abstract class ReadFromKafkaDoFn<K, V>
     this.checkStopReadingFn = transform.getCheckStopReadingFn();
     this.badRecordRouter = transform.getBadRecordRouter();
     this.recordTag = recordTag;
-    this.backlogFetcherThread = Executors.newSingleThreadScheduledExecutor();
+    // this.backlogFetcherThread = Executors.newSingleThreadScheduledExecutor();
     if (transform.getConsumerPollingTimeout() > 0) {
       this.consumerPollingTimeout = transform.getConsumerPollingTimeout();
     } else {
@@ -320,7 +320,7 @@ abstract class ReadFromKafkaDoFn<K, V>
       } else if (startReadTime != null) {
         startOffset = ConsumerSpEL.offsetForTime(offsetConsumer, topicPartition, startReadTime);
       } else {
-        startOffset = offsetConsumer.position(partition);
+        startOffset = offsetConsumer.position(topicPartition);
       }
 
       long endOffset = Long.MAX_VALUE;
@@ -704,7 +704,7 @@ abstract class ReadFromKafkaDoFn<K, V>
       LOG.warn("Fail to close resource during finishing bundle.", anyException);
     }
 
-    backlogFetcherThread.shutdown();
+    // backlogFetcherThread.shutdown();
 
     if (offsetEstimatorCache != null) {
       offsetEstimatorCache.clear();
