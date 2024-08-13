@@ -35,6 +35,49 @@ import javax.annotation.Nullable;
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
+/**
+ * A provider for reading from Cloud Spanner using a Schema Transform Provider.
+ *
+ * <p>This provider enables reading from Cloud Spanner using a specified SQL query or by
+ * directly accessing a table and its columns. It supports configuration through the
+ * {@link SpannerReadSchemaTransformConfiguration} class, allowing users to specify
+ * project, instance, database, table, query, and columns.
+ *
+ * <p>The transformation leverages the {@link SpannerIO} to perform the read operation
+ * and maps the results to Beam rows, preserving the schema.
+ *
+ * <p>Example usage in a YAML pipeline using query:
+ *
+ * <pre>{@code
+ * pipeline:
+ *   transforms:
+ *     - type: ReadFromSpanner
+ *       name: ReadShipments
+ *       # Columns: shipment_id, customer_id, shipment_date, shipment_cost, customer_name, customer_email
+ *       config:
+ *         project_id: 'apache-beam-testing'
+ *         instance_id: 'shipment-test'
+ *         database_id: 'shipment'
+ *         query: 'SELECT * FROM shipments'
+ * }</pre>
+ * 
+ * <p>Example usage in a YAML pipeline using a table and columns:
+ *
+ * <pre>{@code
+ * pipeline:
+ *   transforms:
+ *     - type: ReadFromSpanner
+ *       name: ReadShipments
+ *       # Columns: shipment_id, customer_id, shipment_date, shipment_cost, customer_name, customer_email
+ *       config:
+ *         project_id: 'apache-beam-testing'
+ *         instance_id: 'shipment-test'
+ *         database_id: 'shipment'
+ *         table: 'shipments'
+ *         columns: ['customer_id', 'customer_name']
+ * }</pre>
+ */
+
 @AutoService(SchemaTransformProvider.class)
 public class SpannerReadSchemaTransformProvider
     extends TypedSchemaTransformProvider<

@@ -43,6 +43,7 @@ import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterators;
 import org.checkerframework.checker.initialization.qual.Initialized;
@@ -63,6 +64,55 @@ import java.util.stream.StreamSupport;
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
+/**
+ * A provider for writing to Cloud Spanner using the Schema Transform Provider.
+ *
+ * <p>This provider enables writing to Cloud Spanner with support for error handling
+ * during the write process. Configuration is managed through the 
+ * {@link SpannerWriteSchemaTransformConfiguration} class, allowing users to specify
+ * project, instance, database, table, and error handling strategies.
+ *
+ * <p>The transformation uses the {@link SpannerIO} to perform the write operation 
+ * and provides options to handle failed mutations, either by throwing an error, or 
+ * passing the failed mutation further in the pipeline for dealing with accordingly.
+ * 
+ * <p>Example usage in a YAML pipeline without error handling:
+ *
+ * <pre>{@code
+ * pipeline:
+ *   transforms:
+ *     - type: WriteToSpanner
+ *       name: WriteShipments
+ *       config:
+ *         project_id: 'apache-beam-testing'
+ *         instance_id: 'shipment-test'
+ *         database_id: 'shipment'
+ *         table_id: 'shipments'
+ *
+ * }</pre>
+ *
+ * <p>Example usage in a YAML pipeline using error handling:
+ *
+ * <pre>{@code
+ * pipeline:
+ *   transforms:
+ *     - type: WriteToSpanner
+ *       name: WriteShipments
+ *       config:
+ *         project_id: 'apache-beam-testing'
+ *         instance_id: 'shipment-test'
+ *         database_id: 'shipment'
+ *         table_id: 'shipments'
+ *         error_handling:
+ *           output: 'errors'
+ * 
+ *     - type: WriteToJson
+ *       input: WriteSpanner.my_error_output
+ *       config:
+ *          path: errors.json
+ *
+ * }</pre>
+ */
 
 @AutoService(SchemaTransformProvider.class)
 public class SpannerWriteSchemaTransformProvider
@@ -131,12 +181,13 @@ public class SpannerWriteSchemaTransformProvider
           input
               .get("input")
               .apply(
-                  MapElements.via(
-                      new SimpleFunction<Row, Mutation>(
-                          row ->
-                              MutationUtils.createMutationFromBeamRows(
-                                  Mutation.newInsertOrUpdateBuilder(configuration.getTableId()),
-                                  Objects.requireNonNull(row))) {}))
+                MapElements.into(TypeDescriptor.of(Mutation.class))
+                    .via((Row row) -> 
+                        MutationUtils.createMutationFromBeamRows(
+                            Mutation.newInsertOrUpdateBuilder(configuration.getTableId()),
+                            Objects.requireNonNull(row))
+                    )
+            )
               .apply(
                   SpannerIO.write()
                       .withProjectId(configuration.getProjectId())
