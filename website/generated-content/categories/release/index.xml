@@ -36,6 +36,11 @@ See the &lt;a href="/get-started/downloads/#2580-2024-08-06">download page&lt;/a
 &lt;ul>
 &lt;li>[BigQueryIO] Fixed a bug in batch Storage Write API that frequently exhausted concurrent connections quota (&lt;a href="https://github.com/apache/beam/pull/31710">#31710&lt;/a>)&lt;/li>
 &lt;/ul>
+&lt;h2 id="known-issues">Known Issues&lt;/h2>
+&lt;ul>
+&lt;li>Python pipelines that run with 2.53.0-2.58.0 SDKs and read data from GCS might be affected by a data corruption issue (&lt;a href="https://github.com/apache/beam/issues/32169">#32169&lt;/a>). The issue will be fixed in 2.59.0 (&lt;a href="https://github.com/apache/beam/pull/32135">#32135&lt;/a>). To work around this, update the google-cloud-storage package to version 2.18.2 or newer.&lt;/li>
+&lt;/ul>
+&lt;p>For the most up to date list of known issues, see &lt;a href="https://github.com/apache/beam/blob/master/CHANGES.md">https://github.com/apache/beam/blob/master/CHANGES.md&lt;/a>&lt;/p>
 &lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
 &lt;p>According to git shortlog, the following people contributed to the 2.58.0 release. Thank you to all contributors!&lt;/p>
 &lt;p>Ahmed Abualsaud&lt;/p>
@@ -149,6 +154,10 @@ should be updated to use new snake_case parameter names.&lt;/li>
 jackson-2.15 has known breaking changes. An important one is it imposed a buffer limit for parser.
 If your custom PTransform/DoFn are affected, refer to &lt;a href="https://github.com/apache/beam/pull/31580">#31580&lt;/a> for mitigation.&lt;/li>
 &lt;/ul>
+&lt;h2 id="known-issues">Known Issues&lt;/h2>
+&lt;ul>
+&lt;li>Python pipelines that run with 2.53.0-2.58.0 SDKs and read data from GCS might be affected by a data corruption issue (&lt;a href="https://github.com/apache/beam/issues/32169">#32169&lt;/a>). The issue will be fixed in 2.59.0 (&lt;a href="https://github.com/apache/beam/pull/32135">#32135&lt;/a>). To work around this, update the google-cloud-storage package to version 2.18.2 or newer.&lt;/li>
+&lt;/ul>
 &lt;p>For the most up to date list of known issues, see &lt;a href="https://github.com/apache/beam/blob/master/CHANGES.md">https://github.com/apache/beam/blob/master/CHANGES.md&lt;/a>&lt;/p>
 &lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
 &lt;p>According to git shortlog, the following people contributed to the 2.57.0 release. Thank you to all contributors!&lt;/p>
@@ -259,6 +268,11 @@ The newer Avro package is known to have breaking changes. If you are affected, y
 &lt;li>Fixed locking issue when shutting down inactive bundle processors. Symptoms of this issue include slowness or stuckness in long-running jobs (Python) (&lt;a href="https://github.com/apache/beam/pull/30679">#30679&lt;/a>).&lt;/li>
 &lt;li>Fixed logging issue that caused silecing the pip output when installing of dependencies provided in &lt;code>--requirements_file&lt;/code> (Python).&lt;/li>
 &lt;/ul>
+&lt;h2 id="known-issues">Known Issues&lt;/h2>
+&lt;ul>
+&lt;li>Python pipelines that run with 2.53.0-2.58.0 SDKs and read data from GCS might be affected by a data corruption issue (&lt;a href="https://github.com/apache/beam/issues/32169">#32169&lt;/a>). The issue will be fixed in 2.59.0 (&lt;a href="https://github.com/apache/beam/pull/32135">#32135&lt;/a>). To work around this, update the google-cloud-storage package to version 2.18.2 or newer.&lt;/li>
+&lt;/ul>
+&lt;p>For the most up to date list of known issues, see &lt;a href="https://github.com/apache/beam/blob/master/CHANGES.md">https://github.com/apache/beam/blob/master/CHANGES.md&lt;/a>&lt;/p>
 &lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
 &lt;p>According to git shortlog, the following people contributed to the 2.56.0 release. Thank you to all contributors!&lt;/p>
 &lt;p>Abacn&lt;/p>
@@ -385,7 +399,9 @@ to the &lt;code>getDialect&lt;/code> calls for authenticating with Spanner (Java
 &lt;h2 id="known-issues">Known Issues&lt;/h2>
 &lt;ul>
 &lt;li>In Python pipelines, when shutting down inactive bundle processors, shutdown logic can overaggressively hold the lock, blocking acceptance of new work. Symptoms of this issue include slowness or stuckness in long-running jobs. Fixed in 2.56.0 (&lt;a href="https://github.com/apache/beam/pull/30679">#30679&lt;/a>).&lt;/li>
+&lt;li>Python pipelines that run with 2.53.0-2.58.0 SDKs and read data from GCS might be affected by a data corruption issue (&lt;a href="https://github.com/apache/beam/issues/32169">#32169&lt;/a>). The issue will be fixed in 2.59.0 (&lt;a href="https://github.com/apache/beam/pull/32135">#32135&lt;/a>). To work around this, update the google-cloud-storage package to version 2.18.2 or newer.&lt;/li>
 &lt;/ul>
+&lt;p>For the most up to date list of known issues, see &lt;a href="https://github.com/apache/beam/blob/master/CHANGES.md">https://github.com/apache/beam/blob/master/CHANGES.md&lt;/a>&lt;/p>
 &lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
 &lt;p>According to git shortlog, the following people contributed to the 2.55.0 release. Thank you to all contributors!&lt;/p>
 &lt;p>Ahmed Abualsaud&lt;/p>
@@ -490,6 +506,7 @@ See the &lt;a href="/get-started/downloads/">download page&lt;/a> for this relea
 &lt;li>Some Python pipelines that run with 2.52.0-2.54.0 SDKs and use large materialized side inputs might be affected by a performance regression. To restore the prior behavior on these SDK versions, supply the &lt;code>--max_cache_memory_usage_mb=0&lt;/code> pipeline option. (&lt;a href="https://github.com/apache/beam/issues/30360">#30360&lt;/a>).&lt;/li>
 &lt;li>Python pipelines that run with 2.53.0-2.54.0 SDKs and perform file operations on GCS might be affected by excess HTTP requests. This could lead to a performance regression or a permission issue. (&lt;a href="https://github.com/apache/beam/issues/28398">#28398&lt;/a>)&lt;/li>
 &lt;li>In Python pipelines, when shutting down inactive bundle processors, shutdown logic can overaggressively hold the lock, blocking acceptance of new work. Symptoms of this issue include slowness or stuckness in long-running jobs. Fixed in 2.56.0 (&lt;a href="https://github.com/apache/beam/pull/30679">#30679&lt;/a>).&lt;/li>
+&lt;li>Python pipelines that run with 2.53.0-2.58.0 SDKs and read data from GCS might be affected by a data corruption issue (&lt;a href="https://github.com/apache/beam/issues/32169">#32169&lt;/a>). The issue will be fixed in 2.59.0 (&lt;a href="https://github.com/apache/beam/pull/32135">#32135&lt;/a>). To work around this, update the google-cloud-storage package to version 2.18.2 or newer.&lt;/li>
 &lt;/ul>
 &lt;p>For the most up to date list of known issues, see &lt;a href="https://github.com/apache/beam/blob/master/CHANGES.md">https://github.com/apache/beam/blob/master/CHANGES.md&lt;/a>&lt;/p>
 &lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
@@ -603,6 +620,7 @@ expansion can also be used as the cross-language worker.&lt;/li>
 &lt;li>Some Python pipelines that run with 2.52.0-2.54.0 SDKs and use large materialized side inputs might be affected by a performance regression. To restore the prior behavior on these SDK versions, supply the &lt;code>--max_cache_memory_usage_mb=0&lt;/code> pipeline option. (&lt;a href="https://github.com/apache/beam/issues/30360">#30360&lt;/a>).&lt;/li>
 &lt;li>Python pipelines that run with 2.53.0-2.54.0 SDKs and perform file operations on GCS might be affected by excess HTTP requests. This could lead to a performance regression or a permission issue. (&lt;a href="https://github.com/apache/beam/issues/28398">#28398&lt;/a>)&lt;/li>
 &lt;li>In Python pipelines, when shutting down inactive bundle processors, shutdown logic can overaggressively hold the lock, blocking acceptance of new work. Symptoms of this issue include slowness or stuckness in long-running jobs. Fixed in 2.56.0 (&lt;a href="https://github.com/apache/beam/pull/30679">#30679&lt;/a>).&lt;/li>
+&lt;li>Python pipelines that run with 2.53.0-2.58.0 SDKs and read data from GCS might be affected by a data corruption issue (&lt;a href="https://github.com/apache/beam/issues/32169">#32169&lt;/a>). The issue will be fixed in 2.59.0 (&lt;a href="https://github.com/apache/beam/pull/32135">#32135&lt;/a>). To work around this, update the google-cloud-storage package to version 2.18.2 or newer.&lt;/li>
 &lt;/ul>
 &lt;p>For the most up to date list of known issues, see &lt;a href="https://github.com/apache/beam/blob/master/CHANGES.md">https://github.com/apache/beam/blob/master/CHANGES.md&lt;/a>&lt;/p>
 &lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
