@@ -127,7 +127,9 @@ public class WindowDoFnOperator<K, InputT, OutputT>
     StateInternalsFactory<K> stateInternalsFactory = key -> (StateInternals) keyedStateInternals;
 
     // this will implicitly be keyed like the StateInternalsFactory
-    TimerInternalsFactory<K> timerInternalsFactory = key -> timerInternals;
+    @SuppressWarnings("unchecked")
+    TimerInternalsFactory<K> timerInternalsFactory =
+        key -> ((FlinkTimerInternals<K>) timerInternals).forKey(key);
 
     // we have to do the unchecked cast because GroupAlsoByWindowViaWindowSetDoFn.create
     // has the window type as generic parameter while WindowingStrategy is almost always

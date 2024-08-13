@@ -38,22 +38,8 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.locks.Lock;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import org.apache.beam.runners.core.DoFnRunner;
-import org.apache.beam.runners.core.DoFnRunners;
-import org.apache.beam.runners.core.InMemoryBundleFinalizer;
-import org.apache.beam.runners.core.NullSideInputReader;
-import org.apache.beam.runners.core.ProcessFnRunner;
-import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
-import org.apache.beam.runners.core.SideInputHandler;
-import org.apache.beam.runners.core.SideInputReader;
-import org.apache.beam.runners.core.SimplePushbackSideInputDoFnRunner;
-import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems;
-import org.apache.beam.runners.core.StateInternals;
-import org.apache.beam.runners.core.StateNamespace;
+import org.apache.beam.runners.core.*;
 import org.apache.beam.runners.core.StateNamespaces.WindowNamespace;
-import org.apache.beam.runners.core.StatefulDoFnRunner;
-import org.apache.beam.runners.core.StepContext;
-import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
@@ -94,6 +80,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.commons.lang3.NotImplementedException;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapState;
@@ -176,7 +163,7 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
   private transient DoFnInvoker<InputT, OutputT> doFnInvoker;
 
   protected transient FlinkStateInternals<?> keyedStateInternals;
-  protected transient FlinkTimerInternals timerInternals;
+  protected transient FlinkTimerInternals<?> timerInternals;
 
   protected final String stepName;
 
@@ -476,8 +463,10 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
                 "beam-timer", new CoderTypeSerializer<>(timerCoder, serializedOptions), this);
       }
 
-      timerInternals = new FlinkTimerInternals(timerService);
+      timerInternals = new ServiceFlinkTimerInternals(timerService);
       timeServiceManagerCompat = getTimeServiceManagerCompat();
+    } else {
+      timerInternals = new InMemoryFlinkTimerInternals<>();
     }
 
     outputManager =
@@ -1118,8 +1107,7 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
     }
   }
 
-  // allow overriding this in WindowDoFnOperator
-  protected void fireTimer(TimerData timerData) {
+  private <K> void fireTimer(K key, TimerData timerData) {
     LOG.debug(
         "Firing timer: {} at {} with output time {}",
         timerData.getTimerId(),
@@ -1134,11 +1122,16 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
     pushbackDoFnRunner.onTimer(
         timerData.getTimerId(),
         timerData.getTimerFamilyId(),
-        keyedStateInternals.getKey(),
+        key,
         window,
         timerData.getTimestamp(),
         timerData.getOutputTimestamp(),
         timerData.getDomain());
+  }
+
+  // allow overriding this in WindowDoFnOperator
+  protected void fireTimer(TimerData timerData) {
+    fireTimer(keyedStateInternals.getKey(), timerData);
   }
 
   @SuppressWarnings("unchecked")
@@ -1414,7 +1407,113 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
     }
   }
 
-  class FlinkTimerInternals implements TimerInternals {
+  public interface FlinkTimerInternals<K> extends TimerInternals {
+    TimerInternals forKey(K key);
+
+    boolean hasPendingEventTimeTimers(long maxTimestamp) throws Exception;
+
+    void processPendingProcessingTimeTimers();
+
+    void onFiredOrDeletedTimer(TimerData timer);
+  }
+
+  class InMemoryFlinkTimerInternals<K> implements FlinkTimerInternals<K> {
+
+    private final Map<K, InMemoryTimerInternals> internals;
+
+    private InMemoryFlinkTimerInternals() {
+      this.internals = new HashMap<>();
+    }
+
+    @Override
+    public TimerInternals forKey(K key) {
+      return internals.computeIfAbsent(key, k -> new InMemoryTimerInternals());
+    }
+
+    @Override
+    public boolean hasPendingEventTimeTimers(long maxTimestamp) throws Exception {
+      return internals.entrySet().stream()
+          .anyMatch(e -> e.getValue().getNextTimer(TimeDomain.PROCESSING_TIME) != null);
+    }
+
+    @Override
+    public void processPendingProcessingTimeTimers() {
+      for (Map.Entry<K, InMemoryTimerInternals> entry : internals.entrySet()) {
+        K key = entry.getKey();
+        InMemoryTimerInternals internals = entry.getValue();
+
+        @Nullable TimerData timer = internals.removeNextProcessingTimer();
+        while (timer != null) {
+          fireTimer(key, timer);
+          timer = internals.removeNextProcessingTimer();
+        }
+      }
+    }
+
+    @Override
+    public void onFiredOrDeletedTimer(TimerData timer) {
+      // TODO: Is there something to do here ?
+    }
+
+    @Override
+    public void setTimer(
+        StateNamespace namespace,
+        String timerId,
+        String timerFamilyId,
+        Instant target,
+        Instant outputTimestamp,
+        TimeDomain timeDomain) {
+      throw new IllegalStateException(
+          "method should not be called directly on InMemoryFlinkTimerInternals");
+    }
+
+    @Override
+    public void setTimer(TimerData timerData) {
+      throw new IllegalStateException(
+          "method should not be called directly on InMemoryFlinkTimerInternals");
+    }
+
+    @Override
+    public void deleteTimer(
+        StateNamespace namespace, String timerId, String timerFamilyId, TimeDomain timeDomain) {
+      throw new IllegalStateException(
+          "method should not be called directly on InMemoryFlinkTimerInternals");
+    }
+
+    @Override
+    public void deleteTimer(StateNamespace namespace, String timerId, String timerFamilyId) {
+      throw new IllegalStateException(
+          "method should not be called directly on InMemoryFlinkTimerInternals");
+    }
+
+    @Override
+    public void deleteTimer(TimerData timerKey) {
+      throw new IllegalStateException(
+          "method should not be called directly on InMemoryFlinkTimerInternals");
+    }
+
+    @Override
+    public Instant currentProcessingTime() {
+      throw new NotImplementedException("Method is not yet implemented");
+    }
+
+    @Override
+    public @Nullable Instant currentSynchronizedProcessingTime() {
+      throw new NotImplementedException("Method is not yet implemented");
+    }
+
+    @Override
+    public Instant currentInputWatermarkTime() {
+      throw new NotImplementedException("Method is not yet implemented");
+    }
+
+    @Override
+    public @Nullable Instant currentOutputWatermarkTime() {
+      throw new NotImplementedException("Method is not yet implemented");
+    }
+  }
+
+  class ServiceFlinkTimerInternals<K> implements FlinkTimerInternals<K> {
 
     private static final String PENDING_TIMERS_STATE_NAME = "pending-timers";
 
@@ -1430,7 +1529,8 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
 
     private final InternalTimerService<TimerData> timerService;
 
-    private FlinkTimerInternals(InternalTimerService<TimerData> timerService) throws Exception {
+    private ServiceFlinkTimerInternals(InternalTimerService<TimerData> timerService)
+        throws Exception {
       MapStateDescriptor<String, TimerData> pendingTimersByIdStateDescriptor =
           new MapStateDescriptor<>(
               PENDING_TIMERS_STATE_NAME,
@@ -1442,6 +1542,11 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
       populateOutputTimestampQueue(timerService);
     }
 
+    @Override
+    public TimerInternals forKey(K key) {
+      return this;
+    }
+
     /**
      * Processes all pending processing timers. This is intended for use during shutdown. From Flink
      * 1.10 on, processing timer execution is stopped when the operator is closed. This leads to
@@ -1450,7 +1555,8 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
      * are allowed to be scheduled anymore. This breaks Beam pipelines which rely on all processing
      * timers to be scheduled and executed.
      */
-    void processPendingProcessingTimeTimers() {
+    @Override
+    public void processPendingProcessingTimeTimers() {
       final KeyedStateBackend<Object> keyedStateBackend = getKeyedStateBackend();
       final InternalPriorityQueue<InternalTimer<Object, TimerData>> processingTimeTimersQueue =
           Workarounds.retrieveInternalProcessingTimerQueue(timerService);
@@ -1567,7 +1673,8 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
      * sure that the state backend key is set correctly. It is best to run this in the fireTimer()
      * method.
      */
-    void onFiredOrDeletedTimer(TimerData timer) {
+    @Override
+    public void onFiredOrDeletedTimer(TimerData timer) {
       try {
         pendingTimersById.remove(
             getContextTimerId(
@@ -1671,6 +1778,7 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
      * Check whether event time timers lower or equal to the given timestamp exist. Caution: This is
      * scoped by the current key.
      */
+    @Override
     public boolean hasPendingEventTimeTimers(long maxTimestamp) throws Exception {
       for (TimerData timer : pendingTimersById.values()) {
         if (timer.getDomain() == TimeDomain.EVENT_TIME
