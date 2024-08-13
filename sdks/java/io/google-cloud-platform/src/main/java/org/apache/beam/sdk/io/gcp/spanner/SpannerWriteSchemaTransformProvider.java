@@ -171,12 +171,6 @@ public class SpannerWriteSchemaTransformProvider
     @Override
     public PCollectionRowTuple expand(@NonNull PCollectionRowTuple input) {
       boolean handleErrors = ErrorHandling.hasOutput(configuration.getErrorHandling());
-      FailureMode failureMode;
-      if (handleErrors)
-        failureMode = SpannerIO.FailureMode.REPORT_FAILURES;
-      else
-        failureMode = SpannerIO.FailureMode.FAIL_FAST;
-
       SpannerWriteResult result =
           input
               .get("input")
@@ -193,7 +187,7 @@ public class SpannerWriteSchemaTransformProvider
                       .withProjectId(configuration.getProjectId())
                       .withDatabaseId(configuration.getDatabaseId())
                       .withInstanceId(configuration.getInstanceId())
-                      .withFailureMode(failureMode));
+                      .withFailureMode(handleErrors ? FailureMode.REPORT_FAILURES : FailureMode.FAIL_FAST));
 
                       PCollection<Row> postWrite =
                       result
@@ -205,10 +199,7 @@ public class SpannerWriteSchemaTransformProvider
           return PCollectionRowTuple.of("post-write", postWrite);
           
       Schema inputSchema = input.get("input").getSchema();
-      Schema failureSchema =
-          Schema.of(
-            Field.of("error_message", FieldType.STRING),
-            Field.of("failed_row", FieldType.row(inputSchema)));
+      Schema failureSchema = ErrorHandling.errorSchema(inputSchema);
 
       PCollection<Row> failures =
           result
