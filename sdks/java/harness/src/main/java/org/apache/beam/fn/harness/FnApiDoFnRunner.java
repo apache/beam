@@ -889,7 +889,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         RestrictionTrackers.observe(
             doFnInvoker.invokeNewTracker(processContext),
             new ClaimObserver<PositionT>() {
-              private final AtomicBoolean claimed = Preconditions.checkNotNull(currentTrackerClaimed);
+              private final AtomicBoolean claimed =
+                  Preconditions.checkNotNull(currentTrackerClaimed);
 
               @Override
               public void onClaimed(PositionT position) {
@@ -927,7 +928,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             RestrictionTrackers.observe(
                 doFnInvoker.invokeNewTracker(processContext),
                 new ClaimObserver<PositionT>() {
-                  private final AtomicBoolean claimed = Preconditions.checkNotNull(currentTrackerClaimed);
+                  private final AtomicBoolean claimed =
+                      Preconditions.checkNotNull(currentTrackerClaimed);
 
                   @Override
                   public void onClaimed(PositionT position) {
@@ -1109,7 +1111,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             RestrictionTrackers.observe(
                 doFnInvoker.invokeNewTracker(processContext),
                 new ClaimObserver<PositionT>() {
-                  private final AtomicBoolean claimed = Preconditions.checkNotNull(currentTrackerClaimed);
+                  private final AtomicBoolean claimed =
+                      Preconditions.checkNotNull(currentTrackerClaimed);
 
                   @Override
                   public void onClaimed(PositionT position) {
