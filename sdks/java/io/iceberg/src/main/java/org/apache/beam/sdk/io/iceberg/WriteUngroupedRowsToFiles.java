@@ -19,8 +19,6 @@ package org.apache.beam.sdk.io.iceberg;
 
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Iterables;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -40,11 +38,12 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.catalog.Catalog;
-import org.apache.iceberg.catalog.TableIdentifier;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -68,7 +67,7 @@ class WriteUngroupedRowsToFiles
   private static final TupleTag<Row> WRITTEN_ROWS_TAG = new TupleTag<Row>("writtenRows") {};
   private static final TupleTag<Row> SPILLED_ROWS_TAG = new TupleTag<Row>("spilledRows") {};
 
-  private final String fileSuffix;
+  private final String filePrefix;
   private final DynamicDestinations dynamicDestinations;
   private final IcebergCatalogConfig catalogConfig;
 
@@ -76,7 +75,7 @@ class WriteUngroupedRowsToFiles
       IcebergCatalogConfig catalogConfig, DynamicDestinations dynamicDestinations) {
     this.catalogConfig = catalogConfig;
     this.dynamicDestinations = dynamicDestinations;
-    this.fileSuffix = UUID.randomUUID().toString();
+    this.filePrefix = UUID.randomUUID().toString();
   }
 
   @Override
@@ -88,7 +87,7 @@ class WriteUngroupedRowsToFiles
                     new WriteUngroupedRowsToFilesDoFn(
                         catalogConfig,
                         dynamicDestinations,
-                        fileSuffix,
+                        filePrefix,
                         DEFAULT_MAX_WRITERS_PER_BUNDLE,
                         DEFAULT_MAX_BYTES_PER_FILE))
                 .withOutputTags(
@@ -177,7 +176,7 @@ class WriteUngroupedRowsToFiles
     private final DynamicDestinations dynamicDestinations;
     private final IcebergCatalogConfig catalogConfig;
     private transient @MonotonicNonNull Catalog catalog;
-    private @Nullable PartitionedRecordWriter partitionedRecordWriter;
+    private @Nullable RecordWriterManager recordWriterManager;
 
     public WriteUngroupedRowsToFilesDoFn(
         IcebergCatalogConfig catalogConfig,
@@ -201,8 +200,8 @@ class WriteUngroupedRowsToFiles
 
     @StartBundle
     public void startBundle() {
-      partitionedRecordWriter =
-          new PartitionedRecordWriter(getCatalog(), filename, maxFileSize, maxWritersPerBundle);
+      recordWriterManager =
+          new RecordWriterManager(getCatalog(), filename, maxFileSize, maxWritersPerBundle);
     }
 
     @ProcessElement
@@ -214,17 +213,18 @@ class WriteUngroupedRowsToFiles
       Row destMetadata =
           checkArgumentNotNull(element.getRow("dest"), "Input row missing `dest` field.");
       IcebergDestination destination = dynamicDestinations.instantiateDestination(destMetadata);
+      WindowedValue<IcebergDestination> windowedDestination =
+          WindowedValue.of(destination, window.maxTimestamp(), window, pane);
 
       // Attempt to write record. If the writer is saturated and cannot accept
       // the record, spill it over to WriteGroupedRowsToFiles
       boolean writeSuccess;
       try {
         writeSuccess =
-            Preconditions.checkNotNull(partitionedRecordWriter)
-                .write(destination, data, window, pane);
+            Preconditions.checkNotNull(recordWriterManager).write(windowedDestination, data);
       } catch (Exception e) {
         try {
-          Preconditions.checkNotNull(partitionedRecordWriter).close();
+          Preconditions.checkNotNull(recordWriterManager).close();
         } catch (Exception closeException) {
           e.addSuppressed(closeException);
         }
@@ -235,24 +235,25 @@ class WriteUngroupedRowsToFiles
 
     @FinishBundle
     public void finishBundle(FinishBundleContext c) throws Exception {
-      if (partitionedRecordWriter == null) {
+      if (recordWriterManager == null) {
         return;
       }
-      partitionedRecordWriter.close();
-      for (Map.Entry<IcebergDestination, List<WindowedValue<ManifestFile>>> destinationAndFiles :
-          Preconditions.checkNotNull(partitionedRecordWriter).getManifestFiles().entrySet()) {
-        TableIdentifier identifier = destinationAndFiles.getKey().getTableIdentifier();
-        for (WindowedValue<ManifestFile> windowedManifestFile : destinationAndFiles.getValue()) {
+      recordWriterManager.close();
+      for (Map.Entry<WindowedValue<IcebergDestination>, List<ManifestFile>> destinationAndFiles :
+          Preconditions.checkNotNull(recordWriterManager).getManifestFiles().entrySet()) {
+        WindowedValue<IcebergDestination> windowedDestination = destinationAndFiles.getKey();
+
+        for (ManifestFile manifestFile : destinationAndFiles.getValue()) {
           c.output(
               FileWriteResult.builder()
-                  .setManifestFile(windowedManifestFile.getValue())
-                  .setTableIdentifier(identifier)
+                  .setManifestFile(manifestFile)
+                  .setTableIdentifier(windowedDestination.getValue().getTableIdentifier())
                   .build(),
-              windowedManifestFile.getTimestamp(),
-              Iterables.getFirst(windowedManifestFile.getWindows(), null));
+              windowedDestination.getTimestamp(),
+              Iterables.getFirst(windowedDestination.getWindows(), null));
         }
       }
-      partitionedRecordWriter = null;
+      recordWriterManager = null;
     }
   }
 }

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import java.util.List;
 import java.util.UUID;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -63,7 +64,7 @@ class WriteGroupedRowsToFiles
     private final DynamicDestinations dynamicDestinations;
     private final IcebergCatalogConfig catalogConfig;
     private transient @MonotonicNonNull Catalog catalog;
-    private final String fileSuffix;
+    private final String filePrefix;
     private final long maxFileSize;
 
     WriteGroupedRowsToFilesDoFn(
@@ -72,7 +73,7 @@ class WriteGroupedRowsToFiles
         long maxFileSize) {
       this.catalogConfig = catalogConfig;
       this.dynamicDestinations = dynamicDestinations;
-      this.fileSuffix = UUID.randomUUID().toString();
+      this.filePrefix = UUID.randomUUID().toString();
       this.maxFileSize = maxFileSize;
     }
 
@@ -93,20 +94,23 @@ class WriteGroupedRowsToFiles
 
       Row destMetadata = element.getKey().getKey();
       IcebergDestination destination = dynamicDestinations.instantiateDestination(destMetadata);
-      PartitionedRecordWriter writer =
-          new PartitionedRecordWriter(getCatalog(), fileSuffix, maxFileSize, Integer.MAX_VALUE);
+      WindowedValue<IcebergDestination> windowedDestination =
+          WindowedValue.of(destination, window.maxTimestamp(), window, pane);
+      RecordWriterManager writer =
+          new RecordWriterManager(getCatalog(), filePrefix, maxFileSize, Integer.MAX_VALUE);
 
       for (Row e : element.getValue()) {
-        writer.write(destination, e, window, pane);
+        writer.write(windowedDestination, e);
       }
       writer.close();
 
-      for (WindowedValue<ManifestFile> windowedManifestFiles :
-          Preconditions.checkNotNull(writer.getManifestFiles().get(destination))) {
+      List<ManifestFile> manifestFiles =
+          Preconditions.checkNotNull(writer.getManifestFiles().get(windowedDestination));
+      for (ManifestFile manifestFile : manifestFiles) {
         c.output(
             FileWriteResult.builder()
                 .setTableIdentifier(destination.getTableIdentifier())
-                .setManifestFile(windowedManifestFiles.getValue())
+                .setManifestFile(manifestFile)
                 .build());
       }
     }
