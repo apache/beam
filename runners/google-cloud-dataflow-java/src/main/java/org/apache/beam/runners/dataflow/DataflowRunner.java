@@ -1398,14 +1398,14 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     if (hasExperiment(options, "upload_graph") && useUnifiedWorker(options)) {
-      List<String> experiments = options.getExperiements();
-      while (list.contains("upload_graph")) {
-        list.remove("upload_graph");
+      List<String> experiments = options.getExperiments();
+      while (experiments.contains("upload_graph")) {
+        experiments.remove("upload_graph");
       }
       options.setExperiments(experiments);
-      LOG.warning(
+      LOG.warn(
           "The upload_graph experiment was specified, but it does not apply "
-             + "to runner v2 jobs. Option has been automatically removed.");
+              + "to runner v2 jobs. Option has been automatically removed.");
     }
 
     // Upload the job to GCS and remove the graph object from the API call.  The graph
