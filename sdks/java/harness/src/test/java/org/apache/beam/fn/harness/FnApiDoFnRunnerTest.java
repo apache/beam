@@ -24,6 +24,7 @@ import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.anEmptyMap;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
@@ -53,6 +54,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.FnApiDoFnRunner.SplitResultsWithStopIndex;
 import org.apache.beam.fn.harness.FnApiDoFnRunner.WindowedSplitResult;
@@ -1391,6 +1393,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
         CountDownLatch processEnteredLatch = new CountDownLatch(1);
         CountDownLatch splitElementProcessedLatch = new CountDownLatch(1);
         CountDownLatch trySplitPerformedLatch = new CountDownLatch(1);
+        AtomicBoolean abortProcessing = new AtomicBoolean();
       }
 
       private Latches getLatches() {
@@ -1441,6 +1444,14 @@ public class FnApiDoFnRunnerTest implements Serializable {
         getLatches().blockProcessLatch.countDown();
       }
 
+      public void setAbortProcessing() {
+        getLatches().abortProcessing.set(true);
+      }
+
+      public boolean shouldAbortProcessing() {
+        return getLatches().abortProcessing.get();
+      }
+
       private final String uuid;
 
       private NonWindowObservingTestSplittableDoFn() {
@@ -1455,8 +1466,8 @@ public class FnApiDoFnRunnerTest implements Serializable {
           throws Exception {
         long checkpointUpperBound = CHECKPOINT_UPPER_BOUND;
         long position = tracker.currentRestriction().getFrom();
-        boolean claimStatus;
-        while (true) {
+        boolean claimStatus = true;
+        while (!shouldAbortProcessing()) {
           claimStatus = tracker.tryClaim(position);
           if (!claimStatus) {
             break;
@@ -1549,8 +1560,8 @@ public class FnApiDoFnRunnerTest implements Serializable {
         enterProcessAndBlockIfEnabled();
         long checkpointUpperBound = Long.parseLong(context.sideInput(singletonSideInput));
         long position = tracker.currentRestriction().getFrom();
-        boolean claimStatus;
-        while (true) {
+        boolean claimStatus = true;
+        while (!shouldAbortProcessing()) {
           claimStatus = tracker.tryClaim(position);
           if (!claimStatus) {
             break;
@@ -2091,6 +2102,149 @@ public class FnApiDoFnRunnerTest implements Serializable {
       assertEquals(
           new FakeBeamFnStateClient(StringUtf8Coder.of(), stateData).getData(),
           fakeClient.getData());
+    }
+
+    @Test
+    public void testProcessElementForSizedElementAndRestrictionNoTryClaim() throws Exception {
+      Pipeline p = Pipeline.create();
+      addExperiment(p.getOptions().as(ExperimentalOptions.class), "beam_fn_api");
+      // TODO(BEAM-10097): Remove experiment once all portable runners support this view type
+      addExperiment(p.getOptions().as(ExperimentalOptions.class), "use_runner_v2");
+      PCollection<String> valuePCollection = p.apply(Create.of("unused"));
+      PCollectionView<String> singletonSideInputView = valuePCollection.apply(View.asSingleton());
+      WindowObservingTestSplittableDoFn doFn =
+          new WindowObservingTestSplittableDoFn(singletonSideInputView);
+      doFn.setAbortProcessing();
+      valuePCollection.apply(
+          TEST_TRANSFORM_ID, ParDo.of(doFn).withSideInputs(singletonSideInputView));
+
+      RunnerApi.Pipeline pProto =
+          ProtoOverrides.updateTransform(
+              PTransformTranslation.PAR_DO_TRANSFORM_URN,
+              PipelineTranslation.toProto(p, SdkComponents.create(p.getOptions()), true),
+              SplittableParDoExpander.createSizedReplacement());
+      String expandedTransformId =
+          Iterables.find(
+                  pProto.getComponents().getTransformsMap().entrySet(),
+                  entry ->
+                      entry
+                              .getValue()
+                              .getSpec()
+                              .getUrn()
+                              .equals(
+                                  PTransformTranslation
+                                      .SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN)
+                          && entry.getValue().getUniqueName().contains(TEST_TRANSFORM_ID))
+              .getKey();
+      RunnerApi.PTransform pTransform =
+          pProto.getComponents().getTransformsOrThrow(expandedTransformId);
+      String inputPCollectionId =
+          pTransform.getInputsOrThrow(ParDoTranslation.getMainInputName(pTransform));
+      RunnerApi.PCollection inputPCollection =
+          pProto.getComponents().getPcollectionsOrThrow(inputPCollectionId);
+      RehydratedComponents rehydratedComponents =
+          RehydratedComponents.forComponents(pProto.getComponents());
+      Coder<WindowedValue> inputCoder =
+          WindowedValue.getFullCoder(
+              CoderTranslation.fromProto(
+                  pProto.getComponents().getCodersOrThrow(inputPCollection.getCoderId()),
+                  rehydratedComponents,
+                  TranslationContext.DEFAULT),
+              (Coder)
+                  CoderTranslation.fromProto(
+                      pProto
+                          .getComponents()
+                          .getCodersOrThrow(
+                              pProto
+                                  .getComponents()
+                                  .getWindowingStrategiesOrThrow(
+                                      inputPCollection.getWindowingStrategyId())
+                                  .getWindowCoderId()),
+                      rehydratedComponents,
+                      TranslationContext.DEFAULT));
+      String outputPCollectionId = pTransform.getOutputsOrThrow("output");
+
+      ImmutableMap<StateKey, List<String>> stateData =
+          ImmutableMap.of(
+              iterableSideInputKey(
+                  singletonSideInputView.getTagInternal().getId(), ByteString.EMPTY),
+              asList("8"));
+
+      FakeBeamFnStateClient fakeClient = new FakeBeamFnStateClient(StringUtf8Coder.of(), stateData);
+
+      BundleSplitListener.InMemory splitListener = BundleSplitListener.InMemory.create();
+
+      PTransformRunnerFactoryTestContext context =
+          PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
+              .beamFnStateClient(fakeClient)
+              .processBundleInstructionId("57")
+              .pCollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
+              .coders(pProto.getComponents().getCodersMap())
+              .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+              .splitListener(splitListener)
+              .build();
+      List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
+      context.addPCollectionConsumer(
+          outputPCollectionId,
+          (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add);
+
+      new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(context);
+
+      Iterables.getOnlyElement(context.getStartBundleFunctions()).run();
+      mainOutputValues.clear();
+
+      assertThat(
+          context.getPCollectionConsumers().keySet(),
+          containsInAnyOrder(inputPCollectionId, outputPCollectionId));
+
+      FnDataReceiver<WindowedValue<?>> mainInput =
+          context.getPCollectionConsumer(inputPCollectionId);
+      assertThat(mainInput, instanceOf(HandlesSplits.class));
+
+      {
+        // Check that before processing an element we don't report progress
+        assertNoReportedProgress(context.getBundleProgressReporters());
+        mainInput.accept(
+            valueInGlobalWindow(
+                KV.of(
+                    KV.of("5", KV.of(new OffsetRange(5, 10), GlobalWindow.TIMESTAMP_MIN_VALUE)),
+                    5.0)));
+        // Check that after processing an element we don't report progress
+        assertNoReportedProgress(context.getBundleProgressReporters());
+
+        // Since we set abort processing above, we expect the input restriction to be output with a
+        // resume
+        // delay.
+        BundleApplication primaryRoot = Iterables.getOnlyElement(splitListener.getPrimaryRoots());
+        DelayedBundleApplication residualRoot =
+            Iterables.getOnlyElement(splitListener.getResidualRoots());
+        assertEquals(ParDoTranslation.getMainInputName(pTransform), primaryRoot.getInputId());
+        assertEquals(TEST_TRANSFORM_ID, primaryRoot.getTransformId());
+        assertEquals(
+            ParDoTranslation.getMainInputName(pTransform),
+            residualRoot.getApplication().getInputId());
+        assertEquals(TEST_TRANSFORM_ID, residualRoot.getApplication().getTransformId());
+        assertEquals(
+            valueInGlobalWindow(
+                KV.of(
+                    KV.of("5", KV.of(new OffsetRange(5, 5), GlobalWindow.TIMESTAMP_MIN_VALUE)),
+                    0.0)),
+            inputCoder.decode(primaryRoot.getElement().newInput()));
+        assertEquals(
+            valueInGlobalWindow(
+                KV.of(
+                    KV.of("5", KV.of(new OffsetRange(5, 10), GlobalWindow.TIMESTAMP_MIN_VALUE)),
+                    5.0)),
+            inputCoder.decode(residualRoot.getApplication().getElement().newInput()));
+        assertThat(residualRoot.getApplication().getOutputWatermarksMap(), anEmptyMap());
+        assertEquals(
+            org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.Duration.newBuilder()
+                .setSeconds(54)
+                .setNanos(321000000)
+                .build(),
+            residualRoot.getRequestedTimeDelay());
+        splitListener.clear();
+      }
     }
 
     private static final MonitoringInfo WORK_COMPLETED_MI =

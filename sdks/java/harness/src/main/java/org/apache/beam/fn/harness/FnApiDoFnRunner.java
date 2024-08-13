@@ -1138,7 +1138,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
       // Attempt to checkpoint the current restriction.
       HandlesSplits.SplitResult splitResult =
-          trySplitForElementAndRestriction(0, continuation.resumeDelay());
+          trySplitForElementAndRestriction(0, continuation.resumeDelay(), false);
 
       /**
        * After the user has chosen to resume processing later, either the restriction is already
@@ -1163,7 +1163,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       implements HandlesSplits, FnDataReceiver<WindowedValue> {
     @Override
     public HandlesSplits.SplitResult trySplit(double fractionOfRemainder) {
-      return trySplitForElementAndRestriction(fractionOfRemainder, Duration.ZERO);
+      return trySplitForElementAndRestriction(fractionOfRemainder, Duration.ZERO, true);
     }
 
     @Override
@@ -1658,7 +1658,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   }
 
   private HandlesSplits.SplitResult trySplitForElementAndRestriction(
-      double fractionOfRemainder, Duration resumeDelay) {
+      double fractionOfRemainder, Duration resumeDelay, boolean requireClaimForCheckpoint) {
     KV<Instant, WatermarkEstimatorStateT> watermarkAndState;
     WindowedSplitResult windowedSplitResult = null;
     synchronized (splitLock) {
@@ -1668,6 +1668,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       }
       // The tracker has not yet been claimed meaning that a checkpoint won't meaningfully advance.
       if (fractionOfRemainder == 0
+          && requireClaimForCheckpoint
           && currentTrackerClaimed != null
           && !currentTrackerClaimed.get()) {
         return null;
