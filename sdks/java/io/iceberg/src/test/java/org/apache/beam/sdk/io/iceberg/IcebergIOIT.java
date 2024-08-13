@@ -160,13 +160,9 @@ public class IcebergIOIT implements Serializable {
   @Before
   public void setUp() {
     warehouseLocation =
-        String.format(
-            "%s/IcebergIOIT/%s/%s",
-            options.getTempLocation(), testName.getMethodName(), UUID.randomUUID());
+        String.format("%s/IcebergIOIT/%s", options.getTempLocation(), UUID.randomUUID());
 
-    tableId =
-        TableIdentifier.of(
-            testName.getMethodName(), "table" + Long.toString(UUID.randomUUID().hashCode(), 16));
+    tableId = TableIdentifier.of(testName.getMethodName(), "test_table");
     catalog = new HadoopCatalog(catalogHadoopConf, warehouseLocation);
   }
 
