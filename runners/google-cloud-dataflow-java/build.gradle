@@ -506,7 +506,7 @@ task validatesRunnerV2Streaming {
   description = "Runs the ValidatesRunner tests on Dataflow Runner V2 forcing streaming mode"
   dependsOn(createRunnerV2ValidatesRunnerTest(
     name: 'validatesRunnerV2TestStreaming',
-    pipelineOptions: runnerV2PipelineOptions + ['--streaming', '--experiments=enable_streaming_engine', '--experiments=upload_graph'],
+    pipelineOptions: runnerV2PipelineOptions + ['--streaming', '--experiments=enable_streaming_engine'],
     excludedCategories: [
       'org.apache.beam.sdk.testing.LargeKeys$Above10KB',
       'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo',
