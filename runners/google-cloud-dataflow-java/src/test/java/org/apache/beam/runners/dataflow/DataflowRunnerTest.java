@@ -848,11 +848,10 @@ public class DataflowRunnerTest implements Serializable {
     ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
     Mockito.verify(mockJobs).create(eq(PROJECT_ID), eq(REGION_ID), jobCaptor.capture());
     assertValidJob(jobCaptor.getValue());
-    assertTrue(
+    assertNull(
         jobCaptor
             .getValue()
-            .getStepsLocation()
-            .startsWith("gs://valid-bucket/temp/staging/dataflow_graph"));
+            .getStepsLocation());
   }
 
   /** Test for automatically using upload_graph when the job graph is too large (>10MB). */
