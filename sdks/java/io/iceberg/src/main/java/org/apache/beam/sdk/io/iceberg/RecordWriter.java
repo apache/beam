@@ -17,12 +17,9 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
-import static org.apache.beam.sdk.io.iceberg.IcebergUtils.beamRowToIcebergRecord;
-
 import java.io.IOException;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
-import org.apache.beam.sdk.values.Row;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.ManifestFile;
@@ -105,12 +102,7 @@ class RecordWriter {
         absoluteFilename);
   }
 
-  public void write(Row row) {
-    Record record = beamRowToIcebergRecord(table.schema(), row);
-    icebergDataWriter.write(record);
-  }
-
-  void write(Record record) {
+  public void write(Record record) {
     icebergDataWriter.write(record);
   }
 
