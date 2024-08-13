@@ -22,13 +22,18 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
+import java.util.Map;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.FileFormat;
+import org.apache.iceberg.ManifestFile;
+import org.apache.iceberg.PartitionKey;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.hadoop.HadoopCatalog;
@@ -57,13 +62,13 @@ public class RecordWriterManagerTest {
   private static final PartitionSpec PARTITION_SPEC =
       PartitionSpec.builderFor(ICEBERG_SCHEMA).truncate("name", 3).identity("bool").build();
 
-  private TableIdentifier tableIdentifier;
   private WindowedValue<IcebergDestination> windowedDestination;
   private HadoopCatalog catalog;
 
   @Before
   public void setUp() {
-    tableIdentifier = TableIdentifier.of("default", "table_" + testName.getMethodName());
+    TableIdentifier tableIdentifier =
+        TableIdentifier.of("default", "table_" + testName.getMethodName());
     IcebergDestination icebergDestination =
         IcebergDestination.builder()
             .setFileFormat(FileFormat.PARQUET)
@@ -81,7 +86,7 @@ public class RecordWriterManagerTest {
 
   @Test
   public void testCreateNewWriterForEachPartition() throws IOException {
-    // New writer manager with a maximum limit of 3 writers
+    // Writer manager with a maximum limit of 3 writers
     RecordWriterManager writerManager = new RecordWriterManager(catalog, "test_file_name", 100, 3);
     assertEquals(0, writerManager.openWriters);
 
@@ -123,6 +128,59 @@ public class RecordWriterManagerTest {
     assertEquals(3, writerManager.openWriters);
 
     // Closing PartitionRecordWriter will close all writers.
+    writerManager.close();
+    assertEquals(0, writerManager.openWriters);
+
+    ManifestFile manifestFile =
+        Iterables.getOnlyElement(writerManager.getManifestFiles().get(windowedDestination));
+
+    assertEquals(3, manifestFile.addedFilesCount().intValue());
+    assertEquals(4, manifestFile.addedRowsCount().intValue());
+  }
+
+  @Test
+  public void testRespectMaxFileSize() throws IOException {
+    // Writer manager with a maximum file size of 100 bytes
+    RecordWriterManager writerManager = new RecordWriterManager(catalog, "test_file_name", 100, 2);
+    assertEquals(0, writerManager.openWriters);
+    boolean writeSuccess;
+
+    PartitionKey partitionKey = new PartitionKey(PARTITION_SPEC, ICEBERG_SCHEMA);
+    // row partition:: [aaa, true].
+    // This is a new partition so a new writer will be created.
+    Row row = Row.withSchema(BEAM_SCHEMA).addValues(1, "aaa", true).build();
+    writeSuccess = writerManager.write(windowedDestination, row);
+    assertTrue(writeSuccess);
+    assertEquals(1, writerManager.openWriters);
+
+    partitionKey.partition(IcebergUtils.beamRowToIcebergRecord(ICEBERG_SCHEMA, row));
+    Map<PartitionKey, Integer> writerCounts =
+        writerManager.destinations.get(windowedDestination).writerCounts;
+    // this is our first writer
+    assertEquals(1, writerCounts.get(partitionKey).intValue());
+
+    // row partition:: [aaa, true].
+    // existing partition. use existing writer
+    row =
+        Row.withSchema(BEAM_SCHEMA)
+            .addValues(2, "aaa" + RandomStringUtils.randomAlphanumeric(1000), true)
+            .build();
+    writeSuccess = writerManager.write(windowedDestination, row);
+    assertTrue(writeSuccess);
+    assertEquals(1, writerManager.openWriters);
+    // check that we still use our first writer
+    assertEquals(1, writerCounts.get(partitionKey).intValue());
+
+    // row partition:: [aaa, true].
+    // writer has reached max file size. create a new writer
+    row = Row.withSchema(BEAM_SCHEMA).addValues(2, "aaabb", true).build();
+    writeSuccess = writerManager.write(windowedDestination, row);
+    assertTrue(writeSuccess);
+    // check that we have opened and are using a second writer
+    assertEquals(2, writerCounts.get(partitionKey).intValue());
+    // check that only one writer is open (we have closed the first writer)
+    assertEquals(1, writerManager.openWriters);
+
     writerManager.close();
     assertEquals(0, writerManager.openWriters);
   }

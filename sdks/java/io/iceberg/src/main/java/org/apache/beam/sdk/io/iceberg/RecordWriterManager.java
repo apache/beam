@@ -31,8 +31,8 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Precondit
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.RemovalNotification;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
-import org.apache.commons.compress.utils.Lists;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.ManifestFile;
@@ -88,8 +88,8 @@ class RecordWriterManager implements Serializable {
     private final FileIO fileIO;
     private final String stateToken = UUID.randomUUID().toString();
     private final List<DataFile> dataFiles = Lists.newArrayList();
-    private final Cache<PartitionKey, RecordWriter> writers;
-    private final Map<PartitionKey, Integer> writerCounts = Maps.newHashMap();
+    @VisibleForTesting final Cache<PartitionKey, RecordWriter> writers;
+    @VisibleForTesting final Map<PartitionKey, Integer> writerCounts = Maps.newHashMap();
 
     DestinationState(IcebergDestination icebergDestination, Table table) {
       this.icebergDestination = icebergDestination;
