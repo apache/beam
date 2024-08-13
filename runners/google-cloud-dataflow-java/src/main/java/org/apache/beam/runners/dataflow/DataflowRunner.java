@@ -1385,7 +1385,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     byte[] jobGraphBytes = DataflowPipelineTranslator.jobToString(newJob).getBytes(UTF_8);
     int jobGraphByteSize = jobGraphBytes.length;
     if (jobGraphByteSize >= CREATE_JOB_REQUEST_LIMIT_BYTES
-        && !hasExperiment(options, "upload_graph")) {
+        && !hasExperiment(options, "upload_graph")
+        && !useUnifiedWorker(options)) {
       List<String> experiments = firstNonNull(options.getExperiments(), Collections.emptyList());
       options.setExperiments(
           ImmutableList.<String>builder().addAll(experiments).add("upload_graph").build());
@@ -1394,6 +1395,15 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               + "the upload_graph option to experiments.",
           jobGraphByteSize,
           CREATE_JOB_REQUEST_LIMIT_BYTES);
+    }
+
+    if (hasExperiment(options, "upload_graph") && useUnifiedWorker(options)) {
+      ArrayList<String> experiments = new ArrayList<>(options.getExperiments());
+      while (experiments.remove("upload_graph")) {}
+      options.setExperiments(experiments);
+      LOG.warn(
+          "The upload_graph experiment was specified, but it does not apply "
+              + "to runner v2 jobs. Option has been automatically removed.");
     }
 
     // Upload the job to GCS and remove the graph object from the API call.  The graph
