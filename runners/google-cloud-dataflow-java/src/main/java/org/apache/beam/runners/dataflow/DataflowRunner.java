@@ -1402,10 +1402,10 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       while (list.contains("upload_graph")) {
         list.remove("upload_graph");
       }
-      options.setExperiments(experiments)
+      options.setExperiments(experiments);
       LOG.warning(
           "The upload_graph experiment was specified, but it does not apply "
-             + "to runner v2 jobs. Option has been automatically removed.")
+             + "to runner v2 jobs. Option has been automatically removed.");
     }
 
     // Upload the job to GCS and remove the graph object from the API call.  The graph
