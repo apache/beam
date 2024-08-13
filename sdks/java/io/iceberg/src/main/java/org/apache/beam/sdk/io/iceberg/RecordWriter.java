@@ -22,9 +22,6 @@ import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.FileFormat;
-import org.apache.iceberg.ManifestFile;
-import org.apache.iceberg.ManifestFiles;
-import org.apache.iceberg.ManifestWriter;
 import org.apache.iceberg.PartitionKey;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.avro.Avro;
@@ -122,18 +119,6 @@ class RecordWriter {
 
   public long bytesWritten() {
     return icebergDataWriter.length();
-  }
-
-  public ManifestFile getManifestFile() throws IOException {
-    String manifestFilename = FileFormat.AVRO.addExtension(absoluteFilename + ".manifest");
-    OutputFile outputFile = table.io().newOutputFile(manifestFilename);
-    ManifestWriter<DataFile> manifestWriter;
-    try (ManifestWriter<DataFile> openWriter = ManifestFiles.write(table.spec(), outputFile)) {
-      openWriter.add(icebergDataWriter.toDataFile());
-      manifestWriter = openWriter;
-    }
-
-    return manifestWriter.toManifestFile();
   }
 
   public DataFile getDataFile() {
