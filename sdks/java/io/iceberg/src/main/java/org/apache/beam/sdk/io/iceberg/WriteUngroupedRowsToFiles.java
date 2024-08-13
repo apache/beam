@@ -176,7 +176,7 @@ class WriteUngroupedRowsToFiles
     private final DynamicDestinations dynamicDestinations;
     private final IcebergCatalogConfig catalogConfig;
     private transient @MonotonicNonNull Catalog catalog;
-    private @Nullable RecordWriterManager recordWriterManager;
+    private transient @Nullable RecordWriterManager recordWriterManager;
 
     public WriteUngroupedRowsToFilesDoFn(
         IcebergCatalogConfig catalogConfig,

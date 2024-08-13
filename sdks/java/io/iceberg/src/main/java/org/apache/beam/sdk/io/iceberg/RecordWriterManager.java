@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.iceberg;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -70,7 +69,7 @@ import org.slf4j.LoggerFactory;
  * <p>After closing, the resulting {@link ManifestFile}s can be retrieved using {@link
  * #getManifestFiles()}.
  */
-class RecordWriterManager implements Serializable {
+class RecordWriterManager {
   private static final Logger LOG = LoggerFactory.getLogger(RecordWriterManager.class);
 
   /**
