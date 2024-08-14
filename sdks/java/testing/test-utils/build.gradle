@@ -40,7 +40,7 @@ dependencies {
   provided library.java.jmh_core
 
   testImplementation library.java.junit
-  testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadowTest")
+  testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }
 
 ['8', '11', '17', '21'].each { String ver ->
