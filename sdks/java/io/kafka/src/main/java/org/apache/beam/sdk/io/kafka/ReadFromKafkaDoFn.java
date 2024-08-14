@@ -312,6 +312,7 @@ abstract class ReadFromKafkaDoFn<K, V>
       } else if (stopReadTime != null) {
         endOffset = ConsumerSpEL.offsetForTime(offsetConsumer, partition, stopReadTime);
       }
+      new OffsetRange(startOffset, endOffset);
       Lineage.getSources()
           .add(
               "kafka",
