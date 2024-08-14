@@ -1210,8 +1210,7 @@ class FlinkStreamingTransformTranslators {
             Coder<WindowedValue<KV<K, OutputC>>> outputCoder,
             GlobalCombineFn<? super InputC, ?, OutputC> combineFn,
             Map<Integer, PCollectionView<?>> sideInputTagMapping,
-            List<PCollectionView<?>> sideInputs,
-            boolean isKeyed) {
+            List<PCollectionView<?>> sideInputs) {
 
       // Naming
       String fullName = getCurrentTransformName(context);
@@ -1260,8 +1259,8 @@ class FlinkStreamingTransformTranslators {
           sideInputTagMapping,
           sideInputs,
           context.getPipelineOptions(),
-          isKeyed ? keyCoder : null,
-          isKeyed ? workItemKeySelector : null);
+          keyCoder,
+          workItemKeySelector);
     }
 
     @Override
@@ -1326,8 +1325,7 @@ class FlinkStreamingTransformTranslators {
                   windowedAccumCoder,
                   toPartialFlinkCombineFn(combineFn),
                   new HashMap<>(),
-                  Collections.emptyList(),
-                  false);
+                  Collections.emptyList());
 
           // final aggregation from AccumT to OutputT
           WindowDoFnOperator<K, Object, OutputT> finalDoFnOperator =
@@ -1338,8 +1336,7 @@ class FlinkStreamingTransformTranslators {
                   outputCoder,
                   toFinalFlinkCombineFn(combineFn, inputKvCoder.getValueCoder()),
                   new HashMap<>(),
-                  Collections.emptyList(),
-                  true);
+                  Collections.emptyList());
 
           String partialName = "Combine: " + fullName;
           CoderTypeInformation<WindowedValue<KV<K, Object>>> partialTypeInfo =
@@ -1361,8 +1358,7 @@ class FlinkStreamingTransformTranslators {
                   outputCoder,
                   combineFn,
                   new HashMap<>(),
-                  Collections.emptyList(),
-                  true);
+                  Collections.emptyList());
 
           outDataStream =
               keyedStream.transform(fullName, outputTypeInfo, doFnOperator).uid(fullName);
@@ -1381,8 +1377,7 @@ class FlinkStreamingTransformTranslators {
                 outputCoder,
                 combineFn,
                 transformSideInputs.f0,
-                sideInputs,
-                true);
+                sideInputs);
 
         // we have to manually contruct the two-input transform because we're not
         // allowed to have only one input keyed, normally.

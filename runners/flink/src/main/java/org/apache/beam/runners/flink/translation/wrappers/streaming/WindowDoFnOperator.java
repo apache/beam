@@ -19,8 +19,21 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
 import static org.apache.beam.runners.core.TimerInternals.TimerData;
 
-import java.util.*;
-import org.apache.beam.runners.core.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import org.apache.beam.runners.core.DoFnRunner;
+import org.apache.beam.runners.core.DoFnRunners;
+import org.apache.beam.runners.core.GroupAlsoByWindowViaWindowSetNewDoFn;
+import org.apache.beam.runners.core.KeyedWorkItem;
+import org.apache.beam.runners.core.KeyedWorkItems;
+import org.apache.beam.runners.core.StateInternals;
+import org.apache.beam.runners.core.StateInternalsFactory;
+import org.apache.beam.runners.core.StepContext;
+import org.apache.beam.runners.core.SystemReduceFn;
+import org.apache.beam.runners.core.TimerInternalsFactory;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -41,8 +54,6 @@ public class WindowDoFnOperator<K, InputT, OutputT>
     extends DoFnOperator<KV<K, InputT>, KeyedWorkItem<K, InputT>, KV<K, OutputT>> {
 
   private final SystemReduceFn<K, InputT, ?, OutputT, BoundedWindow> systemReduceFn;
-  private Map<K, StateInternals> stateInternals;
-  private Map<K, InMemoryTimerInternals> inMemTimerInternals;
 
   public WindowDoFnOperator(
       SystemReduceFn<K, InputT, ?, OutputT, BoundedWindow> systemReduceFn,
@@ -78,13 +89,6 @@ public class WindowDoFnOperator<K, InputT, OutputT>
   }
 
   @Override
-  public void open() throws Exception {
-    stateInternals = new HashMap<>();
-    inMemTimerInternals = new HashMap<>();
-    super.open();
-  }
-
-  @Override
   protected Iterable<WindowedValue<KeyedWorkItem<K, InputT>>> preProcess(
       WindowedValue<KV<K, InputT>> inWithMultipleWindows) {
     // we need to wrap each one work item per window for now
@@ -112,34 +116,18 @@ public class WindowDoFnOperator<K, InputT, OutputT>
     //
     // for some K, V
 
-    if (timerInternals == null) {
-      return doFnRunner;
-    }
-
     return DoFnRunners.lateDataDroppingRunner(
         (DoFnRunner) doFnRunner, timerInternals, windowingStrategy);
   }
 
   @Override
   protected DoFn<KeyedWorkItem<K, InputT>, KV<K, OutputT>> getDoFn() {
-    StateInternalsFactory<K> stateInternalsFactory;
-    if (keyedStateInternals != null) {
-      // this will implicitly be keyed by the key of the incoming
-      // element or by the key of a firing timer
-      stateInternalsFactory = key -> (StateInternals) keyedStateInternals;
-    } else {
-      stateInternalsFactory =
-          key -> stateInternals.computeIfAbsent(key, k -> InMemoryStateInternals.forKey(k));
-    }
+    // this will implicitly be keyed by the key of the incoming
+    // element or by the key of a firing timer
+    StateInternalsFactory<K> stateInternalsFactory = key -> (StateInternals) keyedStateInternals;
 
-    TimerInternalsFactory<K> timerInternalsFactory;
-    if (timerInternals != null) {
-      // this will implicitly be keyed like the StateInternalsFactory
-      timerInternalsFactory = key -> timerInternals;
-    } else {
-      timerInternalsFactory =
-          key -> inMemTimerInternals.computeIfAbsent(key, k -> new InMemoryTimerInternals());
-    }
+    // this will implicitly be keyed like the StateInternalsFactory
+    TimerInternalsFactory<K> timerInternalsFactory = key -> timerInternals;
 
     // we have to do the unchecked cast because GroupAlsoByWindowViaWindowSetDoFn.create
     // has the window type as generic parameter while WindowingStrategy is almost always
@@ -155,42 +143,6 @@ public class WindowDoFnOperator<K, InputT, OutputT>
             outputManager,
             mainOutputTag);
     return doFn;
-  }
-
-  @Override
-  void flushData() throws Exception {
-    for (Map.Entry<K, InMemoryTimerInternals> entry : inMemTimerInternals.entrySet()) {
-      K key = entry.getKey();
-      InMemoryTimerInternals timer = entry.getValue();
-      timer.advanceInputWatermark(BoundedWindow.TIMESTAMP_MAX_VALUE);
-      timer.advanceProcessingTime(BoundedWindow.TIMESTAMP_MAX_VALUE);
-      timer.advanceSynchronizedProcessingTime(BoundedWindow.TIMESTAMP_MAX_VALUE);
-
-      TimerData timerData = timer.removeNextEventTimer();
-      while (timerData != null) {
-        doFnRunner.processElement(
-            WindowedValue.valueInGlobalWindow(
-                KeyedWorkItems.timersWorkItem(key, Collections.singletonList(timerData))));
-        timerData = timer.removeNextEventTimer();
-      }
-
-      timerData = timer.removeNextProcessingTimer();
-      while (timerData != null) {
-        doFnRunner.processElement(
-            WindowedValue.valueInGlobalWindow(
-                KeyedWorkItems.timersWorkItem(key, Collections.singletonList(timerData))));
-        timerData = timer.removeNextProcessingTimer();
-      }
-
-      timerData = timer.removeNextSynchronizedProcessingTimer();
-      while (timerData != null) {
-        doFnRunner.processElement(
-            WindowedValue.valueInGlobalWindow(
-                KeyedWorkItems.timersWorkItem(key, Collections.singletonList(timerData))));
-        timerData = timer.removeNextSynchronizedProcessingTimer();
-      }
-    }
-    super.flushData();
   }
 
   @Override
