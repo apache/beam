@@ -35,6 +35,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -123,29 +124,29 @@ public class MqttIO {
   @AutoValue
   public abstract static class ConnectionConfiguration implements Serializable {
 
-    abstract String getServerUri();
+    abstract ValueProvider<String> getServerUri();
 
-    abstract String getTopic();
+    abstract ValueProvider<String> getTopic();
 
-    abstract @Nullable String getClientId();
+    abstract @Nullable ValueProvider<String> getClientId();
 
-    abstract @Nullable String getUsername();
+    abstract @Nullable ValueProvider<String> getUsername();
 
-    abstract @Nullable String getPassword();
+    abstract @Nullable ValueProvider<String> getPassword();
 
     abstract Builder builder();
 
     @AutoValue.Builder
     abstract static class Builder {
-      abstract Builder setServerUri(String serverUri);
+      abstract Builder setServerUri(ValueProvider<String> serverUri);
 
-      abstract Builder setTopic(String topic);
+      abstract Builder setTopic(ValueProvider<String> topic);
 
-      abstract Builder setClientId(String clientId);
+      abstract Builder setClientId(ValueProvider<String> clientId);
 
-      abstract Builder setUsername(String username);
+      abstract Builder setUsername(ValueProvider<String> username);
 
-      abstract Builder setPassword(String password);
+      abstract Builder setPassword(ValueProvider<String> password);
 
       abstract ConnectionConfiguration build();
     }
@@ -161,6 +162,23 @@ public class MqttIO {
     public static ConnectionConfiguration create(String serverUri, String topic) {
       checkArgument(serverUri != null, "serverUri can not be null");
       checkArgument(topic != null, "topic can not be null");
+      return create(
+          ValueProvider.StaticValueProvider.of(serverUri),
+          ValueProvider.StaticValueProvider.of(topic));
+    }
+
+    /**
+     * Describe a connection configuration to the MQTT broker. This method creates a unique random
+     * MQTT client ID.
+     *
+     * @param serverUri The MQTT broker URI.
+     * @param topic The MQTT getTopic pattern.
+     * @return A connection configuration to the MQTT broker.
+     */
+    public static ConnectionConfiguration create(
+        ValueProvider<String> serverUri, ValueProvider<String> topic) {
+      checkArgument(serverUri != null, "serverUri can not be null");
+      checkArgument(topic != null, "topic can not be null");
       return new AutoValue_MqttIO_ConnectionConfiguration.Builder()
           .setServerUri(serverUri)
           .setTopic(topic)
@@ -170,11 +188,23 @@ public class MqttIO {
     /** Set up the MQTT broker URI. */
     public ConnectionConfiguration withServerUri(String serverUri) {
       checkArgument(serverUri != null, "serverUri can not be null");
+      return withServerUri(ValueProvider.StaticValueProvider.of(serverUri));
+    }
+
+    /** Set up the MQTT broker URI. */
+    public ConnectionConfiguration withServerUri(ValueProvider<String> serverUri) {
+      checkArgument(serverUri != null, "serverUri can not be null");
       return builder().setServerUri(serverUri).build();
     }
 
     /** Set up the MQTT getTopic pattern. */
     public ConnectionConfiguration withTopic(String topic) {
+      checkArgument(topic != null, "topic can not be null");
+      return withTopic(ValueProvider.StaticValueProvider.of(topic));
+    }
+
+    /** Set up the MQTT getTopic pattern. */
+    public ConnectionConfiguration withTopic(ValueProvider<String> topic) {
       checkArgument(topic != null, "topic can not be null");
       return builder().setTopic(topic).build();
     }
@@ -182,15 +212,31 @@ public class MqttIO {
     /** Set up the client ID prefix, which is used to construct a unique client ID. */
     public ConnectionConfiguration withClientId(String clientId) {
       checkArgument(clientId != null, "clientId can not be null");
+      return withClientId(ValueProvider.StaticValueProvider.of(clientId));
+    }
+
+    /** Set up the client ID prefix, which is used to construct a unique client ID. */
+    public ConnectionConfiguration withClientId(ValueProvider<String> clientId) {
+      checkArgument(clientId != null, "clientId can not be null");
       return builder().setClientId(clientId).build();
     }
 
     public ConnectionConfiguration withUsername(String username) {
       checkArgument(username != null, "username can not be null");
+      return withUsername(ValueProvider.StaticValueProvider.of(username));
+    }
+
+    public ConnectionConfiguration withUsername(ValueProvider<String> username) {
+      checkArgument(username != null, "username can not be null");
       return builder().setUsername(username).build();
     }
 
     public ConnectionConfiguration withPassword(String password) {
+      checkArgument(password != null, "password can not be null");
+      return withPassword(ValueProvider.StaticValueProvider.of(password));
+    }
+
+    public ConnectionConfiguration withPassword(ValueProvider<String> password) {
       checkArgument(password != null, "password can not be null");
       return builder().setPassword(password).build();
     }
@@ -205,12 +251,15 @@ public class MqttIO {
     private MQTT createClient() throws Exception {
       LOG.debug("Creating MQTT client to {}", getServerUri());
       MQTT client = new MQTT();
-      client.setHost(getServerUri());
+      client.setHost(getServerUri().get());
       if (getUsername() != null) {
-        LOG.debug("MQTT client uses username {}", getUsername());
-        client.setUserName(getUsername());
-        client.setPassword(getPassword());
+        LOG.debug("MQTT client uses username {}", getUsername().get());
+        client.setUserName(getUsername().get());
       }
+      if (getPassword() != null) {
+        client.setPassword(getPassword().get());
+      }
+
       if (getClientId() != null) {
         String clientId = getClientId() + "-" + UUID.randomUUID().toString();
         clientId =
@@ -434,7 +483,9 @@ public class MqttIO {
         connection = client.blockingConnection();
         connection.connect();
         connection.subscribe(
-            new Topic[] {new Topic(spec.connectionConfiguration().getTopic(), QoS.AT_LEAST_ONCE)});
+            new Topic[] {
+              new Topic(spec.connectionConfiguration().getTopic().get(), QoS.AT_LEAST_ONCE)
+            });
         return advance();
       } catch (Exception e) {
         throw new IOException(e);
@@ -578,7 +629,7 @@ public class MqttIO {
         byte[] payload = context.element();
         LOG.debug("Sending message {}", new String(payload, StandardCharsets.UTF_8));
         connection.publish(
-            spec.connectionConfiguration().getTopic(), payload, QoS.AT_LEAST_ONCE, false);
+            spec.connectionConfiguration().getTopic().get(), payload, QoS.AT_LEAST_ONCE, false);
       }
 
       @Teardown
