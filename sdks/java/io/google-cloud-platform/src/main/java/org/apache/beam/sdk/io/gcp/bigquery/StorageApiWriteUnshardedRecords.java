@@ -1132,7 +1132,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                           pipelineOptions.as(BigQueryOptions.class)));
       Lineage.getSinks()
           .add(
-              BigQueryHelpers.dataCatalogName(
+              "bigquery",
+              BigQueryHelpers.dataCatalogSegments(
                   state.getTableDestination().getTableReference(),
                   pipelineOptions.as(BigQueryOptions.class)));
 

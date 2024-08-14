@@ -70,7 +70,6 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hashing;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
@@ -297,9 +296,9 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
       byteCounter.inc(bytes);
       // Report Lineage multiple once for same topic
       if (!topicPath.equals(reportedLineage)) {
-        String name = topicPath.getDataCatalogName();
-        if (!Strings.isNullOrEmpty(name)) {
-          Lineage.getSinks().add(topicPath.getDataCatalogName());
+        List<String> segments = topicPath.getDataCatalogSegments();
+        if (segments.size() != 0) {
+          Lineage.getSinks().add("pubsub", "topic", segments);
         }
         reportedLineage = topicPath;
       }

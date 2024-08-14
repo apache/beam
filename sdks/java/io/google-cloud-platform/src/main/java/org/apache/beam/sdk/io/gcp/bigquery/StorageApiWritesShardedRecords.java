@@ -477,7 +477,8 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
 
       Lineage.getSinks()
           .add(
-              BigQueryHelpers.dataCatalogName(
+              "bigquery",
+              BigQueryHelpers.dataCatalogSegments(
                   tableDestination.getTableReference(), bigQueryOptions));
 
       Coder<DestinationT> destinationCoder = dynamicDestinations.getDestinationCoder();

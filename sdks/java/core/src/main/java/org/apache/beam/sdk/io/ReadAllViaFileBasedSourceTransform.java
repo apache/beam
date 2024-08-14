@@ -21,6 +21,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.fs.MatchResult;
+import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -123,8 +124,9 @@ public abstract class ReadAllViaFileBasedSourceTransform<InT, T>
     public void process(ProcessContext c) throws IOException {
       FileIO.ReadableFile file = c.element().getKey();
       OffsetRange range = c.element().getValue();
+      ResourceId resourceId = file.getMetadata().resourceId();
       FileBasedSource<InT> source =
-          CompressedSource.from(createSource.apply(file.getMetadata().resourceId().toString()))
+          CompressedSource.from(createSource.apply(resourceId.toString()))
               .withCompression(file.getCompression());
       try (BoundedSource.BoundedReader<InT> reader =
           source
@@ -138,6 +140,7 @@ public abstract class ReadAllViaFileBasedSourceTransform<InT, T>
           throw e;
         }
       }
+      FileSystems.reportSourceLineage(resourceId);
     }
   }
 }

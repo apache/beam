@@ -1045,14 +1045,14 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
         TopicPath topic = outer.getTopic();
         if (topic != null) {
           // is initial split on Read.fromTopic, report Lineage based on topic
-          Lineage.getSources().add(topic.getDataCatalogName());
+          Lineage.getSources().add("pubsub", "source", topic.getDataCatalogSegments());
         }
       } else {
         if (subscriptionPath.equals(outer.getSubscriptionProvider())) {
           SubscriptionPath sub = subscriptionPath.get();
           if (sub != null) {
             // is a split on Read.fromSubscription
-            Lineage.getSources().add(sub.getDataCatalogName());
+            Lineage.getSources().add("pubsub", "subscription", sub.getDataCatalogSegments());
           }
         }
       }
