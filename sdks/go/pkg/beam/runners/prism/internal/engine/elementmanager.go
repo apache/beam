@@ -79,12 +79,34 @@ type elements struct {
 }
 
 type PColInfo struct {
-	GlobalID string
-	WDec     exec.WindowDecoder
-	WEnc     exec.WindowEncoder
-	EDec     func(io.Reader) []byte
-	KeyDec   func(io.Reader) []byte
+	GlobalID    string
+	WindowCoder WinCoderType
+	WDec        exec.WindowDecoder
+	WEnc        exec.WindowEncoder
+	EDec        func(io.Reader) []byte
+	KeyDec      func(io.Reader) []byte
 }
+
+// WinCoderType indicates what kind of coder
+// the window is using. There are only 3
+// valid single window encodings.
+//
+//   - Global (for Global windows)
+//   - Interval (for fixed, sliding, and session windows)
+//   - Custom (for custom user windows)
+//
+// TODO: Handle custom variants with built in "known" coders, and length prefixed ones as separate cases.
+// As a rule we don't care about the bytes, but we do need to be able to get to the next element.
+type WinCoderType int
+
+const (
+	// WinGlobal indicates the window is empty coded, with 0 bytes.
+	WinGlobal WinCoderType = iota
+	// WinInterval indicates the window is interval coded with the end event time timestamp followed by the duration in milliseconds
+	WinInterval
+	// WinCustom indicates the window customm coded with end event time timestamp followed by a custom coder.
+	WinCustom
+)
 
 // ToData recodes the elements with their approprate windowed value header.
 func (es elements) ToData(info PColInfo) [][]byte {
@@ -870,7 +892,7 @@ func (em *ElementManager) triageTimers(d TentativeData, inputInfo PColInfo, stag
 		keyToTimers := map[timerKey]element{}
 		for _, t := range timers {
 			// TODO: Call in a for:range loop when Beam's minimum Go version hits 1.23.0
-			iter := decodeTimerIter(inputInfo.KeyDec, true, t)
+			iter := decodeTimerIter(inputInfo.KeyDec, inputInfo.WindowCoder, t)
 			iter(func(ret timerRet) bool {
 				for _, e := range ret.elms {
 					keyToTimers[timerKey{key: string(ret.keyBytes), tag: ret.tag, win: e.window}] = e

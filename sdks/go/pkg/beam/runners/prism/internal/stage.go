@@ -433,14 +433,15 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, em *eng
 			kd = collectionPullDecoder(kcid, coders, comps)
 		}
 
-		wDec, wEnc := getWindowValueCoders(comps, col, coders)
+		winCoder, wDec, wEnc := getWindowValueCoders(comps, col, coders)
 		sink2Col[sinkID] = o.Global
 		col2Coders[o.Global] = engine.PColInfo{
-			GlobalID: o.Global,
-			WDec:     wDec,
-			WEnc:     wEnc,
-			EDec:     ed,
-			KeyDec:   kd,
+			GlobalID:    o.Global,
+			WindowCoder: winCoder,
+			WDec:        wDec,
+			WEnc:        wEnc,
+			EDec:        ed,
+			KeyDec:      kd,
 		}
 		transforms[sinkID] = sinkTransform(sinkID, portFor(wOutCid, wk), o.Global)
 	}
@@ -493,7 +494,7 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, em *eng
 		return fmt.Errorf("buildDescriptor: failed to handle coder on stage %v for primary input, pcol %q %v:\n%w\n%v", stg.ID, stg.primaryInput, prototext.Format(col), err, stg.transforms)
 	}
 	ed := collectionPullDecoder(col.GetCoderId(), coders, comps)
-	wDec, wEnc := getWindowValueCoders(comps, col, coders)
+	winCoder, wDec, wEnc := getWindowValueCoders(comps, col, coders)
 
 	var kd func(io.Reader) []byte
 	if kcid, ok := extractKVCoderID(col.GetCoderId(), coders); ok {
@@ -501,11 +502,12 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, em *eng
 	}
 
 	inputInfo := engine.PColInfo{
-		GlobalID: stg.primaryInput,
-		WDec:     wDec,
-		WEnc:     wEnc,
-		EDec:     ed,
-		KeyDec:   kd,
+		GlobalID:    stg.primaryInput,
+		WindowCoder: winCoder,
+		WDec:        wDec,
+		WEnc:        wEnc,
+		EDec:        ed,
+		KeyDec:      kd,
 	}
 
 	stg.inputTransformID = stg.ID + "_source"

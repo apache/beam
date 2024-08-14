@@ -317,7 +317,7 @@ func gbkBytes(ws *pipepb.WindowingStrategy, wc, kc, vc *pipepb.Coder, toAggregat
 		panic(fmt.Sprintf("unsupported OutputTime behavior: %v", ws.GetOutputTime()))
 	}
 
-	wDec, wEnc := makeWindowCoders(wc)
+	_, wDec, wEnc := makeWindowCoders(wc)
 
 	type keyTime struct {
 		key    []byte
