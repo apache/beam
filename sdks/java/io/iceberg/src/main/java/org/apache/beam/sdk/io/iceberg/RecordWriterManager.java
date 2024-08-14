@@ -107,28 +107,24 @@ class RecordWriterManager implements AutoCloseable {
       this.writers =
           CacheBuilder.newBuilder()
               .expireAfterAccess(1, TimeUnit.MINUTES)
-              .removalListener(this::closeWriterForPartition)
+              .removalListener(
+                  (RemovalNotification<PartitionKey, RecordWriter> removal) -> {
+                    final PartitionKey pk = Preconditions.checkStateNotNull(removal.getKey());
+                    final RecordWriter recordWriter =
+                        Preconditions.checkStateNotNull(removal.getValue());
+                    try {
+                      recordWriter.close();
+                    } catch (IOException e) {
+                      throw new RuntimeException(
+                          String.format(
+                              "Encountered an error when closing data writer for table '%s', partition %s",
+                              icebergDestination.getTableIdentifier(), pk),
+                          e);
+                    }
+                    openWriters--;
+                    dataFiles.add(recordWriter.getDataFile());
+                  })
               .build();
-    }
-
-    /**
-     * Called when a writer is evicted from the cache. Closes the partition's {@link RecordWriter}
-     * and collects its {@link DataFile}.
-     */
-    private void closeWriterForPartition(RemovalNotification<PartitionKey, RecordWriter> removal) {
-      final PartitionKey pk = Preconditions.checkStateNotNull(removal.getKey());
-      final RecordWriter recordWriter = Preconditions.checkStateNotNull(removal.getValue());
-      try {
-        recordWriter.close();
-      } catch (IOException e) {
-        throw new RuntimeException(
-            String.format(
-                "Encountered an error when closing data writer for table '%s', partition %s",
-                icebergDestination.getTableIdentifier(), pk),
-            e);
-      }
-      openWriters--;
-      dataFiles.add(recordWriter.getDataFile());
     }
 
     /**
