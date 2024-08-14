@@ -457,7 +457,7 @@ func (m *stringSet) accumulate(pyld []byte) error {
 func (m *stringSet) toProto(key metricKey) *pipepb.MonitoringInfo {
 	var buf bytes.Buffer
 	coder.EncodeInt32(int32(len(m.set)), &buf)
-	for k, _ := range m.set {
+	for k := range m.set {
 		coder.EncodeStringUTF8(k, &buf)
 	}
 	return &pipepb.MonitoringInfo{
