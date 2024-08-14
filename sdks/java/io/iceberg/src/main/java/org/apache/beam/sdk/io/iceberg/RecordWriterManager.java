@@ -17,16 +17,19 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
+
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.RemovalNotification;
@@ -69,7 +72,7 @@ import org.slf4j.LoggerFactory;
  * <p>After closing, the resulting {@link ManifestFile}s can be retrieved using {@link
  * #getManifestFiles()}.
  */
-class RecordWriterManager {
+class RecordWriterManager implements AutoCloseable {
   private static final Logger LOG = LoggerFactory.getLogger(RecordWriterManager.class);
 
   /**
@@ -104,19 +107,28 @@ class RecordWriterManager {
       this.writers =
           CacheBuilder.newBuilder()
               .expireAfterAccess(1, TimeUnit.MINUTES)
-              .removalListener(
-                  (RemovalNotification<PartitionKey, RecordWriter> removal) -> {
-                    final RecordWriter recordWriter =
-                        Preconditions.checkNotNull(removal.getValue());
-                    try {
-                      recordWriter.close();
-                      openWriters--;
-                      dataFiles.add(recordWriter.getDataFile());
-                    } catch (IOException e) {
-                      throw new RuntimeException(e);
-                    }
-                  })
+              .removalListener(this::closeWriterForPartition)
               .build();
+    }
+
+    /**
+     * Called when a writer is evicted from the cache. Closes the partition's {@link RecordWriter}
+     * and collects its {@link DataFile}.
+     */
+    private void closeWriterForPartition(RemovalNotification<PartitionKey, RecordWriter> removal) {
+      final PartitionKey pk = Preconditions.checkStateNotNull(removal.getKey());
+      final RecordWriter recordWriter = Preconditions.checkStateNotNull(removal.getValue());
+      try {
+        recordWriter.close();
+      } catch (IOException e) {
+        throw new RuntimeException(
+            String.format(
+                "Encountered an error when closing data writer for table '%s', partition %s",
+                icebergDestination.getTableIdentifier(), pk),
+            e);
+      }
+      openWriters--;
+      dataFiles.add(recordWriter.getDataFile());
     }
 
     /**
@@ -230,6 +242,7 @@ class RecordWriterManager {
    * Closes all remaining writers and collects all their {@link DataFile}s. Writes one {@link
    * ManifestFile} per windowed table destination.
    */
+  @Override
   public void close() throws IOException {
     for (Map.Entry<WindowedValue<IcebergDestination>, DestinationState>
         windowedDestinationAndState : destinations.entrySet()) {
@@ -267,7 +280,7 @@ class RecordWriterManager {
       state.dataFiles.clear();
     }
     destinations.clear();
-    Preconditions.checkArgument(
+    checkArgument(
         openWriters == 0,
         "Expected all data writers to be closed, but found %s data writer(s) still open",
         openWriters);
@@ -280,7 +293,7 @@ class RecordWriterManager {
    * called.
    */
   public Map<WindowedValue<IcebergDestination>, List<ManifestFile>> getManifestFiles() {
-    Preconditions.checkState(
+    checkState(
         isClosed,
         "Please close this %s before retrieving its manifest files.",
         getClass().getSimpleName());

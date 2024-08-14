@@ -96,13 +96,14 @@ class WriteGroupedRowsToFiles
       IcebergDestination destination = dynamicDestinations.instantiateDestination(destMetadata);
       WindowedValue<IcebergDestination> windowedDestination =
           WindowedValue.of(destination, window.maxTimestamp(), window, pane);
-      RecordWriterManager writer =
-          new RecordWriterManager(getCatalog(), filePrefix, maxFileSize, Integer.MAX_VALUE);
-
-      for (Row e : element.getValue()) {
-        writer.write(windowedDestination, e);
+      RecordWriterManager writer;
+      try (RecordWriterManager openWriter =
+          new RecordWriterManager(getCatalog(), filePrefix, maxFileSize, Integer.MAX_VALUE)) {
+        writer = openWriter;
+        for (Row e : element.getValue()) {
+          writer.write(windowedDestination, e);
+        }
       }
-      writer.close();
 
       List<ManifestFile> manifestFiles =
           Preconditions.checkNotNull(writer.getManifestFiles().get(windowedDestination));
