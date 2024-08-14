@@ -657,6 +657,9 @@ task examplesJavaRunnerV2PreCommit(type: Test) {
 task examplesJavaRunnerV2IntegrationTest(type: Test) {
   group = "Verification"
   dependsOn buildAndPushDockerJavaContainer
+  if (project.hasProperty("testJavaVersion")) {
+    dependsOn ":sdks:java:testing:test-utils:verifyJavaVersion${project.property("testJavaVersion")}"
+  }
 
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson(runnerV2PipelineOptions)
 

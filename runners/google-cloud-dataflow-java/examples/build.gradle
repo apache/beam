@@ -183,6 +183,9 @@ task java21PostCommit() {
 task preCommit() {
   dependsOn preCommitLegacyWorker
   dependsOn preCommitLegacyWorkerImpersonate
+  if (project.hasProperty("testJavaVersion")) {
+    dependsOn ":sdks:java:testing:test-utils:verifyJavaVersion${project.property("testJavaVersion")}"
+  }
 }
 
 task verifyPortabilityApi() {
