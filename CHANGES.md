@@ -67,7 +67,7 @@
 
 ## New Features / Improvements
 
-* X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Adds OrderedListState support for Java SDK via FnApi.
 
 ## Breaking Changes
 
