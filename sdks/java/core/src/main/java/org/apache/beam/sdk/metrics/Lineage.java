@@ -32,6 +32,7 @@ public class Lineage {
   public static final String LINEAGE_NAMESPACE = "lineage";
   private static final Lineage SOURCES = new Lineage(Type.SOURCE);
   private static final Lineage SINKS = new Lineage(Type.SINK);
+  private static final Pattern RESERVED_CHARS = Pattern.compile("[:\\s.]");
 
   private final StringSet metric;
 
@@ -48,8 +49,6 @@ public class Lineage {
   public static Lineage getSinks() {
     return SINKS;
   }
-
-  private static final Pattern RESERVED_CHARS = Pattern.compile("[:\\s.]");
 
   /**
    * Wrap segment to valid segment name.
