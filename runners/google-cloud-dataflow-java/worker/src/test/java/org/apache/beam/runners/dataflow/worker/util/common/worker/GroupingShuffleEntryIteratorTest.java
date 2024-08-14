@@ -42,7 +42,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.common.Reiterator;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.After;
@@ -130,10 +129,10 @@ public class GroupingShuffleEntryIteratorTest {
   private static ShuffleEntry shuffleEntry(String key, String value) {
     return new ShuffleEntry(
         /* use key itself as position */
-        ByteArrayShufflePosition.of(key.getBytes(Charsets.UTF_8)),
-        ByteString.copyFrom(key.getBytes(Charsets.UTF_8)),
+        ByteArrayShufflePosition.of(key.getBytes(StandardCharsets.UTF_8)),
+        ByteString.copyFrom(key.getBytes(StandardCharsets.UTF_8)),
         ByteString.copyFrom(new byte[0]),
-        ByteString.copyFrom(value.getBytes(Charsets.UTF_8)));
+        ByteString.copyFrom(value.getBytes(StandardCharsets.UTF_8)));
   }
 
   @Test

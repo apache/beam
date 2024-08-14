@@ -573,6 +573,13 @@ task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test, dependsOn: copyG
   testClassesDirs = files(project(":sdks:java:io:google-cloud-platform").sourceSets.test.output.classesDirs)
   useJUnit {
     excludeCategories "org.apache.beam.sdk.testing.UsesKms"
+    filter {
+      // Only needs to run on direct runner
+      excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteIT.testE2EBigtableWriteWithEmptyMutationFailures'
+      excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteIT.testE2EBigtableWriteWithEmptyRowFailures'
+      excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteIT.testE2EBigtableWriteWithInvalidTimestampFailures'
+      excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteIT.testE2EBigtableWriteWithOversizedQualifierFailures'
+    }
   }
 }
 
@@ -623,7 +630,15 @@ task googleCloudPlatformRunnerV2IntegrationTest(type: Test) {
   maxParallelForks 4
   classpath = configurations.googleCloudPlatformIntegrationTest
   testClassesDirs = files(project(":sdks:java:io:google-cloud-platform").sourceSets.test.output.classesDirs)
-  useJUnit { }
+  useJUnit {
+    filter {
+      // Only needs to run on direct runner
+      excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteIT.testE2EBigtableWriteWithEmptyMutationFailures'
+      excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteIT.testE2EBigtableWriteWithEmptyRowFailures'
+      excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteIT.testE2EBigtableWriteWithInvalidTimestampFailures'
+      excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteIT.testE2EBigtableWriteWithOversizedQualifierFailures'
+    }
+  }
 }
 
 task examplesJavaRunnerV2PreCommit(type: Test) {

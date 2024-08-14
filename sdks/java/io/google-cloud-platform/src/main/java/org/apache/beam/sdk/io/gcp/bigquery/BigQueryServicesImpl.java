@@ -1584,6 +1584,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
     RetryHttpRequestInitializer httpRequestInitializer =
         new RetryHttpRequestInitializer(ImmutableList.of(404));
     httpRequestInitializer.setCustomErrors(createBigQueryClientCustomErrors());
+    httpRequestInitializer.setReadTimeout(options.getHTTPReadTimeout());
     httpRequestInitializer.setWriteTimeout(options.getHTTPWriteTimeout());
     ImmutableList.Builder<HttpRequestInitializer> initBuilder = ImmutableList.builder();
     Credentials credential = options.getGcpCredential();

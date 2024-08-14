@@ -2182,7 +2182,7 @@ public class StreamingDataflowWorkerTest {
     // No input messages
     assertEquals(0L, splitIntToLong(getCounter(counters, "WindmillShuffleBytesRead").getInteger()));
 
-    CacheStats stats = worker.stateCache.getCacheStats();
+    CacheStats stats = worker.getStateCacheStats();
     LOG.info("cache stats {}", stats);
     assertEquals(1, stats.hitCount());
     assertEquals(4, stats.missCount());

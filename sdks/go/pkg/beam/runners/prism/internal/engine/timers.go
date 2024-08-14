@@ -31,52 +31,77 @@ import (
 	"google.golang.org/protobuf/encoding/protowire"
 )
 
-// DecodeTimer extracts timers to elements for insertion into their keyed queues.
-// Returns the key bytes, tag, window exploded elements, and the hold timestamp.
+type timerRet struct {
+	keyBytes []byte
+	tag      string
+	elms     []element
+	windows  []typex.Window
+}
+
+// decodeTimerIter extracts timers to elements for insertion into their keyed queues,
+// through a go iterator function, to be called by the caller with their processing function.
+//
+// For each timer, a key, tag, windowed elements, and the window set are returned.
+//
 // If the timer has been cleared, no elements will be returned. Any existing timers
-// for the tag *must* be cleared from the pending queue.
-func decodeTimer(keyDec func(io.Reader) []byte, usesGlobalWindow bool, raw []byte) ([]byte, string, []element) {
-	keyBytes := keyDec(bytes.NewBuffer(raw))
+// for the tag *must* be cleared from the pending queue. The windows associated with
+// the clear are provided to be able to delete pending timers.
+func decodeTimerIter(keyDec func(io.Reader) []byte, usesGlobalWindow bool, raw []byte) func(func(timerRet) bool) {
+	return func(yield func(timerRet) bool) {
+		for len(raw) > 0 {
+			keyBytes := keyDec(bytes.NewBuffer(raw))
+			d := decoder{raw: raw, cursor: len(keyBytes)}
+			tag := string(d.Bytes())
 
-	d := decoder{raw: raw, cursor: len(keyBytes)}
-	tag := string(d.Bytes())
+			var ws []typex.Window
+			numWin := d.Fixed32()
+			if usesGlobalWindow {
+				for i := 0; i < int(numWin); i++ {
+					ws = append(ws, window.GlobalWindow{})
+				}
+			} else {
+				// Assume interval windows here, since we don't understand custom windows yet.
+				for i := 0; i < int(numWin); i++ {
+					ws = append(ws, d.IntervalWindow())
+				}
+			}
 
-	var ws []typex.Window
-	numWin := d.Fixed32()
-	if usesGlobalWindow {
-		for i := 0; i < int(numWin); i++ {
-			ws = append(ws, window.GlobalWindow{})
+			clear := d.Bool()
+			hold := mtime.MaxTimestamp
+			if clear {
+				if !yield(timerRet{keyBytes, tag, nil, ws}) {
+					return // Halt iteration if yeild returns false.
+				}
+				// Otherwise continue handling the remaining bytes.
+				raw = d.UnusedBytes()
+				continue
+			}
+
+			firing := d.Timestamp()
+			hold = d.Timestamp()
+			pane := d.Pane()
+
+			var elms []element
+			for _, w := range ws {
+				elms = append(elms, element{
+					tag:           tag,
+					elmBytes:      nil, // indicates this is a timer.
+					keyBytes:      keyBytes,
+					window:        w,
+					timestamp:     firing,
+					holdTimestamp: hold,
+					pane:          pane,
+					sequence:      len(elms),
+				})
+			}
+
+			if !yield(timerRet{keyBytes, tag, elms, ws}) {
+				return // Halt iteration if yeild returns false.
+			}
+			// Otherwise continue handling the remaining bytes.
+			raw = d.UnusedBytes()
 		}
-	} else {
-		// Assume interval windows here, since we don't understand custom windows yet.
-		for i := 0; i < int(numWin); i++ {
-			ws = append(ws, d.IntervalWindow())
-		}
 	}
-
-	clear := d.Bool()
-	hold := mtime.MaxTimestamp
-	if clear {
-		return keyBytes, tag, nil
-	}
-
-	firing := d.Timestamp()
-	hold = d.Timestamp()
-	pane := d.Pane()
-
-	var ret []element
-	for _, w := range ws {
-		ret = append(ret, element{
-			tag:           tag,
-			elmBytes:      nil, // indicates this is a timer.
-			keyBytes:      keyBytes,
-			window:        w,
-			timestamp:     firing,
-			holdTimestamp: hold,
-			pane:          pane,
-		})
-	}
-	return keyBytes, tag, ret
 }
 
 type decoder struct {
@@ -137,6 +162,13 @@ func (d *decoder) Bytes() []byte {
 	b := d.raw[d.cursor:end]
 	d.cursor = end
 	return b
+}
+
+// UnusedBytes returns the remainder of bytes in the buffer that weren't yet used.
+// Multiple timers can be provided in a single timers buffer, since multiple dynamic
+// timer tags may be set.
+func (d *decoder) UnusedBytes() []byte {
+	return d.raw[d.cursor:]
 }
 
 func (d *decoder) Bool() bool {

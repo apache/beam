@@ -218,6 +218,10 @@ task integrationTest(type: Test, dependsOn: processTestResources) {
 
   useJUnit {
     excludeCategories "org.apache.beam.sdk.testing.UsesKms"
+    filter {
+      // https://github.com/apache/beam/issues/32071
+      excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigtable.BigtableReadIT.testE2EBigtableSegmentRead'
+    }
   }
 }
 

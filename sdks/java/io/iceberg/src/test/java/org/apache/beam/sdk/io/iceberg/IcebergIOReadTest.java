@@ -21,7 +21,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 
 import java.util.List;
-import java.util.Properties;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -33,6 +33,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.CatalogUtil;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.TableIdentifier;
@@ -94,12 +95,17 @@ public class IcebergIOReadTest {
             .map(record -> IcebergUtils.icebergRecordToBeamRow(schema, record))
             .collect(Collectors.toList());
 
-    Properties props = new Properties();
-    props.setProperty("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP);
-    props.setProperty("warehouse", warehouse.location);
+    Map<String, String> catalogProps =
+        ImmutableMap.<String, String>builder()
+            .put("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
+            .put("warehouse", warehouse.location)
+            .build();
 
     IcebergCatalogConfig catalogConfig =
-        IcebergCatalogConfig.builder().setCatalogName("name").setProperties(props).build();
+        IcebergCatalogConfig.builder()
+            .setCatalogName("name")
+            .setCatalogProperties(catalogProps)
+            .build();
 
     PCollection<Row> output =
         testPipeline
