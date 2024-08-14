@@ -1624,7 +1624,8 @@ class ParDo(PTransformWithSideInputs):
           raise a TimeoutError.  Defaults to None, meaning no time limit.
       on_failure_callback: If an element fails or times out,
           on_failure_callback will be invoked. It will receive the exception
-          and the element being processed in as args. Be careful with this
+          and the element being processed in as args. In case of a timeout,
+          the exception will be of type `TimeoutError`. Be careful with this
           callback - if you set a timeout, it will not apply to the callback,
           and if the callback fails it will not be retried.
     """

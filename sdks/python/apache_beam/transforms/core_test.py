@@ -186,7 +186,7 @@ class ExceptionHandlingTest(unittest.TestCase):
         pipeline | beam.Create(['abc', 'long_word', 'foo', 'bar', 'foobar'])
         | beam.ParDo(TestDoFn9()).with_exception_handling()
       )
-      bad_elements = bad | beam.Map(lambda x: x[0])
+      bad_elements = bad | beam.Keys()
       assert_that(good, equal_to(['abc', 'foo', 'bar']), 'good')
       assert_that(bad_elements, equal_to(['long_word', 'foobar']), 'bad')
 
@@ -211,7 +211,7 @@ class ExceptionHandlingTest(unittest.TestCase):
           | beam.ParDo(TestDoFn9()).with_exception_handling(
             on_failure_callback=failure_callback)
         )
-        bad_elements = bad | beam.Map(lambda x: x[0])
+        bad_elements = bad | beam.Keys()
         assert_that(good, equal_to(['abc', 'bcd', 'foo', 'bar']), 'good')
         assert_that(bad_elements, equal_to(['foobar']), 'bad')
       with open(tmp_path) as f:
@@ -235,7 +235,7 @@ class ExceptionHandlingTest(unittest.TestCase):
           | beam.ParDo(TestDoFn9()).with_exception_handling(
             on_failure_callback=failure_callback)
         )
-        bad_elements = bad | beam.Map(lambda x: x[0])
+        bad_elements = bad | beam.Keys()
         assert_that(good, equal_to(['abc', 'bcd', 'foo', 'bar']), 'good')
         assert_that(bad_elements, equal_to([]), 'bad')
       self.assertFalse(os.path.isfile(tmp_path))
