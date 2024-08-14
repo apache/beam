@@ -574,11 +574,12 @@ public class BigQueryIO {
   static final JsonFactory JSON_FACTORY = Transport.getJsonFactory();
 
   /**
-   * Project IDs must contain 6-63 lowercase letters, digits, or dashes. IDs must start with a
-   * letter and may not end with a dash. This regex isn't exact - this allows for patterns that
-   * would be rejected by the service, but this is sufficient for basic parsing of table references.
+   * Formally, project IDs must contain 6-63 lowercase letters, digits, or dashes, must start with a
+   * letter and may not end with a dash. This regex is used for basic parsing of table references
+   * rather than validation purpose, e.g. it allows looser restriction for testing on mock
+   * resources. It may allow for patterns that would be rejected by the service
    */
-  private static final String PROJECT_ID_REGEXP = "[a-z][-a-z0-9:.]{4,61}[a-z0-9]";
+  private static final String PROJECT_ID_REGEXP = "[a-z][-a-z0-9:.]{0,61}[a-z0-9]";
 
   /** Regular expression that matches Dataset IDs. */
   private static final String DATASET_REGEXP = "[-\\w.]{1,1024}";
