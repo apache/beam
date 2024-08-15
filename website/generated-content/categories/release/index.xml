@@ -39,6 +39,7 @@ See the &lt;a href="/get-started/downloads/#2580-2024-08-06">download page&lt;/a
 &lt;h2 id="known-issues">Known Issues&lt;/h2>
 &lt;ul>
 &lt;li>Python pipelines that run with 2.53.0-2.58.0 SDKs and read data from GCS might be affected by a data corruption issue (&lt;a href="https://github.com/apache/beam/issues/32169">#32169&lt;/a>). The issue will be fixed in 2.59.0 (&lt;a href="https://github.com/apache/beam/pull/32135">#32135&lt;/a>). To work around this, update the google-cloud-storage package to version 2.18.2 or newer.&lt;/li>
+&lt;li>[KafkaIO] Records read with &lt;code>ReadFromKafkaViaSDF&lt;/code> are redistributed and may contain duplicates regardless of the configuration. This affects Java pipelines with Dataflow v2 runner and xlang pipelines reading from Kafka, (&lt;a href="https://github.com/apache/beam/issues/32196">#32196&lt;/a>)&lt;/li>
 &lt;/ul>
 &lt;p>For the most up to date list of known issues, see &lt;a href="https://github.com/apache/beam/blob/master/CHANGES.md">https://github.com/apache/beam/blob/master/CHANGES.md&lt;/a>&lt;/p>
 &lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
