@@ -29,7 +29,6 @@ import org.apache.beam.model.fnexecution.v1.BeamFnExternalWorkerPoolGrpc.BeamFnE
 import org.apache.beam.model.fnexecution.v1.ProvisionApi;
 import org.apache.beam.model.fnexecution.v1.ProvisionServiceGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
-import org.apache.beam.model.pipeline.v1.RunnerApi.StandardRunnerProtocols;
 import org.apache.beam.sdk.fn.channel.AddHarnessIdInterceptor;
 import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
 import org.apache.beam.sdk.fn.server.FnService;
@@ -38,7 +37,6 @@ import org.apache.beam.sdk.fn.server.ServerFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.util.Sleeper;
-import org.apache.beam.sdk.util.construction.BeamUrns;
 import org.apache.beam.sdk.util.construction.Environments;
 import org.apache.beam.sdk.util.construction.PipelineOptionsTranslation;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
@@ -75,11 +73,18 @@ public class ExternalWorkerService extends BeamFnExternalWorkerPoolImplBase impl
     Endpoints.ApiServiceDescriptor controlEndpoint = request.getControlEndpoint();
     Set<String> runnerCapabilites = Collections.emptySet();
     if (request.hasProvisionEndpoint()) {
-      ManagedChannelFactory channelFactory = ManagedChannelFactory.createDefault()
-          .withInterceptors(ImmutableList.of(AddHarnessIdInterceptor.create(request.getWorkerId())));
+      ManagedChannelFactory channelFactory =
+          ManagedChannelFactory.createDefault()
+              .withInterceptors(
+                  ImmutableList.of(AddHarnessIdInterceptor.create(request.getWorkerId())));
 
-      ProvisionServiceGrpc.ProvisionServiceBlockingStub provisionStub = ProvisionServiceGrpc.newBlockingStub(channelFactory.forDescriptor(request.getProvisionEndpoint()));
-      ProvisionApi.ProvisionInfo provisionInfo = provisionStub.getProvisionInfo(ProvisionApi.GetProvisionInfoRequest.newBuilder().build()).getInfo();
+      ProvisionServiceGrpc.ProvisionServiceBlockingStub provisionStub =
+          ProvisionServiceGrpc.newBlockingStub(
+              channelFactory.forDescriptor(request.getProvisionEndpoint()));
+      ProvisionApi.ProvisionInfo provisionInfo =
+          provisionStub
+              .getProvisionInfo(ProvisionApi.GetProvisionInfoRequest.newBuilder().build())
+              .getInfo();
 
       runnerCapabilites = Sets.newHashSet(provisionInfo.getRunnerCapabilitiesList());
       if (provisionInfo.hasControlEndpoint()) {
@@ -98,12 +103,7 @@ public class ExternalWorkerService extends BeamFnExternalWorkerPoolImplBase impl
             () -> {
               try {
                 FnHarness.main(
-                    request.getWorkerId(),
-                    options,
-                    capabilities,
-                    logEndpoint,
-                    ctrlEndpoint,
-                    null);
+                    request.getWorkerId(), options, capabilities, logEndpoint, ctrlEndpoint, null);
                 LOG.info("Successfully started worker {}.", request.getWorkerId());
               } catch (Exception exn) {
                 LOG.error(String.format("Failed to start worker %s.", request.getWorkerId()), exn);
