@@ -76,7 +76,13 @@ type stage struct {
 	OutputsToCoders   map[string]engine.PColInfo
 }
 
-func (s *stage) Execute(ctx context.Context, j *jobservices.Job, wk *worker.W, comps *pipepb.Components, em *engine.ElementManager, rb engine.RunBundle) error {
+func (s *stage) Execute(ctx context.Context, j *jobservices.Job, wk *worker.W, comps *pipepb.Components, em *engine.ElementManager, rb engine.RunBundle) (err error) {
+	defer func() {
+		// Convert execution panics to errors to fail the bundle.
+		if e := recover(); e != nil {
+			err = fmt.Errorf("panic in stage.Execute bundle processing goroutine: %v, stage: %+v", e, s)
+		}
+	}()
 	slog.Debug("Execute: starting bundle", "bundle", rb)
 
 	var b *worker.B
