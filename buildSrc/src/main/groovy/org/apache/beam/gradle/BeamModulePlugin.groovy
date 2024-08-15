@@ -2581,7 +2581,8 @@ class BeamModulePlugin implements Plugin<Project> {
         // see https://issues.apache.org/jira/browse/BEAM-6698
         maxHeapSize = '4g'
         if (config.environment == PortableValidatesRunnerConfiguration.Environment.DOCKER) {
-          dependsOn ':sdks:java:container:java8:docker'
+          def javaContainerSuffix = getSupportedJavaVersion()
+          dependsOn ":sdks:java:container:${javaContainerSuffix}:docker"
         }
       }
     }
