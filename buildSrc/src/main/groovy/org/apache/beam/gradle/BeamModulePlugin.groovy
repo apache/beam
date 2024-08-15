@@ -544,7 +544,7 @@ class BeamModulePlugin implements Plugin<Project> {
     project.taskTree { noRepeat = true }
 
     project.ext.currentJavaVersion = getSupportedJavaVersion()
-  
+
     project.ext.allFlinkVersions = project.flink_versions.split(',')
     project.ext.latestFlinkVersion = project.ext.allFlinkVersions.last()
 
