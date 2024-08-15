@@ -349,6 +349,12 @@ func (em *ElementManager) Bundles(ctx context.Context, upstreamCancelFn context.
 	}()
 	// Watermark evaluation goroutine.
 	go func() {
+		defer func() {
+			// In case of panics in bundle generation, fail and cancel the job.
+			if e := recover(); e != nil {
+				upstreamCancelFn(fmt.Errorf("panic in ElementManager.Bundles watermark evaluation goroutine: %v", e))
+			}
+		}()
 		defer close(runStageCh)
 
 		// If we have a test stream, clear out existing refreshes, so the test stream can
