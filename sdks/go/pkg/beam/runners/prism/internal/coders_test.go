@@ -25,6 +25,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/engine"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/urns"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/testing/protocmp"
@@ -91,14 +92,15 @@ func Test_makeWindowedValueCoder(t *testing.T) {
 
 func Test_makeWindowCoders(t *testing.T) {
 	tests := []struct {
-		urn    string
-		window typex.Window
+		urn       string
+		window    typex.Window
+		coderType engine.WinCoderType
 	}{
-		{urns.CoderGlobalWindow, window.GlobalWindow{}},
+		{urns.CoderGlobalWindow, window.GlobalWindow{}, engine.WinGlobal},
 		{urns.CoderIntervalWindow, window.IntervalWindow{
 			Start: mtime.MinTimestamp,
 			End:   mtime.MaxTimestamp,
-		}},
+		}, engine.WinInterval},
 	}
 	for _, test := range tests {
 		undertest := &pipepb.Coder{
@@ -106,7 +108,11 @@ func Test_makeWindowCoders(t *testing.T) {
 				Urn: test.urn,
 			},
 		}
-		dec, enc := makeWindowCoders(undertest)
+		gotCoderType, dec, enc := makeWindowCoders(undertest)
+
+		if got, want := gotCoderType, test.coderType; got != want {
+			t.Errorf("makeWindowCoders returned different coder type: got %v, want %v", got, want)
+		}
 
 		// Validate we're getting a round trip coder.
 		var buf bytes.Buffer

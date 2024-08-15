@@ -46,7 +46,31 @@ type timerRet struct {
 // If the timer has been cleared, no elements will be returned. Any existing timers
 // for the tag *must* be cleared from the pending queue. The windows associated with
 // the clear are provided to be able to delete pending timers.
-func decodeTimerIter(keyDec func(io.Reader) []byte, usesGlobalWindow bool, raw []byte) func(func(timerRet) bool) {
+func decodeTimerIter(keyDec func(io.Reader) []byte, winCoder WinCoderType, raw []byte) func(func(timerRet) bool) {
+
+	var singleWindowExtractor func(*decoder) typex.Window
+	switch winCoder {
+	case WinGlobal:
+		singleWindowExtractor = func(*decoder) typex.Window {
+			return window.GlobalWindow{}
+		}
+	case WinInterval:
+		singleWindowExtractor = func(d *decoder) typex.Window {
+			return d.IntervalWindow()
+		}
+	case WinCustom:
+		// Default to a length prefixed window coder here until we have different information.
+		// Everything else is either:: variable, 1,  4, or 8 bytes long
+		// KVs (especially nested ones, could occur but are unlikely, and it would be
+		// easier for Prism to force such coders to be length prefixed.
+		singleWindowExtractor = func(d *decoder) typex.Window {
+			return d.CustomWindowLengthPrefixed()
+		}
+	default:
+		// Unsupported
+		panic(fmt.Sprintf("unsupported WindowCoder Type: %v", winCoder))
+	}
+
 	return func(yield func(timerRet) bool) {
 		for len(raw) > 0 {
 			keyBytes := keyDec(bytes.NewBuffer(raw))
@@ -55,15 +79,8 @@ func decodeTimerIter(keyDec func(io.Reader) []byte, usesGlobalWindow bool, raw [
 
 			var ws []typex.Window
 			numWin := d.Fixed32()
-			if usesGlobalWindow {
-				for i := 0; i < int(numWin); i++ {
-					ws = append(ws, window.GlobalWindow{})
-				}
-			} else {
-				// Assume interval windows here, since we don't understand custom windows yet.
-				for i := 0; i < int(numWin); i++ {
-					ws = append(ws, d.IntervalWindow())
-				}
+			for i := 0; i < int(numWin); i++ {
+				ws = append(ws, singleWindowExtractor(&d))
 			}
 
 			clear := d.Bool()
@@ -147,6 +164,37 @@ func (d *decoder) IntervalWindow() window.IntervalWindow {
 		End:   end,
 		Start: mtime.FromMilliseconds(end.Milliseconds() - dur),
 	}
+}
+
+// CustomWindowLengthPrefixed assumes the custom window coder is a variable, length prefixed type
+// such as string, bytes, or a length prefix wrapped coder.
+func (d *decoder) CustomWindowLengthPrefixed() customWindow {
+	end := d.Timestamp()
+
+	customStart := d.cursor
+	l := d.Varint()
+	endCursor := d.cursor + int(l)
+	d.cursor = endCursor
+	return customWindow{
+		End:    end,
+		Custom: d.raw[customStart:endCursor],
+	}
+}
+
+type customWindow struct {
+	End    typex.EventTime
+	Custom []byte // The custom portion of the window, ignored by the runner
+}
+
+func (w customWindow) MaxTimestamp() typex.EventTime {
+	return w.End
+}
+
+func (w customWindow) Equals(o typex.Window) bool {
+	if c, ok := o.(customWindow); ok {
+		return w.End == c.End && bytes.Equal(w.Custom, c.Custom)
+	}
+	return false
 }
 
 func (d *decoder) Byte() byte {
