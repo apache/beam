@@ -78,7 +78,7 @@ receives input from the <code>Create</code> transform.</li></ul><h3 id=run-the-p
 <a href=https://cloud.google.com/sdk/gcloud>gcloud CLI</a>. To create a Dataflow job
 from the YAML file, use the
 <a href=https://cloud.google.com/sdk/gcloud/reference/dataflow/yaml/run><code>gcloud dataflow yaml run</code></a>
-command:</p><pre tabindex=0><code>gcloud beta dataflow yaml run $JOB_NAME \
+command:</p><pre tabindex=0><code>gcloud dataflow yaml run $JOB_NAME \
   --yaml-pipeline-file=pipeline.yaml \
   --region=$REGION
 </code></pre><p>When you use the <code>gcloud</code> CLI, you don&rsquo;t need to install the Beam SDKs locally.</p><h3 id=visualize-the-pipeline>Visualize the pipeline</h3><p>You can use the

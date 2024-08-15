@@ -58,7 +58,7 @@ field name</p><pre tabindex=0><code>- type: Combine
     group_by: col1
     combine:
       col2: sum
-</code></pre><p>One can aggregate over may fields at once</p><pre tabindex=0><code>- type: Combine
+</code></pre><p>One can aggregate over many fields at once</p><pre tabindex=0><code>- type: Combine
   config:
     group_by: col1
     combine:
@@ -78,7 +78,7 @@ field name</p><pre tabindex=0><code>- type: Combine
 </code></pre><h2 id=windowed-aggregation>Windowed aggregation</h2><p>As with all transforms, <code>Combine</code> can take a windowing parameter</p><pre tabindex=0><code>- type: Combine
   windowing:
     type: fixed
-    size: 60
+    size: 60s
   config:
     group_by: col1
     combine:
@@ -88,7 +88,7 @@ field name</p><pre tabindex=0><code>- type: Combine
 parameters from upstream, e.g.</p><pre tabindex=0><code>- type: WindowInto
   windowing:
     type: fixed
-    size: 60
+    size: 60s
 - type: Combine
   config:
     group_by: col1
