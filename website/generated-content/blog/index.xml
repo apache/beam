@@ -1,4 +1,32 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Blogs</title><link>/blog/</link><description>Recent content in Blogs on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Tue, 06 Aug 2024 13:00:00 -0800</lastBuildDate><atom:link href="/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.58.0</title><link>/blog/beam-2.58.0/</link><pubDate>Tue, 06 Aug 2024 13:00:00 -0800</pubDate><guid>/blog/beam-2.58.0/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Blogs</title><link>/blog/</link><description>Recent content in Blogs on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Thu, 15 Aug 2024 13:00:00 -0800</lastBuildDate><atom:link href="/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.58.1</title><link>/blog/beam-2.58.1/</link><pubDate>Thu, 15 Aug 2024 13:00:00 -0800</pubDate><guid>/blog/beam-2.58.1/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>We are happy to present the new 2.58.1 release of Beam.
+This release includes both improvements and new functionality.
+See the &lt;a href="/get-started/downloads/#2580-2024-08-06">download page&lt;/a> for this release.&lt;/p>
+&lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
+&lt;ul>
+&lt;li>Fixed issue where KafkaIO Records read with &lt;code>ReadFromKafkaViaSDF&lt;/code> are redistributed and may contain duplicates regardless of the configuration. This affects Java pipelines with Dataflow v2 runner and xlang pipelines reading from Kafka, (&lt;a href="https://github.com/apache/beam/issues/32196">#32196&lt;/a>)&lt;/li>
+&lt;/ul>
+&lt;h2 id="known-issues">Known Issues&lt;/h2>
+&lt;ul>
+&lt;li>Large Dataflow graphs using runner v2, or pipelines explicitly enabling the &lt;code>upload_graph&lt;/code> experiment, will fail at construction time (&lt;a href="https://github.com/apache/beam/issues/32159">#32159&lt;/a>).&lt;/li>
+&lt;li>Python pipelines that run with 2.53.0-2.58.0 SDKs and read data from GCS might be affected by a data corruption issue (&lt;a href="https://github.com/apache/beam/issues/32169">#32169&lt;/a>). The issue will be fixed in 2.59.0 (&lt;a href="https://github.com/apache/beam/pull/32135">#32135&lt;/a>). To work around this, update the google-cloud-storage package to version 2.18.2 or newer.&lt;/li>
+&lt;/ul>
+&lt;p>For the most up to date list of known issues, see &lt;a href="https://github.com/apache/beam/blob/master/CHANGES.md">https://github.com/apache/beam/blob/master/CHANGES.md&lt;/a>&lt;/p>
+&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
+&lt;p>According to git shortlog, the following people contributed to the 2.58.1 release. Thank you to all contributors!&lt;/p>
+&lt;p>Danny McCormick&lt;/p>
+&lt;p>Sam Whittle&lt;/p></description></item><item><title>Blog: Apache Beam 2.58.0</title><link>/blog/beam-2.58.0/</link><pubDate>Tue, 06 Aug 2024 13:00:00 -0800</pubDate><guid>/blog/beam-2.58.0/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -7183,73 +7211,4 @@ by requesting the specific pre-release version.&lt;/p>
 You can go ahead and run your tests to verify that everything works well.&lt;/p>
 &lt;p>You may need to also specify the RC&amp;rsquo;s matching container when running a job.
 Use the &lt;code>--environment_config&lt;/code> flag to specify the release candidate container:
-eg. &lt;code>--environment_config=apache/beam_go_sdk:2.44.0rc1&lt;/code>&lt;/p></description></item><item><title>Blog: Apache Beam 2.29.0</title><link>/blog/beam-2.29.0/</link><pubDate>Thu, 29 Apr 2021 09:00:00 -0700</pubDate><guid>/blog/beam-2.29.0/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>We are happy to present the new 2.29.0 release of Beam.
-This release includes both improvements and new functionality.
-See the &lt;a href="/get-started/downloads/#2290-2021-04-15">download page&lt;/a> for this release.&lt;/p>
-&lt;p>For more information on changes in 2.29.0, check out the &lt;a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12349629">detailed release notes&lt;/a>.&lt;/p>
-&lt;h2 id="highlights">Highlights&lt;/h2>
-&lt;ul>
-&lt;li>Spark Classic and Portable runners officially support Spark 3 (&lt;a href="https://issues.apache.org/jira/browse/BEAM-7093">BEAM-7093&lt;/a>).&lt;/li>
-&lt;li>Official Java 11 support for most runners (Dataflow, Flink, Spark) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-2530">BEAM-2530&lt;/a>).&lt;/li>
-&lt;li>DataFrame API now supports GroupBy.apply (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11628">BEAM-11628&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;h3 id="ios">I/Os&lt;/h3>
-&lt;ul>
-&lt;li>Added support for S3 filesystem on AWS SDK V2 (Java) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-7637">BEAM-7637&lt;/a>)&lt;/li>
-&lt;li>GCP BigQuery sink (file loads) uses runner determined sharding for unbounded data (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11772">BEAM-11772&lt;/a>)&lt;/li>
-&lt;li>KafkaIO now recognizes the &lt;code>partition&lt;/code> property in writing records (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11806">BEAM-11806&lt;/a>)&lt;/li>
-&lt;li>Support for Hadoop configuration on ParquetIO (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11913">BEAM-11913&lt;/a>)&lt;/li>
-&lt;/ul>
-&lt;h3 id="new-features--improvements">New Features / Improvements&lt;/h3>
-&lt;ul>
-&lt;li>DataFrame API now supports pandas 1.2.x (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11531">BEAM-11531&lt;/a>).&lt;/li>
-&lt;li>Multiple DataFrame API bugfixes (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12071">BEAM-12071&lt;/a>, &lt;a href="https://issues.apache.org/jira/browse/BEAM-11929">BEAM-11929&lt;/a>)&lt;/li>
-&lt;li>DDL supported in SQL transforms (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11850">BEAM-11850&lt;/a>)&lt;/li>
-&lt;li>Upgrade Flink runner to Flink version 1.12.2 (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11941">BEAM-11941&lt;/a>)&lt;/li>
-&lt;/ul>
-&lt;h3 id="breaking-changes">Breaking Changes&lt;/h3>
-&lt;ul>
-&lt;li>Deterministic coding enforced for GroupByKey and Stateful DoFns. Previously non-deterministic coding was allowed, resulting in keys not properly being grouped in some cases. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11719">BEAM-11719&lt;/a>)
-To restore the old behavior, one can register &lt;code>FakeDeterministicFastPrimitivesCoder&lt;/code> with
-&lt;code>beam.coders.registry.register_fallback_coder(beam.coders.coders.FakeDeterministicFastPrimitivesCoder())&lt;/code>
-or use the &lt;code>allow_non_deterministic_key_coders&lt;/code> pipeline option.&lt;/li>
-&lt;/ul>
-&lt;h3 id="deprecations">Deprecations&lt;/h3>
-&lt;ul>
-&lt;li>Support for Flink 1.8 and 1.9 will be removed in the next release (2.30.0) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11948">BEAM-11948&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;h3 id="known-issues">Known Issues&lt;/h3>
-&lt;ul>
-&lt;li>See a full list of open &lt;a href="https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20affectedVersion%20%3D%202.29.0%20ORDER%20BY%20priority%20DESC%2C%20updated%20DESC">issues that affect&lt;/a> this version.&lt;/li>
-&lt;/ul>
-&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
-&lt;p>According to &lt;code>git shortlog&lt;/code>, the following people contributed to the 2.29.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Ahmet Altay, Alan Myrvold, Alex Amato, Alexander Chermenin, Alexey Romanenko,
-Allen Pradeep Xavier, Amy Wu, Anant Damle, Andreas Bergmeier, Andrei Balici,
-Andrew Pilloud, Andy Xu, Ankur Goenka, Bashir Sadjad, Benjamin Gonzalez, Boyuan
-Zhang, Brian Hulette, Chamikara Jayalath, Chinmoy Mandayam, Chuck Yang,
-dandy10, Daniel Collins, Daniel Oliveira, David Cavazos, David Huntsperger,
-David Moravek, Dmytro Kozhevin, Emily Ye, Esun Kim, Evgeniy Belousov, Filip
-Popić, Fokko Driesprong, Gris Cuevas, Heejong Lee, Ihor Indyk, Ismaël Mejía,
-Jakub-Sadowski, Jan Lukavský, John Edmonds, Juan Sandoval, 谷口恵輔, Kenneth
-Jung, Kenneth Knowles, KevinGG, Kiley Sok, Kyle Weaver, MabelYC, Mackenzie
-Clark, Masato Nakamura, Milena Bukal, Miltos, Minbo Bae, Miraç Vuslat Başaran,
-mynameborat, Nahian-Al Hasan, Nam Bui, Niel Markwick, Niels Basjes, Ning Kang,
-Nir Gazit, Pablo Estrada, Ramazan Yapparov, Raphael Sanamyan, Reuven Lax, Rion
-Williams, Robert Bradshaw, Robert Burke, Rui Wang, Sam Rohde, Sam Whittle,
-Shehzaad Nakhoda, Shehzaad Nakhoda, Siyuan Chen, Sonam Ramchand, Steve Niemitz,
-sychen, Sylvain Veyrié, Tim Robertson, Tobias Kaymak, Tomasz Szerszeń, Tomasz
-Szerszeń, Tomo Suzuki, Tyson Hamilton, Udi Meiri, Valentyn Tymofieiev, Yichi
-Zhang, Yifan Mai, Yixing Zhang, Yoshiki Obata&lt;/p></description></item></channel></rss>
+eg. &lt;code>--environment_config=apache/beam_go_sdk:2.44.0rc1&lt;/code>&lt;/p></description></item></channel></rss>
