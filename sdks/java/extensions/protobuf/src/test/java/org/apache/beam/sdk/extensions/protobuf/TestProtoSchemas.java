@@ -126,18 +126,18 @@ class TestProtoSchemas {
           .build();
 
   static final Schema PROTO3_OPTIONAL_PRIMITIVE_SCHEMA =
-          Schema.builder()
-                  .addField(withFieldNumber("primitive_int32", FieldType.INT32, 1))
-                  .addField(withFieldNumber("primitive_bool", FieldType.BOOLEAN, 2))
-                  .addField(withFieldNumber("primitive_string", FieldType.STRING, 3))
-                  .addField(withFieldNumber("primitive_bytes", FieldType.BYTES, 4))
-                  .setOptions(
-                          Schema.Options.builder()
-                                  .setOption(
-                                          SCHEMA_OPTION_META_TYPE_NAME,
-                                          FieldType.STRING,
-                                          "proto3_schema_messages.OptionalPrimitive"))
-                  .build();
+      Schema.builder()
+          .addField(withFieldNumber("primitive_int32", FieldType.INT32, 1))
+          .addField(withFieldNumber("primitive_bool", FieldType.BOOLEAN, 2))
+          .addField(withFieldNumber("primitive_string", FieldType.STRING, 3))
+          .addField(withFieldNumber("primitive_bytes", FieldType.BYTES, 4))
+          .setOptions(
+              Schema.Options.builder()
+                  .setOption(
+                      SCHEMA_OPTION_META_TYPE_NAME,
+                      FieldType.STRING,
+                      "proto3_schema_messages.OptionalPrimitive"))
+          .build();
 
   static final Schema REQUIRED_PRIMITIVE_SCHEMA =
       Schema.builder()
@@ -667,12 +667,12 @@ class TestProtoSchemas {
           .build();
 
   static final Schema PROTO3_OPTIONAL_NESTED_SCHEMA =
-          Schema.builder()
-                  .addField(
-                          withFieldNumber("nested", FieldType.row(PROTO3_OPTIONAL_PRIMITIVE_SCHEMA), 1)
-                                  .withNullable(true))
-                  .setOptions(withTypeName("proto3_schema_messages.OptionalNested"))
-                  .build();
+      Schema.builder()
+          .addField(
+              withFieldNumber("nested", FieldType.row(PROTO3_OPTIONAL_PRIMITIVE_SCHEMA), 1)
+                  .withNullable(true))
+          .setOptions(withTypeName("proto3_schema_messages.OptionalNested"))
+          .build();
 
   // A sample instance of the proto.
   static final OptionalNested OPTIONAL_NESTED =

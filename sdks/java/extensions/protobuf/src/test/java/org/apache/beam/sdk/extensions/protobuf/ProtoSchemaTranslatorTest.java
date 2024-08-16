@@ -55,8 +55,8 @@ public class ProtoSchemaTranslatorTest {
   @Test
   public void testProto3OptionalPrimitiveSchema() {
     assertEquals(
-            TestProtoSchemas.PROTO3_OPTIONAL_PRIMITIVE_SCHEMA,
-            ProtoSchemaTranslator.getSchema(Proto3SchemaMessages.OptionalPrimitive.class));
+        TestProtoSchemas.PROTO3_OPTIONAL_PRIMITIVE_SCHEMA,
+        ProtoSchemaTranslator.getSchema(Proto3SchemaMessages.OptionalPrimitive.class));
   }
 
   @Test
@@ -179,8 +179,8 @@ public class ProtoSchemaTranslatorTest {
   @Test
   public void testProto3OptionalNestedSchema() {
     assertEquals(
-            TestProtoSchemas.PROTO3_OPTIONAL_NESTED_SCHEMA,
-            ProtoSchemaTranslator.getSchema(Proto3SchemaMessages.OptionalNested.class));
+        TestProtoSchemas.PROTO3_OPTIONAL_NESTED_SCHEMA,
+        ProtoSchemaTranslator.getSchema(Proto3SchemaMessages.OptionalNested.class));
   }
 
   @Test
