@@ -3199,14 +3199,34 @@ public class BigQueryIO {
       return toBuilder().setMaxFilesPerBundle(maxFilesPerBundle).build();
     }
 
-    @VisibleForTesting
-    Write<T> withMaxFileSize(long maxFileSize) {
+    /**
+     * Controls the maximum byte size per file to be loaded into BigQuery. If the amount of data
+     * written to one file reaches this threshold, we will close that file and continue writing in a
+     * new file.
+     *
+     * <p>The default value (4 TiB) respects BigQuery's maximum number of source URIs per job
+     * configuration.
+     *
+     * @see <a href="https://cloud.google.com/bigquery/quotas#load_jobs">BigQuery Load Job
+     *     Limits</a>
+     */
+    public Write<T> withMaxFileSize(long maxFileSize) {
       checkArgument(maxFileSize > 0, "maxFileSize must be > 0, but was: %s", maxFileSize);
       return toBuilder().setMaxFileSize(maxFileSize).build();
     }
 
-    @VisibleForTesting
-    Write<T> withMaxFilesPerPartition(int maxFilesPerPartition) {
+    /**
+     * Controls how many files will be assigned to a single BigQuery load job. If the number of
+     * files increases past this threshold, we will spill it over into multiple load jobs as
+     * necessary.
+     *
+     * <p>The default value (10,000 files) respects BigQuery's maximum number of source URIs per job
+     * configuration.
+     *
+     * @see <a href="https://cloud.google.com/bigquery/quotas#load_jobs">BigQuery Load Job
+     *     Limits</a>
+     */
+    public Write<T> withMaxFilesPerPartition(int maxFilesPerPartition) {
       checkArgument(
           maxFilesPerPartition > 0,
           "maxFilesPerPartition must be > 0, but was: %s",
