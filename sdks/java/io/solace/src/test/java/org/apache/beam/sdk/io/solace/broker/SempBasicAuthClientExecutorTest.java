@@ -199,4 +199,85 @@ public class SempBasicAuthClientExecutorTest {
     // so there should be a third request with Basic Auth to create a new session.
     assertEquals(3, requestCounter[0]);
   }
+
+  @Test
+  public void testGetQueueResponseEncoding() throws IOException {
+    MockHttpTransport transport =
+        new MockHttpTransport() {
+          @Override
+          public LowLevelHttpRequest buildRequest(String method, String url) {
+            return new MockLowLevelHttpRequest() {
+              @Override
+              public LowLevelHttpResponse execute() {
+                MockLowLevelHttpResponse response = new MockLowLevelHttpResponse();
+                assertTrue(url.contains("queues/queue%2Fxxx%2Fyyy"));
+                assertTrue(url.contains("msgVpns/vpnName%232"));
+                return response;
+              }
+            };
+          }
+        };
+
+    HttpRequestFactory requestFactory = transport.createRequestFactory();
+    SempBasicAuthClientExecutor client =
+        new SempBasicAuthClientExecutor(
+            "http://host", "username", "password", "vpnName#2", requestFactory);
+
+    client.getQueueResponse("queue/xxx/yyy");
+  }
+
+  @Test
+  public void testCreateQueueResponseEncoding() throws IOException {
+    MockHttpTransport transport =
+        new MockHttpTransport() {
+          @Override
+          public LowLevelHttpRequest buildRequest(String method, String url) {
+            return new MockLowLevelHttpRequest() {
+              @Override
+              public LowLevelHttpResponse execute() throws IOException {
+                MockLowLevelHttpResponse response = new MockLowLevelHttpResponse();
+                assertTrue(this.getContentAsString().contains("\"queueName\":\"queue/xxx/yyy\""));
+                assertTrue(url.contains("msgVpns/vpnName%232"));
+                return response;
+              }
+            };
+          }
+        };
+
+    HttpRequestFactory requestFactory = transport.createRequestFactory();
+    SempBasicAuthClientExecutor client =
+        new SempBasicAuthClientExecutor(
+            "http://host", "username", "password", "vpnName#2", requestFactory);
+
+    client.createQueueResponse("queue/xxx/yyy");
+  }
+
+  @Test
+  public void testCreateSubscriptionResponseEncoding() throws IOException {
+    MockHttpTransport transport =
+        new MockHttpTransport() {
+          @Override
+          public LowLevelHttpRequest buildRequest(String method, String url) {
+            return new MockLowLevelHttpRequest() {
+              @Override
+              public LowLevelHttpResponse execute() throws IOException {
+                MockLowLevelHttpResponse response = new MockLowLevelHttpResponse();
+                assertTrue(this.getContentAsString().contains("\"queueName\":\"queue/xxx/yyy\""));
+                assertTrue(
+                    this.getContentAsString().contains("\"subscriptionTopic\":\"topic/aaa\""));
+                assertTrue(url.contains("queues/queue%2Fxxx%2Fyyy/subscriptions"));
+                assertTrue(url.contains("msgVpns/vpnName%232"));
+                return response;
+              }
+            };
+          }
+        };
+
+    HttpRequestFactory requestFactory = transport.createRequestFactory();
+    SempBasicAuthClientExecutor client =
+        new SempBasicAuthClientExecutor(
+            "http://host", "username", "password", "vpnName#2", requestFactory);
+
+    client.createSubscriptionResponse("queue/xxx/yyy", "topic/aaa");
+  }
 }
