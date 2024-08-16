@@ -15,12 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.iceberg.hive.testutils;
+package org.apache.beam.sdk.io.iceberg.hiveutils;
 
 import static java.nio.file.Files.createTempDirectory;
 import static java.nio.file.attribute.PosixFilePermissions.asFileAttribute;
 import static java.nio.file.attribute.PosixFilePermissions.fromString;
-import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.File;
 import java.io.IOException;
@@ -33,15 +32,19 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.HiveMetaStore;
+import org.apache.hadoop.hive.metastore.HiveMetaStoreClient;
 import org.apache.hadoop.hive.metastore.IHMSHandler;
 import org.apache.hadoop.hive.metastore.RetryingHMSHandler;
 import org.apache.hadoop.hive.metastore.TSetIpAddressProcessor;
+import org.apache.hadoop.hive.metastore.api.Database;
 import org.apache.iceberg.common.DynConstructors;
 import org.apache.iceberg.common.DynMethods;
 import org.apache.iceberg.hadoop.Util;
@@ -56,11 +59,13 @@ import org.apache.thrift.transport.TTransportFactory;
  * A Hive Metastore implementation for local testing. Not meant to be used directly. Use {@link
  * HiveMetastoreExtension} instead.
  *
- * <p>Copied over from <a
+ * <p>Copied over and refactored from <a
  * href="https://github.com/apache/iceberg/blob/main/hive-metastore/src/test/java/org/apache/iceberg/hive/TestHiveMetastore.java">Iceberg's
  * integration testing util</a>
  */
 public class TestHiveMetastore {
+
+  private HiveMetaStoreClient metastoreClient;
 
   private static final String DEFAULT_DATABASE_NAME = "default";
   private static final int DEFAULT_POOL_SIZE = 5;
@@ -116,11 +121,10 @@ public class TestHiveMetastore {
                   () -> {
                     Path localDirPath = new Path(HIVE_LOCAL_DIR.getAbsolutePath());
                     FileSystem fs = Util.getFs(localDirPath, new Configuration());
-                    String errMsg = "Failed to delete " + localDirPath;
                     try {
-                      assertThat(fs.delete(localDirPath, true)).as(errMsg).isTrue();
+                      fs.delete(localDirPath, true);
                     } catch (IOException e) {
-                      throw new RuntimeException(errMsg, e);
+                      throw new RuntimeException("Failed to delete " + localDirPath, e);
                     }
                   }));
     } catch (Exception e) {
@@ -134,19 +138,20 @@ public class TestHiveMetastore {
   private HiveMetaStore.HMSHandler baseHandler;
   private HiveClientPool clientPool;
   private final String hiveWarehousePath;
+  private String hiveMetastoreUri;
+  public final boolean createMetastore;
 
-  TestHiveMetastore(String hiveWarehousePath) {
+  public TestHiveMetastore(String hiveWarehousePath, String hiveMetastoreUri) throws Exception {
     this.hiveWarehousePath = hiveWarehousePath;
-  }
+    this.hiveMetastoreUri = hiveMetastoreUri;
+    this.createMetastore = hiveMetastoreUri == null || hiveMetastoreUri.isEmpty();
+    this.hiveConf = new HiveConf(TestHiveMetastore.class);
+    start(DEFAULT_POOL_SIZE);
 
-  /**
-   * Starts a TestHiveMetastore with the default connection pool size (5) with the provided
-   * HiveConf.
-   *
-   * @param conf The hive configuration to use
-   */
-  public void start(HiveConf conf) {
-    start(conf, DEFAULT_POOL_SIZE);
+    this.metastoreClient = new HiveMetaStoreClient(hiveConf);
+    if (createMetastore) {
+      System.out.printf("Successfully created a hive metastore at: '%s'\n", this.hiveMetastoreUri);
+    }
   }
 
   /**
@@ -156,14 +161,20 @@ public class TestHiveMetastore {
    * @param poolSize The number of threads in the executor pool
    */
   @SuppressWarnings("FutureReturnValueIgnored")
-  public void start(HiveConf conf, int poolSize) {
+  public void start(int poolSize) {
     try {
+      if (!createMetastore) {
+        initConf();
+        return;
+      }
       TServerSocket socket = new TServerSocket(0);
       int port = socket.getServerSocket().getLocalPort();
-      initConf(conf, port);
-
-      this.hiveConf = conf;
-      this.server = newThriftServer(socket, poolSize, hiveConf);
+      hiveMetastoreUri = "thrift://localhost:" + port;
+      System.out.printf(
+          "Received null metastore URI. Creating new Hive metastore at %s ...\n",
+          hiveMetastoreUri);
+      initConf();
+      this.server = newThriftServer(socket, poolSize);
       this.executorService = Executors.newSingleThreadExecutor();
       this.executorService.submit(() -> server.serve());
       this.clientPool = new HiveClientPool(1, hiveConf);
@@ -172,7 +183,19 @@ public class TestHiveMetastore {
     }
   }
 
-  public void stop() throws Exception {
+  public HiveMetaStoreClient metastoreClient() {
+    return metastoreClient;
+  }
+
+  public String metastoreUri() {
+    return hiveMetastoreUri;
+  }
+
+  public void close() throws Exception {
+    if (metastoreClient != null) {
+      metastoreClient.close();
+    }
+
     reset();
     if (clientPool != null) {
       clientPool.close();
@@ -187,9 +210,11 @@ public class TestHiveMetastore {
       baseHandler.shutdown();
     }
     METASTORE_THREADS_SHUTDOWN.invoke();
+
+    metastoreClient = null;
   }
 
-  public HiveConf hiveConf() {
+  public Configuration hiveConf() {
     return hiveConf;
   }
 
@@ -229,9 +254,9 @@ public class TestHiveMetastore {
     }
   }
 
-  private TServer newThriftServer(TServerSocket socket, int poolSize, HiveConf conf)
+  private TServer newThriftServer(TServerSocket socket, int poolSize)
       throws Exception {
-    HiveConf serverConf = new HiveConf(conf);
+    HiveConf serverConf = new HiveConf(hiveConf);
     serverConf.set(
         HiveConf.ConfVars.METASTORECONNECTURLKEY.varname,
         "jdbc:derby:" + DERBY_PATH + ";create=true");
@@ -249,14 +274,15 @@ public class TestHiveMetastore {
     return new TThreadPoolServer(args);
   }
 
-  private void initConf(HiveConf conf, int port) {
-    conf.set(HiveConf.ConfVars.METASTOREURIS.varname, "thrift://localhost:" + port);
-    conf.set(HiveConf.ConfVars.METASTOREWAREHOUSE.varname, hiveWarehousePath);
-    conf.set(HiveConf.ConfVars.METASTORE_TRY_DIRECT_SQL.varname, "false");
-    conf.set(HiveConf.ConfVars.METASTORE_DISALLOW_INCOMPATIBLE_COL_TYPE_CHANGES.varname, "false");
-    conf.set("iceberg.hive.client-pool-size", "2");
+  private void initConf() {
+    hiveConf.set(HiveConf.ConfVars.METASTOREURIS.varname, hiveMetastoreUri);
+    hiveConf.set(HiveConf.ConfVars.METASTOREWAREHOUSE.varname, hiveWarehousePath);
+    hiveConf.set(HiveConf.ConfVars.METASTORE_TRY_DIRECT_SQL.varname, "false");
+    hiveConf.set(HiveConf.ConfVars.METASTORE_DISALLOW_INCOMPATIBLE_COL_TYPE_CHANGES.varname, "false");
+    hiveConf.set(HiveConf.ConfVars.METASTORE_DISALLOW_INCOMPATIBLE_COL_TYPE_CHANGES.varname, "false");
+    hiveConf.set("iceberg.hive.client-pool-size", "2");
     // Setting this to avoid thrift exception during running Iceberg tests outside Iceberg.
-    conf.set(
+    hiveConf.set(
         HiveConf.ConfVars.HIVE_IN_TEST.varname, HiveConf.ConfVars.HIVE_IN_TEST.getDefaultValue());
   }
 
@@ -269,5 +295,11 @@ public class TestHiveMetastore {
     try (Reader reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8)) {
       scriptRunner.runScript(reader);
     }
+  }
+
+  public void createDatabase(String database) throws Exception{
+    String dbPath = getDatabasePath(database);
+    Database db = new Database(database, "description", dbPath, Maps.newHashMap());
+    metastoreClient().createDatabase(db);
   }
 }

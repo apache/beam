@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.iceberg.hive;
+package org.apache.beam.sdk.io.iceberg;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -28,8 +28,7 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
-import org.apache.beam.sdk.io.iceberg.IcebergUtils;
-import org.apache.beam.sdk.io.iceberg.hive.testutils.HiveMetastoreExtension;
+import org.apache.beam.sdk.io.iceberg.hiveutils.TestHiveMetastore;
 import org.apache.beam.sdk.managed.Managed;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
@@ -39,9 +38,6 @@ import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
-import org.apache.hadoop.hive.conf.HiveConf;
-import org.apache.hadoop.hive.metastore.api.Database;
 import org.apache.iceberg.AppendFiles;
 import org.apache.iceberg.CatalogProperties;
 import org.apache.iceberg.CatalogUtil;
@@ -64,20 +60,18 @@ import org.apache.iceberg.io.DataWriter;
 import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.io.OutputFile;
 import org.apache.iceberg.parquet.Parquet;
-import org.apache.thrift.TException;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 
 /**
- * Read and write test for {@link Managed} {@link org.apache.beam.sdk.io.iceberg.IcebergIO} using
- * {@link HiveCatalog}.
+ * Read and write test for {@link Managed} {@link IcebergIO} using {@link HiveCatalog}.
  *
  * <p>Spins up a local Hive metastore to manage the Iceberg table. Warehouse path is set to a GCS
  * bucket.
  */
-public class IcebergHiveCatalogIT {
+public class HiveCatalogIT {
   private static final Schema DOUBLY_NESTED_ROW_SCHEMA =
       Schema.builder()
           .addStringField("doubly_nested_str")
@@ -141,7 +135,7 @@ public class IcebergHiveCatalogIT {
         }
       };
 
-  private static HiveMetastoreExtension hiveMetastoreExtension;
+  private static TestHiveMetastore testHiveMetastore;
 
   @Rule public TestPipeline writePipeline = TestPipeline.create();
 
@@ -153,9 +147,9 @@ public class IcebergHiveCatalogIT {
   private static final String TEST_DB = "test_db_" + System.nanoTime();
 
   @BeforeClass
-  public static void setUp() throws TException {
+  public static void setUp() throws Exception {
     String warehousePath = TestPipeline.testingPipelineOptions().getTempLocation();
-    hiveMetastoreExtension = new HiveMetastoreExtension(warehousePath);
+    testHiveMetastore = new TestHiveMetastore(warehousePath, null);
     catalog =
         (HiveCatalog)
             CatalogUtil.loadCatalog(
@@ -164,25 +158,23 @@ public class IcebergHiveCatalogIT {
                 ImmutableMap.of(
                     CatalogProperties.CLIENT_POOL_CACHE_EVICTION_INTERVAL_MS,
                     String.valueOf(TimeUnit.SECONDS.toMillis(10))),
-                hiveMetastoreExtension.hiveConf());
+                testHiveMetastore.hiveConf());
 
-    String dbPath = hiveMetastoreExtension.metastore().getDatabasePath(TEST_DB);
-    Database db = new Database(TEST_DB, "description", dbPath, Maps.newHashMap());
-    hiveMetastoreExtension.metastoreClient().createDatabase(db);
+    testHiveMetastore.createDatabase(TEST_DB);
   }
 
   @AfterClass
   public static void cleanup() throws Exception {
-    hiveMetastoreExtension.cleanup();
+    if (testHiveMetastore != null) {
+      testHiveMetastore.close();
+    }
   }
 
   private Map<String, Object> getManagedIcebergConfig(TableIdentifier table) {
-    String metastoreUri = hiveMetastoreExtension.hiveConf().getVar(HiveConf.ConfVars.METASTOREURIS);
+    String metastoreUri = testHiveMetastore.metastoreUri();
 
     Map<String, String> confProperties =
-        ImmutableMap.<String, String>builder()
-            .put(HiveConf.ConfVars.METASTOREURIS.varname, metastoreUri)
-            .build();
+        ImmutableMap.<String, String>builder().put("hive.metastore.uris", metastoreUri).build();
 
     return ImmutableMap.<String, Object>builder()
         .put("table", table.toString())

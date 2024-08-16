@@ -39,10 +39,10 @@ artifacts {
 shadowJar {
     zip64 true
 
-    // need to shade "com.google.guava" to avoid Guava conflict
-    relocate 'com.google.protobuf', getJavaRelocatedPath('com.google.protobuf')
-    relocate 'shaded.parquet', getJavaRelocatedPath('shaded.parquet')
-    relocate 'org.apache.parquet', getJavaRelocatedPath('org.apache.parquet')
+    // need to relocate some libraries to avoid conflict
+    relocate 'com.google.protobuf', getJavaRelocatedPath('hive-exec.com.google.protobuf')
+    relocate 'shaded.parquet', getJavaRelocatedPath('hive-exec.shaded.parquet')
+    relocate 'org.apache.parquet', getJavaRelocatedPath('hive-exec.org.apache.parquet')
 
     version "3.1.3"
     mergeServiceFiles()
@@ -54,5 +54,5 @@ shadowJar {
             'com/sun/**'
     )
 }
-description = "Apache Beam :: SDKs :: Java :: IO :: Iceberg :: Hive :: Exec"
+description = "Apache Beam :: SDKs :: Java :: IO :: Iceberg :: Hive-Exec"
 ext.summary = "A copy of the hive-exec dependency with some popular libraries relocated."
