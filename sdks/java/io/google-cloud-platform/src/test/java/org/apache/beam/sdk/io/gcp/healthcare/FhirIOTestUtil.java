@@ -136,8 +136,7 @@ class FhirIOTestUtil {
           request.setReadTimeout(60000); // 1 minute read timeout
         };
     Storage storage =
-        new Storage.Builder(new NetHttpTransport(), new GsonFactory(), requestInitializer)
-            .build();
+        new Storage.Builder(new NetHttpTransport(), new GsonFactory(), requestInitializer).build();
     List<StorageObject> blobs = storage.objects().list(DEFAULT_TEMP_BUCKET).execute().getItems();
     if (blobs != null) {
       for (StorageObject blob : blobs) {
