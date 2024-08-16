@@ -32,7 +32,6 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -171,8 +170,7 @@ public class TestHiveMetastore {
       int port = socket.getServerSocket().getLocalPort();
       hiveMetastoreUri = "thrift://localhost:" + port;
       System.out.printf(
-          "Received null metastore URI. Creating new Hive metastore at %s ...\n",
-          hiveMetastoreUri);
+          "Received null metastore URI. Creating new Hive metastore at %s ...\n", hiveMetastoreUri);
       initConf();
       this.server = newThriftServer(socket, poolSize);
       this.executorService = Executors.newSingleThreadExecutor();
@@ -254,8 +252,7 @@ public class TestHiveMetastore {
     }
   }
 
-  private TServer newThriftServer(TServerSocket socket, int poolSize)
-      throws Exception {
+  private TServer newThriftServer(TServerSocket socket, int poolSize) throws Exception {
     HiveConf serverConf = new HiveConf(hiveConf);
     serverConf.set(
         HiveConf.ConfVars.METASTORECONNECTURLKEY.varname,
@@ -278,8 +275,10 @@ public class TestHiveMetastore {
     hiveConf.set(HiveConf.ConfVars.METASTOREURIS.varname, hiveMetastoreUri);
     hiveConf.set(HiveConf.ConfVars.METASTOREWAREHOUSE.varname, hiveWarehousePath);
     hiveConf.set(HiveConf.ConfVars.METASTORE_TRY_DIRECT_SQL.varname, "false");
-    hiveConf.set(HiveConf.ConfVars.METASTORE_DISALLOW_INCOMPATIBLE_COL_TYPE_CHANGES.varname, "false");
-    hiveConf.set(HiveConf.ConfVars.METASTORE_DISALLOW_INCOMPATIBLE_COL_TYPE_CHANGES.varname, "false");
+    hiveConf.set(
+        HiveConf.ConfVars.METASTORE_DISALLOW_INCOMPATIBLE_COL_TYPE_CHANGES.varname, "false");
+    hiveConf.set(
+        HiveConf.ConfVars.METASTORE_DISALLOW_INCOMPATIBLE_COL_TYPE_CHANGES.varname, "false");
     hiveConf.set("iceberg.hive.client-pool-size", "2");
     // Setting this to avoid thrift exception during running Iceberg tests outside Iceberg.
     hiveConf.set(
@@ -297,7 +296,7 @@ public class TestHiveMetastore {
     }
   }
 
-  public void createDatabase(String database) throws Exception{
+  public void createDatabase(String database) throws Exception {
     String dbPath = getDatabasePath(database);
     Database db = new Database(database, "description", dbPath, Maps.newHashMap());
     metastoreClient().createDatabase(db);
