@@ -24,7 +24,6 @@ import com.google.cloud.spanner.SpannerException;
 import com.google.cloud.spanner.SpannerExceptionFactory;
 import com.google.spanner.admin.database.v1.UpdateDatabaseDdlMetadata;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -80,14 +79,10 @@ public class PartitionMetadataAdminDao {
    */
   public static final String COLUMN_FINISHED_AT = "FinishedAt";
 
-  /**
-   * Metadata table index for queries over the watermark column.
-   */
+  /** Metadata table index for queries over the watermark column. */
   public static final String WATERMARK_INDEX = "WatermarkIndex";
 
-  /**
-   * Metadata table index for queries over the created at / start timestamp columns.
-   */
+  /** Metadata table index for queries over the created at / start timestamp columns. */
   public static final String CREATED_AT_START_TIMESTAMP_INDEX = "CreatedAtStartTimestampIndex";
 
   private static final int TIMEOUT_MINUTES = 10;
@@ -132,7 +127,8 @@ public class PartitionMetadataAdminDao {
     List<String> ddl = new ArrayList<>();
     if (this.isPostgres()) {
       // Literals need be added around literals to preserve casing.
-      ddl.add("CREATE TABLE \""
+      ddl.add(
+          "CREATE TABLE \""
               + tableName
               + "\"(\""
               + COLUMN_PARTITION_TOKEN
@@ -159,33 +155,36 @@ public class PartitionMetadataAdminDao {
               + "\" SPANNER.COMMIT_TIMESTAMP,"
               + " PRIMARY KEY (\""
               + COLUMN_PARTITION_TOKEN
-              +"\")"
+              + "\")"
               + ")"
               + " TTL INTERVAL '"
               + TTL_AFTER_PARTITION_FINISHED_DAYS
               + " days' ON \""
               + COLUMN_FINISHED_AT
               + "\"");
-      ddl.add("CREATE INDEX \""
-          + WATERMARK_INDEX
-          + "\" on \""
-          + tableName
-          + "\" (\""
-          + COLUMN_WATERMARK
-          + "\") INCLUDE (\""
-          + COLUMN_STATE
-          + "\")");
-      ddl.add("CREATE INDEX \""
-        + CREATED_AT_START_TIMESTAMP_INDEX
-        + "\" ON \""
-        + tableName
-        + "\" (\""
-        + COLUMN_CREATED_AT
-        + "\",\""
-        + COLUMN_START_TIMESTAMP
-        + "\")");
+      ddl.add(
+          "CREATE INDEX \""
+              + WATERMARK_INDEX
+              + "\" on \""
+              + tableName
+              + "\" (\""
+              + COLUMN_WATERMARK
+              + "\") INCLUDE (\""
+              + COLUMN_STATE
+              + "\")");
+      ddl.add(
+          "CREATE INDEX \""
+              + CREATED_AT_START_TIMESTAMP_INDEX
+              + "\" ON \""
+              + tableName
+              + "\" (\""
+              + COLUMN_CREATED_AT
+              + "\",\""
+              + COLUMN_START_TIMESTAMP
+              + "\")");
     } else {
-      ddl.add("CREATE TABLE "
+      ddl.add(
+          "CREATE TABLE "
               + tableName
               + " ("
               + COLUMN_PARTITION_TOKEN
@@ -212,34 +211,35 @@ public class PartitionMetadataAdminDao {
               + " TIMESTAMP OPTIONS (allow_commit_timestamp=true),"
               + ") PRIMARY KEY ("
               + COLUMN_PARTITION_TOKEN
-              +"),"
+              + "),"
               + " ROW DELETION POLICY (OLDER_THAN("
               + COLUMN_FINISHED_AT
               + ", INTERVAL "
               + TTL_AFTER_PARTITION_FINISHED_DAYS
               + " DAY))");
-      ddl.add("CREATE INDEX "
-          + WATERMARK_INDEX
-          + " on "
-          + tableName
-          + " ("
-          + COLUMN_WATERMARK
-          + ") STORING ("
-          + COLUMN_STATE
-          + ")");
-      ddl.add("CREATE INDEX "
-          + CREATED_AT_START_TIMESTAMP_INDEX
-          + " ON "
-          + tableName
-          + " ("
-          + COLUMN_CREATED_AT
-          + ","
-          + COLUMN_START_TIMESTAMP
-          + ")");
+      ddl.add(
+          "CREATE INDEX "
+              + WATERMARK_INDEX
+              + " on "
+              + tableName
+              + " ("
+              + COLUMN_WATERMARK
+              + ") STORING ("
+              + COLUMN_STATE
+              + ")");
+      ddl.add(
+          "CREATE INDEX "
+              + CREATED_AT_START_TIMESTAMP_INDEX
+              + " ON "
+              + tableName
+              + " ("
+              + COLUMN_CREATED_AT
+              + ","
+              + COLUMN_START_TIMESTAMP
+              + ")");
     }
     OperationFuture<Void, UpdateDatabaseDdlMetadata> op =
-        databaseAdminClient.updateDatabaseDdl(
-            instanceId, databaseId, ddl, null);
+        databaseAdminClient.updateDatabaseDdl(instanceId, databaseId, ddl, null);
     try {
       // Initiate the request which returns an OperationFuture.
       op.get(TIMEOUT_MINUTES, TimeUnit.MINUTES);
