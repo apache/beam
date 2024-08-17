@@ -71,15 +71,15 @@ class InsertDocInOpenSearch(PTransform):
     def __init__(self,
                  host: str,
                  port: int,
-                 username: Optional[str] = os.getenv("USERNAME"),
-                 password: Optional[str] = os.getenv("PASSWORD"),
+                 username: Optional[str] = os.getenv("OPENSEARCH_USERNAME"),
+                 password: Optional[str] = os.getenv("OPENSEARCH_PASSWORD"),
                  batch_size: int = 100
                  ):
         """
 
         Args:
-        host (str): The redis host
-        port (int): The redis port
+        host (str): The opensearch host
+        port (int): The opensearch port
         username (str): username of OpenSearch DB
         password (str): password of OpenSearch DB
         batch_size(int): Number of key, values pairs to write at once
@@ -157,8 +157,8 @@ class _InsertDocOpenSearchSink(object):
     def __init__(self,
                  host: str,
                  port: int,
-                 username: str = os.getenv("USERNAME"),
-                 password: str = os.getenv("PASSWORD")
+                 username: str = os.getenv("OPENSEARCH_USERNAME"),
+                 password: str = os.getenv("OPENSEARCH_PASSWORD")
                  ):
         self.host = host
         self.port = port
@@ -176,6 +176,7 @@ class _InsertDocOpenSearchSink(object):
     def write(self, elements):
         self._create_client()
         documents = []
+        logger.info(f'Adding Docs in DB: {len(elements)}')
         for element in elements:
             documents.extend([{
                 "index": {
@@ -189,7 +190,6 @@ class _InsertDocOpenSearchSink(object):
                 "section_id": element["section_id"]
             }])
 
-            logger.info(f'Inside insert Doc in DB{element}')
         self.client.bulk(body=documents, refresh=True)
 
     def __enter__(self):
@@ -200,10 +200,7 @@ class _InsertDocOpenSearchSink(object):
         if self.client is not None:
             self.client.close()
 
-
 """This module implements IO classes to read text Embeddings in Opensearch.
-
-
 Insert Embedding in Opensearch :
 -----------------
 :class:`InsertEmbeddingInOpensearch` is a ``PTransform`` that writes key and values to a
@@ -231,8 +228,8 @@ class InsertEmbeddingInOpenSearch(PTransform):
     def __init__(self,
                  host: str,
                  port: int,
-                 username: Optional[str] = os.getenv("USERNAME"),
-                 password: Optional[str] = os.getenv("PASSWORD"),
+                 username: Optional[str] = os.getenv("OPENSEARCH_USERNAME"),
+                 password: Optional[str] = os.getenv("OPENSEARCH_PASSWORD"),
                  batch_size: int = 100,
                  embedded_columns: list = []
                  ):
@@ -340,8 +337,8 @@ class _InsertEmbeddingInOpenSearchSink(object):
     def write(self, elements):
         self._create_client()
         documents = []
+        logger.info(f'Insert Embeddings in opensearch DB, count={len(elements)}')
         for element in elements:
-            logger.info(f'Insert Embeddings in opensearch DB {element}')
             doc_update = {
                 "url": element["url"],
                 "section_id": element["section_id"]
@@ -359,7 +356,12 @@ class _InsertEmbeddingInOpenSearchSink(object):
             }, {
                 "doc": doc_update
             }])
-        self.client.bulk(documents)
+        response = self.client.bulk(documents)
+        if response.get('errors'):
+            for item in response['items']:
+                if 'error' in item['update']:
+                    logger.error(f"Failed to update document ID {item['update']['_id']}: {item['update']['error']}")
+        logger.info(f'Insert Embeddings done')
 
     def __enter__(self):
         self._create_client()
