@@ -352,6 +352,22 @@ for the worker endpoint, these are no wasted either. Prism can assign uniques na
 to be able to identify which job they're a part of, so it's possible to avoid the per job and
 worker grpc service, and multiplex from there.  (See https://github.com/apache/beam/issues/32167)
 
+A channel is being used to move ready to execute bundles from the ElementManager to the Job Executor.
+This may be unbuffered (the default) which means
+serializing how bundles are generated for execution,
+and there being at most a single "readyToExecute"
+bundle at a time. An unbufferred channel puts a
+bottleneck on the job since there may be additional
+ready work to execute. On the other hand, it also
+allows for bundles to be made larger as more data
+may have arrived. 
+
+The channel could be made to be buffered, to allow
+multiple bundles to be prepared for execution. 
+This would lead to lower latency as bundles could be made smaller, and faster to execute, as it would
+permit pipelineing in work generation, but may lead
+to higher lock contention and variability in execution.
+
 ## Durability Model
 
 Prism keeps all data in memory, and doesn't write anything durably to disk.
