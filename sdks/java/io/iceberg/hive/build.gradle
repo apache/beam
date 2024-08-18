@@ -34,8 +34,6 @@ dependencies {
     // dependencies needed to run with iceberg's hive catalog
     runtimeOnly ("org.apache.iceberg:iceberg-hive-metastore:$iceberg_version")
     runtimeOnly project(path: ":sdks:java:io:iceberg:hive:exec", configuration: "shadow")
-    runtimeOnly library.java.bigdataoss_gcs_connector
-    runtimeOnly library.java.hadoop_client
 
     // ----- below dependencies are for testing and will not appear in the shaded jar -----
     // Beam IcebergIO dependencies
@@ -44,6 +42,8 @@ dependencies {
     testImplementation project(":sdks:java:io:iceberg")
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
     testRuntimeOnly library.java.snake_yaml
+    testRuntimeOnly library.java.bigdataoss_gcs_connector
+    testRuntimeOnly library.java.hadoop_client
 
     // needed to set up the test environment
     testImplementation "org.apache.iceberg:iceberg-common:$iceberg_version"
