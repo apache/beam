@@ -239,6 +239,96 @@ graph TD;
     Build ~~~ Bundles
 ```
 
+### Watermark Evaluation and Bundle Generation
+
+Here's a closer look at the watermark evaluation goroutine. 
+
+A key idea is that execution can't progress unless something has changed a stage.
+A stage can only change as a result of a bundle being persisted.
+
+Persisting a bundle leads to zero or more new elements are now pending for one or more stages (including the stage that was just persisted).
+
+A stage's watermarks determine what elements are
+ready to be processed, and thus what can be included in a bundle.
+
+Each stage has several watermarks: upstream, input, and output.
+The upstream watermark is determined by the output watermarks of stages that provide elements to the stage.
+The input watermark is determined by the pending and
+inprogress elements for the stage.
+The output watermark is where we have determined we have fully processed all input elements. 
+
+A stage's watermark progress depends on its pending and in progress elements and timers, and the output watermark of its upstream stages.
+As these change this enables more data to be processed,
+and allow downstream stages to be processed.
+
+Elements are associated with an event time timestamp.
+Pending elements for a stage can be added to a bundle for processing, when the stage's upstream watermark  has advanced passed the element's timestamp.
+
+So Bundles are produced for a stage based on its watermark progress, with elements 
+
+A stage's watermarks are determined by it's upstream stages, it's current watermark state, and it's current
+pending elements.
+
+At the start of a job, all stages are initialized to have watermarks at the the minimum time, and impulse elements are added to their consuming stages.
+
+
+```mermaid
+sequenceDiagram 
+loop Until Job Terminates
+    box Purple Element Manager
+        participant WE as Watermark Evaluation
+        participant RCL as RefreshConditionLock
+    end
+    box Green ProcessBundle
+        participant SS as Stage State
+    end
+
+    WE->>RCL: Lock()
+    activate RCL
+    Note over WE: Get stages that<br/>have changed.
+
+    loop While there are no changed stages
+        WE->>RCL: Unlock()
+        deactivate RCL
+
+
+        Note over RCL: Wait in progress Bundles<br/>to be persisted.
+        WE->>RCL: Wait()
+        activate RCL
+        Note over WE: Get stages that<br/>have changed.
+    end
+
+    WE->>SS: Refresh watermarks for changed stages.
+    activate SS
+
+    Note over SS: Compute new watermarks.
+    SS->>WE: Return stages with advanced watermarks.
+    deactivate SS
+
+    loop for each advanced stage
+        WE-->SS: Is stage ready to produce a bundle?
+        alt Produce Bundle
+            WE-->SS: Produce a bundle
+            activate SS
+            Note over SS: Find elements that<br/> are ready to process
+            SS-->WE: Return bundle
+            deactivate SS
+            WE->>RCL: Unlock()
+            deactivate RCL
+            Note right of WE: Output bundle on channel.
+            WE->>RCL: Lock()
+            activate RCL
+        else
+        Note right of WE: continue with next stage
+        end
+    end 
+    Note right of WE: Check if job can make progress.
+    WE->>RCL: Unlock()
+    deactivate RCL
+end
+    
+```
+
 ## Threading and Concurrency Model
 
 Prism leverages Go's lightweight threading primitive, called goroutines, to handle
@@ -392,8 +482,14 @@ for SDK environments, they'll be on the same machine as Prism.
    The engine is unaware of individual user transforms, and relies on the calling
    job executor to configure how stages are related.
 * Bundle: An arbitrary non-empty set of elements, to be executed by a stage.
+* Upstream Stages: Stages that provide input to the
+current stage. Not all stages have upstream stages.
+* Downstream Stages: Stages that depend on input from the current stage. Not alls tages have downstream stages.
 * Watermark: An event time which relates to the the readiness to process data in the engine. 
    Each stage has several watermarks it tracks: Input, Output, and Upstream.
+   * Upstream Watermark: The minimum output watermark of all stages that provide input to this stage.
+   * Input watermark: The minumum event time of all elements pending or in progress for this stage.
+   * Output watermark: The maxiumum of the current output watermark, the estimated output watermark (if available), and the minimum of watermark holds.
 * Quiescense: Wether the pipeline is or is able to perform work.
   * The pipeline will try to advance all watermarks to infinity, and attempt to
     process all pending elements.
