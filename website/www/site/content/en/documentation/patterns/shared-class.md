@@ -69,7 +69,7 @@ class EnrichOrderFn(beam.DoFn):
         self._customer_lookup = self._shared_handle.acquire(
             self.load_customers, self.set_tag()
         )
- 
+
     def set_tag(self):
         # A single tag value is returned within a period, which is upper-limited by the max stale second.
         current_ts = datetime.now().timestamp()
