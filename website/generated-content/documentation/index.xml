@@ -16626,6 +16626,94 @@ If you also set the &lt;code>withExtendedErrorInfo&lt;/code> property , you will
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;PrintErrors&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">FlatMap&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">lambda&lt;/span> &lt;span class="n">err&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">print&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;Error Found &lt;/span>&lt;span class="si">{}&lt;/span>&lt;span class="s2">&amp;#34;&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">format&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">err&lt;/span>&lt;span class="p">))))&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
+&lt;/div></description></item><item><title>Documentation: Cache data using a shared object</title><link>/documentation/patterns/shared-class/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/patterns/shared-class/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;h1 id="cache-data-using-a-shared-object">Cache data using a shared object&lt;/h1>
+&lt;p>A cache is a software component that stores data so that future requests for that data can be served faster. To access a cache, you can use side inputs, stateful &lt;code>DoFn&lt;/code>, and calls to an external service. The Python SDK provides another option in the shared module. This option can be more memory-efficient than side inputs, simpler than a stateful &lt;code>DoFn&lt;/code>, and more performant than calling an external service, because it does not have to access an external service for every element or bundle of elements. For more details about strategies for caching data using Beam SDK, see the session &lt;a href="https://2022.beamsummit.org/sessions/strategies-for-caching-data-in-dataflow-using-beam-sdk/">Strategies for caching data in Dataflow using Beam SDK&lt;/a> from the 2022 Beam Summit.&lt;/p>
+&lt;p>The examples on this page demonstrate how to use the &lt;code>Shared&lt;/code> class of the &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.utils.shared.html">&lt;code>shared module&lt;/code>&lt;/a> to enrich elements in both bounded and unbounded &lt;code>PCollection&lt;/code> objects. Two data sets are used in the samples: &lt;em>order&lt;/em> and &lt;em>customer&lt;/em>. The order records include customer IDs that customer attributes are added to by mapping the customer records.&lt;/p>
+&lt;h2 id="create-a-cache-on-a-batch-pipeline">Create a cache on a batch pipeline&lt;/h2>
+&lt;p>In this example, the customer cache is loaded as a dictionary in the &lt;code>setup&lt;/code> method of the &lt;code>EnrichOrderFn&lt;/code>. The cache is used to add customer attributes to the order records. Because the Python dictionary doesn&amp;rsquo;t support weak references and a &lt;code>Shared&lt;/code> object encapsulates a weak reference to a singleton instance of the shared resource, create a wrapper class.&lt;/p>
+&lt;div class='language-py snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># The wrapper class is needed for a dictionary, because it does not support weak references.&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">class&lt;/span> &lt;span class="nc">WeakRefDict&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">dict&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">pass&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">class&lt;/span> &lt;span class="nc">EnrichOrderFn&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="fm">__init__&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">_customers&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">{}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">_shared_handle&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">shared&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Shared&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="nf">setup&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1"># setup is a good place to initialize transient in-memory resources.&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">_customer_lookup&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">_shared_handle&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">acquire&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">load_customers&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="nf">load_customers&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">_customers&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">expensive_remote_call_to_load_customers&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="n">WeakRefDict&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">_customers&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="nf">process&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">element&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">attr&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">_customer_lookup&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">element&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s2">&amp;#34;customer_id&amp;#34;&lt;/span>&lt;span class="p">],&lt;/span> &lt;span class="p">{})&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">yield&lt;/span> &lt;span class="p">{&lt;/span>&lt;span class="o">**&lt;/span>&lt;span class="n">element&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="o">**&lt;/span>&lt;span class="n">attr&lt;/span>&lt;span class="p">}&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;h2 id="create-a-cache-and-update-it-regularly-on-a-streaming-pipeline">Create a cache and update it regularly on a streaming pipeline&lt;/h2>
+&lt;p>Because the customer cache is assumed to change over time, you need to refresh it periodically. To reload the shared object, change the &lt;code>tag&lt;/code> argument of the &lt;code>acquire&lt;/code> method. In this example, the refresh is implemented in the &lt;code>start_bundle&lt;/code> method, where it compares the current tag value to the value that is associated with the existing shared object. The &lt;code>set_tag&lt;/code> method returns a tag value that is the same within the maximum seconds of staleness. Therefore, if a tag value is greater than the existing tag value, it triggers a refresh of the customer cache.&lt;/p>
+&lt;div class='language-py snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># The wrapper class is needed for a dictionary, because it does not support weak references.&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">class&lt;/span> &lt;span class="nc">WeakRefDict&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">dict&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">pass&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">class&lt;/span> &lt;span class="nc">EnrichOrderFn&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="fm">__init__&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">_max_stale_sec&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mi">60&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">_customers&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">{}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">_shared_handle&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">shared&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Shared&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="nf">setup&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1"># setup is a good place to initialize transient in-memory resources.&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">_customer_lookup&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">_shared_handle&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">acquire&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">load_customers&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">set_tag&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="nf">set_tag&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1"># A single tag value is returned within a period, which is upper-limited by the max stale second.&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">current_ts&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">datetime&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">now&lt;/span>&lt;span class="p">()&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">timestamp&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="n">current_ts&lt;/span> &lt;span class="o">-&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">current_ts&lt;/span> &lt;span class="o">%&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">_max_stale_sec&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="nf">load_customers&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1"># Assign the tag value of the current period for comparison.&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">_customers&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">expensive_remote_call_to_load_customers&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">tag&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">set_tag&lt;/span>&lt;span class="p">())&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="n">WeakRefDict&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">_customers&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="nf">start_bundle&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1"># Update the shared object when the current tag value exceeds the existing value.&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">set_tag&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="o">&amp;gt;&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">_customers&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s2">&amp;#34;tag&amp;#34;&lt;/span>&lt;span class="p">]:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">_customer_lookup&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">_shared_handle&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">acquire&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">load_customers&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">set_tag&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="nf">process&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">element&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">attr&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">_customer_lookup&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">element&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s2">&amp;#34;customer_id&amp;#34;&lt;/span>&lt;span class="p">],&lt;/span> &lt;span class="p">{})&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">yield&lt;/span> &lt;span class="p">{&lt;/span>&lt;span class="o">**&lt;/span>&lt;span class="n">element&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="o">**&lt;/span>&lt;span class="n">attr&lt;/span>&lt;span class="p">}&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
 &lt;/div></description></item><item><title>Documentation: Cdap IO</title><link>/documentation/io/built-in/cdap/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/io/built-in/cdap/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -20124,189 +20212,4 @@ data-height="700px"
 each input it might produce zero or more outputs.&lt;/li>
 &lt;li>&lt;a href="/documentation/transforms/java/elementwise/pardo">ParDo&lt;/a> is the most general element-wise mapping
 operation, and includes other abilities such as multiple output collections and side-inputs.&lt;/li>
-&lt;/ul></description></item><item><title>Documentation: Filter</title><link>/documentation/transforms/python/elementwise/filter/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/transforms/python/elementwise/filter/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;h1 id="filter">Filter&lt;/h1>
-&lt;script type="text/javascript">
-localStorage.setItem("language", "language-py")
-&lt;/script>
-&lt;table align="left" style="margin-right:1em">
-&lt;td>
-&lt;a
-class="button"
-target="_blank"
-href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Filter"
->&lt;img
-src="https://beam.apache.org/images/logos/sdks/python.png"
-width="32px"
-height="32px"
-alt="Pydoc"
-/>
-Pydoc&lt;/a
->
-&lt;/td>
-&lt;/table>
-&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p>
-&lt;p>Given a predicate, filter out all elements that don&amp;rsquo;t satisfy that predicate.
-May also be used to filter based on an inequality with a given value based
-on the comparison ordering of the element.&lt;/p>
-&lt;h2 id="examples">Examples&lt;/h2>
-&lt;p>In the following examples, we create a pipeline with a &lt;code>PCollection&lt;/code> of produce with their icon, name, and duration.
-Then, we apply &lt;code>Filter&lt;/code> in multiple ways to filter out produce by their duration value.&lt;/p>
-&lt;p>&lt;code>Filter&lt;/code> accepts a function that keeps elements that return &lt;code>True&lt;/code>, and filters out the remaining elements.&lt;/p>
-&lt;h3 id="example-1-filtering-with-a-function">Example 1: Filtering with a function&lt;/h3>
-&lt;p>We define a function &lt;code>is_perennial&lt;/code> which returns &lt;code>True&lt;/code> if the element&amp;rsquo;s duration equals &lt;code>'perennial'&lt;/code>, and &lt;code>False&lt;/code> otherwise.&lt;/p>
-&lt;div class="playground-wrapper">
-&lt;div class="playground-snippets">
-&lt;div
-class="language-py playground-snippet"
-data-sdk="python"
-data-path="SDK_PYTHON_FilterFunction"
-data-show="filter_function"
->&lt;/div>
-&lt;/div>
-&lt;div
-class="code-snippet code-snippet-playground"
-data-src="https://play.beam.apache.org/embedded?editable=1&amp;examples=%5b%7b%22path%22%3a%22SDK_PYTHON_FilterFunction%22%2c%22sdk%22%3a%22python%22%2c%22show%22%3a%22filter_function%22%7d%5d"
-data-width="100%"
-data-height="700px"
->&lt;/div>
-&lt;/div>
-&lt;h3 id="example-2-filtering-with-a-lambda-function">Example 2: Filtering with a lambda function&lt;/h3>
-&lt;p>We can also use lambda functions to simplify &lt;strong>Example 1&lt;/strong>.&lt;/p>
-&lt;div class="playground-wrapper">
-&lt;div class="playground-snippets">
-&lt;div
-class="language-py playground-snippet"
-data-sdk="python"
-data-path="SDK_PYTHON_FilterLambda"
-data-show="filter_lambda"
->&lt;/div>
-&lt;/div>
-&lt;div
-class="code-snippet code-snippet-playground"
-data-src="https://play.beam.apache.org/embedded?editable=1&amp;examples=%5b%7b%22path%22%3a%22SDK_PYTHON_FilterLambda%22%2c%22sdk%22%3a%22python%22%2c%22show%22%3a%22filter_lambda%22%7d%5d"
-data-width="100%"
-data-height="700px"
->&lt;/div>
-&lt;/div>
-&lt;h3 id="example-3-filtering-with-multiple-arguments">Example 3: Filtering with multiple arguments&lt;/h3>
-&lt;p>You can pass functions with multiple arguments to &lt;code>Filter&lt;/code>.
-They are passed as additional positional arguments or keyword arguments to the function.&lt;/p>
-&lt;p>In this example, &lt;code>has_duration&lt;/code> takes &lt;code>plant&lt;/code> and &lt;code>duration&lt;/code> as arguments.&lt;/p>
-&lt;div class="playground-wrapper">
-&lt;div class="playground-snippets">
-&lt;div
-class="language-py playground-snippet"
-data-sdk="python"
-data-path="SDK_PYTHON_FilterMultipleArguments"
-data-show="filter_multiple_arguments"
->&lt;/div>
-&lt;/div>
-&lt;div
-class="code-snippet code-snippet-playground"
-data-src="https://play.beam.apache.org/embedded?editable=1&amp;examples=%5b%7b%22path%22%3a%22SDK_PYTHON_FilterMultipleArguments%22%2c%22sdk%22%3a%22python%22%2c%22show%22%3a%22filter_multiple_arguments%22%7d%5d"
-data-width="100%"
-data-height="700px"
->&lt;/div>
-&lt;/div>
-&lt;h3 id="example-4-filtering-with-side-inputs-as-singletons">Example 4: Filtering with side inputs as singletons&lt;/h3>
-&lt;p>If the &lt;code>PCollection&lt;/code> has a single value, such as the average from another computation,
-passing the &lt;code>PCollection&lt;/code> as a &lt;em>singleton&lt;/em> accesses that value.&lt;/p>
-&lt;p>In this example, we pass a &lt;code>PCollection&lt;/code> the value &lt;code>'perennial'&lt;/code> as a singleton.
-We then use that value to filter out perennials.&lt;/p>
-&lt;div class="playground-wrapper">
-&lt;div class="playground-snippets">
-&lt;div
-class="language-py playground-snippet"
-data-sdk="python"
-data-path="SDK_PYTHON_FilterSideInputsSingleton"
-data-show="filter_side_inputs_singleton"
->&lt;/div>
-&lt;/div>
-&lt;div
-class="code-snippet code-snippet-playground"
-data-src="https://play.beam.apache.org/embedded?editable=1&amp;examples=%5b%7b%22path%22%3a%22SDK_PYTHON_FilterSideInputsSingleton%22%2c%22sdk%22%3a%22python%22%2c%22show%22%3a%22filter_side_inputs_singleton%22%7d%5d"
-data-width="100%"
-data-height="700px"
->&lt;/div>
-&lt;/div>
-&lt;h3 id="example-5-filtering-with-side-inputs-as-iterators">Example 5: Filtering with side inputs as iterators&lt;/h3>
-&lt;p>If the &lt;code>PCollection&lt;/code> has multiple values, pass the &lt;code>PCollection&lt;/code> as an &lt;em>iterator&lt;/em>.
-This accesses elements lazily as they are needed,
-so it is possible to iterate over large &lt;code>PCollection&lt;/code>s that won&amp;rsquo;t fit into memory.&lt;/p>
-&lt;div class="playground-wrapper">
-&lt;div class="playground-snippets">
-&lt;div
-class="language-py playground-snippet"
-data-sdk="python"
-data-path="SDK_PYTHON_FilterSideInputsIter"
-data-show="filter_side_inputs_iter"
->&lt;/div>
-&lt;/div>
-&lt;div
-class="code-snippet code-snippet-playground"
-data-src="https://play.beam.apache.org/embedded?editable=1&amp;examples=%5b%7b%22path%22%3a%22SDK_PYTHON_FilterSideInputsIter%22%2c%22sdk%22%3a%22python%22%2c%22show%22%3a%22filter_side_inputs_iter%22%7d%5d"
-data-width="100%"
-data-height="700px"
->&lt;/div>
-&lt;/div>
-&lt;blockquote>
-&lt;p>&lt;strong>Note&lt;/strong>: You can pass the &lt;code>PCollection&lt;/code> as a &lt;em>list&lt;/em> with &lt;code>beam.pvalue.AsList(pcollection)&lt;/code>,
-but this requires that all the elements fit into memory.&lt;/p>
-&lt;/blockquote>
-&lt;h3 id="example-6-filtering-with-side-inputs-as-dictionaries">Example 6: Filtering with side inputs as dictionaries&lt;/h3>
-&lt;p>If a &lt;code>PCollection&lt;/code> is small enough to fit into memory, then that &lt;code>PCollection&lt;/code> can be passed as a &lt;em>dictionary&lt;/em>.
-Each element must be a &lt;code>(key, value)&lt;/code> pair.
-Note that all the elements of the &lt;code>PCollection&lt;/code> must fit into memory for this.
-If the &lt;code>PCollection&lt;/code> won&amp;rsquo;t fit into memory, use &lt;code>beam.pvalue.AsIter(pcollection)&lt;/code> instead.&lt;/p>
-&lt;div class="playground-wrapper">
-&lt;div class="playground-snippets">
-&lt;div
-class="language-py playground-snippet"
-data-sdk="python"
-data-path="SDK_PYTHON_FilterSideInputsDict"
-data-show="filter_side_inputs_dict"
->&lt;/div>
-&lt;/div>
-&lt;div
-class="code-snippet code-snippet-playground"
-data-src="https://play.beam.apache.org/embedded?editable=1&amp;examples=%5b%7b%22path%22%3a%22SDK_PYTHON_FilterSideInputsDict%22%2c%22sdk%22%3a%22python%22%2c%22show%22%3a%22filter_side_inputs_dict%22%7d%5d"
-data-width="100%"
-data-height="700px"
->&lt;/div>
-&lt;/div>
-&lt;h2 id="related-transforms">Related transforms&lt;/h2>
-&lt;ul>
-&lt;li>&lt;a href="/documentation/transforms/python/elementwise/flatmap">FlatMap&lt;/a> behaves the same as &lt;code>Map&lt;/code>, but for
-each input it might produce zero or more outputs.&lt;/li>
-&lt;li>&lt;a href="/documentation/transforms/python/elementwise/pardo">ParDo&lt;/a> is the most general elementwise mapping
-operation, and includes other abilities such as multiple output collections and side-inputs.&lt;/li>
-&lt;/ul>
-&lt;table align="left" style="margin-right:1em">
-&lt;td>
-&lt;a
-class="button"
-target="_blank"
-href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Filter"
->&lt;img
-src="https://beam.apache.org/images/logos/sdks/python.png"
-width="32px"
-height="32px"
-alt="Pydoc"
-/>
-Pydoc&lt;/a
->
-&lt;/td>
-&lt;/table>
-&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p></description></item></channel></rss>
+&lt;/ul></description></item></channel></rss>
