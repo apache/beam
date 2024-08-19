@@ -216,7 +216,7 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
       RunJobResponse runJobResponse = jobService.run(runJobRequest);
 
       LOG.info("RunJobResponse: {}", runJobResponse);
-      ByteString jobId = runJobResponse.getJobIdBytes();
+      String jobId = runJobResponse.getJobId();
 
       return new JobServicePipelineResult(
           jobId, jobServerTimeout, wrappedJobService.transfer(), cleanup);
