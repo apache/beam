@@ -169,9 +169,9 @@ class MultiProcessSharedTest(unittest.TestCase):
 
   def test_unsafe_hard_delete(self):
     shared1 = multi_process_shared.MultiProcessShared(
-        Counter, tag='test_release', always_proxy=True)
+        Counter, tag='test_unsafe_hard_delete', always_proxy=True)
     shared2 = multi_process_shared.MultiProcessShared(
-        Counter, tag='test_release', always_proxy=True)
+        Counter, tag='test_unsafe_hard_delete', always_proxy=True)
 
     counter1 = shared1.acquire()
     counter2 = shared2.acquire()
@@ -179,7 +179,7 @@ class MultiProcessSharedTest(unittest.TestCase):
     self.assertEqual(counter2.increment(), 2)
 
     multi_process_shared.MultiProcessShared(
-        Counter, tag='test_release').unsafe_hard_delete()
+        Counter, tag='test_unsafe_hard_delete').unsafe_hard_delete()
 
     with self.assertRaises(Exception):
       counter1.get()
@@ -187,11 +187,28 @@ class MultiProcessSharedTest(unittest.TestCase):
       counter2.get()
 
     shared3 = multi_process_shared.MultiProcessShared(
-        Counter, tag='test_release', always_proxy=True)
+        Counter, tag='test_unsafe_hard_delete', always_proxy=True)
 
     counter3 = shared3.acquire()
 
     self.assertEqual(counter3.increment(), 1)
+
+  def test_unsafe_hard_delete_no_op(self):
+    shared1 = multi_process_shared.MultiProcessShared(
+        Counter, tag='test_unsafe_hard_delete_no_op', always_proxy=True)
+    shared2 = multi_process_shared.MultiProcessShared(
+        Counter, tag='test_unsafe_hard_delete_no_op', always_proxy=True)
+
+    counter1 = shared1.acquire()
+    counter2 = shared2.acquire()
+    self.assertEqual(counter1.increment(), 1)
+    self.assertEqual(counter2.increment(), 2)
+
+    multi_process_shared.MultiProcessShared(
+        Counter, tag='no_tag_to_delete').unsafe_hard_delete()
+
+    self.assertEqual(counter1.increment(), 3)
+    self.assertEqual(counter2.increment(), 4)
 
   def test_release_always_proxy(self):
     shared1 = multi_process_shared.MultiProcessShared(
