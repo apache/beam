@@ -55,6 +55,8 @@ class FakeSql(beam.PTransform):
 
     def guess_name_and_type(expr):
       expr = expr.strip().replace('`', '')
+      if expr.endswith('*'):
+        return 'unknown', str
       parts = expr.split()
       if len(parts) >= 2 and parts[-2].lower() == 'as':
         name = parts[-1]
@@ -87,7 +89,7 @@ class FakeSql(beam.PTransform):
       return name, typ
 
     if m.group(1) == '*':
-      return inputs['PCOLLECTION'] | beam.Filter(lambda _: True)
+      return next(iter(inputs.values())) | beam.Filter(lambda _: True)
     else:
       output_schema = [
           guess_name_and_type(expr) for expr in m.group(1).split(',')
@@ -269,6 +271,22 @@ def create_test_method(test_type, test_name, test_yaml):
 
 def parse_test_methods(markdown_lines):
   # pylint: disable=too-many-nested-blocks
+
+  def extract_inputs(input_spec):
+    if not input_spec:
+      return set()
+    elif isinstance(input_spec, str):
+      return set([input_spec.split('.')[0]])
+    elif isinstance(input_spec, list):
+      return set.union(*[extract_inputs(v) for v in input_spec])
+    elif isinstance(input_spec, dict):
+      return set.union(*[extract_inputs(v) for v in input_spec.values()])
+    else:
+      raise ValueError("Misformed inputs: " + input_spec)
+
+  def extract_name(input_spec):
+    return input_spec.get('name', input_spec.get('type'))
+
   code_lines = None
   for ix, line in enumerate(markdown_lines):
     line = line.rstrip()
@@ -280,17 +298,23 @@ def parse_test_methods(markdown_lines):
       else:
         if code_lines:
           if code_lines[0].startswith('- type:'):
-            is_chain = not any('input:' in line for line in code_lines)
+            specs = yaml.load('\n'.join(code_lines), Loader=SafeLoader)
+            is_chain = not any('input' in spec for spec in specs)
+            if is_chain:
+              undefined_inputs = set(['input'])
+            else:
+              undefined_inputs = set.union(
+                  *[extract_inputs(spec.get('input')) for spec in specs]) - set(
+                      extract_name(spec) for spec in specs)
             # Treat this as a fragment of a larger pipeline.
             # pylint: disable=not-an-iterable
             code_lines = [
                 'pipeline:',
                 '  type: chain' if is_chain else '',
                 '  transforms:',
-                '    - type: ReadFromCsv',
-                '      name: input',
-                '      config:',
-                '        path: whatever',
+            ] + [
+                '    - {type: ReadFromCsv, name: "%s", config: {path: x}}' %
+                undefined_input for undefined_input in undefined_inputs
             ] + ['    ' + line for line in code_lines]
           if code_lines[0] == 'pipeline:':
             yaml_pipeline = '\n'.join(code_lines)
@@ -328,6 +352,9 @@ CombineTest = createTestSuite(
 
 InlinePythonTest = createTestSuite(
     'InlinePythonTest', os.path.join(YAML_DOCS_DIR, 'yaml-inline-python.md'))
+
+JoinTest = createTestSuite(
+    'JoinTest', os.path.join(YAML_DOCS_DIR, 'yaml-join.md'))
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()

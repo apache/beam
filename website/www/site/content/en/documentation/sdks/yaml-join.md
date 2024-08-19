@@ -48,7 +48,7 @@ inputs, one can use the following  shorthand syntax:
     input2: Second Input
     input3: Third Input
   config:
-    equalities: col
+    equalities: col1
 ```
 
 ## Join Types
