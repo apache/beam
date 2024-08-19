@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io.clickhouse;
 
-import com.clickhouse.client.ClickHouseFormat;
 import com.clickhouse.client.ClickHouseRequest;
+import com.clickhouse.data.ClickHouseFormat;
 import com.clickhouse.jdbc.ClickHouseConnection;
 import com.clickhouse.jdbc.ClickHouseDataSource;
 import com.clickhouse.jdbc.ClickHouseStatement;
@@ -439,7 +439,7 @@ public class ClickHouseIO {
                       ClickHouseWriter.writeRow(out, schema(), row);
                     }
                   })
-              .sendAndWait(); // query happens in a separate thread
+              .executeAndWait(); // query happens in a separate thread
           buffer.clear();
           break;
         } catch (SQLException e) {

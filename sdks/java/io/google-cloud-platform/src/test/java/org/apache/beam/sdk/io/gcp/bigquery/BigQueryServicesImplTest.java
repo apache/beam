@@ -45,7 +45,7 @@ import com.google.api.client.http.HttpResponseException;
 import com.google.api.client.http.LowLevelHttpResponse;
 import com.google.api.client.json.GenericJson;
 import com.google.api.client.json.Json;
-import com.google.api.client.json.jackson2.JacksonFactory;
+import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.client.testing.http.MockHttpTransport;
 import com.google.api.client.testing.http.MockLowLevelHttpRequest;
 import com.google.api.client.testing.util.MockSleeper;
@@ -1597,12 +1597,12 @@ public class BigQueryServicesImplTest {
   /** A helper to convert a string response back to a {@link GenericJson} subclass. */
   private static <T extends GenericJson> T fromString(String content, Class<T> clazz)
       throws IOException {
-    return JacksonFactory.getDefaultInstance().fromString(content, clazz);
+    return GsonFactory.getDefaultInstance().fromString(content, clazz);
   }
 
   /** A helper to wrap a {@link GenericJson} object in a content stream. */
   private static InputStream toStream(GenericJson content) throws IOException {
-    return new ByteArrayInputStream(JacksonFactory.getDefaultInstance().toByteArray(content));
+    return new ByteArrayInputStream(GsonFactory.getDefaultInstance().toByteArray(content));
   }
 
   /** A helper that generates the error JSON payload that Google APIs produce. */
