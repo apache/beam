@@ -23,7 +23,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
-
 import org.apache.beam.model.jobmanagement.v1.JobApi;
 import org.apache.beam.model.jobmanagement.v1.JobApi.CancelJobRequest;
 import org.apache.beam.model.jobmanagement.v1.JobApi.CancelJobResponse;
@@ -48,19 +47,14 @@ class JobServicePipelineResult implements PipelineResult, AutoCloseable {
   private static final Logger LOG = LoggerFactory.getLogger(JobServicePipelineResult.class);
 
   private final String jobId;
-  private final int jobServerTimeout;
-  private final CloseableResource<JobServiceBlockingStub> jobService;
+  private final JobServiceBlockingStub jobService;
   private final AtomicReference<State> latestState = new AtomicReference<>(State.UNKNOWN);
   private final @Nullable Runnable cleanup;
-  private final AtomicReference<PortableMetrics> jobMetrics = new AtomicReference<>(PortableMetrics.of(JobApi.MetricResults.getDefaultInstance()));
+  private final AtomicReference<PortableMetrics> jobMetrics =
+      new AtomicReference<>(PortableMetrics.of(JobApi.MetricResults.getDefaultInstance()));
 
-  JobServicePipelineResult(
-      String jobId,
-      int jobServerTimeout,
-      CloseableResource<JobServiceBlockingStub> jobService,
-      Runnable cleanup) {
+  JobServicePipelineResult(String jobId, JobServiceBlockingStub jobService, Runnable cleanup) {
     this.jobId = jobId;
-    this.jobServerTimeout = jobServerTimeout;
     this.jobService = jobService;
     this.cleanup = cleanup;
   }
@@ -70,18 +64,15 @@ class JobServicePipelineResult implements PipelineResult, AutoCloseable {
     if (latestState.get().isTerminal()) {
       return latestState.get();
     }
-    JobServiceBlockingStub stub =
-        jobService.get().withDeadlineAfter(jobServerTimeout, TimeUnit.SECONDS);
     JobStateEvent response =
-        stub.getState(GetJobStateRequest.newBuilder().setJobId(jobId).build());
+        jobService.getState(GetJobStateRequest.newBuilder().setJobId(jobId).build());
     return getJavaState(response.getState());
   }
 
   @Override
   public State cancel() {
-    JobServiceBlockingStub stub = jobService.get();
     CancelJobResponse response =
-        stub.cancel(CancelJobRequest.newBuilder().setJobId(jobId).build());
+        jobService.cancel(CancelJobRequest.newBuilder().setJobId(jobId).build());
     return getJavaState(response.getState());
   }
 
@@ -128,24 +119,18 @@ class JobServicePipelineResult implements PipelineResult, AutoCloseable {
 
   @Override
   public void close() {
-    try (CloseableResource<JobServiceBlockingStub> jobService = this.jobService) {
-      JobApi.GetJobMetricsRequest metricsRequest =
-          JobApi.GetJobMetricsRequest.newBuilder().setJobId(jobId).build();
-      JobApi.MetricResults results = jobService.get().getJobMetrics(metricsRequest).getMetrics();
-      jobMetrics.set(PortableMetrics.of(results));
-      if (cleanup != null) {
-        cleanup.run();
-      }
-    } catch (Exception e) {
-      LOG.warn("Error cleaning up job service", e);
+    JobApi.GetJobMetricsRequest metricsRequest =
+        JobApi.GetJobMetricsRequest.newBuilder().setJobId(jobId).build();
+    JobApi.MetricResults results = jobService.getJobMetrics(metricsRequest).getMetrics();
+    jobMetrics.set(PortableMetrics.of(results));
+    if (cleanup != null) {
+      cleanup.run();
     }
   }
 
   private void waitForTerminalState() {
-    JobServiceBlockingStub stub =
-        jobService.get().withDeadlineAfter(jobServerTimeout, TimeUnit.SECONDS);
     GetJobStateRequest request = GetJobStateRequest.newBuilder().setJobId(jobId).build();
-    JobStateEvent response = stub.getState(request);
+    JobStateEvent response = jobService.getState(request);
     State lastState = getJavaState(response.getState());
     while (!lastState.isTerminal()) {
       try {
@@ -154,7 +139,7 @@ class JobServicePipelineResult implements PipelineResult, AutoCloseable {
         Thread.currentThread().interrupt();
         throw new RuntimeException(e);
       }
-      response = stub.withDeadlineAfter(jobServerTimeout, TimeUnit.SECONDS).getState(request);
+      response = jobService.getState(request);
       lastState = getJavaState(response.getState());
     }
     latestState.set(lastState);
@@ -165,10 +150,7 @@ class JobServicePipelineResult implements PipelineResult, AutoCloseable {
       JobMessagesRequest messageStreamRequest =
           JobMessagesRequest.newBuilder().setJobId(jobId).build();
       Iterator<JobMessagesResponse> messageStreamIterator =
-          jobService
-              .get()
-              .withDeadlineAfter(jobServerTimeout, TimeUnit.SECONDS)
-              .getMessageStream(messageStreamRequest);
+          jobService.getMessageStream(messageStreamRequest);
       while (messageStreamIterator.hasNext()) {
         JobMessage messageResponse = messageStreamIterator.next().getMessageResponse();
         if (messageResponse.getImportance() == JobMessage.MessageImportance.JOB_MESSAGE_ERROR) {
