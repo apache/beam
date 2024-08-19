@@ -18,7 +18,7 @@ limitations under the License.
 
 # Cache data using a shared object
 
-A cache is a software component that stores data so that future requests for that data can be served faster. To access a cache, you can use side inputs, stateful `DoFn`, and calling an external service. The Python SDK provides another option in the shared module. This option can be more memory-efficient than side inputs, simpler than a stateful `DoFn`, and more performant than calling an external service because it does not have to access an external service for every element or bundle of elements. See [this session](https://2022.beamsummit.org/sessions/strategies-for-caching-data-in-dataflow-using-beam-sdk/) at the Beam Summit 2022 for more details about strategies for caching data using Beam SDK.
+A cache is a software component that stores data so that future requests for that data can be served faster. To access a cache, you can use side inputs, stateful `DoFn`, and calls to an external service. The Python SDK provides another option in the shared module. This option can be more memory-efficient than side inputs, simpler than a stateful `DoFn`, and more performant than calling an external service, because it does not have to access an external service for every element or bundle of elements. For more details about strategies for caching data using Beam SDK, see the session [Strategies for caching data in Dataflow using Beam SDK](https://2022.beamsummit.org/sessions/strategies-for-caching-data-in-dataflow-using-beam-sdk/) from the 2022 Beam Summit.
 
 The examples on this page demonstrate how to use the `Shared` class of the [`shared module`](https://beam.apache.org/releases/pydoc/current/apache_beam.utils.shared.html) to enrich elements in both bounded and unbounded `PCollection` objects. Two data sets are used in the samples: _order_ and _customer_. The order records include customer IDs that customer attributes are added to by mapping the customer records.
 
@@ -51,7 +51,7 @@ class EnrichOrderFn(beam.DoFn):
 
 ## Create a cache and update it regularly on a streaming pipeline
 
-The customer cache is assumed to change over time, and it should be refreshed periodically. Note that, to reload the shared object, you must change the `tag` argument of the `acquire` method. In this example, the refresh is implemented in the `start_bundle` method where it compares the current tag value to the value that is associated with the existing shared object. The `set_tag` method returns a tag value that is the same within the maximum seconds of staleness. Therefore, if a tag value is greater than the existing tag value, it triggers to refresh the customer cache.
+Because the customer cache is assumed to change over time, you need to refresh it periodically. To reload the shared object, change the `tag` argument of the `acquire` method. In this example, the refresh is implemented in the `start_bundle` method, where it compares the current tag value to the value that is associated with the existing shared object. The `set_tag` method returns a tag value that is the same within the maximum seconds of staleness. Therefore, if a tag value is greater than the existing tag value, it triggers a refresh of the customer cache.
 
 {{< highlight py >}}
 # The wrapper class is needed for a dictionary, because it does not support weak references.
