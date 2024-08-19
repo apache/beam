@@ -167,6 +167,32 @@ class MultiProcessSharedTest(unittest.TestCase):
     with self.assertRaisesRegex(Exception, 'released'):
       counter1.get()
 
+  def test_unsafe_hard_delete(self):
+    shared1 = multi_process_shared.MultiProcessShared(
+        Counter, tag='test_release', always_proxy=True)
+    shared2 = multi_process_shared.MultiProcessShared(
+        Counter, tag='test_release', always_proxy=True)
+
+    counter1 = shared1.acquire()
+    counter2 = shared2.acquire()
+    self.assertEqual(counter1.increment(), 1)
+    self.assertEqual(counter2.increment(), 2)
+
+    multi_process_shared.MultiProcessShared(
+        Counter, tag='test_release').unsafe_hard_delete()
+
+    with self.assertRaises(Exception):
+      counter1.get()
+    with self.assertRaises(Exception):
+      counter2.get()
+
+    shared3 = multi_process_shared.MultiProcessShared(
+        Counter, tag='test_release', always_proxy=True)
+
+    counter3 = shared3.acquire()
+
+    self.assertEqual(counter3.increment(), 1)
+
   def test_release_always_proxy(self):
     shared1 = multi_process_shared.MultiProcessShared(
         Counter, tag='test_release_always_proxy', always_proxy=True)
