@@ -33,8 +33,7 @@ public abstract class BigQueryRowsCheck extends ConditionCheck {
 
   abstract Integer minRows();
 
-  @Nullable
-  abstract Integer maxRows();
+  abstract @Nullable Integer maxRows();
 
   @Override
   public String getDescription() {

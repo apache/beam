@@ -38,8 +38,7 @@ public abstract class PubsubMessagesCheck extends ConditionCheck {
 
   abstract Integer minMessages();
 
-  @Nullable
-  abstract Integer maxMessages();
+  abstract @Nullable Integer maxMessages();
 
   private final List<ReceivedMessage> receivedMessageList = new ArrayList<>();
 

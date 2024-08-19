@@ -36,8 +36,7 @@ public abstract class Neo4jQueryCheck extends ConditionCheck {
 
   abstract String query();
 
-  @Nullable
-  abstract Map<String, Object> parameters();
+  abstract @Nullable Map<String, Object> parameters();
 
   @Override
   public String getDescription() {

@@ -28,13 +28,11 @@ public abstract class SplunkEventsCheck extends ConditionCheck {
 
   abstract SplunkResourceManager resourceManager();
 
-  @Nullable
-  abstract String query();
+  abstract @Nullable String query();
 
   abstract Integer minEvents();
 
-  @Nullable
-  abstract Integer maxEvents();
+  abstract @Nullable Integer maxEvents();
 
   @Override
   public String getDescription() {
