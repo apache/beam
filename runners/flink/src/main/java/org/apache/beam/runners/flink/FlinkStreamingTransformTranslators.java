@@ -946,56 +946,56 @@ class FlinkStreamingTransformTranslators {
 
       DataStream<WindowedValue<KV<K, InputT>>> inputDataStream = context.getInputDataStream(input);
 
-      WindowedValue.FullWindowedValueCoder<KV<K, byte[]>> windowedBinaryKVCoder =
-          WindowedValue.getFullCoder(
-              KvCoder.of(inputKvCoder.getKeyCoder(), ByteArrayCoder.of()),
-              input.getWindowingStrategy().getWindowFn().windowCoder());
+//      WindowedValue.FullWindowedValueCoder<KV<K, byte[]>> windowedBinaryKVCoder =
+//          WindowedValue.getFullCoder(
+//              KvCoder.of(inputKvCoder.getKeyCoder(), ByteArrayCoder.of()),
+//              input.getWindowingStrategy().getWindowFn().windowCoder());
 
-      WindowedValue.FullWindowedValueCoder<KeyedWorkItem<K, byte[]>> windowedKeyedWorkItemCoder =
+      WindowedValue.FullWindowedValueCoder<KeyedWorkItem<K, InputT>> windowedKeyedWorkItemCoder =
           WindowedValue.getFullCoder(
               KeyedWorkItemCoder.of(
                   inputKvCoder.getKeyCoder(),
-                  ByteArrayCoder.of(),
+                  inputKvCoder.getValueCoder(),
                   input.getWindowingStrategy().getWindowFn().windowCoder()),
               input.getWindowingStrategy().getWindowFn().windowCoder());
 
-      CoderTypeInformation<WindowedValue<KV<K, byte[]>>> binaryKVTypeInfo =
-          new CoderTypeInformation<>(windowedBinaryKVCoder, context.getPipelineOptions());
+//      CoderTypeInformation<WindowedValue<KV<K, byte[]>>> binaryKVTypeInfo =
+//          new CoderTypeInformation<>(windowedBinaryKVCoder, context.getPipelineOptions());
 
-      DataStream<WindowedValue<KV<K, byte[]>>> inputBinaryDataStream =
-          inputDataStream
-              .flatMap(new ToBinaryKV<>(context.getPipelineOptions(), inputKvCoder.getValueCoder()))
-              .returns(binaryKVTypeInfo)
-              .name("ToBinaryKV");
+//      DataStream<WindowedValue<KV<K, byte[]>>> inputBinaryDataStream =
+//          inputDataStream
+//              .flatMap(new ToBinaryKV<>(context.getPipelineOptions(), inputKvCoder.getValueCoder()))
+//              .returns(binaryKVTypeInfo)
+//              .name("ToBinaryKV");
 
-      KvToByteBufferKeySelector<K, byte[]> keySelector =
+      KvToByteBufferKeySelector<K, InputT> keySelector =
           new KvToByteBufferKeySelector<>(
               inputKvCoder.getKeyCoder(),
               new SerializablePipelineOptions(context.getPipelineOptions()));
 
-      KeyedStream<WindowedValue<KV<K, byte[]>>, ByteBuffer> keyedWorkItemStream =
-          inputBinaryDataStream.keyBy(keySelector);
+      KeyedStream<WindowedValue<KV<K, InputT>>, ByteBuffer> keyedWorkItemStream =
+              inputDataStream.keyBy(keySelector);
 
-      SystemReduceFn<K, byte[], Iterable<byte[]>, Iterable<byte[]>, BoundedWindow> reduceFn =
-          SystemReduceFn.buffering(ByteArrayCoder.of());
+      SystemReduceFn<K, InputT, Iterable<InputT>, Iterable<InputT>, BoundedWindow> reduceFn =
+          SystemReduceFn.buffering(inputKvCoder.getValueCoder());
 
-      Coder<WindowedValue<KV<K, Iterable<byte[]>>>> outputCoder =
+      Coder<WindowedValue<KV<K, Iterable<InputT>>>> outputCoder =
           WindowedValue.getFullCoder(
-              KvCoder.of(inputKvCoder.getKeyCoder(), IterableCoder.of(ByteArrayCoder.of())),
+              KvCoder.of(inputKvCoder.getKeyCoder(), IterableCoder.of(inputKvCoder.getValueCoder())),
               windowingStrategy.getWindowFn().windowCoder());
 
-      TypeInformation<WindowedValue<KV<K, Iterable<byte[]>>>> outputTypeInfo =
+      TypeInformation<WindowedValue<KV<K, Iterable<InputT>>>> outputTypeInfo =
           new CoderTypeInformation<>(outputCoder, context.getPipelineOptions());
 
-      TupleTag<KV<K, Iterable<byte[]>>> mainTag = new TupleTag<>("main output");
+      TupleTag<KV<K, Iterable<InputT>>> mainTag = new TupleTag<>("main output");
 
-      WorkItemKeySelector<K, byte[]> workItemKeySelector =
-          new WorkItemKeySelector<K, byte[]>(
+      WorkItemKeySelector<K, InputT> workItemKeySelector =
+          new WorkItemKeySelector<>(
               inputKvCoder.getKeyCoder(),
               new SerializablePipelineOptions(context.getPipelineOptions()));
 
       String fullName = getCurrentTransformName(context);
-      WindowDoFnOperator<K, byte[], Iterable<byte[]>> doFnOperator =
+      WindowDoFnOperator<K, InputT, Iterable<InputT>> doFnOperator =
           new WindowDoFnOperator<>(
               reduceFn,
               fullName,
@@ -1016,12 +1016,12 @@ class FlinkStreamingTransformTranslators {
       final SingleOutputStreamOperator<WindowedValue<KV<K, Iterable<InputT>>>> outDataStream =
           keyedWorkItemStream
               .transform(fullName, outputTypeInfo, doFnOperator)
-              .uid(fullName)
-              .flatMap(
-                  new ToGroupByKeyResult<>(
-                      context.getPipelineOptions(), inputKvCoder.getValueCoder()))
-              .returns(context.getTypeInfo(context.getOutput(transform)))
-              .name("ToGBKResult");
+              .uid(fullName);
+//              .flatMap(
+//                  new ToGroupByKeyResult<>(
+//                      context.getPipelineOptions(), inputKvCoder.getValueCoder()))
+//              .returns(context.getTypeInfo(context.getOutput(transform)))
+//              .name("ToGBKResult");
 
       context.setOutputDataStream(context.getOutput(transform), outDataStream);
     }
