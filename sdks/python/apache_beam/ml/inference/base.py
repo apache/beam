@@ -38,6 +38,7 @@ from collections import OrderedDict
 from collections import defaultdict
 from copy import deepcopy
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -1283,13 +1284,26 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
             **resource_hints)
 
     if self._with_exception_handling:
+      # On timeouts, report back to the central model metadata
+      # that the model is invalid
+      model_tag = self._model_tag
+      share_across_processes = self._model_handler.share_model_across_processes(
+      )
+
+      def failure_callback(exception: Exception, element: Any):
+        if type(exception) is not TimeoutError:
+          return
+        model_metadata = load_model_metadata(model_tag, share_across_processes)
+        model_metadata.try_mark_current_model_invalid()
+        logging.warning("Operation timed out, etc…….")
       results, bad_inference = (
           batched_elements_pcoll
           | 'BeamML_RunInference' >>
           run_inference_pardo.with_exception_handling(
           exc_class=self._exc_class,
           use_subprocess=self._use_subprocess,
-          threshold=self._threshold))
+          threshold=self._threshold,
+          on_failure_callback=failure_callback))
     else:
       results = (
           batched_elements_pcoll
@@ -1445,6 +1459,91 @@ class _ModelRoutingStrategy():
     return self._cur_index
 
 
+class _ModelMetadata():
+  """A class holding any metadata about a model required by RunInference.
+  
+    Currently, this only includes whether or not the model is valid. Uses the
+    model tag to map models to metadata.
+  """
+  def __init__(self):
+    self._active_tags = set()
+    self._invalid_tags = set()
+    self._tag_mapping = {}
+    self._model_first_seen = {}
+    self._pending_hard_delete = []
+
+  def try_mark_current_model_invalid(self, min_model_life_seconds):
+    """Mark the current model invalid.
+    
+      Since we don't have sufficient information to say which model is being
+      marked invalid, but there may be multiple active models, we will mark all
+      models currently in use as inactive so that they all get reloaded. To
+      avoid thrashing, however, we will only mark models as invalid if they've
+      been active at least min_model_life_seconds seconds.
+    """
+    cutoff_time = datetime.now() - timedelta(seconds=min_model_life_seconds)
+    for tag in self._active_tags:
+      if cutoff_time > self._model_first_seen[tag]:
+        self._invalid_tags.add(tag)
+        # Delete old models after a grace period of 2 * the model life
+        self._pending_hard_delete.append((
+            tag,
+            datetime.now() + 2 * timedelta(seconds=min_model_life_seconds)))
+        self._active_tags.remove(tag)
+
+  def get_valid_tag(self, tag: str) -> str:
+    """Takes in a proposed valid tag and returns a valid one.
+    
+      Will always return a valid tag. If the passed in tag is valid, this
+      function will simply return it, otherwise it will deterministically
+      generate a new tag to use instead. The new tag will be the original tag
+      with an incrementing suffix (e.g. `my_tag_1`, `my_tag_2`) for each reload
+    """
+    self._garbage_collect()
+    if tag not in self._invalid_tags:
+      if tag not in self._model_first_seen:
+        self._model_first_seen[tag] = datetime.now()
+      return tag
+    if (tag in self._tag_mapping and
+        self._tag_mapping[tag] not in self._invalid_tags):
+      return self._tag_mapping[tag]
+    i = 1
+    new_tag = f'{tag}_reload_{i}'
+    while new_tag in self._invalid_tags:
+      i += 1
+      new_tag = f'{tag}_{i}'
+    self._tag_mapping[tag] = new_tag
+    self._model_first_seen[new_tag] = datetime.now()
+    return new_tag
+
+  def is_valid_tag(self, tag: str) -> bool:
+    return tag == self.get_valid_tag(tag)
+
+  def _garbage_collect(self):
+    cur_time = datetime.now()
+    while len(self._pending_hard_delete) > 0:
+      delete_time = self._pending_hard_delete[0][1]
+      if delete_time < cur_time:
+        # TODO(https://github.com/apache/beam/issues/32137)
+        # add garbage collection. Should be something like:
+        # tag = self._pending_hard_delete[0][0]
+        # multi_process_shared.MultiProcessShared(
+        #   lambda: None,
+        #   tag
+        #   ).unsafe_hard_delete()
+        self._pending_hard_delete.pop(0)
+      else:
+        return
+
+
+def load_model_metadata(
+    tag: str, share_across_processes: bool) -> _ModelMetadata:
+  if share_across_processes:
+    return multi_process_shared.MultiProcessShared(
+        lambda: _ModelMetadata(), tag=tag, always_proxy=True).acquire()
+  return shared.Shared().acquire(lambda: _ModelMetadata(), tag=tag)
+
+
 class _SharedModelWrapper():
   """A router class to map incoming calls to the correct model.
   
@@ -1496,7 +1595,10 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     self._metrics_namespace = metrics_namespace
     self._enable_side_input_loading = enable_side_input_loading
     self._side_input_path = None
+    # _model_tag is the original tag passed in.
+    # _cur_tag is the tag of the actually loaded model
     self._model_tag = model_tag
+    self._cur_tag = model_tag
 
   def _load_model(
       self,
@@ -1529,16 +1631,18 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     model_tag = self._model_tag
     if isinstance(side_input_model_path, str) and side_input_model_path != '':
       model_tag = side_input_model_path
+    # Ensure the tag we're loading is valid, if not replace it with a valid tag
+    self._cur_tag = self._model_metadata.get_valid_tag(model_tag)
     if self._model_handler.share_model_across_processes():
       models = []
       for i in range(self._model_handler.model_copies()):
         models.append(
             multi_process_shared.MultiProcessShared(
-                load, tag=f'{model_tag}{i}', always_proxy=True).acquire())
-      model_wrapper = _SharedModelWrapper(models, model_tag)
+                load, tag=f'{self._cur_tag}{i}', always_proxy=True).acquire())
+      model_wrapper = _SharedModelWrapper(models, self._cur_tag)
     else:
-      model = self._shared_model_handle.acquire(load, tag=model_tag)
-      model_wrapper = _SharedModelWrapper([model], model_tag)
+      model = self._shared_model_handle.acquire(load, tag=self._cur_tag)
+      model_wrapper = _SharedModelWrapper([model], self._cur_tag)
     # since shared_model_handle is shared across threads, the model path
     # might not get updated in the model handler
     # because we directly get cached weak ref model from shared cache, instead
@@ -1568,6 +1672,8 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
   def setup(self):
     self._metrics_collector = self.get_metrics_collector()
     self._model_handler.set_environment_vars()
+    self._model_metadata = load_model_metadata(
+        self._model_tag, self._model_handler.share_model_across_processes())
     if not self._enable_side_input_loading:
       self._model = self._load_model()
 
@@ -1622,6 +1728,8 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       simply runs inference on the batch of data.
     """
     if not si_model_metadata:
+      if not self._model_metadata.is_valid_tag(self._cur_tag):
+        self.update_model(side_input_model_path=None)
       return self._run_inference(batch, inference_args)
 
     if isinstance(si_model_metadata, beam.pvalue.EmptySideInput):
