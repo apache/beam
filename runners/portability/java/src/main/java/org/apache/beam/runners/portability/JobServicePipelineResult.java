@@ -52,7 +52,7 @@ class JobServicePipelineResult implements PipelineResult, AutoCloseable {
   private final CloseableResource<JobServiceBlockingStub> jobService;
   private final AtomicReference<State> latestState = new AtomicReference<>(State.UNKNOWN);
   private final @Nullable Runnable cleanup;
-  private org.apache.beam.model.jobmanagement.v1.JobApi.MetricResults jobMetrics;
+  private final AtomicReference<PortableMetrics> jobMetrics = new AtomicReference<>(PortableMetrics.of(JobApi.MetricResults.getDefaultInstance()));
 
   JobServicePipelineResult(
       String jobId,
@@ -123,7 +123,7 @@ class JobServicePipelineResult implements PipelineResult, AutoCloseable {
 
   @Override
   public MetricResults metrics() {
-    return PortableMetrics.of(jobMetrics);
+    return jobMetrics.get();
   }
 
   @Override
@@ -131,7 +131,8 @@ class JobServicePipelineResult implements PipelineResult, AutoCloseable {
     try (CloseableResource<JobServiceBlockingStub> jobService = this.jobService) {
       JobApi.GetJobMetricsRequest metricsRequest =
           JobApi.GetJobMetricsRequest.newBuilder().setJobId(jobId).build();
-      jobMetrics = jobService.get().getJobMetrics(metricsRequest).getMetrics();
+      JobApi.MetricResults results = jobService.get().getJobMetrics(metricsRequest).getMetrics();
+      jobMetrics.set(PortableMetrics.of(results));
       if (cleanup != null) {
         cleanup.run();
       }
