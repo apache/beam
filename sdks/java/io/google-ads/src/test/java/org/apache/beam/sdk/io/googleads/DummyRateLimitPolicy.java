@@ -17,18 +17,19 @@
  */
 package org.apache.beam.sdk.io.googleads;
 
-import com.google.ads.googleads.v14.errors.GoogleAdsError;
+import com.google.ads.googleads.v17.errors.GoogleAdsError;
 import com.google.protobuf.Message;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
-public class DummyRateLimitPolicy implements GoogleAdsV14.RateLimitPolicy {
+public class DummyRateLimitPolicy implements GoogleAdsV17.RateLimitPolicy {
   @Override
-  public void onBeforeRequest(String developerToken, String customerId, Message request)
+  public void onBeforeRequest(@Nullable String developerToken, String customerId, Message request)
       throws InterruptedException {}
 
   @Override
-  public void onSuccess(String developerToken, String customerId, Message request) {}
+  public void onSuccess(@Nullable String developerToken, String customerId, Message request) {}
 
   @Override
   public void onError(
-      String developerToken, String customerId, Message request, GoogleAdsError error) {}
+      @Nullable String developerToken, String customerId, Message request, GoogleAdsError error) {}
 }
