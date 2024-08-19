@@ -39,7 +39,7 @@ shadowJar {
     zip64 true
 
     // need to shade "com.google.guava" to avoid Guava conflict
-    relocate 'com.google.guava', getJavaRelocatedPath('beam.bqms.com.google.guava')
+    relocate 'com.google.guava', getJavaRelocatedPath('iceberg.bqms.com.google.guava')
 
     mergeServiceFiles()
 
