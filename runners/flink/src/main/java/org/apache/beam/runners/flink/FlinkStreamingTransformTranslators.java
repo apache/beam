@@ -39,6 +39,7 @@ import org.apache.beam.runners.flink.translation.functions.ImpulseSourceFunction
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.DoFnOperator;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.KvToByteBufferKeySelector;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.PartialReduceBundleOperator;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.ProcessingTimeCallbackCompat;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.SingletonKeyedWorkItem;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.SingletonKeyedWorkItemCoder;
@@ -1051,82 +1052,6 @@ class FlinkStreamingTransformTranslators {
           || ((Combine.PerKey) transform).getSideInputs().isEmpty();
     }
 
-    private static <InputT, OutputT>
-        GlobalCombineFn<? super InputT, Object, Object> toPartialFlinkCombineFn(
-            GlobalCombineFn<? super InputT, ?, OutputT> combineFn) {
-
-      if (combineFn instanceof Combine.CombineFn) {
-        return new Combine.CombineFn<InputT, Object, Object>() {
-
-          @SuppressWarnings("unchecked")
-          final Combine.CombineFn<InputT, Object, OutputT> fn =
-              (Combine.CombineFn<InputT, Object, OutputT>) combineFn;
-
-          @Override
-          public Object createAccumulator() {
-            return fn.createAccumulator();
-          }
-
-          @Override
-          public Coder<Object> getAccumulatorCoder(CoderRegistry registry, Coder<InputT> inputCoder)
-              throws CannotProvideCoderException {
-            return fn.getAccumulatorCoder(registry, inputCoder);
-          }
-
-          @Override
-          public Object addInput(Object mutableAccumulator, InputT input) {
-            return fn.addInput(mutableAccumulator, input);
-          }
-
-          @Override
-          public Object mergeAccumulators(Iterable<Object> accumulators) {
-            return fn.mergeAccumulators(accumulators);
-          }
-
-          @Override
-          public Object extractOutput(Object accumulator) {
-            return accumulator;
-          }
-        };
-      } else if (combineFn instanceof CombineWithContext.CombineFnWithContext) {
-        return new CombineWithContext.CombineFnWithContext<InputT, Object, Object>() {
-          @SuppressWarnings("unchecked")
-          final CombineWithContext.CombineFnWithContext<InputT, Object, OutputT> fn =
-              (CombineWithContext.CombineFnWithContext<InputT, Object, OutputT>) combineFn;
-
-          @Override
-          public Object createAccumulator(CombineWithContext.Context c) {
-            return fn.createAccumulator(c);
-          }
-
-          @Override
-          public Coder<Object> getAccumulatorCoder(CoderRegistry registry, Coder<InputT> inputCoder)
-              throws CannotProvideCoderException {
-            return fn.getAccumulatorCoder(registry, inputCoder);
-          }
-
-          @Override
-          public Object addInput(Object accumulator, InputT input, CombineWithContext.Context c) {
-            return fn.addInput(accumulator, input, c);
-          }
-
-          @Override
-          public Object mergeAccumulators(
-              Iterable<Object> accumulators, CombineWithContext.Context c) {
-            return fn.mergeAccumulators(accumulators, c);
-          }
-
-          @Override
-          public Object extractOutput(Object accumulator, CombineWithContext.Context c) {
-            return accumulator;
-          }
-        };
-      }
-
-      throw new IllegalArgumentException(
-          "Unsupported CombineFn implementation: " + combineFn.getClass());
-    }
-
     private static <InputT, OutputT> GlobalCombineFn<Object, Object, OutputT> toFinalFlinkCombineFn(
         GlobalCombineFn<? super InputT, ?, OutputT> combineFn, Coder<InputT> inputTCoder) {
 
@@ -1316,16 +1241,23 @@ class FlinkStreamingTransformTranslators {
             throw new RuntimeException(e);
           }
 
-          // Pre-aggregate inputs before shuffle. Will output instances of combineFn's AccumT
-          WindowDoFnOperator<K, InputT, Object> partialDoFnOperator =
-              getDoFnOperator(
-                  context,
-                  transform,
-                  inputKvCoder,
-                  windowedAccumCoder,
-                  toPartialFlinkCombineFn(combineFn),
-                  new HashMap<>(),
-                  Collections.emptyList());
+
+          TupleTag<KV<K, Object>> mainTag = new TupleTag<>("main output");
+
+          PartialReduceBundleOperator<K, InputT, OutputT, Object> partialDoFnOperator =
+                new PartialReduceBundleOperator<>(
+                    (GlobalCombineFn<InputT, Object, OutputT>) combineFn,
+                    getCurrentTransformName(context),
+                    context.getWindowedInputCoder(input),
+                    mainTag,
+                    Collections.emptyList(),
+                    new DoFnOperator.MultiOutputOutputManagerFactory<>(
+                        mainTag, windowedAccumCoder, serializablePipelineOptions),
+                    input.getWindowingStrategy(),
+                    new HashMap<>(),
+                    Collections.emptyList(),
+                    context.getPipelineOptions()
+                );
 
           // final aggregation from AccumT to OutputT
           WindowDoFnOperator<K, Object, OutputT> finalDoFnOperator =
