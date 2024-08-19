@@ -1169,6 +1169,8 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
     self._metrics_namespace = metrics_namespace
     self._model_metadata_pcoll = model_metadata_pcoll
     self._with_exception_handling = False
+    self._exception_handling_timeout = None
+    self._timeout = None
     self._watch_model_pattern = watch_model_pattern
     self._kwargs = kwargs
     # Generate a random tag to use for shared.py and multi_process_shared.py to
@@ -1231,7 +1233,8 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
           fn).with_exception_handling(
           exc_class=self._exc_class,
           use_subprocess=self._use_subprocess,
-          threshold=self._threshold))
+          threshold=self._threshold,
+          timeout = self._timeout))
         bad_preprocessed.append(bad)
       else:
         pcoll = pcoll | f"{step_prefix}-{idx}" >> beam.Map(fn)
@@ -1289,13 +1292,17 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
       model_tag = self._model_tag
       share_across_processes = self._model_handler.share_model_across_processes(
       )
-
+      timeout = self._timeout
       def failure_callback(exception: Exception, element: Any):
         if type(exception) is not TimeoutError:
           return
-        model_metadata = load_model_metadata(model_tag, share_across_processes)
-        model_metadata.try_mark_current_model_invalid()
+        model_metadata = load_model_status(model_tag, share_across_processes)
+        model_metadata.try_mark_current_model_invalid(timeout)
         logging.warning("Operation timed out, etc…….")
+
+      callback = None
+      if self._timeout is not None:
+        callback = failure_callback
       results, bad_inference = (
           batched_elements_pcoll
           | 'BeamML_RunInference' >>
@@ -1303,7 +1310,8 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
           exc_class=self._exc_class,
           use_subprocess=self._use_subprocess,
           threshold=self._threshold,
-          on_failure_callback=failure_callback))
+          timeout = self._timeout,
+          on_failure_callback=callback))
     else:
       results = (
           batched_elements_pcoll
@@ -1319,7 +1327,7 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
     return results
 
   def with_exception_handling(
-      self, *, exc_class=Exception, use_subprocess=False, threshold=1):
+      self, *, exc_class=Exception, use_subprocess=False, threshold=1, timeout=None):
     """Automatically provides a dead letter output for skipping bad records.
     This can allow a pipeline to continue successfully rather than fail or
     continuously throw errors on retry when bad elements are encountered.
@@ -1373,11 +1381,22 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
       threshold: An upper bound on the ratio of records that can be bad before
           aborting the entire pipeline. Optional, defaults to 1.0 (meaning
           up to 100% of records can be bad and the pipeline will still succeed).
+      timeout: The maximum amount of time given to load a model, RunInference
+          on a batch of elements and perform and pre/postprocessing operations.
+          Since the timeout applies in multiple places, it should be equal to
+          the maximum possible timeout for any of these operations. Note in
+          particular that model load and inference on a single batch count to
+          the same timeout value. When an inference fails, all related
+          resources, including the model, will be deleted and reloaded. As a
+          result, it is recommended to leave significant buffer and set the
+          timeout to at least `2 * (time to load model + time to run
+          inference on a batch of data)`.
     """
     self._with_exception_handling = True
     self._exc_class = exc_class
     self._use_subprocess = use_subprocess
     self._threshold = threshold
+    self._timeout = timeout
     return self
 
 
@@ -1459,18 +1478,19 @@ class _ModelRoutingStrategy():
     return self._cur_index
 
 
-class _ModelMetadata():
+class _ModelStatus():
   """A class holding any metadata about a model required by RunInference.
   
     Currently, this only includes whether or not the model is valid. Uses the
     model tag to map models to metadata.
   """
-  def __init__(self):
+  def __init__(self, share_model_across_processes: bool):
     self._active_tags = set()
     self._invalid_tags = set()
     self._tag_mapping = {}
     self._model_first_seen = {}
     self._pending_hard_delete = []
+    self._share_model_across_process = share_model_across_processes
 
   def try_mark_current_model_invalid(self, min_model_life_seconds):
     """Mark the current model invalid.
@@ -1485,10 +1505,13 @@ class _ModelMetadata():
     for tag in self._active_tags:
       if cutoff_time > self._model_first_seen[tag]:
         self._invalid_tags.add(tag)
-        # Delete old models after a grace period of 2 * the model life
-        self._pending_hard_delete.append((
-            tag,
-            datetime.now() + 2 * timedelta(seconds=min_model_life_seconds)))
+        # Delete old models after a grace period of 2 * the model life.
+        # This already happens automatically for shared.Shared models, so
+        # cleanup is only necessary for multi_process_shared models.
+        if self._share_model_across_process:
+          self._pending_hard_delete.append((
+              tag,
+              datetime.now() + 2 * timedelta(seconds=min_model_life_seconds)))
         self._active_tags.remove(tag)
 
   def get_valid_tag(self, tag: str) -> str:
@@ -1499,7 +1522,6 @@ class _ModelMetadata():
       generate a new tag to use instead. The new tag will be the original tag
       with an incrementing suffix (e.g. `my_tag_1`, `my_tag_2`) for each reload
     """
-    self._garbage_collect()
     if tag not in self._invalid_tags:
       if tag not in self._model_first_seen:
         self._model_first_seen[tag] = datetime.now()
@@ -1518,30 +1540,43 @@ class _ModelMetadata():
 
   def is_valid_tag(self, tag: str) -> bool:
     return tag == self.get_valid_tag(tag)
-
-  def _garbage_collect(self):
+  
+  def get_tags_for_garbage_collection(self) -> List[str]:
+    # Since this function may be in multi_process_shared space, delegate model
+    # deletion to the calling process which is not to avoid having a
+    # multi_process_shared reference in multi_process_shared space, which
+    # can create issues with python's multiprocessing module.
+    # We will rely on the calling process to report back deleted models so that
+    # we can confirm deletion.
+    to_delete = []
     cur_time = datetime.now()
-    while len(self._pending_hard_delete) > 0:
-      delete_time = self._pending_hard_delete[0][1]
+    for i in range(len(self._pending_hard_delete)):
+      delete_time = self._pending_hard_delete[i][1]
+      tag = self._pending_hard_delete[i][0]
       if delete_time < cur_time:
-        # TODO(https://github.com/apache/beam/issues/32137)
-        # add garbage collection. Should be something like:
-        # tag = self._pending_hard_delete[0][0]
-        # multi_process_shared.MultiProcessShared(
-        #   lambda: None,
-        #   tag
-        #   ).unsafe_hard_delete()
+        to_delete.append(tag)
+      else:
+        # early return once we hit a model which was added later since models
+        # are added in order.
+        return to_delete
+
+    return to_delete
+    
+  def mark_tags_deleted(self, deleted_tags: set[str]):
+    while len(self._pending_hard_delete) > 0:
+      tag = self._pending_hard_delete[i][0]
+      if tag in deleted_tags:
         self._pending_hard_delete.pop(0)
       else:
         return
 
 
-def load_model_metadata(
-    tag: str, share_across_processes: bool) -> _ModelMetadata:
+def load_model_status(
+    tag: str, share_across_processes: bool) -> _ModelStatus:
   if share_across_processes:
     return multi_process_shared.MultiProcessShared(
-        lambda: _ModelMetadata(), tag=tag, always_proxy=True).acquire()
-  return shared.Shared().acquire(lambda: _ModelMetadata(), tag=tag)
+        lambda: _ModelStatus(True), tag=tag, always_proxy=True).acquire()
+  return shared.Shared().acquire(lambda: _ModelStatus(False), tag=tag)
 
 
 class _SharedModelWrapper():
@@ -1672,7 +1707,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
   def setup(self):
     self._metrics_collector = self.get_metrics_collector()
     self._model_handler.set_environment_vars()
-    self._model_metadata = load_model_metadata(
+    self._model_metadata = load_model_status(
         self._model_tag, self._model_handler.share_model_across_processes())
     if not self._enable_side_input_loading:
       self._model = self._load_model()
@@ -1727,6 +1762,18 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       side input is empty or the model has not been updated, the method
       simply runs inference on the batch of data.
     """
+    # Do garbage collection of old models before starting inference.
+    tags_to_gc = self._model_metadata.get_tags_for_garbage_collection()
+    if len(tags_to_gc) > 0:
+      # TODO(https://github.com/apache/beam/issues/32137)
+      # add garbage collection. Should be:
+      # for tag in tags_to_gc:
+        # multi_process_shared.MultiProcessShared(
+        #   lambda: None,
+        #   tag
+        #   ).unsafe_hard_delete()
+      self._model_metadata.mark_tags_deleted(tags_to_gc)
+
     if not si_model_metadata:
       if not self._model_metadata.is_valid_tag(self._cur_tag):
         self.update_model(side_input_model_path=None)
