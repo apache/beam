@@ -63,6 +63,15 @@ class FakeStatefulModel:
     self._state += amount
 
 
+class FakeSlowModel:
+  def __init__(self, sleep_on_load_seconds=0):
+    time.sleep(sleep_on_load_seconds)
+
+  def predict(self, example: int) -> int:
+    time.sleep(example)
+    return example
+
+
 class FakeIncrementingModel:
   def __init__(self):
     self._state = 0
@@ -70,6 +79,26 @@ class FakeIncrementingModel:
   def predict(self, example: int) -> int:
     self._state += 1
     return self._state
+
+
+class FakeSlowModelHandler(base.ModelHandler[int, int, FakeModel]):
+  def __init__(self, sleep_on_load: int, multi_process_shared=False):
+    self._sleep_on_load = sleep_on_load
+    self._multi_process_shared = multi_process_shared
+
+  def load_model(self):
+    return FakeSlowModel(self._sleep_on_load)
+
+  def run_inference(
+      self,
+      batch: Sequence[int],
+      model: FakeModel,
+      inference_args=None) -> Iterable[int]:
+    for example in batch:
+      yield model.predict(example)
+
+  def share_model_across_processes(self) -> bool:
+    return self._multi_process_shared
 
 
 class FakeModelHandler(base.ModelHandler[int, int, FakeModel]):
@@ -775,6 +804,54 @@ class RunInferenceBaseTest(unittest.TestCase):
             min_batch_size=1,
             max_batch_size=1
           )).with_exception_handling()
+      assert_that(main, equal_to(expected_good), label='assert:inferences')
+
+      # bad.failed_inferences will be in form [batch[elements], error].
+      # Just pull out bad element.
+      bad_without_error = other.failed_inferences | beam.Map(lambda x: x[0][0])
+      assert_that(
+          bad_without_error, equal_to(expected_bad), label='assert:failures')
+
+  def test_run_inference_timeout_on_load_dlq(self):
+    with TestPipeline() as pipeline:
+      examples = [1, 2]
+      expected_good = []
+      expected_bad = [1, 2]
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      main, other = pcoll | base.RunInference(
+          FakeSlowModelHandler(10)).with_exception_handling(timeout=2)
+      assert_that(main, equal_to(expected_good), label='assert:inferences')
+
+      # bad.failed_inferences will be in form [batch[elements], error].
+      # Just pull out bad element.
+      bad_without_error = other.failed_inferences | beam.Map(lambda x: x[0][0])
+      assert_that(
+          bad_without_error, equal_to(expected_bad), label='assert:failures')
+
+  def test_run_inference_timeout_on_inference_dlq(self):
+    with TestPipeline() as pipeline:
+      examples = [10, 11]
+      expected_good = []
+      expected_bad = [10, 11]
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      main, other = pcoll | base.RunInference(
+          FakeSlowModelHandler(0)).with_exception_handling(timeout=5)
+      assert_that(main, equal_to(expected_good), label='assert:inferences')
+
+      # bad.failed_inferences will be in form [batch[elements], error].
+      # Just pull out bad element.
+      bad_without_error = other.failed_inferences | beam.Map(lambda x: x[0][0])
+      assert_that(
+          bad_without_error, equal_to(expected_bad), label='assert:failures')
+
+  def test_run_inference_timeout_not_hit(self):
+    with TestPipeline() as pipeline:
+      examples = [1, 2]
+      expected_good = [1, 2]
+      expected_bad = []
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      main, other = pcoll | base.RunInference(
+          FakeSlowModelHandler(3)).with_exception_handling(timeout=500)
       assert_that(main, equal_to(expected_good), label='assert:inferences')
 
       # bad.failed_inferences will be in form [batch[elements], error].
@@ -1652,6 +1729,95 @@ class RunInferenceBaseTest(unittest.TestCase):
     result_pcoll = pcoll | base.RunInference(
         FakeModelHandler(), watch_model_pattern='fake/path/*')
     assert side_input_str in str(result_pcoll.producer.side_inputs[0])
+
+  def test_model_status_provides_valid_tags(self):
+    ms = base._ModelStatus(False)
+
+    self.assertTrue(ms.is_valid_tag('tag1'))
+    self.assertTrue(ms.is_valid_tag('tag2'))
+
+    self.assertEqual('tag1', ms.get_valid_tag('tag1'))
+    self.assertEqual('tag2', ms.get_valid_tag('tag2'))
+
+    self.assertTrue(ms.is_valid_tag('tag1'))
+    self.assertTrue(ms.is_valid_tag('tag2'))
+
+    ms.try_mark_current_model_invalid(0)
+
+    self.assertFalse(ms.is_valid_tag('tag1'))
+    self.assertFalse(ms.is_valid_tag('tag2'))
+
+    self.assertEqual('tag1_reload_1', ms.get_valid_tag('tag1'))
+    self.assertEqual('tag2_reload_1', ms.get_valid_tag('tag2'))
+
+    self.assertTrue(ms.is_valid_tag('tag1_reload_1'))
+    self.assertTrue(ms.is_valid_tag('tag2_reload_1'))
+
+    ms.try_mark_current_model_invalid(0)
+
+    self.assertFalse(ms.is_valid_tag('tag1'))
+    self.assertFalse(ms.is_valid_tag('tag2'))
+    self.assertFalse(ms.is_valid_tag('tag1_reload_1'))
+    self.assertFalse(ms.is_valid_tag('tag2_reload_1'))
+
+    self.assertEqual('tag1_reload_2', ms.get_valid_tag('tag1'))
+    self.assertEqual('tag2_reload_2', ms.get_valid_tag('tag2'))
+
+    self.assertTrue(ms.is_valid_tag('tag1_reload_2'))
+    self.assertTrue(ms.is_valid_tag('tag2_reload_2'))
+
+  def test_model_status_provides_valid_garbage_collection(self):
+    ms = base._ModelStatus(True)
+
+    self.assertTrue(ms.is_valid_tag('tag1'))
+    self.assertTrue(ms.is_valid_tag('tag2'))
+
+    ms.try_mark_current_model_invalid(1)
+
+    tags = ms.get_tags_for_garbage_collection()
+
+    self.assertEqual(0, len(tags))
+
+    time.sleep(4)
+
+    ms.try_mark_current_model_invalid(1)
+
+    time.sleep(4)
+
+    self.assertTrue(ms.is_valid_tag('tag3'))
+
+    tags = ms.get_tags_for_garbage_collection()
+
+    self.assertEqual(2, len(tags))
+    self.assertTrue('tag1' in tags)
+    self.assertTrue('tag2' in tags)
+
+    ms.try_mark_current_model_invalid(0)
+
+    tags = ms.get_tags_for_garbage_collection()
+
+    self.assertEqual(3, len(tags))
+    self.assertTrue('tag1' in tags)
+    self.assertTrue('tag2' in tags)
+    self.assertTrue('tag3' in tags)
+
+    ms.mark_tags_deleted('tag1')
+    ms.mark_tags_deleted('tag2')
+    tags = ms.get_tags_for_garbage_collection()
+
+    self.assertEqual(1, len(tags))
+    self.assertEqual('tag3', tags[0])
+
+    ms.mark_tags_deleted('tag1')
+    tags = ms.get_tags_for_garbage_collection()
+
+    self.assertEqual(1, len(tags))
+    self.assertEqual('tag3', tags[0])
+
+    ms.mark_tags_deleted('tag3')
+    tags = ms.get_tags_for_garbage_collection()
+
+    self.assertEqual(0, len(tags))
 
 
 if __name__ == '__main__':

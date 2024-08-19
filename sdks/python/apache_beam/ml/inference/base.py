@@ -38,7 +38,8 @@ from collections import OrderedDict
 from collections import defaultdict
 from copy import deepcopy
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
+from datetime import timedelta
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -1273,12 +1274,17 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
           # batching DoFn APIs.
           | beam.BatchElements(**self._model_handler.batch_elements_kwargs()))
 
+    # Skip loading in setup if we are dependent on side inputs or we want to
+    # enforce a timeout since neither of these are available in a helpful way
+    # in setup.
+    load_model_at_runtime = (
+        self._model_metadata_pcoll is not None or self._timeout is not None)
     run_inference_pardo = beam.ParDo(
         _RunInferenceDoFn(
             self._model_handler,
             self._clock,
             self._metrics_namespace,
-            self._model_metadata_pcoll is not None,
+            load_model_at_runtime,
             self._model_tag),
         self._inference_args,
         beam.pvalue.AsSingleton(
@@ -1293,6 +1299,7 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
       share_across_processes = self._model_handler.share_model_across_processes(
       )
       timeout = self._timeout
+
       def failure_callback(exception: Exception, element: Any):
         if type(exception) is not TimeoutError:
           return
@@ -1327,7 +1334,12 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
     return results
 
   def with_exception_handling(
-      self, *, exc_class=Exception, use_subprocess=False, threshold=1, timeout=None):
+      self,
+      *,
+      exc_class=Exception,
+      use_subprocess=False,
+      threshold=1,
+      timeout=None):
     """Automatically provides a dead letter output for skipping bad records.
     This can allow a pipeline to continue successfully rather than fail or
     continuously throw errors on retry when bad elements are encountered.
@@ -1502,8 +1514,8 @@ class _ModelStatus():
       been active at least min_model_life_seconds seconds.
     """
     cutoff_time = datetime.now() - timedelta(seconds=min_model_life_seconds)
-    for tag in self._active_tags:
-      if cutoff_time > self._model_first_seen[tag]:
+    for tag in list(self._active_tags):
+      if cutoff_time >= self._model_first_seen[tag]:
         self._invalid_tags.add(tag)
         # Delete old models after a grace period of 2 * the model life.
         # This already happens automatically for shared.Shared models, so
@@ -1525,6 +1537,7 @@ class _ModelStatus():
     if tag not in self._invalid_tags:
       if tag not in self._model_first_seen:
         self._model_first_seen[tag] = datetime.now()
+      self._active_tags.add(tag)
       return tag
     if (tag in self._tag_mapping and
         self._tag_mapping[tag] not in self._invalid_tags):
@@ -1533,14 +1546,15 @@ class _ModelStatus():
     new_tag = f'{tag}_reload_{i}'
     while new_tag in self._invalid_tags:
       i += 1
-      new_tag = f'{tag}_{i}'
+      new_tag = f'{tag}_reload_{i}'
     self._tag_mapping[tag] = new_tag
     self._model_first_seen[new_tag] = datetime.now()
+    self._active_tags.add(new_tag)
     return new_tag
 
   def is_valid_tag(self, tag: str) -> bool:
     return tag == self.get_valid_tag(tag)
-  
+
   def get_tags_for_garbage_collection(self) -> List[str]:
     # Since this function may be in multi_process_shared space, delegate model
     # deletion to the calling process which is not to avoid having a
@@ -1553,7 +1567,7 @@ class _ModelStatus():
     for i in range(len(self._pending_hard_delete)):
       delete_time = self._pending_hard_delete[i][1]
       tag = self._pending_hard_delete[i][0]
-      if delete_time < cur_time:
+      if delete_time <= cur_time:
         to_delete.append(tag)
       else:
         # early return once we hit a model which was added later since models
@@ -1561,18 +1575,17 @@ class _ModelStatus():
         return to_delete
 
     return to_delete
-    
+
   def mark_tags_deleted(self, deleted_tags: set[str]):
     while len(self._pending_hard_delete) > 0:
-      tag = self._pending_hard_delete[i][0]
+      tag = self._pending_hard_delete[0][0]
       if tag in deleted_tags:
         self._pending_hard_delete.pop(0)
       else:
         return
 
 
-def load_model_status(
-    tag: str, share_across_processes: bool) -> _ModelStatus:
+def load_model_status(tag: str, share_across_processes: bool) -> _ModelStatus:
   if share_across_processes:
     return multi_process_shared.MultiProcessShared(
         lambda: _ModelStatus(True), tag=tag, always_proxy=True).acquire()
@@ -1611,7 +1624,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       model_handler: ModelHandler[ExampleT, PredictionT, Any],
       clock,
       metrics_namespace,
-      enable_side_input_loading: bool = False,
+      load_model_at_runtime: bool = False,
       model_tag: str = "RunInference"):
     """A DoFn implementation generic to frameworks.
 
@@ -1619,8 +1632,10 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
         model_handler: An implementation of ModelHandler.
         clock: A clock implementing time_ns. *Used for unit testing.*
         metrics_namespace: Namespace of the transform to collect metrics.
-        enable_side_input_loading: Bool to indicate if model updates
-            with side inputs.
+        enable_side_input_loading: Bool to indicate if model loading should be
+            deferred to runtime - for example if we are depending on side
+            inputs to get the model path or we want to enforce a timeout on
+            model loading.
         model_tag: Tag to use to disambiguate models in multi-model settings.
     """
     self._model_handler = model_handler
@@ -1628,7 +1643,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     self._clock = clock
     self._model = None
     self._metrics_namespace = metrics_namespace
-    self._enable_side_input_loading = enable_side_input_loading
+    self._load_model_at_runtime = load_model_at_runtime
     self._side_input_path = None
     # _model_tag is the original tag passed in.
     # _cur_tag is the tag of the actually loaded model
@@ -1709,7 +1724,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     self._model_handler.set_environment_vars()
     self._model_metadata = load_model_status(
         self._model_tag, self._model_handler.share_model_across_processes())
-    if not self._enable_side_input_loading:
+    if not self._load_model_at_runtime:
       self._model = self._load_model()
 
   def update_model(
@@ -1768,14 +1783,16 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       # TODO(https://github.com/apache/beam/issues/32137)
       # add garbage collection. Should be:
       # for tag in tags_to_gc:
-        # multi_process_shared.MultiProcessShared(
-        #   lambda: None,
-        #   tag
-        #   ).unsafe_hard_delete()
+      # multi_process_shared.MultiProcessShared(
+      #   lambda: None,
+      #   tag
+      #   ).unsafe_hard_delete()
+      # Once added, add some tests as well to ensure this is actually working.
       self._model_metadata.mark_tags_deleted(tags_to_gc)
 
     if not si_model_metadata:
-      if not self._model_metadata.is_valid_tag(self._cur_tag):
+      if (not self._model_metadata.is_valid_tag(self._cur_tag) or
+          self._model is None):
         self.update_model(side_input_model_path=None)
       return self._run_inference(batch, inference_args)
 
