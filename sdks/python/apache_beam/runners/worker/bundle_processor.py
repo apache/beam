@@ -23,12 +23,16 @@ import base64
 import bisect
 import collections
 import copy
+import itertools
 import json
 import logging
 import random
 import threading
 from dataclasses import dataclass
 from dataclasses import field
+from itertools import chain
+from sortedcontainers import SortedDict
+from sortedcontainers import SortedList
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
@@ -591,9 +595,40 @@ class _ConcatIterable(object):
     for elem in self.second:
       yield elem
 
+class _MergeSortedIterable(object):
+  """An iterable that is a merge sorted result of two iterables."""
+  _sentinel = object()
+
+  def __init__(self, left, right):
+    # type: (Iterable[Any], Iterable[Any]) -> None
+    self.left = iter(left)
+    self.right = iter(right)
+
+  def __iter__(self):
+    l = next(self.left, self._sentinel)
+    r = next(self.right, self._sentinel)
+    while True:
+      if l is self._sentinel:
+        if r is not self._sentinel:
+          yield r
+          r = next(self.right, self._sentinel)
+        else:
+          break
+      else:
+        if r is not self._sentinel:
+          if l <= r:
+            yield l
+            l = next(self.left, self._sentinel)
+          else:
+            yield r
+            r = next(self.right, self._sentinel)
+        else:
+          yield l
+          l = next(self.left, self._sentinel)
+
 
 coder_impl.FastPrimitivesCoderImpl.register_iterable_like_type(_ConcatIterable)
-
+coder_impl.FastPrimitivesCoderImpl.register_iterable_like_type(_MergeSortedIterable)
 
 class SynchronousBagRuntimeState(userstate.BagRuntimeState):
 
@@ -703,6 +738,159 @@ class SynchronousSetRuntimeState(userstate.SetRuntimeState):
       # To commit, we need to wait on the last state request future to complete.
       to_await.get()
 
+
+class RangeSet:
+  """For Internal Use only. A simple range set implementation."""
+  def __init__(self):
+    # The start points and end points are stored separately in order.
+    self._sorted_starts = SortedList()
+    self._sorted_ends = SortedList()
+
+  def add(self, start, end):
+    # ranges[:min_idx] and ranges[max_idx:] will not be impacted by this insertion
+    # the first range whose end point >= the start of the new range
+    min_idx = self._sorted_ends.bisect_left(start)
+    # the first range whose start point > the end point of the new range
+    max_idx = self._sorted_starts.bisect_right(end)
+
+    if min_idx >= len(self._sorted_starts) or max_idx <= 0:
+      # the new range is beyond any current ranges
+      new_start = start
+      new_end = end
+    else:
+      # the new range overlaps with ranges[min_idx:max_idx]
+      new_start = min(start, self._sorted_starts[min_idx])
+      new_end = max(end, self._sorted_ends[max_idx-1])
+
+      del self._sorted_starts[min_idx:max_idx]
+      del self._sorted_ends[min_idx:max_idx]
+
+    self._sorted_starts.add(new_start)
+    self._sorted_ends.add(new_end)
+
+  def __contains__(self, key):
+    idx = self._sorted_starts.bisect_left(key)
+    return (idx < len(self._sorted_starts) and self._sorted_starts[idx] == key) or (idx > 0 and self._sorted_ends[idx-1] > key)
+
+  def __len__(self):
+    assert len(self._sorted_starts) == len(self._sorted_ends)
+    return len(self._sorted_starts)
+
+  def __iter__(self):
+    for i in zip(self._sorted_starts, self._sorted_ends):
+      yield i
+
+  def __str__(self):
+    return str(list(zip(self._sorted_starts, self._sorted_ends)))
+
+
+class SynchronousOrderedListRuntimeState(userstate.OrderedListRuntimeState):
+  def __init__(self,
+               state_handler,  # type: sdk_worker.CachingStateHandler
+               state_key,  # type: beam_fn_api_pb2.StateKey
+               value_coder  # type: coders.Coder
+               ):
+    self._state_handler = state_handler
+    self._state_key = state_key
+    from apache_beam.coders import coders
+
+    self._elem_coder = beam.coders.TupleCoder(
+      [coders.VarIntCoder(), coders.LengthPrefixCoder(value_coder)])
+    self._cleared = False
+    self._pending_adds = SortedDict()
+    self._pending_removes = RangeSet()
+
+  def add(self, elem):
+    # type: (Any) -> None
+    assert len(elem) == 2
+    key, value = elem
+    self._pending_adds.setdefault(key, []).append(value)
+
+  def read(self):
+    return self.read_range(timestamp.MIN_TIMESTAMP, timestamp.MAX_TIMESTAMP)
+
+  def read_range(self, min_timestamp, limit_timestamp):
+    if isinstance(min_timestamp, timestamp.Timestamp):
+      min_timestamp = min_timestamp.micros
+
+    if isinstance(limit_timestamp, timestamp.Timestamp):
+      limit_timestamp = limit_timestamp.micros
+
+    to_add_range = self._pending_adds.irange(min_timestamp,
+                                             limit_timestamp,
+                                             inclusive=(True, False))
+
+    pending_adds_iters = []
+    for k in to_add_range:
+      pending_adds_on_key = self._pending_adds[k]
+      pending_adds_iters.append(
+          itertools.islice(
+              zip(itertools.cycle([k,]), pending_adds_on_key),
+              len(pending_adds_on_key)))
+
+    values_in_range = chain.from_iterable(pending_adds_iters)
+
+    if not self._cleared:
+      state_key_to_store = beam_fn_api_pb2.StateKey()
+      state_key_to_store.CopyFrom(self._state_key)
+      state_key_to_store.ordered_list_user_state.range.start = min_timestamp
+      state_key_to_store.ordered_list_user_state.range.end = limit_timestamp
+      persistent_values = filter(lambda kv: kv[0] not in self._pending_removes,
+                                 _StateBackedIterable(self._state_handler,
+                                                      state_key_to_store,
+                                                      self._elem_coder))
+
+      return _MergeSortedIterable(persistent_values, values_in_range)
+
+    return values_in_range
+
+  def clear(self):
+    self._cleared = True
+    self._pending_adds = SortedDict()
+    self._pending_removes = RangeSet()
+    self._pending_removes.add(timestamp.MIN_TIMESTAMP.micros, timestamp.MAX_TIMESTAMP.micros)
+
+  def clear_range(self, min_timestamp, limit_timestamp):
+    if isinstance(min_timestamp, timestamp.Timestamp):
+      min_timestamp = min_timestamp.micros
+
+    if isinstance(limit_timestamp, timestamp.Timestamp):
+      limit_timestamp = limit_timestamp.micros
+
+    to_remove_range = self._pending_adds.irange(min_timestamp, limit_timestamp,
+                                                inclusive=(True, False))
+    for k in to_remove_range:
+      del self._pending_adds[k]
+
+    if not self._cleared:
+        self._pending_removes.add(min_timestamp, limit_timestamp)
+
+  def commit(self):
+    futures = []
+    if self._pending_removes:
+      for start, end in self._pending_removes:
+        state_key_with_range = beam_fn_api_pb2.StateKey()
+        state_key_with_range.CopyFrom(self._state_key)
+        state_key_with_range.ordered_list_user_state.range.start = start
+        state_key_with_range.ordered_list_user_state.range.end = end
+        futures.append(self._state_handler.clear(state_key_with_range))
+
+      self._pending_removes = RangeSet()
+
+    if self._pending_adds:
+      values_to_add = []
+      for k in self._pending_adds:
+        values_to_add.extend(zip(itertools.cycle([k, ]), self._pending_adds[k]))
+      futures.append(self._state_handler.extend(
+        self._state_key, self._elem_coder.get_impl(), values_to_add))
+      self._pending_adds = SortedDict()
+
+    if len(futures):
+      # To commit, we need to wait on every state request futures to complete.
+      for to_await in futures:
+        to_await.get()
+
+    self._cleared = False
 
 class OutputTimer(userstate.BaseTimer):
   def __init__(self,
@@ -848,6 +1036,16 @@ class FnApiUserStateContext(userstate.UserStateContext):
                   user_state_id=state_spec.name,
                   window=self._window_coder.encode(window),
                   # State keys are expected in nested encoding format
+                  key=self._key_coder.encode_nested(key))),
+          value_coder=state_spec.coder)
+    elif isinstance(state_spec, userstate.OrderedListStateSpec):
+      return SynchronousOrderedListRuntimeState(
+          self._state_handler,
+          state_key=beam_fn_api_pb2.StateKey(
+              ordered_list_user_state=beam_fn_api_pb2.StateKey.OrderedListUserState(
+                  transform_id=self._transform_id,
+                  user_state_id=state_spec.name,
+                  window=self._window_coder.encode(window),
                   key=self._key_coder.encode_nested(key))),
           value_coder=state_spec.coder)
     else:

@@ -21,6 +21,7 @@
 import unittest
 
 import apache_beam as beam
+from apache_beam.coders import StrUtf8Coder
 from apache_beam.coders.coders import FastPrimitivesCoder
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_fn_api_pb2
@@ -32,8 +33,12 @@ from apache_beam.runners.worker.bundle_processor import BundleProcessor
 from apache_beam.runners.worker.bundle_processor import DataInputOperation
 from apache_beam.runners.worker.bundle_processor import FnApiUserStateContext
 from apache_beam.runners.worker.bundle_processor import TimerInfo
+from apache_beam.runners.worker.bundle_processor import SynchronousOrderedListRuntimeState
 from apache_beam.runners.worker.data_plane import SizeBasedBufferingClosableOutputStream
 from apache_beam.runners.worker.data_sampler import DataSampler
+from apache_beam.runners.worker.sdk_worker import GlobalCachingStateHandler
+from apache_beam.runners.worker.statecache import StateCache
+from apache_beam.runners.portability.fn_api_runner.worker_handlers import StateServicer
 from apache_beam.transforms import userstate
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.utils.windowed_value import WindowedValue
@@ -420,6 +425,140 @@ class EnvironmentCompatibilityTest(unittest.TestCase):
         bundle_processor._environments_compatible(
             "beam:version:sdk_base:apache/beam_python3.5_sdk:2.1.0-custom",
             "beam:version:sdk_base:apache/beam_python3.5_sdk:2.1.0-custom"))
+
+
+class OrderedListStateTest(unittest.TestCase):
+  class NoStateCache(StateCache):
+    def __init__(self):
+      super().__init__(max_weight=0)
+
+  @staticmethod
+  def _create_state(window=b"my_window", key=b"my_key", coder=StrUtf8Coder()):
+    state_handler = GlobalCachingStateHandler(OrderedListStateTest.NoStateCache(), StateServicer())
+    state_key = beam_fn_api_pb2.StateKey(
+      ordered_list_user_state=beam_fn_api_pb2.StateKey.OrderedListUserState(
+        window=window, key=key))
+    return SynchronousOrderedListRuntimeState(state_handler, state_key, coder)
+
+  def setUp(self):
+    self.state = self._create_state()
+    return
+
+  def test_read_range(self):
+    A1, B1, A4 = [(1, "a1"), (1, "b1"), (4, "a4")]
+    self.assertEqual([], list(self.state.read_range(0, 5)))
+
+    self.state.add(A1)
+    self.assertEqual([A1], list(self.state.read_range(0, 5)))
+
+    self.state.add(B1)
+    self.assertEqual([A1, B1], list(self.state.read_range(0, 5)))
+
+    self.state.add(A4)
+    self.assertEqual([A1, B1, A4], list(self.state.read_range(0, 5)))
+
+    self.assertEqual([], list(self.state.read_range(0, 1)))
+    self.assertEqual([], list(self.state.read_range(5, 10)))
+    self.assertEqual([A1, B1], list(self.state.read_range(1, 2)))
+    self.assertEqual([], list(self.state.read_range(2, 3)))
+    self.assertEqual([], list(self.state.read_range(2, 4)))
+    self.assertEqual([A4], list(self.state.read_range(4, 5)))
+
+  def test_read(self):
+    A1, B1, A4 = [(1, "a1"), (1, "b1"), (4, "a4")]
+    self.assertEqual([], list(self.state.read()))
+
+    self.state.add(A1)
+    self.assertEqual([A1], list(self.state.read()))
+
+    self.state.add(A1)
+    self.assertEqual([A1, A1], list(self.state.read()))
+
+    self.state.add(B1)
+    self.assertEqual([A1, A1, B1], list(self.state.read()))
+
+    self.state.add(A4)
+    self.assertEqual([A1, A1, B1, A4], list(self.state.read()))
+
+  def test_clear_range(self):
+    A1, B1, A4, A5 = [(1, "a1"), (1, "b1"), (4, "a4"), (5, "a5")]
+    self.state.clear_range(0, 1)
+    self.assertEqual([], list(self.state.read()))
+
+    self.state.add(A1)
+    self.state.add(B1)
+    self.state.add(A4)
+    self.state.add(A5)
+    self.assertEqual([A1, B1, A4, A5], list(self.state.read()))
+
+    self.state.clear_range(0, 1)
+    self.assertEqual([A1, B1, A4, A5], list(self.state.read()))
+
+    self.state.clear_range(1, 2)
+    self.assertEqual([A4, A5], list(self.state.read()))
+
+    # no side effect on clearing the same range twice
+    self.state.clear_range(1, 2)
+    self.assertEqual([A4, A5], list(self.state.read()))
+
+    self.state.clear_range(3, 4)
+    self.assertEqual([A4, A5], list(self.state.read()))
+
+    self.state.clear_range(3, 5)
+    self.assertEqual([A5], list(self.state.read()))
+
+  def test_add_and_clear_range_after_commit(self):
+    A1, B1, C1, A4, A5, A6 = [(1, "a1"), (1, "b1"), (1, "c1"), (4, "a4"), (5, "a5"), (6, "a6")]
+    self.state.add(A1)
+    self.state.add(B1)
+    self.state.add(A4)
+    self.state.add(A5)
+    self.state.clear_range(4, 5)
+    self.assertEqual([A1, B1, A5], list(self.state.read()))
+
+    self.state.commit()
+    self.assertEqual(len(self.state._pending_adds), 0)
+    self.assertEqual(len(self.state._pending_removes), 0)
+    self.assertEqual([A1, B1, A5], list(self.state.read()))
+
+    self.state.add(C1)
+    self.state.add(A6)
+    self.assertEqual([A1, B1, C1, A5, A6], list(self.state.read()))
+
+    self.state.clear_range(5, 6)
+    self.assertEqual([A1, B1, C1, A6], list(self.state.read()))
+
+    self.state.commit()
+    self.assertEqual(len(self.state._pending_adds), 0)
+    self.assertEqual(len(self.state._pending_removes), 0)
+    self.assertEqual([A1, B1, C1, A6], list(self.state.read()))
+
+  def test_clear(self):
+    A1, B1, C1, A4, A5, B5, A6 = [(1, "a1"), (1, "b1"), (1, "c1"), (4, "a4"), (5, "a5"), (5, "b5"), (6, "a6")]
+
+    self.state.add(A1)
+    self.state.add(B1)
+    self.state.add(A4)
+    self.state.add(A5)
+    self.state.clear_range(4, 5)
+    self.assertEqual([A1, B1, A5], list(self.state.read()))
+    self.state.commit()
+
+    self.state.add(C1)
+    self.state.clear_range(5, 10)
+    self.assertEqual([A1, B1, C1], list(self.state.read()))
+    self.state.clear()
+    self.assertEqual(len(self.state._pending_adds), 0)
+    self.assertEqual(len(self.state._pending_removes), 1)
+
+    self.state.add(B5)
+    self.assertEqual([B5], list(self.state.read()))
+    self.state.commit()
+
+    self.assertEqual(len(self.state._pending_adds), 0)
+    self.assertEqual(len(self.state._pending_removes), 0)
+
+    self.assertEqual([B5], list(self.state.read()))
 
 
 if __name__ == '__main__':
