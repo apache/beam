@@ -468,7 +468,7 @@ func (r *stateKeyReader) Close() error {
 	return nil
 }
 
-func (r * 	) Write(buf []byte) (int, error) {
+func (r *stateKeyWriter) Write(buf []byte) (int, error) {
 	r.mu.Lock()
 	localChannel := r.ch
 	r.mu.Unlock()
