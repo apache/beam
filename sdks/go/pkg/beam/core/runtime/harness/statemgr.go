@@ -468,7 +468,7 @@ func (r *stateKeyReader) Close() error {
 	return nil
 }
 
-func (r *stateKeyWriter) Write(buf []byte) (int, error) {
+func (r * 	) Write(buf []byte) (int, error) {
 	r.mu.Lock()
 	localChannel := r.ch
 	r.mu.Unlock()
@@ -643,7 +643,7 @@ func (c *StateChannel) read(ctx context.Context) {
 
 		select {
 		case ch <- msg:
-		// ok
+			// ok
 		default:
 			panic(fmt.Sprintf("StateChannel[%v].read: failed to consume state response: %v", c.id, msg.String()))
 		}
