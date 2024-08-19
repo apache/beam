@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.io.clickhouse;
 
-import com.clickhouse.client.ClickHouseOutputStream;
-import com.clickhouse.client.ClickHousePipedOutputStream;
-import com.clickhouse.client.data.BinaryStreamUtils;
+import com.clickhouse.data.ClickHouseOutputStream;
+import com.clickhouse.data.ClickHousePipedOutputStream;
+import com.clickhouse.data.format.BinaryStreamUtils;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
