@@ -55,6 +55,7 @@ dependencies {
     implementation "org.apache.iceberg:iceberg-orc:$iceberg_version"
     implementation library.java.hadoop_common
 
+    testImplementation project(path: ":sdks:java:io:iceberg:bigquerymetastore", configuration: "shadow")
     testImplementation library.java.hadoop_client
     testImplementation library.java.bigdataoss_gcsio
     testImplementation library.java.bigdataoss_gcs_connector

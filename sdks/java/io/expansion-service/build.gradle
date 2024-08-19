@@ -47,6 +47,8 @@ dependencies {
   // Needed by Iceberg I/O users that use GCS for the warehouse location.
   implementation library.java.bigdataoss_gcs_connector
   permitUnusedDeclared library.java.bigdataoss_gcs_connector
+  // Iceberg BigQuery Metastore catalog
+  runtimeOnly project(path: ":sdks:java:io:iceberg:bigquerymetastore", configuration: "shadow")
 
   runtimeOnly library.java.kafka_clients
   runtimeOnly library.java.slf4j_jdk14
