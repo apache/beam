@@ -40,19 +40,19 @@ public class TestJobService extends JobServiceImplBase {
   private final ApiServiceDescriptor stagingEndpoint;
   private final String preparationId;
   private final String jobId;
-  private final JobState.Enum jobState;
+  private JobState.Enum jobState;
   private JobApi.MetricResults metrics;
 
   public TestJobService(
       ApiServiceDescriptor stagingEndpoint,
       String preparationId,
       String jobId,
-      JobState.Enum jobState,
+      JobState.Enum initialState,
       JobApi.MetricResults metrics) {
     this.stagingEndpoint = stagingEndpoint;
     this.preparationId = preparationId;
     this.jobId = jobId;
-    this.jobState = jobState;
+    this.jobState = initialState;
     this.metrics = metrics;
   }
 
@@ -66,6 +66,10 @@ public class TestJobService extends JobServiceImplBase {
             .setStagingSessionToken("TestStagingToken")
             .build());
     responseObserver.onCompleted();
+  }
+
+  public void setJobState(JobState.Enum state) {
+    this.jobState = state;
   }
 
   @Override

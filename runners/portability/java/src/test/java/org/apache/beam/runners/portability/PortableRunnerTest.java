@@ -57,7 +57,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -106,13 +105,13 @@ public class PortableRunnerTest implements Serializable {
     assertThat(state, is(State.DONE));
   }
 
-  @Ignore
   @Test
   public void extractsMetrics() throws Exception {
     JobApi.MetricResults metricResults = generateMetricResults();
-    createJobServer(JobState.Enum.DONE, metricResults);
+    TestJobService testJobService = createJobServer(JobState.Enum.RUNNING, metricResults);
     PortableRunner runner = PortableRunner.create(options, ManagedChannelFactory.createInProcess());
     PipelineResult result = runner.run(p);
+    testJobService.setJobState(JobState.Enum.DONE);
     result.waitUntilFinish();
     MetricQueryResults metricQueryResults = result.metrics().allMetrics();
     assertThat(
@@ -181,7 +180,7 @@ public class PortableRunnerTest implements Serializable {
         .build();
   }
 
-  private void createJobServer(JobState.Enum jobState, JobApi.MetricResults metricResults)
+  private TestJobService createJobServer(JobState.Enum jobState, JobApi.MetricResults metricResults)
       throws IOException {
     ArtifactStagingService stagingService =
         new ArtifactStagingService(
@@ -198,15 +197,16 @@ public class PortableRunnerTest implements Serializable {
               public void removeStagedArtifacts(String stagingToken) {}
             });
     stagingService.registerJob("TestStagingToken", ImmutableMap.of());
+    TestJobService testJobService =
+        new TestJobService(ENDPOINT_DESCRIPTOR, "prepId", "jobId", jobState, metricResults);
     Server server =
         grpcCleanupRule.register(
             InProcessServerBuilder.forName(ENDPOINT_URL)
-                .addService(
-                    new TestJobService(
-                        ENDPOINT_DESCRIPTOR, "prepId", "jobId", jobState, metricResults))
+                .addService(testJobService)
                 .addService(stagingService)
                 .build());
     server.start();
+    return testJobService;
   }
 
   private static PipelineOptions createPipelineOptions() {
