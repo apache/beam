@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.flink.translation.types;
 
-import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
@@ -27,7 +26,6 @@ import org.apache.beam.runners.flink.translation.wrappers.DataOutputViewWrapper;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
@@ -104,26 +102,14 @@ public class CoderTypeSerializer<T> extends TypeSerializer<T> {
   @Override
   public void serialize(T t, DataOutputView dataOutputView) throws IOException {
     DataOutputViewWrapper outputWrapper = new DataOutputViewWrapper(dataOutputView);
-    if(fasterCopy) {
-      ByteArrayOutputStream bos = new ByteArrayOutputStream();
-      coder.encode(t, bos);
-      VarInt.encode((int) bos.size(), outputWrapper);
-      bos.writeTo(outputWrapper);
-    } else {
-      coder.encode(t, outputWrapper);
-    }
+    coder.encode(t, outputWrapper);
   }
 
   @Override
   public T deserialize(DataInputView dataInputView) throws IOException {
     try {
       DataInputViewWrapper inputWrapper = new DataInputViewWrapper(dataInputView);
-      if(fasterCopy) {
-        VarInt.decodeInt(inputWrapper); // just advance the stream the the actual encoded value
-        return coder.decode(inputWrapper);
-      } else {
-        return coder.decode(inputWrapper);
-      }
+      return coder.decode(inputWrapper);
     } catch (CoderException e) {
       Throwable cause = e.getCause();
       if (cause instanceof EOFException) {
@@ -141,15 +127,7 @@ public class CoderTypeSerializer<T> extends TypeSerializer<T> {
 
   @Override
   public void copy(DataInputView dataInputView, DataOutputView dataOutputView) throws IOException {
-    if(fasterCopy) {
-      DataInputViewWrapper inputWrapper = new DataInputViewWrapper(dataInputView);
-      DataOutputViewWrapper outputWrapper = new DataOutputViewWrapper(dataOutputView);
-      int size = VarInt.decodeInt(inputWrapper);
-      VarInt.encode(size, outputWrapper);
-      dataOutputView.write(dataInputView, size);
-    } else {
-      serialize(deserialize(dataInputView), dataOutputView);
-    }
+    serialize(deserialize(dataInputView), dataOutputView);
   }
 
   @Override
