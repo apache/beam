@@ -47,23 +47,16 @@ public class CoderTypeSerializer<T> extends TypeSerializer<T> {
 
   private final Coder<T> coder;
 
-  /**
-   * {@link SerializablePipelineOptions} deserialization will cause {@link
-   * org.apache.beam.sdk.io.FileSystems} registration needed for {@link
-   * org.apache.beam.sdk.transforms.Reshuffle} translation.
-   */
-  private final SerializablePipelineOptions pipelineOptions;
-
   private final boolean fasterCopy;
 
   public CoderTypeSerializer(Coder<T> coder, SerializablePipelineOptions pipelineOptions) {
-    Preconditions.checkNotNull(coder);
-    Preconditions.checkNotNull(pipelineOptions);
-    this.coder = coder;
-    this.pipelineOptions = pipelineOptions;
+    this(coder, Preconditions.checkNotNull(pipelineOptions).get().as(FlinkPipelineOptions.class).getFasterCopy());
+  }
 
-    FlinkPipelineOptions options = pipelineOptions.get().as(FlinkPipelineOptions.class);
-    this.fasterCopy = options.getFasterCopy();
+  public CoderTypeSerializer(Coder<T> coder, boolean fasterCopy) {
+    Preconditions.checkNotNull(coder);
+    this.coder = coder;
+    this.fasterCopy = fasterCopy;
   }
 
   @Override
@@ -73,7 +66,7 @@ public class CoderTypeSerializer<T> extends TypeSerializer<T> {
 
   @Override
   public CoderTypeSerializer<T> duplicate() {
-    return new CoderTypeSerializer<>(coder, pipelineOptions);
+    return new CoderTypeSerializer<>(coder, fasterCopy);
   }
 
   @Override
