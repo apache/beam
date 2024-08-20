@@ -99,7 +99,7 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
 
   @Override
   public PipelineResult run(Pipeline pipeline) {
-    Runnable cleanup;
+    Runnable cleanup = () -> {};
     if (Environments.ENVIRONMENT_LOOPBACK.equals(
         options.as(PortablePipelineOptions.class).getDefaultEnvironmentType())) {
       GrpcFnServer<ExternalWorkerService> workerService;
@@ -121,8 +121,6 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
               throw new RuntimeException(exn);
             }
           };
-    } else {
-      cleanup = null;
     }
 
     ImmutableList.Builder<String> filesToStageBuilder = ImmutableList.builder();
@@ -209,7 +207,10 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
     LOG.info("RunJobResponse: {}", runJobResponse);
     String jobId = runJobResponse.getJobId();
 
-    return new JobServicePipelineResult(jobId, jobService, cleanup);
+    JobServicePipelineResult result = new JobServicePipelineResult(jobId, jobService, cleanup);
+    result.setTerminalStateFuture(result.pollForTerminalState());
+    result.setMetricResultsCompletableFuture(result.pollForMetrics());
+    return result;
   }
 
   @Override
