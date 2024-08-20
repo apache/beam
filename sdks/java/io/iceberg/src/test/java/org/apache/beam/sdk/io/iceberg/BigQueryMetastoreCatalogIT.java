@@ -68,7 +68,9 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
 
-/** Integration tests for reading and writing Iceberg tables using the BigQuery Metastore Catalog */
+/**
+ * Integration tests for reading and writing Iceberg tables using the BigQuery Metastore Catalog.
+ */
 public class BigQueryMetastoreCatalogIT {
   private static final Schema DOUBLY_NESTED_ROW_SCHEMA =
       Schema.builder()
