@@ -71,12 +71,11 @@ class InsertDocInOpenSearch(PTransform):
     def __init__(self,
                  host: str,
                  port: int,
-                 username: Optional[str] = os.getenv("OPENSEARCH_USERNAME"),
-                 password: Optional[str] = os.getenv("OPENSEARCH_PASSWORD"),
+                 username: Optional[str],
+                 password: Optional[str],
                  batch_size: int = 100
                  ):
         """
-
         Args:
         host (str): The opensearch host
         port (int): The opensearch port
@@ -86,14 +85,15 @@ class InsertDocInOpenSearch(PTransform):
 
         Returns:
         :class:`~apache_beam.transforms.ptransform.PTransform`
-
         """
-
         self.host = host
         self.port = port
-        self.username = username
-        self.password = password
+        self.username = username | os.getenv("OPENSEARCH_USERNAME")
+        self.password = password | os.getenv("OPENSEARCH_PASSWORD")
         self._batch_size = batch_size
+
+        if not self.username or not self.password:
+            raise ValueError("Username and password are needed for connecting to Opensearch cluster.")
 
     def expand(self, pcoll):
         return pcoll \
@@ -157,8 +157,8 @@ class _InsertDocOpenSearchSink(object):
     def __init__(self,
                  host: str,
                  port: int,
-                 username: str = os.getenv("OPENSEARCH_USERNAME"),
-                 password: str = os.getenv("OPENSEARCH_PASSWORD")
+                 username: str,
+                 password: str
                  ):
         self.host = host
         self.port = port
@@ -228,13 +228,12 @@ class InsertEmbeddingInOpenSearch(PTransform):
     def __init__(self,
                  host: str,
                  port: int,
-                 username: Optional[str] = os.getenv("OPENSEARCH_USERNAME"),
-                 password: Optional[str] = os.getenv("OPENSEARCH_PASSWORD"),
+                 username: Optional[str],
+                 password: Optional[str],
                  batch_size: int = 100,
                  embedded_columns: list = []
                  ):
         """
-
         Args:
         host (str): The Opensearch host
         port (int): The Opensearch port
@@ -245,15 +244,16 @@ class InsertEmbeddingInOpenSearch(PTransform):
 
         Returns:
         :class:`~apache_beam.transforms.ptransform.PTransform`
-
         """
-
         self.host = host
         self.port = port
-        self.username = username
-        self.password = password
+        self.username = username | os.getenv("OPENSEARCH_USERNAME")
+        self.password = password | os.getenv("OPENSEARCH_PASSWORD")
         self.batch_size = batch_size
         self.embedded_columns = embedded_columns
+
+        if not self.username or not self.password:
+            raise ValueError("Username and password are needed for connecting to Opensearch cluster.")
 
     def expand(self, pcoll):
         return pcoll \

@@ -61,13 +61,13 @@ class OpenSearchEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
             self,
             opensearch_host: str,
             opensearch_port: int,
-            username: Optional[str] = os.getenv("OPENSEARCH_USERNAME"),
-            password: Optional[str] = os.getenv("OPENSEARCH_PASSWORD"),
+            username: Optional[str],
+            password: Optional[str],
             index_name: str = "embeddings-index",
             vector_field: str = "text_vector",
             k: int = 1,
+            size: int = 5,
     ):
-
         """Args:
           opensearch_host (str): opensearch Host to connect to opensearch DB
           opensearch_port (int): opensearch Port to connect to opensearch DB
@@ -77,12 +77,16 @@ class OpenSearchEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
         """
         self.opensearch_host = opensearch_host
         self.opensearch_port = opensearch_port
-        self.username = username
-        self.password = password
+        self.username = username | os.getenv("OPENSEARCH_USERNAME")
+        self.password = password | os.getenv("OPENSEARCH_PASSWORD")
         self.index_name = index_name
         self.vector_field = vector_field
         self.k = k
+        self.size = size
         self.client = None
+
+        if not self.username or not self.password:
+            raise ValueError("Username and password are needed for connecting to Opensearch cluster.")
 
     def __enter__(self):
         """connect to the opensearch DB using opensearch client.
@@ -109,7 +113,7 @@ class OpenSearchEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
 
         # Prepare the Query
         query = {
-            'size': 5,
+            'size': self.size,
             'query': {
                 'knn': {
                     self.vector_field: {
