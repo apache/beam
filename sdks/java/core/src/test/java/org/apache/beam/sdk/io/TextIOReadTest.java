@@ -562,9 +562,6 @@ public class TextIOReadTest {
           .add(new Object[] {"|*first|*second|*|*third|"})
           .add(new Object[] {"|*first|*second|*|*third*"})
           .add(new Object[] {"|*first|*second|*|*third|*"})
-          .add(new Object[] {"first||*second|*|*third"})
-          .add(new Object[] {"first|*second||*|*third"})
-          .add(new Object[] {"|||*first|*second||*||*third"})
           .build();
     }
 
@@ -693,6 +690,36 @@ public class TextIOReadTest {
               "To be, or not to be: that |is the question: To be, or not to be: "
                   + "that *is the question: Whether 'tis nobler in the mind to suffer ",
               "The slings and arrows of outrageous fortune,|");
+      p.run();
+    }
+
+    @Test
+    @Category(NeedsRunner.class)
+    public void testReadStringsWithCustomOverlappingDelimiter() throws Exception {
+      final String[] inputStrings =
+          new String[] {
+            // incomplete delimiter
+            "To be, or not to be: that ABAis the question: ",
+            // complete delimiter
+            "To be, or not to be: that ABCis the question: ",
+            // overlapping delimiter
+            "Whether 'tis nobler in the mind to suffer AABC",
+            // truncated delimiter
+            "The slings and arrows of outrageous fortune,AB"
+          };
+
+      File tmpFile = tempFolder.newFile("tmpfile.txt");
+      String filename = tmpFile.getPath();
+
+      try (Writer writer = Files.newBufferedWriter(tmpFile.toPath(), UTF_8)) {
+        writer.write(Joiner.on("").join(inputStrings));
+      }
+
+      PAssert.that(p.apply(TextIO.read().from(filename).withDelimiter(new byte[] {'A', 'B', 'C'})))
+          .containsInAnyOrder(
+              "To be, or not to be: that ABAis the question: To be, or not to be: "
+                  + "that is the question: Whether 'tis nobler in the mind to suffer A",
+              "The slings and arrows of outrageous fortune,AB");
       p.run();
     }
 
