@@ -55,13 +55,13 @@ public class KafkaCommitOffsetTest {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
   @Rule public ExpectedLogs expectedLogs = ExpectedLogs.none(CommitOffsetDoFn.class);
 
-  private static final KafkaCommitOffsetMockConsumer consumer =
+  private final KafkaCommitOffsetMockConsumer consumer =
       new KafkaCommitOffsetMockConsumer(null, false);
-  private static final KafkaCommitOffsetMockConsumer errorConsumer =
+  private final KafkaCommitOffsetMockConsumer errorConsumer =
       new KafkaCommitOffsetMockConsumer(null, true);
-  private static final KafkaCommitOffsetMockConsumer compositeConsumerDefaultBootstrap =
+  private final KafkaCommitOffsetMockConsumer compositeConsumerDefaultBootstrap =
       new KafkaCommitOffsetMockConsumer(null, false);
-  private static final KafkaCommitOffsetMockConsumer compositeConsumerBootstrapOverridden =
+  private final KafkaCommitOffsetMockConsumer compositeConsumerBootstrapOverridden =
       new KafkaCommitOffsetMockConsumer(null, false);
   private static final Map<String, Object> configMap =
       ImmutableMap.of(ConsumerConfig.GROUP_ID_CONFIG, "group1");
