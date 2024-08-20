@@ -46,7 +46,7 @@ class ErrorHandler:
   subtransforms.
 
   The `with_error_handling` should accept `None` to indicate that error handling
-  is not enabled (and make implementation-by-forwarding-error-handers easier).
+  is not enabled (and make implementation-by-forwarding-error-handlers easier).
   In this case, any non-recoverable errors should fail the pipeline (e.g.
   propagate exceptions in `process` methods) rather than silently ignore errors.
   """
