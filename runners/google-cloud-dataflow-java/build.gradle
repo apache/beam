@@ -108,8 +108,8 @@ dependencies {
   implementation library.java.google_auth_library_credentials
   implementation library.java.google_auth_library_oauth2_http
   implementation library.java.google_http_client
-  implementation library.java.google_http_client_jackson2
-  permitUnusedDeclared library.java.google_http_client_jackson2 // BEAM-11761
+  implementation library.java.google_http_client_gson
+  permitUnusedDeclared library.java.google_http_client_gson // BEAM-11761
   implementation library.java.hamcrest
   implementation library.java.jackson_annotations
   implementation library.java.jackson_core
