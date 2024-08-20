@@ -73,6 +73,7 @@
 * Go SDK Minimum Go Version updated to 1.21 ([#32092](https://github.com/apache/beam/pull/32092)).
 * [BigQueryIO] Added support for withFormatRecordOnFailureFunction() for STORAGE_WRITE_API and STORAGE_API_AT_LEAST_ONCE methods (Java) ([#31354](https://github.com/apache/beam/issues/31354)).
 * Updated Go protobuf package to new version (Go) ([#21515](https://github.com/apache/beam/issues/21515)).
+* Adds OrderedListState support for Java SDK via FnApi.
 
 ## Breaking Changes
 
