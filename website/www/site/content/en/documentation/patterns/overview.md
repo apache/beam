@@ -53,6 +53,7 @@ Pipeline patterns demonstrate common Beam use cases. Pipeline patterns are based
 
 **State & timers patterns** - Patterns for using state & timers
 * [Grouping elements for efficient external service calls](/documentation/patterns/grouping-elements-for-efficient-external-service-calls/#grouping-elements-for-efficient-external-service-calls-using-the-`GroupIntoBatches`-transform)
+* [Dynamically grouping elements](/documentation/patterns/batch-elements/#dynamically-grouping-elements-using-the-`BatchElements`-transform)
 
 ## Contributing a pattern
 
