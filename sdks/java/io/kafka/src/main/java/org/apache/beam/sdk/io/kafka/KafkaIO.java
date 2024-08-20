@@ -2706,8 +2706,9 @@ public class KafkaIO {
               useLegacyImplementation = true;
             }
           }
+          // Use expensive reshuffle of payloads for update compatibility and tweak how offsets are
+          // committed.
           if (useLegacyImplementation) {
-            // Use expensive reshuffle of payloads for update compatibility.
             outputWithDescriptor =
                 outputWithDescriptor
                     .apply(Reshuffle.viaRandomKey())

@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.kafka;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
+import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -123,7 +124,7 @@ public class KafkaCommitOffset<K, V>
       Instant timestamp;
     }
 
-    private final Map<KafkaSourceDescriptor, OffsetAndTimestamp> maxObserved = new HashMap<>();
+    private transient Map<KafkaSourceDescriptor, OffsetAndTimestamp> maxObserved = new HashMap<>();
 
     @StartBundle
     public void startBundle() {
@@ -152,6 +153,12 @@ public class KafkaCommitOffset<K, V>
       maxObserved.forEach(
           (k, v) -> context.output(KV.of(k, v.offset), v.timestamp, GlobalWindow.INSTANCE));
     }
+
+    private void readObject(java.io.ObjectInputStream in)
+        throws IOException, ClassNotFoundException {
+      in.defaultReadObject();
+      maxObserved = new HashMap<>();
+    }
   }
 
   @Override
@@ -164,6 +171,9 @@ public class KafkaCommitOffset<K, V>
                 MapElements.into(new TypeDescriptor<KV<KafkaSourceDescriptor, Long>>() {})
                     .via(element -> KV.of(element.getKey(), element.getValue().getOffset())));
       } else {
+        // Reduce the amount of data to combine by calculating a max within the generally dense
+        // bundles of reading
+        // from a Kafka partition.
         offsets = input.apply(ParDo.of(new MaxOffsetFn<>()));
       }
       return offsets
