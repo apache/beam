@@ -24,13 +24,13 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
 import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
 import org.slf4j.Logger;
@@ -106,7 +106,8 @@ public class PythonService {
         new ProcessBuilder(bootstrapCommand).redirectError(ProcessBuilder.Redirect.INHERIT).start();
     bootstrap.getOutputStream().close();
     BufferedReader reader =
-        new BufferedReader(new InputStreamReader(bootstrap.getInputStream(), Charsets.UTF_8));
+        new BufferedReader(
+            new InputStreamReader(bootstrap.getInputStream(), StandardCharsets.UTF_8));
     String lastLine = reader.readLine();
     String lastNonEmptyLine = lastLine;
     while (lastLine != null) {

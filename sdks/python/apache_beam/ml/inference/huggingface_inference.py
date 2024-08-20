@@ -677,7 +677,7 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
         self._load_pipeline_args['device'] = 'cpu'
       else:
         if is_gpu_available_torch():
-          self._load_pipeline_args['device'] = 'cuda:1'
+          self._load_pipeline_args['device'] = 'cuda:0'
         else:
           _LOGGER.warning(
               "HuggingFaceModelHandler specified a 'GPU' device, "

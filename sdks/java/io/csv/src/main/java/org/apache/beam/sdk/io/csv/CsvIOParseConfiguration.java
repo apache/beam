@@ -18,26 +18,25 @@
 package org.apache.beam.sdk.io.csv;
 
 import com.google.auto.value.AutoValue;
+import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.values.Row;
 import org.apache.commons.csv.CSVFormat;
 
 /** Stores parameters needed for CSV record parsing. */
 @AutoValue
-abstract class CsvIOParseConfiguration {
+abstract class CsvIOParseConfiguration<T> implements Serializable {
 
-  static Builder builder() {
-    return new AutoValue_CsvIOParseConfiguration.Builder();
+  static <T> Builder<T> builder() {
+    return new AutoValue_CsvIOParseConfiguration.Builder<>();
   }
 
-  /**
-   * The expected <a
-   * href="https://javadoc.io/doc/org.apache.commons/commons-csv/1.8/org/apache/commons/csv/CSVFormat.html">CSVFormat</a>
-   * of the parsed CSV record.
-   */
+  /** The expected {@link CSVFormat} of the parsed CSV record. */
   abstract CSVFormat getCsvFormat();
 
   /** The expected {@link Schema} of the target type. */
@@ -46,23 +45,41 @@ abstract class CsvIOParseConfiguration {
   /** A map of the {@link Schema.Field#getName()} to the custom CSV processing lambda. */
   abstract Map<String, SerializableFunction<String, Object>> getCustomProcessingMap();
 
+  /** The expected {@link Coder} of the target type. */
+  abstract Coder<T> getCoder();
+
+  /** A {@link SerializableFunction} that converts from Row to the target type. */
+  abstract SerializableFunction<Row, T> getFromRowFn();
+
   @AutoValue.Builder
-  abstract static class Builder {
-    abstract Builder setCsvFormat(CSVFormat csvFormat);
+  abstract static class Builder<T> implements Serializable {
+    abstract Builder<T> setCsvFormat(CSVFormat csvFormat);
 
-    abstract Builder setSchema(Schema schema);
+    abstract Builder<T> setSchema(Schema schema);
 
-    abstract Builder setCustomProcessingMap(
+    abstract Builder<T> setCustomProcessingMap(
         Map<String, SerializableFunction<String, Object>> customProcessingMap);
 
     abstract Optional<Map<String, SerializableFunction<String, Object>>> getCustomProcessingMap();
 
-    abstract CsvIOParseConfiguration autoBuild();
-
-    final CsvIOParseConfiguration build() {
+    final Map<String, SerializableFunction<String, Object>> getOrCreateCustomProcessingMap() {
       if (!getCustomProcessingMap().isPresent()) {
         setCustomProcessingMap(new HashMap<>());
       }
+      return getCustomProcessingMap().get();
+    }
+
+    abstract Builder<T> setCoder(Coder<T> coder);
+
+    abstract Builder<T> setFromRowFn(SerializableFunction<Row, T> fromRowFn);
+
+    abstract CsvIOParseConfiguration<T> autoBuild();
+
+    final CsvIOParseConfiguration<T> build() {
+      if (!getCustomProcessingMap().isPresent()) {
+        setCustomProcessingMap(new HashMap<>());
+      }
+
       return autoBuild();
     }
   }

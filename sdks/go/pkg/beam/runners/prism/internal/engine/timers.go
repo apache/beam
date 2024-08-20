@@ -31,52 +31,94 @@ import (
 	"google.golang.org/protobuf/encoding/protowire"
 )
 
-// DecodeTimer extracts timers to elements for insertion into their keyed queues.
-// Returns the key bytes, tag, window exploded elements, and the hold timestamp.
+type timerRet struct {
+	keyBytes []byte
+	tag      string
+	elms     []element
+	windows  []typex.Window
+}
+
+// decodeTimerIter extracts timers to elements for insertion into their keyed queues,
+// through a go iterator function, to be called by the caller with their processing function.
+//
+// For each timer, a key, tag, windowed elements, and the window set are returned.
+//
 // If the timer has been cleared, no elements will be returned. Any existing timers
-// for the tag *must* be cleared from the pending queue.
-func decodeTimer(keyDec func(io.Reader) []byte, usesGlobalWindow bool, raw []byte) ([]byte, string, []element) {
-	keyBytes := keyDec(bytes.NewBuffer(raw))
+// for the tag *must* be cleared from the pending queue. The windows associated with
+// the clear are provided to be able to delete pending timers.
+func decodeTimerIter(keyDec func(io.Reader) []byte, winCoder WinCoderType, raw []byte) func(func(timerRet) bool) {
 
-	d := decoder{raw: raw, cursor: len(keyBytes)}
-	tag := string(d.Bytes())
-
-	var ws []typex.Window
-	numWin := d.Fixed32()
-	if usesGlobalWindow {
-		for i := 0; i < int(numWin); i++ {
-			ws = append(ws, window.GlobalWindow{})
+	var singleWindowExtractor func(*decoder) typex.Window
+	switch winCoder {
+	case WinGlobal:
+		singleWindowExtractor = func(*decoder) typex.Window {
+			return window.GlobalWindow{}
 		}
-	} else {
-		// Assume interval windows here, since we don't understand custom windows yet.
-		for i := 0; i < int(numWin); i++ {
-			ws = append(ws, d.IntervalWindow())
+	case WinInterval:
+		singleWindowExtractor = func(d *decoder) typex.Window {
+			return d.IntervalWindow()
+		}
+	case WinCustom:
+		// Default to a length prefixed window coder here until we have different information.
+		// Everything else is either:: variable, 1,  4, or 8 bytes long
+		// KVs (especially nested ones, could occur but are unlikely, and it would be
+		// easier for Prism to force such coders to be length prefixed.
+		singleWindowExtractor = func(d *decoder) typex.Window {
+			return d.CustomWindowLengthPrefixed()
+		}
+	default:
+		// Unsupported
+		panic(fmt.Sprintf("unsupported WindowCoder Type: %v", winCoder))
+	}
+
+	return func(yield func(timerRet) bool) {
+		for len(raw) > 0 {
+			keyBytes := keyDec(bytes.NewBuffer(raw))
+			d := decoder{raw: raw, cursor: len(keyBytes)}
+			tag := string(d.Bytes())
+
+			var ws []typex.Window
+			numWin := d.Fixed32()
+			for i := 0; i < int(numWin); i++ {
+				ws = append(ws, singleWindowExtractor(&d))
+			}
+
+			clear := d.Bool()
+			hold := mtime.MaxTimestamp
+			if clear {
+				if !yield(timerRet{keyBytes, tag, nil, ws}) {
+					return // Halt iteration if yeild returns false.
+				}
+				// Otherwise continue handling the remaining bytes.
+				raw = d.UnusedBytes()
+				continue
+			}
+
+			firing := d.Timestamp()
+			hold = d.Timestamp()
+			pane := d.Pane()
+
+			var elms []element
+			for _, w := range ws {
+				elms = append(elms, element{
+					tag:           tag,
+					elmBytes:      nil, // indicates this is a timer.
+					keyBytes:      keyBytes,
+					window:        w,
+					timestamp:     firing,
+					holdTimestamp: hold,
+					pane:          pane,
+					sequence:      len(elms),
+				})
+			}
+
+			if !yield(timerRet{keyBytes, tag, elms, ws}) {
+				return // Halt iteration if yeild returns false.
+			}
+			// Otherwise continue handling the remaining bytes.
+			raw = d.UnusedBytes()
 		}
 	}
-
-	clear := d.Bool()
-	hold := mtime.MaxTimestamp
-	if clear {
-		return keyBytes, tag, nil
-	}
-
-	firing := d.Timestamp()
-	hold = d.Timestamp()
-	pane := d.Pane()
-
-	var ret []element
-	for _, w := range ws {
-		ret = append(ret, element{
-			tag:           tag,
-			elmBytes:      nil, // indicates this is a timer.
-			keyBytes:      keyBytes,
-			window:        w,
-			timestamp:     firing,
-			holdTimestamp: hold,
-			pane:          pane,
-		})
-	}
-	return keyBytes, tag, ret
 }
 
 type decoder struct {
@@ -124,6 +166,37 @@ func (d *decoder) IntervalWindow() window.IntervalWindow {
 	}
 }
 
+// CustomWindowLengthPrefixed assumes the custom window coder is a variable, length prefixed type
+// such as string, bytes, or a length prefix wrapped coder.
+func (d *decoder) CustomWindowLengthPrefixed() customWindow {
+	end := d.Timestamp()
+
+	customStart := d.cursor
+	l := d.Varint()
+	endCursor := d.cursor + int(l)
+	d.cursor = endCursor
+	return customWindow{
+		End:    end,
+		Custom: d.raw[customStart:endCursor],
+	}
+}
+
+type customWindow struct {
+	End    typex.EventTime
+	Custom []byte // The custom portion of the window, ignored by the runner
+}
+
+func (w customWindow) MaxTimestamp() typex.EventTime {
+	return w.End
+}
+
+func (w customWindow) Equals(o typex.Window) bool {
+	if c, ok := o.(customWindow); ok {
+		return w.End == c.End && bytes.Equal(w.Custom, c.Custom)
+	}
+	return false
+}
+
 func (d *decoder) Byte() byte {
 	defer func() {
 		d.cursor += 1
@@ -137,6 +210,13 @@ func (d *decoder) Bytes() []byte {
 	b := d.raw[d.cursor:end]
 	d.cursor = end
 	return b
+}
+
+// UnusedBytes returns the remainder of bytes in the buffer that weren't yet used.
+// Multiple timers can be provided in a single timers buffer, since multiple dynamic
+// timer tags may be set.
+func (d *decoder) UnusedBytes() []byte {
+	return d.raw[d.cursor:]
 }
 
 func (d *decoder) Bool() bool {

@@ -121,7 +121,8 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
                 BigQueryHelpers.toTableSpec(tableToExtract)));
       }
       // emit this table ID as a lineage source
-      Lineage.getSources().add(BigQueryHelpers.dataCatalogName(tableToExtract, bqOptions));
+      Lineage.getSources()
+          .add("bigquery", BigQueryHelpers.dataCatalogSegments(tableToExtract, bqOptions));
 
       TableSchema schema = table.getSchema();
       JobService jobService = bqServices.getJobService(bqOptions);
@@ -157,9 +158,6 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
       LOG.info("Extract job produced {} files", res.extractedFiles.size());
       if (res.extractedFiles.size() > 0) {
         BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
-        // emit this table ID as a lineage source
-        Lineage.getSources()
-            .add(BigQueryHelpers.dataCatalogName(getTableToExtract(bqOptions), bqOptions));
         final String extractDestinationDir =
             resolveTempLocation(bqOptions.getTempLocation(), "BigQueryExtractTemp", stepUuid);
         // Match all files in the destination directory to stat them in bulk.

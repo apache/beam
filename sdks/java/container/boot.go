@@ -35,7 +35,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/execx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/grpcx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/syscallx"
-	"github.com/golang/protobuf/proto"
 )
 
 var (
@@ -126,12 +125,12 @@ func main() {
 	if err := tools.MakePipelineOptionsFileAndEnvVar(options); err != nil {
 		logger.Fatalf(ctx, "Failed to load pipeline options to worker: %v", err)
 	}
-	os.Setenv("LOGGING_API_SERVICE_DESCRIPTOR", proto.MarshalTextString(&pipepb.ApiServiceDescriptor{Url: *loggingEndpoint}))
-	os.Setenv("CONTROL_API_SERVICE_DESCRIPTOR", proto.MarshalTextString(&pipepb.ApiServiceDescriptor{Url: *controlEndpoint}))
+	os.Setenv("LOGGING_API_SERVICE_DESCRIPTOR", (&pipepb.ApiServiceDescriptor{Url: *loggingEndpoint}).String())
+	os.Setenv("CONTROL_API_SERVICE_DESCRIPTOR", (&pipepb.ApiServiceDescriptor{Url: *controlEndpoint}).String())
 	os.Setenv("RUNNER_CAPABILITIES", strings.Join(info.GetRunnerCapabilities(), " "))
 
 	if info.GetStatusEndpoint() != nil {
-		os.Setenv("STATUS_API_SERVICE_DESCRIPTOR", proto.MarshalTextString(info.GetStatusEndpoint()))
+		os.Setenv("STATUS_API_SERVICE_DESCRIPTOR", info.GetStatusEndpoint().String())
 	}
 
 	const jarsDir = "/opt/apache/beam/jars"

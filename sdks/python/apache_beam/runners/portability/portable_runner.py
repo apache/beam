@@ -437,7 +437,7 @@ class PortableMetrics(metric.MetricResults):
     ]
 
   def query(self, filter=None):
-    counters, distributions, gauges = [
+    counters, distributions, gauges, stringsets = [
         self._combine(x, y, filter)
         for x, y in zip(self.committed, self.attempted)
     ]
@@ -445,7 +445,8 @@ class PortableMetrics(metric.MetricResults):
     return {
         self.COUNTERS: counters,
         self.DISTRIBUTIONS: distributions,
-        self.GAUGES: gauges
+        self.GAUGES: gauges,
+        self.STRINGSETS: stringsets
     }
 
 

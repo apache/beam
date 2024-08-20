@@ -149,12 +149,17 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
     ProtoRows protoRows;
 
     List<org.joda.time.Instant> timestamps;
+    List<@Nullable TableRow> failsafeTableRows;
 
     AppendRowsContext(
-        ShardedKey<DestinationT> key, ProtoRows protoRows, List<org.joda.time.Instant> timestamps) {
+        ShardedKey<DestinationT> key,
+        ProtoRows protoRows,
+        List<org.joda.time.Instant> timestamps,
+        List<@Nullable TableRow> failsafeTableRows) {
       this.key = key;
       this.protoRows = protoRows;
       this.timestamps = timestamps;
+      this.failsafeTableRows = failsafeTableRows;
     }
 
     @Override
@@ -472,7 +477,8 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
 
       Lineage.getSinks()
           .add(
-              BigQueryHelpers.dataCatalogName(
+              "bigquery",
+              BigQueryHelpers.dataCatalogSegments(
                   tableDestination.getTableReference(), bigQueryOptions));
 
       Coder<DestinationT> destinationCoder = dynamicDestinations.getDestinationCoder();
@@ -685,8 +691,11 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
               Set<Integer> failedRowIndices = error.getRowIndexToErrorMessage().keySet();
               for (int failedIndex : failedRowIndices) {
                 // Convert the message to a TableRow and send it to the failedRows collection.
-                ByteString protoBytes = failedContext.protoRows.getSerializedRows(failedIndex);
-                TableRow failedRow = appendClientInfo.get().toTableRow(protoBytes);
+                TableRow failedRow = failedContext.failsafeTableRows.get(failedIndex);
+                if (failedRow == null) {
+                  ByteString protoBytes = failedContext.protoRows.getSerializedRows(failedIndex);
+                  failedRow = appendClientInfo.get().toTableRow(protoBytes);
+                }
                 org.joda.time.Instant timestamp = failedContext.timestamps.get(failedIndex);
                 o.get(failedRowsTag)
                     .outputWithTimestamp(
@@ -851,9 +860,12 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                     + ". This is unexpected. All rows in the request will be sent to the failed-rows PCollection.");
           }
           for (int i = 0; i < splitValue.getProtoRows().getSerializedRowsCount(); ++i) {
-            ByteString rowBytes = splitValue.getProtoRows().getSerializedRows(i);
             org.joda.time.Instant timestamp = splitValue.getTimestamps().get(i);
-            TableRow failedRow = appendClientInfo.get().toTableRow(rowBytes);
+            TableRow failedRow = splitValue.getFailsafeTableRows().get(i);
+            if (failedRow == null) {
+              ByteString rowBytes = splitValue.getProtoRows().getSerializedRows(i);
+              failedRow = appendClientInfo.get().toTableRow(rowBytes);
+            }
             o.get(failedRowsTag)
                 .outputWithTimestamp(
                     new BigQueryStorageApiInsertError(
@@ -872,7 +884,10 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
           // RetryManager
           AppendRowsContext context =
               new AppendRowsContext(
-                  element.getKey(), splitValue.getProtoRows(), splitValue.getTimestamps());
+                  element.getKey(),
+                  splitValue.getProtoRows(),
+                  splitValue.getTimestamps(),
+                  splitValue.getFailsafeTableRows());
           contexts.add(context);
           retryManager.addOperation(runOperation, onError, onSuccess, context);
           recordsAppended.inc(splitValue.getProtoRows().getSerializedRowsCount());

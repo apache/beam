@@ -1573,7 +1573,9 @@ class ParDo(PTransformWithSideInputs):
       threshold=1,
       threshold_windowing=None,
       timeout=None,
-      error_handler=None):
+      error_handler=None,
+      on_failure_callback: typing.Optional[typing.Callable[
+          [Exception, typing.Any], None]] = None):
     """Automatically provides a dead letter output for skipping bad records.
     This can allow a pipeline to continue successfully rather than fail or
     continuously throw errors on retry when bad elements are encountered.
@@ -1623,6 +1625,12 @@ class ParDo(PTransformWithSideInputs):
           raise a TimeoutError.  Defaults to None, meaning no time limit.
       error_handler: An ErrorHandler that should be used to consume the bad
           records, rather than returning the good and bad records as a tuple.
+      on_failure_callback: If an element fails or times out,
+          on_failure_callback will be invoked. It will receive the exception
+          and the element being processed in as args. In case of a timeout,
+          the exception will be of type `TimeoutError`. Be careful with this
+          callback - if you set a timeout, it will not apply to the callback,
+          and if the callback fails it will not be retried.
     """
     args, kwargs = self.raw_side_inputs
     return self.label >> _ExceptionHandlingWrapper(
@@ -1637,7 +1645,8 @@ class ParDo(PTransformWithSideInputs):
         threshold,
         threshold_windowing,
         timeout,
-        error_handler)
+        error_handler,
+        on_failure_callback)
 
   def with_error_handler(self, error_handler, **exception_handling_kwargs):
     """An alias for `with_exception_handling(error_handler=error_handler, ...)`
@@ -2248,7 +2257,8 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
       threshold,
       threshold_windowing,
       timeout,
-      error_handler):
+      error_handler,
+      on_failure_callback):
     if partial and use_subprocess:
       raise ValueError('partial and use_subprocess are mutually incompatible.')
     self._fn = fn
@@ -2263,6 +2273,7 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
     self._threshold_windowing = threshold_windowing
     self._timeout = timeout
     self._error_handler = error_handler
+    self._on_failure_callback = on_failure_callback
 
   def expand(self, pcoll):
     if self._use_subprocess:
@@ -2273,7 +2284,11 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
       wrapped_fn = self._fn
     result = pcoll | ParDo(
         _ExceptionHandlingWrapperDoFn(
-            wrapped_fn, self._dead_letter_tag, self._exc_class, self._partial),
+            wrapped_fn,
+            self._dead_letter_tag,
+            self._exc_class,
+            self._partial,
+            self._on_failure_callback),
         *self._args,
         **self._kwargs).with_outputs(
             self._dead_letter_tag, main=self._main_tag, allow_unknown_tags=True)
@@ -2316,11 +2331,13 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
 
 
 class _ExceptionHandlingWrapperDoFn(DoFn):
-  def __init__(self, fn, dead_letter_tag, exc_class, partial):
+  def __init__(
+      self, fn, dead_letter_tag, exc_class, partial, on_failure_callback):
     self._fn = fn
     self._dead_letter_tag = dead_letter_tag
     self._exc_class = exc_class
     self._partial = partial
+    self._on_failure_callback = on_failure_callback
 
   def __getattribute__(self, name):
     if (name.startswith('__') or name in self.__dict__ or
@@ -2337,6 +2354,11 @@ class _ExceptionHandlingWrapperDoFn(DoFn):
         result = list(result)
       yield from result
     except self._exc_class as exn:
+      if self._on_failure_callback is not None:
+        try:
+          self._on_failure_callback(exn, args[0])
+        except Exception as e:
+          logging.warning('on_failure_callback failed with error: %s', e)
       yield pvalue.TaggedOutput(
           self._dead_letter_tag,
           (

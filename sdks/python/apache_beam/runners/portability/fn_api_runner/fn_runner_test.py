@@ -1212,13 +1212,16 @@ class FnApiRunnerTest(unittest.TestCase):
     counter = beam.metrics.Metrics.counter('ns', 'counter')
     distribution = beam.metrics.Metrics.distribution('ns', 'distribution')
     gauge = beam.metrics.Metrics.gauge('ns', 'gauge')
+    string_set = beam.metrics.Metrics.string_set('ns', 'string_set')
 
-    pcoll = p | beam.Create(['a', 'zzz'])
+    elements = ['a', 'zzz']
+    pcoll = p | beam.Create(elements)
     # pylint: disable=expression-not-assigned
     pcoll | 'count1' >> beam.FlatMap(lambda x: counter.inc())
     pcoll | 'count2' >> beam.FlatMap(lambda x: counter.inc(len(x)))
     pcoll | 'dist' >> beam.FlatMap(lambda x: distribution.update(len(x)))
     pcoll | 'gauge' >> beam.FlatMap(lambda x: gauge.set(3))
+    pcoll | 'string_set' >> beam.FlatMap(lambda x: string_set.add(x))
 
     res = p.run()
     res.wait_until_finish()
@@ -1237,6 +1240,10 @@ class FnApiRunnerTest(unittest.TestCase):
       gaug, = res.metrics().query(beam.metrics.MetricsFilter()
                                   .with_name('gauge'))['gauges']
       self.assertEqual(gaug.committed.value, 3)
+
+    str_set, = res.metrics().query(beam.metrics.MetricsFilter()
+                                  .with_name('string_set'))['string_sets']
+    self.assertEqual(str_set.committed, set(elements))
 
   def test_callbacks_with_exception(self):
     elements_list = ['1', '2']

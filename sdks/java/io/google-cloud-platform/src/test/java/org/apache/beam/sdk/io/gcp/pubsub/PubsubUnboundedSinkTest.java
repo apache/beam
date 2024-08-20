@@ -223,7 +223,7 @@ public class PubsubUnboundedSinkTest implements Serializable {
                           Instant.ofEpochMilli(o.getTimestampMsSinceEpoch())))
               .collect(Collectors.toList());
 
-      p.apply(Create.timestamped(pubsubMessages).withCoder(new PubsubMessageWithTopicCoder()))
+      p.apply(Create.timestamped(pubsubMessages).withCoder(PubsubMessageWithTopicCoder.of()))
           .apply(sink);
       p.run();
     }

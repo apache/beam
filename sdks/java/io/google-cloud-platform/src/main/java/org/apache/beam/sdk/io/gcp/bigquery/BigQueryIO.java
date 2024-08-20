@@ -2711,9 +2711,14 @@ public class BigQueryIO {
     }
 
     /**
-     * If an insert failure occurs, this function is applied to the originally supplied row T. The
-     * resulting {@link TableRow} will be accessed via {@link
-     * WriteResult#getFailedInsertsWithErr()}.
+     * If an insert failure occurs, this function is applied to the originally supplied T element.
+     *
+     * <p>For {@link Method#STREAMING_INSERTS} method, the resulting {@link TableRow} will be
+     * accessed via {@link WriteResult#getFailedInsertsWithErr()}.
+     *
+     * <p>For {@link Method#STORAGE_WRITE_API} and {@link Method#STORAGE_API_AT_LEAST_ONCE} methods,
+     * the resulting {@link TableRow} will be accessed via {@link
+     * WriteResult#getFailedStorageApiInserts()}.
      */
     public Write<T> withFormatRecordOnFailureFunction(
         SerializableFunction<T, TableRow> formatFunction) {
@@ -3194,14 +3199,34 @@ public class BigQueryIO {
       return toBuilder().setMaxFilesPerBundle(maxFilesPerBundle).build();
     }
 
-    @VisibleForTesting
-    Write<T> withMaxFileSize(long maxFileSize) {
+    /**
+     * Controls the maximum byte size per file to be loaded into BigQuery. If the amount of data
+     * written to one file reaches this threshold, we will close that file and continue writing in a
+     * new file.
+     *
+     * <p>The default value (4 TiB) respects BigQuery's maximum number of source URIs per job
+     * configuration.
+     *
+     * @see <a href="https://cloud.google.com/bigquery/quotas#load_jobs">BigQuery Load Job
+     *     Limits</a>
+     */
+    public Write<T> withMaxFileSize(long maxFileSize) {
       checkArgument(maxFileSize > 0, "maxFileSize must be > 0, but was: %s", maxFileSize);
       return toBuilder().setMaxFileSize(maxFileSize).build();
     }
 
-    @VisibleForTesting
-    Write<T> withMaxFilesPerPartition(int maxFilesPerPartition) {
+    /**
+     * Controls how many files will be assigned to a single BigQuery load job. If the number of
+     * files increases past this threshold, we will spill it over into multiple load jobs as
+     * necessary.
+     *
+     * <p>The default value (10,000 files) respects BigQuery's maximum number of source URIs per job
+     * configuration.
+     *
+     * @see <a href="https://cloud.google.com/bigquery/quotas#load_jobs">BigQuery Load Job
+     *     Limits</a>
+     */
+    public Write<T> withMaxFilesPerPartition(int maxFilesPerPartition) {
       checkArgument(
           maxFilesPerPartition > 0,
           "maxFilesPerPartition must be > 0, but was: %s",
@@ -3773,6 +3798,7 @@ public class BigQueryIO {
                   dynamicDestinations,
                   elementSchema,
                   elementToRowFunction,
+                  getFormatRecordOnFailureFunction(),
                   getRowMutationInformationFn() != null);
         } else if (getWriteProtosClass() != null && getDirectWriteProtos()) {
           // We could support both of these by falling back to
@@ -3795,7 +3821,9 @@ public class BigQueryIO {
           storageApiDynamicDestinations =
               (StorageApiDynamicDestinations<T, DestinationT>)
                   new StorageApiDynamicDestinationsProto(
-                      dynamicDestinations, getWriteProtosClass());
+                      dynamicDestinations,
+                      getWriteProtosClass(),
+                      getFormatRecordOnFailureFunction());
         } else if (getAvroRowWriterFactory() != null) {
           // we can configure the avro to storage write api proto converter for this
           // assuming the format function returns an Avro GenericRecord
@@ -3818,6 +3846,7 @@ public class BigQueryIO {
                   dynamicDestinations,
                   avroSchemaFactory,
                   recordWriterFactory.getToAvroFn(),
+                  getFormatRecordOnFailureFunction(),
                   getRowMutationInformationFn() != null);
         } else {
           RowWriterFactory.TableRowWriterFactory<T, DestinationT> tableRowWriterFactory =
@@ -3827,6 +3856,7 @@ public class BigQueryIO {
               new StorageApiDynamicDestinationsTableRow<>(
                   dynamicDestinations,
                   tableRowWriterFactory.getToRowFn(),
+                  getFormatRecordOnFailureFunction(),
                   getRowMutationInformationFn() != null,
                   getCreateDisposition(),
                   getIgnoreUnknownValues(),

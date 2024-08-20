@@ -1730,8 +1730,6 @@ public class KafkaIO {
                 .withKeyDeserializerProvider(kafkaRead.getKeyDeserializerProvider())
                 .withValueDeserializerProvider(kafkaRead.getValueDeserializerProvider())
                 .withManualWatermarkEstimator()
-                .withRedistribute()
-                .withAllowDuplicates() // must be set with withRedistribute option.
                 .withTimestampPolicyFactory(kafkaRead.getTimestampPolicyFactory())
                 .withCheckStopReadingFn(kafkaRead.getCheckStopReadingFn())
                 .withConsumerPollingTimeout(kafkaRead.getConsumerPollingTimeout());

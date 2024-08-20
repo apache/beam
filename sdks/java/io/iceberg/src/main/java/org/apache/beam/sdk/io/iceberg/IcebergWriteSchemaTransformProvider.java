@@ -18,19 +18,12 @@
 package org.apache.beam.sdk.io.iceberg;
 
 import com.google.auto.service.AutoService;
-import com.google.auto.value.AutoValue;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import org.apache.beam.sdk.io.iceberg.IcebergWriteSchemaTransformProvider.Config;
 import org.apache.beam.sdk.managed.ManagedTransformConstants;
-import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
-import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
-import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
@@ -48,7 +41,8 @@ import org.apache.iceberg.catalog.TableIdentifier;
  * outputs a {@code PCollection<Row>} representing snapshots created in the process.
  */
 @AutoService(SchemaTransformProvider.class)
-public class IcebergWriteSchemaTransformProvider extends TypedSchemaTransformProvider<Config> {
+public class IcebergWriteSchemaTransformProvider
+    extends TypedSchemaTransformProvider<SchemaTransformConfiguration> {
 
   static final String INPUT_TAG = "input";
   static final String OUTPUT_TAG = "output";
@@ -64,7 +58,7 @@ public class IcebergWriteSchemaTransformProvider extends TypedSchemaTransformPro
   }
 
   @Override
-  protected SchemaTransform from(Config configuration) {
+  protected SchemaTransform from(SchemaTransformConfiguration configuration) {
     return new IcebergWriteSchemaTransform(configuration);
   }
 
@@ -83,38 +77,10 @@ public class IcebergWriteSchemaTransformProvider extends TypedSchemaTransformPro
     return ManagedTransformConstants.ICEBERG_WRITE;
   }
 
-  @DefaultSchema(AutoValueSchema.class)
-  @AutoValue
-  public abstract static class Config {
-    public static Builder builder() {
-      return new AutoValue_IcebergWriteSchemaTransformProvider_Config.Builder();
-    }
-
-    @SchemaFieldDescription("Identifier of the Iceberg table to write to.")
-    public abstract String getTable();
-
-    @SchemaFieldDescription("Name of the catalog containing the table.")
-    public abstract String getCatalogName();
-
-    @SchemaFieldDescription("Configuration properties used to set up the Iceberg catalog.")
-    public abstract Map<String, String> getCatalogProperties();
-
-    @AutoValue.Builder
-    public abstract static class Builder {
-      public abstract Builder setTable(String table);
-
-      public abstract Builder setCatalogName(String catalogName);
-
-      public abstract Builder setCatalogProperties(Map<String, String> catalogProperties);
-
-      public abstract Config build();
-    }
-  }
-
   static class IcebergWriteSchemaTransform extends SchemaTransform {
-    private final Config configuration;
+    private final SchemaTransformConfiguration configuration;
 
-    IcebergWriteSchemaTransform(Config configuration) {
+    IcebergWriteSchemaTransform(SchemaTransformConfiguration configuration) {
       this.configuration = configuration;
     }
 
@@ -123,7 +89,7 @@ public class IcebergWriteSchemaTransformProvider extends TypedSchemaTransformPro
         // To stay consistent with our SchemaTransform configuration naming conventions,
         // we sort lexicographically and convert field names to snake_case
         return SchemaRegistry.createDefault()
-            .getToRowFunction(Config.class)
+            .getToRowFunction(SchemaTransformConfiguration.class)
             .apply(configuration)
             .sorted()
             .toSnakeCase();
@@ -136,19 +102,11 @@ public class IcebergWriteSchemaTransformProvider extends TypedSchemaTransformPro
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
       PCollection<Row> rows = input.get(INPUT_TAG);
 
-      Properties properties = new Properties();
-      properties.putAll(configuration.getCatalogProperties());
-
-      IcebergCatalogConfig catalog =
-          IcebergCatalogConfig.builder()
-              .setCatalogName(configuration.getCatalogName())
-              .setProperties(properties)
-              .build();
-
       // TODO: support dynamic destinations
       IcebergWriteResult result =
           rows.apply(
-              IcebergIO.writeRows(catalog).to(TableIdentifier.parse(configuration.getTable())));
+              IcebergIO.writeRows(configuration.getIcebergCatalog())
+                  .to(TableIdentifier.parse(configuration.getTable())));
 
       PCollection<Row> snapshots =
           result

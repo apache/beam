@@ -137,7 +137,7 @@ public class IcebergIO {
                       .setCatalogConfig(getCatalogConfig())
                       .setScanType(IcebergScanConfig.ScanType.TABLE)
                       .setTableIdentifier(tableId)
-                      .setSchema(SchemaAndRowConversions.icebergSchemaToBeamSchema(table.schema()))
+                      .setSchema(IcebergUtils.icebergSchemaToBeamSchema(table.schema()))
                       .build())));
     }
   }
