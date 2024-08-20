@@ -92,7 +92,6 @@ public class StateNamespaces {
 
     private Coder<W> windowCoder;
     private W window;
-    private String stringKey;
 
     private WindowNamespace(Coder<W> windowCoder, W window) {
       this.windowCoder = windowCoder;
@@ -106,11 +105,8 @@ public class StateNamespaces {
     @Override
     public String stringKey() {
       try {
-        if(stringKey == null) {
-          // equivalent to String.format("/%s/", ...)
-          stringKey = "/" + CoderUtils.encodeToBase64(windowCoder, window) + "/";
-        }
-        return stringKey;
+        // equivalent to String.format("/%s/", ...)
+        return "/" + CoderUtils.encodeToBase64(windowCoder, window) + "/";
       } catch (CoderException e) {
         throw new RuntimeException("Unable to generate string key from window " + window, e);
       }
