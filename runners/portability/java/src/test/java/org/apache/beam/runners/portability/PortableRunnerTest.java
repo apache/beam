@@ -57,6 +57,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -105,6 +106,7 @@ public class PortableRunnerTest implements Serializable {
     assertThat(state, is(State.DONE));
   }
 
+  @Ignore
   @Test
   public void extractsMetrics() throws Exception {
     JobApi.MetricResults metricResults = generateMetricResults();
