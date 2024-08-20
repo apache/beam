@@ -18,6 +18,8 @@
 package org.apache.beam.runners.core;
 
 import java.util.Collection;
+
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.triggers.ExecutableTriggerStateMachine;
 import org.apache.beam.runners.core.triggers.TriggerStateMachines;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -41,6 +43,7 @@ public class GroupAlsoByWindowViaWindowSetNewDoFn<
     extends DoFn<RinT, KV<K, OutputT>> {
 
   private static final long serialVersionUID = 1L;
+  private final RunnerApi.Trigger triggerProto;
 
   public static <K, InputT, OutputT, W extends BoundedWindow>
       DoFn<KeyedWorkItem<K, InputT>, KV<K, OutputT>> create(
@@ -86,6 +89,7 @@ public class GroupAlsoByWindowViaWindowSetNewDoFn<
     this.windowingStrategy = noWildcard;
     this.reduceFn = reduceFn;
     this.stateInternalsFactory = stateInternalsFactory;
+    this.triggerProto = TriggerTranslation.toProto(windowingStrategy.getTrigger());
   }
 
   private OutputWindowedValue<KV<K, OutputT>> outputWindowedValue() {
@@ -123,9 +127,7 @@ public class GroupAlsoByWindowViaWindowSetNewDoFn<
         new ReduceFnRunner<>(
             key,
             windowingStrategy,
-            ExecutableTriggerStateMachine.create(
-                TriggerStateMachines.stateMachineForTrigger(
-                    TriggerTranslation.toProto(windowingStrategy.getTrigger()))),
+            ExecutableTriggerStateMachine.create(TriggerStateMachines.stateMachineForTrigger(triggerProto)),
             stateInternals,
             timerInternals,
             outputWindowedValue(),
