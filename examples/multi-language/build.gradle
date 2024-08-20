@@ -32,6 +32,15 @@ description = "Apache Beam :: Examples :: Multi Language"
 ext.summary = "Java Classes for Multi-language Examples"
 
 dependencies {
+    implementation project(":sdks:java:io:iceberg")
+    implementation "org.apache.iceberg:iceberg-core:1.4.2"
+    implementation "org.apache.iceberg:iceberg-api:1.4.2"
+    implementation project(":sdks:java:managed")
+    runtimeOnly ("org.apache.iceberg:iceberg-hive-metastore:1.4.2")
+    runtimeOnly project(path: ":sdks:java:io:iceberg:hive:exec", configuration: "shadow")
+    runtimeOnly library.java.bigdataoss_gcs_connector
+//    runtimeOnly library.java.hadoop_client
+
     implementation library.java.vendored_guava_32_1_2_jre
     implementation project(path: ":sdks:java:core", configuration: "shadow")
     runtimeOnly project(path: ":examples:java")
@@ -55,3 +64,9 @@ task sklearnMinstClassification(type: JavaExec) {
     classpath = sourceSets.main.runtimeClasspath
 }
 
+tasks.create(name:"execute", type:JavaExec) {
+    main = project.hasProperty("mainClass") ? project.getProperty("mainClass") : "NONE"
+    classpath = sourceSets.main.runtimeClasspath
+    systemProperties System.getProperties()
+    args project.hasProperty("exec.args") ? project.getProperty("exec.args").split() : []
+}

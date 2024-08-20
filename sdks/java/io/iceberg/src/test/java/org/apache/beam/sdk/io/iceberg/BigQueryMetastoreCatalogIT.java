@@ -37,7 +37,9 @@ import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.AppendFiles;
+import org.apache.iceberg.CatalogUtil;
 import org.apache.iceberg.CombinedScanTask;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.FileFormat;
@@ -46,13 +48,14 @@ import org.apache.iceberg.ManifestFiles;
 import org.apache.iceberg.ManifestWriter;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.TableScan;
+import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.Namespace;
+import org.apache.iceberg.catalog.SupportsNamespaces;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.data.parquet.GenericParquetReaders;
 import org.apache.iceberg.data.parquet.GenericParquetWriter;
 import org.apache.iceberg.encryption.InputFilesDecryptor;
-import org.apache.iceberg.gcp.bigquery.BigQueryMetastoreCatalog;
 import org.apache.iceberg.io.CloseableIterable;
 import org.apache.iceberg.io.DataWriter;
 import org.apache.iceberg.io.InputFile;
@@ -138,7 +141,7 @@ public class BigQueryMetastoreCatalogIT {
   private static final String DATASET = "iceberg_bigquerymetastore_test_" + System.nanoTime();
   @Rule public TestName testName = new TestName();
   private static final String WAREHOUSE = TestPipeline.testingPipelineOptions().getTempLocation();
-  private static BigQueryMetastoreCatalog catalog;
+  private static Catalog catalog;
   private static Map<String, String> catalogProps;
   private TableIdentifier tableIdentifier;
 
@@ -152,9 +155,11 @@ public class BigQueryMetastoreCatalogIT {
             .put("catalog-impl", "org.apache.iceberg.gcp.bigquery.BigQueryMetastoreCatalog")
             .put("warehouse", WAREHOUSE)
             .build();
-    catalog = new BigQueryMetastoreCatalog();
+    catalog =
+        CatalogUtil.loadCatalog(
+            catalogProps.get("catalog-impl"), TEST_CATALOG, catalogProps, new Configuration());
     catalog.initialize(TEST_CATALOG, catalogProps);
-    catalog.createNamespace(Namespace.of(DATASET));
+    ((SupportsNamespaces) catalog).createNamespace(Namespace.of(DATASET));
   }
 
   @After
@@ -165,7 +170,7 @@ public class BigQueryMetastoreCatalogIT {
 
   @AfterClass
   public static void tearDown() {
-    catalog.dropNamespace(Namespace.of(DATASET));
+    ((SupportsNamespaces) catalog).dropNamespace(Namespace.of(DATASET));
   }
 
   private Map<String, Object> getManagedIcebergConfig(TableIdentifier table) {
