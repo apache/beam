@@ -562,6 +562,9 @@ public class TextIOReadTest {
           .add(new Object[] {"|*first|*second|*|*third|"})
           .add(new Object[] {"|*first|*second|*|*third*"})
           .add(new Object[] {"|*first|*second|*|*third|*"})
+          .add(new Object[] {"first||*second|*|*third"})
+          .add(new Object[] {"first|*second||*|*third"})
+          .add(new Object[] {"|||*first|*second||*||*third"})
           .build();
     }
 

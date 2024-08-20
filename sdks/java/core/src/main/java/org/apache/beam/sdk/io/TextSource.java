@@ -452,6 +452,13 @@ public class TextSource extends FileBasedSource<String> {
                 bufferPosn++;
                 break;
               }
+            } else if (buffer[bufferPosn] == delimiter[0]) {
+              // Check if match for start of delimiter
+              delPosn = 1;
+              if (delPosn == delimiter.length) {
+                  bufferPosn++;
+                  break;
+              }
             } else {
               delPosn = 0;
             }
