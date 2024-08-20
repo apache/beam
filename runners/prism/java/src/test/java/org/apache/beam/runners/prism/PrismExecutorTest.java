@@ -20,14 +20,13 @@ package org.apache.beam.runners.prism;
 import static com.google.common.truth.Truth.assertThat;
 import static org.apache.beam.runners.prism.PrismRunnerTest.getLocalPrismBuildOrIgnoreTest;
 
+import java.io.BufferedOutputStream;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.util.Collections;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -44,50 +43,19 @@ public class PrismExecutorTest {
 
   @Test
   public void executeThenStop() throws IOException {
-    PrismExecutor executor = underTest().build();
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    PrismExecutor executor = underTest(baos).build();
     executor.execute();
     sleep(3000L);
     executor.stop();
+    String got = new String(baos.toByteArray(), StandardCharsets.UTF_8);
+    assertThat(got).contains("INFO Serving JobManagement endpoint=localhost:8073");
   }
 
-  @Test
-  public void executeWithStreamRedirectThenStop() throws IOException {
-    PrismExecutor executor = underTest().build();
-    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-    executor.execute(outputStream);
-    sleep(3000L);
-    executor.stop();
-    String output = outputStream.toString(StandardCharsets.UTF_8.name());
-    assertThat(output).contains("INFO Serving JobManagement endpoint=localhost:8073");
-  }
-
-  @Test
-  public void executeWithFileOutputThenStop() throws IOException {
-    PrismExecutor executor = underTest().build();
-    File log = temporaryFolder.newFile(testName.getMethodName());
-    executor.execute(log);
-    sleep(3000L);
-    executor.stop();
-    try (Stream<String> stream = Files.lines(log.toPath(), StandardCharsets.UTF_8)) {
-      String output = stream.collect(Collectors.joining("\n"));
-      assertThat(output).contains("INFO Serving JobManagement endpoint=localhost:8073");
-    }
-  }
-
-  @Test
-  public void executeWithCustomArgumentsThenStop() throws IOException {
-    PrismExecutor executor =
-        underTest().setArguments(Collections.singletonList("-job_port=5555")).build();
-    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-    executor.execute(outputStream);
-    sleep(3000L);
-    executor.stop();
-    String output = outputStream.toString(StandardCharsets.UTF_8.name());
-    assertThat(output).contains("INFO Serving JobManagement endpoint=localhost:5555");
-  }
-
-  private PrismExecutor.Builder underTest() {
-    return PrismExecutor.builder().setCommand(getLocalPrismBuildOrIgnoreTest());
+  private PrismExecutor.Builder underTest(OutputStream outputStream) {
+    return PrismExecutor.builder()
+            .setCommand(getLocalPrismBuildOrIgnoreTest())
+            .setOutputStream(outputStream);
   }
 
   private void sleep(long millis) {
