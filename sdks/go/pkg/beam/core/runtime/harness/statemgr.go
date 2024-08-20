@@ -16,6 +16,7 @@
 package harness
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -452,6 +453,9 @@ func (r *stateKeyReader) Read(buf []byte) (int, error) {
 		r.buf = nil
 	default:
 		r.buf = r.buf[n:]
+		if len(r.buf) == 0 {
+			r.buf = nil
+		}
 	}
 	return n, nil
 }
@@ -469,6 +473,7 @@ func (r *stateKeyWriter) Write(buf []byte) (int, error) {
 	localChannel := r.ch
 	r.mu.Unlock()
 
+	toSend := bytes.Clone(buf)
 	var req *fnpb.StateRequest
 	switch r.writeType {
 	case writeTypeAppend:
@@ -478,7 +483,7 @@ func (r *stateKeyWriter) Write(buf []byte) (int, error) {
 			StateKey:      r.key,
 			Request: &fnpb.StateRequest_Append{
 				Append: &fnpb.StateAppendRequest{
-					Data: buf,
+					Data: toSend,
 				},
 			},
 		}
@@ -499,7 +504,7 @@ func (r *stateKeyWriter) Write(buf []byte) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	return len(buf), nil
+	return len(toSend), nil
 }
 
 // StateChannelManager manages data channels over the State API. A fixed number of channels
