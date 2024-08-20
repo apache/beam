@@ -628,6 +628,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def nemo_version = "0.1"
     // [bomupgrader] determined by: io.grpc:grpc-netty, consistent with: google_cloud_platform_libraries_bom
     def netty_version = "4.1.100.Final"
+    def nuprocess_version = "2.0.6"
     def postgres_version = "42.2.16"
     def powermock_version = "2.0.9"
     // [bomupgrader] determined by: com.google.protobuf:protobuf-java, consistent with: google_cloud_platform_libraries_bom
@@ -848,6 +849,7 @@ class BeamModulePlugin implements Plugin<Project> {
         netty_tcnative_boringssl_static             : "io.netty:netty-tcnative-boringssl-static:2.0.52.Final",
         netty_transport                             : "io.netty:netty-transport:$netty_version",
         netty_transport_native_epoll                : "io.netty:netty-transport-native-epoll:$netty_version",
+        nuprocess                                   : "com.zaxxer:nuprocess:$nuprocess_version",
         postgres                                    : "org.postgresql:postgresql:$postgres_version",
         powermock                                   : "org.powermock:powermock-module-junit4:$powermock_version",
         powermock_mockito                           : "org.powermock:powermock-api-mockito2:$powermock_version",
