@@ -54,3 +54,4 @@ task sklearnMinstClassification(type: JavaExec) {
     mainClass = "org.apache.beam.examples.multilanguage.SklearnMnistClassification"
     classpath = sourceSets.main.runtimeClasspath
 }
+
