@@ -950,11 +950,6 @@ class FlinkStreamingTransformTranslators {
 
       DataStream<WindowedValue<KV<K, InputT>>> inputDataStream = context.getInputDataStream(input);
 
-//      WindowedValue.FullWindowedValueCoder<KV<K, byte[]>> windowedBinaryKVCoder =
-//          WindowedValue.getFullCoder(
-//              KvCoder.of(inputKvCoder.getKeyCoder(), ByteArrayCoder.of()),
-//              input.getWindowingStrategy().getWindowFn().windowCoder());
-
       WindowedValue.FullWindowedValueCoder<KeyedWorkItem<K, InputT>> windowedKeyedWorkItemCoder =
           WindowedValue.getFullCoder(
               KeyedWorkItemCoder.of(
@@ -962,15 +957,6 @@ class FlinkStreamingTransformTranslators {
                   inputKvCoder.getValueCoder(),
                   input.getWindowingStrategy().getWindowFn().windowCoder()),
               input.getWindowingStrategy().getWindowFn().windowCoder());
-
-//      CoderTypeInformation<WindowedValue<KV<K, byte[]>>> binaryKVTypeInfo =
-//          new CoderTypeInformation<>(windowedBinaryKVCoder, context.getPipelineOptions());
-
-//      DataStream<WindowedValue<KV<K, byte[]>>> inputBinaryDataStream =
-//          inputDataStream
-//              .flatMap(new ToBinaryKV<>(context.getPipelineOptions(), inputKvCoder.getValueCoder()))
-//              .returns(binaryKVTypeInfo)
-//              .name("ToBinaryKV");
 
       KvToByteBufferKeySelector<K, InputT> keySelector =
           new KvToByteBufferKeySelector<>(
@@ -1021,11 +1007,6 @@ class FlinkStreamingTransformTranslators {
           keyedWorkItemStream
               .transform(fullName, outputTypeInfo, doFnOperator)
               .uid(fullName);
-//              .flatMap(
-//                  new ToGroupByKeyResult<>(
-//                      context.getPipelineOptions(), inputKvCoder.getValueCoder()))
-//              .returns(context.getTypeInfo(context.getOutput(transform)))
-//              .name("ToGBKResult");
 
       context.setOutputDataStream(context.getOutput(transform), outDataStream);
     }
@@ -1496,65 +1477,6 @@ class FlinkStreamingTransformTranslators {
 
         context.setOutputDataStream(context.getOutput(transform), result);
       }
-    }
-  }
-
-  static class ToBinaryKV<K, InputT>
-      extends RichFlatMapFunction<WindowedValue<KV<K, InputT>>, WindowedValue<KV<K, byte[]>>> {
-
-    private final SerializablePipelineOptions options;
-    private final Coder<InputT> valueCoder;
-
-    ToBinaryKV(PipelineOptions options, Coder<InputT> valueCoder) {
-      this.options = new SerializablePipelineOptions(options);
-      this.valueCoder = valueCoder;
-    }
-
-    @Override
-    public void open(Configuration parameters) {
-      // Initialize FileSystems for any coders which may want to use the FileSystem,
-      // see https://issues.apache.org/jira/browse/BEAM-8303
-      FileSystems.setDefaultPipelineOptions(options.get());
-    }
-
-    @Override
-    public void flatMap(
-        WindowedValue<KV<K, InputT>> in, Collector<WindowedValue<KV<K, byte[]>>> out)
-        throws CoderException {
-      final byte[] binaryValue = CoderUtils.encodeToByteArray(valueCoder, in.getValue().getValue());
-      out.collect(in.withValue(KV.of(in.getValue().getKey(), binaryValue)));
-    }
-  }
-
-  static class ToGroupByKeyResult<KeyT, ValueT>
-      extends RichFlatMapFunction<
-          WindowedValue<KV<KeyT, Iterable<byte[]>>>, WindowedValue<KV<KeyT, Iterable<ValueT>>>> {
-
-    private final SerializablePipelineOptions options;
-    private final Coder<ValueT> valueCoder;
-
-    ToGroupByKeyResult(PipelineOptions options, Coder<ValueT> valueCoder) {
-      this.options = new SerializablePipelineOptions(options);
-      this.valueCoder = valueCoder;
-    }
-
-    @Override
-    public void open(Configuration parameters) {
-      // Initialize FileSystems for any coders which may want to use the FileSystem,
-      // see https://issues.apache.org/jira/browse/BEAM-8303
-      FileSystems.setDefaultPipelineOptions(options.get());
-    }
-
-    @Override
-    public void flatMap(
-        WindowedValue<KV<KeyT, Iterable<byte[]>>> element,
-        Collector<WindowedValue<KV<KeyT, Iterable<ValueT>>>> collector)
-        throws CoderException {
-      final List<ValueT> result = new ArrayList<>();
-      for (byte[] binaryValue : element.getValue().getValue()) {
-        result.add(CoderUtils.decodeFromByteArray(valueCoder, binaryValue));
-      }
-      collector.collect(element.withValue(KV.of(element.getValue().getKey(), result)));
     }
   }
 

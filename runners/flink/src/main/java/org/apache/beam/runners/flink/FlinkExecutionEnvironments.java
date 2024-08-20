@@ -243,6 +243,7 @@ public class FlinkExecutionEnvironments {
       // The default value (parallelism * 1.5)
       // (see https://github.com/apache/flink/blob/e9dd4683f758b463d0b5ee18e49cecef6a70c5cf/flink-runtime/src/main/java/org/apache/flink/runtime/state/KeyGroupRangeAssignment.java#L137-L147)
       // create a lot of skew so we force maxParallelism = parallelism in Batch mode.
+      LOG.info("Setting maxParallelism to {}", parallelism);
       flinkStreamEnv.setMaxParallelism(parallelism);
     }
     // set parallelism in the options (required by some execution code)
