@@ -964,14 +964,15 @@ class FlinkStreamingTransformTranslators {
               new SerializablePipelineOptions(context.getPipelineOptions()));
 
       KeyedStream<WindowedValue<KV<K, InputT>>, ByteBuffer> keyedWorkItemStream =
-              inputDataStream.keyBy(keySelector);
+          inputDataStream.keyBy(keySelector);
 
       SystemReduceFn<K, InputT, Iterable<InputT>, Iterable<InputT>, BoundedWindow> reduceFn =
           SystemReduceFn.buffering(inputKvCoder.getValueCoder());
 
       Coder<WindowedValue<KV<K, Iterable<InputT>>>> outputCoder =
           WindowedValue.getFullCoder(
-              KvCoder.of(inputKvCoder.getKeyCoder(), IterableCoder.of(inputKvCoder.getValueCoder())),
+              KvCoder.of(
+                  inputKvCoder.getKeyCoder(), IterableCoder.of(inputKvCoder.getValueCoder())),
               windowingStrategy.getWindowFn().windowCoder());
 
       TypeInformation<WindowedValue<KV<K, Iterable<InputT>>>> outputTypeInfo =
@@ -1004,9 +1005,7 @@ class FlinkStreamingTransformTranslators {
               workItemKeySelector);
 
       final SingleOutputStreamOperator<WindowedValue<KV<K, Iterable<InputT>>>> outDataStream =
-          keyedWorkItemStream
-              .transform(fullName, outputTypeInfo, doFnOperator)
-              .uid(fullName);
+          keyedWorkItemStream.transform(fullName, outputTypeInfo, doFnOperator).uid(fullName);
 
       context.setOutputDataStream(context.getOutput(transform), outDataStream);
     }
@@ -1222,23 +1221,21 @@ class FlinkStreamingTransformTranslators {
             throw new RuntimeException(e);
           }
 
-
           TupleTag<KV<K, Object>> mainTag = new TupleTag<>("main output");
 
           PartialReduceBundleOperator<K, InputT, OutputT, Object> partialDoFnOperator =
-                new PartialReduceBundleOperator<>(
-                    (GlobalCombineFn<InputT, Object, OutputT>) combineFn,
-                    getCurrentTransformName(context),
-                    context.getWindowedInputCoder(input),
-                    mainTag,
-                    Collections.emptyList(),
-                    new DoFnOperator.MultiOutputOutputManagerFactory<>(
-                        mainTag, windowedAccumCoder, serializablePipelineOptions),
-                    input.getWindowingStrategy(),
-                    new HashMap<>(),
-                    Collections.emptyList(),
-                    context.getPipelineOptions()
-                );
+              new PartialReduceBundleOperator<>(
+                  (GlobalCombineFn<InputT, Object, OutputT>) combineFn,
+                  getCurrentTransformName(context),
+                  context.getWindowedInputCoder(input),
+                  mainTag,
+                  Collections.emptyList(),
+                  new DoFnOperator.MultiOutputOutputManagerFactory<>(
+                      mainTag, windowedAccumCoder, serializablePipelineOptions),
+                  input.getWindowingStrategy(),
+                  new HashMap<>(),
+                  Collections.emptyList(),
+                  context.getPipelineOptions());
 
           // final aggregation from AccumT to OutputT
           WindowDoFnOperator<K, Object, OutputT> finalDoFnOperator =

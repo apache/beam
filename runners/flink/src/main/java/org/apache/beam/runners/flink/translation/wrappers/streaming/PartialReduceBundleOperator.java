@@ -1,5 +1,23 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
+import java.util.*;
 import org.apache.beam.runners.flink.translation.functions.AbstractFlinkCombineRunner;
 import org.apache.beam.runners.flink.translation.functions.HashingFlinkCombineRunner;
 import org.apache.beam.runners.flink.translation.functions.SortingFlinkCombineRunner;
@@ -19,9 +37,8 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ArrayL
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multimap;
 import org.apache.flink.util.Collector;
 
-import java.util.*;
-
-public class PartialReduceBundleOperator<K, InputT, OutputT, AccumT> extends DoFnOperator<KV<K, InputT>, KV<K, InputT>, KV<K, AccumT>> {
+public class PartialReduceBundleOperator<K, InputT, OutputT, AccumT>
+    extends DoFnOperator<KV<K, InputT>, KV<K, InputT>, KV<K, AccumT>> {
 
   private final CombineFnBase.GlobalCombineFn<InputT, AccumT, OutputT> combineFn;
 
@@ -62,11 +79,10 @@ public class PartialReduceBundleOperator<K, InputT, OutputT, AccumT> extends DoF
 
   @Override
   public void open() throws Exception {
-//    clearState();
+    //    clearState();
     setBundleFinishedCallback(this::finishBundle);
     super.open();
   }
-
 
   private void finishBundle() {
     AbstractFlinkCombineRunner<K, InputT, AccumT, AccumT, BoundedWindow> reduceRunner;
@@ -77,7 +93,7 @@ public class PartialReduceBundleOperator<K, InputT, OutputT, AccumT> extends DoF
         reduceRunner = new HashingFlinkCombineRunner<>();
       }
 
-      for(Map.Entry<K, Collection<WindowedValue<KV<K, InputT>>>> e : state.asMap().entrySet()) {
+      for (Map.Entry<K, Collection<WindowedValue<KV<K, InputT>>>> e : state.asMap().entrySet()) {
         reduceRunner.combine(
             new AbstractFlinkCombineRunner.PartialFlinkCombiner<>(combineFn),
             (WindowingStrategy<Object, BoundedWindow>) windowingStrategy,
@@ -91,8 +107,7 @@ public class PartialReduceBundleOperator<K, InputT, OutputT, AccumT> extends DoF
               }
 
               @Override
-              public void close() {
-              }
+              public void close() {}
             });
       }
 
@@ -111,7 +126,8 @@ public class PartialReduceBundleOperator<K, InputT, OutputT, AccumT> extends DoF
     return new DoFn<KV<K, InputT>, KV<K, AccumT>>() {
       @ProcessElement
       public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
-        WindowedValue<KV<K, InputT>> windowedValue = WindowedValue.of(c.element(), c.timestamp(), window, c.pane());
+        WindowedValue<KV<K, InputT>> windowedValue =
+            WindowedValue.of(c.element(), c.timestamp(), window, c.pane());
         state.put(c.element().getKey(), windowedValue);
       }
     };
