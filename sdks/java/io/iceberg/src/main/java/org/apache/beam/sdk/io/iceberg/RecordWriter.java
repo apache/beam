@@ -57,10 +57,12 @@ class RecordWriter {
     this.table = table;
     this.fileFormat = fileFormat;
     if (table.spec().isUnpartitioned()) {
-      absoluteFilename = table.locationProvider().newDataLocation(filename);
+      absoluteFilename =
+          fileFormat.addExtension(table.locationProvider().newDataLocation(filename));
     } else {
       absoluteFilename =
-          table.locationProvider().newDataLocation(table.spec(), partitionKey, filename);
+          fileFormat.addExtension(
+              table.locationProvider().newDataLocation(table.spec(), partitionKey, filename));
     }
     OutputFile outputFile = table.io().newOutputFile(absoluteFilename);
 
