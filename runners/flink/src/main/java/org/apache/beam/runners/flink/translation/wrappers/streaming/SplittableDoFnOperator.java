@@ -129,8 +129,7 @@ public class SplittableDoFnOperator<InputT, OutputT, RestrictionT>
 
     if (this.executorService == null) {
       this.executorService =
-          Executors.newScheduledThreadPool(
-              Runtime.getRuntime().availableProcessors(),
+          Executors.newSingleThreadScheduledExecutor(
               new ThreadFactoryBuilder().setNameFormat("flink-sdf-executor-%d").build());
     }
 
