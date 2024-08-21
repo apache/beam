@@ -17,38 +17,21 @@
  */
 plugins {
     id 'org.apache.beam.module'
-    id 'java'
-    id 'com.github.johnrengelman.shadow'
 }
+
+applyJavaNature(
+        automaticModuleName: 'org.apache.beam.sdk.io.iceberg.bqms',
+        shadowClosure: {
+            dependencies {
+                include(dependency(files("bqms-catalog/iceberg-bigquery-catalog-1.5.2-0.1.0.jar")))
+            }
+            relocate 'com.google.guava', getJavaRelocatedPath('iceberg.bqms.com.google.guava')
+        },
+)
+
+description = "Apache Beam :: SDKs :: Java :: IO :: Iceberg :: BigQuery Metastore"
+ext.summary = "A copy of the BQMS catalog with some popular libraries relocated."
 
 dependencies {
     implementation files("bqms-catalog/iceberg-bigquery-catalog-1.5.2-0.1.0.jar")
 }
-
-configurations {
-    shadow
-}
-
-artifacts {
-    shadow(archives(shadowJar) {
-        builtBy shadowJar
-    })
-}
-
-shadowJar {
-    zip64 true
-
-    // need to shade "com.google.guava" to avoid Guava conflict
-    relocate 'com.google.guava', getJavaRelocatedPath('iceberg.bqms.com.google.guava')
-
-    mergeServiceFiles()
-
-    exclude 'LICENSE'
-    exclude(
-            'org/xml/**',
-            'javax/**',
-            'com/sun/**'
-    )
-}
-description = "Apache Beam :: SDKs :: Java :: IO :: Iceberg :: BigQuery Metastore"
-ext.summary = "A copy of the BQMS catalog with some popular libraries relocated."
