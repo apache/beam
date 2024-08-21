@@ -332,19 +332,21 @@ public class KafkaIOTranslation {
           transform = transform.withMaxNumRecords(maxNumRecords);
         }
 
-        Boolean isRedistributed = configRow.getBoolean("redistribute");
-        if (isRedistributed != null && isRedistributed) {
-          transform = transform.withRedistribute();
-          Integer redistributeNumKeys =
-              configRow.getValue("redistribute_num_keys") == null
-                  ? Integer.valueOf(0)
-                  : configRow.getInt32("redistribute_num_keys");
-          if (redistributeNumKeys != null && !redistributeNumKeys.equals(0)) {
-            transform = transform.withRedistributeNumKeys(redistributeNumKeys);
-          }
-          Boolean allowDuplicates = configRow.getBoolean("allows_duplicates");
-          if (allowDuplicates != null && allowDuplicates) {
-            transform = transform.withAllowDuplicates(allowDuplicates);
+        if (TransformUpgrader.compareVersions(updateCompatibilityBeamVersion, "2.58.0") >= 0) {
+          Boolean isRedistributed = configRow.getBoolean("redistribute");
+          if (isRedistributed != null && isRedistributed) {
+            transform = transform.withRedistribute();
+            Integer redistributeNumKeys =
+                configRow.getValue("redistribute_num_keys") == null
+                    ? Integer.valueOf(0)
+                    : configRow.getInt32("redistribute_num_keys");
+            if (redistributeNumKeys != null && !redistributeNumKeys.equals(0)) {
+              transform = transform.withRedistributeNumKeys(redistributeNumKeys);
+            }
+            Boolean allowDuplicates = configRow.getBoolean("allows_duplicates");
+            if (allowDuplicates != null && allowDuplicates) {
+              transform = transform.withAllowDuplicates(allowDuplicates);
+            }
           }
         }
         Duration maxReadTime = configRow.getValue("max_read_time");
