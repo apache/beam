@@ -49,6 +49,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.joda.time.Duration;
@@ -126,7 +127,11 @@ public class SplittableDoFnOperator<InputT, OutputT, RestrictionT>
     // this will implicitly be keyed like the StateInternalsFactory
     TimerInternalsFactory<byte[]> timerInternalsFactory = key -> timerInternals;
 
-    executorService = Executors.newSingleThreadScheduledExecutor(Executors.defaultThreadFactory());
+    if (this.executorService == null) {
+      this.executorService =
+          Executors.newSingleThreadScheduledExecutor(
+              new ThreadFactoryBuilder().setNameFormat("flink-sdf-executor-%d").build());
+    }
 
     ((ProcessFn) doFn).setStateInternalsFactory(stateInternalsFactory);
     ((ProcessFn) doFn).setTimerInternalsFactory(timerInternalsFactory);
