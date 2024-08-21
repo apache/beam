@@ -50,6 +50,7 @@ from typing import Mapping
 from typing import NamedTuple
 from typing import Optional
 from typing import Sequence
+from typing import Set
 from typing import Tuple
 from typing import TypeVar
 from typing import Union
@@ -329,6 +330,13 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
     override metrics reporting. If True, RunInference will not report any
     metrics."""
     return False
+
+  def should_garbage_collect_on_timeout(self) -> bool:
+    """Whether the model should be garbage collected if model loading or
+    inference timeout, or if it should be left for future calls. Usually should
+    not be overriden unless the model handler implements other mechanisms for
+    garbage collection."""
+    return self.share_model_across_processes()
 
 
 class _ModelManager:
@@ -831,6 +839,9 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
 
     return True
 
+  def should_garbage_collect_on_timeout(self) -> bool:
+    return self._single_model and self.share_model_across_processes()
+
 
 class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
                              ModelHandler[Union[ExampleT, Tuple[KeyT,
@@ -1308,7 +1319,8 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
         logging.warning("Operation timed out, etc…….")
 
       callback = None
-      if self._timeout is not None:
+      if (self._timeout is not None and
+          self._model_handler.should_garbage_collect_on_timeout()):
         callback = failure_callback
       results, bad_inference = (
           batched_elements_pcoll
@@ -1576,7 +1588,7 @@ class _ModelStatus():
 
     return to_delete
 
-  def mark_tags_deleted(self, deleted_tags: set[str]):
+  def mark_tags_deleted(self, deleted_tags: Set[str]):
     while len(self._pending_hard_delete) > 0:
       tag = self._pending_hard_delete[0][0]
       if tag in deleted_tags:
