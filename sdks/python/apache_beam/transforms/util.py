@@ -809,8 +809,9 @@ class BatchElements(PTransform):
   the transform, while smaller values will improve the throughput but make it
   more likely that batches are smaller than the target batch size. 
 
-  As a general recommendation, start with low values (e.g. 0.005 aka 5ms) and increase as needed to get the 
-  desired tradeoff between target batch size and latency or throughput. 
+  As a general recommendation, start with low values (e.g. 0.005 aka 5ms) and
+  increase as needed to get the desired tradeoff between target batch size
+  and latency or throughput.
 
   For more information on tuning parameters to this transform, see
   https://beam.apache.org/documentation/patterns/batch-elements
