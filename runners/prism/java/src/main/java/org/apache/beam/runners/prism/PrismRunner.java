@@ -17,6 +17,9 @@
  */
 package org.apache.beam.runners.prism;
 
+import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
+import org.apache.beam.runners.portability.JobServicePipelineResult;
 import org.apache.beam.runners.portability.PortableRunner;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
@@ -36,9 +39,6 @@ import org.slf4j.LoggerFactory;
  * org.apache.beam.runners.portability.PortableRunner} maintained at <a
  * href="https://github.com/apache/beam/tree/master/sdks/go/cmd/prism">sdks/go/cmd/prism</a>.
  */
-// TODO(https://github.com/apache/beam/issues/31793): add public modifier after finalizing
-//  PrismRunner. Depends on: https://github.com/apache/beam/issues/31402 and
-//  https://github.com/apache/beam/issues/31792.
 class PrismRunner extends PipelineRunner<PipelineResult> {
 
   private static final Logger LOG = LoggerFactory.getLogger(PrismRunner.class);
@@ -72,15 +72,50 @@ class PrismRunner extends PipelineRunner<PipelineResult> {
         prismPipelineOptions.getDefaultEnvironmentType(),
         prismPipelineOptions.getJobEndpoint());
 
-    return internal.run(pipeline);
+    Runnable closer = runPrismAndProvideCloser(prismPipelineOptions);
+    try {
+      JobServicePipelineResult delegateResult = (JobServicePipelineResult) internal.run(pipeline);
+      PrismPipelineResult result = new PrismPipelineResult(delegateResult, closer);
+      CompletableFuture<?> ignored =
+          delegateResult.getTerminalStateFuture().whenComplete(result::onJobStateComplete);
+      if (isInvokedInTest()) {
+        LOG.info("invoking Pipeline::waitUntilFinish due to invoking in a class named ^.*Test$");
+        result.waitUntilFinish();
+      }
+      return result;
+    } catch (RuntimeException e) {
+      closer.run();
+      throw e;
+    }
   }
 
-  private static void assignDefaultsIfNeeded(PrismPipelineOptions prismPipelineOptions) {
-    if (Strings.isNullOrEmpty(prismPipelineOptions.getDefaultEnvironmentType())) {
-      prismPipelineOptions.setDefaultEnvironmentType(Environments.ENVIRONMENT_LOOPBACK);
+  private boolean isInvokedInTest() {
+    for (StackTraceElement element : Thread.currentThread().getStackTrace()) {
+      if (element.getClassName().endsWith("Test")) {
+        return true;
+      }
     }
-    if (Strings.isNullOrEmpty(prismPipelineOptions.getJobEndpoint())) {
-      prismPipelineOptions.setJobEndpoint(DEFAULT_PRISM_ENDPOINT);
+    return false;
+  }
+
+  private static void assignDefaultsIfNeeded(PrismPipelineOptions options) {
+    if (Strings.isNullOrEmpty(options.getDefaultEnvironmentType())) {
+      options.setDefaultEnvironmentType(Environments.ENVIRONMENT_LOOPBACK);
+    }
+    if (Strings.isNullOrEmpty(options.getJobEndpoint())) {
+      options.setJobEndpoint(DEFAULT_PRISM_ENDPOINT);
+    }
+  }
+
+  private Runnable runPrismAndProvideCloser(PrismPipelineOptions options) {
+    PrismLocator locator = new PrismLocator(options);
+    try {
+      PrismExecutor executor =
+          PrismExecutor.builder().setCommand(locator.resolve()).setOutputStream(System.out).build();
+      executor.execute();
+      return executor::stop;
+    } catch (IOException e) {
+      throw new RuntimeException(e);
     }
   }
 }

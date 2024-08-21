@@ -17,14 +17,11 @@
  */
 package org.apache.beam.runners.prism;
 
-import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
-
 import com.google.auto.value.AutoValue;
 import com.google.errorprone.annotations.FormatMethod;
 import com.zaxxer.nuprocess.NuAbstractProcessHandler;
 import com.zaxxer.nuprocess.NuProcess;
 import com.zaxxer.nuprocess.NuProcessBuilder;
-
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
@@ -37,9 +34,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ListeningExecutorService;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.MoreExecutors;
-import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * {@link PrismExecutor} builds and executes a {@link ProcessBuilder} for use by the {@link
@@ -106,18 +100,10 @@ abstract class PrismExecutor {
     processOpt = Optional.of(process);
     write(
         "started %s, process PID: %s",
-        String.join(" ", getCommandWithArguments()),
-        process.getPID());
+        String.join(" ", getCommandWithArguments()), process.getPID());
   }
 
   private class ProcessHandler extends NuAbstractProcessHandler {
-
-    private @MonotonicNonNull NuProcess process;
-
-    @Override
-    public void onPreStart(NuProcess process) {
-      this.process = process;
-    }
 
     @Override
     public void onStderr(ByteBuffer buffer, boolean closed) {
@@ -138,12 +124,6 @@ abstract class PrismExecutor {
       String message = new String(bytes, StandardCharsets.UTF_8);
       write(message);
     }
-
-    @Override
-    public void onExit(int statusCode) {
-      NuProcess process = checkStateNotNull(this.process);
-      write("exit called with status code %s for process PID: %s", statusCode, process.getPID());
-    }
   }
 
   private List<String> getCommandWithArguments() {
@@ -163,10 +143,11 @@ abstract class PrismExecutor {
   @FormatMethod
   private void write(String template, Object... args) {
     String message = String.format(template, args);
-    write(message + "\n");
+    write(message);
   }
 
   private void write(String message) {
+    message = message + "\n";
     try {
       getOutputStream().write(message.getBytes(StandardCharsets.UTF_8));
     } catch (IOException e) {

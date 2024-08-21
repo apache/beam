@@ -26,6 +26,8 @@ import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Server;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A {@link Server gRPC Server} which manages a single {@link FnService}. The lifetime of the
@@ -37,6 +39,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
   "keyfor"
 }) // TODO(https://github.com/apache/beam/issues/20497)
 public class GrpcFnServer<ServiceT extends FnService> implements AutoCloseable {
+  private static final Logger LOG = LoggerFactory.getLogger(GrpcFnServer.class);
   /**
    * Create a {@link GrpcFnServer} for the provided {@link FnService} running on an arbitrary port.
    */
@@ -150,14 +153,11 @@ public class GrpcFnServer<ServiceT extends FnService> implements AutoCloseable {
 
   @Override
   public void close() throws Exception {
+    LOG.info("Shutting down");
+    server.shutdown();
+    service.close();
     try {
-      // The server has been closed, and should not respond to any new incoming calls.
-      server.shutdown();
-      service.close();
-      server.awaitTermination(60, TimeUnit.SECONDS);
-    } finally {
-      server.shutdownNow();
-      server.awaitTermination();
-    }
+      server.awaitTermination(3000L, TimeUnit.MILLISECONDS);
+    } catch (InterruptedException ignored) {}
   }
 }

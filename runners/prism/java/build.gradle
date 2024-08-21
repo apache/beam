@@ -18,7 +18,7 @@
 
 plugins { id 'org.apache.beam.module' }
 
-applyJavaNature(
+applyPortabilityNature (
         automaticModuleName: 'org.apache.beam.runners.prism',
 )
 

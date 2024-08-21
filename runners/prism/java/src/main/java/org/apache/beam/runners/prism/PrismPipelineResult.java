@@ -17,11 +17,15 @@
  */
 package org.apache.beam.runners.prism;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
+
 import java.io.IOException;
+import org.apache.beam.runners.portability.JobServicePipelineResult;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricResults;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The {@link PipelineResult} of executing a {@link org.apache.beam.sdk.Pipeline} using the {@link
@@ -29,81 +33,61 @@ import org.joda.time.Duration;
  */
 class PrismPipelineResult implements PipelineResult {
 
-  static PrismPipelineResult of(PipelineResult delegate, PrismExecutor executor) {
-    return new PrismPipelineResult(delegate, executor::stop);
-  }
+  private static final Logger LOG = LoggerFactory.getLogger(PrismPipelineResult.class);
 
-  private final PipelineResult delegate;
-  private final Runnable cancel;
-  private @Nullable MetricResults terminalMetrics;
-  private @Nullable State terminalState;
+  private final JobServicePipelineResult delegate;
+  private final Runnable closer;
 
   /**
-   * Instantiate the {@link PipelineResult} from the {@param delegate} and a {@param cancel} to be
-   * called when stopping the underlying executable Job management service.
+   * Instantiate the {@link PipelineResult} from the {@param delegate} and {@link
+   * PrismExecutor#stop()} provided as the {@param closer}.
    */
-  PrismPipelineResult(PipelineResult delegate, Runnable cancel) {
+  PrismPipelineResult(JobServicePipelineResult delegate, Runnable closer) {
     this.delegate = delegate;
-    this.cancel = cancel;
+    this.closer = closer;
+  }
+
+  /**
+   * Callback that invokes the stored {@link PrismExecutor#stop} method. Intended for use with a
+   * {@link java.util.concurrent.CompletableFuture<org.apache.beam.sdk.PipelineResult.State>}.
+   */
+  void onJobStateComplete(State state, Throwable error) {
+    checkState(state.isTerminal(), "onJobStateComplete called on non-terminal state: %s", state);
+    LOG.info("received terminal state: {}", state);
+    this.delegate.close();
+    this.closer.run();
+    if (error != null) {
+      throw new RuntimeException(error);
+    }
   }
 
   /** Forwards the result of the delegate {@link PipelineResult#getState}. */
   @Override
   public State getState() {
-    if (terminalState != null) {
-      return terminalState;
-    }
     return delegate.getState();
   }
 
-  /**
-   * Forwards the result of the delegate {@link PipelineResult#cancel}. Invokes {@link
-   * PrismExecutor#stop()} before returning the resulting {@link
-   * org.apache.beam.sdk.PipelineResult.State}.
-   */
+  /** Forwards the result of the delegate {@link PipelineResult#cancel}. */
   @Override
   public State cancel() throws IOException {
-    State state = delegate.cancel();
-    this.terminalMetrics = delegate.metrics();
-    this.terminalState = state;
-    this.cancel.run();
-    return state;
+    return delegate.cancel();
   }
 
-  /**
-   * Forwards the result of the delegate {@link PipelineResult#waitUntilFinish(Duration)}. Invokes
-   * {@link PrismExecutor#stop()} before returning the resulting {@link
-   * org.apache.beam.sdk.PipelineResult.State}.
-   */
+  /** Forwards the result of the delegate {@link PipelineResult#waitUntilFinish(Duration)}. */
   @Override
   public State waitUntilFinish(Duration duration) {
-    State state = delegate.waitUntilFinish(duration);
-    this.terminalMetrics = delegate.metrics();
-    this.terminalState = state;
-    this.cancel.run();
-    return state;
+    return delegate.waitUntilFinish(duration);
   }
 
-  /**
-   * Forwards the result of the delegate {@link PipelineResult#waitUntilFinish}. Invokes {@link
-   * PrismExecutor#stop()} before returning the resulting {@link
-   * org.apache.beam.sdk.PipelineResult.State}.
-   */
+  /** Forwards the result of the delegate {@link PipelineResult#waitUntilFinish}. */
   @Override
   public State waitUntilFinish() {
-    State state = delegate.waitUntilFinish();
-    this.terminalMetrics = delegate.metrics();
-    this.terminalState = state;
-    this.cancel.run();
-    return state;
+    return delegate.waitUntilFinish();
   }
 
   /** Forwards the result of the delegate {@link PipelineResult#metrics}. */
   @Override
   public MetricResults metrics() {
-    if (terminalMetrics != null) {
-      return terminalMetrics;
-    }
     return delegate.metrics();
   }
 }

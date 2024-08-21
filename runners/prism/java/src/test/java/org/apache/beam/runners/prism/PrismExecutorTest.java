@@ -20,13 +20,10 @@ package org.apache.beam.runners.prism;
 import static com.google.common.truth.Truth.assertThat;
 import static org.apache.beam.runners.prism.PrismRunnerTest.getLocalPrismBuildOrIgnoreTest;
 
-import java.io.BufferedOutputStream;
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
-
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -54,8 +51,8 @@ public class PrismExecutorTest {
 
   private PrismExecutor.Builder underTest(OutputStream outputStream) {
     return PrismExecutor.builder()
-            .setCommand(getLocalPrismBuildOrIgnoreTest())
-            .setOutputStream(outputStream);
+        .setCommand(getLocalPrismBuildOrIgnoreTest())
+        .setOutputStream(outputStream);
   }
 
   private void sleep(long millis) {

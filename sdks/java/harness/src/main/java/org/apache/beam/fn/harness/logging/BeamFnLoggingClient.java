@@ -21,6 +21,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables.getStackTraceAsString;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -31,6 +32,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 import java.util.logging.Formatter;
@@ -197,7 +199,7 @@ public class BeamFnLoggingClient implements AutoCloseable {
     rootLogger.addHandler(logRecordHandler);
   }
 
-  private static class StreamWriter {
+  private static class StreamWriter implements Closeable {
     private final ManagedChannel channel;
     private final StreamObserver<BeamFnApi.LogEntry.List> outboundObserver;
     private final LogControlObserver inboundObserver;
@@ -296,6 +298,18 @@ public class BeamFnLoggingClient implements AutoCloseable {
       streamPhaser.forceTermination();
     }
 
+    @Override
+    public void close() {
+      if (channel.isShutdown()) {
+        return;
+      }
+      channel.shutdown();
+        try {
+            channel.awaitTermination(3000L, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException ignored) {
+        }
+    }
+
     private class LogControlObserver
         implements ClientResponseObserver<BeamFnApi.LogEntry, BeamFnApi.LogControl> {
 
@@ -341,6 +355,8 @@ public class BeamFnLoggingClient implements AutoCloseable {
         throw (Exception) e.getCause();
       }
       throw e;
+    } finally {
+      streamWriter.close();
     }
   }
 

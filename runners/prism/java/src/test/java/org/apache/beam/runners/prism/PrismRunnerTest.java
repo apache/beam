@@ -17,48 +17,115 @@
  */
 package org.apache.beam.runners.prism;
 
-import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assume.assumeTrue;
 
-import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.state.Timer;
+import org.apache.beam.sdk.state.TimerSpec;
+import org.apache.beam.sdk.state.TimerSpecs;
+import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.PeriodicImpulse;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.WithKeys;
+import org.apache.beam.sdk.transforms.WithTimestamps;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** Tests for {@link PrismRunner}. */
-
-// TODO(https://github.com/apache/beam/issues/31793): Remove @Ignore after finalizing PrismRunner.
-//    Depends on: https://github.com/apache/beam/issues/31402 and
-//    https://github.com/apache/beam/issues/31792.
-@Ignore
 @RunWith(JUnit4.class)
 public class PrismRunnerTest {
+
   // See build.gradle for test task configuration.
   private static final String PRISM_BUILD_TARGET_PROPERTY_NAME = "prism.buildTarget";
 
   @Test
-  public void givenBoundedSource_runsUntilDone() {
+  public void create() {
     Pipeline pipeline = Pipeline.create(options());
-    pipeline.apply(Create.of(1, 2, 3));
-    PipelineResult.State state = pipeline.run().waitUntilFinish();
-    assertThat(state).isEqualTo(PipelineResult.State.DONE);
+    PAssert.that(pipeline.apply(Create.of(1, 2, 3))).containsInAnyOrder(1, 2, 3);
+    pipeline.run();
   }
 
+  @Ignore
   @Test
-  public void givenUnboundedSource_runsUntilCancel() throws IOException {
+  public void windowing() {
     Pipeline pipeline = Pipeline.create(options());
-    pipeline.apply(PeriodicImpulse.create());
-    PipelineResult result = pipeline.run();
-    assertThat(result.getState()).isEqualTo(PipelineResult.State.RUNNING);
-    PipelineResult.State state = result.cancel();
-    assertThat(state).isEqualTo(PipelineResult.State.CANCELLED);
+    PCollection<KV<String, Iterable<Integer>>> got =
+        pipeline
+            .apply(Create.of(1, 2, 100, 101, 102, 123))
+            .apply(WithTimestamps.of(t -> Instant.ofEpochSecond(t)))
+            .apply(WithKeys.of("k"))
+            .apply(Window.into(FixedWindows.of(Duration.standardSeconds(10))))
+            .apply(GroupByKey.create());
+
+    List<KV<String, Iterable<Integer>>> want =
+        Arrays.asList(
+            KV.of("k", Arrays.asList(1, 2)),
+            KV.of("k", Arrays.asList(100, 101, 102)),
+            KV.of("k", Collections.singletonList(123)));
+
+    PAssert.that(got).containsInAnyOrder(want);
+
+    pipeline.run();
+  }
+
+  @Ignore("Unable to find inbound timer receiver for instruction")
+  @Test
+  public void parDoTimersClear() {
+    Pipeline pipeline = Pipeline.create(options());
+    PAssert.that(
+            pipeline
+                .apply(Create.of(KV.of("k1", 10), KV.of("k2", 100)))
+                .apply(ParDo.of(new TimersDoFn())))
+        .satisfies(
+            itr -> {
+              System.out.println(
+                  StreamSupport.stream(itr.spliterator(), false).collect(Collectors.toList()));
+              return null;
+            });
+
+    pipeline.run();
+  }
+
+  private static class TimersDoFn extends DoFn<KV<String, Integer>, Integer> {
+    private static final String TIMER_ID = "timer";
+
+    @SuppressWarnings("unused")
+    @TimerId(TIMER_ID)
+    private final TimerSpec timerSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+    @DoFn.ProcessElement
+    public void process(@Element KV<String, Integer> element, @TimerId(TIMER_ID) Timer timer) {
+      timer.set(Instant.ofEpochMilli(element.getValue()));
+      timer.set(Instant.ofEpochMilli(2L * element.getValue()));
+    }
+
+    @OnTimer(TIMER_ID)
+    public void onTimer(
+        @Timestamp Instant timestamp,
+        @TimerId(TIMER_ID) Timer timer,
+        OutputReceiver<Integer> receiver) {
+      timer.offset(Duration.millis(2L * timestamp.getMillis()));
+      timer.clear();
+      receiver.output(Long.valueOf(timestamp.getMillis() / 1000L).intValue());
+    }
   }
 
   private static PrismPipelineOptions options() {
