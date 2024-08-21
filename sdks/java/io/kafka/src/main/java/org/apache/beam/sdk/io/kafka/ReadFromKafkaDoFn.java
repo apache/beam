@@ -33,6 +33,7 @@ import org.apache.beam.sdk.io.kafka.KafkaUnboundedReader.TimestampPolicyContext;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Gauge;
+import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -49,6 +50,7 @@ import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Stopwatch;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers;
@@ -289,22 +291,18 @@ abstract class ReadFromKafkaDoFn<K, V>
   public OffsetRange initialRestriction(@Element KafkaSourceDescriptor kafkaSourceDescriptor) {
     Map<String, Object> updatedConsumerConfig =
         overrideBootstrapServersConfig(consumerConfig, kafkaSourceDescriptor);
-    LOG.info(
-        "Creating Kafka consumer for initial restriction for {}",
-        kafkaSourceDescriptor.getTopicPartition());
+    TopicPartition partition = kafkaSourceDescriptor.getTopicPartition();
+    LOG.info("Creating Kafka consumer for initial restriction for {}", partition);
     try (Consumer<byte[], byte[]> offsetConsumer = consumerFactoryFn.apply(updatedConsumerConfig)) {
-      ConsumerSpEL.evaluateAssign(
-          offsetConsumer, ImmutableList.of(kafkaSourceDescriptor.getTopicPartition()));
+      ConsumerSpEL.evaluateAssign(offsetConsumer, ImmutableList.of(partition));
       long startOffset;
       @Nullable Instant startReadTime = kafkaSourceDescriptor.getStartReadTime();
       if (kafkaSourceDescriptor.getStartReadOffset() != null) {
         startOffset = kafkaSourceDescriptor.getStartReadOffset();
       } else if (startReadTime != null) {
-        startOffset =
-            ConsumerSpEL.offsetForTime(
-                offsetConsumer, kafkaSourceDescriptor.getTopicPartition(), startReadTime);
+        startOffset = ConsumerSpEL.offsetForTime(offsetConsumer, partition, startReadTime);
       } else {
-        startOffset = offsetConsumer.position(kafkaSourceDescriptor.getTopicPartition());
+        startOffset = offsetConsumer.position(partition);
       }
 
       long endOffset = Long.MAX_VALUE;
@@ -312,11 +310,15 @@ abstract class ReadFromKafkaDoFn<K, V>
       if (kafkaSourceDescriptor.getStopReadOffset() != null) {
         endOffset = kafkaSourceDescriptor.getStopReadOffset();
       } else if (stopReadTime != null) {
-        endOffset =
-            ConsumerSpEL.offsetForTime(
-                offsetConsumer, kafkaSourceDescriptor.getTopicPartition(), stopReadTime);
+        endOffset = ConsumerSpEL.offsetForTime(offsetConsumer, partition, stopReadTime);
       }
-
+      new OffsetRange(startOffset, endOffset);
+      Lineage.getSources()
+          .add(
+              "kafka",
+              ImmutableList.of(
+                  (String) updatedConsumerConfig.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG),
+                  MoreObjects.firstNonNull(kafkaSourceDescriptor.getTopic(), partition.topic())));
       return new OffsetRange(startOffset, endOffset);
     }
   }
