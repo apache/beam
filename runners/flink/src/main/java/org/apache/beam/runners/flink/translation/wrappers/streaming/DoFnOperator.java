@@ -468,7 +468,7 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
     if (keyCoder != null) {
       keyedStateInternals =
           new FlinkStateInternals<>(
-              (KeyedStateBackend) getKeyedStateBackend(), keyCoder, serializedOptions);
+              (KeyedStateBackend) getKeyedStateBackend(), keyCoder, windowingStrategy.getWindowFn().windowCoder(), serializedOptions);
 
       if (timerService == null) {
         timerService =
@@ -596,7 +596,7 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
       if (doFn != null) {
         DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
         FlinkStateInternals.EarlyBinder earlyBinder =
-            new FlinkStateInternals.EarlyBinder(getKeyedStateBackend(), serializedOptions);
+            new FlinkStateInternals.EarlyBinder(getKeyedStateBackend(), serializedOptions, windowingStrategy.getWindowFn().windowCoder());
         for (DoFnSignature.StateDeclaration value : signature.stateDeclarations().values()) {
           StateSpec<?> spec =
               (StateSpec<?>) signature.stateDeclarations().get(value.id()).field().get(doFn);

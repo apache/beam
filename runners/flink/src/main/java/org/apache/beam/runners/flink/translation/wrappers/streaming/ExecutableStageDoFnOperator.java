@@ -248,7 +248,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT>
   public void open() throws Exception {
     executableStage = ExecutableStage.fromPayload(payload);
     hasSdfProcessFn = hasSDF(executableStage);
-    initializeUserState(executableStage, getKeyedStateBackend(), pipelineOptions);
+    initializeUserState(executableStage, getKeyedStateBackend(), pipelineOptions, windowCoder);
     // TODO: Wire this into the distributed cache and make it pluggable.
     // TODO: Do we really want this layer of indirection when accessing the stage bundle factory?
     // It's a little strange because this operator is responsible for the lifetime of the stage
@@ -1281,14 +1281,15 @@ public class ExecutableStageDoFnOperator<InputT, OutputT>
   private static void initializeUserState(
       ExecutableStage executableStage,
       @Nullable KeyedStateBackend keyedStateBackend,
-      SerializablePipelineOptions pipelineOptions) {
+      SerializablePipelineOptions pipelineOptions,
+      Coder<? extends BoundedWindow> windowCoder) {
     executableStage
         .getUserStates()
         .forEach(
             ref -> {
               try {
                 keyedStateBackend.getOrCreateKeyedState(
-                    StringSerializer.INSTANCE,
+                    new FlinkStateInternals.FlinkStateNamespaceKeySerializer(windowCoder),
                     new ListStateDescriptor<>(
                         ref.localName(),
                         new CoderTypeSerializer<>(ByteStringCoder.of(), pipelineOptions)));
