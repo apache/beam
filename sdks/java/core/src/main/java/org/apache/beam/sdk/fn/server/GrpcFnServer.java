@@ -158,6 +158,7 @@ public class GrpcFnServer<ServiceT extends FnService> implements AutoCloseable {
     service.close();
     try {
       server.awaitTermination(3000L, TimeUnit.MILLISECONDS);
-    } catch (InterruptedException ignored) {}
+    } catch (InterruptedException ignored) {
+    }
   }
 }

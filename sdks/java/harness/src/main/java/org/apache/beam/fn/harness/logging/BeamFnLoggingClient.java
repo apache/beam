@@ -304,10 +304,10 @@ public class BeamFnLoggingClient implements AutoCloseable {
         return;
       }
       channel.shutdown();
-        try {
-            channel.awaitTermination(3000L, TimeUnit.MILLISECONDS);
-        } catch (InterruptedException ignored) {
-        }
+      try {
+        channel.awaitTermination(3000L, TimeUnit.MILLISECONDS);
+      } catch (InterruptedException ignored) {
+      }
     }
 
     private class LogControlObserver
