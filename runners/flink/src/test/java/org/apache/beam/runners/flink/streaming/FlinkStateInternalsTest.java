@@ -68,6 +68,7 @@ public class FlinkStateInternalsTest extends StateInternalsTest {
       return new FlinkStateInternals<>(
           keyedStateBackend,
           StringUtf8Coder.of(),
+          IntervalWindow.getCoder(),
           new SerializablePipelineOptions(FlinkPipelineOptions.defaults()));
     } catch (Exception e) {
       throw new RuntimeException(e);
@@ -81,6 +82,7 @@ public class FlinkStateInternalsTest extends StateInternalsTest {
         new FlinkStateInternals<>(
             keyedStateBackend,
             StringUtf8Coder.of(),
+            IntervalWindow.getCoder(),
             new SerializablePipelineOptions(FlinkPipelineOptions.defaults()));
 
     StateTag<WatermarkHoldState> stateTag =
@@ -136,6 +138,7 @@ public class FlinkStateInternalsTest extends StateInternalsTest {
         new FlinkStateInternals<>(
             keyedStateBackend,
             StringUtf8Coder.of(),
+            IntervalWindow.getCoder(),
             new SerializablePipelineOptions(FlinkPipelineOptions.defaults()));
     globalWindow = stateInternals.state(StateNamespaces.global(), stateTag);
     fixedWindow =
@@ -173,6 +176,7 @@ public class FlinkStateInternalsTest extends StateInternalsTest {
         new FlinkStateInternals<>(
             keyedStateBackend,
             StringUtf8Coder.of(),
+            IntervalWindow.getCoder(),
             new SerializablePipelineOptions(FlinkPipelineOptions.defaults()));
     StateTag<WatermarkHoldState> stateTag =
         StateTags.watermarkStateInternal("hold", TimestampCombiner.EARLIEST);
