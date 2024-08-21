@@ -35,6 +35,7 @@ import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactStagingService;
+import org.apache.beam.runners.portability.CloseableResource.CloseException;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineRunner;
@@ -49,6 +50,7 @@ import org.apache.beam.sdk.util.construction.Environments;
 import org.apache.beam.sdk.util.construction.PipelineOptionsTranslation;
 import org.apache.beam.sdk.util.construction.PipelineTranslation;
 import org.apache.beam.sdk.util.construction.SdkComponents;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -99,7 +101,7 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
 
   @Override
   public PipelineResult run(Pipeline pipeline) {
-    Runnable cleanup = () -> {};
+    Runnable cleanup;
     if (Environments.ENVIRONMENT_LOOPBACK.equals(
         options.as(PortablePipelineOptions.class).getDefaultEnvironmentType())) {
       GrpcFnServer<ExternalWorkerService> workerService;
@@ -121,6 +123,8 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
               throw new RuntimeException(exn);
             }
           };
+    } else {
+      cleanup = null;
     }
 
     ImmutableList.Builder<String> filesToStageBuilder = ImmutableList.builder();
@@ -170,47 +174,55 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
     ManagedChannel jobServiceChannel =
         channelFactory.forDescriptor(ApiServiceDescriptor.newBuilder().setUrl(endpoint).build());
 
-    int jobServerTimeout = options.as(PortablePipelineOptions.class).getJobServerTimeout();
-    JobServiceBlockingStub jobService =
-        JobServiceGrpc.newBlockingStub(jobServiceChannel)
-            .withDeadlineAfter(jobServerTimeout, TimeUnit.SECONDS);
+    JobServiceBlockingStub jobService = JobServiceGrpc.newBlockingStub(jobServiceChannel);
+    try (CloseableResource<JobServiceBlockingStub> wrappedJobService =
+        CloseableResource.of(jobService, unused -> jobServiceChannel.shutdown())) {
 
-    PrepareJobResponse prepareJobResponse = jobService.prepare(prepareJobRequest);
-    LOG.info("PrepareJobResponse: {}", prepareJobResponse);
+      final int jobServerTimeout = options.as(PortablePipelineOptions.class).getJobServerTimeout();
+      PrepareJobResponse prepareJobResponse =
+          jobService
+              .withDeadlineAfter(jobServerTimeout, TimeUnit.SECONDS)
+              .withWaitForReady()
+              .prepare(prepareJobRequest);
+      LOG.info("PrepareJobResponse: {}", prepareJobResponse);
 
-    ApiServiceDescriptor artifactStagingEndpoint = prepareJobResponse.getArtifactStagingEndpoint();
-    String stagingSessionToken = prepareJobResponse.getStagingSessionToken();
+      ApiServiceDescriptor artifactStagingEndpoint =
+          prepareJobResponse.getArtifactStagingEndpoint();
+      String stagingSessionToken = prepareJobResponse.getStagingSessionToken();
 
-    try (CloseableResource<ManagedChannel> artifactChannel =
-        CloseableResource.of(
-            channelFactory.forDescriptor(artifactStagingEndpoint), ManagedChannel::shutdown)) {
+      try (CloseableResource<ManagedChannel> artifactChannel =
+          CloseableResource.of(
+              channelFactory.forDescriptor(artifactStagingEndpoint), ManagedChannel::shutdown)) {
 
-      ArtifactStagingService.offer(
-          new ArtifactRetrievalService(),
-          ArtifactStagingServiceGrpc.newStub(artifactChannel.get()),
-          stagingSessionToken);
-    } catch (CloseableResource.CloseException e) {
-      LOG.warn("Error closing artifact staging channel", e);
-      // CloseExceptions should only be thrown while closing the channel.
-    } catch (Exception e) {
-      throw new RuntimeException("Error staging files.", e);
+        ArtifactStagingService.offer(
+            new ArtifactRetrievalService(),
+            ArtifactStagingServiceGrpc.newStub(artifactChannel.get()),
+            stagingSessionToken);
+      } catch (CloseableResource.CloseException e) {
+        LOG.warn("Error closing artifact staging channel", e);
+        // CloseExceptions should only be thrown while closing the channel.
+      } catch (Exception e) {
+        throw new RuntimeException("Error staging files.", e);
+      }
+
+      RunJobRequest runJobRequest =
+          RunJobRequest.newBuilder()
+              .setPreparationId(prepareJobResponse.getPreparationId())
+              .build();
+
+      // Run the job and wait for a result, we don't set a timeout here because
+      // it may take a long time for a job to complete and streaming
+      // jobs never return a response.
+      RunJobResponse runJobResponse = jobService.run(runJobRequest);
+
+      LOG.info("RunJobResponse: {}", runJobResponse);
+      ByteString jobId = runJobResponse.getJobIdBytes();
+
+      return new JobServicePipelineResult(
+          jobId, jobServerTimeout, wrappedJobService.transfer(), cleanup);
+    } catch (CloseException e) {
+      throw new RuntimeException(e);
     }
-
-    RunJobRequest runJobRequest =
-        RunJobRequest.newBuilder().setPreparationId(prepareJobResponse.getPreparationId()).build();
-
-    // Run the job and wait for a result, we don't set a timeout here because
-    // it may take a long time for a job to complete and streaming
-    // jobs never return a response.
-    RunJobResponse runJobResponse = jobService.run(runJobRequest);
-
-    LOG.info("RunJobResponse: {}", runJobResponse);
-    String jobId = runJobResponse.getJobId();
-
-    JobServicePipelineResult result = new JobServicePipelineResult(jobId, jobService, cleanup);
-    result.setTerminalStateFuture(result.pollForTerminalState());
-    result.setMetricResultsCompletableFuture(result.pollForMetrics());
-    return result;
   }
 
   @Override
