@@ -1316,8 +1316,9 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
           return
         model_metadata = load_model_status(model_tag, share_across_processes)
         model_metadata.try_mark_current_model_invalid(timeout)
-        logging.warning("Inference failed with a timeout, marking the current "
-                        + "model for garbage collection")
+        logging.warning(
+            "Inference failed with a timeout, marking the current " +
+            "model for garbage collection")
 
       callback = None
       if (self._timeout is not None and
