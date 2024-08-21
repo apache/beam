@@ -59,10 +59,12 @@ public class KafkaCommitOffsetTest {
       new KafkaCommitOffsetMockConsumer(null, false);
   private final KafkaCommitOffsetMockConsumer errorConsumer =
       new KafkaCommitOffsetMockConsumer(null, true);
-  private final KafkaCommitOffsetMockConsumer compositeConsumerDefaultBootstrap =
+
+  private static final KafkaCommitOffsetMockConsumer COMPOSITE_CONSUMER =
       new KafkaCommitOffsetMockConsumer(null, false);
-  private final KafkaCommitOffsetMockConsumer compositeConsumerBootstrapOverridden =
+  private static final KafkaCommitOffsetMockConsumer COMPOSITE_CONSUMER_BOOTSTRAP =
       new KafkaCommitOffsetMockConsumer(null, false);
+
   private static final Map<String, Object> configMap =
       ImmutableMap.of(ConsumerConfig.GROUP_ID_CONFIG, "group1");
 
@@ -112,8 +114,11 @@ public class KafkaCommitOffsetTest {
     testKafkaOffsetHelper(true);
   }
 
-  private void testKafkaOffsetHelper(boolean useLegacyImplementation)
+  private void testKafkaOffsetHelper(boolean use259Implementation)
       throws CannotProvideCoderException {
+    COMPOSITE_CONSUMER.commitOffsets.clear();
+    COMPOSITE_CONSUMER_BOOTSTRAP.commitOffsets.clear();
+
     ReadSourceDescriptors<String, String> descriptors =
         ReadSourceDescriptors.<String, String>read()
             .withBootstrapServers("bootstrap_server")
@@ -125,21 +130,23 @@ public class KafkaCommitOffsetTest {
                       if (input
                           .get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG)
                           .equals("bootstrap_server")) {
-                        return compositeConsumerDefaultBootstrap;
+                        return COMPOSITE_CONSUMER;
                       }
                       Assert.assertEquals(
                           "bootstrap_overridden",
                           input.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG));
-                      return compositeConsumerBootstrapOverridden;
+                      return COMPOSITE_CONSUMER_BOOTSTRAP;
                     });
 
+    String topic0 = "topic0_" + (use259Implementation ? "259" : "260");
+    String topic1 = "topic1_" + (use259Implementation ? "259" : "260");
     KafkaSourceDescriptor d1 =
-        KafkaSourceDescriptor.of(new TopicPartition("topic", 0), null, null, null, null, null);
+        KafkaSourceDescriptor.of(new TopicPartition(topic0, 0), null, null, null, null, null);
     KafkaSourceDescriptor d2 =
-        KafkaSourceDescriptor.of(new TopicPartition("topic", 1), null, null, null, null, null);
+        KafkaSourceDescriptor.of(new TopicPartition(topic0, 1), null, null, null, null, null);
     KafkaSourceDescriptor d3 =
         KafkaSourceDescriptor.of(
-            new TopicPartition("topic", 0),
+            new TopicPartition(topic1, 0),
             null,
             null,
             null,
@@ -147,7 +154,7 @@ public class KafkaCommitOffsetTest {
             ImmutableList.of("bootstrap_overridden"));
     KafkaSourceDescriptor d4 =
         KafkaSourceDescriptor.of(
-            new TopicPartition("topic1", 0),
+            new TopicPartition(topic1, 1),
             null,
             null,
             null,
@@ -168,17 +175,17 @@ public class KafkaCommitOffsetTest {
                     KvCoder.of(
                         pipeline.getCoderRegistry().getCoder(KafkaSourceDescriptor.class),
                         KafkaRecordCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))));
-    input.apply(new KafkaCommitOffset<>(descriptors, useLegacyImplementation));
+    input.apply(new KafkaCommitOffset<>(descriptors, use259Implementation));
     pipeline.run();
 
     HashMap<TopicPartition, Long> expectedOffsets = new HashMap<>();
     expectedOffsets.put(d1.getTopicPartition(), 101L);
     expectedOffsets.put(d2.getTopicPartition(), 21L);
-    Assert.assertEquals(expectedOffsets, compositeConsumerDefaultBootstrap.commitOffsets);
+    Assert.assertEquals(expectedOffsets, COMPOSITE_CONSUMER.commitOffsets);
     expectedOffsets.clear();
     expectedOffsets.put(d3.getTopicPartition(), 31L);
     expectedOffsets.put(d4.getTopicPartition(), 41L);
-    Assert.assertEquals(expectedOffsets, compositeConsumerBootstrapOverridden.commitOffsets);
+    Assert.assertEquals(expectedOffsets, COMPOSITE_CONSUMER_BOOTSTRAP.commitOffsets);
   }
 
   @Test

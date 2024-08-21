@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.kafka;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
-import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -42,6 +41,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -52,12 +52,12 @@ public class KafkaCommitOffset<K, V>
     extends PTransform<
         PCollection<KV<KafkaSourceDescriptor, KafkaRecord<K, V>>>, PCollection<Void>> {
   private final KafkaIO.ReadSourceDescriptors<K, V> readSourceDescriptors;
-  private final boolean useLegacyImplementation;
+  private final boolean use259implementation;
 
   KafkaCommitOffset(
-      KafkaIO.ReadSourceDescriptors<K, V> readSourceDescriptors, boolean useLegacyImplementation) {
+      KafkaIO.ReadSourceDescriptors<K, V> readSourceDescriptors, boolean use259implementation) {
     this.readSourceDescriptors = readSourceDescriptors;
-    this.useLegacyImplementation = useLegacyImplementation;
+    this.use259implementation = use259implementation;
   }
 
   static class CommitOffsetDoFn extends DoFn<KV<KafkaSourceDescriptor, Long>, Void> {
@@ -105,9 +105,9 @@ public class KafkaCommitOffset<K, V>
     }
   }
 
-  static class MaxOffsetFn<K, V>
+  private static final class MaxOffsetFn<K, V>
       extends DoFn<KV<KafkaSourceDescriptor, KafkaRecord<K, V>>, KV<KafkaSourceDescriptor, Long>> {
-    static class OffsetAndTimestamp {
+    private static class OffsetAndTimestamp {
       OffsetAndTimestamp(long offset, Instant timestamp) {
         this.offset = offset;
         this.timestamp = timestamp;
@@ -124,15 +124,20 @@ public class KafkaCommitOffset<K, V>
       Instant timestamp;
     }
 
-    private transient Map<KafkaSourceDescriptor, OffsetAndTimestamp> maxObserved = new HashMap<>();
+    private transient @MonotonicNonNull Map<KafkaSourceDescriptor, OffsetAndTimestamp> maxObserved;
 
     @StartBundle
     public void startBundle() {
-      maxObserved.clear();
+      if (maxObserved == null) {
+        maxObserved = new HashMap<>();
+      } else {
+        maxObserved.clear();
+      }
     }
 
     @RequiresStableInput
     @ProcessElement
+    @SuppressWarnings("nullness") // startBundle guaranteed to initialize
     public void processElement(
         @Element KV<KafkaSourceDescriptor, KafkaRecord<K, V>> element,
         @Timestamp Instant timestamp) {
@@ -149,15 +154,10 @@ public class KafkaCommitOffset<K, V>
     }
 
     @FinishBundle
+    @SuppressWarnings("nullness") // startBundle guaranteed to initialize
     public void finishBundle(FinishBundleContext context) {
       maxObserved.forEach(
           (k, v) -> context.output(KV.of(k, v.offset), v.timestamp, GlobalWindow.INSTANCE));
-    }
-
-    private void readObject(java.io.ObjectInputStream in)
-        throws IOException, ClassNotFoundException {
-      in.defaultReadObject();
-      maxObserved = new HashMap<>();
     }
   }
 
@@ -165,7 +165,7 @@ public class KafkaCommitOffset<K, V>
   public PCollection<Void> expand(PCollection<KV<KafkaSourceDescriptor, KafkaRecord<K, V>>> input) {
     try {
       PCollection<KV<KafkaSourceDescriptor, Long>> offsets;
-      if (useLegacyImplementation) {
+      if (use259implementation) {
         offsets =
             input.apply(
                 MapElements.into(new TypeDescriptor<KV<KafkaSourceDescriptor, Long>>() {})

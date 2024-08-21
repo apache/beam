@@ -68,6 +68,7 @@ import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
+import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 import org.apache.beam.sdk.schemas.transforms.Convert;
@@ -2686,53 +2687,58 @@ public class KafkaIO {
                             .getSchemaCoder(KafkaSourceDescriptor.class),
                         recordCoder));
 
-        if (isCommitOffsetEnabled() && !configuredKafkaCommit() && !isRedistribute()) {
-          // Add transform for committing offsets to Kafka with consistency with beam pipeline data
-          // processing.
-          boolean useLegacyImplementation = false;
-          String requestedVersionString =
-              input
-                  .getPipeline()
-                  .getOptions()
-                  .as(StreamingOptions.class)
-                  .getUpdateCompatibilityVersion();
-          if (requestedVersionString != null) {
-            List<String> requestedVersion = Arrays.asList(requestedVersionString.split("\\."));
-            List<String> targetVersion = Arrays.asList("2", "59", "0");
-
-            if (Comparators.lexicographical(Comparator.<String>naturalOrder())
-                    .compare(requestedVersion, targetVersion)
-                < 0) {
-              useLegacyImplementation = true;
-            }
-          }
-          // Use expensive reshuffle of payloads for update compatibility and tweak how offsets are
-          // committed.
-          if (useLegacyImplementation) {
-            outputWithDescriptor =
-                outputWithDescriptor
-                    .apply(Reshuffle.viaRandomKey())
-                    .setCoder(
-                        KvCoder.of(
-                            input
-                                .getPipeline()
-                                .getSchemaRegistry()
-                                .getSchemaCoder(KafkaSourceDescriptor.class),
-                            recordCoder));
-          }
-          outputWithDescriptor
-              .apply(new KafkaCommitOffset<>(this, useLegacyImplementation))
-              .setCoder(VoidCoder.of());
+        boolean applyCommitOffsets =
+            isCommitOffsetEnabled() && !configuredKafkaCommit() && !isRedistribute();
+        if (!applyCommitOffsets) {
+          return outputWithDescriptor
+              .apply(MapElements.into(new TypeDescriptor<KafkaRecord<K, V>>() {}).via(KV::getValue))
+              .setCoder(recordCoder);
         }
-        PCollection<KafkaRecord<K, V>> output =
-            outputWithDescriptor
-                .apply(
-                    MapElements.into(new TypeDescriptor<KafkaRecord<K, V>>() {}).via(KV::getValue))
-                .setCoder(recordCoder);
-        return output;
+
+        // Add transform for committing offsets to Kafka with consistency with beam pipeline data
+        // processing.
+        String requestedVersionString =
+            input
+                .getPipeline()
+                .getOptions()
+                .as(StreamingOptions.class)
+                .getUpdateCompatibilityVersion();
+        if (requestedVersionString != null) {
+          List<String> requestedVersion = Arrays.asList(requestedVersionString.split("\\."));
+          List<String> targetVersion = Arrays.asList("2", "60", "0");
+
+          if (Comparators.lexicographical(Comparator.<String>naturalOrder())
+                  .compare(requestedVersion, targetVersion)
+              < 0) {
+            return expand259Commits(
+                outputWithDescriptor, recordCoder, input.getPipeline().getSchemaRegistry());
+          }
+        }
+        outputWithDescriptor.apply(new KafkaCommitOffset<>(this, false)).setCoder(VoidCoder.of());
+        return outputWithDescriptor
+            .apply(MapElements.into(new TypeDescriptor<KafkaRecord<K, V>>() {}).via(KV::getValue))
+            .setCoder(recordCoder);
       } catch (NoSuchSchemaException e) {
         throw new RuntimeException(e.getMessage());
       }
+    }
+
+    private PCollection<KafkaRecord<K, V>> expand259Commits(
+        PCollection<KV<KafkaSourceDescriptor, KafkaRecord<K, V>>> outputWithDescriptor,
+        Coder<KafkaRecord<K, V>> recordCoder,
+        SchemaRegistry schemaRegistry)
+        throws NoSuchSchemaException {
+      // Reshuffles the data and then branches off applying commit offsets.
+      outputWithDescriptor =
+          outputWithDescriptor
+              .apply(Reshuffle.viaRandomKey())
+              .setCoder(
+                  KvCoder.of(
+                      schemaRegistry.getSchemaCoder(KafkaSourceDescriptor.class), recordCoder));
+      outputWithDescriptor.apply(new KafkaCommitOffset<>(this, true)).setCoder(VoidCoder.of());
+      return outputWithDescriptor
+          .apply(MapElements.into(new TypeDescriptor<KafkaRecord<K, V>>() {}).via(KV::getValue))
+          .setCoder(recordCoder);
     }
 
     private Coder<K> getKeyCoder(CoderRegistry coderRegistry) {
