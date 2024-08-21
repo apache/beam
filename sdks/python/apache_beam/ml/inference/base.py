@@ -1585,7 +1585,9 @@ class _ModelStatus():
         return
 
 
-def load_model_status(tag: str, share_across_processes: bool) -> _ModelStatus:
+def load_model_status(
+    model_tag: str, share_across_processes: bool) -> _ModelStatus:
+  tag = f'{model_tag}_model_status'
   if share_across_processes:
     return multi_process_shared.MultiProcessShared(
         lambda: _ModelStatus(True), tag=tag, always_proxy=True).acquire()
@@ -1685,10 +1687,11 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     self._cur_tag = self._model_metadata.get_valid_tag(model_tag)
     if self._model_handler.share_model_across_processes():
       models = []
-      for i in range(self._model_handler.model_copies()):
+      for copy_tag in _get_tags_for_copies(self._cur_tag,
+                                           self._model_handler.model_copies()):
         models.append(
             multi_process_shared.MultiProcessShared(
-                load, tag=f'{self._cur_tag}{i}', always_proxy=True).acquire())
+                load, tag=copy_tag, always_proxy=True).acquire())
       model_wrapper = _SharedModelWrapper(models, self._cur_tag)
     else:
       model = self._shared_model_handle.acquire(load, tag=self._cur_tag)
@@ -1780,14 +1783,11 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     # Do garbage collection of old models before starting inference.
     tags_to_gc = self._model_metadata.get_tags_for_garbage_collection()
     if len(tags_to_gc) > 0:
-      # TODO(https://github.com/apache/beam/issues/32137)
-      # add garbage collection. Should be:
-      # for tag in tags_to_gc:
-      # multi_process_shared.MultiProcessShared(
-      #   lambda: None,
-      #   tag
-      #   ).unsafe_hard_delete()
-      # Once added, add some tests as well to ensure this is actually working.
+      for unprefixed_tag in tags_to_gc:
+        for tag in _get_tags_for_copies(unprefixed_tag,
+                                        self._model_handler.model_copies()):
+          multi_process_shared.MultiProcessShared(lambda: None,
+                                                  tag).unsafe_hard_delete()
       self._model_metadata.mark_tags_deleted(tags_to_gc)
 
     if not si_model_metadata:
@@ -1840,3 +1840,10 @@ def _get_current_process_memory_in_bytes():
         'Resource module is not available for current platform, '
         'memory usage cannot be fetched.')
   return 0
+
+
+def _get_tags_for_copies(base_tag, num_copies):
+  tags = []
+  for i in range(num_copies):
+    tags.append(f'{base_tag}{i}')
+  return tags

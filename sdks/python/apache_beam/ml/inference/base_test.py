@@ -19,6 +19,7 @@
 import math
 import os
 import pickle
+import tempfile
 import time
 import unittest
 from typing import Any
@@ -64,12 +65,19 @@ class FakeStatefulModel:
 
 
 class FakeSlowModel:
-  def __init__(self, sleep_on_load_seconds=0):
+  def __init__(self, sleep_on_load_seconds=0, file_path_write_on_del=None):
+
+    self._file_path_write_on_del = file_path_write_on_del
     time.sleep(sleep_on_load_seconds)
 
   def predict(self, example: int) -> int:
     time.sleep(example)
     return example
+
+  def __del__(self):
+    if self._file_path_write_on_del is not None:
+      with open(self._file_path_write_on_del, 'a') as myfile:
+        myfile.write('Deleted FakeSlowModel')
 
 
 class FakeIncrementingModel:
@@ -82,12 +90,17 @@ class FakeIncrementingModel:
 
 
 class FakeSlowModelHandler(base.ModelHandler[int, int, FakeModel]):
-  def __init__(self, sleep_on_load: int, multi_process_shared=False):
+  def __init__(
+      self,
+      sleep_on_load: int,
+      multi_process_shared=False,
+      file_path_write_on_del=None):
     self._sleep_on_load = sleep_on_load
     self._multi_process_shared = multi_process_shared
+    self._file_path_write_on_del = file_path_write_on_del
 
   def load_model(self):
-    return FakeSlowModel(self._sleep_on_load)
+    return FakeSlowModel(self._sleep_on_load, self._file_path_write_on_del)
 
   def run_inference(
       self,
@@ -99,6 +112,9 @@ class FakeSlowModelHandler(base.ModelHandler[int, int, FakeModel]):
 
   def share_model_across_processes(self) -> bool:
     return self._multi_process_shared
+
+  def batch_elements_kwargs(self):
+    return {'min_batch_size': 1, 'max_batch_size': 1}
 
 
 class FakeModelHandler(base.ModelHandler[int, int, FakeModel]):
@@ -859,6 +875,32 @@ class RunInferenceBaseTest(unittest.TestCase):
       bad_without_error = other.failed_inferences | beam.Map(lambda x: x[0][0])
       assert_that(
           bad_without_error, equal_to(expected_bad), label='assert:failures')
+
+  def test_run_inference_timeout_does_garbage_collection(self):
+    with tempfile.TemporaryDirectory() as tmp_dirname:
+      tmp_path = os.path.join(tmp_dirname, 'tmp_filename')
+      expected_file_contents = 'Deleted FakeSlowModel'
+      with TestPipeline() as pipeline:
+        examples = [20] + [1] * 20
+        expected_good = [1] * 20
+        expected_bad = [20]
+        pcoll = pipeline | 'start' >> beam.Create(examples)
+        main, other = pcoll | base.RunInference(
+            FakeSlowModelHandler(
+              0, True, tmp_path)).with_exception_handling(timeout=5)
+
+        assert_that(main, equal_to(expected_good), label='assert:inferences')
+
+        # # bad.failed_inferences will be in form [batch[elements], error].
+        # # Just pull out bad element.
+        bad_without_error = other.failed_inferences | beam.Map(
+            lambda x: x[0][0])
+        assert_that(
+            bad_without_error, equal_to(expected_bad), label='assert:failures')
+
+      with open(tmp_path) as f:
+        s = f.read()
+        self.assertEqual(s, expected_file_contents)
 
   def test_run_inference_impl_inference_args(self):
     with TestPipeline() as pipeline:
@@ -1769,8 +1811,8 @@ class RunInferenceBaseTest(unittest.TestCase):
   def test_model_status_provides_valid_garbage_collection(self):
     ms = base._ModelStatus(True)
 
-    self.assertTrue(ms.is_valid_tag('tag1'))
-    self.assertTrue(ms.is_valid_tag('tag2'))
+    self.assertTrue(ms.is_valid_tag('mspvgc_tag1'))
+    self.assertTrue(ms.is_valid_tag('mspvgc_tag2'))
 
     ms.try_mark_current_model_invalid(1)
 
@@ -1784,37 +1826,35 @@ class RunInferenceBaseTest(unittest.TestCase):
 
     time.sleep(4)
 
-    self.assertTrue(ms.is_valid_tag('tag3'))
+    self.assertTrue(ms.is_valid_tag('mspvgc_tag3'))
 
     tags = ms.get_tags_for_garbage_collection()
 
     self.assertEqual(2, len(tags))
-    self.assertTrue('tag1' in tags)
-    self.assertTrue('tag2' in tags)
+    self.assertTrue('mspvgc_tag1' in tags)
+    self.assertTrue('mspvgc_tag2' in tags)
 
     ms.try_mark_current_model_invalid(0)
 
     tags = ms.get_tags_for_garbage_collection()
 
     self.assertEqual(3, len(tags))
-    self.assertTrue('tag1' in tags)
-    self.assertTrue('tag2' in tags)
-    self.assertTrue('tag3' in tags)
+    self.assertTrue('mspvgc_tag1' in tags)
+    self.assertTrue('mspvgc_tag2' in tags)
+    self.assertTrue('mspvgc_tag3' in tags)
 
-    ms.mark_tags_deleted('tag1')
-    ms.mark_tags_deleted('tag2')
+    ms.mark_tags_deleted(set(['mspvgc_tag1', 'mspvgc_tag2']))
+    tags = ms.get_tags_for_garbage_collection()
+
+    self.assertEqual(['mspvgc_tag3'], tags)
+
+    ms.mark_tags_deleted(set(['mspvgc_tag1']))
     tags = ms.get_tags_for_garbage_collection()
 
     self.assertEqual(1, len(tags))
-    self.assertEqual('tag3', tags[0])
+    self.assertEqual('mspvgc_tag3', tags[0])
 
-    ms.mark_tags_deleted('tag1')
-    tags = ms.get_tags_for_garbage_collection()
-
-    self.assertEqual(1, len(tags))
-    self.assertEqual('tag3', tags[0])
-
-    ms.mark_tags_deleted('tag3')
+    ms.mark_tags_deleted(set(['mspvgc_tag3']))
     tags = ms.get_tags_for_garbage_collection()
 
     self.assertEqual(0, len(tags))
