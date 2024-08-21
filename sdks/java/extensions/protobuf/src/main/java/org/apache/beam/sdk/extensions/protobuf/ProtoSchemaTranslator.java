@@ -174,8 +174,7 @@ class ProtoSchemaTranslator {
           throw new UnsupportedOperationException("Infer schema of Struct type is not supported.");
         }
         throw new IllegalArgumentException(
-            "Cannot infer schema with a circular reference. Proto Field: "
-                + descriptor.getFullName());
+            "Cannot infer schema with a circular reference. Proto Field: " + name);
       }
       return existingSchema;
     }
