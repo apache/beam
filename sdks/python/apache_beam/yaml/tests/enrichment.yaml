@@ -1,0 +1,66 @@
+fixtures:
+  - name: BQ_TABLE
+    type: "apache_beam.yaml.integration_tests.temp_bigquery_table"
+    config:
+      project: "apache-beam-testing"
+  - name: TEMP_DIR
+    type: "apache_beam.yaml.integration_tests.gcs_temp_dir"
+    config:
+      bucket: "gs://temp-storage-for-end-to-end-tests/temp-it"
+
+pipelines:
+  - pipeline:
+      type: chain
+      transforms:
+        - type: Create
+          name: Rows
+          config:
+            elements:
+            - {label: '11a', rank: 0}
+            - {label: '37a', rank: 1}
+            - {label: '389a', rank: 2}
+
+        - type: WriteToBigQuery
+          config:
+            table: "{BQ_TABLE}"
+
+  - pipeline:
+      type: chain
+      transforms:
+        - type: Create
+          name: Data
+          config:
+            elements:
+            - {label: '11a', name: 'S1'}
+            - {label: '37a', name: 'S2'}
+            - {label: '389a', name: 'S3'}
+        - type: Enrichment
+          name: Enriched
+          config:
+            enrichment_handler: 'BigQuery'
+            handler_config:
+              project: apache-beam-testing
+              table_name: "{BQ_TABLE}"
+              fields: ['label']
+              row_restriction_template: "label = '37a'"
+            timeout: 30
+          
+        - type: MapToFields
+          config:
+            language: python
+            fields:
+              label:
+                callable: 'lambda x: x.label'
+                output_type: string
+              rank:
+                callable: 'lambda x: x.rank'
+                output_type: integer
+              name:
+                callable: 'lambda x: x.name'
+                output_type: string
+
+        - type: AssertEqual
+          config:
+            elements:
+              - {label: '37a', rank: 1, name: 'S2'}
+
