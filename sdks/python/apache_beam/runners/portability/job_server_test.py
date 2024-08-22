@@ -34,7 +34,7 @@ class JavaJarJobServerStub(JavaJarJobServer):
         '--artifact-port',
         artifact_port,
         '--expansion-port',
-        expansion_port
+        expansion_port,
         '--jar_cache_dir',
         jar_cache_dir
     ]
