@@ -53,11 +53,46 @@
 * ([#X](https://github.com/apache/beam/issues/X)).
 -->
 
-# [2.59.0] - Unreleased
+# [2.60.0] - Unreleased
+
+## Highlights
+
+* New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
+* New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
+
+## I/Os
+
+* Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+
+## New Features / Improvements
+
+* X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+
+## Breaking Changes
+
+* X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
+
+## Deprecations
+
+* X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
+
+## Bugfixes
+
+* Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+
+## Security Fixes
+* Fixed (CVE-YYYY-NNNN)[https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN] (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).
+
+## Known Issues
+
+* ([#X](https://github.com/apache/beam/issues/X)).
+
+# [2.59.0] - Cut, 2024-08-22
 
 ## Highlights
 
 * Added support for setting a configureable timeout when loading a model and performing inference in the [RunInference](https://beam.apache.org/documentation/ml/inference-overview/) transform using [with_exception_handling](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.base.html#apache_beam.ml.inference.base.RunInference.with_exception_handling) ([#32137](https://github.com/apache/beam/issues/32137))
+* Dropping support for Java 8.
 
 ## I/Os
 
@@ -74,6 +109,11 @@
 * Updated Go protobuf package to new version (Go) ([#21515](https://github.com/apache/beam/issues/21515)).
 * Added support for setting a configureable timeout when loading a model and performing inference in the [RunInference](https://beam.apache.org/documentation/ml/inference-overview/) transform using [with_exception_handling](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.base.html#apache_beam.ml.inference.base.RunInference.with_exception_handling) ([#32137](https://github.com/apache/beam/issues/32137))
 * Adds OrderedListState support for Java SDK via FnApi.
+* Initial support for using Prism from the Java and Python SDKs. 
+
+## Breaking Changes
+
+* Dropping support for Java 8. ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Bugfixes
 
