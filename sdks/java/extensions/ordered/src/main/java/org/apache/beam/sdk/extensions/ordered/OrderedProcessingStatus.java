@@ -24,22 +24,24 @@ import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.joda.time.Instant;
 
-/** Indicates the status of ordered processing for a particular key. */
+/**
+ * Indicates the status of ordered processing for a particular key.
+ */
 @AutoValue
 @DefaultSchema(AutoValueSchema.class)
 public abstract class OrderedProcessingStatus {
 
   public static OrderedProcessingStatus create(
-      Long lastOutputSequence,
+      @Nullable Long lastProcessedSequence,
       long numberOfBufferedEvents,
-      Long earliestBufferedSequence,
-      Long latestBufferedSequence,
+      @Nullable Long earliestBufferedSequence,
+      @Nullable Long latestBufferedSequence,
       long numberOfReceivedEvents,
       long resultCount,
       long duplicateCount,
       boolean lastEventReceived) {
     return new AutoValue_OrderedProcessingStatus.Builder()
-        .setLastProcessedSequence(lastOutputSequence)
+        .setLastProcessedSequence(lastProcessedSequence)
         .setNumberOfBufferedEvents(numberOfBufferedEvents)
         .setEarliestBufferedSequence(earliestBufferedSequence)
         .setLatestBufferedSequence(latestBufferedSequence)
@@ -53,39 +55,49 @@ public abstract class OrderedProcessingStatus {
 
   /**
    * @return Last sequence processed. If null is returned - no elements for the given key and window
-   *     have been processed yet.
+   * have been processed yet.
    */
-  @Nullable
-  public abstract Long getLastProcessedSequence();
 
-  /** @return Number of events received out of sequence and buffered. */
+  public abstract @Nullable Long getLastProcessedSequence();
+
+  /**
+   * @return Number of events received out of sequence and buffered.
+   */
   public abstract long getNumberOfBufferedEvents();
 
-  /** @return Earliest buffered sequence. If null is returned - there are no buffered events. */
+  /**
+   * @return Earliest buffered sequence. If null is returned - there are no buffered events.
+   */
   @Nullable
   public abstract Long getEarliestBufferedSequence();
 
-  /** @return Latest buffered sequence. If null is returned - there are no buffered events. */
+  /**
+   * @return Latest buffered sequence. If null is returned - there are no buffered events.
+   */
   @Nullable
   public abstract Long getLatestBufferedSequence();
 
-  /** @return Total number of events received for the given key and window. */
+  /**
+   * @return Total number of events received for the given key and window.
+   */
   public abstract long getNumberOfReceivedEvents();
 
   /**
-   * @return Number of duplicate events which were output in {@link
-   *     OrderedEventProcessorResult#unprocessedEvents()} PCollection
+   * @return Number of duplicate events which were output in
+   * {@link OrderedEventProcessorResult#unprocessedEvents()} PCollection
    */
   public abstract long getDuplicateCount();
 
-  /** @return Number of output results produced. */
+  /**
+   * @return Number of output results produced.
+   */
   public abstract long getResultCount();
 
   /**
    * @return Indicator that the last event for the given key and window has been received. It
-   *     doesn't necessarily mean that all the events for the given key and window have been
-   *     processed. Use {@link OrderedProcessingStatus#getNumberOfBufferedEvents()} == 0 and this
-   *     indicator as the sign that the processing is complete.
+   * doesn't necessarily mean that all the events for the given key and window have been processed.
+   * Use {@link OrderedProcessingStatus#getNumberOfBufferedEvents()} == 0 and this indicator as the
+   * sign that the processing is complete.
    */
   public abstract boolean isLastEventReceived();
 
@@ -129,13 +141,13 @@ public abstract class OrderedProcessingStatus {
   @AutoValue.Builder
   public abstract static class Builder {
 
-    public abstract Builder setLastProcessedSequence(Long value);
+    public abstract Builder setLastProcessedSequence(@Nullable Long value);
 
     public abstract Builder setNumberOfBufferedEvents(long value);
 
-    public abstract Builder setEarliestBufferedSequence(Long value);
+    public abstract Builder setEarliestBufferedSequence(@Nullable Long value);
 
-    public abstract Builder setLatestBufferedSequence(Long value);
+    public abstract Builder setLatestBufferedSequence(@Nullable Long value);
 
     public abstract Builder setNumberOfReceivedEvents(long value);
 
