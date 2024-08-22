@@ -1,0 +1,63 @@
+pipeline:
+  transforms:
+
+  # Reading data from a Spanner database. The table used here has the following columns:
+  # shipment_id (String), customer_id (String), shipment_date (String), shipment_cost (Float64), customer_name (String), customer_email (String)
+  # ReadFromSpanner transform is called using project_id, instance_id, database_id and a query
+  # A table with a list of columns can also be specified instead of a query
+    - type: ReadFromSpanner
+      name: ReadShipments
+      config:
+        project_id: 'apache-beam-testing'
+        instance_id: 'shipment-test'
+        database_id: 'shipment'
+        query: 'SELECT * FROM shipments'
+
+  # Filtering the data based on a specific condition
+  # Here, the condition is used to keep only the rows where the customer_id is 'C1'
+    - type: Filter
+      name: FilterShipments
+      input: ReadShipments
+      config:
+        language: python
+        keep: "customer_id == 'C1'"
+
+  # Mapping the data fields and applying transformations
+  # A new field 'shipment_cost_category' is added with a custom transformation
+  # A callable is defined to categorize shipment cost
+    - type: MapToFields
+      name: MapFieldsForSpanner
+      input: FilterShipments
+      config:
+        language: python
+        fields:
+          shipment_id: shipment_id
+          customer_id: customer_id
+          shipment_date: shipment_date
+          shipment_cost: shipment_cost
+          customer_name: customer_name
+          customer_email: customer_email
+          shipment_cost_category:
+            callable: |
+              def categorize_cost(row):
+                  cost = float(row[3])
+                  if cost < 50:
+                      return 'Low Cost'
+                  elif cost < 200:
+                      return 'Medium Cost'
+                  else:
+                      return 'High Cost'
+                      
+  # Writing the transformed data to a CSV file          
+    - type: WriteToCsv
+      name: WriteBig
+      input: MapFieldsForSpanner
+      config:
+        path: shipments.csv
+
+
+  # On executing the above pipeline, a new CSV file is created with the following records
+
+  # shipment_id,customer_id,shipment_date,shipment_cost,customer_name,customer_email,shipment_cost_category
+  # S1,C1,2023-05-01,150.0,Alice,alice@example.com,Medium Cost
+  # S3,C1,2023-05-10,20.0,Alice,alice@example.com,Low Cost
