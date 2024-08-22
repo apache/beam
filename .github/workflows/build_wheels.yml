@@ -247,6 +247,7 @@ jobs:
       with:
         name: source
         path: apache-beam-source
+      if: ${{ matrix.is_rc_build == 'false' }}
     - name: Download Python SDK RC source distribution from artifacts
       if: ${{ needs.build_source.outputs.is_rc == 1 && matrix.is_rc_build == 'true' }}
       # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
