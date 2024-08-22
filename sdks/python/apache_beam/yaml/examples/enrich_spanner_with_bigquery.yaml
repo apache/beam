@@ -1,0 +1,79 @@
+pipeline:
+  transforms:
+    # Step 1: Read orders details from Spanner
+    - type: ReadFromSpanner
+      name: ReadOrders
+      config:
+        project_id: 'apache-beam-testing'
+        instance_id: 'orders-test'
+        database_id: 'order-database'
+        query: 'SELECT customer_id, product_id, order_date, order_amount FROM orders'
+
+    # Step 2: Enrich order details with customers details from BigQuery
+    - type: Enrichment
+      name: Enriched
+      input: ReadOrders
+      config:
+        enrichment_handler: 'BigQuery'
+        handler_config:
+          project: "apache-beam-testing"
+          table_name: "apache-beam-testing.ALL_TEST.customers"
+          row_restriction_template: "customer_id = 1001 or customer_id = 1003"
+          fields: ["customer_id"]
+
+    # Step 3: Map enriched values to fields
+    - type: MapToFields
+      name: MapEnrichedValues
+      input: Enriched
+      config:
+        language: python
+        fields:
+          customer_id:
+            callable: 'lambda x: x.customer_id'
+            output_type: integer
+          customer_name:
+            callable: 'lambda x: x.customer_name'
+            output_type: string
+          customer_email:
+            callable: 'lambda x: x.customer_email'
+            output_type: string 
+          product_id:
+            callable: 'lambda x: x.product_id'
+            output_type: integer
+          order_date:
+            callable: 'lambda x: x.order_date'
+            output_type: string
+          order_amount:
+            callable: 'lambda x: x.order_amount'
+            output_type: integer
+
+    # Step 4: Filter orders with amount greater than 100
+    - type: Filter
+      name: FilterHighValueOrders
+      input: MapEnrichedValues
+      config:
+        keep: "order_amount > 100"
+        language: "python"
+
+
+    # Step 6: Write processed order to another spanner table
+    - type: WriteToSpanner
+      name: WriteProcessedOrders
+      input: FilterHighValueOrders
+      config:
+        project_id: 'apache-beam-testing'
+        instance_id: 'orders-test'
+        database_id: 'order-database'
+        table_id: 'orders_with_customers'
+        error_handling:
+          output: my_error_output
+
+    # Step 7: Handle write errors by writing to JSON
+    - type: WriteToJson
+      name: WriteErrorsToJson
+      input: WriteProcessedOrders.my_error_output
+      config:
+        path: 'errors.json'
+options:
+  project_id: "apache-beam-testing"
+
