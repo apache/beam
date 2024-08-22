@@ -835,7 +835,9 @@ class SynchronousOrderedListRuntimeState(userstate.OrderedListRuntimeState):
       state_key_to_store.CopyFrom(self._state_key)
       state_key_to_store.ordered_list_user_state.range.start = min_timestamp
       state_key_to_store.ordered_list_user_state.range.end = limit_timestamp
-      persistent_values = filter(lambda kv: kv[0] not in self._pending_removes,
+
+      pending_removes_snapshot = copy.deepcopy(self._pending_removes)
+      persistent_values = filter(lambda kv: kv[0] not in pending_removes_snapshot,
                                  _StateBackedIterable(self._state_handler,
                                                       state_key_to_store,
                                                       self._elem_coder))

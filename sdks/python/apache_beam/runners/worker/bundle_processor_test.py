@@ -442,7 +442,6 @@ class OrderedListStateTest(unittest.TestCase):
 
   def setUp(self):
     self.state = self._create_state()
-    return
 
   def test_read_range(self):
     A1, B1, A4 = [(1, "a1"), (1, "b1"), (4, "a4")]
@@ -559,6 +558,38 @@ class OrderedListStateTest(unittest.TestCase):
     self.assertEqual(len(self.state._pending_removes), 0)
 
     self.assertEqual([B5], list(self.state.read()))
+
+  def test_multiple_iterators(self):
+    A1, B1, A3, B3 = [(1, "a1"), (1, "b1"), (3, "a3"), (3, "b3")]
+
+    self.state.add(A1)
+    self.state.add(A3)
+    self.state.commit()
+
+    iter_before_b1 = iter(self.state.read())
+    self.assertEqual(A1, next(iter_before_b1))
+
+    self.state.add(B1)
+    self.assertEqual(A3, next(iter_before_b1))
+    self.assertRaises(StopIteration, lambda :next(iter_before_b1))
+
+    self.state.add(B3)
+    iter_before_clear_range = iter(self.state.read())
+    self.assertEqual(A1, next(iter_before_clear_range))
+    self.state.clear_range(3, 10)
+    self.assertEqual(B1, next(iter_before_clear_range))
+    self.assertEqual(A3, next(iter_before_clear_range))
+    self.assertEqual(B3, next(iter_before_clear_range))
+    self.assertRaises(StopIteration, lambda :next(iter_before_clear_range))
+    self.assertEqual([A1, B1], list(self.state.read()))
+
+    iter_before_clear = iter(self.state.read())
+    self.assertEqual(A1, next(iter_before_clear))
+    self.state.clear()
+    self.assertEqual(B1, next(iter_before_clear))
+    self.assertRaises(StopIteration, lambda :next(iter_before_clear))
+
+    self.assertEqual([], list(self.state.read()))
 
 
 if __name__ == '__main__':
