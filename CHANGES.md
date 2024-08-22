@@ -108,7 +108,7 @@
 * Updated Go protobuf package to new version (Go) ([#21515](https://github.com/apache/beam/issues/21515)).
 * Added support for setting a configureable timeout when loading a model and performing inference in the [RunInference](https://beam.apache.org/documentation/ml/inference-overview/) transform using [with_exception_handling](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.base.html#apache_beam.ml.inference.base.RunInference.with_exception_handling) ([#32137](https://github.com/apache/beam/issues/32137))
 * Adds OrderedListState support for Java SDK via FnApi.
-* Initial support for using Prism from the Java and Python SDKs. 
+* Initial support for using Prism from the Python SDK.
 
 ## Bugfixes
 
