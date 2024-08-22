@@ -747,6 +747,9 @@ class RangeSet:
     self._sorted_ends = SortedList()
 
   def add(self, start, end):
+    if start >= end:
+      return
+
     # ranges[:min_idx] and ranges[max_idx:] will not be impacted by this insertion
     # the first range whose end point >= the start of the new range
     min_idx = self._sorted_ends.bisect_left(start)
@@ -859,8 +862,8 @@ class SynchronousOrderedListRuntimeState(userstate.OrderedListRuntimeState):
     if isinstance(limit_timestamp, timestamp.Timestamp):
       limit_timestamp = limit_timestamp.micros
 
-    to_remove_range = self._pending_adds.irange(min_timestamp, limit_timestamp,
-                                                inclusive=(True, False))
+    to_remove_range = list(self._pending_adds.irange(min_timestamp, limit_timestamp,
+                                                    inclusive=(True, False)))
     for k in to_remove_range:
       del self._pending_adds[k]
 

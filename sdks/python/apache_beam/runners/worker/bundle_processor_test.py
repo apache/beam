@@ -18,6 +18,7 @@
 """Unit tests for bundle processing."""
 # pytype: skip-file
 
+import random
 import unittest
 
 import apache_beam as beam
@@ -590,6 +591,64 @@ class OrderedListStateTest(unittest.TestCase):
     self.assertRaises(StopIteration, lambda :next(iter_before_clear))
 
     self.assertEqual([], list(self.state.read()))
+
+  def fuzz_test_helper(self, seed=0, lower=0, upper=20):
+    class NaiveState:
+      def __init__(self):
+        self._data = [list() for i in range((upper - lower + 1))]
+
+      def add(self, elem):
+        k, v = elem
+        self._data[k - lower].append(v)
+
+      def clear_range(self, lo, hi):
+        for i in range(lo, hi):
+          self._data[i - lower] = []
+
+      def clear(self):
+        for i in range(len(self._data)):
+          self._data[i] = []
+
+      def read(self):
+        for i in range(len(self._data)):
+          for v in self._data[i]:
+            yield (i + lower, v)
+
+    random.seed(seed)
+
+    state = self._create_state()
+    bench_state = NaiveState()
+
+    steps = random.randint(20, 50)
+    for i in range(steps):
+      op = random.randint(1, 100)
+      if 1 <= op < 70:
+        num = random.randint(lower, upper)
+        state.add((num, "a%d" % num))
+        bench_state.add((num, "a%d" % num))
+      elif 70 <= op < 95:
+        num1 = random.randint(lower, upper)
+        num2 = random.randint(lower, upper)
+        state.clear_range(min(num1, num2), max(num1, num2))
+        bench_state.clear_range(min(num1, num2), max(num1, num2))
+      elif op >= 95:
+        state.clear()
+        bench_state.clear()
+
+      op = random.randint(1, 10)
+      if 1 <= op <= 9:
+        pass
+      else:
+        state.commit()
+
+      a = list(state.read())
+      b = list(bench_state.read())
+      self.assertEqual(a, b, "Mismatch occurred on seed=%d, step=%d" % (seed, i))
+
+  def test_fuzz(self):
+    for i in range(1000):
+      seed = random.randint(0, 0xffffffffffffffff)
+      self.fuzz_test_helper(seed=seed)
 
 
 if __name__ == '__main__':
