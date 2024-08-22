@@ -39,7 +39,7 @@ jobs:
       - name: Install python
         uses: actions/setup-python@v5
         with:
-          python-version: 3.8
+          python-version: 3.9
       - name: Install Apache Beam
         working-directory: ./sdks/python
         run: pip install -e .[gcp,test]
