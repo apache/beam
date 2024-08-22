@@ -370,7 +370,8 @@ public final class StreamingWorkScheduler {
         Duration hotKeyAge = Duration.millis(hotKeyInfo.getHotKeyAgeUsec() / 1000);
 
         String stepName = getShuffleTaskStepName(computationState.getMapTask());
-        if ((options.isHotKeyLoggingEnabled() || hasExperiment(options, "enable_hot_key_logging")) && keyCoder.isPresent()) {
+        if ((options.isHotKeyLoggingEnabled() || hasExperiment(options, "enable_hot_key_logging"))
+            && keyCoder.isPresent()) {
           hotKeyLogger.logHotKeyDetection(stepName, hotKeyAge, executionKey);
         } else {
           hotKeyLogger.logHotKeyDetection(stepName, hotKeyAge);

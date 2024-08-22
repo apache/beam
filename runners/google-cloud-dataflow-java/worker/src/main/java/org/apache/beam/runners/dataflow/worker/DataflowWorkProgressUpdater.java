@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import static org.apache.beam.sdk.options.ExperimentalOptions.hasExperiment;
 import static org.apache.beam.runners.dataflow.util.TimeUtil.fromCloudDuration;
 import static org.apache.beam.runners.dataflow.util.TimeUtil.fromCloudTime;
+import static org.apache.beam.sdk.options.ExperimentalOptions.hasExperiment;
 
 import com.google.api.client.util.Clock;
 import com.google.api.services.dataflow.model.ApproximateSplitRequest;
