@@ -26,6 +26,8 @@ applyPythonNature()
 // Required to setup a Python 3 virtualenv and task names.
 pythonVersion = '3.9'
 
+def posargs = project.findProperty("posargs") ?: ""
+
 apply from: "../common.gradle"
 
 toxTask "testPy39CloudCoverage", "py39-cloudcoverage", "${posargs}"
