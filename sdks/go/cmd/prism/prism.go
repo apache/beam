@@ -34,7 +34,7 @@ var (
 	webPort             = flag.Int("web_port", 8074, "specify the web ui port")
 	jobManagerEndpoint  = flag.String("jm_override", "", "set to only stand up a web ui that refers to a seperate JobManagement endpoint")
 	serveHTTP           = flag.Bool("serve_http", true, "enable or disable the web ui")
-	idleShutdownTimeout = flag.Duration("idle_shutdown_timeout", -1, "duration that prism will wait for a new job before shutting itself down. Negative durations disable auto shutdown infinit wait. Defaults to never shutting down.")
+	idleShutdownTimeout = flag.Duration("idle_shutdown_timeout", -1, "duration that prism will wait for a new job before shutting itself down. Negative durations disable auto shutdown. Defaults to never shutting down.")
 )
 
 func main() {
