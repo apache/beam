@@ -1632,6 +1632,7 @@ class JobServerOptions(PipelineOptions):
         default=None,
         help='The location to store jar cache for job server.')
 
+
 class FlinkRunnerOptions(PipelineOptions):
 
   # These should stay in sync with gradle.properties.
