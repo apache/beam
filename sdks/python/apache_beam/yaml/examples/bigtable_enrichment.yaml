@@ -1,0 +1,35 @@
+pipeline:
+  type: chain
+  transforms:
+
+  # Step 1: Creating a collection of elements that needs
+  # to be enriched. Here we are simulating sales data
+    - type: Create
+      config:
+        elements:
+        - sale_id: 1
+          customer_id: 1
+          product_id: 1
+          quantity: 1
+
+  # Step 2: Enriching the data with Bigtable
+  # This specific bigtable stores product data in the below format
+  # product:product_id, product:product_name, product:product_stock
+    - type: Enrichment
+      config:
+        enrichment_handler: 'BigTable'
+        handler_config:
+          project_id: 'apache-beam-testing'
+          instance_id: 'beam-test'
+          table_id: 'bigtable-enrichment-test'
+          row_key: 'product_id'
+        timeout: 30
+
+  # Step 3: Logging for testing
+  # This is a simple way to view the enriched data
+  # We can also store it somewhere like a json file
+    - type: LogForTesting
+
+  # The logs will show the below output
+  # {"sale_id": 1, "customer_id": 1, "product_id": 1, "quantity": 1, "product": {"product_id": "1", "product_name": "pixel 5", "product_stock": "2"}}
+  # We can see that the original collection we created has been enriched from the product data from bigtable
