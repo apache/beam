@@ -74,7 +74,7 @@ class JavaJarJobServerTest(unittest.TestCase):
             '--artifact-port',
             8098,
             '--expansion-port',
-            8097
+            8097,
             '--jar-cache-dir',
             '/path/to/cache_dir'
         ])
