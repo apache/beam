@@ -48,7 +48,7 @@ jobs:
     runs-on: [self-hosted, ubuntu-20.04, main]
     env:
       EVENT_NAME: ${{ github.event_name }}
-      PY_VERSIONS_FULL: "cp38-* cp39-* cp310-* cp311-* cp312-*"
+      PY_VERSIONS_FULL: "cp39-* cp310-* cp311-* cp312-*"
     outputs:
       gcp-variables-set: ${{ steps.check_gcp_variables.outputs.gcp-variables-set }}
       py-versions-full: ${{ steps.set-py-versions.outputs.py-versions-full }}
@@ -91,7 +91,7 @@ jobs:
       - name: Install python
         uses: actions/setup-python@v5
         with:
-          python-version: 3.8
+          python-version: 3.9
       - name: Get tag
         id: get_tag
         run: |
@@ -252,7 +252,7 @@ jobs:
     - name: Install Python
       uses: actions/setup-python@v5
       with:
-        python-version: 3.8
+        python-version: 3.9
     - uses: docker/setup-qemu-action@v1
       if: ${{matrix.arch == 'aarch64'}}
       name: Set up QEMU

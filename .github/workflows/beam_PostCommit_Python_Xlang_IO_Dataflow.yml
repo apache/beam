@@ -74,7 +74,7 @@ jobs:
         uses: ./.github/actions/setup-environment-action
         with:
           python-version: |
-            3.8
+            3.9
             3.12
       - name: run PostCommit Python Xlang IO Dataflow script
         uses: ./.github/actions/gradle-command-self-hosted-action

@@ -20,8 +20,8 @@
 Example usage, comparing nosetests and pytest test collection:
 $ cd sdks/python
 $ rm *.xml
-$ tox --recreate -e py38-gcp
-$ tox --recreate -e py38-gcp-pytest
+$ tox --recreate -e py39-gcp
+$ tox --recreate -e py39-gcp-pytest
 $ python3 ../../.test-infra/junitxml_report.py nosetests*.xml | sort -u > nosetests.out
 $ python3 ../../.test-infra/junitxml_report.py pytest*.xml | sort -u > pytest.out
 $ diff -u nosetests.out pytest.out | less

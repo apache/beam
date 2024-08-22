@@ -25,14 +25,14 @@
 
 # It is recommended to run this script via gradle commands such as:
 # ./gradlew :sdks:python:container:generatePythonRequirementsAll
-# ./gradlew :sdks:python:container:py38:generatePythonRequirements
+# ./gradlew :sdks:python:container:py39:generatePythonRequirements
 
 # You will need Python interpreters for all versions supported by Beam, see:
 # https://s.apache.org/beam-python-dev-wiki
 
 if [[ $# -lt 2 ]]; then
-  printf "Example usage: \n$> ./sdks/python/container/run_generate_requirements.sh 3.8 <sdk_tarball>"
-  printf "\n\where 3.8 is the Python major.minor version."
+  printf "Example usage: \n$> ./sdks/python/container/run_generate_requirements.sh 3.9 <sdk_tarball>"
+  printf "\n\where 3.9 is the Python major.minor version."
   exit 1
 fi
 

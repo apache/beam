@@ -24,13 +24,13 @@
 # REGION       -> Region name to use for Dataflow
 #
 # Execute from the root of the repository:
-#     test Python3.8 x86 container:
-#         ./gradlew :sdks:python:test-suites:dataflow:py38:validatesContainer
+#     test Python3.9 x86 container:
+#         ./gradlew :sdks:python:test-suites:dataflow:py39:validatesContainer
 #     or test all supported python versions x86 containers together:
 #         ./gradlew :sdks:python:test-suites:dataflow:validatesContainer
 #
-# Note: ARM test suites only run on github actions. For example, to test Python3.8 ARM containers,
-# commenting `Run Python ValidatesContainer Dataflow ARM (3.8)` will trigger the test.
+# Note: ARM test suites only run on github actions. For example, to test Python3.9 ARM containers,
+# commenting `Run Python ValidatesContainer Dataflow ARM (3.9)` will trigger the test.
 
 echo "This script must be executed in the root of beam project. Please set GCS_LOCATION, PROJECT and REGION as desired."
 

@@ -260,10 +260,10 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '11'
-      - name: Install Python 3.8
+      - name: Install Python 3.9
         uses: actions/setup-python@v5
         with:
-          python-version: '3.8'
+          python-version: '3.9'
       - run: echo $JAVA_HOME
       - run: echo "JAVA11_HOME=${JAVA_HOME}" >> "$GITHUB_OUTPUT"
         id: export-java11
@@ -310,10 +310,10 @@ jobs:
           path: beam-site
           token: ${{ github.event.inputs.REPO_TOKEN }}
           ref: release-docs
-      - name: Install Python 3.8
+      - name: Install Python 3.9
         uses: actions/setup-python@v5
         with:
-          python-version: '3.8'
+          python-version: '3.9'
       - name: Install node
         uses: actions/setup-node@v4
         with:

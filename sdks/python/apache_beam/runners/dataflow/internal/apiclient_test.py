@@ -938,7 +938,7 @@ class UtilTest(unittest.TestCase):
 
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.sys.version_info',
-      (3, 8))
+      (3, 9))
   def test_get_python_sdk_name(self):
     pipeline_options = PipelineOptions([
         '--project',
@@ -957,7 +957,7 @@ class UtilTest(unittest.TestCase):
                                         1,
                                         FAKE_PIPELINE_URL)
     self.assertEqual(
-        'Apache Beam Python 3.8 SDK', environment._get_python_sdk_name())
+        'Apache Beam Python 3.9 SDK', environment._get_python_sdk_name())
 
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.sys.version_info',
@@ -998,12 +998,12 @@ class UtilTest(unittest.TestCase):
 
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.sys.version_info',
-      (3, 8, 2))
+      (3, 9, 2))
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.'
       'beam_version.__version__',
       '2.2.0')
-  def test_interpreter_version_check_passes_py38(self):
+  def test_interpreter_version_check_passes_py39(self):
     pipeline_options = PipelineOptions([])
     apiclient._verify_interpreter_version_is_supported(pipeline_options)
 

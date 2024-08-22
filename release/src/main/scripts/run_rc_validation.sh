@@ -99,7 +99,7 @@ HUB_VERSION=2.12.0
 HUB_ARTIFACTS_NAME=hub-linux-amd64-${HUB_VERSION}
 BACKUP_BASHRC=.bashrc_backup_$(date +"%Y%m%d%H%M%S")
 BACKUP_M2=settings_backup_$(date +"%Y%m%d%H%M%S").xml
-declare -a PYTHON_VERSIONS_TO_VALIDATE=("python3.8")
+declare -a PYTHON_VERSIONS_TO_VALIDATE=("python3.9")
 echo ""
 echo "====================Checking Environment & Variables================="
 echo "PLEASE update RC_VALIDATE_CONFIGS in file script.config first."

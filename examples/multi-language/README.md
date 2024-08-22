@@ -149,7 +149,7 @@ python -m apache_beam.runners.portability.expansion_service_main -p <PORT> --ful
 ```
 export DOCKER_ROOT=<Docker root>
 
-./gradlew :sdks:python:container:py38:docker -Pdocker-repository-root=$DOCKER_ROOT -Pdocker-tag=latest
+./gradlew :sdks:python:container:py39:docker -Pdocker-repository-root=$DOCKER_ROOT -Pdocker-tag=latest
 
 docker push $DOCKER_ROOT/beam_python3.8_sdk:latest
 
