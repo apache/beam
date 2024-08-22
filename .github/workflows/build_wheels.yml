@@ -214,7 +214,7 @@ jobs:
         run: gsutil cp -r -a public-read source/* ${{ env.GCP_PATH }}
 
   build_wheels:
-    name: Build python wheels on ${{matrix.arch}} for ${{ matrix.os_python.os }}
+    name: Build python wheels on ${{matrix.arch}} for ${{ matrix.os_python.os }}. Is RC - ${{ matrix.is_rc_build }}
     needs:
       - check_env_variables
       - build_source
@@ -232,9 +232,14 @@ jobs:
           {"os": "windows-latest", "runner": "windows-latest", "python": "${{ needs.check_env_variables.outputs.py-versions-test }}" },
         ]
         arch: [auto]
+        is_rc_build: ['true', 'false']
         include:
           - os_python: {"os": "ubuntu-20.04", "runner": [self-hosted, ubuntu-20.04, main], "python": "${{ needs.check_env_variables.outputs.py-versions-test }}" }
             arch: aarch64
+            is_rc_build: 'true'
+          - os_python: {"os": "ubuntu-20.04", "runner": [self-hosted, ubuntu-20.04, main], "python": "${{ needs.check_env_variables.outputs.py-versions-test }}" }
+            arch: aarch64
+            is_rc_build: 'false'
     steps:
     - name: Download python source distribution from artifacts
       # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
@@ -243,7 +248,7 @@ jobs:
         name: source
         path: apache-beam-source
     - name: Download Python SDK RC source distribution from artifacts
-      if: ${{ needs.build_source.outputs.is_rc == 1 }}
+      if: ${{ needs.build_source.outputs.is_rc == 1 && matrix.is_rc_build == 'true' }}
       # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
       uses: actions/download-artifact@v3
       with:
@@ -268,6 +273,7 @@ jobs:
         CIBW_BEFORE_BUILD: pip install cython==0.29.36 numpy --config-settings=setup-args="-Dallow-noblas=true" && pip install --upgrade setuptools
       run: cibuildwheel --print-build-identifiers && cibuildwheel --output-dir wheelhouse
       shell: bash
+      if: ${{ matrix.is_rc_build == 'false' }}
     - name: install sha512sum on MacOS
       if: startsWith(matrix.os_python.os, 'macos')
       run: brew install coreutils
@@ -278,14 +284,16 @@ jobs:
           sha512sum $file > ${file}.sha512
         done
       shell: bash
+      if: ${{ matrix.is_rc_build == 'false' }}
     - name: Upload wheels as artifacts
       # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
       uses: actions/upload-artifact@v3
       with:
         name: wheelhouse-${{ matrix.os_python.os }}${{ (matrix.arch == 'aarch64' && '-aarch64') || '' }}
         path: apache-beam-source/wheelhouse/
+      if: ${{ matrix.is_rc_build == 'false' }}
     - name: Build RC wheels
-      if: ${{ needs.build_source.outputs.is_rc == 1 }}
+      if: ${{ needs.build_source.outputs.is_rc == 1 && matrix.is_rc_build == 'true' }}
       working-directory: apache-beam-source-rc
       env:
         CIBW_BUILD: ${{ matrix.os_python.python }}
@@ -295,7 +303,7 @@ jobs:
       run: cibuildwheel --print-build-identifiers && cibuildwheel --output-dir wheelhouse
       shell: bash
     - name: Add RC checksums
-      if: ${{ needs.build_source.outputs.is_rc == 1 }}
+      if: ${{ needs.build_source.outputs.is_rc == 1 && matrix.is_rc_build == 'true' }}
       working-directory: apache-beam-source-rc/wheelhouse/
       run: |
         for file in *.whl; do
@@ -303,7 +311,7 @@ jobs:
         done
       shell: bash
     - name: Upload RC wheels as artifacts
-      if: ${{ needs.build_source.outputs.is_rc == 1 }}
+      if: ${{ needs.build_source.outputs.is_rc == 1 && matrix.is_rc_build == 'true' }}
       # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
       uses: actions/upload-artifact@v3
       with:
