@@ -805,9 +805,9 @@ class BatchElements(PTransform):
   When the max_batch_duration_secs arg is provided, a stateful implementation
   of BatchElements is used to batch elements across bundles. This is most
   impactful in streaming applications where many bundles only contain one
-  element. Larger max_batch_duration_secs values `might` reduce the throughput of
-  the transform, while smaller values `might` improve the throughput but make it
-  more likely that batches are smaller than the target batch size. 
+  element. Larger max_batch_duration_secs values `might` reduce the throughput
+  of the transform, while smaller values `might` improve the throughput but
+  make it more likely that batches are smaller than the target batch size.
 
   As a general recommendation, start with low values (e.g. 0.005 aka 5ms) and
   increase as needed to get the desired tradeoff between target batch size
