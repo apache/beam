@@ -53,6 +53,8 @@ public abstract class OrderedProcessingHandler<
       Duration.standardSeconds(DEFAULT_STATUS_UPDATE_FREQUENCY_SECONDS);
   private boolean produceStatusUpdateOnEveryEvent = DEFAULT_PRODUCE_STATUS_UPDATE_ON_EVERY_EVENT;
 
+  private SequenceType sequenceType = SequenceType.PER_KEY;
+
   /**
    * Provide concrete classes which will be used by the ordered processing transform.
    *
@@ -216,5 +218,13 @@ public abstract class OrderedProcessingHandler<
    */
   public void setMaxOutputElementsPerBundle(int maxOutputElementsPerBundle) {
     this.maxOutputElementsPerBundle = maxOutputElementsPerBundle;
+  }
+
+  public SequenceType getSequenceType() {
+    return sequenceType;
+  }
+
+  public void setSequenceType(SequenceType sequenceType) {
+    this.sequenceType = sequenceType;
   }
 }

@@ -27,6 +27,7 @@ import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.extensions.ordered.GlobalSequenceTracker.SequenceAndTimestamp;
 import org.apache.beam.sdk.extensions.ordered.ProcessingState.ProcessingStateCoder;
 import org.apache.beam.sdk.extensions.ordered.UnprocessedEvent.Reason;
 import org.apache.beam.sdk.extensions.ordered.UnprocessedEvent.UnprocessedEventCoder;
@@ -48,6 +49,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
@@ -69,18 +71,20 @@ import org.slf4j.LoggerFactory;
 @AutoValue
 @SuppressWarnings({"nullness", "TypeNameShadowing"})
 public abstract class OrderedEventProcessor<
-        EventT, EventKeyT, ResultT, StateT extends MutableState<EventT, ResultT>>
+    EventT, EventKeyT, ResultT, StateT extends MutableState<EventT, ResultT>>
     extends PTransform<
-        PCollection<KV<EventKeyT, KV<Long, EventT>>>,
-        OrderedEventProcessorResult<EventKeyT, ResultT, EventT>> {
+    PCollection<KV<EventKeyT, KV<Long, EventT>>>,
+    OrderedEventProcessorResult<EventKeyT, ResultT, EventT>> {
+
+  public static final String GLOBAL_SEQUENCE_TRACKER = "global_sequence_tracker";
 
   public static <
-          EventTypeT,
-          EventKeyTypeT,
-          ResultTypeT,
-          StateTypeT extends MutableState<EventTypeT, ResultTypeT>>
-      OrderedEventProcessor<EventTypeT, EventKeyTypeT, ResultTypeT, StateTypeT> create(
-          OrderedProcessingHandler<EventTypeT, EventKeyTypeT, StateTypeT, ResultTypeT> handler) {
+      EventTypeT,
+      EventKeyTypeT,
+      ResultTypeT,
+      StateTypeT extends MutableState<EventTypeT, ResultTypeT>>
+  OrderedEventProcessor<EventTypeT, EventKeyTypeT, ResultTypeT, StateTypeT> create(
+      OrderedProcessingHandler<EventTypeT, EventKeyTypeT, StateTypeT, ResultTypeT> handler) {
     return new AutoValue_OrderedEventProcessor<>(handler);
   }
 
@@ -91,12 +95,15 @@ public abstract class OrderedEventProcessor<
   public OrderedEventProcessorResult<EventKeyT, ResultT, EventT> expand(
       PCollection<KV<EventKeyT, KV<Long, EventT>>> input) {
     final TupleTag<KV<EventKeyT, ResultT>> mainOutput =
-        new TupleTag<KV<EventKeyT, ResultT>>("mainOutput") {};
+        new TupleTag<KV<EventKeyT, ResultT>>("mainOutput") {
+        };
     final TupleTag<KV<EventKeyT, OrderedProcessingStatus>> statusOutput =
-        new TupleTag<KV<EventKeyT, OrderedProcessingStatus>>("status") {};
+        new TupleTag<KV<EventKeyT, OrderedProcessingStatus>>("status") {
+        };
 
     final TupleTag<KV<EventKeyT, KV<Long, UnprocessedEvent<EventT>>>> unprocessedEventOutput =
-        new TupleTag<KV<EventKeyT, KV<Long, UnprocessedEvent<EventT>>>>("unprocessed-events") {};
+        new TupleTag<KV<EventKeyT, KV<Long, UnprocessedEvent<EventT>>>>("unprocessed-events") {
+        };
 
     OrderedProcessingHandler<EventT, EventKeyT, StateT, ResultT> handler = getHandler();
     Pipeline pipeline = input.getPipeline();
@@ -129,23 +136,71 @@ public abstract class OrderedEventProcessor<
       throw new RuntimeException("Unable to get result coder", e);
     }
 
-    PCollectionTuple processingResult =
-        input.apply(
-            ParDo.of(
-                    new OrderedProcessorDoFn<>(
-                        handler.getEventExaminer(),
-                        eventCoder,
-                        stateCoder,
-                        keyCoder,
+    PCollectionTuple processingResult;
+
+    switch (handler.getSequenceType()) {
+      case GLOBAL:
+        DoFn<KV<EventKeyT, KV<Long, EventT>>, SequenceAndTimestamp> fn = new DoFn<KV<EventKeyT, KV<Long, EventT>>, SequenceAndTimestamp>() {
+          @ProcessElement
+          public void convert(@Element KV<EventKeyT, KV<Long, EventT>> element,
+              @Timestamp Instant timestamp,
+              OutputReceiver<SequenceAndTimestamp> outputReceiver
+          ) {
+            outputReceiver.output(
+                SequenceAndTimestamp.create(element.getValue().getKey(), timestamp));
+          }
+        };
+
+        final PCollectionView<SequenceAndTimestamp> latestContinousSequence =
+            input
+                .apply("Convert to SequenceAndTimestamp", ParDo.of(fn))
+                .apply("GlobalSequenceTracker", new GlobalSequenceTracker());
+        processingResult =
+            input.apply(
+                ParDo.of(
+                        new OrderedProcessorDoFn<>(
+                            handler.getEventExaminer(),
+                            eventCoder,
+                            stateCoder,
+                            keyCoder,
+                            mainOutput,
+                            statusOutput,
+                            handler.getStatusUpdateFrequency(),
+                            unprocessedEventOutput,
+                            handler.isProduceStatusUpdateOnEveryEvent(),
+                            handler.getMaxOutputElementsPerBundle(),
+                            latestContinousSequence))
+                    .withOutputTags(
                         mainOutput,
-                        statusOutput,
-                        handler.getStatusUpdateFrequency(),
-                        unprocessedEventOutput,
-                        handler.isProduceStatusUpdateOnEveryEvent(),
-                        handler.getMaxOutputElementsPerBundle()))
-                .withOutputTags(
-                    mainOutput,
-                    TupleTagList.of(Arrays.asList(statusOutput, unprocessedEventOutput))));
+                        TupleTagList.of(Arrays.asList(statusOutput, unprocessedEventOutput)))
+                    .withSideInput(GLOBAL_SEQUENCE_TRACKER, latestContinousSequence)
+);
+        break;
+
+      case PER_KEY:
+        processingResult =
+            input.apply(
+                ParDo.of(
+                        new OrderedProcessorDoFn<>(
+                            handler.getEventExaminer(),
+                            eventCoder,
+                            stateCoder,
+                            keyCoder,
+                            mainOutput,
+                            statusOutput,
+                            handler.getStatusUpdateFrequency(),
+                            unprocessedEventOutput,
+                            handler.isProduceStatusUpdateOnEveryEvent(),
+                            handler.getMaxOutputElementsPerBundle(),
+                            null))
+                    .withOutputTags(
+                        mainOutput,
+                        TupleTagList.of(Arrays.asList(statusOutput, unprocessedEventOutput))));
+        break;
+
+      default:
+        throw new IllegalStateException("Unprocessed sequence type: " + handler.getSequenceType());
+    }
 
     KvCoder<EventKeyT, ResultT> mainOutputCoder = KvCoder.of(keyCoder, resultCoder);
     KvCoder<EventKeyT, OrderedProcessingStatus> processingStatusCoder =
@@ -187,10 +242,10 @@ public abstract class OrderedEventProcessor<
    * @param <StateTypeT>
    */
   static class OrderedProcessorDoFn<
-          EventTypeT,
-          EventKeyTypeT,
-          ResultTypeT,
-          StateTypeT extends MutableState<EventTypeT, ResultTypeT>>
+      EventTypeT,
+      EventKeyTypeT,
+      ResultTypeT,
+      StateTypeT extends MutableState<EventTypeT, ResultTypeT>>
       extends DoFn<KV<EventKeyTypeT, KV<Long, EventTypeT>>, KV<EventKeyTypeT, ResultTypeT>> {
 
     private static final Logger LOG = LoggerFactory.getLogger(OrderedProcessorDoFn.class);
@@ -237,6 +292,8 @@ public abstract class OrderedEventProcessor<
 
     private final long maxNumberOfResultsToProduce;
 
+    private final PCollectionView<SequenceAndTimestamp> globalSequenceView;
+
     private Long numberOfResultsBeforeBundleStart;
 
     /**
@@ -252,6 +309,7 @@ public abstract class OrderedEventProcessor<
      * @param unprocessedEventTupleTag
      * @param produceStatusUpdateOnEveryEvent
      * @param maxNumberOfResultsToProduce
+     * @param globalSequenceView
      */
     OrderedProcessorDoFn(
         EventExaminer<EventTypeT, StateTypeT> eventExaminer,
@@ -264,11 +322,13 @@ public abstract class OrderedEventProcessor<
         TupleTag<KV<EventKeyTypeT, KV<Long, UnprocessedEvent<EventTypeT>>>>
             unprocessedEventTupleTag,
         boolean produceStatusUpdateOnEveryEvent,
-        long maxNumberOfResultsToProduce) {
+        long maxNumberOfResultsToProduce,
+        PCollectionView<SequenceAndTimestamp> globalSequenceView) {
       this.eventExaminer = eventExaminer;
       this.bufferedEventsSpec = StateSpecs.orderedList(eventCoder);
       this.mutableStateSpec = StateSpecs.value(stateCoder);
       this.processingStateSpec = StateSpecs.value(ProcessingStateCoder.of(keyCoder));
+      this.globalSequenceView = globalSequenceView;
       this.windowClosedSpec = StateSpecs.value(BooleanCoder.of());
       this.mainOutputTupleTag = mainOutputTupleTag;
       this.statusTupleTag = statusTupleTag;
@@ -293,13 +353,19 @@ public abstract class OrderedEventProcessor<
     public void processElement(
         @StateId(BUFFERED_EVENTS) OrderedListState<EventTypeT> bufferedEventsState,
         @AlwaysFetched @StateId(PROCESSING_STATE)
-            ValueState<ProcessingState<EventKeyTypeT>> processingStateState,
+        ValueState<ProcessingState<EventKeyTypeT>> processingStateState,
         @StateId(MUTABLE_STATE) ValueState<StateTypeT> mutableStateState,
         @TimerId(STATUS_EMISSION_TIMER) Timer statusEmissionTimer,
         @TimerId(LARGE_BATCH_EMISSION_TIMER) Timer largeBatchEmissionTimer,
         @Element KV<EventKeyTypeT, KV<Long, EventTypeT>> eventAndSequence,
         MultiOutputReceiver outputReceiver,
-        BoundedWindow window) {
+        BoundedWindow window,
+        ProcessContext context) {
+
+      if (globalSequenceView != null) {
+        SequenceAndTimestamp latestGlobalSequence = context.sideInput(globalSequenceView);
+        LOG.info("Latest sequence: " + latestGlobalSequence.getSequence());
+      }
 
       EventKeyTypeT key = eventAndSequence.getKey();
       long sequence = eventAndSequence.getValue().getKey();
@@ -492,7 +558,9 @@ public abstract class OrderedEventProcessor<
       return null;
     }
 
-    /** Process buffered events. */
+    /**
+     * Process buffered events.
+     */
     private void processBufferedEvents(
         ProcessingState<EventKeyTypeT> processingState,
         StateTypeT state,
@@ -555,6 +623,9 @@ public abstract class OrderedEventProcessor<
           break;
         }
 
+        // Remove this record also
+        endClearRange = Instant.ofEpochMilli(eventSequence + 1);
+
         try {
           state.mutate(bufferedEvent);
         } catch (Exception e) {
@@ -575,8 +646,6 @@ public abstract class OrderedEventProcessor<
           processingState.resultProduced();
         }
         processingState.processedBufferedEvent(eventSequence);
-        // Remove this record also
-        endClearRange = Instant.ofEpochMilli(eventSequence + 1);
       }
 
       bufferedEventsState.clearRange(startRange, endClearRange);
@@ -605,7 +674,7 @@ public abstract class OrderedEventProcessor<
         OnTimerContext context,
         @StateId(BUFFERED_EVENTS) OrderedListState<EventTypeT> bufferedEventsState,
         @AlwaysFetched @StateId(PROCESSING_STATE)
-            ValueState<ProcessingState<EventKeyTypeT>> processingStatusState,
+        ValueState<ProcessingState<EventKeyTypeT>> processingStatusState,
         @AlwaysFetched @StateId(MUTABLE_STATE) ValueState<StateTypeT> currentStateState,
         @TimerId(LARGE_BATCH_EMISSION_TIMER) Timer largeBatchEmissionTimer,
         MultiOutputReceiver outputReceiver) {
@@ -646,7 +715,7 @@ public abstract class OrderedEventProcessor<
         @TimerId(STATUS_EMISSION_TIMER) Timer statusEmissionTimer,
         @StateId(WINDOW_CLOSED) ValueState<Boolean> windowClosedState,
         @StateId(PROCESSING_STATE)
-            ValueState<ProcessingState<EventKeyTypeT>> processingStateState) {
+        ValueState<ProcessingState<EventKeyTypeT>> processingStateState) {
 
       ProcessingState<EventKeyTypeT> currentState = processingStateState.read();
       if (currentState == null) {
