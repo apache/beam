@@ -18,9 +18,12 @@
 package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
 import java.util.*;
+import java.util.stream.Collectors;
+
 import org.apache.beam.runners.flink.translation.functions.AbstractFlinkCombineRunner;
 import org.apache.beam.runners.flink.translation.functions.HashingFlinkCombineRunner;
 import org.apache.beam.runners.flink.translation.functions.SortingFlinkCombineRunner;
+import org.apache.beam.runners.flink.translation.types.CoderTypeSerializer;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.CombineFnBase;
@@ -34,16 +37,22 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ArrayListMultimap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multimap;
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.runtime.state.StateInitializationContext;
+import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.util.Collector;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class PartialReduceBundleOperator<K, InputT, OutputT, AccumT>
     extends DoFnOperator<KV<K, InputT>, KV<K, InputT>, KV<K, AccumT>> {
 
   private final CombineFnBase.GlobalCombineFn<InputT, AccumT, OutputT> combineFn;
 
-  // TODO: persist state
   private Multimap<K, WindowedValue<KV<K, InputT>>> state;
+  private transient @Nullable ListState<WindowedValue<KV<K, InputT>>> checkpointedState;
 
   public PartialReduceBundleOperator(
       CombineFnBase.GlobalCombineFn<InputT, AccumT, OutputT> combineFn,
@@ -75,11 +84,12 @@ public class PartialReduceBundleOperator<K, InputT, OutputT, AccumT>
 
     this.combineFn = combineFn;
     this.state = ArrayListMultimap.create();
+    this.checkpointedState = null;
   }
 
   @Override
   public void open() throws Exception {
-    //    clearState();
+    clearState();
     setBundleFinishedCallback(this::finishBundle);
     super.open();
   }
@@ -94,6 +104,7 @@ public class PartialReduceBundleOperator<K, InputT, OutputT, AccumT>
       }
 
       for (Map.Entry<K, Collection<WindowedValue<KV<K, InputT>>>> e : state.asMap().entrySet()) {
+        //noinspection unchecked
         reduceRunner.combine(
             new AbstractFlinkCombineRunner.PartialFlinkCombiner<>(combineFn),
             (WindowingStrategy<Object, BoundedWindow>) windowingStrategy,
@@ -119,6 +130,35 @@ public class PartialReduceBundleOperator<K, InputT, OutputT, AccumT>
 
   private void clearState() {
     this.state = ArrayListMultimap.create();
+    if (this.checkpointedState != null) {
+      this.checkpointedState.clear();
+    }
+  }
+
+  @Override
+  public void initializeState(StateInitializationContext context) throws Exception {
+    super.initializeState(context);
+
+    ListStateDescriptor<WindowedValue<KV<K, InputT>>> descriptor =
+        new ListStateDescriptor<>(
+            "buffered-elements",
+            new CoderTypeSerializer<>(windowedInputCoder, serializedOptions));
+
+    checkpointedState = context.getOperatorStateStore().getListState(descriptor);
+
+    if(context.isRestored() && this.checkpointedState != null) {
+      for(WindowedValue<KV<K, InputT>> wkv : this.checkpointedState.get()) {
+        this.state.put(wkv.getValue().getKey(), wkv);
+      }
+    }
+  }
+
+  @Override
+  public void snapshotState(StateSnapshotContext context) throws Exception {
+    super.snapshotState(context);
+    if (this.checkpointedState != null) {
+      this.checkpointedState.update(new ArrayList<>(this.state.values()));
+    }
   }
 
   @Override
@@ -128,7 +168,7 @@ public class PartialReduceBundleOperator<K, InputT, OutputT, AccumT>
       public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
         WindowedValue<KV<K, InputT>> windowedValue =
             WindowedValue.of(c.element(), c.timestamp(), window, c.pane());
-        state.put(c.element().getKey(), windowedValue);
+        state.put(Objects.requireNonNull(c.element()).getKey(), windowedValue);
       }
     };
   }

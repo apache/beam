@@ -1014,7 +1014,7 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
   }
 
   @Override
-  public final void snapshotState(StateSnapshotContext context) throws Exception {
+  public void snapshotState(StateSnapshotContext context) throws Exception {
     if (checkpointStats != null) {
       checkpointStats.snapshotStart(context.getCheckpointId());
     }
