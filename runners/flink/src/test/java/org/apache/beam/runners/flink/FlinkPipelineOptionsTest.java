@@ -99,7 +99,7 @@ public class FlinkPipelineOptionsTest {
     assertThat(options.getFasterCopy(), is(false));
 
     assertThat(options.isStreaming(), is(false));
-    assertThat(options.getMaxBundleSize(), is(1000000L));
+    assertThat(options.getMaxBundleSize(), is(5000L));
     assertThat(options.getMaxBundleTimeMills(), is(10000L));
 
     // In streaming mode bundle size and bundle time are shorter
