@@ -156,7 +156,7 @@ def _wordcount_test_preprocessor(
 
 
 @YamlExamplesTestSuite.register_test_preprocessor(
-    ['test_simple_filter_yaml', 'test_simple_filter_and_combine_yaml'])
+    ['test_simple_filter_yaml', 'test_simple_filter_and_combine_yaml', 'test_spanner_read_yaml', 'test_spanner_write_yaml'])
 def _file_io_write_test_preprocessor(
     test_spec: dict, expected: List[str], env: TestEnvironment):
 

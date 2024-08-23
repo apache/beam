@@ -21,7 +21,8 @@ pipeline:
           row_restriction_template: "customer_id = 1001 or customer_id = 1003"
           fields: ["customer_id"]
 
-    # Step 3: Map enriched values to fields
+    # Step 3: Map enriched values to Beam schema
+    # TODO: This should be removed when schema'd enrichment is available
     - type: MapToFields
       name: MapEnrichedValues
       input: Enriched
@@ -74,6 +75,4 @@ pipeline:
       input: WriteProcessedOrders.my_error_output
       config:
         path: 'errors.json'
-options:
-  project_id: "apache-beam-testing"
 

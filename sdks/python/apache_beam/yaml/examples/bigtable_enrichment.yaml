@@ -30,6 +30,5 @@ pipeline:
   # We can also store it somewhere like a json file
     - type: LogForTesting
 
-  # The logs will show the below output
-  # {"sale_id": 1, "customer_id": 1, "product_id": 1, "quantity": 1, "product": {"product_id": "1", "product_name": "pixel 5", "product_stock": "2"}}
-  # We can see that the original collection we created has been enriched from the product data from bigtable
+  # Expected:
+  #  Row(sale_id = 1, customer_id = 1, product_id = 1, quantity = 1, product = Row(product_id: "1", product_name = "pixel 5", product_stock = "2"))
