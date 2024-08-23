@@ -51,4 +51,11 @@ public interface PrismPipelineOptions extends PortablePipelineOptions {
   Boolean getEnableWebUI();
 
   void setEnableWebUI(Boolean enableWebUI);
+
+  @Description(
+      "Duration, represented as a String, that prism will wait for a new job before shutting itself down. Negative durations disable auto shutdown. Valid time units are \"ns\", \"us\" (or \"µs\"), \"ms\", \"s\", \"m\", \"h\".")
+  @Default.String("5m")
+  String getIdleShutdownTimeout();
+
+  void setIdleShutdownTimeout(String idleShutdownTimeout);
 }
