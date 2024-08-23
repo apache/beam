@@ -59,12 +59,18 @@ public class TestPrismRunner extends PipelineRunner<PipelineResult> {
 
   @Override
   public PipelineResult run(Pipeline pipeline) {
-    PipelineResult result = internal.run(pipeline);
-    PipelineResult.State state = getWaitUntilFinishRunnable(result).get();
-    assertThat(
-        "Pipeline did not succeed. Check Prism logs for further details.",
-        state,
-        Matchers.is(PipelineResult.State.DONE));
+    PrismPipelineResult result = (PrismPipelineResult) internal.run(pipeline);
+    try {
+      PipelineResult.State state = getWaitUntilFinishRunnable(result).get();
+      assertThat(
+          "Pipeline did not succeed. Check Prism logs for further details.",
+          state,
+          Matchers.is(PipelineResult.State.DONE));
+    } catch (RuntimeException e) {
+      // This is a temporary workaround to close the Prism process.
+      result.getCleanup().run();
+      throw new AssertionError(e);
+    }
     return result;
   }
 
