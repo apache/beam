@@ -352,7 +352,7 @@ class BigQueryWrapper(object):
 
   HISTOGRAM_METRIC_LOGGER = MetricLogger()
 
-  def __init__(self, client=None, temp_dataset_id=None, temp_table_ref=None, project_id = "apache-beam-testing"):
+  def __init__(self, client=None, temp_dataset_id=None, temp_table_ref=None, project_id = None):
     self.client = client or BigQueryWrapper._bigquery_client(PipelineOptions(project = project_id))
     self.gcp_bq_client = client or gcp_bigquery.Client(
         client_info=ClientInfo(
