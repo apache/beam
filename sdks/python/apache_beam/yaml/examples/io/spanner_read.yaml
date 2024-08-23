@@ -58,6 +58,6 @@ pipeline:
 
   # On executing the above pipeline, a new CSV file is created with the following records
 
-  # shipment_id,customer_id,shipment_date,shipment_cost,customer_name,customer_email,shipment_cost_category
-  # S1,C1,2023-05-01,150.0,Alice,alice@example.com,Medium Cost
-  # S3,C1,2023-05-10,20.0,Alice,alice@example.com,Low Cost
+# Expected:
+#  Row(shipment_id='S1', customer_id='C1', shipment_date='2023-05-01', shipment_cost=150.0, customer_name='Alice', customer_email='alice@example.com', shipment_cost_category='Medium Cost')
+#  Row(shipment_id='S3', customer_id='C1', shipment_date='2023-05-10', shipment_cost=20.0, customer_name='Alice', customer_email='alice@example.com', shipment_cost_category='Low Cost')
