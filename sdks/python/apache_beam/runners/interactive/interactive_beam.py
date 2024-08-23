@@ -685,11 +685,10 @@ def watch(watchable):
 @progress_indicated
 def show(
     *pcolls: Union[Dict[Any, PCollection], Iterable[PCollection], PCollection],
-    include_window_info: bool=False,
-    visualize_data: bool=False,
-    n: Union[int, str]='inf',
-    duration: Union[int, str]='inf'):
-
+    include_window_info: bool = False,
+    visualize_data: bool = False,
+    n: Union[int, str] = 'inf',
+    duration: Union[int, str] = 'inf'):
   """Shows given PCollections in an interactive exploratory way if used within
   a notebook, or prints a heading sampled data if used within an ipython shell.
   Noop if used in a non-interactive environment.
