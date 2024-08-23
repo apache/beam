@@ -28,6 +28,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.extensions.ordered.GlobalSequenceTracker.SequenceAndTimestamp;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.initialization.qual.Initialized;
 
@@ -51,6 +52,8 @@ class ProcessingState<KeyT> {
 
   private long resultCount;
 
+  @Nullable private Long lastCompleteGlobalSequence;
+
   private KeyT key;
 
   public ProcessingState(KeyT key) {
@@ -59,6 +62,7 @@ class ProcessingState<KeyT> {
     this.lastOutputSequence = null;
     this.earliestBufferedSequence = null;
     this.latestBufferedSequence = null;
+    this.lastCompleteGlobalSequence = null;
   }
 
   /**
@@ -128,6 +132,14 @@ class ProcessingState<KeyT> {
 
   public KeyT getKey() {
     return key;
+  }
+
+  public @Nullable Long getLastCompleteGlobalSequence() {
+    return lastCompleteGlobalSequence;
+  }
+
+  public void setLastCompleteGlobalSequence(@Nullable Long lastCompleteGlobalSequence) {
+    this.lastCompleteGlobalSequence = lastCompleteGlobalSequence;
   }
 
   /**
@@ -274,6 +286,11 @@ class ProcessingState<KeyT> {
     return resultCount - numberOfResultsBeforeBundleStart;
   }
 
+  public void updateGlobalSequenceDetails(SequenceAndTimestamp updated) {
+    // TODO: do we need to select max? Do we care about the timestamp?
+    this.lastCompleteGlobalSequence = updated.getSequence();
+  }
+
   /**
    * Coder for the processing status.
    *
@@ -308,6 +325,7 @@ class ProcessingState<KeyT> {
       LONG_CODER.encode(value.getResultCount(), outStream);
       BOOLEAN_CODER.encode(value.isLastEventReceived(), outStream);
       keyCoder.encode(value.getKey(), outStream);
+      NULLABLE_LONG_CODER.encode(value.getLastCompleteGlobalSequence(), outStream);
     }
 
     @Override
@@ -321,8 +339,9 @@ class ProcessingState<KeyT> {
       long resultCount = LONG_CODER.decode(inStream);
       boolean isLastEventReceived = BOOLEAN_CODER.decode(inStream);
       KeyT key = keyCoder.decode(inStream);
+      Long lastCompleteGlobalSequence = NULLABLE_LONG_CODER.decode(inStream);
 
-      return new ProcessingState<>(
+      ProcessingState<KeyT> result = new ProcessingState<>(
           key,
           lastOutputSequence,
           earliestBufferedSequence,
@@ -332,6 +351,9 @@ class ProcessingState<KeyT> {
           duplicates,
           resultCount,
           isLastEventReceived);
+      result.setLastCompleteGlobalSequence(lastCompleteGlobalSequence);
+
+      return result;
     }
 
     @Override

@@ -151,7 +151,9 @@ public abstract class OrderedEventProcessor<
                             handler.getStatusUpdateFrequency(),
                             unprocessedEventOutput,
                             handler.isProduceStatusUpdateOnEveryEvent(),
-                            handler.getMaxOutputElementsPerBundle()))
+                            handler.getMaxOutputElementsPerBundle(),
+                            latestContinousSequence)
+                        )
                     .withOutputTags(
                         mainOutput,
                         TupleTagList.of(Arrays.asList(statusOutput, unprocessedEventOutput)))

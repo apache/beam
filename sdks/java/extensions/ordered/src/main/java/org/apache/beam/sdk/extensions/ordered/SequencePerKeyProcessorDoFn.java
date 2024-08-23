@@ -84,6 +84,15 @@ class SequencePerKeyProcessorDoFn<EventTypeT, EventKeyTypeT, ResultTypeT,
     this.windowClosedSpec = StateSpecs.value(BooleanCoder.of());
   }
 
+  @Override
+  boolean checkForInitialEvent() {
+    return true;
+  }
+
+  @Override
+  boolean checkForSequenceGapInBufferedEvents() {
+    return true;
+  }
 
   @ProcessElement
   public void processElement(
@@ -151,104 +160,6 @@ class SequencePerKeyProcessorDoFn<EventTypeT, EventKeyTypeT, ResultTypeT,
   }
 
   /**
-   * Process the just received event.
-   *
-   * @return newly created or updated State. If null is returned - the event wasn't processed.
-   */
-  private @Nullable StateTypeT processNewEvent(
-      long currentSequence,
-      EventTypeT currentEvent,
-      ProcessingState<EventKeyTypeT> processingState,
-      ValueState<StateTypeT> currentStateState,
-      OrderedListState<EventTypeT> bufferedEventsState,
-      MultiOutputReceiver outputReceiver) {
-    if (currentSequence == Long.MAX_VALUE) {
-      // OrderedListState can't handle the timestamp based on MAX_VALUE.
-      // To avoid exceptions, we DLQ this event.
-      outputReceiver
-          .get(unprocessedEventsTupleTag)
-          .output(
-              KV.of(
-                  processingState.getKey(),
-                  KV.of(
-                      currentSequence,
-                      UnprocessedEvent.create(
-                          currentEvent, Reason.sequence_id_outside_valid_range))));
-      return null;
-    }
-
-    if (processingState.hasAlreadyBeenProcessed(currentSequence)) {
-      outputReceiver
-          .get(unprocessedEventsTupleTag)
-          .output(
-              KV.of(
-                  processingState.getKey(),
-                  KV.of(
-                      currentSequence, UnprocessedEvent.create(currentEvent, Reason.duplicate))));
-      return null;
-    }
-
-    StateTypeT state;
-    boolean thisIsTheLastEvent = eventExaminer.isLastEvent(currentSequence, currentEvent);
-    if (eventExaminer.isInitialEvent(currentSequence, currentEvent)) {
-      // First event of the key/window
-      // What if it's a duplicate event - it will reset everything. Shall we drop/DLQ anything
-      // that's before the processingState.lastOutputSequence?
-      state = eventExaminer.createStateOnInitialEvent(currentEvent);
-
-      processingState.eventAccepted(currentSequence, thisIsTheLastEvent);
-
-      ResultTypeT result = state.produceResult();
-      if (result != null) {
-        outputReceiver.get(mainOutputTupleTag).output(KV.of(processingState.getKey(), result));
-        processingState.resultProduced();
-      }
-
-      // Nothing else to do. We will attempt to process buffered events later.
-      return state;
-    }
-
-    if (processingState.isNextEvent(currentSequence)) {
-      // Event matches expected sequence
-      state = currentStateState.read();
-      if(state == null) {
-        LOG.warn("Unexpectedly got an empty state. Most likely cause is pipeline drainage.");
-        return null;
-      }
-
-      try {
-        state.mutate(currentEvent);
-      } catch (Exception e) {
-        outputReceiver
-            .get(unprocessedEventsTupleTag)
-            .output(
-                KV.of(
-                    processingState.getKey(),
-                    KV.of(currentSequence, UnprocessedEvent.create(currentEvent, e))));
-        return null;
-      }
-
-      ResultTypeT result = state.produceResult();
-      if (result != null) {
-        outputReceiver.get(mainOutputTupleTag).output(KV.of(processingState.getKey(), result));
-        processingState.resultProduced();
-      }
-      processingState.eventAccepted(currentSequence, thisIsTheLastEvent);
-
-      return state;
-    }
-
-    // Event is not ready to be processed yet
-    Instant eventTimestamp = Instant.ofEpochMilli(currentSequence);
-    bufferedEventsState.add(TimestampedValue.of(currentEvent, eventTimestamp));
-    processingState.eventBuffered(currentSequence, thisIsTheLastEvent);
-
-    // This will signal that the state hasn't been mutated and we don't need to save it.
-    return null;
-  }
-
-
-  /**
    * Process buffered events.
    */
   private void processBufferedEvents(
@@ -283,78 +194,11 @@ class SequencePerKeyProcessorDoFn<EventTypeT, EventKeyTypeT, ResultTypeT,
       return;
     }
 
-    Instant startRange = Instant.ofEpochMilli(earliestBufferedSequence);
-    Instant endRange = Instant.ofEpochMilli(latestBufferedSequence + 1);
-    Instant endClearRange = startRange; // it will get readjusted later.
+    Instant startRange = fromLong(earliestBufferedSequence);
+    Instant endRange = fromLong(latestBufferedSequence + 1);
 
-    // readRange is efficiently implemented and will bring records in batches
-    Iterable<TimestampedValue<EventTypeT>> events =
-        bufferedEventsState.readRange(startRange, endRange);
-
-    Iterator<TimestampedValue<EventTypeT>> bufferedEventsIterator = events.iterator();
-    while (bufferedEventsIterator.hasNext()) {
-      TimestampedValue<EventTypeT> timestampedEvent = bufferedEventsIterator.next();
-      Instant eventTimestamp = timestampedEvent.getTimestamp();
-      long eventSequence = eventTimestamp.getMillis();
-
-      EventTypeT bufferedEvent = timestampedEvent.getValue();
-      if (processingState.checkForDuplicateBatchedEvent(eventSequence)) {
-        outputReceiver
-            .get(unprocessedEventsTupleTag)
-            .output(
-                KV.of(
-                    processingState.getKey(),
-                    KV.of(
-                        eventSequence,
-                        UnprocessedEvent.create(bufferedEvent, Reason.duplicate))));
-        continue;
-      }
-
-      Long lastOutputSequence = processingState.getLastOutputSequence();
-      if(lastOutputSequence == null) {
-        // Technically, should never happen. Included to keep the compiler happy
-        break;
-      }
-      if (eventSequence > lastOutputSequence + 1) {
-        processingState.foundSequenceGap(eventSequence);
-        // Records will be cleared up to this element
-        endClearRange = Instant.ofEpochMilli(eventSequence);
-        break;
-      }
-
-      // This check needs to be done after we checked for sequence gap and before we
-      // attempt to process the next element which can result in a new result.
-      if (reachedMaxResultCountForBundle(processingState, largeBatchEmissionTimer)) {
-        endClearRange = Instant.ofEpochMilli(eventSequence);
-        break;
-      }
-
-      // Remove this record also
-      endClearRange = Instant.ofEpochMilli(eventSequence + 1);
-
-      try {
-        state.mutate(bufferedEvent);
-      } catch (Exception e) {
-        outputReceiver
-            .get(unprocessedEventsTupleTag)
-            .output(
-                KV.of(
-                    processingState.getKey(),
-                    KV.of(eventSequence, UnprocessedEvent.create(bufferedEvent, e))));
-        // There is a chance that the next event will have the same sequence number and will
-        // process successfully.
-        continue;
-      }
-
-      ResultTypeT result = state.produceResult();
-      if (result != null) {
-        outputReceiver.get(mainOutputTupleTag).output(KV.of(processingState.getKey(), result));
-        processingState.resultProduced();
-      }
-      processingState.processedBufferedEvent(eventSequence);
-    }
-
-    bufferedEventsState.clearRange(startRange, endClearRange);
+    processBufferedEventRange(processingState, state, bufferedEventsState, outputReceiver, largeBatchEmissionTimer,
+        startRange, endRange);
   }
 
   @OnTimer(LARGE_BATCH_EMISSION_TIMER)
@@ -405,23 +249,7 @@ class SequencePerKeyProcessorDoFn<EventTypeT, EventKeyTypeT, ResultTypeT,
       @StateId(PROCESSING_STATE)
       ValueState<ProcessingState<EventKeyTypeT>> processingStateState) {
 
-    ProcessingState<EventKeyTypeT> currentState = processingStateState.read();
-    if (currentState == null) {
-      // This could happen if the state has been purged already during the draining.
-      // It means that there is nothing that we can do and we just need to return.
-      LOG.warn(
-          "Current processing state is null in onStatusEmission() - most likely the pipeline is shutting down.");
-      return;
-    }
-
-    emitProcessingStatus(currentState, outputReceiver, Instant.now());
-
-    Boolean windowClosed = windowClosedState.read();
-    if (!currentState.isProcessingCompleted()
-        // Stop producing statuses if we are finished for a particular key
-        && (windowClosed == null || !windowClosed)) {
-      statusEmissionTimer.offset(statusUpdateFrequency).setRelative();
-    }
+    processStatusTimerEvent(outputReceiver, statusEmissionTimer, windowClosedState, processingStateState);
   }
 
   @OnWindowExpiration
