@@ -45,6 +45,7 @@ import org.slf4j.LoggerFactory;
 abstract class PrismExecutor {
 
   private static final Logger LOG = LoggerFactory.getLogger(PrismExecutor.class);
+  static final String IDLE_SHUTDOWN_TIMEOUT = "-idle_shutdown_timeout=%s";
   static final String JOB_PORT_FLAG_TEMPLATE = "-job_port=%s";
   static final String SERVE_HTTP_FLAG_TEMPLATE = "-serve_http=%s";
 

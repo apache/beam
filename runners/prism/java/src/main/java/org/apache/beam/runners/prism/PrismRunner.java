@@ -98,13 +98,16 @@ public class PrismRunner extends PipelineRunner<PipelineResult> {
     String serveHttpFlag =
         String.format(
             PrismExecutor.SERVE_HTTP_FLAG_TEMPLATE, prismPipelineOptions.getEnableWebUI());
+    String idleShutdownTimeoutFlag =
+        String.format(
+            PrismExecutor.IDLE_SHUTDOWN_TIMEOUT, prismPipelineOptions.getIdleShutdownTimeout());
     String endpoint = "localhost:" + port;
     prismPipelineOptions.setJobEndpoint(endpoint);
     String command = locator.resolve();
     PrismExecutor executor =
         PrismExecutor.builder()
             .setCommand(command)
-            .setArguments(Arrays.asList(portFlag, serveHttpFlag))
+            .setArguments(Arrays.asList(portFlag, serveHttpFlag, idleShutdownTimeoutFlag))
             .build();
     executor.execute();
     checkState(executor.isAlive());
