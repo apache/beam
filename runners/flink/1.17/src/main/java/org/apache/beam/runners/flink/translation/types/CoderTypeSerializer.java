@@ -50,7 +50,12 @@ public class CoderTypeSerializer<T> extends TypeSerializer<T> {
   private final boolean fasterCopy;
 
   public CoderTypeSerializer(Coder<T> coder, SerializablePipelineOptions pipelineOptions) {
-    this(coder, Preconditions.checkNotNull(pipelineOptions).get().as(FlinkPipelineOptions.class).getFasterCopy());
+    this(
+        coder,
+        Preconditions.checkNotNull(pipelineOptions)
+            .get()
+            .as(FlinkPipelineOptions.class)
+            .getFasterCopy());
   }
 
   public CoderTypeSerializer(Coder<T> coder, boolean fasterCopy) {
