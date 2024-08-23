@@ -35,7 +35,8 @@ pipeline:
       config:
         path: errors.json
 
-  # The above pipeline on execution creates a JSON file where the following failed record is stored:
-  # {"error_message":"INSERT_OR_UPDATE operation failed at instance: shipment-test, database: shipment, table: shipments","failed_row":{"shipment_id":"S5","customer_id":"C5","shipment_date":"2023-05-09","shipment_cost":300,"customer_name":"Erin","customer_email":"erin@example.com"}}
   # The operation fails as "shipment_cost" required a float value, whereas a string value is provided in the CreateRows transform
   # Changing the value of "shipment_cost" from "300" to 300.0 will result in a successful write operation
+
+# Expected:
+#  Row(error_message="INSERT_OR_UPDATE operation failed at instance: shipment-test, database: shipment, table: shipments", failed_row=Row(shipment_id='S5', customer_id='C5', shipment_date='2023-05-09', shipment_cost=300.0,  customer_email='erin@example.com'))
