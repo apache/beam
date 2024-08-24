@@ -19,14 +19,18 @@ package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.auto.value.AutoValue;
 import java.io.PrintWriter;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitStatus;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingCommitRequestChunk;
@@ -41,6 +45,7 @@ import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Monitor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,11 +56,12 @@ final class GrpcCommitWorkStream
 
   private static final long HEARTBEAT_REQUEST_ID = Long.MAX_VALUE;
 
-  private final Map<Long, PendingRequest> pending;
+  private final ConcurrentMap<Long, PendingRequest> pending;
   private final AtomicLong idGenerator;
   private final JobHeader jobHeader;
   private final ThrottleTimer commitWorkThrottleTimer;
   private final int streamingRpcBatchLimit;
+  private final Monitor lock;
 
   private GrpcCommitWorkStream(
       String backendWorkerToken,
@@ -83,6 +89,7 @@ final class GrpcCommitWorkStream
     this.jobHeader = jobHeader;
     this.commitWorkThrottleTimer = commitWorkThrottleTimer;
     this.streamingRpcBatchLimit = streamingRpcBatchLimit;
+    this.lock = new Monitor();
   }
 
   static GrpcCommitWorkStream create(
@@ -119,7 +126,7 @@ final class GrpcCommitWorkStream
   }
 
   @Override
-  protected void onNewStream() {
+  protected synchronized void onNewStream() {
     send(StreamingCommitWorkRequest.newBuilder().setHeader(jobHeader).build());
     try (Batcher resendBatcher = new Batcher()) {
       for (Map.Entry<Long, PendingRequest> entry : pending.entrySet()) {
@@ -158,36 +165,45 @@ final class GrpcCommitWorkStream
   protected void onResponse(StreamingCommitResponse response) {
     commitWorkThrottleTimer.stop();
 
-    RuntimeException finalException = null;
+    @Nullable RuntimeException failure = null;
     for (int i = 0; i < response.getRequestIdCount(); ++i) {
       long requestId = response.getRequestId(i);
       if (requestId == HEARTBEAT_REQUEST_ID) {
         continue;
       }
-      PendingRequest done = pending.remove(requestId);
-      if (done == null && !isShutdown()) {
-        LOG.error("Got unknown commit request ID: {}", requestId);
+      PendingRequest pendingRequest = pending.remove(requestId);
+      if (pendingRequest == null) {
+        // Skip responses when the stream is shutdown since they are now invalid.
+        if (!isShutdown()) {
+          LOG.error("Got unknown commit request ID: {}", requestId);
+        }
       } else {
         try {
-          done.onDone.accept(
+          pendingRequest.completeWithStatus(
               (i < response.getStatusCount()) ? response.getStatus(i) : CommitStatus.OK);
         } catch (RuntimeException e) {
           // Catch possible exceptions to ensure that an exception for one commit does not prevent
-          // other commits from being processed.
+          // other commits from being processed. Aggregate all the failures to throw after
+          // processing the response if they exist.
           LOG.warn("Exception while processing commit response.", e);
-          finalException = e;
+          if (failure == null) failure = e;
+          else failure.addSuppressed(e);
         }
       }
     }
-    if (finalException != null) {
-      throw finalException;
+    if (failure != null) {
+      throw failure;
     }
   }
 
   @Override
   protected void shutdownInternal() {
-    pending.values().forEach(pendingRequest -> pendingRequest.onDone.accept(CommitStatus.ABORTED));
-    pending.clear();
+    Iterator<PendingRequest> pendingRequests = pending.values().iterator();
+    while (pendingRequests.hasNext()) {
+      PendingRequest pendingRequest = pendingRequests.next();
+      pendingRequest.completeWithStatus(CommitStatus.ABORTED);
+      pendingRequests.remove();
+    }
   }
 
   @Override
@@ -195,14 +211,14 @@ final class GrpcCommitWorkStream
     commitWorkThrottleTimer.start();
   }
 
-  private void flushInternal(Map<Long, PendingRequest> requests) {
+  private void flushInternal(Map<Long, PendingRequest> requests) throws InterruptedException {
     if (requests.isEmpty()) {
       return;
     }
 
     if (requests.size() == 1) {
       Map.Entry<Long, PendingRequest> elem = requests.entrySet().iterator().next();
-      if (elem.getValue().request.getSerializedSize()
+      if (elem.getValue().request().getSerializedSize()
           > AbstractWindmillStream.RPC_STREAM_CHUNK_SIZE) {
         issueMultiChunkRequest(elem.getKey(), elem.getValue());
       } else {
@@ -213,55 +229,60 @@ final class GrpcCommitWorkStream
     }
   }
 
-  private void issueSingleRequest(final long id, PendingRequest pendingRequest) {
+  private void issueSingleRequest(long id, PendingRequest pendingRequest)
+      throws InterruptedException {
     StreamingCommitWorkRequest.Builder requestBuilder = StreamingCommitWorkRequest.newBuilder();
     requestBuilder
         .addCommitChunkBuilder()
-        .setComputationId(pendingRequest.computation)
+        .setComputationId(pendingRequest.computationId())
         .setRequestId(id)
-        .setShardingKey(pendingRequest.request.getShardingKey())
-        .setSerializedWorkItemCommit(pendingRequest.request.toByteString());
+        .setShardingKey(pendingRequest.shardingKey())
+        .setSerializedWorkItemCommit(pendingRequest.serializedCommit());
     StreamingCommitWorkRequest chunk = requestBuilder.build();
-    synchronized (this) {
+    lock.enterInterruptibly();
+    try {
       pending.put(id, pendingRequest);
-      try {
-        send(chunk);
-      } catch (IllegalStateException e) {
-        // Stream was broken, request will be retried when stream is reopened.
-      }
+      send(chunk);
+    } catch (IllegalStateException e) {
+      // Stream was broken, request will be retried when stream is reopened.
+    } finally {
+      lock.leave();
     }
   }
 
-  private void issueBatchedRequest(Map<Long, PendingRequest> requests) {
+  private void issueBatchedRequest(Map<Long, PendingRequest> requests) throws InterruptedException {
     StreamingCommitWorkRequest.Builder requestBuilder = StreamingCommitWorkRequest.newBuilder();
     String lastComputation = null;
     for (Map.Entry<Long, PendingRequest> entry : requests.entrySet()) {
       PendingRequest request = entry.getValue();
       StreamingCommitRequestChunk.Builder chunkBuilder = requestBuilder.addCommitChunkBuilder();
-      if (lastComputation == null || !lastComputation.equals(request.computation)) {
-        chunkBuilder.setComputationId(request.computation);
-        lastComputation = request.computation;
+      if (lastComputation == null || !lastComputation.equals(request.computationId())) {
+        chunkBuilder.setComputationId(request.computationId());
+        lastComputation = request.computationId();
       }
-      chunkBuilder.setRequestId(entry.getKey());
-      chunkBuilder.setShardingKey(request.request.getShardingKey());
-      chunkBuilder.setSerializedWorkItemCommit(request.request.toByteString());
+      chunkBuilder
+          .setRequestId(entry.getKey())
+          .setShardingKey(request.shardingKey())
+          .setSerializedWorkItemCommit(request.serializedCommit());
     }
     StreamingCommitWorkRequest request = requestBuilder.build();
-    synchronized (this) {
+    lock.enterInterruptibly();
+    try {
       pending.putAll(requests);
-      try {
-        send(request);
-      } catch (IllegalStateException e) {
-        // Stream was broken, request will be retried when stream is reopened.
-      }
+      send(request);
+    } catch (IllegalStateException e) {
+      // Stream was broken, request will be retried when stream is reopened.
+    } finally {
+      lock.leave();
     }
   }
 
-  private void issueMultiChunkRequest(final long id, PendingRequest pendingRequest) {
-    checkNotNull(pendingRequest.computation);
-    final ByteString serializedCommit = pendingRequest.request.toByteString();
-
-    synchronized (this) {
+  private void issueMultiChunkRequest(final long id, PendingRequest pendingRequest)
+      throws InterruptedException {
+    checkNotNull(pendingRequest.computationId());
+    final ByteString serializedCommit = pendingRequest.serializedCommit();
+    lock.enterInterruptibly();
+    try {
       pending.put(id, pendingRequest);
       for (int i = 0;
           i < serializedCommit.size() && !isShutdown();
@@ -273,8 +294,8 @@ final class GrpcCommitWorkStream
             StreamingCommitRequestChunk.newBuilder()
                 .setRequestId(id)
                 .setSerializedWorkItemCommit(chunk)
-                .setComputationId(pendingRequest.computation)
-                .setShardingKey(pendingRequest.request.getShardingKey());
+                .setComputationId(pendingRequest.computationId())
+                .setShardingKey(pendingRequest.shardingKey());
         int remaining = serializedCommit.size() - end;
         if (remaining > 0) {
           chunkBuilder.setRemainingBytesForWorkItem(remaining);
@@ -289,24 +310,39 @@ final class GrpcCommitWorkStream
           break;
         }
       }
+    } finally {
+      lock.leave();
     }
   }
 
-  private static class PendingRequest {
+  @AutoValue
+  abstract static class PendingRequest {
 
-    private final String computation;
-    private final WorkItemCommitRequest request;
-    private final Consumer<CommitStatus> onDone;
-
-    PendingRequest(
-        String computation, WorkItemCommitRequest request, Consumer<CommitStatus> onDone) {
-      this.computation = computation;
-      this.request = request;
-      this.onDone = onDone;
+    private static PendingRequest create(
+        String computationId, WorkItemCommitRequest request, Consumer<CommitStatus> onDone) {
+      return new AutoValue_GrpcCommitWorkStream_PendingRequest(computationId, request, onDone);
     }
 
-    long getBytes() {
-      return (long) request.getSerializedSize() + computation.length();
+    abstract String computationId();
+
+    abstract WorkItemCommitRequest request();
+
+    abstract Consumer<CommitStatus> onDone();
+
+    private long getBytes() {
+      return (long) request().getSerializedSize() + computationId().length();
+    }
+
+    private ByteString serializedCommit() {
+      return request().toByteString();
+    }
+
+    private void completeWithStatus(CommitStatus commitStatus) {
+      onDone().accept(commitStatus);
+    }
+
+    private long shardingKey() {
+      return request().getShardingKey();
     }
   }
 
@@ -326,7 +362,8 @@ final class GrpcCommitWorkStream
       if (!canAccept(commitRequest.getSerializedSize() + computation.length())) {
         return false;
       }
-      PendingRequest request = new PendingRequest(computation, commitRequest, onDone);
+
+      PendingRequest request = PendingRequest.create(computation, commitRequest, onDone);
       add(idGenerator.incrementAndGet(), request);
       return true;
     }
@@ -335,9 +372,14 @@ final class GrpcCommitWorkStream
     @Override
     public void flush() {
       if (!isShutdown()) {
-        flushInternal(queue);
-        queuedBytes = 0;
-        queue.clear();
+        try {
+          flushInternal(queue);
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+        } finally {
+          queuedBytes = 0;
+          queue.clear();
+        }
       }
     }
 

@@ -148,8 +148,8 @@ final class WindmillStreamSender implements GetWorkBudgetSpender {
     if (started.get()) {
       getWorkStream.get().shutdown();
       getDataStream.get().shutdown();
-      workCommitter.get().stop();
       commitWorkStream.get().shutdown();
+      workCommitter.get().stop();
     }
   }
 

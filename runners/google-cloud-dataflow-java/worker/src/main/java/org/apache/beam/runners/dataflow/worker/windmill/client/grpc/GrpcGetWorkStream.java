@@ -119,14 +119,7 @@ final class GrpcGetWorkStream
                     .setMaxBytes(moreBytes))
             .build();
 
-    executeSafely(
-        () -> {
-          try {
-            send(extension);
-          } catch (IllegalStateException e) {
-            // Stream was closed.
-          }
-        });
+    executeSafely(() -> send(extension));
   }
 
   @Override

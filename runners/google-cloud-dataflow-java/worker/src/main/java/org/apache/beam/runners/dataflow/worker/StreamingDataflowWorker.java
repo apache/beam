@@ -22,7 +22,6 @@ import static org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs
 
 import com.google.api.services.dataflow.model.MapTask;
 import com.google.auto.value.AutoValue;
-import java.io.PrintWriter;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -169,7 +168,6 @@ public final class StreamingDataflowWorker {
   private final DataflowExecutionStateSampler sampler = DataflowExecutionStateSampler.instance();
   private final ActiveWorkRefresher activeWorkRefresher;
   private final StreamingWorkerStatusReporter workerStatusReporter;
-  private final StreamingCounters streamingCounters;
   private final int numCommitThreads;
   LongAdder longAdder;
 
@@ -184,7 +182,7 @@ public final class StreamingDataflowWorker {
       DataflowWorkerHarnessOptions options,
       HotKeyLogger hotKeyLogger,
       Supplier<Instant> clock,
-      Function<Supplier<Long>, StreamingWorkerStatusReporter> streamingWorkerStatusReporterFactory,
+      StreamingWorkerStatusReporterFactory streamingWorkerStatusReporterFactory,
       FailureTracker failureTracker,
       WorkFailureProcessor workFailureProcessor,
       StreamingCounters streamingCounters,
@@ -203,7 +201,6 @@ public final class StreamingDataflowWorker {
             Executors.newCachedThreadPool());
     this.options = options;
     this.workUnitExecutor = workUnitExecutor;
-    this.streamingCounters = streamingCounters;
     this.memoryMonitor = BackgroundMemoryMonitor.create(memoryMonitor);
     StreamingWorkScheduler streamingWorkScheduler =
         StreamingWorkScheduler.create(
@@ -235,8 +232,6 @@ public final class StreamingDataflowWorker {
             ? Math.max(options.getWindmillServiceCommitThreads(), 1)
             : 1;
 
-    Consumer<PrintWriter> getDataStatusProvider = getDataMetricTracker::printHtml;
-    Supplier<Long> currentActiveCommitBytes;
     if (isDirectPathPipeline(options)) {
       FanOutStreamingEngineWorkerHarness fanOutStreamingEngineWorkerHarness =
           FanOutStreamingEngineWorkerHarness.create(
@@ -277,8 +272,9 @@ public final class StreamingDataflowWorker {
                           () -> CloseableStream.create(commitWorkStream, () -> {}))
                       .build(),
               getDataMetricTracker);
-      currentActiveCommitBytes = fanOutStreamingEngineWorkerHarness::currentActiveCommitBytes;
       statusPagesBuilder
+          .setGetDataStatusProvider(getDataMetricTracker::printHtml)
+          .setCurrentActiveCommitBytes(fanOutStreamingEngineWorkerHarness::currentActiveCommitBytes)
           .setDebugCapture(
               new DebugCapture.Manager(options, workerStatusPages.getDebugCapturePages()))
           .setChannelzServlet(
@@ -333,8 +329,11 @@ public final class StreamingDataflowWorker {
                 windmillServer::commitWork, this::onCompleteCommit);
         getWorkSender = GetWorkSender.forAppliance(() -> windmillServer.getWork(request));
       }
-      getDataStatusProvider = getDataClient::printHtml;
-      currentActiveCommitBytes = workCommitter::currentActiveCommitBytes;
+
+      statusPagesBuilder
+          .setGetDataStatusProvider(getDataClient::printHtml)
+          .setCurrentActiveCommitBytes(workCommitter::currentActiveCommitBytes);
+
       this.streamingWorkerHarness =
           SingleSourceWorkerHarness.builder()
               .setStreamingWorkScheduler(streamingWorkScheduler)
@@ -349,7 +348,8 @@ public final class StreamingDataflowWorker {
     }
 
     this.workerStatusReporter =
-        streamingWorkerStatusReporterFactory.apply(streamingWorkerHarness::getAndResetThrottleTime);
+        streamingWorkerStatusReporterFactory.createStatusReporter(
+            streamingWorkerHarness::getAndResetThrottleTime);
     this.activeWorkRefresher =
         new ActiveWorkRefresher(
             clock,
@@ -359,6 +359,7 @@ public final class StreamingDataflowWorker {
             sampler,
             executorSupplier.apply("RefreshWork"),
             getDataMetricTracker::trackHeartbeats);
+
     this.statusPages =
         statusPagesBuilder
             .setClock(clock)
@@ -367,8 +368,6 @@ public final class StreamingDataflowWorker {
             .setStatusPages(workerStatusPages)
             .setStateCache(stateCache)
             .setComputationStateCache(this.computationStateCache)
-            .setCurrentActiveCommitBytes(currentActiveCommitBytes)
-            .setGetDataStatusProvider(getDataStatusProvider)
             .setWorkUnitExecutor(workUnitExecutor)
             .setGlobalConfigHandle(configFetcher.getGlobalConfigHandle())
             .build();
@@ -454,7 +453,7 @@ public final class StreamingDataflowWorker {
             failureTracker,
             () -> Optional.ofNullable(memoryMonitor.tryToDumpHeap()),
             clock);
-    Function<Supplier<Long>, StreamingWorkerStatusReporter> workerStatusReporter =
+    StreamingWorkerStatusReporterFactory workerStatusReporterFactory =
         throttleTimeSupplier ->
             StreamingWorkerStatusReporter.builder()
                 .setDataflowServiceClient(dataflowServiceClient)
@@ -481,7 +480,7 @@ public final class StreamingDataflowWorker {
         options,
         new HotKeyLogger(),
         clock,
-        workerStatusReporter,
+        workerStatusReporterFactory,
         failureTracker,
         workFailureProcessor,
         streamingCounters,
@@ -652,7 +651,7 @@ public final class StreamingDataflowWorker {
             () -> Optional.ofNullable(memoryMonitor.tryToDumpHeap()),
             clock,
             localRetryTimeoutMs);
-    Function<Supplier<Long>, StreamingWorkerStatusReporter> workerStatusReporter =
+    StreamingWorkerStatusReporterFactory workerStatusReporterFactory =
         throttleTimeSupplier ->
             StreamingWorkerStatusReporter.builder()
                 .setPublishCounters(publishCounters)
@@ -686,7 +685,7 @@ public final class StreamingDataflowWorker {
         options,
         hotKeyLogger,
         clock,
-        workerStatusReporter,
+        workerStatusReporterFactory,
         failureTracker,
         workFailureProcessor,
         streamingCounters,
@@ -873,6 +872,11 @@ public final class StreamingDataflowWorker {
             state ->
                 state.completeWorkAndScheduleNextWorkForKey(
                     completeCommit.shardedKey(), completeCommit.workId()));
+  }
+
+  @FunctionalInterface
+  private interface StreamingWorkerStatusReporterFactory {
+    StreamingWorkerStatusReporter createStatusReporter(Supplier<Long> throttleTimeSupplier);
   }
 
   @AutoValue

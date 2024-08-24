@@ -73,7 +73,7 @@ public final class GrpcDirectGetWorkStream
   private final AtomicReference<GetWorkBudget> inFlightBudget;
   private final AtomicReference<GetWorkBudget> nextBudgetAdjustment;
   private final AtomicReference<GetWorkBudget> pendingResponseBudget;
-  private final GetWorkRequest request;
+  private final GetWorkRequest requestHeader;
   private final WorkItemScheduler workItemScheduler;
   private final ThrottleTimer getWorkThrottleTimer;
   private final Supplier<HeartbeatSender> heartbeatSender;
@@ -95,7 +95,7 @@ public final class GrpcDirectGetWorkStream
               StreamObserver<StreamingGetWorkResponseChunk>,
               StreamObserver<StreamingGetWorkRequest>>
           startGetWorkRpcFn,
-      GetWorkRequest request,
+      GetWorkRequest requestHeader,
       BackOff backoff,
       StreamObserverFactory streamObserverFactory,
       Set<AbstractWindmillStream<?, ?>> streamRegistry,
@@ -114,15 +114,15 @@ public final class GrpcDirectGetWorkStream
         streamRegistry,
         logEveryNStreamFailures,
         backendWorkerToken);
-    this.request = request;
+    this.requestHeader = requestHeader;
     this.getWorkThrottleTimer = getWorkThrottleTimer;
     this.workItemScheduler = workItemScheduler;
     this.workItemAssemblers = new ConcurrentHashMap<>();
     this.heartbeatSender = Suppliers.memoize(heartbeatSender::get);
     this.workCommitter = Suppliers.memoize(workCommitter::get);
     this.getDataClient = Suppliers.memoize(getDataClient::get);
-    this.nextBudgetAdjustment = new AtomicReference<>(GetWorkBudget.noBudget());
     this.inFlightBudget = new AtomicReference<>(GetWorkBudget.noBudget());
+    this.nextBudgetAdjustment = new AtomicReference<>(GetWorkBudget.noBudget());
     this.pendingResponseBudget = new AtomicReference<>(GetWorkBudget.noBudget());
   }
 
@@ -170,6 +170,7 @@ public final class GrpcDirectGetWorkStream
   }
 
   private void sendRequestExtension(GetWorkBudget adjustment) {
+    inFlightBudget.getAndUpdate(budget -> budget.apply(adjustment));
     StreamingGetWorkRequest extension =
         StreamingGetWorkRequest.newBuilder()
             .setRequestExtension(
@@ -177,37 +178,29 @@ public final class GrpcDirectGetWorkStream
                     .setMaxItems(adjustment.items())
                     .setMaxBytes(adjustment.bytes()))
             .build();
-
-    executeSafely(
-        () -> {
-          try {
-            send(extension);
-          } catch (IllegalStateException e) {
-            // Stream was closed.
-          }
-        });
+    executeSafely(() -> send(extension));
   }
 
   @Override
   protected synchronized void onNewStream() {
     workItemAssemblers.clear();
     if (!isShutdown()) {
-      // Add the current in-flight budget to the next adjustment. Only positive values are allowed
-      // here with negatives defaulting to 0, since GetWorkBudgets cannot be created with negative
-      // values. We just sent the budget, reset it.
-      GetWorkBudget currentBudgetAdjustment =
+      // Add the current in-flight budget to the adjustment for the new stream. Only positive values
+      // are allowed here with negatives defaulting to 0, since GetWorkBudgets cannot be created
+      // with negative values. Reset the nextBudgetAdjustment, since we send the adjustment w/ the
+      // header on new streams.
+      GetWorkBudget previousBudgetAdjustment =
           nextBudgetAdjustment.getAndUpdate(ignored -> GetWorkBudget.noBudget());
-      GetWorkBudget budgetAdjustment = currentBudgetAdjustment.apply(inFlightBudget.get());
-
-      inFlightBudget.updateAndGet(budget -> budget.apply(currentBudgetAdjustment));
+      GetWorkBudget newStreamRequestBudget =
+          inFlightBudget.getAndUpdate(budget -> budget.apply(previousBudgetAdjustment));
 
       send(
           StreamingGetWorkRequest.newBuilder()
               .setRequest(
-                  request
+                  requestHeader
                       .toBuilder()
-                      .setMaxBytes(budgetAdjustment.bytes())
-                      .setMaxItems(budgetAdjustment.items()))
+                      .setMaxBytes(newStreamRequestBudget.bytes())
+                      .setMaxItems(newStreamRequestBudget.items()))
               .build());
     }
   }
@@ -253,7 +246,8 @@ public final class GrpcDirectGetWorkStream
           createProcessingContext(Preconditions.checkNotNull(metadata.computationId())),
           assembledWorkItem.latencyAttributions());
     } finally {
-      pendingResponseBudget.getAndUpdate(budget -> budget.apply(-1, -workItem.getSerializedSize()));
+      pendingResponseBudget.getAndUpdate(
+          budget -> budget.subtract(1, workItem.getSerializedSize()));
     }
   }
 
