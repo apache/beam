@@ -24,6 +24,7 @@ import com.google.cloud.bigquery.storage.v1.AppendRowsRequest;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.Predicate;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -58,6 +59,8 @@ public class StorageApiLoads<DestinationT, ElementT>
   final TupleTag<BigQueryStorageApiInsertError> failedRowsTag = new TupleTag<>("failedRows");
 
   @Nullable TupleTag<TableRow> successfulWrittenRowsTag;
+  @Nullable Predicate<String> successfulRowsPredicate;
+
   private final Coder<DestinationT> destinationCoder;
   private final StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations;
 
@@ -93,6 +96,7 @@ public class StorageApiLoads<DestinationT, ElementT>
       boolean autoUpdateSchema,
       boolean ignoreUnknownValues,
       boolean propagateSuccessfulStorageApiWrites,
+      Predicate<String> propagateSuccessfulStorageApiWritesPredicate,
       boolean usesCdc,
       AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation,
       BadRecordRouter badRecordRouter,
@@ -111,6 +115,7 @@ public class StorageApiLoads<DestinationT, ElementT>
     this.ignoreUnknownValues = ignoreUnknownValues;
     if (propagateSuccessfulStorageApiWrites) {
       this.successfulWrittenRowsTag = new TupleTag<>("successfulPublishedRowsTag");
+      this.successfulRowsPredicate = propagateSuccessfulStorageApiWritesPredicate;
     }
     this.usesCdc = usesCdc;
     this.defaultMissingValueInterpretation = defaultMissingValueInterpretation;
@@ -174,6 +179,7 @@ public class StorageApiLoads<DestinationT, ElementT>
                     bqServices,
                     failedRowsTag,
                     successfulWrittenRowsTag,
+                    successfulRowsPredicate,
                     BigQueryStorageApiInsertErrorCoder.of(),
                     TableRowJsonCoder.of(),
                     autoUpdateSchema,
@@ -271,6 +277,7 @@ public class StorageApiLoads<DestinationT, ElementT>
                 TableRowJsonCoder.of(),
                 failedRowsTag,
                 successfulWrittenRowsTag,
+                successfulRowsPredicate,
                 autoUpdateSchema,
                 ignoreUnknownValues,
                 defaultMissingValueInterpretation));
@@ -358,6 +365,7 @@ public class StorageApiLoads<DestinationT, ElementT>
                     bqServices,
                     failedRowsTag,
                     successfulWrittenRowsTag,
+                    successfulRowsPredicate,
                     BigQueryStorageApiInsertErrorCoder.of(),
                     TableRowJsonCoder.of(),
                     autoUpdateSchema,

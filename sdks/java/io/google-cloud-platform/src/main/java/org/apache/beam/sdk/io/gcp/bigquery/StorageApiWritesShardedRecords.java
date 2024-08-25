@@ -48,6 +48,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.coders.Coder;
@@ -133,6 +134,8 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
   private final Duration streamIdleTime = DEFAULT_STREAM_IDLE_TIME;
   private final TupleTag<BigQueryStorageApiInsertError> failedRowsTag;
   private final @Nullable TupleTag<TableRow> successfulRowsTag;
+
+  private final @Nullable Predicate<String> successfulRowsPredicate;
   private final Coder<TableRow> succussfulRowsCoder;
 
   private final TupleTag<KV<String, Operation>> flushTag = new TupleTag<>("flushTag");
@@ -225,6 +228,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
       Coder<TableRow> successfulRowsCoder,
       TupleTag<BigQueryStorageApiInsertError> failedRowsTag,
       @Nullable TupleTag<TableRow> successfulRowsTag,
+      @Nullable Predicate<String> successfulRowsPredicate,
       boolean autoUpdateSchema,
       boolean ignoreUnknownValues,
       AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation) {
@@ -236,6 +240,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
     this.failedRowsCoder = failedRowsCoder;
     this.failedRowsTag = failedRowsTag;
     this.successfulRowsTag = successfulRowsTag;
+    this.successfulRowsPredicate = successfulRowsPredicate;
     this.succussfulRowsCoder = successfulRowsCoder;
     this.autoUpdateSchema = autoUpdateSchema;
     this.ignoreUnknownValues = ignoreUnknownValues;
@@ -833,7 +838,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                 ByteString protoBytes = context.protoRows.getSerializedRows(i);
                 org.joda.time.Instant timestamp = context.timestamps.get(i);
                 o.get(successfulRowsTag)
-                    .outputWithTimestamp(appendClientInfo.get().toTableRow(protoBytes), timestamp);
+                    .outputWithTimestamp(appendClientInfo.get().toTableRow(protoBytes, successfulRowsPredicate), timestamp);
               }
             }
           };

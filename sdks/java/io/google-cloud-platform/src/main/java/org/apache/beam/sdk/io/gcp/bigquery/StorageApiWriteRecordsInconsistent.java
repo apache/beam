@@ -29,6 +29,8 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 
+import java.util.function.Predicate;
+
 /**
  * A transform to write sharded records to BigQuery using the Storage API. This transform uses the
  * default stream to write the records. Records written will show up in BigQuery immediately,
@@ -42,6 +44,9 @@ public class StorageApiWriteRecordsInconsistent<DestinationT, ElementT>
   private final BigQueryServices bqServices;
   private final TupleTag<BigQueryStorageApiInsertError> failedRowsTag;
   private final @Nullable TupleTag<TableRow> successfulRowsTag;
+
+  private final @Nullable Predicate<String> successfulRowsPredicate;
+
   private final TupleTag<KV<String, String>> finalizeTag = new TupleTag<>("finalizeTag");
   private final Coder<BigQueryStorageApiInsertError> failedRowsCoder;
   private final Coder<TableRow> successfulRowsCoder;
@@ -57,6 +62,7 @@ public class StorageApiWriteRecordsInconsistent<DestinationT, ElementT>
       BigQueryServices bqServices,
       TupleTag<BigQueryStorageApiInsertError> failedRowsTag,
       @Nullable TupleTag<TableRow> successfulRowsTag,
+      @Nullable Predicate<String> successfulRowsPredicate,
       Coder<BigQueryStorageApiInsertError> failedRowsCoder,
       Coder<TableRow> successfulRowsCoder,
       boolean autoUpdateSchema,
@@ -71,6 +77,7 @@ public class StorageApiWriteRecordsInconsistent<DestinationT, ElementT>
     this.failedRowsCoder = failedRowsCoder;
     this.successfulRowsCoder = successfulRowsCoder;
     this.successfulRowsTag = successfulRowsTag;
+    this.successfulRowsPredicate = successfulRowsPredicate;
     this.autoUpdateSchema = autoUpdateSchema;
     this.ignoreUnknownValues = ignoreUnknownValues;
     this.createDisposition = createDisposition;
@@ -103,6 +110,7 @@ public class StorageApiWriteRecordsInconsistent<DestinationT, ElementT>
                         finalizeTag,
                         failedRowsTag,
                         successfulRowsTag,
+                        successfulRowsPredicate,
                         autoUpdateSchema,
                         ignoreUnknownValues,
                         createDisposition,
