@@ -31,15 +31,18 @@ import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /**
@@ -123,42 +126,41 @@ public abstract class OrderedEventProcessor<
 
     switch (handler.getSequenceType()) {
       case GLOBAL:
-        DoFn<KV<EventKeyT, KV<Long, EventT>>, SequenceAndTimestamp> fn = new DoFn<KV<EventKeyT, KV<Long, EventT>>, SequenceAndTimestamp>() {
-          @ProcessElement
-          public void convert(@Element KV<EventKeyT, KV<Long, EventT>> element,
-              @Timestamp Instant timestamp,
-              OutputReceiver<SequenceAndTimestamp> outputReceiver
-          ) {
-            outputReceiver.output(
-                SequenceAndTimestamp.create(element.getValue().getKey(), timestamp));
-          }
-        };
-
-        final PCollectionView<SequenceAndTimestamp> latestContinousSequence =
+        final PCollectionView<SequenceAndTimestamp> latestContinuousSequence =
             input
-                .apply("Convert to SequenceAndTimestamp", ParDo.of(fn))
-                .apply("GlobalSequenceTracker", new GlobalSequenceTracker());
+                .apply("Convert to SequenceAndTimestamp",
+                    ParDo.of(new EventToSequenceAndTimestampConverter<>()))
+                .apply("Global Sequence Tracker", new GlobalSequenceTracker());
+
+        PCollection<KV<EventKeyT, KV<Long, EventT>>> tickers = input.apply("Create Tickers",
+            new PerKeyTickerGenerator<>(keyCoder, eventCoder, Duration.standardSeconds(5)));
+
+        PCollection<KV<EventKeyT, KV<Long, EventT>>> eventsAndTickers =
+            PCollectionList.of(input).and(tickers)
+                .apply("Combine Events and Tickers", Flatten.pCollections())
+                .setCoder(tickers.getCoder());
         processingResult =
-            input.apply(
-                ParDo.of(
-                        new GlobalSequencesProcessorDoFn<EventT, EventKeyT, ResultT, StateT>(
-                            handler.getEventExaminer(),
-                            eventCoder,
-                            stateCoder,
-                            keyCoder,
-                            mainOutput,
-                            statusOutput,
-                            handler.getStatusUpdateFrequency(),
-                            unprocessedEventOutput,
-                            handler.isProduceStatusUpdateOnEveryEvent(),
-                            handler.getMaxOutputElementsPerBundle(),
-                            latestContinousSequence)
+            eventsAndTickers
+                .apply(
+                    ParDo.of(
+                            new GlobalSequencesProcessorDoFn<>(
+                                handler.getEventExaminer(),
+                                eventCoder,
+                                stateCoder,
+                                keyCoder,
+                                mainOutput,
+                                statusOutput,
+                                handler.getStatusUpdateFrequency(),
+                                unprocessedEventOutput,
+                                handler.isProduceStatusUpdateOnEveryEvent(),
+                                handler.getMaxOutputElementsPerBundle(),
+                                latestContinuousSequence)
                         )
-                    .withOutputTags(
-                        mainOutput,
-                        TupleTagList.of(Arrays.asList(statusOutput, unprocessedEventOutput)))
-                    .withSideInput(GLOBAL_SEQUENCE_TRACKER, latestContinousSequence)
-            );
+                        .withOutputTags(
+                            mainOutput,
+                            TupleTagList.of(Arrays.asList(statusOutput, unprocessedEventOutput)))
+                        .withSideInput(GLOBAL_SEQUENCE_TRACKER, latestContinuousSequence)
+                );
         break;
 
       case PER_KEY:
@@ -215,6 +217,17 @@ public abstract class OrderedEventProcessor<
       throw new RuntimeException(e);
     }
     return result;
+  }
+
+  static class EventToSequenceAndTimestampConverter<EventKeyT, EventT>
+      extends DoFn<KV<EventKeyT, KV<Long, EventT>>, SequenceAndTimestamp> {
+
+    @ProcessElement
+    public void convert(@Element KV<EventKeyT, KV<Long, EventT>> element,
+        @Timestamp Instant timestamp, OutputReceiver<SequenceAndTimestamp> outputReceiver) {
+      outputReceiver.output(
+          SequenceAndTimestamp.create(element.getValue().getKey(), timestamp));
+    }
   }
 
 }

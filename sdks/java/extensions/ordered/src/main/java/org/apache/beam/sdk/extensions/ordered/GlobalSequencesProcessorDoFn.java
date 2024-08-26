@@ -120,9 +120,10 @@ class GlobalSequencesProcessorDoFn<EventT, EventKeyT, ResultT,
         latestContinuousSequenceSideInput);
     LOG.info("lastSequence: " + lastContinuousSequence);
 
+    EventT event = eventAndSequence.getValue().getValue();
+
     EventKeyT key = eventAndSequence.getKey();
     long sequence = eventAndSequence.getValue().getKey();
-    EventT event = eventAndSequence.getValue().getValue();
 
     ProcessingState<EventKeyT> processingState = processingStateState.read();
 
@@ -136,6 +137,12 @@ class GlobalSequencesProcessorDoFn<EventT, EventKeyT, ResultT,
     }
 
     processingState.updateGlobalSequenceDetails(lastContinuousSequence);
+
+    if (event == null) {
+      // This is the ticker event. We only need to update the state as it relates to the global sequence.
+      processingStateState.write(processingState);
+      return;
+    }
 
     if (numberOfResultsBeforeBundleStart == null) {
       // Per key processing is synchronized by Beam. There is no need to have it here.
@@ -182,7 +189,7 @@ class GlobalSequencesProcessorDoFn<EventT, EventKeyT, ResultT,
 
     // At this point everything in the buffered state is ready to be processed up to the latest global sequence.
     @Nullable ProcessingState<EventKeyT> processingState = processingStatusState.read();
-    if(processingState == null) {
+    if (processingState == null) {
       LOG.warn("Missing the processing state. Probably occurred during pipeline drainage");
       return;
     }
@@ -190,13 +197,13 @@ class GlobalSequencesProcessorDoFn<EventT, EventKeyT, ResultT,
     StateT state = mutableStateState.read();
 
     Long lastCompleteGlobalSequence = processingState.getLastCompleteGlobalSequence();
-    if(lastCompleteGlobalSequence == null) {
+    if (lastCompleteGlobalSequence == null) {
       LOG.warn("Last complete global instance is null.");
       return;
     }
 
     Long earliestBufferedSequence = processingState.getEarliestBufferedSequence();
-    if(earliestBufferedSequence == null) {
+    if (earliestBufferedSequence == null) {
       LOG.warn("Earliest buffered sequence is null.");
       return;
     }
