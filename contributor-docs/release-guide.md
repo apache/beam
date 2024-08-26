@@ -1343,9 +1343,38 @@ Perhaps parts of this guide can be clarified.
 If we have specific ideas, please start a discussion on the dev@ mailing list and/or propose a pull request to update this guide.
 Thanks!
 
-# Patch Releases
+# Emergency Patch Releases
 
-The above document assumes a minor version bump cut off of the master branch. If you want to do a patch release cut off of a previous release branch, use the following steps:
+While Beam normally releases on a 6 week cadence, with a minor version bump for each release, it is sometimes necessary to make an emergency patch release. One of the following criteria must be met to consider a patch release:
+
+- A significant new bug was released in the last release. This could include major losses of functionality for a runner, an SDK bug breaking a feature, or a transform/IO which no longer works under certain conditions. Regressions which have been around for multiple releases do not meet this bar.
+- A major bug was discovered in a previous release which causes data corruption or loss
+- A critical vulnerability was discovered which exposes users to significant security risk.
+
+Additionally, a committer must be willing to sponsor/run the release. To kick off a patch release, send an email to dev@beam.apache.org with the following content:
+
+```
+From: Proposer
+To: dev@beam.apache.org
+Subject: [Proposal] Release 2.XX.1, patch release
+
+Hi everyone,
+We have discovered an issue in the most recent version of the Beam release: <describe issue>
+
+I would like to <volunteer | ask for a committer to volunteer> to run this patch release. I believe this meets the bar [1] required for performing a patch release because <describe justification>.
+
+Thanks,
+Proposer
+```
+
+At this point, any committer (possibly the proposer) may volunteer to kick off the patch release.
+If the committer has not run release before, they may need to go through the [initial setup steps](#prepare-accounts-etc) before volunteering.
+To drive down time to resolution, this can happen in parallel to any discussion the community may have about the necessity of the patch release.
+
+
+## Patch Release Process
+
+The above document assumes a minor version bump cut off of the master branch. If you want to do a patch release cut off of a previous release branch, use the following steps instead:
 
 - Create a new release branch:
 
@@ -1361,4 +1390,28 @@ git push origin release-2.XX.1
 - Add a PR to add the new release branch to the set of protected branches in .asf.yml - [example PR](https://github.com/apache/beam/pull/30832)
 - Add a PR to bump the Dataflow containers versions - [example PR](https://github.com/apache/beam/pull/30827)
 - Create PRs to cherry-pick any desired commits to the release branch
-- Follow the normal steps to build/vote/validate/finalize the release candidate that are listed above.
+- Follow the normal release steps, starting with [release branch stabilization](#stabilize-the-release-branch), to build/vote/validate/finalize the release candidate that are listed above. See Voting and Finalization of a Patch Release to see differences in the voting process.
+- Depending on the nature of the issue, certain post-release finalization steps may be skipped. For example, if an issue doesn’t dramatically impact the Beam Playground, consider skipping that step
+
+## Voting and Finalization of a Patch Release
+
+Because of the time-sensitive nature of emergency patch releases, voting does not require a 3 day finalization period. However, it does still require the following:
+
+- 3 approving binding (PMC) votes
+- 0 disapproving (binding or non-binding) votes, or explicit acknowledgement from the binding voters that it is safe to ignore the disapproving votes.
+
+There are no minimum time requirements on how long the vote must be open, however the releaser must include their target timeline in their release candidate email so that voters can respond accordingly; for example:
+
+```
+Hi everyone,
+Please review and vote on the release candidate #1 for the version 2.XX.1. Given the time sensitive nature of patch releases, I will finalize the release as soon as I have 3 binding approvals.
+…
+```
+
+Or:
+
+```
+Hi everyone,
+Please review and vote on the release candidate #1 for the version 2.XX.1. Given the time sensitive nature of patch releases, I will finalize the release as soon as I have 3 binding approvals AND at least 24 hours have passed.
+…
+```
