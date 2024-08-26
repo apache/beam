@@ -15,19 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.spark.stateful;
+package org.apache.beam.runners.prism;
 
-import org.apache.beam.runners.core.StateInternals;
-import org.apache.beam.runners.core.StateInternalsTest;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
+import com.google.auto.service.AutoService;
+import org.apache.beam.sdk.PipelineRunner;
+import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
-/** Tests for {@link SparkStateInternals}. This is based on {@link StateInternalsTest}. */
-@RunWith(JUnit4.class)
-public class SparkStateInternalsTest extends StateInternalsTest {
+/**
+ * Registers {@link PrismRunner} and {@link TestPrismRunner} with {@link PipelineRunnerRegistrar}.
+ */
+@AutoService(PipelineRunnerRegistrar.class)
+public class PrismRunnerRegistrar implements PipelineRunnerRegistrar {
 
   @Override
-  protected StateInternals createStateInternals() {
-    return SparkStateInternals.forKey("dummyKey");
+  public Iterable<Class<? extends PipelineRunner<?>>> getPipelineRunners() {
+    return ImmutableList.of(PrismRunner.class, TestPrismRunner.class);
   }
 }

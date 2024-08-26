@@ -96,7 +96,7 @@ to release.
 
 ----
 
-### Prepare accounts, keys, etc
+### Prepare accounts, etc
 
 Before your first release, you need to make sure you have all the necessary
 accounts, keys, and access for publishing the release. The release process also
@@ -108,7 +108,6 @@ These are the credentials you will need:
  - Apache ID and Password
  - GitHub ID, Password, and Personal Access Token
  - PyPi account with beam maintainer access and API Token
- - GPG pass phrase & 16-digit key ID
  - Access to Beam's Apache Nexus repository
  - Account to access to apache-beam-testing Google Cloud Platform project. The
    account must have permissions to start Cloud Build triggers. Required for
@@ -142,64 +141,6 @@ you became an Apache Beam Committer.
  - [ ] Generate a [PyPI APIToken](https://pypi.org/help/#apitoken) for use
    during the release.
 
-#### GPG Key
-
-You need to have a GPG key to sign the release artifacts.  Please be aware of
-the ASF-wide [release signing
-guidelines](https://www.apache.org/dev/release-signing.html).  If you don’t
-have a GPG key associated with your Apache account, you must now create one
-according to the guidelines.
-
-Run the following helper script, or you can open it and run the commands
-individually (helpful if it doesn't work as intended or if you already are
-partially set up)
-
-    ./release/src/main/scripts/preparation_before_release.sh
-
-> **__NOTE__**:
-> When generating the key, please make sure you choose the key type as
-> __RSA and RSA (default)__ and key size as __4096 bit__.
-
-Now you should have:
-
- - [ ] A GPG key meeting ASF guidelines
- - [ ] The key added to
-       [dev KEYS](https://dist.apache.org/repos/dist/dev/beam/KEYS)  and [release KEYS](https://dist.apache.org/repos/dist/release/beam/KEYS)
-       **NOTE**: Only PMC can write into [release repo](https://dist.apache.org/repos/dist/release/beam/).
- - [ ] The `user.signingkey` set in your `.gitconfig`
- - [ ] `gpg-agent` with the key loaded
-
-##### Key ID
-
-You may need your Key ID for future steps. Determine your Apache GPG Key and
-Key ID as follows:
-
-    gpg --list-sigs --keyid-format LONG
-
-This will list your GPG keys. One of these should reflect your Apache account,
-for example:
-
-    --------------------------------------------------
-    pub   rsa4096/845E6689845E6689 2016-02-23
-    uid                  Nomen Nescio <anonymous@apache.org>
-    sub   rsa4096/BA4D50BEBA4D50BE 2016-02-23
-
-Here, the key ID is the 16-digit hex string in the `pub` line: `845E6689845E6689`.
-
-##### Submit your GPG public key into Ubuntu OpenPGP Key Server
-
-In order to make yourself have right permission to stage java artifacts in
-Apache Nexus staging repository, please submit your GPG public key into the
-[Ubuntu OpenPGP Key Server](https://keyserver.ubuntu.com/).
-
-You will need to use an ascii-armored version of your key.  This can be
-obtained by running:
-
-    gpg --export --armor
-
-Copying the whole block including `-----START PGP PUBLIC KEY BLOCK-----` and
-`-----END PGP PUBLIC KEY BLOCK-----`
-
 #### Access to Apache Nexus repository
 
 Configure access to the [Apache Nexus
@@ -209,29 +150,6 @@ releases to the Maven Central Repository.
 1. Log in with your Apache account.
 2. Confirm you have appropriate access by finding `org.apache.beam` under
    `Staging Profiles`.
-3. Navigate to your `Profile` (top right dropdown menu of the page).
-4. Choose `User Token` from the dropdown, then click `Access User Token`. Copy
-   a snippet of the Maven XML configuration block.
-5. Insert this snippet
-   twice into your global Maven `settings.xml` file, typically
-   `${HOME}/.m2/settings.xml`. The end result should look like this, where
-   `TOKEN_NAME` and `TOKEN_PASSWORD` are your secret tokens:
-
-        <!-- make sure you have the root `settings node: -->
-        <settings>
-          <servers>
-            <server>
-              <id>apache.releases.https</id>
-              <username>TOKEN_NAME</username>
-              <password>TOKEN_PASSWORD</password>
-            </server>
-            <server>
-              <id>apache.snapshots.https</id>
-              <username>TOKEN_NAME</username>
-              <password>TOKEN_PASSWORD</password>
-            </server>
-          </servers>
-        </settings>
 
 ----
 

@@ -127,7 +127,9 @@ class PrismLocator {
     }
 
     copyFn.accept(from.toUri().toURL().openStream(), to);
-    ByteStreams.copy(from.toUri().toURL().openStream(), Files.newOutputStream(to));
+    try (OutputStream out = Files.newOutputStream(to)) {
+      ByteStreams.copy(from.toUri().toURL().openStream(), out);
+    }
     Files.setPosixFilePermissions(to, PERMS);
 
     return to.toString();
@@ -159,16 +161,16 @@ class PrismLocator {
   }
 
   private static void copy(InputStream from, Path to) {
-    try {
-      ByteStreams.copy(from, Files.newOutputStream(to));
+    try (OutputStream out = Files.newOutputStream(to)) {
+      ByteStreams.copy(from, out);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
   }
 
   private static void download(URL from, Path to) {
-    try {
-      ByteStreams.copy(from.openStream(), Files.newOutputStream(to));
+    try (OutputStream out = Files.newOutputStream(to)) {
+      ByteStreams.copy(from.openStream(), out);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }

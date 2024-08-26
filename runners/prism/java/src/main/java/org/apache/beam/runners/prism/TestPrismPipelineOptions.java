@@ -15,19 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.spark.stateful;
+package org.apache.beam.runners.prism;
 
-import org.apache.beam.runners.core.StateInternals;
-import org.apache.beam.runners.core.StateInternalsTest;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
+import org.apache.beam.sdk.testing.TestPipelineOptions;
 
-/** Tests for {@link SparkStateInternals}. This is based on {@link StateInternalsTest}. */
-@RunWith(JUnit4.class)
-public class SparkStateInternalsTest extends StateInternalsTest {
-
-  @Override
-  protected StateInternals createStateInternals() {
-    return SparkStateInternals.forKey("dummyKey");
-  }
-}
+/** {@link org.apache.beam.sdk.options.PipelineOptions} for use with the {@link TestPrismRunner}. */
+public interface TestPrismPipelineOptions extends PrismPipelineOptions, TestPipelineOptions {}

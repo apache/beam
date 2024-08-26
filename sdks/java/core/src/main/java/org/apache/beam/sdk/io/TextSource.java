@@ -438,7 +438,11 @@ public class TextSource extends FileBasedSource<String> {
                 // Add to str any previous partial delimiter since we didn't match the whole
                 // delimiter
                 str.write(delimiter, 0, prevDelPosn);
-                delPosn = 0;
+                if (buffer[bufferPosn] == delimiter[0]) {
+                  delPosn = 1;
+                } else {
+                  delPosn = 0;
+                }
                 break; // Leave this loop and use the fast-path delimiter matching
               }
             }
@@ -452,6 +456,8 @@ public class TextSource extends FileBasedSource<String> {
                 bufferPosn++;
                 break;
               }
+            } else if (buffer[bufferPosn] == delimiter[0]) {
+              delPosn = 1;
             } else {
               delPosn = 0;
             }
