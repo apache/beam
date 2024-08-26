@@ -36,7 +36,7 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Iceberg :: BigQuery Metastor
 ext.summary = "A copy of the BQMS catalog with some popular libraries relocated."
 
 task downloadBqmsJar(type: Copy) {
-    def jarUrl = 'https://storage.googleapis.com/spark-lib/bigquery/iceberg-bigquery-catalog-1.5.2-0.1.0.jar'
+    def jarUrl = 'http://storage.googleapis.com/spark-lib/bigquery/iceberg-bigquery-catalog-1.5.2-0.1.0.jar'
     def outputDir = file("$bqmsLocation")
     outputDir.mkdirs()
 
