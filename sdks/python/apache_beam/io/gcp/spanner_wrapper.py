@@ -26,17 +26,16 @@ except ImportError:
   spanner = None
 
 _LOGGER = logging.getLogger(__name__)
+MAX_RETRIES = 3
 
 class SpannerWrapper(object):
   TEST_DATABASE = None
   TEMP_DATABASE_PREFIX = 'temp-'
-  _SPANNER_CLIENT = None
-  _SPANNER_INSTANCE = None
 
   def __init__(self, project_id = "apache-beam-testing", temp_database_id = None):
-    self._SPANNER_CLIENT = spanner.Client(project = project_id)
-    self._SPANNER_INSTANCE = self._SPANNER_CLIENT.instance("beam-test")
-    self.TEST_DATABASE = None
+    self._spanner_client = spanner.Client(project = project_id)
+    self._spanner_instance = self._spanner_client.instance("beam-test")
+    self._test_database = None
 
     if temp_database_id and temp_database_id.startswith(self.TEMP_DATABASE_PREFIX):
       raise ValueError(
@@ -44,21 +43,24 @@ class SpannerWrapper(object):
          self.TEMP_DATABASE_PREFIX)
 
     if temp_database_id is not None:
-      self.TEST_DATABASE = temp_database_id
+      self._test_database = temp_database_id
     else:
-      self.TEST_DATABASE = self._get_temp_database()
+      self._test_database = self._get_temp_database()
 
   def _get_temp_database(self):
         uniq_id = uuid.uuid4().hex[:10]
         return f'{self.TEMP_DATABASE_PREFIX}{uniq_id}'
-
+  
+  @retry.with_exponential_backoff(
+      num_retries = MAX_RETRIES,
+      retry_filter = retry.retry_on_server_errors_and_timeout_filter)
   def _create_database(self):
-    _LOGGER.info('Creating test database: %s' % self.TEST_DATABASE)
-    instance = self._SPANNER_INSTANCE
+    _LOGGER.info('Creating test database: %s' % self._test_database)
+    instance = self._spanner_instance
     database = instance.database(
-        self.TEST_DATABASE,
+        self._test_database,
         ddl_statements = [
-            '''CREATE TABLE Users (
+            '''CREATE TABLE tmp_table (
             UserId    STRING(256) NOT NULL,
             Key       STRING(1024)
         ) PRIMARY KEY (UserId)'''
@@ -66,8 +68,7 @@ class SpannerWrapper(object):
     operation = database.create()
     _LOGGER.info('Creating database: Done! %s' % str(operation.result()))
 
-  @classmethod
   def _delete_database(self):
-    if (self._SPANNER_INSTANCE):
-      database = self._SPANNER_INSTANCE.database(self.TEST_DATABASE)
+    if (self._spanner_instance):
+      database = self._spanner_instance.database(self._test_database)
       database.drop()

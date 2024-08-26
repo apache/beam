@@ -54,7 +54,7 @@ from google.cloud import spanner
 def temp_spanner_table(project, prefix = 'temp_spanner_db_'):
     spanner_client = SpannerWrapper(project)
     spanner_client._create_database()
-    instance = 'beam-test'
+    instance = '%s_%s' % (prefix, uuid.uuid4().hex)
     database = spanner_client.TEST_DATABASE
     table = 'Users'
     columns = ['UserId', 'Key']

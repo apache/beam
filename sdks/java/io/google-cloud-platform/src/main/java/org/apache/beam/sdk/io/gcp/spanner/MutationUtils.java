@@ -358,11 +358,10 @@ final class MutationUtils {
     }
   }
   public static Row createRowFromMutation(Schema schema, Mutation mutation) {
-    HashMap <String, Object> mutationHashMap = new HashMap<String, Object>();
+    Map<String, Object> mutationHashMap = new HashMap<>();
     mutation.asMap().forEach(
         (column, value) -> mutationHashMap.put(column, convertValueToBeamFieldType(value)));
-    Map<String, Object> mutationMap = new HashMap<String, Object>(mutationHashMap);
-    return Row.withSchema(schema).withFieldValues(mutationMap).build();
+    return Row.withSchema(schema).withFieldValues(mutationHashMap).build();
   }
     
   public static Object convertValueToBeamFieldType(Value value) {
