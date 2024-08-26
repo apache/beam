@@ -914,14 +914,11 @@ public class SpannerIO {
     }
 
     private SpannerSourceDef createSourceDef() {
-      SpannerSourceDef sourceDef;
       if (getReadOperation().getQuery() != null) {
         return SpannerQuerySourceDef.create(getSpannerConfig(), getReadOperation().getQuery());
       }
-
       return SpannerTableSourceDef.create(
           getSpannerConfig(), getReadOperation().getTable(), getReadOperation().getColumns());
-      }
     }
 
     @Override
