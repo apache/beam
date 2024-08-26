@@ -151,6 +151,7 @@ public class DoFnOperator<PreInputT, InputT, OutputT> extends AbstractStreamOper
         Triggerable<ByteBuffer, TimerData> {
 
   private static final Logger LOG = LoggerFactory.getLogger(DoFnOperator.class);
+  private final boolean isStreaming;
 
   protected DoFn<InputT, OutputT> doFn;
 
@@ -295,6 +296,7 @@ public class DoFnOperator<PreInputT, InputT, OutputT> extends AbstractStreamOper
     this.sideInputTagMapping = sideInputTagMapping;
     this.sideInputs = sideInputs;
     this.serializedOptions = new SerializablePipelineOptions(options);
+    this.isStreaming = serializedOptions.get().as(FlinkPipelineOptions.class).isStreaming();
     this.windowingStrategy = windowingStrategy;
     this.outputManagerFactory = outputManagerFactory;
 
@@ -421,6 +423,10 @@ public class DoFnOperator<PreInputT, InputT, OutputT> extends AbstractStreamOper
     FileSystems.setDefaultPipelineOptions(serializedOptions.get());
 
     super.setup(containingTask, config, output);
+  }
+
+  protected boolean shoudBundleElements() {
+    return isStreaming;
   }
 
   @Override
@@ -979,6 +985,9 @@ public class DoFnOperator<PreInputT, InputT, OutputT> extends AbstractStreamOper
   @SuppressWarnings("NonAtomicVolatileUpdate")
   @SuppressFBWarnings("VO_VOLATILE_INCREMENT")
   private void checkInvokeFinishBundleByCount() {
+    if(!shoudBundleElements()) {
+      return;
+    }
     // We do not access this statement concurrently, but we want to make sure that each thread
     // sees the latest value, which is why we use volatile. See the class field section above
     // for more information.
@@ -992,6 +1001,9 @@ public class DoFnOperator<PreInputT, InputT, OutputT> extends AbstractStreamOper
 
   /** Check whether invoke finishBundle by timeout. */
   private void checkInvokeFinishBundleByTime() {
+    if(!shoudBundleElements()) {
+      return;
+    }
     long now = getProcessingTimeService().getCurrentProcessingTime();
     if (now - lastFinishBundleTime >= maxBundleTimeMills) {
       invokeFinishBundle();
@@ -1219,6 +1231,7 @@ public class DoFnOperator<PreInputT, InputT, OutputT> extends AbstractStreamOper
      * buffering. It will not be acquired during flushing the buffer.
      */
     private final Lock bufferLock;
+    private final boolean isStreaming;
 
     private Map<Integer, TupleTag<?>> idsToTags;
     /** Elements buffered during a snapshot, by output id. */
@@ -1238,7 +1251,8 @@ public class DoFnOperator<PreInputT, InputT, OutputT> extends AbstractStreamOper
         Map<TupleTag<?>, OutputTag<WindowedValue<?>>> tagsToOutputTags,
         Map<TupleTag<?>, Integer> tagsToIds,
         Lock bufferLock,
-        PushedBackElementsHandler<KV<Integer, WindowedValue<?>>> pushedBackElementsHandler) {
+        PushedBackElementsHandler<KV<Integer, WindowedValue<?>>> pushedBackElementsHandler,
+        boolean isStreaming) {
       this.output = output;
       this.mainTag = mainTag;
       this.tagsToOutputTags = tagsToOutputTags;
@@ -1249,6 +1263,7 @@ public class DoFnOperator<PreInputT, InputT, OutputT> extends AbstractStreamOper
         idsToTags.put(entry.getValue(), entry.getKey());
       }
       this.pushedBackElementsHandler = pushedBackElementsHandler;
+      this.isStreaming = isStreaming;
     }
 
     void openBuffer() {
@@ -1261,7 +1276,8 @@ public class DoFnOperator<PreInputT, InputT, OutputT> extends AbstractStreamOper
 
     @Override
     public <T> void output(TupleTag<T> tag, WindowedValue<T> value) {
-      if (!openBuffer) {
+      // Don't buffer elements in Batch mode
+      if (!openBuffer || !isStreaming) {
         emit(tag, value);
       } else {
         buffer(KV.of(tagsToIds.get(tag), value));
@@ -1370,6 +1386,7 @@ public class DoFnOperator<PreInputT, InputT, OutputT> extends AbstractStreamOper
     private final Map<TupleTag<?>, OutputTag<WindowedValue<?>>> tagsToOutputTags;
     private final Map<TupleTag<?>, Coder<WindowedValue<?>>> tagsToCoders;
     private final SerializablePipelineOptions pipelineOptions;
+    private final boolean isStreaming;
 
     // There is no side output.
     @SuppressWarnings("unchecked")
@@ -1398,6 +1415,7 @@ public class DoFnOperator<PreInputT, InputT, OutputT> extends AbstractStreamOper
       this.tagsToCoders = tagsToCoders;
       this.tagsToIds = tagsToIds;
       this.pipelineOptions = pipelineOptions;
+      this.isStreaming = pipelineOptions.get().as(FlinkPipelineOptions.class).isStreaming();
     }
 
     @Override
@@ -1420,7 +1438,7 @@ public class DoFnOperator<PreInputT, InputT, OutputT> extends AbstractStreamOper
           NonKeyedPushedBackElementsHandler.create(listStateBuffer);
 
       return new BufferedOutputManager<>(
-          output, mainTag, tagsToOutputTags, tagsToIds, bufferLock, pushedBackElementsHandler);
+          output, mainTag, tagsToOutputTags, tagsToIds, bufferLock, pushedBackElementsHandler, isStreaming);
     }
 
     private TaggedKvCoder buildTaggedKvCoder() {
