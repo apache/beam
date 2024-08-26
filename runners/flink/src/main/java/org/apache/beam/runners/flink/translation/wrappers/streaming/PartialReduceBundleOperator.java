@@ -94,6 +94,11 @@ public class PartialReduceBundleOperator<K, InputT, OutputT, AccumT>
     super.open();
   }
 
+  @Override
+  protected boolean shoudBundleElements() {
+    return true;
+  }
+
   private void finishBundle() {
     AbstractFlinkCombineRunner<K, InputT, AccumT, AccumT, BoundedWindow> reduceRunner;
     try {
