@@ -52,7 +52,7 @@ python juliaset_main.py \
 
 import logging
 
-from apache_beam.examples.complete.juliaset.src.juliaset import juliaset
+from apache_beam.examples.complete.juliaset.juliaset import juliaset
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

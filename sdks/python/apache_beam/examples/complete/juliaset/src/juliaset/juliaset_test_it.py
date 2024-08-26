@@ -27,7 +27,7 @@ import uuid
 import pytest
 from hamcrest.core.core.allof import all_of
 
-from apache_beam.examples.complete.juliaset.src.juliaset import juliaset
+from apache_beam.examples.complete.juliaset.juliaset import juliaset
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.runners.runner import PipelineState
 from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher
