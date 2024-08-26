@@ -109,7 +109,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
   private final BigQueryServices bqServices;
   private final TupleTag<BigQueryStorageApiInsertError> failedRowsTag;
   private final @Nullable TupleTag<TableRow> successfulRowsTag;
-  private final @Nullable Predicate<String> successfulRowsPredicate;
+  private final Predicate<String> successfulRowsPredicate;
   private final TupleTag<KV<String, String>> finalizeTag = new TupleTag<>("finalizeTag");
   private final Coder<BigQueryStorageApiInsertError> failedRowsCoder;
   private final Coder<TableRow> successfulRowsCoder;
@@ -171,7 +171,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       BigQueryServices bqServices,
       TupleTag<BigQueryStorageApiInsertError> failedRowsTag,
       @Nullable TupleTag<TableRow> successfulRowsTag,
-      @Nullable Predicate<String> successfulRowsPredicate,
+      Predicate<String> successfulRowsPredicate,
       Coder<BigQueryStorageApiInsertError> failedRowsCoder,
       Coder<TableRow> successfulRowsCoder,
       boolean autoUpdateSchema,
@@ -254,7 +254,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
     private final TupleTag<BigQueryStorageApiInsertError> failedRowsTag;
     private final @Nullable TupleTag<TableRow> successfulRowsTag;
 
-    private final @Nullable Predicate<String> successfulRowsPredicate;
+    private final Predicate<String> successfulRowsPredicate;
     private final boolean autoUpdateSchema;
     private final boolean ignoreUnknownValues;
     private final BigQueryIO.Write.CreateDisposition createDisposition;
@@ -584,7 +584,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
             } catch (TableRowToStorageApiProto.SchemaConversionException e) {
               @Nullable TableRow tableRow = payload.getFailsafeTableRow();
               if (tableRow == null) {
-                tableRow = checkNotNull(appendClientInfo).toTableRow(payloadBytes);
+                tableRow = checkNotNull(appendClientInfo).toTableRow(payloadBytes, Predicates.alwaysTrue());
               }
               // TODO(24926, reuvenlax): We need to merge the unknown fields in! Currently we only
               // execute this
@@ -961,7 +961,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
             TupleTag<KV<String, String>> finalizeTag,
             TupleTag<BigQueryStorageApiInsertError> failedRowsTag,
             @Nullable TupleTag<TableRow> successfulRowsTag,
-            @Nullable Predicate<String> successfulRowsPredicate,
+            Predicate<String> successfulRowsPredicate,
         boolean autoUpdateSchema,
             boolean ignoreUnknownValues,
             BigQueryIO.Write.CreateDisposition createDisposition,

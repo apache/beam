@@ -59,8 +59,7 @@ public class StorageApiLoads<DestinationT, ElementT>
   final TupleTag<BigQueryStorageApiInsertError> failedRowsTag = new TupleTag<>("failedRows");
 
   @Nullable TupleTag<TableRow> successfulWrittenRowsTag;
-  @Nullable Predicate<String> successfulRowsPredicate;
-
+  Predicate<String> successfulRowsPredicate;
   private final Coder<DestinationT> destinationCoder;
   private final StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations;
 
@@ -115,8 +114,8 @@ public class StorageApiLoads<DestinationT, ElementT>
     this.ignoreUnknownValues = ignoreUnknownValues;
     if (propagateSuccessfulStorageApiWrites) {
       this.successfulWrittenRowsTag = new TupleTag<>("successfulPublishedRowsTag");
-      this.successfulRowsPredicate = propagateSuccessfulStorageApiWritesPredicate;
     }
+    this.successfulRowsPredicate = propagateSuccessfulStorageApiWritesPredicate;
     this.usesCdc = usesCdc;
     this.defaultMissingValueInterpretation = defaultMissingValueInterpretation;
     this.badRecordRouter = badRecordRouter;

@@ -2239,7 +2239,7 @@ public class BigQueryIO {
         .setDeterministicRecordIdFn(null)
         .setMaxRetryJobs(1000)
         .setPropagateSuccessfulStorageApiWrites(false)
-            .setPropagateSuccessfulStorageApiWritesPredicate(Predicates.alwaysTrue())
+         .setPropagateSuccessfulStorageApiWritesPredicate(Predicates.alwaysTrue())
         .setDirectWriteProtos(true)
         .setDefaultMissingValueInterpretation(
             AppendRowsRequest.MissingValueInterpretation.DEFAULT_VALUE)

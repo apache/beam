@@ -45,7 +45,7 @@ public class StorageApiWriteRecordsInconsistent<DestinationT, ElementT>
   private final TupleTag<BigQueryStorageApiInsertError> failedRowsTag;
   private final @Nullable TupleTag<TableRow> successfulRowsTag;
 
-  private final @Nullable Predicate<String> successfulRowsPredicate;
+  private final Predicate<String> successfulRowsPredicate;
 
   private final TupleTag<KV<String, String>> finalizeTag = new TupleTag<>("finalizeTag");
   private final Coder<BigQueryStorageApiInsertError> failedRowsCoder;
@@ -62,7 +62,7 @@ public class StorageApiWriteRecordsInconsistent<DestinationT, ElementT>
       BigQueryServices bqServices,
       TupleTag<BigQueryStorageApiInsertError> failedRowsTag,
       @Nullable TupleTag<TableRow> successfulRowsTag,
-      @Nullable Predicate<String> successfulRowsPredicate,
+      Predicate<String> successfulRowsPredicate,
       Coder<BigQueryStorageApiInsertError> failedRowsCoder,
       Coder<TableRow> successfulRowsCoder,
       boolean autoUpdateSchema,
