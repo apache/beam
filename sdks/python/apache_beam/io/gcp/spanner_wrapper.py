@@ -19,6 +19,8 @@ import logging
 import uuid
 import apache_beam as beam
 
+from sdks.python.apache_beam.utils import retry
+
 try:
   from google.cloud import spanner
 
