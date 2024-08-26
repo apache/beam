@@ -25,7 +25,6 @@ class FakeEnrichmentTransform:
 
 class EnrichmentTransformTest(unittest.TestCase):
 
-    @patch('apache_beam.yaml.yaml_enrichment.enrichment_transform', FakeEnrichmentTransform)
     def test_enrichment_with_bigquery(self):
         input_data = [
             Row(label = "item1", rank = 0),
