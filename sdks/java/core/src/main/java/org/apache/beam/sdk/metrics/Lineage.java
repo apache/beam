@@ -130,7 +130,11 @@ public class Lineage {
             .build();
     Set<String> result = new HashSet<>();
     for (MetricResult<StringSetResult> metrics : results.queryMetrics(filter).getStringSets()) {
-      result.addAll(metrics.getCommitted().getStringSet());
+      try {
+        result.addAll(metrics.getCommitted().getStringSet());
+      } catch (UnsupportedOperationException unused) {
+        // MetricsResult.getCommitted throws this exception when runner support missing, just skip.
+      }
       result.addAll(metrics.getAttempted().getStringSet());
     }
     return result;

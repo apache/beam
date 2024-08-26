@@ -56,7 +56,6 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessages.DeserializeBytesIntoPubsubMessagePayloadOnly;
 import org.apache.beam.sdk.metrics.Counter;
-import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.metrics.SourceMetrics;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -1042,19 +1041,6 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
         splitSource =
             new PubsubSource(
                 outer, StaticValueProvider.of(outer.createRandomSubscription(options)));
-        TopicPath topic = outer.getTopic();
-        if (topic != null) {
-          // is initial split on Read.fromTopic, report Lineage based on topic
-          Lineage.getSources().add("pubsub", "source", topic.getDataCatalogSegments());
-        }
-      } else {
-        if (subscriptionPath.equals(outer.getSubscriptionProvider())) {
-          SubscriptionPath sub = subscriptionPath.get();
-          if (sub != null) {
-            // is a split on Read.fromSubscription
-            Lineage.getSources().add("pubsub", "subscription", sub.getDataCatalogSegments());
-          }
-        }
       }
       for (int i = 0; i < desiredNumSplits * SCALE_OUT; i++) {
         // Since the source is immutable and Pubsub automatically shards we simply
