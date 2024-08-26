@@ -2239,7 +2239,7 @@ public class BigQueryIO {
         .setDeterministicRecordIdFn(null)
         .setMaxRetryJobs(1000)
         .setPropagateSuccessfulStorageApiWrites(false)
-         .setPropagateSuccessfulStorageApiWritesPredicate(Predicates.alwaysTrue())
+        .setPropagateSuccessfulStorageApiWritesPredicate(Predicates.alwaysTrue())
         .setDirectWriteProtos(true)
         .setDefaultMissingValueInterpretation(
             AppendRowsRequest.MissingValueInterpretation.DEFAULT_VALUE)
@@ -2302,7 +2302,8 @@ public class BigQueryIO {
       throw new IllegalArgumentException("DynamicMessage is not supported.");
     }
     return BigQueryIO.<T>write()
-        .withFormatFunction(m -> TableRowToStorageApiProto.tableRowFromMessage(m, false, Predicates.alwaysTrue()))
+        .withFormatFunction(
+            m -> TableRowToStorageApiProto.tableRowFromMessage(m, false, Predicates.alwaysTrue()))
         .withWriteProtosClass(protoMessageClass);
   }
 
@@ -2512,8 +2513,8 @@ public class BigQueryIO {
       abstract Builder<T> setPropagateSuccessfulStorageApiWrites(
           boolean propagateSuccessfulStorageApiWrites);
 
-        abstract Builder<T> setPropagateSuccessfulStorageApiWritesPredicate(
-                Predicate<String> columnsToPropagate);
+      abstract Builder<T> setPropagateSuccessfulStorageApiWritesPredicate(
+          Predicate<String> columnsToPropagate);
 
       abstract Builder<T> setMaxFilesPerPartition(int maxFilesPerPartition);
 
@@ -3040,16 +3041,16 @@ public class BigQueryIO {
           .build();
     }
 
-      /**
-       * If set to true, then all successful writes will be propagated to {@link WriteResult} and
-       * accessible via the {@link WriteResult#getSuccessfulStorageApiInserts} method.
-       */
-      public Write<T> withPropagateSuccessfulStorageApiWrites(Predicate<String> columnsToPropagate) {
-          return toBuilder()
-                  .setPropagateSuccessfulStorageApiWrites(true)
-                  .setPropagateSuccessfulStorageApiWritesPredicate(columnsToPropagate)
-                  .build();
-      }
+    /**
+     * If set to true, then all successful writes will be propagated to {@link WriteResult} and
+     * accessible via the {@link WriteResult#getSuccessfulStorageApiInserts} method.
+     */
+    public Write<T> withPropagateSuccessfulStorageApiWrites(Predicate<String> columnsToPropagate) {
+      return toBuilder()
+          .setPropagateSuccessfulStorageApiWrites(true)
+          .setPropagateSuccessfulStorageApiWritesPredicate(columnsToPropagate)
+          .build();
+    }
 
     /**
      * Provides a custom location on GCS for storing temporary files to be loaded via BigQuery batch

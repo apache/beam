@@ -172,7 +172,8 @@ abstract class AppendClientInfo {
       return TableRowToStorageApiProto.tableRowFromMessage(
           DynamicMessage.parseFrom(
               TableRowToStorageApiProto.wrapDescriptorProto(getDescriptor()), protoBytes),
-          true, includeField);
+          true,
+          includeField);
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

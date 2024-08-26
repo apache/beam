@@ -107,7 +107,8 @@ class StorageApiDynamicDestinationsProto<T extends Message, DestinationT extends
               DynamicMessage.parseFrom(
                   TableRowToStorageApiProto.wrapDescriptorProto(descriptorProto),
                   element.toByteArray()),
-              true, Predicates.alwaysTrue());
+              true,
+              Predicates.alwaysTrue());
         } catch (Exception e) {
           throw new RuntimeException(e);
         }

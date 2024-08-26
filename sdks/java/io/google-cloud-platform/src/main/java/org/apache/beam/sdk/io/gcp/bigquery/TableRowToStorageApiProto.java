@@ -1093,15 +1093,15 @@ public class TableRowToStorageApiProto {
   }
 
   @VisibleForTesting
-  public static TableRow tableRowFromMessage(Message message, boolean includeCdcColumns,
-                                             Predicate<String> includeField) {
+  public static TableRow tableRowFromMessage(
+      Message message, boolean includeCdcColumns, Predicate<String> includeField) {
     // TODO: Would be more correct to generate TableRows using setF.
     TableRow tableRow = new TableRow();
     for (Map.Entry<FieldDescriptor, Object> field : message.getAllFields().entrySet()) {
       FieldDescriptor fieldDescriptor = field.getKey();
       Object fieldValue = field.getValue();
       if ((includeCdcColumns || !StorageApiCDC.COLUMNS.contains(fieldDescriptor.getName()))
-      && includeField.test(fieldDescriptor.getName())) {
+          && includeField.test(fieldDescriptor.getName())) {
         tableRow.put(
             fieldDescriptor.getName(),
             jsonValueFromMessageValue(fieldDescriptor, fieldValue, true, includeField));
@@ -1111,7 +1111,10 @@ public class TableRowToStorageApiProto {
   }
 
   public static Object jsonValueFromMessageValue(
-      FieldDescriptor fieldDescriptor, Object fieldValue, boolean expandRepeated, Predicate<String> includeField) {
+      FieldDescriptor fieldDescriptor,
+      Object fieldValue,
+      boolean expandRepeated,
+      Predicate<String> includeField) {
     if (expandRepeated && fieldDescriptor.isRepeated()) {
       List<Object> valueList = (List<Object>) fieldValue;
       return valueList.stream()

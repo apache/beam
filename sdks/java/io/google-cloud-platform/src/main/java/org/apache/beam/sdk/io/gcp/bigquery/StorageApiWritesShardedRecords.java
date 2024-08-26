@@ -700,7 +700,8 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                 TableRow failedRow = failedContext.failsafeTableRows.get(failedIndex);
                 if (failedRow == null) {
                   ByteString protoBytes = failedContext.protoRows.getSerializedRows(failedIndex);
-                  failedRow = appendClientInfo.get().toTableRow(protoBytes, Predicates.alwaysTrue());
+                  failedRow =
+                      appendClientInfo.get().toTableRow(protoBytes, Predicates.alwaysTrue());
                 }
                 org.joda.time.Instant timestamp = failedContext.timestamps.get(failedIndex);
                 o.get(failedRowsTag)
@@ -839,7 +840,9 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                 ByteString protoBytes = context.protoRows.getSerializedRows(i);
                 org.joda.time.Instant timestamp = context.timestamps.get(i);
                 o.get(successfulRowsTag)
-                    .outputWithTimestamp(appendClientInfo.get().toTableRow(protoBytes, successfulRowsPredicate), timestamp);
+                    .outputWithTimestamp(
+                        appendClientInfo.get().toTableRow(protoBytes, successfulRowsPredicate),
+                        timestamp);
               }
             }
           };

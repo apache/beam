@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.bigquery.storage.v1.AppendRowsRequest;
+import java.util.function.Predicate;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -28,8 +29,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-
-import java.util.function.Predicate;
 
 /**
  * A transform to write sharded records to BigQuery using the Storage API. This transform uses the

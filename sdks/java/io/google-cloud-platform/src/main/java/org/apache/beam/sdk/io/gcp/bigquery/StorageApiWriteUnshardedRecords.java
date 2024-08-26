@@ -584,7 +584,9 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
             } catch (TableRowToStorageApiProto.SchemaConversionException e) {
               @Nullable TableRow tableRow = payload.getFailsafeTableRow();
               if (tableRow == null) {
-                tableRow = checkNotNull(appendClientInfo).toTableRow(payloadBytes, Predicates.alwaysTrue());
+                tableRow =
+                    checkNotNull(appendClientInfo)
+                        .toTableRow(payloadBytes, Predicates.alwaysTrue());
               }
               // TODO(24926, reuvenlax): We need to merge the unknown fields in! Currently we only
               // execute this
@@ -649,7 +651,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                           TableRowToStorageApiProto.wrapDescriptorProto(
                               getAppendClientInfo(true, null).getDescriptor()),
                           rowBytes),
-                      true, successfulRowsPredicate);
+                      true,
+                      successfulRowsPredicate);
             }
             org.joda.time.Instant timestamp = insertTimestamps.get(i);
             failedRowsReceiver.outputWithTimestamp(
@@ -733,7 +736,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                                       Preconditions.checkStateNotNull(appendClientInfo)
                                           .getDescriptor()),
                                   protoBytes),
-                              true, Predicates.alwaysTrue());
+                              true,
+                              Predicates.alwaysTrue());
                     }
                     element =
                         new BigQueryStorageApiInsertError(
@@ -883,8 +887,9 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                     try {
                       TableRow row =
                           TableRowToStorageApiProto.tableRowFromMessage(
-                              DynamicMessage.parseFrom(descriptor, rowBytes), true,
-                                  successfulRowsPredicate);
+                              DynamicMessage.parseFrom(descriptor, rowBytes),
+                              true,
+                              successfulRowsPredicate);
                       org.joda.time.Instant timestamp = c.timestamps.get(i);
                       successfulRowsReceiver.outputWithTimestamp(row, timestamp);
                     } catch (Exception e) {
@@ -951,24 +956,24 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
     private int streamAppendClientCount;
 
     WriteRecordsDoFn(
-            String operationName,
-            StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations,
-            BigQueryServices bqServices,
-            boolean useDefaultStream,
-            int flushThresholdBytes,
-            int flushThresholdCount,
-            int streamAppendClientCount,
-            TupleTag<KV<String, String>> finalizeTag,
-            TupleTag<BigQueryStorageApiInsertError> failedRowsTag,
-            @Nullable TupleTag<TableRow> successfulRowsTag,
-            Predicate<String> successfulRowsPredicate,
+        String operationName,
+        StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations,
+        BigQueryServices bqServices,
+        boolean useDefaultStream,
+        int flushThresholdBytes,
+        int flushThresholdCount,
+        int streamAppendClientCount,
+        TupleTag<KV<String, String>> finalizeTag,
+        TupleTag<BigQueryStorageApiInsertError> failedRowsTag,
+        @Nullable TupleTag<TableRow> successfulRowsTag,
+        Predicate<String> successfulRowsPredicate,
         boolean autoUpdateSchema,
-            boolean ignoreUnknownValues,
-            BigQueryIO.Write.CreateDisposition createDisposition,
-            @Nullable String kmsKey,
-            boolean usesCdc,
-            AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation,
-            int maxRetries) {
+        boolean ignoreUnknownValues,
+        BigQueryIO.Write.CreateDisposition createDisposition,
+        @Nullable String kmsKey,
+        boolean usesCdc,
+        AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation,
+        int maxRetries) {
       this.messageConverters = new TwoLevelMessageConverterCache<>(operationName);
       this.dynamicDestinations = dynamicDestinations;
       this.bqServices = bqServices;

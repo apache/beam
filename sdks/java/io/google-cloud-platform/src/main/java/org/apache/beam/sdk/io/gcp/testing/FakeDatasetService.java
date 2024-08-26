@@ -649,7 +649,9 @@ public class FakeDatasetService implements DatasetService, WriteStreamService, S
             }
             TableRow tableRow =
                 TableRowToStorageApiProto.tableRowFromMessage(
-                    DynamicMessage.parseFrom(protoDescriptor, bytes), false, Predicates.alwaysTrue());
+                    DynamicMessage.parseFrom(protoDescriptor, bytes),
+                    false,
+                    Predicates.alwaysTrue());
             if (shouldFailRow.apply(tableRow)) {
               rowIndexToErrorMessage.put(i, "Failing row " + tableRow.toPrettyString());
             }
