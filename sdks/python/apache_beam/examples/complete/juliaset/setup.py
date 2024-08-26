@@ -19,7 +19,8 @@
 
 All the workflow related code is gathered in a package that will be built as a
 source distribution, staged in the staging area for the workflow being run and
-then installed in the workers when they start running.
+then installed in the workers when they start running. The package is defined
+in the pyproject.toml file.
 
 This behavior is triggered by specifying the --setup_file command line option
 when running the workflow for remote execution.
@@ -106,20 +107,7 @@ class CustomCommands(setuptools.Command):
     for command in CUSTOM_COMMANDS:
       self.RunCustomCommand(command)
 
-
-# Configure the required packages and scripts to install.
-# Note that the Python Dataflow containers come with numpy already installed
-# so this dependency will not trigger anything to be installed unless a version
-# restriction is specified.
-REQUIRED_PACKAGES = [
-    'numpy',
-]
-
 setuptools.setup(
-    name='juliaset',
-    version='0.0.1',
-    description='Julia set workflow package.',
-    install_requires=REQUIRED_PACKAGES,
     packages=setuptools.find_packages(),
     cmdclass={
         # Command class instantiated and run during pip install scenarios.
