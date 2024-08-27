@@ -259,7 +259,19 @@ def _create_formatter(
     field_names = [field.name for field in beam_schema.fields]
     if len(field_names) != 1:
       raise ValueError(f'Expecting exactly one field, found {field_names}')
-    return lambda row: getattr(row, field_names[0]).encode('utf-8')
+
+    def convert_to_bytes(row):
+      output = getattr(row, field_names[0])
+      if isinstance(output, bytes):
+        return output
+      try:
+        return str(output).encode('utf-8')
+      except Exception as e:
+        raise ValueError(
+            f"Cannot encode payload for WriteToPubSub. "
+            f"Must be valid string or bytes object. {e}")
+
+    return convert_to_bytes
   elif format == 'JSON':
     return json_utils.json_formater(beam_schema)
   elif format == 'AVRO':
