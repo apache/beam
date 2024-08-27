@@ -77,7 +77,7 @@ class JavaJarJobServerTest(unittest.TestCase):
             8098,
             '--expansion-port',
             8097,
-            '--jar-cache-dir',
+            '--jar_cache_dir',
             '/path/to/cache_dir'
         ])
     self.assertEqual(endpoint, 'localhost:8099')

@@ -111,7 +111,7 @@ class FlinkJarJobServer(job_server.JavaJarJobServer):
           ':runners:flink:%s:job-server:shadowJar' % self._flink_version)
 
   def java_arguments(
-      self, job_port, artifact_port, expansion_port, artifacts_dir):
+      self, job_port, artifact_port, expansion_port, artifacts_dir, jar_cache_dir):
     return [
         '--flink-master',
         self._master_url,
@@ -122,5 +122,7 @@ class FlinkJarJobServer(job_server.JavaJarJobServer):
         '--artifact-port',
         artifact_port,
         '--expansion-port',
-        expansion_port
+        expansion_port,
+        '--jar_cache_dir',
+        jar_cache_dir
     ]
