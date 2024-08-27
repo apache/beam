@@ -18,7 +18,6 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
-import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -118,12 +117,13 @@ class GlobalSequencesProcessorDoFn<EventT, EventKeyT, ResultT,
 
     SequenceAndTimestamp lastContinuousSequence = context.sideInput(
         latestContinuousSequenceSideInput);
-    LOG.info("lastSequence: " + lastContinuousSequence);
 
     EventT event = eventAndSequence.getValue().getValue();
 
     EventKeyT key = eventAndSequence.getKey();
     long sequence = eventAndSequence.getValue().getKey();
+
+    LOG.info(key + ": " + sequence + " lastSequence: " + lastContinuousSequence);
 
     ProcessingState<EventKeyT> processingState = processingStateState.read();
 
@@ -141,6 +141,12 @@ class GlobalSequencesProcessorDoFn<EventT, EventKeyT, ResultT,
     if (event == null) {
       // This is the ticker event. We only need to update the state as it relates to the global sequence.
       processingStateState.write(processingState);
+
+      // TODO: we can keep resetting this into the future under heavy load.
+      //  Need to add logic to avoid doing it.
+      //
+      setBatchEmissionTimerIfNeeded(batchEmissionTimer, processingState);
+
       return;
     }
 
@@ -168,13 +174,16 @@ class GlobalSequencesProcessorDoFn<EventT, EventKeyT, ResultT,
         outputReceiver,
         window.maxTimestamp());
 
-    // TODO: we can keep resetting this into the future under heavy load.
-    //  Need to add logic to avoid doing it.
-    //
-    batchEmissionTimer.set(lastContinuousSequence.getTimestamp());
-
     // Only if the record matches the sequence it can be output now
     // TODO: refactor the code from SequencePerKeyDoFn
+  }
+
+  private void setBatchEmissionTimerIfNeeded(Timer batchEmissionTimer,
+      ProcessingState<EventKeyT> processingState) {
+    SequenceAndTimestamp lastCompleteGlobalSequence = processingState.getLastCompleteGlobalSequence();
+    if (processingState.getBufferedEventCount() > 0 && lastCompleteGlobalSequence != null) {
+      batchEmissionTimer.set(lastCompleteGlobalSequence.getTimestamp());
+    }
   }
 
   @OnTimer(BATCH_EMISSION_TIMER)
@@ -196,7 +205,7 @@ class GlobalSequencesProcessorDoFn<EventT, EventKeyT, ResultT,
 
     StateT state = mutableStateState.read();
 
-    Long lastCompleteGlobalSequence = processingState.getLastCompleteGlobalSequence();
+    SequenceAndTimestamp lastCompleteGlobalSequence = processingState.getLastCompleteGlobalSequence();
     if (lastCompleteGlobalSequence == null) {
       LOG.warn("Last complete global instance is null.");
       return;
@@ -207,12 +216,11 @@ class GlobalSequencesProcessorDoFn<EventT, EventKeyT, ResultT,
       LOG.warn("Earliest buffered sequence is null.");
       return;
     }
-    Instant startRange = fromLong(earliestBufferedSequence);
-    Instant endRange = fromLong(lastCompleteGlobalSequence + 1);
 
-    LOG.info("Processing range " + processingState.getKey() + " " + startRange + " " + endRange);
+    LOG.info("Emission timer: " + processingState);
+
     state = processBufferedEventRange(processingState, state, bufferedEventsState, outputReceiver,
-        batchEmissionTimer, startRange, endRange);
+        batchEmissionTimer, lastCompleteGlobalSequence.getSequence());
 
     saveStates(
         processingStatusState,

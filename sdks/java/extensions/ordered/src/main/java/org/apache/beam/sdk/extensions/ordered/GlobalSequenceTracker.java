@@ -5,7 +5,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -15,6 +14,9 @@ import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CoderRegistry;
+import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.InstantCoder;
+import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.extensions.ordered.GlobalSequenceTracker.SequenceAndTimestamp;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
@@ -67,6 +69,34 @@ class GlobalSequenceTracker extends
 
     public static SequenceAndTimestamp create(long sequence, Instant timestamp) {
       return new AutoValue_GlobalSequenceTracker_SequenceAndTimestamp(sequence, timestamp);
+    }
+  }
+
+  static class SequenceAndTimestampCoder extends CustomCoder<SequenceAndTimestamp> {
+
+    private static final SequenceAndTimestampCoder INSTANCE = new SequenceAndTimestampCoder();
+
+    static SequenceAndTimestampCoder of() {
+      return INSTANCE;
+    }
+
+    private SequenceAndTimestampCoder() {
+    }
+
+    @Override
+    public void encode(SequenceAndTimestamp value,
+        @UnknownKeyFor @NonNull @Initialized OutputStream outStream)
+        throws @UnknownKeyFor @NonNull @Initialized CoderException, @UnknownKeyFor @NonNull @Initialized IOException {
+      VarLongCoder.of().encode(value.getSequence(), outStream);
+      InstantCoder.of().encode(value.getTimestamp(), outStream);
+    }
+
+    @Override
+    public SequenceAndTimestamp decode(@UnknownKeyFor @NonNull @Initialized InputStream inStream)
+        throws @UnknownKeyFor @NonNull @Initialized CoderException, @UnknownKeyFor @NonNull @Initialized IOException {
+      long sequence = VarLongCoder.of().decode(inStream);
+      Instant timestamp = InstantCoder.of().decode(inStream);
+      return SequenceAndTimestamp.create(sequence, timestamp);
     }
   }
 
@@ -131,14 +161,14 @@ class GlobalSequenceTracker extends
       @Override
       public void encode(RangeMap<Long, Instant> value,
           @UnknownKeyFor @NonNull @Initialized OutputStream outStream)
-          throws @UnknownKeyFor@NonNull@Initialized CoderException, @UnknownKeyFor@NonNull@Initialized IOException {
+          throws @UnknownKeyFor @NonNull @Initialized CoderException, @UnknownKeyFor @NonNull @Initialized IOException {
 
       }
 
       @Override
       public RangeMap<Long, Instant> decode(
           @UnknownKeyFor @NonNull @Initialized InputStream inStream)
-          throws @UnknownKeyFor@NonNull@Initialized CoderException, @UnknownKeyFor@NonNull@Initialized IOException {
+          throws @UnknownKeyFor @NonNull @Initialized CoderException, @UnknownKeyFor @NonNull @Initialized IOException {
         return TreeRangeMap.create();
       }
 
@@ -149,7 +179,7 @@ class GlobalSequenceTracker extends
 
       @Override
       public void verifyDeterministic()
-          throws @UnknownKeyFor@NonNull@Initialized NonDeterministicException {
+          throws @UnknownKeyFor @NonNull @Initialized NonDeterministicException {
 
       }
     }
@@ -158,7 +188,7 @@ class GlobalSequenceTracker extends
     public @UnknownKeyFor @NonNull @Initialized Coder<RangeMap<Long, Instant>> getAccumulatorCoder(
         @UnknownKeyFor @NonNull @Initialized CoderRegistry registry,
         @UnknownKeyFor @NonNull @Initialized Coder<SequenceAndTimestamp> inputCoder)
-        throws @UnknownKeyFor@NonNull@Initialized CannotProvideCoderException {
+        throws @UnknownKeyFor @NonNull @Initialized CannotProvideCoderException {
       return new AccumulatorCoder();
     }
   }

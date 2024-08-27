@@ -1,11 +1,9 @@
 package org.apache.beam.sdk.extensions.ordered;
 
-import java.util.Iterator;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.BooleanCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.ordered.ProcessingState.ProcessingStateCoder;
-import org.apache.beam.sdk.extensions.ordered.UnprocessedEvent.Reason;
 import org.apache.beam.sdk.state.OrderedListState;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
@@ -16,16 +14,15 @@ import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Duration;
-import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 class SequencePerKeyProcessorDoFn<EventTypeT, EventKeyTypeT, ResultTypeT,
     StateTypeT extends MutableState<EventTypeT, ResultTypeT>>
     extends ProcessorDoFn<EventTypeT, EventKeyTypeT, ResultTypeT, StateTypeT> {
+
   private static final Logger LOG = LoggerFactory.getLogger(SequencePerKeyProcessorDoFn.class);
 
   private static final String LARGE_BATCH_EMISSION_TIMER = "largeBatchTimer";
@@ -50,6 +47,7 @@ class SequencePerKeyProcessorDoFn<EventTypeT, EventKeyTypeT, ResultTypeT,
   @StateId(PROCESSING_STATE)
   @SuppressWarnings("unused")
   private final StateSpec<ValueState<ProcessingState<EventKeyTypeT>>> processingStateSpec;
+
   /**
    * Stateful DoFn to do the bulk of processing.
    *
@@ -186,19 +184,16 @@ class SequencePerKeyProcessorDoFn<EventTypeT, EventKeyTypeT, ResultTypeT,
     // Technically this block is not needed because these preconditions are checked
     // earlier. Included to keep the linter happy.
     Long earliestBufferedSequence = processingState.getEarliestBufferedSequence();
-    if(earliestBufferedSequence == null) {
+    if (earliestBufferedSequence == null) {
       return;
     }
     Long latestBufferedSequence = processingState.getLatestBufferedSequence();
-    if(latestBufferedSequence == null) {
+    if (latestBufferedSequence == null) {
       return;
     }
 
-    Instant startRange = fromLong(earliestBufferedSequence);
-    Instant endRange = fromLong(latestBufferedSequence + 1);
-
-    processBufferedEventRange(processingState, state, bufferedEventsState, outputReceiver, largeBatchEmissionTimer,
-        startRange, endRange);
+    processBufferedEventRange(processingState, state, bufferedEventsState, outputReceiver,
+        largeBatchEmissionTimer, Long.MIN_VALUE);
   }
 
   @OnTimer(LARGE_BATCH_EMISSION_TIMER)
@@ -249,7 +244,8 @@ class SequencePerKeyProcessorDoFn<EventTypeT, EventKeyTypeT, ResultTypeT,
       @StateId(PROCESSING_STATE)
       ValueState<ProcessingState<EventKeyTypeT>> processingStateState) {
 
-    processStatusTimerEvent(outputReceiver, statusEmissionTimer, windowClosedState, processingStateState);
+    processStatusTimerEvent(outputReceiver, statusEmissionTimer, windowClosedState,
+        processingStateState);
   }
 
   @OnWindowExpiration

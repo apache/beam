@@ -42,7 +42,7 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
                 0,
                 null,
                 null,
-                4,
+                Arrays.stream(events).filter(e -> e.getKey().equals("id-1")).count(),
                 Arrays.stream(events).filter(e -> e.getKey().equals("id-1")).count(),
                 0,
                 false)));
@@ -50,11 +50,11 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
         KV.of(
             "id-2",
             OrderedProcessingStatus.create(
-                1L,
+                5L,
                 0,
                 null,
                 null,
-                2,
+                Arrays.stream(events).filter(e -> e.getKey().equals("id-2")).count(),
                 Arrays.stream(events).filter(e -> e.getKey().equals("id-2")).count(),
                 0,
                 false)));

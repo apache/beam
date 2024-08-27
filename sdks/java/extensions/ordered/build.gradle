@@ -28,7 +28,7 @@ dependencies {
     implementation library.java.vendored_guava_32_1_2_jre
     testImplementation library.java.junit
     testImplementation library.java.hamcrest
-    testImplementation library.java.slf4j_simple
+    testImplementation library.java.slf4j_jdk14
     testImplementation project(path: ':sdks:java:core')
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

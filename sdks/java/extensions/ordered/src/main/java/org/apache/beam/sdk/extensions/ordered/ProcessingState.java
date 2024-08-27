@@ -29,6 +29,8 @@ import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.extensions.ordered.GlobalSequenceTracker.SequenceAndTimestamp;
+import org.apache.beam.sdk.extensions.ordered.GlobalSequenceTracker.SequenceAndTimestampCoder;
+import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.initialization.qual.Initialized;
 
@@ -52,7 +54,7 @@ class ProcessingState<KeyT> {
 
   private long resultCount;
 
-  @Nullable private Long lastCompleteGlobalSequence;
+  @Nullable private SequenceAndTimestamp lastCompleteGlobalSequence;
 
   private KeyT key;
 
@@ -134,11 +136,11 @@ class ProcessingState<KeyT> {
     return key;
   }
 
-  public @Nullable Long getLastCompleteGlobalSequence() {
+  public @Nullable SequenceAndTimestamp getLastCompleteGlobalSequence() {
     return lastCompleteGlobalSequence;
   }
 
-  public void setLastCompleteGlobalSequence(@Nullable Long lastCompleteGlobalSequence) {
+  public void setLastCompleteGlobalSequence(@Nullable SequenceAndTimestamp lastCompleteGlobalSequence) {
     this.lastCompleteGlobalSequence = lastCompleteGlobalSequence;
   }
 
@@ -241,6 +243,22 @@ class ProcessingState<KeyT> {
         key);
   }
 
+  @Override
+  public String toString() {
+    return "ProcessingState{" +
+        "lastOutputSequence=" + lastOutputSequence +
+        ", latestBufferedSequence=" + latestBufferedSequence +
+        ", earliestBufferedSequence=" + earliestBufferedSequence +
+        ", bufferedEventCount=" + bufferedEventCount +
+        ", lastEventReceived=" + lastEventReceived +
+        ", eventsReceived=" + eventsReceived +
+        ", duplicates=" + duplicates +
+        ", resultCount=" + resultCount +
+        ", lastCompleteGlobalSequence=" + lastCompleteGlobalSequence +
+        ", key=" + key +
+        '}';
+  }
+
   public boolean isProcessingCompleted() {
     return lastEventReceived && bufferedEventCount == 0;
   }
@@ -288,7 +306,7 @@ class ProcessingState<KeyT> {
 
   public void updateGlobalSequenceDetails(SequenceAndTimestamp updated) {
     // TODO: do we need to select max? Do we care about the timestamp?
-    this.lastCompleteGlobalSequence = updated.getSequence();
+    this.lastCompleteGlobalSequence = updated;
   }
 
   /**
@@ -303,6 +321,9 @@ class ProcessingState<KeyT> {
     private static final Coder<Long> LONG_CODER = VarLongCoder.of();
     private static final VarIntCoder INTEGER_CODER = VarIntCoder.of();
     private static final BooleanCoder BOOLEAN_CODER = BooleanCoder.of();
+
+    private static final NullableCoder<SequenceAndTimestamp> SEQUENCE_AND_TIMESTAMP_CODER =
+        NullableCoder.of(SequenceAndTimestampCoder.of());
 
     private Coder<KeyT> keyCoder;
 
@@ -325,7 +346,7 @@ class ProcessingState<KeyT> {
       LONG_CODER.encode(value.getResultCount(), outStream);
       BOOLEAN_CODER.encode(value.isLastEventReceived(), outStream);
       keyCoder.encode(value.getKey(), outStream);
-      NULLABLE_LONG_CODER.encode(value.getLastCompleteGlobalSequence(), outStream);
+      SEQUENCE_AND_TIMESTAMP_CODER.encode(value.getLastCompleteGlobalSequence(), outStream);
     }
 
     @Override
@@ -339,7 +360,7 @@ class ProcessingState<KeyT> {
       long resultCount = LONG_CODER.decode(inStream);
       boolean isLastEventReceived = BOOLEAN_CODER.decode(inStream);
       KeyT key = keyCoder.decode(inStream);
-      Long lastCompleteGlobalSequence = NULLABLE_LONG_CODER.decode(inStream);
+      SequenceAndTimestamp lastCompleteGlobalSequence = SEQUENCE_AND_TIMESTAMP_CODER.decode(inStream);
 
       ProcessingState<KeyT> result = new ProcessingState<>(
           key,

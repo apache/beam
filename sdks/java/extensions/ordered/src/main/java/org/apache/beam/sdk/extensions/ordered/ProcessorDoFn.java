@@ -242,6 +242,7 @@ abstract class ProcessorDoFn<
       ProcessingState<EventKeyTypeT> processingState,
       MultiOutputReceiver outputReceiver,
       Instant statusTimestamp) {
+    LOG.info("Emitting status for: " + processingState.getKey() + ", " + processingState);
     outputReceiver
         .get(statusTupleTag)
         .outputWithTimestamp(
@@ -293,7 +294,15 @@ abstract class ProcessorDoFn<
   @Nullable StateTypeT processBufferedEventRange(ProcessingState<EventKeyTypeT> processingState,
       @Nullable StateTypeT state,
       OrderedListState<EventTypeT> bufferedEventsState, MultiOutputReceiver outputReceiver,
-      Timer largeBatchEmissionTimer, Instant startRange, Instant endRange) {
+      Timer largeBatchEmissionTimer, long lastKnownCompleteSequenceNumber) {
+    Long earliestBufferedSequence = processingState.getEarliestBufferedSequence();
+    Long latestBufferedSequence = processingState.getLatestBufferedSequence();
+    if(earliestBufferedSequence == null || latestBufferedSequence == null) {
+      return state;
+    }
+    Instant startRange = fromLong(earliestBufferedSequence);
+    Instant endRange = fromLong(latestBufferedSequence + 1);
+
     // readRange is efficiently implemented and will bring records in batches
     Iterable<TimestampedValue<EventTypeT>> events =
         bufferedEventsState.readRange(startRange, endRange);
@@ -320,9 +329,11 @@ abstract class ProcessorDoFn<
       }
 
       Long lastOutputSequence = processingState.getLastOutputSequence();
-      if (checkForSequenceGapInBufferedEvents() &&
-          lastOutputSequence != null &&
-          eventSequence > lastOutputSequence + 1) {
+      boolean currentEventIsNotInSequence = lastOutputSequence != null && eventSequence > lastOutputSequence + 1;
+      boolean breakOutput = checkForSequenceGapInBufferedEvents() ?
+          currentEventIsNotInSequence :
+          (eventSequence > lastKnownCompleteSequenceNumber || currentEventIsNotInSequence);
+      if (breakOutput) {
         processingState.foundSequenceGap(eventSequence);
         // Records will be cleared up to this element
         endClearRange = fromLong(eventSequence);
