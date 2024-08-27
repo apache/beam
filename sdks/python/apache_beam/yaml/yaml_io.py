@@ -259,7 +259,7 @@ def _create_formatter(
     field_names = [field.name for field in beam_schema.fields]
     if len(field_names) != 1:
       raise ValueError(f'Expecting exactly one field, found {field_names}')
-    return lambda row: getattr(row, field_names[0])
+    return lambda row: getattr(row, field_names[0]).encode('utf-8')
   elif format == 'JSON':
     return json_utils.json_formater(beam_schema)
   elif format == 'AVRO':
