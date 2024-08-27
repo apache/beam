@@ -1095,16 +1095,27 @@ public class TableRowToStorageApiProto {
   @VisibleForTesting
   public static TableRow tableRowFromMessage(
       Message message, boolean includeCdcColumns, Predicate<String> includeField) {
+    return tableRowFromMessage(message, includeCdcColumns, includeField, "");
+  }
+
+  public static TableRow tableRowFromMessage(
+      Message message,
+      boolean includeCdcColumns,
+      Predicate<String> includeField,
+      String namePrefix) {
     // TODO: Would be more correct to generate TableRows using setF.
     TableRow tableRow = new TableRow();
     for (Map.Entry<FieldDescriptor, Object> field : message.getAllFields().entrySet()) {
+      StringBuilder fullName = new StringBuilder();
       FieldDescriptor fieldDescriptor = field.getKey();
+      fullName = fullName.append(namePrefix).append(fieldDescriptor.getName());
       Object fieldValue = field.getValue();
-      if ((includeCdcColumns || !StorageApiCDC.COLUMNS.contains(fieldDescriptor.getName()))
+      if ((includeCdcColumns || !StorageApiCDC.COLUMNS.contains(fullName.toString()))
           && includeField.test(fieldDescriptor.getName())) {
         tableRow.put(
             fieldDescriptor.getName(),
-            jsonValueFromMessageValue(fieldDescriptor, fieldValue, true, includeField));
+            jsonValueFromMessageValue(
+                fieldDescriptor, fieldValue, true, includeField, fullName.append(".").toString()));
       }
     }
     return tableRow;
@@ -1114,18 +1125,19 @@ public class TableRowToStorageApiProto {
       FieldDescriptor fieldDescriptor,
       Object fieldValue,
       boolean expandRepeated,
-      Predicate<String> includeField) {
+      Predicate<String> includeField,
+      String prefix) {
     if (expandRepeated && fieldDescriptor.isRepeated()) {
       List<Object> valueList = (List<Object>) fieldValue;
       return valueList.stream()
-          .map(v -> jsonValueFromMessageValue(fieldDescriptor, v, false, includeField))
+          .map(v -> jsonValueFromMessageValue(fieldDescriptor, v, false, includeField, prefix))
           .collect(toList());
     }
 
     switch (fieldDescriptor.getType()) {
       case GROUP:
       case MESSAGE:
-        return tableRowFromMessage((Message) fieldValue, false, includeField);
+        return tableRowFromMessage((Message) fieldValue, false, includeField, prefix);
       case BYTES:
         return BaseEncoding.base64().encode(((ByteString) fieldValue).toByteArray());
       case ENUM:

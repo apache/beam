@@ -3042,8 +3042,9 @@ public class BigQueryIO {
     }
 
     /**
-     * If set to true, then all successful writes will be propagated to {@link WriteResult} and
-     * accessible via the {@link WriteResult#getSuccessfulStorageApiInserts} method.
+     * If called, then all successful writes will be propagated to {@link WriteResult} and
+     * accessible via the {@link WriteResult#getSuccessfulStorageApiInserts} method. The predicate
+     * allows filtering out columns from appearing in the resulting PCollection.
      */
     public Write<T> withPropagateSuccessfulStorageApiWrites(Predicate<String> columnsToPropagate) {
       return toBuilder()
