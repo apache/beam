@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+
 import com.google.api.gax.grpc.ChannelPoolSettings;
 import com.google.api.gax.grpc.InstantiatingGrpcChannelProvider;
 import com.google.bigtable.v2.BigtableGrpc;
@@ -154,11 +156,11 @@ public class BigtableSharedClientTest {
                 .withEmulator("localhost:" + fakeServer.getPort())
         );
 
-    Assert.assertEquals(pipeline.run().waitUntilFinish(), State.DONE);
+    assertThat(pipeline.run().waitUntilFinish(), Matchers.equalTo(State.DONE));
     // Make sure that the test is valid by making sure that multiple bundles were processed
-    MatcherAssert.assertThat(dofn.bundleCount.get(), Matchers.greaterThan(1));
+    assertThat(dofn.bundleCount.get(), Matchers.greaterThan(1));
     // Make sure that a single client was shared across all the bundles
-    MatcherAssert.assertThat(clientConnectionInterceptor.getClientConnections(), Matchers.hasSize(1));
+    assertThat(clientConnectionInterceptor.getClientConnections(), Matchers.hasSize(1));
 
   }
 
@@ -226,7 +228,7 @@ public class BigtableSharedClientTest {
     public Builder apply(Builder builder, PipelineOptions pipelineOptions) {
       InstantiatingGrpcChannelProvider oldTransport = (InstantiatingGrpcChannelProvider) builder.stubSettings()
           .getTransportChannelProvider();
-      
+
       builder.stubSettings().setTransportChannelProvider(
           oldTransport.toBuilder()
             .setChannelPoolSettings(ChannelPoolSettings.staticallySized(1))
