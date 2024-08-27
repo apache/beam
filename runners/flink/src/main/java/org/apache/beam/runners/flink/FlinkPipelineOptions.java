@@ -382,6 +382,13 @@ public interface FlinkPipelineOptions
 
   void setEnableStableInputDrain(Boolean enableStableInputDrain);
 
+  @Description(
+      "Set a slot sharing group for all bounded sources. This is required when using Datastream to have the same scheduling behaviour as the Dataset API.")
+  @Default.Boolean(true)
+  Boolean getForceSlotSharingGroup();
+
+  void setForceSlotSharingGroup(Boolean enableStableInputDrain);
+
   static FlinkPipelineOptions defaults() {
     return PipelineOptionsFactory.as(FlinkPipelineOptions.class);
   }

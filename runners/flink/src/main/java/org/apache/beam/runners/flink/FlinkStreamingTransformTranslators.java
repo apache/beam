@@ -166,6 +166,8 @@ class FlinkStreamingTransformTranslators {
     TRANSLATORS.put(PTransformTranslation.TEST_STREAM_TRANSFORM_URN, new TestStreamTranslator());
   }
 
+  private final static String FORCED_SLOT_GROUP = "beam";
+
   public static FlinkStreamingPipelineTranslator.StreamTransformTranslator<?> getTranslator(
       PTransform<?, ?> transform) {
     @Nullable String urn = PTransformTranslation.urnForTransformOrNull(transform);
@@ -306,7 +308,7 @@ class FlinkStreamingTransformTranslators {
               WindowedValue.getFullCoder(ByteArrayCoder.of(), GlobalWindow.Coder.INSTANCE),
               context.getPipelineOptions());
 
-      final SingleOutputStreamOperator<WindowedValue<byte[]>> impulseOperator;
+      SingleOutputStreamOperator<WindowedValue<byte[]>> impulseOperator;
       if (context.isStreaming()) {
         long shutdownAfterIdleSourcesMs =
             context
@@ -325,6 +327,10 @@ class FlinkStreamingTransformTranslators {
                 .getExecutionEnvironment()
                 .fromSource(impulseSource, WatermarkStrategy.noWatermarks(), "Impulse")
                 .returns(typeInfo);
+
+        if(!context.isStreaming() && context.getPipelineOptions().as(FlinkPipelineOptions.class).getForceSlotSharingGroup()) {
+          impulseOperator = impulseOperator.slotSharingGroup(FORCED_SLOT_GROUP);
+        }
       }
       context.setOutputDataStream(context.getOutput(transform), impulseOperator);
     }
@@ -389,7 +395,7 @@ class FlinkStreamingTransformTranslators {
       TypeInformation<WindowedValue<T>> typeInfo =
           context.getTypeInfo(output);
 
-      DataStream<WindowedValue<T>> source;
+      SingleOutputStreamOperator<WindowedValue<T>> source;
       try {
         source =
             context
@@ -398,6 +404,10 @@ class FlinkStreamingTransformTranslators {
                     flinkBoundedSource, WatermarkStrategy.noWatermarks(), fullName, outputTypeInfo)
                 .uid(fullName)
                 .returns(typeInfo);
+
+        if(!context.isStreaming() && context.getPipelineOptions().as(FlinkPipelineOptions.class).getForceSlotSharingGroup()) {
+            source = source.slotSharingGroup(FORCED_SLOT_GROUP);
+        }
       } catch (Exception e) {
         throw new RuntimeException("Error while translating BoundedSource: " + rawSource, e);
       }
