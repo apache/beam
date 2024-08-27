@@ -887,8 +887,8 @@ def ensure_errors_consumed(spec):
         error_output_name = config['error_handling']['output']
         raise ValueError(
             f'Unconsumed error output for {identify_object(t)}. '
-            f'The output named {transform_name}.{error_output_name} needs to be '
-            'used as an input to some other transform. '
+            f'The output named {transform_name}.{error_output_name} '
+            'must be used as an input to some other transform. '
             'See https://beam.apache.org/documentation/sdks/yaml-errors')
   return spec
 
