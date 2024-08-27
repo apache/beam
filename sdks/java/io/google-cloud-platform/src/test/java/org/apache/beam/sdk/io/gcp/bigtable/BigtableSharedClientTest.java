@@ -29,6 +29,8 @@ import com.google.bigtable.v2.Mutation;
 import com.google.bigtable.v2.Mutation.SetCell;
 import com.google.bigtable.v2.PingAndWarmRequest;
 import com.google.bigtable.v2.PingAndWarmResponse;
+import com.google.bigtable.v2.ReadRowsRequest;
+import com.google.bigtable.v2.ReadRowsResponse;
 import com.google.cloud.bigtable.data.v2.BigtableDataSettings.Builder;
 import com.google.protobuf.ByteString;
 import com.google.rpc.Code;
@@ -138,8 +140,7 @@ public class BigtableSharedClientTest {
 
     Pipeline pipeline = Pipeline.create(opts);
 
-    AtomicInteger bundleCount = new AtomicInteger();
-    MutationsDoFn dofn = new MutationsDoFn(bundleCount);
+    MutationsDoFn dofn = new MutationsDoFn();
 
     pipeline
         .apply(GenerateSequence.from(0).to(10_000))
@@ -153,13 +154,20 @@ public class BigtableSharedClientTest {
 
     assertThat(pipeline.run().waitUntilFinish(), Matchers.equalTo(State.DONE));
     // Make sure that the test is valid by making sure that multiple bundles were processed
-    assertThat(dofn.bundleCount.get(), Matchers.greaterThan(1));
+    assertThat(MutationsDoFn.bundleCount.get(), Matchers.greaterThan(1));
     // Make sure that a single client was shared across all the bundles
     assertThat(clientConnectionInterceptor.getClientConnections(), Matchers.hasSize(1));
   }
 
   /** Minimal implementation of a Bigtable emulator for BigtableIO.write(). */
   static class FakeBigtable extends BigtableGrpc.BigtableImplBase {
+
+    @Override
+    public void readRows(
+        ReadRowsRequest request, StreamObserver<ReadRowsResponse> responseObserver) {
+      responseObserver.onCompleted();
+    }
+
     @Override
     public void mutateRows(
         MutateRowsRequest request, StreamObserver<MutateRowsResponse> responseObserver) {
@@ -184,11 +192,7 @@ public class BigtableSharedClientTest {
   }
 
   static class MutationsDoFn extends DoFn<Long, KV<ByteString, Iterable<Mutation>>> {
-    private final AtomicInteger bundleCount;
-
-    public MutationsDoFn(AtomicInteger bundleCount) {
-      this.bundleCount = bundleCount;
-    }
+    private static final AtomicInteger bundleCount = new AtomicInteger();
 
     @StartBundle
     public void startBundle(StartBundleContext ctx) {
@@ -244,8 +248,10 @@ public class BigtableSharedClientTest {
       return new SimpleForwardingServerCallListener<ReqT>(next.startCall(call, headers)) {
         @Override
         public void onComplete() {
-          clientConnections.add(
-              call.getAttributes().get(Grpc.TRANSPORT_ATTR_REMOTE_ADDR).toString());
+          if (call.getMethodDescriptor().equals(BigtableGrpc.getMutateRowsMethod())) {
+            clientConnections.add(
+                call.getAttributes().get(Grpc.TRANSPORT_ATTR_REMOTE_ADDR).toString());
+          }
           super.onComplete();
         }
       };
