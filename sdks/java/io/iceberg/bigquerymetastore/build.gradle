@@ -19,38 +19,19 @@ plugins {
     id 'org.apache.beam.module'
 }
 
-def bqmsLocation = "$buildDir/libs"
-
 applyJavaNature(
         automaticModuleName: 'org.apache.beam.sdk.io.iceberg.bqms',
         shadowClosure: {
             dependencies {
-                include(dependency(files("$bqmsLocation/iceberg-bigquery-catalog-1.5.2-0.1.0.jar")))
+                include(dependency(files("bqms-catalog/iceberg-bigquery-catalog-1.5.2-0.1.0.jar")))
             }
             relocate 'com.google.guava', getJavaRelocatedPath('iceberg.bqms.com.google.guava')
         },
-        validateShadowJar: false
 )
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Iceberg :: BigQuery Metastore"
 ext.summary = "A copy of the BQMS catalog with some popular libraries relocated."
 
-task downloadBqmsJar(type: Copy) {
-    def jarUrl = 'https://storage.googleapis.com/spark-lib/bigquery/iceberg-bigquery-catalog-1.5.2-0.1.0.jar'
-    def outputDir = file("$bqmsLocation")
-    outputDir.mkdirs()
-
-    ant.get(src: jarUrl, dest: outputDir)
-}
-
-repositories {
-    flatDir {
-        dirs "$bqmsLocation"
-    }
-}
-
-compileJava.dependsOn downloadBqmsJar
-
 dependencies {
-    implementation files("$bqmsLocation/iceberg-bigquery-catalog-1.5.2-0.1.0.jar")
+    implementation files("bqms-catalog/iceberg-bigquery-catalog-1.5.2-0.1.0.jar")
 }
