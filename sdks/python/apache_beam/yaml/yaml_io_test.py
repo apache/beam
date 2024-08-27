@@ -95,7 +95,7 @@ class YamlPubSubTest(unittest.TestCase):
             type: ReadFromPubSub
             config:
               topic: my_topic
-              format: raw
+              format: RAW
             ''')
         assert_that(
             result,
@@ -115,7 +115,7 @@ class YamlPubSubTest(unittest.TestCase):
             type: ReadFromPubSub
             config:
               topic: my_topic
-              format: raw
+              format: RAW
               attributes: [attr]
             ''')
         assert_that(
@@ -139,7 +139,7 @@ class YamlPubSubTest(unittest.TestCase):
             type: ReadFromPubSub
             config:
               topic: my_topic
-              format: raw
+              format: RAW
               attributes_map: attrMap
             ''')
         assert_that(
@@ -163,7 +163,7 @@ class YamlPubSubTest(unittest.TestCase):
             type: ReadFromPubSub
             config:
               topic: my_topic
-              format: raw
+              format: RAW
               id_attribute: some_attr
             ''')
         assert_that(
@@ -203,7 +203,7 @@ class YamlPubSubTest(unittest.TestCase):
             type: ReadFromPubSub
             config:
               topic: my_topic
-              format: avro
+              format: AVRO
               schema: %s
             ''' % json.dumps(self._avro_schema))
         assert_that(
@@ -227,7 +227,7 @@ class YamlPubSubTest(unittest.TestCase):
             type: ReadFromPubSub
             config:
               topic: my_topic
-              format: json
+              format: JSON
               schema:
                 type: object
                 properties:
@@ -267,7 +267,7 @@ class YamlPubSubTest(unittest.TestCase):
             type: ReadFromPubSub
             config:
               topic: my_topic
-              format: json
+              format: JSON
               schema:
                 type: object
                 properties:
@@ -300,7 +300,7 @@ class YamlPubSubTest(unittest.TestCase):
               type: ReadFromPubSub
               config:
                 topic: my_topic
-                format: json
+                format: JSON
                 schema:
                   type: object
                   properties:
@@ -322,7 +322,7 @@ class YamlPubSubTest(unittest.TestCase):
             type: ReadFromPubSub
             config:
               topic: my_topic
-              format: json
+              format: JSON
               schema:
                 type: object
                 properties:
@@ -353,7 +353,7 @@ class YamlPubSubTest(unittest.TestCase):
             type: WriteToPubSub
             config:
               topic: my_topic
-              format: raw
+              format: RAW
             '''))
 
   def test_write_with_attribute(self):
@@ -374,7 +374,7 @@ class YamlPubSubTest(unittest.TestCase):
             type: WriteToPubSub
             config:
               topic: my_topic
-              format: raw
+              format: RAW
               attributes: [attr]
             '''))
 
@@ -396,7 +396,7 @@ class YamlPubSubTest(unittest.TestCase):
             type: WriteToPubSub
             config:
               topic: my_topic
-              format: raw
+              format: RAW
               attributes_map: attrMap
             '''))
 
@@ -415,7 +415,7 @@ class YamlPubSubTest(unittest.TestCase):
             type: WriteToPubSub
             config:
               topic: my_topic
-              format: raw
+              format: RAW
               id_attribute: some_attr
             '''))
 
@@ -438,7 +438,7 @@ class YamlPubSubTest(unittest.TestCase):
             type: WriteToPubSub
             config:
               topic: my_topic
-              format: avro
+              format: AVRO
             '''))
 
   def test_write_json(self):
@@ -463,7 +463,7 @@ class YamlPubSubTest(unittest.TestCase):
             type: WriteToPubSub
             config:
               topic: my_topic
-              format: json
+              format: JSON
               attributes: [label]
               attributes_map: other
             '''))

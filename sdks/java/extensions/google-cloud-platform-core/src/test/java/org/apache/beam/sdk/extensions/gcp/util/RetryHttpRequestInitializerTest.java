@@ -39,7 +39,7 @@ import com.google.api.client.http.HttpTransport;
 import com.google.api.client.http.LowLevelHttpRequest;
 import com.google.api.client.http.LowLevelHttpResponse;
 import com.google.api.client.json.JsonFactory;
-import com.google.api.client.json.jackson2.JacksonFactory;
+import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.client.testing.http.MockHttpTransport;
 import com.google.api.client.testing.http.MockLowLevelHttpRequest;
 import com.google.api.client.testing.http.MockLowLevelHttpResponse;
@@ -79,7 +79,7 @@ public class RetryHttpRequestInitializerTest {
   @Mock private LowLevelHttpResponse mockLowLevelResponse;
   @Mock private HttpResponseInterceptor mockHttpResponseInterceptor;
 
-  private final JsonFactory jsonFactory = JacksonFactory.getDefaultInstance();
+  private final JsonFactory jsonFactory = GsonFactory.getDefaultInstance();
   private Storage storage;
 
   // Used to test retrying a request more than the default 10 times.

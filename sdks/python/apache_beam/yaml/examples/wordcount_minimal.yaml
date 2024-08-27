@@ -4,19 +4,19 @@
 # contributor license agreements.  See the NOTICE file distributed with
 # this work for additional information regarding copyright ownership.
 # The ASF licenses this file to You under the Apache License, Version 2.0
-# (the#  Row(word='License'); you may not use this file except in compliance with
+# (the "License"); you may not use this file except in compliance with
 # the License.  You may obtain a copy of the License at
 #
 #    http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an#  Row(word='AS IS' BASIS,
+# distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
 
-# This examples reads from a public file stores on Google Cloud. This
+# This examples reads from a public file stored on Google Cloud. This
 # requires authenticating with Google Cloud, or setting the file in
 #`ReadFromText` to a local file.
 #
@@ -70,9 +70,6 @@ pipeline:
 
     # Log out results
     - type: LogForTesting
-        
-options:
-  yaml_experimental_features: Combine
   
 # Expected:
 #  Row(word='king', count=311)

@@ -216,8 +216,8 @@ public class WindmillMultimap<K, V> extends SimpleWindmillState implements Multi
     if (keyState == null || keyState.existence == KeyExistence.KNOWN_NONEXISTENT) {
       return;
     }
-    if (keyState.valuesCached && keyState.valuesSize == 0) {
-      // no data in windmill, deleting from local cache is sufficient.
+    if (keyState.valuesCached && keyState.valuesSize == 0 && !keyState.removedLocally) {
+      // no data in windmill and no need to keep state, deleting from local cache is sufficient.
       keyStateMap.remove(structuralKey);
     } else {
       // there may be data in windmill that need to be removed.

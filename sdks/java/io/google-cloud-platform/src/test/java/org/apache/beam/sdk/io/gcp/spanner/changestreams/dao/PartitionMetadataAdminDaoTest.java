@@ -34,6 +34,7 @@ import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.SpannerException;
 import com.google.spanner.admin.database.v1.UpdateDatabaseDdlMetadata;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.junit.Before;
@@ -86,8 +87,11 @@ public class PartitionMetadataAdminDaoTest {
     partitionMetadataAdminDao.createPartitionMetadataTable();
     verify(databaseAdminClient, times(1))
         .updateDatabaseDdl(eq(INSTANCE_ID), eq(DATABASE_ID), statements.capture(), isNull());
-    assertEquals(1, ((Collection<?>) statements.getValue()).size());
-    assertTrue(statements.getValue().iterator().next().contains("CREATE TABLE"));
+    assertEquals(3, ((Collection<?>) statements.getValue()).size());
+    Iterator<String> it = statements.getValue().iterator();
+    assertTrue(it.next().contains("CREATE TABLE"));
+    assertTrue(it.next().contains("CREATE INDEX"));
+    assertTrue(it.next().contains("CREATE INDEX"));
   }
 
   @Test
@@ -96,8 +100,11 @@ public class PartitionMetadataAdminDaoTest {
     partitionMetadataAdminDaoPostgres.createPartitionMetadataTable();
     verify(databaseAdminClient, times(1))
         .updateDatabaseDdl(eq(INSTANCE_ID), eq(DATABASE_ID), statements.capture(), isNull());
-    assertEquals(1, ((Collection<?>) statements.getValue()).size());
-    assertTrue(statements.getValue().iterator().next().contains("CREATE TABLE \""));
+    assertEquals(3, ((Collection<?>) statements.getValue()).size());
+    Iterator<String> it = statements.getValue().iterator();
+    assertTrue(it.next().contains("CREATE TABLE \""));
+    assertTrue(it.next().contains("CREATE INDEX \""));
+    assertTrue(it.next().contains("CREATE INDEX \""));
   }
 
   @Test
@@ -129,8 +136,11 @@ public class PartitionMetadataAdminDaoTest {
     partitionMetadataAdminDao.deletePartitionMetadataTable();
     verify(databaseAdminClient, times(1))
         .updateDatabaseDdl(eq(INSTANCE_ID), eq(DATABASE_ID), statements.capture(), isNull());
-    assertEquals(1, ((Collection<?>) statements.getValue()).size());
-    assertTrue(statements.getValue().iterator().next().contains("DROP TABLE"));
+    assertEquals(3, ((Collection<?>) statements.getValue()).size());
+    Iterator<String> it = statements.getValue().iterator();
+    assertTrue(it.next().contains("DROP INDEX"));
+    assertTrue(it.next().contains("DROP INDEX"));
+    assertTrue(it.next().contains("DROP TABLE"));
   }
 
   @Test
@@ -139,8 +149,11 @@ public class PartitionMetadataAdminDaoTest {
     partitionMetadataAdminDaoPostgres.deletePartitionMetadataTable();
     verify(databaseAdminClient, times(1))
         .updateDatabaseDdl(eq(INSTANCE_ID), eq(DATABASE_ID), statements.capture(), isNull());
-    assertEquals(1, ((Collection<?>) statements.getValue()).size());
-    assertTrue(statements.getValue().iterator().next().contains("DROP TABLE \""));
+    assertEquals(3, ((Collection<?>) statements.getValue()).size());
+    Iterator<String> it = statements.getValue().iterator();
+    assertTrue(it.next().contains("DROP INDEX \""));
+    assertTrue(it.next().contains("DROP INDEX \""));
+    assertTrue(it.next().contains("DROP TABLE \""));
   }
 
   @Test

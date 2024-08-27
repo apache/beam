@@ -63,7 +63,7 @@ Please see [here](https://github.com/apache/beam/tree/master/sdks/python/apache_
 context and information regarding the corresponding Python pipeline.
 
 Please note that the Java pipeline is
-[availalble in the Beam Java examples module](https://github.com/apache/beam/tree/master/examples/java/src/main/java/org/apache/beam/examples/multilanguage/SklearnMnistClassification.java).
+[available in the Beam Java examples module](https://github.com/apache/beam/tree/master/examples/java/src/main/java/org/apache/beam/examples/multilanguage/SklearnMnistClassification.java).
 
 #### Setup
 

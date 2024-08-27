@@ -49,6 +49,7 @@ import org.apache.beam.sdk.extensions.protobuf.ProtoDynamicMessageSchema;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.OutgoingMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
+import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
@@ -84,6 +85,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
@@ -512,6 +514,10 @@ public class PubsubIO {
       }
     }
 
+    public List<String> dataCatalogSegments() {
+      return ImmutableList.of(project, topic);
+    }
+
     @Override
     public String toString() {
       return asPath();
@@ -669,6 +675,17 @@ public class PubsubIO {
   public static <T> Read<T> readMessagesWithCoderAndParseFn(
       Coder<T> coder, SimpleFunction<PubsubMessage, T> parseFn) {
     return Read.newBuilder(parseFn).setCoder(coder).build();
+  }
+
+  /**
+   * Returns A {@link PTransform} that continuously reads from a Google Cloud Pub/Sub stream,
+   * mapping each {@link PubsubMessage}, with attributes, into type T using the supplied parse
+   * function and coder. Similar to {@link #readMessagesWithCoderAndParseFn(Coder, SimpleFunction)},
+   * but with the with addition of making the message attributes available to the ParseFn.
+   */
+  public static <T> Read<T> readMessagesWithAttributesWithCoderAndParseFn(
+      Coder<T> coder, SimpleFunction<PubsubMessage, T> parseFn) {
+    return Read.newBuilder(parseFn).setCoder(coder).setNeedsAttributes(true).build();
   }
 
   /**
@@ -1477,7 +1494,7 @@ public class PubsubIO {
                   .get(BAD_RECORD_TAG)
                   .setCoder(BadRecord.getCoder(input.getPipeline())));
       PCollection<PubsubMessage> pubsubMessages =
-          pubsubMessageTuple.get(pubsubMessageTupleTag).setCoder(new PubsubMessageWithTopicCoder());
+          pubsubMessageTuple.get(pubsubMessageTupleTag).setCoder(PubsubMessageWithTopicCoder.of());
       switch (input.isBounded()) {
         case BOUNDED:
           pubsubMessages.apply(
@@ -1605,6 +1622,10 @@ public class PubsubIO {
       public void finishBundle() throws IOException {
         for (Map.Entry<PubsubTopic, OutgoingData> entry : output.entrySet()) {
           publish(entry.getKey(), entry.getValue().messages);
+        }
+        // Report lineage for all topics seen
+        for (PubsubTopic topic : output.keySet()) {
+          Lineage.getSinks().add("pubsub", "topic", topic.dataCatalogSegments());
         }
         output = null;
         pubsubClient.close();

@@ -23,10 +23,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import sqlline.SqlLine;
 import sqlline.SqlLine.Status;
@@ -68,11 +68,11 @@ public class BeamSqlLine {
     SqlLine sqlLine = new SqlLine();
 
     if (outputStream != null) {
-      sqlLine.setOutputStream(new PrintStream(outputStream, false, Charsets.UTF_8.name()));
+      sqlLine.setOutputStream(new PrintStream(outputStream, false, StandardCharsets.UTF_8.name()));
     }
 
     if (errorStream != null) {
-      sqlLine.setErrorStream(new PrintStream(errorStream, false, Charsets.UTF_8.name()));
+      sqlLine.setErrorStream(new PrintStream(errorStream, false, StandardCharsets.UTF_8.name()));
     }
 
     return sqlLine.begin(modifiedArgs, inputStream, true);

@@ -37,6 +37,13 @@ type elementHasher interface {
 func makeElementHasher(c *coder.Coder, wc *coder.WindowCoder) elementHasher {
 	hasher := &maphash.Hash{}
 	we := MakeWindowEncoder(wc)
+
+	// Unwrap length prefix coders.
+	// A length prefix changes the hash itself, but shouldn't affect
+	// that identical elements have the same hash, so skip them here.
+	if c.Kind == coder.LP {
+		c = c.Components[0]
+	}
 	switch c.Kind {
 	case coder.Bytes:
 		return &bytesHasher{hash: hasher, we: we}

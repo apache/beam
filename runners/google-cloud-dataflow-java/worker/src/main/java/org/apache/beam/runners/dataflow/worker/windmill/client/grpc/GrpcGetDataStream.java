@@ -23,6 +23,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Ve
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
+import java.util.Collection;
 import java.util.Deque;
 import java.util.List;
 import java.util.Map;
@@ -72,9 +73,10 @@ public final class GrpcGetDataStream
   // If true, then active work refreshes will be sent as KeyedGetDataRequests. Otherwise, use the
   // newer ComputationHeartbeatRequests.
   private final boolean sendKeyedGetDataRequests;
-  private Consumer<List<ComputationHeartbeatResponse>> processHeartbeatResponses;
+  private final Consumer<List<ComputationHeartbeatResponse>> processHeartbeatResponses;
 
   private GrpcGetDataStream(
+      String backendWorkerToken,
       Function<StreamObserver<StreamingGetDataResponse>, StreamObserver<StreamingGetDataRequest>>
           startGetDataRpcFn,
       BackOff backoff,
@@ -88,7 +90,13 @@ public final class GrpcGetDataStream
       boolean sendKeyedGetDataRequests,
       Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses) {
     super(
-        startGetDataRpcFn, backoff, streamObserverFactory, streamRegistry, logEveryNStreamFailures);
+        "GetDataStream",
+        startGetDataRpcFn,
+        backoff,
+        streamObserverFactory,
+        streamRegistry,
+        logEveryNStreamFailures,
+        backendWorkerToken);
     this.idGenerator = idGenerator;
     this.getDataThrottleTimer = getDataThrottleTimer;
     this.jobHeader = jobHeader;
@@ -100,6 +108,7 @@ public final class GrpcGetDataStream
   }
 
   public static GrpcGetDataStream create(
+      String backendWorkerToken,
       Function<StreamObserver<StreamingGetDataResponse>, StreamObserver<StreamingGetDataRequest>>
           startGetDataRpcFn,
       BackOff backoff,
@@ -114,6 +123,7 @@ public final class GrpcGetDataStream
       Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses) {
     GrpcGetDataStream getDataStream =
         new GrpcGetDataStream(
+            backendWorkerToken,
             startGetDataRpcFn,
             backoff,
             streamObserverFactory,
@@ -189,11 +199,15 @@ public final class GrpcGetDataStream
   }
 
   @Override
-  public void refreshActiveWork(Map<String, List<HeartbeatRequest>> heartbeats) {
+  public void refreshActiveWork(Map<String, Collection<HeartbeatRequest>> heartbeats) {
+    if (isShutdown()) {
+      throw new WindmillStreamShutdownException("Unable to refresh work for shutdown stream.");
+    }
+
     StreamingGetDataRequest.Builder builder = StreamingGetDataRequest.newBuilder();
     if (sendKeyedGetDataRequests) {
       long builderBytes = 0;
-      for (Map.Entry<String, List<HeartbeatRequest>> entry : heartbeats.entrySet()) {
+      for (Map.Entry<String, Collection<HeartbeatRequest>> entry : heartbeats.entrySet()) {
         for (HeartbeatRequest request : entry.getValue()) {
           // Calculate the bytes with some overhead for proto encoding.
           long bytes = (long) entry.getKey().length() + request.getSerializedSize() + 10;
@@ -224,7 +238,7 @@ public final class GrpcGetDataStream
     } else {
       // No translation necessary, but we must still respect `RPC_STREAM_CHUNK_SIZE`.
       long builderBytes = 0;
-      for (Map.Entry<String, List<HeartbeatRequest>> entry : heartbeats.entrySet()) {
+      for (Map.Entry<String, Collection<HeartbeatRequest>> entry : heartbeats.entrySet()) {
         ComputationHeartbeatRequest.Builder computationHeartbeatBuilder =
             ComputationHeartbeatRequest.newBuilder().setComputationId(entry.getKey());
         for (HeartbeatRequest request : entry.getValue()) {

@@ -25,7 +25,9 @@ import mock
 
 # pylint: disable=unused-import
 try:
-  from apache_beam.examples.snippets.transforms.elementwise.enrichment import enrichment_with_bigtable
+  from apache_beam.examples.snippets.transforms.elementwise.enrichment import enrichment_with_bigtable, \
+  enrichment_with_vertex_ai_legacy
+  from apache_beam.examples.snippets.transforms.elementwise.enrichment import enrichment_with_vertex_ai
   from apache_beam.io.requestresponse import RequestResponseIO
 except ImportError:
   raise unittest.SkipTest('RequestResponseIO dependencies are not installed')
@@ -40,12 +42,45 @@ Row(sale_id=5, customer_id=5, product_id=4, quantity=2, product={'product_id': '
   return expected
 
 
+def validate_enrichment_with_vertex_ai():
+  expected = '''[START enrichment_with_vertex_ai]
+Row(user_id='2963', product_id=14235, sale_price=15.0, age=12.0, state='1', gender='1', country='1')
+Row(user_id='21422', product_id=11203, sale_price=12.0, age=12.0, state='0', gender='0', country='0')
+Row(user_id='20592', product_id=8579, sale_price=9.0, age=12.0, state='2', gender='1', country='2')
+  [END enrichment_with_vertex_ai]'''.splitlines()[1:-1]
+  return expected
+
+
+def validate_enrichment_with_vertex_ai_legacy():
+  expected = '''[START enrichment_with_vertex_ai_legacy]
+Row(entity_id='movie_01', title='The Shawshank Redemption', genres='Drama')
+Row(entity_id='movie_02', title='The Shining', genres='Horror')
+Row(entity_id='movie_04', title='The Dark Knight', genres='Action')
+  [END enrichment_with_vertex_ai_legacy]'''.splitlines()[1:-1]
+  return expected
+
+
 @mock.patch('sys.stdout', new_callable=StringIO)
 class EnrichmentTest(unittest.TestCase):
   def test_enrichment_with_bigtable(self, mock_stdout):
     enrichment_with_bigtable()
     output = mock_stdout.getvalue().splitlines()
     expected = validate_enrichment_with_bigtable()
+    self.assertEqual(output, expected)
+
+  def test_enrichment_with_vertex_ai(self, mock_stdout):
+    enrichment_with_vertex_ai()
+    output = mock_stdout.getvalue().splitlines()
+    expected = validate_enrichment_with_vertex_ai()
+
+    for i in range(len(expected)):
+      self.assertEqual(set(output[i].split(',')), set(expected[i].split(',')))
+
+  def test_enrichment_with_vertex_ai_legacy(self, mock_stdout):
+    enrichment_with_vertex_ai_legacy()
+    output = mock_stdout.getvalue().splitlines()
+    expected = validate_enrichment_with_vertex_ai_legacy()
+    self.maxDiff = None
     self.assertEqual(output, expected)
 
 

@@ -491,13 +491,7 @@ task tftTests {
 task mockAPITests {
   dependsOn 'initializeForDataflowJob'
   dependsOn ':sdks:python:sdist'
-  def requirementsFile = "${rootDir}/sdks/python/apache_beam/io/requestresponse_tests_requirements.txt"
-  doFirst {
-      exec {
-        executable 'sh'
-        args '-c', ". ${envdir}/bin/activate && pip install -r $requirementsFile"
-      }
-    }
+
  doLast {
   def testOpts = basicTestOpts
   def argMap = [
@@ -506,7 +500,6 @@ task mockAPITests {
     "runner": "TestDataflowRunner",
     "project": "apache-beam-testing",
     "region": "us-west1",
-    "requirements_file": "$requirementsFile"
   ]
   def cmdArgs = mapToArgString(argMap)
   exec {
@@ -530,8 +523,8 @@ project.tasks.register("inferencePostCommitIT") {
 
 
 // Create cross-language tasks for running tests against Java expansion service(s)
-def dataflowProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
-def dataflowRegion = project.findProperty('dataflowRegion') ?: 'us-central1'
+def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+def gcpRegion = project.findProperty('gcpRegion') ?: 'us-central1'
 
 project(":sdks:python:test-suites:xlang").ext.xlangTasks.each { taskMetadata ->
     createCrossLanguageUsingJavaExpansionTask(
@@ -540,8 +533,8 @@ project(":sdks:python:test-suites:xlang").ext.xlangTasks.each { taskMetadata ->
       collectMarker: taskMetadata.collectMarker,
       pythonPipelineOptions: [
         "--runner=TestDataflowRunner",
-        "--project=${dataflowProject}",
-        "--region=${dataflowRegion}",
+        "--project=${gcpProject}",
+        "--region=${gcpRegion}",
         "--sdk_container_image=gcr.io/apache-beam-testing/beam-sdk/beam_python${project.ext.pythonVersion}_sdk:latest",
         "--sdk_harness_container_image_overrides=.*java.*,gcr.io/apache-beam-testing/beam-sdk/beam_java8_sdk:latest"
       ],

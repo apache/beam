@@ -74,7 +74,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
@@ -139,3 +139,17 @@ jobs:
         with:
           name: Publish SpotBugs
           path: '**/build/reports/spotbugs/*.html'
+      - name: Set Jacoco report path
+        id: jacoco_report_path
+        run: |
+          echo "path=sdks/java/io/google-cloud-platform/build/reports/jacoco/test/jacocoTestReport.xml" >> $GITHUB_OUTPUT
+      - name: Archive Jacoco Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: Jacoco Results
+          path: '**/build/jacoco/report/**'
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ${{ steps.jacoco_report_path.outputs.path }}
+          flags: java

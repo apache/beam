@@ -101,7 +101,7 @@ Then, add the mainClass name in the Maven JAR plugin.
 {{< /highlight >}}
 
 {{< paragraph class="language-java" >}}
-After running <code>mvn package</code>, run <code>ls target</code> and you should see (assuming your artifactId is `beam-examples` and the version is 1.0.0) the following output.
+After running <code>mvn package -Pdataflow-runner</code>, run <code>ls target</code> and you should see (assuming your artifactId is `beam-examples` and the version is 1.0.0) the following output.
 {{< /paragraph >}}
 
 {{< highlight java >}}
@@ -117,7 +117,8 @@ java -jar target/beam-examples-bundled-1.0.0.jar \
   --runner=DataflowRunner \
   --project=<YOUR_GCP_PROJECT_ID> \
   --region=<GCP_REGION> \
-  --tempLocation=gs://<YOUR_GCS_BUCKET>/temp/
+  --tempLocation=gs://<YOUR_GCS_BUCKET>/temp/ \
+  --output=gs://<YOUR_GCS_BUCKET>/output
 {{< /highlight >}}
 
 ## Pipeline options for the Cloud Dataflow Runner {#pipeline-options}

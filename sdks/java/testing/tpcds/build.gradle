@@ -79,7 +79,7 @@ dependencies {
     implementation project(path: ":sdks:java:core", configuration: "shadow")
     testRuntimeOnly library.java.slf4j_jdk14
     testImplementation project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntimeMigration")
-    testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
+    testImplementation project(path: ":sdks:java:testing:test-utils")
     gradleRun project(project.path)
     gradleRun project(path: tpcdsRunnerDependency, configuration: runnerConfiguration)
 }
@@ -94,7 +94,7 @@ if (isSpark) {
 //
 // Parameters:
 //   -Ptpcds.runner
-//       Specify a runner subproject, such as ":runners:spark:3" or ":runners:flink:1.13"
+//       Specify a runner subproject, such as ":runners:spark:3" or ":runners:flink:1.17"
 //       Defaults to ":runners:direct-java"
 //
 //   -Ptpcds.args

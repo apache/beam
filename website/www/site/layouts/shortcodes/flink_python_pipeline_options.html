@@ -23,6 +23,11 @@ Should be called before running the tests.
   <td>Default: <code>false</code></td>
 </tr>
 <tr>
+  <td><code>attached_mode</code></td>
+  <td>Specifies if the pipeline is submitted in attached or detached mode</td>
+  <td>Default: <code>true</code></td>
+</tr>
+<tr>
   <td><code>auto_balance_write_files_sharding_enabled</code></td>
   <td>Flag indicating whether auto-balance sharding for WriteFiles transform should be enabled. This might prove useful in streaming use-case, where pipeline needs to write quite many events into files, typically divided into N shards. Default behavior on Flink would be, that some workers will receive more shards to take care of than others. This cause workers to go out of balance in terms of processing backlog and memory usage. Enabling this feature will make shards to be spread evenly among available workers in improve throughput and memory usage stability.</td>
   <td>Default: <code>false</code></td>
@@ -83,6 +88,11 @@ Should be called before running the tests.
   <td>Default: <code>false</code></td>
 </tr>
 <tr>
+  <td><code>file_input_split_max_size_m_b</code></td>
+  <td>Set the maximum size of input split when data is read from a filesystem. 0 implies no max size.</td>
+  <td>Default: <code>0</code></td>
+</tr>
+<tr>
   <td><code>finish_bundle_before_checkpointing</code></td>
   <td>If set, finishes the current bundle and flushes all output before checkpointing the state of the operators. By default, starts checkpointing immediately and buffers any remaining bundle output as part of the checkpoint. The setting may affect the checkpoint alignment.</td>
   <td>Default: <code>false</code></td>
@@ -98,19 +108,29 @@ Should be called before running the tests.
   <td>Default: <code>[auto]</code></td>
 </tr>
 <tr>
+  <td><code>force_unaligned_checkpoint_enabled</code></td>
+  <td>Forces unaligned checkpoints, particularly allowing them for iterative jobs.</td>
+  <td>Default: <code>false</code></td>
+</tr>
+<tr>
+  <td><code>job_check_interval_in_secs</code></td>
+  <td>Set job check interval in seconds under detached mode in method waitUntilFinish, by default it is 5 seconds</td>
+  <td>Default: <code>5</code></td>
+</tr>
+<tr>
   <td><code>latency_tracking_interval</code></td>
   <td>Interval in milliseconds for sending latency tracking marks from the sources to the sinks. Interval value <= 0 disables the feature.</td>
   <td>Default: <code>0</code></td>
 </tr>
 <tr>
   <td><code>max_bundle_size</code></td>
-  <td>The maximum number of elements in a bundle.</td>
-  <td>Default: <code>1000</code></td>
+  <td>The maximum number of elements in a bundle. Default values are 1000 for a streaming job and 1,000,000 for batch</td>
+  <td>Default: <code>MaxBundleSizeFactory</code></td>
 </tr>
 <tr>
   <td><code>max_bundle_time_mills</code></td>
-  <td>The maximum time to wait before finalising a bundle (in milliseconds).</td>
-  <td>Default: <code>1000</code></td>
+  <td>The maximum time to wait before finalising a bundle (in milliseconds). Default values are 1000 for streaming and 10,000 for batch.</td>
+  <td>Default: <code>MaxBundleTimeFactory</code></td>
 </tr>
 <tr>
   <td><code>max_parallelism</code></td>
@@ -186,5 +206,10 @@ Should be called before running the tests.
   <td><code>state_backend_storage_path</code></td>
   <td>State backend path to persist state backend data. Used to initialize state backend.</td>
   <td></td>
+</tr>
+<tr>
+  <td><code>unaligned_checkpoint_enabled</code></td>
+  <td>If set, Unaligned checkpoints contain in-flight data (i.e., data stored in buffers) as part of the checkpoint state, allowing checkpoint barriers to overtake these buffers. Thus, the checkpoint duration becomes independent of the current throughput as checkpoint barriers are effectively not embedded into the stream of data anymore</td>
+  <td>Default: <code>false</code></td>
 </tr>
 </table>

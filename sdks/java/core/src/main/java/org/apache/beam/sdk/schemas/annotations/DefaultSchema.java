@@ -101,7 +101,7 @@ public @interface DefaultSchema {
                 try {
                   return new ProviderAndDescriptor(
                       providerClass.getDeclaredConstructor().newInstance(),
-                      TypeDescriptor.of(clazz));
+                      typeDescriptor.getSupertype((Class) clazz));
                 } catch (NoSuchMethodException
                     | InstantiationException
                     | IllegalAccessException
@@ -121,6 +121,24 @@ public @interface DefaultSchema {
             } while (clazz != null && !clazz.equals(Object.class));
             return null;
           });
+    }
+
+    /**
+     * Retrieves the underlying {@link SchemaProvider} for the given {@link TypeDescriptor}. If no
+     * provider is found, returns null.
+     */
+    public @Nullable <T> SchemaProvider getUnderlyingSchemaProvider(
+        TypeDescriptor<T> typeDescriptor) {
+      ProviderAndDescriptor providerAndDescriptor = getSchemaProvider(typeDescriptor);
+      return providerAndDescriptor != null ? providerAndDescriptor.schemaProvider : null;
+    }
+
+    /**
+     * Retrieves the underlying {@link SchemaProvider} for the given {@link Class}. If no provider
+     * is found, returns null.
+     */
+    public @Nullable <T> SchemaProvider getUnderlyingSchemaProvider(Class<T> clazz) {
+      return getUnderlyingSchemaProvider(TypeDescriptor.of(clazz));
     }
 
     @Override

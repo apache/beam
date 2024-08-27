@@ -124,6 +124,54 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
 
   void setGcsPerformanceMetrics(Boolean reportPerformanceMetrics);
 
+  @Description("Read timeout for gcs http requests")
+  @Nullable
+  Integer getGcsHttpRequestReadTimeout();
+
+  void setGcsHttpRequestReadTimeout(@Nullable Integer timeoutMs);
+
+  @Description("Write timeout for gcs http requests.")
+  @Nullable
+  Integer getGcsHttpRequestWriteTimeout();
+
+  void setGcsHttpRequestWriteTimeout(@Nullable Integer timeoutMs);
+
+  @Description("Batching limit for rewrite ops which will copy data.")
+  @Nullable
+  Integer getGcsRewriteDataOpBatchLimit();
+
+  void setGcsRewriteDataOpBatchLimit(@Nullable Integer timeoutMs);
+
+  /** If true, reports number of bytes written to each gcs bucket. */
+  @Description("Whether to report number of bytes written per GCS bucket.")
+  @Default.Boolean(false)
+  Boolean getEnableBucketWriteMetricCounter();
+
+  void setEnableBucketWriteMetricCounter(Boolean enableBucketWriteMetricCounter);
+
+  /** If true, reports number of bytes read from each gcs bucket. */
+  @Description("Whether to report number of bytes read per GCS bucket.")
+  @Default.Boolean(false)
+  Boolean getEnableBucketReadMetricCounter();
+
+  void setEnableBucketReadMetricCounter(Boolean enableBucketReadMetricCounter);
+
+  @Description(
+      "Prefix for the metric that counts the number of bytes read per GCS bucket. The resulting"
+          + " metric name will be formatted according to this template: <prefix>_<bucket_name>.")
+  @Default.String("GCS_read_bytes_counter")
+  String getGcsReadCounterPrefix();
+
+  void setGcsReadCounterPrefix(String gcsReadCounterPrefix);
+
+  @Description(
+      "Prefix for the metric that counts the number of bytes written per GCS bucket. The resulting"
+          + " metric name will be formatted according to this template: <prefix>_<bucket_name>.")
+  @Default.String("GCS_write_bytes_counter")
+  String getGcsWriteCounterPrefix();
+
+  void setGcsWriteCounterPrefix(String gcsReadCounterPrefix);
+
   /**
    * Returns the default {@link ExecutorService} to use within the Apache Beam SDK. The {@link
    * ExecutorService} is compatible with AppEngine.

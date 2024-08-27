@@ -23,10 +23,10 @@ import com.google.pubsub.v1.ReceivedMessage;
 import com.google.pubsub.v1.SubscriptionName;
 import java.util.ArrayList;
 import java.util.List;
-import javax.annotation.Nullable;
 import org.apache.beam.it.conditions.ConditionCheck;
 import org.apache.beam.it.gcp.pubsub.PubsubResourceManager;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** ConditionCheck to validate if Pub/Sub has received a certain amount of messages. */
 @AutoValue
@@ -38,8 +38,7 @@ public abstract class PubsubMessagesCheck extends ConditionCheck {
 
   abstract Integer minMessages();
 
-  @Nullable
-  abstract Integer maxMessages();
+  abstract @Nullable Integer maxMessages();
 
   private final List<ReceivedMessage> receivedMessageList = new ArrayList<>();
 

@@ -39,7 +39,7 @@ dependencies {
   implementation library.java.vendored_guava_32_1_2_jre
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation project(path: ":runners:core-java")
-  implementation library.java.google_http_client_jackson2
+  implementation library.java.google_http_client_gson
   implementation library.java.google_auth_library_oauth2_http
   implementation library.java.google_api_client
   implementation library.java.bigdataoss_gcsio
@@ -87,8 +87,32 @@ task integrationTestKms(type: Test) {
   }
 }
 
+// Note that no runner is specified here, so tests running under this task should not be running
+// pipelines.
+task integrationTestNoKms(type: Test) {
+  group = "Verification"
+  def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+  def gcpTempRoot = project.findProperty('gcpTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests-cmek'
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+          "--project=${gcpProject}",
+          "--tempRoot=${gcpTempRoot}",
+  ])
+
+  // Disable Gradle cache: these ITs interact with live service that should always be considered "out of date"
+  outputs.upToDateWhen { false }
+
+  include '**/*IT.class'
+  maxParallelForks 4
+  classpath = sourceSets.test.runtimeClasspath
+  testClassesDirs = sourceSets.test.output.classesDirs
+  useJUnit {
+    excludeCategories "org.apache.beam.sdk.testing.UsesKms"
+  }
+}
+
 task postCommit {
   group = "Verification"
   description = "Integration tests of GCP connectors using the DirectRunner."
   dependsOn integrationTestKms
+  dependsOn integrationTestNoKms
 }

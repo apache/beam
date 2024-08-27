@@ -135,8 +135,7 @@ class FileBasedSource(iobase.BoundedSource):
     }
 
   @check_accessible(['_pattern'])
-  def _get_concat_source(self):
-    # type: () -> concat_source.ConcatSource
+  def _get_concat_source(self) -> concat_source.ConcatSource:
     if self._concat_source is None:
       pattern = self._pattern.get()
 
@@ -369,9 +368,8 @@ class _ExpandIntoRanges(DoFn):
 class _ReadRange(DoFn):
   def __init__(
       self,
-      source_from_file,  # type: Union[str, iobase.BoundedSource]
-      with_filename=False  # type: bool
-    ) -> None:
+      source_from_file: Union[str, iobase.BoundedSource],
+      with_filename: bool = False) -> None:
     self._source_from_file = source_from_file
     self._with_filename = with_filename
 
@@ -402,14 +400,14 @@ class ReadAllFiles(PTransform):
   PTransform authors who wishes to implement file-based Read transforms that
   read a PCollection of files.
   """
-  def __init__(self,
-               splittable,  # type: bool
-               compression_type,
-               desired_bundle_size,  # type: int
-               min_bundle_size,  # type: int
-               source_from_file,  # type: Callable[[str], iobase.BoundedSource]
-               with_filename=False  # type: bool
-              ):
+  def __init__(
+      self,
+      splittable: bool,
+      compression_type,
+      desired_bundle_size: int,
+      min_bundle_size: int,
+      source_from_file: Callable[[str], iobase.BoundedSource],
+      with_filename: bool = False):
     """
     Args:
       splittable: If False, files won't be split into sub-ranges. If True,

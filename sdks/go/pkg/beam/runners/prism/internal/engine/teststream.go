@@ -46,13 +46,15 @@ type testStreamHandler struct {
 
 	tagState map[string]tagState // Map from event tag to related outputs.
 
-	completed bool // indicates that no further test stream events exist, and all watermarks are advanced to infinity. Used to send the final event, once.
+	currentHold mtime.Time // indicates if the default watermark hold has been lifted.
+	completed   bool       // indicates that no further test stream events exist, and all watermarks are advanced to infinity. Used to send the final event, once.
 }
 
 func makeTestStreamHandler(id string) *testStreamHandler {
 	return &testStreamHandler{
-		ID:       id,
-		tagState: map[string]tagState{},
+		ID:          id,
+		tagState:    map[string]tagState{},
+		currentHold: mtime.MinTimestamp,
 	}
 }
 
@@ -64,8 +66,8 @@ type tagState struct {
 
 // Now represents the overridden ProcessingTime, which is only advanced when directed by an event.
 // Overrides the elementManager "clock".
-func (ts *testStreamHandler) Now() time.Time {
-	return ts.processingTime
+func (ts *testStreamHandler) Now() mtime.Time {
+	return mtime.FromTime(ts.processingTime)
 }
 
 // TagsToPCollections recieves the map of local output tags to global pcollection ids.
@@ -124,6 +126,31 @@ func (ts *testStreamHandler) NextEvent() tsEvent {
 	return ev
 }
 
+// UpdateHold restrains the watermark based on upcoming elements in the test stream queue
+// This uses the element manager's normal hold mechnanisms to avoid premature pipeline termination,
+// when there are still remaining events to process.
+func (ts *testStreamHandler) UpdateHold(em *ElementManager, newHold mtime.Time) {
+	if ts == nil {
+		return
+	}
+
+	ss := em.stages[ts.ID]
+	ss.mu.Lock()
+	defer ss.mu.Unlock()
+
+	ss.watermarkHolds.Drop(ts.currentHold, 1)
+	ts.currentHold = newHold
+	ss.watermarkHolds.Add(ts.currentHold, 1)
+
+	// kick the TestStream and Impulse stages too.
+	kick := singleSet(ts.ID)
+	kick.merge(em.impulses)
+
+	// This executes under the refreshCond lock, so we can't call em.addRefreshes.
+	em.changedStages.merge(kick)
+	em.refreshCond.Broadcast()
+}
+
 // TestStreamElement wraps the provided bytes and timestamp for ingestion and use.
 type TestStreamElement struct {
 	Encoded   []byte
@@ -163,13 +190,13 @@ func (ev tsElementEvent) Execute(em *ElementManager) {
 		ss := em.stages[sID]
 		added := ss.AddPending(pending)
 		em.addPending(added)
-		em.watermarkRefreshes.insert(sID)
+		em.changedStages.insert(sID)
 	}
 
 	for _, link := range em.sideConsumers[t.pcollection] {
 		ss := em.stages[link.Global]
 		ss.AddPendingSide(pending, link.Transform, link.Local)
-		em.watermarkRefreshes.insert(link.Global)
+		em.changedStages.insert(link.Global)
 	}
 }
 
@@ -193,8 +220,10 @@ func (ev tsWatermarkEvent) Execute(em *ElementManager) {
 	for _, sID := range em.consumers[t.pcollection] {
 		ss := em.stages[sID]
 		ss.updateUpstreamWatermark(ss.inputID, t.watermark)
-		em.watermarkRefreshes.insert(sID)
+		em.changedStages.insert(sID)
 	}
+	// Clear the default hold after the inserts have occured.
+	em.testStreamHandler.UpdateHold(em, t.watermark)
 }
 
 // tsProcessingTimeEvent implements advancing the synthetic processing time.
@@ -205,6 +234,14 @@ type tsProcessingTimeEvent struct {
 // Execute this ProcessingTime event by advancing the synthetic processing time.
 func (ev tsProcessingTimeEvent) Execute(em *ElementManager) {
 	em.testStreamHandler.processingTime = em.testStreamHandler.processingTime.Add(ev.AdvanceBy)
+	if em.testStreamHandler.processingTime.After(mtime.MaxTimestamp.ToTime()) || ev.AdvanceBy == time.Duration(mtime.MaxTimestamp) {
+		em.testStreamHandler.processingTime = mtime.MaxTimestamp.ToTime()
+	}
+
+	// Add the refreshes now so our block prevention logic works.
+	emNow := em.ProcessingTimeNow()
+	toRefresh := em.processTimeEvents.AdvanceTo(emNow)
+	em.changedStages.merge(toRefresh)
 }
 
 // tsFinalEvent is the "last" event we perform after all preceeding events.
@@ -215,11 +252,11 @@ type tsFinalEvent struct {
 }
 
 func (ev tsFinalEvent) Execute(em *ElementManager) {
-	em.addPending(1) // We subtrack a pending after event execution, so add one now.
+	em.testStreamHandler.UpdateHold(em, mtime.MaxTimestamp)
 	ss := em.stages[ev.stageID]
 	kickSet := ss.updateWatermarks(em)
 	kickSet.insert(ev.stageID)
-	em.watermarkRefreshes.merge(kickSet)
+	em.changedStages.merge(kickSet)
 }
 
 // TestStreamBuilder builds a synthetic sequence of events for the engine to execute.
@@ -242,6 +279,12 @@ var (
 func (tsi *testStreamImpl) initHandler(id string) {
 	if tsi.em.testStreamHandler == nil {
 		tsi.em.testStreamHandler = makeTestStreamHandler(id)
+
+		ss := tsi.em.stages[id]
+		tsi.em.addPending(1) // We subtrack a pending after event execution, so add one now for the final event to avoid a race condition.
+
+		// Arrest the watermark initially to prevent terminal advancement.
+		ss.watermarkHolds.Add(tsi.em.testStreamHandler.currentHold, 1)
 	}
 }
 

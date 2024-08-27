@@ -21,6 +21,7 @@ import static junit.framework.TestCase.assertNotNull;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.google.api.client.testing.http.FixedClock;
 import com.google.api.client.util.Clock;
@@ -30,6 +31,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.List;
+import org.apache.beam.runners.core.SimpleDoFnRunner;
 import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
@@ -167,56 +169,35 @@ public class DataflowExecutionStateTrackerTest {
 
   @Test
   public void testLullReportsRightTrace() throws Exception {
+    Thread mockThread = mock(Thread.class);
+    StackTraceElement[] doFnStackTrace =
+        new StackTraceElement[] {
+          new StackTraceElement(
+              "userpackage.SomeUserDoFn", "helperMethod", "SomeUserDoFn.java", 250),
+          new StackTraceElement("userpackage.SomeUserDoFn", "process", "SomeUserDoFn.java", 450),
+          new StackTraceElement(
+              SimpleDoFnRunner.class.getName(), "processElement", "SimpleDoFnRunner.java", 500),
+        };
+    when(mockThread.getStackTrace()).thenReturn(doFnStackTrace);
     FixedClock clock = new FixedClock(Clock.SYSTEM.currentTimeMillis());
     DataflowExecutionStateTracker tracker = createTracker(clock);
-    // Adding test for the full thread dump, but since we can't mock
-    // Thread.getAllStackTraces(), we are starting a background thread
-    // to verify the full thread dump.
-    Thread backgroundThread =
-        new Thread("backgroundThread") {
-          @Override
-          public void run() {
-            try {
-              Thread.sleep(Long.MAX_VALUE);
-            } catch (InterruptedException e) {
-              // exiting the thread
-            }
-          }
-        };
+    tracker.reportBundleLull(mockThread, 30 * 60 * 1000);
+    verifyLullLog();
 
-    backgroundThread.start();
-    try {
-      // Full thread dump should be performed, because we never performed
-      // a full thread dump before, and the lull duration is more than 20
-      // minutes.
-      tracker.reportBundleLull(30 * 60 * 1000);
-      verifyLullLog(true);
+    clock.setTime(clock.currentTimeMillis() + Duration.standardMinutes(5L).getMillis());
+    tracker.reportBundleLull(mockThread, 30 * 60 * 1000);
+    verifyLullLog();
 
-      // Full thread dump should not be performed because the last dump
-      // was only 5 minutes ago.
-      clock.setTime(clock.currentTimeMillis() + Duration.standardMinutes(5L).getMillis());
-      tracker.reportBundleLull(30 * 60 * 1000);
-      verifyLullLog(false);
+    clock.setTime(clock.currentTimeMillis() + Duration.standardMinutes(16L).getMillis());
+    tracker.reportBundleLull(mockThread, 6 * 60 * 1000);
+    verifyLullLog();
 
-      // Full thread dump should not be performed because the lull duration
-      // is only 6 minutes.
-      clock.setTime(clock.currentTimeMillis() + Duration.standardMinutes(16L).getMillis());
-      tracker.reportBundleLull(6 * 60 * 1000);
-      verifyLullLog(false);
-
-      // Full thread dump should be performed, because it has been 21 minutes
-      // since the last dump, and the lull duration is more than 20 minutes.
-      clock.setTime(clock.currentTimeMillis() + Duration.standardMinutes(16L).getMillis());
-      tracker.reportBundleLull(30 * 60 * 1000);
-      // verifyLullLog(true);
-    } finally {
-      // Cleaning up the background thread.
-      backgroundThread.interrupt();
-      backgroundThread.join();
-    }
+    clock.setTime(clock.currentTimeMillis() + Duration.standardMinutes(16L).getMillis());
+    tracker.reportBundleLull(mockThread, 30 * 60 * 1000);
+    verifyLullLog();
   }
 
-  private void verifyLullLog(boolean hasFullThreadDump) throws IOException {
+  private void verifyLullLog() throws IOException {
     File[] files = logFolder.listFiles();
     assertThat(files, Matchers.arrayWithSize(1));
     File logFile = files[0];
@@ -231,25 +212,19 @@ public class DataflowExecutionStateTrackerTest {
             Matchers.containsString(" without completing"),
             Matchers.containsString("Processing times in each step"),
             Matchers.containsString(
-                "org.apache.beam.runners.dataflow.worker.DataflowExecutionContext$DataflowExecutionStateTracker")));
+                "org.apache.beam.runners.dataflow.worker.DataflowExecutionContext$DataflowExecutionStateTracker"),
+            Matchers.containsString("userpackage.SomeUserDoFn.helperMethod"),
+            Matchers.not(Matchers.containsString(SimpleDoFnRunner.class.getName()))));
 
     String infoLines =
         Joiner.on("\n").join(Iterables.filter(lines, line -> line.contains("\"INFO\"")));
-    if (hasFullThreadDump) {
-      assertThat(
-          infoLines,
-          Matchers.allOf(
-              Matchers.containsString("Thread[backgroundThread,"),
-              Matchers.containsString("org.apache.beam.runners.dataflow.worker.StackTraceUtil")));
-    } else {
-      assertThat(
-          infoLines,
-          Matchers.not(
-              Matchers.anyOf(
-                  Matchers.containsString("Thread[backgroundThread,"),
-                  Matchers.containsString(
-                      "org.apache.beam.runners.dataflow.worker.StackTraceUtil"))));
-    }
+    assertThat(
+        infoLines,
+        Matchers.not(
+            Matchers.anyOf(
+                Matchers.containsString("Thread[backgroundThread,"),
+                Matchers.containsString(
+                    "org.apache.beam.runners.dataflow.worker.StackTraceUtil"))));
     // Truncate the file when done to prepare for the next test.
     new FileOutputStream(logFile, false).getChannel().truncate(0).close();
   }

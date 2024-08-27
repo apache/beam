@@ -51,7 +51,7 @@ permissions:
   statuses: read
 
 env:
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
@@ -81,7 +81,7 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          java-version: 11
+          java-version: default
       - name: Build and Test
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
@@ -115,3 +115,17 @@ jobs:
         with:
           name: Publish SpotBugs
           path: '**/build/reports/spotbugs/*.html'
+      - name: Set Jacoco report path
+        id: jacoco_report_path
+        run: |
+          echo "path=sdks/java/extensions/sql/build/reports/jacoco/test/jacocoTestReport.xml" >> $GITHUB_OUTPUT
+      - name: Archive Jacoco Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: Jacoco Results
+          path: '**/build/jacoco/report/**'
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ${{ steps.jacoco_report_path.outputs.path }}
+          flags: java

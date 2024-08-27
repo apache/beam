@@ -107,7 +107,11 @@ public class KafkaIOExternalTest {
                         Field.of("value_deserializer", FieldType.STRING),
                         Field.of("start_read_time", FieldType.INT64),
                         Field.of("commit_offset_in_finalize", FieldType.BOOLEAN),
-                        Field.of("timestamp_policy", FieldType.STRING)))
+                        Field.of("timestamp_policy", FieldType.STRING),
+                        Field.of("consumer_polling_timeout", FieldType.INT64),
+                        Field.of("redistribute_num_keys", FieldType.INT32),
+                        Field.of("redistribute", FieldType.BOOLEAN),
+                        Field.of("allow_duplicates", FieldType.BOOLEAN)))
                 .withFieldValue("topics", topics)
                 .withFieldValue("consumer_config", consumerConfig)
                 .withFieldValue("key_deserializer", keyDeserializer)
@@ -115,6 +119,10 @@ public class KafkaIOExternalTest {
                 .withFieldValue("start_read_time", startReadTime)
                 .withFieldValue("commit_offset_in_finalize", false)
                 .withFieldValue("timestamp_policy", "ProcessingTime")
+                .withFieldValue("consumer_polling_timeout", 5L)
+                .withFieldValue("redistribute_num_keys", 0)
+                .withFieldValue("redistribute", false)
+                .withFieldValue("allow_duplicates", false)
                 .build());
 
     RunnerApi.Components defaultInstance = RunnerApi.Components.getDefaultInstance();
@@ -137,6 +145,7 @@ public class KafkaIOExternalTest {
     expansionService.expand(request, observer);
     ExpansionApi.ExpansionResponse result = observer.result;
     RunnerApi.PTransform transform = result.getTransform();
+    System.out.println("xxx : " + result.toString());
     assertThat(
         transform.getSubtransformsList(),
         Matchers.hasItem(MatchesPattern.matchesPattern(".*KafkaIO-Read.*")));
@@ -235,7 +244,10 @@ public class KafkaIOExternalTest {
                         Field.of("value_deserializer", FieldType.STRING),
                         Field.of("start_read_time", FieldType.INT64),
                         Field.of("commit_offset_in_finalize", FieldType.BOOLEAN),
-                        Field.of("timestamp_policy", FieldType.STRING)))
+                        Field.of("timestamp_policy", FieldType.STRING),
+                        Field.of("redistribute_num_keys", FieldType.INT32),
+                        Field.of("redistribute", FieldType.BOOLEAN),
+                        Field.of("allow_duplicates", FieldType.BOOLEAN)))
                 .withFieldValue("topics", topics)
                 .withFieldValue("consumer_config", consumerConfig)
                 .withFieldValue("key_deserializer", keyDeserializer)
@@ -243,6 +255,9 @@ public class KafkaIOExternalTest {
                 .withFieldValue("start_read_time", startReadTime)
                 .withFieldValue("commit_offset_in_finalize", false)
                 .withFieldValue("timestamp_policy", "ProcessingTime")
+                .withFieldValue("redistribute_num_keys", 0)
+                .withFieldValue("redistribute", false)
+                .withFieldValue("allow_duplicates", false)
                 .build());
 
     RunnerApi.Components defaultInstance = RunnerApi.Components.getDefaultInstance();
@@ -265,6 +280,7 @@ public class KafkaIOExternalTest {
     expansionService.expand(request, observer);
     ExpansionApi.ExpansionResponse result = observer.result;
     RunnerApi.PTransform transform = result.getTransform();
+
     assertThat(
         transform.getSubtransformsList(),
         Matchers.hasItem(MatchesPattern.matchesPattern(".*KafkaIO-Read.*")));

@@ -445,7 +445,7 @@ public class WorkerCustomSources {
 
         UnboundedSource<T, UnboundedSource.CheckpointMark> splitSource = parseSource(splitIndex);
 
-        UnboundedSource.CheckpointMark checkpoint = null;
+        UnboundedSource.@Nullable CheckpointMark checkpoint = null;
         if (splitSource.getCheckpointMarkCoder() != null) {
           checkpoint = context.getReaderCheckpoint(splitSource.getCheckpointMarkCoder());
         }
@@ -796,9 +796,8 @@ public class WorkerCustomSources {
       this.context = context;
       this.started = started;
       DataflowPipelineDebugOptions debugOptions = options.as(DataflowPipelineDebugOptions.class);
-      this.endTime =
-          Instant.now()
-              .plus(Duration.standardSeconds(debugOptions.getUnboundedReaderMaxReadTimeSec()));
+      long maxReadTimeMs = debugOptions.getUnboundedReaderMaxReadTimeMs();
+      this.endTime = Instant.now().plus(Duration.millis(maxReadTimeMs));
       this.maxElems = debugOptions.getUnboundedReaderMaxElements();
       this.backoffFactory =
           FluentBackoff.DEFAULT

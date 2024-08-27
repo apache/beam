@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter.BAD_R
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -57,7 +58,6 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
@@ -257,8 +257,8 @@ public class ReadFromKafkaDoFnTest {
                 topicPartition.topic(),
                 topicPartition.partition(),
                 startOffset + i,
-                key.getBytes(Charsets.UTF_8),
-                value.getBytes(Charsets.UTF_8)));
+                key.getBytes(StandardCharsets.UTF_8),
+                value.getBytes(StandardCharsets.UTF_8)));
       }
       if (records.isEmpty()) {
         return ConsumerRecords.empty();
@@ -515,7 +515,7 @@ public class ReadFromKafkaDoFnTest {
   public void testProcessElementWhenTopicPartitionIsRemoved() throws Exception {
     MockMultiOutputReceiver receiver = new MockMultiOutputReceiver();
     consumer.setRemoved();
-    consumer.setNumOfRecordsPerPoll(10);
+    consumer.setNumOfRecordsPerPoll(-1);
     OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(0L, Long.MAX_VALUE));
     ProcessContinuation result =
         dofnInstance.processElement(
@@ -639,6 +639,19 @@ public class ReadFromKafkaDoFnTest {
   public void testUnbounded() {
     BoundednessVisitor visitor = testBoundedness(rsd -> rsd);
     Assert.assertNotEquals(0, visitor.unboundedPCollections.size());
+  }
+
+  @Test
+  public void testConstructorWithPollTimeout() {
+    ReadSourceDescriptors<String, String> descriptors = makeReadSourceDescriptor(consumer);
+    // default poll timeout = 1 scond
+    ReadFromKafkaDoFn<String, String> dofnInstance = ReadFromKafkaDoFn.create(descriptors, RECORDS);
+    Assert.assertEquals(2L, dofnInstance.consumerPollingTimeout);
+    // updated timeout = 5 seconds
+    descriptors = descriptors.withConsumerPollingTimeout(5L);
+    ReadFromKafkaDoFn<String, String> dofnInstanceNew =
+        ReadFromKafkaDoFn.create(descriptors, RECORDS);
+    Assert.assertEquals(5L, dofnInstanceNew.consumerPollingTimeout);
   }
 
   private BoundednessVisitor testBoundedness(

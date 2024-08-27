@@ -36,6 +36,7 @@ import org.joda.time.Duration;
 public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonNull Object>
     extends StorageApiDynamicDestinations<T, DestinationT> {
   private final SerializableFunction<T, TableRow> formatFunction;
+  private final @Nullable SerializableFunction<T, TableRow> formatRecordOnFailureFunction;
 
   private final boolean usesCdc;
   private final CreateDisposition createDisposition;
@@ -51,12 +52,14 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
   StorageApiDynamicDestinationsTableRow(
       DynamicDestinations<T, DestinationT> inner,
       SerializableFunction<T, TableRow> formatFunction,
+      @Nullable SerializableFunction<T, TableRow> formatRecordOnFailureFunction,
       boolean usesCdc,
       CreateDisposition createDisposition,
       boolean ignoreUnknownValues,
       boolean autoSchemaUpdates) {
     super(inner);
     this.formatFunction = formatFunction;
+    this.formatRecordOnFailureFunction = formatRecordOnFailureFunction;
     this.usesCdc = usesCdc;
     this.createDisposition = createDisposition;
     this.ignoreUnknownValues = ignoreUnknownValues;
@@ -151,8 +154,12 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
     }
 
     @Override
-    public TableRow toTableRow(T element) {
-      return formatFunction.apply(element);
+    public TableRow toFailsafeTableRow(T element) {
+      if (formatRecordOnFailureFunction != null) {
+        return formatRecordOnFailureFunction.apply(element);
+      } else {
+        return formatFunction.apply(element);
+      }
     }
 
     @Override
@@ -161,11 +168,11 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
       TableRow tableRow = formatFunction.apply(element);
 
       String changeType = null;
-      long changeSequenceNum = -1;
+      String changeSequenceNum = null;
       Descriptor descriptorToUse = descriptor;
       if (rowMutationInformation != null) {
         changeType = rowMutationInformation.getMutationType().toString();
-        changeSequenceNum = rowMutationInformation.getSequenceNumber();
+        changeSequenceNum = rowMutationInformation.getChangeSequenceNumber();
         descriptorToUse = Preconditions.checkStateNotNull(cdcDescriptor);
       }
       // If autoSchemaUpdates==true, then we allow unknown values at this step and insert them into
@@ -183,7 +190,10 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
               unknownFields,
               changeType,
               changeSequenceNum);
-      return StorageApiWritePayload.of(msg.toByteArray(), unknownFields);
+      return StorageApiWritePayload.of(
+          msg.toByteArray(),
+          unknownFields,
+          formatRecordOnFailureFunction != null ? toFailsafeTableRow(element) : null);
     }
   };
 }

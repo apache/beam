@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.util.construction;
 
+import static org.apache.beam.model.pipeline.v1.ExternalTransforms.Annotations;
+import static org.apache.beam.model.pipeline.v1.ExternalTransforms.ExpansionMethods.Enum.SCHEMA_TRANSFORM;
 import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
@@ -30,6 +32,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.ServiceLoader;
 import java.util.Set;
+import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardPTransforms;
@@ -41,6 +44,7 @@ import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -92,14 +96,11 @@ public class PTransformTranslation {
   public static final String MAP_WINDOWS_TRANSFORM_URN = "beam:transform:map_windows:v1";
   public static final String MERGE_WINDOWS_TRANSFORM_URN = "beam:transform:merge_windows:v1";
   public static final String TO_STRING_TRANSFORM_URN = "beam:transform:to_string:v1";
+  public static final String MANAGED_TRANSFORM_URN = "beam:transform:managed:v1";
 
   // Required runner implemented transforms. These transforms should never specify an environment.
   public static final ImmutableSet<String> RUNNER_IMPLEMENTED_TRANSFORMS =
       ImmutableSet.of(GROUP_BY_KEY_TRANSFORM_URN, IMPULSE_TRANSFORM_URN);
-
-  public static final String CONFIG_ROW_KEY = "config_row";
-
-  public static final String CONFIG_ROW_SCHEMA_KEY = "config_row_schema";
 
   // DeprecatedPrimitives
   /**
@@ -119,6 +120,9 @@ public class PTransformTranslation {
   public static final String COMBINE_PER_KEY_TRANSFORM_URN = "beam:transform:combine_per_key:v1";
   public static final String COMBINE_GLOBALLY_TRANSFORM_URN = "beam:transform:combine_globally:v1";
   public static final String RESHUFFLE_URN = "beam:transform:reshuffle:v1";
+  public static final String REDISTRIBUTE_BY_KEY_URN = "beam:transform:redistribute_by_key:v1";
+  public static final String REDISTRIBUTE_ARBITRARILY_URN =
+      "beam:transform:redistribute_arbitrarily:v1";
   public static final String WRITE_FILES_TRANSFORM_URN = "beam:transform:write_files:v1";
   public static final String GROUP_INTO_BATCHES_WITH_SHARDED_KEY_URN =
       "beam:transform:group_into_batches_with_sharded_key:v1";
@@ -197,6 +201,11 @@ public class PTransformTranslation {
         COMBINE_GLOBALLY_TRANSFORM_URN.equals(
             getUrn(StandardPTransforms.Composites.COMBINE_GLOBALLY)));
     checkState(RESHUFFLE_URN.equals(getUrn(StandardPTransforms.Composites.RESHUFFLE)));
+    checkState(
+        REDISTRIBUTE_BY_KEY_URN.equals(getUrn(StandardPTransforms.Composites.REDISTRIBUTE_BY_KEY)));
+    checkState(
+        REDISTRIBUTE_ARBITRARILY_URN.equals(
+            getUrn(StandardPTransforms.Composites.REDISTRIBUTE_ARBITRARILY)));
     checkState(
         WRITE_FILES_TRANSFORM_URN.equals(getUrn(StandardPTransforms.Composites.WRITE_FILES)));
     checkState(PUBSUB_READ.equals(getUrn(StandardPTransforms.Composites.PUBSUB_READ)));
@@ -509,6 +518,31 @@ public class PTransformTranslation {
                 components.getEnvironmentIdFor(appliedPTransform.getResourceHints()));
           }
         }
+
+        if (spec.getUrn().equals(BeamUrns.getUrn(SCHEMA_TRANSFORM))) {
+          ExternalTransforms.SchemaTransformPayload payload =
+              ExternalTransforms.SchemaTransformPayload.parseFrom(spec.getPayload());
+          String identifier = payload.getIdentifier();
+          transformBuilder.putAnnotations(
+              BeamUrns.getConstant(Annotations.Enum.SCHEMATRANSFORM_URN_KEY),
+              ByteString.copyFromUtf8(identifier));
+          if (identifier.equals(MANAGED_TRANSFORM_URN)) {
+            Schema configSchema =
+                SchemaTranslation.schemaFromProto(payload.getConfigurationSchema());
+            Row configRow =
+                RowCoder.of(configSchema).decode(payload.getConfigurationRow().newInput());
+            String underlyingIdentifier = configRow.getString("transform_identifier");
+            if (underlyingIdentifier == null) {
+              throw new IllegalStateException(
+                  String.format(
+                      "Encountered a Managed Transform that has an empty \"transform_identifier\": %n%s",
+                      configRow));
+            }
+            transformBuilder.putAnnotations(
+                BeamUrns.getConstant(Annotations.Enum.MANAGED_UNDERLYING_TRANSFORM_URN_KEY),
+                ByteString.copyFromUtf8(underlyingIdentifier));
+          }
+        }
       }
 
       Row configRow = null;
@@ -527,12 +561,12 @@ public class PTransformTranslation {
       }
       if (configRow != null) {
         transformBuilder.putAnnotations(
-            CONFIG_ROW_KEY,
+            BeamUrns.getConstant(Annotations.Enum.CONFIG_ROW_KEY),
             ByteString.copyFrom(
                 CoderUtils.encodeToByteArray(RowCoder.of(configRow.getSchema()), configRow)));
 
         transformBuilder.putAnnotations(
-            CONFIG_ROW_SCHEMA_KEY,
+            BeamUrns.getConstant(Annotations.Enum.CONFIG_ROW_SCHEMA_KEY),
             ByteString.copyFrom(
                 SchemaTranslation.schemaToProto(configRow.getSchema(), true).toByteArray()));
       }

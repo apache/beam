@@ -48,6 +48,7 @@ import org.apache.beam.sdk.io.gcp.bigtable.changestreams.restriction.ReadChangeS
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.restriction.StreamProgress;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
+import org.apache.beam.sdk.util.SerializableSupplier;
 import org.apache.beam.sdk.values.KV;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -58,20 +59,23 @@ public class ReadChangeStreamPartitionDoFnTest {
   private ChangeStreamDao changeStreamDao;
   private MetadataTableDao metadataTableDao;
   private CoderSizeEstimator<KV<ByteString, ChangeStreamRecord>> sizeEstimator;
+  private DaoFactory daoFactory;
+  private ActionFactory actionFactory;
+  private ChangeStreamMetrics metrics;
   private ReadChangeStreamPartitionDoFn doFn;
 
   @Before
   public void setup() throws IOException {
     Duration heartbeatDuration = Duration.standardSeconds(1);
-    DaoFactory daoFactory = mock(DaoFactory.class);
+    daoFactory = mock(DaoFactory.class);
     changeStreamDao = mock(ChangeStreamDao.class);
     metadataTableDao = mock(MetadataTableDao.class);
     when(daoFactory.getChangeStreamDao()).thenReturn(changeStreamDao);
     when(daoFactory.getMetadataTableDao()).thenReturn(metadataTableDao);
     when(daoFactory.getChangeStreamName()).thenReturn("test-id");
 
-    ActionFactory actionFactory = mock(ActionFactory.class);
-    ChangeStreamMetrics metrics = mock(ChangeStreamMetrics.class);
+    actionFactory = mock(ActionFactory.class);
+    metrics = mock(ChangeStreamMetrics.class);
 
     sizeEstimator = mock(CoderSizeEstimator.class);
     ChangeStreamAction changeStreamAction = new ChangeStreamAction(metrics);
@@ -93,7 +97,7 @@ public class ReadChangeStreamPartitionDoFnTest {
             sizeEstimator))
         .thenReturn(readChangeStreamPartitionAction);
 
-    doFn = new ReadChangeStreamPartitionDoFn(daoFactory, actionFactory, metrics);
+    doFn = new ReadChangeStreamPartitionDoFn(daoFactory, actionFactory, metrics, Duration.ZERO);
     doFn.setSizeEstimator(sizeEstimator);
   }
 
@@ -181,5 +185,43 @@ public class ReadChangeStreamPartitionDoFnTest {
                 Instant.now().plus(Duration.standardMinutes(10)),
                 true));
     assertEquals(0, heartbeatEstimate, 0);
+  }
+
+  @Test
+  public void backlogReplicationAdjustment() throws IOException {
+    SerializableSupplier<Instant> mockClock = () -> Instant.ofEpochSecond(1000);
+    doFn =
+        new ReadChangeStreamPartitionDoFn(
+            daoFactory, actionFactory, metrics, Duration.standardSeconds(30), mockClock);
+    long mutationSize = 100L;
+    when(sizeEstimator.sizeOf(any())).thenReturn(mutationSize);
+    doFn.setSizeEstimator(sizeEstimator);
+
+    Range.ByteStringRange partitionRange = Range.ByteStringRange.create("", "");
+    ChangeStreamContinuationToken testToken =
+        ChangeStreamContinuationToken.create(partitionRange, "test");
+    doFn.setup();
+
+    double mutationEstimate10Second =
+        doFn.getSize(
+            new StreamProgress(
+                testToken,
+                mockClock.get().minus(Duration.standardSeconds(10)),
+                BigDecimal.valueOf(1000),
+                mockClock.get().minus(Duration.standardSeconds(10)),
+                false));
+    // With 30s backlogReplicationAdjustment we should have no backlog when watermarkLag is < 30s
+    assertEquals(0, mutationEstimate10Second, 0);
+
+    double mutationEstimateOneMinute =
+        doFn.getSize(
+            new StreamProgress(
+                testToken,
+                mockClock.get().minus(Duration.standardSeconds(60)),
+                BigDecimal.valueOf(1000),
+                mockClock.get().minus(Duration.standardSeconds(60)),
+                false));
+    // We ignore the first 30s of backlog so this should be throughput * (60 - 30)
+    assertEquals(1000 * 30, mutationEstimateOneMinute, 0);
   }
 }

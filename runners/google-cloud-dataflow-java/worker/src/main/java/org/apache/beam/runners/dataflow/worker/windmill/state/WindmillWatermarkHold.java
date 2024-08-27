@@ -175,13 +175,14 @@ public class WindmillWatermarkHold extends WindmillState implements WatermarkHol
       throw new IllegalStateException("Unreachable condition");
     }
 
+    final int estimatedByteSize = ENCODED_SIZE + stateKey.size();
     return Futures.lazyTransform(
         result,
         result1 -> {
           cleared = false;
           localAdditions = null;
           if (cachedValue != null) {
-            cache.put(namespace, address, WindmillWatermarkHold.this, ENCODED_SIZE);
+            cache.put(namespace, address, WindmillWatermarkHold.this, estimatedByteSize);
           }
           return result1;
         });

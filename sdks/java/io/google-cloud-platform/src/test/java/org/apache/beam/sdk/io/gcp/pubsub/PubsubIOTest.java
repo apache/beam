@@ -237,6 +237,9 @@ public class PubsubIOTest {
     assertThat(pubsubRead.getTopicProvider(), not(nullValue()));
     assertThat(pubsubRead.getTopicProvider().isAccessible(), is(true));
     assertThat(pubsubRead.getTopicProvider().get().asPath(), equalTo(provider.get()));
+    assertThat(
+        pubsubRead.getTopicProvider().get().dataCatalogSegments(),
+        equalTo(ImmutableList.of("project", "topic")));
   }
 
   @Test
@@ -732,7 +735,7 @@ public class PubsubIOTest {
       PCollection<PubsubMessage> messages =
           pipeline.apply(
               Create.timestamped(ImmutableList.of(pubsubMsg, failingPubsubMsg))
-                  .withCoder(new PubsubMessageWithTopicCoder()));
+                  .withCoder(PubsubMessageWithTopicCoder.of()));
       messages.setIsBoundedInternal(PCollection.IsBounded.BOUNDED);
       ErrorHandler<BadRecord, PCollection<Long>> badRecordErrorHandler =
           pipeline.registerBadRecordErrorHandler(new ErrorSinkTransform());
@@ -776,6 +779,49 @@ public class PubsubIOTest {
                 .withClientFactory(clientFactory));
 
     List<String> outputs = ImmutableList.of("foo", "bar");
+    PAssert.that(read).containsInAnyOrder(outputs);
+    pipeline.run();
+  }
+
+  static class AppendSuffixAttributeToStringPayloadParseFn
+      extends SimpleFunction<PubsubMessage, String> {
+    @Override
+    public String apply(PubsubMessage input) {
+      String payload = new String(input.getPayload(), StandardCharsets.UTF_8);
+      String suffixAttribute = input.getAttributeMap().get("suffix");
+      return payload + suffixAttribute;
+    }
+  }
+
+  private IncomingMessage messageWithSuffixAttribute(String payload, String suffix) {
+    return IncomingMessage.of(
+        com.google.pubsub.v1.PubsubMessage.newBuilder()
+            .setData(ByteString.copyFromUtf8(payload))
+            .putAttributes("suffix", suffix)
+            .build(),
+        1234L,
+        0,
+        UUID.randomUUID().toString(),
+        UUID.randomUUID().toString());
+  }
+
+  @Test
+  public void testReadMessagesWithAttributesWithCoderAndParseFn() {
+    ImmutableList<IncomingMessage> inputs =
+        ImmutableList.of(
+            messageWithSuffixAttribute("foo", "-some-suffix"),
+            messageWithSuffixAttribute("bar", "-some-other-suffix"));
+    clientFactory = PubsubTestClient.createFactoryForPull(CLOCK, SUBSCRIPTION, 60, inputs);
+
+    PCollection<String> read =
+        pipeline.apply(
+            PubsubIO.readMessagesWithAttributesWithCoderAndParseFn(
+                    StringUtf8Coder.of(), new AppendSuffixAttributeToStringPayloadParseFn())
+                .fromSubscription(SUBSCRIPTION.getPath())
+                .withClock(CLOCK)
+                .withClientFactory(clientFactory));
+
+    List<String> outputs = ImmutableList.of("foo-some-suffix", "bar-some-other-suffix");
     PAssert.that(read).containsInAnyOrder(outputs);
     pipeline.run();
   }
@@ -839,7 +885,7 @@ public class PubsubIOTest {
 
       PCollection<PubsubMessage> messages =
           pipeline.apply(
-              Create.timestamped(pubsubMessages).withCoder(new PubsubMessageWithTopicCoder()));
+              Create.timestamped(pubsubMessages).withCoder(PubsubMessageWithTopicCoder.of()));
       if (!isBounded) {
         messages = messages.setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED);
       }
@@ -876,7 +922,7 @@ public class PubsubIOTest {
       PCollection<PubsubMessage> messages =
           pipeline.apply(
               Create.timestamped(ImmutableList.of(pubsubMsg))
-                  .withCoder(new PubsubMessageWithTopicCoder()));
+                  .withCoder(PubsubMessageWithTopicCoder.of()));
       messages.setIsBoundedInternal(PCollection.IsBounded.BOUNDED);
       messages.apply(PubsubIO.writeMessagesDynamic().withClientFactory(factory));
       pipeline.run();

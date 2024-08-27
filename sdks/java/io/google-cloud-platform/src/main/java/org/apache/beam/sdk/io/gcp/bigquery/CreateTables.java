@@ -24,6 +24,7 @@ import com.google.api.services.bigquery.model.TableSchema;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
+import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -117,8 +118,14 @@ public class CreateTables<DestinationT, ElementT>
                 Supplier<@Nullable TableConstraints> tableConstraintsSupplier =
                     () -> dynamicDestinations.getTableConstraints(dest);
 
+                BigQueryOptions bqOptions = context.getPipelineOptions().as(BigQueryOptions.class);
+                Lineage.getSinks()
+                    .add(
+                        "bigquery",
+                        BigQueryHelpers.dataCatalogSegments(
+                            tableDestination1.getTableReference(), bqOptions));
                 return CreateTableHelpers.possiblyCreateTable(
-                    context.getPipelineOptions().as(BigQueryOptions.class),
+                    bqOptions,
                     tableDestination1,
                     schemaSupplier,
                     tableConstraintsSupplier,

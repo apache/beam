@@ -51,7 +51,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
@@ -81,8 +81,8 @@ jobs:
     - name: Setup environment
       uses: ./.github/actions/setup-environment-action
       with:
-        java-version: 8
-        go-version: 1.21
+        java-version: default
+        go-version: default
     - name: run GHA PreCommit script
       uses: ./.github/actions/gradle-command-self-hosted-action
       with:

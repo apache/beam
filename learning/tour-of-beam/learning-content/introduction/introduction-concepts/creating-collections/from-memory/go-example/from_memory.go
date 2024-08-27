@@ -27,28 +27,32 @@
 package main
 
 import (
-  "context"
-  "github.com/apache/beam/sdks/v2/go/pkg/beam"
-  "github.com/apache/beam/sdks/v2/go/pkg/beam/log"
-  "github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
-  "fmt"
+	"context"
+	"fmt"
+
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 )
 
 func main() {
-  p, s := beam.NewPipelineWithRoot()
+	ctx := context.Background()
+	beam.Init()
 
-  words := beam.Create(s, "Hello", "world", "it`s", "Beam")
+	p, s := beam.NewPipelineWithRoot()
 
-  output(s, words)
+	words := beam.Create(s, "Hello", "world", "it`s", "Beam")
 
-  err := beamx.Run(context.Background(), p)
-  if err != nil {
-    log.Exitf(context.Background(), "Failed to execute job: %v", err)
-  }
+	output(s, words)
+
+	err := beamx.Run(ctx, p)
+	if err != nil {
+		log.Exitf(ctx, "Failed to execute job: %v", err)
+	}
 }
 
 func output(s beam.Scope, input beam.PCollection) {
-  beam.ParDo0(s, func(element interface{}) {
-    fmt.Println(element)
-    }, input)
+	beam.ParDo0(s, func(element string) {
+		fmt.Println(element)
+	}, input)
 }

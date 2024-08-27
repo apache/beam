@@ -145,6 +145,17 @@ public class FlinkStreamingPortablePipelineTranslator
     StreamExecutionEnvironment executionEnvironment =
         FlinkExecutionEnvironments.createStreamExecutionEnvironment(
             pipelineOptions, filesToStage, confDir);
+    return createTranslationContext(jobInfo, pipelineOptions, executionEnvironment);
+  }
+
+  /**
+   * Creates a streaming translation context. The resulting Flink execution dag will live in the
+   * given {@link StreamExecutionEnvironment}.
+   */
+  public StreamingTranslationContext createTranslationContext(
+      JobInfo jobInfo,
+      FlinkPipelineOptions pipelineOptions,
+      StreamExecutionEnvironment executionEnvironment) {
     return new StreamingTranslationContext(jobInfo, pipelineOptions, executionEnvironment);
   }
 
@@ -204,7 +215,7 @@ public class FlinkStreamingPortablePipelineTranslator
     }
   }
 
-  interface PTransformTranslator<T> {
+  public interface PTransformTranslator<T> {
     void translate(String id, RunnerApi.Pipeline pipeline, T t);
   }
 
@@ -216,7 +227,12 @@ public class FlinkStreamingPortablePipelineTranslator
   private final Map<String, PTransformTranslator<StreamingTranslationContext>>
       urnToTransformTranslator;
 
-  FlinkStreamingPortablePipelineTranslator() {
+  public FlinkStreamingPortablePipelineTranslator() {
+    this(ImmutableMap.of());
+  }
+
+  public FlinkStreamingPortablePipelineTranslator(
+      Map<String, PTransformTranslator<StreamingTranslationContext>> extraTranslations) {
     ImmutableMap.Builder<String, PTransformTranslator<StreamingTranslationContext>> translatorMap =
         ImmutableMap.builder();
     translatorMap.put(PTransformTranslation.FLATTEN_TRANSFORM_URN, this::translateFlatten);
@@ -233,6 +249,8 @@ public class FlinkStreamingPortablePipelineTranslator
 
     // For testing only
     translatorMap.put(PTransformTranslation.TEST_STREAM_TRANSFORM_URN, this::translateTestStream);
+
+    translatorMap.putAll(extraTranslations);
 
     this.urnToTransformTranslator = translatorMap.build();
   }

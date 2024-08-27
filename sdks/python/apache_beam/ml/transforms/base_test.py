@@ -48,6 +48,13 @@ except ImportError:
   tft = None  # type: ignore
 
 try:
+  import PIL
+  from PIL.Image import Image as PIL_Image
+except ImportError:
+  PIL = None
+  PIL_Image = Any
+
+try:
 
   class _FakeOperation(TFTOperation):
     def __init__(self, name, *args, **kwargs):
@@ -498,6 +505,87 @@ class TextEmbeddingHandlerTest(unittest.TestCase):
             | base.MLTransform(
                 write_artifact_location=self.artifact_location).with_transform(
                     self.embedding_conig))
+
+
+class FakeImageModel:
+  def __call__(self, example: List[PIL_Image]) -> List[PIL_Image]:
+    for i in range(len(example)):
+      if not isinstance(example[i], PIL_Image):
+        raise TypeError('Input must be an Image')
+    return example
+
+
+class FakeImageModelHandler(ModelHandler):
+  def run_inference(
+      self,
+      batch: Sequence[PIL_Image],
+      model: Any,
+      inference_args: Optional[Dict[str, Any]] = None):
+    return model(batch)
+
+  def load_model(self):
+    return FakeImageModel()
+
+
+class FakeImageEmbeddingsManager(base.EmbeddingsManager):
+  def __init__(self, columns, **kwargs):
+    super().__init__(columns=columns, **kwargs)
+
+  def get_model_handler(self) -> ModelHandler:
+    FakeModelHandler.__repr__ = lambda x: 'FakeImageEmbeddingsManager'  # type: ignore[assignment]
+    return FakeImageModelHandler()
+
+  def get_ptransform_for_processing(self, **kwargs) -> beam.PTransform:
+    return (RunInference(model_handler=base._ImageEmbeddingHandler(self)))
+
+  def __repr__(self):
+    return 'FakeImageEmbeddingsManager'
+
+
+class TestImageEmbeddingHandler(unittest.TestCase):
+  def setUp(self) -> None:
+    self.embedding_config = FakeImageEmbeddingsManager(columns=['x'])
+    self.artifact_location = tempfile.mkdtemp()
+
+  def tearDown(self) -> None:
+    shutil.rmtree(self.artifact_location)
+
+  @unittest.skipIf(PIL is None, 'PIL module is not installed.')
+  def test_handler_with_incompatible_datatype(self):
+    image_handler = base._ImageEmbeddingHandler(
+        embeddings_manager=self.embedding_config)
+    data = [
+        ('x', 'hi there'),
+        ('x', 'not an image'),
+        ('x', 'image_path.jpg'),
+    ]
+    with self.assertRaises(TypeError):
+      image_handler.run_inference(data, None, None)
+
+  @unittest.skipIf(PIL is None, 'PIL module is not installed.')
+  def test_handler_with_dict_inputs(self):
+    img_one = PIL.Image.new(mode='RGB', size=(1, 1))
+    img_two = PIL.Image.new(mode='RGB', size=(1, 1))
+    data = [
+        {
+            'x': img_one
+        },
+        {
+            'x': img_two
+        },
+    ]
+    expected_data = [{key: value for key, value in d.items()} for d in data]
+    with beam.Pipeline() as p:
+      result = (
+          p
+          | beam.Create(data)
+          | base.MLTransform(
+              write_artifact_location=self.artifact_location).with_transform(
+                  self.embedding_config))
+      assert_that(
+          result,
+          equal_to(expected_data),
+      )
 
 
 class TestUtilFunctions(unittest.TestCase):

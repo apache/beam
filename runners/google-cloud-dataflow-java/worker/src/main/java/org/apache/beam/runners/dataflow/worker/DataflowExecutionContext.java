@@ -41,6 +41,7 @@ import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
+import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowStepContext;
 import org.apache.beam.runners.dataflow.worker.DataflowOperationContext.DataflowExecutionState;
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory;
@@ -55,6 +56,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Stopwatch;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Closer;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -263,6 +265,8 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
     private final ContextActivationObserverRegistry contextActivationObserverRegistry;
     private final String workItemId;
 
+    private final boolean isStreaming;
+
     /**
      * Metadata on the message whose processing is currently being managed by this tracker. If no
      * message is actively being processed, activeMessageMetadata will be null.
@@ -276,12 +280,6 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
 
     @GuardedBy("this")
     private final Map<String, IntSummaryStatistics> processingTimesByStep = new HashMap<>();
-
-    /** Last milliseconds since epoch when a full thread dump was performed. */
-    private long lastFullThreadDumpMillis = 0;
-
-    /** The minimum lull duration in milliseconds to perform a full thread dump. */
-    private static final long LOG_BUNDLE_LULL_FULL_THREAD_DUMP_LULL_MS = 20 * 60 * 1000;
 
     private static final Logger LOG = LoggerFactory.getLogger(DataflowExecutionStateTracker.class);
 
@@ -324,6 +322,11 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
       this.contextActivationObserverRegistry = ContextActivationObserverRegistry.createDefault();
       this.clock = clock;
       DataflowWorkerLoggingInitializer.initialize();
+      if (options instanceof DataflowPipelineOptions) {
+        this.isStreaming = ((DataflowPipelineOptions) options).isStreaming();
+      } else {
+        this.isStreaming = false;
+      }
     }
 
     @Override
@@ -348,19 +351,7 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
       }
     }
 
-    private boolean shouldLogFullThreadDumpForBundle(Duration lullDuration) {
-      if (lullDuration.getMillis() < LOG_BUNDLE_LULL_FULL_THREAD_DUMP_LULL_MS) {
-        return false;
-      }
-      long now = clock.currentTimeMillis();
-      if (lastFullThreadDumpMillis + LOG_BUNDLE_LULL_FULL_THREAD_DUMP_LULL_MS < now) {
-        lastFullThreadDumpMillis = now;
-        return true;
-      }
-      return false;
-    }
-
-    private String getBundleLullMessage(Duration lullDuration) {
+    private String getBundleLullMessage(Thread trackedThread, Duration lullDuration) {
       StringBuilder message = new StringBuilder();
       message
           .append("Operation ongoing in bundle for at least ")
@@ -373,7 +364,8 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
               "Current user step name: " + getActiveMessageMetadata().get().userStepName() + "\n");
           message.append(
               "Time spent in this step(millis): "
-                  + (clock.currentTimeMillis() - getActiveMessageMetadata().get().startTime())
+                  + (clock.currentTimeMillis()
+                      - getActiveMessageMetadata().get().stopwatch().elapsed().toMillis())
                   + "\n");
         }
         message.append("Processing times in each step(millis)\n");
@@ -384,6 +376,9 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
         }
       }
 
+      if (trackedThread != null) {
+        message.append(StackTraceUtil.getStackTraceForLullMessage(trackedThread.getStackTrace()));
+      }
       return message.toString();
     }
 
@@ -394,7 +389,7 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
     }
 
     @Override
-    protected void reportBundleLull(long millisElapsedSinceBundleStart) {
+    protected void reportBundleLull(Thread trackedThread, long millisElapsedSinceBundleStart) {
       // If we're not logging warnings, nothing to report.
       if (!LOG.isWarnEnabled()) {
         return;
@@ -405,17 +400,14 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
       // Since the lull reporting executes in the sampler thread, it won't automatically inherit the
       // context of the current step. To ensure things are logged correctly, we get the currently
       // registered DataflowWorkerLoggingHandler and log directly in the desired context.
-      LogRecord logRecord = new LogRecord(Level.WARNING, getBundleLullMessage(lullDuration));
+      LogRecord logRecord =
+          new LogRecord(Level.WARNING, getBundleLullMessage(trackedThread, lullDuration));
       logRecord.setLoggerName(DataflowExecutionStateTracker.LOG.getName());
 
       // Publish directly in the context of this specific ExecutionState.
       DataflowWorkerLoggingHandler dataflowLoggingHandler =
           DataflowWorkerLoggingInitializer.getLoggingHandler();
       dataflowLoggingHandler.publish(logRecord);
-
-      if (shouldLogFullThreadDumpForBundle(lullDuration)) {
-        StackTraceUtil.logAllStackTraces();
-      }
     }
 
     /**
@@ -429,12 +421,14 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
           newState.isProcessElementState && newState instanceof DataflowExecutionState;
       if (isDataflowProcessElementState) {
         DataflowExecutionState newDFState = (DataflowExecutionState) newState;
-        if (newDFState.getStepName() != null && newDFState.getStepName().userName() != null) {
-          recordActiveMessageInProcessingTimesMap();
-          synchronized (this) {
-            this.activeMessageMetadata =
-                ActiveMessageMetadata.create(
-                    newDFState.getStepName().userName(), clock.currentTimeMillis());
+        if (isStreaming) {
+          if (newDFState.getStepName() != null && newDFState.getStepName().userName() != null) {
+            recordActiveMessageInProcessingTimesMap();
+            synchronized (this) {
+              this.activeMessageMetadata =
+                  ActiveMessageMetadata.create(
+                      newDFState.getStepName().userName(), Stopwatch.createStarted());
+            }
           }
         }
         elementExecutionTracker.enter(newDFState.getStepName());
@@ -442,7 +436,9 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
 
       return () -> {
         if (isDataflowProcessElementState) {
-          recordActiveMessageInProcessingTimesMap();
+          if (isStreaming) {
+            recordActiveMessageInProcessingTimesMap();
+          }
           elementExecutionTracker.exit();
         }
         baseCloseable.close();
@@ -480,8 +476,7 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
       if (this.activeMessageMetadata == null) {
         return;
       }
-      int processingTime =
-          (int) (System.currentTimeMillis() - this.activeMessageMetadata.startTime());
+      int processingTime = (int) (this.activeMessageMetadata.stopwatch().elapsed().toMillis());
       this.processingTimesByStep.compute(
           this.activeMessageMetadata.userStepName(),
           (k, v) -> {

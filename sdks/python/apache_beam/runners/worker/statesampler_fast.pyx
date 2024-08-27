@@ -15,9 +15,6 @@
 # limitations under the License.
 #
 
-# cython: profile=True
-# cython: language_level=3
-
 """State sampler for tracking time spent in execution steps.
 
 The state sampler profiles the time spent in each step of a pipeline.
@@ -60,7 +57,7 @@ cdef extern from "crossplatform_time.h" nogil:
     long tv_nsec  # nanoseconds
   int clock_gettime(int clock_id, timespec *result)
 
-cdef inline int64_t get_nsec_time() nogil:
+cdef inline int64_t get_nsec_time() noexcept nogil:
   """Get current time as microseconds since Unix epoch."""
   cdef timespec current_time
   # First argument value of 0 corresponds to CLOCK_REALTIME.

@@ -15,8 +15,6 @@
 # limitations under the License.
 #
 
-# cython: language_level=3
-
 """Coder implementations.
 
 The actual encode/decode implementations are split off from coders to
@@ -1641,10 +1639,65 @@ class TimestampPrefixingWindowCoderImpl(StreamCoderImpl):
     return self._window_coder_impl.decode_from_stream(stream, nested)
 
   def estimate_size(self, value: Any, nested: bool = False) -> int:
-    estimated_size = 0
-    estimated_size += TimestampCoderImpl().estimate_size(value)
-    estimated_size += self._window_coder_impl.estimate_size(value, nested)
-    return estimated_size
+    return (
+        TimestampCoderImpl().estimate_size(value.max_timestamp()) +
+        self._window_coder_impl.estimate_size(value, nested))
+
+
+_OpaqueWindow = None
+
+
+def _create_opaque_window(end, encoded_window):
+  # This is lazy to avoid circular import issues.
+  global _OpaqueWindow
+  if _OpaqueWindow is None:
+    from apache_beam.transforms.window import BoundedWindow
+
+    class _OpaqueWindow(BoundedWindow):
+      def __init__(self, end, encoded_window):
+        super().__init__(end)
+        self.encoded_window = encoded_window
+
+      def __repr__(self):
+        return 'OpaqueWindow(%s, %s)' % (self.end, self.encoded_window)
+
+      def __hash__(self):
+        return hash(self.encoded_window)
+
+      def __eq__(self, other):
+        return (
+            type(self) == type(other) and self.end == other.end and
+            self.encoded_window == other.encoded_window)
+
+  return _OpaqueWindow(end, encoded_window)
+
+
+class TimestampPrefixingOpaqueWindowCoderImpl(StreamCoderImpl):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  A coder for unknown window types, which prefix required max_timestamp to
+  encoded original window.
+
+  The coder encodes and decodes custom window types with following format:
+    window's max_timestamp()
+    length prefixed encoded window
+  """
+  def __init__(self) -> None:
+    pass
+
+  def encode_to_stream(self, value, stream, nested):
+    TimestampCoderImpl().encode_to_stream(value.max_timestamp(), stream, True)
+    stream.write(value.encoded_window, True)
+
+  def decode_from_stream(self, stream, nested):
+    max_timestamp = TimestampCoderImpl().decode_from_stream(stream, True)
+    return _create_opaque_window(
+        max_timestamp.successor(), stream.read_all(True))
+
+  def estimate_size(self, value: Any, nested: bool = False) -> int:
+    return (
+        TimestampCoderImpl().estimate_size(value.max_timestamp()) +
+        len(value.encoded_window))
 
 
 row_coders_registered = False
