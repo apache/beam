@@ -207,7 +207,8 @@ class ProtoSchemaTranslator {
 
     for (Descriptors.FieldDescriptor fieldDescriptor : descriptor.getFields()) {
       int fieldDescriptorNumber = fieldDescriptor.getNumber();
-      if (!oneOfComponentFields.contains(fieldDescriptorNumber)) {
+      if (!(oneOfComponentFields.contains(fieldDescriptorNumber)
+          && fieldDescriptor.getRealContainingOneof() != null)) {
         // Store proto field number in metadata.
         FieldType fieldType = beamFieldTypeFromProtoField(fieldDescriptor);
         fields.add(
