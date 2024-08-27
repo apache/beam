@@ -109,7 +109,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.load_tests.pardo_test \
             -Prunner=PortableRunner \
-            -PpythonVersion=3.8 \
+            -PpythonVersion=3.9 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_ParDo_Flink_Batch_test_arguments_1 }} --job_name=load-tests-python-flink-batch-pardo-1-${{ steps.datetime.outputs.datetime }}' \
       - name: run ParDo Flink Batch Python Load Test 2 (200 iterations)
         uses: ./.github/actions/gradle-command-self-hosted-action
@@ -118,7 +118,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.load_tests.pardo_test \
             -Prunner=PortableRunner \
-            -PpythonVersion=3.8 \
+            -PpythonVersion=3.9 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_ParDo_Flink_Batch_test_arguments_2 }} --job_name=load-tests-python-flink-batch-pardo-3-${{ steps.datetime.outputs.datetime }}' \
       - name: run ParDo Flink Batch Python Load Test 3 (10 counters)
         uses: ./.github/actions/gradle-command-self-hosted-action
@@ -127,5 +127,5 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.load_tests.pardo_test \
             -Prunner=PortableRunner \
-            -PpythonVersion=3.8 \
+            -PpythonVersion=3.9 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_ParDo_Flink_Batch_test_arguments_3 }} --job_name=load-tests-python-flink-batch-pardo-4-${{ steps.datetime.outputs.datetime }}'

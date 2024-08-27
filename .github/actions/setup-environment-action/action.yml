@@ -42,7 +42,7 @@ runs:
       if: ${{ inputs.python-version != '' }}
       uses: actions/setup-python@v4
       with:
-        python-version: ${{ inputs.python-version == 'default' && '3.8' || inputs.python-version }}
+        python-version: ${{ inputs.python-version == 'default' && '3.9' || inputs.python-version }}
     - name: Install Java
       if: ${{ inputs.java-version != '' }}
       uses: actions/setup-java@v3

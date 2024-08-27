@@ -64,7 +64,7 @@ jobs:
       matrix:
         job_name: ['beam_PreCommit_Python_Integration']
         job_phrase: ['Run Python_Integration PreCommit']
-        python_version: ['3.8', '3.12']
+        python_version: ['3.9', '3.12']
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
