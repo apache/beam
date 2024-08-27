@@ -133,7 +133,8 @@ public class BigtableSharedClientTest {
         opts.as(ExperimentalOptions.class),
         String.format(
             "%s=%s",
-            BigtableConfigTranslator.BIGTABLE_SETTINGS_OVERRIDE, ClientSettingsOverride.class));
+            BigtableConfigTranslator.BIGTABLE_SETTINGS_OVERRIDE,
+            ClientSettingsOverride.class.getName()));
 
     Pipeline pipeline = Pipeline.create(opts);
 
