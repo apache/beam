@@ -1603,14 +1603,23 @@ public class BigQueryIOWriteTest implements Serializable {
     List<TableRow> elements =
         IntStream.range(0, 30)
             .mapToObj(Integer::toString)
-            .map(i -> new TableRow().set("number", i).set("string", i))
+            .map(
+                i ->
+                    new TableRow()
+                        .set("number", i)
+                        .set("string", i)
+                        .set("nested", new TableRow().set("number", i)))
             .collect(Collectors.toList());
 
     List<TableRow> expectedSuccessElements = elements;
     if (columnSubset) {
       expectedSuccessElements =
           elements.stream()
-              .map(tr -> new TableRow().set("number", tr.get("number")))
+              .map(
+                  tr ->
+                      new TableRow()
+                          .set("number", tr.get("number"))
+                          .set("nested", new TableRow().set("number", tr.get("number"))))
               .collect(Collectors.toList());
     }
 
@@ -1619,7 +1628,13 @@ public class BigQueryIOWriteTest implements Serializable {
             .setFields(
                 ImmutableList.of(
                     new TableFieldSchema().setName("number").setType("INTEGER"),
-                    new TableFieldSchema().setName("string").setType("STRING")));
+                    new TableFieldSchema().setName("string").setType("STRING"),
+                    new TableFieldSchema()
+                        .setName("nested")
+                        .setType("RECORD")
+                        .setFields(
+                            ImmutableList.of(
+                                new TableFieldSchema().setName("number").setType("INTEGER")))));
 
     TestStream<TableRow> testStream =
         TestStream.create(TableRowJsonCoder.of())
@@ -1645,7 +1660,8 @@ public class BigQueryIOWriteTest implements Serializable {
     if (columnSubset) {
       write =
           write.withPropagateSuccessfulStorageApiWrites(
-              (Serializable & Predicate<String>) s -> s.equals("number"));
+              (Serializable & Predicate<String>)
+                  s -> s.equals("number") || s.equals("nested") || s.equals("nested.number"));
     }
     if (useStreaming) {
       if (useStorageApiApproximate) {

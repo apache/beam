@@ -3044,7 +3044,13 @@ public class BigQueryIO {
     /**
      * If called, then all successful writes will be propagated to {@link WriteResult} and
      * accessible via the {@link WriteResult#getSuccessfulStorageApiInserts} method. The predicate
-     * allows filtering out columns from appearing in the resulting PCollection.
+     * allows filtering out columns from appearing in the resulting PCollection. The argument to the
+     * predicate is the name of the field to potentially be included in the output. Nested fields
+     * will be presented using . notation - e.g. a.b.c.
+     *
+     * <p>The predicate will be invoked repeatedly for every field in every message, so it is
+     * recommended that it be as lightweight as possible. e.g. looking up fields in a hash table
+     * instead of searching a list of field names.
      */
     public Write<T> withPropagateSuccessfulStorageApiWrites(Predicate<String> columnsToPropagate) {
       return toBuilder()
