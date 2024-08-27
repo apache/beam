@@ -18,7 +18,7 @@
 
 # We just need to support one Python version supported by Beam.
 # Picking the current default Beam Python version which is Python 3.8.
-FROM python:3.8-bookworm as expansion-service
+FROM python:3.9-bookworm as expansion-service
 LABEL Author "Apache Beam <dev@beam.apache.org>"
 ARG TARGETOS
 ARG TARGETARCH

@@ -938,7 +938,7 @@ class UtilTest(unittest.TestCase):
 
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.sys.version_info',
-      (3, 8))
+      (3, 9))
   def test_get_python_sdk_name(self):
     pipeline_options = PipelineOptions([
         '--project',
@@ -957,7 +957,7 @@ class UtilTest(unittest.TestCase):
                                         1,
                                         FAKE_PIPELINE_URL)
     self.assertEqual(
-        'Apache Beam Python 3.8 SDK', environment._get_python_sdk_name())
+        'Apache Beam Python 3.9 SDK', environment._get_python_sdk_name())
 
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.sys.version_info',
