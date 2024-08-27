@@ -30,13 +30,16 @@ import org.apache.beam.sdk.annotations.Internal;
 @Internal
 @AutoValue
 public abstract class GetWorkBudget {
+
+  private static final GetWorkBudget NO_BUDGET = builder().setItems(0).setBytes(0).build();
+
   public static GetWorkBudget.Builder builder() {
     return new AutoValue_GetWorkBudget.Builder();
   }
 
   /** {@link GetWorkBudget} of 0. */
   public static GetWorkBudget noBudget() {
-    return builder().setItems(0).setBytes(0).build();
+    return NO_BUDGET;
   }
 
   public static GetWorkBudget from(GetWorkRequest getWorkRequest) {

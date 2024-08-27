@@ -90,6 +90,8 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
   private final GrpcDispatcherClient dispatcherClient;
   private final AtomicBoolean isBudgetRefreshPaused;
   private final GetWorkBudgetRefresher getWorkBudgetRefresher;
+  private final GetWorkBudgetDistributor getWorkBudgetDistributor;
+  private final GetWorkBudget totalGetWorkBudget;
   private final AtomicReference<Instant> lastBudgetRefresh;
   private final ThrottleTimer getWorkerMetadataThrottleTimer;
   private final ExecutorService newWorkerMetadataPublisher;
@@ -134,6 +136,8 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
     this.clientId = clientId;
     this.lastBudgetRefresh = new AtomicReference<>(Instant.EPOCH);
     this.newWindmillEndpoints = Queues.synchronizedQueue(EvictingQueue.create(1));
+    this.getWorkBudgetDistributor = getWorkBudgetDistributor;
+    this.totalGetWorkBudget = totalGetWorkBudget;
     this.getWorkBudgetRefresher =
         new GetWorkBudgetRefresher(
             isBudgetRefreshPaused::get,
@@ -303,7 +307,8 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
         connections.get());
     connections.set(newConnectionsState);
     isBudgetRefreshPaused.set(false);
-    getWorkBudgetRefresher.requestBudgetRefresh();
+    getWorkBudgetDistributor.distributeBudget(
+        connections.get().windmillStreams().values(), totalGetWorkBudget);
   }
 
   /** Add up all the throttle times of all streams including GetWorkerMetadataStream. */

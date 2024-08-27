@@ -37,9 +37,12 @@ import org.slf4j.LoggerFactory;
 final class EvenGetWorkBudgetDistributor implements GetWorkBudgetDistributor {
   private static final Logger LOG = LoggerFactory.getLogger(EvenGetWorkBudgetDistributor.class);
   private final Supplier<GetWorkBudget> activeWorkBudgetSupplier;
+  private final boolean isActiveWorkBudgetAware;
 
-  EvenGetWorkBudgetDistributor(Supplier<GetWorkBudget> activeWorkBudgetSupplier) {
+  EvenGetWorkBudgetDistributor(
+      Supplier<GetWorkBudget> activeWorkBudgetSupplier, boolean isActiveWorkBudgetAware) {
     this.activeWorkBudgetSupplier = activeWorkBudgetSupplier;
+    this.isActiveWorkBudgetAware = isActiveWorkBudgetAware;
   }
 
   private static boolean isBelowFiftyPercentOfTarget(
@@ -67,9 +70,11 @@ final class EvenGetWorkBudgetDistributor implements GetWorkBudgetDistributor {
       GetWorkBudgetSpender getWorkBudgetSpender = streamAndDesiredBudget.getKey();
       GetWorkBudget desired = streamAndDesiredBudget.getValue();
       GetWorkBudget remaining = getWorkBudgetSpender.remainingBudget();
-      if (isBelowFiftyPercentOfTarget(remaining, desired)) {
+      if (isBelowFiftyPercentOfTarget(remaining, desired) && isActiveWorkBudgetAware) {
         GetWorkBudget adjustment = desired.subtract(remaining);
         getWorkBudgetSpender.adjustBudget(adjustment);
+      } else {
+        getWorkBudgetSpender.adjustBudget(desired);
       }
     }
   }
@@ -77,7 +82,6 @@ final class EvenGetWorkBudgetDistributor implements GetWorkBudgetDistributor {
   private <T extends GetWorkBudgetSpender> ImmutableMap<T, GetWorkBudget> computeDesiredBudgets(
       ImmutableCollection<T> streams, GetWorkBudget totalGetWorkBudget) {
     GetWorkBudget activeWorkBudget = activeWorkBudgetSupplier.get();
-    LOG.info("Current active work budget: {}", activeWorkBudget);
     // TODO: Fix possibly non-deterministic handing out of budgets.
     // Rounding up here will drift upwards over the lifetime of the streams.
     GetWorkBudget budgetPerStream =

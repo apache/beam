@@ -260,8 +260,7 @@ public final class StreamingDataflowWorker {
                                 getWorkStreamLatencies);
                           }),
               stubFactory,
-              GetWorkBudgetDistributors.distributeEvenly(
-                  computationStateCache::totalCurrentActiveGetWorkBudget),
+              GetWorkBudgetDistributors.distributeEvenly(),
               GrpcDispatcherClient.create(stubFactory),
               commitWorkStream ->
                   StreamingEngineWorkCommitter.builder()

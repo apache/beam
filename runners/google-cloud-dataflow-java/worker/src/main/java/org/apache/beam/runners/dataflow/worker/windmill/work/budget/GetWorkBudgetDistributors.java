@@ -24,6 +24,10 @@ import org.apache.beam.sdk.annotations.Internal;
 public final class GetWorkBudgetDistributors {
   public static GetWorkBudgetDistributor distributeEvenly(
       Supplier<GetWorkBudget> activeWorkBudgetSupplier) {
-    return new EvenGetWorkBudgetDistributor(activeWorkBudgetSupplier);
+    return new EvenGetWorkBudgetDistributor(activeWorkBudgetSupplier, true);
+  }
+
+  public static GetWorkBudgetDistributor distributeEvenly() {
+    return new EvenGetWorkBudgetDistributor(GetWorkBudget::noBudget, false);
   }
 }
