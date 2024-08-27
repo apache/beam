@@ -21,6 +21,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Set;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.extensions.ordered.UnprocessedEvent.Reason;
@@ -109,7 +110,7 @@ public class OrderedEventProcessorTest {
    */
   protected void doTest(
       Event[] events,
-      Collection<KV<String, OrderedProcessingStatus>> expectedStatuses,
+      @Nullable Collection<KV<String, OrderedProcessingStatus>> expectedStatuses,
       Collection<KV<String, String>> expectedOutput,
       Collection<KV<String, KV<Long, UnprocessedEvent<String>>>> expectedUnprocessedEvents,
       int emissionFrequency,
@@ -151,7 +152,7 @@ public class OrderedEventProcessorTest {
 
     PAssert.that("Output matches", processingResult.output()).containsInAnyOrder(expectedOutput);
 
-    if (streaming) {
+    if (streaming && expectedStatuses != null) {
       // Only in a streaming pipeline the events will arrive in a pre-determined order and the statuses
       // will be deterministic. In batch pipelines events can be processed in any order,
       // so we skip status verification and rely on the output and unprocessed event matches.

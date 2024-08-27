@@ -330,10 +330,10 @@ abstract class ProcessorDoFn<
 
       Long lastOutputSequence = processingState.getLastOutputSequence();
       boolean currentEventIsNotInSequence = lastOutputSequence != null && eventSequence > lastOutputSequence + 1;
-      boolean breakOutput = checkForSequenceGapInBufferedEvents() ?
+      boolean stopProcessing = checkForSequenceGapInBufferedEvents() ?
           currentEventIsNotInSequence :
-          (eventSequence > lastKnownCompleteSequenceNumber || currentEventIsNotInSequence);
-      if (breakOutput) {
+          (! (eventSequence <= lastKnownCompleteSequenceNumber) && currentEventIsNotInSequence);
+      if (stopProcessing) {
         processingState.foundSequenceGap(eventSequence);
         // Records will be cleared up to this element
         endClearRange = fromLong(eventSequence);
