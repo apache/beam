@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
-import static org.apache.beam.sdk.io.iceberg.SchemaAndRowConversions.rowToRecord;
+import static org.apache.beam.sdk.io.iceberg.IcebergUtils.beamRowToIcebergRecord;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.io.Serializable;
@@ -75,16 +75,21 @@ public class IcebergIOWriteTest implements Serializable {
     // Create a table and add records to it.
     Table table = warehouse.createTable(tableId, TestFixtures.SCHEMA);
 
+    Map<String, String> catalogProps =
+        ImmutableMap.<String, String>builder()
+            .put("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
+            .put("warehouse", warehouse.location)
+            .build();
+
     IcebergCatalogConfig catalog =
         IcebergCatalogConfig.builder()
-            .setName("hadoop")
-            .setIcebergCatalogType(CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
-            .setWarehouseLocation(warehouse.location)
+            .setCatalogName("name")
+            .setCatalogProperties(catalogProps)
             .build();
 
     testPipeline
         .apply("Records To Add", Create.of(TestFixtures.asRows(TestFixtures.FILE1SNAPSHOT1)))
-        .setRowSchema(SchemaAndRowConversions.icebergSchemaToBeamSchema(TestFixtures.SCHEMA))
+        .setRowSchema(IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA))
         .apply("Append To Table", IcebergIO.writeRows(catalog).to(tableId));
 
     LOG.info("Executing pipeline");
@@ -109,11 +114,16 @@ public class IcebergIOWriteTest implements Serializable {
     Table table2 = warehouse.createTable(table2Id, TestFixtures.SCHEMA);
     Table table3 = warehouse.createTable(table3Id, TestFixtures.SCHEMA);
 
+    Map<String, String> catalogProps =
+        ImmutableMap.<String, String>builder()
+            .put("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
+            .put("warehouse", warehouse.location)
+            .build();
+
     IcebergCatalogConfig catalog =
         IcebergCatalogConfig.builder()
-            .setName("hadoop")
-            .setIcebergCatalogType(CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
-            .setWarehouseLocation(warehouse.location)
+            .setCatalogName("name")
+            .setCatalogProperties(catalogProps)
             .build();
 
     DynamicDestinations dynamicDestinations =
@@ -151,7 +161,7 @@ public class IcebergIOWriteTest implements Serializable {
                         TestFixtures.FILE1SNAPSHOT1,
                         TestFixtures.FILE1SNAPSHOT2,
                         TestFixtures.FILE1SNAPSHOT3))))
-        .setRowSchema(SchemaAndRowConversions.icebergSchemaToBeamSchema(TestFixtures.SCHEMA))
+        .setRowSchema(IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA))
         .apply("Append To Table", IcebergIO.writeRows(catalog).to(dynamicDestinations));
 
     LOG.info("Executing pipeline");
@@ -199,11 +209,16 @@ public class IcebergIOWriteTest implements Serializable {
       elementsPerTable.computeIfAbsent(tableId, ignored -> Lists.newArrayList()).add(element);
     }
 
+    Map<String, String> catalogProps =
+        ImmutableMap.<String, String>builder()
+            .put("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
+            .put("warehouse", warehouse.location)
+            .build();
+
     IcebergCatalogConfig catalog =
         IcebergCatalogConfig.builder()
-            .setName("hadoop")
-            .setIcebergCatalogType(CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
-            .setWarehouseLocation(warehouse.location)
+            .setCatalogName("name")
+            .setCatalogProperties(catalogProps)
             .build();
 
     DynamicDestinations dynamicDestinations =
@@ -234,7 +249,7 @@ public class IcebergIOWriteTest implements Serializable {
 
     testPipeline
         .apply("Records To Add", Create.of(TestFixtures.asRows(elements)))
-        .setRowSchema(SchemaAndRowConversions.icebergSchemaToBeamSchema(TestFixtures.SCHEMA))
+        .setRowSchema(IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA))
         .apply("Append To Table", IcebergIO.writeRows(catalog).to(dynamicDestinations));
 
     LOG.info("Executing pipeline");
@@ -261,9 +276,9 @@ public class IcebergIOWriteTest implements Serializable {
     // Create a table and add records to it.
     Table table = warehouse.createTable(tableId, TestFixtures.SCHEMA);
     Record record =
-        rowToRecord(
+        beamRowToIcebergRecord(
             table.schema(),
-            Row.withSchema(SchemaAndRowConversions.icebergSchemaToBeamSchema(TestFixtures.SCHEMA))
+            Row.withSchema(IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA))
                 .addValues(42L, "bizzle")
                 .build());
 

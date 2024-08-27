@@ -49,6 +49,7 @@ import org.apache.beam.sdk.io.fs.MoveOptions;
 import org.apache.beam.sdk.io.fs.MoveOptions.StandardMoveOptions;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.KV;
@@ -393,6 +394,16 @@ public class FileSystems {
     }
     getFileSystemInternal(resourceIdsToDelete.iterator().next().getScheme())
         .delete(resourceIdsToDelete);
+  }
+
+  /** Report source {@link Lineage} metrics for resource id. */
+  public static void reportSourceLineage(ResourceId resourceId) {
+    getFileSystemInternal(resourceId.getScheme()).reportLineage(resourceId, Lineage.getSources());
+  }
+
+  /** Report sink {@link Lineage} metrics for resource id. */
+  public static void reportSinkLineage(ResourceId resourceId) {
+    getFileSystemInternal(resourceId.getScheme()).reportLineage(resourceId, Lineage.getSinks());
   }
 
   private static class FilterResult {

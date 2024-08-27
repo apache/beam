@@ -53,6 +53,11 @@ Pipeline patterns demonstrate common Beam use cases. Pipeline patterns are based
 
 **State & timers patterns** - Patterns for using state & timers
 * [Grouping elements for efficient external service calls](/documentation/patterns/grouping-elements-for-efficient-external-service-calls/#grouping-elements-for-efficient-external-service-calls-using-the-`GroupIntoBatches`-transform)
+* [Dynamically grouping elements](/documentation/patterns/batch-elements/#dynamically-grouping-elements-using-the-`BatchElements`-transform)
+
+**Cache with a shared object** - Patterns for using a shared object as a cache using the Python SDK
+* [Create a cache on a batch pipeline](/documentation/patterns/shared-class/#create-a-cache-on-a-batch-pipeline)
+* [Create a cache and update it regularly on a streaming pipeline](/documentation/patterns/shared-class/#create-a-cache-and-update-it-regularly-on-a-streaming-pipeline)
 
 ## Contributing a pattern
 

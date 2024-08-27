@@ -24,7 +24,7 @@ pluginManagement {
 }
 
 plugins {
-  id("com.gradle.develocity") version "3.17.5"
+  id("com.gradle.develocity") version "3.17.6"
   id("com.gradle.common-custom-user-data-gradle-plugin") version "2.0.1"
 }
 
@@ -153,6 +153,7 @@ include(":runners:jet")
 include(":runners:local-java")
 include(":runners:portability:java")
 include(":runners:prism")
+include(":runners:prism:java")
 include(":runners:spark:3")
 include(":runners:spark:3:job-server")
 include(":runners:spark:3:job-server:container")
@@ -364,3 +365,9 @@ include("sdks:java:io:solace")
 findProject(":sdks:java:io:solace")?.name = "solace"
 include("sdks:java:extensions:combiners")
 findProject(":sdks:java:extensions:combiners")?.name = "combiners"
+include("sdks:java:io:iceberg:hive")
+findProject(":sdks:java:io:iceberg:hive")?.name = "hive"
+include("sdks:java:io:iceberg:hive:exec")
+findProject(":sdks:java:io:iceberg:hive:exec")?.name = "exec"
+include("sdks:java:io:iceberg:bigquerymetastore")
+findProject(":sdks:java:io:iceberg:bigquerymetastore")?.name = "bigquerymetastore"

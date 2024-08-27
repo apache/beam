@@ -801,7 +801,7 @@ public class DirectRunnerTest implements Serializable {
 
     static class StaticQueueSource<T> extends UnboundedSource<T, StaticQueueSource.Checkpoint<T>> {
 
-      static class Checkpoint<T> implements CheckpointMark, Serializable {
+      static class Checkpoint<T> implements UnboundedSource.CheckpointMark, Serializable {
 
         final T read;
 

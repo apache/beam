@@ -176,8 +176,8 @@ public final class GrpcWindmillServer extends WindmillServerStub {
         testOptions(/* enableStreamingEngine= */ true, experiments);
     boolean sendKeyedGetDataRequests =
         !testOptions.isEnableStreamingEngine()
-            || !DataflowRunner.hasExperiment(
-                testOptions, "streaming_engine_send_new_heartbeat_requests");
+            || DataflowRunner.hasExperiment(
+                testOptions, "streaming_engine_disable_new_heartbeat_requests");
     GrpcWindmillStreamFactory windmillStreamFactory =
         GrpcWindmillStreamFactory.of(createJobHeader(testOptions, clientId))
             .setSendKeyedGetDataRequests(sendKeyedGetDataRequests)
@@ -252,11 +252,6 @@ public final class GrpcWindmillServer extends WindmillServerStub {
   @Override
   public void setWindmillServiceEndpoints(Set<HostAndPort> endpoints) {
     dispatcherClient.consumeWindmillDispatcherEndpoints(ImmutableSet.copyOf(endpoints));
-  }
-
-  @Override
-  public boolean isReady() {
-    return dispatcherClient.hasInitializedEndpoints();
   }
 
   private synchronized void initializeLocalHost(int port) {

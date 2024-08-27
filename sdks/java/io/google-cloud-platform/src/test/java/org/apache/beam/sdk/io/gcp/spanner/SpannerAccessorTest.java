@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.spanner;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -163,5 +164,6 @@ public class SpannerAccessorTest {
     assertEquals("project", options.getProjectId());
     assertEquals("test-role", options.getDatabaseRole());
     assertEquals(testCredential, options.getCredentials());
+    assertNotNull(options.getSessionPoolOptions());
   }
 }

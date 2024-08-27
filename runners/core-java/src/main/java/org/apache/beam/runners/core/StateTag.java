@@ -69,8 +69,9 @@ public interface StateTag<StateT extends State> extends Serializable {
   /**
    * Visitor for binding a {@link StateSpec} and to the associated {@link State}.
    *
-   * @deprecated for migration only; runners should reference the top level {@link StateBinder} and
-   *     move towards {@link StateSpec} rather than {@link StateTag}.
+   * @deprecated for migration only; runners should reference the top level {@link
+   *     org.apache.beam.sdk.state.StateBinder} and move towards {@link StateSpec} rather than
+   *     {@link StateTag}.
    */
   @Deprecated
   public interface StateBinder {

@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.csv;
 
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -29,15 +30,25 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
 /**
- * The {@link T} and {@link org.apache.beam.sdk.io.csv.CsvIOParseError} {@link PCollection} results
- * of parsing CSV records. Use {@link #getOutput()} and {@link #getErrors()} to apply these results
- * in a pipeline.
+ * The {@link T} and {@link CsvIOParseError} {@link PCollection} results of parsing CSV records. Use
+ * {@link #getOutput()} and {@link #getErrors()} to apply these results in a pipeline.
  */
 public class CsvIOParseResult<T> implements POutput {
 
   static <T> CsvIOParseResult<T> of(
-      TupleTag<T> outputTag, TupleTag<CsvIOParseError> errorTag, PCollectionTuple pct) {
-    return new CsvIOParseResult<>(outputTag, errorTag, pct);
+      TupleTag<T> outputTag,
+      Coder<T> outputCoder,
+      TupleTag<CsvIOParseError> errorTag,
+      PCollectionTuple pct) {
+    return new CsvIOParseResult<>(outputTag, outputCoder, errorTag, pct);
+  }
+
+  static <T> CsvIOParseResult<T> empty(Pipeline pipeline, Coder<T> outputCoder) {
+    return new CsvIOParseResult<>(
+        new TupleTag<T>() {},
+        outputCoder,
+        new TupleTag<CsvIOParseError>() {},
+        PCollectionTuple.empty(pipeline));
   }
 
   private final Pipeline pipeline;
@@ -47,12 +58,15 @@ public class CsvIOParseResult<T> implements POutput {
   private final PCollection<CsvIOParseError> errors;
 
   private CsvIOParseResult(
-      TupleTag<T> outputTag, TupleTag<CsvIOParseError> errorTag, PCollectionTuple pct) {
+      TupleTag<T> outputTag,
+      Coder<T> outputCoder,
+      TupleTag<CsvIOParseError> errorTag,
+      PCollectionTuple pct) {
     this.outputTag = outputTag;
     this.errorTag = errorTag;
     this.pipeline = pct.getPipeline();
-    this.output = pct.get(outputTag);
-    this.errors = pct.get(errorTag);
+    this.output = pct.get(outputTag).setCoder(outputCoder);
+    this.errors = pct.get(errorTag).setCoder(CsvIOParseError.CODER);
   }
 
   /** The {@link T} {@link PCollection} as a result of successfully parsing CSV records. */
@@ -61,8 +75,8 @@ public class CsvIOParseResult<T> implements POutput {
   }
 
   /**
-   * The {@link org.apache.beam.sdk.io.csv.CsvIOParseError} {@link PCollection} as a result of
-   * errors associated with parsing CSV records.
+   * The {@link CsvIOParseError} {@link PCollection} as a result of errors associated with parsing
+   * CSV records.
    */
   public PCollection<CsvIOParseError> getErrors() {
     return errors;

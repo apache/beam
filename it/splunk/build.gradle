@@ -19,6 +19,7 @@
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
     automaticModuleName: 'org.apache.beam.it.splunk',
+    exportJavadoc: false,
 )
 
 description = "Apache Beam :: IT :: Splunk"
@@ -32,19 +33,27 @@ repositories {
 }
 
 dependencies {
-    implementation project(path: ":it:testcontainers", configuration: "shadow")
-    implementation project(path: ":it:conditions", configuration: "shadow")
-    implementation project(path: ":it:truthmatchers", configuration: "shadow")
+    implementation project(path: ":it:common")
+    implementation project(path: ":it:testcontainers")
+    implementation project(path: ":it:conditions")
+    implementation project(path: ":it:truthmatchers")
     implementation project(path: ":sdks:java:io:splunk")
+    implementation library.java.http_core
+    implementation library.java.http_client
+    provided library.java.json_org
+    implementation library.java.slf4j_api
+    implementation library.java.testcontainers_base
+    implementation library.java.vendored_guava_32_1_2_jre
     implementation 'com.splunk:splunk:1.9.4'
     implementation 'org.awaitility:awaitility:4.2.0'
-    provided library.java.json_org
 
     testImplementation library.java.mockito_core
     // TODO: excluding Guava until Truth updates it to >32.1.x
     testImplementation(library.java.truth) {
         exclude group: 'com.google.guava', module: 'guava'
     }
+    testImplementation library.java.guava
+    permitUsedUndeclared library.java.guava
     testImplementation library.java.commons_lang3
     testRuntimeOnly library.java.slf4j_simple
 }

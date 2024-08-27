@@ -109,11 +109,11 @@ class BigQueryReadIntegrationTests(unittest.TestCase):
     request = bigquery.BigqueryDatasetsDeleteRequest(
         projectId=cls.project, datasetId=cls.dataset_id, deleteContents=True)
     try:
-      _LOGGER.info(
+      _LOGGER.debug(
           "Deleting dataset %s in project %s", cls.dataset_id, cls.project)
       cls.bigquery_client.client.datasets.Delete(request)
     except HttpError:
-      _LOGGER.debug(
+      _LOGGER.warning(
           'Failed to clean up dataset %s in project %s',
           cls.dataset_id,
           cls.project)

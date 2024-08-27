@@ -17,13 +17,15 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.work.processing;
 
+import static org.apache.beam.sdk.options.ExperimentalOptions.hasExperiment;
+
 import com.google.api.services.dataflow.model.MapTask;
 import com.google.auto.value.AutoValue;
 import java.util.Collection;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import javax.annotation.concurrent.ThreadSafe;
@@ -31,6 +33,7 @@ import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.DataflowMapTaskExecutorFactory;
 import org.apache.beam.runners.dataflow.worker.HotKeyLogger;
+import org.apache.beam.runners.dataflow.worker.OperationalLimits;
 import org.apache.beam.runners.dataflow.worker.ReaderCache;
 import org.apache.beam.runners.dataflow.worker.WorkItemCancelledException;
 import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingMDC;
@@ -43,6 +46,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.streaming.harness.StreamingCounters;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
+import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcherFactory;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.Commit;
@@ -73,7 +77,7 @@ public final class StreamingWorkScheduler {
   private final DataflowWorkerHarnessOptions options;
   private final Supplier<Instant> clock;
   private final ComputationWorkExecutorFactory computationWorkExecutorFactory;
-  private final SideInputStateFetcher sideInputStateFetcher;
+  private final SideInputStateFetcherFactory sideInputStateFetcherFactory;
   private final FailureTracker failureTracker;
   private final WorkFailureProcessor workFailureProcessor;
   private final StreamingCommitFinalizer commitFinalizer;
@@ -81,13 +85,13 @@ public final class StreamingWorkScheduler {
   private final HotKeyLogger hotKeyLogger;
   private final ConcurrentMap<String, StageInfo> stageInfoMap;
   private final DataflowExecutionStateSampler sampler;
-  private final AtomicInteger maxWorkItemCommitBytes;
+  private final AtomicReference<OperationalLimits> operationalLimits;
 
   public StreamingWorkScheduler(
       DataflowWorkerHarnessOptions options,
       Supplier<Instant> clock,
       ComputationWorkExecutorFactory computationWorkExecutorFactory,
-      SideInputStateFetcher sideInputStateFetcher,
+      SideInputStateFetcherFactory sideInputStateFetcherFactory,
       FailureTracker failureTracker,
       WorkFailureProcessor workFailureProcessor,
       StreamingCommitFinalizer commitFinalizer,
@@ -95,11 +99,11 @@ public final class StreamingWorkScheduler {
       HotKeyLogger hotKeyLogger,
       ConcurrentMap<String, StageInfo> stageInfoMap,
       DataflowExecutionStateSampler sampler,
-      AtomicInteger maxWorkItemCommitBytes) {
+      AtomicReference<OperationalLimits> operationalLimits) {
     this.options = options;
     this.clock = clock;
     this.computationWorkExecutorFactory = computationWorkExecutorFactory;
-    this.sideInputStateFetcher = sideInputStateFetcher;
+    this.sideInputStateFetcherFactory = sideInputStateFetcherFactory;
     this.failureTracker = failureTracker;
     this.workFailureProcessor = workFailureProcessor;
     this.commitFinalizer = commitFinalizer;
@@ -107,7 +111,7 @@ public final class StreamingWorkScheduler {
     this.hotKeyLogger = hotKeyLogger;
     this.stageInfoMap = stageInfoMap;
     this.sampler = sampler;
-    this.maxWorkItemCommitBytes = maxWorkItemCommitBytes;
+    this.operationalLimits = operationalLimits;
   }
 
   public static StreamingWorkScheduler create(
@@ -117,13 +121,12 @@ public final class StreamingWorkScheduler {
       DataflowMapTaskExecutorFactory mapTaskExecutorFactory,
       BoundedQueueExecutor workExecutor,
       Function<String, WindmillStateCache.ForComputation> stateCacheFactory,
-      Function<Windmill.GlobalDataRequest, Windmill.GlobalData> fetchGlobalDataFn,
       FailureTracker failureTracker,
       WorkFailureProcessor workFailureProcessor,
       StreamingCounters streamingCounters,
       HotKeyLogger hotKeyLogger,
       DataflowExecutionStateSampler sampler,
-      AtomicInteger maxWorkItemCommitBytes,
+      AtomicReference<OperationalLimits> operationalLimits,
       IdGenerator idGenerator,
       ConcurrentMap<String, StageInfo> stageInfoMap) {
     ComputationWorkExecutorFactory computationWorkExecutorFactory =
@@ -140,7 +143,7 @@ public final class StreamingWorkScheduler {
         options,
         clock,
         computationWorkExecutorFactory,
-        new SideInputStateFetcher(fetchGlobalDataFn, options),
+        SideInputStateFetcherFactory.fromOptions(options),
         failureTracker,
         workFailureProcessor,
         StreamingCommitFinalizer.create(workExecutor),
@@ -148,7 +151,7 @@ public final class StreamingWorkScheduler {
         hotKeyLogger,
         stageInfoMap,
         sampler,
-        maxWorkItemCommitBytes);
+        operationalLimits);
   }
 
   private static long computeShuffleBytesRead(Windmill.WorkItem workItem) {
@@ -292,7 +295,7 @@ public final class StreamingWorkScheduler {
       Windmill.WorkItemCommitRequest commitRequest,
       String computationId,
       Windmill.WorkItem workItem) {
-    int byteLimit = maxWorkItemCommitBytes.get();
+    long byteLimit = operationalLimits.get().maxWorkItemCommitBytes;
     int commitSize = commitRequest.getSerializedSize();
     int estimatedCommitSize = commitSize < 0 ? Integer.MAX_VALUE : commitSize;
 
@@ -347,7 +350,8 @@ public final class StreamingWorkScheduler {
 
     try {
       WindmillStateReader stateReader = work.createWindmillStateReader();
-      SideInputStateFetcher localSideInputStateFetcher = sideInputStateFetcher.byteTrackingView();
+      SideInputStateFetcher localSideInputStateFetcher =
+          sideInputStateFetcherFactory.createSideInputStateFetcher(work::fetchSideInput);
 
       // If the read output KVs, then we can decode Windmill's byte key into userland
       // key object and provide it to the execution context for use with per-key state.
@@ -366,7 +370,8 @@ public final class StreamingWorkScheduler {
         Duration hotKeyAge = Duration.millis(hotKeyInfo.getHotKeyAgeUsec() / 1000);
 
         String stepName = getShuffleTaskStepName(computationState.getMapTask());
-        if (options.isHotKeyLoggingEnabled() && keyCoder.isPresent()) {
+        if ((options.isHotKeyLoggingEnabled() || hasExperiment(options, "enable_hot_key_logging"))
+            && keyCoder.isPresent()) {
           hotKeyLogger.logHotKeyDetection(stepName, hotKeyAge, executionKey);
         } else {
           hotKeyLogger.logHotKeyDetection(stepName, hotKeyAge);
@@ -375,7 +380,12 @@ public final class StreamingWorkScheduler {
 
       // Blocks while executing work.
       computationWorkExecutor.executeWork(
-          executionKey, work, stateReader, localSideInputStateFetcher, outputBuilder);
+          executionKey,
+          work,
+          stateReader,
+          localSideInputStateFetcher,
+          operationalLimits.get(),
+          outputBuilder);
 
       if (work.isFailed()) {
         throw new WorkItemCancelledException(workItem.getShardingKey());
@@ -397,8 +407,7 @@ public final class StreamingWorkScheduler {
       computationState.releaseComputationWorkExecutor(computationWorkExecutor);
 
       work.setState(Work.State.COMMIT_QUEUED);
-      outputBuilder.addAllPerWorkItemLatencyAttributions(
-          work.getLatencyAttributions(false, sampler));
+      outputBuilder.addAllPerWorkItemLatencyAttributions(work.getLatencyAttributions(sampler));
 
       return ExecuteWorkResult.create(
           outputBuilder, stateReader.getBytesRead() + localSideInputStateFetcher.getBytesRead());

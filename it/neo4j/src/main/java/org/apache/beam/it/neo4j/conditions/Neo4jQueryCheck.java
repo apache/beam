@@ -23,9 +23,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.it.conditions.ConditionCheck;
 import org.apache.beam.it.neo4j.Neo4jResourceManager;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 @AutoValue
 public abstract class Neo4jQueryCheck extends ConditionCheck {
@@ -36,8 +36,7 @@ public abstract class Neo4jQueryCheck extends ConditionCheck {
 
   abstract String query();
 
-  @Nullable
-  abstract Map<String, Object> parameters();
+  abstract @Nullable Map<String, Object> parameters();
 
   @Override
   public String getDescription() {
