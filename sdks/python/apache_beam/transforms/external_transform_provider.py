@@ -17,8 +17,9 @@
 
 import logging
 import re
-from inspect import Signature, Parameter
 from collections import namedtuple
+from inspect import Parameter
+from inspect import Signature
 from typing import Dict
 from typing import List
 from typing import Tuple
