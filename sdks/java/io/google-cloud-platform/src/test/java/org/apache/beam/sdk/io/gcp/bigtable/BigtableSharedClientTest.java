@@ -62,20 +62,18 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
-import org.hamcrest.MatcherAssert;
 import org.hamcrest.Matchers;
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Ensure that BigtableIO.write() reuses the same instance of the underlying bigtable client.
- * This test will create a toy pipeline using DirectRunner and have it write to a local emulator.
- * The emulator will record all of the client connections. Then the test will check that only a
- * single connection was used.
+ * Ensure that BigtableIO.write() reuses the same instance of the underlying bigtable client. This
+ * test will create a toy pipeline using DirectRunner and have it write to a local emulator. The
+ * emulator will record all of the client connections. Then the test will check that only a single
+ * connection was used.
  */
 @RunWith(JUnit4.class)
 public class BigtableSharedClientTest {
@@ -83,7 +81,6 @@ public class BigtableSharedClientTest {
   private FakeBigtable fakeService;
   private ServerClientConnectionCounterInterceptor clientConnectionInterceptor;
   private Server fakeServer;
-
 
   @Before
   public void setUp() throws Exception {
@@ -113,14 +110,14 @@ public class BigtableSharedClientTest {
     }
   }
 
-  private static Server createServer(BindableService service, ServerInterceptor... interceptors) throws IOException {
+  private static Server createServer(BindableService service, ServerInterceptor... interceptors)
+      throws IOException {
     int port;
-    try(ServerSocket ss = new ServerSocket(0)) {
+    try (ServerSocket ss = new ServerSocket(0)) {
       port = ss.getLocalPort();
     }
 
-    ServerBuilder<?> serverBuilder = ServerBuilder.forPort(port)
-        .addService(service);
+    ServerBuilder<?> serverBuilder = ServerBuilder.forPort(port).addService(service);
 
     for (ServerInterceptor interceptor : interceptors) {
       serverBuilder.intercept(interceptor);
@@ -136,9 +133,7 @@ public class BigtableSharedClientTest {
         opts.as(ExperimentalOptions.class),
         String.format(
             "%s=%s",
-            BigtableConfigTranslator.BIGTABLE_SETTINGS_OVERRIDE,
-            ClientSettingsOverride.class)
-    );
+            BigtableConfigTranslator.BIGTABLE_SETTINGS_OVERRIDE, ClientSettingsOverride.class));
 
     Pipeline pipeline = Pipeline.create(opts);
 
@@ -153,22 +148,20 @@ public class BigtableSharedClientTest {
                 .withProjectId("fake-project")
                 .withInstanceId("fake-instance")
                 .withTableId("fake-table")
-                .withEmulator("localhost:" + fakeServer.getPort())
-        );
+                .withEmulator("localhost:" + fakeServer.getPort()));
 
     assertThat(pipeline.run().waitUntilFinish(), Matchers.equalTo(State.DONE));
     // Make sure that the test is valid by making sure that multiple bundles were processed
     assertThat(dofn.bundleCount.get(), Matchers.greaterThan(1));
     // Make sure that a single client was shared across all the bundles
     assertThat(clientConnectionInterceptor.getClientConnections(), Matchers.hasSize(1));
-
   }
 
   /** Minimal implementation of a Bigtable emulator for BigtableIO.write() */
   static class FakeBigtable extends BigtableGrpc.BigtableImplBase {
     @Override
-    public void mutateRows(MutateRowsRequest request,
-        StreamObserver<MutateRowsResponse> responseObserver) {
+    public void mutateRows(
+        MutateRowsRequest request, StreamObserver<MutateRowsResponse> responseObserver) {
       MutateRowsResponse.Builder builder = MutateRowsResponse.newBuilder();
 
       for (int i = 0; i < request.getEntriesCount(); i++) {
@@ -176,16 +169,15 @@ public class BigtableSharedClientTest {
             Entry.newBuilder()
                 .setIndex(i)
                 .setStatus(Status.newBuilder().setCode(Code.OK_VALUE))
-                .build()
-        );
+                .build());
       }
       responseObserver.onNext(builder.build());
       responseObserver.onCompleted();
     }
 
     @Override
-    public void pingAndWarm(PingAndWarmRequest request,
-        StreamObserver<PingAndWarmResponse> responseObserver) {
+    public void pingAndWarm(
+        PingAndWarmRequest request, StreamObserver<PingAndWarmResponse> responseObserver) {
       responseObserver.onCompleted();
     }
   }
@@ -201,39 +193,41 @@ public class BigtableSharedClientTest {
     public void startBundle(StartBundleContext ctx) {
       bundleCount.incrementAndGet();
     }
+
     @ProcessElement
-    public void processElement(@Element Long input, OutputReceiver<KV<ByteString, Iterable<Mutation>>> output) {
+    public void processElement(
+        @Element Long input, OutputReceiver<KV<ByteString, Iterable<Mutation>>> output) {
       output.output(
           KV.of(
               ByteString.copyFromUtf8(input.toString()),
               ImmutableList.of(
-                  Mutation.newBuilder().setSetCell(
+                  Mutation.newBuilder()
+                      .setSetCell(
                           SetCell.newBuilder()
                               .setFamilyName("fake-family")
                               .setColumnQualifier(ByteString.copyFromUtf8("fake-qualifier"))
                               .setTimestampMicros(System.currentTimeMillis() * 1000)
-                              .setValue(ByteString.copyFromUtf8("fake-value"))
-                      )
-                      .build()
-              )
-          )
-      );
+                              .setValue(ByteString.copyFromUtf8("fake-value")))
+                      .build())));
     }
   }
 
   /** Overrides the default settings to ensure 1 channel per client */
-  public static class ClientSettingsOverride implements BiFunction<Builder, PipelineOptions, Builder> {
+  public static class ClientSettingsOverride
+      implements BiFunction<Builder, PipelineOptions, Builder> {
 
     @Override
     public Builder apply(Builder builder, PipelineOptions pipelineOptions) {
-      InstantiatingGrpcChannelProvider oldTransport = (InstantiatingGrpcChannelProvider) builder.stubSettings()
-          .getTransportChannelProvider();
+      InstantiatingGrpcChannelProvider oldTransport =
+          (InstantiatingGrpcChannelProvider) builder.stubSettings().getTransportChannelProvider();
 
-      builder.stubSettings().setTransportChannelProvider(
-          oldTransport.toBuilder()
-            .setChannelPoolSettings(ChannelPoolSettings.staticallySized(1))
-            .build()
-      );
+      builder
+          .stubSettings()
+          .setTransportChannelProvider(
+              oldTransport
+                  .toBuilder()
+                  .setChannelPoolSettings(ChannelPoolSettings.staticallySized(1))
+                  .build());
 
       return builder;
     }
@@ -241,14 +235,16 @@ public class BigtableSharedClientTest {
 
   static class ServerClientConnectionCounterInterceptor implements ServerInterceptor {
     private Set<String> clientConnections = Collections.synchronizedSet(new HashSet<>());
+
     @Override
-    public <ReqT, RespT> Listener<ReqT> interceptCall(ServerCall<ReqT, RespT> call,
-        Metadata headers, ServerCallHandler<ReqT, RespT> next) {
+    public <ReqT, RespT> Listener<ReqT> interceptCall(
+        ServerCall<ReqT, RespT> call, Metadata headers, ServerCallHandler<ReqT, RespT> next) {
 
       return new SimpleForwardingServerCallListener<ReqT>(next.startCall(call, headers)) {
         @Override
         public void onComplete() {
-          clientConnections.add(call.getAttributes().get(Grpc.TRANSPORT_ATTR_REMOTE_ADDR).toString());
+          clientConnections.add(
+              call.getAttributes().get(Grpc.TRANSPORT_ATTR_REMOTE_ADDR).toString());
           super.onComplete();
         }
       };

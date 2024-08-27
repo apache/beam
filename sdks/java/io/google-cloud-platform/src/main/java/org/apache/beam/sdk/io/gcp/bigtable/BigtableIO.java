@@ -1359,6 +1359,7 @@ public class BigtableIO {
       throttleReportThresMsecs = firstNonNull(writeOptions.getThrottlingReportTargetMs(), 180_000);
       LOG.debug("Created Bigtable Write Fn with writeOptions {} ", writeOptions);
     }
+
     @StartBundle
     public void startBundle(StartBundleContext c) throws IOException {
       recordsWritten = 0;
