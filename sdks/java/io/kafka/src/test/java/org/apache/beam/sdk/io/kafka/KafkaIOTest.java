@@ -630,15 +630,16 @@ public class KafkaIOTest {
   @Test
   public void testCommitOffsetsInFinalizeAndRedistributeErrors() {
     thrown.expect(Exception.class);
-    thrown.expectMessage("commitOffsetsInFinalize() can't be enabled with isRedistributed");
+    thrown.expectMessage("commitOffsetsInFinalize() can't be enabled with withRedistribute()");
 
     int numElements = 1000;
 
     PCollection<Long> input =
         p.apply(
                 mkKafkaReadTransform(numElements, numElements, new ValueAsTimestampFn(), true, 0)
+                    .commitOffsetsInFinalize()
                     .withConsumerConfigUpdates(
-                        ImmutableMap.of(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, true))
+                        ImmutableMap.of(ConsumerConfig.GROUP_ID_CONFIG, "group_id"))
                     .withoutMetadata())
             .apply(Values.create());
 
@@ -648,11 +649,36 @@ public class KafkaIOTest {
 
   @Test
   public void testNumKeysIgnoredWithRedistributeNotEnabled() {
+    thrown.expect(Exception.class);
+    thrown.expectMessage(
+        "withRedistributeNumKeys is ignored if withRedistribute() is not enabled on the transform");
+
     int numElements = 1000;
 
     PCollection<Long> input =
         p.apply(
                 mkKafkaReadTransform(numElements, numElements, new ValueAsTimestampFn(), false, 0)
+                    .withRedistributeNumKeys(100)
+                    .commitOffsetsInFinalize()
+                    .withConsumerConfigUpdates(
+                        ImmutableMap.of(ConsumerConfig.GROUP_ID_CONFIG, "group_id"))
+                    .withoutMetadata())
+            .apply(Values.create());
+
+    addCountingAsserts(input, numElements);
+
+    p.run();
+  }
+
+  @Test
+  public void testEnableAutoCommitWithRedistribute() throws Exception {
+
+    int numElements = 1000;
+
+    PCollection<Long> input =
+        p.apply(
+                mkKafkaReadTransform(numElements, numElements, new ValueAsTimestampFn(), true, 0)
+                    .withRedistributeNumKeys(100)
                     .withConsumerConfigUpdates(
                         ImmutableMap.of(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, true))
                     .withoutMetadata())
@@ -661,6 +687,9 @@ public class KafkaIOTest {
     addCountingAsserts(input, numElements);
 
     p.run();
+
+    kafkaIOExpectedLogs.verifyWarn(
+        "config.ENABLE_AUTO_COMMIT_CONFIG doesn't need to be set with withRedistribute()");
   }
 
   @Test

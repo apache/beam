@@ -1699,8 +1699,14 @@ public class KafkaIO {
         if (kafkaRead.isRedistributed()) {
           // fail here instead.
           checkArgument(
-              kafkaRead.isCommitOffsetsInFinalizeEnabled(),
-              "commitOffsetsInFinalize() can't be enabled with isRedistributed");
+              !kafkaRead.isCommitOffsetsInFinalizeEnabled(),
+              "commitOffsetsInFinalize() can't be enabled with withRedistribute()");
+
+          if (Boolean.TRUE.equals(
+              kafkaRead.getConsumerConfig().get(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG))) {
+            LOG.warn(
+                "config.ENABLE_AUTO_COMMIT_CONFIG doesn't need to be set with withRedistribute()");
+          }
           PCollection<KafkaRecord<K, V>> output = input.getPipeline().apply(transform);
           if (kafkaRead.getRedistributeNumKeys() == 0) {
             return output.apply(
