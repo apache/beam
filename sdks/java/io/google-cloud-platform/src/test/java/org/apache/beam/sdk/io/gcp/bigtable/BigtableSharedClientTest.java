@@ -30,7 +30,6 @@ import com.google.bigtable.v2.Mutation.SetCell;
 import com.google.bigtable.v2.PingAndWarmRequest;
 import com.google.bigtable.v2.PingAndWarmResponse;
 import com.google.cloud.bigtable.data.v2.BigtableDataSettings.Builder;
-import com.google.common.collect.ImmutableList;
 import com.google.protobuf.ByteString;
 import com.google.rpc.Code;
 import com.google.rpc.Status;
@@ -62,6 +61,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.Before;
@@ -157,7 +157,7 @@ public class BigtableSharedClientTest {
     assertThat(clientConnectionInterceptor.getClientConnections(), Matchers.hasSize(1));
   }
 
-  /** Minimal implementation of a Bigtable emulator for BigtableIO.write() */
+  /** Minimal implementation of a Bigtable emulator for BigtableIO.write(). */
   static class FakeBigtable extends BigtableGrpc.BigtableImplBase {
     @Override
     public void mutateRows(
@@ -212,7 +212,7 @@ public class BigtableSharedClientTest {
     }
   }
 
-  /** Overrides the default settings to ensure 1 channel per client */
+  /** Overrides the default settings to ensure 1 channel per client. */
   public static class ClientSettingsOverride
       implements BiFunction<Builder, PipelineOptions, Builder> {
 
