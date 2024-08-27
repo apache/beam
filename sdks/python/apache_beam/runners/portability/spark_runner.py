@@ -103,7 +103,12 @@ class SparkJarJobServer(job_server.JavaJarJobServer):
       return self.path_to_beam_jar(':runners:spark:3:job-server:shadowJar')
 
   def java_arguments(
-      self, job_port, artifact_port, expansion_port, artifacts_dir, jar_cache_dir):
+      self,
+      job_port,
+      artifact_port,
+      expansion_port,
+      artifacts_dir,
+      jar_cache_dir):
     return [
         '--spark-master-url',
         self._master_url,

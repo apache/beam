@@ -26,7 +26,11 @@ from apache_beam.runners.portability.job_server import JavaJarJobServer
 class JavaJarJobServerStub(JavaJarJobServer):
   def java_arguments(
       self,
-          job_port, artifact_port, expansion_port, artifacts_dir, jar_cache_dir):
+      job_port,
+      artifact_port,
+      expansion_port,
+      artifacts_dir,
+      jar_cache_dir):
     return [
         '--artifacts-dir',
         artifacts_dir,
