@@ -3046,7 +3046,9 @@ public class BigQueryIO {
      * accessible via the {@link WriteResult#getSuccessfulStorageApiInserts} method. The predicate
      * allows filtering out columns from appearing in the resulting PCollection. The argument to the
      * predicate is the name of the field to potentially be included in the output. Nested fields
-     * will be presented using . notation - e.g. a.b.c.
+     * will be presented using . notation - e.g. a.b.c. If you want a nested field included, you
+     * must ensure that the predicate returns true for every parent field. e.g. if you want field
+     * "a.b.c" included, the predicate must return true for "a" for "a.b" and for "a.b.c".
      *
      * <p>The predicate will be invoked repeatedly for every field in every message, so it is
      * recommended that it be as lightweight as possible. e.g. looking up fields in a hash table
