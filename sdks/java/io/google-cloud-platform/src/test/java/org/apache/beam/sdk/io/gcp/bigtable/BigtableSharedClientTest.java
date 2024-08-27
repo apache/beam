@@ -226,13 +226,12 @@ public class BigtableSharedClientTest {
     public Builder apply(Builder builder, PipelineOptions pipelineOptions) {
       InstantiatingGrpcChannelProvider oldTransport = (InstantiatingGrpcChannelProvider) builder.stubSettings()
           .getTransportChannelProvider();
-
-      InstantiatingGrpcChannelProvider channelProvider =
-          ((InstantiatingGrpcChannelProvider) builder.stubSettings().getTransportChannelProvider())
-          .toBuilder()
-          .setChannelPoolSettings(ChannelPoolSettings.staticallySized(1))
-          .build();
-      builder.stubSettings().setTransportChannelProvider(channelProvider);
+      
+      builder.stubSettings().setTransportChannelProvider(
+          oldTransport.toBuilder()
+            .setChannelPoolSettings(ChannelPoolSettings.staticallySized(1))
+            .build()
+      );
 
       return builder;
     }
