@@ -22,25 +22,30 @@ from apache_beam.io import ReadFromText
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.transforms.external_transform_provider import ExternalTransformProvider
 from apache_beam.typehints.row_type import RowTypeConstraint
-"""A Python multi-language pipeline that counts words.
+"""A Python multi-language pipeline that counts words using multiple Java SchemaTransforms.
 
-This pipeline reads an input text file then extracts and counts the words using Java SchemaTransforms. The transforms 
-are listed below and can be found in beam/examples/multi-language/src/...:
+This pipeline reads an input text file then extracts the words, counts them, and writes the results Java 
+SchemaTransforms. The transforms are listed below and can be found in 
+src/main/java/org/apache/beam/examples/schematransforms/:
 - `ExtractWordsProvider`
 - `JavaCountProvider`
 - `WriteWordsProvider`
 
-These transforms are made discoverable by the expansion service in this example directory. Check out the
+These Java transforms are accessible to the Python pipeline via an expansion service. Check out the
 [`README.md`](https://github.com/apache/beam/blob/master/examples/multi-language/README.md#1-start-the-expansion-service)
-for instructions on how to download the jar and run the expansion service.
+for instructions on how to download the jar and run this expansion service.
 
-The `ExternalTransformProvider` API will dynamically generate and provide user-friendly wrappers for external transforms
-in this expansion service. 
+This example aims to demonstrate how to use the `ExternalTransformProvider` utility, which dynamically generates and
+provides user-friendly wrappers for external transforms. 
 
 Example commands for executing this program:
 
 DirectRunner:
-$ python wordcount_external.py --runner DirectRunner --input <INPUT FILE> --output <OUTPUT FILE> --expansion_service_port <PORT>
+$ python wordcount_external.py \
+      --runner DirectRunner \
+      --input <INPUT FILE> \
+      --output <OUTPUT FILE> \
+      --expansion_service_port <PORT>
 
 DataflowRunner:
 $ python wordcount_external.py \
@@ -67,8 +72,7 @@ def run(input_path, output_path, expansion_service_port, pipeline_args):
     pipeline_options = PipelineOptions(pipeline_args)
 
     # Discover and get external transforms from this expansion service
-    provider = ExternalTransformProvider(
-        ('localhost:%s' % expansion_service_port))
+    provider = ExternalTransformProvider("localhost:" + expansion_service_port)
     # Get transforms with identifiers, then use them as you would a regular
     # native PTransform
     Extract = provider.get_urn(EXTRACT_IDENTIFIER)
@@ -87,6 +91,7 @@ def run(input_path, output_path, expansion_service_port, pipeline_args):
             | 'Format Text' >> beam.Map(lambda row: beam.Row(line="%s: %s" % (
                 row.word, row.count))).with_output_types(
                     RowTypeConstraint.from_fields([('line', str)])))
+
         formatted_words | 'Write' >> Write(file_path_prefix=output_path)
 
 

@@ -15,31 +15,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.multilanguage;
+package org.apache.beam.examples.multilanguage.schematransforms;
 
-import static org.apache.beam.examples.multilanguage.JavaCountProvider.Configuration;
+import static org.apache.beam.examples.multilanguage.schematransforms.WriteWordsProvider.Configuration;
 
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
+import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
-import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
-import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.util.Preconditions;
-import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
-import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
 
 @AutoService(SchemaTransformProvider.class)
-public class JavaCountProvider extends TypedSchemaTransformProvider<Configuration> {
+public class WriteWordsProvider extends TypedSchemaTransformProvider<Configuration> {
   @Override
   public String identifier() {
-    return "beam:schematransform:org.apache.beam:count:v1";
+    return "beam:schematransform:org.apache.beam:write_words:v1";
   }
 
   @Override
@@ -47,32 +45,33 @@ public class JavaCountProvider extends TypedSchemaTransformProvider<Configuratio
     return new SchemaTransform() {
       @Override
       public PCollectionRowTuple expand(PCollectionRowTuple input) {
-        Schema outputSchema =
-            Schema.builder().addStringField("word").addInt64Field("count").build();
+        input
+            .get("input")
+            .apply(
+                MapElements.into(TypeDescriptors.strings())
+                    .via(row -> Preconditions.checkStateNotNull(row.getString("line"))))
+            .apply(TextIO.write().to(configuration.getFilePathPrefix()));
 
-        PCollection<Row> wordCounts =
-            input
-                .get("input")
-                .apply(Count.perElement())
-                .apply(
-                    MapElements.into(TypeDescriptors.rows())
-                        .via(
-                            kv ->
-                                Row.withSchema(outputSchema)
-                                    .withFieldValue(
-                                        "word",
-                                        Preconditions.checkStateNotNull(
-                                            kv.getKey().getString("word")))
-                                    .withFieldValue("count", kv.getValue())
-                                    .build()))
-                .setRowSchema(outputSchema);
-
-        return PCollectionRowTuple.of("output", wordCounts);
+        return PCollectionRowTuple.empty(input.getPipeline());
       }
     };
   }
 
   @DefaultSchema(AutoValueSchema.class)
   @AutoValue
-  protected abstract static class Configuration {}
+  protected abstract static class Configuration {
+    public static Builder builder() {
+      return new AutoValue_WriteWordsProvider_Configuration.Builder();
+    }
+
+    @SchemaFieldDescription("Writes to output files with this prefix.")
+    public abstract String getFilePathPrefix();
+
+    @AutoValue.Builder
+    public abstract static class Builder {
+      public abstract Builder setFilePathPrefix(String filePathPrefix);
+
+      public abstract Configuration build();
+    }
+  }
 }

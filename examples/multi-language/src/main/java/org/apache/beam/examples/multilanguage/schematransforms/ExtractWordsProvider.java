@@ -15,9 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.multilanguage;
+package org.apache.beam.examples.multilanguage.schematransforms;
 
-import static org.apache.beam.examples.multilanguage.ExtractWordsProvider.Configuration;
+import static org.apache.beam.examples.multilanguage.schematransforms.ExtractWordsProvider.Configuration;
 
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
@@ -33,6 +33,7 @@ import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 
+/** Splits a line into separate words and returns each word. */
 @AutoService(SchemaTransformProvider.class)
 public class ExtractWordsProvider extends TypedSchemaTransformProvider<Configuration> {
   public static final Schema OUTPUT_SCHEMA = Schema.builder().addStringField("word").build();

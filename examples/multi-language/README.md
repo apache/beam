@@ -29,7 +29,7 @@ This project provides examples of Apache Beam
 * **python/javadatagenerator** - A Python pipeline that produces a set of strings generated from Java.
                                   This example demonstrates the `JavaExternalTransform` API.
 * **python/wordcount_external** - A Python pipeline that runs the Word Count workflow using three external Java
-                SchemaTransforms. This example demonstrates the simpler `ExternalTransformProvider` API.
+                SchemaTransforms. This example demonstrates the updated `ExternalTransformProvider` API.
 
 ### Instructions for running the pipelines
 
