@@ -1359,15 +1359,19 @@ public class BigtableIO {
       throttleReportThresMsecs = firstNonNull(writeOptions.getThrottlingReportTargetMs(), 180_000);
       LOG.debug("Created Bigtable Write Fn with writeOptions {} ", writeOptions);
     }
-
     @StartBundle
     public void startBundle(StartBundleContext c) throws IOException {
       recordsWritten = 0;
       this.seenWindows = Maps.newHashMapWithExpectedSize(1);
 
-      if (bigtableWriter == null) {
+      // Ideally this would be in @Setup, but we need access to PipelineOptions and there is no easy
+      // way to plumb it to @Setup.
+      if (serviceEntry == null) {
         serviceEntry =
             factory.getServiceForWriting(id, config, writeOptions, c.getPipelineOptions());
+      }
+
+      if (bigtableWriter == null) {
         bigtableWriter = serviceEntry.getService().openForWriting(writeOptions);
       }
 
@@ -1458,65 +1462,58 @@ public class BigtableIO {
 
     @FinishBundle
     public void finishBundle(FinishBundleContext c) throws Exception {
-      try {
-        if (bigtableWriter != null) {
-          Instant closeStart = Instant.now();
-          try {
-            bigtableWriter.close();
-          } catch (IOException e) {
-            // If the writer fails due to a batching exception, but no failures were detected
-            // it means that error handling was enabled, and that errors were detected and routed
-            // to the error queue. Bigtable will successfully write other failures in the batch,
-            // so this exception should be ignored
-            if (!(e.getCause() instanceof BatchingException)) {
-              throttlingMsecs.inc(new Duration(closeStart, Instant.now()).getMillis());
-              throw e;
-            }
-          }
-          // add the excessive amount to throttling metrics if elapsed time > target latency
-          if (throttleReportThresMsecs > 0) {
-            long excessTime =
-                new Duration(closeStart, Instant.now()).getMillis() - throttleReportThresMsecs;
-            if (excessTime > 0) {
-              throttlingMsecs.inc(excessTime);
-            }
-          }
-          if (!reportedLineage) {
-            bigtableWriter.reportLineage();
-            reportedLineage = true;
-          }
-          bigtableWriter = null;
-        }
-
-        for (KV<BigtableWriteException, BoundedWindow> badRecord : badRecords) {
-          try {
-            badRecordRouter.route(
-                c,
-                badRecord.getKey().getRecord(),
-                inputCoder,
-                (Exception) badRecord.getKey().getCause(),
-                "Failed to write malformed mutation to Bigtable",
-                badRecord.getValue());
-          } catch (Exception e) {
-            failures.add(badRecord.getKey());
+      if (bigtableWriter != null) {
+        Instant closeStart = Instant.now();
+        try {
+          bigtableWriter.close();
+        } catch (IOException e) {
+          // If the writer fails due to a batching exception, but no failures were detected
+          // it means that error handling was enabled, and that errors were detected and routed
+          // to the error queue. Bigtable will successfully write other failures in the batch,
+          // so this exception should be ignored
+          if (!(e.getCause() instanceof BatchingException)) {
+            throttlingMsecs.inc(new Duration(closeStart, Instant.now()).getMillis());
+            throw e;
           }
         }
-
-        checkForFailures();
-
-        LOG.debug("Wrote {} records", recordsWritten);
-
-        for (Map.Entry<BoundedWindow, Long> entry : seenWindows.entrySet()) {
-          c.output(
-              BigtableWriteResult.create(entry.getValue()),
-              entry.getKey().maxTimestamp(),
-              entry.getKey());
+        // add the excessive amount to throttling metrics if elapsed time > target latency
+        if (throttleReportThresMsecs > 0) {
+          long excessTime =
+              new Duration(closeStart, Instant.now()).getMillis() - throttleReportThresMsecs;
+          if (excessTime > 0) {
+            throttlingMsecs.inc(excessTime);
+          }
         }
-      } finally {
-        if (serviceEntry != null) {
-          serviceEntry.close();
-          serviceEntry = null;
+        if (!reportedLineage) {
+          bigtableWriter.reportLineage();
+          reportedLineage = true;
         }
+        bigtableWriter = null;
+      }
+
+      for (KV<BigtableWriteException, BoundedWindow> badRecord : badRecords) {
+        try {
+          badRecordRouter.route(
+              c,
+              badRecord.getKey().getRecord(),
+              inputCoder,
+              (Exception) badRecord.getKey().getCause(),
+              "Failed to write malformed mutation to Bigtable",
+              badRecord.getValue());
+        } catch (Exception e) {
+          failures.add(badRecord.getKey());
+        }
+      }
+
+      checkForFailures();
+
+      LOG.debug("Wrote {} records", recordsWritten);
+
+      for (Map.Entry<BoundedWindow, Long> entry : seenWindows.entrySet()) {
+        c.output(
+            BigtableWriteResult.create(entry.getValue()),
+            entry.getKey().maxTimestamp(),
+            entry.getKey());
       }
     }
 
