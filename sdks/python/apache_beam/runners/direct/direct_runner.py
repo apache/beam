@@ -516,7 +516,8 @@ class BundleBasedDirectRunner(PipelineRunner):
         if isinstance(applied_ptransform.transform, ExternalTransform):
           raise RuntimeError(
               "Streaming Python direct runner "
-              "does not support cross-language pipelines.")
+              "does not support cross-language pipelines."
+              "Please use other runners such as DataflowRunner.")
 
     pipeline.visit(VerifyNoCrossLanguageTransforms())
 
