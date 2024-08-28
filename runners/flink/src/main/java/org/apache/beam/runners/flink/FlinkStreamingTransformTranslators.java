@@ -430,7 +430,7 @@ class FlinkStreamingTransformTranslators {
     }
   }
 
-  private static Tuple2<Map<Integer, PCollectionView<?>>, DataStream<RawUnionValue>>
+  public static Tuple2<Map<Integer, PCollectionView<?>>, DataStream<RawUnionValue>>
   transformSideInputs(
       Collection<PCollectionView<?>> sideInputs, FlinkStreamingTranslationContext context) {
 
@@ -1046,7 +1046,8 @@ class FlinkStreamingTransformTranslators {
         SingleOutputStreamOperator<WindowedValue<KV<K, OutputT>>> outDataStream;
 
         if (!context.isStreaming()) {
-          outDataStream = FlinkStreamingAggregationsTranslators.batchCombinePerKeyNoSideInputs(context, transform, combineFn);
+          outDataStream =
+              FlinkStreamingAggregationsTranslators.batchCombinePerKeyNoSideInputs(context, transform, combineFn);
         } else {
           WindowDoFnOperator<K, InputT, OutputT> doFnOperator =
               FlinkStreamingAggregationsTranslators.getWindowedAggregateDoFnOperator(
@@ -1066,42 +1067,30 @@ class FlinkStreamingTransformTranslators {
       } else {
         Tuple2<Map<Integer, PCollectionView<?>>, DataStream<RawUnionValue>> transformSideInputs =
             transformSideInputs(sideInputs, context);
+        SingleOutputStreamOperator<WindowedValue<KV<K, OutputT>>> outDataStream;
 
-        WindowDoFnOperator<K, InputT, OutputT> doFnOperator =
-            FlinkStreamingAggregationsTranslators.getWindowedAggregateDoFnOperator(
-                context,
-                transform,
-                inputKvCoder,
-                outputCoder,
-                combineFn,
-                transformSideInputs.f0,
-                sideInputs);
+        if(!context.isStreaming()) {
+          outDataStream =
+              FlinkStreamingAggregationsTranslators.batchCombinePerKey(context, transform, combineFn, transformSideInputs.f0, sideInputs);
+        } else {
+          WindowDoFnOperator<K, InputT, OutputT> doFnOperator =
+              FlinkStreamingAggregationsTranslators.getWindowedAggregateDoFnOperator(
+                  context,
+                  transform,
+                  inputKvCoder,
+                  outputCoder,
+                  combineFn,
+                  transformSideInputs.f0,
+                  sideInputs);
 
-        // we have to manually contruct the two-input transform because we're not
-        // allowed to have only one input keyed, normally.
-
-        TwoInputTransformation<
-            WindowedValue<KV<K, InputT>>, RawUnionValue, WindowedValue<KV<K, OutputT>>>
-            rawFlinkTransform =
-            new TwoInputTransformation<>(
-                keyedStream.getTransformation(),
-                transformSideInputs.f1.broadcast().getTransformation(),
-                transform.getName(),
-                doFnOperator,
-                outputTypeInfo,
-                keyedStream.getParallelism());
-
-        rawFlinkTransform.setStateKeyType(keyedStream.getKeyType());
-        rawFlinkTransform.setStateKeySelectors(keyedStream.getKeySelector(), null);
-
-        @SuppressWarnings({"unchecked", "rawtypes"})
-        SingleOutputStreamOperator<WindowedValue<KV<K, OutputT>>> outDataStream =
-            new SingleOutputStreamOperator(
-                keyedStream.getExecutionEnvironment(),
-                rawFlinkTransform) {
-            }; // we have to cheat around the ctor being protected
-
-        keyedStream.getExecutionEnvironment().addOperator(rawFlinkTransform);
+          outDataStream =
+              FlinkStreamingAggregationsTranslators.buildTwoInputStream(
+                  keyedStream,
+                  transformSideInputs.f1,
+                  transform.getName(),
+                  doFnOperator,
+                  outputTypeInfo);
+        }
 
         context.setOutputDataStream(context.getOutput(transform), outDataStream);
       }
