@@ -160,5 +160,5 @@ class JavaJarJobServer(SubprocessJobServer):
         jar_path
     ] + list(
         self.java_arguments(
-            job_port, self._artifact_port, self._expansion_port, artifacts_dir))
+            job_port, self._artifact_port, self._expansion_port, artifacts_dir, self.jar_cache_dir))
     return (subprocess_cmd, 'localhost:%s' % job_port)
