@@ -679,6 +679,20 @@ public class BigQueryIO {
             BigQueryUtils.tableRowFromBeamRow());
   }
 
+  public static TypedRead<Row> readRows() {
+    return readRows(DataFormat.AVRO);
+  }
+
+  public static TypedRead<Row> readRows(DataFormat dataFormat) {
+    if (dataFormat == DataFormat.AVRO) {
+      return readAvro(new RowAvroParser());
+    } else if (dataFormat == DataFormat.ARROW) {
+      return readArrow();
+    } else {
+      throw new IllegalArgumentException("Unsupported data format: " + dataFormat);
+    }
+  }
+
   /**
    * Reads from a BigQuery table or query and returns a {@link PCollection} with one element per
    * each row of the table or query result, parsed from the BigQuery AVRO format using the specified
@@ -856,6 +870,19 @@ public class BigQueryIO {
     @Override
     public TableRow apply(Row row) {
       return BigQueryUtils.toTableRow(row);
+    }
+  }
+
+  static class RowAvroParser implements SerializableFunction<GenericRecord, Row> {
+
+    private transient Schema schema;
+
+    @Override
+    public Row apply(GenericRecord record) {
+      if (schema == null) {
+        schema = AvroUtils.toBeamSchema(record.getSchema());
+      }
+      return AvroUtils.toBeamRowStrict(record, schema);
     }
   }
 

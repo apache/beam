@@ -425,29 +425,29 @@ class BigQueryAvroUtils {
         (Object) null /* Cast to avoid deprecated JsonNode constructor. */);
   }
 
+  // https://cloud.google.com/bigquery/docs/reference/storage#avro_schema_details
   private static Schema handleAvroLogicalTypes(TableFieldSchema bigQueryField, Type avroType) {
     String bqType = bigQueryField.getType();
     switch (bqType) {
       case "NUMERIC":
-        // Default value based on
-        // https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#decimal_types
-        int precision = Optional.ofNullable(bigQueryField.getPrecision()).orElse(38L).intValue();
-        int scale = Optional.ofNullable(bigQueryField.getScale()).orElse(9L).intValue();
-        return LogicalTypes.decimal(precision, scale).addToSchema(Schema.create(Type.BYTES));
+        {
+          int precision = Optional.ofNullable(bigQueryField.getPrecision()).orElse(38L).intValue();
+          int scale = Optional.ofNullable(bigQueryField.getScale()).orElse(9L).intValue();
+          return LogicalTypes.decimal(precision, scale).addToSchema(Schema.create(Type.BYTES));
+        }
       case "BIGNUMERIC":
-        // Default value based on
-        // https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#decimal_types
-        int precisionBigNumeric =
-            Optional.ofNullable(bigQueryField.getPrecision()).orElse(77L).intValue();
-        int scaleBigNumeric = Optional.ofNullable(bigQueryField.getScale()).orElse(38L).intValue();
-        return LogicalTypes.decimal(precisionBigNumeric, scaleBigNumeric)
-            .addToSchema(Schema.create(Type.BYTES));
+        {
+          int precision = Optional.ofNullable(bigQueryField.getPrecision()).orElse(77L).intValue();
+          int scale = Optional.ofNullable(bigQueryField.getScale()).orElse(38L).intValue();
+          return LogicalTypes.decimal(precision, scale).addToSchema(Schema.create(Type.BYTES));
+        }
       case "TIMESTAMP":
         return LogicalTypes.timestampMicros().addToSchema(Schema.create(Type.LONG));
       case "GEOGRAPHY":
-        Schema geoSchema = Schema.create(Type.STRING);
-        geoSchema.addProp(LogicalType.LOGICAL_TYPE_PROP, "geography_wkt");
-        return geoSchema;
+      case "JSON":
+        Schema schema = Schema.create(Type.STRING);
+        schema.addProp("sqlType", bqType);
+        return schema;
       default:
         return Schema.create(avroType);
     }
