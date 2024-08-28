@@ -10,15 +10,20 @@ import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineFnBase;
 import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.AppliedCombineFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.*;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
+import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 
+import java.nio.ByteBuffer;
 import java.util.*;
 
 public class FlinkStreamingAggregationsTranslators {
@@ -210,10 +215,12 @@ public class FlinkStreamingAggregationsTranslators {
     return getWindowedAggregateDoFnOperator(context, transform, inputKvCoder, outputCoder, reduceFn, sideInputTagMapping, sideInputs);
   }
 
-  public static <K, InputT, AccumT, OutputT> SingleOutputStreamOperator<WindowedValue<KV<K, OutputT>>> batchCombinePerKeyNoSideInputs(
+  public static <K, InputT, AccumT, OutputT> SingleOutputStreamOperator<WindowedValue<KV<K, OutputT>>> batchCombinePerKey(
       FlinkStreamingTranslationContext context,
       PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>> transform,
-      CombineFnBase.GlobalCombineFn<InputT, AccumT, OutputT> combineFn) {
+      CombineFnBase.GlobalCombineFn<InputT, AccumT, OutputT> combineFn,
+      Map<Integer, PCollectionView<?>> sideInputTagMapping,
+      List<PCollectionView<?>> sideInputs) {
 
     Coder<WindowedValue<KV<K, AccumT>>> windowedAccumCoder;
     KvCoder<K, AccumT> accumKvCoder;
@@ -249,16 +256,23 @@ public class FlinkStreamingAggregationsTranslators {
     PartialReduceBundleOperator<K, InputT, OutputT, AccumT> partialDoFnOperator =
         new PartialReduceBundleOperator<>(
             combineFn,
-            FlinkStreamingTransformTranslators.getCurrentTransformName(context),
+            fullName,
             context.getWindowedInputCoder(input),
             mainTag,
             Collections.emptyList(),
             new DoFnOperator.MultiOutputOutputManagerFactory<>(
                 mainTag, windowedAccumCoder, serializablePipelineOptions),
             input.getWindowingStrategy(),
-            new HashMap<>(),
-            Collections.emptyList(),
+            sideInputTagMapping,
+            sideInputs,
             context.getPipelineOptions());
+
+    String partialName = "Combine: " + fullName;
+    CoderTypeInformation<WindowedValue<KV<K, AccumT>>> partialTypeInfo =
+        new CoderTypeInformation<>(windowedAccumCoder, context.getPipelineOptions());
+
+    KvToByteBufferKeySelector<K, AccumT> accumKeySelector =
+        new KvToByteBufferKeySelector<>(inputKvCoder.getKeyCoder(), serializablePipelineOptions);
 
     // final aggregation from AccumT to OutputT
     WindowDoFnOperator<K, AccumT, OutputT> finalDoFnOperator =
@@ -268,19 +282,73 @@ public class FlinkStreamingAggregationsTranslators {
             accumKvCoder,
             outputCoder,
             toFinalFlinkCombineFn(combineFn, inputKvCoder.getValueCoder()),
-            new HashMap<>(),
-            Collections.emptyList());
+            sideInputTagMapping,
+            sideInputs);
 
-    String partialName = "Combine: " + fullName;
-    CoderTypeInformation<WindowedValue<KV<K, AccumT>>> partialTypeInfo =
-        new CoderTypeInformation<>(windowedAccumCoder, context.getPipelineOptions());
+    if(sideInputs.isEmpty()) {
+      return
+          inputDataStream
+              .transform(partialName, partialTypeInfo, partialDoFnOperator)
+              .uid(partialName)
+              .keyBy(accumKeySelector)
+              .transform(fullName, outputTypeInfo, finalDoFnOperator)
+              .uid(fullName);
+    } else {
+      Tuple2<Map<Integer, PCollectionView<?>>, DataStream<RawUnionValue>> transformSideInputs =
+          FlinkStreamingTransformTranslators.transformSideInputs(sideInputs, context);
 
-    return
-        inputDataStream
+      KeyedStream<WindowedValue<KV<K, AccumT>>, ByteBuffer> keyedStream =
+          inputDataStream
             .transform(partialName, partialTypeInfo, partialDoFnOperator)
             .uid(partialName)
-            .keyBy(new KvToByteBufferKeySelector<>(inputKvCoder.getKeyCoder(), serializablePipelineOptions))
-            .transform(fullName, outputTypeInfo, finalDoFnOperator)
-            .uid(fullName);
+            .keyBy(accumKeySelector);
+
+      return buildTwoInputStream(keyedStream, transformSideInputs.f1, transform.getName(), finalDoFnOperator, outputTypeInfo);
+    }
+  }
+
+  @SuppressWarnings({
+      "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+  })
+  public static <K, InputT, OutputT> SingleOutputStreamOperator<WindowedValue<KV<K, OutputT>>> buildTwoInputStream(
+      KeyedStream<WindowedValue<KV<K, InputT>>, ByteBuffer> keyedStream,
+      DataStream<RawUnionValue> sideInputStream,
+      String name,
+      WindowDoFnOperator<K, InputT, OutputT> operator,
+      TypeInformation<WindowedValue<KV<K, OutputT>>> outputTypeInfo
+  ) {
+    // we have to manually construct the two-input transform because we're not
+    // allowed to have only one input keyed, normally.
+    TwoInputTransformation<
+        WindowedValue<KV<K, InputT>>, RawUnionValue, WindowedValue<KV<K, OutputT>>>
+        rawFlinkTransform =
+        new TwoInputTransformation<>(
+            keyedStream.getTransformation(),
+            sideInputStream.broadcast().getTransformation(),
+            name,
+            operator,
+            outputTypeInfo,
+            keyedStream.getParallelism());
+
+    rawFlinkTransform.setStateKeyType(keyedStream.getKeyType());
+    rawFlinkTransform.setStateKeySelectors(keyedStream.getKeySelector(), null);
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    SingleOutputStreamOperator<WindowedValue<KV<K, OutputT>>> outDataStream =
+        new SingleOutputStreamOperator(
+            keyedStream.getExecutionEnvironment(),
+            rawFlinkTransform) {
+        }; // we have to cheat around the ctor being protected
+
+    keyedStream.getExecutionEnvironment().addOperator(rawFlinkTransform);
+
+    return outDataStream;
+  }
+
+  public static <K, InputT, AccumT, OutputT> SingleOutputStreamOperator<WindowedValue<KV<K, OutputT>>> batchCombinePerKeyNoSideInputs(
+      FlinkStreamingTranslationContext context,
+      PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>> transform,
+      CombineFnBase.GlobalCombineFn<InputT, AccumT, OutputT> combineFn) {
+    return batchCombinePerKey(context, transform, combineFn, new HashMap<>(), Collections.emptyList());
   }
 }
