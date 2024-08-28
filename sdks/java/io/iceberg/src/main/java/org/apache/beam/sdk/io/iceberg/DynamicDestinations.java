@@ -24,13 +24,15 @@ import org.apache.iceberg.catalog.TableIdentifier;
 
 public interface DynamicDestinations extends Serializable {
 
-  Schema getMetadataSchema();
+  Schema getDataSchema();
 
-  Row assignDestinationMetadata(Row data);
+  Row getData(Row element);
 
-  IcebergDestination instantiateDestination(Row dest);
+  String getDestinationIdentifier(Row element);
 
-  static DynamicDestinations singleTable(TableIdentifier tableId) {
-    return new OneTableDynamicDestinations(tableId);
+  IcebergDestination instantiateDestination(String destination);
+
+  static DynamicDestinations singleTable(TableIdentifier tableId, Schema inputSchema) {
+    return new OneTableDynamicDestinations(tableId, inputSchema);
   }
 }

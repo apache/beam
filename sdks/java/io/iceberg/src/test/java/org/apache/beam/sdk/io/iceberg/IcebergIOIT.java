@@ -17,23 +17,29 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
+import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.managed.Managed;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.util.RowFilter;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -43,6 +49,7 @@ import org.apache.iceberg.CatalogUtil;
 import org.apache.iceberg.CombinedScanTask;
 import org.apache.iceberg.FileScanTask;
 import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.Schema;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.TableScan;
 import org.apache.iceberg.catalog.Catalog;
@@ -57,6 +64,7 @@ import org.apache.iceberg.io.DataWriter;
 import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.io.OutputFile;
 import org.apache.iceberg.parquet.Parquet;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -70,6 +78,7 @@ import org.junit.runners.JUnit4;
 public class IcebergIOIT implements Serializable {
   private static final org.apache.beam.sdk.schemas.Schema DOUBLY_NESTED_ROW_SCHEMA =
       org.apache.beam.sdk.schemas.Schema.builder()
+          .addStringField("char")
           .addStringField("doubly_nested_str")
           .addInt64Field("doubly_nested_float")
           .build();
@@ -103,6 +112,7 @@ public class IcebergIOIT implements Serializable {
                   .addValue("nested_str_value_" + strNum)
                   .addValue(
                       Row.withSchema(DOUBLY_NESTED_ROW_SCHEMA)
+                          .addValue(String.valueOf((char) (97 + num % 5)))
                           .addValue("doubly_nested_str_value_" + strNum)
                           .addValue(num)
                           .build())
@@ -145,7 +155,7 @@ public class IcebergIOIT implements Serializable {
 
   private String warehouseLocation;
 
-  private TableIdentifier tableId;
+  private String tableId;
   private Catalog catalog;
 
   @BeforeClass
@@ -162,7 +172,7 @@ public class IcebergIOIT implements Serializable {
     warehouseLocation =
         String.format("%s/IcebergIOIT/%s", options.getTempLocation(), UUID.randomUUID());
 
-    tableId = TableIdentifier.of(testName.getMethodName(), "test_table");
+    tableId = testName.getMethodName() + ".test_table";
     catalog = new HadoopCatalog(catalogHadoopConf, warehouseLocation);
   }
 
@@ -204,7 +214,7 @@ public class IcebergIOIT implements Serializable {
   }
 
   private List<Record> readRecords(Table table) {
-    TableScan tableScan = table.newScan().project(ICEBERG_SCHEMA);
+    TableScan tableScan = table.newScan().project(table.schema());
     List<Record> writtenRecords = new ArrayList<>();
     for (CombinedScanTask task : tableScan.planTasks()) {
       InputFilesDecryptor descryptor =
@@ -214,9 +224,9 @@ public class IcebergIOIT implements Serializable {
         CloseableIterable<Record> iterable =
             Parquet.read(inputFile)
                 .split(fileTask.start(), fileTask.length())
-                .project(ICEBERG_SCHEMA)
+                .project(table.schema())
                 .createReaderFunc(
-                    fileSchema -> GenericParquetReaders.buildReader(ICEBERG_SCHEMA, fileSchema))
+                    fileSchema -> GenericParquetReaders.buildReader(table.schema(), fileSchema))
                 .filter(fileTask.residual())
                 .build();
 
@@ -228,9 +238,9 @@ public class IcebergIOIT implements Serializable {
     return writtenRecords;
   }
 
-  private Map<String, Object> managedIcebergConfig() {
+  private Map<String, Object> managedIcebergConfig(String tableId) {
     return ImmutableMap.<String, Object>builder()
-        .put("table", tableId.toString())
+        .put("table", tableId)
         .put("catalog_name", "test-name")
         .put(
             "catalog_properties",
@@ -248,11 +258,11 @@ public class IcebergIOIT implements Serializable {
    */
   @Test
   public void testRead() throws Exception {
-    Table table = catalog.createTable(tableId, ICEBERG_SCHEMA);
+    Table table = catalog.createTable(TableIdentifier.parse(tableId), ICEBERG_SCHEMA);
 
     List<Row> expectedRows = populateTable(table);
 
-    Map<String, Object> config = managedIcebergConfig();
+    Map<String, Object> config = managedIcebergConfig(tableId);
 
     PCollection<Row> rows =
         pipeline.apply(Managed.read(Managed.ICEBERG).withConfig(config)).getSinglePCollection();
@@ -270,10 +280,10 @@ public class IcebergIOIT implements Serializable {
    */
   @Test
   public void testWrite() {
-    Table table = catalog.createTable(tableId, ICEBERG_SCHEMA);
+    Table table = catalog.createTable(TableIdentifier.parse(tableId), ICEBERG_SCHEMA);
 
     // Write with Beam
-    Map<String, Object> config = managedIcebergConfig();
+    Map<String, Object> config = managedIcebergConfig(tableId);
     PCollection<Row> input = pipeline.apply(Create.of(INPUT_ROWS)).setRowSchema(BEAM_SCHEMA);
     input.apply(Managed.write(Managed.ICEBERG).withConfig(config));
     pipeline.run().waitUntilFinish();
@@ -294,10 +304,11 @@ public class IcebergIOIT implements Serializable {
             .identity("modulo_5")
             .truncate("str", "value_x".length())
             .build();
-    Table table = catalog.createTable(tableId, ICEBERG_SCHEMA, partitionSpec);
+    Table table =
+        catalog.createTable(TableIdentifier.parse(tableId), ICEBERG_SCHEMA, partitionSpec);
 
     // Write with Beam
-    Map<String, Object> config = managedIcebergConfig();
+    Map<String, Object> config = managedIcebergConfig(tableId);
     PCollection<Row> input = pipeline.apply(Create.of(INPUT_ROWS)).setRowSchema(BEAM_SCHEMA);
     input.apply(Managed.write(Managed.ICEBERG).withConfig(config));
     pipeline.run().waitUntilFinish();
@@ -306,5 +317,80 @@ public class IcebergIOIT implements Serializable {
     List<Record> returnedRecords = readRecords(table);
     assertThat(
         returnedRecords, containsInAnyOrder(INPUT_ROWS.stream().map(RECORD_FUNC::apply).toArray()));
+  }
+
+  /**
+   * @param drop if null, just perform a normal dynamic destination write test; if true, also drop
+   *     some fields from input rows; if false, also keep only some fields from input rows.
+   */
+  private void writeToDynamicDestinationsAndMaybeFilter(@Nullable Boolean drop) {
+    String tableIdentifierTemplate = tableId + "_{modulo_5}_{row.nested_row.char}";
+    Map<String, Object> writeConfig = new HashMap<>(managedIcebergConfig(tableIdentifierTemplate));
+
+    List<String> fieldsToFilter =
+        Arrays.asList(
+            "str",
+            "int",
+            "nullable_long",
+            "row.nested_str",
+            "row.nested_int",
+            "row.nested_row.doubly_nested_str");
+    // an un-configured filter will just return the same row
+    RowFilter rowFilter = new RowFilter(BEAM_SCHEMA);
+    if (drop != null) {
+      rowFilter = drop ? rowFilter.dropping(fieldsToFilter) : rowFilter.keeping(fieldsToFilter);
+      writeConfig.put(drop ? "drop" : "keep", fieldsToFilter);
+    }
+
+    Schema tableSchema = IcebergUtils.beamSchemaToIcebergSchema(rowFilter.outputSchema());
+
+    Table table0 = catalog.createTable(TableIdentifier.parse(tableId + "_0_a"), tableSchema);
+    Table table1 = catalog.createTable(TableIdentifier.parse(tableId + "_1_b"), tableSchema);
+    Table table2 = catalog.createTable(TableIdentifier.parse(tableId + "_2_c"), tableSchema);
+    Table table3 = catalog.createTable(TableIdentifier.parse(tableId + "_3_d"), tableSchema);
+    Table table4 = catalog.createTable(TableIdentifier.parse(tableId + "_4_e"), tableSchema);
+
+    // Write with Beam
+    PCollection<Row> input = pipeline.apply(Create.of(INPUT_ROWS)).setRowSchema(BEAM_SCHEMA);
+    input.apply(Managed.write(Managed.ICEBERG).withConfig(writeConfig));
+    pipeline.run().waitUntilFinish();
+
+    // Read back and check records are correct
+    List<List<Record>> returnedRecords = new ArrayList<>(5);
+    returnedRecords.add(readRecords(table0));
+    returnedRecords.add(readRecords(table1));
+    returnedRecords.add(readRecords(table2));
+    returnedRecords.add(readRecords(table3));
+    returnedRecords.add(readRecords(table4));
+
+    SerializableFunction<Row, Record> recordFunc =
+        row -> IcebergUtils.beamRowToIcebergRecord(tableSchema, row);
+
+    for (int i = 0; i < returnedRecords.size(); i++) {
+      List<Record> recordsInTable_i = returnedRecords.get(i);
+      long l = i;
+      Stream<Record> expectedRecords =
+          INPUT_ROWS.stream()
+              .filter(r -> checkStateNotNull(r.getInt64("modulo_5")) == l)
+              .map(rowFilter::filter)
+              .map(recordFunc::apply);
+
+      assertThat(recordsInTable_i, containsInAnyOrder(expectedRecords.toArray()));
+    }
+  }
+
+  @Test
+  public void testWriteToDynamicDestinations() {
+    writeToDynamicDestinationsAndMaybeFilter(null);
+  }
+
+  @Test
+  public void testWriteToDynamicDestinationsAndDropFields() {
+    writeToDynamicDestinationsAndMaybeFilter(true);
+  }
+
+  @Test
+  public void testWriteToDynamicDestinationsAndKeepFields() {
+    writeToDynamicDestinationsAndMaybeFilter(false);
   }
 }

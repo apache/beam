@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.util;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -31,7 +32,39 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Precondit
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-public class RowFilter {
+/**
+ * A utility that filters fields from Beam {@link Row}s. This filter can be configured to indicate
+ * what fields you would like to either <strong>keep</strong> or <strong>drop</strong>. Afterward,
+ * call {@link #filter(Row)} on a Schema-compatible Row to filter it. An un-configured filter will
+ * simply return the input row untouched.
+ *
+ * <p>Nested fields can be expressed using dot-notation (e.g. {@code "top.middle.nested"}).
+ *
+ * <p>A configured {@link RowFilter} will naturally produce {@link Row}s with a new Beam {@link
+ * Schema}. You can access this new Schema ahead of time via the filter's {@link #outputSchema()}.
+ *
+ * <p>Configure a {@link RowFilter} as follows:
+ *
+ * <pre>{@code
+ * // this is an un-configured filter
+ * RowFilter unconfigured = new RowFilter(beamSchema);
+ *
+ * List<String> fields = Arrays.asList("foo", "bar.xyz", "baz.abc.qwe");
+ *
+ * // this filter will exclusively keep these fields and drop everything else
+ * RowFilter keepingFilter = new RowFilter(beamSchema).keeping(fields);
+ *
+ * // this filter will drop these fields
+ * RowFilter droppingFilter = new RowFilter(beamSchema).dropping(fields);
+ *
+ * // produces a filtered row
+ * Row outputRow = keepingFilter.filter(row);
+ * }</pre>
+ *
+ * Check the documentation for {@link #keeping(List)} and {@link #dropping(List)} for further
+ * details on what a filtered Row can look like.
+ */
+public class RowFilter implements Serializable {
   private final Schema rowSchema;
   private @Nullable Schema transformedSchema;
 
@@ -125,8 +158,8 @@ public class RowFilter {
    * Configures this {@link RowFilter} to filter {@link Row} by removing the specified fields.
    * Nested fields can be specified using dot-notation.
    *
-   * <p>For example, if we want to elide thea list of fields {@code ["foo", "baz.nested_1"]}, for
-   * the input {@link Row}:
+   * <p>For example, if we want to drop the list of fields {@code ["foo", "baz.nested_1"]}, for this
+   * input {@link Row}:
    *
    * <pre>{@code
    * foo: 123
@@ -144,13 +177,13 @@ public class RowFilter {
    *   nested_2: xyz
    * }</pre>
    */
-  public RowFilter eliding(List<String> fields) {
+  public RowFilter dropping(List<String> fields) {
     Preconditions.checkState(
         transformedSchema == null,
         "This RowFilter has already been configured to filter to the following Schema: %s",
         transformedSchema);
-    validateSchemaContainsFields(rowSchema, fields, "\"elide\"");
-    transformedSchema = elideFields(rowSchema, fields);
+    validateSchemaContainsFields(rowSchema, fields, "\"drop\"");
+    transformedSchema = dropFields(rowSchema, fields);
     return this;
   }
 
@@ -207,12 +240,12 @@ public class RowFilter {
    * <p>No guarantee that field ordering will remain the same.
    */
   @VisibleForTesting
-  static Schema elideFields(Schema schema, List<String> fieldsToElide) {
-    if (fieldsToElide.isEmpty()) {
+  static Schema dropFields(Schema schema, List<String> fieldsToDrop) {
+    if (fieldsToDrop.isEmpty()) {
       return schema;
     }
     List<Schema.Field> newFieldsList = new ArrayList<>(schema.getFields());
-    Map<String, List<String>> fieldTree = getFieldTree(fieldsToElide);
+    Map<String, List<String>> fieldTree = getFieldTree(fieldsToDrop);
 
     for (Map.Entry<String, List<String>> fieldAndDescendents : fieldTree.entrySet()) {
       String root = fieldAndDescendents.getKey();
@@ -233,7 +266,7 @@ public class RowFilter {
             typeToRemove.getTypeName());
 
         Schema nestedSchema = Preconditions.checkNotNull(typeToRemove.getRowSchema());
-        Schema newNestedSchema = elideFields(nestedSchema, nestedFields);
+        Schema newNestedSchema = dropFields(nestedSchema, nestedFields);
         Schema.Field modifiedField =
             Schema.Field.of(root, Schema.FieldType.row(newNestedSchema))
                 .withNullable(typeToRemove.getNullable());
@@ -288,21 +321,27 @@ public class RowFilter {
   }
 
   /**
-   * Performs a filter operation (keep or elide) on the input {@link Row}. Must have already
-   * configured a filter operation with {@link #eliding(List)} or {@link #keeping(List)} for this
+   * Performs a filter operation (keep or drop) on the input {@link Row}. Must have already
+   * configured a filter operation with {@link #dropping(List)} or {@link #keeping(List)} for this
    * {@link RowFilter}.
+   *
+   * <p>If not yet configured, will simply return the same {@link Row}.
    */
   public Row filter(Row row) {
+    if (transformedSchema == null) {
+      return row;
+    }
     Preconditions.checkState(
         row.getSchema().assignableTo(rowSchema),
         "Encountered Row with schema that is incompatible with this RowFilter's schema.\nRow schema: %s\nSchema used to initialize this RowFilter: %s",
         row.getSchema(),
         rowSchema);
-    Schema newSchema =
-        Preconditions.checkNotNull(
-            transformedSchema,
-            "This RowFilter was not set up to filter fields. Please configure using eliding() or keeping().");
 
-    return Preconditions.checkNotNull(copyWithNewSchema(row, newSchema));
+    return Preconditions.checkNotNull(copyWithNewSchema(row, outputSchema()));
+  }
+
+  /** Returns the output {@link Row}'s {@link Schema}. */
+  public Schema outputSchema() {
+    return transformedSchema != null ? transformedSchema : rowSchema;
   }
 }

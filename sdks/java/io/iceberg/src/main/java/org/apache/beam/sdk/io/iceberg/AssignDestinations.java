@@ -32,7 +32,7 @@ import org.apache.beam.sdk.values.Row;
  */
 class AssignDestinations extends PTransform<PCollection<Row>, PCollection<Row>> {
 
-  private DynamicDestinations dynamicDestinations;
+  private final DynamicDestinations dynamicDestinations;
 
   public AssignDestinations(DynamicDestinations dynamicDestinations) {
     this.dynamicDestinations = dynamicDestinations;
@@ -41,11 +41,10 @@ class AssignDestinations extends PTransform<PCollection<Row>, PCollection<Row>> 
   @Override
   public PCollection<Row> expand(PCollection<Row> input) {
 
-    final Schema inputSchema = input.getSchema();
     final Schema outputSchema =
         Schema.builder()
-            .addRowField("data", inputSchema)
-            .addRowField("dest", dynamicDestinations.getMetadataSchema())
+            .addStringField("dest")
+            .addRowField("data", dynamicDestinations.getDataSchema())
             .build();
 
     return input
@@ -53,11 +52,12 @@ class AssignDestinations extends PTransform<PCollection<Row>, PCollection<Row>> 
             ParDo.of(
                 new DoFn<Row, Row>() {
                   @ProcessElement
-                  public void processElement(@Element Row data, OutputReceiver<Row> out) {
+                  public void processElement(@Element Row element, OutputReceiver<Row> out) {
+                    String tableIdentifier = dynamicDestinations.getDestinationIdentifier(element);
+                    Row data = dynamicDestinations.getData(element);
+
                     out.output(
-                        Row.withSchema(outputSchema)
-                            .addValues(data, dynamicDestinations.assignDestinationMetadata(data))
-                            .build());
+                        Row.withSchema(outputSchema).addValues(tableIdentifier, data).build());
                   }
                 }))
         .setRowSchema(outputSchema);

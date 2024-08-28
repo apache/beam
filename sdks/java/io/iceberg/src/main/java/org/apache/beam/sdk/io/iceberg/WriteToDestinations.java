@@ -22,6 +22,7 @@ import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.ShardedKeyCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -33,6 +34,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.ShardedKey;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 
 class WriteToDestinations extends PTransform<PCollection<Row>, IcebergWriteResult> {
 
@@ -60,15 +62,9 @@ class WriteToDestinations extends PTransform<PCollection<Row>, IcebergWriteResul
             new WriteUngroupedRowsToFiles(catalogConfig, dynamicDestinations));
 
     // Then write the rest by shuffling on the destination metadata
-    Schema destSchema =
-        checkArgumentNotNull(
-            writeUngroupedResult
-                .getSpilledRows()
-                .getSchema()
-                .getField("dest")
-                .getType()
-                .getRowSchema(),
-            "Input schema missing `dest` field.");
+    Preconditions.checkState(
+        writeUngroupedResult.getSpilledRows().getSchema().hasField("dest"),
+        "Input schema missing `dest` field.");
     Schema dataSchema =
         checkArgumentNotNull(
             writeUngroupedResult
@@ -85,24 +81,23 @@ class WriteToDestinations extends PTransform<PCollection<Row>, IcebergWriteResul
             .apply(
                 "Key by destination and shard",
                 MapElements.via(
-                    new SimpleFunction<Row, KV<ShardedKey<Row>, Row>>() {
+                    new SimpleFunction<Row, KV<ShardedKey<String>, Row>>() {
                       private static final int SPILLED_ROWS_SHARDING_FACTOR = 10;
                       private int shardNumber = 0;
 
                       @Override
-                      public KV<ShardedKey<Row>, Row> apply(Row elem) {
+                      public KV<ShardedKey<String>, Row> apply(Row elem) {
                         Row data =
                             checkArgumentNotNull(
                                 elem.getRow("data"), "Element missing `data` field");
-                        Row dest =
+                        String dest =
                             checkArgumentNotNull(
-                                elem.getRow("dest"), "Element missing `dest` field");
+                                elem.getString("dest"), "Element missing `dest` field");
                         return KV.of(
                             ShardedKey.of(dest, shardNumber % SPILLED_ROWS_SHARDING_FACTOR), data);
                       }
                     }))
-            .setCoder(
-                KvCoder.of(ShardedKeyCoder.of(RowCoder.of(destSchema)), RowCoder.of(dataSchema)))
+            .setCoder(KvCoder.of(ShardedKeyCoder.of(StringUtf8Coder.of()), RowCoder.of(dataSchema)))
             .apply("Group spilled rows by destination shard", GroupByKey.create())
             .apply(
                 "Write remaining rows to files",

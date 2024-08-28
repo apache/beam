@@ -36,7 +36,7 @@ import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 
 class WriteGroupedRowsToFiles
     extends PTransform<
-        PCollection<KV<ShardedKey<Row>, Iterable<Row>>>, PCollection<FileWriteResult>> {
+        PCollection<KV<ShardedKey<String>, Iterable<Row>>>, PCollection<FileWriteResult>> {
 
   static final long DEFAULT_MAX_BYTES_PER_FILE = (1L << 40); // 1TB
 
@@ -51,7 +51,7 @@ class WriteGroupedRowsToFiles
 
   @Override
   public PCollection<FileWriteResult> expand(
-      PCollection<KV<ShardedKey<Row>, Iterable<Row>>> input) {
+      PCollection<KV<ShardedKey<String>, Iterable<Row>>> input) {
     return input.apply(
         ParDo.of(
             new WriteGroupedRowsToFilesDoFn(
@@ -59,7 +59,7 @@ class WriteGroupedRowsToFiles
   }
 
   private static class WriteGroupedRowsToFilesDoFn
-      extends DoFn<KV<ShardedKey<Row>, Iterable<Row>>, FileWriteResult> {
+      extends DoFn<KV<ShardedKey<String>, Iterable<Row>>, FileWriteResult> {
 
     private final DynamicDestinations dynamicDestinations;
     private final IcebergCatalogConfig catalogConfig;
@@ -87,13 +87,13 @@ class WriteGroupedRowsToFiles
     @ProcessElement
     public void processElement(
         ProcessContext c,
-        @Element KV<ShardedKey<Row>, Iterable<Row>> element,
+        @Element KV<ShardedKey<String>, Iterable<Row>> element,
         BoundedWindow window,
         PaneInfo pane)
         throws Exception {
 
-      Row destMetadata = element.getKey().getKey();
-      IcebergDestination destination = dynamicDestinations.instantiateDestination(destMetadata);
+      String tableIdentifier = element.getKey().getKey();
+      IcebergDestination destination = dynamicDestinations.instantiateDestination(tableIdentifier);
       WindowedValue<IcebergDestination> windowedDestination =
           WindowedValue.of(destination, window.maxTimestamp(), window, pane);
       RecordWriterManager writer;

@@ -87,7 +87,8 @@ public class IcebergIO {
       DynamicDestinations destinations = getDynamicDestinations();
       if (destinations == null) {
         destinations =
-            DynamicDestinations.singleTable(Preconditions.checkNotNull(getTableIdentifier()));
+            DynamicDestinations.singleTable(
+                Preconditions.checkNotNull(getTableIdentifier()), input.getSchema());
       }
       return input
           .apply("Set Destination Metadata", new AssignDestinations(destinations))

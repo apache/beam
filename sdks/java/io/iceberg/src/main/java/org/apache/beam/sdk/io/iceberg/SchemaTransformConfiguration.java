@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.iceberg;
 
 import com.google.auto.value.AutoValue;
+import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
@@ -34,6 +35,15 @@ public abstract class SchemaTransformConfiguration {
   @SchemaFieldDescription("Identifier of the Iceberg table.")
   public abstract String getTable();
 
+  @SchemaFieldDescription("When specified, only these columns will be written to the table.")
+  @Nullable
+  public abstract List<String> getKeep();
+
+  @SchemaFieldDescription(
+      "When specified, these columns will be removed before writing to the table.")
+  @Nullable
+  public abstract List<String> getDrop();
+
   @SchemaFieldDescription("Name of the catalog containing the table.")
   @Nullable
   public abstract String getCatalogName();
@@ -49,6 +59,10 @@ public abstract class SchemaTransformConfiguration {
   @AutoValue.Builder
   public abstract static class Builder {
     public abstract Builder setTable(String table);
+
+    public abstract Builder setKeep(List<String> fieldsToKeep);
+
+    public abstract Builder setDrop(List<String> fieldsToDrop);
 
     public abstract Builder setCatalogName(String catalogName);
 

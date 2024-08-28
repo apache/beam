@@ -184,8 +184,8 @@ public class RowFilterTest {
   }
 
   @Test
-  public void testElideSchemaFields() {
-    List<String> fieldsToElide =
+  public void testDropSchemaFields() {
+    List<String> fieldsToDrop =
         Arrays.asList(
             "str",
             "arr_int",
@@ -196,7 +196,7 @@ public class RowFilterTest {
             "nullable_row.nested_str",
             "nullable_row.nested_row");
 
-    Schema expectedElidedSchema =
+    Schema expectedDroppedSchema =
         Schema.builder()
             .addBooleanField("bool")
             .addRowField(
@@ -211,7 +211,7 @@ public class RowFilterTest {
                 Schema.builder().addInt32Field("nested_int").addFloatField("nested_float").build())
             .build();
 
-    assertTrue(expectedElidedSchema.equivalent(RowFilter.elideFields(ROW_SCHEMA, fieldsToElide)));
+    assertTrue(expectedDroppedSchema.equivalent(RowFilter.dropFields(ROW_SCHEMA, fieldsToDrop)));
   }
 
   @Test
@@ -305,10 +305,10 @@ public class RowFilterTest {
   }
 
   @Test
-  public void testElideRowFields() {
+  public void testDropRowFields() {
     RowFilter rowFilter =
         new RowFilter(ROW_SCHEMA)
-            .eliding(
+            .dropping(
                 Arrays.asList(
                     "bool",
                     "nullable_int",

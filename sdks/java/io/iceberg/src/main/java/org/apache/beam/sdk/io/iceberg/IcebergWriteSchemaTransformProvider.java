@@ -34,7 +34,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.FileFormat;
 
 /**
  * SchemaTransform implementation for {@link IcebergIO#writeRows}. Writes Beam Rows to Iceberg and
@@ -106,7 +106,13 @@ public class IcebergWriteSchemaTransformProvider
       IcebergWriteResult result =
           rows.apply(
               IcebergIO.writeRows(configuration.getIcebergCatalog())
-                  .to(TableIdentifier.parse(configuration.getTable())));
+                  .to(
+                      new PortableIcebergDestinations(
+                          configuration.getTable(),
+                          FileFormat.PARQUET.toString(),
+                          rows.getSchema(),
+                          configuration.getDrop(),
+                          configuration.getKeep())));
 
       PCollection<Row> snapshots =
           result
