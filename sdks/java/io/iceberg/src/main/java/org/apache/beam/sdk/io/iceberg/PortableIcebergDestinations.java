@@ -19,12 +19,15 @@ package org.apache.beam.sdk.io.iceberg;
 
 import java.util.List;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.RowFilter;
 import org.apache.beam.sdk.util.RowStringInterpolator;
 import org.apache.beam.sdk.values.Row;
 import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Instant;
 
 class PortableIcebergDestinations implements DynamicDestinations {
   private final RowFilter rowFilter;
@@ -63,6 +66,12 @@ class PortableIcebergDestinations implements DynamicDestinations {
   @Override
   public String getDestinationIdentifier(Row element) {
     return interpolator.interpolate(element);
+  }
+
+  @Override
+  public String getDestinationIdentifier(
+      Row element, BoundedWindow window, PaneInfo paneInfo, Instant timestamp) {
+    return interpolator.interpolate(element, window, paneInfo, timestamp);
   }
 
   @Override

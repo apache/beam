@@ -19,8 +19,11 @@ package org.apache.beam.sdk.io.iceberg;
 
 import java.io.Serializable;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.Row;
 import org.apache.iceberg.catalog.TableIdentifier;
+import org.joda.time.Instant;
 
 public interface DynamicDestinations extends Serializable {
 
@@ -29,6 +32,11 @@ public interface DynamicDestinations extends Serializable {
   Row getData(Row element);
 
   String getDestinationIdentifier(Row element);
+
+  default String getDestinationIdentifier(
+      Row element, BoundedWindow window, PaneInfo paneInfo, Instant timestamp) {
+    return getDestinationIdentifier(element);
+  }
 
   IcebergDestination instantiateDestination(String destination);
 

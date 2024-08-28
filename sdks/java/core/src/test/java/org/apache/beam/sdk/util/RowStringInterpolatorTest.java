@@ -21,7 +21,12 @@ import static org.junit.Assert.assertEquals;
 
 import java.util.Arrays;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.Row;
+import org.joda.time.DateTime;
+import org.joda.time.Instant;
+import org.joda.time.LocalDate;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -154,5 +159,34 @@ public class RowStringInterpolatorTest {
     String output = interpolator.interpolate(ROW);
 
     assertEquals("foo str_value, bar doubly_nested_str_value, baz 789", output);
+  }
+
+  @Test
+  public void testInterpolateWindowingInformation() {
+    String template =
+        String.format(
+            "str: {str}, max timestamp: {%s}, pane: {%s}, year: {%s}, month: {%s}, day: {%s}",
+            RowStringInterpolator.MAX_TIMESTAMP,
+            RowStringInterpolator.PANE_INDEX,
+            RowStringInterpolator.YYYY,
+            RowStringInterpolator.MM,
+            RowStringInterpolator.DD);
+
+    RowStringInterpolator interpolator = new RowStringInterpolator(template, ROW_SCHEMA);
+
+    Instant instant = new DateTime(2024, 8, 28, 12, 0).toInstant();
+
+    String output =
+        interpolator.interpolate(
+            ROW,
+            GlobalWindow.INSTANCE,
+            PaneInfo.createPane(false, false, PaneInfo.Timing.ON_TIME, 2, 0),
+            instant);
+    String expected =
+        String.format(
+            "str: str_value, max timestamp: %s, pane: 2, year: 2024, month: 8, day: 28",
+            new LocalDate(GlobalWindow.INSTANCE.maxTimestamp()));
+
+    assertEquals(expected, output);
   }
 }

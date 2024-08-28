@@ -18,19 +18,24 @@
 package org.apache.beam.sdk.util;
 
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.apache.commons.lang3.StringUtils;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Chronology;
+import org.joda.time.Instant;
 
 /**
  * A utility that interpolates values in a pre-determined {@link String} using an input Beam {@link
@@ -39,8 +44,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>The {@link RowStringInterpolator} looks for field names specified inside {curly braces}. For
  * example, if the interpolator is configured with the String {@code "unified {foo} and streaming"},
  * it will look for a field name {@code "foo"} in the input {@link Row} and substitute in that
- * value. A {@link RowStringInterpolator} configured with a template String that contains no placeholders
- * (i.e. no curly braces), it will always return that String, untouched.
+ * value. A {@link RowStringInterpolator} configured with a template String that contains no
+ * placeholders (i.e. no curly braces), it will always return that String, untouched.
  *
  * <p>Nested fields can be specified using dot-notation (e.g. {@code "top.middle.nested"}).
  *
@@ -54,10 +59,33 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * String output = interpolator.interpolate(inputRow);
  * // output --> "unified batch and streaming!"
  * }</pre>
+ *
+ * <p>Additionally, {@link #interpolate(Row, BoundedWindow, PaneInfo, Instant)} can be used in
+ * streaming scenarios when you want to include windowing metadata in the output String. To make use
+ * of this, include the relevant placeholder:
+ *
+ * <ul>
+ *   <li>$MAX_TIMESTAMP: the window's max timestamp, represented as a local date (e.g. "2024-08-28")
+ *   <li>$PANE_INDEX: the pane's index
+ *   <li>$YYYY: the element timestamp's year
+ *   <li>$MM: the element timestamp's month
+ *   <li>$DD: the element timestamp's day
+ * </ul>
+ *
+ * <p>For example, your Sting template can look like:
+ *
+ * <pre>{@code "unified {foo} and {bar} since {$YYYY}-{$MM}!"}</pre>
  */
 public class RowStringInterpolator implements Serializable {
   private final String template;
   private final Set<String> fieldsToReplace;
+  public static final String MAX_TIMESTAMP = "$MAX_TIMESTAMP";
+  public static final String PANE_INDEX = "$PANE_INDEX";
+  public static final String YYYY = "$YYYY";
+  public static final String MM = "$MM";
+  public static final String DD = "$DD";
+  private static final Set<String> WINDOWING_METADATA =
+      Sets.newHashSet(MAX_TIMESTAMP, PANE_INDEX, YYYY, MM, DD);
 
   public RowStringInterpolator(String template, Schema rowSchema) {
     this.template = template;
@@ -68,8 +96,12 @@ public class RowStringInterpolator implements Serializable {
       fieldsToReplace.add(StringUtils.strip(m.group(), "{}"));
     }
 
-    RowFilter.validateSchemaContainsFields(
-        rowSchema, new ArrayList<>(fieldsToReplace), "string interpolation");
+    List<String> rowFields =
+        fieldsToReplace.stream()
+            .filter(f -> !WINDOWING_METADATA.contains(f))
+            .collect(Collectors.toList());
+
+    RowFilter.validateSchemaContainsFields(rowSchema, rowFields, "string interpolation");
   }
 
   /** Performs string interpolation on the template using values from the input {@link Row}. */
@@ -79,6 +111,45 @@ public class RowStringInterpolator implements Serializable {
       List<String> levels = Splitter.on(".").splitToList(field);
 
       Object val = MoreObjects.firstNonNull(getValue(row, levels, 0), "");
+
+      interpolated = interpolated.replace("{" + field + "}", String.valueOf(val));
+    }
+    return interpolated;
+  }
+
+  /** Like {@link #interpolate(Row)} but also potentially include windowing information. */
+  public String interpolate(Row row, BoundedWindow window, PaneInfo paneInfo, Instant timestamp) {
+    String interpolated = this.template;
+    for (String field : fieldsToReplace) {
+      Object val;
+      switch (field) {
+        case MAX_TIMESTAMP:
+          Instant maxTimestamp = window.maxTimestamp();
+          Chronology chronology = maxTimestamp.getChronology();
+          long millis = maxTimestamp.getMillis();
+          int year = chronology.year().get(millis);
+          int month = chronology.monthOfYear().get(millis);
+          int day = chronology.dayOfMonth().get(millis);
+
+          val = String.format("%04d-%02d-%02d", year, month, day);
+          break;
+        case PANE_INDEX:
+          val = paneInfo.getIndex();
+          break;
+        case YYYY:
+          val = timestamp.getChronology().year().get(timestamp.getMillis());
+          break;
+        case MM:
+          val = timestamp.getChronology().monthOfYear().get(timestamp.getMillis());
+          break;
+        case DD:
+          val = timestamp.getChronology().dayOfMonth().get(timestamp.getMillis());
+          break;
+        default:
+          List<String> levels = Splitter.on(".").splitToList(field);
+          val = MoreObjects.firstNonNull(getValue(row, levels, 0), "");
+          break;
+      }
 
       interpolated = interpolated.replace("{" + field + "}", String.valueOf(val));
     }

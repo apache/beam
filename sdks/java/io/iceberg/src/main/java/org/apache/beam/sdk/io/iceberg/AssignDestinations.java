@@ -21,8 +21,11 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.joda.time.Instant;
 
 /**
  * Assigns the destination metadata for each input record.
@@ -52,8 +55,15 @@ class AssignDestinations extends PTransform<PCollection<Row>, PCollection<Row>> 
             ParDo.of(
                 new DoFn<Row, Row>() {
                   @ProcessElement
-                  public void processElement(@Element Row element, OutputReceiver<Row> out) {
-                    String tableIdentifier = dynamicDestinations.getDestinationIdentifier(element);
+                  public void processElement(
+                      @Element Row element,
+                      BoundedWindow window,
+                      PaneInfo paneInfo,
+                      @Timestamp Instant timestamp,
+                      OutputReceiver<Row> out) {
+                    String tableIdentifier =
+                        dynamicDestinations.getDestinationIdentifier(
+                            element, window, paneInfo, timestamp);
                     Row data = dynamicDestinations.getData(element);
 
                     out.output(
