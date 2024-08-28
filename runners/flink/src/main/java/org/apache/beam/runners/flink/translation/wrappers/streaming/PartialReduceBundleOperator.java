@@ -17,7 +17,12 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import org.apache.beam.runners.flink.translation.functions.AbstractFlinkCombineRunner;
 import org.apache.beam.runners.flink.translation.functions.HashingFlinkCombineRunner;
 import org.apache.beam.runners.flink.translation.functions.SortingFlinkCombineRunner;

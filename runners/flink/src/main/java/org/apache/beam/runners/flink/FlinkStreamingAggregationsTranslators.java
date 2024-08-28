@@ -18,13 +18,27 @@
 package org.apache.beam.runners.flink;
 
 import java.nio.ByteBuffer;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
-import org.apache.beam.runners.flink.translation.wrappers.streaming.*;
-import org.apache.beam.sdk.coders.*;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.DoFnOperator;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.KvToByteBufferKeySelector;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.PartialReduceBundleOperator;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.SingletonKeyedWorkItemCoder;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.WindowDoFnOperator;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.WorkItemKeySelector;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderRegistry;
+import org.apache.beam.sdk.coders.IterableCoder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineFnBase;
 import org.apache.beam.sdk.transforms.CombineWithContext;
@@ -33,7 +47,11 @@ import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.AppliedCombineFn;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.*;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -161,19 +179,19 @@ public class FlinkStreamingAggregationsTranslators {
    * Create a DoFnOperator instance that group elements per window and apply a combine function on
    * them.
    */
-  public static <K, InputC, OutputC, InputT, OutputT>
-      WindowDoFnOperator<K, InputC, OutputC> getWindowedAggregateDoFnOperator(
+  public static <K, InputAccumT, OutputAccumT, InputT, OutputT>
+  WindowDoFnOperator<K, InputAccumT, OutputAccumT> getWindowedAggregateDoFnOperator(
           FlinkStreamingTranslationContext context,
           PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>> transform,
-          KvCoder<K, InputC> inputKvCoder,
-          Coder<WindowedValue<KV<K, OutputC>>> outputCoder,
-          SystemReduceFn<K, InputC, ?, OutputC, BoundedWindow> reduceFn,
+          KvCoder<K, InputAccumT> inputKvCoder,
+          Coder<WindowedValue<KV<K, OutputAccumT>>> outputCoder,
+          SystemReduceFn<K, InputAccumT, ?, OutputAccumT, BoundedWindow> reduceFn,
           Map<Integer, PCollectionView<?>> sideInputTagMapping,
           List<PCollectionView<?>> sideInputs) {
 
     // Naming
     String fullName = FlinkStreamingTransformTranslators.getCurrentTransformName(context);
-    TupleTag<KV<K, OutputC>> mainTag = new TupleTag<>("main output");
+    TupleTag<KV<K, OutputAccumT>> mainTag = new TupleTag<>("main output");
 
     // input infos
     PCollection<KV<K, InputT>> input = context.getInput(transform);
@@ -187,15 +205,15 @@ public class FlinkStreamingAggregationsTranslators {
     // Coders
     Coder<K> keyCoder = inputKvCoder.getKeyCoder();
 
-    SingletonKeyedWorkItemCoder<K, InputC> workItemCoder =
+    SingletonKeyedWorkItemCoder<K, InputAccumT> workItemCoder =
         SingletonKeyedWorkItemCoder.of(
             keyCoder, inputKvCoder.getValueCoder(), windowingStrategy.getWindowFn().windowCoder());
 
-    WindowedValue.FullWindowedValueCoder<KeyedWorkItem<K, InputC>> windowedWorkItemCoder =
+    WindowedValue.FullWindowedValueCoder<KeyedWorkItem<K, InputAccumT>> windowedWorkItemCoder =
         WindowedValue.getFullCoder(workItemCoder, windowingStrategy.getWindowFn().windowCoder());
 
     // Key selector
-    WorkItemKeySelector<K, InputC> workItemKeySelector =
+    WorkItemKeySelector<K, InputAccumT> workItemKeySelector =
         new WorkItemKeySelector<>(keyCoder, serializablePipelineOptions);
 
     return new WindowDoFnOperator<>(
@@ -214,18 +232,18 @@ public class FlinkStreamingAggregationsTranslators {
         workItemKeySelector);
   }
 
-  public static <K, InputC, OutputC, InputT, OutputT>
-      WindowDoFnOperator<K, InputC, OutputC> getWindowedAggregateDoFnOperator(
+  public static <K, InputAccumT, OutputAccumT, InputT, OutputT>
+      WindowDoFnOperator<K, InputAccumT, OutputAccumT> getWindowedAggregateDoFnOperator(
           FlinkStreamingTranslationContext context,
           PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>> transform,
-          KvCoder<K, InputC> inputKvCoder,
-          Coder<WindowedValue<KV<K, OutputC>>> outputCoder,
-          CombineFnBase.GlobalCombineFn<? super InputC, ?, OutputC> combineFn,
+          KvCoder<K, InputAccumT> inputKvCoder,
+          Coder<WindowedValue<KV<K, OutputAccumT>>> outputCoder,
+          CombineFnBase.GlobalCombineFn<? super InputAccumT, ?, OutputAccumT> combineFn,
           Map<Integer, PCollectionView<?>> sideInputTagMapping,
           List<PCollectionView<?>> sideInputs) {
 
     // Combining fn
-    SystemReduceFn<K, InputC, ?, OutputC, BoundedWindow> reduceFn =
+    SystemReduceFn<K, InputAccumT, ?, OutputAccumT, BoundedWindow> reduceFn =
         SystemReduceFn.combining(
             inputKvCoder.getKeyCoder(),
             AppliedCombineFn.withInputCoder(
