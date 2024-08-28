@@ -19,18 +19,11 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming.io.source;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
-
 import javax.annotation.Nullable;
-
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
-import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.FlinkSourceSplit;
-import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.FlinkSourceSplitEnumerator;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.compat.SplitEnumeratorCompat;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.FileBasedSource;
@@ -38,7 +31,6 @@ import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
-import org.apache.flink.api.connector.source.SplitsAssignment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -92,23 +84,23 @@ public class LazyFlinkSourceSplitEnumerator<T>
   @Override
   public void handleSplitRequest(int subtask, @Nullable String hostname) {
     if (!context.registeredReaders().containsKey(subtask)) {
-        // reader failed between sending the request and now. skip this request.
-        return;
+      // reader failed between sending the request and now. skip this request.
+      return;
     }
 
     if (LOG.isInfoEnabled()) {
-        final String hostInfo =
-                hostname == null ? "(no host locality info)" : "(on host '" + hostname + "')";
-        LOG.info("Subtask {} {} is requesting a file source split", subtask, hostInfo);
+      final String hostInfo =
+          hostname == null ? "(no host locality info)" : "(on host '" + hostname + "')";
+      LOG.info("Subtask {} {} is requesting a file source split", subtask, hostInfo);
     }
 
     if (!pendingSplits.isEmpty()) {
-        final FlinkSourceSplit<T> split = pendingSplits.remove(pendingSplits.size() - 1);
-        context.assignSplit(split, subtask);
-        LOG.info("Assigned split to subtask {} : {}", subtask, split);
+      final FlinkSourceSplit<T> split = pendingSplits.remove(pendingSplits.size() - 1);
+      context.assignSplit(split, subtask);
+      LOG.info("Assigned split to subtask {} : {}", subtask, split);
     } else {
-        context.signalNoMoreSplits(subtask);
-        LOG.info("No more splits available for subtask {}", subtask);
+      context.signalNoMoreSplits(subtask);
+      LOG.info("No more splits available for subtask {}", subtask);
     }
   }
 

@@ -101,7 +101,7 @@ public class FlinkBoundedSourceReader<T> extends FlinkSourceReaderBase<T, Window
   public InputStatus pollNext(ReaderOutput<WindowedValue<T>> output) throws Exception {
     checkExceptionAndMaybeThrow();
 
-    if(currentReader == null && currentSplitId == -1) {
+    if (currentReader == null && currentSplitId == -1) {
       context.sendSplitRequest();
     }
 

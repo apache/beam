@@ -477,7 +477,10 @@ public class DoFnOperator<PreInputT, InputT, OutputT> extends AbstractStreamOper
     if (keyCoder != null) {
       keyedStateInternals =
           new FlinkStateInternals<>(
-              (KeyedStateBackend) getKeyedStateBackend(), keyCoder, windowingStrategy.getWindowFn().windowCoder(), serializedOptions);
+              (KeyedStateBackend) getKeyedStateBackend(),
+              keyCoder,
+              windowingStrategy.getWindowFn().windowCoder(),
+              serializedOptions);
 
       if (timerService == null) {
         timerService =
@@ -607,7 +610,10 @@ public class DoFnOperator<PreInputT, InputT, OutputT> extends AbstractStreamOper
       if (doFn != null) {
         DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
         FlinkStateInternals.EarlyBinder earlyBinder =
-            new FlinkStateInternals.EarlyBinder(getKeyedStateBackend(), serializedOptions, windowingStrategy.getWindowFn().windowCoder());
+            new FlinkStateInternals.EarlyBinder(
+                getKeyedStateBackend(),
+                serializedOptions,
+                windowingStrategy.getWindowFn().windowCoder());
         for (DoFnSignature.StateDeclaration value : signature.stateDeclarations().values()) {
           StateSpec<?> spec =
               (StateSpec<?>) signature.stateDeclarations().get(value.id()).field().get(doFn);
@@ -985,7 +991,7 @@ public class DoFnOperator<PreInputT, InputT, OutputT> extends AbstractStreamOper
   @SuppressWarnings("NonAtomicVolatileUpdate")
   @SuppressFBWarnings("VO_VOLATILE_INCREMENT")
   private void checkInvokeFinishBundleByCount() {
-    if(!shoudBundleElements()) {
+    if (!shoudBundleElements()) {
       return;
     }
     // We do not access this statement concurrently, but we want to make sure that each thread
@@ -1001,7 +1007,7 @@ public class DoFnOperator<PreInputT, InputT, OutputT> extends AbstractStreamOper
 
   /** Check whether invoke finishBundle by timeout. */
   private void checkInvokeFinishBundleByTime() {
-    if(!shoudBundleElements()) {
+    if (!shoudBundleElements()) {
       return;
     }
     long now = getProcessingTimeService().getCurrentProcessingTime();
@@ -1231,6 +1237,7 @@ public class DoFnOperator<PreInputT, InputT, OutputT> extends AbstractStreamOper
      * buffering. It will not be acquired during flushing the buffer.
      */
     private final Lock bufferLock;
+
     private final boolean isStreaming;
 
     private Map<Integer, TupleTag<?>> idsToTags;
@@ -1438,7 +1445,13 @@ public class DoFnOperator<PreInputT, InputT, OutputT> extends AbstractStreamOper
           NonKeyedPushedBackElementsHandler.create(listStateBuffer);
 
       return new BufferedOutputManager<>(
-          output, mainTag, tagsToOutputTags, tagsToIds, bufferLock, pushedBackElementsHandler, isStreaming);
+          output,
+          mainTag,
+          tagsToOutputTags,
+          tagsToIds,
+          bufferLock,
+          pushedBackElementsHandler,
+          isStreaming);
     }
 
     private TaggedKvCoder buildTaggedKvCoder() {
