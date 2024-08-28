@@ -65,7 +65,7 @@ def temp_spanner_table(project, prefix='temp_spanner_db_'):
 
 @contextlib.contextmanager
 def temp_bigquery_table(project, prefix='yaml_bq_it_'):
-  bigquery_client = BigQueryWrapper(project_id = "apache-beam-testing")
+  bigquery_client = BigQueryWrapper()
   dataset_id = '%s_%s' % (prefix, uuid.uuid4().hex)
   bigquery_client.get_or_create_dataset(project, dataset_id)
   logging.info("Created dataset %s in project %s", dataset_id, project)
