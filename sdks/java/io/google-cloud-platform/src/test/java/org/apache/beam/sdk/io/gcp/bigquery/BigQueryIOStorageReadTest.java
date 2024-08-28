@@ -86,14 +86,10 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.Encoder;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.util.Utf8;
-import org.apache.beam.sdk.coders.CoderRegistry;
-import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
-import org.apache.beam.sdk.extensions.protobuf.ByteStringCoder;
-import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
+import org.apache.beam.sdk.extensions.avro.io.AvroDatumFactory;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TableRowParser;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.StorageClient;
@@ -139,6 +135,51 @@ import org.mockito.ArgumentMatchers;
 /** Tests for {@link BigQueryIO#readTableRows() using {@link Method#DIRECT_READ}}. */
 @RunWith(JUnit4.class)
 public class BigQueryIOStorageReadTest {
+
+  private static final String AVRO_SCHEMA_STRING =
+      "{\"namespace\": \"example.avro\",\n"
+          + " \"type\": \"record\",\n"
+          + " \"name\": \"RowRecord\",\n"
+          + " \"fields\": [\n"
+          + "     {\"name\": \"name\", \"type\": \"string\"},\n"
+          + "     {\"name\": \"number\", \"type\": \"long\"}\n"
+          + " ]\n"
+          + "}";
+
+  private static final Schema AVRO_SCHEMA = new Schema.Parser().parse(AVRO_SCHEMA_STRING);
+
+  private static final String TRIMMED_AVRO_SCHEMA_STRING =
+      "{\"namespace\": \"example.avro\",\n"
+          + "\"type\": \"record\",\n"
+          + "\"name\": \"RowRecord\",\n"
+          + "\"fields\": [\n"
+          + "    {\"name\": \"name\", \"type\": \"string\"}\n"
+          + " ]\n"
+          + "}";
+
+  private static final Schema TRIMMED_AVRO_SCHEMA =
+      new Schema.Parser().parse(TRIMMED_AVRO_SCHEMA_STRING);
+
+  private static final TableSchema TABLE_SCHEMA =
+      new TableSchema()
+          .setFields(
+              ImmutableList.of(
+                  new TableFieldSchema().setName("name").setType("STRING").setMode("REQUIRED"),
+                  new TableFieldSchema().setName("number").setType("INTEGER").setMode("REQUIRED")));
+
+  private static final org.apache.arrow.vector.types.pojo.Schema ARROW_SCHEMA =
+      new org.apache.arrow.vector.types.pojo.Schema(
+          asList(
+              field("name", new ArrowType.Utf8()), field("number", new ArrowType.Int(64, true))));
+
+  private static final BigQueryStorageReaderFactory<TableRow> TABLE_ROW_AVRO_READER_FACTORY =
+      BigQueryReaderFactory.avro(
+          null,
+          AvroDatumFactory.generic(),
+          (s, r) -> BigQueryAvroUtils.convertGenericRecordToTableRow(r));
+
+  private static final BigQueryStorageReaderFactory<TableRow> TABLE_ROW_ARROW_READER_FACTORY =
+      BigQueryReaderFactory.arrow(null, (s, r) -> BigQueryUtils.toTableRow(r));
 
   private transient PipelineOptions options;
   private final transient TemporaryFolder testFolder = new TemporaryFolder();
@@ -193,8 +234,7 @@ public class BigQueryIOStorageReadTest {
   @Test
   public void testBuildTableBasedSource() {
     BigQueryIO.TypedRead<TableRow> typedRead =
-        BigQueryIO.read(new TableRowParser())
-            .withCoder(TableRowJsonCoder.of())
+        BigQueryIO.readTableRows()
             .withMethod(Method.DIRECT_READ)
             .from("foo.com:project:dataset.table");
     checkTypedReadTableObject(typedRead, "foo.com:project", "dataset", "table");
@@ -204,8 +244,7 @@ public class BigQueryIOStorageReadTest {
   @Test
   public void testBuildTableBasedSourceWithoutValidation() {
     BigQueryIO.TypedRead<TableRow> typedRead =
-        BigQueryIO.read(new TableRowParser())
-            .withCoder(TableRowJsonCoder.of())
+        BigQueryIO.readTableRows()
             .withMethod(Method.DIRECT_READ)
             .from("foo.com:project:dataset.table")
             .withoutValidation();
@@ -216,10 +255,7 @@ public class BigQueryIOStorageReadTest {
   @Test
   public void testBuildTableBasedSourceWithDefaultProject() {
     BigQueryIO.TypedRead<TableRow> typedRead =
-        BigQueryIO.read(new TableRowParser())
-            .withCoder(TableRowJsonCoder.of())
-            .withMethod(Method.DIRECT_READ)
-            .from("myDataset.myTable");
+        BigQueryIO.readTableRows().withMethod(Method.DIRECT_READ).from("myDataset.myTable");
     checkTypedReadTableObject(typedRead, null, "myDataset", "myTable");
   }
 
@@ -231,10 +267,7 @@ public class BigQueryIOStorageReadTest {
             .setDatasetId("dataset")
             .setTableId("table");
     BigQueryIO.TypedRead<TableRow> typedRead =
-        BigQueryIO.read(new TableRowParser())
-            .withCoder(TableRowJsonCoder.of())
-            .withMethod(Method.DIRECT_READ)
-            .from(tableReference);
+        BigQueryIO.readTableRows().withMethod(Method.DIRECT_READ).from(tableReference);
     checkTypedReadTableObject(typedRead, "foo.com:project", "dataset", "table");
   }
 
@@ -255,8 +288,7 @@ public class BigQueryIOStorageReadTest {
             + " which only applies to queries");
     p.apply(
         "ReadMyTable",
-        BigQueryIO.read(new TableRowParser())
-            .withCoder(TableRowJsonCoder.of())
+        BigQueryIO.readTableRows()
             .withMethod(Method.DIRECT_READ)
             .from("foo.com:project:dataset.table")
             .withoutResultFlattening());
@@ -271,8 +303,7 @@ public class BigQueryIOStorageReadTest {
             + " which only applies to queries");
     p.apply(
         "ReadMyTable",
-        BigQueryIO.read(new TableRowParser())
-            .withCoder(TableRowJsonCoder.of())
+        BigQueryIO.readTableRows()
             .withMethod(Method.DIRECT_READ)
             .from("foo.com:project:dataset.table")
             .usingStandardSql());
@@ -283,8 +314,7 @@ public class BigQueryIOStorageReadTest {
   public void testDisplayData() {
     String tableSpec = "foo.com:project:dataset.table";
     BigQueryIO.TypedRead<TableRow> typedRead =
-        BigQueryIO.read(new TableRowParser())
-            .withCoder(TableRowJsonCoder.of())
+        BigQueryIO.readTableRows()
             .withMethod(Method.DIRECT_READ)
             .withSelectedFields(ImmutableList.of("foo", "bar"))
             .withProjectionPushdownApplied()
@@ -299,27 +329,10 @@ public class BigQueryIOStorageReadTest {
   public void testName() {
     assertEquals(
         "BigQueryIO.TypedRead",
-        BigQueryIO.read(new TableRowParser())
-            .withCoder(TableRowJsonCoder.of())
+        BigQueryIO.readTableRows()
             .withMethod(Method.DIRECT_READ)
             .from("foo.com:project:dataset.table")
             .getName());
-  }
-
-  @Test
-  public void testCoderInference() {
-    // Lambdas erase too much type information -- use an anonymous class here.
-    SerializableFunction<SchemaAndRecord, KV<ByteString, ReadSession>> parseFn =
-        new SerializableFunction<SchemaAndRecord, KV<ByteString, ReadSession>>() {
-          @Override
-          public KV<ByteString, ReadSession> apply(SchemaAndRecord input) {
-            return null;
-          }
-        };
-
-    assertEquals(
-        KvCoder.of(ByteStringCoder.of(), ProtoCoder.of(ReadSession.class)),
-        BigQueryIO.read(parseFn).inferCoder(CoderRegistry.createDefault()));
   }
 
   @Test
@@ -347,7 +360,7 @@ public class BigQueryIOStorageReadTest {
             ValueProvider.StaticValueProvider.of(tableRef),
             null,
             null,
-            new TableRowParser(),
+            TABLE_ROW_AVRO_READER_FACTORY,
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withDatasetService(fakeDatasetService));
 
@@ -367,7 +380,7 @@ public class BigQueryIOStorageReadTest {
             ValueProvider.StaticValueProvider.of(BigQueryHelpers.parseTableSpec("dataset.table")),
             null,
             null,
-            new TableRowParser(),
+            TABLE_ROW_AVRO_READER_FACTORY,
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withDatasetService(fakeDatasetService));
 
@@ -386,7 +399,7 @@ public class BigQueryIOStorageReadTest {
             ValueProvider.StaticValueProvider.of(BigQueryHelpers.parseTableSpec("dataset.table")),
             null,
             null,
-            new TableRowParser(),
+            TABLE_ROW_AVRO_READER_FACTORY,
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withDatasetService(fakeDatasetService));
 
@@ -407,42 +420,6 @@ public class BigQueryIOStorageReadTest {
   public void testTableSourceInitialSplit_MaxSplitCount() throws Exception {
     doTableSourceInitialSplitTest(10L, 10_000);
   }
-
-  private static final String AVRO_SCHEMA_STRING =
-      "{\"namespace\": \"example.avro\",\n"
-          + " \"type\": \"record\",\n"
-          + " \"name\": \"RowRecord\",\n"
-          + " \"fields\": [\n"
-          + "     {\"name\": \"name\", \"type\": \"string\"},\n"
-          + "     {\"name\": \"number\", \"type\": \"long\"}\n"
-          + " ]\n"
-          + "}";
-
-  private static final Schema AVRO_SCHEMA = new Schema.Parser().parse(AVRO_SCHEMA_STRING);
-
-  private static final String TRIMMED_AVRO_SCHEMA_STRING =
-      "{\"namespace\": \"example.avro\",\n"
-          + "\"type\": \"record\",\n"
-          + "\"name\": \"RowRecord\",\n"
-          + "\"fields\": [\n"
-          + "    {\"name\": \"name\", \"type\": \"string\"}\n"
-          + " ]\n"
-          + "}";
-
-  private static final Schema TRIMMED_AVRO_SCHEMA =
-      new Schema.Parser().parse(TRIMMED_AVRO_SCHEMA_STRING);
-
-  private static final TableSchema TABLE_SCHEMA =
-      new TableSchema()
-          .setFields(
-              ImmutableList.of(
-                  new TableFieldSchema().setName("name").setType("STRING").setMode("REQUIRED"),
-                  new TableFieldSchema().setName("number").setType("INTEGER").setMode("REQUIRED")));
-
-  private static final org.apache.arrow.vector.types.pojo.Schema ARROW_SCHEMA =
-      new org.apache.arrow.vector.types.pojo.Schema(
-          asList(
-              field("name", new ArrowType.Utf8()), field("number", new ArrowType.Int(64, true))));
 
   private void doTableSourceInitialSplitTest(long bundleSize, int streamCount) throws Exception {
     fakeDatasetService.createDataset("foo.com:project", "dataset", "", "", null);
@@ -479,7 +456,7 @@ public class BigQueryIOStorageReadTest {
             ValueProvider.StaticValueProvider.of(tableRef),
             null,
             null,
-            new TableRowParser(),
+            TABLE_ROW_AVRO_READER_FACTORY,
             TableRowJsonCoder.of(),
             new FakeBigQueryServices()
                 .withDatasetService(fakeDatasetService)
@@ -527,7 +504,7 @@ public class BigQueryIOStorageReadTest {
             ValueProvider.StaticValueProvider.of(tableRef),
             StaticValueProvider.of(Lists.newArrayList("name")),
             StaticValueProvider.of("number > 5"),
-            new TableRowParser(),
+            TABLE_ROW_AVRO_READER_FACTORY,
             TableRowJsonCoder.of(),
             new FakeBigQueryServices()
                 .withDatasetService(fakeDatasetService)
@@ -573,7 +550,7 @@ public class BigQueryIOStorageReadTest {
             ValueProvider.StaticValueProvider.of(BigQueryHelpers.parseTableSpec("dataset.table")),
             null,
             null,
-            new TableRowParser(),
+            TABLE_ROW_AVRO_READER_FACTORY,
             TableRowJsonCoder.of(),
             new FakeBigQueryServices()
                 .withDatasetService(fakeDatasetService)
@@ -615,7 +592,7 @@ public class BigQueryIOStorageReadTest {
             ValueProvider.StaticValueProvider.of(tableRef),
             null,
             null,
-            new TableRowParser(),
+            TABLE_ROW_AVRO_READER_FACTORY,
             TableRowJsonCoder.of(),
             new FakeBigQueryServices()
                 .withDatasetService(fakeDatasetService)
@@ -633,7 +610,7 @@ public class BigQueryIOStorageReadTest {
                 BigQueryHelpers.parseTableSpec("foo.com:project:dataset.table")),
             null,
             null,
-            new TableRowParser(),
+            TABLE_ROW_AVRO_READER_FACTORY,
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withDatasetService(fakeDatasetService));
 
@@ -746,13 +723,12 @@ public class BigQueryIOStorageReadTest {
 
   @Test
   public void testStreamSourceEstimatedSizeBytes() throws Exception {
-
     BigQueryStorageStreamSource<TableRow> streamSource =
         BigQueryStorageStreamSource.create(
             ReadSession.getDefaultInstance(),
             ReadStream.getDefaultInstance(),
             TABLE_SCHEMA,
-            new TableRowParser(),
+            TABLE_ROW_AVRO_READER_FACTORY,
             TableRowJsonCoder.of(),
             new FakeBigQueryServices());
 
@@ -767,7 +743,7 @@ public class BigQueryIOStorageReadTest {
             ReadSession.getDefaultInstance(),
             ReadStream.getDefaultInstance(),
             TABLE_SCHEMA,
-            new TableRowParser(),
+            TABLE_ROW_AVRO_READER_FACTORY,
             TableRowJsonCoder.of(),
             new FakeBigQueryServices());
 
@@ -796,15 +772,16 @@ public class BigQueryIOStorageReadTest {
             readSession,
             ReadStream.newBuilder().setName("readStream").build(),
             TABLE_SCHEMA,
-            new TableRowParser(),
+            TABLE_ROW_AVRO_READER_FACTORY,
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withStorageClient(fakeStorageClient));
 
     PipelineOptions options = PipelineOptionsFactory.fromArgs("--enableStorageReadApiV2").create();
-    BigQueryStorageStreamReader<TableRow> reader = streamSource.createReader(options);
-    reader.start();
-    // Beam does not split storage read api v2 stream
-    assertNull(reader.splitAtFraction(0.5));
+    try (BigQueryStorageStreamReader<TableRow> reader = streamSource.createReader(options)) {
+      reader.start();
+      // Beam does not split storage read api v2 stream
+      assertNull(reader.splitAtFraction(0.5));
+    }
   }
 
   @Test
@@ -839,14 +816,15 @@ public class BigQueryIOStorageReadTest {
             readSession,
             ReadStream.newBuilder().setName("readStream").build(),
             TABLE_SCHEMA,
-            new TableRowParser(),
+            TABLE_ROW_AVRO_READER_FACTORY,
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withStorageClient(fakeStorageClient));
 
     List<TableRow> rows = new ArrayList<>();
-    BoundedReader<TableRow> reader = streamSource.createReader(options);
-    for (boolean hasNext = reader.start(); hasNext; hasNext = reader.advance()) {
-      rows.add(reader.getCurrent());
+    try (BoundedReader<TableRow> reader = streamSource.createReader(options)) {
+      for (boolean hasNext = reader.start(); hasNext; hasNext = reader.advance()) {
+        rows.add(reader.getCurrent());
+      }
     }
 
     System.out.println("Rows: " + rows);
@@ -895,7 +873,7 @@ public class BigQueryIOStorageReadTest {
             readSession,
             ReadStream.newBuilder().setName("readStream").build(),
             TABLE_SCHEMA,
-            new TableRowParser(),
+            TABLE_ROW_AVRO_READER_FACTORY,
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withStorageClient(fakeStorageClient));
 
@@ -980,7 +958,7 @@ public class BigQueryIOStorageReadTest {
             readSession,
             ReadStream.newBuilder().setName("parentStream").build(),
             TABLE_SCHEMA,
-            new TableRowParser(),
+            TABLE_ROW_AVRO_READER_FACTORY,
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withStorageClient(fakeStorageClient));
 
@@ -1065,7 +1043,7 @@ public class BigQueryIOStorageReadTest {
                 .build(),
             ReadStream.newBuilder().setName("parentStream").build(),
             TABLE_SCHEMA,
-            new TableRowParser(),
+            TABLE_ROW_AVRO_READER_FACTORY,
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withStorageClient(fakeStorageClient));
 
@@ -1202,7 +1180,7 @@ public class BigQueryIOStorageReadTest {
                 .build(),
             readStreams.get(0),
             TABLE_SCHEMA,
-            new TableRowParser(),
+            TABLE_ROW_AVRO_READER_FACTORY,
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withStorageClient(fakeStorageClient));
 
@@ -1266,7 +1244,7 @@ public class BigQueryIOStorageReadTest {
                 .build(),
             ReadStream.newBuilder().setName("parentStream").build(),
             TABLE_SCHEMA,
-            new TableRowParser(),
+            TABLE_ROW_AVRO_READER_FACTORY,
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withStorageClient(fakeStorageClient));
 
@@ -1355,7 +1333,7 @@ public class BigQueryIOStorageReadTest {
                 .build(),
             ReadStream.newBuilder().setName("parentStream").build(),
             TABLE_SCHEMA,
-            new TableRowParser(),
+            TABLE_ROW_AVRO_READER_FACTORY,
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withStorageClient(fakeStorageClient));
 
@@ -1379,13 +1357,21 @@ public class BigQueryIOStorageReadTest {
     assertFalse(parent.advance());
   }
 
-  private static final class ParseKeyValue
-      implements SerializableFunction<SchemaAndRecord, KV<String, Long>> {
+  private static final class ParseAvroKeyValue
+      implements SerializableFunction<GenericRecord, KV<String, Long>> {
 
     @Override
-    public KV<String, Long> apply(SchemaAndRecord input) {
-      return KV.of(
-          input.getRecord().get("name").toString(), (Long) input.getRecord().get("number"));
+    public KV<String, Long> apply(GenericRecord record) {
+      return KV.of(record.get("name").toString(), (Long) record.get("number"));
+    }
+  }
+
+  private static final class ParseArrowKeyValue
+      implements SerializableFunction<Row, KV<String, Long>> {
+
+    @Override
+    public KV<String, Long> apply(Row row) {
+      return KV.of(row.getString("name"), row.getInt64("number"));
     }
   }
 
@@ -1447,7 +1433,7 @@ public class BigQueryIOStorageReadTest {
             readSession,
             ReadStream.newBuilder().setName("readStream").build(),
             TABLE_SCHEMA,
-            new TableRowParser(),
+            TABLE_ROW_AVRO_READER_FACTORY,
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withStorageClient(fakeStorageClient));
 
@@ -1521,10 +1507,9 @@ public class BigQueryIOStorageReadTest {
 
     PCollection<KV<String, Long>> output =
         p.apply(
-            BigQueryIO.read(new ParseKeyValue())
+            BigQueryIO.readAvro(new ParseAvroKeyValue())
                 .from("foo.com:project:dataset.table")
                 .withMethod(Method.DIRECT_READ)
-                .withFormat(DataFormat.AVRO)
                 .withTestServices(
                     new FakeBigQueryServices()
                         .withDatasetService(fakeDatasetService)
@@ -1591,7 +1576,6 @@ public class BigQueryIOStorageReadTest {
                 .from("foo.com:project:dataset.table")
                 .withMethod(Method.DIRECT_READ)
                 .withSelectedFields(Lists.newArrayList("name"))
-                .withFormat(DataFormat.AVRO)
                 .withTestServices(
                     new FakeBigQueryServices()
                         .withDatasetService(fakeDatasetService)
@@ -1662,7 +1646,6 @@ public class BigQueryIOStorageReadTest {
                     .from("foo.com:project:dataset.table")
                     .withMethod(Method.DIRECT_READ)
                     .withSelectedFields(Lists.newArrayList("name"))
-                    .withFormat(DataFormat.AVRO)
                     .withTestServices(
                         new FakeBigQueryServices()
                             .withDatasetService(fakeDatasetService)
@@ -1732,10 +1715,9 @@ public class BigQueryIOStorageReadTest {
 
     PCollection<KV<String, Long>> output =
         p.apply(
-            BigQueryIO.read(new ParseKeyValue())
+            BigQueryIO.readArrow(new ParseArrowKeyValue())
                 .from("foo.com:project:dataset.table")
                 .withMethod(Method.DIRECT_READ)
-                .withFormat(DataFormat.ARROW)
                 .withTestServices(
                     new FakeBigQueryServices()
                         .withDatasetService(fakeDatasetService)
@@ -1750,7 +1732,6 @@ public class BigQueryIOStorageReadTest {
 
   @Test
   public void testReadFromStreamSourceArrow() throws Exception {
-
     ReadSession readSession =
         ReadSession.newBuilder()
             .setName("readSession")
@@ -1781,7 +1762,7 @@ public class BigQueryIOStorageReadTest {
             readSession,
             ReadStream.newBuilder().setName("readStream").build(),
             TABLE_SCHEMA,
-            new TableRowParser(),
+            TABLE_ROW_ARROW_READER_FACTORY,
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withStorageClient(fakeStorageClient));
 
@@ -1830,7 +1811,7 @@ public class BigQueryIOStorageReadTest {
             readSession,
             ReadStream.newBuilder().setName("readStream").build(),
             TABLE_SCHEMA,
-            new TableRowParser(),
+            TABLE_ROW_ARROW_READER_FACTORY,
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withStorageClient(fakeStorageClient));
 
@@ -1912,7 +1893,7 @@ public class BigQueryIOStorageReadTest {
             readSession,
             ReadStream.newBuilder().setName("parentStream").build(),
             TABLE_SCHEMA,
-            new TableRowParser(),
+            TABLE_ROW_ARROW_READER_FACTORY,
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withStorageClient(fakeStorageClient));
 
@@ -1993,7 +1974,7 @@ public class BigQueryIOStorageReadTest {
                 .build(),
             ReadStream.newBuilder().setName("parentStream").build(),
             TABLE_SCHEMA,
-            new TableRowParser(),
+            TABLE_ROW_ARROW_READER_FACTORY,
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withStorageClient(fakeStorageClient));
 
@@ -2112,7 +2093,7 @@ public class BigQueryIOStorageReadTest {
                 .build(),
             readStreams.get(0),
             TABLE_SCHEMA,
-            new TableRowParser(),
+            TABLE_ROW_ARROW_READER_FACTORY,
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withStorageClient(fakeStorageClient));
 
@@ -2172,7 +2153,7 @@ public class BigQueryIOStorageReadTest {
                 .build(),
             ReadStream.newBuilder().setName("parentStream").build(),
             TABLE_SCHEMA,
-            new TableRowParser(),
+            TABLE_ROW_ARROW_READER_FACTORY,
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withStorageClient(fakeStorageClient));
 
@@ -2258,7 +2239,7 @@ public class BigQueryIOStorageReadTest {
                 .build(),
             ReadStream.newBuilder().setName("parentStream").build(),
             TABLE_SCHEMA,
-            new TableRowParser(),
+            TABLE_ROW_ARROW_READER_FACTORY,
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withStorageClient(fakeStorageClient));
 
@@ -2356,13 +2337,15 @@ public class BigQueryIOStorageReadTest {
     when(fakeStorageClient.readRows(expectedRequest, ""))
         .thenReturn(new FakeBigQueryServerStream<>(responses));
 
+    BigQueryStorageReaderFactory<GenericRecord> readerFactory =
+        BigQueryReaderFactory.avro(null, AvroDatumFactory.generic(), (s, r) -> r);
     BigQueryStorageStreamSource<GenericRecord> streamSource =
         BigQueryStorageStreamSource.create(
             readSession,
             ReadStream.newBuilder().setName("readStream").build(),
             TABLE_SCHEMA,
-            SchemaAndRecord::getRecord,
-            AvroCoder.of(AVRO_SCHEMA),
+            readerFactory,
+            AvroCoder.generic(AVRO_SCHEMA),
             new FakeBigQueryServices().withStorageClient(fakeStorageClient));
 
     BoundedReader<GenericRecord> reader = streamSource.createReader(options);
