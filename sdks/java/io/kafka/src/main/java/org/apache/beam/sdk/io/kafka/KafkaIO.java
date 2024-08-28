@@ -890,7 +890,6 @@ public class KafkaIO {
           builder.setRedistributeNumKeys(0);
           builder.setAllowDuplicates(false);
         }
-        System.out.println("xxx builder service" + builder.toString());
       }
 
       private static <T> Coder<T> resolveCoder(Class<Deserializer<T>> deserializer) {
@@ -1697,17 +1696,17 @@ public class KafkaIO {
         }
 
         if (kafkaRead.isRedistributed()) {
-          // fail here instead.
-          checkArgument(
-              !kafkaRead.isCommitOffsetsInFinalizeEnabled(),
-              "commitOffsetsInFinalize() can't be enabled with withRedistribute()");
-
+          if (kafkaRead.isCommitOffsetsInFinalizeEnabled()) {
+            LOG.warn(
+                "commitOffsetsInFinalize() will not capture all work processed if set with withRedistribute()");
+          }
           if (Boolean.TRUE.equals(
               kafkaRead.getConsumerConfig().get(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG))) {
             LOG.warn(
                 "config.ENABLE_AUTO_COMMIT_CONFIG doesn't need to be set with withRedistribute()");
           }
           PCollection<KafkaRecord<K, V>> output = input.getPipeline().apply(transform);
+
           if (kafkaRead.getRedistributeNumKeys() == 0) {
             return output.apply(
                 "Insert Redistribute",
@@ -2660,6 +2659,13 @@ public class KafkaIO {
         if (getRedistributeNumKeys() == 0) {
           LOG.warn("This will create a key per record, which is sub-optimal for most use cases.");
         }
+        // is another check here needed for with commit offsets
+        if (isCommitOffsetEnabled() || configuredKafkaCommit()) {
+          LOG.warn(
+              "Either auto_commit is set, or commitOffsetEnabled is enabled (or both), but since "
+                  + "withRestribute() is enabled, the runner may have additional work processed that "
+                  + "is ahead of the current checkpoint");
+        }
       }
 
       if (getConsumerConfig().get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG) == null) {
@@ -2693,8 +2699,7 @@ public class KafkaIO {
                             .getSchemaCoder(KafkaSourceDescriptor.class),
                         recordCoder));
 
-        boolean applyCommitOffsets =
-            isCommitOffsetEnabled() && !configuredKafkaCommit() && !isRedistribute();
+        boolean applyCommitOffsets = isCommitOffsetEnabled() && !configuredKafkaCommit();
         if (!applyCommitOffsets) {
           return outputWithDescriptor
               .apply(MapElements.into(new TypeDescriptor<KafkaRecord<K, V>>() {}).via(KV::getValue))
@@ -2716,6 +2721,15 @@ public class KafkaIO {
           if (Comparators.lexicographical(Comparator.<String>naturalOrder())
                   .compare(requestedVersion, targetVersion)
               < 0) {
+            // Redistribute is not allowed with commits prior to 2.59.0, since there is a Reshuffle
+            // prior to the redistribute. The reshuffle will occur before commits are offsetted and
+            // before outputting KafkaRecords. Adding a redistrube then afterwards doesn't provide
+            // additional performance benefit.
+            checkArgument(
+                !isRedistribute(),
+                "Can not enable isRedistribute() while committing offsets prior to "
+                    + String.join(".", targetVersion));
+
             return expand259Commits(
                 outputWithDescriptor, recordCoder, input.getPipeline().getSchemaRegistry());
           }

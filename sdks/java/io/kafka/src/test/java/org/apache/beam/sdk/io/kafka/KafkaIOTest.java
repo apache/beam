@@ -88,6 +88,7 @@ import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.metrics.SinkMetrics;
 import org.apache.beam.sdk.metrics.SourceMetrics;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -628,10 +629,7 @@ public class KafkaIOTest {
   }
 
   @Test
-  public void testCommitOffsetsInFinalizeAndRedistributeErrors() {
-    thrown.expect(Exception.class);
-    thrown.expectMessage("commitOffsetsInFinalize() can't be enabled with withRedistribute()");
-
+  public void testCommitOffsetsInFinalizeAndRedistributeWarnings() {
     int numElements = 1000;
 
     PCollection<Long> input =
@@ -645,6 +643,9 @@ public class KafkaIOTest {
 
     addCountingAsserts(input, numElements);
     p.run();
+
+    kafkaIOExpectedLogs.verifyWarn(
+        "commitOffsetsInFinalize() will not capture all work processed if set with withRedistribute()");
   }
 
   @Test
@@ -671,6 +672,32 @@ public class KafkaIOTest {
   }
 
   @Test
+  public void testDisableRedistributeKafkaOffsetLegacy() {
+    thrown.expect(Exception.class);
+    thrown.expectMessage(
+        "Can not enable isRedistribute() while committing offsets prior to 2.60.0");
+    p.getOptions().as(StreamingOptions.class).setUpdateCompatibilityVersion("2.59.0");
+
+    p.apply(
+            Create.of(
+                KafkaSourceDescriptor.of(
+                    new TopicPartition("topic", 1),
+                    null,
+                    null,
+                    null,
+                    null,
+                    ImmutableList.of("8.8.8.8:9092"))))
+        .apply(
+            KafkaIO.<Long, Long>readSourceDescriptors()
+                .withKeyDeserializer(LongDeserializer.class)
+                .withValueDeserializer(LongDeserializer.class)
+                .withRedistribute()
+                .withProcessingTime()
+                .commitOffsets());
+    p.run();
+  }
+
+  @Test
   public void testEnableAutoCommitWithRedistribute() throws Exception {
 
     int numElements = 1000;
@@ -678,6 +705,7 @@ public class KafkaIOTest {
     PCollection<Long> input =
         p.apply(
                 mkKafkaReadTransform(numElements, numElements, new ValueAsTimestampFn(), true, 0)
+                    .withRedistribute()
                     .withRedistributeNumKeys(100)
                     .withConsumerConfigUpdates(
                         ImmutableMap.of(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, true))
