@@ -22,8 +22,10 @@ import static org.apache.avro.file.DataFileConstants.DEFLATE_CODEC;
 import static org.apache.avro.file.DataFileConstants.NULL_CODEC;
 import static org.apache.avro.file.DataFileConstants.SNAPPY_CODEC;
 import static org.apache.avro.file.DataFileConstants.XZ_CODEC;
+import static org.apache.avro.file.DataFileConstants.ZSTANDARD_CODEC;
 import static org.junit.Assert.assertEquals;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.avro.file.CodecFactory;
@@ -35,8 +37,20 @@ import org.junit.runners.JUnit4;
 /** Tests of SerializableAvroCodecFactory. */
 @RunWith(JUnit4.class)
 public class SerializableAvroCodecFactoryTest {
-  private final List<String> avroCodecs =
-      Arrays.asList(NULL_CODEC, SNAPPY_CODEC, DEFLATE_CODEC, XZ_CODEC, BZIP2_CODEC);
+  private static final String VERSION_AVRO =
+      org.apache.avro.Schema.class.getPackage().getImplementationVersion();
+
+  private static final List<String> avroCodecs = new ArrayList<>();
+
+  static {
+    avroCodecs.addAll(
+        Arrays.asList(NULL_CODEC, SNAPPY_CODEC, DEFLATE_CODEC, XZ_CODEC, BZIP2_CODEC));
+
+    // Zstd codec not available until Avro 1.9
+    if (!VERSION_AVRO.startsWith("1.8.")) {
+      avroCodecs.add(ZSTANDARD_CODEC);
+    }
+  }
 
   @Test
   public void testDefaultCodecsIn() throws Exception {
@@ -81,6 +95,23 @@ public class SerializableAvroCodecFactoryTest {
       SerializableAvroCodecFactory serdeC = SerializableUtils.clone(codecFactory);
 
       assertEquals(CodecFactory.xzCodec(i).toString(), serdeC.getCodec().toString());
+    }
+  }
+
+  @Test
+  public void testZstdCodecSerDeWithLevels() throws Exception {
+    if (VERSION_AVRO.startsWith("1.8.")) {
+      // Skip, zstd only supported for Avro 1.9+
+      return;
+    }
+
+    for (int i = 1; i <= 22; ++i) {
+      SerializableAvroCodecFactory codecFactory =
+          new SerializableAvroCodecFactory(CodecFactory.zstandardCodec(i));
+
+      SerializableAvroCodecFactory serdeC = SerializableUtils.clone(codecFactory);
+
+      assertEquals(CodecFactory.zstandardCodec(i).toString(), serdeC.getCodec().toString());
     }
   }
 
