@@ -141,15 +141,13 @@ public class BigtableSharedClientTest {
 
     Pipeline pipeline = Pipeline.create(opts);
 
-    MutationsDoFn dofn = new MutationsDoFn();
-
     pipeline
         .apply(
             // Create an unbounded source with a rate limit to ensure creation of multiple bundles
             GenerateSequence.from(0)
                 .withRate(10, Duration.millis(100))
                 .withMaxReadTime(Duration.standardSeconds(2)))
-        .apply(ParDo.of(dofn)) // create Mutations & count bundles
+        .apply(ParDo.of(new MutationsDoFn())) // create Mutations & count bundles
         .apply(
             BigtableIO.write()
                 .withProjectId("fake-project")
