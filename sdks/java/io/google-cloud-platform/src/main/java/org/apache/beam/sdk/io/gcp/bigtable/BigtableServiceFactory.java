@@ -44,7 +44,7 @@ import org.slf4j.LoggerFactory;
 class BigtableServiceFactory implements Serializable {
 
   private static final Logger LOG = LoggerFactory.getLogger(BigtableServiceFactory.class);
-  private static final ConcurrentHashMap<UUID, BigtableServiceEntry> entries =
+  static final ConcurrentHashMap<UUID, BigtableServiceEntry> entries =
       new ConcurrentHashMap<>();
   private static final ConcurrentHashMap<UUID, AtomicInteger> refCounts = new ConcurrentHashMap<>();
   private static final Object lock = new Object();

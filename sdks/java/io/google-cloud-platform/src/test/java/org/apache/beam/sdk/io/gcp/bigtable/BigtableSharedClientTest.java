@@ -32,6 +32,7 @@ import com.google.bigtable.v2.PingAndWarmResponse;
 import com.google.bigtable.v2.ReadRowsRequest;
 import com.google.bigtable.v2.ReadRowsResponse;
 import com.google.cloud.bigtable.data.v2.BigtableDataSettings.Builder;
+import com.google.cloud.bigtable.data.v2.stub.metrics.NoopMetricsProvider;
 import com.google.protobuf.ByteString;
 import com.google.rpc.Code;
 import com.google.rpc.Status;
@@ -65,6 +66,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.hamcrest.Matchers;
+import org.joda.time.Duration;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -79,7 +81,6 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class BigtableSharedClientTest {
-
   private FakeBigtable fakeService;
   private ServerClientConnectionCounterInterceptor clientConnectionInterceptor;
   private Server fakeServer;
@@ -143,7 +144,11 @@ public class BigtableSharedClientTest {
     MutationsDoFn dofn = new MutationsDoFn();
 
     pipeline
-        .apply(GenerateSequence.from(0).to(10_000))
+        .apply(
+            // Create an unbounded source with a rate limit to ensure creation of multiple bundles
+            GenerateSequence.from(0)
+                .withRate(10, Duration.millis(100))
+                .withMaxReadTime(Duration.standardSeconds(2)))
         .apply(ParDo.of(dofn)) // create Mutations & count bundles
         .apply(
             BigtableIO.write()
@@ -157,6 +162,8 @@ public class BigtableSharedClientTest {
     assertThat(MutationsDoFn.bundleCount.get(), Matchers.greaterThan(1));
     // Make sure that a single client was shared across all the bundles
     assertThat(clientConnectionInterceptor.getClientConnections(), Matchers.hasSize(1));
+
+    assertThat(BigtableServiceFactory.entries.values(), Matchers.hasSize(0));
   }
 
   /** Minimal implementation of a Bigtable emulator for BigtableIO.write(). */
@@ -233,7 +240,8 @@ public class BigtableSharedClientTest {
                   .toBuilder()
                   .setChannelPoolSettings(ChannelPoolSettings.staticallySized(1))
                   .build());
-
+      // Make sure to disable builtin metrics
+      builder.stubSettings().setMetricsProvider(NoopMetricsProvider.INSTANCE);
       return builder;
     }
   }
