@@ -17,35 +17,4 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import com.google.cloud.bigquery.storage.v1.ReadRowsResponse;
-import java.io.IOException;
-import org.apache.beam.sdk.coders.Coder;
-import org.checkerframework.checker.nullness.qual.Nullable;
-
-interface BigQueryStorageReader<T> extends AutoCloseable {
-
-  void processReadRowsResponse(ReadRowsResponse readRowsResponse) throws IOException;
-
-  long getRowCount();
-
-  T readSingleRecord() throws IOException;
-
-  @Nullable
-  Object getLastBadRecord();
-
-  @Nullable
-  Coder<?> getBadRecordCoder();
-
-  boolean readyForNextReadResponse() throws IOException;
-
-  void resetBuffer();
-
-  @Override
-  void close();
-
-  class ReadException extends RuntimeException {
-    public ReadException(Throwable cause) {
-      super(cause);
-    }
-  }
-}
+class BigQueryStorageSourceElement<T> {}

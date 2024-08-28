@@ -514,9 +514,8 @@ public class BigQueryUtils {
     return Row.withSchema(schema).addValues(valuesInOrder).build();
   }
 
-  public static TableRow convertGenericRecordToTableRow(
-      GenericRecord record, TableSchema tableSchema) {
-    return BigQueryAvroUtils.convertGenericRecordToTableRow(record, tableSchema);
+  public static TableRow convertGenericRecordToTableRow(GenericRecord record) {
+    return BigQueryAvroUtils.convertGenericRecordToTableRow(record);
   }
 
   /** Convert a Beam Row to a BigQuery TableRow. */

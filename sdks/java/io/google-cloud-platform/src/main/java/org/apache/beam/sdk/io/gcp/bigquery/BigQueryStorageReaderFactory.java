@@ -17,19 +17,13 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import com.google.api.services.bigquery.model.Table;
+import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.bigquery.storage.v1.ReadSession;
 import java.io.IOException;
 
-class BigQueryStorageReaderFactory {
+interface BigQueryStorageReaderFactory<T> {
+  BigQueryStorageReader<T> getReader(TableSchema table, ReadSession readSession) throws IOException;
 
-  private BigQueryStorageReaderFactory() {}
-
-  public static BigQueryStorageReader getReader(ReadSession readSession) throws IOException {
-    if (readSession.hasAvroSchema()) {
-      return new BigQueryStorageAvroReader(readSession);
-    } else if (readSession.hasArrowSchema()) {
-      return new BigQueryStorageArrowReader(readSession);
-    }
-    throw new IllegalStateException("Read session does not have Avro/Arrow schema set.");
-  }
+  BigQueryStorageReader<T> getReader(Table table, ReadSession readSession) throws IOException;
 }

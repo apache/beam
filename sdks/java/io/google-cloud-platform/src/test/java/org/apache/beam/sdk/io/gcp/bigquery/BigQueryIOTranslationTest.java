@@ -185,8 +185,7 @@ public class BigQueryIOTranslationTest {
     BigQueryIO.TypedRead<?> readTransformFromRow =
         translator.fromConfigRow(row, PipelineOptionsFactory.create());
     assertEquals("dummyquery", readTransformFromRow.getQuery().get());
-    assertNotNull(readTransformFromRow.getParseFn());
-    assertTrue(readTransformFromRow.getParseFn() instanceof DummyParseFn);
+    assertNotNull(readTransformFromRow.getBigQueryReaderFactory());
     assertTrue(readTransformFromRow.getUseAvroLogicalTypes());
     assertFalse(readTransformFromRow.getUseLegacySql());
   }

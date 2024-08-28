@@ -89,8 +89,8 @@ public class BigQueryIOTranslation {
             .addNullableBooleanField("use_legacy_sql")
             .addNullableBooleanField("with_template_compatibility")
             .addNullableByteArrayField("bigquery_services")
-            .addNullableByteArrayField("parse_fn")
-            .addNullableByteArrayField("datum_reader_factory")
+            //            .addNullableByteArrayField("parse_fn")
+            //            .addNullableByteArrayField("datum_reader_factory")
             .addNullableByteArrayField("query_priority")
             .addNullableStringField("query_location")
             .addNullableStringField("query_temp_dataset")
@@ -146,12 +146,13 @@ public class BigQueryIOTranslation {
       if (transform.getBigQueryServices() != null) {
         fieldValues.put("bigquery_services", toByteArray(transform.getBigQueryServices()));
       }
-      if (transform.getParseFn() != null) {
-        fieldValues.put("parse_fn", toByteArray(transform.getParseFn()));
-      }
-      if (transform.getDatumReaderFactory() != null) {
-        fieldValues.put("datum_reader_factory", toByteArray(transform.getDatumReaderFactory()));
-      }
+      //      if (transform.getParseFn() != null) {
+      //        fieldValues.put("parse_fn", toByteArray(transform.getParseFn()));
+      //      }
+      //      if (transform.getDatumReaderFactory() != null) {
+      //        fieldValues.put("datum_reader_factory",
+      // toByteArray(transform.getDatumReaderFactory()));
+      //      }
       if (transform.getQueryPriority() != null) {
         fieldValues.put("query_priority", toByteArray(transform.getQueryPriority()));
       }
@@ -252,16 +253,17 @@ public class BigQueryIOTranslation {
             builder.setBigQueryServices(new BigQueryServicesImpl());
           }
         }
-        byte[] parseFnBytes = configRow.getBytes("parse_fn");
-        if (parseFnBytes != null) {
-          builder = builder.setParseFn((SerializableFunction) fromByteArray(parseFnBytes));
-        }
-        byte[] datumReaderFactoryBytes = configRow.getBytes("datum_reader_factory");
-        if (datumReaderFactoryBytes != null) {
-          builder =
-              builder.setDatumReaderFactory(
-                  (SerializableFunction) fromByteArray(datumReaderFactoryBytes));
-        }
+        //        byte[] parseFnBytes = configRow.getBytes("parse_fn");
+        //        if (parseFnBytes != null) {
+        //          builder = builder.setParseFn((SerializableFunction)
+        // fromByteArray(parseFnBytes));
+        //        }
+        //        byte[] datumReaderFactoryBytes = configRow.getBytes("datum_reader_factory");
+        //        if (datumReaderFactoryBytes != null) {
+        //          builder =
+        //              builder.setDatumReaderFactory(
+        //                  (SerializableFunction) fromByteArray(datumReaderFactoryBytes));
+        //        }
         byte[] queryPriorityBytes = configRow.getBytes("query_priority");
         if (queryPriorityBytes != null) {
           builder = builder.setQueryPriority((QueryPriority) fromByteArray(queryPriorityBytes));

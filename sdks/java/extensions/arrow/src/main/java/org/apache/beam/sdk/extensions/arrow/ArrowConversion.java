@@ -264,6 +264,24 @@ public class ArrowConversion {
     return rowsFromRecordBatch(ArrowSchemaTranslator.toBeamSchema(arrowSchema), vectorRoot);
   }
 
+  public static RecordBatchRowIterator rowsFromSerializedRecordBatch(
+      org.apache.arrow.vector.types.pojo.Schema arrowSchema,
+      Schema schema,
+      InputStream inputStream,
+      RootAllocator allocator)
+      throws IOException {
+    VectorSchemaRoot vectorRoot = VectorSchemaRoot.create(arrowSchema, allocator);
+    VectorLoader vectorLoader = new VectorLoader(vectorRoot);
+    vectorRoot.clear();
+    try (ReadChannel read = new ReadChannel(Channels.newChannel(inputStream))) {
+      try (ArrowRecordBatch arrowMessage =
+               MessageSerializer.deserializeRecordBatch(read, allocator)) {
+        vectorLoader.load(arrowMessage);
+      }
+    }
+    return rowsFromRecordBatch(schema, vectorRoot);
+  }
+
   public static org.apache.arrow.vector.types.pojo.Schema arrowSchemaFromInput(InputStream input)
       throws IOException {
     ReadChannel readChannel = new ReadChannel(Channels.newChannel(input));

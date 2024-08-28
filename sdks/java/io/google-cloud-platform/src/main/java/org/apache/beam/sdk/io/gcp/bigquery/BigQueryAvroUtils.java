@@ -21,15 +21,12 @@ import static java.time.temporal.ChronoField.HOUR_OF_DAY;
 import static java.time.temporal.ChronoField.MINUTE_OF_HOUR;
 import static java.time.temporal.ChronoField.NANO_OF_SECOND;
 import static java.time.temporal.ChronoField.SECOND_OF_MINUTE;
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects.firstNonNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Verify.verify;
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Verify.verifyNotNull;
 
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
-import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -47,6 +44,7 @@ import org.apache.avro.LogicalTypes;
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
 import org.apache.avro.Schema.Type;
+import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableCollection;
@@ -217,19 +215,13 @@ class BigQueryAvroUtils {
    * <p>See <a href="https://cloud.google.com/bigquery/exporting-data-from-bigquery#config">"Avro
    * format"</a> for more information.
    */
-  static TableRow convertGenericRecordToTableRow(GenericRecord record, TableSchema schema) {
-    return convertGenericRecordToTableRow(record, schema.getFields());
-  }
-
-  private static TableRow convertGenericRecordToTableRow(
-      GenericRecord record, List<TableFieldSchema> fields) {
+  static TableRow convertGenericRecordToTableRow(GenericRecord record) {
     TableRow row = new TableRow();
-    for (TableFieldSchema subSchema : fields) {
-      // Per https://cloud.google.com/bigquery/docs/reference/v2/tables#schema, the name field
-      // is required, so it may not be null.
-      Field field = record.getSchema().getField(subSchema.getName());
+    Schema schema = record.getSchema();
+
+    for (Field field : schema.getFields()) {
       Object convertedValue =
-          getTypedCellValue(field.schema(), subSchema, record.get(field.name()));
+          getTypedCellValue(field.name(), field.schema(), record.get(field.pos()));
       if (convertedValue != null) {
         // To match the JSON files exported by BigQuery, do not include null values in the output.
         row.set(field.name(), convertedValue);
@@ -239,32 +231,25 @@ class BigQueryAvroUtils {
     return row;
   }
 
-  private static @Nullable Object getTypedCellValue(
-      Schema schema, TableFieldSchema fieldSchema, Object v) {
+  private static @Nullable Object getTypedCellValue(String name, Schema schema, Object v) {
     // Per https://cloud.google.com/bigquery/docs/reference/v2/tables#schema, the mode field
     // is optional (and so it may be null), but defaults to "NULLABLE".
-    String mode = firstNonNull(fieldSchema.getMode(), "NULLABLE");
-    switch (mode) {
-      case "REQUIRED":
-        return convertRequiredField(schema.getType(), schema.getLogicalType(), fieldSchema, v);
-      case "REPEATED":
-        return convertRepeatedField(schema, fieldSchema, v);
-      case "NULLABLE":
-        return convertNullableField(schema, fieldSchema, v);
-      default:
+    Type type = schema.getType();
+    switch (type) {
+      case ARRAY:
+        return convertRepeatedField(name, schema.getElementType(), v);
+      case UNION:
+        return convertNullableField(name, schema, v);
+      case MAP:
         throw new UnsupportedOperationException(
-            "Parsing a field with BigQuery field schema mode " + fieldSchema.getMode());
+            String.format(
+                "Unexpected BigQuery field schema type %s for field named %s", type, name));
+      default:
+        return convertRequiredField(name, schema, v);
     }
   }
 
-  private static List<Object> convertRepeatedField(
-      Schema schema, TableFieldSchema fieldSchema, Object v) {
-    Type arrayType = schema.getType();
-    verify(
-        arrayType == Type.ARRAY,
-        "BigQuery REPEATED field %s should be Avro ARRAY, not %s",
-        fieldSchema.getName(),
-        arrayType);
+  private static List<Object> convertRepeatedField(String name, Schema elementType, Object v) {
     // REPEATED fields are represented as Avro arrays.
     if (v == null) {
       // Handle the case of an empty repeated field.
@@ -273,135 +258,90 @@ class BigQueryAvroUtils {
     @SuppressWarnings("unchecked")
     List<Object> elements = (List<Object>) v;
     ArrayList<Object> values = new ArrayList<>();
-    Type elementType = schema.getElementType().getType();
-    LogicalType elementLogicalType = schema.getElementType().getLogicalType();
     for (Object element : elements) {
-      values.add(convertRequiredField(elementType, elementLogicalType, fieldSchema, element));
+      values.add(convertRequiredField(name, elementType, element));
     }
     return values;
   }
 
-  private static Object convertRequiredField(
-      Type avroType, LogicalType avroLogicalType, TableFieldSchema fieldSchema, Object v) {
+  private static Object convertRequiredField(String name, Schema schema, Object v) {
     // REQUIRED fields are represented as the corresponding Avro types. For example, a BigQuery
     // INTEGER type maps to an Avro LONG type.
-    checkNotNull(v, "REQUIRED field %s should not be null", fieldSchema.getName());
-    // Per https://cloud.google.com/bigquery/docs/reference/v2/tables#schema, the type field
-    // is required, so it may not be null.
-    String bqType = fieldSchema.getType();
-    ImmutableCollection<Type> expectedAvroTypes = BIG_QUERY_TO_AVRO_TYPES.get(bqType);
-    verifyNotNull(expectedAvroTypes, "Unsupported BigQuery type: %s", bqType);
-    verify(
-        expectedAvroTypes.contains(avroType),
-        "Expected Avro schema types %s for BigQuery %s field %s, but received %s",
-        expectedAvroTypes,
-        bqType,
-        fieldSchema.getName(),
-        avroType);
+    checkNotNull(v, "REQUIRED field %s should not be null", name);
+
     // For historical reasons, don't validate avroLogicalType except for with NUMERIC.
     // BigQuery represents NUMERIC in Avro format as BYTES with a DECIMAL logical type.
-    switch (bqType) {
-      case "STRING":
-      case "DATETIME":
-      case "GEOGRAPHY":
-      case "JSON":
-        // Avro will use a CharSequence to represent String objects, but it may not always use
-        // java.lang.String; for example, it may prefer org.apache.avro.util.Utf8.
-        verify(v instanceof CharSequence, "Expected CharSequence (String), got %s", v.getClass());
-        return v.toString();
-      case "DATE":
-        if (avroType == Type.INT) {
-          verify(v instanceof Integer, "Expected Integer, got %s", v.getClass());
-          verifyNotNull(avroLogicalType, "Expected Date logical type");
-          verify(avroLogicalType instanceof LogicalTypes.Date, "Expected Date logical type");
+    Type type = schema.getType();
+    LogicalType logicalType = schema.getLogicalType();
+    switch (type) {
+      case BOOLEAN:
+        // SQL types BOOL, BOOLEAN
+        return v;
+      case INT:
+        if (logicalType instanceof LogicalTypes.Date) {
+          // SQL types DATE
           return formatDate((Integer) v);
         } else {
-          verify(v instanceof CharSequence, "Expected CharSequence (String), got %s", v.getClass());
-          return v.toString();
+          throw new UnsupportedOperationException(
+              String.format(
+                  "Unexpected BigQuery field schema type %s for field named %s", type, name));
         }
-      case "TIME":
-        if (avroType == Type.LONG) {
-          verify(v instanceof Long, "Expected Long, got %s", v.getClass());
-          verifyNotNull(avroLogicalType, "Expected TimeMicros logical type");
-          verify(
-              avroLogicalType instanceof LogicalTypes.TimeMicros,
-              "Expected TimeMicros logical type");
+      case LONG:
+        if (logicalType instanceof LogicalTypes.TimeMicros) {
+          // SQL types TIME
           return formatTime((Long) v);
+        } else if (logicalType instanceof LogicalTypes.TimestampMicros) {
+          // SQL types TIMESTAMP
+          return formatTimestamp((Long) v);
         } else {
-          verify(v instanceof CharSequence, "Expected CharSequence (String), got %s", v.getClass());
-          return v.toString();
+          // SQL types INT64 (INT, SMALLINT, INTEGER, BIGINT, TINYINT, BYTEINT)
+          return ((Long) v).toString();
         }
-      case "INTEGER":
-      case "INT64":
-        verify(v instanceof Long, "Expected Long, got %s", v.getClass());
-        return ((Long) v).toString();
-      case "FLOAT":
-      case "FLOAT64":
-        verify(v instanceof Double, "Expected Double, got %s", v.getClass());
+      case DOUBLE:
+        // SQL types FLOAT64
         return v;
-      case "NUMERIC":
-      case "BIGNUMERIC":
-        // NUMERIC data types are represented as BYTES with the DECIMAL logical type. They are
-        // converted back to Strings with precision and scale determined by the logical type.
-        verify(v instanceof ByteBuffer, "Expected ByteBuffer, got %s", v.getClass());
-        verifyNotNull(avroLogicalType, "Expected Decimal logical type");
-        verify(avroLogicalType instanceof LogicalTypes.Decimal, "Expected Decimal logical type");
-        BigDecimal numericValue =
-            new Conversions.DecimalConversion()
-                .fromBytes((ByteBuffer) v, Schema.create(avroType), avroLogicalType);
-        return numericValue.toString();
-      case "BOOL":
-      case "BOOLEAN":
-        verify(v instanceof Boolean, "Expected Boolean, got %s", v.getClass());
-        return v;
-      case "TIMESTAMP":
-        // TIMESTAMP data types are represented as Avro LONG types, microseconds since the epoch.
-        // Values may be negative since BigQuery timestamps start at 0001-01-01 00:00:00 UTC.
-        verify(v instanceof Long, "Expected Long, got %s", v.getClass());
-        return formatTimestamp((Long) v);
-      case "RECORD":
-      case "STRUCT":
-        verify(v instanceof GenericRecord, "Expected GenericRecord, got %s", v.getClass());
-        return convertGenericRecordToTableRow((GenericRecord) v, fieldSchema.getFields());
-      case "BYTES":
-        verify(v instanceof ByteBuffer, "Expected ByteBuffer, got %s", v.getClass());
-        ByteBuffer byteBuffer = (ByteBuffer) v;
-        byte[] bytes = new byte[byteBuffer.limit()];
-        byteBuffer.get(bytes);
-        return BaseEncoding.base64().encode(bytes);
+      case BYTES:
+        if (logicalType instanceof LogicalTypes.Decimal) {
+          // SQL tpe NUMERIC, BIGNUMERIC
+          return new Conversions.DecimalConversion()
+              .fromBytes((ByteBuffer) v, schema, logicalType)
+              .toString();
+        } else {
+          // SQL types BYTES
+          return BaseEncoding.base64().encode(((ByteBuffer) v).array());
+        }
+      case STRING:
+        // SQL types STRING, DATETIME, GEOGRAPHY, JSON
+        return v.toString();
+      case RECORD:
+        return convertGenericRecordToTableRow((GenericRecord) v);
       default:
         throw new UnsupportedOperationException(
             String.format(
-                "Unexpected BigQuery field schema type %s for field named %s",
-                fieldSchema.getType(), fieldSchema.getName()));
+                "Unexpected BigQuery field schema type %s for field named %s", type, name));
     }
   }
 
-  private static @Nullable Object convertNullableField(
-      Schema avroSchema, TableFieldSchema fieldSchema, Object v) {
+  private static @Nullable Object convertNullableField(String name, Schema union, Object v) {
     // NULLABLE fields are represented as an Avro Union of the corresponding type and "null".
     verify(
-        avroSchema.getType() == Type.UNION,
+        union.getType() == Type.UNION,
         "Expected Avro schema type UNION, not %s, for BigQuery NULLABLE field %s",
-        avroSchema.getType(),
-        fieldSchema.getName());
-    List<Schema> unionTypes = avroSchema.getTypes();
+        union.getType(),
+        name);
+    List<Schema> unionTypes = union.getTypes();
     verify(
         unionTypes.size() == 2,
         "BigQuery NULLABLE field %s should be an Avro UNION of NULL and another type, not %s",
-        fieldSchema.getName(),
-        unionTypes);
+        name,
+        union);
 
-    if (v == null) {
+    Schema type = union.getTypes().get(GenericData.get().resolveUnion(union, v));
+    if (type.getType() == Type.NULL) {
       return null;
+    } else {
+      return convertRequiredField(name, type, v);
     }
-
-    Type firstType = unionTypes.get(0).getType();
-    if (!firstType.equals(Type.NULL)) {
-      return convertRequiredField(firstType, unionTypes.get(0).getLogicalType(), fieldSchema, v);
-    }
-    return convertRequiredField(
-        unionTypes.get(1).getType(), unionTypes.get(1).getLogicalType(), fieldSchema, v);
   }
 
   static Schema toGenericAvroSchema(
