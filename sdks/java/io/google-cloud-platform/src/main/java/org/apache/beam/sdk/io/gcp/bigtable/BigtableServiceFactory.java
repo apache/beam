@@ -30,6 +30,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,6 +45,8 @@ import org.slf4j.LoggerFactory;
 class BigtableServiceFactory implements Serializable {
 
   private static final Logger LOG = LoggerFactory.getLogger(BigtableServiceFactory.class);
+
+  @VisibleForTesting
   static final ConcurrentHashMap<UUID, BigtableServiceEntry> entries = new ConcurrentHashMap<>();
   private static final ConcurrentHashMap<UUID, AtomicInteger> refCounts = new ConcurrentHashMap<>();
   private static final Object lock = new Object();
