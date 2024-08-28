@@ -46,9 +46,8 @@ class BigtableServiceFactory implements Serializable {
 
   private static final Logger LOG = LoggerFactory.getLogger(BigtableServiceFactory.class);
 
-  @VisibleForTesting
-  static final ConcurrentHashMap<UUID, BigtableServiceEntry> entries = new ConcurrentHashMap<>();
-
+  private static final ConcurrentHashMap<UUID, BigtableServiceEntry> entries =
+      new ConcurrentHashMap<>();
   private static final ConcurrentHashMap<UUID, AtomicInteger> refCounts = new ConcurrentHashMap<>();
   private static final Object lock = new Object();
 
@@ -216,6 +215,13 @@ class BigtableServiceFactory implements Serializable {
       }
     }
     return true;
+  }
+
+  @VisibleForTesting
+  static boolean isEmpty() {
+    synchronized (lock) {
+      return entries.isEmpty();
+    }
   }
 
   synchronized ConfigId newId() {

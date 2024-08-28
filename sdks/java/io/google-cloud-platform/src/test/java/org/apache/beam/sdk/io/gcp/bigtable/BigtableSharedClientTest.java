@@ -68,6 +68,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -161,7 +162,7 @@ public class BigtableSharedClientTest {
     // Make sure that a single client was shared across all the bundles
     assertThat(clientConnectionInterceptor.getClientConnections(), Matchers.hasSize(1));
 
-    assertThat(BigtableServiceFactory.entries.values(), Matchers.hasSize(0));
+    Assert.assertTrue("BigtableServiceFactory should be empty", BigtableServiceFactory.isEmpty());
   }
 
   /** Minimal implementation of a Bigtable emulator for BigtableIO.write(). */
