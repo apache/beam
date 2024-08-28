@@ -18,7 +18,6 @@
 package org.apache.beam.runners.core;
 
 import java.util.Collection;
-
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.triggers.ExecutableTriggerStateMachine;
 import org.apache.beam.runners.core.triggers.TriggerStateMachines;
