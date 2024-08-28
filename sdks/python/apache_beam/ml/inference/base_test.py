@@ -891,8 +891,8 @@ class RunInferenceBaseTest(unittest.TestCase):
       with TestPipeline() as pipeline:
         # Start with bad example which gets timed out.
         # Then provide plenty of time for GC to happen.
-        examples = [20] + [1] * 15
-        expected_good = [1] * 15
+        examples = [20] + [1] * 60
+        expected_good = [1] * 60
         expected_bad = [20]
         pcoll = pipeline | 'start' >> beam.Create(examples)
         main, other = pcoll | base.RunInference(
