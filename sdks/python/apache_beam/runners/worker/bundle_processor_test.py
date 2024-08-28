@@ -596,20 +596,25 @@ class OrderedListStateTest(unittest.TestCase):
     class NaiveState:
       def __init__(self):
         self._data = [list() for i in range((upper - lower + 1))]
+        self._logs = []
 
       def add(self, elem):
         k, v = elem
         self._data[k - lower].append(v)
+        self._logs.append("add(%d, %s)" % (k, v))
 
       def clear_range(self, lo, hi):
         for i in range(lo, hi):
           self._data[i - lower] = []
+        self._logs.append("clear_range(%d, %d)" % (lo, hi))
 
       def clear(self):
         for i in range(len(self._data)):
           self._data[i] = []
+        self._logs.append("clear()")
 
       def read(self):
+        self._logs.append("read()")
         for i in range(len(self._data)):
           for v in self._data[i]:
             yield (i + lower, v)
@@ -641,14 +646,28 @@ class OrderedListStateTest(unittest.TestCase):
       else:
         state.commit()
 
-      a = list(state.read())
-      b = list(bench_state.read())
-      self.assertEqual(a, b, "Mismatch occurred on seed=%d, step=%d" % (seed, i))
+      a = list(bench_state.read())
+      b = list(state.read())
+      self.assertEqual(a, b, "Mismatch occurred on seed=%d, step=%d, logs=%s" % (seed, i, ';'.join(bench_state._logs)))
 
   def test_fuzz(self):
     for i in range(1000):
       seed = random.randint(0, 0xffffffffffffffff)
-      self.fuzz_test_helper(seed=seed)
+      try:
+        self.fuzz_test_helper(seed=seed)
+      except Exception as e:
+        raise RuntimeError("Exception occurred on seed=%d: %s" %(seed, e))
+
+  def test_min_max(self):
+    INT64_MIN, INT64_MAX_MINUS_ONE, INT64_MAX = [(-(1 << 63), "min"), ((1 << 63) - 2, "max"), ((1 << 63) - 1, "err")]
+
+    self.state.add(INT64_MIN)
+    self.state.add(INT64_MAX_MINUS_ONE)
+    self.assertRaises(ValueError, lambda: self.state.add(INT64_MAX))
+
+    self.assertEqual([INT64_MIN, INT64_MAX_MINUS_ONE], list(self.state.read()))
+    self.assertEqual([INT64_MIN], list(self.state.read_range(-(1 << 63), 0)))
+    self.assertEqual([INT64_MAX_MINUS_ONE], list(self.state.read_range(0, (1 << 63) - 1)))
 
 
 if __name__ == '__main__':

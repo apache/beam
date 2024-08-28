@@ -32,6 +32,7 @@ from typing import Optional
 from typing import Set
 from typing import Tuple
 from typing import TypeVar
+from typing import Union
 
 from apache_beam.coders import Coder
 from apache_beam.coders import coders
@@ -386,10 +387,10 @@ class CombiningValueRuntimeState(AccumulatingRuntimeState):
 class OrderedListRuntimeState(AccumulatingRuntimeState):
   """Ordered list state interface object passed to user code."""
 
-  def read_range(self, min_time_stamp: int, max_time_stamp: int) -> Iterable[Any]:
+  def read_range(self, min_time_stamp: Union[int, Timestamp], limit_time_stamp: Union[int, Timestamp]) -> Iterable[Any]:
     raise NotImplementedError(type(self))
 
-  def clear_range(self, min_time_stamp: int, max_time_stamp: int) -> None:
+  def clear_range(self, min_time_stamp: Union[int, Timestamp], limit_time_stamp: Union[int, Timestamp]) -> None:
     raise NotImplementedError(type(self))
 
 

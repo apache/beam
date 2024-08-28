@@ -740,7 +740,7 @@ class SynchronousSetRuntimeState(userstate.SetRuntimeState):
 
 
 class RangeSet:
-  """For Internal Use only. A simple range set implementation."""
+  """For Internal Use only. A simple range set implementation for ranges of [x,y)."""
   def __init__(self):
     # The start points and end points are stored separately in order.
     self._sorted_starts = SortedList()
@@ -788,6 +788,9 @@ class RangeSet:
 
 
 class SynchronousOrderedListRuntimeState(userstate.OrderedListRuntimeState):
+  RANGE_MIN = - (1<<63)
+  RANGE_MAX = (1<<63) - 1
+
   def __init__(self,
                state_handler,  # type: sdk_worker.CachingStateHandler
                state_key,  # type: beam_fn_api_pb2.StateKey
@@ -807,53 +810,58 @@ class SynchronousOrderedListRuntimeState(userstate.OrderedListRuntimeState):
     # type: (Any) -> None
     assert len(elem) == 2
     key, value = elem
+    if isinstance(key, timestamp.Timestamp):
+      key = key.micros
+
+    if key >= self.RANGE_MAX:
+      raise ValueError("key value %d is out of range" % key)
     self._pending_adds.setdefault(key, []).append(value)
 
   def read(self):
-    return self.read_range(timestamp.MIN_TIMESTAMP, timestamp.MAX_TIMESTAMP)
+    return self.read_range(self.RANGE_MIN, self.RANGE_MAX)
 
   def read_range(self, min_timestamp, limit_timestamp):
+    # convert timestamp to int, as sort keys are stored as int internally.
     if isinstance(min_timestamp, timestamp.Timestamp):
       min_timestamp = min_timestamp.micros
 
     if isinstance(limit_timestamp, timestamp.Timestamp):
       limit_timestamp = limit_timestamp.micros
 
-    to_add_range = self._pending_adds.irange(min_timestamp,
+    keys_to_add = self._pending_adds.irange(min_timestamp,
                                              limit_timestamp,
                                              inclusive=(True, False))
 
-    pending_adds_iters = []
-    for k in to_add_range:
-      pending_adds_on_key = self._pending_adds[k]
-      pending_adds_iters.append(
-          itertools.islice(
-              zip(itertools.cycle([k,]), pending_adds_on_key),
-              len(pending_adds_on_key)))
-
-    values_in_range = chain.from_iterable(pending_adds_iters)
+    # use list interpretation here to construct the actual list
+    # of iterators of the selected range.
+    local_items = chain.from_iterable([itertools.islice(
+               zip(itertools.cycle([k,]), self._pending_adds[k]),
+               len(self._pending_adds[k]))
+      for k in keys_to_add])
 
     if not self._cleared:
-      state_key_to_store = beam_fn_api_pb2.StateKey()
-      state_key_to_store.CopyFrom(self._state_key)
-      state_key_to_store.ordered_list_user_state.range.start = min_timestamp
-      state_key_to_store.ordered_list_user_state.range.end = limit_timestamp
+      range_query_state_key = beam_fn_api_pb2.StateKey()
+      range_query_state_key.CopyFrom(self._state_key)
+      range_query_state_key.ordered_list_user_state.range.start = min_timestamp
+      range_query_state_key.ordered_list_user_state.range.end = limit_timestamp
 
+      # make a deep copy here because there could be other operations occur in
+      # the middle of an iteration and change pending_removes
       pending_removes_snapshot = copy.deepcopy(self._pending_removes)
-      persistent_values = filter(lambda kv: kv[0] not in pending_removes_snapshot,
+      persistent_items = filter(lambda kv: kv[0] not in pending_removes_snapshot,
                                  _StateBackedIterable(self._state_handler,
-                                                      state_key_to_store,
+                                                      range_query_state_key,
                                                       self._elem_coder))
 
-      return _MergeSortedIterable(persistent_values, values_in_range)
+      return _MergeSortedIterable(persistent_items, local_items)
 
-    return values_in_range
+    return local_items
 
   def clear(self):
     self._cleared = True
     self._pending_adds = SortedDict()
     self._pending_removes = RangeSet()
-    self._pending_removes.add(timestamp.MIN_TIMESTAMP.micros, timestamp.MAX_TIMESTAMP.micros)
+    self._pending_removes.add(self.RANGE_MIN, self.RANGE_MAX)
 
   def clear_range(self, min_timestamp, limit_timestamp):
     if isinstance(min_timestamp, timestamp.Timestamp):
@@ -862,9 +870,10 @@ class SynchronousOrderedListRuntimeState(userstate.OrderedListRuntimeState):
     if isinstance(limit_timestamp, timestamp.Timestamp):
       limit_timestamp = limit_timestamp.micros
 
-    to_remove_range = list(self._pending_adds.irange(min_timestamp, limit_timestamp,
+    # materialize the keys to remove before the actual removal
+    keys_to_remove = list(self._pending_adds.irange(min_timestamp, limit_timestamp,
                                                     inclusive=(True, False)))
-    for k in to_remove_range:
+    for k in keys_to_remove:
       del self._pending_adds[k]
 
     if not self._cleared:
@@ -874,20 +883,20 @@ class SynchronousOrderedListRuntimeState(userstate.OrderedListRuntimeState):
     futures = []
     if self._pending_removes:
       for start, end in self._pending_removes:
-        state_key_with_range = beam_fn_api_pb2.StateKey()
-        state_key_with_range.CopyFrom(self._state_key)
-        state_key_with_range.ordered_list_user_state.range.start = start
-        state_key_with_range.ordered_list_user_state.range.end = end
-        futures.append(self._state_handler.clear(state_key_with_range))
+        range_query_state_key = beam_fn_api_pb2.StateKey()
+        range_query_state_key.CopyFrom(self._state_key)
+        range_query_state_key.ordered_list_user_state.range.start = start
+        range_query_state_key.ordered_list_user_state.range.end = end
+        futures.append(self._state_handler.clear(range_query_state_key))
 
       self._pending_removes = RangeSet()
 
     if self._pending_adds:
-      values_to_add = []
+      items_to_add = []
       for k in self._pending_adds:
-        values_to_add.extend(zip(itertools.cycle([k, ]), self._pending_adds[k]))
+        items_to_add.extend(zip(itertools.cycle([k, ]), self._pending_adds[k]))
       futures.append(self._state_handler.extend(
-        self._state_key, self._elem_coder.get_impl(), values_to_add))
+        self._state_key, self._elem_coder.get_impl(), items_to_add))
       self._pending_adds = SortedDict()
 
     if len(futures):
@@ -896,6 +905,7 @@ class SynchronousOrderedListRuntimeState(userstate.OrderedListRuntimeState):
         to_await.get()
 
     self._cleared = False
+
 
 class OutputTimer(userstate.BaseTimer):
   def __init__(self,
