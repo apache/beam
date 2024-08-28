@@ -19,14 +19,11 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
-import com.google.api.services.bigquery.model.TableSchema;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.extensions.avro.io.AvroSource;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -40,7 +37,7 @@ class BigQueryTableSource<T> extends BigQuerySourceBase<T> {
       BigQueryTableSourceDef tableDef,
       BigQueryServices bqServices,
       Coder<T> coder,
-      SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<T>> readerFactory,
+      BigQueryReaderFactory<T> readerFactory,
       boolean useAvroLogicalTypes) {
     return new BigQueryTableSource<>(
         stepUuid, tableDef, bqServices, coder, readerFactory, useAvroLogicalTypes);
@@ -54,7 +51,7 @@ class BigQueryTableSource<T> extends BigQuerySourceBase<T> {
       BigQueryTableSourceDef tableDef,
       BigQueryServices bqServices,
       Coder<T> coder,
-      SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<T>> readerFactory,
+      BigQueryReaderFactory<T> readerFactory,
       boolean useAvroLogicalTypes) {
     super(stepUuid, bqServices, coder, readerFactory, useAvroLogicalTypes);
     this.tableDef = tableDef;

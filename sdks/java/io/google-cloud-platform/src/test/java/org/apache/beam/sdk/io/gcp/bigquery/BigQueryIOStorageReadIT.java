@@ -23,9 +23,9 @@ import static org.junit.Assert.assertEquals;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.bigquery.storage.v1.DataFormat;
 import java.util.Map;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TableRowParser;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.ConversionOptions;
 import org.apache.beam.sdk.options.Description;
@@ -116,28 +116,27 @@ public class BigQueryIOStorageReadIT {
     PCollection<Long> count =
         p.apply(
                 "Read",
-                BigQueryIO.read(TableRowParser.INSTANCE)
+                BigQueryIO.readTableRows(options.getDataFormat())
                     .from(options.getInputTable())
-                    .withMethod(Method.DIRECT_READ)
-                    .withFormat(options.getDataFormat()))
+                    .withMethod(Method.DIRECT_READ))
             .apply("Count", Count.globally());
     PAssert.thatSingleton(count).isEqualTo(options.getNumRecords());
     p.run().waitUntilFinish();
   }
 
-  static class FailingTableRowParser implements SerializableFunction<SchemaAndRecord, TableRow> {
+  static class FailingTableRowParser implements SerializableFunction<GenericRecord, TableRow> {
 
     public static final FailingTableRowParser INSTANCE = new FailingTableRowParser();
 
     private int parseCount = 0;
 
     @Override
-    public TableRow apply(SchemaAndRecord schemaAndRecord) {
+    public TableRow apply(GenericRecord record) {
       parseCount++;
       if (parseCount % 50 == 0) {
         throw new RuntimeException("ExpectedException");
       }
-      return TableRowParser.INSTANCE.apply(schemaAndRecord);
+      return BigQueryAvroUtils.convertGenericRecordToTableRow(record);
     }
   }
 
@@ -148,10 +147,9 @@ public class BigQueryIOStorageReadIT {
     PCollection<Long> count =
         p.apply(
                 "Read",
-                BigQueryIO.read(FailingTableRowParser.INSTANCE)
+                BigQueryIO.readAvro(FailingTableRowParser.INSTANCE)
                     .from(options.getInputTable())
                     .withMethod(Method.DIRECT_READ)
-                    .withFormat(options.getDataFormat())
                     .withErrorHandler(errorHandler))
             .apply("Count", Count.globally());
 
@@ -211,10 +209,9 @@ public class BigQueryIOStorageReadIT {
     PCollection<Row> tableContents =
         p.apply(
                 "Read",
-                BigQueryIO.readTableRowsWithSchema()
+                BigQueryIO.readTableRowsWithSchema(options.getDataFormat())
                     .from(options.getInputTable())
-                    .withMethod(Method.DIRECT_READ)
-                    .withFormat(options.getDataFormat()))
+                    .withMethod(Method.DIRECT_READ))
             .apply(Convert.toRows());
     PAssert.thatSingleton(tableContents.apply(Count.globally())).isEqualTo(options.getNumRecords());
     assertEquals(tableContents.getSchema(), multiFieldSchema);
@@ -240,15 +237,12 @@ public class BigQueryIOStorageReadIT {
     PCollection<Long> count =
         p.apply(
                 "Read",
-                BigQueryIO.read(
+                BigQueryIO.readAvro(
                         record ->
                             BigQueryUtils.toBeamRow(
-                                record.getRecord(),
-                                multiFieldSchema,
-                                ConversionOptions.builder().build()))
+                                record, multiFieldSchema, ConversionOptions.builder().build()))
                     .from(options.getInputTable())
                     .withMethod(Method.DIRECT_READ)
-                    .withFormat(options.getDataFormat())
                     .withCoder(SchemaCoder.of(multiFieldSchema)))
             .apply(ParDo.of(new GetIntField()))
             .apply("Count", Count.globally());

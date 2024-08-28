@@ -25,7 +25,6 @@ import java.util.Set;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.FileSystems;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TableRowParser;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.ExperimentalOptions;
@@ -48,10 +47,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Integration tests for {@link BigQueryIO#readTableRows()} using {@link Method#DIRECT_READ} in
- * combination with {@link TableRowParser} to generate output in {@link TableRow} form.
- */
+/** Integration tests for {@link BigQueryIO#readTableRows()} using {@link Method#DIRECT_READ}. */
 @RunWith(JUnit4.class)
 public class BigQueryIOStorageReadTableRowIT {
 

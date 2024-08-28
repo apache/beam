@@ -34,7 +34,6 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.StorageClient;
 import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
@@ -66,7 +65,7 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
   protected final @Nullable DataFormat format;
   protected final @Nullable ValueProvider<List<String>> selectedFieldsProvider;
   protected final @Nullable ValueProvider<String> rowRestrictionProvider;
-  protected final SerializableFunction<SchemaAndRecord, T> parseFn;
+  protected final BigQueryStorageReaderFactory<T> readerFactory;
   protected final Coder<T> outputCoder;
   protected final BigQueryServices bqServices;
 
@@ -74,13 +73,13 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
       @Nullable DataFormat format,
       @Nullable ValueProvider<List<String>> selectedFieldsProvider,
       @Nullable ValueProvider<String> rowRestrictionProvider,
-      SerializableFunction<SchemaAndRecord, T> parseFn,
+      BigQueryStorageReaderFactory<T> readerFactory,
       Coder<T> outputCoder,
       BigQueryServices bqServices) {
     this.format = format;
     this.selectedFieldsProvider = selectedFieldsProvider;
     this.rowRestrictionProvider = rowRestrictionProvider;
-    this.parseFn = checkNotNull(parseFn, "parseFn");
+    this.readerFactory = readerFactory;
     this.outputCoder = checkNotNull(outputCoder, "outputCoder");
     this.bqServices = checkNotNull(bqServices, "bqServices");
   }
@@ -180,8 +179,9 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
 
     // TODO: this is inconsistent with method above, where it can be null
     Preconditions.checkStateNotNull(targetTable);
+
     TableSchema tableSchema = targetTable.getSchema();
-    if (selectedFieldsProvider != null && selectedFieldsProvider.isAccessible()) {
+    if (selectedFieldsProvider != null) {
       tableSchema = BigQueryUtils.trimSchema(tableSchema, selectedFieldsProvider.get());
     }
 
@@ -189,7 +189,7 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
     for (ReadStream readStream : readSession.getStreamsList()) {
       sources.add(
           BigQueryStorageStreamSource.create(
-              readSession, readStream, tableSchema, parseFn, outputCoder, bqServices));
+              readSession, readStream, tableSchema, readerFactory, outputCoder, bqServices));
     }
 
     return ImmutableList.copyOf(sources);

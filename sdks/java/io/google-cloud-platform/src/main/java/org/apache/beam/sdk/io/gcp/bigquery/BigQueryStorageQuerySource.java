@@ -31,7 +31,6 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.QueryPriority;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -49,7 +48,7 @@ class BigQueryStorageQuerySource<T> extends BigQueryStorageSourceBase<T> {
       @Nullable String queryTempProject,
       @Nullable String kmsKey,
       @Nullable DataFormat format,
-      SerializableFunction<SchemaAndRecord, T> parseFn,
+      BigQueryStorageReaderFactory<T> readerFactory,
       Coder<T> outputCoder,
       BigQueryServices bqServices) {
     return new BigQueryStorageQuerySource<>(
@@ -63,7 +62,7 @@ class BigQueryStorageQuerySource<T> extends BigQueryStorageSourceBase<T> {
         queryTempProject,
         kmsKey,
         format,
-        parseFn,
+        readerFactory,
         outputCoder,
         bqServices);
   }
@@ -76,7 +75,7 @@ class BigQueryStorageQuerySource<T> extends BigQueryStorageSourceBase<T> {
       QueryPriority priority,
       @Nullable String location,
       @Nullable String kmsKey,
-      SerializableFunction<SchemaAndRecord, T> parseFn,
+      BigQueryStorageReaderFactory<T> readerFactory,
       Coder<T> outputCoder,
       BigQueryServices bqServices) {
     return new BigQueryStorageQuerySource<>(
@@ -90,7 +89,7 @@ class BigQueryStorageQuerySource<T> extends BigQueryStorageSourceBase<T> {
         null,
         kmsKey,
         null,
-        parseFn,
+        readerFactory,
         outputCoder,
         bqServices);
   }
@@ -119,10 +118,10 @@ class BigQueryStorageQuerySource<T> extends BigQueryStorageSourceBase<T> {
       @Nullable String queryTempProject,
       @Nullable String kmsKey,
       @Nullable DataFormat format,
-      SerializableFunction<SchemaAndRecord, T> parseFn,
+      BigQueryStorageReaderFactory<T> readerFactory,
       Coder<T> outputCoder,
       BigQueryServices bqServices) {
-    super(format, null, null, parseFn, outputCoder, bqServices);
+    super(format, null, null, readerFactory, outputCoder, bqServices);
     this.stepUuid = checkNotNull(stepUuid, "stepUuid");
     this.queryProvider = checkNotNull(queryProvider, "queryProvider");
     this.flattenResults = checkNotNull(flattenResults, "flattenResults");

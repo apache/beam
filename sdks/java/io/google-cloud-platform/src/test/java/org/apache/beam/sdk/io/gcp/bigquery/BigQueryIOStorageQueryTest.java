@@ -58,12 +58,8 @@ import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.Encoder;
 import org.apache.avro.io.EncoderFactory;
-import org.apache.beam.sdk.coders.CoderRegistry;
-import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.extensions.protobuf.ByteStringCoder;
-import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
+import org.apache.beam.sdk.extensions.avro.io.AvroDatumFactory;
 import org.apache.beam.sdk.io.BoundedSource;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TableRowParser;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.QueryPriority;
@@ -103,6 +99,12 @@ import org.junit.runners.model.Statement;
  */
 @RunWith(JUnit4.class)
 public class BigQueryIOStorageQueryTest {
+
+  private static final BigQueryReaderFactory<TableRow> TABLE_ROW_AVRO_READER_FACTORY =
+      BigQueryReaderFactory.avro(
+          null,
+          AvroDatumFactory.generic(),
+          (s, r) -> BigQueryAvroUtils.convertGenericRecordToTableRow(r));
 
   private transient BigQueryOptions options;
   private transient TemporaryFolder testFolder = new TemporaryFolder();
@@ -170,7 +172,7 @@ public class BigQueryIOStorageQueryTest {
   @Test
   public void testQueryBasedSourceWithCustomQuery() throws Exception {
     TypedRead<TableRow> typedRead =
-        BigQueryIO.read(new TableRowParser())
+        BigQueryIO.readTableRows()
             .fromQuery("SELECT * FROM `google.com:project.dataset.table`")
             .withCoder(TableRowJsonCoder.of());
     checkTypedReadQueryObject(typedRead, "SELECT * FROM `google.com:project.dataset.table`");
@@ -227,7 +229,7 @@ public class BigQueryIOStorageQueryTest {
   }
 
   private TypedRead<TableRow> getDefaultTypedRead() {
-    return BigQueryIO.read(new TableRowParser())
+    return BigQueryIO.readTableRows()
         .fromQuery(DEFAULT_QUERY)
         .withCoder(TableRowJsonCoder.of())
         .withMethod(Method.DIRECT_READ);
@@ -274,21 +276,6 @@ public class BigQueryIOStorageQueryTest {
   }
 
   @Test
-  public void testCoderInference() {
-    SerializableFunction<SchemaAndRecord, KV<ByteString, ReadSession>> parseFn =
-        new SerializableFunction<SchemaAndRecord, KV<ByteString, ReadSession>>() {
-          @Override
-          public KV<ByteString, ReadSession> apply(SchemaAndRecord input) {
-            return null;
-          }
-        };
-
-    assertEquals(
-        KvCoder.of(ByteStringCoder.of(), ProtoCoder.of(ReadSession.class)),
-        BigQueryIO.read(parseFn).inferCoder(CoderRegistry.createDefault()));
-  }
-
-  @Test
   public void testQuerySourceEstimatedSize() throws Exception {
 
     String fakeQuery = "fake query text";
@@ -310,7 +297,7 @@ public class BigQueryIOStorageQueryTest {
             /* queryTempProject = */ null,
             /* kmsKey = */ null,
             null,
-            new TableRowParser(),
+            TABLE_ROW_AVRO_READER_FACTORY,
             TableRowJsonCoder.of(),
             fakeBigQueryServices);
 
@@ -424,7 +411,7 @@ public class BigQueryIOStorageQueryTest {
             /* queryTempProject = */ null,
             /* kmsKey = */ null,
             null,
-            new TableRowParser(),
+            TABLE_ROW_AVRO_READER_FACTORY,
             TableRowJsonCoder.of(),
             new FakeBigQueryServices()
                 .withDatasetService(fakeDatasetService)
@@ -526,7 +513,7 @@ public class BigQueryIOStorageQueryTest {
             /* queryTempProject = */ null,
             /* kmsKey = */ null,
             null,
-            new TableRowParser(),
+            TABLE_ROW_AVRO_READER_FACTORY,
             TableRowJsonCoder.of(),
             new FakeBigQueryServices()
                 .withDatasetService(fakeDatasetService)
@@ -602,11 +589,10 @@ public class BigQueryIOStorageQueryTest {
   }
 
   private static final class ParseKeyValue
-      implements SerializableFunction<SchemaAndRecord, KV<String, Long>> {
+      implements SerializableFunction<GenericRecord, KV<String, Long>> {
     @Override
-    public KV<String, Long> apply(SchemaAndRecord input) {
-      return KV.of(
-          input.getRecord().get("name").toString(), (Long) input.getRecord().get("number"));
+    public KV<String, Long> apply(GenericRecord record) {
+      return KV.of(record.get("name").toString(), (Long) record.get("number"));
     }
   }
 
@@ -675,7 +661,7 @@ public class BigQueryIOStorageQueryTest {
             /* queryTempProject = */ null,
             /* kmsKey = */ null,
             DataFormat.AVRO,
-            new TableRowParser(),
+            TABLE_ROW_AVRO_READER_FACTORY,
             TableRowJsonCoder.of(),
             new FakeBigQueryServices()
                 .withDatasetService(fakeDatasetService)
@@ -748,7 +734,7 @@ public class BigQueryIOStorageQueryTest {
             /* queryTempProject = */ null,
             /* kmsKey = */ null,
             null,
-            new TableRowParser(),
+            TABLE_ROW_AVRO_READER_FACTORY,
             TableRowJsonCoder.of(),
             new FakeBigQueryServices()
                 .withDatasetService(fakeDatasetService)
@@ -773,7 +759,7 @@ public class BigQueryIOStorageQueryTest {
             /* queryTempProject = */ null,
             /* kmsKey = */ null,
             null,
-            new TableRowParser(),
+            TABLE_ROW_AVRO_READER_FACTORY,
             TableRowJsonCoder.of(),
             fakeBigQueryServices);
 
@@ -783,7 +769,7 @@ public class BigQueryIOStorageQueryTest {
   }
 
   public TypedRead<KV<String, Long>> configureTypedRead(
-      SerializableFunction<SchemaAndRecord, KV<String, Long>> parseFn) throws Exception {
+      SerializableFunction<GenericRecord, KV<String, Long>> parseFn) throws Exception {
     TableReference sourceTableRef = BigQueryHelpers.parseTableSpec("project:dataset.table");
 
     fakeDatasetService.createDataset(
@@ -843,7 +829,7 @@ public class BigQueryIOStorageQueryTest {
     when(fakeStorageClient.readRows(expectedReadRowsRequest, ""))
         .thenReturn(new FakeBigQueryServerStream<>(readRowsResponses));
 
-    return BigQueryIO.read(parseFn)
+    return BigQueryIO.readAvro(parseFn)
         .fromQuery(encodedQuery)
         .withMethod(Method.DIRECT_READ)
         .withTestServices(
@@ -881,14 +867,13 @@ public class BigQueryIOStorageQueryTest {
   }
 
   private static final class FailingParseKeyValue
-      implements SerializableFunction<SchemaAndRecord, KV<String, Long>> {
+      implements SerializableFunction<GenericRecord, KV<String, Long>> {
     @Override
-    public KV<String, Long> apply(SchemaAndRecord input) {
-      if (input.getRecord().get("name").toString().equals("B")) {
+    public KV<String, Long> apply(GenericRecord record) {
+      if (record.get("name").toString().equals("B")) {
         throw new RuntimeException("ExpectedException");
       }
-      return KV.of(
-          input.getRecord().get("name").toString(), (Long) input.getRecord().get("number"));
+      return KV.of(record.get("name").toString(), (Long) record.get("number"));
     }
   }
 

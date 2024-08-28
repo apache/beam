@@ -66,6 +66,7 @@ import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
+import org.apache.avro.io.DatumReader;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
@@ -510,14 +511,16 @@ public class FakeJobService implements JobService, Serializable {
   private List<TableRow> readAvroTableRows(String filename, TableSchema tableSchema)
       throws IOException {
     List<TableRow> tableRows = Lists.newArrayList();
-    FileReader<GenericRecord> dfr =
-        DataFileReader.openReader(new File(filename), new GenericDatumReader<>());
-
-    while (dfr.hasNext()) {
-      GenericRecord record = dfr.next(null);
-      tableRows.add(BigQueryUtils.convertGenericRecordToTableRow(record, tableSchema));
+    Schema readerSchema = BigQueryUtils.toGenericAvroSchema(tableSchema, true);
+    DatumReader<GenericRecord> reader = new GenericDatumReader<>();
+    reader.setSchema(readerSchema);
+    try (FileReader<GenericRecord> dfr = DataFileReader.openReader(new File(filename), reader)) {
+      while (dfr.hasNext()) {
+        GenericRecord record = dfr.next(null);
+        tableRows.add(BigQueryUtils.convertGenericRecordToTableRow(record));
+      }
+      return tableRows;
     }
-    return tableRows;
   }
 
   private long writeRows(
