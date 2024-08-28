@@ -133,7 +133,7 @@ public abstract class DynamicDestinations<T, DestinationT> implements Serializab
    * Returns an object that represents at a high level which table is being written to. May not
    * return null.
    *
-   * <p>Returned object is expected to be unique for different destination tables involved over all
+   * <p>The method must return a unique object for different destination tables involved over all
    * BigQueryIO write transforms in the same pipeline. See
    * https://github.com/apache/beam/issues/32335 for details.
    */
