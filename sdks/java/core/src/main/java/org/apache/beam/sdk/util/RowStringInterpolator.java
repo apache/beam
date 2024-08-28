@@ -39,7 +39,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>The {@link RowStringInterpolator} looks for field names specified inside {curly braces}. For
  * example, if the interpolator is configured with the String {@code "unified {foo} and streaming"},
  * it will look for a field name {@code "foo"} in the input {@link Row} and substitute in that
- * value.
+ * value. A {@link RowStringInterpolator} configured with a template String that contains no placeholders
+ * (i.e. no curly braces), it will always return that String, untouched.
  *
  * <p>Nested fields can be specified using dot-notation (e.g. {@code "top.middle.nested"}).
  *
