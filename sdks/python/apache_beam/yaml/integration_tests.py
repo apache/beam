@@ -56,7 +56,7 @@ def temp_spanner_table(project, prefix = 'temp_spanner_db_'):
     spanner_client._create_database()
     instance = '%s_%s' % (prefix, uuid.uuid4().hex)
     database = spanner_client.TEST_DATABASE
-    table = 'Users'
+    table = 'tmp_table'
     columns = ['UserId', 'Key']
     logging.info("Created Spanner database: %s", database)
     try:
