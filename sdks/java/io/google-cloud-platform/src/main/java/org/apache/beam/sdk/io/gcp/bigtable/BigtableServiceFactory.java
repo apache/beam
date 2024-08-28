@@ -48,6 +48,7 @@ class BigtableServiceFactory implements Serializable {
 
   @VisibleForTesting
   static final ConcurrentHashMap<UUID, BigtableServiceEntry> entries = new ConcurrentHashMap<>();
+
   private static final ConcurrentHashMap<UUID, AtomicInteger> refCounts = new ConcurrentHashMap<>();
   private static final Object lock = new Object();
 
