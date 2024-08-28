@@ -52,6 +52,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.coders.Coder;
@@ -79,6 +80,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
@@ -107,6 +109,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
   private final BigQueryServices bqServices;
   private final TupleTag<BigQueryStorageApiInsertError> failedRowsTag;
   private final @Nullable TupleTag<TableRow> successfulRowsTag;
+  private final Predicate<String> successfulRowsPredicate;
   private final TupleTag<KV<String, String>> finalizeTag = new TupleTag<>("finalizeTag");
   private final Coder<BigQueryStorageApiInsertError> failedRowsCoder;
   private final Coder<TableRow> successfulRowsCoder;
@@ -168,6 +171,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       BigQueryServices bqServices,
       TupleTag<BigQueryStorageApiInsertError> failedRowsTag,
       @Nullable TupleTag<TableRow> successfulRowsTag,
+      Predicate<String> successfulRowsPredicate,
       Coder<BigQueryStorageApiInsertError> failedRowsCoder,
       Coder<TableRow> successfulRowsCoder,
       boolean autoUpdateSchema,
@@ -180,6 +184,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
     this.bqServices = bqServices;
     this.failedRowsTag = failedRowsTag;
     this.successfulRowsTag = successfulRowsTag;
+    this.successfulRowsPredicate = successfulRowsPredicate;
     this.failedRowsCoder = failedRowsCoder;
     this.successfulRowsCoder = successfulRowsCoder;
     this.autoUpdateSchema = autoUpdateSchema;
@@ -216,6 +221,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                         finalizeTag,
                         failedRowsTag,
                         successfulRowsTag,
+                        successfulRowsPredicate,
                         autoUpdateSchema,
                         ignoreUnknownValues,
                         createDisposition,
@@ -247,6 +253,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
     private final TupleTag<KV<String, String>> finalizeTag;
     private final TupleTag<BigQueryStorageApiInsertError> failedRowsTag;
     private final @Nullable TupleTag<TableRow> successfulRowsTag;
+
+    private final Predicate<String> successfulRowsPredicate;
     private final boolean autoUpdateSchema;
     private final boolean ignoreUnknownValues;
     private final BigQueryIO.Write.CreateDisposition createDisposition;
@@ -576,7 +584,9 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
             } catch (TableRowToStorageApiProto.SchemaConversionException e) {
               @Nullable TableRow tableRow = payload.getFailsafeTableRow();
               if (tableRow == null) {
-                tableRow = checkNotNull(appendClientInfo).toTableRow(payloadBytes);
+                tableRow =
+                    checkNotNull(appendClientInfo)
+                        .toTableRow(payloadBytes, Predicates.alwaysTrue());
               }
               // TODO(24926, reuvenlax): We need to merge the unknown fields in! Currently we only
               // execute this
@@ -641,7 +651,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                           TableRowToStorageApiProto.wrapDescriptorProto(
                               getAppendClientInfo(true, null).getDescriptor()),
                           rowBytes),
-                      true);
+                      true,
+                      successfulRowsPredicate);
             }
             org.joda.time.Instant timestamp = insertTimestamps.get(i);
             failedRowsReceiver.outputWithTimestamp(
@@ -725,7 +736,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                                       Preconditions.checkStateNotNull(appendClientInfo)
                                           .getDescriptor()),
                                   protoBytes),
-                              true);
+                              true,
+                              Predicates.alwaysTrue());
                     }
                     element =
                         new BigQueryStorageApiInsertError(
@@ -875,7 +887,9 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                     try {
                       TableRow row =
                           TableRowToStorageApiProto.tableRowFromMessage(
-                              DynamicMessage.parseFrom(descriptor, rowBytes), true);
+                              DynamicMessage.parseFrom(descriptor, rowBytes),
+                              true,
+                              successfulRowsPredicate);
                       org.joda.time.Instant timestamp = c.timestamps.get(i);
                       successfulRowsReceiver.outputWithTimestamp(row, timestamp);
                     } catch (Exception e) {
@@ -952,6 +966,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         TupleTag<KV<String, String>> finalizeTag,
         TupleTag<BigQueryStorageApiInsertError> failedRowsTag,
         @Nullable TupleTag<TableRow> successfulRowsTag,
+        Predicate<String> successfulRowsPredicate,
         boolean autoUpdateSchema,
         boolean ignoreUnknownValues,
         BigQueryIO.Write.CreateDisposition createDisposition,
@@ -969,6 +984,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       this.finalizeTag = finalizeTag;
       this.failedRowsTag = failedRowsTag;
       this.successfulRowsTag = successfulRowsTag;
+      this.successfulRowsPredicate = successfulRowsPredicate;
       this.autoUpdateSchema = autoUpdateSchema;
       this.ignoreUnknownValues = ignoreUnknownValues;
       this.createDisposition = createDisposition;

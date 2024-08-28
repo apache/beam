@@ -29,6 +29,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
 import org.checkerframework.checker.nullness.qual.NonNull;
 
 /** Storage API DynamicDestinations used when the input is a compiled protocol buffer. */
@@ -106,7 +107,8 @@ class StorageApiDynamicDestinationsProto<T extends Message, DestinationT extends
               DynamicMessage.parseFrom(
                   TableRowToStorageApiProto.wrapDescriptorProto(descriptorProto),
                   element.toByteArray()),
-              true);
+              true,
+              Predicates.alwaysTrue());
         } catch (Exception e) {
           throw new RuntimeException(e);
         }
