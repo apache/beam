@@ -30,6 +30,8 @@ import com.google.cloud.Date;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.Type;
+import com.google.spanner.v1.StructType;
+import com.google.spanner.v1.TypeCode;
 import java.math.BigDecimal;
 import java.util.List;
 import org.apache.beam.sdk.schemas.Schema;
@@ -260,6 +262,70 @@ public class StructUtilsTest {
     assertEquals(
         Type.array(Type.int64()),
         beamTypeToSpannerType(Schema.FieldType.array(Schema.FieldType.INT64)));
+  }
+
+  @Test
+  public void testStructTypeToBeamRowSchema() {
+    assertEquals(
+        StructUtils.structTypeToBeamRowSchema(createStructType(), true), createRowSchema());
+  }
+
+  @Test
+  public void testStructTypeToBeamRowSchemaFailsTypeNotSupported() {
+    StructType structTypeWithStruct =
+        createStructType()
+            .toBuilder()
+            .addFields(getFieldForTypeCode("f_struct", TypeCode.STRUCT))
+            .build();
+
+    Exception exception =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> StructUtils.structTypeToBeamRowSchema(structTypeWithStruct, true));
+    checkMessage(
+        "Error processing struct to row: Unsupported type 'STRUCT'.", exception.getMessage());
+  }
+
+  private StructType.Field getFieldForTypeCode(String name, TypeCode typeCode) {
+    return StructType.Field.newBuilder()
+        .setName(name)
+        .setType(com.google.spanner.v1.Type.newBuilder().setCode(typeCode))
+        .build();
+  }
+
+  private StructType createStructType() {
+    return StructType.newBuilder()
+        .addFields(getFieldForTypeCode("f_int64", TypeCode.INT64))
+        .addFields(getFieldForTypeCode("f_float32", TypeCode.FLOAT32))
+        .addFields(getFieldForTypeCode("f_float64", TypeCode.FLOAT64))
+        .addFields(getFieldForTypeCode("f_string", TypeCode.STRING))
+        .addFields(getFieldForTypeCode("f_bytes", TypeCode.BYTES))
+        .addFields(getFieldForTypeCode("f_timestamp", TypeCode.TIMESTAMP))
+        .addFields(getFieldForTypeCode("f_date", TypeCode.DATE))
+        .addFields(getFieldForTypeCode("f_numeric", TypeCode.NUMERIC))
+        .addFields(
+            StructType.Field.newBuilder()
+                .setName("f_array")
+                .setType(
+                    com.google.spanner.v1.Type.newBuilder()
+                        .setCode(TypeCode.ARRAY)
+                        .setArrayElementType(
+                            com.google.spanner.v1.Type.newBuilder().setCode(TypeCode.INT64)))
+                .build())
+        .build();
+  }
+
+  private Schema createRowSchema() {
+    return Schema.of(
+        Schema.Field.nullable("f_int64", Schema.FieldType.INT64),
+        Schema.Field.nullable("f_float32", Schema.FieldType.FLOAT),
+        Schema.Field.nullable("f_float64", Schema.FieldType.DOUBLE),
+        Schema.Field.nullable("f_string", Schema.FieldType.STRING),
+        Schema.Field.nullable("f_bytes", Schema.FieldType.BYTES),
+        Schema.Field.nullable("f_timestamp", Schema.FieldType.DATETIME),
+        Schema.Field.nullable("f_date", Schema.FieldType.DATETIME),
+        Schema.Field.nullable("f_numeric", Schema.FieldType.DECIMAL),
+        Schema.Field.nullable("f_array", Schema.FieldType.array(Schema.FieldType.INT64)));
   }
 
   private Schema.Builder getSchemaTemplate() {

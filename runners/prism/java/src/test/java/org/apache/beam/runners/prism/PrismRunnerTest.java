@@ -18,54 +18,121 @@
 package org.apache.beam.runners.prism;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assume.assumeTrue;
 
-import java.io.IOException;
-import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.PipelineResult;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.PeriodicImpulse;
+import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.WithKeys;
+import org.apache.beam.sdk.transforms.WithTimestamps;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.util.construction.Environments;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
-import org.junit.Ignore;
+import org.joda.time.Duration;
+import org.joda.time.Instant;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** Tests for {@link PrismRunner}. */
-
-// TODO(https://github.com/apache/beam/issues/31793): Remove @Ignore after finalizing PrismRunner.
-//    Depends on: https://github.com/apache/beam/issues/31402 and
-//    https://github.com/apache/beam/issues/31792.
-@Ignore
 @RunWith(JUnit4.class)
 public class PrismRunnerTest {
+
+  @Rule public TestPipeline pipeline = TestPipeline.fromOptions(options());
+
   // See build.gradle for test task configuration.
   private static final String PRISM_BUILD_TARGET_PROPERTY_NAME = "prism.buildTarget";
 
   @Test
-  public void givenBoundedSource_runsUntilDone() {
-    Pipeline pipeline = Pipeline.create(options());
-    pipeline.apply(Create.of(1, 2, 3));
-    PipelineResult.State state = pipeline.run().waitUntilFinish();
-    assertThat(state).isEqualTo(PipelineResult.State.DONE);
+  public void givenJobEndpointSet_TestPrismRunner_validateThrows() {
+    TestPrismPipelineOptions options =
+        PipelineOptionsFactory.create().as(TestPrismPipelineOptions.class);
+    options.setRunner(TestPrismRunner.class);
+    options.setJobEndpoint("endpoint");
+    IllegalArgumentException error =
+        assertThrows(IllegalArgumentException.class, () -> TestPrismRunner.fromOptions(options));
+    assertThat(error.getMessage())
+        .isEqualTo("when specifying --jobEndpoint, use --runner=PortableRunner instead");
   }
 
   @Test
-  public void givenUnboundedSource_runsUntilCancel() throws IOException {
-    Pipeline pipeline = Pipeline.create(options());
-    pipeline.apply(PeriodicImpulse.create());
-    PipelineResult result = pipeline.run();
-    assertThat(result.getState()).isEqualTo(PipelineResult.State.RUNNING);
-    PipelineResult.State state = result.cancel();
-    assertThat(state).isEqualTo(PipelineResult.State.CANCELLED);
+  public void givenJobEndpointSet_PrismRunner_validateThrows() {
+    PrismPipelineOptions options = PipelineOptionsFactory.create().as(PrismPipelineOptions.class);
+    options.setRunner(PrismRunner.class);
+    options.setJobEndpoint("endpoint");
+    IllegalArgumentException error =
+        assertThrows(IllegalArgumentException.class, () -> TestPrismRunner.fromOptions(options));
+    assertThat(error.getMessage())
+        .isEqualTo("when specifying --jobEndpoint, use --runner=PortableRunner instead");
   }
 
-  private static PrismPipelineOptions options() {
-    PrismPipelineOptions opts = PipelineOptionsFactory.create().as(PrismPipelineOptions.class);
+  @Test
+  public void givenEnvironmentTypeEmpty_TestPrismRunner_defaultsToLoopback() {
+    TestPrismPipelineOptions options =
+        PipelineOptionsFactory.create().as(TestPrismPipelineOptions.class);
+    options.setRunner(TestPrismRunner.class);
+    assertThat(
+            TestPrismRunner.fromOptions(options)
+                .getTestPrismPipelineOptions()
+                .getDefaultEnvironmentType())
+        .isEqualTo(Environments.ENVIRONMENT_LOOPBACK);
+  }
 
-    opts.setRunner(PrismRunner.class);
+  @Test
+  public void givenEnvironmentTypeEmpty_PrismRunner_defaultsToLoopback() {
+    PrismPipelineOptions options = PipelineOptionsFactory.create().as(PrismPipelineOptions.class);
+    options.setRunner(PrismRunner.class);
+    assertThat(
+            PrismRunner.fromOptions(options).getPrismPipelineOptions().getDefaultEnvironmentType())
+        .isEqualTo(Environments.ENVIRONMENT_LOOPBACK);
+  }
+
+  @Test
+  public void prismReportsPAssertFailure() {
+    PAssert.that(pipeline.apply(Create.of(1, 2, 3)))
+        // Purposely introduce a failed assertion.
+        .containsInAnyOrder(1, 2, 3, 4);
+    assertThrows(AssertionError.class, pipeline::run);
+  }
+
+  @Test
+  public void windowing() {
+    PCollection<KV<String, Iterable<Integer>>> got =
+        pipeline
+            .apply(Create.of(1, 2, 100, 101, 102, 123))
+            .apply(WithTimestamps.of(t -> Instant.ofEpochSecond(t)))
+            .apply(WithKeys.of("k"))
+            .apply(Window.into(FixedWindows.of(Duration.standardSeconds(10))))
+            .apply(GroupByKey.create());
+
+    List<KV<String, Iterable<Integer>>> want =
+        Arrays.asList(
+            KV.of("k", Arrays.asList(1, 2)),
+            KV.of("k", Arrays.asList(100, 101, 102)),
+            KV.of("k", Collections.singletonList(123)));
+
+    PAssert.that(got).containsInAnyOrder(want);
+
+    pipeline.run();
+  }
+
+  private static TestPrismPipelineOptions options() {
+    TestPrismPipelineOptions opts =
+        PipelineOptionsFactory.create().as(TestPrismPipelineOptions.class);
+
+    opts.setRunner(TestPrismRunner.class);
     opts.setPrismLocation(getLocalPrismBuildOrIgnoreTest());
+    opts.setEnableWebUI(false);
 
     return opts;
   }

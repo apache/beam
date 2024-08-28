@@ -50,7 +50,7 @@ class ScanSource extends BoundedSource<Row> {
         scanConfig
             .getTable()
             .newScan()
-            .project(SchemaAndRowConversions.beamSchemaToIcebergSchema(scanConfig.getSchema()));
+            .project(IcebergUtils.beamSchemaToIcebergSchema(scanConfig.getSchema()));
 
     if (scanConfig.getFilter() != null) {
       tableScan = tableScan.filter(scanConfig.getFilter());

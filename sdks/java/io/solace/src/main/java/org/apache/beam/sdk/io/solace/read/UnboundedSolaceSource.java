@@ -31,6 +31,7 @@ import org.apache.beam.sdk.io.solace.broker.SessionServiceFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,6 +47,7 @@ public class UnboundedSolaceSource<T> extends UnboundedSource<T, SolaceCheckpoin
   private final SempClientFactory sempClientFactory;
   private final SessionServiceFactory sessionServiceFactory;
   private final SerializableFunction<T, Instant> timestampFn;
+  private final Duration watermarkIdleDurationThreshold;
   private final SerializableFunction<@Nullable BytesXMLMessage, @Nullable T> parseFn;
 
   public Queue getQueue() {
@@ -64,6 +66,10 @@ public class UnboundedSolaceSource<T> extends UnboundedSource<T, SolaceCheckpoin
     return timestampFn;
   }
 
+  public Duration getWatermarkIdleDurationThreshold() {
+    return watermarkIdleDurationThreshold;
+  }
+
   public SerializableFunction<@Nullable BytesXMLMessage, @Nullable T> getParseFn() {
     return parseFn;
   }
@@ -76,6 +82,7 @@ public class UnboundedSolaceSource<T> extends UnboundedSource<T, SolaceCheckpoin
       boolean enableDeduplication,
       Coder<T> coder,
       SerializableFunction<T, Instant> timestampFn,
+      Duration watermarkIdleDurationThreshold,
       SerializableFunction<@Nullable BytesXMLMessage, @Nullable T> parseFn) {
     this.queue = queue;
     this.sempClientFactory = sempClientFactory;
@@ -84,6 +91,7 @@ public class UnboundedSolaceSource<T> extends UnboundedSource<T, SolaceCheckpoin
     this.enableDeduplication = enableDeduplication;
     this.coder = coder;
     this.timestampFn = timestampFn;
+    this.watermarkIdleDurationThreshold = watermarkIdleDurationThreshold;
     this.parseFn = parseFn;
   }
 
@@ -125,6 +133,7 @@ public class UnboundedSolaceSource<T> extends UnboundedSource<T, SolaceCheckpoin
               enableDeduplication,
               coder,
               timestampFn,
+              watermarkIdleDurationThreshold,
               parseFn);
       sourceList.add(source);
     }

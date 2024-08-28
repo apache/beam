@@ -15,8 +15,6 @@
 # limitations under the License.
 #
 
-# cython: language_level=3
-
 """Python worker logging."""
 
 # pytype: skip-file

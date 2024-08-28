@@ -24,6 +24,7 @@ import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.commons.csv.CSVFormat;
@@ -544,6 +545,17 @@ public class CsvIOStringToCsvRecordTest {
                 Arrays.asList("c\r\n1", "c\r\n2")));
     PAssert.that(result.getErrors()).empty();
 
+    pipeline.run();
+  }
+
+  @Test
+  public void givenInvalidCsvRecord_throws() {
+    CSVFormat csvFormat = csvFormat().withQuote('"');
+    PCollection<String> input =
+        pipeline.apply(Create.of(headerLine(csvFormat), "a,\"1,1.1", "b,2,2.2", "c,3,3.3"));
+    CsvIOStringToCsvRecord underTest = new CsvIOStringToCsvRecord(csvFormat);
+    CsvIOParseResult<List<String>> result = input.apply(underTest);
+    PAssert.thatSingleton(result.getErrors().apply(Count.globally())).isEqualTo(1L);
     pipeline.run();
   }
 

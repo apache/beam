@@ -19,6 +19,7 @@ package org.apache.beam.sdk.schemas;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * A {@link Factory} that uses a default constructor and a list of setters to construct a {@link
@@ -35,14 +36,14 @@ class SetterBasedCreatorFactory implements Factory<SchemaUserTypeCreator> {
   }
 
   @Override
-  public SchemaUserTypeCreator create(Class<?> clazz, Schema schema) {
-    List<FieldValueSetter> setters = setterFactory.create(clazz, schema);
+  public SchemaUserTypeCreator create(TypeDescriptor<?> typeDescriptor, Schema schema) {
+    List<FieldValueSetter> setters = setterFactory.create(typeDescriptor, schema);
     return new SchemaUserTypeCreator() {
       @Override
       public Object create(Object... params) {
         Object object;
         try {
-          object = clazz.getDeclaredConstructor().newInstance();
+          object = typeDescriptor.getRawType().getDeclaredConstructor().newInstance();
         } catch (NoSuchMethodException
             | IllegalAccessException
             | InvocationTargetException

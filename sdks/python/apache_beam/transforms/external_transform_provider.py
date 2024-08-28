@@ -18,6 +18,8 @@
 import logging
 import re
 from collections import namedtuple
+from inspect import Parameter
+from inspect import Signature
 from typing import Dict
 from typing import List
 from typing import Tuple
@@ -58,6 +60,22 @@ def get_config_with_descriptions(
   return fields_with_descriptions
 
 
+def _generate_signature(schematransform: SchemaTransformsConfig) -> Signature:
+  schema = named_tuple_to_schema(schematransform.configuration_schema)
+  descriptions = schematransform.configuration_schema._field_descriptions
+  params: List[Parameter] = []
+  for field in schema.fields:
+    annotation = str(typing_from_runner_api(field.type))
+    description = descriptions[field.name]
+    if description:
+      annotation = annotation + f": {description}"
+    params.append(
+        Parameter(
+            field.name, Parameter.POSITIONAL_OR_KEYWORD, annotation=annotation))
+
+  return Signature(params)
+
+
 class ExternalTransform(PTransform):
   """Template for a wrapper class of an external SchemaTransform
 
@@ -69,7 +87,6 @@ class ExternalTransform(PTransform):
   # These attributes need to be set when
   # creating an ExternalTransform type
   default_expansion_service = None
-  description: str = ""
   identifier: str = ""
   configuration_schema: Dict[str, ParamInfo] = {}
 
@@ -138,18 +155,20 @@ class ExternalTransformProvider:
   ...       'beam:schematransform:org.apache.beam:bigquery_storage_read:v1')
   >>> provider.BigqueryStorageRead
 
-  To know more about the usage of a given transform, take a look at the
-  `description` attribute. This returns some documentation IF the underlying
-  SchemaTransform provides any.
-  >>> provider.BigqueryStorageRead.description
+  You can inspect the transform's documentation to know more about it. This
+  returns some documentation only IF the underlying SchemaTransform
+  implementation provides any.
+  >>> import inspect
+  >>> inspect.getdoc(provider.BigqueryStorageRead)
 
-  Similarly, the `configuration_schema` attribute returns information about the
+  Similarly, you can inspect the transform's signature to know more about its
   parameters, including their names, types, and any documentation that the
   underlying SchemaTransform may provide:
-  >>> provider.BigqueryStorageRead.configuration_schema
-  {'query': ParamInfo(type=typing.Optional[str], description='The SQL query to
-  be executed to read from the BigQuery table.', original_name='query'),
-  'row_restriction': ParamInfo(type=typing.Optional[str]...}
+  >>> inspect.signature(provider.BigqueryStorageRead)
+  (query: 'typing.Union[str, NoneType]: The SQL query to be executed to...',
+  row_restriction: 'typing.Union[str, NoneType]: Read only rows that match...',
+  selected_fields: 'typing.Union[typing.Sequence[str], NoneType]: Read ...',
+  table_spec: 'typing.Union[str, NoneType]: The fully-qualified name of ...')
 
   The retrieved external transform can be used as a normal PTransform like so::
 
@@ -213,14 +232,19 @@ class ExternalTransformProvider:
             skipped_urns.append(identifier)
             continue
 
-          self._transforms[identifier] = type(
-              name, (ExternalTransform, ),
+          transform = type(
+              name,
+              (ExternalTransform, ),
               dict(
                   identifier=identifier,
                   default_expansion_service=service,
                   schematransform=config,
-                  description=config.description,
+                  # configuration_schema is used by the auto-wrapper generator
                   configuration_schema=get_config_with_descriptions(config)))
+          transform.__doc__ = config.description
+          transform.__signature__ = _generate_signature(config)
+
+          self._transforms[identifier] = transform
           self._name_to_urn[name] = identifier
 
       if skipped_urns:

@@ -1,0 +1,80 @@
+import groovy.json.JsonOutput
+
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+plugins { id 'org.apache.beam.module' }
+applyJavaNature(
+        automaticModuleName: 'org.apache.beam.sdk.io.iceberg.hive',
+        exportJavadoc: false,
+        shadowClosure: {},
+)
+
+description = "Apache Beam :: SDKs :: Java :: IO :: Iceberg :: Hive"
+ext.summary = "Runtime dependencies needed for Hive catalog integration."
+
+def hive_version = "3.1.3"
+def iceberg_version = "1.4.2"
+
+dependencies {
+    // dependencies needed to run with iceberg's hive catalog
+    runtimeOnly ("org.apache.iceberg:iceberg-hive-metastore:$iceberg_version")
+    runtimeOnly project(path: ":sdks:java:io:iceberg:hive:exec", configuration: "shadow")
+
+    // ----- below dependencies are for testing and will not appear in the shaded jar -----
+    // Beam IcebergIO dependencies
+    testImplementation project(path: ":sdks:java:core", configuration: "shadow")
+    testImplementation project(":sdks:java:managed")
+    testImplementation project(":sdks:java:io:iceberg")
+    testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+    testRuntimeOnly library.java.snake_yaml
+    testRuntimeOnly library.java.bigdataoss_gcs_connector
+    testRuntimeOnly library.java.hadoop_client
+
+    // needed to set up the test environment
+    testImplementation "org.apache.iceberg:iceberg-common:$iceberg_version"
+    testImplementation "org.apache.iceberg:iceberg-core:$iceberg_version"
+    testImplementation "org.assertj:assertj-core:3.11.1"
+    testImplementation library.java.junit
+
+    // needed to set up test Hive Metastore and run tests
+    testImplementation ("org.apache.iceberg:iceberg-hive-metastore:$iceberg_version")
+    testImplementation project(path: ":sdks:java:io:iceberg:hive:exec", configuration: "shadow")
+    testRuntimeOnly ("org.apache.hive.hcatalog:hive-hcatalog-core:$hive_version") {
+        exclude group: "org.apache.hive", module: "hive-exec"
+        exclude group: "org.apache.parquet", module: "parquet-hadoop-bundle"
+    }
+    testImplementation "org.apache.iceberg:iceberg-parquet:$iceberg_version"
+    testImplementation "org.apache.parquet:parquet-column:1.12.0"
+}
+
+task integrationTest(type: Test) {
+    group = "Verification"
+    def gcpTempLocation = project.findProperty('gcpTempLocation') ?: 'gs://temp-storage-for-end-to-end-tests/iceberg-hive-it'
+    systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+            "--tempLocation=${gcpTempLocation}",
+    ])
+
+    // Disable Gradle cache: these ITs interact with live service that should always be considered "out of date"
+    outputs.upToDateWhen { false }
+
+    include '**/*IT.class'
+
+    maxParallelForks 4
+    classpath = sourceSets.test.runtimeClasspath
+    testClassesDirs = sourceSets.test.output.classesDirs
+}

@@ -51,6 +51,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -91,7 +92,6 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
@@ -642,7 +642,7 @@ public class TextIOReadTest {
       try (PrintStream writer = new PrintStream(new FileOutputStream(tmpFile))) {
         for (String elem : expected) {
           byte[] encodedElem = CoderUtils.encodeToByteArray(StringUtf8Coder.of(), elem);
-          String line = new String(encodedElem, Charsets.UTF_8);
+          String line = new String(encodedElem, StandardCharsets.UTF_8);
           writer.println(line);
         }
       }
@@ -674,8 +674,10 @@ public class TextIOReadTest {
             "To be, or not to be: that *is the question: ",
             // complete delimiter
             "Whether 'tis nobler in the mind to suffer |*",
+            // edge case: partial delimiter then complete delimiter
+            "The slings and arrows of outrageous fortune,*||**|",
             // truncated delimiter
-            "The slings and arrows of outrageous fortune,|"
+            "Or to take arms against a sea of troubles,|"
           };
 
       File tmpFile = tempFolder.newFile("tmpfile.txt");
@@ -689,7 +691,8 @@ public class TextIOReadTest {
           .containsInAnyOrder(
               "To be, or not to be: that |is the question: To be, or not to be: "
                   + "that *is the question: Whether 'tis nobler in the mind to suffer ",
-              "The slings and arrows of outrageous fortune,|");
+              "The slings and arrows of outrageous fortune,*|",
+              "*|Or to take arms against a sea of troubles,|");
       p.run();
     }
 
@@ -865,7 +868,7 @@ public class TextIOReadTest {
     public void testProgressTextFile() throws IOException {
       String file = "line1\nline2\nline3";
       try (BoundedSource.BoundedReader<String> reader =
-          prepareSource(file.getBytes(Charsets.UTF_8))
+          prepareSource(file.getBytes(StandardCharsets.UTF_8))
               .createReader(PipelineOptionsFactory.create())) {
         // Check preconditions before starting
         assertEquals(0.0, reader.getFractionConsumed(), 1e-6);
@@ -901,7 +904,7 @@ public class TextIOReadTest {
     @Test
     public void testProgressAfterSplitting() throws IOException {
       String file = "line1\nline2\nline3";
-      BoundedSource<String> source = prepareSource(file.getBytes(Charsets.UTF_8));
+      BoundedSource<String> source = prepareSource(file.getBytes(StandardCharsets.UTF_8));
       BoundedSource<String> remainder;
 
       // Create the remainder, verifying properties pre- and post-splitting.

@@ -247,6 +247,20 @@ class PipelineOptions(HasDisplayData):
         self._all_options[option_name] = getattr(
             self._visible_options, option_name)
 
+  def __getstate__(self):
+    # The impersonate_service_account option must be used only at submission of
+    # a Beam job. However, Beam IOs might store pipeline options
+    # within transform implementation that becomes serialized in RunnerAPI,
+    # causing this option to be inadvertently used at runtime.
+    # This serialization hook removes it.
+    if self.view_as(GoogleCloudOptions).impersonate_service_account:
+      dict_copy = dict(self.__dict__)
+      dict_copy['_all_options'] = dict(dict_copy['_all_options'])
+      dict_copy['_all_options']['impersonate_service_account'] = None
+      return dict_copy
+    else:
+      return self.__dict__
+
   @classmethod
   def _add_argparse_args(cls, parser):
     # type: (_BeamArgumentParser) -> None

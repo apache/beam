@@ -119,6 +119,14 @@ page at http://checkstyle.sourceforge.net/config.html -->
       <property name="message" value="You are using raw guava, please use vendored guava classes."/>
     </module>
 
+    <!-- Forbid guava Charset. -->
+    <module name="RegexpSinglelineJava">
+      <property name="id" value="ForbidGuavaCharset"/>
+      <property name="format" value="((?:jre\.|\s)com\.google\.common\.base\.Charsets)"/>
+      <property name="severity" value="error"/>
+      <property name="message" value="You are using guava Charsets, please use Java builtin StandardCharsets."/>
+    </module>
+
     <!-- Forbid use of Charset.defaultCharset()-->
     <module name="RegexpSinglelineJava">
       <property name="id" value="ForbidDefaultCharset"/>

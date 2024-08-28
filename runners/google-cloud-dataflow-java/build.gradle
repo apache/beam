@@ -108,8 +108,8 @@ dependencies {
   implementation library.java.google_auth_library_credentials
   implementation library.java.google_auth_library_oauth2_http
   implementation library.java.google_http_client
-  implementation library.java.google_http_client_jackson2
-  permitUnusedDeclared library.java.google_http_client_jackson2 // BEAM-11761
+  implementation library.java.google_http_client_gson
+  permitUnusedDeclared library.java.google_http_client_gson // BEAM-11761
   implementation library.java.hamcrest
   implementation library.java.jackson_annotations
   implementation library.java.jackson_core
@@ -149,7 +149,7 @@ def dataflowLegacyWorkerJar = project.findProperty('dataflowWorkerJar') ?: proje
 def dataflowKmsKey = project.findProperty('dataflowKmsKey') ?: "projects/apache-beam-testing/locations/global/keyRings/beam-it/cryptoKeys/test"
 def firestoreDb = project.findProperty('firestoreDb') ?: 'firestoredb'
 
-def dockerImageRoot = project.findProperty('dockerImageRoot') ?: "us.gcr.io/${gcpProject}/java-postcommit-it"
+def dockerImageRoot = project.findProperty('dockerImageRoot') ?: "us.gcr.io/${gcpProject.replaceAll(':', '/')}/java-postcommit-it"
 def dockerJavaImageContainer = "${dockerImageRoot}/java"
 def dockerPythonImageContainer = "${dockerImageRoot}/python"
 def dockerTag = new Date().format('yyyyMMddHHmmss')
@@ -573,6 +573,13 @@ task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test, dependsOn: copyG
   testClassesDirs = files(project(":sdks:java:io:google-cloud-platform").sourceSets.test.output.classesDirs)
   useJUnit {
     excludeCategories "org.apache.beam.sdk.testing.UsesKms"
+    filter {
+      // Only needs to run on direct runner
+      excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteIT.testE2EBigtableWriteWithEmptyMutationFailures'
+      excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteIT.testE2EBigtableWriteWithEmptyRowFailures'
+      excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteIT.testE2EBigtableWriteWithInvalidTimestampFailures'
+      excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteIT.testE2EBigtableWriteWithOversizedQualifierFailures'
+    }
   }
 }
 
@@ -623,7 +630,15 @@ task googleCloudPlatformRunnerV2IntegrationTest(type: Test) {
   maxParallelForks 4
   classpath = configurations.googleCloudPlatformIntegrationTest
   testClassesDirs = files(project(":sdks:java:io:google-cloud-platform").sourceSets.test.output.classesDirs)
-  useJUnit { }
+  useJUnit {
+    filter {
+      // Only needs to run on direct runner
+      excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteIT.testE2EBigtableWriteWithEmptyMutationFailures'
+      excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteIT.testE2EBigtableWriteWithEmptyRowFailures'
+      excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteIT.testE2EBigtableWriteWithInvalidTimestampFailures'
+      excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteIT.testE2EBigtableWriteWithOversizedQualifierFailures'
+    }
+  }
 }
 
 task examplesJavaRunnerV2PreCommit(type: Test) {
@@ -642,6 +657,9 @@ task examplesJavaRunnerV2PreCommit(type: Test) {
 task examplesJavaRunnerV2IntegrationTest(type: Test) {
   group = "Verification"
   dependsOn buildAndPushDockerJavaContainer
+  if (project.hasProperty("testJavaVersion")) {
+    dependsOn ":sdks:java:testing:test-utils:verifyJavaVersion${project.property("testJavaVersion")}"
+  }
 
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson(runnerV2PipelineOptions)
 

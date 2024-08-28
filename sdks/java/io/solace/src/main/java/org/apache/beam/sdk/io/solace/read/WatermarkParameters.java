@@ -21,16 +21,12 @@ import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /** {@code WatermarkParameters} contains the parameters used for watermark computation. */
 @AutoValue
 abstract class WatermarkParameters<T> implements Serializable {
-
-  private static final Duration STANDARD_WATERMARK_IDLE_DURATION_THRESHOLD =
-      Duration.standardSeconds(30);
 
   abstract Instant getCurrentWatermark();
 
@@ -48,8 +44,7 @@ abstract class WatermarkParameters<T> implements Serializable {
     return new AutoValue_WatermarkParameters.Builder<T>()
         .setCurrentWatermark(BoundedWindow.TIMESTAMP_MIN_VALUE)
         .setLastSavedWatermark(BoundedWindow.TIMESTAMP_MIN_VALUE)
-        .setLastUpdateTime(Instant.now())
-        .setWatermarkIdleDurationThreshold(STANDARD_WATERMARK_IDLE_DURATION_THRESHOLD);
+        .setLastUpdateTime(Instant.now());
   }
 
   @AutoValue.Builder
@@ -65,24 +60,5 @@ abstract class WatermarkParameters<T> implements Serializable {
     abstract Builder<T> setTimestampFn(SerializableFunction<T, Instant> timestampFn);
 
     abstract WatermarkParameters<T> build();
-  }
-
-  /**
-   * Create an instance of {@link WatermarkParameters} with a {@code SerializableFunction} to
-   * extract the event time.
-   */
-  static <T> WatermarkParameters<T> create(SerializableFunction<T, Instant> timestampFn) {
-    Preconditions.checkArgument(timestampFn != null, "timestampFn function is null");
-    return WatermarkParameters.<T>builder().setTimestampFn(timestampFn).build();
-  }
-
-  /**
-   * Specify the watermark idle duration to consider before advancing the watermark. The default
-   * watermark idle duration threshold is {@link #STANDARD_WATERMARK_IDLE_DURATION_THRESHOLD}.
-   */
-  WatermarkParameters<T> withWatermarkIdleDurationThreshold(Duration idleDurationThreshold) {
-    Preconditions.checkArgument(
-        idleDurationThreshold != null, "watermark idle duration threshold is null");
-    return toBuilder().setWatermarkIdleDurationThreshold(idleDurationThreshold).build();
   }
 }

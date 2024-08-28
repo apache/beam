@@ -21,7 +21,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 
 import java.util.List;
-import java.util.Properties;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -33,6 +33,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.CatalogUtil;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.TableIdentifier;
@@ -70,7 +71,7 @@ public class IcebergIOReadTest {
     TableIdentifier tableId =
         TableIdentifier.of("default", "table" + Long.toString(UUID.randomUUID().hashCode(), 16));
     Table simpleTable = warehouse.createTable(tableId, TestFixtures.SCHEMA);
-    final Schema schema = SchemaAndRowConversions.icebergSchemaToBeamSchema(TestFixtures.SCHEMA);
+    final Schema schema = IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA);
 
     simpleTable
         .newFastAppend()
@@ -91,23 +92,26 @@ public class IcebergIOReadTest {
                 TestFixtures.FILE2SNAPSHOT1,
                 TestFixtures.FILE3SNAPSHOT1)
             .flatMap(List::stream)
-            .map(record -> SchemaAndRowConversions.recordToRow(schema, record))
+            .map(record -> IcebergUtils.icebergRecordToBeamRow(schema, record))
             .collect(Collectors.toList());
 
-    Properties props = new Properties();
-    props.setProperty("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP);
-    props.setProperty("warehouse", warehouse.location);
+    Map<String, String> catalogProps =
+        ImmutableMap.<String, String>builder()
+            .put("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
+            .put("warehouse", warehouse.location)
+            .build();
 
     IcebergCatalogConfig catalogConfig =
-        IcebergCatalogConfig.builder().setCatalogName("name").setProperties(props).build();
+        IcebergCatalogConfig.builder()
+            .setCatalogName("name")
+            .setCatalogProperties(catalogProps)
+            .build();
 
     PCollection<Row> output =
         testPipeline
             .apply(IcebergIO.readRows(catalogConfig).from(tableId))
             .apply(ParDo.of(new PrintRow()))
-            .setCoder(
-                RowCoder.of(
-                    SchemaAndRowConversions.icebergSchemaToBeamSchema(TestFixtures.SCHEMA)));
+            .setCoder(RowCoder.of(IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA)));
 
     PAssert.that(output)
         .satisfies(

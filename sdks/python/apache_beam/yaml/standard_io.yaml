@@ -149,11 +149,11 @@
     mappings:
       'ReadFromCsv':
         path: 'path'
-        delimiter: 'delimiter'
+        delimiter: 'sep'
         comment: 'comment'
       'WriteToCsv':
         path: 'path'
-        delimiter: 'delimiter'
+        delimiter: 'sep'
       'ReadFromJson':
         path: 'path'
       'WriteToJson':

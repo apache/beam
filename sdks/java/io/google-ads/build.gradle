@@ -32,7 +32,7 @@ dependencies {
   implementation library.java.protobuf_java
   implementation library.java.protobuf_java_util
   implementation library.java.google_ads
-  implementation library.java.google_ads_stubs_v14
+  implementation library.java.google_ads_stubs
   implementation library.java.joda_time
   implementation library.java.vendored_guava_32_1_2_jre
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")

@@ -49,12 +49,14 @@ import org.apache.beam.sdk.extensions.protobuf.ProtoDynamicMessageSchema;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.OutgoingMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
+import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -84,6 +86,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
@@ -510,6 +513,10 @@ public class PubsubIO {
       } else {
         return topic;
       }
+    }
+
+    public List<String> dataCatalogSegments() {
+      return ImmutableList.of(project, topic);
     }
 
     @Override
@@ -1142,6 +1149,20 @@ public class PubsubIO {
               getNeedsOrderingKey());
 
       PCollection<PubsubMessage> preParse = input.apply(source);
+      return expandReadContinued(preParse, topicPath, subscriptionPath);
+    }
+
+    /**
+     * Runner agnostic part of the Expansion.
+     *
+     * <p>Common logics (MapElements, SDK metrics, DLQ, etc) live here as PubsubUnboundedSource is
+     * overridden on Dataflow runner.
+     */
+    private PCollection<T> expandReadContinued(
+        PCollection<PubsubMessage> preParse,
+        @Nullable ValueProvider<TopicPath> topicPath,
+        @Nullable ValueProvider<SubscriptionPath> subscriptionPath) {
+
       TypeDescriptor<T> typeDescriptor = new TypeDescriptor<T>() {};
       PCollection<T> read;
       if (getDeadLetterTopicProvider() == null
@@ -1168,7 +1189,7 @@ public class PubsubIO {
                       "Map Failures To BadRecords",
                       ParDo.of(new ParseReadFailuresToBadRecords(preParse.getCoder())));
           getBadRecordErrorHandler()
-              .addErrorCollection(badRecords.setCoder(BadRecord.getCoder(input.getPipeline())));
+              .addErrorCollection(badRecords.setCoder(BadRecord.getCoder(preParse.getPipeline())));
         } else {
           // Write out failures to the provided dead-letter topic.
           result
@@ -1209,7 +1230,31 @@ public class PubsubIO {
                       .withClientFactory(getPubsubClientFactory()));
         }
       }
-
+      // report Lineage once
+      preParse
+          .getPipeline()
+          .apply(Impulse.create())
+          .apply(
+              ParDo.of(
+                  new DoFn<byte[], Void>() {
+                    @ProcessElement
+                    public void process() {
+                      if (topicPath != null) {
+                        TopicPath topic = topicPath.get();
+                        if (topic != null) {
+                          Lineage.getSources()
+                              .add("pubsub", "topic", topic.getDataCatalogSegments());
+                        }
+                      }
+                      if (subscriptionPath != null) {
+                        SubscriptionPath sub = subscriptionPath.get();
+                        if (sub != null) {
+                          Lineage.getSources()
+                              .add("pubsub", "subscription", sub.getDataCatalogSegments());
+                        }
+                      }
+                    }
+                  }));
       return read.setCoder(getCoder());
     }
 
