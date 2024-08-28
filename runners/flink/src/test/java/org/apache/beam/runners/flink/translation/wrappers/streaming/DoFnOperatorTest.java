@@ -800,10 +800,10 @@ public class DoFnOperatorTest {
     assertThat(testHarness.numKeyedStateEntries(), is(2));
 
     // Cleanup due to end of global window
-//    testHarness.processWatermark(
-//        GlobalWindow.INSTANCE.maxTimestamp().plus(Duration.millis(2)).getMillis());
-//    assertThat(testHarness.numEventTimeTimers(), is(0));
-//    assertThat(testHarness.numKeyedStateEntries(), is(0));
+    //    testHarness.processWatermark(
+    //        GlobalWindow.INSTANCE.maxTimestamp().plus(Duration.millis(2)).getMillis());
+    //    assertThat(testHarness.numEventTimeTimers(), is(0));
+    //    assertThat(testHarness.numKeyedStateEntries(), is(0));
 
     // Any new state will also be cleaned up on close
     testHarness.processElement(

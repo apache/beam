@@ -17,9 +17,12 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
-import java.util.*;
-import java.util.stream.Collectors;
-
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import org.apache.beam.runners.flink.translation.functions.AbstractFlinkCombineRunner;
 import org.apache.beam.runners.flink.translation.functions.HashingFlinkCombineRunner;
 import org.apache.beam.runners.flink.translation.functions.SortingFlinkCombineRunner;
@@ -37,7 +40,6 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ArrayListMultimap;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multimap;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -146,13 +148,12 @@ public class PartialReduceBundleOperator<K, InputT, OutputT, AccumT>
 
     ListStateDescriptor<WindowedValue<KV<K, InputT>>> descriptor =
         new ListStateDescriptor<>(
-            "buffered-elements",
-            new CoderTypeSerializer<>(windowedInputCoder, serializedOptions));
+            "buffered-elements", new CoderTypeSerializer<>(windowedInputCoder, serializedOptions));
 
     checkpointedState = context.getOperatorStateStore().getListState(descriptor);
 
-    if(context.isRestored() && this.checkpointedState != null) {
-      for(WindowedValue<KV<K, InputT>> wkv : this.checkpointedState.get()) {
+    if (context.isRestored() && this.checkpointedState != null) {
+      for (WindowedValue<KV<K, InputT>> wkv : this.checkpointedState.get()) {
         this.state.put(wkv.getValue().getKey(), wkv);
       }
     }

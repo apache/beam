@@ -108,6 +108,11 @@ Should be called before running the tests.
   <td>Default: <code>[auto]</code></td>
 </tr>
 <tr>
+  <td><code>forceSlotSharingGroup</code></td>
+  <td>Set a slot sharing group for all bounded sources. This is required when using Datastream to have the same scheduling behaviour as the Dataset API.</td>
+  <td>Default: <code>true</code></td>
+</tr>
+<tr>
   <td><code>jobCheckIntervalInSecs</code></td>
   <td>Set job check interval in seconds under detached mode in method waitUntilFinish, by default it is 5 seconds</td>
   <td>Default: <code>5</code></td>
