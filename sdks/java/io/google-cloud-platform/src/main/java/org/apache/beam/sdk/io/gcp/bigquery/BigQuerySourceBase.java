@@ -32,9 +32,7 @@ import com.google.api.services.bigquery.model.TableSchema;
 import java.io.IOException;
 import java.util.List;
 import java.util.stream.Stream;
-import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.extensions.avro.io.AvroSource;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.ResourceId;
@@ -43,7 +41,6 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryResourceNaming.JobType;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
@@ -73,7 +70,7 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
   protected final BigQueryServices bqServices;
 
   private transient @Nullable List<BoundedSource<T>> cachedSplitResult = null;
-  private SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<T>> readerFactory;
+  private BigQueryReaderFactory<T> readerFactory;
   private Coder<T> coder;
   private final boolean useAvroLogicalTypes;
 
@@ -81,7 +78,7 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
       String stepUuid,
       BigQueryServices bqServices,
       Coder<T> coder,
-      SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<T>> readerFactory,
+      BigQueryReaderFactory<T> readerFactory,
       boolean useAvroLogicalTypes) {
     this.stepUuid = checkArgumentNotNull(stepUuid, "stepUuid");
     this.bqServices = checkArgumentNotNull(bqServices, "bqServices");
@@ -243,23 +240,18 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
   List<BoundedSource<T>> createSources(
       List<ResourceId> files, TableSchema schema, @Nullable List<MatchResult.Metadata> metadata)
       throws IOException, InterruptedException {
-    String avroSchema = BigQueryAvroUtils.toGenericAvroSchema(schema).toString();
-
-    AvroSource.DatumReaderFactory<T> factory = readerFactory.apply(schema);
-
-    Stream<AvroSource<GenericRecord>> avroSources;
-    // If metadata is available, create AvroSources with said metadata in SINGLE_FILE_OR_SUBRANGE
-    // mode.
+    Stream<BoundedSource<T>> sources;
+    // If metadata is available, create source with said metadata
     if (metadata != null) {
-      avroSources = metadata.stream().map(AvroSource::from);
+      sources =
+          metadata.stream()
+              .map(m -> readerFactory.getSource(m, schema, useAvroLogicalTypes, coder));
     } else {
-      avroSources = files.stream().map(ResourceId::toString).map(AvroSource::from);
+      sources =
+          files.stream()
+              .map(f -> readerFactory.getSource(f.toString(), schema, useAvroLogicalTypes, coder));
     }
 
-    return avroSources
-        .map(s -> s.withSchema(avroSchema))
-        .map(s -> (AvroSource<T>) s.withDatumReaderFactory(factory))
-        .map(s -> s.withCoder(coder))
-        .collect(collectingAndThen(toList(), ImmutableList::copyOf));
+    return sources.collect(collectingAndThen(toList(), ImmutableList::copyOf));
   }
 }
