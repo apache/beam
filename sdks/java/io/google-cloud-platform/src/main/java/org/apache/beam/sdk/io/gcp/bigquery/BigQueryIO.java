@@ -3995,7 +3995,12 @@ public class BigQueryIO {
     }
   }
 
-  /** Clear the cached map of created tables. Used for testing. */
+  /**
+   * Clear the cached map of created tables. Used for testing only.
+   *
+   * <p>Should not be used in any PTransform as cache is a static member shared by different
+   * BigQueryIO.write.
+   */
   @VisibleForTesting
   static void clearStaticCaches() throws ExecutionException, InterruptedException {
     CreateTables.clearCreatedTables();
