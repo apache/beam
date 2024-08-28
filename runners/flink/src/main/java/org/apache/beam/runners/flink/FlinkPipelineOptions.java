@@ -246,7 +246,7 @@ public interface FlinkPipelineOptions
       if (options.as(StreamingOptions.class).isStreaming()) {
         return 1000L;
       } else {
-        return 250000L;
+        return 5000L;
       }
     }
   }
