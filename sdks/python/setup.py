@@ -386,6 +386,7 @@ if __name__ == '__main__':
           # unblock tests until new version of `docker` is released.
           # https://github.com/docker/docker-py/pull/3257
           'requests>=2.24.0,<3.0.0,!=2.32.*',
+          'sortedcontainers>=2.4.0',
           'typing-extensions>=3.7.0',
           'zstandard>=0.18.0,<1',
           # Dynamic dependencies must be specified in a separate list, otherwise
