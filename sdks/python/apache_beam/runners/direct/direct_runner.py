@@ -517,7 +517,8 @@ class BundleBasedDirectRunner(PipelineRunner):
           raise RuntimeError(
               "Streaming Python direct runner "
               "does not support cross-language pipelines."
-              "Please use other runners such as DataflowRunner.")
+              "Please use other runners such as FlinkRunner, "
+              "DataflowRunner, or PrismRunner.")
 
     pipeline.visit(VerifyNoCrossLanguageTransforms())
 
