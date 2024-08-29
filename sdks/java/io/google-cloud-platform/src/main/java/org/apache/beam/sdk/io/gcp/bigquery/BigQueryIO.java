@@ -279,13 +279,13 @@ import org.slf4j.LoggerFactory;
  *     BigQueryIO.readTableRows().from("apache-beam-testing.samples.weather_stations"));
  * }</pre>
  *
- * <b>Example: Reading rows of a table and parsing them into a custom type.</b>
+ * <b>Example: Reading rows of a table and parsing them into a custom type from avro.</b>
  *
  * <pre>{@code
  * PCollection<WeatherRecord> weatherData = pipeline.apply(
  *    BigQueryIO
- *      .read(new SerializableFunction<SchemaAndRecord, WeatherRecord>() {
- *        public WeatherRecord apply(SchemaAndRecord schemaAndRecord) {
+ *      .readAvro(new SerializableFunction<GenericRecord, WeatherRecord>() {
+ *        public WeatherRecord apply(GenericRecord record) {
  *          return new WeatherRecord(...);
  *        }
  *      })
@@ -293,7 +293,7 @@ import org.slf4j.LoggerFactory;
  *      .withCoder(SerializableCoder.of(WeatherRecord.class));
  * }</pre>
  *
- * <p>Note: When using {@link #read(SerializableFunction)}, you may sometimes need to use {@link
+ * <p>Note: When using read API with a parse function, you may sometimes need to use {@link
  * TypedRead#withCoder(Coder)} to specify a {@link Coder} for the result type, if Beam fails to
  * infer it automatically.
  *
@@ -328,7 +328,7 @@ import org.slf4j.LoggerFactory;
  *       encoded {@link TableRow TableRows}.
  * </ul>
  *
- * <p>If {@link BigQueryIO.Write#withAvroFormatFunction(SerializableFunction)} or {@link
+ * If {@link BigQueryIO.Write#withAvroFormatFunction(SerializableFunction)} or {@link
  * BigQueryIO.Write#withAvroWriter} is used, the table schema MUST be specified using one of the
  * {@link Write#withJsonSchema(String)}, {@link Write#withJsonSchema(ValueProvider)}, {@link
  * Write#withSchemaFromView(PCollectionView)} methods, or {@link Write#to(DynamicDestinations)}.
@@ -451,7 +451,7 @@ import org.slf4j.LoggerFactory;
  *
  * <h3>Insertion Method</h3>
  *
- * <p>{@link BigQueryIO.Write} supports two methods of inserting data into BigQuery specified using
+ * {@link BigQueryIO.Write} supports two methods of inserting data into BigQuery specified using
  * {@link BigQueryIO.Write#withMethod}. If no method is supplied, then a default method will be
  * chosen based on the input PCollection. See {@link BigQueryIO.Write.Method} for more information
  * about the methods. The different insertion methods provide different tradeoffs of cost, quota,
@@ -484,15 +484,14 @@ import org.slf4j.LoggerFactory;
  *
  * <h3>Updates to the I/O connector code</h3>
  *
- * <p>For any significant updates to this I/O connector, please consider involving corresponding
- * code reviewers mentioned <a
+ * For any significant updates to this I/O connector, please consider involving corresponding code
+ * reviewers mentioned <a
  * href="https://github.com/apache/beam/blob/master/sdks/java/io/google-cloud-platform/OWNERS">
  * here</a>.
  *
  * <h3>Upserts and deletes</h3>
  *
- * <p>The connector also supports streaming row updates to BigQuery, with the following
- * qualifications:
+ * The connector also supports streaming row updates to BigQuery, with the following qualifications:
  *
  * <p>- Only the STORAGE_WRITE_API_AT_LEAST_ONCE method is supported.
  *
@@ -630,9 +629,9 @@ public class BigQueryIO {
           input -> BigQueryAvroUtils.toGenericAvroSchema("root", input.getFields());
 
   /**
-   * @deprecated Use {@link #read(SerializableFunction)} or {@link #readTableRows} instead. {@link
-   *     #readTableRows()} does exactly the same as {@link #read}, however {@link
-   *     #read(SerializableFunction)} performs better.
+   * @deprecated Use {@link #readAvro(SerializableFunction)}, {@link
+   *     #readArrow(SerializableFunction)} or {@link #readTableRows} instead. {@link
+   *     #readTableRows()} does exactly the same as {@link #read}.
    */
   @Deprecated
   public static Read read() {
@@ -640,22 +639,22 @@ public class BigQueryIO {
   }
 
   /**
-   * Like {@link #read(SerializableFunction)} but represents each row as a {@link TableRow}.
+   * Reads from a BigQuery table or query and returns a {@link PCollection} with one element per
+   * each row of the table or query result, parsed from the BigQuery AVRO format, converted to a
+   * {@link TableRow}.
    *
    * <p>This method is more convenient to use in some cases, but usually has significantly lower
-   * performance than using {@link #read(SerializableFunction)} directly to parse data into a
-   * domain-specific type, due to the overhead of converting the rows to {@link TableRow}.
+   * performance than using {@link #readAvro(SerializableFunction)} or {@link
+   * #readArrow(SerializableFunction)} directly to parse data into a domain-specific type, due to
+   * the overhead of converting the rows to {@link TableRow}.
    */
   public static TypedRead<TableRow> readTableRows() {
     return readTableRows(DataFormat.AVRO);
   }
 
   /**
-   * Like {@link #read(SerializableFunction)} but represents each row as a {@link TableRow}.
-   *
-   * <p>This method is more convenient to use in some cases, but usually has significantly lower
-   * performance than using {@link #read(SerializableFunction)} directly to parse data into a
-   * domain-specific type, due to the overhead of converting the rows to {@link TableRow}.
+   * Like {@link #readTableRows()} but with possibility to choose between BigQuery AVRO or ARROW
+   * format.
    */
   public static TypedRead<TableRow> readTableRows(DataFormat dataFormat) {
     if (dataFormat == DataFormat.AVRO) {
@@ -681,7 +680,7 @@ public class BigQueryIO {
     return readTableRowsWithSchema(DataFormat.AVRO);
   }
 
-  /** Like {@link #readTableRows()} but with {@link Schema} support. */
+  /** Like {@link #readTableRows(DataFormat)} but with {@link Schema} support. */
   public static TypedRead<TableRow> readTableRowsWithSchema(DataFormat dataFormat) {
     return readTableRows(dataFormat)
         .withBeamRowConverters(
@@ -690,10 +689,23 @@ public class BigQueryIO {
             BigQueryUtils.tableRowFromBeamRow());
   }
 
+  /**
+   * Reads from a BigQuery table or query and returns a {@link PCollection} with one element per
+   * each row of the table or query result, parsed from the BigQuery AVRO format, converted to a
+   * {@link Row}.
+   *
+   * <p>This method is more convenient to use in some cases, but usually has significantly lower
+   * performance than using {@link #readAvro(SerializableFunction)} or {@link
+   * #readArrow(SerializableFunction)} directly to parse data into a domain-specific type, due to
+   * the overhead of converting the rows to {@link Row}.
+   */
   public static TypedRead<Row> readRows() {
     return readRows(DataFormat.AVRO);
   }
 
+  /**
+   * Like {@link #readRows()} but with possibility to choose between BigQuery AVRO or ARROW format.
+   */
   public static TypedRead<Row> readRows(DataFormat dataFormat) {
     if (dataFormat == DataFormat.AVRO) {
       return readAvro(new RowAvroParser());
@@ -744,8 +756,7 @@ public class BigQueryIO {
    * <pre>{@code
    * class ClickEvent { long userId; String url; ... }
    *
-   * p.apply(BigQueryIO.read(ClickEvent.class)).from("...")
-   * .read((AvroSource.DatumReaderFactory<ClickEvent>) (writer, reader) -> new ReflectDatumReader<>(ReflectData.get().getSchema(ClickEvent.class)));
+   * p.apply(BigQueryIO.readWithDatumReader(AvroDatumFactory.reflect(ClickEvent.class)).from("...")
    * }</pre>
    */
   public static <T> TypedRead<T> readWithDatumReader(
@@ -757,6 +768,10 @@ public class BigQueryIO {
     return readAvroImpl(null, readerFactory, SerializableFunctions.identity(), null, td);
   }
 
+  /**
+   * Reads from a BigQuery table or query and returns a {@link PCollection} with one element per
+   * each row of the table or query result as {@link GenericRecord}.
+   */
   public static TypedRead<GenericRecord> readAvro() {
     return readAvroImpl(
         null,
@@ -766,6 +781,10 @@ public class BigQueryIO {
         TypeDescriptor.of(GenericRecord.class));
   }
 
+  /**
+   * Reads from a BigQuery table or query and returns a {@link PCollection} with one element per
+   * each row of the table or query result as {@link GenericRecord} with the desired schema.
+   */
   public static TypedRead<GenericRecord> readAvro(org.apache.avro.Schema schema) {
     return readAvroImpl(
         schema,
@@ -775,6 +794,10 @@ public class BigQueryIO {
         TypeDescriptor.of(GenericRecord.class));
   }
 
+  /**
+   * Reads from a BigQuery table or query and returns a {@link PCollection} with one element per
+   * each row of the table or query result as input avro class.
+   */
   public static <T> TypedRead<T> readAvro(Class<T> recordClass) {
     org.apache.avro.Schema schema = ReflectData.get().getSchema(recordClass);
     AvroDatumFactory<T> factory;
@@ -790,6 +813,11 @@ public class BigQueryIO {
     return readAvroImpl(schema, factory, SerializableFunctions.identity(), coder, td);
   }
 
+  /**
+   * Reads from a BigQuery table or query and returns a {@link PCollection} with one element per
+   * each row of the table or query result. This API directly deserializes BigQuery AVRO data to the
+   * input class, based on the appropriate {@link org.apache.avro.io.DatumReader} and schema.
+   */
   public static <T> TypedRead<T> readAvro(
       org.apache.avro.Schema schema, AvroSource.DatumReaderFactory<T> readerFactory) {
     TypeDescriptor<T> td = null;
@@ -801,6 +829,11 @@ public class BigQueryIO {
     return readAvroImpl(schema, readerFactory, SerializableFunctions.identity(), coder, td);
   }
 
+  /**
+   * Reads from a BigQuery table or query and returns a {@link PCollection} with one element per
+   * each row of the table or query result, parsed from the BigQuery AVRO format using the specified
+   * function.
+   */
   public static <T> TypedRead<T> readAvro(
       SerializableFunction<GenericRecord, T> avroFormatFunction) {
     return readAvroImpl(
@@ -839,11 +872,19 @@ public class BigQueryIO {
         .build();
   }
 
+  /**
+   * Reads from a BigQuery table or query and returns a {@link PCollection} with one element per
+   * each row of the table or query result as {@link Row}.
+   */
   public static TypedRead<Row> readArrow() {
     return readArrowImpl(
         null, SerializableFunctions.identity(), null, TypeDescriptor.of(Row.class));
   }
 
+  /**
+   * Reads from a BigQuery table or query and returns a {@link PCollection} with one element per
+   * each row of the table or query result as {@link Row} with the desired schema..
+   */
   public static TypedRead<Row> readArrow(Schema schema) {
     return readArrowImpl(
         schema,
@@ -852,6 +893,11 @@ public class BigQueryIO {
         TypeDescriptor.of(Row.class));
   }
 
+  /**
+   * Reads from a BigQuery table or query and returns a {@link PCollection} with one element per
+   * each row of the table or query result, parsed from the BigQuery ARROW format using the
+   * specified function.
+   */
   public static <T> TypedRead<T> readArrow(SerializableFunction<Row, T> arrowFormatFunction) {
     return readArrowImpl(
         null, arrowFormatFunction, null, TypeDescriptors.outputOf(arrowFormatFunction));

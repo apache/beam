@@ -81,10 +81,8 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.util.Text;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData.Record;
-import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.io.DatumReader;
 import org.apache.avro.io.Encoder;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.util.Utf8;
@@ -181,7 +179,9 @@ public class BigQueryIOStorageReadTest {
 
   private static final BigQueryStorageReader<TableRow> TABLE_ROW_AVRO_READER =
       new BigQueryStorageAvroReader<>(
-          AvroDatumFactory.generic().apply(AVRO_SCHEMA, AVRO_SCHEMA),
+          AVRO_SCHEMA,
+          AVRO_SCHEMA,
+          AvroDatumFactory.generic(),
           BigQueryAvroUtils::convertGenericRecordToTableRow);
 
   private static final BigQueryStorageReader<TableRow> TABLE_ROW_ARROW_READER =
@@ -2321,13 +2321,15 @@ public class BigQueryIOStorageReadTest {
     when(fakeStorageClient.readRows(expectedRequest, ""))
         .thenReturn(new FakeBigQueryServerStream<>(responses));
 
-    DatumReader<GenericRecord> datumReader = new GenericDatumReader<>(AVRO_SCHEMA);
+    BigQueryStorageAvroReader<GenericRecord, GenericRecord> avroReader =
+        new BigQueryStorageAvroReader<>(
+            AVRO_SCHEMA, AVRO_SCHEMA, AvroDatumFactory.generic(), SerializableFunctions.identity());
     BigQueryStorageStreamSource<GenericRecord> streamSource =
         BigQueryStorageStreamSource.create(
             readSession,
             ReadStream.newBuilder().setName("readStream").build(),
-            new BigQueryStorageAvroReader<>(datumReader, SerializableFunctions.identity()),
-            AvroCoder.of(AVRO_SCHEMA),
+            avroReader,
+            AvroCoder.generic(AVRO_SCHEMA),
             new FakeBigQueryServices().withStorageClient(fakeStorageClient));
 
     BoundedReader<GenericRecord> reader = streamSource.createReader(options);

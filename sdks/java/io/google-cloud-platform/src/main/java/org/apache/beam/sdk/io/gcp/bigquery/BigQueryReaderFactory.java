@@ -23,7 +23,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.Serializable;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.io.DatumReader;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.arrow.ArrowConversion;
 import org.apache.beam.sdk.extensions.avro.io.AvroSource;
@@ -121,14 +120,8 @@ abstract class BigQueryReaderFactory<T> implements BigQueryStorageReaderFactory<
         TableSchema tableSchema, ReadSession readSession) throws IOException {
       org.apache.avro.Schema writerSchema =
           new org.apache.avro.Schema.Parser().parse(readSession.getAvroSchema().getSchema());
-      return getReader(writerSchema, tableSchema);
-    }
-
-    private BigQueryStorageAvroReader<AvroT, T> getReader(
-        org.apache.avro.Schema writerSchema, TableSchema tableSchema) {
       org.apache.avro.Schema readerSchema = schemaFactory.apply(tableSchema);
-      DatumReader<AvroT> datumReader = readerFactory.apply(writerSchema, readerSchema);
-      return new BigQueryStorageAvroReader<>(datumReader, fromAvro);
+      return new BigQueryStorageAvroReader<>(writerSchema, readerSchema, readerFactory, fromAvro);
     }
   }
 

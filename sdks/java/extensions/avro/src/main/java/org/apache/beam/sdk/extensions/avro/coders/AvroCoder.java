@@ -62,7 +62,6 @@ import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.extensions.avro.io.AvroDatumFactory;
 import org.apache.beam.sdk.util.EmptyOnDeserializationThreadLocal;
-import org.apache.beam.sdk.util.SerializableSupplier;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -308,24 +307,44 @@ public class AvroCoder<T> extends CustomCoder<T> {
   private static final DecoderFactory DECODER_FACTORY = DecoderFactory.get();
 
   /**
+   * A {@link Serializable} object that holds the {@link String} version of a {@link Schema}. This
+   * is paired with the {@link SerializableSchemaSupplier} via {@link Serializable}'s usage of the
+   * {@link #readResolve} method.
+   */
+  private static class SerializableSchemaString implements Serializable {
+    private final String schema;
+
+    private SerializableSchemaString(String schema) {
+      this.schema = schema;
+    }
+
+    private Object readResolve() throws IOException, ClassNotFoundException {
+      return new SerializableSchemaSupplier(new Schema.Parser().parse(schema));
+    }
+  }
+
+  /**
    * A {@link Serializable} object that delegates to the {@link SerializableSchemaString} via {@link
    * Serializable}'s usage of the {@link #writeReplace} method. Kryo doesn't utilize Java's
    * serialization and hence is able to encode the {@link Schema} object directly.
    */
-  static class SerializableSchemaSupplier implements SerializableSupplier<Schema> {
-    private transient Schema schema;
-    private final String jsonSchema;
+  static class SerializableSchemaSupplier implements Serializable, Supplier<Schema> {
+    // writeReplace makes this object serializable. This is a limitation of FindBugs as discussed
+    // here:
+    // http://stackoverflow.com/questions/26156523/is-writeobject-not-neccesary-using-the-serialization-proxy-pattern
+    @SuppressFBWarnings("SE_BAD_FIELD")
+    private final Schema schema;
 
     private SerializableSchemaSupplier(Schema schema) {
       this.schema = schema;
-      this.jsonSchema = schema.toString();
+    }
+
+    private Object writeReplace() {
+      return new SerializableSchemaString(schema.toString());
     }
 
     @Override
     public Schema get() {
-      if (schema == null) {
-        schema = new Schema.Parser().parse(jsonSchema);
-      }
       return schema;
     }
   }

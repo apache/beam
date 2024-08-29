@@ -252,16 +252,12 @@ public class ArrowConversion {
       InputStream inputStream,
       RootAllocator allocator)
       throws IOException {
-    VectorSchemaRoot vectorRoot = VectorSchemaRoot.create(arrowSchema, allocator);
-    VectorLoader vectorLoader = new VectorLoader(vectorRoot);
-    vectorRoot.clear();
-    try (ReadChannel read = new ReadChannel(Channels.newChannel(inputStream))) {
-      try (ArrowRecordBatch arrowMessage =
-          MessageSerializer.deserializeRecordBatch(read, allocator)) {
-        vectorLoader.load(arrowMessage);
-      }
-    }
-    return rowsFromRecordBatch(ArrowSchemaTranslator.toBeamSchema(arrowSchema), vectorRoot);
+    return rowsFromSerializedRecordBatch(
+        arrowSchema,
+        ArrowSchemaTranslator.toBeamSchema(arrowSchema),
+        inputStream,
+        allocator
+    );
   }
 
   public static RecordBatchRowIterator rowsFromSerializedRecordBatch(

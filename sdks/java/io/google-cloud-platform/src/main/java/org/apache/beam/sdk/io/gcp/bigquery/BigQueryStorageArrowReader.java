@@ -33,7 +33,7 @@ class BigQueryStorageArrowReader<T> implements BigQueryStorageReader<T> {
 
   private final org.apache.arrow.vector.types.pojo.Schema arrowSchema;
   private final Schema schema;
-  private final SerializableFunction<Row, T> parseFn;
+  private final SerializableFunction<Row, T> fromRow;
   private final Coder<Row> badRecordCoder;
   private @Nullable RecordBatchRowIterator recordBatchIterator;
   private long rowCount;
@@ -42,13 +42,13 @@ class BigQueryStorageArrowReader<T> implements BigQueryStorageReader<T> {
   private transient @Nullable Row badRecord = null;
 
   BigQueryStorageArrowReader(
-      org.apache.arrow.vector.types.pojo.Schema arrowSchema,
-      Schema schema,
-      SerializableFunction<Row, T> parseFn) {
-    this.arrowSchema = arrowSchema;
-    this.schema = schema;
-    this.parseFn = parseFn;
-    this.badRecordCoder = RowCoder.of(schema);
+      org.apache.arrow.vector.types.pojo.Schema writerSchema,
+      Schema readerSchema,
+      SerializableFunction<Row, T> fromRow) {
+    this.arrowSchema = writerSchema;
+    this.schema = readerSchema;
+    this.fromRow = fromRow;
+    this.badRecordCoder = RowCoder.of(readerSchema);
     this.rowCount = 0;
     this.alloc = null;
   }
@@ -77,7 +77,7 @@ class BigQueryStorageArrowReader<T> implements BigQueryStorageReader<T> {
     }
     Row row = recordBatchIterator.next();
     try {
-      return parseFn.apply(row);
+      return fromRow.apply(row);
     } catch (Exception e) {
       badRecord = row;
       throw new ReadException(e);
