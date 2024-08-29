@@ -1017,7 +1017,8 @@ class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer,
     def extend(self, other: Buffer) -> None:
       raise NotImplementedError()
 
-  StateType = Union[CopyOnWriteState, DefaultDict[Union[bytes, Tuple[Any, Any]], Buffer]]
+  StateType = Union[CopyOnWriteState,
+                    DefaultDict[Union[bytes, Tuple[Any, Any]], Buffer]]
 
   def __init__(self):
     # type: () -> None
@@ -1068,7 +1069,8 @@ class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer,
 
     with self._lock:
       if state_key.WhichOneof('type') == 'ordered_list_user_state':
-        coder = TupleCoder([VarIntCoder(), coders.LengthPrefixCoder(BytesCoder())]).get_impl()
+        coder = TupleCoder(
+            [VarIntCoder(), coders.LengthPrefixCoder(BytesCoder())]).get_impl()
 
         start = state_key.ordered_list_user_state.range.start
         end = state_key.ordered_list_user_state.range.end
@@ -1078,7 +1080,8 @@ class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer,
 
         if self._to_key(persistent_state_key) in self._ordered_list_keys:
           output = coder_impl.create_OutputStream()
-          available_keys = self._ordered_list_keys[self._to_key(persistent_state_key)]
+          available_keys = self._ordered_list_keys[self._to_key(
+              persistent_state_key)]
 
           if self._use_continuation_tokens:
             # The token is "key_idx:value_idx"
@@ -1087,7 +1090,11 @@ class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer,
             else:
               key_idx, value_idx = list(map(int, continuation_token.split(b':')))
 
-            key_idx = next(iter(available_keys.irange(key_idx, end, inclusive=(True, False))), end)
+            key_idx = next(
+                iter(
+                    available_keys.irange(
+                        key_idx, end, inclusive=(True, False))),
+                end)
             if key_idx >= end:
               return b'', None
 
@@ -1098,12 +1105,17 @@ class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer,
             if value_idx < 0 or value_idx >= len(entries):
               return b'', None
             else:
+              # for testing purpose, return one element at a time
               e = entries[value_idx]
-              coder.encode_to_stream(e, output, True) # for testing purpose, return one element at a time
+              coder.encode_to_stream(e, output, True)
               if (value_idx + 1) < len(entries):
                 value_idx += 1
               else:
-                key_idx = next(iter(available_keys.irange(key_idx+1, end, inclusive=(True, False))), end)
+                key_idx = next(
+                    iter(
+                        available_keys.irange(
+                            key_idx + 1, end, inclusive=(True, False))),
+                    end)
                 value_idx = 0
               return output.get(), b"%d:%d" % (key_idx, value_idx)
           else:
@@ -1143,7 +1155,8 @@ class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer,
     # type: (...) -> _Future
     with self._lock:
       if state_key.WhichOneof('type') == 'ordered_list_user_state':
-        coder = TupleCoder([VarIntCoder(), coders.LengthPrefixCoder(BytesCoder())]).get_impl()
+        coder = TupleCoder(
+            [VarIntCoder(), coders.LengthPrefixCoder(BytesCoder())]).get_impl()
 
         if self._to_key(state_key) not in self._ordered_list_keys:
           self._ordered_list_keys[self._to_key(state_key)] = SortedSet()
@@ -1169,7 +1182,8 @@ class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer,
           persistent_state_key = beam_fn_api_pb2.StateKey()
           persistent_state_key.CopyFrom(state_key)
           persistent_state_key.ordered_list_user_state.ClearField("range")
-          available_keys = self._ordered_list_keys[self._to_key(persistent_state_key)]
+          available_keys = self._ordered_list_keys[self._to_key(
+              persistent_state_key)]
 
           keys_to_remove = []
           for i in available_keys.irange(start, end, inclusive=(True, False)):

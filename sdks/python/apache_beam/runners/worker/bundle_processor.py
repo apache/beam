@@ -596,6 +596,7 @@ class _ConcatIterable(object):
     for elem in self.second:
       yield elem
 
+
 class _MergeSortedIterable(object):
   """An iterable that is a merge sorted result of two iterables."""
   _sentinel = object()
@@ -629,7 +630,9 @@ class _MergeSortedIterable(object):
 
 
 coder_impl.FastPrimitivesCoderImpl.register_iterable_like_type(_ConcatIterable)
-coder_impl.FastPrimitivesCoderImpl.register_iterable_like_type(_MergeSortedIterable)
+coder_impl.FastPrimitivesCoderImpl.register_iterable_like_type(
+    _MergeSortedIterable)
+
 
 class SynchronousBagRuntimeState(userstate.BagRuntimeState):
 
@@ -764,7 +767,7 @@ class RangeSet:
     else:
       # the new range overlaps with ranges[min_idx:max_idx]
       new_start = min(start, self._sorted_starts[min_idx])
-      new_end = max(end, self._sorted_ends[max_idx-1])
+      new_end = max(end, self._sorted_ends[max_idx - 1])
 
       del self._sorted_starts[min_idx:max_idx]
       del self._sorted_ends[min_idx:max_idx]
@@ -774,7 +777,8 @@ class RangeSet:
 
   def __contains__(self, key):
     idx = self._sorted_starts.bisect_left(key)
-    return (idx < len(self._sorted_starts) and self._sorted_starts[idx] == key) or (idx > 0 and self._sorted_ends[idx-1] > key)
+    return (idx < len(self._sorted_starts) and self._sorted_starts[idx] == key
+            ) or (idx > 0 and self._sorted_ends[idx - 1] > key)
 
   def __len__(self):
     assert len(self._sorted_starts) == len(self._sorted_ends)
@@ -789,8 +793,8 @@ class RangeSet:
 
 
 class SynchronousOrderedListRuntimeState(userstate.OrderedListRuntimeState):
-  RANGE_MIN = - (1<<63)
-  RANGE_MAX = (1<<63) - 1
+  RANGE_MIN = -(1 << 63)
+  RANGE_MAX = (1 << 63) - 1
 
   def __init__(self,
                state_handler,  # type: sdk_worker.CachingStateHandler
@@ -800,7 +804,7 @@ class SynchronousOrderedListRuntimeState(userstate.OrderedListRuntimeState):
     self._state_handler = state_handler
     self._state_key = state_key
     self._elem_coder = beam.coders.TupleCoder(
-      [coders.VarIntCoder(), coders.coders.LengthPrefixCoder(value_coder)])
+        [coders.VarIntCoder(), coders.coders.LengthPrefixCoder(value_coder)])
     self._cleared = False
     self._pending_adds = SortedDict()
     self._pending_removes = RangeSet()
@@ -827,16 +831,18 @@ class SynchronousOrderedListRuntimeState(userstate.OrderedListRuntimeState):
     if isinstance(limit_timestamp, timestamp.Timestamp):
       limit_timestamp = limit_timestamp.micros
 
-    keys_to_add = self._pending_adds.irange(min_timestamp,
-                                             limit_timestamp,
-                                             inclusive=(True, False))
+    keys_to_add = self._pending_adds.irange(
+        min_timestamp, limit_timestamp, inclusive=(True, False))
 
     # use list interpretation here to construct the actual list
     # of iterators of the selected range.
-    local_items = chain.from_iterable([itertools.islice(
-               zip(itertools.cycle([k,]), self._pending_adds[k]),
-               len(self._pending_adds[k]))
-      for k in keys_to_add])
+    local_items = chain.from_iterable([
+        itertools.islice(
+            zip(itertools.cycle([
+                k,
+            ]), self._pending_adds[k]),
+            len(self._pending_adds[k])) for k in keys_to_add
+    ])
 
     if not self._cleared:
       range_query_state_key = beam_fn_api_pb2.StateKey()
@@ -847,10 +853,10 @@ class SynchronousOrderedListRuntimeState(userstate.OrderedListRuntimeState):
       # make a deep copy here because there could be other operations occur in
       # the middle of an iteration and change pending_removes
       pending_removes_snapshot = copy.deepcopy(self._pending_removes)
-      persistent_items = filter(lambda kv: kv[0] not in pending_removes_snapshot,
-                                 _StateBackedIterable(self._state_handler,
-                                                      range_query_state_key,
-                                                      self._elem_coder))
+      persistent_items = filter(
+          lambda kv: kv[0] not in pending_removes_snapshot,
+          _StateBackedIterable(
+              self._state_handler, range_query_state_key, self._elem_coder))
 
       return _MergeSortedIterable(persistent_items, local_items)
 
@@ -870,8 +876,9 @@ class SynchronousOrderedListRuntimeState(userstate.OrderedListRuntimeState):
       limit_timestamp = limit_timestamp.micros
 
     # materialize the keys to remove before the actual removal
-    keys_to_remove = list(self._pending_adds.irange(min_timestamp, limit_timestamp,
-                                                    inclusive=(True, False)))
+    keys_to_remove = list(
+        self._pending_adds.irange(
+            min_timestamp, limit_timestamp, inclusive=(True, False)))
     for k in keys_to_remove:
       del self._pending_adds[k]
 
@@ -893,9 +900,12 @@ class SynchronousOrderedListRuntimeState(userstate.OrderedListRuntimeState):
     if self._pending_adds:
       items_to_add = []
       for k in self._pending_adds:
-        items_to_add.extend(zip(itertools.cycle([k, ]), self._pending_adds[k]))
-      futures.append(self._state_handler.extend(
-        self._state_key, self._elem_coder.get_impl(), items_to_add))
+        items_to_add.extend(zip(itertools.cycle([
+            k,
+        ]), self._pending_adds[k]))
+      futures.append(
+          self._state_handler.extend(
+              self._state_key, self._elem_coder.get_impl(), items_to_add))
       self._pending_adds = SortedDict()
 
     if len(futures):
@@ -1056,7 +1066,8 @@ class FnApiUserStateContext(userstate.UserStateContext):
       return SynchronousOrderedListRuntimeState(
           self._state_handler,
           state_key=beam_fn_api_pb2.StateKey(
-              ordered_list_user_state=beam_fn_api_pb2.StateKey.OrderedListUserState(
+              ordered_list_user_state=beam_fn_api_pb2.StateKey.
+              OrderedListUserState(
                   transform_id=self._transform_id,
                   user_state_id=state_spec.name,
                   window=self._window_coder.encode(window),

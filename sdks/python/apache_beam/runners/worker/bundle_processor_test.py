@@ -435,10 +435,11 @@ class OrderedListStateTest(unittest.TestCase):
 
   @staticmethod
   def _create_state(window=b"my_window", key=b"my_key", coder=StrUtf8Coder()):
-    state_handler = GlobalCachingStateHandler(OrderedListStateTest.NoStateCache(), StateServicer())
+    state_handler = GlobalCachingStateHandler(
+        OrderedListStateTest.NoStateCache(), StateServicer())
     state_key = beam_fn_api_pb2.StateKey(
-      ordered_list_user_state=beam_fn_api_pb2.StateKey.OrderedListUserState(
-        window=window, key=key))
+        ordered_list_user_state=beam_fn_api_pb2.StateKey.OrderedListUserState(
+            window=window, key=key))
     return SynchronousOrderedListRuntimeState(state_handler, state_key, coder)
 
   def setUp(self):
@@ -572,7 +573,7 @@ class OrderedListStateTest(unittest.TestCase):
 
     self.state.add(B1)
     self.assertEqual(A3, next(iter_before_b1))
-    self.assertRaises(StopIteration, lambda :next(iter_before_b1))
+    self.assertRaises(StopIteration, lambda: next(iter_before_b1))
 
     self.state.add(B3)
     iter_before_clear_range = iter(self.state.read())
@@ -581,14 +582,14 @@ class OrderedListStateTest(unittest.TestCase):
     self.assertEqual(B1, next(iter_before_clear_range))
     self.assertEqual(A3, next(iter_before_clear_range))
     self.assertEqual(B3, next(iter_before_clear_range))
-    self.assertRaises(StopIteration, lambda :next(iter_before_clear_range))
+    self.assertRaises(StopIteration, lambda: next(iter_before_clear_range))
     self.assertEqual([A1, B1], list(self.state.read()))
 
     iter_before_clear = iter(self.state.read())
     self.assertEqual(A1, next(iter_before_clear))
     self.state.clear()
     self.assertEqual(B1, next(iter_before_clear))
-    self.assertRaises(StopIteration, lambda :next(iter_before_clear))
+    self.assertRaises(StopIteration, lambda: next(iter_before_clear))
 
     self.assertEqual([], list(self.state.read()))
 
@@ -648,7 +649,11 @@ class OrderedListStateTest(unittest.TestCase):
 
       a = list(bench_state.read())
       b = list(state.read())
-      self.assertEqual(a, b, "Mismatch occurred on seed=%d, step=%d, logs=%s" % (seed, i, ';'.join(bench_state._logs)))
+      self.assertEqual(
+          a,
+          b,
+          "Mismatch occurred on seed=%d, step=%d, logs=%s" %
+          (seed, i, ';'.join(bench_state._logs)))
 
   def test_fuzz(self):
     for _ in range(1000):
@@ -656,7 +661,7 @@ class OrderedListStateTest(unittest.TestCase):
       try:
         self.fuzz_test_helper(seed=seed)
       except Exception as e:
-        raise RuntimeError("Exception occurred on seed=%d: %s" %(seed, e))
+        raise RuntimeError("Exception occurred on seed=%d: %s" % (seed, e))
 
   def test_min_max(self):
     INT64_MIN, INT64_MAX_MINUS_ONE, INT64_MAX = [(-(1 << 63), "min"), ((1 << 63) - 2, "max"), ((1 << 63) - 1, "err")]
@@ -667,7 +672,8 @@ class OrderedListStateTest(unittest.TestCase):
 
     self.assertEqual([INT64_MIN, INT64_MAX_MINUS_ONE], list(self.state.read()))
     self.assertEqual([INT64_MIN], list(self.state.read_range(-(1 << 63), 0)))
-    self.assertEqual([INT64_MAX_MINUS_ONE], list(self.state.read_range(0, (1 << 63) - 1)))
+    self.assertEqual([INT64_MAX_MINUS_ONE],
+                     list(self.state.read_range(0, (1 << 63) - 1)))
 
   def test_continuation_token(self):
     A1, A2, A7, B7, A8 = [(1, "a1"), (2, "a2"), (7, "a7"), (7, "b7"), (8, "a8")]
@@ -684,6 +690,7 @@ class OrderedListStateTest(unittest.TestCase):
     self.assertEqual([A2, A7, B7], list(self.state.read_range(2, 8)))
 
     self.assertEqual([A1, A2, A7, B7, A8], list(self.state.read()))
+
 
 if __name__ == '__main__':
   unittest.main()
