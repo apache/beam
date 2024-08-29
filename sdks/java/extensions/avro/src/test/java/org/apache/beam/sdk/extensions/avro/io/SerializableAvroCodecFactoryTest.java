@@ -108,12 +108,11 @@ public class SerializableAvroCodecFactoryTest {
       return;
     }
 
-    for (int i = 1; i <= 22; ++i) {
+    for (int i = 1; i <= 22; i++) {
       SerializableAvroCodecFactory codecFactory = new SerializableAvroCodecFactory();
 
       // Deserialize a ZStandardCodec instance from bytes; we can't reference the class directly
-      // since
-      // it won't compile for Avro 1.8
+      // since it won't compile for Avro 1.8
       final ByteArrayOutputStream baos = new ByteArrayOutputStream();
       final ObjectOutputStream os = new ObjectOutputStream(baos);
       os.writeUTF("zstandard[" + i + "]");
