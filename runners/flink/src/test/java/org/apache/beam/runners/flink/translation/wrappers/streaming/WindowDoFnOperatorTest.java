@@ -74,7 +74,7 @@ public class WindowDoFnOperatorTest {
     // test harness
     KeyedOneInputStreamOperatorTestHarness<
             ByteBuffer, WindowedValue<KV<Long, Long>>, WindowedValue<KV<Long, Long>>>
-        testHarness = createTestHarness(getWindowDoFnOperator());
+        testHarness = createTestHarness(getWindowDoFnOperator(true));
     testHarness.open();
 
     // process elements
@@ -92,7 +92,7 @@ public class WindowDoFnOperatorTest {
     testHarness.close();
 
     // restore from the snapshot
-    testHarness = createTestHarness(getWindowDoFnOperator());
+    testHarness = createTestHarness(getWindowDoFnOperator(true));
     testHarness.initializeState(snapshot);
     testHarness.open();
 
@@ -123,7 +123,7 @@ public class WindowDoFnOperatorTest {
   @Test
   public void testTimerCleanupOfPendingTimerList() throws Exception {
     // test harness
-    WindowDoFnOperator<Long, Long, Long> windowDoFnOperator = getWindowDoFnOperator();
+    WindowDoFnOperator<Long, Long, Long> windowDoFnOperator = getWindowDoFnOperator(true);
     KeyedOneInputStreamOperatorTestHarness<
             ByteBuffer, WindowedValue<KV<Long, Long>>, WindowedValue<KV<Long, Long>>>
         testHarness = createTestHarness(windowDoFnOperator);
@@ -195,7 +195,7 @@ public class WindowDoFnOperatorTest {
     testHarness.close();
   }
 
-  private WindowDoFnOperator<Long, Long, Long> getWindowDoFnOperator() {
+  private WindowDoFnOperator<Long, Long, Long> getWindowDoFnOperator(boolean streaming) {
     WindowingStrategy<Object, IntervalWindow> windowingStrategy =
         WindowingStrategy.of(FixedWindows.of(standardMinutes(1)));
 
@@ -217,6 +217,9 @@ public class WindowDoFnOperatorTest {
     FullWindowedValueCoder<KV<Long, Long>> outputCoder =
         WindowedValue.getFullCoder(KvCoder.of(VarLongCoder.of(), VarLongCoder.of()), windowCoder);
 
+    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    options.setStreaming(streaming);
+
     return new WindowDoFnOperator<Long, Long, Long>(
         reduceFn,
         "stepName",
@@ -224,16 +227,13 @@ public class WindowDoFnOperatorTest {
         outputTag,
         emptyList(),
         new MultiOutputOutputManagerFactory<>(
-            outputTag,
-            outputCoder,
-            new SerializablePipelineOptions(FlinkPipelineOptions.defaults())),
+            outputTag, outputCoder, new SerializablePipelineOptions(options)),
         windowingStrategy,
         emptyMap(),
         emptyList(),
-        FlinkPipelineOptions.defaults(),
+        options,
         VarLongCoder.of(),
-        new WorkItemKeySelector(
-            VarLongCoder.of(), new SerializablePipelineOptions(FlinkPipelineOptions.defaults())));
+        new WorkItemKeySelector(VarLongCoder.of(), new SerializablePipelineOptions(options)));
   }
 
   private KeyedOneInputStreamOperatorTestHarness<
