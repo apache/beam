@@ -39,7 +39,6 @@ artifacts {
 shadowJar {
     zip64 true
 
-    // need to shade "com.google.guava" to avoid Guava conflict
     relocate 'com.google.common', getJavaRelocatedPath('iceberg.hive.com.google.common')
     relocate 'com.google.protobuf', getJavaRelocatedPath('iceberg.hive.com.google.protobuf')
     relocate 'shaded.parquet', getJavaRelocatedPath('iceberg.hive.shaded.parquet')
