@@ -163,5 +163,5 @@ class JavaJarJobServer(SubprocessJobServer):
                               self._artifact_port,
                               self._expansion_port,
                               artifacts_dir,
-                              self.jar_cache_dir))
+                              self._jar_cache_dir))
     return (subprocess_cmd, 'localhost:%s' % job_port)
