@@ -48,6 +48,7 @@ jobs:
     runs-on: [self-hosted, ubuntu-20.04, main]
     env:
       EVENT_NAME: ${{ github.event_name }}
+      # Keep in sync with py_version matrix value below - if changed, change that as well.
       PY_VERSIONS_FULL: "cp38-* cp39-* cp310-* cp311-* cp312-*"
     outputs:
       gcp-variables-set: ${{ steps.check_gcp_variables.outputs.gcp-variables-set }}
@@ -219,22 +220,21 @@ jobs:
       - check_env_variables
       - build_source
     env:
-      CIBW_ARCHS_LINUX: ${{matrix.arch}}
+      CIBW_ARCHS_LINUX: ${{matrix.os_python.arch}}
     runs-on: ${{ matrix.os_python.runner }}
     timeout-minutes: 480
     strategy:
       matrix:
         os_python: [
-          {"os": "ubuntu-20.04", "runner": [self-hosted, ubuntu-20.04, main], "python": "${{ needs.check_env_variables.outputs.py-versions-full }}" },
+          {"os": "ubuntu-20.04", "runner": [self-hosted, ubuntu-20.04, main], "python": "${{ needs.check_env_variables.outputs.py-versions-full }}", arch: "auto" },
           # Temporarily pin to macos-13 because macos-latest breaks this build
           # TODO(https://github.com/apache/beam/issues/31114)
-          {"os": "macos-13", "runner": "macos-13", "python": "${{ needs.check_env_variables.outputs.py-versions-test }}" },
-          {"os": "windows-latest", "runner": "windows-latest", "python": "${{ needs.check_env_variables.outputs.py-versions-test }}" },
+          {"os": "macos-13", "runner": "macos-13", "python": "${{ needs.check_env_variables.outputs.py-versions-test }}", arch: "auto" },
+          {"os": "windows-latest", "runner": "windows-latest", "python": "${{ needs.check_env_variables.outputs.py-versions-test }}", arch: "auto" },
+          {"os": "ubuntu-20.04", "runner": [self-hosted, ubuntu-20.04, main], "python": "${{ needs.check_env_variables.outputs.py-versions-test }}", arch: "aarch64" }
         ]
-        arch: [auto]
-        include:
-          - os_python: {"os": "ubuntu-20.04", "runner": [self-hosted, ubuntu-20.04, main], "python": "${{ needs.check_env_variables.outputs.py-versions-test }}" }
-            arch: aarch64
+        # Keep in sync with PY_VERSIONS_FULL env var abvove - if changed, change that as well.
+        py_version: ["cp38-*", "cp39-*", "cp310-*", "cp311-*", "cp312-*"]
     steps:
     - name: Download python source distribution from artifacts
       # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
@@ -254,15 +254,17 @@ jobs:
       with:
         python-version: 3.8
     - uses: docker/setup-qemu-action@v1
-      if: ${{matrix.arch == 'aarch64'}}
+      if: ${{matrix.os_python.arch == 'aarch64'}}
       name: Set up QEMU
     - name: Install cibuildwheel
       # note: sync cibuildwheel version with gradle task sdks:python:bdistPy* steps
       run: pip install cibuildwheel==2.17.0 setuptools
     - name: Build wheel
+      # Only build wheel if it is one of the target versions for this platform, otherwise no-op
+      if: ${{ contains(matrix.os_python.python, matrix.py_version) }}
       working-directory: apache-beam-source
       env:
-        CIBW_BUILD: ${{ matrix.os_python.python }}
+        CIBW_BUILD: ${{ matrix.py_version }}
         # TODO: https://github.com/apache/beam/issues/23048
         CIBW_SKIP: "*-musllinux_*"
         CIBW_BEFORE_BUILD: pip install cython==0.29.36 numpy --config-settings=setup-args="-Dallow-noblas=true" && pip install --upgrade setuptools
@@ -272,6 +274,7 @@ jobs:
       if: startsWith(matrix.os_python.os, 'macos')
       run: brew install coreutils
     - name: Add checksums
+      if: ${{ contains(matrix.os_python.python, matrix.py_version) }}
       working-directory: apache-beam-source/wheelhouse/
       run: |
         for file in *.whl; do
@@ -279,16 +282,18 @@ jobs:
         done
       shell: bash
     - name: Upload wheels as artifacts
+      if: ${{ contains(matrix.os_python.python, matrix.py_version) }}
       # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
       uses: actions/upload-artifact@v3
       with:
-        name: wheelhouse-${{ matrix.os_python.os }}${{ (matrix.arch == 'aarch64' && '-aarch64') || '' }}
+        name: wheelhouse-${{ matrix.os_python.os }}${{ (matrix.os_python.arch == 'aarch64' && '-aarch64') || '' }}
         path: apache-beam-source/wheelhouse/
     - name: Build RC wheels
-      if: ${{ needs.build_source.outputs.is_rc == 1 }}
+      # Only build wheel if it is one of the target versions for this platform, otherwise no-op
+      if: ${{ needs.build_source.outputs.is_rc == 1 && contains(matrix.os_python.python, matrix.py_version) }}
       working-directory: apache-beam-source-rc
       env:
-        CIBW_BUILD: ${{ matrix.os_python.python }}
+        CIBW_BUILD: ${{ matrix.py_version }}
         # TODO: https://github.com/apache/beam/issues/23048
         CIBW_SKIP: "*-musllinux_*"
         CIBW_BEFORE_BUILD: pip install cython==0.29.36 numpy --config-settings=setup-args="-Dallow-noblas=true" && pip install --upgrade setuptools

@@ -45,7 +45,7 @@ import com.google.api.client.http.HttpResponseException;
 import com.google.api.client.http.LowLevelHttpResponse;
 import com.google.api.client.json.GenericJson;
 import com.google.api.client.json.Json;
-import com.google.api.client.json.jackson2.JacksonFactory;
+import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.client.testing.http.MockHttpTransport;
 import com.google.api.client.testing.http.MockLowLevelHttpRequest;
 import com.google.api.client.testing.util.MockSleeper;
@@ -126,6 +126,7 @@ import org.mockito.MockitoAnnotations;
 /** Tests for {@link BigQueryServicesImpl}. */
 @RunWith(JUnit4.class)
 public class BigQueryServicesImplTest {
+
   @Rule public ExpectedException thrown = ExpectedException.none();
   @Rule public ExpectedLogs expectedLogs = ExpectedLogs.none(BigQueryServicesImpl.class);
   // A test can make mock responses through setupMockResponses
@@ -171,6 +172,7 @@ public class BigQueryServicesImplTest {
 
   @FunctionalInterface
   private interface MockSetupFunction {
+
     void apply(LowLevelHttpResponse t) throws IOException;
   }
 
@@ -1597,12 +1599,12 @@ public class BigQueryServicesImplTest {
   /** A helper to convert a string response back to a {@link GenericJson} subclass. */
   private static <T extends GenericJson> T fromString(String content, Class<T> clazz)
       throws IOException {
-    return JacksonFactory.getDefaultInstance().fromString(content, clazz);
+    return GsonFactory.getDefaultInstance().fromString(content, clazz);
   }
 
   /** A helper to wrap a {@link GenericJson} object in a content stream. */
   private static InputStream toStream(GenericJson content) throws IOException {
-    return new ByteArrayInputStream(JacksonFactory.getDefaultInstance().toByteArray(content));
+    return new ByteArrayInputStream(GsonFactory.getDefaultInstance().toByteArray(content));
   }
 
   /** A helper that generates the error JSON payload that Google APIs produce. */
@@ -2091,5 +2093,30 @@ public class BigQueryServicesImplTest {
     counter.onRetryAttempt(Status.UNAVAILABLE.withDescription("Server is gone"), metadata);
     impl.reportPendingMetrics();
     assertEquals(123456, (long) container.getCounter(metricName).getCumulative());
+  }
+
+  @Test
+  public void testEndpointOverrides() throws IOException {
+    BigQueryOptions options = PipelineOptionsFactory.create().as(BigQueryOptions.class);
+    options.setBigQueryEndpoint("http://example.com:80");
+
+    assertEquals(
+        "http://example.com:80/bigquery/v2/",
+        new BigQueryServicesImpl.JobServiceImpl(options).getClient().getBaseUrl());
+    assertEquals(
+        "http://example.com:80/bigquery/v2/",
+        new BigQueryServicesImpl.DatasetServiceImpl(options).getClient().getBaseUrl());
+    assertEquals(
+        "example.com:80",
+        new BigQueryServicesImpl.WriteStreamServiceImpl(options)
+            .getClient()
+            .getSettings()
+            .getEndpoint());
+    assertEquals(
+        "example.com:80",
+        new BigQueryServicesImpl.StorageClientImpl(options)
+            .getClient()
+            .getSettings()
+            .getEndpoint());
   }
 }

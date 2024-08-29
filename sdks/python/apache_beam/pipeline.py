@@ -243,6 +243,7 @@ class Pipeline(HasDisplayData):
     self.contains_external_transforms = False
 
     self._display_data = display_data or {}
+    self._error_handlers = []
 
   def display_data(self):
     # type: () -> Dict[str, Any]
@@ -257,6 +258,9 @@ class Pipeline(HasDisplayData):
   def allow_unsafe_triggers(self):
     # type: () -> bool
     return self._options.view_as(TypeOptions).allow_unsafe_triggers
+
+  def _register_error_handler(self, error_handler):
+    self._error_handlers.append(error_handler)
 
   def _current_transform(self):
     # type: () -> AppliedPTransform
@@ -530,6 +534,9 @@ class Pipeline(HasDisplayData):
     # type: (Union[bool, str]) -> PipelineResult
 
     """Runs the pipeline. Returns whatever our runner returns after running."""
+
+    for error_handler in self._error_handlers:
+      error_handler.verify_closed()
 
     # Records whether this pipeline contains any cross-language transforms.
     self.contains_external_transforms = (

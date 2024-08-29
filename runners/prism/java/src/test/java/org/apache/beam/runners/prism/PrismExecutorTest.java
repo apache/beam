@@ -18,6 +18,7 @@
 package org.apache.beam.runners.prism;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.apache.beam.runners.prism.PrismPipelineOptions.JOB_PORT_FLAG_NAME;
 import static org.apache.beam.runners.prism.PrismRunnerTest.getLocalPrismBuildOrIgnoreTest;
 
 import java.io.ByteArrayOutputStream;
@@ -77,7 +78,9 @@ public class PrismExecutorTest {
   @Test
   public void executeWithCustomArgumentsThenStop() throws IOException {
     PrismExecutor executor =
-        underTest().setArguments(Collections.singletonList("-job_port=5555")).build();
+        underTest()
+            .setArguments(Collections.singletonList("-" + JOB_PORT_FLAG_NAME + "=5555"))
+            .build();
     ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
     executor.execute(outputStream);
     sleep(3000L);
@@ -85,6 +88,9 @@ public class PrismExecutorTest {
     String output = outputStream.toString(StandardCharsets.UTF_8.name());
     assertThat(output).contains("INFO Serving JobManagement endpoint=localhost:5555");
   }
+
+  @Test
+  public void executeWithPortFinderThenStop() throws IOException {}
 
   private PrismExecutor.Builder underTest() {
     return PrismExecutor.builder().setCommand(getLocalPrismBuildOrIgnoreTest());

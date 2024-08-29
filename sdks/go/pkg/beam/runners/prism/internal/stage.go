@@ -55,15 +55,17 @@ type link struct {
 // account, but all serialization boundaries remain since the pcollections
 // would continue to get serialized.
 type stage struct {
-	ID                   string
-	transforms           []string
-	primaryInput         string          // PCollection used as the parallel input.
-	outputs              []link          // PCollections that must escape this stage.
-	sideInputs           []engine.LinkID // Non-parallel input PCollections and their consumers
-	internalCols         []string        // PCollections that escape. Used for precise coder sending.
-	envID                string
-	stateful             bool
-	hasTimers            []string
+	ID           string
+	transforms   []string
+	primaryInput string          // PCollection used as the parallel input.
+	outputs      []link          // PCollections that must escape this stage.
+	sideInputs   []engine.LinkID // Non-parallel input PCollections and their consumers
+	internalCols []string        // PCollections that escape. Used for precise coder sending.
+	envID        string
+	stateful     bool
+	// hasTimers indicates the transform+timerfamily pairs that need to be waited on for
+	// the stage to be considered complete.
+	hasTimers            []struct{ Transform, TimerFamily string }
 	processingTimeTimers map[string]bool
 
 	exe              transformExecuter
@@ -76,7 +78,13 @@ type stage struct {
 	OutputsToCoders   map[string]engine.PColInfo
 }
 
-func (s *stage) Execute(ctx context.Context, j *jobservices.Job, wk *worker.W, comps *pipepb.Components, em *engine.ElementManager, rb engine.RunBundle) error {
+func (s *stage) Execute(ctx context.Context, j *jobservices.Job, wk *worker.W, comps *pipepb.Components, em *engine.ElementManager, rb engine.RunBundle) (err error) {
+	defer func() {
+		// Convert execution panics to errors to fail the bundle.
+		if e := recover(); e != nil {
+			err = fmt.Errorf("panic in stage.Execute bundle processing goroutine: %v, stage: %+v", e, s)
+		}
+	}()
 	slog.Debug("Execute: starting bundle", "bundle", rb)
 
 	var b *worker.B
@@ -390,7 +398,7 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, em *eng
 			}
 		}
 		for timerID, v := range pardo.GetTimerFamilySpecs() {
-			stg.hasTimers = append(stg.hasTimers, tid)
+			stg.hasTimers = append(stg.hasTimers, struct{ Transform, TimerFamily string }{Transform: tid, TimerFamily: timerID})
 			if v.TimeDomain == pipepb.TimeDomain_PROCESSING_TIME {
 				if stg.processingTimeTimers == nil {
 					stg.processingTimeTimers = map[string]bool{}
@@ -433,14 +441,15 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, em *eng
 			kd = collectionPullDecoder(kcid, coders, comps)
 		}
 
-		wDec, wEnc := getWindowValueCoders(comps, col, coders)
+		winCoder, wDec, wEnc := getWindowValueCoders(comps, col, coders)
 		sink2Col[sinkID] = o.Global
 		col2Coders[o.Global] = engine.PColInfo{
-			GlobalID: o.Global,
-			WDec:     wDec,
-			WEnc:     wEnc,
-			EDec:     ed,
-			KeyDec:   kd,
+			GlobalID:    o.Global,
+			WindowCoder: winCoder,
+			WDec:        wDec,
+			WEnc:        wEnc,
+			EDec:        ed,
+			KeyDec:      kd,
 		}
 		transforms[sinkID] = sinkTransform(sinkID, portFor(wOutCid, wk), o.Global)
 	}
@@ -493,7 +502,7 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, em *eng
 		return fmt.Errorf("buildDescriptor: failed to handle coder on stage %v for primary input, pcol %q %v:\n%w\n%v", stg.ID, stg.primaryInput, prototext.Format(col), err, stg.transforms)
 	}
 	ed := collectionPullDecoder(col.GetCoderId(), coders, comps)
-	wDec, wEnc := getWindowValueCoders(comps, col, coders)
+	winCoder, wDec, wEnc := getWindowValueCoders(comps, col, coders)
 
 	var kd func(io.Reader) []byte
 	if kcid, ok := extractKVCoderID(col.GetCoderId(), coders); ok {
@@ -501,11 +510,12 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, em *eng
 	}
 
 	inputInfo := engine.PColInfo{
-		GlobalID: stg.primaryInput,
-		WDec:     wDec,
-		WEnc:     wEnc,
-		EDec:     ed,
-		KeyDec:   kd,
+		GlobalID:    stg.primaryInput,
+		WindowCoder: winCoder,
+		WDec:        wDec,
+		WEnc:        wEnc,
+		EDec:        ed,
+		KeyDec:      kd,
 	}
 
 	stg.inputTransformID = stg.ID + "_source"

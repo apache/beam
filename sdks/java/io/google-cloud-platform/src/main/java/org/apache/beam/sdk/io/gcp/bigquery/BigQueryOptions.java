@@ -17,10 +17,12 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.Hidden;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 
@@ -213,4 +215,12 @@ public interface BigQueryOptions
   Boolean getEnableStorageReadApiV2();
 
   void setEnableStorageReadApiV2(Boolean value);
+
+  /** BQ endpoint to use. If unspecified, uses the default endpoint. */
+  @JsonIgnore
+  @Hidden
+  @Description("The URL for the BigQuery API.")
+  String getBigQueryEndpoint();
+
+  void setBigQueryEndpoint(String value);
 }

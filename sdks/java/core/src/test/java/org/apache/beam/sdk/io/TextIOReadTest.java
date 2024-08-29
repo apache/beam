@@ -674,8 +674,10 @@ public class TextIOReadTest {
             "To be, or not to be: that *is the question: ",
             // complete delimiter
             "Whether 'tis nobler in the mind to suffer |*",
+            // edge case: partial delimiter then complete delimiter
+            "The slings and arrows of outrageous fortune,*||**|",
             // truncated delimiter
-            "The slings and arrows of outrageous fortune,|"
+            "Or to take arms against a sea of troubles,|"
           };
 
       File tmpFile = tempFolder.newFile("tmpfile.txt");
@@ -689,7 +691,8 @@ public class TextIOReadTest {
           .containsInAnyOrder(
               "To be, or not to be: that |is the question: To be, or not to be: "
                   + "that *is the question: Whether 'tis nobler in the mind to suffer ",
-              "The slings and arrows of outrageous fortune,|");
+              "The slings and arrows of outrageous fortune,*|",
+              "*|Or to take arms against a sea of troubles,|");
       p.run();
     }
 

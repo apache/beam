@@ -41,7 +41,6 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.OutgoingMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.PubsubClientFactory;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
 import org.apache.beam.sdk.metrics.Counter;
-import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.metrics.SinkMetrics;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -70,7 +69,6 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hashing;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
@@ -233,9 +231,6 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
     /** Client on which to talk to Pubsub. Null until created by {@link #startBundle}. */
     private transient @Nullable PubsubClient pubsubClient;
 
-    /** Last TopicPath that reported Lineage. */
-    private transient @Nullable TopicPath reportedLineage;
-
     private final Counter batchCounter = Metrics.counter(WriterFn.class, "batches");
     private final Counter elementCounter = SinkMetrics.elementsWritten();
     private final Counter byteCounter = SinkMetrics.bytesWritten();
@@ -295,14 +290,6 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
       batchCounter.inc();
       elementCounter.inc(messages.size());
       byteCounter.inc(bytes);
-      // Report Lineage multiple once for same topic
-      if (!topicPath.equals(reportedLineage)) {
-        String name = topicPath.getDataCatalogName();
-        if (!Strings.isNullOrEmpty(name)) {
-          Lineage.getSinks().add(topicPath.getDataCatalogName());
-        }
-        reportedLineage = topicPath;
-      }
     }
 
     @StartBundle

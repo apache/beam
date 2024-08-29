@@ -18,9 +18,7 @@
 package org.apache.beam.sdk.io.iceberg;
 
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
-import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -29,6 +27,8 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PInput;
@@ -38,10 +38,11 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.catalog.Catalog;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -66,7 +67,7 @@ class WriteUngroupedRowsToFiles
   private static final TupleTag<Row> WRITTEN_ROWS_TAG = new TupleTag<Row>("writtenRows") {};
   private static final TupleTag<Row> SPILLED_ROWS_TAG = new TupleTag<Row>("spilledRows") {};
 
-  private final String fileSuffix;
+  private final String filePrefix;
   private final DynamicDestinations dynamicDestinations;
   private final IcebergCatalogConfig catalogConfig;
 
@@ -74,7 +75,7 @@ class WriteUngroupedRowsToFiles
       IcebergCatalogConfig catalogConfig, DynamicDestinations dynamicDestinations) {
     this.catalogConfig = catalogConfig;
     this.dynamicDestinations = dynamicDestinations;
-    this.fileSuffix = UUID.randomUUID().toString();
+    this.filePrefix = UUID.randomUUID().toString();
   }
 
   @Override
@@ -86,7 +87,7 @@ class WriteUngroupedRowsToFiles
                     new WriteUngroupedRowsToFilesDoFn(
                         catalogConfig,
                         dynamicDestinations,
-                        fileSuffix,
+                        filePrefix,
                         DEFAULT_MAX_WRITERS_PER_BUNDLE,
                         DEFAULT_MAX_BYTES_PER_FILE))
                 .withOutputTags(
@@ -174,10 +175,8 @@ class WriteUngroupedRowsToFiles
     private final long maxFileSize;
     private final DynamicDestinations dynamicDestinations;
     private final IcebergCatalogConfig catalogConfig;
-
-    private transient @MonotonicNonNull Map<IcebergDestination, RecordWriter> writers;
-    private transient @MonotonicNonNull Map<IcebergDestination, BoundedWindow> windows;
     private transient @MonotonicNonNull Catalog catalog;
+    private transient @Nullable RecordWriterManager recordWriterManager;
 
     public WriteUngroupedRowsToFilesDoFn(
         IcebergCatalogConfig catalogConfig,
@@ -192,20 +191,6 @@ class WriteUngroupedRowsToFiles
       this.maxFileSize = maxFileSize;
     }
 
-    private Map<IcebergDestination, RecordWriter> getWriters() {
-      if (writers == null) {
-        writers = Maps.newHashMap();
-      }
-      return writers;
-    }
-
-    private Map<IcebergDestination, BoundedWindow> getWindows() {
-      if (windows == null) {
-        windows = Maps.newHashMap();
-      }
-      return windows;
-    }
-
     private org.apache.iceberg.catalog.Catalog getCatalog() {
       if (catalog == null) {
         this.catalog = catalogConfig.catalog();
@@ -213,137 +198,62 @@ class WriteUngroupedRowsToFiles
       return catalog;
     }
 
-    private RecordWriter createAndInsertWriter(IcebergDestination destination, BoundedWindow window)
-        throws IOException {
-      RecordWriter writer =
-          new RecordWriter(getCatalog(), destination, filename + "-" + UUID.randomUUID());
-      getWindows().put(destination, window);
-      getWriters().put(destination, writer);
-      return writer;
-    }
-
-    /**
-     * Returns active writer for this destination if possible. If this returns null then we have
-     * reached the maximum number of writers and should spill any records associated.
-     */
-    @Nullable
-    RecordWriter getWriterIfPossible(IcebergDestination destination, BoundedWindow window)
-        throws IOException {
-
-      RecordWriter existingWriter = getWriters().get(destination);
-      if (existingWriter != null) {
-        return existingWriter;
-      }
-
-      if (getWriters().size() > maxWritersPerBundle) {
-        return null;
-      }
-
-      return createAndInsertWriter(destination, window);
-    }
-
     @StartBundle
-    public void startBundle() {}
+    public void startBundle() {
+      recordWriterManager =
+          new RecordWriterManager(getCatalog(), filename, maxFileSize, maxWritersPerBundle);
+    }
 
     @ProcessElement
-    public void processElement(@Element Row element, BoundedWindow window, MultiOutputReceiver out)
+    public void processElement(
+        @Element Row element, BoundedWindow window, PaneInfo pane, MultiOutputReceiver out)
         throws Exception {
 
       Row data = checkArgumentNotNull(element.getRow("data"), "Input row missing `data` field.");
       Row destMetadata =
           checkArgumentNotNull(element.getRow("dest"), "Input row missing `dest` field.");
       IcebergDestination destination = dynamicDestinations.instantiateDestination(destMetadata);
+      WindowedValue<IcebergDestination> windowedDestination =
+          WindowedValue.of(destination, window.maxTimestamp(), window, pane);
 
-      // Spill record if writer cannot be created
-      RecordWriter writer = getWriterIfPossible(destination, window);
-      if (writer == null) {
-        out.get(SPILLED_ROWS_TAG).output(element);
-        return;
-      }
-
-      // Reset writer if max file size reached
-      if (writer.bytesWritten() > maxFileSize) {
-        writer.close();
-        out.get(WRITTEN_FILES_TAG)
-            .output(
-                FileWriteResult.builder()
-                    .setManifestFile(writer.getManifestFile())
-                    .setTableIdentifier(destination.getTableIdentifier())
-                    .build());
-        writer = createAndInsertWriter(destination, window);
-      }
-
-      // Actually write the data
+      // Attempt to write record. If the writer is saturated and cannot accept
+      // the record, spill it over to WriteGroupedRowsToFiles
+      boolean writeSuccess;
       try {
-        writer.write(data);
-        out.get(WRITTEN_ROWS_TAG).output(element);
+        writeSuccess =
+            Preconditions.checkNotNull(recordWriterManager).write(windowedDestination, data);
       } catch (Exception e) {
         try {
-          writer.close();
+          Preconditions.checkNotNull(recordWriterManager).close();
         } catch (Exception closeException) {
           e.addSuppressed(closeException);
         }
         throw e;
       }
+      out.get(writeSuccess ? WRITTEN_ROWS_TAG : SPILLED_ROWS_TAG).output(element);
     }
 
     @FinishBundle
     public void finishBundle(FinishBundleContext c) throws Exception {
-      closeAllWriters();
-      outputFinalWrittenFiles(c);
-      getWriters().clear();
-    }
+      if (recordWriterManager == null) {
+        return;
+      }
+      recordWriterManager.close();
+      for (Map.Entry<WindowedValue<IcebergDestination>, List<ManifestFile>> destinationAndFiles :
+          Preconditions.checkNotNull(recordWriterManager).getManifestFiles().entrySet()) {
+        WindowedValue<IcebergDestination> windowedDestination = destinationAndFiles.getKey();
 
-    private void outputFinalWrittenFiles(DoFn<Row, FileWriteResult>.FinishBundleContext c)
-        throws Exception {
-      List<Exception> exceptionList = Lists.newArrayList();
-      for (Map.Entry<IcebergDestination, RecordWriter> entry : getWriters().entrySet()) {
-        try {
-          IcebergDestination destination = entry.getKey();
-
-          RecordWriter writer = entry.getValue();
-          BoundedWindow window =
-              checkStateNotNull(
-                  getWindows().get(destination), "internal error: no windows for destination");
+        for (ManifestFile manifestFile : destinationAndFiles.getValue()) {
           c.output(
               FileWriteResult.builder()
-                  .setManifestFile(writer.getManifestFile())
-                  .setTableIdentifier(destination.getTableIdentifier())
+                  .setManifestFile(manifestFile)
+                  .setTableIdentifier(windowedDestination.getValue().getTableIdentifier())
                   .build(),
-              window.maxTimestamp(),
-              window);
-        } catch (Exception e) {
-          exceptionList.add(e);
+              windowedDestination.getTimestamp(),
+              Iterables.getFirst(windowedDestination.getWindows(), null));
         }
       }
-
-      if (!exceptionList.isEmpty()) {
-        Exception e =
-            new IOException("Exception emitting writer metadata. See suppressed exceptions");
-        for (Exception thrown : exceptionList) {
-          e.addSuppressed(thrown);
-        }
-        throw e;
-      }
-    }
-
-    private void closeAllWriters() throws Exception {
-      List<Exception> exceptionList = Lists.newArrayList();
-      for (RecordWriter writer : getWriters().values()) {
-        try {
-          writer.close();
-        } catch (Exception e) {
-          exceptionList.add(e);
-        }
-      }
-
-      if (!exceptionList.isEmpty()) {
-        Exception e = new IOException("Exception closing some writers. See suppressed exceptions.");
-        for (Exception thrown : exceptionList) {
-          e.addSuppressed(thrown);
-        }
-        throw e;
-      }
+      recordWriterManager = null;
     }
   }
 }

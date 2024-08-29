@@ -17,7 +17,7 @@
  */
 package org.apache.beam.it.common.utils;
 
-import javax.annotation.Nullable;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Utility class for handling exceptions in tests or resource managers. */
 public class ExceptionUtils {

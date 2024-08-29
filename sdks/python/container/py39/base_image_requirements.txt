@@ -133,7 +133,7 @@ PyYAML==6.0.2
 redis==5.0.8
 referencing==0.35.1
 regex==2024.7.24
-requests==2.31.0
+requests==2.32.3
 requests-mock==1.12.1
 rpds-py==0.20.0
 rsa==4.9

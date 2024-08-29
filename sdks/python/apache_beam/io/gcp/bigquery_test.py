@@ -50,6 +50,7 @@ from apache_beam.io.gcp.bigquery import ReadFromBigQuery
 from apache_beam.io.gcp.bigquery import TableRowJsonCoder
 from apache_beam.io.gcp.bigquery import WriteToBigQuery
 from apache_beam.io.gcp.bigquery import _StreamToBigQuery
+from apache_beam.io.gcp.bigquery_read_internal import _BigQueryReadSplit
 from apache_beam.io.gcp.bigquery_read_internal import _JsonToDictCoder
 from apache_beam.io.gcp.bigquery_read_internal import bigquery_export_destination_uri
 from apache_beam.io.gcp.bigquery_tools import JSON_COMPLIANCE_ERROR
@@ -61,6 +62,7 @@ from apache_beam.io.gcp.tests import utils
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultStreamingMatcher
 from apache_beam.io.gcp.tests.bigquery_matcher import BigQueryTableMatcher
+from apache_beam.metrics.metric import Lineage
 from apache_beam.options import value_provider
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
@@ -85,9 +87,11 @@ try:
   from apitools.base.py.exceptions import HttpError
   from apitools.base.py.exceptions import HttpForbiddenError
   from google.cloud import bigquery as gcp_bigquery
+  from google.cloud import bigquery_storage_v1 as bq_storage
   from google.api_core import exceptions
 except ImportError:
   gcp_bigquery = None
+  bq_storage = None
   HttpError = None
   HttpForbiddenError = None
   exceptions = None
@@ -460,6 +464,8 @@ class TestReadFromBigQuery(unittest.TestCase):
     self.assertIn(error_message, exc.exception.args[0])
 
   @parameterized.expand([
+      # read without exception
+      param(responses=[], expected_retries=0),
       # first attempt returns a Http 500 blank error and retries
       # second attempt returns a Http 408 blank error and retries,
       # third attempt passes
@@ -540,6 +546,9 @@ class TestReadFromBigQuery(unittest.TestCase):
     # metadata (numBytes), and once to retrieve the table's schema
     # Any additional calls are retries
     self.assertEqual(expected_retries, mock_get_table.call_count - 2)
+    self.assertSetEqual(
+        Lineage.query(p.result.metrics(), Lineage.SOURCE),
+        set(["bigquery:project.dataset.table"]))
 
   @parameterized.expand([
       # first attempt returns a Http 429 with transient reason and retries
@@ -718,6 +727,40 @@ class TestReadFromBigQuery(unittest.TestCase):
 
     mock_query_job.assert_called()
     self.assertIn(error_message, exc.exception.args[0])
+
+  def test_read_direct_lineage(self):
+    with mock.patch.object(bigquery_tools.BigQueryWrapper,
+                        '_bigquery_client'),\
+         mock.patch.object(bq_storage.BigQueryReadClient,
+                        'create_read_session'),\
+        beam.Pipeline() as p:
+
+      _ = p | ReadFromBigQuery(
+          method=ReadFromBigQuery.Method.DIRECT_READ,
+          table='project:dataset.table')
+    self.assertSetEqual(
+        Lineage.query(p.result.metrics(), Lineage.SOURCE),
+        set(["bigquery:project.dataset.table"]))
+
+  def test_read_all_lineage(self):
+    with mock.patch.object(_BigQueryReadSplit, '_export_files') as export, \
+                            beam.Pipeline() as p:
+
+      export.return_value = (None, [])
+
+      _ = (
+          p
+          | beam.Create([
+              beam.io.ReadFromBigQueryRequest(table='project1:dataset1.table1'),
+              beam.io.ReadFromBigQueryRequest(table='project2:dataset2.table2')
+          ])
+          | beam.io.ReadAllFromBigQuery(gcs_location='gs://bucket/tmp'))
+    self.assertSetEqual(
+        Lineage.query(p.result.metrics(), Lineage.SOURCE),
+        set([
+            'bigquery:project1.dataset1.table1',
+            'bigquery:project2.dataset2.table2'
+        ]))
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
@@ -2235,10 +2278,13 @@ class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
               num_streaming_keys=500))
 
     with open(file_name_1) as f1, open(file_name_2) as f2:
-      out1 = json.load(f1)
-      self.assertEqual(out1['colA_values'], ['value1', 'value3'])
-      out2 = json.load(f2)
-      self.assertEqual(out2['colA_values'], ['value5'])
+      out1 = json.load(f1)['colA_values']
+      out2 = json.load(f2)['colA_values']
+      out_all = out1 + out2
+      out_all.sort()
+      self.assertEqual(out_all, ['value1', 'value3', 'value5'])
+      self.assertEqual(len(out1), 2)
+      self.assertEqual(len(out2), 1)
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')

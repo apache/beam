@@ -53,6 +53,13 @@ public class ProtoSchemaTranslatorTest {
   }
 
   @Test
+  public void testProto3OptionalPrimitiveSchema() {
+    assertEquals(
+        TestProtoSchemas.PROTO3_OPTIONAL_PRIMITIVE_SCHEMA,
+        ProtoSchemaTranslator.getSchema(Proto3SchemaMessages.OptionalPrimitive.class));
+  }
+
+  @Test
   public void testRequiredPrimitiveSchema() {
     assertEquals(
         TestProtoSchemas.REQUIRED_PRIMITIVE_SCHEMA,
@@ -170,6 +177,13 @@ public class ProtoSchemaTranslatorTest {
   }
 
   @Test
+  public void testProto3OptionalNestedSchema() {
+    assertEquals(
+        TestProtoSchemas.PROTO3_OPTIONAL_NESTED_SCHEMA,
+        ProtoSchemaTranslator.getSchema(Proto3SchemaMessages.OptionalNested.class));
+  }
+
+  @Test
   public void testRequiredNestedSchema() {
     assertEquals(
         TestProtoSchemas.REQUIRED_NESTED_SCHEMA,
@@ -266,6 +280,7 @@ public class ProtoSchemaTranslatorTest {
     assertEquals("foobar in field", optionMessage.getString("single_string"));
     assertEquals(Integer.valueOf(56), optionMessage.getInt32("single_int32"));
     assertEquals(Long.valueOf(78L), optionMessage.getInt64("single_int64"));
+    assertEquals("this is optional", optionMessage.getString("optional_string"));
   }
 
   @Test

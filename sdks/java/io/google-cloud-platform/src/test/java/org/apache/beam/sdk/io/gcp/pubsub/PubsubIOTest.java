@@ -238,8 +238,8 @@ public class PubsubIOTest {
     assertThat(pubsubRead.getTopicProvider().isAccessible(), is(true));
     assertThat(pubsubRead.getTopicProvider().get().asPath(), equalTo(provider.get()));
     assertThat(
-        pubsubRead.getTopicProvider().get().dataCatalogName(),
-        equalTo("pubsub:topic:project.topic"));
+        pubsubRead.getTopicProvider().get().dataCatalogSegments(),
+        equalTo(ImmutableList.of("project", "topic")));
   }
 
   @Test

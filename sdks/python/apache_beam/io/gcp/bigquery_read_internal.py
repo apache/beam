@@ -44,6 +44,7 @@ from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.bigquery_io_metadata import create_bigquery_io_metadata
 from apache_beam.io.iobase import BoundedSource
 from apache_beam.io.textio import _TextSource
+from apache_beam.metrics.metric import Lineage
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.value_provider import ValueProvider
@@ -260,6 +261,12 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
 
     for metadata in metadata_list:
       yield self._create_source(metadata.path, schema)
+
+    Lineage.sources().add(
+        'bigquery',
+        table_reference.projectId,
+        table_reference.datasetId,
+        table_reference.tableId)
 
     if element.query is not None:
       self.bq._delete_table(

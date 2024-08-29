@@ -1681,6 +1681,10 @@ message StandardProtocols {
     // the ProcessBundleProgressResponse messages.
     SDK_CONSUMING_RECEIVED_DATA = 9
     [(beam_urn) = "beam:protocol:sdk_consuming_received_data:v1"];
+
+    // Indicates whether the SDK supports ordered list state.
+    ORDERED_LIST_STATE = 10
+    [(beam_urn) = "beam:protocol:ordered_list_state:v1"];
   }
 }
 

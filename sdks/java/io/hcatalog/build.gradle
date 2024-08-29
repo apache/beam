@@ -90,9 +90,20 @@ task hadoopVersionsTest(group: "Verification") {
 }
 
 hadoopVersions.each { kv ->
-  task "hadoopVersion${kv.key}Test"(type: Test, group: "Verification") {
+  tasks.create(name: "hadoopVersion${kv.key}Test", type: Test, group: "Verification") {
     description = "Runs HCatalog tests with Hadoop version $kv.value"
     classpath = configurations."hadoopVersion$kv.key" + sourceSets.test.runtimeClasspath
     include '**/*Test.class'
+  }
+}
+
+project.tasks.withType(Test).configureEach {
+  if (JavaVersion.VERSION_1_8.compareTo(JavaVersion.current()) < 0 && project.findProperty('testJavaVersion') != '8') {
+    useJUnit {
+      filter {
+        excludeTestsMatching "org.apache.beam.sdk.io.hcatalog.HCatalogIOTest"
+        excludeTestsMatching "org.apache.beam.sdk.io.hcatalog.HCatalogBeamSchemaTest"
+      }
+    }
   }
 }
