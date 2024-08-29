@@ -147,8 +147,10 @@ class GcsIO(object):
       storage_client = create_storage_client(pipeline_options)
 
     google_cloud_options = pipeline_options.view_as(GoogleCloudOptions)
-    self.enable_read_bucket_metric =  getattr(google_cloud_options, 'enable_bucket_read_metric_counter', False)
-    self.enable_write_bucket_metric = getattr(google_cloud_options, 'enable_bucket_write_metric_counter', False)
+    self.enable_read_bucket_metric = getattr(
+      google_cloud_options, 'enable_bucket_read_metric_counter', False)
+    self.enable_write_bucket_metric = getattr(
+      google_cloud_options, 'enable_bucket_write_metric_counter', False)
 
     self.client = storage_client
     self._rewrite_cb = None
