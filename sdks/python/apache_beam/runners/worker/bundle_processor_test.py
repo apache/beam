@@ -669,6 +669,21 @@ class OrderedListStateTest(unittest.TestCase):
     self.assertEqual([INT64_MIN], list(self.state.read_range(-(1 << 63), 0)))
     self.assertEqual([INT64_MAX_MINUS_ONE], list(self.state.read_range(0, (1 << 63) - 1)))
 
+  def test_continuation_token(self):
+    A1, A2, A7, B7, A8 = [(1, "a1"), (2, "a2"), (7, "a7"), (7, "b7"), (8, "a8")]
+    self.state._state_handler._underlying._use_continuation_tokens = True
+    self.state.add(A1)
+    self.state.add(A2)
+    self.state.add(A7)
+    self.state.add(B7)
+    self.state.add(A8)
+
+    self.assertEqual([A2, A7, B7], list(self.state.read_range(2, 8)))
+
+    self.state.commit()
+    self.assertEqual([A2, A7, B7], list(self.state.read_range(2, 8)))
+
+    self.assertEqual([A1, A2, A7, B7, A8], list(self.state.read()))
 
 if __name__ == '__main__':
   unittest.main()

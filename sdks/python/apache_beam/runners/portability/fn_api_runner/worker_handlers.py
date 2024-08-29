@@ -1080,13 +1080,41 @@ class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer,
         if self._to_key(persistent_state_key) in self._ordered_list_keys:
           output = coder_impl.create_OutputStream()
           available_keys = self._ordered_list_keys[self._to_key(persistent_state_key)]
-          for i in available_keys.irange(start, end, inclusive=(True, False)):
-            persistent_state_key.ordered_list_user_state.range.start = i
-            persistent_state_key.ordered_list_user_state.range.end = i + 1
+
+          if self._use_continuation_tokens:
+            # The token is "key_idx:value_idx"
+            if not continuation_token:
+              key_idx, value_idx = start, 0
+            else:
+              key_idx, value_idx = list(map(int, continuation_token.split(b':')))
+
+            key_idx = next(iter(available_keys.irange(key_idx, end, inclusive=(True, False))), end)
+            if key_idx >= end:
+              return b'', None
+
+            persistent_state_key.ordered_list_user_state.range.start = key_idx
+            persistent_state_key.ordered_list_user_state.range.end = key_idx + 1
             entries = self._state[self._to_key(persistent_state_key)]
-            for e in entries:
-              coder.encode_to_stream(e, output, True)
-          return output.get(), None
+
+            if value_idx < 0 or value_idx >= len(entries):
+              return b'', None
+            else:
+              e = entries[value_idx]
+              coder.encode_to_stream(e, output, True) # for testing purpose, return one element at a time
+              if (value_idx + 1) < len(entries):
+                value_idx += 1
+              else:
+                key_idx = next(iter(available_keys.irange(key_idx+1, end, inclusive=(True, False))), end)
+                value_idx = 0
+              return output.get(), b"%d:%d" % (key_idx, value_idx)
+          else:
+            for i in available_keys.irange(start, end, inclusive=(True, False)):
+              persistent_state_key.ordered_list_user_state.range.start = i
+              persistent_state_key.ordered_list_user_state.range.end = i + 1
+              entries = self._state[self._to_key(persistent_state_key)]
+              for e in entries:
+                coder.encode_to_stream(e, output, True)
+            return output.get(), None
         return b'', None
       else:
         full_state = self._state[self._to_key(state_key)]
@@ -1124,12 +1152,12 @@ class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer,
         if self._to_key(state_key) not in self._ordered_list_keys:
           self._ordered_list_keys[self._to_key(state_key)] = SortedSet()
 
-        for key, bytes in coder.decode_all(data):
+        for key, value in coder.decode_all(data):
           persistent_state_key = beam_fn_api_pb2.StateKey()
           persistent_state_key.CopyFrom(state_key)
           persistent_state_key.ordered_list_user_state.range.start = key
           persistent_state_key.ordered_list_user_state.range.end = key + 1
-          self._state[self._to_key(persistent_state_key)].append((key, bytes))
+          self._state[self._to_key(persistent_state_key)].append((key, value))
           self._ordered_list_keys[self._to_key(state_key)].add(key)
       else:
         self._state[self._to_key(state_key)].append(data)
