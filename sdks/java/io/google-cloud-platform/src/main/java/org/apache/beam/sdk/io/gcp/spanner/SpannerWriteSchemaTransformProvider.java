@@ -188,7 +188,9 @@ public class SpannerWriteSchemaTransformProvider
               .apply("post-write", ParDo.of(new NoOutputDoFn<MutationGroup>()))
               .setRowSchema(Schema.of());
 
-      if (!handleErrors) return PCollectionRowTuple.of("post-write", postWrite);
+      if (!handleErrors) {
+        return PCollectionRowTuple.of("post-write", postWrite);
+      }
 
       Schema inputSchema = input.get("input").getSchema();
       Schema failureSchema = ErrorHandling.errorSchema(inputSchema);
