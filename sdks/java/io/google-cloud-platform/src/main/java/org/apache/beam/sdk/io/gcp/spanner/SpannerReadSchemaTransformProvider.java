@@ -156,21 +156,21 @@ public class SpannerReadSchemaTransformProvider
 
       if (Strings.isNullOrEmpty(this.getQuery())) {
         checkNotNull(this.getTableId(), invalidConfigMessage + "Table name must be specified for table read.");
-        checkNotNull(this.getColumns(), invalidConfigMessage + "Columns must be specified for table read.");
+        checkArgument(this.getColumns() != null && !this.getColumns().isEmpty(), 
+                  invalidConfigMessage + "Columns must be specified for table read.");
+  
       }
       else {
         checkArgument(
-          Strings.isNullOrEmpty(this.getQuery()),
+          !Strings.isNullOrEmpty(this.getQuery()),
           invalidConfigMessage + "Query must be specified for query read."
         );
         checkArgument(
           Strings.isNullOrEmpty(this.getTableId()),
           invalidConfigMessage + "Table name should not be specified when using a query."
         );
-        checkArgument(
-          Strings.isNullOrEmpty(this.getColumns()),
-          invalidConfigMessage + "Columns should not be specified when using a query."
-        );
+        checkArgument(this.getColumns() == null || this.getColumns().isEmpty(), 
+          invalidConfigMessage + "Columns should not be specified when using a query.");
       }
     }
 

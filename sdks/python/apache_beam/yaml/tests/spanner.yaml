@@ -57,7 +57,7 @@ pipelines:
               project: "{SPANNER_TABLE[0]}"
               instance: "{SPANNER_TABLE[1]}"
               database: "{SPANNER_TABLE[2]}"
-              query: 'SELECT * FROM Users where UserId = "01"'
+              query: 'SELECT * FROM tmp_table where UserId = "01"'
               
         - type: AssertEqual
           config:

@@ -18,8 +18,7 @@
 import logging
 import uuid
 import apache_beam as beam
-
-from sdks.python.apache_beam.utils import retry
+from apache_beam.utils import retry
 
 try:
   from google.cloud import spanner
@@ -31,10 +30,9 @@ _LOGGER = logging.getLogger(__name__)
 MAX_RETRIES = 3
 
 class SpannerWrapper(object):
-  TEST_DATABASE = None
   TEMP_DATABASE_PREFIX = 'temp-'
 
-  def __init__(self, project_id = "apache-beam-testing", temp_database_id = None):
+  def __init__(self, project_id, temp_database_id = None):
     self._spanner_client = spanner.Client(project = project_id)
     self._spanner_instance = self._spanner_client.instance("beam-test")
     self._test_database = None
