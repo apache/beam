@@ -31,8 +31,6 @@ import threading
 from dataclasses import dataclass
 from dataclasses import field
 from itertools import chain
-from sortedcontainers import SortedDict
-from sortedcontainers import SortedList
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
@@ -54,6 +52,8 @@ from typing import cast
 
 from google.protobuf import duration_pb2
 from google.protobuf import timestamp_pb2
+from sortedcontainers import SortedDict
+from sortedcontainers import SortedList
 
 import apache_beam as beam
 from apache_beam import coders
@@ -744,7 +744,7 @@ class SynchronousSetRuntimeState(userstate.SetRuntimeState):
 
 
 class RangeSet:
-  """For Internal Use only. A simple range set implementation for ranges of [x,y)."""
+  """For Internal Use only. A simple range set for ranges of [x,y)."""
   def __init__(self):
     # The start points and end points are stored separately in order.
     self._sorted_starts = SortedList()
@@ -754,7 +754,7 @@ class RangeSet:
     if start >= end:
       return
 
-    # ranges[:min_idx] and ranges[max_idx:] will not be impacted by this insertion
+    # ranges[:min_idx] and ranges[max_idx:] is unaffected by this insertion
     # the first range whose end point >= the start of the new range
     min_idx = self._sorted_ends.bisect_left(start)
     # the first range whose start point > the end point of the new range

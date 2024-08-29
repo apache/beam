@@ -27,19 +27,19 @@ from apache_beam.coders.coders import FastPrimitivesCoder
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.runners import common
+from apache_beam.runners.portability.fn_api_runner.worker_handlers import StateServicer
 from apache_beam.runners.worker import bundle_processor
 from apache_beam.runners.worker import operations
 from apache_beam.runners.worker.bundle_processor import BeamTransformFactory
 from apache_beam.runners.worker.bundle_processor import BundleProcessor
 from apache_beam.runners.worker.bundle_processor import DataInputOperation
 from apache_beam.runners.worker.bundle_processor import FnApiUserStateContext
-from apache_beam.runners.worker.bundle_processor import TimerInfo
 from apache_beam.runners.worker.bundle_processor import SynchronousOrderedListRuntimeState
+from apache_beam.runners.worker.bundle_processor import TimerInfo
 from apache_beam.runners.worker.data_plane import SizeBasedBufferingClosableOutputStream
 from apache_beam.runners.worker.data_sampler import DataSampler
 from apache_beam.runners.worker.sdk_worker import GlobalCachingStateHandler
 from apache_beam.runners.worker.statecache import StateCache
-from apache_beam.runners.portability.fn_api_runner.worker_handlers import StateServicer
 from apache_beam.transforms import userstate
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.utils.windowed_value import WindowedValue
@@ -509,7 +509,8 @@ class OrderedListStateTest(unittest.TestCase):
     self.assertEqual([A5], list(self.state.read()))
 
   def test_add_and_clear_range_after_commit(self):
-    A1, B1, C1, A4, A5, A6 = [(1, "a1"), (1, "b1"), (1, "c1"), (4, "a4"), (5, "a5"), (6, "a6")]
+    A1, B1, C1, A4, A5, A6 = [(1, "a1"), (1, "b1"), (1, "c1"),
+                              (4, "a4"), (5, "a5"), (6, "a6")]
     self.state.add(A1)
     self.state.add(B1)
     self.state.add(A4)
@@ -535,8 +536,8 @@ class OrderedListStateTest(unittest.TestCase):
     self.assertEqual([A1, B1, C1, A6], list(self.state.read()))
 
   def test_clear(self):
-    A1, B1, C1, A4, A5, B5 = [(1, "a1"), (1, "b1"), (1, "c1"), (4, "a4"), (5, "a5"), (5, "b5")]
-
+    A1, B1, C1, A4, A5, B5 = [(1, "a1"), (1, "b1"), (1, "c1"),
+                              (4, "a4"), (5, "a5"), (5, "b5")]
     self.state.add(A1)
     self.state.add(B1)
     self.state.add(A4)
@@ -563,7 +564,6 @@ class OrderedListStateTest(unittest.TestCase):
 
   def test_multiple_iterators(self):
     A1, B1, A3, B3 = [(1, "a1"), (1, "b1"), (3, "a3"), (3, "b3")]
-
     self.state.add(A1)
     self.state.add(A3)
     self.state.commit()
@@ -664,8 +664,9 @@ class OrderedListStateTest(unittest.TestCase):
         raise RuntimeError("Exception occurred on seed=%d: %s" % (seed, e))
 
   def test_min_max(self):
-    INT64_MIN, INT64_MAX_MINUS_ONE, INT64_MAX = [(-(1 << 63), "min"), ((1 << 63) - 2, "max"), ((1 << 63) - 1, "err")]
-
+    INT64_MIN, INT64_MAX_MINUS_ONE, INT64_MAX = [(-(1 << 63), "min"),
+                                                 ((1 << 63) - 2, "max"),
+                                                 ((1 << 63) - 1, "err")]
     self.state.add(INT64_MIN)
     self.state.add(INT64_MAX_MINUS_ONE)
     self.assertRaises(ValueError, lambda: self.state.add(INT64_MAX))
