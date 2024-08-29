@@ -15,15 +15,16 @@
 # limitations under the License.
 #
 
-"""Setup.py module for the workflow's worker utilities.
+"""setup.py module for the pipeline package.
 
-All the workflow related code is gathered in a package that will be built as a
-source distribution, staged in the staging area for the workflow being run and
-then installed in the workers when they start running. The package is defined
-in the pyproject.toml file.
+In this example, the pipeline code is gathered in a package that can be built
+as source distribution and installed on the workers. The package is defined
+in the pyproject.toml file. You can use setup.py file for defining 
+configuration that needs to be determined programatically, for example,
+custom commands to run when a package is installed.
 
-This behavior is triggered by specifying the --setup_file command line option
-when running the workflow for remote execution.
+You can install this package into the workers at runtime by using
+the --setup_file pipeline option.
 """
 
 # pytype: skip-file
