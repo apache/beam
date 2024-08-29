@@ -54,29 +54,34 @@ RUN python -m pip install -r /tmp/requirements.txt
 </code></pre><p>where package-name is the package&rsquo;s tarball. You can build the package tarball using a command line tool called <a href=https://setuptools.pypa.io/en/latest/userguide/quickstart.html#install-build>build</a>.</p><pre><code>  # Install build using pip
   pip install --upgrade build
   python -m build --sdist
-</code></pre><p>See the <a href=https://pypa-build.readthedocs.io/en/latest/index.html>build documentation</a> for more details on this command.</p></li></ol></li></ol><h2 id=multiple-file-dependencies>Multiple File Dependencies</h2><p>Often, your pipeline code spans multiple files. To run your project remotely, you must group these files as a Python package and specify the package when you run your pipeline. When the remote workers start, they will install your package. To group your files as a Python package and make it available remotely, perform the following steps:</p><ol><li><p>Create a <a href=https://pythonhosted.org/an_example_pypi_project/setuptools.html>setup.py</a> file for your project. The following is a very basic <code>setup.py</code> file.</p><pre><code> import setuptools
+</code></pre><p>See the <a href=https://pypa-build.readthedocs.io/en/latest/index.html>build documentation</a> for more details on this command.</p></li></ol></li></ol><h2 id=multiple-file-dependencies>Multiple File Dependencies</h2><p>Often, your pipeline code spans multiple files. To run your project remotely, you must group these files as a Python package and specify the package when you run your pipeline. When the remote workers start, they will install your package. To group your files as a Python package and make it available remotely, perform the following steps:</p><ol><li><p>Create a <a href=https://packaging.python.org/en/latest/tutorials/packaging-projects/>pyproject.toml</a> file for your project. The following is a very basic <code>pyproject.toml</code> file.</p><pre><code> [build-system]
+ requires = [&quot;setuptools&quot;]
+ build-backend = &quot;setuptools.build_meta&quot;
 
- setuptools.setup(
-    name='PACKAGE-NAME',
-    version='PACKAGE-VERSION',
-    install_requires=[
-      # List Python packages your pipeline depends on.
-    ],
-    packages=setuptools.find_packages(),
- )
-</code></pre></li><li><p>Structure your project so that the root directory contains the <code>setup.py</code> file, the main workflow file, and a directory with the rest of the files, for example:</p><pre><code> root_dir/
+ [project]
+ name = &quot;PACKAGE-NAME&quot;
+ version = &quot;PACKAGE-VERSION&quot;
+ dependencies = [
+   # List Python packages your pipeline depends on.
+ ]
+</code></pre></li><li><p>If your package requires if some programmatic configuration, or you need to use the <code>--setup_file</code> pipeline option, create a setup.py file for your project.</p><pre><code> # Note that the package can be completely defined by pyproject.toml.
+ # This file is optional.
+ import setuptools
+ setuptools.setup()
+</code></pre></li><li><p>Structure your project so that the root directory contains the <code>pyproject.toml</code>, the <code>setup.py</code> file, and a <code>src/</code> directory with the rest of the files. For example:</p><pre><code> root_dir/
+   pyproject.toml
    setup.py
-   main.py
-   my_package/
-     my_pipeline_launcher.py
-     my_custom_dofns_and_transforms.py
-     other_utils_and_helpers.py
+   src/
+     main.py
+     my_package/
+       my_pipeline_launcher.py
+       my_custom_dofns_and_transforms.py
+       other_utils_and_helpers.py
 </code></pre><p>See <a href=https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/complete/juliaset>Juliaset</a> for an example that follows this project structure.</p></li><li><p>Install your package in the submission environment, for example by using the following command:</p><pre><code> pip install -e .
-</code></pre></li><li><p>Run your pipeline with the following command-line option:</p><pre><code> --setup_file /path/to/setup.py
-</code></pre></li></ol><p><strong>Note:</strong> It is not necessary to supply the <code>--requirements_file</code> <a href=#pypi-dependencies>option</a> if the dependencies of your package are defined in the <code>install_requires</code> field of the <code>setup.py</code> file (see step 1).
-However unlike with the <code>--requirements_file</code> option, when you use the <code>--setup_file</code> option, Beam doesn&rsquo;t stage the dependent packages to the runner.
-Only the pipeline package is staged. If they aren&rsquo;t already provided in the runtime environment,
-the package dependencies are installed from PyPI at runtime.</p><h2 id=nonpython>Non-Python Dependencies or PyPI Dependencies with Non-Python Dependencies</h2><p>If your pipeline uses non-Python packages, such as packages that require installation using the <code>apt install</code> command, or uses a PyPI package that depends on non-Python dependencies during package installation, we recommend installing them using a <a href=#custom-containers>custom container</a>.
+</code></pre></li><li><p>If you use a <a href=#custom-containers>custom container</a>, copy and install the package in the container as well.</p></li><li><p>Run your pipeline with the following command-line option:</p><pre><code> --setup_file /path/to/setup.py
+</code></pre></li></ol><p><strong>Note:</strong> It is not necessary to supply the <code>--requirements_file</code> <a href=#pypi-dependencies>option</a> if the dependencies of your package are defined in the
+<code>dependencies</code> field of the <code>pyproject.toml</code> file (see step 1). However unlike with the <code>--requirements_file</code> option, when you use the <code>--setup_file</code> option, Beam doesn&rsquo;t stage the dependent packages to the runner.
+Only the pipeline package is staged. If they aren&rsquo;t already provided in the runtime environment, the package dependencies are installed from PyPI at runtime.</p><h2 id=nonpython>Non-Python Dependencies or PyPI Dependencies with Non-Python Dependencies</h2><p>If your pipeline uses non-Python packages, such as packages that require installation using the <code>apt install</code> command, or uses a PyPI package that depends on non-Python dependencies during package installation, we recommend installing them using a <a href=#custom-containers>custom container</a>.
 Otherwise, you must perform the following steps.</p><ol><li><p><a href=#multiple-file-dependencies>Structure your pipeline as a package</a>.</p></li><li><p>Add the required installation commands for the non-Python dependencies, such as the <code>apt install</code> commands, to the list of <code>CUSTOM_COMMANDS</code> in your <code>setup.py</code> file. See the <a href=https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/complete/juliaset/setup.py>Juliaset setup.py file</a> for an example.</p><p><strong>Note:</strong> You must verify that these commands run on the remote worker. For example, if you use <code>apt</code>, the remote worker needs <code>apt</code> support.</p></li><li><p>Run your pipeline with the following command-line option:</p><pre><code> --setup_file /path/to/setup.py
 </code></pre></li></ol><p><strong>Note:</strong> Because custom commands execute after the dependencies for your workflow are installed (by <code>pip</code>), you should omit the PyPI package dependency from the pipeline&rsquo;s <code>requirements.txt</code> file and from the <code>install_requires</code> parameter in the <code>setuptools.setup()</code> call of your <code>setup.py</code> file.</p><h2 id=pre-building-sdk-container-image>Pre-building SDK Container Image</h2><p>In pipeline execution modes where a Beam runner launches SDK workers in Docker containers, the additional pipeline dependencies (specified via <code>--requirements_file</code> and other runtime options) are installed into the containers at runtime. This can increase the worker startup time.
 However, it may be possible to pre-build the SDK containers and perform the dependency installation once before the workers start with <code>--prebuild_sdk_container_engine</code>. For instructions of how to use pre-building with Google Cloud
