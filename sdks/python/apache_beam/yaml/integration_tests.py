@@ -39,31 +39,35 @@ from apache_beam.yaml import yaml_provider
 from apache_beam.yaml import yaml_transform
 from apache_beam.io.gcp.spanner_wrapper import SpannerWrapper
 
+
 @contextlib.contextmanager
 def gcs_temp_dir(bucket):
   gcs_tempdir = bucket + '/yaml-' + str(uuid.uuid4())
   yield gcs_tempdir
   filesystems.FileSystems.delete([gcs_tempdir])
 
+
 import contextlib
 import uuid
 import logging
 from google.cloud import spanner
 
+
 @contextlib.contextmanager
-def temp_spanner_table(project, prefix = 'temp_spanner_db_'):
-    spanner_client = SpannerWrapper(project)
-    spanner_client._create_database()
-    instance = "beam-test"
-    database = spanner_client._test_database
-    table = 'tmp_table'
-    columns = ['UserId', 'Key']
-    logging.info("Created Spanner database: %s", database)
-    try:
-        yield [f'{project}', f'{instance}', f'{database}', f'{table}', columns]
-    finally:
-        logging.info("Deleting Spanner database: %s", database)
-        spanner_client._delete_database()
+def temp_spanner_table(project, prefix='temp_spanner_db_'):
+  spanner_client = SpannerWrapper(project)
+  spanner_client._create_database()
+  instance = "beam-test"
+  database = spanner_client._test_database
+  table = 'tmp_table'
+  columns = ['UserId', 'Key']
+  logging.info("Created Spanner database: %s", database)
+  try:
+    yield [f'{project}', f'{instance}', f'{database}', f'{table}', columns]
+  finally:
+    logging.info("Deleting Spanner database: %s", database)
+    spanner_client._delete_database()
+
 
 @contextlib.contextmanager
 def temp_bigquery_table(project, prefix='yaml_bq_it_'):

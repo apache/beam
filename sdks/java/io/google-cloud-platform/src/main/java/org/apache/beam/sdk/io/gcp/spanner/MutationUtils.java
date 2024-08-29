@@ -26,10 +26,11 @@ import com.google.cloud.ByteArray;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.Key;
 import com.google.cloud.spanner.Mutation;
+import com.google.cloud.spanner.Value;
 import java.math.BigDecimal;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.HashMap;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -37,10 +38,6 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.ReadableDateTime;
-
-import java.util.Iterator;
-import com.google.cloud.spanner.Value;
-import com.google.cloud.spanner.Type;
 
 final class MutationUtils {
   private MutationUtils() {}
@@ -357,13 +354,16 @@ final class MutationUtils {
                 beamIterableType.getTypeName()));
     }
   }
+
   public static Row createRowFromMutation(Schema schema, Mutation mutation) {
     Map<String, Object> mutationHashMap = new HashMap<>();
-    mutation.asMap().forEach(
-        (column, value) -> mutationHashMap.put(column, convertValueToBeamFieldType(value)));
+    mutation
+        .asMap()
+        .forEach(
+            (column, value) -> mutationHashMap.put(column, convertValueToBeamFieldType(value)));
     return Row.withSchema(schema).withFieldValues(mutationHashMap).build();
   }
-    
+
   public static Object convertValueToBeamFieldType(Value value) {
     switch (value.getType().getCode()) {
       case BOOL:
@@ -387,26 +387,26 @@ final class MutationUtils {
       case ARRAY:
         switch (value.getType().getArrayElementType().getCode()) {
           case BOOL:
-              return value.getBoolArray();
+            return value.getBoolArray();
           case BYTES:
-              return value.getBytesArray();
+            return value.getBytesArray();
           case DATE:
-              return value.getDateArray();
+            return value.getDateArray();
           case INT64:
-              return value.getInt64Array();
+            return value.getInt64Array();
           case FLOAT64:
-              return value.getFloat64Array();
+            return value.getFloat64Array();
           case NUMERIC:
-              return value.getNumericArray();
+            return value.getNumericArray();
           case TIMESTAMP:
-              return value.getTimestampArray();
+            return value.getTimestampArray();
           case STRING:
-              return value.getStringArray();
+            return value.getStringArray();
           case JSON:
-              return value.getJsonArray();
+            return value.getJsonArray();
           default:
             return value.toString();
-      }
+        }
       default:
         return value.toString();
     }
