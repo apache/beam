@@ -367,7 +367,7 @@ public class IcebergIOIT implements Serializable {
         row -> IcebergUtils.beamRowToIcebergRecord(tableSchema, row);
 
     for (int i = 0; i < returnedRecords.size(); i++) {
-      List<Record> recordsInTable_i = returnedRecords.get(i);
+      List<Record> records = returnedRecords.get(i);
       long l = i;
       Stream<Record> expectedRecords =
           INPUT_ROWS.stream()
@@ -375,7 +375,7 @@ public class IcebergIOIT implements Serializable {
               .map(rowFilter::filter)
               .map(recordFunc::apply);
 
-      assertThat(recordsInTable_i, containsInAnyOrder(expectedRecords.toArray()));
+      assertThat(records, containsInAnyOrder(expectedRecords.toArray()));
     }
   }
 

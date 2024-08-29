@@ -35,7 +35,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-/** Tests for {@link RowFilter} */
+/** Tests for {@link RowFilter}. */
 public class RowFilterTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 
