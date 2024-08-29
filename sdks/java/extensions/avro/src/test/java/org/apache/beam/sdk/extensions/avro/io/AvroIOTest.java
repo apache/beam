@@ -151,21 +151,6 @@ public class AvroIOTest implements Serializable {
     }
 
     @Test
-    public void testWriteWithZstdCodec() {
-      final String avroVersion =
-          org.apache.avro.Schema.class.getPackage().getImplementationVersion();
-
-      // Zstd codec not available until Avro 1.9
-      if (avroVersion.startsWith("1.8.")) {
-        return;
-      }
-
-      AvroIO.Write<String> write =
-          AvroIO.write(String.class).to("/tmp/foo/baz").withCodec(CodecFactory.zstandardCodec(3));
-      assertEquals("zstandard[3]", write.inner.getCodec().toString());
-    }
-
-    @Test
     public void testWriteWithSerDeCustomDeflateCodec() {
       AvroIO.Write<String> write =
           AvroIO.write(String.class).to("/tmp/foo/baz").withCodec(CodecFactory.deflateCodec(9));

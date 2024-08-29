@@ -22,9 +22,12 @@ import static org.apache.avro.file.DataFileConstants.DEFLATE_CODEC;
 import static org.apache.avro.file.DataFileConstants.NULL_CODEC;
 import static org.apache.avro.file.DataFileConstants.SNAPPY_CODEC;
 import static org.apache.avro.file.DataFileConstants.XZ_CODEC;
-import static org.apache.avro.file.DataFileConstants.ZSTANDARD_CODEC;
 import static org.junit.Assert.assertEquals;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -48,7 +51,7 @@ public class SerializableAvroCodecFactoryTest {
 
     // Zstd codec not available until Avro 1.9
     if (!VERSION_AVRO.startsWith("1.8.")) {
-      avroCodecs.add(ZSTANDARD_CODEC);
+      avroCodecs.add("zstandard");
     }
   }
 
@@ -106,12 +109,23 @@ public class SerializableAvroCodecFactoryTest {
     }
 
     for (int i = 1; i <= 22; ++i) {
-      SerializableAvroCodecFactory codecFactory =
-          new SerializableAvroCodecFactory(CodecFactory.zstandardCodec(i));
+      SerializableAvroCodecFactory codecFactory = new SerializableAvroCodecFactory();
 
-      SerializableAvroCodecFactory serdeC = SerializableUtils.clone(codecFactory);
+      // Deserialize a ZStandardCodec instance from bytes; we can't reference the class directly
+      // since
+      // it won't compile for Avro 1.8
+      final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+      final ObjectOutputStream os = new ObjectOutputStream(baos);
+      os.writeUTF("zstandard[" + i + "]");
+      os.flush();
+      codecFactory.readExternal(
+          new ObjectInputStream(new ByteArrayInputStream(baos.toByteArray())));
 
-      assertEquals(CodecFactory.zstandardCodec(i).toString(), serdeC.getCodec().toString());
+      assertEquals("zstandard[" + i + "]", codecFactory.getCodec().toString());
+
+      // Test cloning behavior
+      SerializableAvroCodecFactory clone = SerializableUtils.clone(codecFactory);
+      assertEquals(codecFactory.getCodec().toString(), clone.getCodec().toString());
     }
   }
 
