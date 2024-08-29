@@ -180,7 +180,7 @@ public class FlinkStreamingAggregationsTranslators {
    * them.
    */
   public static <K, InputAccumT, OutputAccumT, InputT, OutputT>
-  WindowDoFnOperator<K, InputAccumT, OutputAccumT> getWindowedAggregateDoFnOperator(
+      WindowDoFnOperator<K, InputAccumT, OutputAccumT> getWindowedAggregateDoFnOperator(
           FlinkStreamingTranslationContext context,
           PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>> transform,
           KvCoder<K, InputAccumT> inputKvCoder,
