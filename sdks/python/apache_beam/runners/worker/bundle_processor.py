@@ -108,7 +108,8 @@ OperationT = TypeVar('OperationT', bound=operations.Operation)
 FnApiUserRuntimeStateTypes = Union['ReadModifyWriteRuntimeState',
                                    'CombiningValueRuntimeState',
                                    'SynchronousSetRuntimeState',
-                                   'SynchronousBagRuntimeState']
+                                   'SynchronousBagRuntimeState',
+                                   'SynchronousOrderedListRuntimeState']
 
 DATA_INPUT_URN = 'beam:runner:source:v1'
 DATA_OUTPUT_URN = 'beam:runner:sink:v1'
@@ -798,10 +799,8 @@ class SynchronousOrderedListRuntimeState(userstate.OrderedListRuntimeState):
                ):
     self._state_handler = state_handler
     self._state_key = state_key
-    from apache_beam.coders import coders
-
     self._elem_coder = beam.coders.TupleCoder(
-      [coders.VarIntCoder(), coders.LengthPrefixCoder(value_coder)])
+      [coders.VarIntCoder(), coders.coders.LengthPrefixCoder(value_coder)])
     self._cleared = False
     self._pending_adds = SortedDict()
     self._pending_removes = RangeSet()
@@ -877,7 +876,7 @@ class SynchronousOrderedListRuntimeState(userstate.OrderedListRuntimeState):
       del self._pending_adds[k]
 
     if not self._cleared:
-        self._pending_removes.add(min_timestamp, limit_timestamp)
+      self._pending_removes.add(min_timestamp, limit_timestamp)
 
   def commit(self):
     futures = []

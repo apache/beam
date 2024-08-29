@@ -534,7 +534,7 @@ class OrderedListStateTest(unittest.TestCase):
     self.assertEqual([A1, B1, C1, A6], list(self.state.read()))
 
   def test_clear(self):
-    A1, B1, C1, A4, A5, B5, A6 = [(1, "a1"), (1, "b1"), (1, "c1"), (4, "a4"), (5, "a5"), (5, "b5"), (6, "a6")]
+    A1, B1, C1, A4, A5, B5 = [(1, "a1"), (1, "b1"), (1, "c1"), (4, "a4"), (5, "a5"), (5, "b5")]
 
     self.state.add(A1)
     self.state.add(B1)
@@ -595,7 +595,7 @@ class OrderedListStateTest(unittest.TestCase):
   def fuzz_test_helper(self, seed=0, lower=0, upper=20):
     class NaiveState:
       def __init__(self):
-        self._data = [list() for i in range((upper - lower + 1))]
+        self._data = [[] for i in range((upper - lower + 1))]
         self._logs = []
 
       def add(self, elem):
@@ -651,7 +651,7 @@ class OrderedListStateTest(unittest.TestCase):
       self.assertEqual(a, b, "Mismatch occurred on seed=%d, step=%d, logs=%s" % (seed, i, ';'.join(bench_state._logs)))
 
   def test_fuzz(self):
-    for i in range(1000):
+    for _ in range(1000):
       seed = random.randint(0, 0xffffffffffffffff)
       try:
         self.fuzz_test_helper(seed=seed)

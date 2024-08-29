@@ -48,6 +48,7 @@ from typing import cast
 from typing import overload
 
 import grpc
+from sortedcontainers import SortedSet
 
 from apache_beam.coders import coders
 from apache_beam.coders import coder_impl
@@ -80,8 +81,6 @@ if TYPE_CHECKING:
   from grpc import ServicerContext
   from google.protobuf import message
   from apache_beam.runners.portability.fn_api_runner.fn_runner import ExtendedProvisionInfo  # pylint: disable=ungrouped-imports
-
-from sortedcontainers import SortedSet
 
 # State caching is enabled in the fn_api_runner for testing, except for one
 # test which runs without state caching (FnApiRunnerTestWithDisabledCaching).
@@ -1018,7 +1017,7 @@ class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer,
     def extend(self, other: Buffer) -> None:
       raise NotImplementedError()
 
-  StateType = Union[CopyOnWriteState, DefaultDict[bytes, Buffer]]
+  StateType = Union[CopyOnWriteState, DefaultDict[Union[bytes, Tuple[Any, Any]], Buffer]]
 
   def __init__(self):
     # type: () -> None
@@ -1027,7 +1026,7 @@ class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer,
     self._checkpoint = None  # type: Optional[StateServicer.StateType]
     self._use_continuation_tokens = False
     self._continuations = {}  # type: Dict[bytes, Tuple[bytes, ...]]
-    self._ordered_list_keys = {}
+    self._ordered_list_keys = {}  # type: Dict[bytes, SortedSet]
 
   def checkpoint(self):
     # type: () -> None
@@ -1144,9 +1143,6 @@ class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer,
     # type: (...) -> _Future
     with self._lock:
       if state_key.WhichOneof('type') == 'ordered_list_user_state':
-        from apache_beam.coders import coders
-        from apache_beam.coders import coder_impl
-        from apache_beam.coders import TupleCoder, VarIntCoder, BytesCoder
         coder = TupleCoder([VarIntCoder(), coders.LengthPrefixCoder(BytesCoder())]).get_impl()
 
         if self._to_key(state_key) not in self._ordered_list_keys:
