@@ -107,6 +107,7 @@ class CustomCommands(setuptools.Command):
     for command in CUSTOM_COMMANDS:
       self.RunCustomCommand(command)
 
+
 setuptools.setup(
     packages=setuptools.find_packages(),
     cmdclass={
