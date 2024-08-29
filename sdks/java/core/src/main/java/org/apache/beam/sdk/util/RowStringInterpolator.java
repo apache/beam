@@ -34,7 +34,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.apache.commons.lang3.StringUtils;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.joda.time.Chronology;
 import org.joda.time.Instant;
 
 /**
@@ -65,7 +64,7 @@ import org.joda.time.Instant;
  * of this, include the relevant placeholder:
  *
  * <ul>
- *   <li>$MAX_TIMESTAMP: the window's max timestamp, represented as a local date (e.g. "2024-08-28")
+ *   <li>$WINDOW: the window's string representation
  *   <li>$PANE_INDEX: the pane's index
  *   <li>$YYYY: the element timestamp's year
  *   <li>$MM: the element timestamp's month
@@ -79,13 +78,13 @@ import org.joda.time.Instant;
 public class RowStringInterpolator implements Serializable {
   private final String template;
   private final Set<String> fieldsToReplace;
-  public static final String MAX_TIMESTAMP = "$MAX_TIMESTAMP";
+  public static final String WINDOW = "$WINDOW";
   public static final String PANE_INDEX = "$PANE_INDEX";
   public static final String YYYY = "$YYYY";
   public static final String MM = "$MM";
   public static final String DD = "$DD";
   private static final Set<String> WINDOWING_METADATA =
-      Sets.newHashSet(MAX_TIMESTAMP, PANE_INDEX, YYYY, MM, DD);
+      Sets.newHashSet(WINDOW, PANE_INDEX, YYYY, MM, DD);
 
   public RowStringInterpolator(String template, Schema rowSchema) {
     this.template = template;
@@ -123,15 +122,8 @@ public class RowStringInterpolator implements Serializable {
     for (String field : fieldsToReplace) {
       Object val;
       switch (field) {
-        case MAX_TIMESTAMP:
-          Instant maxTimestamp = window.maxTimestamp();
-          Chronology chronology = maxTimestamp.getChronology();
-          long millis = maxTimestamp.getMillis();
-          int year = chronology.year().get(millis);
-          int month = chronology.monthOfYear().get(millis);
-          int day = chronology.dayOfMonth().get(millis);
-
-          val = String.format("%04d-%02d-%02d", year, month, day);
+        case WINDOW:
+          val = window.toString();
           break;
         case PANE_INDEX:
           val = paneInfo.getIndex();

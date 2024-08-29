@@ -26,7 +26,6 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.Row;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
-import org.joda.time.LocalDate;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -165,8 +164,8 @@ public class RowStringInterpolatorTest {
   public void testInterpolateWindowingInformation() {
     String template =
         String.format(
-            "str: {str}, max timestamp: {%s}, pane: {%s}, year: {%s}, month: {%s}, day: {%s}",
-            RowStringInterpolator.MAX_TIMESTAMP,
+            "str: {str}, window: {%s}, pane: {%s}, year: {%s}, month: {%s}, day: {%s}",
+            RowStringInterpolator.WINDOW,
             RowStringInterpolator.PANE_INDEX,
             RowStringInterpolator.YYYY,
             RowStringInterpolator.MM,
@@ -184,8 +183,8 @@ public class RowStringInterpolatorTest {
             instant);
     String expected =
         String.format(
-            "str: str_value, max timestamp: %s, pane: 2, year: 2024, month: 8, day: 28",
-            new LocalDate(GlobalWindow.INSTANCE.maxTimestamp()));
+            "str: str_value, window: %s, pane: 2, year: 2024, month: 8, day: 28",
+            GlobalWindow.INSTANCE);
 
     assertEquals(expected, output);
   }
