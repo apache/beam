@@ -72,7 +72,9 @@ import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.avro.io.AvroDatumFactory;
 import org.apache.beam.sdk.extensions.avro.io.AvroSink;
 import org.apache.beam.sdk.extensions.avro.io.AvroSource;
@@ -127,7 +129,6 @@ import org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter;
 import org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter.ThrowingBadRecordRouter;
 import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler;
 import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler.DefaultErrorHandler;
-import org.apache.beam.sdk.util.SerializableSupplier;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -138,6 +139,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
@@ -657,9 +659,18 @@ public class BigQueryIO {
    */
   public static TypedRead<TableRow> readTableRows(DataFormat dataFormat) {
     if (dataFormat == DataFormat.AVRO) {
-      return readAvro(TableRowAvroParser.INSTANCE).withCoder(TableRowJsonCoder.of());
+      return readAvroImpl(
+          null,
+          AvroDatumFactory.generic(),
+          BigQueryAvroUtils::convertGenericRecordToTableRow,
+          TableRowJsonCoder.of(),
+          TypeDescriptor.of(TableRow.class));
     } else if (dataFormat == DataFormat.ARROW) {
-      return readArrow(TableRowArrowParser.INSTANCE).withCoder(TableRowJsonCoder.of());
+      return readArrowImpl(
+          null,
+          BigQueryUtils::toTableRow,
+          TableRowJsonCoder.of(),
+          TypeDescriptor.of(TableRow.class));
     } else {
       throw new IllegalArgumentException("Unsupported data format: " + dataFormat);
     }
@@ -717,26 +728,12 @@ public class BigQueryIO {
    */
   @Deprecated
   public static <T> TypedRead<T> read(SerializableFunction<SchemaAndRecord, T> parseFn) {
-    // TODO we loose the outputTypeInfo here
-    return readAvro(new SchemaAndRecordParseFn<>(parseFn));
-  }
-
-  static class SerializableSchemaSupplier implements SerializableSupplier<org.apache.avro.Schema> {
-    private transient org.apache.avro.Schema schema;
-    private final String jsonSchema;
-
-    private SerializableSchemaSupplier(org.apache.avro.Schema schema) {
-      this.schema = schema;
-      this.jsonSchema = schema.toString();
-    }
-
-    @Override
-    public org.apache.avro.Schema get() {
-      if (schema == null) {
-        schema = new org.apache.avro.Schema.Parser().parse(jsonSchema);
-      }
-      return schema;
-    }
+    return readAvroImpl(
+        null,
+        AvroDatumFactory.generic(),
+        new SchemaAndRecordParseFn<>(parseFn),
+        null,
+        TypeDescriptors.outputOf(parseFn));
   }
 
   /**
@@ -753,22 +750,34 @@ public class BigQueryIO {
    */
   public static <T> TypedRead<T> readWithDatumReader(
       AvroSource.DatumReaderFactory<T> readerFactory) {
-    return readAvro(
-        (tableSchema) -> BigQueryAvroUtils.toGenericAvroSchema("root", tableSchema.getFields()),
-        readerFactory,
-        SerializableFunctions.identity());
+    TypeDescriptor<T> td = null;
+    if (readerFactory instanceof AvroDatumFactory) {
+      td = TypeDescriptor.of(((AvroDatumFactory<T>) readerFactory).getType());
+    }
+    return readAvroImpl(null, readerFactory, SerializableFunctions.identity(), null, td);
   }
 
   public static TypedRead<GenericRecord> readAvro() {
-    return readWithDatumReader(AvroDatumFactory.generic());
+    return readAvroImpl(
+        null,
+        AvroDatumFactory.generic(),
+        SerializableFunctions.identity(),
+        null,
+        TypeDescriptor.of(GenericRecord.class));
   }
 
   public static TypedRead<GenericRecord> readAvro(org.apache.avro.Schema schema) {
-    return readAvro(schema, AvroDatumFactory.generic(), SerializableFunctions.identity());
+    return readAvroImpl(
+        schema,
+        AvroDatumFactory.generic(),
+        SerializableFunctions.identity(),
+        AvroCoder.generic(schema),
+        TypeDescriptor.of(GenericRecord.class));
   }
 
   public static <T> TypedRead<T> readAvro(Class<T> recordClass) {
-    AvroSource.DatumReaderFactory<T> factory;
+    org.apache.avro.Schema schema = ReflectData.get().getSchema(recordClass);
+    AvroDatumFactory<T> factory;
     if (GenericRecord.class.equals(recordClass)) {
       throw new IllegalArgumentException("TypedRead for GenericRecord requires a schema");
     } else if (SpecificRecord.class.isAssignableFrom(recordClass)) {
@@ -776,101 +785,103 @@ public class BigQueryIO {
     } else {
       factory = AvroDatumFactory.reflect(recordClass);
     }
+    AvroCoder<T> coder = AvroCoder.of(factory, schema);
+    TypeDescriptor<T> td = TypeDescriptor.of(recordClass);
+    return readAvroImpl(schema, factory, SerializableFunctions.identity(), coder, td);
+  }
 
-    return readAvro(
-        (tableSchema) -> ReflectData.get().getSchema(recordClass),
-        factory,
-        SerializableFunctions.identity());
+  public static <T> TypedRead<T> readAvro(
+      org.apache.avro.Schema schema, AvroSource.DatumReaderFactory<T> readerFactory) {
+    TypeDescriptor<T> td = null;
+    Coder<T> coder = null;
+    if (readerFactory instanceof AvroDatumFactory) {
+      coder = AvroCoder.of((AvroDatumFactory<T>) readerFactory, schema);
+      td = TypeDescriptor.of(((AvroDatumFactory<T>) readerFactory).getType());
+    }
+    return readAvroImpl(schema, readerFactory, SerializableFunctions.identity(), coder, td);
   }
 
   public static <T> TypedRead<T> readAvro(
       SerializableFunction<GenericRecord, T> avroFormatFunction) {
-    return readAvro(TableSchemaConverter.INSTANCE, AvroDatumFactory.generic(), avroFormatFunction);
+    return readAvroImpl(
+        null,
+        AvroDatumFactory.generic(),
+        avroFormatFunction,
+        null,
+        TypeDescriptors.outputOf(avroFormatFunction));
   }
 
-  public static <AvroT, T> TypedRead<T> readAvro(
-      org.apache.avro.Schema schema,
+  private static <AvroT, T> TypedRead<T> readAvroImpl(
+      org.apache.avro.@Nullable Schema schema, // when null infer from TableSchema at runtime
       AvroSource.DatumReaderFactory<AvroT> readerFactory,
-      SerializableFunction<AvroT, T> avroFormatFunction) {
-    SerializableSchemaSupplier schemaSupplier = new SerializableSchemaSupplier(schema);
-    return readAvro((tabeSchema) -> schemaSupplier.get(), readerFactory, avroFormatFunction);
-  }
-
-  public static <AvroT, T> TypedRead<T> readAvro(
-      SerializableFunction<TableSchema, org.apache.avro.Schema> schemaFactory,
-      AvroSource.DatumReaderFactory<AvroT> readerFactory,
-      SerializableFunction<AvroT, T> avroFormatFunction) {
+      SerializableFunction<AvroT, T> avroFormatFunction,
+      @Nullable Coder<T> coder,
+      @Nullable TypeDescriptor<T> typeDescriptor) {
+    BigQueryReaderFactory<T> bqReaderFactory =
+        BigQueryReaderFactory.avro(schema, readerFactory, avroFormatFunction);
+    if (typeDescriptor != null && typeDescriptor.hasUnresolvedParameters()) {
+      // type extraction failed and will not be serializable
+      typeDescriptor = null;
+    }
     return new AutoValue_BigQueryIO_TypedRead.Builder<T>()
         .setValidate(true)
         .setWithTemplateCompatibility(false)
         .setBigQueryServices(new BigQueryServicesImpl())
-        .setBigQueryReaderFactory(
-            BigQueryReaderFactory.avro(schemaFactory, readerFactory, avroFormatFunction))
+        .setBigQueryReaderFactory(bqReaderFactory)
         .setMethod(TypedRead.Method.DEFAULT)
         .setUseAvroLogicalTypes(false)
         .setFormat(DataFormat.AVRO)
         .setProjectionPushdownApplied(false)
         .setBadRecordErrorHandler(new DefaultErrorHandler<>())
         .setBadRecordRouter(BadRecordRouter.THROWING_ROUTER)
+        .setCoder(coder)
+        .setTypeDescriptor(typeDescriptor)
         .build();
   }
 
   public static TypedRead<Row> readArrow() {
-    return readArrow(SerializableFunctions.identity());
+    return readArrowImpl(
+        null, SerializableFunctions.identity(), null, TypeDescriptor.of(Row.class));
+  }
+
+  public static TypedRead<Row> readArrow(Schema schema) {
+    return readArrowImpl(
+        schema,
+        SerializableFunctions.identity(),
+        RowCoder.of(schema),
+        TypeDescriptor.of(Row.class));
   }
 
   public static <T> TypedRead<T> readArrow(SerializableFunction<Row, T> arrowFormatFunction) {
-    return readArrow(BigQueryUtils::fromTableSchema, arrowFormatFunction);
+    return readArrowImpl(
+        null, arrowFormatFunction, null, TypeDescriptors.outputOf(arrowFormatFunction));
   }
 
-  public static <T> TypedRead<T> readArrow(
-      SerializableFunction<TableSchema, Schema> schemaFactory,
-      SerializableFunction<Row, T> arrowFormatFunction) {
+  private static <T> TypedRead<T> readArrowImpl(
+      @Nullable Schema schema, // when null infer from TableSchema at runtime
+      SerializableFunction<Row, T> arrowFormatFunction,
+      @Nullable Coder<T> coder,
+      TypeDescriptor<T> typeDescriptor) {
+    BigQueryReaderFactory<T> bqReaderFactory =
+        BigQueryReaderFactory.arrow(schema, arrowFormatFunction);
+    if (typeDescriptor != null && typeDescriptor.hasUnresolvedParameters()) {
+      // type extraction failed and will not be serializable
+      typeDescriptor = null;
+    }
     return new AutoValue_BigQueryIO_TypedRead.Builder<T>()
         .setValidate(true)
         .setWithTemplateCompatibility(false)
         .setBigQueryServices(new BigQueryServicesImpl())
-        .setBigQueryReaderFactory(BigQueryReaderFactory.arrow(schemaFactory, arrowFormatFunction))
+        .setBigQueryReaderFactory(bqReaderFactory)
         .setMethod(TypedRead.Method.DIRECT_READ) // arrow is only available in direct read
         .setUseAvroLogicalTypes(false)
         .setFormat(DataFormat.ARROW)
         .setProjectionPushdownApplied(false)
         .setBadRecordErrorHandler(new DefaultErrorHandler<>())
         .setBadRecordRouter(BadRecordRouter.THROWING_ROUTER)
+        .setCoder(coder)
+        .setTypeDescriptor(typeDescriptor)
         .build();
-  }
-
-  @VisibleForTesting
-  static class TableSchemaConverter
-      implements SerializableFunction<TableSchema, org.apache.avro.Schema> {
-
-    public static final TableSchemaConverter INSTANCE = new TableSchemaConverter();
-
-    @Override
-    public org.apache.avro.Schema apply(TableSchema tableSchema) {
-      return BigQueryAvroUtils.toGenericAvroSchema("root", tableSchema.getFields());
-    }
-  }
-
-  @VisibleForTesting
-  static class TableRowAvroParser implements SerializableFunction<GenericRecord, TableRow> {
-
-    public static final TableRowAvroParser INSTANCE = new TableRowAvroParser();
-
-    @Override
-    public TableRow apply(GenericRecord record) {
-      return BigQueryAvroUtils.convertGenericRecordToTableRow(record);
-    }
-  }
-
-  static class TableRowArrowParser implements SerializableFunction<Row, TableRow> {
-
-    public static final TableRowArrowParser INSTANCE = new TableRowArrowParser();
-
-    @Override
-    public TableRow apply(Row row) {
-      return BigQueryUtils.toTableRow(row);
-    }
   }
 
   static class RowAvroParser implements SerializableFunction<GenericRecord, Row> {
@@ -906,7 +917,7 @@ public class BigQueryIO {
     private final TypedRead<TableRow> inner;
 
     Read() {
-      this(BigQueryIO.readAvro(TableRowAvroParser.INSTANCE).withCoder(TableRowJsonCoder.of()));
+      this(BigQueryIO.readTableRows());
     }
 
     Read(TypedRead<TableRow> inner) {
@@ -1184,13 +1195,21 @@ public class BigQueryIO {
     }
 
     @VisibleForTesting
-    Coder<T> inferCoder(CoderRegistry coderRegistry) {
+    Coder<T> inferCoder(CoderRegistry coderRegistry, TableSchema tableSchema) {
       if (getCoder() != null) {
         return getCoder();
       }
 
       try {
-        return coderRegistry.getCoder(getBigQueryReaderFactory().getOutputTypeDescriptor());
+        TypeDescriptor<T> td = getTypeDescriptor();
+        Class<?> rawType = td == null ? null : td.getRawType();
+        if (GenericRecord.class.equals(rawType)) {
+          return (Coder<T>) AvroCoder.generic(BigQueryUtils.toGenericAvroSchema(tableSchema));
+        } else if (Row.class.equals(rawType)) {
+          return (Coder<T>) RowCoder.of(BigQueryUtils.fromTableSchema(tableSchema));
+        } else {
+          return coderRegistry.getCoder(getTypeDescriptor());
+        }
       } catch (CannotProvideCoderException e) {
         throw new IllegalArgumentException(
             "Unable to infer coder for output. Specify it explicitly using withCoder().", e);
@@ -1362,32 +1381,45 @@ public class BigQueryIO {
         checkArgument(getUseLegacySql() != null, "useLegacySql should not be null if query is set");
       }
 
-      // if both toRowFn and fromRowFn values are set, enable Beam schema support
+      if (getMethod() != TypedRead.Method.DIRECT_READ) {
+        checkArgument(
+            getSelectedFields() == null,
+            "Invalid BigQueryIO.Read: Specifies selected fields, "
+                + "which only applies when using Method.DIRECT_READ");
+
+        checkArgument(
+            getRowRestriction() == null,
+            "Invalid BigQueryIO.Read: Specifies row restriction, "
+                + "which only applies when using Method.DIRECT_READ");
+      } else if (getTableProvider() == null) {
+        checkArgument(
+            getSelectedFields() == null,
+            "Invalid BigQueryIO.Read: Specifies selected fields, "
+                + "which only applies when reading from a table");
+
+        checkArgument(
+            getRowRestriction() == null,
+            "Invalid BigQueryIO.Read: Specifies row restriction, "
+                + "which only applies when reading from a table");
+      }
+
       Pipeline p = input.getPipeline();
       BigQueryOptions bqOptions = p.getOptions().as(BigQueryOptions.class);
       final BigQuerySourceDef sourceDef = createSourceDef();
 
-      Schema beamSchema = null;
-      if (getTypeDescriptor() != null && getToBeamRowFn() != null && getFromBeamRowFn() != null) {
-        beamSchema = sourceDef.getBeamSchema(bqOptions);
-        beamSchema = getFinalSchema(beamSchema, getSelectedFields());
-      }
+      // read table schema and infer coder if possible
+      TableSchema tableSchema = getTableSchema(sourceDef, bqOptions, getSelectedFields());
+      final Coder<T> coder = inferCoder(p.getCoderRegistry(), tableSchema);
 
-      final Coder<T> coder = inferCoder(p.getCoderRegistry());
+      Schema beamSchema = null;
+      // if both toRowFn and fromRowFn values are set, enable Beam schema support
+      if (getTypeDescriptor() != null && getToBeamRowFn() != null && getFromBeamRowFn() != null) {
+        beamSchema = BigQueryUtils.fromTableSchema(tableSchema);
+      }
 
       if (getMethod() == TypedRead.Method.DIRECT_READ) {
         return expandForDirectRead(input, coder, beamSchema, bqOptions);
       }
-
-      checkArgument(
-          getSelectedFields() == null,
-          "Invalid BigQueryIO.Read: Specifies selected fields, "
-              + "which only applies when using Method.DIRECT_READ");
-
-      checkArgument(
-          getRowRestriction() == null,
-          "Invalid BigQueryIO.Read: Specifies row restriction, "
-              + "which only applies when using Method.DIRECT_READ");
 
       final PCollectionView<String> jobIdTokenView;
       PCollection<String> jobIdTokenCollection;
@@ -1539,22 +1571,16 @@ public class BigQueryIO {
       return rows;
     }
 
-    private static Schema getFinalSchema(
-        Schema beamSchema, ValueProvider<List<String>> selectedFields) {
-      List<Schema.Field> flds =
-          beamSchema.getFields().stream()
-              .filter(
-                  field -> {
-                    if (selectedFields != null
-                        && selectedFields.isAccessible()
-                        && selectedFields.get() != null) {
-                      return selectedFields.get().contains(field.getName());
-                    } else {
-                      return true;
-                    }
-                  })
-              .collect(Collectors.toList());
-      return Schema.builder().addFields(flds).build();
+    private static TableSchema getTableSchema(
+        BigQuerySourceDef sourceDef,
+        BigQueryOptions bqOptions,
+        ValueProvider<List<String>> selectedFields) {
+      TableSchema tableSchema = sourceDef.getTableSchema(bqOptions);
+      if (selectedFields != null && selectedFields.isAccessible()) {
+        return BigQueryUtils.trimSchema(tableSchema, selectedFields.get());
+      } else {
+        return tableSchema;
+      }
     }
 
     private PCollection<T> expandForDirectRead(
@@ -1650,16 +1676,6 @@ public class BigQueryIO {
           return resultTuple.get(rowTag).setCoder(outputCoder);
         }
       }
-
-      checkArgument(
-          getSelectedFields() == null,
-          "Invalid BigQueryIO.Read: Specifies selected fields, "
-              + "which only applies when reading from a table");
-
-      checkArgument(
-          getRowRestriction() == null,
-          "Invalid BigQueryIO.Read: Specifies row restriction, "
-              + "which only applies when reading from a table");
 
       //
       // N.B. All of the code below exists because the BigQuery storage API can't (yet) read from

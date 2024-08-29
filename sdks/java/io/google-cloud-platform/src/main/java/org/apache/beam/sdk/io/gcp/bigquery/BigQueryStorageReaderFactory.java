@@ -17,13 +17,10 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.bigquery.storage.v1.ReadSession;
 import java.io.IOException;
 
 interface BigQueryStorageReaderFactory<T> {
   BigQueryStorageReader<T> getReader(TableSchema table, ReadSession readSession) throws IOException;
-
-  BigQueryStorageReader<T> getReader(Table table, ReadSession readSession) throws IOException;
 }

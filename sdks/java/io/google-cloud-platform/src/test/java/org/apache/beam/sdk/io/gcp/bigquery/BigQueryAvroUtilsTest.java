@@ -239,7 +239,7 @@ public class BigQueryAvroUtilsTest {
         avroSchema.getField("anniversaryTime").schema(),
         equalTo(Schema.createUnion(Schema.create(Type.NULL), Schema.create(Type.STRING))));
     Schema geoSchema = Schema.create(Type.STRING);
-    geoSchema.addProp(LogicalType.LOGICAL_TYPE_PROP, "geography_wkt");
+    geoSchema.addProp("sqlType", "GEOGRAPHY");
     assertThat(
         avroSchema.getField("geoPositions").schema(),
         equalTo(Schema.createUnion(Schema.create(Type.NULL), geoSchema)));
@@ -396,7 +396,7 @@ public class BigQueryAvroUtilsTest {
                                                                 .setType("FLOAT"))))))))),
             new TableFieldSchema().setName("platform").setType("STRING")));
     // To string should be sufficient here as this exercises Avro's conversion feature
-    String output = BigQueryAvroUtils.toGenericAvroSchema("root", schema.getFields()).toString();
+    String output = BigQueryAvroUtils.toGenericAvroSchema(schema).toString();
     assertThat(output.length(), greaterThan(0));
   }
 

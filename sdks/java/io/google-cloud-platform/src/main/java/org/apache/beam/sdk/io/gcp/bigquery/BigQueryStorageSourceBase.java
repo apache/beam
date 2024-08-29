@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
+import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.bigquery.storage.v1.CreateReadSessionRequest;
 import com.google.cloud.bigquery.storage.v1.DataFormat;
 import com.google.cloud.bigquery.storage.v1.ReadSession;
@@ -180,7 +181,11 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
     // TODO: this is inconsistent with method above, where it can be null
     Preconditions.checkStateNotNull(targetTable);
 
-    BigQueryStorageReader<T> reader = readerFactory.getReader(targetTable, readSession);
+    TableSchema tableSchema = targetTable.getSchema();
+    if (selectedFieldsProvider != null) {
+      tableSchema = BigQueryUtils.trimSchema(tableSchema, selectedFieldsProvider.get());
+    }
+    BigQueryStorageReader<T> reader = readerFactory.getReader(tableSchema, readSession);
     List<BigQueryStorageStreamSource<T>> sources = Lists.newArrayList();
     for (ReadStream readStream : readSession.getStreamsList()) {
       sources.add(

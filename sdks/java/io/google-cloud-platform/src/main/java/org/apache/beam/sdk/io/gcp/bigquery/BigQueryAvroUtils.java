@@ -36,8 +36,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import org.apache.avro.Conversions;
 import org.apache.avro.LogicalType;
 import org.apache.avro.LogicalTypes;
@@ -172,41 +170,6 @@ class BigQueryAvroUtils {
       formatter = ISO_LOCAL_TIME_FORMATTER_MICROS;
     }
     return LocalTime.ofNanoOfDay(timeMicros * 1000).format(formatter);
-  }
-
-  static TableSchema trimBigQueryTableSchema(TableSchema inputSchema, Schema avroSchema) {
-    List<TableFieldSchema> subSchemas =
-        inputSchema.getFields().stream()
-            .flatMap(fieldSchema -> mapTableFieldSchema(fieldSchema, avroSchema))
-            .collect(Collectors.toList());
-
-    return new TableSchema().setFields(subSchemas);
-  }
-
-  private static Stream<TableFieldSchema> mapTableFieldSchema(
-      TableFieldSchema fieldSchema, Schema avroSchema) {
-    Field avroFieldSchema = avroSchema.getField(fieldSchema.getName());
-    if (avroFieldSchema == null) {
-      return Stream.empty();
-    } else if (avroFieldSchema.schema().getType() != Type.RECORD) {
-      return Stream.of(fieldSchema);
-    }
-
-    List<TableFieldSchema> subSchemas =
-        fieldSchema.getFields().stream()
-            .flatMap(subSchema -> mapTableFieldSchema(subSchema, avroFieldSchema.schema()))
-            .collect(Collectors.toList());
-
-    TableFieldSchema output =
-        new TableFieldSchema()
-            .setCategories(fieldSchema.getCategories())
-            .setDescription(fieldSchema.getDescription())
-            .setFields(subSchemas)
-            .setMode(fieldSchema.getMode())
-            .setName(fieldSchema.getName())
-            .setType(fieldSchema.getType());
-
-    return Stream.of(output);
   }
 
   /**
@@ -359,6 +322,10 @@ class BigQueryAvroUtils {
         namespace == null ? "org.apache.beam.sdk.io.gcp.bigquery" : namespace,
         false,
         avroFields);
+  }
+
+  static Schema toGenericAvroSchema(TableSchema tableSchema) {
+    return toGenericAvroSchema("root", tableSchema.getFields());
   }
 
   static Schema toGenericAvroSchema(String schemaName, List<TableFieldSchema> fieldSchemas) {

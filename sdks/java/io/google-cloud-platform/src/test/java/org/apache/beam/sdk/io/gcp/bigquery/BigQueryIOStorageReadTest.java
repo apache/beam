@@ -88,16 +88,10 @@ import org.apache.avro.io.DatumReader;
 import org.apache.avro.io.Encoder;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.util.Utf8;
-import org.apache.beam.sdk.coders.CoderRegistry;
-import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.avro.io.AvroDatumFactory;
-import org.apache.beam.sdk.extensions.protobuf.ByteStringCoder;
-import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TableRowAvroParser;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TableSchemaConverter;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.StorageClient;
@@ -183,11 +177,12 @@ public class BigQueryIOStorageReadTest {
 
   private static final BigQueryReaderFactory<TableRow> TABLE_ROW_AVRO_READER_FACTORY =
       BigQueryReaderFactory.avro(
-          TableSchemaConverter.INSTANCE, AvroDatumFactory.generic(), TableRowAvroParser.INSTANCE);
+          null, AvroDatumFactory.generic(), BigQueryAvroUtils::convertGenericRecordToTableRow);
 
   private static final BigQueryStorageReader<TableRow> TABLE_ROW_AVRO_READER =
       new BigQueryStorageAvroReader<>(
-          AvroDatumFactory.generic().apply(AVRO_SCHEMA, AVRO_SCHEMA), TableRowAvroParser.INSTANCE);
+          AvroDatumFactory.generic().apply(AVRO_SCHEMA, AVRO_SCHEMA),
+          BigQueryAvroUtils::convertGenericRecordToTableRow);
 
   private static final BigQueryStorageReader<TableRow> TABLE_ROW_ARROW_READER =
       new BigQueryStorageArrowReader<>(
@@ -345,22 +340,6 @@ public class BigQueryIOStorageReadTest {
             .withMethod(Method.DIRECT_READ)
             .from("foo.com:project:dataset.table")
             .getName());
-  }
-
-  @Test
-  public void testCoderInference() {
-    // Lambdas erase too much type information -- use an anonymous class here.
-    SerializableFunction<GenericRecord, KV<ByteString, ReadSession>> parseFn =
-        new SerializableFunction<GenericRecord, KV<ByteString, ReadSession>>() {
-          @Override
-          public KV<ByteString, ReadSession> apply(GenericRecord input) {
-            return null;
-          }
-        };
-
-    assertEquals(
-        KvCoder.of(ByteStringCoder.of(), ProtoCoder.of(ReadSession.class)),
-        BigQueryIO.readAvro(parseFn).inferCoder(CoderRegistry.createDefault()));
   }
 
   @Test

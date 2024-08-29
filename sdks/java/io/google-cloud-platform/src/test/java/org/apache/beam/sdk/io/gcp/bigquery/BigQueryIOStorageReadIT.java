@@ -26,7 +26,6 @@ import java.util.Map;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TableRowAvroParser;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.ConversionOptions;
 import org.apache.beam.sdk.options.Description;
@@ -132,12 +131,12 @@ public class BigQueryIOStorageReadIT {
     private int parseCount = 0;
 
     @Override
-    public TableRow apply(GenericRecord schemaAndRecord) {
+    public TableRow apply(GenericRecord record) {
       parseCount++;
       if (parseCount % 50 == 0) {
         throw new RuntimeException("ExpectedException");
       }
-      return TableRowAvroParser.INSTANCE.apply(schemaAndRecord);
+      return BigQueryAvroUtils.convertGenericRecordToTableRow(record);
     }
   }
 

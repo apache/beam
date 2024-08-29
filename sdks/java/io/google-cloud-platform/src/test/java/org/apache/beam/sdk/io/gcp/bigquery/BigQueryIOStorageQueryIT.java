@@ -24,7 +24,6 @@ import java.util.Map;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TableRowAvroParser;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.ExperimentalOptions;
@@ -126,7 +125,7 @@ public class BigQueryIOStorageQueryIT {
       if (parseCount % 50 == 0) {
         throw new RuntimeException("ExpectedException");
       }
-      return TableRowAvroParser.INSTANCE.apply(record);
+      return BigQueryAvroUtils.convertGenericRecordToTableRow(record);
     }
   }
 

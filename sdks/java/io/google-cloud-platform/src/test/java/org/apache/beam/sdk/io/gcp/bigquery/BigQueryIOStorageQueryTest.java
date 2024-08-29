@@ -58,13 +58,8 @@ import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.Encoder;
 import org.apache.avro.io.EncoderFactory;
-import org.apache.beam.sdk.coders.CoderRegistry;
-import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.extensions.avro.io.AvroDatumFactory;
-import org.apache.beam.sdk.extensions.protobuf.ByteStringCoder;
-import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.BoundedSource;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TableRowAvroParser;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.QueryPriority;
@@ -107,9 +102,7 @@ public class BigQueryIOStorageQueryTest {
 
   private static final BigQueryReaderFactory<TableRow> TABLE_ROW_AVRO_READER_FACTORY =
       BigQueryReaderFactory.avro(
-          BigQueryIO.TableSchemaConverter.INSTANCE,
-          AvroDatumFactory.generic(),
-          TableRowAvroParser.INSTANCE);
+          null, AvroDatumFactory.generic(), BigQueryAvroUtils::convertGenericRecordToTableRow);
 
   private transient BigQueryOptions options;
   private transient TemporaryFolder testFolder = new TemporaryFolder();
@@ -278,21 +271,6 @@ public class BigQueryIOStorageQueryTest {
   @Test
   public void testName() {
     assertEquals("BigQueryIO.TypedRead", getDefaultTypedRead().getName());
-  }
-
-  @Test
-  public void testCoderInference() {
-    SerializableFunction<GenericRecord, KV<ByteString, ReadSession>> parseFn =
-        new SerializableFunction<GenericRecord, KV<ByteString, ReadSession>>() {
-          @Override
-          public KV<ByteString, ReadSession> apply(GenericRecord input) {
-            return null;
-          }
-        };
-
-    assertEquals(
-        KvCoder.of(ByteStringCoder.of(), ProtoCoder.of(ReadSession.class)),
-        BigQueryIO.readAvro(parseFn).inferCoder(CoderRegistry.createDefault()));
   }
 
   @Test
