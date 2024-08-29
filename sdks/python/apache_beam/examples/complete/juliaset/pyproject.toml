@@ -15,10 +15,6 @@
 # limitations under the License.
 #
 
-[build-system]
-requires = ["setuptools"]
-build-backend = "setuptools.build_meta"
-
 [project]
 name = "juliaset"
 version = "0.0.1"
@@ -31,3 +27,7 @@ description = "Julia set workflow package."
 dependencies = [
   "numpy"
 ]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
