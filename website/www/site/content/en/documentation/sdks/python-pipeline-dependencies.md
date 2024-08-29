@@ -97,6 +97,10 @@ Often, your pipeline code spans multiple files. To run your project remotely, yo
 
 1. Create a [pyproject.toml](https://packaging.python.org/en/latest/tutorials/packaging-projects/) file for your project. The following is a very basic `pyproject.toml` file.
 
+        [build-system]
+        requires = ["setuptools"]
+        build-backend = "setuptools.build_meta"
+
         [project]
         name = "PACKAGE-NAME"
         version = "PACKAGE-VERSION"
@@ -104,9 +108,9 @@ Often, your pipeline code spans multiple files. To run your project remotely, yo
           # List Python packages your pipeline depends on.
         ]
 
-2. If needed by your environment, create a setup.py file for your project.
+2. If your package requires if some programmatic configuration, or you need to use the `--setup_file` pipeline option, create a setup.py file for your project.
 
-        # Note that the package is completely defined by pyproject.toml.
+        # Note that the package can be completely defined by pyproject.toml.
         # This file is optional.
         import setuptools
         setuptools.setup()
@@ -129,11 +133,13 @@ Often, your pipeline code spans multiple files. To run your project remotely, yo
 
         pip install -e .
 
-5. Run your pipeline with the following command-line option:
+5. If you use a [custom container](#custom-containers), copy and install the package in the container as well.
+
+6. Run your pipeline with the following command-line option:
 
         --setup_file /path/to/setup.py
 
-**Note:** It is not necessary to supply the `--requirements_file` [option](#pypi-dependencies) if the dependencies of your package are defined in the 
+**Note:** It is not necessary to supply the `--requirements_file` [option](#pypi-dependencies) if the dependencies of your package are defined in the
 `dependencies` field of the `pyproject.toml` file (see step 1). However unlike with the `--requirements_file` option, when you use the `--setup_file` option, Beam doesn't stage the dependent packages to the runner.
 Only the pipeline package is staged. If they aren't already provided in the runtime environment, the package dependencies are installed from PyPI at runtime.
 
