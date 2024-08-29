@@ -49,6 +49,9 @@ from typing import overload
 
 import grpc
 
+from apache_beam.coders import coders
+from apache_beam.coders import coder_impl
+from apache_beam.coders import TupleCoder, VarIntCoder, BytesCoder
 from apache_beam.io import filesystems
 from apache_beam.io.filesystems import CompressionTypes
 from apache_beam.portability import common_urns
@@ -1064,25 +1067,23 @@ class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer,
       raise NotImplementedError(
           'Unknown state type: ' + state_key.WhichOneof('type'))
 
-    with ((self._lock)):
+    with self._lock:
       if state_key.WhichOneof('type') == 'ordered_list_user_state':
-        from apache_beam.coders import coders
-        from apache_beam.coders import coder_impl
-        from apache_beam.coders import TupleCoder, VarIntCoder, BytesCoder
         coder = TupleCoder([VarIntCoder(), coders.LengthPrefixCoder(BytesCoder())]).get_impl()
 
         start = state_key.ordered_list_user_state.range.start
         end = state_key.ordered_list_user_state.range.end
-        state_key_to_store = beam_fn_api_pb2.StateKey()
-        state_key_to_store.CopyFrom(state_key)
-        state_key_to_store.ordered_list_user_state.ClearField("range")
+        persistent_state_key = beam_fn_api_pb2.StateKey()
+        persistent_state_key.CopyFrom(state_key)
+        persistent_state_key.ordered_list_user_state.ClearField("range")
 
-        if self._to_key(state_key_to_store) in self._ordered_list_keys:
+        if self._to_key(persistent_state_key) in self._ordered_list_keys:
           output = coder_impl.create_OutputStream()
-          for i in self._ordered_list_keys[self._to_key(state_key_to_store)].irange(start, end, inclusive=(True, False)):
-            state_key_to_store.ordered_list_user_state.range.start = i
-            state_key_to_store.ordered_list_user_state.range.end = i + 1
-            entries = self._state[self._to_key(state_key_to_store)]
+          available_keys = self._ordered_list_keys[self._to_key(persistent_state_key)]
+          for i in available_keys.irange(start, end, inclusive=(True, False)):
+            persistent_state_key.ordered_list_user_state.range.start = i
+            persistent_state_key.ordered_list_user_state.range.end = i + 1
+            entries = self._state[self._to_key(persistent_state_key)]
             for e in entries:
               coder.encode_to_stream(e, output, True)
           return output.get(), None
@@ -1124,11 +1125,11 @@ class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer,
           self._ordered_list_keys[self._to_key(state_key)] = SortedSet()
 
         for key, bytes in coder.decode_all(data):
-          state_key_to_access = beam_fn_api_pb2.StateKey()
-          state_key_to_access.CopyFrom(state_key)
-          state_key_to_access.ordered_list_user_state.range.start = key
-          state_key_to_access.ordered_list_user_state.range.end = key + 1
-          self._state[self._to_key(state_key_to_access)].append((key, bytes))
+          persistent_state_key = beam_fn_api_pb2.StateKey()
+          persistent_state_key.CopyFrom(state_key)
+          persistent_state_key.ordered_list_user_state.range.start = key
+          persistent_state_key.ordered_list_user_state.range.end = key + 1
+          self._state[self._to_key(persistent_state_key)].append((key, bytes))
           self._ordered_list_keys[self._to_key(state_key)].add(key)
       else:
         self._state[self._to_key(state_key)].append(data)
@@ -1141,22 +1142,20 @@ class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer,
         if state_key.WhichOneof('type') == 'ordered_list_user_state':
           start = state_key.ordered_list_user_state.range.start
           end = state_key.ordered_list_user_state.range.end
-          state_key_wo_range = beam_fn_api_pb2.StateKey()
-          state_key_wo_range.CopyFrom(state_key)
-          state_key_wo_range.ordered_list_user_state.ClearField("range")
+          persistent_state_key = beam_fn_api_pb2.StateKey()
+          persistent_state_key.CopyFrom(state_key)
+          persistent_state_key.ordered_list_user_state.ClearField("range")
+          available_keys = self._ordered_list_keys[self._to_key(persistent_state_key)]
 
           keys_to_remove = []
-          for i in self._ordered_list_keys[self._to_key(state_key_wo_range)].irange(start, end, inclusive=(True, False)):
+          for i in available_keys.irange(start, end, inclusive=(True, False)):
+            persistent_state_key.ordered_list_user_state.range.start = i
+            persistent_state_key.ordered_list_user_state.range.end = i + 1
+            del self._state[self._to_key(persistent_state_key)]
             keys_to_remove.append(i)
-            state_key_to_store = beam_fn_api_pb2.StateKey()
-            state_key_to_store.CopyFrom(state_key)
-            state_key_to_store.ordered_list_user_state.range.start = i
-            state_key_to_store.ordered_list_user_state.range.end = i + 1
-            key_string = self._to_key(state_key_to_store)
-            del self._state[self._to_key(state_key_to_store)]
 
           for i in keys_to_remove:
-            self._ordered_list_keys[self._to_key(state_key_wo_range)].remove(i)
+            available_keys.remove(i)
         else:
           del self._state[self._to_key(state_key)]
       except KeyError:
