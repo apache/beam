@@ -75,9 +75,7 @@ public class SnippetsTest implements Serializable {
       Snippets.modelBigQueryIO(p, project, dataset, table);
       p.run();
     } else {
-      BigQueryOptions options = PipelineOptionsFactory.create().as(BigQueryOptions.class);
-      options.setProject("apache-beam-testing");
-      Pipeline p = Pipeline.create(options);
+      Pipeline p = Pipeline.create();
       Snippets.modelBigQueryIO(p);
     }
   }

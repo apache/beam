@@ -1242,10 +1242,6 @@ public class BigQueryIO {
 
     @VisibleForTesting
     Coder<T> inferCoder(CoderRegistry coderRegistry, TableSchema tableSchema) {
-      if (getCoder() != null) {
-        return getCoder();
-      }
-
       try {
         TypeDescriptor<T> td = getTypeDescriptor();
         Class<?> rawType = td == null ? null : td.getRawType();
@@ -1453,13 +1449,26 @@ public class BigQueryIO {
       BigQueryOptions bqOptions = p.getOptions().as(BigQueryOptions.class);
       final BigQuerySourceDef sourceDef = createSourceDef();
 
+      // schema may need to be requested during graph creation to infer coder or beam schema
+      TableSchema tableSchema = null;
+
       // read table schema and infer coder if possible
-      TableSchema tableSchema = getTableSchema(sourceDef, bqOptions, getSelectedFields());
-      final Coder<T> coder = inferCoder(p.getCoderRegistry(), tableSchema);
+      Coder<T> c;
+      if (getCoder() == null) {
+        tableSchema = getTableSchema(sourceDef, bqOptions, getSelectedFields());
+        c = inferCoder(p.getCoderRegistry(), tableSchema);
+      } else {
+        c = getCoder();
+      }
+      final Coder<T> coder = c;
 
       Schema beamSchema = null;
       // if both toRowFn and fromRowFn values are set, enable Beam schema support
       if (getTypeDescriptor() != null && getToBeamRowFn() != null && getFromBeamRowFn() != null) {
+        tableSchema =
+            tableSchema != null
+                ? tableSchema
+                : getTableSchema(sourceDef, bqOptions, getSelectedFields());
         beamSchema = BigQueryUtils.fromTableSchema(tableSchema);
       }
 
