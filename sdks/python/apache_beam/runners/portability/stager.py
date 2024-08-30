@@ -280,10 +280,11 @@ class Stager(object):
           raise RuntimeError(
               'The file %s cannot be found. It was specified in the '
               '--setup_file command line option.' % setup_options.setup_file)
-        if os.path.basename(setup_options.setup_file) != 'setup.py':
+        if (os.path.basename(setup_options.setup_file) != 'setup.py' and
+            os.path.basename(setup_options.setup_file) != 'pyproject.toml'):
           raise RuntimeError(
               'The --setup_file option expects the full path to a file named '
-              'setup.py instead of %s' % setup_options.setup_file)
+              'setup.py or pyproject.toml, got: %s' % setup_options.setup_file)
         tarball_file = Stager._build_setup_package(
             setup_options.setup_file, temp_dir, build_setup_args)
         resources.append(

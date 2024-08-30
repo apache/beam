@@ -33,7 +33,13 @@ then staging the resulting tarball in the staging area. The workers, upon
 startup, will install the tarball.
 
 Below is a complete command line for running the juliaset workflow remotely as
-an example:
+an example.
+
+First, install the juliaset package in the submission environment:
+
+pip install -e .
+
+Then, launch a Beam job:
 
 python juliaset_main.py \
   --job_name juliaset-$USER \
@@ -52,7 +58,7 @@ python juliaset_main.py \
 
 import logging
 
-from apache_beam.examples.complete.juliaset.juliaset import juliaset
+from juliaset import juliaset
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

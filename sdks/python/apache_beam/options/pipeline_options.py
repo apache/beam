@@ -1392,14 +1392,16 @@ class SetupOptions(PipelineOptions):
         '--setup_file',
         default=None,
         help=(
-            'Path to a setup Python file containing package dependencies. If '
-            'specified, the file\'s containing folder is assumed to have the '
-            'structure required for a setuptools setup package. The file must '
-            'be named setup.py. More details: '
-            'https://pythonhosted.org/an_example_pypi_project/setuptools.html '
-            'During job submission a source distribution will be built and '
-            'the worker will install the resulting package before running any '
-            'custom code.'))
+            'Path to a file in that defines a Python package that needs to be '
+            'installed on Beam workers. '
+            'If specified, the file\'s containing folder must have the '
+            'structure required for a Python package. The file must '
+            'be named setup.py or pyproject.toml. '
+            'For information on distributing Python packages, see: '
+            'https://packaging.python.org/ '
+            'During job submission a source distribution of the package will '
+            'be built and workers will install the resulting package before '
+            'running the pipeline.'))
     parser.add_argument(
         '--beam_plugin',
         '--beam_plugins',

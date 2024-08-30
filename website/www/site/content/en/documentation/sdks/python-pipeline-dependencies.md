@@ -108,7 +108,7 @@ Often, your pipeline code spans multiple files. To run your project remotely, yo
           # List Python packages your pipeline depends on.
         ]
 
-2. If your package requires if some programmatic configuration, or you need to use the `--setup_file` pipeline option, create a setup.py file for your project.
+2. If your package requires if some programmatic configuration, or you need to use the `--setup_file` pipeline option on Beam SDK 2.59.0 or earlier, create a setup.py file for your project.
 
         # Note that the package can be completely defined by pyproject.toml.
         # This file is optional.
@@ -137,7 +137,8 @@ Often, your pipeline code spans multiple files. To run your project remotely, yo
 
 6. Run your pipeline with the following command-line option:
 
-        --setup_file /path/to/setup.py
+        --setup_file /path/to/setup.py OR
+        --setup_file /path/to/pyproject.toml (requires Beam SDK 2.60.0 or later).
 
 **Note:** It is not necessary to supply the `--requirements_file` [option](#pypi-dependencies) if the dependencies of your package are defined in the
 `dependencies` field of the `pyproject.toml` file (see step 1). However unlike with the `--requirements_file` option, when you use the `--setup_file` option, Beam doesn't stage the dependent packages to the runner.
@@ -147,19 +148,6 @@ Only the pipeline package is staged. If they aren't already provided in the runt
 ## Non-Python Dependencies or PyPI Dependencies with Non-Python Dependencies {#nonpython}
 
 If your pipeline uses non-Python packages, such as packages that require installation using the `apt install` command, or uses a PyPI package that depends on non-Python dependencies during package installation, we recommend installing them using a [custom container](#custom-containers).
-Otherwise, you must perform the following steps.
-
-1. [Structure your pipeline as a package](#multiple-file-dependencies).
-
-2. Add the required installation commands for the non-Python dependencies, such as the `apt install` commands, to the list of `CUSTOM_COMMANDS` in your `setup.py` file. See the [Juliaset setup.py file](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/complete/juliaset/setup.py) for an example.
-
-    **Note:** You must verify that these commands run on the remote worker. For example, if you use `apt`, the remote worker needs `apt` support.
-
-3. Run your pipeline with the following command-line option:
-
-        --setup_file /path/to/setup.py
-
-**Note:** Because custom commands execute after the dependencies for your workflow are installed (by `pip`), you should omit the PyPI package dependency from the pipeline's `requirements.txt` file and from the `install_requires` parameter in the `setuptools.setup()` call of your `setup.py` file.
 
 ## Pre-building SDK Container Image
 

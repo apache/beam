@@ -27,7 +27,3 @@ description = "Julia set workflow package."
 dependencies = [
   "numpy"
 ]
-
-[build-system]
-requires = ["setuptools"]
-build-backend = "setuptools.build_meta"
