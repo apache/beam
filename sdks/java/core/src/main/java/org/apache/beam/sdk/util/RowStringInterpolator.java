@@ -43,16 +43,16 @@ import org.joda.time.Instant;
  * <p>The {@link RowStringInterpolator} looks for field names specified inside {curly braces}. For
  * example, if the interpolator is configured with the String {@code "unified {foo} and streaming"},
  * it will look for a field name {@code "foo"} in the input {@link Row} and substitute in that
- * value. A {@link RowStringInterpolator} configured with a template String that contains no
- * placeholders (i.e. no curly braces), it will always return that String, untouched.
+ * value. If a {@link RowStringInterpolator} is configured with a template String that contains no
+ * placeholders (i.e. no curly braces), it will simply return that String, untouched.
  *
  * <p>Nested fields can be specified using dot-notation (e.g. {@code "top.middle.nested"}).
  *
  * <p>Configure a {@link RowStringInterpolator} like so:
  *
  * <pre>{@code
- * String template = "unified {foo} and {bar.baz}!"
- * Row inputRow = ...
+ * String template = "unified {foo} and {bar.baz}!";
+ * Row inputRow = {foo: "batch", bar: {baz: "streaming"}, ...};
  *
  * RowStringInterpolator interpolator = new RowStringInterpolator(template, beamSchema);
  * String output = interpolator.interpolate(inputRow);
@@ -60,8 +60,8 @@ import org.joda.time.Instant;
  * }</pre>
  *
  * <p>Additionally, {@link #interpolate(Row, BoundedWindow, PaneInfo, Instant)} can be used in
- * streaming scenarios when you want to include windowing metadata in the output String. To make use
- * of this, include the relevant placeholder:
+ * streaming scenarios to substitute windowing metadata into the template String. To make use of
+ * this, use the relevant placeholder:
  *
  * <ul>
  *   <li>$WINDOW: the window's string representation
@@ -76,106 +76,106 @@ import org.joda.time.Instant;
  * <pre>{@code "unified {foo} and {bar} since {$YYYY}-{$MM}!"}</pre>
  */
 public class RowStringInterpolator implements Serializable {
-    private final String template;
-    private final Set<String> fieldsToReplace;
-    public static final String WINDOW = "$WINDOW";
-    public static final String PANE_INDEX = "$PANE_INDEX";
-    public static final String YYYY = "$YYYY";
-    public static final String MM = "$MM";
-    public static final String DD = "$DD";
-    private static final Set<String> WINDOWING_METADATA =
-            Sets.newHashSet(WINDOW, PANE_INDEX, YYYY, MM, DD);
+  private final String template;
+  private final Set<String> fieldsToReplace;
+  public static final String WINDOW = "$WINDOW";
+  public static final String PANE_INDEX = "$PANE_INDEX";
+  public static final String YYYY = "$YYYY";
+  public static final String MM = "$MM";
+  public static final String DD = "$DD";
+  private static final Set<String> WINDOWING_METADATA =
+      Sets.newHashSet(WINDOW, PANE_INDEX, YYYY, MM, DD);
 
-    public RowStringInterpolator(String template, Schema rowSchema) {
-        this.template = template;
+  public RowStringInterpolator(String template, Schema rowSchema) {
+    this.template = template;
 
-        Matcher m = Pattern.compile("\\{(.+?)}").matcher(template);
-        fieldsToReplace = new HashSet<>();
-        while (m.find()) {
-            fieldsToReplace.add(StringUtils.strip(m.group(), "{}"));
-        }
-
-        List<String> rowFields =
-                fieldsToReplace.stream()
-                        .filter(f -> !WINDOWING_METADATA.contains(f))
-                        .collect(Collectors.toList());
-
-        RowFilter.validateSchemaContainsFields(rowSchema, rowFields, "string interpolation");
+    Matcher m = Pattern.compile("\\{(.+?)}").matcher(template);
+    fieldsToReplace = new HashSet<>();
+    while (m.find()) {
+      fieldsToReplace.add(StringUtils.strip(m.group(), "{}"));
     }
 
-    /** Performs string interpolation on the template using values from the input {@link Row}. */
-    public String interpolate(Row row) {
-        String interpolated = this.template;
-        for (String field : fieldsToReplace) {
-            List<String> levels = Splitter.on(".").splitToList(field);
+    List<String> rowFields =
+        fieldsToReplace.stream()
+            .filter(f -> !WINDOWING_METADATA.contains(f))
+            .collect(Collectors.toList());
 
-            Object val = MoreObjects.firstNonNull(getValue(row, levels, 0), "");
+    RowFilter.validateSchemaContainsFields(rowSchema, rowFields, "string interpolation");
+  }
 
-            interpolated = interpolated.replace("{" + field + "}", String.valueOf(val));
-        }
-        return interpolated;
+  /** Performs string interpolation on the template using values from the input {@link Row}. */
+  public String interpolate(Row row) {
+    String interpolated = this.template;
+    for (String field : fieldsToReplace) {
+      List<String> levels = Splitter.on(".").splitToList(field);
+
+      Object val = MoreObjects.firstNonNull(getValue(row, levels, 0), "");
+
+      interpolated = interpolated.replace("{" + field + "}", String.valueOf(val));
+    }
+    return interpolated;
+  }
+
+  /** Like {@link #interpolate(Row)} but also potentially include windowing information. */
+  public String interpolate(Row row, BoundedWindow window, PaneInfo paneInfo, Instant timestamp) {
+    String interpolated = this.template;
+    for (String field : fieldsToReplace) {
+      Object val;
+      switch (field) {
+        case WINDOW:
+          val = window.toString();
+          break;
+        case PANE_INDEX:
+          val = paneInfo.getIndex();
+          break;
+        case YYYY:
+          val = timestamp.getChronology().year().get(timestamp.getMillis());
+          break;
+        case MM:
+          val = timestamp.getChronology().monthOfYear().get(timestamp.getMillis());
+          break;
+        case DD:
+          val = timestamp.getChronology().dayOfMonth().get(timestamp.getMillis());
+          break;
+        default:
+          List<String> levels = Splitter.on(".").splitToList(field);
+          val = MoreObjects.firstNonNull(getValue(row, levels, 0), "");
+          break;
+      }
+
+      interpolated = interpolated.replace("{" + field + "}", String.valueOf(val));
+    }
+    return interpolated;
+  }
+
+  private @Nullable Object getValue(@Nullable Row row, List<String> fieldLevels, int index) {
+    if (row == null || fieldLevels.isEmpty()) {
+      return null;
+    }
+    Preconditions.checkState(
+        index < fieldLevels.size(),
+        "'%s' only goes %s levels deep. Invalid attempt to check for depth at level %s",
+        String.join(".", fieldLevels),
+        fieldLevels.size(),
+        index);
+
+    String currentField = fieldLevels.get(index);
+    Object val;
+    try {
+      val = row.getValue(currentField);
+    } catch (IllegalArgumentException e) {
+      throw new RuntimeException(
+          String.format(
+              "Invalid row does not contain field '%s'.",
+              String.join(".", fieldLevels.subList(0, index + 1))),
+          e);
     }
 
-    /** Like {@link #interpolate(Row)} but also potentially include windowing information. */
-    public String interpolate(Row row, BoundedWindow window, PaneInfo paneInfo, Instant timestamp) {
-        String interpolated = this.template;
-        for (String field : fieldsToReplace) {
-            Object val;
-            switch (field) {
-                case WINDOW:
-                    val = window.toString();
-                    break;
-                case PANE_INDEX:
-                    val = paneInfo.getIndex();
-                    break;
-                case YYYY:
-                    val = timestamp.getChronology().year().get(timestamp.getMillis());
-                    break;
-                case MM:
-                    val = timestamp.getChronology().monthOfYear().get(timestamp.getMillis());
-                    break;
-                case DD:
-                    val = timestamp.getChronology().dayOfMonth().get(timestamp.getMillis());
-                    break;
-                default:
-                    List<String> levels = Splitter.on(".").splitToList(field);
-                    val = MoreObjects.firstNonNull(getValue(row, levels, 0), "");
-                    break;
-            }
-
-            interpolated = interpolated.replace("{" + field + "}", String.valueOf(val));
-        }
-        return interpolated;
+    // base case: we've reached the target
+    if (index == fieldLevels.size() - 1) {
+      return val;
     }
 
-    private @Nullable Object getValue(@Nullable Row row, List<String> fieldLevels, int index) {
-        if (row == null || fieldLevels.isEmpty()) {
-            return null;
-        }
-        Preconditions.checkState(
-                index < fieldLevels.size(),
-                "'%s' only goes %s levels deep. Invalid attempt to check for depth at level %s",
-                String.join(".", fieldLevels),
-                fieldLevels.size(),
-                index);
-
-        String currentField = fieldLevels.get(index);
-        Object val;
-        try {
-            val = row.getValue(currentField);
-        } catch (IllegalArgumentException e) {
-            throw new RuntimeException(
-                    String.format(
-                            "Invalid row does not contain field '%s'.",
-                            String.join(".", fieldLevels.subList(0, index + 1))),
-                    e);
-        }
-
-        // base case: we've reached the target
-        if (index == fieldLevels.size() - 1) {
-            return val;
-        }
-
-        return getValue((Row) val, fieldLevels, ++index);
-    }
+    return getValue((Row) val, fieldLevels, ++index);
+  }
 }
