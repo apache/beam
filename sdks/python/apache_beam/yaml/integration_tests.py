@@ -22,10 +22,11 @@ import copy
 import glob
 import itertools
 import logging
-import mock
 import os
 import unittest
 import uuid
+
+import mock
 import yaml
 
 import apache_beam as beam
@@ -35,7 +36,8 @@ from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.io.gcp.spanner_wrapper import SpannerWrapper
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.utils import python_callable
-from apache_beam.yaml import yaml_provider, yaml_transform
+from apache_beam.yaml import yaml_provider
+from apache_beam.yaml import yaml_transform
 
 
 @contextlib.contextmanager
