@@ -253,11 +253,7 @@ public class ArrowConversion {
       RootAllocator allocator)
       throws IOException {
     return rowsFromSerializedRecordBatch(
-        arrowSchema,
-        ArrowSchemaTranslator.toBeamSchema(arrowSchema),
-        inputStream,
-        allocator
-    );
+        arrowSchema, ArrowSchemaTranslator.toBeamSchema(arrowSchema), inputStream, allocator);
   }
 
   public static RecordBatchRowIterator rowsFromSerializedRecordBatch(
@@ -271,7 +267,7 @@ public class ArrowConversion {
     vectorRoot.clear();
     try (ReadChannel read = new ReadChannel(Channels.newChannel(inputStream))) {
       try (ArrowRecordBatch arrowMessage =
-               MessageSerializer.deserializeRecordBatch(read, allocator)) {
+          MessageSerializer.deserializeRecordBatch(read, allocator)) {
         vectorLoader.load(arrowMessage);
       }
     }

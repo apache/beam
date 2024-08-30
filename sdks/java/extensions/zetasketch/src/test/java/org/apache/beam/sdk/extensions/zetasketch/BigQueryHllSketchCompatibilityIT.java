@@ -33,7 +33,6 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
@@ -182,8 +181,7 @@ public class BigQueryHllSketchCompatibilityIT {
     SerializableFunction<GenericRecord, byte[]> parseQueryResultToByteArray =
         record ->
             // BigQuery BYTES type corresponds to Java java.nio.ByteBuffer type
-            HllCount.getSketchFromByteBuffer(
-                (ByteBuffer) record.get(QUERY_RESULT_FIELD_NAME));
+            HllCount.getSketchFromByteBuffer((ByteBuffer) record.get(QUERY_RESULT_FIELD_NAME));
 
     TestPipelineOptions options =
         TestPipeline.testingPipelineOptions().as(TestPipelineOptions.class);
