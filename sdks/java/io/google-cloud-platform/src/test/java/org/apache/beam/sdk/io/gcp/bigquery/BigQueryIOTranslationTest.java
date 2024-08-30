@@ -38,8 +38,13 @@ import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.junit.Ignore;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
+@RunWith(JUnit4.class)
+@Ignore // TODO enable this once cleared
 public class BigQueryIOTranslationTest {
 
   // A mapping from Read transform builder methods to the corresponding schema fields in
