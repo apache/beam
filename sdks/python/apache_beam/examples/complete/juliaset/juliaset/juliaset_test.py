@@ -27,7 +27,7 @@ import unittest
 
 import pytest
 
-from apache_beam.examples.complete.juliaset.src.juliaset import juliaset
+from apache_beam.examples.complete.juliaset.juliaset import juliaset
 from apache_beam.testing.util import open_shards
 
 

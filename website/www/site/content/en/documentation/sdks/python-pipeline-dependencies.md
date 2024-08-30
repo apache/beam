@@ -95,53 +95,43 @@ If your pipeline uses packages that are not available publicly (e.g. packages th
 
 Often, your pipeline code spans multiple files. To run your project remotely, you must group these files as a Python package and specify the package when you run your pipeline. When the remote workers start, they will install your package. To group your files as a Python package and make it available remotely, perform the following steps:
 
-1. Create a [pyproject.toml](https://packaging.python.org/en/latest/tutorials/packaging-projects/) file for your project. The following is a very basic `pyproject.toml` file.
+1. Create a [setup.py](https://pythonhosted.org/an_example_pypi_project/setuptools.html) file for your project. The following is a very basic `setup.py` file.
 
-        [build-system]
-        requires = ["setuptools"]
-        build-backend = "setuptools.build_meta"
-
-        [project]
-        name = "PACKAGE-NAME"
-        version = "PACKAGE-VERSION"
-        dependencies = [
-          # List Python packages your pipeline depends on.
-        ]
-
-2. If your package requires if some programmatic configuration, or you need to use the `--setup_file` pipeline option, create a setup.py file for your project.
-
-        # Note that the package can be completely defined by pyproject.toml.
-        # This file is optional.
         import setuptools
-        setuptools.setup()
 
-3. Structure your project so that the root directory contains the `pyproject.toml`, the `setup.py` file, and a `src/` directory with the rest of the files. For example:
+        setuptools.setup(
+           name='PACKAGE-NAME',
+           version='PACKAGE-VERSION',
+           install_requires=[
+             # List Python packages your pipeline depends on.
+           ],
+           packages=setuptools.find_packages(),
+        )
+
+2. Structure your project so that the root directory contains the `setup.py` file, the main workflow file, and a directory with the rest of the files, for example:
 
         root_dir/
-          pyproject.toml
           setup.py
-          src/
-            main.py
-            my_package/
-              my_pipeline_launcher.py
-              my_custom_dofns_and_transforms.py
-              other_utils_and_helpers.py
+          main.py
+          my_package/
+            my_pipeline_launcher.py
+            my_custom_dofns_and_transforms.py
+            other_utils_and_helpers.py
 
     See [Juliaset](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/complete/juliaset) for an example that follows this project structure.
 
-4. Install your package in the submission environment, for example by using the following command:
+3. Install your package in the submission environment, for example by using the following command:
 
         pip install -e .
 
-5. If you use a [custom container](#custom-containers), copy and install the package in the container as well.
-
-6. Run your pipeline with the following command-line option:
+4. Run your pipeline with the following command-line option:
 
         --setup_file /path/to/setup.py
 
-**Note:** It is not necessary to supply the `--requirements_file` [option](#pypi-dependencies) if the dependencies of your package are defined in the
-`dependencies` field of the `pyproject.toml` file (see step 1). However unlike with the `--requirements_file` option, when you use the `--setup_file` option, Beam doesn't stage the dependent packages to the runner.
-Only the pipeline package is staged. If they aren't already provided in the runtime environment, the package dependencies are installed from PyPI at runtime.
+**Note:** It is not necessary to supply the `--requirements_file` [option](#pypi-dependencies) if the dependencies of your package are defined in the `install_requires` field of the `setup.py` file (see step 1).
+However unlike with the `--requirements_file` option, when you use the `--setup_file` option, Beam doesn't stage the dependent packages to the runner.
+Only the pipeline package is staged. If they aren't already provided in the runtime environment,
+the package dependencies are installed from PyPI at runtime.
 
 
 ## Non-Python Dependencies or PyPI Dependencies with Non-Python Dependencies {#nonpython}
