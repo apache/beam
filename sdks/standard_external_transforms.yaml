@@ -19,7 +19,7 @@
 # configuration in /sdks/standard_expansion_services.yaml.
 # Refer to gen_xlang_wrappers.py for more info.
 #
-# Last updated on: 2024-04-18
+# Last updated on: 2024-08-30
 
 - default_service: sdks:java:io:expansion-service:shadowJar
   description: 'Outputs a PCollection of Beam Rows, each containing a single INT64
@@ -51,3 +51,45 @@
       type: numpy.int64
   identifier: beam:schematransform:org.apache.beam:generate_sequence:v1
   name: GenerateSequence
+- default_service: sdks:java:io:expansion-service:shadowJar
+  description: ''
+  destinations:
+    python: apache_beam/io
+  fields:
+    connection_configuration:
+      description: Configuration options to set up the MQTT connection.
+      nullable: false
+      type: Row(client_id=typing.Union[str, NoneType], password=typing.Union[str,
+        NoneType], server_uri=<class 'str'>, topic=<class 'str'>, username=typing.Union[str,
+        NoneType])
+    max_num_records:
+      description: The max number of records to receive. Setting this will result
+        in a bounded PCollection.
+      nullable: true
+      type: numpy.int64
+    max_read_time_seconds:
+      description: The maximum time for this source to read messages. Setting this
+        will result in a bounded PCollection.
+      nullable: true
+      type: numpy.int64
+  identifier: beam:schematransform:org.apache.beam:mqtt_read:v1
+  name: MqttRead
+- default_service: sdks:java:io:expansion-service:shadowJar
+  description: ''
+  destinations:
+    python: apache_beam/io
+  fields:
+    connection_configuration:
+      description: Configuration options to set up the MQTT connection.
+      nullable: false
+      type: Row(client_id=typing.Union[str, NoneType], password=typing.Union[str,
+        NoneType], server_uri=<class 'str'>, topic=<class 'str'>, username=typing.Union[str,
+        NoneType])
+    retained:
+      description: Whether or not the publish message should be retained by the messaging
+        engine. When a subscriber connects, it gets the latest retained message. Defaults
+        to `False`, which will clear the retained message from the server.
+      nullable: true
+      type: bool
+  identifier: beam:schematransform:org.apache.beam:mqtt_write:v1
+  name: MqttWrite
