@@ -47,12 +47,6 @@ def gcs_temp_dir(bucket):
   filesystems.FileSystems.delete([gcs_tempdir])
 
 
-import contextlib
-import uuid
-import logging
-from google.cloud import spanner
-
-
 @contextlib.contextmanager
 def temp_spanner_table(project, prefix='temp_spanner_db_'):
   spanner_client = SpannerWrapper(project)

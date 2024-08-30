@@ -17,7 +17,6 @@
 
 import logging
 import uuid
-import apache_beam as beam
 from apache_beam.utils import retry
 
 try:
