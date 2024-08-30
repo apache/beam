@@ -356,8 +356,6 @@ if __name__ == '__main__':
           'grpcio>=1.33.1,<2,!=1.48.0,!=1.59.*,!=1.60.*,!=1.61.*,!=1.62.0,!=1.62.1',  # pylint: disable=line-too-long
           'hdfs>=2.1.0,<3.0.0',
           'httplib2>=0.8,<0.23.0',
-          # https://github.com/PiotrDabkowski/Js2Py/issues/317
-          'js2py>=0.74,<1; python_version<"3.12"',
           'jsonschema>=4.0.0,<5.0.0',
           'jsonpickle>=3.0.0,<4.0.0',
           # numpy can have breaking changes in minor versions.
@@ -514,6 +512,8 @@ if __name__ == '__main__':
               'jinja2>=3.0,<3.1',
               'pyyaml>=3.12,<7.0.0',
               'virtualenv-clone>=0.5,<1.0',
+              # https://github.com/PiotrDabkowski/Js2Py/issues/317
+              'js2py>=0.74,<1; python_version<"3.12"',
           ] + dataframe_dependency
       },
       zip_safe=False,
