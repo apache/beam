@@ -22,7 +22,10 @@ For internal use only; no backwards-compatibility guarantees.
 import apache_beam as beam
 from apache_beam.pipeline import AppliedPTransform
 from apache_beam.pipeline import PipelineVisitor
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.interactive import interactive_environment as ie
+from apache_beam.runners.interactive import pipeline_instrument as inst
+from apache_beam.runners.interactive import utils
 from apache_beam.testing.test_stream import TestStream
 
 
@@ -104,23 +107,42 @@ class PipelineFragment(object):
 
   def run(self, display_pipeline_graph=False, use_cache=True, blocking=False):
     """Shorthand to run the pipeline fragment."""
+    fragment = self.deduce_fragment()
     from apache_beam.runners.interactive.interactive_runner import InteractiveRunner
-    if not isinstance(self._runner_pipeline.runner, InteractiveRunner):
-      raise RuntimeError(
-          'Please specify InteractiveRunner when creating '
-          'the Beam pipeline to use this function.')
     try:
-      preserved_skip_display = self._runner_pipeline.runner._skip_display
-      preserved_force_compute = self._runner_pipeline.runner._force_compute
-      preserved_blocking = self._runner_pipeline.runner._blocking
-      self._runner_pipeline.runner._skip_display = not display_pipeline_graph
-      self._runner_pipeline.runner._force_compute = not use_cache
-      self._runner_pipeline.runner._blocking = blocking
-      return self.deduce_fragment().run()
+      if isinstance(self._runner_pipeline.runner, InteractiveRunner):
+        preserved_skip_display = self._runner_pipeline.runner._skip_display
+        preserved_force_compute = self._runner_pipeline.runner._force_compute
+        preserved_blocking = self._runner_pipeline.runner._blocking
+        self._runner_pipeline.runner._skip_display = not display_pipeline_graph
+        self._runner_pipeline.runner._force_compute = not use_cache
+        self._runner_pipeline.runner._blocking = blocking
+        return fragment.run()
+      else:
+        pipeline_instrument = inst.build_pipeline_instrument(
+            fragment, self._runner_pipeline._options)
+        pipeline_instrument_proto = (
+            pipeline_instrument.instrumented_pipeline_proto())
+        if any(pcoll.is_bounded == beam_runner_api_pb2.IsBounded.UNBOUNDED
+               for pcoll in
+               pipeline_instrument_proto.components.pcollections.values()):
+          raise RuntimeError(
+              'Please specify InteractiveRunner when creating '
+              'the Beam pipeline to use this function '
+              'on unbouded PCollections.')
+        result = beam.pipeline.Pipeline.from_runner_api(
+            pipeline_instrument_proto,
+            self._runner_pipeline.runner,
+            self._runner_pipeline._options).run()
+        result.wait_until_finish()
+        ie.current_env().mark_pcollection_computed(
+            pipeline_instrument.cached_pcolls)
+        return result
     finally:
-      self._runner_pipeline.runner._skip_display = preserved_skip_display
-      self._runner_pipeline.runner._force_compute = preserved_force_compute
-      self._runner_pipeline.runner._blocking = preserved_blocking
+      if isinstance(self._runner_pipeline.runner, InteractiveRunner):
+        self._runner_pipeline.runner._skip_display = preserved_skip_display
+        self._runner_pipeline.runner._force_compute = preserved_force_compute
+        self._runner_pipeline.runner._blocking = preserved_blocking
 
   def _build_runner_pipeline(self):
     runner_pipeline = beam.pipeline.Pipeline.from_runner_api(

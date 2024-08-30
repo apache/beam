@@ -384,10 +384,16 @@ class RecordingManager:
       self,
       pcolls: List[beam.pvalue.PCollection],
       max_n: int,
-      max_duration: Union[int, str]) -> Recording:
+      max_duration: Union[int, str],
+      force_compute: bool = False) -> Recording:
     # noqa: F821
 
     """Records the given PCollections."""
+
+    if not ie.current_env().options.enable_recording_replay:
+      capture_control.evict_captured_data()
+    if force_compute:
+      ie.current_env().evict_computed_pcollections()
 
     # Assert that all PCollection come from the same user_pipeline.
     for pcoll in pcolls:
