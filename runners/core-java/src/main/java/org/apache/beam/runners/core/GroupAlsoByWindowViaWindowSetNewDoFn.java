@@ -126,7 +126,8 @@ public class GroupAlsoByWindowViaWindowSetNewDoFn<
         new ReduceFnRunner<>(
             key,
             windowingStrategy,
-            ExecutableTriggerStateMachine.create(TriggerStateMachines.stateMachineForTrigger(triggerProto)),
+            ExecutableTriggerStateMachine.create(
+                TriggerStateMachines.stateMachineForTrigger(triggerProto)),
             stateInternals,
             timerInternals,
             outputWindowedValue(),
