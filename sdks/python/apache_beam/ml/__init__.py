@@ -16,3 +16,5 @@
 #
 
 """Contains packages for supported machine learning transforms."""
+
+from apache_beam.ml.transforms.base import MLTransform

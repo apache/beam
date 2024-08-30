@@ -22,6 +22,7 @@
 import copy
 import platform
 import unittest
+import uuid
 
 import mock
 import pytest
@@ -30,7 +31,7 @@ import apache_beam as beam
 from apache_beam import typehints
 from apache_beam.coders import BytesCoder
 from apache_beam.io import Read
-from apache_beam.metrics import Metrics
+from apache_beam.io.iobase import SourceBase
 from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.pipeline import Pipeline
 from apache_beam.pipeline import PipelineOptions
@@ -40,7 +41,6 @@ from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.pvalue import AsSingleton
 from apache_beam.pvalue import TaggedOutput
-from apache_beam.runners.dataflow.native_io.iobase import NativeSource
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -61,39 +61,9 @@ from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils import windowed_value
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 
-# TODO(BEAM-1555): Test is failing on the service, with FakeSource.
 
-
-class FakeSource(NativeSource):
-  """Fake source returning a fixed list of values."""
-  class _Reader(object):
-    def __init__(self, vals):
-      self._vals = vals
-      self._output_counter = Metrics.counter('main', 'outputs')
-
-    def __enter__(self):
-      return self
-
-    def __exit__(self, exception_type, exception_value, traceback):
-      pass
-
-    def __iter__(self):
-      for v in self._vals:
-        self._output_counter.inc()
-        yield v
-
-  def __init__(self, vals):
-    self._vals = vals
-
-  def reader(self):
-    return FakeSource._Reader(self._vals)
-
-
-class FakeUnboundedSource(NativeSource):
+class FakeUnboundedSource(SourceBase):
   """Fake unbounded source. Does not work at runtime"""
-  def reader(self):
-    return None
-
   def is_bounded(self):
     return False
 
@@ -259,24 +229,6 @@ class PipelineTest(unittest.TestCase):
       pcoll = pipeline | 'label' >> Create([[1, 2, 3]])
       assert_that(pcoll, equal_to([[1, 2, 3]]))
 
-  # TODO(BEAM-1555): Test is failing on the service, with FakeSource.
-  # @pytest.mark.it_validatesrunner
-  def test_metrics_in_fake_source(self):
-    pipeline = TestPipeline()
-    pcoll = pipeline | Read(FakeSource([1, 2, 3, 4, 5, 6]))
-    assert_that(pcoll, equal_to([1, 2, 3, 4, 5, 6]))
-    res = pipeline.run()
-    metric_results = res.metrics().query()
-    outputs_counter = metric_results['counters'][0]
-    self.assertEqual(outputs_counter.key.step, 'Read')
-    self.assertEqual(outputs_counter.key.metric.name, 'outputs')
-    self.assertEqual(outputs_counter.committed, 6)
-
-  def test_fake_read(self):
-    with TestPipeline() as pipeline:
-      pcoll = pipeline | 'read' >> Read(FakeSource([1, 2, 3]))
-      assert_that(pcoll, equal_to([1, 2, 3]))
-
   def test_visit_entire_graph(self):
     pipeline = Pipeline()
     pcoll1 = pipeline | 'pcoll' >> beam.Impulse()
@@ -312,8 +264,39 @@ class PipelineTest(unittest.TestCase):
     self.assertEqual(
         cm.exception.args[0],
         'A transform with label "CustomTransform" already exists in the '
-        'pipeline. To apply a transform with a specified label write '
-        'pvalue | "label" >> transform')
+        'pipeline. To apply a transform with a specified label, write '
+        'pvalue | "label" >> transform or use the option '
+        '"auto_unique_labels" to automatically generate unique '
+        'transform labels. Note "auto_unique_labels" '
+        'could cause data loss when updating a pipeline or '
+        'reloading the job state. This is not recommended for '
+        'streaming jobs.')
+
+  def test_auto_unique_labels(self):
+
+    opts = PipelineOptions(["--auto_unique_labels"])
+    with mock.patch.object(uuid, 'uuid4') as mock_uuid_gen:
+      mock_uuids = [mock.Mock(hex='UUID01XXX'), mock.Mock(hex='UUID02XXX')]
+      mock_uuid_gen.side_effect = mock_uuids
+      with TestPipeline(options=opts) as pipeline:
+        pcoll = pipeline | 'pcoll' >> Create([1, 2, 3])
+
+        def identity(x):
+          return x
+
+        pcoll2 = pcoll | Map(identity)
+        pcoll3 = pcoll2 | Map(identity)
+        pcoll4 = pcoll3 | Map(identity)
+        assert_that(pcoll4, equal_to([1, 2, 3]))
+
+    map_id_full_labels = {
+        label
+        for label in pipeline.applied_labels if "Map(identity)" in label
+    }
+    map_id_leaf_labels = {label.split(":")[-1] for label in map_id_full_labels}
+    # Only the first 6 chars of the UUID hex should be used
+    assert map_id_leaf_labels == set(
+        ["Map(identity)", "Map(identity)_UUID01", "Map(identity)_UUID02"])
 
   def test_reuse_cloned_custom_transform_instance(self):
     with TestPipeline() as pipeline:
@@ -812,6 +795,20 @@ class DoFnTest(unittest.TestCase):
           ]),
           label='CheckGrouped')
 
+  def test_context_params(self):
+    def test_map(
+        x,
+        context_a=DoFn.BundleContextParam(_TestContext, args=('a')),
+        context_b=DoFn.BundleContextParam(_TestContext, args=('b')),
+        context_c=DoFn.SetupContextParam(_TestContext, args=('c'))):
+      return (x, context_a, context_b, context_c)
+
+    self.assertEqual(_TestContext.live_contexts, 0)
+    with TestPipeline() as p:
+      pcoll = p | Create([1, 2]) | beam.Map(test_map)
+      assert_that(pcoll, equal_to([(1, 'a', 'b', 'c'), (2, 'a', 'b', 'c')]))
+    self.assertEqual(_TestContext.live_contexts, 0)
+
   def test_incomparable_default(self):
     class IncomparableType(object):
       def __eq__(self, other):
@@ -831,6 +828,21 @@ class DoFnTest(unittest.TestCase):
           | beam.Create([None])
           | Map(lambda e, x=IncomparableType(): (e, type(x).__name__)))
       assert_that(pcoll, equal_to([(None, 'IncomparableType')]))
+
+
+class _TestContext:
+
+  live_contexts = 0
+
+  def __init__(self, value):
+    self._value = value
+
+  def __enter__(self):
+    _TestContext.live_contexts += 1
+    return self._value
+
+  def __exit__(self, *args):
+    _TestContext.live_contexts -= 1
 
 
 class Bacon(PipelineOptions):
@@ -894,7 +906,9 @@ class PipelineOptionsTest(unittest.TestCase):
         'slices',
         'style',
         'view_as',
-        'display_data'
+        'display_data',
+        'from_runner_api',
+        'to_runner_api',
     },
                      {
                          attr
@@ -906,7 +920,9 @@ class PipelineOptionsTest(unittest.TestCase):
         'get_all_options',
         'style',
         'view_as',
-        'display_data'
+        'display_data',
+        'from_runner_api',
+        'to_runner_api',
     },
                      {
                          attr

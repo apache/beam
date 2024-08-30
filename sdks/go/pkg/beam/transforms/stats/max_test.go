@@ -19,9 +19,15 @@ import (
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 )
+
+func init() {
+	register.Function2x1(kvToStudent)
+	register.Function1x2(studentToKV)
+}
 
 type student struct {
 	Name  string

@@ -69,6 +69,11 @@ public abstract class ReadOperation implements Serializable {
 
     abstract Builder setKeySet(KeySet keySet);
 
+    /**
+     * Note: {@link PartitionOptions} are currently ignored. See <a
+     * href="https://cloud.google.com/spanner/docs/reference/rpc/google.spanner.v1#google.spanner.v1.PartitionOptions">
+     * PartitionOptions in RPC documents</a>
+     */
     abstract Builder setPartitionOptions(PartitionOptions partitionOptions);
 
     abstract ReadOperation build();

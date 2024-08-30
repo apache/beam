@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rule;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -57,7 +57,7 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexUtil;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.RelBuilder;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.RelBuilderFactory;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.Pair;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)

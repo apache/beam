@@ -49,9 +49,9 @@ import org.apache.beam.sdk.transforms.Watch;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.FluentIterable;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
 import org.joda.time.Duration;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -144,7 +144,8 @@ public class GcsMatchIT {
   public static void setUp() throws Exception {
     options = TestPipeline.testingPipelineOptions().as(TestPipelineOptions.class);
     assertNotNull(options.getTempRoot());
-    options.setTempLocation(options.getTempRoot() + "/GcsMatchIT");
+    options.setTempLocation(
+        FileSystems.matchNewDirectory(options.getTempRoot(), "GcsMatchIT").toString());
     GcsOptions gcsOptions = options.as(GcsOptions.class);
     String dstFolderName =
         gcsOptions.getGcpTempLocation()

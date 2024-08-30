@@ -41,18 +41,9 @@ which stores the `delimiter` as an object field.
 The `process` method is called once per element,
 and it can yield zero or more output elements.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/pardo" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py" pardo_dofn >}}
-{{</ highlight >}}
-
-{{< paragraph class="notebook-skip" >}}
-Output:
-{{< /paragraph >}}
-
-{{< highlight class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo_test.py" plants >}}
-{{< /highlight >}}
+{{< playground height="700px" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_ParDoDoFn" show="pardo_dofn" >}}
+{{< /playground >}}
 
 ### Example 2: ParDo with timestamp and window information
 
@@ -67,18 +58,9 @@ In this example, we add new parameters to the `process` method to bind parameter
   [`apache_beam.transforms.window.*Window`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.window.html)
   object.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/pardo" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py" pardo_dofn_params >}}
-{{</ highlight >}}
-
-{{< paragraph class="notebook-skip" >}}
-Output:
-{{< /paragraph >}}
-
-{{< highlight class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo_test.py" dofn_params >}}
-{{< /highlight >}}
+{{< playground height="700px" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_ParDoDoFnParams" show="pardo_dofn_params" >}}
+{{< /playground >}}
 
 ### Example 3: ParDo with DoFn methods
 
@@ -94,10 +76,12 @@ starts and finishes with `start_bundle` and `finish_bundle`.
   multiple instances of a given `DoFn` subclass may be created (e.g., due to parallelization, or due to garbage collection after a period
   of disuse).
   This is a good place to connect to database instances, open network connections or other resources.
+  See also `DoFn.SetupContextParam` for a way to accomplish this via context managers.
 
 * [`DoFn.start_bundle()`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.start_bundle):
   Called *once per bundle of elements* before calling `process` on the first element of the bundle.
   This is a good place to start keeping track of the bundle elements.
+  See also `DoFn.BundleContextParam` for a way to accomplish this via context managers.
 
 * [**`DoFn.process(element, *args, **kwargs)`**](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.process):
   Called *once per element*, can *yield zero or more elements*.
@@ -116,8 +100,8 @@ starts and finishes with `start_bundle` and `finish_bundle`.
 
   Note that yielded elements from `finish_bundle` must be of the type
   [`apache_beam.utils.windowed_value.WindowedValue`](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/utils/windowed_value.py).
-  You need to provide a timestamp as a unix timestamp, which you can get from the last processed element.
-  You also need to provide a window, which you can get from the last processed element like in the example below.
+  You need to provide a timestamp as a unix timestamp, which you can get from the relevant processed elements.
+  You also need to provide a window, which you can get from the relevant processed elements like in the example below.
 
 * [`DoFn.teardown()`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.teardown):
   Called *once (as a best effort) per `DoFn` instance* when the `DoFn` instance is shutting down.
@@ -126,18 +110,9 @@ starts and finishes with `start_bundle` and `finish_bundle`.
   Note that `teardown` is called as a *best effort* and is *not guaranteed*.
   For example, if the worker crashes, `teardown` might not be called.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/pardo" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py" pardo_dofn_methods >}}
-{{</ highlight >}}
-
-{{< paragraph class="notebook-skip" >}}
-Output:
-{{< /paragraph >}}
-
-{{< highlight class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo_test.py" results >}}
-{{< /highlight >}}
+{{< playground height="700px" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_ParDoDoFnMethods" show="pardo_dofn_methods" >}}
+{{< /playground >}}
 
 > *Known issues:*
 >

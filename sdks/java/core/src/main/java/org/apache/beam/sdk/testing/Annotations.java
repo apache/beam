@@ -19,8 +19,8 @@ package org.apache.beam.sdk.testing;
 
 import java.lang.annotation.Annotation;
 import java.util.Arrays;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Predicate;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicate;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.FluentIterable;
 import org.junit.experimental.categories.Category;
 
 /** A utility class for querying annotations. */

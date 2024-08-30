@@ -27,7 +27,7 @@ import org.apache.beam.sdk.extensions.sbe.TestSchemas.OnlyPrimitives;
 import org.apache.beam.sdk.extensions.sbe.TestSchemas.OnlyPrimitivesMultiMessage;
 import org.apache.beam.sdk.extensions.sbe.TestSchemas.OnlyPrimitivesMultiMessage.Primitives1;
 import org.apache.beam.sdk.extensions.sbe.TestSchemas.OnlyPrimitivesMultiMessage.Primitives2;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;

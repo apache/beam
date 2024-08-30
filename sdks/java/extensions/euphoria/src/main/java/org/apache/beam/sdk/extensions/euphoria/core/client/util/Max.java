@@ -22,8 +22,13 @@ import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.CombinableReduceFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 
-/** Calculate maximum. */
+/**
+ * Calculate maximum.
+ *
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
+ */
 @Audience(Audience.Type.CLIENT)
+@Deprecated
 public class Max {
 
   private Max() {}

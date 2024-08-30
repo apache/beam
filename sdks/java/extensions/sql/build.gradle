@@ -21,7 +21,7 @@ import java.util.stream.Collectors
 
 plugins {
   id 'org.apache.beam.module'
-  id 'ca.coglinc.javacc'
+  id 'org.javacc.javacc'
 }
 applyJavaNature(
   generatedClassPatterns: [
@@ -84,14 +84,13 @@ dependencies {
   implementation library.java.jackson_databind
   implementation library.java.joda_time
   implementation library.java.vendored_calcite_1_28_0
-  implementation "com.alibaba:fastjson:1.2.69"
   implementation "org.codehaus.janino:janino:3.0.11"
   implementation "org.codehaus.janino:commons-compiler:3.0.11"
   implementation library.java.jackson_core
   implementation library.java.mongo_java_driver
   implementation library.java.slf4j_api
   implementation library.java.joda_time
-  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.vendored_guava_32_1_2_jre
   provided project(":sdks:java:io:kafka")
   implementation project(":sdks:java:extensions:google-cloud-platform-core")
   permitUnusedDeclared project(":sdks:java:extensions:google-cloud-platform-core")
@@ -112,7 +111,7 @@ dependencies {
   permitUnusedDeclared library.java.hadoop_client
   provided library.java.kafka_clients
   testImplementation library.java.vendored_calcite_1_28_0
-  testImplementation library.java.vendored_guava_26_0_jre
+  testImplementation library.java.vendored_guava_32_1_2_jre
   testImplementation library.java.junit
   testImplementation library.java.quickcheck_core
   testImplementation library.java.testcontainers_kafka
@@ -239,6 +238,17 @@ task integrationTest(type: Test) {
           .runtimeClasspath
   testClassesDirs = files(project(":sdks:java:extensions:sql").sourceSets.test.output.classesDirs)
   useJUnit { }
+}
+
+task preCommit {
+  dependsOn build
+  dependsOn runBasicExample
+  dependsOn runPojoExample
+
+  if (project.hasProperty("testJavaVersion")) {
+    var testVer = project.property("testJavaVersion")
+    dependsOn(":sdks:java:testing:test-utils:verifyJavaVersion$testVer")
+  }
 }
 
 task postCommit {

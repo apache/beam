@@ -19,7 +19,12 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.functional;
 
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 
-/** Binary function of X returning boolean. */
+/**
+ * Binary function of X returning boolean.
+ *
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
+ */
 @Audience(Audience.Type.CLIENT)
 @FunctionalInterface
+@Deprecated
 public interface UnaryPredicate<T> extends UnaryFunction<T, Boolean> {}

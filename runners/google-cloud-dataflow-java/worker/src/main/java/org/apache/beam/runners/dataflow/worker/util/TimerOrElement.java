@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.util;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -25,7 +25,6 @@ import com.google.auto.service.AutoService;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.CloudObjectTranslator;
 import org.apache.beam.runners.dataflow.util.CloudObjects;
@@ -34,7 +33,8 @@ import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.runners.dataflow.util.Structs;
 import org.apache.beam.runners.dataflow.worker.WindmillKeyedWorkItem.FakeKeyedWorkItemCoder;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.sdk.util.construction.SdkComponents;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
 /**
  * Empty class which exists because the back end will sometimes insert uses of {@code

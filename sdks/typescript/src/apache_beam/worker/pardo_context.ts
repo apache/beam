@@ -58,7 +58,7 @@ export class ParamProviderImpl implements ParamProvider {
     private transformId: string,
     private sideInputInfo: Map<string, SideInputInfo>,
     private getStateProvider: () => StateProvider,
-    private metricsContainer: MetricsContainer
+    private metricsContainer: MetricsContainer,
   ) {}
 
   // Avoid modifying the original object, as that could have surprising results
@@ -82,8 +82,8 @@ export class ParamProviderImpl implements ParamProvider {
         if ((value as ParDoParam).parDoParamName === "sideInput") {
           this.prefetchCallbacks.push(
             this.prefetchSideInput(
-              value as SideInputParam<unknown, unknown, unknown>
-            )
+              value as SideInputParam<unknown, unknown, unknown>,
+            ),
           );
         }
       }
@@ -92,7 +92,7 @@ export class ParamProviderImpl implements ParamProvider {
   }
 
   prefetchSideInput(
-    param: SideInputParam<unknown, unknown, unknown>
+    param: SideInputParam<unknown, unknown, unknown>,
   ): (window: Window) => operators.ProcessResult {
     const this_ = this;
     const stateProvider = this.getStateProvider();
@@ -106,7 +106,7 @@ export class ParamProviderImpl implements ParamProvider {
           while (reader.pos < reader.len) {
             yield elementCoder.decode(reader, CoderContext.needsDelimiters);
           }
-        })()
+        })(),
       );
     };
     return (window: Window) => {
@@ -118,7 +118,7 @@ export class ParamProviderImpl implements ParamProvider {
         param.accessor.accessPattern,
         param.sideInputId,
         window,
-        windowCoder
+        windowCoder,
       );
       const lookupResult = stateProvider.getState(stateKey, decode);
       if (lookupResult.type === "value") {
@@ -133,7 +133,7 @@ export class ParamProviderImpl implements ParamProvider {
   }
 
   setCurrentValue(
-    wvalue: WindowedValue<unknown> | undefined
+    wvalue: WindowedValue<unknown> | undefined,
   ): operators.ProcessResult {
     this.wvalue = wvalue;
     if (wvalue === null || wvalue === undefined) {
@@ -155,7 +155,7 @@ export class ParamProviderImpl implements ParamProvider {
   lookup(param) {
     if (this.wvalue === null || this.wvalue === undefined) {
       throw new Error(
-        param.parDoParamName + " not defined outside of a process() call."
+        param.parDoParamName + " not defined outside of a process() call.",
       );
     }
 
@@ -201,7 +201,7 @@ export interface SideInputInfo {
 export function createSideInputInfo(
   transformProto: runnerApi.PTransform,
   spec: runnerApi.ParDoPayload,
-  operatorContext: operators.OperatorContext
+  operatorContext: operators.OperatorContext,
 ): Map<string, SideInputInfo> {
   const globalWindow = new GlobalWindow();
   const sideInputInfo: Map<string, SideInputInfo> = new Map();
@@ -216,7 +216,7 @@ export function createSideInputInfo(
         break;
       default:
         throw new Error(
-          "Unsupported window mapping fn: " + sideInput.windowMappingFn!.urn
+          "Unsupported window mapping fn: " + sideInput.windowMappingFn!.urn,
         );
     }
     const sidePColl =
@@ -225,12 +225,12 @@ export function createSideInputInfo(
       ];
     const windowingStrategy =
       operatorContext.pipelineContext.getWindowingStrategy(
-        sidePColl.windowingStrategyId
+        sidePColl.windowingStrategyId,
       );
     sideInputInfo.set(sideInputId, {
       elementCoder: operatorContext.pipelineContext.getCoder(sidePColl.coderId),
       windowCoder: operatorContext.pipelineContext.getCoder(
-        windowingStrategy.windowCoderId
+        windowingStrategy.windowCoderId,
       ),
       windowMappingFn: windowMappingFn,
     });
@@ -243,7 +243,7 @@ export function createStateKey(
   accessPattern: string,
   sideInputId: string,
   window: Window,
-  windowCoder: Coder<Window>
+  windowCoder: Coder<Window>,
 ): fnApi.StateKey {
   const writer = new protobufjs.Writer();
   windowCoder.encode(window, writer, CoderContext.needsDelimiters);

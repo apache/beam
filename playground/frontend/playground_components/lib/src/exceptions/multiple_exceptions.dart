@@ -16,17 +16,23 @@
  * limitations under the License.
  */
 
-class MultipleExceptions implements Exception {
+import 'detailed_exception.dart';
+
+class MultipleExceptions implements DetailedException {
+  final String message;
   final List<Exception> exceptions;
   final List<StackTrace> stackTraces;
 
-  MultipleExceptions({
+  MultipleExceptions(this.message, {
     required this.exceptions,
     required this.stackTraces,
   });
 
   @override
-  String toString() {
+  String toString() => message;
+
+  @override
+  String get details {
     final buffer = StringBuffer('Exceptions (${exceptions.length}): ');
     for (var i = 0; i < exceptions.length; i++) {
       buffer

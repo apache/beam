@@ -28,6 +28,9 @@ angoenka:
 anton:
   name: Anton Kedin
   email: anton@apache.org
+bvolpato:
+  name: Bruno Volpato
+  email: bvolpato@google.com
 ccy:
   name: Charles Chen
   email: ccy@apache.org
@@ -245,6 +248,10 @@ alexkosolapov:
 hermannb:
   name: Brittany Hermann
   email: hermannb@google.com
+svetakvsundhar:
+  name: Svetak Sundhar
+  email: svetaksundhar@google.com
+  twitter: svetaksundhar
 iht:
   name: Israel Herraiz
   email: ihr@google.com
@@ -256,3 +263,24 @@ sysede:
   name: Danielle Syse
   email: syse@google.com
   linkedin: desyse
+riteshghorse:
+  name: Ritesh Ghorse
+  email: riteshghorse@apache.org
+yhu:
+  name: Yi Hu
+  email: yhu@apache.org
+pabs:
+  name: Pablo Rodriguez Defino
+  email: prodriguezdefino@gmail.com
+namitasharma:
+  name: Namita Sharma
+  email: namitasharma@google.com
+talat:
+  name: Talat Uyarer
+  email: talat@apache.org
+jkinard:
+  name: Jeff Kinard
+  email: jkinard@google.com
+jkim:
+  name: Jaehyeon Kim
+  email: dottami@gmail.com

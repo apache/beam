@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.schemas.transforms;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import org.apache.beam.sdk.annotations.Internal;
@@ -37,22 +38,35 @@ public interface SchemaTransformProvider {
   String identifier();
 
   /**
+   * Returns a description regarding the {@link SchemaTransform} represented by the {@link
+   * SchemaTransformProvider}. Please keep the language generic (i.e. not specific to any
+   * programming language). The description may be markdown formatted.
+   */
+  default String description() {
+    return "";
+  }
+
+  /**
    * Returns the expected schema of the configuration object. Note this is distinct from the schema
    * of the transform itself.
    */
   Schema configurationSchema();
 
   /**
-   * Produce a SchemaTransform some transform-specific configuration object. Can throw a {@link
-   * InvalidConfigurationException} or a {@link InvalidSchemaException}.
+   * Produce a {@link SchemaTransform} from some transform-specific configuration object. Can throw
+   * a {@link InvalidConfigurationException} or a {@link InvalidSchemaException}.
    */
   SchemaTransform from(Row configuration);
 
   /** Returns the input collection names of this transform. */
-  List<String> inputCollectionNames();
+  default List<String> inputCollectionNames() {
+    return Collections.emptyList();
+  }
 
   /** Returns the output collection names of this transform. */
-  List<String> outputCollectionNames();
+  default List<String> outputCollectionNames() {
+    return Collections.emptyList();
+  }
 
   /**
    * List the dependencies needed for this transform. Jars from classpath are used by default when

@@ -21,12 +21,16 @@ import (
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/jobopts"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 )
 
 func TestMain(m *testing.M) {
+	// Since we force loopback with prism, avoid cross-compilation.
+	f, _ := os.CreateTemp("", "dummy")
+	*jobopts.WorkerBinary = f.Name()
 	os.Exit(ptest.MainRetWithDefault(m, "prism"))
 }
 

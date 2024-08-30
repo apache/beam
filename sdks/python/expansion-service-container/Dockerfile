@@ -18,7 +18,7 @@
 
 # We just need to support one Python version supported by Beam.
 # Picking the current default Beam Python version which is Python 3.8.
-FROM python:3.8-bullseye as expansion-service
+FROM python:3.8-bookworm as expansion-service
 LABEL Author "Apache Beam <dev@beam.apache.org>"
 ARG TARGETOS
 ARG TARGETARCH
@@ -42,8 +42,7 @@ RUN mkdir /opt/apache/beam/beam_venv &&\
     . /opt/apache/beam/beam_venv/bin/activate &&\
     pip install --upgrade pip &&\
     pip install --upgrade setuptools &&\
-    pip install -r requirements.txt &&\
-    pip install apache-beam-sdk.tar.gz[gcp,dataframe]
+    pip install apache-beam-sdk.tar.gz[gcp,dataframe] --constraint requirements.txt
 
 ENTRYPOINT ["/opt/apache/beam/boot"]
 

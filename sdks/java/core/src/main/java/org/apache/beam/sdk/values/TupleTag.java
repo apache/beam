@@ -20,8 +20,8 @@ package org.apache.beam.sdk.values;
 import java.io.Serializable;
 import java.util.Random;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashMultiset;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multiset;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.HashMultiset;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multiset;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**

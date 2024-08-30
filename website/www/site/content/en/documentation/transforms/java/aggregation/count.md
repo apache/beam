@@ -39,7 +39,18 @@ transform has three varieties:
   appeared in the original collection.
 
 ## Examples
-See [BEAM-7703](https://issues.apache.org/jira/browse/BEAM-7703) for updates.
+
+**Example 1**: Count.globally
+
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" path="SDK_JAVA_Count" show="main_section" >}}
+{{< /playground >}}
+
+**Example 2**: Count.perKey
+
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" path="SDK_JAVA_CountPerKey" show="main_section" >}}
+{{< /playground >}}
 
 ## Related transforms
 * [ApproximateUnique](/documentation/transforms/java/aggregation/approximateunique)

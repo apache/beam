@@ -25,4 +25,19 @@ https://github.com/strimzi/strimzi-kafka-operator/blob/main/examples/kafka/kafka
 The directories within [base](./base) contain the operator manifests and
 are named according to the version release.
 
-See [.test-infra/kafka/strimzi](../README.md) for requirements and usage.
+# Usage
+
+Simply deploy the cluster by using kustomize plugin of kubectl
+```
+kubectl apply -k .test-infra/kafka/strimzi/02-kafka-persistent/overlays/gke-internal-load-balanced --namespace=strimzi
+```
+and wait until the cluster is deployed
+```
+kubectl wait kafka beam-testing-cluster --for=condition=Ready --timeout=1200s
+```
+Then to get the needed ips and ports:
+```
+kubectl get svc beam-testing-cluster-kafka-$REPLICA_NUMBER -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+kubectl get svc beam-testing-cluster-kafka-$REPLICA_NUMBER -o jsonpath='{.spec.ports[0].port}'
+```
+Where $REPLICA_NUMBER is value from 1 to 3 by default.

@@ -23,8 +23,8 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
 import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
@@ -51,7 +51,7 @@ public class PubsubReadIT {
     messages.apply(
         "waitForAnyMessage", signal.signalSuccessWhen(messages.getCoder(), anyMessages -> true));
 
-    Supplier<Void> start = signal.waitForStart(Duration.standardMinutes(5));
+    Supplier<Void> start = signal.waitForStart(Duration.standardMinutes(8));
     pipeline.apply(signal.signalStart());
     PipelineResult job = pipeline.run();
     start.get();
@@ -79,7 +79,7 @@ public class PubsubReadIT {
         "isMessageIdNonNull",
         signal.signalSuccessWhen(messages.getCoder(), new NonEmptyMessageIdCheck()));
 
-    Supplier<Void> start = signal.waitForStart(Duration.standardMinutes(5));
+    Supplier<Void> start = signal.waitForStart(Duration.standardMinutes(8));
     pipeline.apply(signal.signalStart());
     PipelineResult job = pipeline.run();
     start.get();

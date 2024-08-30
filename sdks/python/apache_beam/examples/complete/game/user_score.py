@@ -63,7 +63,7 @@ python user_score.py \
 #     standalone DoFns; use of the CombinePerKey transform.
 #   multifile: false
 #   pipeline_options: --output output.txt
-#   context_line: 81
+#   context_line: 174
 #   categories:
 #     - Batch
 #     - Combiners
@@ -176,6 +176,7 @@ def run(argv=None, save_main_session=True):
     def format_user_score_sums(user_score):
       (user, score) = user_score
       return 'user: %s, total_score: %s' % (user, score)
+
 
     (  # pylint: disable=expression-not-assigned
         p

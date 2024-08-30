@@ -43,12 +43,12 @@ import * as row_coder from "../coders/row_coder";
  */
 export function pythonTransform<
   InputT extends beam.PValue<any>,
-  OutputT extends beam.PValue<any>
+  OutputT extends beam.PValue<any>,
 >(
   constructor: string,
   args_or_kwargs: any[] | { [key: string]: any } | undefined = undefined,
   kwargs: { [key: string]: any } | undefined = undefined,
-  options: external.RawExternalTransformOptions = {}
+  options: external.RawExternalTransformOptions = {},
 ): beam.AsyncPTransform<InputT, OutputT> {
   let args;
   if (args_or_kwargs === undefined) {
@@ -78,9 +78,9 @@ export function pythonTransform<
     async () =>
       PythonService.forModule(
         "apache_beam.runners.portability.expansion_service_main",
-        ["--fully_qualified_name_glob=*", "--port", "{{PORT}}"]
+        ["--fully_qualified_name_glob=*", "--port", "{{PORT}}"],
       ),
-    options
+    options,
   );
 }
 

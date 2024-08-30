@@ -32,6 +32,9 @@ unexpected result: a generalization of Beam's most basic primitive, `DoFn`.
 
 <!--more-->
 
+## Note to reader
+Hello reader! This blog is a great introduction to Splittable DoFns, but was written while the documentation was catching up. After reading this, you can continue your learning on what Splittable DoFns are and how to implement one in the official [Beam Documentation](https://beam.apache.org/documentation/programming-guide/#sdf-basics).
+
 ## Connectors as mini-pipelines
 
 One of the main reasons for this vibrant IO connector ecosystem is that

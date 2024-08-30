@@ -29,8 +29,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Ordering;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Ordering;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
@@ -454,7 +454,7 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
    * Pipeline authors should use {@link Window} directly instead.
    */
   public static class Assign<T> extends PTransform<PCollection<T>, PCollection<T>> {
-    private final Window<T> original;
+    private final @Nullable Window<T> original;
     private final WindowingStrategy<T, ?> updatedStrategy;
 
     /**
@@ -463,7 +463,7 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
      * #getWindowFn()}.
      */
     @VisibleForTesting
-    Assign(Window<T> original, WindowingStrategy updatedStrategy) {
+    Assign(@Nullable Window<T> original, WindowingStrategy updatedStrategy) {
       this.original = original;
       this.updatedStrategy = updatedStrategy;
     }
@@ -476,11 +476,17 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
-      original.populateDisplayData(builder);
+      if (original != null) {
+        original.populateDisplayData(builder);
+      }
     }
 
     public @Nullable WindowFn<T, ?> getWindowFn() {
       return updatedStrategy.getWindowFn();
+    }
+
+    public static <T> Assign<T> createInternal(WindowingStrategy finalStrategy) {
+      return new Assign<T>(null, finalStrategy);
     }
   }
 

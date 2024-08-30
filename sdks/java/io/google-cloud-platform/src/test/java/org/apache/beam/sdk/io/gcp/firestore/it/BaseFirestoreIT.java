@@ -55,11 +55,10 @@ import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.joda.time.Instant;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
@@ -93,12 +92,10 @@ abstract class BaseFirestoreIT {
           .build();
 
   protected static String project;
-  protected GcpOptions options;
 
   @Before
   public void setup() {
-    options = TestPipeline.testingPipelineOptions().as(GcpOptions.class);
-    project = options.getProject();
+    project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
   }
 
   private static Instant toWriteTime(WriteResult result) {
@@ -167,7 +164,7 @@ abstract class BaseFirestoreIT {
                     .build());
 
     PAssert.that(actualCollectionIds).containsInAnyOrder(allCollectionIds);
-    testPipeline.run(options);
+    testPipeline.run(TestPipeline.testingPipelineOptions());
 
     // Reading from readTime should only get collection IDs written in the batch before readTime.
     PCollection<String> actualCollectionIdsAtReadTime =
@@ -182,12 +179,10 @@ abstract class BaseFirestoreIT {
                     .withRpcQosOptions(RPC_QOS_OPTIONS)
                     .build());
     PAssert.that(actualCollectionIdsAtReadTime).containsInAnyOrder(collectionIds);
-    testPipeline2.run(options);
+    testPipeline2.run(TestPipeline.testingPipelineOptions());
   }
 
   @Test
-  @Ignore(
-      "https://github.com/apache/beam/issues/25851 failing due to internal Firestore breaking change")
   public final void listDocuments() throws Exception {
     DocumentGenerator documentGenerator = helper.documentGenerator(NUM_ITEMS_TO_GENERATE, "a");
     Instant readTime =
@@ -215,7 +210,7 @@ abstract class BaseFirestoreIT {
             .apply(ParDo.of(new DocumentToName()));
 
     PAssert.that(listDocumentPaths).containsInAnyOrder(allDocumentPaths);
-    testPipeline.run(options);
+    testPipeline.run(TestPipeline.testingPipelineOptions());
 
     // Reading from readTime should only get the documents written before readTime.
     PCollection<String> listDocumentPathsAtReadTime =
@@ -233,7 +228,7 @@ abstract class BaseFirestoreIT {
 
     PAssert.that(listDocumentPathsAtReadTime)
         .containsInAnyOrder(documentGenerator.expectedDocumentPaths());
-    testPipeline2.run(options);
+    testPipeline2.run(TestPipeline.testingPipelineOptions());
   }
 
   @Test
@@ -267,7 +262,7 @@ abstract class BaseFirestoreIT {
             .apply(ParDo.of(new DocumentToName()));
 
     PAssert.that(listDocumentPaths).containsInAnyOrder(allDocumentPaths);
-    testPipeline.run(options);
+    testPipeline.run(TestPipeline.testingPipelineOptions());
 
     // Reading from readTime should only get the documents written before readTime.
     PCollection<String> listDocumentPathsAtReadTime =
@@ -286,7 +281,7 @@ abstract class BaseFirestoreIT {
 
     PAssert.that(listDocumentPathsAtReadTime)
         .containsInAnyOrder(documentGenerator.expectedDocumentPaths());
-    testPipeline2.run(options);
+    testPipeline2.run(TestPipeline.testingPipelineOptions());
   }
 
   @Test
@@ -326,7 +321,7 @@ abstract class BaseFirestoreIT {
             .apply(ParDo.of(new DocumentToName()));
 
     PAssert.that(listDocumentPaths).containsInAnyOrder(allDocumentPaths);
-    testPipeline.run(options);
+    testPipeline.run(TestPipeline.testingPipelineOptions());
 
     // Reading from readTime should only get the documents written before readTime.
     PCollection<String> listDocumentPathsAtReadTime =
@@ -346,7 +341,7 @@ abstract class BaseFirestoreIT {
 
     PAssert.that(listDocumentPathsAtReadTime)
         .containsInAnyOrder(documentGenerator.expectedDocumentPaths());
-    testPipeline2.run(options);
+    testPipeline2.run(TestPipeline.testingPipelineOptions());
   }
 
   @Test
@@ -390,7 +385,7 @@ abstract class BaseFirestoreIT {
             .apply(ParDo.of(new DocumentToName()));
 
     PAssert.that(listDocumentPaths).containsInAnyOrder(allDocumentPaths);
-    testPipeline.run(options);
+    testPipeline.run(TestPipeline.testingPipelineOptions());
 
     // Reading from readTime should only get the documents written before readTime.
     PCollection<String> listDocumentPathsAtReadTime =
@@ -410,7 +405,7 @@ abstract class BaseFirestoreIT {
 
     PAssert.that(listDocumentPathsAtReadTime)
         .containsInAnyOrder(documentGenerator.expectedDocumentPaths());
-    testPipeline2.run(options);
+    testPipeline2.run(TestPipeline.testingPipelineOptions());
   }
 
   @Test
@@ -448,7 +443,7 @@ abstract class BaseFirestoreIT {
         .apply(createWrite)
         .apply(FirestoreIO.v1().write().batchWrite().withRpcQosOptions(RPC_QOS_OPTIONS).build());
 
-    testPipeline.run(options);
+    testPipeline.run(TestPipeline.testingPipelineOptions());
 
     List<String> actualDocumentIds =
         helper

@@ -59,4 +59,9 @@ variable "control_plane_cidr" {
   description = "CIDR block for GKE controlplane"
   default     = "10.129.0.0/28"
 }
+variable "init_min_count" {
+  description = "Initial cluster node count"
+  default     = 1
+}
+  
 

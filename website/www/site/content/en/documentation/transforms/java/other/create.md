@@ -32,7 +32,9 @@ For example, a single element to execute a one-time `ParDo` or a list of filenam
 
 ## Examples
 
-See [BEAM-7704](https://issues.apache.org/jira/browse/BEAM-7704) for updates.
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" path="SDK_JAVA_Create" show="main_section" >}}
+{{< /playground >}}
 
 ## Related transforms
 N/A

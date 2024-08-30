@@ -17,12 +17,12 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.datacatalog;
 
-import com.alibaba.fastjson.JSONObject;
 import com.google.cloud.datacatalog.v1beta1.Entry;
 import java.net.URI;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.apache.beam.sdk.extensions.sql.TableUtils;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 
 /** {@link TableFactory} that understands Data Catalog Pubsub entries. */
@@ -42,7 +42,7 @@ class PubsubTableFactory implements TableFactory {
     return Optional.of(
         Table.builder()
             .location(getLocation(entry))
-            .properties(new JSONObject())
+            .properties(TableUtils.emptyProperties())
             .type("pubsub")
             .comment(""));
   }

@@ -22,7 +22,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operato
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 
 /**
  * Expand operator to a beam {@link PTransform}.
@@ -30,10 +30,12 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditio
  * @param <InputT> type of input elements
  * @param <OutputT> type of output elements
  * @param <OperatorT> type of operator to expand
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
  */
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
+@Deprecated
 public class OperatorTransform<InputT, OutputT, OperatorT extends Operator<OutputT>>
     extends PTransform<PCollectionList<InputT>, PCollection<OutputT>> {
 

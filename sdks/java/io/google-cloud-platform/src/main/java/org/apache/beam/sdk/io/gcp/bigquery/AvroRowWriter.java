@@ -47,9 +47,15 @@ class AvroRowWriter<AvroT, T> extends BigQueryRowWriter<T> {
   }
 
   @Override
-  public void write(T element) throws IOException {
+  public void write(T element) throws IOException, BigQueryRowSerializationException {
     AvroWriteRequest<T> writeRequest = new AvroWriteRequest<>(element, schema);
-    writer.append(toAvroRecord.apply(writeRequest));
+    AvroT serializedRequest;
+    try {
+      serializedRequest = toAvroRecord.apply(writeRequest);
+    } catch (Exception e) {
+      throw new BigQueryRowSerializationException(e);
+    }
+    writer.append(serializedRequest);
   }
 
   public Schema getSchema() {

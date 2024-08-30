@@ -22,13 +22,11 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
-import org.apache.beam.runners.core.construction.UnboundedReadFromBoundedSource;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
 import org.apache.beam.runners.flink.metrics.ReaderInvocationUtil;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.runners.flink.translation.utils.Workarounds;
-import org.apache.beam.runners.flink.translation.wrappers.streaming.ProcessingTimeCallbackCompat;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
@@ -39,11 +37,13 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.construction.UnboundedReadFromBoundedSource;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.ValueWithRecordId;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.operators.ProcessingTimeService.ProcessingTimeCallback;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.OperatorStateStore;
@@ -67,10 +67,10 @@ import org.slf4j.LoggerFactory;
 })
 public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSource.CheckpointMark>
     extends RichParallelSourceFunction<WindowedValue<ValueWithRecordId<OutputT>>>
-    implements ProcessingTimeCallbackCompat,
-        BeamStoppableFunction,
+    implements BeamStoppableFunction,
         CheckpointListener,
-        CheckpointedFunction {
+        CheckpointedFunction,
+        ProcessingTimeCallback {
 
   private static final Logger LOG = LoggerFactory.getLogger(UnboundedSourceWrapper.class);
 
@@ -383,44 +383,46 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
   @Override
   public void snapshotState(FunctionSnapshotContext functionSnapshotContext) throws Exception {
     if (!isRunning) {
+      // This implies that stop/drain is invoked and final checkpoint is triggered. This method
+      // should not be skipped in this scenario so that the notifyCheckpointComplete method is still
+      // invoked and performs the finalization step after commit is complete.
       LOG.debug("snapshotState() called on closed source");
-    } else {
-
-      if (checkpointCoder == null) {
-        // no checkpoint coder available in this source
-        return;
-      }
-
-      stateForCheckpoint.clear();
-
-      long checkpointId = functionSnapshotContext.getCheckpointId();
-
-      // we checkpoint the sources along with the CheckpointMarkT to ensure
-      // than we have a correct mapping of checkpoints to sources when
-      // restoring
-      List<CheckpointMarkT> checkpointMarks = new ArrayList<>(localSplitSources.size());
-
-      for (int i = 0; i < localSplitSources.size(); i++) {
-        UnboundedSource<OutputT, CheckpointMarkT> source = localSplitSources.get(i);
-        UnboundedSource.UnboundedReader<OutputT> reader = localReaders.get(i);
-
-        @SuppressWarnings("unchecked")
-        CheckpointMarkT mark = (CheckpointMarkT) reader.getCheckpointMark();
-        checkpointMarks.add(mark);
-        KV<UnboundedSource<OutputT, CheckpointMarkT>, CheckpointMarkT> kv = KV.of(source, mark);
-        stateForCheckpoint.add(kv);
-      }
-
-      // cleanup old pending checkpoints and add new checkpoint
-      int diff = pendingCheckpoints.size() - MAX_NUMBER_PENDING_CHECKPOINTS;
-      if (diff >= 0) {
-        for (Iterator<Long> iterator = pendingCheckpoints.keySet().iterator(); diff >= 0; diff--) {
-          iterator.next();
-          iterator.remove();
-        }
-      }
-      pendingCheckpoints.put(checkpointId, checkpointMarks);
     }
+
+    if (checkpointCoder == null) {
+      // no checkpoint coder available in this source
+      return;
+    }
+
+    stateForCheckpoint.clear();
+
+    long checkpointId = functionSnapshotContext.getCheckpointId();
+
+    // we checkpoint the sources along with the CheckpointMarkT to ensure
+    // than we have a correct mapping of checkpoints to sources when
+    // restoring
+    List<CheckpointMarkT> checkpointMarks = new ArrayList<>(localSplitSources.size());
+
+    for (int i = 0; i < localSplitSources.size(); i++) {
+      UnboundedSource<OutputT, CheckpointMarkT> source = localSplitSources.get(i);
+      UnboundedSource.UnboundedReader<OutputT> reader = localReaders.get(i);
+
+      @SuppressWarnings("unchecked")
+      CheckpointMarkT mark = (CheckpointMarkT) reader.getCheckpointMark();
+      checkpointMarks.add(mark);
+      KV<UnboundedSource<OutputT, CheckpointMarkT>, CheckpointMarkT> kv = KV.of(source, mark);
+      stateForCheckpoint.add(kv);
+    }
+
+    // cleanup old pending checkpoints and add new checkpoint
+    int diff = pendingCheckpoints.size() - MAX_NUMBER_PENDING_CHECKPOINTS;
+    if (diff >= 0) {
+      for (Iterator<Long> iterator = pendingCheckpoints.keySet().iterator(); diff >= 0; diff--) {
+        iterator.next();
+        iterator.remove();
+      }
+    }
+    pendingCheckpoints.put(checkpointId, checkpointMarks);
   }
 
   @Override
@@ -527,7 +529,6 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
 
   @Override
   public void notifyCheckpointComplete(long checkpointId) throws Exception {
-
     List<CheckpointMarkT> checkpointMarks = pendingCheckpoints.get(checkpointId);
 
     if (checkpointMarks != null) {

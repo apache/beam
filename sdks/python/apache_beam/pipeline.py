@@ -48,12 +48,14 @@ Typical usage::
 # mypy: disallow-untyped-defs
 
 import abc
+import contextlib
 import logging
 import os
 import re
 import shutil
 import tempfile
 import unicodedata
+import uuid
 from collections import defaultdict
 from typing import TYPE_CHECKING
 from typing import Any
@@ -84,10 +86,12 @@ from apache_beam.options.pipeline_options_validator import PipelineOptionsValida
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners import PipelineRunner
+from apache_beam.runners import common
 from apache_beam.runners import create_runner
 from apache_beam.transforms import ParDo
 from apache_beam.transforms import ptransform
 from apache_beam.transforms.display import DisplayData
+from apache_beam.transforms.display import HasDisplayData
 from apache_beam.transforms.resources import merge_resource_hints
 from apache_beam.transforms.resources import resource_hints_from_options
 from apache_beam.transforms.sideinputs import get_sideinput_index
@@ -108,7 +112,7 @@ if TYPE_CHECKING:
 __all__ = ['Pipeline', 'PTransformOverride']
 
 
-class Pipeline(object):
+class Pipeline(HasDisplayData):
   """A pipeline object that manages a DAG of
   :class:`~apache_beam.pvalue.PValue` s and their
   :class:`~apache_beam.transforms.ptransform.PTransform` s.
@@ -133,9 +137,12 @@ class Pipeline(object):
         common_urns.primitives.IMPULSE.urn,
     ])
 
-  def __init__(self, runner=None, options=None, argv=None):
-    # type: (Optional[Union[str, PipelineRunner]], Optional[PipelineOptions], Optional[List[str]]) -> None
-
+  def __init__(
+      self,
+      runner: Optional[Union[str, PipelineRunner]] = None,
+      options: Optional[PipelineOptions] = None,
+      argv: Optional[List[str]] = None,
+      display_data: Optional[Dict[str, Any]] = None):
     """Initialize a pipeline object.
 
     Args:
@@ -151,6 +158,8 @@ class Pipeline(object):
         to be used for building a
         :class:`~apache_beam.options.pipeline_options.PipelineOptions` object.
         This will only be used if argument **options** is :data:`None`.
+      display_data (Dict[str, Any]): a dictionary of static data associated
+        with this pipeline that can be displayed when it runs.
 
     Raises:
       ValueError: if either the runner or options argument is not
@@ -233,12 +242,14 @@ class Pipeline(object):
     # Records whether this pipeline contains any external transforms.
     self.contains_external_transforms = False
 
+    self._display_data = display_data or {}
+    self._error_handlers = []
+
+  def display_data(self):
+    # type: () -> Dict[str, Any]
+    return self._display_data
 
   @property  # type: ignore[misc]  # decorated property not supported
-  @deprecated(
-      since='First stable release',
-      extra_message='References to <pipeline>.options'
-      ' will not be supported')
   def options(self):
     # type: () -> PipelineOptions
     return self._options
@@ -247,6 +258,9 @@ class Pipeline(object):
   def allow_unsafe_triggers(self):
     # type: () -> bool
     return self._options.view_as(TypeOptions).allow_unsafe_triggers
+
+  def _register_error_handler(self, error_handler):
+    self._error_handlers.append(error_handler)
 
   def _current_transform(self):
     # type: () -> AppliedPTransform
@@ -521,6 +535,9 @@ class Pipeline(object):
 
     """Runs the pipeline. Returns whatever our runner returns after running."""
 
+    for error_handler in self._error_handlers:
+      error_handler.verify_closed()
+
     # Records whether this pipeline contains any cross-language transforms.
     self.contains_external_transforms = (
         ExternalTransformFinder.contains_external_transforms(self))
@@ -582,9 +599,12 @@ class Pipeline(object):
 
   def __enter__(self):
     # type: () -> Pipeline
-    self._extra_context = subprocess_server.JavaJarServer.beam_services(
-        self._options.view_as(CrossLanguageOptions).beam_services)
-    self._extra_context.__enter__()
+    self._extra_context = contextlib.ExitStack()
+    self._extra_context.enter_context(
+        subprocess_server.JavaJarServer.beam_services(
+            self._options.view_as(CrossLanguageOptions).beam_services))
+    self._extra_context.enter_context(
+        subprocess_server.SubprocessServer.cache_subprocesses())
     return self
 
   def __exit__(
@@ -674,13 +694,29 @@ class Pipeline(object):
       alter_label_if_ipython(transform, pvalueish)
 
     full_label = '/'.join(
-        [self._current_transform().full_label, label or
-         transform.label]).lstrip('/')
+        [self._current_transform().full_label, transform.label]).lstrip('/')
     if full_label in self.applied_labels:
-      raise RuntimeError(
-          'A transform with label "%s" already exists in the pipeline. '
-          'To apply a transform with a specified label write '
-          'pvalue | "label" >> transform' % full_label)
+      auto_unique_labels = self._options.view_as(
+          StandardOptions).auto_unique_labels
+      if auto_unique_labels:
+        # If auto_unique_labels is set, we will append a unique suffix to the
+        # label to make it unique.
+        logging.warning(
+            'Using --auto_unique_labels could cause data loss when '
+            'updating a pipeline or reloading the job state. '
+            'This is not recommended for streaming jobs.')
+        unique_label = self._generate_unique_label(transform)
+        return self.apply(transform, pvalueish, unique_label)
+      else:
+        raise RuntimeError(
+            'A transform with label "%s" already exists in the pipeline. '
+            'To apply a transform with a specified label, write '
+            'pvalue | "label" >> transform or use the option '
+            '"auto_unique_labels" to automatically generate unique '
+            'transform labels. Note "auto_unique_labels" '
+            'could cause data loss when updating a pipeline or '
+            'reloading the job state. This is not recommended for '
+            'streaming jobs.' % full_label)
     self.applied_labels.add(full_label)
 
     pvalueish, inputs = transform._extract_input_pvalues(pvalueish)
@@ -755,6 +791,19 @@ class Pipeline(object):
     finally:
       self.transforms_stack.pop()
     return pvalueish_result
+
+  def _generate_unique_label(
+      self,
+      transform  # type: str
+  ):
+    # type: (...) -> str
+
+    """
+    Given a transform, generate a unique label for it based on current label.
+    """
+    unique_suffix = uuid.uuid4().hex[:6]
+    return '%s_%s' % (transform.label, unique_suffix)
+
 
   def _infer_result_type(
       self,
@@ -918,7 +967,8 @@ class Pipeline(object):
     proto = beam_runner_api_pb2.Pipeline(
         root_transform_ids=[root_transform_id],
         components=context.to_runner_api(),
-        requirements=context.requirements())
+        requirements=context.requirements(),
+        display_data=DisplayData('', self._display_data).to_proto())
     proto.components.transforms[root_transform_id].unique_name = (
         root_transform_id)
     self.merge_compatible_environments(proto)
@@ -934,35 +984,7 @@ class Pipeline(object):
 
     Mutates proto as contexts may have references to proto.components.
     """
-    env_map = {}
-    canonical_env = {}
-    files_by_hash = {}
-    for env_id, env in proto.components.environments.items():
-      # First deduplicate any file dependencies by their hash.
-      for dep in env.dependencies:
-        if dep.type_urn == common_urns.artifact_types.FILE.urn:
-          file_payload = beam_runner_api_pb2.ArtifactFilePayload.FromString(
-              dep.type_payload)
-          if file_payload.sha256:
-            if file_payload.sha256 in files_by_hash:
-              file_payload.path = files_by_hash[file_payload.sha256]
-              dep.type_payload = file_payload.SerializeToString()
-            else:
-              files_by_hash[file_payload.sha256] = file_payload.path
-      # Next check if we've ever seen this environment before.
-      normalized = env.SerializeToString(deterministic=True)
-      if normalized in canonical_env:
-        env_map[env_id] = canonical_env[normalized]
-      else:
-        canonical_env[normalized] = env_id
-    for old_env, new_env in env_map.items():
-      for transform in proto.components.transforms.values():
-        if transform.environment_id == old_env:
-          transform.environment_id = new_env
-      for windowing_strategy in proto.components.windowing_strategies.values():
-        if windowing_strategy.environment_id == old_env:
-          windowing_strategy.environment_id = new_env
-      del proto.components.environments[old_env]
+    common.merge_common_environments(proto, inplace=True)
 
   @staticmethod
   def from_runner_api(
@@ -974,7 +996,11 @@ class Pipeline(object):
     # type: (...) -> Pipeline
 
     """For internal use only; no backwards-compatibility guarantees."""
-    p = Pipeline(runner=runner, options=options)
+    p = Pipeline(
+        runner=runner,
+        options=options,
+        display_data={str(ix): d
+                      for ix, d in enumerate(proto.display_data)})
     from apache_beam.runners import pipeline_context
     context = pipeline_context.PipelineContext(
         proto.components, requirements=proto.requirements)
@@ -1330,7 +1356,10 @@ class AppliedPTransform(object):
 
     # Iterate over inputs and outputs by sorted key order, so that ids are
     # consistently generated for multiple runs of the same pipeline.
-    transform_spec = transform_to_runner_api(self.transform, context)
+    try:
+      transform_spec = transform_to_runner_api(self.transform, context)
+    except Exception as exn:
+      raise RuntimeError(f'Unable to translate {self.full_label}') from exn
     environment_id = self.environment_id
     transform_urn = transform_spec.urn if transform_spec else None
     if (not environment_id and

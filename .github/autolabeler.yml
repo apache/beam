@@ -31,6 +31,7 @@ python: ["sdks/python/**/*", "learning/katas/python/**/*"]
 typescript: ["sdks/typescript/**/*"]
 vendor: ["vendor/**/*"]
 website: ["website/**/*"]
+yaml: ["sdks/python/apache_beam/yaml/**"]
 
 # Extensions
 extensions: ["sdks/java/extensions/**/*", "runners/extensions-java/**/*"]
@@ -56,6 +57,7 @@ io:  ["sdks/go/pkg/beam/io/**/*", "sdks/java/io/**/*", "sdks/python/apache_beam/
 "hadoop":  ["sdks/java/io/hadoop-common/**/*", "sdks/java/io/hadoop-file-system/**/*", "sdks/java/io/hadoop-format/**/*"]
 "hbase":  ["sdks/java/io/hbase/**/*"]
 "hcatalog":  ["sdks/java/io/hcatalog/**/*"]
+"healthcare":  ["sdks/python/apache_beam/io/gcp/healthcare/**/*", "sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/healthcare/**/*"]
 "jdbc":  ["sdks/java/io/jdbc/**/*"]
 "jms":  ["sdks/java/io/jms/**/*"]
 "kafka":  ["sdks/java/io/kafka/**/*"]
@@ -68,6 +70,7 @@ io:  ["sdks/go/pkg/beam/io/**/*", "sdks/java/io/**/*", "sdks/python/apache_beam/
 "redis":  ["sdks/java/io/redis/**/*"]
 "solr":  ["sdks/java/io/solr/**/*"]
 "spanner": ["sdks/go/pkg/beam/io/spannerio/**/*", "sdks/python/apache_beam/io/gcp/spanner.py", "sdks/python/apache_beam/io/gcp/experimental/spannerio.py", "sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/spanner/**/*"]
+"bigtable": ["sdks/go/pkg/beam/io/bigtableio/**/*", "sdks/go/pkg/beam/io/xlang/bigtableio/**/*", "sdks/python/apache_beam/io/gcp/bigtableio.py", "sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/bigtable/**/*"]
 "synthetic":  ["sdks/java/io/synthetic/**/*"]
 "tests":  ["sdks/java/io/file-based-io-tests/**/*"]
 "thrift": ["sdks/java/io/thrift/**/*"]

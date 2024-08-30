@@ -78,6 +78,8 @@ KMS_KEY_NAME="projects/apache-beam-testing/locations/global/keyRings/beam-it/cry
 SUITE=""
 COLLECT_MARKERS=
 REQUIREMENTS_FILE=""
+ARCH=""
+PY_VERSION=""
 
 # Default test (pytest) options.
 # Run WordCountIT.test_wordcount_it by default if no test options are
@@ -133,16 +135,6 @@ case $key in
         shift # past argument
         shift # past value
         ;;
-    --runner_v2)
-        RUNNER_V2="$2"
-        shift # past argument
-        shift # past value
-        ;;
-    --disable_runner_v2)
-        DISABLE_RUNNER_V2="$2"
-        shift # past argument
-        shift # past value
-        ;;
     --kms_key_name)
         KMS_KEY_NAME="$2"
         shift # past argument
@@ -170,6 +162,16 @@ case $key in
         ;;
     --collect)
       COLLECT_MARKERS="-m=$2"
+      shift # past argument
+      shift # past value
+      ;;
+    --arch)
+      ARCH="$2"
+      shift # past argument
+      shift # past value
+      ;;
+    --py_version)
+      PY_VERSION="$2"
       shift # past argument
       shift # past value
       ;;
@@ -213,17 +215,6 @@ if [[ -z $PIPELINE_OPTS ]]; then
     echo "[WARNING] Could not find SDK tarball in SDK_LOCATION: $SDK_LOCATION."
   fi
 
-  # Install test dependencies for ValidatesRunner tests.
-  # pyhamcrest==1.10.0 doesn't work on Py2.
-  # See: https://github.com/hamcrest/PyHamcrest/issues/131.
-  if [[ -z $REQUIREMENTS_FILE ]]; then
-    echo "pyhamcrest!=1.10.0,<2.0.0" > postcommit_requirements.txt
-    echo "mock<3.0.0" >> postcommit_requirements.txt
-    echo "parameterized>=0.7.1,<0.8.0" >> postcommit_requirements.txt
-  else
-    cp $REQUIREMENTS_FILE postcommit_requirements.txt
-  fi
-
   # Options used to run testing pipeline on Cloud Dataflow Service. Also used for
   # running on DirectRunner (some options ignored).
   opts=(
@@ -234,7 +225,6 @@ if [[ -z $PIPELINE_OPTS ]]; then
     "--temp_location=$GCS_LOCATION/temp-it"
     "--output=$GCS_LOCATION/py-it-cloud/output"
     "--sdk_location=$SDK_LOCATION"
-    "--requirements_file=postcommit_requirements.txt"
     "--num_workers=$NUM_WORKERS"
     "--sleep_secs=$SLEEP_SECS"
   )
@@ -244,21 +234,15 @@ if [[ -z $PIPELINE_OPTS ]]; then
     opts+=("--streaming")
   fi
 
-  # Add --runner_v2 if provided
-  if [[ "$RUNNER_V2" = true ]]; then
-    opts+=("--experiments=use_runner_v2")
-    if [[ "$STREAMING" = true ]]; then
-      # Dataflow Runner V2 only supports streaming engine.
-      opts+=("--enable_streaming_engine")
-    else
-      opts+=("--experiments=beam_fn_api")
-    fi
-
+  if [[ -n "$REQUIREMENTS_FILE" ]]; then
+    opts+=("--requirements_file=$REQUIREMENTS_FILE")
   fi
 
-  # Add --disable_runner_v2 if provided
-  if [[ "$DISABLE_RUNNER_V2" = true ]]; then
-    opts+=("--experiments=disable_runner_v2")
+  if [[ "$ARCH" == "ARM" ]]; then
+    opts+=("--machine_type=t2a-standard-1")
+
+    IMAGE_NAME="beam_python${PY_VERSION}_sdk"
+    opts+=("--sdk_container_image=us.gcr.io/$PROJECT/$USER/$IMAGE_NAME:$MULTIARCH_TAG")
   fi
 
   if [[ ! -z "$KMS_KEY_NAME" ]]; then

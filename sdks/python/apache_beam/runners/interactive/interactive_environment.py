@@ -29,7 +29,6 @@ import importlib
 import logging
 import os
 import tempfile
-import warnings
 from collections.abc import Iterable
 from pathlib import PurePath
 
@@ -374,11 +373,6 @@ class InteractiveEnvironment(object):
     given pipeline. If the pipeline is absent from the environment while
     create_if_absent is True, creates and returns a new file based cache
     manager for the pipeline."""
-    warnings.filterwarnings(
-        'ignore',
-        'options is deprecated since First stable release. References to '
-        '<pipeline>.options will not be supported',
-        category=DeprecationWarning)
 
     cache_manager = self._cache_managers.get(str(id(pipeline)), None)
     pipeline_runner = detect_pipeline_runner(pipeline)

@@ -20,15 +20,14 @@ package org.apache.beam.runners.dataflow.worker;
 import org.apache.beam.runners.dataflow.worker.counters.CounterName;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.sdk.metrics.MetricName;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 
 /** This holds system metrics related constants used in Batch and Streaming. */
 public class DataflowSystemMetrics {
 
   public static final MetricName THROTTLING_MSECS_METRIC_NAME =
-      MetricName.named("dataflow-throttling-metrics", "throttling-msecs");
-
-  // TODO: Provide an utility in SDK 'ThrottlingReporter' to update throttling time.
+      MetricName.named("dataflow-throttling-metrics", Metrics.THROTTLE_TIME_COUNTER_NAME);
 
   /** System counters populated by streaming dataflow workers. */
   public enum StreamingSystemCounterNames {
@@ -39,6 +38,13 @@ public class DataflowSystemMetrics {
     JAVA_HARNESS_USED_MEMORY("dataflow_java_harness_used_memory"),
     JAVA_HARNESS_MAX_MEMORY("dataflow_java_harness_max_memory"),
     JAVA_HARNESS_RESTARTS("dataflow_java_harness_restarts"),
+    TIME_AT_MAX_ACTIVE_THREADS("dataflow_time_at_max_active_threads"),
+    ACTIVE_THREADS("dataflow_active_threads"),
+    TOTAL_ALLOCATED_THREADS("dataflow_total_allocated_threads"),
+    OUTSTANDING_BYTES("dataflow_outstanding_bytes"),
+    MAX_OUTSTANDING_BYTES("dataflow_max_outstanding_bytes"),
+    OUTSTANDING_BUNDLES("dataflow_outstanding_bundles"),
+    MAX_OUTSTANDING_BUNDLES("dataflow_max_outstanding_bundles"),
     WINDMILL_QUOTA_THROTTLING("dataflow_streaming_engine_throttled_msecs"),
     MEMORY_THRASHING("dataflow_streaming_engine_user_worker_thrashing");
 

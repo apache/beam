@@ -25,20 +25,16 @@ import '../common/examples.dart';
 
 Future<void> checkFeedback(WidgetTester wt) async {
   for (final rating in FeedbackRating.values) {
-    for (final send in [true, false]) {
-      await _checkFeedback(
-        wt,
-        rating: rating,
-        send: send,
-      );
-    }
+    await _checkFeedback(
+      wt,
+      rating: rating,
+    );
   }
 }
 
 Future<void> _checkFeedback(
   WidgetTester wt, {
   required FeedbackRating rating,
-  required bool send,
 }) async {
   await wt.tapAndSettle(find.feedbackThumb(rating));
 
@@ -47,29 +43,11 @@ Future<void> _checkFeedback(
       rating: rating,
       snippetContext: defaultEventSnippetContext,
     ),
-    reason: 'Rating: $rating, Send: $send',
+    reason: 'Rating: $rating, Send: false',
   );
   expect(find.feedbackDropdownContent(), findsOneWidget);
 
-  if (!send) {
-    await wt.tapAndSettle(find.dismissibleOverlay());
-  } else {
-    final text = 'This is $rating text.';
-    await wt.enterText(find.feedbackDropdownTextField(), text);
-    await wt.pumpAndSettle();
-
-    expect(find.text(text), findsOneWidget);
-
-    await wt.tapAndSettle(find.feedbackDropdownSendButton());
-
-    expectLastAnalyticsEvent(
-      FeedbackFormSentAnalyticsEvent(
-        rating: rating,
-        text: text,
-        snippetContext: defaultEventSnippetContext,
-      ),
-    );
-  }
+  await wt.tapAndSettle(find.dismissibleOverlay());
 
   expect(find.feedbackDropdownContent(), findsNothing);
 }

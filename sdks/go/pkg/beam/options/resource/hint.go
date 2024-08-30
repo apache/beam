@@ -196,3 +196,40 @@ func (h acceleratorHint) MergeWithOuter(outer Hint) Hint {
 func (h acceleratorHint) String() string {
 	return fmt.Sprintf("accelerator=%v", h.value)
 }
+
+// CPUCount hints that this scope should be put in a machine with at least this many CPUs or vCPUs.
+//
+// Hints are advisory only and runners may not respect them.
+//
+// See https://beam.apache.org/documentation/runtime/resource-hints/ for more information about
+// resource hints.
+func CPUCount(v uint64) Hint {
+	return CPUCountHint{value: uint64(v)}
+}
+
+type CPUCountHint struct {
+	value uint64
+}
+
+func (CPUCountHint) URN() string {
+	return "beam:resources:cpu_count:v1"
+}
+
+func (h CPUCountHint) Payload() []byte {
+	// Go strings are utf8, and if the string is ascii,
+	// byte conversion handles that directly.
+	return []byte(strconv.FormatUint(h.value, 10))
+}
+
+// MergeWithOuter by keeping the maximum of the two cpu counts.
+func (h CPUCountHint) MergeWithOuter(outer Hint) Hint {
+	// Intentional runtime panic from type assertion to catch hint merge errors.
+	if outer.(CPUCountHint).value > h.value {
+		return outer
+	}
+	return h
+}
+
+func (h CPUCountHint) String() string {
+	return fmt.Sprintf("cpu_count=%v", humanize.Bytes(uint64(h.value)))
+}

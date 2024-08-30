@@ -37,12 +37,16 @@ FlatMap processing functions.
 # pytype: skip-file
 
 import copy
+import functools
+import inspect
 import itertools
+import json
 import logging
 import operator
 import os
 import sys
 import threading
+import warnings
 from functools import reduce
 from functools import wraps
 from typing import TYPE_CHECKING
@@ -83,6 +87,7 @@ from apache_beam.typehints.decorators import getcallargs_forhints
 from apache_beam.typehints.trivial_inference import instance_to_type
 from apache_beam.typehints.typehints import validate_composite_type_param
 from apache_beam.utils import proto_utils
+from apache_beam.utils import python_callable
 
 if TYPE_CHECKING:
   from apache_beam import coders
@@ -95,6 +100,7 @@ __all__ = [
     'PTransform',
     'ptransform_fn',
     'label_from_callable',
+    'annotate_yaml',
 ]
 
 _LOGGER = logging.getLogger(__name__)
@@ -371,7 +377,10 @@ class PTransform(WithTypeHints, HasDisplayData, Generic[InputT, OutputT]):
     return self.__class__.__name__
 
   def annotations(self) -> Dict[str, Union[bytes, str, message.Message]]:
-    return {}
+    return {
+        'python_type':  #
+        f'{self.__class__.__module__}.{self.__class__.__qualname__}'
+    }
 
   def default_type_hints(self):
     fn_type_hints = IOTypeHints.from_callable(self.expand)
@@ -1069,6 +1078,15 @@ def ptransform_fn(fn):
           'type hints for %s: %s', res.default_label(), res.get_type_hints())
     return res
 
+  # The signature of this PTransform constructor is that of fn minus the first
+  # argument (which is where the pvalue is passed during expand).
+  try:
+    callable_ptransform_factory.__signature__ = inspect.signature(  # type: ignore
+        functools.partial(fn, None))
+  except Exception:
+    # Sometimes we can't get the original signature.
+    pass
+
   return callable_ptransform_factory
 
 
@@ -1093,3 +1111,79 @@ class _NamedPTransform(PTransform):
 
   def expand(self, pvalue):
     raise RuntimeError("Should never be expanded directly.")
+
+  def annotations(self):
+    return self.transform.annotations()
+
+  def __rrshift__(self, label):
+    return _NamedPTransform(self.transform, label)
+
+  def __getattr__(self, attr):
+    transform_attr = getattr(self.transform, attr)
+    if callable(transform_attr):
+
+      @wraps(transform_attr)
+      def wrapper(*args, **kwargs):
+        result = transform_attr(*args, **kwargs)
+        if isinstance(result, PTransform):
+          return _NamedPTransform(result, self.label)
+        else:
+          return result
+
+      return wrapper
+    else:
+      return transform_attr
+
+  def __setattr__(self, attr, value):
+    if attr == 'annotations':
+      self.transform.annotations = value
+    else:
+      super().__setattr__(attr, value)
+
+
+# Defined here to avoid circular import issues for Beam library transforms.
+def annotate_yaml(constructor):
+  """Causes instances of this transform to be annotated with their yaml syntax.
+
+  Should only be used for transforms that are fully defined by their constructor
+  arguments.
+  """
+  @wraps(constructor)
+  def wrapper(*args, **kwargs):
+    transform = constructor(*args, **kwargs)
+
+    fully_qualified_name = (
+        f'{constructor.__module__}.{constructor.__qualname__}')
+    try:
+      imported_constructor = (
+          python_callable.PythonCallableWithSource.
+          load_from_fully_qualified_name(fully_qualified_name))
+      if imported_constructor != wrapper:
+        raise ImportError('Different object.')
+    except ImportError:
+      warnings.warn(f'Cannot import {constructor} as {fully_qualified_name}.')
+      return transform
+
+    try:
+      config = json.dumps({
+          'constructor': fully_qualified_name,
+          'args': args,
+          'kwargs': kwargs,
+      })
+    except TypeError as exn:
+      warnings.warn(
+          f'Cannot serialize arguments for {constructor} as json: {exn}')
+      return transform
+
+    original_annotations = transform.annotations
+    transform.annotations = lambda: {
+        **original_annotations(),
+        # These override whatever may have been provided earlier.
+        # The outermost call is expected to be the most specific.
+        'yaml_provider': 'python',
+        'yaml_type': 'PyTransform',
+        'yaml_args': config,
+    }
+    return transform
+
+  return wrapper

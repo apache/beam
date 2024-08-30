@@ -42,7 +42,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -125,7 +125,10 @@ public class JdbcIOAutoPartitioningIT {
         }
       };
 
-  @ClassRule public static JdbcDatabaseContainer<?> mysql = new MySQLContainer<>("mysql");
+  // TODO(yathu) unpin tag when the fix of
+  // https://github.com/testcontainers/testcontainers-java/issues/8130
+  //  released and upgraded in Beam
+  @ClassRule public static JdbcDatabaseContainer<?> mysql = new MySQLContainer<>("mysql:8.2");
 
   @ClassRule
   public static JdbcDatabaseContainer<?> postgres = new PostgreSQLContainer<>("postgres");

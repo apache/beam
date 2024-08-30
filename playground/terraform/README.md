@@ -150,3 +150,97 @@ NAME               AGE     STATUS
 GCP Project       time     Active
 ```
 3. Open Beam Playground frontend webpage in a web browser (e.g. https://playground.zone) to ensure that Playground frontend page is available
+
+# Use HELM to update environment
+Helm is responsible for deploying Beam Playground on the GKE cluster
+Use the steps below to update HELM Chart and apply it:
+
+1. Configure authentication for the Google Cloud Platform:
+```
+gcloud init
+```
+```
+gcloud auth application-default login
+```
+2. Run the following command to authenticate in the Docker registry:
+```
+gcloud auth configure-docker <region>-docker.pkg.dev
+```
+3. Run the following command to authenticate in GKE:
+```
+gcloud container clusters get-credentials --region <zone> <gke_name> --project <project_id>
+```
+4. Clone Apache BEAM repository from Git
+5. Make required changes in playground/infrastructure/helm-playground/values.yaml file:
+```
+replicaCount: 1
+image:
+   java_image: beam_playground-backend-java
+   go_image: beam_playground-backend-go
+   router_image: beam_playground-backend-router
+   scio_image: beam_playground-backend-scio
+   python_image: beam_playground-backend-python
+   frontend_image: beam_playground-frontend
+   pullPolicy: Always
+service:
+   type: NodePort
+   targetPort: 8080
+   port: 443
+healthcheck:
+   port: 8080
+   livInitialDelaySeconds: 30
+   livPeriodSeconds: 30
+   readInitialDelaySeconds: 30
+   readPeriodSeconds: 30
+autoscaling:
+   runners:
+ 	  maxReplicas: 4
+ 	  minReplicas: 2
+   rest:
+ 	  maxReplicas: 4
+ 	  minReplicas: 1
+   utilization:
+ 	memoryUtilization: 80
+ 	cpuUtilization: 95
+static_ip: <external IP address>
+redis_ip: <REDIS IP address>:6379
+project_id: <Project ID>
+registry: <region>-docker.pkg.dev/<project_id>/<repository_id>
+static_ip_name: <ip_address_name>
+tag: <docker-tag>
+datastore_name: <datastore-namespace>
+dns_name: <dns-name>
+func_clean: https://<region>-<project_id>.cloudfunctions.net/playground-function-cleanup-<env>
+func_put: https://<region>-<project_id>.cloudfunctions.net/playground-function-put-<env>
+func_view: https://<region>-<project_id>.cloudfunctions.net/playground-function-view-<env>
+```
+6. Execute following command to update HELM:
+```
+helm upgrade playground /playground/infrastructure/helm-helm-playground
+```
+## Variables description for "values.yaml"
+See Also:
+
+[Services](https://cloud.google.com/kubernetes-engine/docs/concepts/service)
+
+[Configure Liveness, Readiness and Startup Probes](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/)
+
+[Cluster autoscaling](https://cloud.google.com/kubernetes-engine/docs/concepts/cluster-autoscaler#:~:text=GKE's%20cluster%20autoscaler%20automatically%20resizes,minimum%20size%20that%20you%20designate.)
+
+
+|Variable                           |Description                                        |
+|-----------------------------------|:--------------------------------------------------|
+|service/type                       |connection type for service in the GKE Cluster     |
+|service/targetPort                 |Service target port, connection from Service to POD|
+|service/port                       |Service port, connection from ingress to service   |
+|healthcheck/port                   |Internal POD port for Healthcheck                  |
+|healthcheck/livInitialDelaySeconds |pre-polling delay                                  |
+|healthcheck/livPeriodSeconds       |Poll period                                        |
+|healthcheck/readInitialDelaySeconds|Check if POD is ready                              |
+|healthcheck/readPeriodSeconds      |Poll period for checking if POD is ready           |
+|autoscaling/runners/maxReplicas    |maximum number of PODs for a runner                |
+|autoscaling/runners/minReplicas    |minimum number of PODs for a runner                |
+|autoscaling/rest/maxReplicas       |max number of PODs per computer                    |
+|autoscaling/rest/minReplicas       |minimum number of PODs for a router                |
+|autoscaling/memoryUtilization      |POD scaling activation threshold based on RAM usage|
+|autoscaling/cpuUtilization         |POD scaling activation threshold based on CPU usage|

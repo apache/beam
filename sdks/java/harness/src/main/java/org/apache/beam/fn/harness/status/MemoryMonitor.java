@@ -43,11 +43,13 @@ import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.CreateOptions.StandardCreateOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.AtomicDouble;
+import org.apache.beam.sdk.options.PortablePipelineOptions;
+import org.apache.beam.sdk.options.SdkHarnessOptions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.AtomicDouble;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -94,14 +96,6 @@ public class MemoryMonitor implements Runnable {
    * as a percentage.
    */
   private static final double GC_THRASHING_PERCENTAGE_PER_SERVER = 60.0;
-
-  /**
-   * The GC thrashing threshold percentage. A given period of time is considered "thrashing" if this
-   * percentage of CPU time is spent in garbage collection.
-   *
-   * <p>If {@literal 100} is given as the value, MemoryMonitor will be disabled.
-   */
-  private static final double GC_THRASHING_PERCENTAGE_PER_PERIOD = 50.0;
 
   /**
    * The amount of memory (in bytes) we should pre-allocate, in order to be able to dump the heap.
@@ -201,15 +195,18 @@ public class MemoryMonitor implements Runnable {
   private final File localDumpFolder;
 
   public static MemoryMonitor fromOptions(PipelineOptions options) {
+    SdkHarnessOptions sdkHarnessOptions = options.as(SdkHarnessOptions.class);
     String uploadFilePath = options.getTempLocation();
-    boolean canDumpHeap = uploadFilePath != null;
+    PortablePipelineOptions portableOptions = options.as(PortablePipelineOptions.class);
+    boolean canDumpHeap = uploadFilePath != null && portableOptions.getEnableHeapDumps();
+    double gcThrashingPercentagePerPeriod = sdkHarnessOptions.getGCThrashingPercentagePerPeriod();
 
     return new MemoryMonitor(
         new SystemGCStatsProvider(),
         DEFAULT_SLEEP_TIME_MILLIS,
         DEFAULT_SHUT_DOWN_AFTER_NUM_GCTHRASHING,
         canDumpHeap,
-        GC_THRASHING_PERCENTAGE_PER_PERIOD,
+        gcThrashingPercentagePerPeriod,
         uploadFilePath,
         getLoggingDir());
   }
@@ -624,12 +621,13 @@ public class MemoryMonitor implements Runnable {
     long totalMemory = runtime.totalMemory();
     long usedMemory = totalMemory - runtime.freeMemory();
     return String.format(
-        "used/total/max = %d/%d/%d MB, GC last/max = %.2f/%.2f %%, #pushbacks=%d, gc thrashing=%s",
+        "used/total/max = %d/%d/%d MB, GC last/max = %.2f/%.2f %% (configured threshold: %.2f%%), #pushbacks=%d, gc thrashing=%s",
         usedMemory >> 20,
         totalMemory >> 20,
         maxMemory >> 20,
         lastMeasuredGCPercentage.get(),
         maxGCPercentage.get(),
+        gcThrashingPercentagePerPeriod,
         numPushbacks.get(),
         isThrashing.get());
   }

@@ -36,7 +36,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.sdk.io.kinesis.RateLimitPolicyFactory.DefaultRateLimiter;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.Sleeper;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.api.mockito.PowerMockito;

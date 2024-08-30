@@ -36,7 +36,9 @@ from typing import Tuple
 from typing import TypeVar
 from typing import Union
 
+import apache_beam as beam
 from apache_beam import coders
+from apache_beam import pvalue
 from apache_beam import typehints
 from apache_beam.metrics import Metrics
 from apache_beam.portability import common_urns
@@ -61,6 +63,7 @@ from apache_beam.transforms.trigger import AccumulationMode
 from apache_beam.transforms.trigger import Always
 from apache_beam.transforms.userstate import BagStateSpec
 from apache_beam.transforms.userstate import CombiningValueStateSpec
+from apache_beam.transforms.userstate import ReadModifyWriteStateSpec
 from apache_beam.transforms.userstate import TimerSpec
 from apache_beam.transforms.userstate import on_timer
 from apache_beam.transforms.window import NonMergingWindowFn
@@ -69,12 +72,12 @@ from apache_beam.transforms.window import TimestampedValue
 from apache_beam.typehints import trivial_inference
 from apache_beam.typehints.decorators import get_signature
 from apache_beam.typehints.sharded_key_type import ShardedKeyType
+from apache_beam.utils import shared
 from apache_beam.utils import windowed_value
 from apache_beam.utils.annotations import deprecated
 from apache_beam.utils.sharded_key import ShardedKey
 
 if TYPE_CHECKING:
-  from apache_beam import pvalue
   from apache_beam.runners.pipeline_context import PipelineContext
 
 __all__ = [
@@ -392,7 +395,7 @@ class _BatchSizeEstimator(object):
   def record_time(self, batch_size):
     start = self._clock()
     yield
-    elapsed = self._clock() - start
+    elapsed = float(self._clock() - start)
     elapsed_msec = 1e3 * elapsed + self._remainder_msecs
     if self._record_metrics:
       self._size_distribution.update(batch_size)
@@ -576,14 +579,15 @@ class _GlobalWindowsBatchingDoFn(DoFn):
     self._batch_size_estimator.ignore_next_timing()
 
   def process(self, element):
-    self._batch.append(element)
-    self._running_batch_size += self._element_size_fn(element)
-    if self._running_batch_size >= self._target_batch_size:
+    element_size = self._element_size_fn(element)
+    if self._running_batch_size + element_size > self._target_batch_size:
       with self._batch_size_estimator.record_time(self._running_batch_size):
         yield window.GlobalWindows.windowed_value_at_end_of_window(self._batch)
       self._batch = []
       self._running_batch_size = 0
       self._target_batch_size = self._batch_size_estimator.next_batch_size()
+    self._batch.append(element)
+    self._running_batch_size += element_size
 
   def finish_bundle(self):
     if self._batch:
@@ -618,15 +622,18 @@ class _WindowAwareBatchingDoFn(DoFn):
 
   def process(self, element, window=DoFn.WindowParam):
     batch = self._batches[window]
-    batch.elements.append(element)
-    batch.size += self._element_size_fn(element)
-    if batch.size >= self._target_batch_size:
+    element_size = self._element_size_fn(element)
+    if batch.size + element_size > self._target_batch_size:
       with self._batch_size_estimator.record_time(batch.size):
         yield windowed_value.WindowedValue(
             batch.elements, window.max_timestamp(), (window, ))
       del self._batches[window]
       self._target_batch_size = self._batch_size_estimator.next_batch_size()
-    elif len(self._batches) > self._MAX_LIVE_WINDOWS:
+
+    self._batches[window].elements.append(element)
+    self._batches[window].size += element_size
+
+    if len(self._batches) > self._MAX_LIVE_WINDOWS:
       window, batch = max(
           self._batches.items(),
           key=lambda window_batch: window_batch[1].size)
@@ -644,6 +651,133 @@ class _WindowAwareBatchingDoFn(DoFn):
               batch.elements, window.max_timestamp(), (window, ))
     self._batches = None
     self._target_batch_size = self._batch_size_estimator.next_batch_size()
+
+
+def _pardo_stateful_batch_elements(
+    input_coder: coders.Coder,
+    batch_size_estimator: _BatchSizeEstimator,
+    max_buffering_duration_secs: int,
+    clock=time.time):
+  ELEMENT_STATE = BagStateSpec('values', input_coder)
+  COUNT_STATE = CombiningValueStateSpec('count', input_coder, CountCombineFn())
+  BATCH_SIZE_STATE = ReadModifyWriteStateSpec('batch_size', input_coder)
+  WINDOW_TIMER = TimerSpec('window_end', TimeDomain.WATERMARK)
+  BUFFERING_TIMER = TimerSpec('buffering_end', TimeDomain.REAL_TIME)
+  BATCH_ESTIMATOR_STATE = ReadModifyWriteStateSpec(
+      'batch_estimator', coders.PickleCoder())
+
+  class _StatefulBatchElementsDoFn(DoFn):
+    def process(
+        self,
+        element,
+        window=DoFn.WindowParam,
+        element_state=DoFn.StateParam(ELEMENT_STATE),
+        count_state=DoFn.StateParam(COUNT_STATE),
+        batch_size_state=DoFn.StateParam(BATCH_SIZE_STATE),
+        batch_estimator_state=DoFn.StateParam(BATCH_ESTIMATOR_STATE),
+        window_timer=DoFn.TimerParam(WINDOW_TIMER),
+        buffering_timer=DoFn.TimerParam(BUFFERING_TIMER)):
+      window_timer.set(window.end)
+      # Drop the fixed key since we don't care about it
+      element_state.add(element[1])
+      count_state.add(1)
+      count = count_state.read()
+      target_size = batch_size_state.read()
+      # Should only happen on the first element
+      if target_size is None:
+        batch_estimator = batch_size_estimator
+        target_size = batch_estimator.next_batch_size()
+        batch_size_state.write(target_size)
+        batch_estimator_state.write(batch_estimator)
+
+      if count == 1 and max_buffering_duration_secs > 0:
+        # First element in batch, start buffering timer
+        buffering_timer.set(clock() + max_buffering_duration_secs)
+
+      if count >= target_size:
+        return self.flush_batch(
+            element_state,
+            count_state,
+            batch_size_state,
+            batch_estimator_state,
+            buffering_timer)
+
+    @on_timer(WINDOW_TIMER)
+    def on_window_timer(
+        self,
+        element_state=DoFn.StateParam(ELEMENT_STATE),
+        count_state=DoFn.StateParam(COUNT_STATE),
+        batch_size_state=DoFn.StateParam(BATCH_SIZE_STATE),
+        batch_estimator_state=DoFn.StateParam(BATCH_ESTIMATOR_STATE),
+        buffering_timer=DoFn.TimerParam(BUFFERING_TIMER)):
+      return self.flush_batch(
+          element_state,
+          count_state,
+          batch_size_state,
+          batch_estimator_state,
+          buffering_timer)
+
+    @on_timer(BUFFERING_TIMER)
+    def on_buffering_timer(
+        self,
+        element_state=DoFn.StateParam(ELEMENT_STATE),
+        count_state=DoFn.StateParam(COUNT_STATE),
+        batch_size_state=DoFn.StateParam(BATCH_SIZE_STATE),
+        batch_estimator_state=DoFn.StateParam(BATCH_ESTIMATOR_STATE),
+        buffering_timer=DoFn.TimerParam(BUFFERING_TIMER)):
+      return self.flush_batch(
+          element_state,
+          count_state,
+          batch_size_state,
+          batch_estimator_state,
+          buffering_timer)
+
+    def flush_batch(
+        self,
+        element_state,
+        count_state,
+        batch_size_state,
+        batch_estimator_state,
+        buffering_timer):
+      batch = [element for element in element_state.read()]
+      if not batch:
+        return
+      element_state.clear()
+      count_state.clear()
+      batch_estimator = batch_estimator_state.read()
+      with batch_estimator.record_time(len(batch)):
+        yield batch
+      batch_size_state.write(batch_estimator.next_batch_size())
+      batch_estimator_state.write(batch_estimator)
+      buffering_timer.clear()
+
+  return _StatefulBatchElementsDoFn()
+
+
+class SharedKey():
+  """A class that holds a per-process UUID used to key elements for streaming
+  BatchElements.
+  """
+  def __init__(self):
+    self.key = uuid.uuid4().hex
+
+
+def load_shared_key():
+  return SharedKey()
+
+
+class WithSharedKey(DoFn):
+  """A DoFn that keys elements with a per-process UUID. Used in streaming
+  BatchElements.
+  """
+  def __init__(self):
+    self.shared_handle = shared.Shared()
+
+  def setup(self):
+    self.key = self.shared_handle.acquire(load_shared_key, "WithSharedKey").key
+
+  def process(self, element):
+    yield (self.key, element)
 
 
 @typehints.with_input_types(T)
@@ -665,7 +799,22 @@ class BatchElements(PTransform):
   operations. For a fixed batch size, set the min and max to be equal.
 
   Elements are batched per-window and batches emitted in the window
-  corresponding to its contents.
+  corresponding to its contents. Each batch is emitted with a timestamp at
+  the end of their window.
+
+  When the max_batch_duration_secs arg is provided, a stateful implementation
+  of BatchElements is used to batch elements across bundles. This is most
+  impactful in streaming applications where many bundles only contain one
+  element. Larger max_batch_duration_secs values `might` reduce the throughput
+  of the transform, while smaller values might improve the throughput but
+  make it more likely that batches are smaller than the target batch size.
+
+  As a general recommendation, start with low values (e.g. 0.005 aka 5ms) and
+  increase as needed to get the desired tradeoff between target batch size
+  and latency or throughput.
+
+  For more information on tuning parameters to this transform, see
+  https://beam.apache.org/documentation/patterns/batch-elements
 
   Args:
     min_batch_size: (optional) the smallest size of a batch
@@ -676,6 +825,9 @@ class BatchElements(PTransform):
         in seconds, excluding fixed cost
     target_batch_duration_secs_including_fixed_cost: (optional) a target for
         total time per bundle, in seconds, including fixed cost
+    max_batch_duration_secs: (optional) the maximum amount of time to buffer
+        a batch before emitting. Setting this argument to be non-none uses the
+        stateful implementation of BatchElements.
     element_size_fn: (optional) A mapping of an element to its contribution to
         batch size, defaulting to every element having size 1.  When provided,
         attempts to provide batches of optimal total size which may consist of
@@ -695,6 +847,7 @@ class BatchElements(PTransform):
       target_batch_overhead=.05,
       target_batch_duration_secs=10,
       target_batch_duration_secs_including_fixed_cost=None,
+      max_batch_duration_secs=None,
       *,
       element_size_fn=lambda x: 1,
       variance=0.25,
@@ -711,10 +864,20 @@ class BatchElements(PTransform):
         clock=clock,
         record_metrics=record_metrics)
     self._element_size_fn = element_size_fn
+    self._max_batch_dur = max_batch_duration_secs
+    self._clock = clock
 
   def expand(self, pcoll):
     if getattr(pcoll.pipeline.runner, 'is_streaming', False):
       raise NotImplementedError("Requires stateful processing (BEAM-2687)")
+    elif self._max_batch_dur is not None:
+      coder = coders.registry.get_coder(pcoll)
+      return pcoll | ParDo(WithSharedKey()) | ParDo(
+          _pardo_stateful_batch_elements(
+              coder,
+              self._batch_size_estimator,
+              self._max_batch_dur,
+              self._clock))
     elif pcoll.windowing.is_default():
       # This is the same logic as _GlobalWindowsBatchingDoFn, but optimized
       # for that simpler case.
@@ -1154,13 +1317,24 @@ class ToString(object):
 class LogElements(PTransform):
   """
   PTransform for printing the elements of a PCollection.
+
+  Args:
+    label (str): (optional) A custom label for the transform.
+    prefix (str): (optional) A prefix string to prepend to each logged element.
+    with_timestamp (bool): (optional) Whether to include element's timestamp.
+    with_window (bool): (optional) Whether to include element's window.
+    level: (optional) The logging level for the output (e.g. `logging.DEBUG`,
+        `logging.INFO`, `logging.WARNING`, `logging.ERROR`). If not specified,
+        the log is printed to stdout.
   """
   class _LoggingFn(DoFn):
-    def __init__(self, prefix='', with_timestamp=False, with_window=False):
+    def __init__(
+        self, prefix='', with_timestamp=False, with_window=False, level=None):
       super().__init__()
       self.prefix = prefix
       self.with_timestamp = with_timestamp
       self.with_window = with_window
+      self.level = level
 
     def process(
         self,
@@ -1177,19 +1351,38 @@ class LogElements(PTransform):
         log_line += ', window(start=' + window.start.to_rfc3339()
         log_line += ', end=' + window.end.to_rfc3339() + ')'
 
-      print(log_line)
+      if self.level == logging.DEBUG:
+        logging.debug(log_line)
+      elif self.level == logging.INFO:
+        logging.info(log_line)
+      elif self.level == logging.WARNING:
+        logging.warning(log_line)
+      elif self.level == logging.ERROR:
+        logging.error(log_line)
+      elif self.level == logging.CRITICAL:
+        logging.critical(log_line)
+      else:
+        print(log_line)
+
       yield element
 
   def __init__(
-      self, label=None, prefix='', with_timestamp=False, with_window=False):
+      self,
+      label=None,
+      prefix='',
+      with_timestamp=False,
+      with_window=False,
+      level=None):
     super().__init__(label)
     self.prefix = prefix
     self.with_timestamp = with_timestamp
     self.with_window = with_window
+    self.level = level
 
   def expand(self, input):
     return input | ParDo(
-        self._LoggingFn(self.prefix, self.with_timestamp, self.with_window))
+        self._LoggingFn(
+            self.prefix, self.with_timestamp, self.with_window, self.level))
 
 
 class Reify(object):
@@ -1470,3 +1663,39 @@ class Regex(object):
       yield r
 
     return pcoll | FlatMap(_process)
+
+
+@typehints.with_input_types(T)
+@typehints.with_output_types(T)
+class WaitOn(PTransform):
+  """Delays processing of a {@link PCollection} until another set of
+  PCollections has finished being processed. For example::
+
+     X | WaitOn(Y, Z) | SomeTransform()
+
+  would ensure that PCollections Y and Z (and hence their producing transforms)
+  are complete before SomeTransform gets executed on the elements of X.
+  This can be especially useful the waited-on PCollections are the outputs
+  of transforms that interact with external systems (such as writing to a
+  database or other sink).
+
+  For streaming, this delay is done on a per-window basis, i.e.
+  the corresponding window of each waited-on PCollection is computed before
+  elements are passed through the main collection.
+
+  This barrier often induces a fusion break.
+  """
+  def __init__(self, *to_be_waited_on):
+    self._to_be_waited_on = to_be_waited_on
+
+  def expand(self, pcoll):
+    # All we care about is the watermark, not the data itself.
+    # The GroupByKey avoids writing empty files for each shard, and also
+    # ensures the respective window finishes before advancing the timestamp.
+    sides = [
+        pvalue.AsIter(
+            side
+            | f"WaitOn{ix}" >> (beam.FlatMap(lambda x: ()) | GroupByKey()))
+        for (ix, side) in enumerate(self._to_be_waited_on)
+    ]
+    return pcoll | beam.Map(lambda x, *unused_sides: x, *sides)

@@ -37,8 +37,8 @@ import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Equivalence;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Equivalence;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Static utility methods for creating {@link StateTag} instances. */
@@ -255,6 +255,14 @@ public class StateTags {
       StateTag<SetState<KeyT>> setTag) {
     return new SimpleStateTag<>(
         new StructuredId(setTag.getId()), StateSpecs.convertToMapSpecInternal(setTag.getSpec()));
+  }
+
+  public static <KeyT, ValueT> StateTag<MultimapState<KeyT, ValueT>> convertToMultiMapTagInternal(
+      StateTag<MapState<KeyT, ValueT>> mapTag) {
+    StateSpec<MapState<KeyT, ValueT>> spec = mapTag.getSpec();
+    StateSpec<MultimapState<KeyT, ValueT>> multimapSpec =
+        StateSpecs.convertToMultimapSpecInternal(spec);
+    return new SimpleStateTag<>(new StructuredId(mapTag.getId()), multimapSpec);
   }
 
   private static class StructuredId implements Serializable {

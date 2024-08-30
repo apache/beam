@@ -23,7 +23,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience
 /**
  * Specify hints about runtime data characteristics.
  *
- * @deprecated Hints unsupported for now
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
  */
 @Audience(Audience.Type.INTERNAL)
 @Deprecated

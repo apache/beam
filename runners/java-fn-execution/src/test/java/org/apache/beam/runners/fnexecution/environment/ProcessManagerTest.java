@@ -34,13 +34,16 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.Collections;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** Tests for {@link ProcessManager}. */
 @RunWith(JUnit4.class)
 public class ProcessManagerTest {
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
 
   @Test
   public void testRunSimpleCommand() throws IOException {

@@ -24,7 +24,7 @@ import java.io.Serializable;
 import java.util.Map;
 import java.util.Properties;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

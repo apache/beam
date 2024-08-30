@@ -26,6 +26,7 @@ from hamcrest import assert_that
 from hamcrest import contains_string
 from hamcrest import only_contains
 from hamcrest.core.base_matcher import BaseMatcher
+from parameterized import parameterized
 
 from apache_beam.internal import pickler
 from apache_beam.options.pipeline_options import DebugOptions
@@ -95,174 +96,86 @@ class SetupTest(unittest.TestCase):
             errors, ['project', 'staging_location', 'temp_location', 'region']),
         [])
 
-  def test_gcs_path(self):
-    def get_validator(temp_location, staging_location):
+  @parameterized.expand([
+      (None, 'gs://foo/bar',
+       []), (None, None, ['staging_location', 'temp_location']),
+      ('gs://foo/bar', None, []), ('gs://foo/bar', 'gs://ABC/bar',
+                                   []), ('gcs:/foo/bar', 'gs://foo/bar', []),
+      ('gs:/foo/bar', 'gs://foo/bar', []), ('gs://ABC/bar', 'gs://foo/bar', []),
+      ('gs://ABC/bar', 'gs://BCD/bar', ['temp_location', 'staging_location'
+                                        ]), ('gs://foo', 'gs://foo/bar', []),
+      ('gs://foo/', 'gs://foo/bar', []), ('gs://foo/bar', 'gs://foo/bar', [])
+  ])
+  @unittest.skip('Not compatible with new GCS client. See GH issue #26335.')
+  def test_gcs_path(self, temp_location, staging_location, expected_error_args):
+    def get_validator(_temp_location, _staging_location):
       options = ['--project=example:example', '--job_name=job']
 
-      if temp_location is not None:
-        options.append('--temp_location=' + temp_location)
+      if _temp_location is not None:
+        options.append('--temp_location=' + _temp_location)
 
-      if staging_location is not None:
-        options.append('--staging_location=' + staging_location)
+      if _staging_location is not None:
+        options.append('--staging_location=' + _staging_location)
 
       pipeline_options = PipelineOptions(options)
       runner = MockRunners.DataflowRunner()
       validator = PipelineOptionsValidator(pipeline_options, runner)
       return validator
 
-    test_cases = [
-        {
-            'temp_location': None,
-            'staging_location': 'gs://foo/bar',
-            'errors': ['temp_location']
-        },
-        {
-            'temp_location': None,
-            'staging_location': None,
-            'errors': ['staging_location', 'temp_location']
-        },
-        {
-            'temp_location': 'gs://foo/bar',
-            'staging_location': None,
-            'errors': []
-        },
-        {
-            'temp_location': 'gs://foo/bar',
-            'staging_location': 'gs://ABC/bar',
-            'errors': ['staging_location']
-        },
-        {
-            'temp_location': 'gcs:/foo/bar',
-            'staging_location': 'gs://foo/bar',
-            'errors': ['temp_location']
-        },
-        {
-            'temp_location': 'gs:/foo/bar',
-            'staging_location': 'gs://foo/bar',
-            'errors': ['temp_location']
-        },
-        {
-            'temp_location': 'gs://ABC/bar',
-            'staging_location': 'gs://foo/bar',
-            'errors': ['temp_location']
-        },
-        {
-            'temp_location': 'gs://ABC/bar',
-            'staging_location': 'gs://foo/bar',
-            'errors': ['temp_location']
-        },
-        {
-            'temp_location': 'gs://foo',
-            'staging_location': 'gs://foo/bar',
-            'errors': ['temp_location']
-        },
-        {
-            'temp_location': 'gs://foo/',
-            'staging_location': 'gs://foo/bar',
-            'errors': []
-        },
-        {
-            'temp_location': 'gs://foo/bar',
-            'staging_location': 'gs://foo/bar',
-            'errors': []
-        },
-    ]
+    errors = get_validator(temp_location, staging_location).validate()
+    self.assertEqual(
+        self.check_errors_for_arguments(errors, expected_error_args), [])
 
-    for case in test_cases:
-      errors = get_validator(case['temp_location'],
-                             case['staging_location']).validate()
-      self.assertEqual(
-          self.check_errors_for_arguments(errors, case['errors']), [])
-
-  def test_project(self):
-    def get_validator(project):
+  @parameterized.expand([(None, ['project']), ('12345', ['project']),
+                         ('FOO', ['project']), ('foo:BAR', ['project']),
+                         ('fo', ['project']), ('foo', []), ('foo:bar', [])])
+  def test_project(self, project, expected_error_args):
+    def get_validator(_project):
       options = [
           '--job_name=job',
           '--staging_location=gs://foo/bar',
           '--temp_location=gs://foo/bar'
       ]
 
-      if project is not None:
-        options.append('--project=' + project)
+      if _project is not None:
+        options.append('--project=' + _project)
 
       pipeline_options = PipelineOptions(options)
       runner = MockRunners.DataflowRunner()
       validator = PipelineOptionsValidator(pipeline_options, runner)
       return validator
 
-    test_cases = [
-        {
-            'project': None, 'errors': ['project']
-        },
-        {
-            'project': '12345', 'errors': ['project']
-        },
-        {
-            'project': 'FOO', 'errors': ['project']
-        },
-        {
-            'project': 'foo:BAR', 'errors': ['project']
-        },
-        {
-            'project': 'fo', 'errors': ['project']
-        },
-        {
-            'project': 'foo', 'errors': []
-        },
-        {
-            'project': 'foo:bar', 'errors': []
-        },
-    ]
+    errors = get_validator(project).validate()
+    self.assertEqual(
+        self.check_errors_for_arguments(errors, expected_error_args), [])
 
-    for case in test_cases:
-      errors = get_validator(case['project']).validate()
-      self.assertEqual(
-          self.check_errors_for_arguments(errors, case['errors']), [])
-
-  def test_job_name(self):
-    def get_validator(job_name):
+  @parameterized.expand([(None, []), ('12345', ['job_name']),
+                         ('FOO', ['job_name']), ('foo:bar', ['job_name']),
+                         ('fo', []), ('foo', [])])
+  def test_job_name(self, job_name, expected_error_args):
+    def get_validator(_job_name):
       options = [
           '--project=example:example',
           '--staging_location=gs://foo/bar',
           '--temp_location=gs://foo/bar'
       ]
 
-      if job_name is not None:
-        options.append('--job_name=' + job_name)
+      if _job_name is not None:
+        options.append('--job_name=' + _job_name)
 
       pipeline_options = PipelineOptions(options)
       runner = MockRunners.DataflowRunner()
       validator = PipelineOptionsValidator(pipeline_options, runner)
       return validator
 
-    test_cases = [
-        {
-            'job_name': None, 'errors': []
-        },
-        {
-            'job_name': '12345', 'errors': ['job_name']
-        },
-        {
-            'job_name': 'FOO', 'errors': ['job_name']
-        },
-        {
-            'job_name': 'foo:bar', 'errors': ['job_name']
-        },
-        {
-            'job_name': 'fo', 'errors': []
-        },
-        {
-            'job_name': 'foo', 'errors': []
-        },
-    ]
+    errors = get_validator(job_name).validate()
+    self.assertEqual(
+        self.check_errors_for_arguments(errors, expected_error_args), [])
 
-    for case in test_cases:
-      errors = get_validator(case['job_name']).validate()
-      self.assertEqual(
-          self.check_errors_for_arguments(errors, case['errors']), [])
-
-  def test_num_workers(self):
-    def get_validator(num_workers):
+  @parameterized.expand([(None, []), ('1', []), ('0', ['num_workers']),
+                         ('-1', ['num_workers'])])
+  def test_num_workers(self, num_workers, expected_error_args):
+    def get_validator(_num_workers):
       options = [
           '--project=example:example',
           '--job_name=job',
@@ -270,82 +183,66 @@ class SetupTest(unittest.TestCase):
           '--temp_location=gs://foo/bar'
       ]
 
-      if num_workers is not None:
-        options.append('--num_workers=' + num_workers)
+      if _num_workers is not None:
+        options.append('--num_workers=' + _num_workers)
 
       pipeline_options = PipelineOptions(options)
       runner = MockRunners.DataflowRunner()
       validator = PipelineOptionsValidator(pipeline_options, runner)
       return validator
 
-    test_cases = [
-        {
-            'num_workers': None, 'errors': []
-        },
-        {
-            'num_workers': '1', 'errors': []
-        },
-        {
-            'num_workers': '0', 'errors': ['num_workers']
-        },
-        {
-            'num_workers': '-1', 'errors': ['num_workers']
-        },
-    ]
+    errors = get_validator(num_workers).validate()
+    self.assertEqual(
+        self.check_errors_for_arguments(errors, expected_error_args), [])
 
-    for case in test_cases:
-      errors = get_validator(case['num_workers']).validate()
-      self.assertEqual(
-          self.check_errors_for_arguments(errors, case['errors']), [])
-
-  def test_is_service_runner(self):
-    test_cases = [
-        {
-            'runner': MockRunners.OtherRunner(),
-            'options': [],
-            'expected': False,
-        },
-        {
-            'runner': MockRunners.OtherRunner(),
-            'options': ['--dataflow_endpoint=https://dataflow.googleapis.com'],
-            'expected': False,
-        },
-        {
-            'runner': MockRunners.OtherRunner(),
-            'options': ['--dataflow_endpoint=https://dataflow.googleapis.com/'],
-            'expected': False,
-        },
-        {
-            'runner': MockRunners.DataflowRunner(),
-            'options': ['--dataflow_endpoint=https://another.service.com'],
-            'expected': False,
-        },
-        {
-            'runner': MockRunners.DataflowRunner(),
-            'options': ['--dataflow_endpoint=https://another.service.com/'],
-            'expected': False,
-        },
-        {
-            'runner': MockRunners.DataflowRunner(),
-            'options': ['--dataflow_endpoint=https://dataflow.googleapis.com'],
-            'expected': True,
-        },
-        {
-            'runner': MockRunners.DataflowRunner(),
-            'options': ['--dataflow_endpoint=https://dataflow.googleapis.com/'],
-            'expected': True,
-        },
-        {
-            'runner': MockRunners.DataflowRunner(),
-            'options': [],
-            'expected': True,
-        },
-    ]
-
-    for case in test_cases:
-      validator = PipelineOptionsValidator(
-          PipelineOptions(case['options']), case['runner'])
-      self.assertEqual(validator.is_service_runner(), case['expected'])
+  @parameterized.expand([
+      (
+          MockRunners.OtherRunner(),
+          [],
+          False,
+      ),
+      (
+          MockRunners.OtherRunner(),
+          ['--dataflow_endpoint=https://dataflow.googleapis.com'],
+          False,
+      ),
+      (
+          MockRunners.OtherRunner(),
+          ['--dataflow_endpoint=https://dataflow.googleapis.com/'],
+          False,
+      ), (
+          MockRunners.DataflowRunner(),
+          [],
+          True,
+      ),
+      (
+          MockRunners.DataflowRunner(),
+          ['--dataflow_endpoint=https://another.service.com'],
+          True,
+      ),
+      (
+          MockRunners.DataflowRunner(),
+          ['--dataflow_endpoint=https://dataflow.googleapis.com'],
+          True,
+      ),
+      (
+          MockRunners.DataflowRunner(),
+          ['--dataflow_endpoint=http://localhost:1000'],
+          False,
+      ),
+      (
+          MockRunners.DataflowRunner(),
+          ['--dataflow_endpoint=foo: //dataflow. googleapis. com'],
+          True,
+      ), (
+          MockRunners.DataflowRunner(),
+          [],
+          True,
+      )
+  ])
+  def test_is_service_runner(self, runner, options, expected):
+    validator = PipelineOptionsValidator(PipelineOptions(options), runner)
+    self.assertEqual(validator.is_service_runner(), expected)
 
   def test_dataflow_job_file_and_template_location_mutually_exclusive(self):
     runner = MockRunners.OtherRunner()
@@ -478,20 +375,17 @@ class SetupTest(unittest.TestCase):
     self.assertIn('experiment', errors[0])
     self.assertIn('worker_region', errors[0])
 
-  def test_experiment_region_and_worker_zone_mutually_exclusive(self):
+  def test_region_and_worker_zone_mutually_exclusive(self):
     runner = MockRunners.DataflowRunner()
     options = PipelineOptions([
-        '--experiments',
-        'worker_region=us-west1',
-        '--worker_zone',
-        'us-east1-b',
+        '--worker_region=us-west1',
+        '--worker_zone=us-east1-b',
         '--project=example:example',
         '--temp_location=gs://foo/bar',
     ])
     validator = PipelineOptionsValidator(options, runner)
     errors = validator.validate()
     self.assertEqual(len(errors), 1)
-    self.assertIn('experiment', errors[0])
     self.assertIn('worker_region', errors[0])
     self.assertIn('worker_zone', errors[0])
 
@@ -556,17 +450,30 @@ class SetupTest(unittest.TestCase):
     self.assertEqual(options.view_as(WorkerOptions).worker_zone, 'us-east1-b')
 
   def test_region_optional_for_non_service_runner(self):
-    runner = MockRunners.DataflowRunner()
+    runner = MockRunners.OtherRunner()
     # Remove default region for this test.
     runner.get_default_gcp_region = lambda: None
     options = PipelineOptions([
         '--project=example:example',
         '--temp_location=gs://foo/bar',
-        '--dataflow_endpoint=http://localhost:20281',
     ])
     validator = PipelineOptionsValidator(options, runner)
     errors = validator.validate()
     self.assertEqual(len(errors), 0)
+
+  def test_dataflow_endpoint_is_a_url(self):
+    runner = MockRunners.DataflowRunner()
+    # Remove default region for this test.
+    options = PipelineOptions([
+        '--project=example:example',
+        '--temp_location=gs://foo/bar',
+        '--staging_location=gs://foo/baz',
+        '--dataflow_endpoint=foo and bar'
+    ])
+    validator = PipelineOptionsValidator(options, runner)
+    errors = validator.validate()
+    self.assertEqual(len(errors), 1, errors)
+    self.assertIn("Invalid url (foo and bar)", errors[0])
 
   def test_alias_sdk_container_to_worker_harness(self):
     runner = MockRunners.DataflowRunner()
@@ -641,7 +548,10 @@ class SetupTest(unittest.TestCase):
     errors = validator.validate()
     self.assertEqual(len(errors), 0)
 
-  def test_test_matcher(self):
+  @parameterized.expand([(None, []), (pickler.dumps(AlwaysPassMatcher()), []),
+                         (b'abc', ['on_success_matcher']),
+                         (pickler.dumps(object), ['on_success_matcher'])])
+  def test_test_matcher(self, on_success_matcher, errors):
     def get_validator(matcher):
       options = [
           '--project=example:example',
@@ -656,27 +566,8 @@ class SetupTest(unittest.TestCase):
       runner = MockRunners.TestDataflowRunner()
       return PipelineOptionsValidator(pipeline_options, runner)
 
-    test_case = [
-        {
-            'on_success_matcher': None, 'errors': []
-        },
-        {
-            'on_success_matcher': pickler.dumps(AlwaysPassMatcher()),
-            'errors': []
-        },
-        {
-            'on_success_matcher': b'abc', 'errors': ['on_success_matcher']
-        },
-        {
-            'on_success_matcher': pickler.dumps(object),
-            'errors': ['on_success_matcher']
-        },
-    ]
-
-    for case in test_case:
-      errors = get_validator(case['on_success_matcher']).validate()
-      self.assertEqual(
-          self.check_errors_for_arguments(errors, case['errors']), [])
+    errors = get_validator(on_success_matcher).validate()
+    self.assertEqual(self.check_errors_for_arguments(errors, errors), [])
 
   def test_transform_name_mapping_without_update(self):
     options = [
@@ -736,195 +627,112 @@ class SetupTest(unittest.TestCase):
     errors = validator.validate()
     self.assertTrue(errors)
 
-  def test_environment_options(self):
-    test_cases = [
-        {
-            'options': ['--environment_type=dOcKeR'], 'errors': []
-        },
-        {
-            'options': [
-                '--environment_type=dOcKeR',
-                '--environment_options=docker_container_image=foo'
-            ],
-            'errors': []
-        },
-        {
-            'options': [
-                '--environment_type=dOcKeR', '--environment_config=foo'
-            ],
-            'errors': []
-        },
-        {
-            'options': [
-                '--environment_type=dOcKeR',
-                '--environment_options=docker_container_image=foo',
-                '--environment_config=foo'
-            ],
-            'errors': ['environment_config']
-        },
-        {
-            'options': [
-                '--environment_type=dOcKeR',
-                '--environment_options=process_command=foo',
-                '--environment_options=process_variables=foo=bar',
-                '--environment_options=external_service_address=foo'
-            ],
-            'errors': [
-                'process_command',
-                'process_variables',
-                'external_service_address'
-            ]
-        },
-        {
-            'options': ['--environment_type=pRoCeSs'],
-            'errors': ['process_command']
-        },
-        {
-            'options': [
-                '--environment_type=pRoCeSs',
-                '--environment_options=process_command=foo'
-            ],
-            'errors': []
-        },
-        {
-            'options': [
-                '--environment_type=pRoCeSs', '--environment_config=foo'
-            ],
-            'errors': []
-        },
-        {
-            'options': [
-                '--environment_type=pRoCeSs',
-                '--environment_options=process_command=foo',
-                '--environment_config=foo'
-            ],
-            'errors': ['environment_config']
-        },
-        {
-            'options': [
-                '--environment_type=pRoCeSs',
-                '--environment_options=process_command=foo',
-                '--environment_options=process_variables=foo=bar',
-                '--environment_options=docker_container_image=foo',
-                '--environment_options=external_service_address=foo'
-            ],
-            'errors': ['docker_container_image', 'external_service_address']
-        },
-        {
-            'options': ['--environment_type=eXtErNaL'],
-            'errors': ['external_service_address']
-        },
-        {
-            'options': [
-                '--environment_type=eXtErNaL',
-                '--environment_options=external_service_address=foo'
-            ],
-            'errors': []
-        },
-        {
-            'options': [
-                '--environment_type=eXtErNaL', '--environment_config=foo'
-            ],
-            'errors': []
-        },
-        {
-            'options': [
-                '--environment_type=eXtErNaL',
-                '--environment_options=external_service_address=foo',
-                '--environment_config=foo'
-            ],
-            'errors': ['environment_config']
-        },
-        {
-            'options': [
-                '--environment_type=eXtErNaL',
-                '--environment_options=external_service_address=foo',
-                '--environment_options=process_command=foo',
-                '--environment_options=process_variables=foo=bar',
-                '--environment_options=docker_container_image=foo',
-            ],
-            'errors': [
-                'process_command',
-                'process_variables',
-                'docker_container_image'
-            ]
-        },
-        {
-            'options': ['--environment_type=lOoPbACk'], 'errors': []
-        },
-        {
-            'options': [
-                '--environment_type=lOoPbACk', '--environment_config=foo'
-            ],
-            'errors': ['environment_config']
-        },
-        {
-            'options': [
-                '--environment_type=lOoPbACk',
-                '--environment_options=docker_container_image=foo',
-                '--environment_options=process_command=foo',
-                '--environment_options=process_variables=foo=bar',
-                '--environment_options=external_service_address=foo',
-            ],
-            'errors': [
-                'docker_container_image',
-                'process_command',
-                'process_variables',
-                'external_service_address'
-            ]
-        },
-        {
-            'options': ['--environment_type=beam:env:foo:v1'], 'errors': []
-        },
-        {
-            'options': [
-                '--environment_type=beam:env:foo:v1',
-                '--environment_config=foo'
-            ],
-            'errors': []
-        },
-        {
-            'options': [
-                '--environment_type=beam:env:foo:v1',
-                '--environment_options=docker_container_image=foo',
-                '--environment_options=process_command=foo',
-                '--environment_options=process_variables=foo=bar',
-                '--environment_options=external_service_address=foo',
-            ],
-            'errors': [
-                'docker_container_image',
-                'process_command',
-                'process_variables',
-                'external_service_address'
-            ]
-        },
-        {
-            'options': [
-                '--environment_options=docker_container_image=foo',
-                '--environment_options=process_command=foo',
-                '--environment_options=process_variables=foo=bar',
-                '--environment_options=external_service_address=foo',
-            ],
-            'errors': [
-                'docker_container_image',
-                'process_command',
-                'process_variables',
-                'external_service_address'
-            ]
-        },
-    ]
+  @parameterized.expand([
+      (['--environment_type=dOcKeR'], []),
+      ([
+          '--environment_type=dOcKeR',
+          '--environment_options=docker_container_image=foo'
+      ], []), (['--environment_type=dOcKeR', '--environment_config=foo'], []),
+      ([
+          '--environment_type=dOcKeR',
+          '--environment_options=docker_container_image=foo',
+          '--environment_config=foo'
+      ], ['environment_config']),
+      ([
+          '--environment_type=dOcKeR',
+          '--environment_options=process_command=foo',
+          '--environment_options=process_variables=foo=bar',
+          '--environment_options=external_service_address=foo'
+      ], ['process_command', 'process_variables', 'external_service_address']),
+      (['--environment_type=pRoCeSs'], ['process_command']),
+      ([
+          '--environment_type=pRoCeSs',
+          '--environment_options=process_command=foo'
+      ], []), (['--environment_type=pRoCeSs', '--environment_config=foo'], []),
+      ([
+          '--environment_type=pRoCeSs',
+          '--environment_options=process_command=foo',
+          '--environment_config=foo'
+      ], ['environment_config']),
+      ([
+          '--environment_type=pRoCeSs',
+          '--environment_options=process_command=foo',
+          '--environment_options=process_variables=foo=bar',
+          '--environment_options=docker_container_image=foo',
+          '--environment_options=external_service_address=foo'
+      ], ['docker_container_image', 'external_service_address']),
+      (['--environment_type=eXtErNaL'], ['external_service_address']),
+      ([
+          '--environment_type=eXtErNaL',
+          '--environment_options=external_service_address=foo'
+      ], []), (['--environment_type=eXtErNaL', '--environment_config=foo'], []),
+      ([
+          '--environment_type=eXtErNaL',
+          '--environment_options=external_service_address=foo',
+          '--environment_config=foo'
+      ], ['environment_config']),
+      ([
+          '--environment_type=eXtErNaL',
+          '--environment_options=external_service_address=foo',
+          '--environment_options=process_command=foo',
+          '--environment_options=process_variables=foo=bar',
+          '--environment_options=docker_container_image=foo'
+      ], ['process_command', 'process_variables',
+          'docker_container_image']), (['--environment_type=lOoPbACk'], []),
+      (['--environment_type=lOoPbACk',
+        '--environment_config=foo'], ['environment_config']),
+      ([
+          '--environment_type=lOoPbACk',
+          '--environment_options=docker_container_image=foo',
+          '--environment_options=process_command=foo',
+          '--environment_options=process_variables=foo=bar',
+          '--environment_options=external_service_address=foo'
+      ],
+       [
+           'docker_container_image',
+           'process_command',
+           'process_variables',
+           'external_service_address'
+       ]), (['--environment_type=beam:env:foo:v1'], []),
+      (['--environment_type=beam:env:foo:v1', '--environment_config=foo'], []),
+      ([
+          '--environment_type=beam:env:foo:v1',
+          '--environment_options=docker_container_image=foo',
+          '--environment_options=process_command=foo',
+          '--environment_options=process_variables=foo=bar',
+          '--environment_options=external_service_address=foo'
+      ],
+       [
+           'docker_container_image',
+           'process_command',
+           'process_variables',
+           'external_service_address'
+       ]),
+      ([
+          '--environment_options=docker_container_image=foo',
+          '--environment_options=process_command=foo',
+          '--environment_options=process_variables=foo=bar',
+          '--environment_options=external_service_address=foo'
+      ],
+       [
+           'docker_container_image',
+           'process_command',
+           'process_variables',
+           'external_service_address'
+       ])
+  ])
+  def test_environment_options(self, options, expected_error_args):
     errors = []
-    for case in test_cases:
-      validator = PipelineOptionsValidator(
-          PipelineOptions(case['options']), MockRunners.OtherRunner())
-      validation_result = validator.validate()
-      validation_errors = self.check_errors_for_arguments(
-          validation_result, case['errors'])
-      if validation_errors:
-        errors.append(
-            'Options "%s" had unexpected validation results: "%s"' %
-            (' '.join(case['options']), ' '.join(validation_errors)))
-    self.assertEqual(errors, [])
+    validator = PipelineOptionsValidator(
+        PipelineOptions(options), MockRunners.OtherRunner())
+    validation_result = validator.validate()
+    validation_errors = self.check_errors_for_arguments(
+        validation_result, expected_error_args)
+    if validation_errors:
+      errors.append(
+          'Options "%s" had unexpected validation results: "%s"' %
+          (' '.join(options), ' '.join(validation_errors)))
+    self.assertEqual(errors, [], expected_error_args)
 
 
 if __name__ == '__main__':

@@ -21,55 +21,52 @@
 
 This guide consists of:
 
-- [Project structure](#project-structure)
+- [Project Structure](#project-structure)
 - [State Management](#state-management)
-- [Configuration](#configuration)
+- [Example Loading](#example-loading)
 - [Theming](#theming)
-- [Adding a new page](#adding-a-new-page)
+- [Adding a New Page](#adding-a-new-page)
 - [Accessibility](#accessibility)
-- [Unit testing](#unit-testing)
-- [Generated Files](#generated-files)
 
-## Project structure
+## Project Structure
 
-```
-frontend/
-├── web
-├── lib
-│   ├── api                 # generated dart client for the grpc api
-│   ├── components          # general UI components used across the app
-│   ├── config              # general configs e.g. theme
-│   ├── constants           # different consts file like colors,sizes
-│   ├── modules             # different parts of the app
-│   │   └── actions                 # common actions for the pages like new example, reset
-│   │   └── editor                  # editor text field and run code
-│   │   └── examples                # everything related to loading/showing examples
-│   │   └── notifications           # common notications system
-│   │   └── output                  # component to show log/output/graph result of running code
-│   │   └── sdk                     # sdk selector
-│   │   └── shortcuts               # shortcuts modal and definitions
-│   ├── pages               # playground pages
-│   │   └── playground              # main playground editor paage
-│   │   └── embedded_playground     # embedded version of the editor
-├──  test               # folder with unit tests
-├── pubspec.yaml        # infromation about application and dependencies
-├── build.gradle        # gradle tasks for playground frontends
-├── gradle.properties   # default properties for project
-```
+The frontend consists of 3 projects:
+
+- `frontend` is the playground app itself.
+- `frontend/playground_components` is the package with common code for Playground and Tour of Beam.
+- `frontend/playground_components_dev` is common code for tests of Playground and Tour of Beam.
 
 ## State Management
 
-Playground uses [provider](https://pub.dev/packages/provider) package for state management. We have
-top level providers like `ThemeProvider`, common page level provider `PlaygroundPageProviders` which
-contains decoupled playground page state and module providers like `OutputPlacementState`.
+Playground uses the [app_state](https://pub.dev/packages/app_state) package for state management.
+The standalone playground and the embedded playground are two screens within the same app,
+chosen by the URL at runtime.
 
-For quick start up, please take a look
-to [this guide](https://docs.flutter.dev/development/data-and-backend/state-mgmt/simple)
+The main state object is `PlaygroundController`, created in both of those screens.
+It is hung in the widget tree with the [provider](https://pub.dev/packages/provider) package
+for historical reasons, and we aim to remove that if we do further refactoring.
+New code should pass it directly from widget to widget for compile-time safety.
+
+## Example Loading
+
+A URL is parsed into one of the subclasses of `PagePath`, most of which contain
+an `ExamplesLoadingDescriptor` object, which in turn may contain multiple `ExampleLoadingDescriptor`
+objects.
+
+This is passed to the `ExamplesLoader` object. It constructs an `ExampleLoader` object
+for each example's descriptor, and that loader performs the actual loading.
+
+To add a new source for examples:
+
+1. Subclass `ExampleLoadingDescriptor` with state and a method to parse it from a map of query string parameters.
+2. Add it to `ExamplesLoadingDescriptorFactory`.
+3. Subclass `ExampleLoader` and load an example there.
+4. Add it to the `ExampleLoaderFactory` in `ExamplesLoader`.
 
 ## Theming
 
 Playground app supports light and dark themes. Component themes are declared
-in [theme.dart](./lib/config/theme.dart) file.
+in [theme.dart](playground_components/lib/src/theme/theme.dart) file.
 
 To use specific color inside component you can use helper `ThemeColors` utility:
 
@@ -77,18 +74,17 @@ To use specific color inside component you can use helper `ThemeColors` utility:
 
 [colors.dart](./lib/constants/colors.dart) contains color declarations.
 
-## Adding a new page
+## Adding a New Page
 
-To add a new page do the following steps:
+To add a new page, do the following steps:
 
-- Add a page component to the `pages` folder
-- Add a url to the [routes.dart](./lib/pages/routes.dart) class as a static property
-- Add a case clause to the same class with your component
+1. Read [the overview](https://pub.dev/packages/app_state) of the `app_state` package.
+2. Create a new `PagePath` subclass that parses the new URL.
+3. Create a new `ChangeNotifier with PageStateMixin` that holds the state of the page.
+4. Create a new `StatelessWidget` as the main one for the page.
+5. Create a new `StatefulMaterialPage` subclass that binds the three together.
 
-```
-case Routes.page_url:
-    return Routes.renderRoute(const PageComponent());
-```
+See the example in [lib/pages/standalone_playground](lib/pages/standalone_playground).
 
 ## Accessibility
 
@@ -96,21 +92,3 @@ Please, read the following guides about the accessibility:
 
 - [Flutter Doc](https://docs.flutter.dev/development/accessibility-and-localization/accessibility)
 - [Medium Article](https://medium.com/flutter-community/a-deep-dive-into-flutters-accessibility-widgets-eb0ef9455bc)
-
-## Unit testing
-
-Unit tests are on `tests` folder. It keeps the project structure from the `lib` folder
-with `_test.dart` file postfix.
-
-We are using standard flutter library for unit testing
-and [Mockito](https://pub.dev/packages/mockito) for generating mocks. To generate mocks for class
-you need to add `@GenerateMocks([ExampleClient])` annotation to a test file and
-run `$ flutter pub run build_runner build` command.
-
-Playground tests may be run using next commands:
-
-`$ flutter test`
-
-## Generated Files
-
-All generated files (generated api clients, mocks) should be published to the repository.

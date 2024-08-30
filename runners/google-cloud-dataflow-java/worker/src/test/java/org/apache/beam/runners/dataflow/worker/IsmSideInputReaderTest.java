@@ -19,8 +19,8 @@ package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.runners.dataflow.util.Structs.getString;
 import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables.concat;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables.concat;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
@@ -106,19 +106,19 @@ import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Function;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableListMultimap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ListMultimap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Ordering;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.TreeMultimap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Closer;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Function;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableListMultimap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterators;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ListMultimap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multimap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Ordering;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.TreeMultimap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Closer;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.hamcrest.Matcher;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -678,7 +678,9 @@ public class IsmSideInputReaderTest {
             KV.of(2L, valueInGlobalWindow(62L)));
 
     final PCollectionView<List<Long>> view =
-        Pipeline.create().apply(Create.empty(VarLongCoder.of())).apply(View.asList());
+        Pipeline.create()
+            .apply(Create.empty(VarLongCoder.of()))
+            .apply(View.<Long>asList().withRandomAccess());
 
     Source sourceA = initInputFile(fromKvsForList(firstElements), ismCoder);
     Source sourceB = initInputFile(fromKvsForList(secondElements), ismCoder);
@@ -736,7 +738,7 @@ public class IsmSideInputReaderTest {
         Pipeline.create()
             .apply(Create.empty(VarLongCoder.of()))
             .apply(Window.into(FixedWindows.of(Duration.millis(10))))
-            .apply(View.asList());
+            .apply(View.<Long>asList().withRandomAccess());
 
     Source sourceA = initInputFile(fromKvsForList(concat(firstElements, secondElements)), ismCoder);
     Source sourceB = initInputFile(fromKvsForList(thirdElements), ismCoder);

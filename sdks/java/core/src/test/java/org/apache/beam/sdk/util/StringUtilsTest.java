@@ -17,9 +17,13 @@
  */
 package org.apache.beam.sdk.util;
 
+import static org.apache.commons.lang3.StringUtils.countMatches;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
+import java.util.UUID;
+import java.util.stream.IntStream;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -53,5 +57,24 @@ public class StringUtilsTest {
     assertEquals(1, StringUtils.getLevenshteinDistance("abc", "ac")); // deletion
     assertEquals(1, StringUtils.getLevenshteinDistance("abc", "ab1c")); // insertion
     assertEquals(1, StringUtils.getLevenshteinDistance("abc", "a1c")); // modification
+  }
+
+  @Test
+  public void testArrayToNewlines() {
+    Object[] uuids = IntStream.range(1, 10).mapToObj(unused -> UUID.randomUUID()).toArray();
+
+    String r1 = StringUtils.arrayToNewlines(uuids, 6);
+    assertTrue(r1.endsWith("...\n"));
+    assertEquals(7, countMatches(r1, "\n"));
+    String r2 = StringUtils.arrayToNewlines(uuids, 15);
+    String r3 = StringUtils.arrayToNewlines(uuids, 10);
+    assertEquals(r3, r2);
+  }
+
+  @Test
+  public void testLeftTruncate() {
+    assertEquals("", StringUtils.leftTruncate(null, 3));
+    assertEquals("", StringUtils.leftTruncate("", 3));
+    assertEquals("abc...", StringUtils.leftTruncate("abcd", 3));
   }
 }

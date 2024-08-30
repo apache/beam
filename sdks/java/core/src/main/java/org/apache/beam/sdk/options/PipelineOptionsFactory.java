@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.options;
 
 import static java.util.Locale.ROOT;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.core.JsonParseException;
@@ -90,28 +90,28 @@ import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.StringUtils;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.CaseFormat;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Predicate;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Predicates;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableListMultimap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSortedSet;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ListMultimap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Ordering;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.RowSortedTable;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.SortedSetMultimap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.TreeBasedTable;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.TreeMultimap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.CaseFormat;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicate;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableListMultimap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSortedSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterators;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ListMultimap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Ordering;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.RowSortedTable;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.SortedSetMultimap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.TreeBasedTable;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.TreeMultimap;
 import org.checkerframework.checker.nullness.qual.KeyFor;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
@@ -500,15 +500,12 @@ public class PipelineOptionsFactory {
       new ObjectMapper()
           .registerModules(ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
 
-  private static final ThreadLocal<DefaultDeserializationContext> DESERIALIZATION_CONTEXT =
-      ThreadLocal.withInitial(
-          () ->
-              new DefaultDeserializationContext.Impl(
-                      MAPPER.getDeserializationContext().getFactory())
-                  .createInstance(
-                      MAPPER.getDeserializationConfig(),
-                      new TokenBuffer(MAPPER, false).asParser(),
-                      new InjectableValues.Std()));
+  private static final DefaultDeserializationContext DESERIALIZATION_CONTEXT =
+      new DefaultDeserializationContext.Impl(MAPPER.getDeserializationContext().getFactory())
+          .createInstance(
+              MAPPER.getDeserializationConfig(),
+              new TokenBuffer(MAPPER, false).asParser(),
+              new InjectableValues.Std());
 
   static final DefaultSerializerProvider SERIALIZER_PROVIDER =
       new DefaultSerializerProvider.Impl()
@@ -1269,6 +1266,7 @@ public class PipelineOptionsFactory {
     try {
       knownMethods.add(iface.getMethod("as", Class.class));
       knownMethods.add(iface.getMethod("outputRuntimeOptions"));
+      knownMethods.add(iface.getMethod("revision"));
       knownMethods.add(iface.getMethod("populateDisplayData", DisplayData.Builder.class));
     } catch (NoSuchMethodException | SecurityException e) {
       throw new RuntimeException(e);
@@ -1730,7 +1728,7 @@ public class PipelineOptionsFactory {
       BeanProperty prop = createBeanProperty(method);
       AnnotatedMember annotatedMethod = prop.getMember();
 
-      DefaultDeserializationContext context = DESERIALIZATION_CONTEXT.get();
+      DefaultDeserializationContext context = DESERIALIZATION_CONTEXT.copy();
       Object maybeDeserializerClass =
           context.getAnnotationIntrospector().findDeserializer(annotatedMethod);
 
@@ -1802,7 +1800,7 @@ public class PipelineOptionsFactory {
     parser.nextToken();
 
     JsonDeserializer<Object> jsonDeserializer = getDeserializerForMethod(method);
-    return jsonDeserializer.deserialize(parser, DESERIALIZATION_CONTEXT.get());
+    return jsonDeserializer.deserialize(parser, DESERIALIZATION_CONTEXT.copy());
   }
 
   /**

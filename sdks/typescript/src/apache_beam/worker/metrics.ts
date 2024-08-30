@@ -174,7 +174,7 @@ class Distribution implements MetricCell<number> {
 
 metricTypes.set(
   "beam:metric:user:distribution_int64:v1",
-  (spec) => new Distribution(spec)
+  (spec) => new Distribution(spec),
 );
 
 class ElementCount extends Counter {
@@ -188,7 +188,7 @@ class ElementCount extends Counter {
 
 metricTypes.set(
   "beam:metric:user:element_count:v1",
-  (spec) => new ElementCount(spec)
+  (spec) => new ElementCount(spec),
 );
 
 /**
@@ -202,7 +202,7 @@ class ScopedMetricCell<T> {
     public value: MetricCell<unknown>,
     public name?: string,
     public transformId?: string,
-    public pcollectionId?: string
+    public pcollectionId?: string,
   ) {
     this.is_set = false;
   }
@@ -243,7 +243,7 @@ export class MetricsContainer {
   getMetric(
     transformId: string | undefined,
     pcollectionId: string | undefined,
-    spec: MetricSpec
+    spec: MetricSpec,
   ): ScopedMetricCell<unknown> {
     const key =
       spec.metricType +
@@ -257,7 +257,7 @@ export class MetricsContainer {
         createMetric(spec),
         spec.name,
         transformId,
-        pcollectionId
+        pcollectionId,
       );
       this.metrics.set(key, cell);
     }
@@ -278,7 +278,7 @@ export class MetricsContainer {
         .map((metric) => [
           shortIdCache.getShortId(metric),
           metric.value.payload(),
-        ])
+        ]),
     );
   }
 
@@ -313,7 +313,7 @@ export class MetricsShortIdCache {
 
   asMonitoringInfo(
     id: string,
-    payload: Uint8Array | undefined = undefined
+    payload: Uint8Array | undefined = undefined,
   ): MonitoringInfo {
     const result = this.idToInfo.get(id);
     if (payload !== undefined) {
@@ -326,7 +326,7 @@ export class MetricsShortIdCache {
 
 export function aggregateMetrics(
   infos: MonitoringInfo[],
-  urn: string
+  urn: string,
 ): Map<string, any> {
   const cells = new Map<string, MetricCell<any>>();
   for (const info of infos) {
@@ -342,7 +342,7 @@ export function aggregateMetrics(
     }
   }
   return new Map<string, any>(
-    Array.from(cells.entries()).map(([name, cell]) => [name, cell.extract()])
+    Array.from(cells.entries()).map(([name, cell]) => [name, cell.extract()]),
   );
 }
 

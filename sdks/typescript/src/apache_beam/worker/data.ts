@@ -41,7 +41,7 @@ export class MultiplexingDataChannel {
       endpoint,
       grpc.ChannelCredentials.createInsecure(),
       {},
-      {}
+      {},
     );
     this.dataChannel = this.dataClient.data(metadata);
     this.dataChannel.on("data", async (elements) => {
@@ -59,7 +59,7 @@ export class MultiplexingDataChannel {
       for (const timers of elements.timers) {
         const consumer = this.getConsumer(
           timers.instructionId,
-          timers.transformId
+          timers.transformId,
         );
         try {
           await consumer.sendTimers(timers.timerFamilyId, timers.timers);
@@ -83,7 +83,7 @@ export class MultiplexingDataChannel {
   async registerConsumer(
     bundleId: string,
     transformId: string,
-    consumer: IDataChannel
+    consumer: IDataChannel,
   ) {
     consumer = truncateOnErrorDataChannel(consumer);
     if (!this.consumers.has(bundleId)) {

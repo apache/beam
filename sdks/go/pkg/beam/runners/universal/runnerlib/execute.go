@@ -41,14 +41,14 @@ func Execute(ctx context.Context, p *pipepb.Pipeline, endpoint string, opt *JobO
 	presult := &universalPipelineResult{}
 
 	bin := opt.Worker
-	if bin == "" {
+	if bin == "" && !opt.Loopback {
 		if self, ok := IsWorkerCompatibleBinary(); ok {
 			bin = self
 			log.Infof(ctx, "Using running binary as worker binary: '%v'", bin)
 		} else {
 			// Cross-compile as last resort.
 
-			worker, err := BuildTempWorkerBinary(ctx)
+			worker, err := BuildTempWorkerBinary(ctx, CompileOpts{})
 			if err != nil {
 				return presult, err
 			}
@@ -56,6 +56,11 @@ func Execute(ctx context.Context, p *pipepb.Pipeline, endpoint string, opt *JobO
 
 			bin = worker
 		}
+	} else if opt.Loopback {
+		// TODO(https://github.com/apache/beam/issues/27569: determine the canonical location for Beam temp files.
+		// In loopback mode, the binary is unused, so we can avoid an unnecessary compile step.
+		f, _ := os.CreateTemp(os.TempDir(), "beamloopbackworker-*")
+		bin = f.Name()
 	} else {
 		log.Infof(ctx, "Using specified worker binary: '%v'", bin)
 	}

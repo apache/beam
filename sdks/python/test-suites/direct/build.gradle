@@ -32,7 +32,20 @@ tasks.register("examplesPostCommit") {
 }
 
 task gcpCrossLanguagePostCommit {
-  getVersionsAsList('cross_language_validates_gcp_py_versions').each {
+  getVersionsAsList('cross_language_validates_py_versions').each {
     dependsOn.add(":sdks:python:test-suites:direct:py${getVersionSuffix(it)}:gcpCrossLanguagePythonUsingJava")
   }
+}
+
+task ioCrossLanguagePostCommit {
+  getVersionsAsList('cross_language_validates_py_versions').each {
+    dependsOn.add(":sdks:python:test-suites:direct:py${getVersionSuffix(it)}:ioCrossLanguagePythonUsingJava")
+  }
+}
+
+task crossLanguageWrapperValidationPreCommit {
+  // Different python versions may output types that look different and lead to
+  // false failures. To be consistent, we test on the lowest version only
+  def lowestSupportedVersion = getVersionsAsList('cross_language_validates_py_versions')[0]
+  dependsOn.add(":sdks:python:test-suites:direct:py${getVersionSuffix(lowestSupportedVersion)}:xlangWrapperValidationPythonUsingJava")
 }

@@ -26,6 +26,8 @@ import {
   extractName,
 } from "../transforms/transform";
 import { globalWindows } from "../transforms/windowings";
+import { requireForSerialization } from "../serialization";
+import { packageName } from "../utils/packageJson";
 import * as pvalue from "../pvalue";
 import { createWindowingStrategyProto } from "../transforms/window";
 import * as environments from "./environments";
@@ -39,7 +41,10 @@ export class PipelineContext {
 
   private coders: { [key: string]: Coder<any> } = {};
 
-  constructor(public components: Components, private componentPrefix: string) {}
+  constructor(
+    public components: Components,
+    private componentPrefix: string,
+  ) {}
 
   getCoder<T>(coderId: string): Coder<T> {
     const this_ = this;
@@ -51,7 +56,7 @@ export class PipelineContext {
       this.coders[coderId] = globalCoderRegistry().getCoder(
         coderProto.spec!.urn,
         coderProto.spec!.payload,
-        ...components
+        ...components,
       );
     }
     return this.coders[coderId];
@@ -61,7 +66,7 @@ export class PipelineContext {
     return this.getOrAssign(
       this.components.coders,
       coder.toProto(this),
-      "coder"
+      "coder",
     );
   }
 
@@ -82,14 +87,14 @@ export class PipelineContext {
     return this.getOrAssign(
       this.components.windowingStrategies,
       windowing,
-      "windowing"
+      "windowing",
     );
   }
 
   private getOrAssign<T>(
     existing: { [key: string]: T },
     obj: T,
-    prefix: string
+    prefix: string,
   ) {
     for (const [id, other] of Object.entries(existing)) {
       if (equal(other, obj)) {
@@ -134,7 +139,7 @@ export class Pipeline {
 
   preApplyTransform<
     InputT extends pvalue.PValue<any>,
-    OutputT extends pvalue.PValue<any>
+    OutputT extends pvalue.PValue<any>,
   >(transform: AsyncPTransformClass<InputT, OutputT>, input: InputT) {
     const this_ = this;
     const transformId = this.context.createUniqueName("transform");
@@ -153,7 +158,7 @@ export class Pipeline {
     if (this.usedStageNames.has(uniqueName)) {
       throw new Error(
         `Duplicate stage name: "${uniqueName}". ` +
-          "Use beam.withName(...) to give your transform a unique name."
+          "Use beam.withName(...) to give your transform a unique name.",
       );
     }
     this.usedStageNames.add(uniqueName);
@@ -172,11 +177,11 @@ export class Pipeline {
 
   applyTransform<
     InputT extends pvalue.PValue<any>,
-    OutputT extends pvalue.PValue<any>
+    OutputT extends pvalue.PValue<any>,
   >(transform: PTransformClass<InputT, OutputT>, input: InputT) {
     const { id: transformId, proto: transformProto } = this.preApplyTransform(
       transform,
-      input
+      input,
     );
     let result: OutputT;
     try {
@@ -190,11 +195,11 @@ export class Pipeline {
 
   async applyAsyncTransform<
     InputT extends pvalue.PValue<any>,
-    OutputT extends pvalue.PValue<any>
+    OutputT extends pvalue.PValue<any>,
   >(transform: AsyncPTransformClass<InputT, OutputT>, input: InputT) {
     const { id: transformId, proto: transformProto } = this.preApplyTransform(
       transform,
-      input
+      input,
     );
     let result: OutputT;
     try {
@@ -208,26 +213,26 @@ export class Pipeline {
 
   postApplyTransform<
     InputT extends pvalue.PValue<any>,
-    OutputT extends pvalue.PValue<any>
+    OutputT extends pvalue.PValue<any>,
   >(
     transform: AsyncPTransformClass<InputT, OutputT>,
     transformProto: runnerApi.PTransform,
-    result: OutputT
+    result: OutputT,
   ) {
     transformProto.outputs = objectMap(pvalue.flattenPValue(result), (pc) =>
-      pc.getId()
+      pc.getId(),
     );
 
     // Propagate any unset pvalue.PCollection properties.
     const this_ = this;
     const inputProtos = Object.values(transformProto.inputs).map(
-      (id) => this_.proto.components!.pcollections[id]
+      (id) => this_.proto.components!.pcollections[id],
     );
     const inputBoundedness = new Set(
-      inputProtos.map((proto) => proto.isBounded)
+      inputProtos.map((proto) => proto.isBounded),
     );
     const inputWindowings = new Set(
-      inputProtos.map((proto) => proto.windowingStrategyId)
+      inputProtos.map((proto) => proto.windowingStrategyId),
     );
 
     for (const pcId of Object.values(transformProto.outputs)) {
@@ -235,7 +240,7 @@ export class Pipeline {
       if (!pcProto.isBounded) {
         pcProto.isBounded = onlyValueOr(
           inputBoundedness,
-          runnerApi.IsBounded_Enum.BOUNDED
+          runnerApi.IsBounded_Enum.BOUNDED,
         );
       }
       // TODO: (Cleanup) Handle the case of equivalent strategies.
@@ -246,9 +251,9 @@ export class Pipeline {
           (a, b) => {
             return equal(
               this_.proto.components!.windowingStrategies[a],
-              this_.proto.components!.windowingStrategies[b]
+              this_.proto.components!.windowingStrategies[b],
             );
-          }
+          },
         );
       }
     }
@@ -262,11 +267,11 @@ export class Pipeline {
       | runnerApi.WindowingStrategy
       | string
       | undefined = undefined,
-    isBounded: runnerApi.IsBounded_Enum | undefined = undefined
+    isBounded: runnerApi.IsBounded_Enum | undefined = undefined,
   ): pvalue.PCollection<OutputT> {
     return new pvalue.PCollection<OutputT>(
       this,
-      this.createPCollectionIdInternal(coder, windowingStrategy, isBounded)
+      this.createPCollectionIdInternal(coder, windowingStrategy, isBounded),
     );
   }
 
@@ -276,7 +281,7 @@ export class Pipeline {
       | runnerApi.WindowingStrategy
       | string
       | undefined = undefined,
-    isBounded: runnerApi.IsBounded_Enum | undefined = undefined
+    isBounded: runnerApi.IsBounded_Enum | undefined = undefined,
   ): string {
     const pcollId = this.context.createUniqueName("pc");
     let coderId: string;
@@ -292,7 +297,7 @@ export class Pipeline {
       windowingStrategyId = windowingStrategy;
     } else {
       windowingStrategyId = this.context.getWindowingStrategyId(
-        windowingStrategy!
+        windowingStrategy!,
       );
     }
     this.proto!.components!.pcollections[pcollId] = {
@@ -325,7 +330,7 @@ function objectMap(obj, func) {
 function onlyValueOr<T>(
   valueSet: Set<T>,
   defaultValue: T,
-  comparator: (a: T, b: T) => boolean = (a, b) => false
+  comparator: (a: T, b: T) => boolean = (a, b) => false,
 ) {
   if (valueSet.size === 0) {
     return defaultValue;
@@ -342,5 +347,4 @@ function onlyValueOr<T>(
   }
 }
 
-import { requireForSerialization } from "../serialization";
-requireForSerialization("apache-beam/internal/pipeline", exports);
+requireForSerialization(`${packageName}/internal/pipeline`, exports);

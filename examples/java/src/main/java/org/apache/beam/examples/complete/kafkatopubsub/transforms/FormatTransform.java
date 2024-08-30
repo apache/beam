@@ -17,6 +17,7 @@
  */
 package org.apache.beam.examples.complete.kafkatopubsub.transforms;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.examples.complete.kafkatopubsub.avro.AvroDataClass;
@@ -37,8 +38,7 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.kafka.common.serialization.StringDeserializer;
 
 /** Different transformations over the processed data in the pipeline. */
@@ -120,7 +120,8 @@ public class FormatTransform {
               MapElements.into(TypeDescriptor.of(PubsubMessage.class))
                   .via(
                       (String json) ->
-                          new PubsubMessage(json.getBytes(Charsets.UTF_8), ImmutableMap.of())))
+                          new PubsubMessage(
+                              json.getBytes(StandardCharsets.UTF_8), ImmutableMap.of())))
           .apply(
               "writePubsubMessagesToPubSub", PubsubIO.writeMessages().to(options.getOutputTopic()));
     }

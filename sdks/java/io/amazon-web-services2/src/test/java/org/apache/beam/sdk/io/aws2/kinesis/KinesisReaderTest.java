@@ -29,6 +29,7 @@ import static org.mockito.Mockito.when;
 import java.io.IOException;
 import java.util.NoSuchElementException;
 import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -148,6 +149,11 @@ public class KinesisReaderTest {
     assertThat(reader.getSplitBacklogBytes()).isEqualTo(10);
     assertThat(reader.getSplitBacklogBytes()).isEqualTo(10);
     assertThat(reader.getSplitBacklogBytes()).isEqualTo(20);
+  }
+
+  @Test
+  public void getSplitBacklogBytesShouldReturnUnknownIfNotStarted() {
+    assertThat(reader.getSplitBacklogBytes()).isEqualTo(UnboundedReader.BACKLOG_UNKNOWN);
   }
 
   @Test

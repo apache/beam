@@ -24,7 +24,7 @@ import static org.apache.beam.runners.dataflow.util.Structs.getString;
 import static org.apache.beam.runners.dataflow.util.Structs.getStrings;
 import static org.apache.beam.sdk.util.SerializableUtils.deserializeFromByteArray;
 import static org.apache.beam.sdk.util.SerializableUtils.serializeToByteArray;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.client.util.Base64;
 import com.google.api.services.dataflow.model.ApproximateReportedProgress;
@@ -61,11 +61,11 @@ import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.ValueWithRecordId;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Uninterruptibles;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -445,7 +445,7 @@ public class WorkerCustomSources {
 
         UnboundedSource<T, UnboundedSource.CheckpointMark> splitSource = parseSource(splitIndex);
 
-        UnboundedSource.CheckpointMark checkpoint = null;
+        UnboundedSource.@Nullable CheckpointMark checkpoint = null;
         if (splitSource.getCheckpointMarkCoder() != null) {
           checkpoint = context.getReaderCheckpoint(splitSource.getCheckpointMarkCoder());
         }
@@ -776,6 +776,9 @@ public class WorkerCustomSources {
 
   private static class UnboundedReaderIterator<T>
       extends NativeReader.NativeReaderIterator<WindowedValue<ValueWithRecordId<T>>> {
+    // Do not close reader. The reader is cached in StreamingModeExecutionContext.readerCache, and
+    // will be reused until the cache is evicted, expired or invalidated.
+    // See UnboundedReader#iterator().
     private final UnboundedSource.UnboundedReader<T> reader;
     private final StreamingModeExecutionContext context;
     private final boolean started;
@@ -793,9 +796,8 @@ public class WorkerCustomSources {
       this.context = context;
       this.started = started;
       DataflowPipelineDebugOptions debugOptions = options.as(DataflowPipelineDebugOptions.class);
-      this.endTime =
-          Instant.now()
-              .plus(Duration.standardSeconds(debugOptions.getUnboundedReaderMaxReadTimeSec()));
+      long maxReadTimeMs = debugOptions.getUnboundedReaderMaxReadTimeMs();
+      this.endTime = Instant.now().plus(Duration.millis(maxReadTimeMs));
       this.maxElems = debugOptions.getUnboundedReaderMaxElements();
       this.backoffFactory =
           FluentBackoff.DEFAULT
@@ -833,7 +835,8 @@ public class WorkerCustomSources {
       while (true) {
         if (elemsRead >= maxElems
             || Instant.now().isAfter(endTime)
-            || context.isSinkFullHintSet()) {
+            || context.isSinkFullHintSet()
+            || context.workIsFailed()) {
           return false;
         }
         try {
@@ -862,7 +865,9 @@ public class WorkerCustomSources {
     }
 
     @Override
-    public void close() {}
+    public void close() {
+      // Don't close reader.
+    }
 
     @Override
     public NativeReader.Progress getProgress() {

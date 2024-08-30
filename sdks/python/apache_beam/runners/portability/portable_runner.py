@@ -19,12 +19,12 @@
 # mypy: check-untyped-defs
 
 import atexit
+import copy
 import functools
 import itertools
 import logging
 import threading
 import time
-from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
 from typing import Iterator
@@ -32,20 +32,22 @@ from typing import Optional
 from typing import Tuple
 
 import grpc
+from google.protobuf import struct_pb2
 
 from apache_beam.metrics import metric
 from apache_beam.metrics.execution import MetricResult
 from apache_beam.options.pipeline_options import DebugOptions
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import PortableOptions
-from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
-from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.options.value_provider import ValueProvider
+from apache_beam.pipeline import Pipeline
 from apache_beam.portability import common_urns
+from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.portability.api import beam_job_api_pb2
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners import runner
-from apache_beam.runners.common import group_by_key_input_visitor
 from apache_beam.runners.job import utils as job_utils
 from apache_beam.runners.portability import artifact_service
 from apache_beam.runners.portability import job_server
@@ -54,12 +56,6 @@ from apache_beam.runners.portability.fn_api_runner.fn_runner import translations
 from apache_beam.runners.worker import sdk_worker_main
 from apache_beam.runners.worker import worker_pool_main
 from apache_beam.transforms import environments
-
-if TYPE_CHECKING:
-  from google.protobuf import struct_pb2  # pylint: disable=ungrouped-imports
-  from apache_beam.options.pipeline_options import PipelineOptions
-  from apache_beam.pipeline import Pipeline
-  from apache_beam.portability.api import beam_runner_api_pb2
 
 __all__ = ['PortableRunner']
 
@@ -78,8 +74,6 @@ TERMINAL_STATES = [
     beam_job_api_pb2.JobState.FAILED,
     beam_job_api_pb2.JobState.CANCELLED,
 ]
-
-ENV_TYPE_ALIASES = {'LOOPBACK': 'EXTERNAL'}
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -100,9 +94,11 @@ class JobServiceHandle(object):
     self.artifact_endpoint = options.view_as(PortableOptions).artifact_endpoint
     self._retain_unknown_options = retain_unknown_options
 
-  def submit(self, proto_pipeline):
-    # type: (beam_runner_api_pb2.Pipeline) -> Tuple[str, Iterator[beam_job_api_pb2.JobStateEvent], Iterator[beam_job_api_pb2.JobMessagesResponse]]
-
+  def submit(
+      self, proto_pipeline: beam_runner_api_pb2.Pipeline
+  ) -> Tuple[str,
+             Iterator[beam_job_api_pb2.JobStateEvent],
+             Iterator[beam_job_api_pb2.JobMessagesResponse]]:
     """
     Submit and run the pipeline defined by `proto_pipeline`.
     """
@@ -116,9 +112,7 @@ class JobServiceHandle(object):
         prepare_response.staging_session_token)
     return self.run(prepare_response.preparation_id)
 
-  def get_pipeline_options(self):
-    # type: () -> struct_pb2.Struct
-
+  def get_pipeline_options(self) -> struct_pb2.Struct:
     """
     Get `self.options` as a protobuf Struct
     """
@@ -192,9 +186,9 @@ class JobServiceHandle(object):
     }
     return job_utils.dict_to_struct(p_options)
 
-  def prepare(self, proto_pipeline):
-    # type: (beam_runner_api_pb2.Pipeline) -> beam_job_api_pb2.PrepareJobResponse
-
+  def prepare(
+      self, proto_pipeline: beam_runner_api_pb2.Pipeline
+  ) -> beam_job_api_pb2.PrepareJobResponse:
     """Prepare the job on the job service"""
     return self.job_service.Prepare(
         beam_job_api_pb2.PrepareJobRequest(
@@ -203,13 +197,11 @@ class JobServiceHandle(object):
             pipeline_options=self.get_pipeline_options()),
         timeout=self.timeout)
 
-  def stage(self,
-            proto_pipeline,  # type: beam_runner_api_pb2.Pipeline
-            artifact_staging_endpoint,
-            staging_session_token
-           ):
-    # type: (...) -> None
-
+  def stage(
+      self,
+      proto_pipeline: beam_runner_api_pb2.Pipeline,
+      artifact_staging_endpoint,
+      staging_session_token) -> None:
     """Stage artifacts"""
     if artifact_staging_endpoint:
       artifact_service.offer_artifacts(
@@ -219,9 +211,11 @@ class JobServiceHandle(object):
               artifact_service.BeamFilesystemHandler(None).file_reader),
           staging_session_token)
 
-  def run(self, preparation_id):
-    # type: (str) -> Tuple[str, Iterator[beam_job_api_pb2.JobStateEvent], Iterator[beam_job_api_pb2.JobMessagesResponse]]
-
+  def run(
+      self, preparation_id: str
+  ) -> Tuple[str,
+             Iterator[beam_job_api_pb2.JobStateEvent],
+             Iterator[beam_job_api_pb2.JobMessagesResponse]]:
     """Run the job"""
     try:
       state_stream = self.job_service.GetStateStream(
@@ -263,34 +257,12 @@ class PortableRunner(runner.PipelineRunner):
     running and managing the job lies with the job service used.
   """
   def __init__(self):
-    self._dockerized_job_server = None  # type: Optional[job_server.JobServer]
+    self._dockerized_job_server: Optional[job_server.JobServer] = None
 
   @staticmethod
-  def _create_environment(options):
-    # type: (PipelineOptions) -> environments.Environment
-    portable_options = options.view_as(PortableOptions)
-    # Do not set a Runner. Otherwise this can cause problems in Java's
-    # PipelineOptions, i.e. ClassNotFoundException, if the corresponding Runner
-    # does not exist in the Java SDK. In portability, the entry point is clearly
-    # defined via the JobService.
-    portable_options.view_as(StandardOptions).runner = None
-    environment_type = portable_options.environment_type
-    if not environment_type:
-      environment_urn = common_urns.environments.DOCKER.urn
-    elif environment_type.startswith('beam:env:'):
-      environment_urn = environment_type
-    else:
-      # e.g. handle LOOPBACK -> EXTERNAL
-      environment_type = ENV_TYPE_ALIASES.get(
-          environment_type, environment_type)
-      try:
-        environment_urn = getattr(
-            common_urns.environments, environment_type).urn
-      except AttributeError:
-        raise ValueError('Unknown environment type: %s' % environment_type)
-
-    env_class = environments.Environment.get_env_cls_from_urn(environment_urn)
-    return env_class.from_options(portable_options)
+  def _create_environment(options: PipelineOptions) -> environments.Environment:
+    return environments.Environment.from_options(
+        options.view_as(PortableOptions))
 
   def default_job_server(self, options):
     raise NotImplementedError(
@@ -298,20 +270,17 @@ class PortableRunner(runner.PipelineRunner):
         'Alternatively, you may specify which portable runner you intend to '
         'use, such as --runner=FlinkRunner or --runner=SparkRunner.')
 
-  def create_job_service_handle(self, job_service, options):
-    # type: (...) -> JobServiceHandle
+  def create_job_service_handle(self, job_service, options) -> JobServiceHandle:
     return JobServiceHandle(job_service, options)
 
-  def create_job_service(self, options):
-    # type: (PipelineOptions) -> JobServiceHandle
-
+  def create_job_service(self, options: PipelineOptions) -> JobServiceHandle:
     """
     Start the job service and return a `JobServiceHandle`
     """
     job_endpoint = options.view_as(PortableOptions).job_endpoint
     if job_endpoint:
       if job_endpoint == 'embed':
-        server = job_server.EmbeddedJobServer()  # type: job_server.JobServer
+        server: job_server.JobServer = job_server.EmbeddedJobServer()
       else:
         job_server_timeout = options.view_as(PortableOptions).job_server_timeout
         server = job_server.ExternalJobServer(job_endpoint, job_server_timeout)
@@ -320,14 +289,19 @@ class PortableRunner(runner.PipelineRunner):
     return self.create_job_service_handle(server.start(), options)
 
   @staticmethod
-  def get_proto_pipeline(pipeline, options):
-    # type: (Pipeline, PipelineOptions) -> beam_runner_api_pb2.Pipeline
-    portable_options = options.view_as(PortableOptions)
-
+  def get_proto_pipeline(
+      pipeline: Pipeline,
+      options: PipelineOptions) -> beam_runner_api_pb2.Pipeline:
     proto_pipeline = pipeline.to_runner_api(
-        default_environment=PortableRunner._create_environment(
-            portable_options))
+        default_environment=environments.Environment.from_options(
+            options.view_as(PortableOptions)))
 
+    return PortableRunner._optimize_pipeline(proto_pipeline, options)
+
+  @staticmethod
+  def _optimize_pipeline(
+      proto_pipeline: beam_runner_api_pb2.Pipeline,
+      options: PipelineOptions) -> beam_runner_api_pb2.Pipeline:
     # TODO: https://github.com/apache/beam/issues/19493
     # Eventually remove the 'pre_optimize' option alltogether and only perform
     # the equivalent of the 'default' case below (minus the 'lift_combiners'
@@ -347,40 +321,13 @@ class PortableRunner(runner.PipelineRunner):
         ]
         partial = True
       elif pre_optimize == 'all':
-        phases = [
-            translations.annotate_downstream_side_inputs,
-            translations.annotate_stateful_dofns_as_roots,
-            translations.fix_side_input_pcoll_coders,
-            translations.pack_combiners,
-            translations.lift_combiners,
-            translations.expand_sdf,
-            translations.fix_flatten_coders,
-            # translations.sink_flattens,
-            translations.greedily_fuse,
-            translations.read_to_impulse,
-            translations.extract_impulse_stages,
-            translations.remove_data_plane_ops,
-            translations.sort_stages
-        ]
+        phases = translations.standard_optimize_phases()
         partial = False
       elif pre_optimize == 'all_except_fusion':
         # TODO(https://github.com/apache/beam/issues/19422): Delete this branch
         # after PortableRunner supports beam:runner:executable_stage:v1.
-        phases = [
-            translations.annotate_downstream_side_inputs,
-            translations.annotate_stateful_dofns_as_roots,
-            translations.fix_side_input_pcoll_coders,
-            translations.pack_combiners,
-            translations.lift_combiners,
-            translations.expand_sdf,
-            translations.fix_flatten_coders,
-            # translations.sink_flattens,
-            # translations.greedily_fuse,
-            translations.read_to_impulse,
-            translations.extract_impulse_stages,
-            translations.remove_data_plane_ops,
-            translations.sort_stages
-        ]
+        phases = translations.standard_optimize_phases()
+        phases.remove(translations.greedily_fuse)
         partial = True
       else:
         phases = []
@@ -410,42 +357,24 @@ class PortableRunner(runner.PipelineRunner):
 
     return proto_pipeline
 
-  def run_pipeline(self, pipeline, options):
-    # type: (Pipeline, PipelineOptions) -> PipelineResult
+  def run_portable_pipeline(
+      self, pipeline: beam_runner_api_pb2.Pipeline,
+      options: PipelineOptions) -> runner.PipelineResult:
     portable_options = options.view_as(PortableOptions)
 
-    # TODO: https://github.com/apache/beam/issues/19168
-    # portable runner specific default
-    if options.view_as(SetupOptions).sdk_location == 'default':
-      options.view_as(SetupOptions).sdk_location = 'container'
+    # Do not set a Runner. Otherwise this can cause problems in Java's
+    # PipelineOptions, i.e. ClassNotFoundException, if the corresponding Runner
+    # does not exist in the Java SDK. In portability, the entry point is clearly
+    # defined via the JobService.
+    portable_options.view_as(StandardOptions).runner = None
 
-    experiments = options.view_as(DebugOptions).experiments or []
+    cleanup_callbacks = self.start_and_replace_loopback_environments(
+        pipeline, options)
 
-    # This is needed as we start a worker server if one is requested
-    # but none is provided.
-    if portable_options.environment_type == 'LOOPBACK':
-      use_loopback_process_worker = options.view_as(
-          DebugOptions).lookup_experiment('use_loopback_process_worker', False)
-      portable_options.environment_config, server = (
-          worker_pool_main.BeamFnExternalWorkerPoolServicer.start(
-              state_cache_size=
-              sdk_worker_main._get_state_cache_size(experiments),
-              data_buffer_time_limit_ms=
-              sdk_worker_main._get_data_buffer_time_limit_ms(experiments),
-              use_process=use_loopback_process_worker))
-      cleanup_callbacks = [functools.partial(server.stop, 1)]
-    else:
-      cleanup_callbacks = []
-
-    pipeline.visit(
-        group_by_key_input_visitor(
-            not options.view_as(TypeOptions).allow_non_deterministic_key_coders)
-    )
-
-    proto_pipeline = self.get_proto_pipeline(pipeline, options)
+    optimized_pipeline = self._optimize_pipeline(pipeline, options)
     job_service_handle = self.create_job_service(options)
-    job_id, message_stream, state_stream = \
-      job_service_handle.submit(proto_pipeline)
+    job_id, message_stream, state_stream = job_service_handle.submit(
+        optimized_pipeline)
 
     result = PipelineResult(
         job_service_handle.job_service,
@@ -465,6 +394,33 @@ class PortableRunner(runner.PipelineRunner):
           portable_options.environment_type)
     return result
 
+  @staticmethod
+  def start_and_replace_loopback_environments(pipeline, options):
+    portable_options = copy.deepcopy(options.view_as(PortableOptions))
+    experiments = options.view_as(DebugOptions).experiments or []
+    cleanup_callbacks = []
+    for env in pipeline.components.environments.values():
+      if env.urn == python_urns.EMBEDDED_PYTHON_LOOPBACK:
+        # Start a worker and change the environment to point to that worker.
+        use_loopback_process_worker = options.view_as(
+            DebugOptions).lookup_experiment(
+                'use_loopback_process_worker', False)
+        portable_options.environment_type = 'EXTERNAL'
+        portable_options.environment_config, server = (
+            worker_pool_main.BeamFnExternalWorkerPoolServicer.start(
+                state_cache_size=
+                sdk_worker_main._get_state_cache_size_bytes(
+                  options=options),
+                data_buffer_time_limit_ms=
+                sdk_worker_main._get_data_buffer_time_limit_ms(experiments),
+                use_process=use_loopback_process_worker))
+        external_env = environments.ExternalEnvironment.from_options(
+            portable_options).to_runner_api(None)  # type: ignore
+        env.urn = external_env.urn
+        env.payload = external_env.payload
+        cleanup_callbacks.append(functools.partial(server.stop, 1))
+    return cleanup_callbacks
+
 
 class PortableMetrics(metric.MetricResults):
   def __init__(self, job_metrics_response):
@@ -481,7 +437,7 @@ class PortableMetrics(metric.MetricResults):
     ]
 
   def query(self, filter=None):
-    counters, distributions, gauges = [
+    counters, distributions, gauges, stringsets = [
         self._combine(x, y, filter)
         for x, y in zip(self.committed, self.attempted)
     ]
@@ -489,7 +445,8 @@ class PortableMetrics(metric.MetricResults):
     return {
         self.COUNTERS: counters,
         self.DISTRIBUTIONS: distributions,
-        self.GAUGES: gauges
+        self.GAUGES: gauges,
+        self.STRINGSETS: stringsets
     }
 
 
@@ -511,8 +468,7 @@ class PipelineResult(runner.PipelineResult):
     self._metrics = None
     self._runtime_exception = None
 
-  def cancel(self):
-    # type: () -> None
+  def cancel(self) -> None:
     try:
       self._job_service.Cancel(
           beam_job_api_pb2.CancelJobRequest(job_id=self._job_id))
@@ -551,8 +507,7 @@ class PipelineResult(runner.PipelineResult):
       self._metrics = PortableMetrics(job_metrics_response)
     return self._metrics
 
-  def _last_error_message(self):
-    # type: () -> str
+  def _last_error_message(self) -> str:
     # Filter only messages with the "message_response" and error messages.
     messages = [
         m.message_response for m in self._messages
@@ -573,8 +528,7 @@ class PipelineResult(runner.PipelineResult):
     the execution. If None or zero, will wait until the pipeline finishes.
     :return: The result of the pipeline, i.e. PipelineResult.
     """
-    def read_messages():
-      # type: () -> None
+    def read_messages() -> None:
       previous_state = -1
       for message in self._message_stream:
         if message.HasField('message_response'):
@@ -633,8 +587,7 @@ class PipelineResult(runner.PipelineResult):
     finally:
       self._cleanup()
 
-  def _cleanup(self, on_exit=False):
-    # type: (bool) -> None
+  def _cleanup(self, on_exit: bool = False) -> None:
     if on_exit and self._cleanup_callbacks:
       _LOGGER.info(
           'Running cleanup on exit. If your pipeline should continue running, '

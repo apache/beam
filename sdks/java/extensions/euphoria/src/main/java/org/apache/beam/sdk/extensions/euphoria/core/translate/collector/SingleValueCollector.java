@@ -28,10 +28,15 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Context;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/** {@code Collector} for combinable functors. */
+/**
+ * {@code Collector} for combinable functors.
+ *
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
+ */
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
+@Deprecated
 public class SingleValueCollector<T> implements Collector<T>, Serializable {
 
   private static final String UNSUPPORTED = "Accumulators are supported for named operators only.";

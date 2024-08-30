@@ -77,7 +77,7 @@ dependencies {
   implementation library.java.aws_java_sdk_core
   implementation library.java.google_cloud_core
   implementation library.java.joda_time
-  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.vendored_guava_32_1_2_jre
   implementation library.java.slf4j_api
 
   gradleRun project(project.path)

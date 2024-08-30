@@ -23,7 +23,7 @@ import com.codahale.metrics.MetricRegistry;
 import java.util.Collection;
 import java.util.Properties;
 import org.apache.beam.runners.spark.structuredstreaming.metrics.WithMetricsSupport;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.spark.metrics.sink.Sink;
 
 /** An in-memory {@link Sink} implementation for tests. */

@@ -29,8 +29,8 @@ import (
 	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/grpcx"
-	"github.com/golang/protobuf/proto"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/proto"
 )
 
 // Stage stages the worker binary and any additional files to the given
@@ -44,14 +44,14 @@ func Stage(ctx context.Context, id, endpoint, binary, st string) (retrievalToken
 	defer cc.Close()
 
 	if err := StageViaPortableAPI(ctx, cc, binary, st); err == nil {
-		return "", nil
+		return st, nil
 	}
 	log.Warnf(ctx, "unable to stage with PortableAPI: %v; falling back to legacy", err)
 
 	return StageViaLegacyAPI(ctx, cc, binary, st)
 }
 
-// StageViaPortableApi is a beam internal function for uploading artifacts to the staging service
+// StageViaPortableAPI is a beam internal function for uploading artifacts to the staging service
 // via the portable API.
 //
 // It will be unexported at a later time.
@@ -181,7 +181,7 @@ func stageFile(filename string, stream jobpb.ArtifactStagingService_ReverseArtif
 	}
 }
 
-// StageViaLegacyApi is a beam internal function for uploading artifacts to the staging service
+// StageViaLegacyAPI is a beam internal function for uploading artifacts to the staging service
 // via the legacy API.
 //
 // It will be unexported at a later time.

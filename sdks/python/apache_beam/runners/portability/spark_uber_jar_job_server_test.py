@@ -40,9 +40,11 @@ from apache_beam.runners.portability.local_job_service_test import TestJobServic
 def temp_name(*args, **kwargs):
   with tempfile.NamedTemporaryFile(*args, **kwargs) as t:
     name = t.name
-  yield name
-  if os.path.exists(name):
-    os.unlink(name)
+  try:
+    yield name
+  finally:
+    if os.path.exists(name):
+      os.unlink(name)
 
 
 def spark_job():

@@ -21,9 +21,9 @@ import static org.apache.beam.sdk.io.common.IOITHelper.executeWithRetry;
 import static org.apache.beam.sdk.io.common.IOITHelper.getHashForRecordCount;
 import static org.junit.Assert.assertNotEquals;
 
-import com.google.cloud.Timestamp;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
+import java.time.Instant;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.Map;
@@ -50,7 +50,7 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.bson.Document;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -237,7 +237,7 @@ public class MongoDBIOIT {
 
   private void collectAndPublishMetrics(PipelineResult writeResult, PipelineResult readResult) {
     String uuid = UUID.randomUUID().toString();
-    String timestamp = Timestamp.now().toString();
+    String timestamp = Instant.now().toString();
 
     Set<Function<MetricsReader, NamedTestResult>> readSuppliers = getReadSuppliers(uuid, timestamp);
     Set<Function<MetricsReader, NamedTestResult>> writeSuppliers =

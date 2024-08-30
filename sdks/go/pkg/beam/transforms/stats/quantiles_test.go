@@ -16,46 +16,19 @@
 package stats
 
 import (
-	"reflect"
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 	"github.com/google/go-cmp/cmp"
 )
 
 func init() {
-	beam.RegisterFunction(weightedElementToKv)
-
-	// In practice, this runs faster than plain reflection.
-	// TODO(https://github.com/apache/beam/issues/20271): Remove once collisions don't occur for starcgen over test code and an equivalent is generated for us.
-	reflectx.RegisterFunc(reflect.ValueOf(less).Type(), func(_ any) reflectx.Func {
-		return newIntLess()
-	})
-}
-
-type intLess struct {
-	name string
-	t    reflect.Type
-}
-
-func newIntLess() *intLess {
-	return &intLess{
-		name: reflectx.FunctionName(reflect.ValueOf(less).Interface()),
-		t:    reflect.ValueOf(less).Type(),
-	}
-}
-
-func (i *intLess) Name() string {
-	return i.name
-}
-func (i *intLess) Type() reflect.Type {
-	return i.t
-}
-func (i *intLess) Call(args []any) []any {
-	return []any{args[0].(int) < args[1].(int)}
+	register.Function1x2(weightedElementToKv)
+	register.Function2x1(less)
 }
 
 func less(a, b int) bool {
@@ -68,7 +41,7 @@ func TestLargeQuantiles(t *testing.T) {
 	for i := 0; i < numElements; i++ {
 		inputSlice = append(inputSlice, i)
 	}
-	p, s, input, expected := ptest.CreateList2(inputSlice, [][]int{[]int{10006, 19973}})
+	p, s, input, expected := ptest.CreateList2(inputSlice, [][]int{{10006, 19973}})
 	quantiles := ApproximateQuantiles(s, input, less, Opts{
 		K:            200,
 		NumQuantiles: 3,
@@ -85,7 +58,7 @@ func TestLargeQuantilesReversed(t *testing.T) {
 	for i := numElements - 1; i >= 0; i-- {
 		inputSlice = append(inputSlice, i)
 	}
-	p, s, input, expected := ptest.CreateList2(inputSlice, [][]int{[]int{9985, 19959}})
+	p, s, input, expected := ptest.CreateList2(inputSlice, [][]int{{9985, 19959}})
 	quantiles := ApproximateQuantiles(s, input, less, Opts{
 		K:            200,
 		NumQuantiles: 3,
@@ -103,8 +76,8 @@ func TestBasicQuantiles(t *testing.T) {
 		Expected [][]int
 	}{
 		{[]int{}, [][]int{}},
-		{[]int{1}, [][]int{[]int{1}}},
-		{[]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20}, [][]int{[]int{6, 13}}},
+		{[]int{1}, [][]int{{1}}},
+		{[]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20}, [][]int{{6, 13}}},
 	}
 
 	for _, test := range tests {
@@ -180,7 +153,7 @@ func TestMerging(t *testing.T) {
 		K:                   3,
 		NumberOfCompactions: 1,
 		Compactors: []compactor{{
-			sorted:   [][]beam.T{[]beam.T{1}, []beam.T{2}, []beam.T{3}},
+			sorted:   [][]beam.T{{1}, {2}, {3}},
 			unsorted: []beam.T{6, 5, 4},
 			capacity: 4,
 		}},
@@ -191,7 +164,7 @@ func TestMerging(t *testing.T) {
 		NumberOfCompactions: 1,
 		Compactors: []compactor{
 			{
-				sorted:   [][]beam.T{[]beam.T{7}, []beam.T{8}, []beam.T{9}},
+				sorted:   [][]beam.T{{7}, {8}, {9}},
 				unsorted: []beam.T{12, 11, 10},
 				capacity: 4},
 		},
@@ -205,7 +178,7 @@ func TestMerging(t *testing.T) {
 		Compactors: []compactor{
 			{capacity: 4},
 			{
-				sorted:   [][]beam.T{[]beam.T{1, 3, 5, 7, 9, 11}},
+				sorted:   [][]beam.T{{1, 3, 5, 7, 9, 11}},
 				capacity: 4,
 			},
 		},
@@ -222,12 +195,12 @@ func TestCompactorsEncoding(t *testing.T) {
 		Compactors: []compactor{
 			{
 				capacity: 4,
-				sorted:   [][]beam.T{[]beam.T{1, 2}},
+				sorted:   [][]beam.T{{1, 2}},
 				unsorted: []beam.T{3, 4},
 			},
 			{
 				capacity: 4,
-				sorted:   [][]beam.T{[]beam.T{5, 6}},
+				sorted:   [][]beam.T{{5, 6}},
 				unsorted: []beam.T{7, 8},
 			},
 		},

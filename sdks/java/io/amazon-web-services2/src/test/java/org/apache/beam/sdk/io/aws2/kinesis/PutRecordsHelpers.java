@@ -19,12 +19,12 @@ package org.apache.beam.sdk.io.aws2.kinesis;
 
 import static java.util.Arrays.asList;
 import static java.util.stream.Collectors.toList;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables.concat;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables.cycle;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables.limit;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists.newArrayList;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists.transform;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Streams.stream;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables.concat;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables.cycle;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables.limit;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists.newArrayList;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists.transform;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Streams.stream;
 import static org.mockito.ArgumentMatchers.any;
 
 import java.nio.ByteBuffer;

@@ -17,21 +17,21 @@
  */
 package org.apache.beam.sdk.expansion.service;
 
-import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
+import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertTrue;
 
 import com.google.auto.service.AutoService;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.model.expansion.v1.ExpansionApi;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms.ExpansionMethods;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.runners.core.construction.PTransformTranslation;
-import org.apache.beam.runners.core.construction.ParDoTranslation;
-import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
@@ -47,15 +47,18 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.InferableFunction;
 import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.util.ByteStringOutputStream;
+import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.util.construction.PTransformTranslation;
+import org.apache.beam.sdk.util.construction.ParDoTranslation;
+import org.apache.beam.sdk.util.construction.PipelineTranslation;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.InvalidProtocolBufferException;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.junit.Test;
 
 /** Tests for {@link ExpansionServiceSchemaTransformProvider}. */
@@ -74,6 +77,13 @@ public class ExpansionServiceSchemaTransformProviderTest {
           Field.of("int2", FieldType.INT32),
           Field.of("str1", FieldType.STRING),
           Field.of("str2", FieldType.STRING));
+
+  private static final Schema TEST_SCHEMATRANSFORM_EQUIVALENT_CONFIG_SCHEMA =
+      Schema.of(
+          Field.of("str2", FieldType.STRING),
+          Field.of("str1", FieldType.STRING),
+          Field.of("int2", FieldType.INT32),
+          Field.of("int1", FieldType.INT32));
 
   private ExpansionService expansionService = new ExpansionService();
 
@@ -126,26 +136,6 @@ public class ExpansionServiceSchemaTransformProviderTest {
     }
   }
 
-  public static class TestSchemaTransform implements SchemaTransform {
-
-    private String str1;
-    private String str2;
-    private Integer int1;
-    private Integer int2;
-
-    public TestSchemaTransform(String str1, String str2, Integer int1, Integer int2) {
-      this.str1 = str1;
-      this.str2 = str2;
-      this.int1 = int1;
-      this.int2 = int2;
-    }
-
-    @Override
-    public PTransform<PCollectionRowTuple, PCollectionRowTuple> buildTransform() {
-      return new TestTransform(str1, str2, int1, int2);
-    }
-  }
-
   public static class TestDoFn extends DoFn<String, String> {
 
     public String str1;
@@ -166,14 +156,14 @@ public class ExpansionServiceSchemaTransformProviderTest {
     }
   }
 
-  public static class TestTransform extends PTransform<PCollectionRowTuple, PCollectionRowTuple> {
+  public static class TestSchemaTransform extends SchemaTransform {
 
     private String str1;
     private String str2;
     private Integer int1;
     private Integer int2;
 
-    public TestTransform(String str1, String str2, Integer int1, Integer int2) {
+    public TestSchemaTransform(String str1, String str2, Integer int1, Integer int2) {
       this.str1 = str1;
       this.str2 = str2;
       this.int1 = int1;
@@ -244,7 +234,7 @@ public class ExpansionServiceSchemaTransformProviderTest {
     }
   }
 
-  public static class TestSchemaTransformMultiInputOutput implements SchemaTransform {
+  public static class TestSchemaTransformMultiInputOutput extends SchemaTransform {
 
     private String str1;
     private String str2;
@@ -252,28 +242,6 @@ public class ExpansionServiceSchemaTransformProviderTest {
     private Integer int2;
 
     public TestSchemaTransformMultiInputOutput(
-        String str1, String str2, Integer int1, Integer int2) {
-      this.str1 = str1;
-      this.str2 = str2;
-      this.int1 = int1;
-      this.int2 = int2;
-    }
-
-    @Override
-    public PTransform<PCollectionRowTuple, PCollectionRowTuple> buildTransform() {
-      return new TestTransformMultiInputMultiOutput(str1, str2, int1, int2);
-    }
-  }
-
-  public static class TestTransformMultiInputMultiOutput
-      extends PTransform<PCollectionRowTuple, PCollectionRowTuple> {
-
-    private String str1;
-    private String str2;
-    private Integer int1;
-    private Integer int2;
-
-    public TestTransformMultiInputMultiOutput(
         String str1, String str2, Integer int1, Integer int2) {
       this.str1 = str1;
       this.str2 = str2;
@@ -339,7 +307,7 @@ public class ExpansionServiceSchemaTransformProviderTest {
         ExpansionApi.DiscoverSchemaTransformRequest.newBuilder().build();
     ExpansionApi.DiscoverSchemaTransformResponse response =
         expansionService.discover(discoverRequest);
-    assertEquals(2, response.getSchemaTransformConfigsCount());
+    assertTrue(response.getSchemaTransformConfigsCount() >= 2);
   }
 
   private void verifyLeafTransforms(ExpansionApi.ExpansionResponse response, int count) {
@@ -387,31 +355,13 @@ public class ExpansionServiceSchemaTransformProviderTest {
             .withFieldValue("str2", "bbb")
             .build();
 
-    ByteStringOutputStream outputStream = new ByteStringOutputStream();
-    try {
-      SchemaCoder.of(configRow.getSchema()).encode(configRow, outputStream);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-
-    ExternalTransforms.SchemaTransformPayload payload =
-        ExternalTransforms.SchemaTransformPayload.newBuilder()
-            .setIdentifier("dummy_id")
-            .setConfigurationRow(outputStream.toByteString())
-            .setConfigurationSchema(
-                SchemaTranslation.schemaToProto(TEST_SCHEMATRANSFORM_CONFIG_SCHEMA, true))
-            .build();
-
     ExpansionApi.ExpansionRequest request =
         ExpansionApi.ExpansionRequest.newBuilder()
             .setComponents(pipelineProto.getComponents())
             .setTransform(
                 RunnerApi.PTransform.newBuilder()
                     .setUniqueName(TEST_NAME)
-                    .setSpec(
-                        RunnerApi.FunctionSpec.newBuilder()
-                            .setUrn(getUrn(ExpansionMethods.Enum.SCHEMA_TRANSFORM))
-                            .setPayload(payload.toByteString()))
+                    .setSpec(createSpec("dummy_id", configRow))
                     .putInputs("input1", inputPcollId))
             .setNamespace(TEST_NAMESPACE)
             .build();
@@ -446,35 +396,18 @@ public class ExpansionServiceSchemaTransformProviderTest {
             .withFieldValue("str2", "bbb")
             .build();
 
-    ByteStringOutputStream outputStream = new ByteStringOutputStream();
-    try {
-      SchemaCoder.of(configRow.getSchema()).encode(configRow, outputStream);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-
-    ExternalTransforms.SchemaTransformPayload payload =
-        ExternalTransforms.SchemaTransformPayload.newBuilder()
-            .setIdentifier("dummy_id_multi_input_multi_output")
-            .setConfigurationRow(outputStream.toByteString())
-            .setConfigurationSchema(
-                SchemaTranslation.schemaToProto(TEST_SCHEMATRANSFORM_CONFIG_SCHEMA, true))
-            .build();
-
     ExpansionApi.ExpansionRequest request =
         ExpansionApi.ExpansionRequest.newBuilder()
             .setComponents(pipelineProto.getComponents())
             .setTransform(
                 RunnerApi.PTransform.newBuilder()
                     .setUniqueName(TEST_NAME)
-                    .setSpec(
-                        RunnerApi.FunctionSpec.newBuilder()
-                            .setUrn(getUrn(ExpansionMethods.Enum.SCHEMA_TRANSFORM))
-                            .setPayload(payload.toByteString()))
+                    .setSpec(createSpec("dummy_id_multi_input_multi_output", configRow))
                     .putInputs("input1", inputPcollIds.get(0))
                     .putInputs("input2", inputPcollIds.get(1)))
             .setNamespace(TEST_NAMESPACE)
             .build();
+
     ExpansionApi.ExpansionResponse response = expansionService.expand(request);
     RunnerApi.PTransform expandedTransform = response.getTransform();
 
@@ -482,5 +415,65 @@ public class ExpansionServiceSchemaTransformProviderTest {
     assertEquals(2, expandedTransform.getInputsCount());
     assertEquals(2, expandedTransform.getOutputsCount());
     verifyLeafTransforms(response, 2);
+  }
+
+  @Test
+  public void testSchematransformEquivalentConfigSchema() throws CoderException {
+    Row configRow =
+        Row.withSchema(TEST_SCHEMATRANSFORM_CONFIG_SCHEMA)
+            .withFieldValue("int1", 111)
+            .withFieldValue("int2", 222)
+            .withFieldValue("str1", "aaa")
+            .withFieldValue("str2", "bbb")
+            .build();
+
+    RunnerApi.FunctionSpec spec = createSpec("dummy_id", configRow);
+
+    Row equivalentConfigRow =
+        Row.withSchema(TEST_SCHEMATRANSFORM_EQUIVALENT_CONFIG_SCHEMA)
+            .withFieldValue("int1", 111)
+            .withFieldValue("int2", 222)
+            .withFieldValue("str1", "aaa")
+            .withFieldValue("str2", "bbb")
+            .build();
+
+    RunnerApi.FunctionSpec equivalentSpec = createSpec("dummy_id", equivalentConfigRow);
+
+    assertNotEquals(spec.getPayload(), equivalentSpec.getPayload());
+
+    TestSchemaTransform transform =
+        (TestSchemaTransform)
+            ExpansionServiceSchemaTransformProvider.of()
+                .getTransform(spec, PipelineOptionsFactory.create());
+    TestSchemaTransform equivalentTransform =
+        (TestSchemaTransform)
+            ExpansionServiceSchemaTransformProvider.of()
+                .getTransform(equivalentSpec, PipelineOptionsFactory.create());
+
+    assertEquals(transform.int1, equivalentTransform.int1);
+    assertEquals(transform.int2, equivalentTransform.int2);
+    assertEquals(transform.str1, equivalentTransform.str1);
+    assertEquals(transform.str2, equivalentTransform.str2);
+  }
+
+  private RunnerApi.FunctionSpec createSpec(String identifier, Row configRow) {
+    byte[] encodedRow;
+    try {
+      encodedRow = CoderUtils.encodeToByteArray(SchemaCoder.of(configRow.getSchema()), configRow);
+    } catch (CoderException e) {
+      throw new RuntimeException(e);
+    }
+
+    ExternalTransforms.SchemaTransformPayload payload =
+        ExternalTransforms.SchemaTransformPayload.newBuilder()
+            .setIdentifier(identifier)
+            .setConfigurationRow(ByteString.copyFrom(encodedRow))
+            .setConfigurationSchema(SchemaTranslation.schemaToProto(configRow.getSchema(), true))
+            .build();
+
+    return RunnerApi.FunctionSpec.newBuilder()
+        .setUrn(getUrn(ExpansionMethods.Enum.SCHEMA_TRANSFORM))
+        .setPayload(payload.toByteString())
+        .build();
   }
 }

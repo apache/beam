@@ -22,8 +22,13 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Counter;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Histogram;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Timer;
 
-/** Defines basic methods available in user defined functions. */
+/**
+ * Defines basic methods available in user defined functions.
+ *
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
+ */
 @Audience(Audience.Type.CLIENT)
+@Deprecated
 public interface Environment {
 
   // ---------------- Aggregator related methods ------------

@@ -35,12 +35,15 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * Implementation of {@link Collector} which forwards output elements through {@link
  * CollectorAdapter} to given {@link DoFn.ProcessContext}. The {@link DoFn.ProcessContext} needs to
  * be set by {@link AdaptableCollector#setProcessContext(DoFn.ProcessContext)} manually before use.
+ *
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
  */
 @NotThreadSafe
 @Audience(Audience.Type.EXECUTOR)
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
+@Deprecated
 public class AdaptableCollector<InputT, OutputT, ElemT>
     implements Collector<ElemT>, Context, Serializable {
 

@@ -41,6 +41,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -75,6 +76,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -556,6 +558,15 @@ public class DoFnInvokersTest {
               public void outputWithTimestamp(SomeRestriction output, Instant timestamp) {
                 fail("Unexpected output with timestamp");
               }
+
+              @Override
+              public void outputWindowedValue(
+                  SomeRestriction output,
+                  Instant timestamp,
+                  Collection<? extends BoundedWindow> windows,
+                  PaneInfo paneInfo) {
+                fail("Unexpected outputWindowedValue");
+              }
             };
           }
         });
@@ -800,6 +811,17 @@ public class DoFnInvokersTest {
                 invoked = true;
                 assertEquals("foo", output);
               }
+
+              @Override
+              public void outputWindowedValue(
+                  String output,
+                  Instant timestamp,
+                  Collection<? extends BoundedWindow> windows,
+                  PaneInfo paneInfo) {
+                assertFalse(invoked);
+                invoked = true;
+                assertEquals("foo", output);
+              }
             };
           }
         });
@@ -1021,7 +1043,7 @@ public class DoFnInvokersTest {
 
     MockFn fn = mock(MockFn.class);
     DoFnInvoker<String, String> invoker = DoFnInvokers.invokerFor(fn);
-    assertEquals(1.0, invoker.invokeGetSize(mockArgumentProvider), 0.0001);
+    assertEquals(0.0, invoker.invokeGetSize(mockArgumentProvider), 0.0001);
   }
 
   @Test

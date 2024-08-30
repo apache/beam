@@ -23,7 +23,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.util.Set;
 import org.apache.beam.sdk.util.ApiSurface;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.hamcrest.Matcher;
 import org.junit.Test;
 import org.junit.runner.RunWith;

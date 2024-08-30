@@ -29,12 +29,3 @@ project.ext {
 
 // Load the main build script which contains all build logic.
 apply from: "$basePath/spark_job_server.gradle"
-
-
-configurations.runtimeClasspath {
-  resolutionStrategy {
-    // Downgrade the Scala version of the job-server to match the Scala version of a Spark 3.1.2 cluster to prevent
-    // a Scala bug (InvalidClassException when deserializing WrappedArray), see https://github.com/apache/beam/issues/21092
-    force "org.scala-lang:scala-library:2.12.10"
-  }
-}

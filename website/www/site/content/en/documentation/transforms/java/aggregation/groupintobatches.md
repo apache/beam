@@ -34,7 +34,10 @@ to the output collection.
 Batches contain elements from the same window, so windows are preserved. Batches might contain elements from more than one bundle.
 
 ## Examples
-See [BEAM-7703](https://issues.apache.org/jira/browse/BEAM-7703) for updates.
+
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" path="SDK_JAVA_GroupIntoBatches" show="main_section" >}}
+{{< /playground >}}
 
 ## Related transforms
 * [GroupByKey](/documentation/transforms/java/aggregation/groupbykey) takes one input collection.

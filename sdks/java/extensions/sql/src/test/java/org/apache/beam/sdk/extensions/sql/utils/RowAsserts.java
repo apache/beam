@@ -23,7 +23,7 @@ import static org.junit.Assert.assertNull;
 
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 
 /** Contain helpers to assert {@link Row}s. */
 public class RowAsserts {

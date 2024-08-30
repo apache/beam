@@ -28,12 +28,14 @@ import 'tabs/tab_bar.dart';
 
 class TabbedSnippetEditor extends StatelessWidget {
   const TabbedSnippetEditor({
+    required this.autofocus,
     required this.controller,
     required this.eventSnippetContext,
     required this.isEditable,
     this.trailing,
   });
 
+  final bool autofocus;
   final SnippetEditingController controller;
   final EventSnippetContext eventSnippetContext;
   final bool isEditable;
@@ -45,6 +47,7 @@ class TabbedSnippetEditor extends StatelessWidget {
     final keys = files.map((f) => f.name).toList(growable: false);
     final initialKey = files.firstWhereOrNull((f) => f.isMain)?.name;
 
+    // TODO(nausharipov): fork keyed_collection_widgets and put prints.
     return DefaultKeyedTabController<String>.fromKeys(
       animationDuration: Duration.zero,
       initialKey: initialKey,
@@ -71,7 +74,8 @@ class TabbedSnippetEditor extends StatelessWidget {
               children: {
                 for (final key in keys)
                   key: SnippetFileEditor(
-                    controller: controller.getFileControllerByName(key)!,
+                    autofocus: autofocus,
+                    controller: controller.requireFileControllerByName(key),
                     eventSnippetContext: eventSnippetContext,
                     isEditable: isEditable,
                   ),

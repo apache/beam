@@ -223,7 +223,7 @@ func createExecutorConfig(apacheBeamSdk pb.Sdk, configPath string) (*ExecutorCon
 	case pb.Sdk_SDK_JAVA:
 		args, err := ConcatBeamJarsToString()
 		if err != nil {
-			return nil, fmt.Errorf("error during proccessing jars: %s", err.Error())
+			return nil, fmt.Errorf("error during processing jars: %s", err.Error())
 		}
 		executorConfig.CompileArgs = append(executorConfig.CompileArgs, args)
 		executorConfig.RunArgs[1] = fmt.Sprintf("%s%s", executorConfig.RunArgs[1], args)

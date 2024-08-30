@@ -40,6 +40,7 @@ from apache_beam.runners.portability import expansion_service
 from apache_beam.runners.portability.expansion_service_test import FibTransform
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.transforms import external
 from apache_beam.transforms.external import AnnotationBasedPayloadBuilder
 from apache_beam.transforms.external import ImplicitSchemaPayloadBuilder
 from apache_beam.transforms.external import JavaClassLookupPayloadBuilder
@@ -71,10 +72,10 @@ class PayloadBase(object):
   values = {
       'integer_example': 1,
       'boolean': True,
-      'string_example': u'thing',
-      'list_of_strings': [u'foo', u'bar'],
+      'string_example': 'thing',
+      'list_of_strings': ['foo', 'bar'],
       'mapping': {
-          u'key': 1.1
+          'key': 1.1
       },
       'optional_integer': None,
   }
@@ -182,7 +183,7 @@ class ExternalTransformTest(unittest.TestCase):
         | beam.Create(['a', 'b'])
         | beam.ExternalTransform(
             'beam:transforms:xlang:test:prefix',
-            ImplicitSchemaPayloadBuilder({'data': u'0'}),
+            ImplicitSchemaPayloadBuilder({'data': '0'}),
             expansion_service.ExpansionServiceServicer()))
 
     proto, _ = pipeline.to_runner_api(return_context=True)
@@ -196,22 +197,21 @@ class ExternalTransformTest(unittest.TestCase):
     self.assertNotEqual([],
                         pipeline_from_proto.transforms_stack[0].parts[1].parts)
     self.assertEqual(
-        u'ExternalTransform(beam:transforms:xlang:test:prefix)/TestLabel',
+        'ExternalTransform(beam:transforms:xlang:test:prefix)/TestLabel',
         pipeline_from_proto.transforms_stack[0].parts[1].parts[0].full_label)
 
   @unittest.skipIf(apiclient is None, 'GCP dependencies are not installed')
   def test_pipeline_generation_with_runner_overrides(self):
     pipeline_properties = [
-        '--dataflow_endpoint=ignored',
         '--job_name=test-job',
         '--project=test-project',
-        '--staging_location=ignored',
-        '--temp_location=/dev/null',
+        '--temp_location=gs://beam/tmp',
         '--no_auth',
         '--dry_run=True',
         '--sdk_location=container',
         '--runner=DataflowRunner',
-        '--streaming'
+        '--streaming',
+        '--region=us-central1'
     ]
 
     with beam.Pipeline(options=PipelineOptions(pipeline_properties)) as p:
@@ -222,7 +222,7 @@ class ExternalTransformTest(unittest.TestCase):
               'projects/dummy-project/subscriptions/dummy-subscription')
           | beam.ExternalTransform(
               'beam:transforms:xlang:test:prefix',
-              ImplicitSchemaPayloadBuilder({'data': u'0'}),
+              ImplicitSchemaPayloadBuilder({'data': '0'}),
               expansion_service.ExpansionServiceServicer()))
 
     pipeline_proto, _ = p.to_runner_api(return_context=True)
@@ -294,7 +294,7 @@ class ExternalTransformTest(unittest.TestCase):
     pipeline = beam.Pipeline()
     external_transform = beam.ExternalTransform(
         'beam:transforms:xlang:test:prefix',
-        ImplicitSchemaPayloadBuilder({'data': u'0'}),
+        ImplicitSchemaPayloadBuilder({'data': '0'}),
         expansion_service.ExpansionServiceServicer())
     _ = (pipeline | beam.Create(['a', 'b']) | external_transform)
     pipeline.run().wait_until_finish()
@@ -337,7 +337,7 @@ class ExternalTransformTest(unittest.TestCase):
         | beam.Create(['a', 'b'])
         | beam.ExternalTransform(
             'beam:transforms:xlang:test:prefix',
-            ImplicitSchemaPayloadBuilder({'data': u'0'}),
+            ImplicitSchemaPayloadBuilder({'data': '0'}),
             expansion_service.ExpansionServiceServicer())
         | beam.Map(lambda x: x))
     pipeline.run().wait_until_finish()
@@ -351,11 +351,40 @@ class ExternalTransformTest(unittest.TestCase):
         | beam.Create(['a', 'b'])
         | beam.ExternalTransform(
             'beam:transforms:xlang:test:nooutput',
-            ImplicitSchemaPayloadBuilder({'data': u'0'}),
+            ImplicitSchemaPayloadBuilder({'data': '0'}),
             expansion_service.ExpansionServiceServicer()))
     pipeline.run().wait_until_finish()
 
     self.assertTrue(pipeline.contains_external_transforms)
+
+  def test_sanitize_java_traceback(self):
+    error_string = '''
+java.lang.RuntimeException: ACTUAL \n MULTILINE \n ERROR
+\tat org.apache.beam.sdk.expansion.service.ExpansionService$TransformProviderForBuilder.getTransform(ExpansionService.java:308)
+\tat org.apache.beam.sdk.expansion.service.TransformProvider.apply(TransformProvider.java:121)
+\tat org.apache.beam.sdk.expansion.service.ExpansionService.expand(ExpansionService.java:627)
+\tat org.apache.beam.sdk.expansion.service.ExpansionService.expand(ExpansionService.java:729)
+\tat org.apache.beam.model.expansion.v1.ExpansionServiceGrpc$MethodHandlers.invoke(ExpansionServiceGrpc.java:306)
+\tat org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.ServerCalls$UnaryServerCallHandler$UnaryServerCallListener.onHalfClose(ServerCalls.java:182)
+\tat org.apache.beam.vendor.grpc.v1p60p1.io.grpc.internal.ServerCallImpl$ServerStreamListenerImpl.halfClosed(ServerCallImpl.java:351)
+\tat org.apache.beam.vendor.grpc.v1p60p1.io.grpc.internal.ServerImpl$JumpToApplicationThreadServerStreamListener$1HalfClosed.runInContext(ServerImpl.java:861)
+\tat org.apache.beam.vendor.grpc.v1p60p1.io.grpc.internal.ContextRunnable.run(ContextRunnable.java:37)
+\tat org.apache.beam.vendor.grpc.v1p60p1.io.grpc.internal.SerializingExecutor.run(SerializingExecutor.java:133)
+\tat java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149)
+\tat java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+\tat java.lang.Thread.run(Thread.java:748)
+Caused by: java.lang.IllegalArgumentException: Received unknown SQL Dialect 'X'. Known dialects: [zetasql, calcite]
+\tat org.apache.beam.sdk.extensions.sql.expansion.ExternalSqlTransformRegistrar$Builder.buildExternal(ExternalSqlTransformRegistrar.java:73)
+\tat org.apache.beam.sdk.extensions.sql.expansion.ExternalSqlTransformRegistrar$Builder.buildExternal(ExternalSqlTransformRegistrar.java:63)
+\tat org.apache.beam.sdk.expansion.service.ExpansionService$TransformProviderForBuilder.getTransform(ExpansionService.java:303)
+\t... 12 more
+    '''.strip()
+
+    core_msg = 'java.lang.RuntimeException: ACTUAL \n MULTILINE \n ERROR'
+
+    self.assertEqual(
+        f"{error_string}\n\n{core_msg}",
+        external._sanitize_java_traceback(error_string))
 
 
 class ExternalAnnotationPayloadTest(PayloadBase, unittest.TestCase):
@@ -529,15 +558,19 @@ class SchemaAwareExternalTransformTest(unittest.TestCase):
     kwargs = {"int_field": 0, "str_field": "str"}
 
     transform = beam.SchemaAwareExternalTransform(
-        identifier=identifier, expansion_service=expansion_service, **kwargs)
-    ordered_kwargs = transform._rearrange_kwargs(identifier)
+        identifier=identifier,
+        expansion_service=expansion_service,
+        rearrange_based_on_discovery=True,
+        **kwargs)
+    payload = transform._payload_builder.build()
+    ordered_fields = [f.name for f in payload.configuration_schema.fields]
 
     schematransform_config = beam.SchemaAwareExternalTransform.discover_config(
         expansion_service, identifier)
     external_config_fields = schematransform_config.configuration_schema._fields
 
     self.assertNotEqual(tuple(kwargs.keys()), external_config_fields)
-    self.assertEqual(tuple(ordered_kwargs.keys()), external_config_fields)
+    self.assertEqual(tuple(ordered_fields), external_config_fields)
 
 
 class JavaClassLookupPayloadBuilderTest(unittest.TestCase):

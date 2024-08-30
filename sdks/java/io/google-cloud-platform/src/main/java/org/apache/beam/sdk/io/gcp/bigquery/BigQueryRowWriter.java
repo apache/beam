@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.services.bigquery.model.TableRow;
 import java.io.IOException;
@@ -27,7 +27,7 @@ import java.nio.channels.WritableByteChannel;
 import java.util.UUID;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResourceId;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.CountingOutputStream;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.CountingOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -63,7 +63,7 @@ abstract class BigQueryRowWriter<T> implements AutoCloseable {
     return out;
   }
 
-  abstract void write(T value) throws Exception;
+  abstract void write(T value) throws IOException, BigQueryRowSerializationException;
 
   long getByteSize() {
     return out.getCount();
@@ -79,5 +79,12 @@ abstract class BigQueryRowWriter<T> implements AutoCloseable {
   Result getResult() {
     checkState(isClosed, "Not yet closed");
     return new Result(resourceId, out.getCount());
+  }
+
+  public static class BigQueryRowSerializationException extends Exception {
+
+    public BigQueryRowSerializationException(Exception e) {
+      super(e);
+    }
   }
 }

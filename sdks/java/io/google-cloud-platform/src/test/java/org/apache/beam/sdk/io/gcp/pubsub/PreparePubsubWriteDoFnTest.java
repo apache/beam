@@ -26,7 +26,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import javax.naming.SizeLimitExceededException;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.RandomStringUtils;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;

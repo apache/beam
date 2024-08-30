@@ -382,20 +382,29 @@ func jarExists(jarPath string) bool {
 	return err == nil
 }
 
-func getPythonVersion() (string, error) {
+// GetPythonVersion returns the Python version to use. It checks for
+// env variable PYTHON_PATH and returns that it if set.
+// If no PYTHON_PATH is defined then it checks for python or python3
+// and returns that. Otherwise it returns an error.
+func GetPythonVersion() (string, error) {
+	if pythonPath := os.Getenv("PYTHON_PATH"); pythonPath != "" {
+		return pythonPath, nil
+	}
 	for _, v := range []string{"python", "python3"} {
 		cmd := exec.Command(v, "--version")
 		if err := cmd.Run(); err == nil {
 			return v, nil
 		}
 	}
-	return "", fmt.Errorf("no python installation found")
+	return "", errors.New("no python installation found. If you use a " +
+		"custom container image, please check if python/python3 is available or specify the " +
+		"full path to the python interpreter in PYTHON_PATH environment variable")
 }
 
 // SetUpPythonEnvironment sets up the virtual ennvironment required for the
 // Apache Beam Python SDK to run an expansion service module.
 func SetUpPythonEnvironment(extraPackage string) (string, error) {
-	py, err := getPythonVersion()
+	py, err := GetPythonVersion()
 	if err != nil {
 		return "", fmt.Errorf("no python installation found: %v", err)
 	}

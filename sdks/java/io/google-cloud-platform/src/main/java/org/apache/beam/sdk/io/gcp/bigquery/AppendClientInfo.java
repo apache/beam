@@ -20,23 +20,30 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.auto.value.AutoValue;
 import com.google.auto.value.extension.memoized.Memoized;
+import com.google.cloud.bigquery.storage.v1.AppendRowsRequest;
 import com.google.cloud.bigquery.storage.v1.TableSchema;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.DynamicMessage;
-import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 
 /**
  * Container class used by {@link StorageApiWritesShardedRecords} and {@link
- * StorageApiWritesShardedRecords} to enapsulate a destination {@link TableSchema} along with a
+ * StorageApiWritesShardedRecords} to encapsulate a destination {@link TableSchema} along with a
  * {@link BigQueryServices.StreamAppendClient} and other objects needed to write records.
  */
 @AutoValue
 abstract class AppendClientInfo {
+  private final Counter activeStreamAppendClients =
+      Metrics.counter(AppendClientInfo.class, "activeStreamAppendClients");
+
   abstract @Nullable BigQueryServices.StreamAppendClient getStreamAppendClient();
 
   abstract TableSchema getTableSchema();
@@ -49,7 +56,7 @@ abstract class AppendClientInfo {
 
   abstract @Nullable String getStreamName();
 
-  abstract Descriptors.Descriptor getDescriptor();
+  abstract DescriptorProtos.DescriptorProto getDescriptor();
 
   @AutoValue.Builder
   abstract static class Builder {
@@ -63,7 +70,7 @@ abstract class AppendClientInfo {
 
     abstract Builder setSchemaInformation(TableRowToStorageApiProto.SchemaInformation value);
 
-    abstract Builder setDescriptor(Descriptors.Descriptor value);
+    abstract Builder setDescriptor(DescriptorProtos.DescriptorProto value);
 
     abstract Builder setStreamName(@Nullable String name);
 
@@ -73,7 +80,9 @@ abstract class AppendClientInfo {
   abstract Builder toBuilder();
 
   static AppendClientInfo of(
-      TableSchema tableSchema, Consumer<BigQueryServices.StreamAppendClient> closeAppendClient)
+      TableSchema tableSchema,
+      DescriptorProtos.DescriptorProto descriptor,
+      Consumer<BigQueryServices.StreamAppendClient> closeAppendClient)
       throws Exception {
     return new AutoValue_AppendClientInfo.Builder()
         .setTableSchema(tableSchema)
@@ -81,8 +90,20 @@ abstract class AppendClientInfo {
         .setJsonTableSchema(TableRowToStorageApiProto.protoSchemaToTableSchema(tableSchema))
         .setSchemaInformation(
             TableRowToStorageApiProto.SchemaInformation.fromTableSchema(tableSchema))
-        .setDescriptor(TableRowToStorageApiProto.getDescriptorFromTableSchema(tableSchema, true))
+        .setDescriptor(descriptor)
         .build();
+  }
+
+  static AppendClientInfo of(
+      TableSchema tableSchema,
+      Consumer<BigQueryServices.StreamAppendClient> closeAppendClient,
+      boolean includeCdcColumns)
+      throws Exception {
+    return of(
+        tableSchema,
+        TableRowToStorageApiProto.descriptorSchemaFromTableSchema(
+            tableSchema, true, includeCdcColumns),
+        closeAppendClient);
   }
 
   public AppendClientInfo withNoAppendClient() {
@@ -90,19 +111,22 @@ abstract class AppendClientInfo {
   }
 
   public AppendClientInfo withAppendClient(
-      BigQueryServices.DatasetService datasetService,
+      BigQueryServices.WriteStreamService writeStreamService,
       Supplier<String> getStreamName,
-      boolean useConnectionPool)
+      boolean useConnectionPool,
+      AppendRowsRequest.MissingValueInterpretation missingValueInterpretation)
       throws Exception {
     if (getStreamAppendClient() != null) {
       return this;
     } else {
       String streamName = getStreamName.get();
-      return toBuilder()
-          .setStreamName(streamName)
-          .setStreamAppendClient(
-              datasetService.getStreamAppendClient(streamName, getDescriptor(), useConnectionPool))
-          .build();
+      BigQueryServices.StreamAppendClient client =
+          writeStreamService.getStreamAppendClient(
+              streamName, getDescriptor(), useConnectionPool, missingValueInterpretation);
+
+      activeStreamAppendClients.inc();
+
+      return toBuilder().setStreamName(streamName).setStreamAppendClient(client).build();
     }
   }
 
@@ -110,6 +134,7 @@ abstract class AppendClientInfo {
     BigQueryServices.StreamAppendClient client = getStreamAppendClient();
     if (client != null) {
       getCloseAppendClient().accept(client);
+      activeStreamAppendClients.dec();
     }
   }
 
@@ -126,6 +151,8 @@ abstract class AppendClientInfo {
             unknown,
             ignoreUnknownValues,
             true,
+            null,
+            null,
             null);
     return msg.toByteString();
   }
@@ -133,17 +160,21 @@ abstract class AppendClientInfo {
   @Memoized
   Descriptors.Descriptor getDescriptorIgnoreRequired() {
     try {
-      return TableRowToStorageApiProto.getDescriptorFromTableSchema(getTableSchema(), false);
+      // Ignore CDC columns since this is just for unknown fields.
+      return TableRowToStorageApiProto.getDescriptorFromTableSchema(getTableSchema(), false, false);
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
   }
 
-  public TableRow toTableRow(ByteString protoBytes) {
+  public TableRow toTableRow(ByteString protoBytes, Predicate<String> includeField) {
     try {
       return TableRowToStorageApiProto.tableRowFromMessage(
-          DynamicMessage.parseFrom(getDescriptor(), protoBytes));
-    } catch (InvalidProtocolBufferException e) {
+          DynamicMessage.parseFrom(
+              TableRowToStorageApiProto.wrapDescriptorProto(getDescriptor()), protoBytes),
+          true,
+          includeField);
+    } catch (Exception e) {
       throw new RuntimeException(e);
     }
   }

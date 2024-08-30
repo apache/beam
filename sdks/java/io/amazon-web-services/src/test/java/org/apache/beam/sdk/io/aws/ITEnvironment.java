@@ -20,6 +20,8 @@ package org.apache.beam.sdk.io.aws;
 import static org.apache.beam.sdk.testing.TestPipeline.testingPipelineOptions;
 import static org.testcontainers.containers.localstack.LocalStackContainer.Service.S3;
 
+import com.amazonaws.auth.AWSStaticCredentialsProvider;
+import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration;
 import org.apache.beam.sdk.io.aws.options.AwsOptions;
@@ -28,7 +30,7 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.commons.lang3.StringUtils;
 import org.junit.rules.ExternalResource;
 import org.slf4j.LoggerFactory;
@@ -139,6 +141,8 @@ public class ITEnvironment<OptionsT extends ITEnvironment.ITOptions> extends Ext
     options.setAwsServiceEndpoint(
         localstack.getEndpointOverride(S3).toString()); // service irrelevant
     options.setAwsRegion(localstack.getRegion());
-    options.setAwsCredentialsProvider(localstack.getDefaultCredentialsProvider());
+    options.setAwsCredentialsProvider(
+        new AWSStaticCredentialsProvider(
+            new BasicAWSCredentials(localstack.getAccessKey(), localstack.getSecretKey())));
   }
 }

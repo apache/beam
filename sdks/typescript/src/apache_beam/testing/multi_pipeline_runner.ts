@@ -57,7 +57,7 @@ export class MultiPipelineRunner extends Runner {
 
   constructor(
     private underlying: Runner,
-    private options: PipelineOptions = {}
+    private options: PipelineOptions = {},
   ) {
     super();
   }
@@ -74,7 +74,7 @@ export class MultiPipelineRunner extends Runner {
 
   async runAsync(
     pipeline: (root: Root) => PValue<any> | Promise<PValue<any>>,
-    options?: PipelineOptions
+    options?: PipelineOptions,
   ): Promise<PipelineResult> {
     if (this.nextTestName === undefined) {
       this.setNextTestName("pipeline");
@@ -84,7 +84,7 @@ export class MultiPipelineRunner extends Runner {
     await new Root(p).applyAsync(
       withName(this.nextTestName!, async (root) => {
         await pipeline(root);
-      })
+      }),
     );
     this.nextTestName = undefined;
     return this.runPipeline(p.getProto());
@@ -92,7 +92,7 @@ export class MultiPipelineRunner extends Runner {
 
   async runPipeline(
     pipeline: runnerApi.Pipeline,
-    options?: PipelineOptions
+    options?: PipelineOptions,
   ): Promise<PipelineResult> {
     if (options) {
       throw new Error("Per-pipeline options not supported.");
@@ -108,13 +108,13 @@ export class MultiPipelineRunner extends Runner {
     console.log(this.allPipelines);
     const pipelineResult = await this.underlying.runPipeline(
       this.allPipelines,
-      this.options
+      this.options,
     );
     const finalState = await pipelineResult.waitUntilFinish();
     if (finalState != jobApi.JobState_Enum.DONE) {
       // TODO: Grab the last/most severe error message?
       throw new Error(
-        "Job finished in state " + jobApi.JobState_Enum[finalState]
+        "Job finished in state " + jobApi.JobState_Enum[finalState],
       );
     }
     this.allPipelines = undefined;
@@ -147,23 +147,23 @@ export class MultiPipelineRunner extends Runner {
     }
     mergeComponents(
       pipeline.components?.transforms,
-      this.allPipelines.components?.transforms
+      this.allPipelines.components?.transforms,
     );
     mergeComponents(
       pipeline.components?.pcollections,
-      this.allPipelines.components?.pcollections
+      this.allPipelines.components?.pcollections,
     );
     mergeComponents(
       pipeline.components?.coders,
-      this.allPipelines.components?.coders
+      this.allPipelines.components?.coders,
     );
     mergeComponents(
       pipeline.components?.windowingStrategies,
-      this.allPipelines.components?.windowingStrategies
+      this.allPipelines.components?.windowingStrategies,
     );
     mergeComponents(
       pipeline.components?.environments,
-      this.allPipelines.components?.environments
+      this.allPipelines.components?.environments,
     );
     this.allPipelines.requirements = [
       ...new Set([...this.allPipelines.requirements, ...pipeline.requirements]),

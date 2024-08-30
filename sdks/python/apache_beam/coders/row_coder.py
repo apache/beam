@@ -17,8 +17,6 @@
 
 # pytype: skip-file
 
-from google.protobuf import json_format
-
 from apache_beam.coders import typecoders
 from apache_beam.coders.coder_impl import LogicalTypeCoderImpl
 from apache_beam.coders.coder_impl import RowCoderImpl
@@ -91,13 +89,6 @@ class RowCoder(FastCoder):
   def to_type_hint(self):
     return self._type_hint
 
-  def as_cloud_object(self, coders_context=None):
-    value = super().as_cloud_object(coders_context)
-
-    value['schema'] = json_format.MessageToJson(self.schema).encode('utf-8')
-
-    return value
-
   def __hash__(self):
     return hash(self.schema.SerializeToString())
 
@@ -126,8 +117,7 @@ class RowCoder(FastCoder):
     return cls(schema)
 
   @staticmethod
-  def from_payload(payload):
-    # type: (bytes) -> RowCoder
+  def from_payload(payload: bytes) -> 'RowCoder':
     return RowCoder(proto_utils.parse_Bytes(payload, schema_pb2.Schema))
 
   def __reduce__(self):

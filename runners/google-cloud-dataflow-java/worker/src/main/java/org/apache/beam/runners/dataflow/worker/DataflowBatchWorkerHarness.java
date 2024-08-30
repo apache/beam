@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -32,7 +32,8 @@ import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Sleeper;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.sdk.util.construction.CoderTranslation;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,7 +62,7 @@ public class DataflowBatchWorkerHarness {
     DataflowWorkerHarnessHelper.initializeLogging(DataflowBatchWorkerHarness.class);
     DataflowWorkerHarnessOptions pipelineOptions =
         DataflowWorkerHarnessHelper.initializeGlobalStateAndPipelineOptions(
-            DataflowBatchWorkerHarness.class);
+            DataflowBatchWorkerHarness.class, DataflowWorkerHarnessOptions.class);
     DataflowBatchWorkerHarness batchHarness = new DataflowBatchWorkerHarness(pipelineOptions);
     DataflowWorkerHarnessHelper.configureLogging(pipelineOptions);
 
@@ -69,6 +70,8 @@ public class DataflowBatchWorkerHarness {
         !DataflowRunner.hasExperiment(pipelineOptions, "beam_fn_api"),
         "%s cannot be main() class with beam_fn_api enabled",
         DataflowBatchWorkerHarness.class.getSimpleName());
+
+    CoderTranslation.verifyModelCodersRegistered();
 
     JvmInitializers.runBeforeProcessing(pipelineOptions);
     batchHarness.run();

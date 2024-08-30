@@ -18,14 +18,11 @@ package primitives
 import (
 	"testing"
 
-	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 	"github.com/apache/beam/sdks/v2/go/test/integration"
 )
 
 func TestPanes(t *testing.T) {
 	integration.CheckFilters(t)
-	p, s := beam.NewPipelineWithRoot()
-	Panes(s)
-	ptest.RunAndValidate(t, p)
+	ptest.BuildAndRun(t, Panes)
 }

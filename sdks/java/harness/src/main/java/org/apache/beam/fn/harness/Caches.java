@@ -30,14 +30,13 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.sdk.util.Weighted;
 import org.apache.beam.sdk.util.WeightedValue;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheStats;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.RemovalListener;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.RemovalNotification;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Weigher;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheStats;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.RemovalListener;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.RemovalNotification;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Weigher;
 import org.github.jamm.MemoryMeter;
-import org.github.jamm.MemoryMeter.Guess;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,8 +64,7 @@ public final class Caches {
    */
   private static final long CACHE_SIZE_CHANGE_LIMIT_BYTES = 1 << 16;
 
-  private static final MemoryMeter MEMORY_METER =
-      MemoryMeter.builder().withGuessing(Guess.BEST).build();
+  private static final MemoryMeter MEMORY_METER = MemoryMeter.builder().build();
 
   /** The size of a reference. */
   public static final long REFERENCE_SIZE = 8;
@@ -109,7 +107,7 @@ public final class Caches {
   @VisibleForTesting
   static class ShrinkOnEviction implements RemovalListener<CompositeKey, WeightedValue<Object>> {
 
-    private final org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache<
+    private final org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache<
             CompositeKey, WeightedValue<Object>>
         cache;
     private final LongAdder weightInBytes;
@@ -120,7 +118,7 @@ public final class Caches {
       this.weightInBytes = weightInBytes;
     }
 
-    public org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache<
+    public org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache<
             CompositeKey, WeightedValue<Object>>
         getCache() {
       return cache;
@@ -265,7 +263,7 @@ public final class Caches {
    * specified prefixes.
    */
   private static class SubCache<K, V> implements Cache<K, V> {
-    private final org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache<
+    private final org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache<
             CompositeKey, WeightedValue<Object>>
         cache;
     private final CompositeKeyPrefix keyPrefix;
@@ -273,7 +271,7 @@ public final class Caches {
     private final LongAdder weightInBytes;
 
     SubCache(
-        org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache<
+        org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache<
                 CompositeKey, WeightedValue<Object>>
             cache,
         CompositeKeyPrefix keyPrefix,

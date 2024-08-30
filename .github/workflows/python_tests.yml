@@ -37,7 +37,7 @@ on:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
+  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login}}'
   cancel-in-progress: true
 
 jobs:
@@ -45,11 +45,11 @@ jobs:
   check_gcp_variables:
     timeout-minutes: 5
     name: "Check GCP variables"
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-20.04, main]
     outputs:
       gcp-variables-set: ${{ steps.check_gcp_variables.outputs.gcp-variables-set }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: "Check are GCP variables set"
         run: "./scripts/ci/ci_check_are_gcp_variables_set.sh"
         id: check_gcp_variables
@@ -70,25 +70,22 @@ jobs:
       )
     needs:
       - check_gcp_variables
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-20.04, main]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
-      - name: Install python
-        uses: actions/setup-python@v4
+        uses: actions/checkout@v4
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
         with:
-          python-version: 3.7
-      - name: Get build dependencies
-        working-directory: ./sdks/python
-        run: pip install pip setuptools --upgrade && pip install -r build-requirements.txt
+          python-version: default
       - name: Build source
         working-directory: ./sdks/python
-        run: python setup.py sdist
+        run: pip install -U build && python -m build --sdist
       - name: Rename source file
         working-directory: ./sdks/python/dist
-        run: mv $(ls | grep "apache-beam.*tar\.gz") apache-beam-source.tar.gz
+        run: mv $(ls | grep "apache-beam.*tar\.gz\|apache_beam.*tar\.gz") apache-beam-source.tar.gz
       - name: Upload compressed sources as artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: python_sdk_source
           path: sdks/python/dist/apache-beam-source.tar.gz
@@ -99,24 +96,21 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [macos-latest, windows-latest]
         params: [
-          {"py_ver": "3.7", "tox_env": "py37"},
           {"py_ver": "3.8", "tox_env": "py38"},
           {"py_ver": "3.9", "tox_env": "py39"},
           {"py_ver": "3.10", "tox_env": "py310" },
           { "py_ver": "3.11", "tox_env": "py311" },
+          { "py_ver": "3.12", "tox_env": "py312" },
         ]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
-      - name: Install python
-        uses: actions/setup-python@v4
+        uses: actions/checkout@v4
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
         with:
           python-version: ${{ matrix.params.py_ver }}
-      - name: Get build dependencies
-        working-directory: ./sdks/python
-        run: pip install -r build-requirements.txt --use-pep517
       - name: Install tox
         run: pip install tox
       - name: Run tests basic unix
@@ -128,7 +122,7 @@ jobs:
         working-directory: ./sdks/python
         run: tox -c tox.ini run -e ${{ matrix.params.tox_env }}-win
       - name: Upload test logs
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: pytest-${{matrix.os}}-${{matrix.params.py_ver}}
@@ -140,18 +134,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        python: ["3.7", "3.8", "3.9", "3.10", "3.11"]
+        os: [[self-hosted, ubuntu-20.04, main], macos-latest, windows-latest]
+        python: ["3.8", "3.9", "3.10", "3.11", "3.12"]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Install python
-        uses: actions/setup-python@v4
+        uses: ./.github/actions/setup-environment-action
         with:
           python-version: ${{ matrix.python }}
-      - name: Get build dependencies
-        working-directory: ./sdks/python
-        run: pip install -r build-requirements.txt
       - name: Install requirements
         working-directory: ./sdks/python
         run: pip install setuptools --upgrade && pip install -e .
@@ -162,40 +153,35 @@ jobs:
 
   python_wordcount_dataflow:
     name: 'Python Wordcount Dataflow'
+    # TODO(https://github.com/apache/beam/issues/31848) run on Dataflow after fixes credential on macOS/win GHA runner
+    if: (github.event_name == 'workflow_dispatch' && github.event.inputs.runDataflow == 'true')
     needs:
       - build_python_sdk_source
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        python: ["3.7", "3.8", "3.9", "3.10", "3.11"]
+        os: [[self-hosted, ubuntu-20.04, main], macos-latest, windows-latest]
+        python: ["3.8", "3.9", "3.10", "3.11", "3.12"]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
-      - name: Install python
-        uses: actions/setup-python@v4
+        uses: actions/checkout@v4
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
         with:
           python-version: ${{ matrix.python }}
-      - name: Install go
-        uses: actions/setup-go@v3
-        with:
-          go-version: '1.20'
+          go-version: default
       - name: Download source from artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: python_sdk_source
           path: apache-beam-source
       - name: Authenticate on GCP
-        uses: google-github-actions/setup-gcloud@v0
+        id: auth
+        uses: google-github-actions/auth@v1
         with:
-          service_account_email: ${{ secrets.GCP_SA_EMAIL }}
-          service_account_key: ${{ secrets.GCP_SA_KEY }}
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
           project_id: ${{ secrets.GCP_PROJECT_ID }}
-          export_default_credentials: true
-      - name: Get build dependencies
-        working-directory: ./sdks/python
-        run: pip install -r build-requirements.txt
       - name: Install requirements
         working-directory: ./sdks/python
         run: pip install setuptools --upgrade && pip install -e ".[gcp]"

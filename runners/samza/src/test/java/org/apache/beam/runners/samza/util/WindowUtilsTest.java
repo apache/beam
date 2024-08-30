@@ -20,8 +20,6 @@ package org.apache.beam.runners.samza.util;
 import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
-import org.apache.beam.runners.core.construction.Environments;
-import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -31,6 +29,8 @@ import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
+import org.apache.beam.sdk.util.construction.Environments;
+import org.apache.beam.sdk.util.construction.SdkComponents;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.WindowingStrategy;

@@ -34,7 +34,7 @@ class PicklerTest(unittest.TestCase):
   NO_MAPPINGPROXYTYPE = not hasattr(types, "MappingProxyType")
 
   def test_basics(self):
-    self.assertEqual([1, 'a', (u'z', )], loads(dumps([1, 'a', (u'z', )])))
+    self.assertEqual([1, 'a', ('z', )], loads(dumps([1, 'a', ('z', )])))
     fun = lambda x: 'xyz-%s' % x
     self.assertEqual('xyz-abc', loads(dumps(fun))('abc'))
 

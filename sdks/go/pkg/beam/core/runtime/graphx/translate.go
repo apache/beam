@@ -26,6 +26,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window/trigger"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/contextreg"
 	v1pb "github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/pipelinex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/state"
@@ -33,7 +34,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/resource"
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 )
 
@@ -47,6 +48,7 @@ const (
 	URNCombinePerKey = "beam:transform:combine_per_key:v1"
 	URNWindow        = "beam:transform:window_into:v1"
 	URNMapWindows    = "beam:transform:map_windows:v1"
+	URNToString      = "beam:transform:to_string:v1"
 
 	URNIterableSideInput = "beam:side_input:iterable:v1"
 	URNMultimapSideInput = "beam:side_input:multimap:v1"
@@ -67,10 +69,12 @@ const (
 	URNWindowMappingFixed   = "beam:go:windowmapping:fixed:v1"
 	URNWindowMappingSliding = "beam:go:windowmapping:sliding:v1"
 
-	URNProgressReporting     = "beam:protocol:progress_reporting:v1"
-	URNMultiCore             = "beam:protocol:multi_core_bundle_processing:v1"
-	URNWorkerStatus          = "beam:protocol:worker_status:v1"
-	URNMonitoringInfoShortID = "beam:protocol:monitoring_info_short_ids:v1"
+	URNProgressReporting        = "beam:protocol:progress_reporting:v1"
+	URNMultiCore                = "beam:protocol:multi_core_bundle_processing:v1"
+	URNWorkerStatus             = "beam:protocol:worker_status:v1"
+	URNMonitoringInfoShortID    = "beam:protocol:monitoring_info_short_ids:v1"
+	URNDataSampling             = "beam:protocol:data_sampling:v1"
+	URNSDKConsumingReceivedData = "beam:protocol:sdk_consuming_received_data:v1"
 
 	URNRequiresSplittableDoFn     = "beam:requirement:pardo:splittable_dofn:v1"
 	URNRequiresBundleFinalization = "beam:requirement:pardo:finalization:v1"
@@ -106,6 +110,9 @@ func goCapabilities() []string {
 		URNWorkerStatus,
 		URNMonitoringInfoShortID,
 		URNBaseVersionGo,
+		URNToString,
+		URNDataSampling,
+		URNSDKConsumingReceivedData,
 	}
 	return append(capabilities, knownStandardCoders()...)
 }
@@ -152,6 +159,18 @@ type Options struct {
 
 	// PipelineResourceHints for setting defaults across the whole pipeline.
 	PipelineResourceHints resource.Hints
+
+	// ContextReg is an override for the context extractor registry for testing.
+	ContextReg *contextreg.Registry
+}
+
+// GetContextReg returns the default context registry if the option is
+// unset, and the field version otherwise.
+func (opts *Options) GetContextReg() *contextreg.Registry {
+	if opts.ContextReg == nil {
+		return contextreg.Default()
+	}
+	return opts.ContextReg
 }
 
 // Marshal converts a graph to a model pipeline.
@@ -271,10 +290,14 @@ func (m *marshaller) addScopeTree(s *ScopeTree) (string, error) {
 		subtransforms = append(subtransforms, id)
 	}
 
+	metadata := m.opt.GetContextReg().ExtractTransformMetadata(s.Scope.Scope.Context)
+
 	transform := &pipepb.PTransform{
 		UniqueName:    s.Scope.Name,
 		Subtransforms: subtransforms,
 		EnvironmentId: m.addDefaultEnv(),
+		Annotations:   metadata.Annotations,
+		// DisplayData: metadata.DisplayData,
 	}
 
 	if err := m.updateIfCombineComposite(s, transform); err != nil {
@@ -582,15 +605,27 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 			m.requirements[URNRequiresStatefulProcessing] = true
 			timerSpecs := make(map[string]*pipepb.TimerFamilySpec)
 			pipelineTimers, _ := edge.Edge.DoFn.PipelineTimers()
+
+			// All timers for a single DoFn have the same key and window coders, that match the input PCollection.
+			mainInputID := inputs["i0"]
+			pCol := m.pcollections[mainInputID]
+			kvCoder := m.coders.coders[pCol.CoderId]
+			if kvCoder.GetSpec().GetUrn() != urnKVCoder {
+				return nil, errors.Errorf("timer using DoFn %v doesn't use a KV as PCollection input. Unable to extract key coder for timers, got %v", edge.Name, kvCoder.GetSpec().GetUrn())
+			}
+			keyCoderID := kvCoder.GetComponentCoderIds()[0]
+
+			wsID := pCol.GetWindowingStrategyId()
+			ws := m.windowing[wsID]
+			windowCoderID := ws.GetWindowCoderId()
+
+			timerCoderID := m.coders.internBuiltInCoder(urnTimerCoder, keyCoderID, windowCoderID)
+
 			for _, pt := range pipelineTimers {
 				for timerFamilyID, timeDomain := range pt.Timers() {
-					coderID, err := m.coders.Add(edge.Edge.TimerCoders)
-					if err != nil {
-						return handleErr(err)
-					}
 					timerSpecs[timerFamilyID] = &pipepb.TimerFamilySpec{
 						TimeDomain:         pipepb.TimeDomain_Enum(timeDomain),
-						TimerFamilyCoderId: coderID,
+						TimerFamilyCoderId: timerCoderID,
 					}
 				}
 			}
@@ -958,11 +993,11 @@ func (m *marshaller) expandReshuffle(edge NamedEdge) (string, error) {
 		if err != nil {
 			return handleErr(err)
 		}
-		coderID, err := makeWindowCoder(wfn)
+		windowCoder, err := makeWindowCoder(wfn)
 		if err != nil {
 			return handleErr(err)
 		}
-		windowCoderID, err := m.coders.AddWindowCoder(coderID)
+		windowCoderID, err := m.coders.AddWindowCoder(windowCoder)
 		if err != nil {
 			return handleErr(err)
 		}
@@ -1174,13 +1209,13 @@ func (m *marshaller) addWindowingStrategy(w *window.WindowingStrategy) (string, 
 }
 
 func (m *marshaller) internWindowingStrategy(w *pipepb.WindowingStrategy) string {
-	key := proto.MarshalTextString(w)
-	if id, exists := m.windowing2id[key]; exists {
+	key := w.String()
+	if id, exists := m.windowing2id[(key)]; exists {
 		return id
 	}
 
 	id := fmt.Sprintf("w%v", len(m.windowing2id))
-	m.windowing2id[key] = id
+	m.windowing2id[string(key)] = id
 	m.windowing[id] = w
 	return id
 }

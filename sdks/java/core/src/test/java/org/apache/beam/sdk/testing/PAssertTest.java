@@ -37,6 +37,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.testing.PAssert.MatcherCheckerFn;
@@ -58,9 +59,9 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TimestampedValue;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -386,6 +387,36 @@ public class PAssertTest implements Serializable {
     assertThat(message, containsString("but: was <42>"));
   }
 
+  @Test
+  @Category({ValidatesRunner.class, UsesFailureMessage.class})
+  public void testPAssertEqualsSingletonFailsForEmptyPCollection() throws Exception {
+    PCollection<Integer> pcollection = pipeline.apply(Create.empty(VarIntCoder.of()));
+    PAssert.thatSingleton("The value was not equal to 44", pcollection).isEqualTo(44);
+
+    Throwable thrown = runExpectingAssertionFailure(pipeline);
+
+    String message = thrown.getMessage();
+
+    assertThat(message, containsString("The value was not equal to 44"));
+    assertThat(message, containsString("expected singleton PCollection"));
+    assertThat(message, containsString("but was: empty PCollection"));
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesFailureMessage.class})
+  public void testPAssertEqualsSingletonFailsForNonSingletonPCollection() throws Exception {
+    PCollection<Integer> pcollection = pipeline.apply(Create.of(44, 44));
+    PAssert.thatSingleton("The value was not equal to 44", pcollection).isEqualTo(44);
+
+    Throwable thrown = runExpectingAssertionFailure(pipeline);
+
+    String message = thrown.getMessage();
+
+    assertThat(message, containsString("The value was not equal to 44"));
+    assertThat(message, containsString("expected one element"));
+    assertThat(message, containsString("but was: <44, 44>"));
+  }
+
   /** Test that we throw an error for false assertion on singleton. */
   @Test
   @Category({ValidatesRunner.class, UsesFailureMessage.class})
@@ -397,7 +428,7 @@ public class PAssertTest implements Serializable {
 
     String message = thrown.getMessage();
 
-    assertThat(message, containsString("Create.Values/Read(CreateSource)"));
+    assertThat(message, containsString("Create.Values/"));
     assertThat(message, containsString("Expected: <44>"));
     assertThat(message, containsString("but: was <42>"));
   }

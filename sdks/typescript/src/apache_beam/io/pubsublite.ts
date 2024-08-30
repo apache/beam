@@ -28,28 +28,28 @@ const PUBSUBLITE_EXPANSION_GRADLE_TARGET =
 // TODO: Schema-producing variants.
 export function readFromPubSubLiteRaw(
   subscriptionPath: string,
-  options: { minBundleTimeout?: number; deduplicate?: boolean } = {}
+  options: { minBundleTimeout?: number; deduplicate?: boolean } = {},
 ): beam.AsyncPTransform<beam.Root, beam.PCollection<Uint8Array>> {
   return beam.withName(
     "readFromPubSubLiteRaw",
     external.rawExternalTransform<beam.Root, beam.PCollection<Uint8Array>>(
       "beam:transform:org.apache.beam:pubsublite_read:v1",
       { subscription_path: subscriptionPath, ...camelToSnakeOptions(options) },
-      serviceProviderFromJavaGradleTarget(PUBSUBLITE_EXPANSION_GRADLE_TARGET)
-    )
+      serviceProviderFromJavaGradleTarget(PUBSUBLITE_EXPANSION_GRADLE_TARGET),
+    ),
   );
 }
 
 export function writeToPubSubLiteRaw(
   topicPath: string,
-  options: { addUuids?: boolean } = {}
+  options: { addUuids?: boolean } = {},
 ): beam.AsyncPTransform<beam.PCollection<Uint8Array>, {}> {
   return beam.withName(
     "writeToPubSubLiteRaw",
     external.rawExternalTransform<beam.PCollection<Uint8Array>, {}>(
       "beam:transform:org.apache.beam:pubsublite_write:v1",
       { topic_path: topicPath, ...camelToSnakeOptions(options) },
-      serviceProviderFromJavaGradleTarget(PUBSUBLITE_EXPANSION_GRADLE_TARGET)
-    )
+      serviceProviderFromJavaGradleTarget(PUBSUBLITE_EXPANSION_GRADLE_TARGET),
+    ),
   );
 }

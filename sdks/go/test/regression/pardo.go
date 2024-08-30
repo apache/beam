@@ -18,9 +18,21 @@ package regression
 
 import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 )
+
+func init() {
+	register.Function1x1(directFn)
+	register.Function2x0(emitFn)
+	register.Function3x0(emit2Fn)
+	register.Function2x1(mixedFn)
+	register.Function2x2(directCountFn)
+	register.Function3x1(emitCountFn)
+	register.Emitter1[int]()
+	register.Iter1[int]()
+}
 
 func directFn(elm int) int {
 	return elm + 1

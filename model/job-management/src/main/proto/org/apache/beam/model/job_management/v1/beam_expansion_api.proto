@@ -29,6 +29,7 @@ option go_package = "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagem
 option java_package = "org.apache.beam.model.expansion.v1";
 option java_outer_classname = "ExpansionApi";
 
+import "google/protobuf/struct.proto";
 import "org/apache/beam/model/pipeline/v1/beam_runner_api.proto";
 import "org/apache/beam/model/pipeline/v1/schema.proto";
 
@@ -53,6 +54,14 @@ message ExpansionRequest {
   // coders for the output PCollections. Note that the request
   // may not be fulfilled.
   map<string, string> output_coder_requests = 4;
+
+  // A set of requirements that must be used by the expansion service to
+  // interpret the components provided with this request.
+  repeated string requirements = 5;
+
+  // (Optional) A set of Pipeline Options that should be used
+  // when expanding this transform.
+  google.protobuf.Struct pipeline_options = 6;
 }
 
 message ExpansionResponse {
@@ -85,6 +94,12 @@ message SchemaTransformConfig {
 
   // Names of output PCollections
   repeated string output_pcollection_names = 3;
+
+  // Description of this transform and usage used for documentation.
+  // May be markdown formatted.
+  // Note that configuration parameters may also have documentation attached
+  // as part of the config_schema.
+  string description = 4;
 }
 
 message DiscoverSchemaTransformResponse {

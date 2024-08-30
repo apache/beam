@@ -28,3 +28,8 @@ content:
   - schema-based-transforms
   - windowing
   - triggers
+  - io
+  - splittable-dofn
+  - cross-language
+  - final-challenge
+  

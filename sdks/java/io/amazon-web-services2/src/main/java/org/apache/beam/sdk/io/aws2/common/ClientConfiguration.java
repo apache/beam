@@ -52,6 +52,7 @@ import software.amazon.awssdk.regions.Region;
 @JsonInclude(value = JsonInclude.Include.NON_EMPTY)
 @JsonDeserialize(builder = ClientConfiguration.Builder.class)
 public abstract class ClientConfiguration implements Serializable {
+  public static final ClientConfiguration EMPTY = ClientConfiguration.builder().build();
 
   /**
    * Optional {@link AwsCredentialsProvider}. If set, this overwrites the default in {@link

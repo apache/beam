@@ -28,6 +28,7 @@ import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.Hidden;
+import org.apache.beam.sdk.options.MemoryMonitorOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.InstanceBuilder;
 
@@ -39,7 +40,8 @@ import org.apache.beam.sdk.util.InstanceBuilder;
     "[Internal] Options used to control execution of the Dataflow SDK for "
         + "debugging and testing purposes.")
 @Hidden
-public interface DataflowPipelineDebugOptions extends ExperimentalOptions, PipelineOptions {
+public interface DataflowPipelineDebugOptions
+    extends ExperimentalOptions, MemoryMonitorOptions, PipelineOptions {
 
   /**
    * The root URL for the Dataflow API. {@code dataflowEndpoint} can override this value if it
@@ -147,24 +149,6 @@ public interface DataflowPipelineDebugOptions extends ExperimentalOptions, Pipel
 
   void setTransformNameMapping(Map<String, String> value);
 
-  /** Custom windmill_main binary to use with the streaming runner. */
-  @Description("Custom windmill_main binary to use with the streaming runner")
-  String getOverrideWindmillBinary();
-
-  void setOverrideWindmillBinary(String value);
-
-  /** Custom windmill service endpoint. */
-  @Description("Custom windmill service endpoint.")
-  String getWindmillServiceEndpoint();
-
-  void setWindmillServiceEndpoint(String value);
-
-  @Description("Port for communicating with a remote windmill service.")
-  @Default.Integer(443)
-  int getWindmillServicePort();
-
-  void setWindmillServicePort(int value);
-
   /**
    * Number of threads to use on the Dataflow worker harness. If left unspecified, the Dataflow
    * service will compute an appropriate number of threads to use.
@@ -175,30 +159,6 @@ public interface DataflowPipelineDebugOptions extends ExperimentalOptions, Pipel
   int getNumberOfWorkerHarnessThreads();
 
   void setNumberOfWorkerHarnessThreads(int value);
-
-  /**
-   * Maximum number of bundles outstanding from windmill before the worker stops requesting.
-   *
-   * <p>If <= 0, use the default value of 100 + getNumberOfWorkerHarnessThreads()
-   */
-  @Description(
-      "Maximum number of bundles outstanding from windmill before the worker stops requesting.")
-  @Default.Integer(0)
-  int getMaxBundlesFromWindmillOutstanding();
-
-  void setMaxBundlesFromWindmillOutstanding(int value);
-
-  /**
-   * Maximum number of bytes outstanding from windmill before the worker stops requesting.
-   *
-   * <p>If <= 0, use the default value of 50% of jvm memory.
-   */
-  @Description(
-      "Maximum number of bytes outstanding from windmill before the worker stops requesting. If <= 0, use the default value of 50% of jvm memory.")
-  @Default.Long(0)
-  long getMaxBytesFromWindmillOutstanding();
-
-  void setMaxBytesFromWindmillOutstanding(long value);
 
   /**
    * If {@literal true}, save a heap dump before killing a thread or process which is GC thrashing
@@ -235,26 +195,10 @@ public interface DataflowPipelineDebugOptions extends ExperimentalOptions, Pipel
   void setJfrRecordingDurationSec(int value);
 
   /**
-   * The GC thrashing threshold percentage. A given period of time is considered "thrashing" if this
-   * percentage of CPU time is spent in garbage collection. Dataflow will force fail tasks after
-   * sustained periods of thrashing.
-   *
-   * <p>If {@literal 100} is given as the value, MemoryMonitor will be disabled.
-   */
-  @Description(
-      "The GC thrashing threshold percentage. A given period of time is considered \"thrashing\" if this "
-          + "percentage of CPU time is spent in garbage collection. Dataflow will force fail tasks after "
-          + "sustained periods of thrashing.")
-  @Default.Double(50.0)
-  Double getGCThrashingPercentagePerPeriod();
-
-  void setGCThrashingPercentagePerPeriod(Double value);
-
-  /**
    * The size of the worker's in-memory cache, in megabytes.
    *
-   * <p>Currently, this cache is used for storing read values of side inputs. as well as the state
-   * for streaming jobs.
+   * <p>Currently, this cache is used for storing read values of side inputs in batch as well as the
+   * user state for streaming jobs.
    */
   @Description("The size of the worker's in-memory cache, in megabytes.")
   @Default.Integer(100)
@@ -272,13 +216,38 @@ public interface DataflowPipelineDebugOptions extends ExperimentalOptions, Pipel
 
   void setReaderCacheTimeoutSec(Integer value);
 
-  /** The max amount of time an UnboundedReader is consumed before checkpointing. */
+  /**
+   * The max amount of time an UnboundedReader is consumed before checkpointing.
+   *
+   * @deprecated use {@link DataflowPipelineDebugOptions#getUnboundedReaderMaxReadTimeMs()} instead
+   */
   @Description(
       "The max amount of time before an UnboundedReader is consumed before checkpointing, in seconds.")
+  @Deprecated
   @Default.Integer(10)
   Integer getUnboundedReaderMaxReadTimeSec();
 
   void setUnboundedReaderMaxReadTimeSec(Integer value);
+
+  /** The max amount of time an UnboundedReader is consumed before checkpointing. */
+  @Description(
+      "The max amount of time before an UnboundedReader is consumed before checkpointing, in millis.")
+  @Default.InstanceFactory(UnboundedReaderMaxReadTimeFactory.class)
+  Integer getUnboundedReaderMaxReadTimeMs();
+
+  void setUnboundedReaderMaxReadTimeMs(Integer value);
+
+  /**
+   * Sets Integer value based on old, deprecated field ({@link
+   * DataflowPipelineDebugOptions#getUnboundedReaderMaxReadTimeSec()}).
+   */
+  final class UnboundedReaderMaxReadTimeFactory implements DefaultValueFactory<Integer> {
+    @Override
+    public Integer create(PipelineOptions options) {
+      DataflowPipelineDebugOptions debugOptions = options.as(DataflowPipelineDebugOptions.class);
+      return debugOptions.getUnboundedReaderMaxReadTimeSec() * 1000;
+    }
+  }
 
   /** The max elements read from an UnboundedReader before checkpointing. */
   @Description("The max elements read from an UnboundedReader before checkpointing. ")
@@ -293,6 +262,16 @@ public interface DataflowPipelineDebugOptions extends ExperimentalOptions, Pipel
   Integer getUnboundedReaderMaxWaitForElementsMs();
 
   void setUnboundedReaderMaxWaitForElementsMs(Integer value);
+
+  /**
+   * The desired number of initial splits for UnboundedSources. If this value is <=0, the splits
+   * will be computed based on the number of user workers.
+   */
+  @Description("The desired number of initial splits for UnboundedSources.")
+  @Default.Integer(0)
+  int getDesiredNumUnboundedSourceSplits();
+
+  void setDesiredNumUnboundedSourceSplits(int value);
 
   /**
    * CAUTION: This option implies dumpHeapOnOOM, and has similar caveats. Specifically, heap dumps

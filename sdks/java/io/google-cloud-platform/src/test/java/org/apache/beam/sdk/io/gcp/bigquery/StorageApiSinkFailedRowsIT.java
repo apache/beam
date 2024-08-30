@@ -35,9 +35,9 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.junit.AfterClass;
@@ -108,10 +108,15 @@ public class StorageApiSinkFailedRowsIT {
         : BigQueryIO.Write.Method.STORAGE_WRITE_API;
   }
 
+  // used when test suite specifies a particular GCP location for BigQuery operations
+  private static String bigQueryLocation;
+
   @BeforeClass
   public static void setUpTestEnvironment() throws IOException, InterruptedException {
     // Create one BQ dataset for all test cases.
-    BQ_CLIENT.createNewDataset(PROJECT, BIG_QUERY_DATASET_ID);
+    bigQueryLocation =
+        TestPipeline.testingPipelineOptions().as(TestBigQueryOptions.class).getBigQueryLocation();
+    BQ_CLIENT.createNewDataset(PROJECT, BIG_QUERY_DATASET_ID, null, bigQueryLocation);
   }
 
   @AfterClass
@@ -217,7 +222,11 @@ public class StorageApiSinkFailedRowsIT {
     TableRow queryResponse =
         Iterables.getOnlyElement(
             BQ_CLIENT.queryUnflattened(
-                String.format("SELECT COUNT(*) FROM %s", tableSpec), PROJECT, true, true));
+                String.format("SELECT COUNT(*) FROM `%s`", tableSpec),
+                PROJECT,
+                true,
+                true,
+                bigQueryLocation));
     int numRowsWritten = Integer.parseInt((String) queryResponse.get("f0_"));
     if (useAtLeastOnce) {
       assertThat(numRowsWritten, Matchers.greaterThanOrEqualTo(Iterables.size(goodRows)));

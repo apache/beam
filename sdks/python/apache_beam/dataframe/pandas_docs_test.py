@@ -145,8 +145,10 @@ def run_tests(path):
 def deferred_stdout():
   captured = io.StringIO()
   old_stdout, sys.stdout = sys.stdout, captured
-  yield captured.getvalue
-  sys.stdout = old_stdout
+  try:
+    yield captured.getvalue
+  finally:
+    sys.stdout = old_stdout
 
 
 if __name__ == '__main__':

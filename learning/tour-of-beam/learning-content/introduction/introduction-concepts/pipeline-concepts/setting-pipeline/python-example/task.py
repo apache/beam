@@ -69,18 +69,13 @@ def main(argv=None, save_main_session=True):
     pipeline_options.view_as(SetupOptions).save_main_session = save_main_session
 
     with beam.Pipeline(options=pipeline_options) as p:
-
-    # Read the text file[pattern] into a PCollection.
-    lines = p | 'Read' >> ReadFromText(known_args.input) \
+        # Read the text file[pattern] into a PCollection.
+        lines = p | 'Read' >> ReadFromText(known_args.input) \
             | beam.Filter(lambda line: line != "")
-
-    # Write the output using a "Write" transform that has side effects.
-    # pylint: disable=expression-not-assigned
-    output = lines | 'Write' >> WriteToText(known_args.output)
-
-
-    result = p.run()
-    result.wait_until_finish()
+    
+        # Write the output using a "Write" transform that has side effects.
+        # pylint: disable=expression-not-assigned
+        output = lines | 'Write' >> WriteToText(known_args.output)
 
 
 if __name__ == '__main__':

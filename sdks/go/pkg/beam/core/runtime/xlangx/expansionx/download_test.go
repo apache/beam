@@ -217,3 +217,35 @@ func TestGetJar_dev(t *testing.T) {
 		t.Errorf("error message does not contain gradle command %v for user, got message: %v", gradleTarget, err)
 	}
 }
+
+func TestGetPythonVersion(t *testing.T) {
+	tests := []struct {
+		name        string
+		PYTHON_PATH string
+	}{
+		{
+			name:        "PYTHON_PATH set",
+			PYTHON_PATH: "/bin/python",
+		},
+		{
+			name:        "PYTHON_PATH not set",
+			PYTHON_PATH: "",
+		},
+	}
+
+	for _, test := range tests {
+		if test.PYTHON_PATH != "" {
+			os.Setenv("PYTHON_PATH", test.PYTHON_PATH)
+		}
+		pythonVersion, err := GetPythonVersion()
+		if err != nil {
+			t.Errorf("python installation not found: %v, when PYTHON_PATH=%v", err, test.PYTHON_PATH)
+		}
+		if test.PYTHON_PATH != "" && pythonVersion != test.PYTHON_PATH {
+			t.Errorf("incorrect PYTHON_PATH, want: %v, got: %v", test.PYTHON_PATH, pythonVersion)
+		}
+		if test.PYTHON_PATH != "" {
+			os.Unsetenv(test.PYTHON_PATH)
+		}
+	}
+}

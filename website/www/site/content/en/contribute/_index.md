@@ -82,6 +82,8 @@ Here’s a list of things you can do to get started contributing:
         <li>Comment “.take-issue” on the <a href="https://github.com/apache/beam/issues">issue you'd like to work on</a>. This will cause the issue to be assigned to you.</li>
         <li>If appropriate, make your change and open a <a href=https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request-from-a-fork>Pull Request</a>.</li>
         <li>Comment “.close-issue” to close the issue once all work has been completed.</li>
+        <li>You can find good first issues using the <a href=https://github.com/apache/beam/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22>"good first issue" label</a>.</li>
+        <li>You can also find more developer documentation on <a href=https://cwiki.apache.org/confluence/display/BEAM/Developer+Guides>the wiki</a>.</li>
       </ul>
     </td>
   </tr>
@@ -95,7 +97,7 @@ Here’s a list of things you can do to get started contributing:
     <td>Improve the website</td>
     <td class="list-text-size-md">
       <ul>
-        <li>Follow the website <a href="/contribute/get-started-contributing/">Contribution Guide</a> to make changes yourself.</li>
+        <li>Follow the website <a href="https://github.com/apache/beam/blob/master/CONTRIBUTING.md">Contribution Guide</a> to make changes yourself.</li>
         <li>Check our <a href="https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Awebsite">Website Backlog</a> in GitHub to find rooms for improvement, or propose one.</li>
       </ul>
     </td>
@@ -130,7 +132,7 @@ Here’s a list of things you can do to get started contributing:
       <ul>
         <li>Create and contribute a custom <a href="/documentation/programming-guide/#pipeline-io">I/O connector</a> for a specific data storage system you want to connect to, if it is not on <a href="/documentation/io/built-in/">the I/O list yet</a>.</li>
         <li>Look at our project backlog to get some inspiration on what to build.</li>
-        <li>Follow our <a href="/contribute/get-started-contributing/">Code Contribution Guide</a>.</li>
+        <li>Follow our <a href="https://github.com/apache/beam/blob/master/CONTRIBUTING.md">Code Contribution Guide</a>.</li>
       </ul>
     </td>
   </tr>
@@ -138,16 +140,16 @@ Here’s a list of things you can do to get started contributing:
     <td>Share a code sample or template</td>
     <td class="list-text-size-md">
       <ul>
-        <li>Read our <a href="/contribute/get-started-contributing/">Code Contribution Guide</a>.</li>
+        <li>Read our <a href="https://github.com/apache/beam/blob/master/CONTRIBUTING.md">Code Contribution Guide</a>.</li>
         <li>Create your code sample or template. </li>
-        <li><a href="/contribute/get-started-contributing/#make-your-change">Make a Pull Request</a> to add it to the Beam example folder.</li>
+        <li><a href="https://github.com/apache/beam/blob/master/CONTRIBUTING.md#make-your-change">Make a Pull Request</a> to add it to the Beam example folder.</li>
       </ul>
     </td>
   </tr>
   <tr>
     <td>Test a release candidate</td>
     <td>
-      Anybody can <a href="/contribute/release-guide/">propose a release</a> via the dev@beam.apache.org mailing list. Try Apache Beam releases in your projects, vote for release candidates, inform the community about the results and any issues found via <a href="mailto:dev@beam.apache.org">dev@beam.apache.org</a>. Learn more about how to validate a Beam release <a href="/blog/validate-beam-release/">here</a>.
+      Anybody can <a href="https://github.com/apache/beam/blob/master/contributor-docs/release-guide.md">propose a release</a> via the dev@beam.apache.org mailing list. Try Apache Beam releases in your projects, vote for release candidates, inform the community about the results and any issues found via <a href="mailto:dev@beam.apache.org">dev@beam.apache.org</a>. Learn more about how to validate a Beam release <a href="/blog/validate-beam-release/">here</a>.
     </td>
   </tr>
   <tr>

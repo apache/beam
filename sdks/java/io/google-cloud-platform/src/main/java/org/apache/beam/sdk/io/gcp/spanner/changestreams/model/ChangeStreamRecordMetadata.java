@@ -25,7 +25,7 @@ import org.apache.avro.reflect.AvroEncode;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.encoder.TimestampEncoding;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 
 /** Holds internal execution metrics / metadata for the processed {@link ChangeStreamRecord}. */
 @SuppressWarnings({

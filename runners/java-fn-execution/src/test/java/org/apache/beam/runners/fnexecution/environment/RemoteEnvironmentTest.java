@@ -23,15 +23,18 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
-import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
+import org.apache.beam.sdk.util.construction.Environments;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** Tests for {@link RemoteEnvironment}. */
 @RunWith(JUnit4.class)
 public class RemoteEnvironmentTest {
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
 
   @Test
   public void closeClosesInstructionRequestHandler() throws Exception {

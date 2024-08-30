@@ -92,10 +92,13 @@ public class ResourceHintsTest implements Serializable {
             .withHint("beam:resources:bar", new ResourceHints.StringHint("foo")));
     options =
         PipelineOptionsFactory.fromArgs(
-                "--resourceHints=min_ram=1KB", "--resourceHints=accelerator=foo")
+                "--resourceHints=min_ram=1KB",
+                "--resourceHints=accelerator=foo",
+                "--resourceHints=cpu_count=4")
             .as(ResourceHintsOptions.class);
-    assertEquals(
-        ResourceHints.fromOptions(options),
-        ResourceHints.create().withMinRam(1000).withAccelerator("foo"));
+    ResourceHints fromOptions = ResourceHints.fromOptions(options);
+    ResourceHints expect =
+        ResourceHints.create().withMinRam(1000).withAccelerator("foo").withCPUCount(4);
+    assertEquals(fromOptions, expect);
   }
 }

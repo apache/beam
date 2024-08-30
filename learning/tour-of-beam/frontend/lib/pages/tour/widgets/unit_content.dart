@@ -128,7 +128,7 @@ class _Title extends StatelessWidget {
       ),
       child: Text(
         title,
-        style: Theme.of(context).textTheme.headlineLarge,
+        style: Theme.of(context).textTheme.titleLarge,
         textAlign: TextAlign.start,
       ),
     );
@@ -196,7 +196,15 @@ class _SnippetTypeSwitcher extends StatelessWidget {
                 title: 'pages.tour.solution'.tr(),
                 value: SnippetType.solution,
                 onChanged: () async {
-                  await _setSnippetByType(SnippetType.solution);
+                  final confirmed = await ConfirmDialog.show(
+                    context: context,
+                    confirmButtonText: 'pages.tour.showSolution'.tr(),
+                    subtitle: 'pages.tour.solveYourself'.tr(),
+                    title: 'pages.tour.solution'.tr(),
+                  );
+                  if (confirmed) {
+                    await _setSnippetByType(SnippetType.solution);
+                  }
                 },
               ),
             if (tourNotifier.hasSolution || tourNotifier.isCodeSaved)
@@ -285,7 +293,7 @@ class _ContentFooter extends StatelessWidget {
             themeData.extension<BeamThemeExtension>()?.secondaryBackgroundColor,
       ),
       width: double.infinity,
-      padding: const EdgeInsets.all(BeamSizes.size20),
+      padding: const EdgeInsets.all(BeamSizes.size10),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [

@@ -17,6 +17,7 @@
 #
 
 # pytype: skip-file
+# pylint:disable=line-too-long
 
 import unittest
 
@@ -25,7 +26,8 @@ import mock
 from apache_beam.examples.snippets.util import assert_matches_stdout
 from apache_beam.testing.test_pipeline import TestPipeline
 
-from . import latest
+from . import latest_globally
+from . import latest_per_key
 
 
 def check_latest_element(actual):
@@ -47,13 +49,17 @@ def check_latest_elements_per_key(actual):
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
 @mock.patch(
-    'apache_beam.examples.snippets.transforms.aggregation.latest.print', str)
+    'apache_beam.examples.snippets.transforms.aggregation.latest_globally.print',
+    str)
+@mock.patch(
+    'apache_beam.examples.snippets.transforms.aggregation.latest_per_key.print',
+    str)
 class LatestTest(unittest.TestCase):
   def test_latest_globally(self):
-    latest.latest_globally(check_latest_element)
+    latest_globally.latest_globally(check_latest_element)
 
   def test_latest_per_key(self):
-    latest.latest_per_key(check_latest_elements_per_key)
+    latest_per_key.latest_per_key(check_latest_elements_per_key)
 
 
 if __name__ == '__main__':

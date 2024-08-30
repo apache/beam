@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.protobuf;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.ExtensionRegistry;
@@ -42,8 +42,8 @@ import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -289,7 +289,7 @@ public class ProtoCoder<T extends Message> extends CustomCoder<T> {
   }
 
   /** Get the memoized {@link Parser}, possibly initializing it lazily. */
-  protected Parser<T> getParser() {
+  protected synchronized Parser<T> getParser() {
     if (memoizedParser == null) {
       try {
         if (DynamicMessage.class.equals(protoMessageClass)) {

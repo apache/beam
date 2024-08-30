@@ -27,6 +27,7 @@ import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -44,7 +45,7 @@ public class KafkaRecordCoder<K, V> extends StructuredCoder<KafkaRecord<K, V>> {
   private static final Coder<Long> longCoder = VarLongCoder.of();
   private static final Coder<Integer> intCoder = VarIntCoder.of();
   private static final Coder<Iterable<KV<String, byte[]>>> headerCoder =
-      IterableCoder.of(KvCoder.of(stringCoder, ByteArrayCoder.of()));
+      IterableCoder.of(KvCoder.of(stringCoder, NullableCoder.of(ByteArrayCoder.of())));
 
   private final KvCoder<K, V> kvCoder;
 

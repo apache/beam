@@ -79,6 +79,9 @@ notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527
 * Spark 2.x users will need to update Spark's Jackson runtime dependencies (`spark.jackson.version`) to at least version 2.9.2, due to Beam updating its dependencies.
 * See a full list of open [issues that affect](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20affectedVersion%20%3D%202.33.0%20ORDER%20BY%20priority%20DESC%2C%20updated%20DESC) this version.
 * Go SDK jobs may produce "Failed to deduce Step from MonitoringInfo" messages following successful job execution. The messages are benign and don't indicate job failure. These are due to not yet handling PCollection metrics.
+* Large Java BigQueryIO writes with the FILE_LOADS method will fail in batch mode (specifically, when copy jobs are used).
+  This results in the error message: `IllegalArgumentException: Attempting to access unknown side input`.
+  Please upgrade to a newer version (> 2.34.0) or use another write method (e.g. `STORAGE_WRITE_API`).
 
 ## List of Contributors
 

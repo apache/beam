@@ -19,7 +19,7 @@ package org.apache.beam.sdk.transforms;
 
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
 
 /**
  * {@link PTransform PTransforms} for converting a {@link PCollection PCollection&lt;?&gt;}, {@link

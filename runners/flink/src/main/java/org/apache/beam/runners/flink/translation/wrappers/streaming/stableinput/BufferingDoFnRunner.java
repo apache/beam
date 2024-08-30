@@ -33,8 +33,8 @@ import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.runtime.state.KeyedStateBackend;
@@ -131,7 +131,7 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
    */
   private final @Nullable Supplier<Locker> locker;
   /**
-   * A selector of key. When non-null, this must be set to the keyed state beckend before buffering.
+   * A selector of key. When non-null, this must be set to the keyed state backend before buffering.
    */
   private final @Nullable Function<InputT, Object> keySelector;
   /** Callable to notify about possibility to flush bundle. */

@@ -21,6 +21,8 @@ import java.io.IOException;
 import java.util.stream.Stream;
 
 /** Util class that helps iterate over methods throwing {@link IOException}. */
+/** @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release. */
+@Deprecated
 public class IOUtils {
 
   /**

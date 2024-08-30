@@ -21,6 +21,7 @@ import static java.util.stream.Collectors.toList;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -39,12 +40,16 @@ import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.extensions.sql.meta.provider.text.TextTable;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.parquet.ParquetIO;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.testutils.publishing.InfluxDBPublisher;
 import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
@@ -52,9 +57,8 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlIdentifier;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.util.SqlBasicVisitor;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Resources;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Resources;
 import org.apache.commons.csv.CSVFormat;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -80,6 +84,9 @@ public class SqlTransformRunner {
           "Elapsed Time(sec)");
 
   private static final Logger LOG = LoggerFactory.getLogger(SqlTransformRunner.class);
+
+  static final String METRICS_NAMESPACE = "tpcds";
+  static final String OUTPUT_COUNTER = "output_rows";
 
   /** This class is used to extract all SQL query identifiers. */
   static class SqlIdentifierVisitor extends SqlBasicVisitor<Void> {
@@ -205,7 +212,7 @@ public class SqlTransformRunner {
   private static org.apache.avro.Schema getAvroSchema(String tableName) throws IOException {
     String path = "schemas_avro/" + tableName + ".json";
     return new org.apache.avro.Schema.Parser()
-        .parse(Resources.toString(Resources.getResource(path), Charsets.UTF_8));
+        .parse(Resources.toString(Resources.getResource(path), StandardCharsets.UTF_8));
   }
 
   static org.apache.avro.Schema getProjectedSchema(
@@ -283,7 +290,8 @@ public class SqlTransformRunner {
 
     // Make an array of pipelines, each pipeline is responsible for running a corresponding query.
     Pipeline[] pipelines = new Pipeline[queryNames.length];
-    CSVFormat csvFormat = CSVFormat.MYSQL.withDelimiter('|').withNullString("");
+    CSVFormat csvFormat =
+        CSVFormat.MYSQL.withDelimiter('|').withTrailingDelimiter().withNullString("");
 
     // Execute all queries, transform each result into a PCollection<String>, write them into
     // the txt file and store in a GCP directory.
@@ -304,6 +312,7 @@ public class SqlTransformRunner {
         tables
             .apply(SqlTransform.query(queryString))
             .apply(MapElements.into(TypeDescriptors.strings()).via(Row::toString))
+            .apply(ParDo.of(new CounterDoFn()))
             .apply(
                 TextIO.write()
                     .to(
@@ -394,5 +403,15 @@ public class SqlTransformRunner {
         .withMeasurement(options.getBaseInfluxMeasurement())
         .withRetentionPolicy(options.getInfluxRetentionPolicy())
         .get();
+  }
+
+  private static class CounterDoFn extends DoFn<String, String> {
+    private final Counter counter = Metrics.counter(METRICS_NAMESPACE, OUTPUT_COUNTER);
+
+    @ProcessElement
+    public void processElement(ProcessContext context) {
+      counter.inc();
+      context.output(context.element());
+    }
   }
 }

@@ -27,7 +27,7 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.include
 import static org.apache.beam.sdk.util.SerializableUtils.serializeToByteArray;
 import static org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString;
 import static org.apache.beam.sdk.util.StringUtils.jsonStringToByteArray;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.anyOf;
@@ -154,13 +154,13 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matchers;
 import org.joda.time.DateTimeUtils;
@@ -507,6 +507,10 @@ public class ParDoTest implements Serializable {
                   DisplayDataMatchers.hasValue(fn.getClass().getName()))));
 
       assertThat(displayData, includesDisplayDataFor("fn", fn));
+
+      // Test setting DisplayData through PTransform API
+      parDo.setDisplayData(ImmutableList.of(DisplayData.item("doFnMetadata", "baz")));
+      assertThat(DisplayData.from(parDo), hasDisplayItem("doFnMetadata", "baz"));
     }
 
     @Test
@@ -514,7 +518,7 @@ public class ParDoTest implements Serializable {
       DoFn<String, String> fn =
           new DoFn<String, String>() {
             @ProcessElement
-            public void proccessElement(ProcessContext c) {}
+            public void processElement(ProcessContext c) {}
 
             @Override
             public void populateDisplayData(DisplayData.Builder builder) {
@@ -542,7 +546,7 @@ public class ParDoTest implements Serializable {
             final StateSpec<MapState<String, SerializableClass>> mapState = StateSpecs.map();
 
             @ProcessElement
-            public void proccessElement(ProcessContext c) {}
+            public void processElement(ProcessContext c) {}
           };
 
       SingleOutput<KV<String, String>, String> parDo = ParDo.of(fn);
@@ -1569,7 +1573,7 @@ public class ParDoTest implements Serializable {
       DoFn<String, String> fn =
           new DoFn<String, String>() {
             @ProcessElement
-            public void proccessElement(ProcessContext c) {}
+            public void processElement(ProcessContext c) {}
 
             @Override
             public void populateDisplayData(DisplayData.Builder builder) {
@@ -2705,19 +2709,26 @@ public class ParDoTest implements Serializable {
                 @StateId(countStateId) CombiningState<Integer, int[], Integer> count,
                 OutputReceiver<KV<String, Integer>> r) {
               KV<String, Integer> value = element.getValue();
-              ReadableState<Iterable<Entry<String, Integer>>> entriesView = state.entries();
               state.put(value.getKey(), value.getValue());
               count.add(1);
+
+              @Nullable Integer max = state.get("max").read();
+              state.put("max", Math.max(max == null ? 0 : max, value.getValue()));
               if (count.read() >= 4) {
-                Iterable<Map.Entry<String, Integer>> iterate = state.entries().read();
+                assertEquals(Integer.valueOf(97), state.get("a").read());
+
+                Iterable<Map.Entry<String, Integer>> entriesView = state.entries().read();
+                Iterable<String> keysView = state.keys().read();
                 // Make sure that the cached Iterable doesn't change when new elements are added,
                 // but that cached ReadableState views of the state do change.
                 state.put("BadKey", -1);
-                assertEquals(3, Iterables.size(iterate));
-                assertEquals(4, Iterables.size(entriesView.read()));
-                assertEquals(4, Iterables.size(state.entries().read()));
+                assertEquals(4, Iterables.size(entriesView));
+                assertEquals(4, Iterables.size(keysView));
+                assertEquals(5, Iterables.size(state.entries().read()));
+                assertEquals(5, Iterables.size(state.keys().read()));
+                assertEquals(Integer.valueOf(97), state.get("max").read());
 
-                for (Map.Entry<String, Integer> entry : iterate) {
+                for (Map.Entry<String, Integer> entry : entriesView) {
                   r.output(KV.of(entry.getKey(), entry.getValue()));
                 }
               }
@@ -2728,11 +2739,14 @@ public class ParDoTest implements Serializable {
           pipeline
               .apply(
                   Create.of(
-                      KV.of("hello", KV.of("a", 97)), KV.of("hello", KV.of("b", 42)),
-                      KV.of("hello", KV.of("b", 42)), KV.of("hello", KV.of("c", 12))))
+                      KV.of("hello", KV.of("a", 97)),
+                      KV.of("hello", KV.of("b", 42)),
+                      KV.of("hello", KV.of("b", 42)),
+                      KV.of("hello", KV.of("c", 12))))
               .apply(ParDo.of(fn));
 
-      PAssert.that(output).containsInAnyOrder(KV.of("a", 97), KV.of("b", 42), KV.of("c", 12));
+      PAssert.that(output)
+          .containsInAnyOrder(KV.of("a", 97), KV.of("b", 42), KV.of("c", 12), KV.of("max", 97));
       pipeline.run();
     }
 
@@ -5734,7 +5748,7 @@ public class ParDoTest implements Serializable {
     @Test
     @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
     public void testRelativeTimerWithOutputTimestamp() {
-      DoFn<KV<Void, String>, String> buffferFn =
+      DoFn<KV<Void, String>, String> bufferFn =
           new DoFn<KV<Void, String>, String>() {
 
             @TimerId("timer")
@@ -5798,7 +5812,7 @@ public class ParDoTest implements Serializable {
                   .addElements(TimestampedValue.of(KV.of(null, "foo"), new Instant(1)))
                   .addElements(TimestampedValue.of(KV.of(null, "bar"), new Instant(2)))
                   .advanceWatermarkToInfinity());
-      PCollection<String> result = input.apply(ParDo.of(buffferFn));
+      PCollection<String> result = input.apply(ParDo.of(bufferFn));
       PAssert.that(result).containsInAnyOrder("foo", "bar");
       pipeline.run();
     }

@@ -21,6 +21,7 @@
 
 import glob
 import os
+import random
 import re
 import shutil
 import socketserver
@@ -164,6 +165,84 @@ public class Other {
 
       finally:
         os.chdir(oldwd)
+
+
+class CacheTest(unittest.TestCase):
+  @staticmethod
+  def with_prefix(prefix):
+    return '%s-%s' % (prefix, random.random())
+
+  def test_memoization(self):
+    cache = subprocess_server._SharedCache(self.with_prefix, lambda x: None)
+    try:
+      token = cache.register()
+      a = cache.get('a')
+      self.assertEqual(a[0], 'a')
+      self.assertEqual(cache.get('a'), a)
+      b = cache.get('b')
+      self.assertEqual(b[0], 'b')
+      self.assertEqual(cache.get('b'), b)
+    finally:
+      cache.purge(token)
+
+  def test_purged(self):
+    cache = subprocess_server._SharedCache(self.with_prefix, lambda x: None)
+    try:
+      token = cache.register()
+      a = cache.get('a')
+      self.assertEqual(cache.get('a'), a)
+    finally:
+      cache.purge(token)
+
+    try:
+      token = cache.register()
+      new_a = cache.get('a')
+      self.assertNotEqual(new_a, a)
+    finally:
+      cache.purge(token)
+
+  def test_multiple_owners(self):
+    cache = subprocess_server._SharedCache(self.with_prefix, lambda x: None)
+    try:
+      owner1 = cache.register()
+      a = cache.get('a')
+      try:
+        self.assertEqual(cache.get('a'), a)
+        owner2 = cache.register()
+        b = cache.get('b')
+        self.assertEqual(cache.get('b'), b)
+      finally:
+        cache.purge(owner2)
+      self.assertEqual(cache.get('a'), a)
+      self.assertEqual(cache.get('b'), b)
+    finally:
+      cache.purge(owner1)
+
+    try:
+      owner3 = cache.register()
+      self.assertNotEqual(cache.get('a'), a)
+      self.assertNotEqual(cache.get('b'), b)
+    finally:
+      cache.purge(owner3)
+
+  def test_interleaved_owners(self):
+    cache = subprocess_server._SharedCache(self.with_prefix, lambda x: None)
+    owner1 = cache.register()
+    a = cache.get('a')
+    self.assertEqual(cache.get('a'), a)
+
+    owner2 = cache.register()
+    b = cache.get('b')
+    self.assertEqual(cache.get('b'), b)
+
+    cache.purge(owner1)
+    self.assertNotEqual(cache.get('a'), a)
+    self.assertEqual(cache.get('b'), b)
+
+    cache.purge(owner2)
+    owner3 = cache.register()
+    self.assertNotEqual(cache.get('b'), b)
+    cache.purge(owner3)
 
 
 if __name__ == '__main__':

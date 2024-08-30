@@ -31,8 +31,13 @@ on:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
+  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login}}'
   cancel-in-progress: true
+
+env:
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
+  GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
 jobs:
   run_local_env_install_ubuntu:
@@ -40,13 +45,12 @@ jobs:
     name: "Ubuntu run local environment shell script"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-go@v3
+      - uses: actions/checkout@v4
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
         with:
-          go-version: '1.20'
-      - uses: actions/setup-python@v4
-        with:
-          python-version: '3.8'
+          go-version: default
+          python-version: default
       - name: "Installing local env dependencies"
         run: "sudo ./local-env-setup.sh"
         id: local_env_install_ubuntu
@@ -58,13 +62,12 @@ jobs:
     name: "Mac run local environment shell script"
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-go@v3
+      - uses: actions/checkout@v4
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
         with:
-          go-version: '1.20'
-      - uses: actions/setup-python@v4
-        with:
-          python-version: '3.8'
+          go-version: default
+          python-version: default
       - name: "Installing local env dependencies"
         run: "./local-env-setup.sh"
         id: local_env_install_mac

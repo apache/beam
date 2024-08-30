@@ -25,6 +25,15 @@ String pythonVersionSuffix = project.ext.pythonVersion
         ? "-py${pythonVersionNumber}"
         : ''
 
+// Basic test options for ITs running on Jenkins.
+def basicTestOpts = [
+    "--capture=no",  // print stdout instantly
+    "--numprocesses=8",  // run tests in parallel
+    "--timeout=4500", // timeout of whole command execution
+    "--color=yes", // console color
+    "--log-cli-level=INFO" //log level info
+]
+
 dependencies {
   distTarBall project(path: ":sdks:python", configuration: "distTarBall")
 }
@@ -69,9 +78,8 @@ def basicPytestOpts = [
     "--log-cli-level=INFO", //log level
 ]
 
-def preCommitIT(String runScriptsDir, String envdir, Boolean streaming, Boolean runnerV2, String pythonSuffix) {
-  def suffix = runnerV2 ? '_V2' : ''
-  suffix = streaming ? "_streaming$suffix" : "_batch$suffix"
+def preCommitIT(String runScriptsDir, String envdir, Boolean streaming, String pythonSuffix) {
+  def suffix = streaming ? "_streaming" : "_batch"
   task "preCommitIT${suffix}" {
     dependsOn 'initializeForDataflowJob'
 
@@ -97,9 +105,6 @@ def preCommitIT(String runScriptsDir, String envdir, Boolean streaming, Boolean 
 
       if (streaming){
         argMap.put("streaming", "true")
-        argMap.put("runner_v2", "true")
-      } else if (runnerV2) {
-        argMap.put("runner_v2", "true")
       }
 
       def cmdArgs = mapToArgString(argMap)
@@ -111,19 +116,12 @@ def preCommitIT(String runScriptsDir, String envdir, Boolean streaming, Boolean 
   }
 }
 
-preCommitIT(runScriptsDir, envdir, false, false, pythonVersionSuffix)
-preCommitIT(runScriptsDir, envdir, true, false, pythonVersionSuffix)
-preCommitIT(runScriptsDir, envdir, false, true, pythonVersionSuffix)
-preCommitIT(runScriptsDir, envdir, true, true, pythonVersionSuffix)
+preCommitIT(runScriptsDir, envdir, false, pythonVersionSuffix)
+preCommitIT(runScriptsDir, envdir, true, pythonVersionSuffix)
 
 task preCommitIT{
   dependsOn preCommitIT_batch
   dependsOn preCommitIT_streaming
-}
-
-task preCommitIT_V2{
-  dependsOn preCommitIT_batch_V2
-  dependsOn preCommitIT_streaming_V2
 }
 
 task postCommitIT {
@@ -135,7 +133,30 @@ task postCommitIT {
         "test_opts": testOpts,
         "sdk_location": project.ext.sdkLocation,
         "suite": "postCommitIT-df${pythonVersionSuffix}",
-        "collect": "it_postcommit"
+        "collect": "it_postcommit",
+    ]
+    def cmdArgs = mapToArgString(argMap)
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+    }
+  }
+}
+
+task postCommitArmIT {
+  def pyversion = "${project.ext.pythonVersion.replace('.', '')}"
+  dependsOn 'initializeForDataflowJob'
+  dependsOn ":sdks:python:container:py${pyversion}:docker"
+
+  doLast {
+    def testOpts = basicPytestOpts + ["--numprocesses=8", "--dist=loadfile"]
+    def argMap = [
+        "test_opts": testOpts,
+        "sdk_location": project.ext.sdkLocation,
+        "suite": "postCommitIT-df${pythonVersionSuffix}",
+        "collect": "it_postcommit",
+        "py_version": project.ext.pythonVersion,
+        "arch": "ARM"
     ]
     def cmdArgs = mapToArgString(argMap)
     exec {
@@ -192,7 +213,6 @@ task examples {
     def argMap = [
             "test_opts": testOpts + ["--numprocesses=8", "--dist=loadfile"],
             "sdk_location": project.ext.sdkLocation,
-            "runner_v2": "true",
             "suite": "postCommitIT-df${pythonVersionSuffix}-xdist",
             "collect": "examples_postcommit and not no_xdist and not sickbay_dataflow"
     ]
@@ -208,7 +228,6 @@ task examples {
     def argMap = [
             "test_opts": testOpts,
             "sdk_location": project.ext.sdkLocation,
-            "runner_v2": "true",
             "suite": "postCommitIT-df${pythonVersionSuffix}-no-xdist",
             "collect": "examples_postcommit and no_xdist and not sickbay_dataflow"
     ]
@@ -231,13 +250,6 @@ task validatesRunnerBatchTests {
         "collect": "it_validatesrunner and not no_sickbay_batch"
     ]
 
-    if (project.hasProperty('useRunnerV2')) {
-      argMap.put("runner_v2", "true")
-    }
-
-    if (project.hasProperty('disableRunnerV2')) {
-      argMap.put("disable_runner_v2", "true")
-    }
     def cmdArgs = mapToArgString(argMap)
     exec {
       executable 'sh'
@@ -258,7 +270,6 @@ task validatesRunnerStreamingTests {
                 "sdk_location": project.ext.sdkLocation,
                 "suite": "validatesRunnerStreamingTests-df${pythonVersionSuffix}-xdist",
                 "collect": "it_validatesrunner and not no_sickbay_streaming and not no_xdist",
-                "runner_v2": "true",
                 ]
 
     def cmdArgs = mapToArgString(argMap)
@@ -276,7 +287,6 @@ task validatesRunnerStreamingTests {
                 "sdk_location": project.ext.sdkLocation,
                 "suite": "validatesRunnerStreamingTests-df${pythonVersionSuffix}-noxdist",
                 "collect": "it_validatesrunner and not no_sickbay_streaming and no_xdist",
-                "runner_v2": "true",
                 ]
 
     def cmdArgs = mapToArgString(argMap)
@@ -370,6 +380,22 @@ task validatesContainer() {
   }
 }
 
+task validatesContainerARM() {
+  def pyversion = "${project.ext.pythonVersion.replace('.', '')}"
+  dependsOn 'initializeForDataflowJob'
+  dependsOn ":sdks:python:container:py${pyversion}:docker"
+  def runScriptsPath = "${rootDir}/sdks/python/container/run_validatescontainer.sh"
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && cd ${rootDir} && ${runScriptsPath} " +
+              "${project.ext.pythonVersion} " +
+              "${project.ext.sdkLocation} " +
+              "ARM"
+    }
+  }
+}
+
 def tensorRTTests = tasks.create("tensorRTtests") {
   dependsOn 'installGcpTest'
   dependsOn ':sdks:python:sdist'
@@ -397,6 +423,35 @@ def tensorRTTests = tasks.create("tensorRTtests") {
   }
  }
 }
+
+// Vertex AI RunInference IT tests
+task vertexAIInferenceTest {
+  dependsOn 'initializeForDataflowJob'
+  dependsOn ':sdks:python:sdist'
+  def requirementsFile = "${rootDir}/sdks/python/apache_beam/ml/inference/vertex_ai_tests_requirements.txt"
+  doFirst {
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && pip install -r $requirementsFile"
+      }
+    }
+  doLast {
+      def testOpts = basicTestOpts
+      def argMap = [
+          "test_opts": testOpts,
+          "suite": "VertexAITests-df-py${pythonVersionSuffix}",
+          "collect": "vertex_ai_postcommit" ,
+          "runner": "TestDataflowRunner",
+          "requirements_file": "$requirementsFile"
+      ]
+      def cmdArgs = mapToArgString(argMap)
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+      }
+    }
+}
+
 
 task installTFTRequirements {
   dependsOn 'initializeForDataflowJob'
@@ -432,6 +487,28 @@ task tftTests {
   }
 }
 
+// Tests that depend on Mock API:https://github.com/apache/beam/tree/master/.test-infra/mock-apis. .
+task mockAPITests {
+  dependsOn 'initializeForDataflowJob'
+  dependsOn ':sdks:python:sdist'
+
+ doLast {
+  def testOpts = basicTestOpts
+  def argMap = [
+    "test_opts": testOpts,
+    "collect": "uses_mock_api",
+    "runner": "TestDataflowRunner",
+    "project": "apache-beam-testing",
+    "region": "us-west1",
+  ]
+  def cmdArgs = mapToArgString(argMap)
+  exec {
+    executable 'sh'
+	args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+  }
+ }
+}
+
 // add all RunInference E2E tests that run on DataflowRunner
 // As of now, this test suite is enable in py38 suite as the base NVIDIA image used for Tensor RT
 // contains Python 3.8.
@@ -439,27 +516,30 @@ task tftTests {
 project.tasks.register("inferencePostCommitIT") {
   dependsOn = [
   'tensorRTtests',
+  'vertexAIInferenceTest',
+  'mockAPITests',
   ]
 }
 
 
 // Create cross-language tasks for running tests against Java expansion service(s)
-def dataflowProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
-def dataflowRegion = project.findProperty('dataflowRegion') ?: 'us-central1'
+def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+def gcpRegion = project.findProperty('gcpRegion') ?: 'us-central1'
 
 project(":sdks:python:test-suites:xlang").ext.xlangTasks.each { taskMetadata ->
     createCrossLanguageUsingJavaExpansionTask(
       name: taskMetadata.name,
-      expansionProjectPath: taskMetadata.expansionProjectPath,
+      expansionProjectPaths: taskMetadata.expansionProjectPaths,
       collectMarker: taskMetadata.collectMarker,
-      startJobServer: taskMetadata.startJobServer,
-      cleanupJobServer: taskMetadata.cleanupJobServer,
       pythonPipelineOptions: [
         "--runner=TestDataflowRunner",
-        "--project=${dataflowProject}",
-        "--region=${dataflowRegion}",
+        "--project=${gcpProject}",
+        "--region=${gcpRegion}",
+        "--sdk_container_image=gcr.io/apache-beam-testing/beam-sdk/beam_python${project.ext.pythonVersion}_sdk:latest",
         "--sdk_harness_container_image_overrides=.*java.*,gcr.io/apache-beam-testing/beam-sdk/beam_java8_sdk:latest"
       ],
-      pytestOptions: basicPytestOpts
+      pytestOptions: basicPytestOpts,
+      additionalDeps: taskMetadata.additionalDeps,
+      additionalEnvs: taskMetadata.additionalEnvs
     )
 }

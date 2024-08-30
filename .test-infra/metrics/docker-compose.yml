@@ -85,7 +85,10 @@ services:
       - DB_DBNAME=beam_metrics
       - DB_DBUSERNAME=admin
       - DB_DBPWD=<PGPasswordHere>
-      - GH_ACCESS_TOKEN=<GithubAccessToken>
+      - GH_APP_ID=<GithubAppID>
+      - GH_APP_INSTALLATION_ID=<GithubAppInstallationID>
+      - GH_PEM_KEY=<GithubPemKey>
+      - GH_NUMBER_OF_WORKFLOW_RUNS_TO_FETCH=30
   syncjenkins:
     image: syncjenkins
     container_name: beamsyncjenkins

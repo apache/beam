@@ -397,10 +397,13 @@ func TestDecodeMultiChunkStream(t *testing.T) {
 		if fv, err := ds.Read(); err != io.EOF {
 			t.Errorf("unexpected error on decodeStream.Read after close: %v, %v", fv, err)
 		}
-		// Check that next was iterated to equal size
+		// Check that next was iterated to an empty stream.
 		dds := ds.(*decodeMultiChunkStream)
-		if got, want := dds.next, int64(size); got != want {
+		if got, want := dds.next, int64(0); got != want {
 			t.Errorf("unexpected configuration after decodeStream.Close: got %v, want %v", got, want)
+		}
+		if dds.stream != nil {
+			t.Errorf("got non-nil stream after close: %#v", dds.stream)
 		}
 
 		// Check that a 2nd stream will fail:

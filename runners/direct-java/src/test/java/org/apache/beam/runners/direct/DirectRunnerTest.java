@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.direct;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
@@ -40,9 +40,13 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.runners.direct.DirectRunner.DirectPipelineResult;
@@ -91,8 +95,8 @@ import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
@@ -334,6 +338,36 @@ public class DirectRunnerTest implements Serializable {
     assertEquals(null, result.waitUntilFinish(Duration.millis(1L)));
     // Ensure multiple calls complete
     assertEquals(null, result.waitUntilFinish(Duration.millis(1L)));
+  }
+
+  @Test
+  public void testNoBlockOnRunState() {
+
+    ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+    final Future handler =
+        executor.submit(
+            () -> {
+              PipelineOptions options =
+                  PipelineOptionsFactory.fromArgs("--blockOnRun=false").create();
+              Pipeline pipeline = Pipeline.create(options);
+              pipeline.apply(GenerateSequence.from(0).to(100));
+
+              PipelineResult result = pipeline.run();
+              while (true) {
+                if (result.getState() == State.DONE) {
+                  return result;
+                }
+                Thread.sleep(100);
+              }
+            });
+    try {
+      handler.get(10, TimeUnit.SECONDS);
+    } catch (ExecutionException | InterruptedException | TimeoutException e) {
+      // timeout means it never reaches DONE state
+      throw new RuntimeException(e);
+    } finally {
+      executor.shutdownNow();
+    }
   }
 
   private static final AtomicLong TEARDOWN_CALL = new AtomicLong(-1);
@@ -767,7 +801,7 @@ public class DirectRunnerTest implements Serializable {
 
     static class StaticQueueSource<T> extends UnboundedSource<T, StaticQueueSource.Checkpoint<T>> {
 
-      static class Checkpoint<T> implements CheckpointMark, Serializable {
+      static class Checkpoint<T> implements UnboundedSource.CheckpointMark, Serializable {
 
         final T read;
 

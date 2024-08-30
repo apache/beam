@@ -36,6 +36,26 @@ from typing import TypeVar
 
 import fasteners
 
+# In some python versions, there is a bug where AutoProxy doesn't handle
+# the kwarg 'manager_owned'. We implement our own backup here to make sure
+# we avoid this problem. More info here:
+# https://stackoverflow.com/questions/46779860/multiprocessing-managers-and-custom-classes
+autoproxy = multiprocessing.managers.AutoProxy  # type: ignore[attr-defined]
+
+
+def patched_autoproxy(
+    token,
+    serializer,
+    manager=None,
+    authkey=None,
+    exposed=None,
+    incref=True,
+    manager_owned=True):
+  return autoproxy(token, serializer, manager, authkey, exposed, incref)
+
+
+multiprocessing.managers.AutoProxy = patched_autoproxy  # type: ignore[attr-defined]
+
 T = TypeVar('T')
 AUTH_KEY = b'mps'
 
@@ -55,19 +75,36 @@ class _SingletonProxy:
       raise RuntimeError('Entry was released.')
     return self._SingletonProxy_entry.obj.__call__(*args, **kwargs)
 
-  def _SingletonProxy_release(self):
+  def singletonProxy_release(self):
     assert self._SingletonProxy_valid
     self._SingletonProxy_valid = False
 
   def __getattr__(self, name):
     if not self._SingletonProxy_valid:
       raise RuntimeError('Entry was released.')
-    return getattr(self._SingletonProxy_entry.obj, name)
+    try:
+      return getattr(self._SingletonProxy_entry.obj, name)
+    except AttributeError as e:
+      # Swallow AttributeError exceptions so that they are ignored when
+      # calculating public functions. These can occur if __getattr__ is
+      # overriden, for example to only support some platforms. This will mean
+      # that these functions will be silently unavailable to the
+      # MultiProcessShared object, leading to worse errors when someone tries
+      # to use them, but it will keep them from breaking the whole object for
+      # functions which are unusable anyways.
+      logging.info(
+          'Attribute %s is unavailable as a public function because '
+          'its __getattr__ function raised the following exception '
+          '%s',
+          name,
+          e)
+      return None
 
   def __dir__(self):
     # Needed for multiprocessing.managers's proxying.
     dir = self._SingletonProxy_entry.obj.__dir__()
     dir.append('singletonProxy_call__')
+    dir.append('singletonProxy_release')
     return dir
 
 
@@ -92,10 +129,16 @@ class _SingletonEntry:
       return _SingletonProxy(self)
 
   def release(self, proxy):
-    proxy._SingletonProxy_release()
+    proxy.singletonProxy_release()
     with self.lock:
       self.refcount -= 1
       if self.refcount == 0:
+        del self.obj
+        self.initialied = False
+
+  def unsafe_hard_delete(self):
+    with self.lock:
+      if self.initialied:
         del self.obj
         self.initialied = False
 
@@ -116,6 +159,9 @@ class _SingletonManager:
   def release_singleton(self, tag, obj):
     return self.entries[tag].release(obj)
 
+  def unsafe_hard_delete_singleton(self, tag):
+    return self.entries[tag].unsafe_hard_delete()
+
 
 _process_level_singleton_manager = _SingletonManager()
 
@@ -132,6 +178,9 @@ _SingletonRegistrar.register(
 _SingletonRegistrar.register(
     'release_singleton',
     callable=_process_level_singleton_manager.release_singleton)
+_SingletonRegistrar.register(
+    'unsafe_hard_delete_singleton',
+    callable=_process_level_singleton_manager.unsafe_hard_delete_singleton)
 
 
 # By default, objects registered with BaseManager.register will have only
@@ -150,6 +199,9 @@ class _AutoProxyWrapper:
 
   def __getattr__(self, name):
     return getattr(self._proxyObject, name)
+
+  def get_auto_proxy_object(self):
+    return self._proxyObject
 
 
 class MultiProcessShared(Generic[T]):
@@ -252,7 +304,18 @@ class MultiProcessShared(Generic[T]):
     return _AutoProxyWrapper(singleton)
 
   def release(self, obj):
-    self._manager.release_singleton(self._tag, obj)
+    self._manager.release_singleton(self._tag, obj.get_auto_proxy_object())
+
+  def unsafe_hard_delete(self):
+    """Force deletes the underlying object
+    
+      This function should be used with great care since any other references
+      to this object will now be invalid and may lead to strange errors. Only
+      call unsafe_hard_delete if either (a) you are sure no other references
+      to this object exist, or (b) you are ok with all existing references to
+      this object throwing strange errors when derefrenced.
+    """
+    self._get_manager().unsafe_hard_delete_singleton(self._tag)
 
   def _create_server(self, address_file):
     # We need to be able to authenticate with both the manager and the process.

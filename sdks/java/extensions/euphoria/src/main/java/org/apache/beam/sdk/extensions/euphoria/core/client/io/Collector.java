@@ -23,8 +23,10 @@ import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience
  * Extends {@link Environment} with write capability. Used in user defined functors.
  *
  * @param <T> the type of elements collected through this context
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
  */
 @Audience(Audience.Type.CLIENT)
+@Deprecated
 public interface Collector<T> extends Environment {
 
   /**

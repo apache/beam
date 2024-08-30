@@ -525,6 +525,70 @@ class _WatermarkEstimatorParam(_DoFnParam):
     self.param_id = 'WatermarkEstimatorProvider'
 
 
+class _ContextParam(_DoFnParam):
+  def __init__(
+      self, context_manager_constructor, args=(), kwargs=None, *, name=None):
+    class_name = self.__class__.__name__.strip('_')
+    if (not callable(context_manager_constructor) or
+        (hasattr(context_manager_constructor, '__enter__') and
+         len(inspect.signature(
+             context_manager_constructor.__enter__).parameters) == 0)):
+      # Context managers constructed with @contextlib.contextmanager can only
+      # be used once, and in addition cannot be pickled because they invoke
+      # the function on __init__ rather than at __enter__.
+      # In addition, other common context managers such as
+      # tempfile.TemporaryDirectory perform side-effecting actions in __init__
+      # rather than in __enter__.
+      raise TypeError(
+          "A context manager constructor (not a fully constructed context "
+          "manager) must be passed to avoid issues with one-shot managers. "
+          "For example, "
+          "write {class_name}(tempfile.TemporaryDirectory, args=(...)) "
+          "rather than {class_name}(tempfile.TemporaryDirectory(...))")
+    super().__init__(f'{class_name}_{name or id(self)}')
+    self.context_manager_constructor = context_manager_constructor
+    self.args = args
+    self.kwargs = kwargs or {}
+
+  def create_and_enter(self):
+    cm = self.context_manager_constructor(*self.args, **self.kwargs)
+    return cm, cm.__enter__()
+
+
+class _BundleContextParam(_ContextParam):
+  """Allows one to use a context manager to manage bundle-scoped parameters.
+
+  The context will be entered at the start of each bundle and exited at the
+  end, equivalent to the `start_bundle` and `finish_bundle` methods on a DoFn.
+
+  The object returned from `__enter__`, if any, will be substituted for this
+  parameter in invocations.  Multiple context manager parameters may be
+  specified which will all be evaluated (in an unspecified order).
+
+  This can be especially useful for setting up shared context in transforms
+  like `Map`, `FlatMap`, and `Filter` where one does not have start_bundle
+  and finish_bundle methods.
+  """
+
+
+class _SetupContextParam(_ContextParam):
+  """Allows one to use a context manager to manage DoFn-scoped parameters.
+
+  The context will be entered before the DoFn is used and exited when it is
+  discarded, equivalent to the `setup` and `teardown` methods of a DoFn.
+  (Note, like `teardown`, exiting is best effort, as workers may be killed
+  before all DoFns are torn down.)
+
+  The object returned from `__enter__`, if any, will be substituted for this
+  parameter in invocations.  Multiple context manager parameters may be
+  specified which will all be evaluated (in an unspecified order).
+
+  This can be useful for setting up shared resources like persistent
+  connections to external services for transforms like `Map`, `FlatMap`, and
+  `Filter` where one does not have setup and teardown methods.
+  """
+
+
 class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   """A function object used by a transform with custom processing.
 
@@ -546,6 +610,8 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   WatermarkEstimatorParam = _WatermarkEstimatorParam
   BundleFinalizerParam = _BundleFinalizerParam
   KeyParam = _DoFnParam('KeyParam')
+  BundleContextParam = _BundleContextParam
+  SetupContextParam = _SetupContextParam
 
   # Parameters to access state and timers.  Not restricted to use only in the
   # .process() method. Usage: DoFn.StateParam(state_spec),
@@ -566,6 +632,8 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
       KeyParam,
       StateParam,
       TimerParam,
+      BundleContextParam,
+      SetupContextParam,
   ]
 
   RestrictionParam = _RestrictionDoFnParam
@@ -651,6 +719,10 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
       tracker will be derived from the restriction provider in the parameter.
     - ``DoFn.WatermarkEstimatorParam``: a function that can be used to track
       output watermark of Splittable ``DoFn`` implementations.
+    - ``DoFn.BundleContextParam``: allows a shared context manager to be used
+      per bundle
+    - ``DoFn.SetupContextParam``: allows a shared context manager to be used
+      per DoFn
 
     Args:
       element: The element to be processed
@@ -1500,7 +1572,10 @@ class ParDo(PTransformWithSideInputs):
       use_subprocess=False,
       threshold=1,
       threshold_windowing=None,
-      timeout=None):
+      timeout=None,
+      error_handler=None,
+      on_failure_callback: typing.Optional[typing.Callable[
+          [Exception, typing.Any], None]] = None):
     """Automatically provides a dead letter output for skipping bad records.
     This can allow a pipeline to continue successfully rather than fail or
     continuously throw errors on retry when bad elements are encountered.
@@ -1548,6 +1623,14 @@ class ParDo(PTransformWithSideInputs):
           defaults to the windowing of the input.
       timeout: If the element has not finished processing in timeout seconds,
           raise a TimeoutError.  Defaults to None, meaning no time limit.
+      error_handler: An ErrorHandler that should be used to consume the bad
+          records, rather than returning the good and bad records as a tuple.
+      on_failure_callback: If an element fails or times out,
+          on_failure_callback will be invoked. It will receive the exception
+          and the element being processed in as args. In case of a timeout,
+          the exception will be of type `TimeoutError`. Be careful with this
+          callback - if you set a timeout, it will not apply to the callback,
+          and if the callback fails it will not be retried.
     """
     args, kwargs = self.raw_side_inputs
     return self.label >> _ExceptionHandlingWrapper(
@@ -1561,7 +1644,20 @@ class ParDo(PTransformWithSideInputs):
         use_subprocess,
         threshold,
         threshold_windowing,
-        timeout)
+        timeout,
+        error_handler,
+        on_failure_callback)
+
+  def with_error_handler(self, error_handler, **exception_handling_kwargs):
+    """An alias for `with_exception_handling(error_handler=error_handler, ...)`
+
+    This is provided to fit the general ErrorHandler conventions.
+    """
+    if error_handler is None:
+      return self
+    else:
+      return self.with_exception_handling(
+          error_handler=error_handler, **exception_handling_kwargs)
 
   def default_type_hints(self):
     return self.fn.get_type_hints()
@@ -1899,13 +1995,19 @@ class StatelessDoFnInfo(DoFnInfo):
     return beam_runner_api_pb2.FunctionSpec(urn=self._urn)
 
 
-def FlatMap(fn, *args, **kwargs):  # pylint: disable=invalid-name
+def identity(x: T) -> T:
+  return x
+
+
+def FlatMap(fn=identity, *args, **kwargs):  # pylint: disable=invalid-name
   """:func:`FlatMap` is like :class:`ParDo` except it takes a callable to
   specify the transformation.
 
   The callable must return an iterable for each element of the input
   :class:`~apache_beam.pvalue.PCollection`. The elements of these iterables will
-  be flattened into the output :class:`~apache_beam.pvalue.PCollection`.
+  be flattened into the output :class:`~apache_beam.pvalue.PCollection`. If
+  no callable is given, then all elements of the input PCollection must already
+  be iterables themselves and will be flattened into the output PCollection.
 
   Args:
     fn (callable): a callable object.
@@ -2154,7 +2256,9 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
       use_subprocess,
       threshold,
       threshold_windowing,
-      timeout):
+      timeout,
+      error_handler,
+      on_failure_callback):
     if partial and use_subprocess:
       raise ValueError('partial and use_subprocess are mutually incompatible.')
     self._fn = fn
@@ -2168,6 +2272,8 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
     self._threshold = threshold
     self._threshold_windowing = threshold_windowing
     self._timeout = timeout
+    self._error_handler = error_handler
+    self._on_failure_callback = on_failure_callback
 
   def expand(self, pcoll):
     if self._use_subprocess:
@@ -2178,10 +2284,17 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
       wrapped_fn = self._fn
     result = pcoll | ParDo(
         _ExceptionHandlingWrapperDoFn(
-            wrapped_fn, self._dead_letter_tag, self._exc_class, self._partial),
+            wrapped_fn,
+            self._dead_letter_tag,
+            self._exc_class,
+            self._partial,
+            self._on_failure_callback),
         *self._args,
         **self._kwargs).with_outputs(
             self._dead_letter_tag, main=self._main_tag, allow_unknown_tags=True)
+    #TODO(BEAM-18957): Fix when type inference supports tagged outputs.
+    result[self._main_tag].element_type = self._fn.infer_output_type(
+        pcoll.element_type)
 
     if self._threshold < 1.0:
 
@@ -2210,15 +2323,21 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
       _ = bad_count_pcoll | Map(
           check_threshold, input_count_view, self._threshold)
 
-    return result
+    if self._error_handler:
+      self._error_handler.add_error_pcollection(result[self._dead_letter_tag])
+      return result[self._main_tag]
+    else:
+      return result
 
 
 class _ExceptionHandlingWrapperDoFn(DoFn):
-  def __init__(self, fn, dead_letter_tag, exc_class, partial):
+  def __init__(
+      self, fn, dead_letter_tag, exc_class, partial, on_failure_callback):
     self._fn = fn
     self._dead_letter_tag = dead_letter_tag
     self._exc_class = exc_class
     self._partial = partial
+    self._on_failure_callback = on_failure_callback
 
   def __getattribute__(self, name):
     if (name.startswith('__') or name in self.__dict__ or
@@ -2235,6 +2354,11 @@ class _ExceptionHandlingWrapperDoFn(DoFn):
         result = list(result)
       yield from result
     except self._exc_class as exn:
+      if self._on_failure_callback is not None:
+        try:
+          self._on_failure_callback(exn, args[0])
+        except Exception as e:
+          logging.warning('on_failure_callback failed with error: %s', e)
       yield pvalue.TaggedOutput(
           self._dead_letter_tag,
           (
@@ -2242,6 +2366,112 @@ class _ExceptionHandlingWrapperDoFn(DoFn):
                   type(exn),
                   repr(exn),
                   traceback.format_exception(*sys.exc_info()))))
+
+
+# Idea adapted from https://github.com/tosun-si/asgarde.
+# TODO(robertwb): Consider how this could fit into the public API.
+# TODO(robertwb): Generalize to all PValue types.
+class _PValueWithErrors(object):
+  """This wraps a PCollection such that transforms can be chained in a linear
+  manner while still accumulating any errors."""
+  def __init__(self, pcoll, exception_handling_args, upstream_errors=()):
+    self._pcoll = pcoll
+    self._exception_handling_args = exception_handling_args
+    self._upstream_errors = upstream_errors
+
+  @property
+  def pipeline(self):
+    return self._pcoll.pipeline
+
+  @property
+  def element_type(self):
+    return self._pcoll.element_type
+
+  @element_type.setter
+  def element_type(self, value):
+    self._pcoll.element_type = value
+
+  def main_output_tag(self):
+    return self._exception_handling_args.get('main_tag', 'good')
+
+  def error_output_tag(self):
+    return self._exception_handling_args.get('dead_letter_tag', 'bad')
+
+  def __or__(self, transform):
+    return self.apply(transform)
+
+  def apply(self, transform):
+    if hasattr(transform, 'with_exception_handling'):
+      result = self._pcoll | transform.with_exception_handling(
+          **self._exception_handling_args)
+      if result[self.main_output_tag()].element_type == typehints.Any:
+        result[
+            self.main_output_tag()].element_type = transform.infer_output_type(
+                self._pcoll.element_type)
+      # TODO(BEAM-18957): Add support for tagged type hints.
+      result[self.error_output_tag()].element_type = typehints.Any
+      return _PValueWithErrors(
+          result[self.main_output_tag()],
+          self._exception_handling_args,
+          self._upstream_errors + (result[self.error_output_tag()], ))
+    else:
+      return _PValueWithErrors(
+          self._pcoll | transform,
+          self._exception_handling_args,
+          self._upstream_errors)
+
+  def accumulated_errors(self):
+    if len(self._upstream_errors) == 1:
+      return self._upstream_errors[0]
+    else:
+      return self._upstream_errors | Flatten()
+
+  def as_result(self, error_post_processing=None):
+    return {
+        self.main_output_tag(): self._pcoll,
+        self.error_output_tag(): self.accumulated_errors()
+        if error_post_processing is None else self.accumulated_errors()
+        | error_post_processing,
+    }
+
+
+class _MaybePValueWithErrors(object):
+  """This is like _PValueWithErrors, but only wraps values if
+  exception_handling_args is non-trivial.  It is useful for handling
+  error-catching and non-error-catching code in a uniform manner.
+  """
+  def __init__(self, pvalue, exception_handling_args=None):
+    if isinstance(pvalue, _PValueWithErrors):
+      assert exception_handling_args is None
+      self._pvalue = pvalue
+    elif exception_handling_args is None:
+      self._pvalue = pvalue
+    else:
+      self._pvalue = _PValueWithErrors(pvalue, exception_handling_args)
+
+  @property
+  def pipeline(self):
+    return self._pvalue.pipeline
+
+  @property
+  def element_type(self):
+    return self._pvalue.element_type
+
+  @element_type.setter
+  def element_type(self, value):
+    self._pvalue.element_type = value
+
+  def __or__(self, transform):
+    return self.apply(transform)
+
+  def apply(self, transform):
+    return _MaybePValueWithErrors(self._pvalue | transform)
+
+  def as_result(self, error_post_processing=None):
+    if isinstance(self._pvalue, _PValueWithErrors):
+      return self._pvalue.as_result(error_post_processing)
+    else:
+      return self._pvalue
 
 
 class _SubprocessDoFn(DoFn):
@@ -2587,6 +2817,15 @@ class CombineGlobally(PTransform):
             "or CombineGlobally().as_singleton_view() to get the default "
             "output of the CombineFn if the input PCollection is empty.")
 
+      # log the error for this ill-defined streaming case now
+      if not pcoll.is_bounded and not pcoll.windowing.is_default():
+        _LOGGER.error(
+            "When combining elements in unbounded collections with "
+            "the non-default windowing strategy, you must explicitly "
+            "specify how to define the combined result of an empty window. "
+            "Please use CombineGlobally().without_defaults() to output "
+            "an empty PCollection if the input PCollection is empty.")
+
       def typed(transform):
         # TODO(robertwb): We should infer this.
         if combined.element_type:
@@ -2598,6 +2837,11 @@ class CombineGlobally(PTransform):
 
       def inject_default(_, combined):
         if combined:
+          if len(combined) > 1:
+            _LOGGER.error(
+                "Multiple combined values unexpectedly provided"
+                " for a global combine: %s",
+                combined)
           assert len(combined) == 1
           return combined[0]
         else:
@@ -3232,19 +3476,33 @@ class Select(PTransform):
         _expr_to_callable(expr, ix)) for (ix, expr) in enumerate(args)
                     ] + [(name, _expr_to_callable(expr, name))
                          for (name, expr) in kwargs.items()]
+    self._exception_handling_args = None
+
+  def with_exception_handling(self, **kwargs):
+    self._exception_handling_args = kwargs
+    return self
 
   def default_label(self):
     return 'ToRows(%s)' % ', '.join(name for name, _ in self._fields)
 
   def expand(self, pcoll):
-    return pcoll | Map(
-        lambda x: pvalue.Row(**{name: expr(x)
-                                for name, expr in self._fields}))
+    return (
+        _MaybePValueWithErrors(pcoll, self._exception_handling_args) | Map(
+            lambda x: pvalue.Row(
+                **{name: expr(x)
+                   for name, expr in self._fields}))).as_result()
 
   def infer_output_type(self, input_type):
+    def extract_return_type(expr):
+      expr_hints = get_type_hints(expr)
+      if (expr_hints and expr_hints.has_simple_output_type() and
+          expr_hints.simple_output_type(None) != typehints.Any):
+        return expr_hints.simple_output_type(None)
+      else:
+        return trivial_inference.infer_return_type(expr, [input_type])
+
     return row_type.RowTypeConstraint.from_fields([
-        (name, trivial_inference.infer_return_type(expr, [input_type]))
-        for (name, expr) in self._fields
+        (name, extract_return_type(expr)) for (name, expr) in self._fields
     ])
 
 
@@ -3430,6 +3688,9 @@ class WindowInto(ParDo):
       new_windows = self.windowing.windowfn.assign(context)
       yield WindowedValue(element, context.timestamp, new_windows)
 
+    def infer_output_type(self, input_type):
+      return input_type
+
   def __init__(
       self,
       windowfn,  # type: typing.Union[Windowing, WindowFn]
@@ -3543,8 +3804,16 @@ class Flatten(PTransform):
     return pvalueish, pvalueish
 
   def expand(self, pcolls):
+    windowing = self.get_windowing(pcolls)
     for pcoll in pcolls:
       self._check_pcollection(pcoll)
+      if pcoll.windowing != windowing:
+        _LOGGER.warning(
+            'All input pcollections must have the same window. Windowing for '
+            'flatten set to %s, windowing of pcoll %s set to %s',
+            windowing,
+            pcoll,
+            pcoll.windowing)
     is_bounded = all(pcoll.is_bounded for pcoll in pcolls)
     return pvalue.PCollection(self.pipeline, is_bounded=is_bounded)
 
@@ -3693,7 +3962,8 @@ def _strip_output_annotations(type_hint):
   contains_annotation = False
 
   def visitor(t, unused_args):
-    if t in annotations:
+    if t in annotations or (hasattr(t, '__name__') and
+                            t.__name__ == TimestampedValue.__name__):
       raise StopIteration
 
   try:

@@ -17,12 +17,14 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
+import com.google.api.services.bigquery.model.TableConstraints;
 import com.google.api.services.bigquery.model.TableSchema;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
+import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -30,10 +32,10 @@ import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -113,10 +115,20 @@ public class CreateTables<DestinationT, ElementT>
                     dest);
                 Supplier<@Nullable TableSchema> schemaSupplier =
                     () -> dynamicDestinations.getSchema(dest);
+                Supplier<@Nullable TableConstraints> tableConstraintsSupplier =
+                    () -> dynamicDestinations.getTableConstraints(dest);
+
+                BigQueryOptions bqOptions = context.getPipelineOptions().as(BigQueryOptions.class);
+                Lineage.getSinks()
+                    .add(
+                        "bigquery",
+                        BigQueryHelpers.dataCatalogSegments(
+                            tableDestination1.getTableReference(), bqOptions));
                 return CreateTableHelpers.possiblyCreateTable(
-                    context.getPipelineOptions().as(BigQueryOptions.class),
+                    bqOptions,
                     tableDestination1,
                     schemaSupplier,
+                    tableConstraintsSupplier,
                     createDisposition,
                     dynamicDestinations.getDestinationCoder(),
                     kmsKey,

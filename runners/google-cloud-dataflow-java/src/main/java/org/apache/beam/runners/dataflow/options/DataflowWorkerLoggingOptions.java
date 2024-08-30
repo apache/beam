@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.options;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import java.util.Arrays;
@@ -32,8 +32,8 @@ import org.apache.beam.sdk.options.PipelineOptions;
  *
  * @deprecated This interface will no longer be the source of truth for worker logging configuration
  *     once jobs are executed using a dedicated SDK harness instead of user code being co-located
- *     alongside Dataflow worker code. Please set the option below and also the corresponding option
- *     within {@link org.apache.beam.sdk.options.SdkHarnessOptions} to ensure forward compatibility.
+ *     alongside Dataflow worker code. Consider set corresponding options within {@link
+ *     org.apache.beam.sdk.options.SdkHarnessOptions} to ensure forward compatibility.
  */
 @Description("Options that are used to control logging configuration on the Dataflow worker.")
 @Deprecated

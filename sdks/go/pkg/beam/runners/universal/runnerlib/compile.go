@@ -41,12 +41,20 @@ func IsWorkerCompatibleBinary() (string, bool) {
 
 var unique int32
 
+// CompileOpts are additional options for dynamic compiles of the local code
+// for development purposes. Production runs should build the worker binary
+// separately for the target environment.
+// See https://beam.apache.org/documentation/sdks/go-cross-compilation/ for details.
+type CompileOpts struct {
+	OS, Arch string
+}
+
 // BuildTempWorkerBinary creates a local worker binary in the tmp directory
 // for linux/amd64. Caller responsible for deleting the binary.
-func BuildTempWorkerBinary(ctx context.Context) (string, error) {
+func BuildTempWorkerBinary(ctx context.Context, opts CompileOpts) (string, error) {
 	id := atomic.AddInt32(&unique, 1)
 	filename := filepath.Join(os.TempDir(), fmt.Sprintf("worker-%v-%v", id, time.Now().UnixNano()))
-	if err := buildWorkerBinary(ctx, filename); err != nil {
+	if err := buildWorkerBinary(ctx, filename, opts); err != nil {
 		return "", err
 	}
 	return filename, nil
@@ -59,7 +67,7 @@ func BuildTempWorkerBinary(ctx context.Context) (string, error) {
 //	* /Users/herohde/go/src/github.com/apache/beam/sdks/go/examples/wordcount/wordcount.go (skip: 3)
 //	  /usr/local/go/src/runtime/proc.go (skip: 4)      // not always present
 //	  /usr/local/go/src/runtime/asm_amd64.s (skip: 4 or 5)
-func buildWorkerBinary(ctx context.Context, filename string) error {
+func buildWorkerBinary(ctx context.Context, filename string, opts CompileOpts) error {
 	program := ""
 	var isTest bool
 	for i := 3; ; i++ {
@@ -77,9 +85,17 @@ func buildWorkerBinary(ctx context.Context, filename string) error {
 	}
 	goos := "linux"
 	goarch := "amd64"
+
+	if opts.OS != "" {
+		goos = opts.OS
+	}
+	if opts.Arch != "" {
+		goarch = opts.Arch
+	}
+
 	cgo := "0"
 
-	log.Infof(ctx, "Cross-compiling %v with GOOS=%s GOARCH=%s CGO_ENABLED=%s as %v", goos, goarch, cgo, program, filename)
+	log.Infof(ctx, "Cross-compiling %v with GOOS=%s GOARCH=%s CGO_ENABLED=%s as %v", program, goos, goarch, cgo, filename)
 
 	// Cross-compile given go program. Not awesome.
 	program = program[:strings.LastIndex(program, "/")+1]

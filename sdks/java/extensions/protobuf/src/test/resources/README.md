@@ -32,3 +32,9 @@ protoc \
  --include_imports \
  sdks/java/extensions/protobuf/src/test/resources/test/option/v1/simple.proto
 ```
+```bash
+protoc \
+ -Isdks/java/extensions/protobuf/src/test/resources/ \
+ --descriptor_set_out=sdks/java/extensions/protobuf/src/test/resources/proto_byte/file_descriptor/proto_byte_utils.pb \
+ sdks/java/extensions/protobuf/src/test/resources/proto_byte/proto_byte_utils.proto
+```

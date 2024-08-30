@@ -17,20 +17,26 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.BackOffUtils;
 import com.google.api.client.util.Sleeper;
+import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.Dataset;
 import com.google.api.services.bigquery.model.Job;
+import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.JobStatus;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
 import java.io.IOException;
+import java.io.Serializable;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -38,6 +44,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.regex.Matcher;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResolveOptions;
@@ -46,8 +53,10 @@ import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.FluentBackoff;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.PolyNull;
@@ -125,7 +134,7 @@ public class BigQueryHelpers {
     }
 
     void waitForDone() throws Exception {
-      LOG.info("Waiting for jobs to complete.");
+      LOG.debug("Waiting for BigQuery jobs to complete.");
       Sleeper sleeper = Sleeper.DEFAULT;
       while (!pendingJobs.isEmpty()) {
         List<JobInfo> retryJobs = Lists.newArrayList();
@@ -167,7 +176,7 @@ public class BigQueryHelpers {
     }
   }
 
-  static class PendingJob {
+  static class PendingJob implements Serializable {
     private final SerializableFunction<RetryJobId, Void> executeJob;
     private final SerializableFunction<RetryJobId, Job> pollJob;
     private final SerializableFunction<RetryJobId, Job> lookupJob;
@@ -274,7 +283,7 @@ public class BigQueryHelpers {
     }
   }
 
-  static class RetryJobId {
+  static class RetryJobId implements Serializable {
     private final String jobIdPrefix;
     private final int retryIndex;
 
@@ -366,6 +375,24 @@ public class BigQueryHelpers {
         + tableReference.getTableId();
   }
 
+  /** Table full resource name formatted according to https://google.aip.dev/122. */
+  static String toTableFullResourceName(TableReference tableReference) {
+    return "//bigquery.googleapis.com/" + toTableResourceName(tableReference);
+  }
+
+  /**
+   * Unofficial full resource name for a BigQuery job. Used for logging QuotaEvents related to BQ
+   * jobs.
+   */
+  static String toJobFullResourceName(JobReference jobReference) {
+    return "//bigquery.googleapis.com/projects/"
+        + jobReference.getProjectId()
+        + "/locations/"
+        + jobReference.getLocation()
+        + "/jobs/"
+        + jobReference.getJobId();
+  }
+
   /** Return a displayable string representation for a {@link TableReference}. */
   static @Nullable ValueProvider<String> displayTable(
       @Nullable ValueProvider<TableReference> table) {
@@ -385,6 +412,25 @@ public class BigQueryHelpers {
 
     sb.append(ref.getDatasetId()).append('.').append(ref.getTableId());
     return sb.toString();
+  }
+
+  public static List<String> dataCatalogSegments(TableReference ref, BigQueryOptions options) {
+    String tableIdBase;
+    int ix = ref.getTableId().indexOf('$');
+    if (ix == -1) {
+      tableIdBase = ref.getTableId();
+    } else {
+      tableIdBase = ref.getTableId().substring(0, ix);
+    }
+    String projectId;
+    if (!Strings.isNullOrEmpty(ref.getProjectId())) {
+      projectId = ref.getProjectId();
+    } else if (!Strings.isNullOrEmpty(options.getBigQueryProject())) {
+      projectId = options.getBigQueryProject();
+    } else {
+      projectId = options.getProject();
+    }
+    return ImmutableList.of(projectId, ref.getDatasetId(), tableIdBase);
   }
 
   static <K, V> List<V> getOrCreateMapListValue(Map<K, List<V>> map, K key) {
@@ -682,6 +728,23 @@ public class BigQueryHelpers {
     public String apply(TimePartitioning partitioning) {
       return toJsonString(partitioning);
     }
+  }
+
+  static Clustering clusteringFromJsonFields(String jsonStringClustering) {
+    JsonElement jsonClustering = JsonParser.parseString(jsonStringClustering);
+
+    checkArgument(
+        jsonClustering.isJsonArray(),
+        "Received an invalid Clustering json string: %s."
+            + "Please provide a serialized json array like so: [\"column1\", \"column2\"]",
+        jsonStringClustering);
+
+    List<String> fields =
+        jsonClustering.getAsJsonArray().asList().stream()
+            .map(JsonElement::getAsString)
+            .collect(Collectors.toList());
+
+    return new Clustering().setFields(fields);
   }
 
   static String resolveTempLocation(

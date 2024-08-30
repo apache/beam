@@ -391,6 +391,7 @@ class TestWriteStringsToPubSubOverride(unittest.TestCase):
     pcoll = (
         p
         | ReadFromPubSub('projects/fakeprj/topics/baz')
+        | beam.Map(lambda x: PubsubMessage(x))
         | WriteToPubSub(
             'projects/fakeprj/topics/a_topic', with_attributes=True)
         | beam.Map(lambda x: x))
@@ -530,7 +531,7 @@ class TestReadFromPubSub(unittest.TestCase):
     mock_pubsub.return_value.close.assert_has_calls([mock.call()])
 
   def test_read_strings_success(self, mock_pubsub):
-    data = u'🤷 ¯\\_(ツ)_/¯'
+    data = '🤷 ¯\\_(ツ)_/¯'
     data_encoded = data.encode('utf-8')
     ack_id = 'ack_id'
     pull_response = test_utils.create_pull_response(
@@ -552,7 +553,7 @@ class TestReadFromPubSub(unittest.TestCase):
     mock_pubsub.return_value.close.assert_has_calls([mock.call()])
 
   def test_read_data_success(self, mock_pubsub):
-    data_encoded = u'🤷 ¯\\_(ツ)_/¯'.encode('utf-8')
+    data_encoded = '🤷 ¯\\_(ツ)_/¯'.encode('utf-8')
     ack_id = 'ack_id'
     pull_response = test_utils.create_pull_response(
         [test_utils.PullResponseMessage(data_encoded, ack_id=ack_id)])
@@ -875,7 +876,7 @@ class TestWriteToPubSub(unittest.TestCase):
 
     options = PipelineOptions([])
     options.view_as(StandardOptions).streaming = True
-    with self.assertRaisesRegex(AttributeError, r'str.*has no attribute.*data'):
+    with self.assertRaisesRegex(Exception, r'Type hint violation'):
       with TestPipeline(options=options) as p:
         _ = (
             p
@@ -897,7 +898,9 @@ class TestWriteToPubSub(unittest.TestCase):
             p
             | Create(payloads)
             | WriteToPubSub(
-                'projects/fakeprj/topics/a_topic', id_label='a_label'))
+                'projects/fakeprj/topics/a_topic',
+                id_label='a_label',
+                with_attributes=True))
 
     options = PipelineOptions([])
     options.view_as(StandardOptions).streaming = True
@@ -909,7 +912,8 @@ class TestWriteToPubSub(unittest.TestCase):
             | Create(payloads)
             | WriteToPubSub(
                 'projects/fakeprj/topics/a_topic',
-                timestamp_attribute='timestamp'))
+                timestamp_attribute='timestamp',
+                with_attributes=True))
 
   def test_runner_api_transformation(self, unused_mock_pubsub):
     sink = _PubSubSink(

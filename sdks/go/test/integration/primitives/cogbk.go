@@ -20,8 +20,22 @@ import (
 	"fmt"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 )
+
+func init() {
+	register.Function2x0(genA)
+	register.Function2x0(genB)
+	register.Function2x0(genC)
+	register.Function2x0(genD)
+	register.Function3x0(shortFn)
+	register.Function5x0(joinFn)
+	register.Function6x0(splitFn)
+	register.Emitter2[string, int]()
+	register.Emitter2[string, string]()
+	register.Iter1[int]()
+}
 
 func genA(_ []byte, emit func(string, int)) {
 	emit("a", 1)
@@ -100,9 +114,7 @@ func splitFn(key string, v int, a, b, c, d func(int)) {
 }
 
 // CoGBK tests CoGBK.
-func CoGBK() *beam.Pipeline {
-	p, s := beam.NewPipelineWithRoot()
-
+func CoGBK(s beam.Scope) {
 	s2 := s.Scope("SubScope")
 	as := beam.ParDo(s2, genA, beam.Impulse(s))
 	bs := beam.ParDo(s2, genB, beam.Impulse(s))
@@ -116,38 +128,26 @@ func CoGBK() *beam.Pipeline {
 	passert.Sum(s, b, "b", 1, 17)
 	passert.Sum(s, c, "c", 1, 13)
 	passert.Sum(s, d, "d", 1, 14)
-
-	return p
 }
 
 // GBKShortRead tests GBK with a short read on the iterator.
-func GBKShortRead() *beam.Pipeline {
-	p, s := beam.NewPipelineWithRoot()
-
+func GBKShortRead(s beam.Scope) {
 	ds := beam.ParDo(s, genD, beam.Impulse(s))
 	grouped := beam.GroupByKey(s, ds)
 	short := beam.ParDo(s, shortFn, grouped)
 
 	passert.Sum(s, short, "shorted", 3, 11)
-
-	return p
 }
 
 // Reshuffle tests Reshuffle.
-func Reshuffle() *beam.Pipeline {
-	p, s := beam.NewPipelineWithRoot()
-
+func Reshuffle(s beam.Scope) {
 	in := beam.Create(s, 1, 2, 3, 4, 5, 6, 7, 8, 9)
 	in = beam.Reshuffle(s, in)
 	passert.Sum(s, in, "reshuffled", 9, 45)
-
-	return p
 }
 
 // ReshuffleKV tests Reshuffle with KV PCollections.
-func ReshuffleKV() *beam.Pipeline {
-	p, s := beam.NewPipelineWithRoot()
-
+func ReshuffleKV(s beam.Scope) {
 	s2 := s.Scope("SubScope")
 	as := beam.ParDo(s2, genA, beam.Impulse(s))
 	bs := beam.ParDo(s2, genB, beam.Impulse(s))
@@ -167,6 +167,4 @@ func ReshuffleKV() *beam.Pipeline {
 	passert.Sum(s, b, "b", 1, 17)
 	passert.Sum(s, c, "c", 1, 13)
 	passert.Sum(s, d, "d", 1, 14)
-
-	return p
 }

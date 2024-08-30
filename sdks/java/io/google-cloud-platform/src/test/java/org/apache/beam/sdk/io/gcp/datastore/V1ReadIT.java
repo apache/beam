@@ -48,6 +48,7 @@ import org.junit.runners.JUnit4;
 public class V1ReadIT {
   private V1TestOptions options;
   private String project;
+  private String database;
   private String ancestor;
   private final long numEntitiesBeforeReadTime = 600;
   private final long totalNumEntities = 1000;
@@ -58,9 +59,12 @@ public class V1ReadIT {
     PipelineOptionsFactory.register(V1TestOptions.class);
     options = TestPipeline.testingPipelineOptions().as(V1TestOptions.class);
     project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
+    // The default database.
+    database = "";
+
     ancestor = UUID.randomUUID().toString();
     // Create entities and write them to datastore
-    writeEntitiesToDatastore(options, project, ancestor, 0, numEntitiesBeforeReadTime);
+    writeEntitiesToDatastore(options, project, database, ancestor, 0, numEntitiesBeforeReadTime);
 
     Thread.sleep(1000);
     readTime = Instant.now();
@@ -68,12 +72,12 @@ public class V1ReadIT {
 
     long moreEntitiesToWrite = totalNumEntities - numEntitiesBeforeReadTime;
     writeEntitiesToDatastore(
-        options, project, ancestor, numEntitiesBeforeReadTime, moreEntitiesToWrite);
+        options, project, database, ancestor, numEntitiesBeforeReadTime, moreEntitiesToWrite);
   }
 
   @After
   public void tearDown() throws Exception {
-    deleteAllEntities(options, project, ancestor);
+    deleteAllEntities(options, project, database, ancestor);
   }
 
   /**
@@ -93,6 +97,7 @@ public class V1ReadIT {
         DatastoreIO.v1()
             .read()
             .withProjectId(project)
+            .withDatabaseId(database)
             .withQuery(query)
             .withNamespace(options.getNamespace());
 
@@ -108,6 +113,7 @@ public class V1ReadIT {
         DatastoreIO.v1()
             .read()
             .withProjectId(project)
+            .withDatabaseId(database)
             .withQuery(query)
             .withNamespace(options.getNamespace())
             .withReadTime(readTime);
@@ -152,6 +158,7 @@ public class V1ReadIT {
         DatastoreIO.v1()
             .read()
             .withProjectId(project)
+            .withDatabaseId(database)
             .withLiteralGqlQuery(gqlQuery)
             .withNamespace(options.getNamespace());
 
@@ -167,6 +174,7 @@ public class V1ReadIT {
         DatastoreIO.v1()
             .read()
             .withProjectId(project)
+            .withDatabaseId(database)
             .withLiteralGqlQuery(gqlQuery)
             .withNamespace(options.getNamespace())
             .withReadTime(readTime);
@@ -181,11 +189,17 @@ public class V1ReadIT {
 
   // Creates entities and write them to datastore
   private static void writeEntitiesToDatastore(
-      V1TestOptions options, String project, String ancestor, long valueOffset, long numEntities)
+      V1TestOptions options,
+      String project,
+      String database,
+      String ancestor,
+      long valueOffset,
+      long numEntities)
       throws Exception {
-    Datastore datastore = getDatastore(options, project);
+    Datastore datastore = getDatastore(options, project, database);
     // Write test entities to datastore
-    V1TestWriter writer = new V1TestWriter(datastore, new UpsertMutationBuilder());
+    V1TestWriter writer =
+        new V1TestWriter(datastore, project, database, new UpsertMutationBuilder());
     Key ancestorKey = makeAncestorKey(options.getNamespace(), options.getKind(), ancestor);
 
     for (long i = 0; i < numEntities; i++) {

@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
 import com.google.cloud.bigtable.config.BigtableOptions;
@@ -25,11 +25,12 @@ import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.gcp.auth.CredentialFactory;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.BigtableClientOverride;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Configuration for a Cloud Bigtable client. */
@@ -48,6 +49,9 @@ public abstract class BigtableConfig implements Serializable {
 
   /** Returns the app profile being read from. */
   public abstract @Nullable ValueProvider<String> getAppProfileId();
+
+  /** Returns the Bigtable client override. */
+  public abstract @Nullable BigtableClientOverride getBigtableClientOverride();
 
   /**
    * Returns the Google Cloud Bigtable instance being written to, and other parameters.
@@ -113,6 +117,8 @@ public abstract class BigtableConfig implements Serializable {
 
     abstract Builder setChannelCount(int count);
 
+    abstract Builder setBigtableClientOverride(BigtableClientOverride clientOverride);
+
     abstract BigtableConfig build();
   }
 
@@ -154,6 +160,12 @@ public abstract class BigtableConfig implements Serializable {
   public BigtableConfig withEmulator(String emulatorHost) {
     checkArgument(emulatorHost != null, "emulatorHost can not be null");
     return toBuilder().setEmulatorHost(emulatorHost).build();
+  }
+
+  @VisibleForTesting
+  BigtableConfig withBigtableClientOverride(BigtableClientOverride clientOverride) {
+    checkArgument(clientOverride != null, "clientOverride can not be null");
+    return toBuilder().setBigtableClientOverride(clientOverride).build();
   }
 
   void validate() {

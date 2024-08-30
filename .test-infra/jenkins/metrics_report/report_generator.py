@@ -27,11 +27,14 @@ from dashboards_parser import guess_dashboard_by_measurement
 
 INFLUXDB_USER = os.getenv("INFLUXDB_USER")
 INFLUXDB_USER_PASSWORD = os.getenv("INFLUXDB_USER_PASSWORD")
-WORKING_SPACE = os.getenv("WORKSPACE", "")
+WORKING_SPACE = os.getenv("GITHUB_WORKSPACE", os.getenv("WORKSPACE", ""))
+if "GITHUB_WORKSPACE" in os.environ:
+   path_prefix = ""
+else:
+    path_prefix= "src/"
 PERF_DASHBOARDS = os.path.join(
     WORKING_SPACE,
-    "src/.test-infra/metrics/grafana/dashboards/perftests_metrics/")
-
+    path_prefix+".test-infra/metrics/grafana/dashboards/perftests_metrics/")
 TABLE_FIELD_NAMES = [
     "Measurement",
     "Metric",

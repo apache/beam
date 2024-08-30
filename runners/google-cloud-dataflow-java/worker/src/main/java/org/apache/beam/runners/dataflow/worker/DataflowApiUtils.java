@@ -23,8 +23,8 @@ import com.google.api.client.json.JsonGenerator;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.CountingOutputStream;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.CountingOutputStream;
 
 /** A utility class for generic interactions with the Google Cloud Dataflow API. */
 public final class DataflowApiUtils {

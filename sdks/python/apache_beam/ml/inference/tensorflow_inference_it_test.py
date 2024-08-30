@@ -18,7 +18,6 @@
 """End-to-End test for Tensorflow Inference"""
 
 import logging
-import sys
 import unittest
 import uuid
 from pathlib import Path
@@ -68,10 +67,6 @@ def clear_tf_hub_temp_dir(model_path):
 
 
 @unittest.skipIf(
-    sys.version_info.major == 3 and sys.version_info.minor == 7,
-    "Tensorflow tests on Python 3.7 with Apache Beam 2.47.0 or "
-    "greater are skipped since tensorflow>=2.12 doesn't support Python 3.7")
-@unittest.skipIf(
     tf is None, 'Missing dependencies. '
     'Test depends on tensorflow')
 @pytest.mark.uses_tf
@@ -87,6 +82,37 @@ class TensorflowInference(unittest.TestCase):
         'input': input_file,
         'output': output_file,
         'model_path': model_path,
+    }
+    tensorflow_mnist_classification.run(
+        test_pipeline.get_full_options_as_args(**extra_opts),
+        save_main_session=False)
+    self.assertEqual(FileSystems().exists(output_file), True)
+
+    expected_output_filepath = 'gs://apache-beam-ml/testing/expected_outputs/test_sklearn_mnist_classification_actuals.txt'  # pylint: disable=line-too-long
+    expected_outputs = process_outputs(expected_output_filepath)
+    predicted_outputs = process_outputs(output_file)
+    self.assertEqual(len(expected_outputs), len(predicted_outputs))
+
+    predictions_dict = {}
+    for i in range(len(predicted_outputs)):
+      true_label, prediction = predicted_outputs[i].split(',')
+      predictions_dict[true_label] = prediction
+
+    for i in range(len(expected_outputs)):
+      true_label, expected_prediction = expected_outputs[i].split(',')
+      self.assertEqual(predictions_dict[true_label], expected_prediction)
+
+  def test_tf_mnist_classification_large_model(self):
+    test_pipeline = TestPipeline(is_integration_test=True)
+    input_file = 'gs://apache-beam-ml/testing/inputs/it_mnist_data.csv'
+    output_file_dir = 'gs://apache-beam-ml/testing/outputs'
+    output_file = '/'.join([output_file_dir, str(uuid.uuid4()), 'result.txt'])
+    model_path = 'gs://apache-beam-ml/models/tensorflow/mnist/'
+    extra_opts = {
+        'input': input_file,
+        'output': output_file,
+        'model_path': model_path,
+        'large_model': True,
     }
     tensorflow_mnist_classification.run(
         test_pipeline.get_full_options_as_args(**extra_opts),

@@ -27,12 +27,13 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
 	v1pb "github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/timers"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/protox"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 )
 
 // TODO(lostluck): 2018/05/28 Extract these from the canonical enums in beam_runner_api.proto
@@ -50,8 +51,8 @@ const (
 )
 
 // UnmarshalPlan converts a model bundle descriptor into an execution Plan.
-func UnmarshalPlan(desc *fnpb.ProcessBundleDescriptor) (*Plan, error) {
-	b, err := newBuilder(desc)
+func UnmarshalPlan(desc *fnpb.ProcessBundleDescriptor, dataSampler *DataSampler) (*Plan, error) {
+	b, err := newBuilder(desc, dataSampler)
 	if err != nil {
 		return nil, err
 	}
@@ -168,8 +169,9 @@ type builder struct {
 	nodes     map[string]*PCollection // PCollectionID -> Node (cache)
 	links     map[linkID]Node         // linkID -> Node (cache)
 
-	units []Unit // result
-	idgen *GenID
+	units       []Unit // result
+	idgen       *GenID
+	dataSampler *DataSampler
 }
 
 // linkID represents an incoming data link to an Node.
@@ -178,7 +180,7 @@ type linkID struct {
 	input int    // input index. If > 0, it's a side input.
 }
 
-func newBuilder(desc *fnpb.ProcessBundleDescriptor) (*builder, error) {
+func newBuilder(desc *fnpb.ProcessBundleDescriptor, dataSampler *DataSampler) (*builder, error) {
 	// Preprocess graph structure to allow insertion of Multiplex,
 	// Flatten and Discard.
 
@@ -192,7 +194,11 @@ func newBuilder(desc *fnpb.ProcessBundleDescriptor) (*builder, error) {
 
 		input := unmarshalKeyedValues(transform.GetInputs())
 		for i, from := range input {
-			succ[from] = append(succ[from], linkID{id, i})
+			// We don't need to multiplex successors for pardo side inputs.
+			// so we only do so for SDK side Flattens.
+			if i == 0 || transform.GetSpec().GetUrn() == graphx.URNFlatten {
+				succ[from] = append(succ[from], linkID{id, i})
+			}
 		}
 		output := unmarshalKeyedValues(transform.GetOutputs())
 		for _, to := range output {
@@ -211,7 +217,8 @@ func newBuilder(desc *fnpb.ProcessBundleDescriptor) (*builder, error) {
 		nodes:     make(map[string]*PCollection),
 		links:     make(map[linkID]Node),
 
-		idgen: &GenID{},
+		idgen:       &GenID{},
+		dataSampler: dataSampler,
 	}
 	return b, nil
 }
@@ -360,7 +367,7 @@ func (b *builder) makeCoderForPCollection(id string) (*coder.Coder, *coder.Windo
 	}
 	wc, err := b.coders.WindowCoder(ws.GetWindowCoderId())
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, errors.Errorf("could not unmarshal window coder for pcollection %v: %w", id, err)
 	}
 	return c, wc, nil
 }
@@ -406,11 +413,11 @@ func (b *builder) makePCollection(id string) (*PCollection, error) {
 }
 
 func (b *builder) newPCollectionNode(id string, out Node) (*PCollection, error) {
-	ec, _, err := b.makeCoderForPCollection(id)
+	ec, wc, err := b.makeCoderForPCollection(id)
 	if err != nil {
 		return nil, err
 	}
-	u := &PCollection{UID: b.idgen.New(), Out: out, PColID: id, Coder: ec, Seed: rand.Int63()}
+	u := &PCollection{UID: b.idgen.New(), Out: out, PColID: id, Coder: ec, WindowCoder: wc, Seed: rand.Int63(), dataSampler: b.dataSampler}
 	b.nodes[id] = u
 	b.units = append(b.units, u)
 	return u, nil
@@ -520,7 +527,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 					u = &TruncateSizedRestriction{UID: b.idgen.New(), Fn: dofn, Out: out[0]}
 				default:
 					n := &ParDo{UID: b.idgen.New(), Fn: dofn, Inbound: in, Out: out}
-					n.PID = transform.GetUniqueName()
+					n.PID = id.to
 
 					input := unmarshalKeyedValues(transform.GetInputs())
 
@@ -592,12 +599,17 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 
 					if len(userTimers) > 0 {
 						sID := StreamID{Port: Port{URL: b.desc.GetTimerApiServiceDescriptor().GetUrl()}, PtransformID: id.to}
-						ec, wc, err := b.makeCoderForPCollection(input[0])
-						if err != nil {
-							return nil, err
+
+						familyToSpec := map[string]timerFamilySpec{}
+						for fam, spec := range userTimers {
+							domain := timers.TimeDomain(spec.GetTimeDomain())
+							timerCoder, err := b.coders.Coder(spec.GetTimerFamilyCoderId())
+							if err != nil {
+								return nil, errors.WithContextf(err, "couldn't retreive coder for timer %v in DoFn %v, ID %v", fam, dofn.Name(), n.PID)
+							}
+							familyToSpec[fam] = newTimerFamilySpec(domain, timerCoder)
 						}
-						timerCoder := coder.NewT(ec.Components[0], wc)
-						n.Timer = NewUserTimerAdapter(sID, coder.NewW(ec, wc), timerCoder)
+						n.TimerTracker = newUserTimerAdapter(sID, familyToSpec)
 					}
 
 					for i := 1; i < len(input); i++ {
@@ -648,7 +660,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 				}
 				cn.UsesKey = typex.IsKV(in[0].Type)
 
-				cn.PID = transform.GetUniqueName()
+				cn.PID = id.to
 
 				switch urn {
 				case urnPerKeyCombinePre:
@@ -725,7 +737,10 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 			}
 			// Strip PCollections from Expand nodes, as CoGBK metrics are handled by
 			// the DataSource that preceeds them.
-			trueOut := out[0].(*PCollection).Out
+			trueOut := out[0]
+			if pcol, ok := trueOut.(*PCollection); ok {
+				trueOut = pcol.Out
+			}
 			b.units = b.units[:len(b.units)-1]
 			u = &Expand{UID: b.idgen.New(), ValueDecoders: decoders, Out: trueOut}
 
@@ -783,7 +798,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		u = &MapWindows{UID: b.idgen.New(), Fn: mapper, Out: out[0]}
+		u = &MapWindows{UID: b.idgen.New(), Fn: mapper, Out: out[0], FnUrn: fn.GetUrn()}
 
 	case graphx.URNFlatten:
 		u = &Flatten{UID: b.idgen.New(), N: len(transform.Inputs), Out: out[0]}
@@ -809,6 +824,9 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 			return nil, errors.Errorf("unwindowed coder %v on DataSink %v: %v", cid, id, sink.Coder)
 		}
 		u = sink
+
+	case graphx.URNToString:
+		u = &ToString{UID: b.idgen.New(), Out: out[0]}
 
 	default:
 		panic(fmt.Sprintf("Unexpected transform URN: %v", urn))

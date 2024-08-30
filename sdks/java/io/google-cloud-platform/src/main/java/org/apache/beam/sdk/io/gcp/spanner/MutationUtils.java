@@ -20,7 +20,7 @@ package org.apache.beam.sdk.io.gcp.spanner;
 import static java.util.stream.Collectors.toList;
 import static org.apache.beam.sdk.io.gcp.spanner.StructUtils.beamRowToStruct;
 import static org.apache.beam.sdk.io.gcp.spanner.StructUtils.beamTypeToSpannerType;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.cloud.ByteArray;
 import com.google.cloud.Timestamp;
@@ -32,7 +32,7 @@ import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.ReadableDateTime;
 
@@ -207,12 +207,7 @@ final class MutationUtils {
         mutationBuilder.set(columnName).to(row.getInt64(columnName));
         break;
       case FLOAT:
-        @Nullable Float floatValue = row.getFloat(columnName);
-        if (floatValue == null) {
-          mutationBuilder.set(columnName).to(((Double) null));
-        } else {
-          mutationBuilder.set(columnName).to(floatValue);
-        }
+        mutationBuilder.set(columnName).to(row.getFloat(columnName));
         break;
       case DOUBLE:
         mutationBuilder.set(columnName).to(row.getDouble(columnName));
@@ -311,6 +306,8 @@ final class MutationUtils {
         mutationBuilder.set(column).toInt64Array((Iterable<Long>) ((Object) iterable));
         break;
       case FLOAT:
+        mutationBuilder.set(column).toFloat32Array((Iterable<Float>) ((Object) iterable));
+        break;
       case DOUBLE:
         mutationBuilder.set(column).toFloat64Array((Iterable<Double>) ((Object) iterable));
         break;

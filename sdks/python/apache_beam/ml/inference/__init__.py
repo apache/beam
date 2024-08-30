@@ -21,7 +21,7 @@ as an interface for adding unsupported frameworks.
 
 Note: on top of the frameworks captured in submodules below, Beam also has
 a supported TensorFlow model handler via the tfx-bsl library. See
-https://beam.apache.org/documentation/sdks/python-machine-learning/#tensorflow
+https://beam.apache.org/documentation/ml/about-ml/#tensorflow
 for more information on using TensorFlow in Beam.
 """
 

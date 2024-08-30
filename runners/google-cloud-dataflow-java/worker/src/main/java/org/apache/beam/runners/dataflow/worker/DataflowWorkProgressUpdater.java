@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.runners.dataflow.util.TimeUtil.fromCloudDuration;
 import static org.apache.beam.runners.dataflow.util.TimeUtil.fromCloudTime;
+import static org.apache.beam.sdk.options.ExperimentalOptions.hasExperiment;
 
 import com.google.api.client.util.Clock;
 import com.google.api.services.dataflow.model.ApproximateSplitRequest;
@@ -31,7 +32,7 @@ import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.TimeUtil;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.WorkExecutor;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.WorkProgressUpdater;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -132,7 +133,7 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
 
         // The key set the in BatchModeExecutionContext is only set in the GroupingShuffleReader
         // which is the correct key. The key is also translated into a Java object in the reader.
-        if (options.isHotKeyLoggingEnabled()) {
+        if (options.isHotKeyLoggingEnabled() || hasExperiment(options, "enable_hot_key_logging")) {
           hotKeyLogger.logHotKeyDetection(
               hotKeyDetection.getUserStepName(),
               TimeUtil.fromCloudDuration(hotKeyDetection.getHotKeyAge()),

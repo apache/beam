@@ -37,7 +37,7 @@ jobs:
       VERSION_PATH: ${{ github.event.inputs.VERSION_TAG }}
     steps:
       - name: Check out code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Set git config
         run: |
           git config user.name $GITHUB_ACTOR

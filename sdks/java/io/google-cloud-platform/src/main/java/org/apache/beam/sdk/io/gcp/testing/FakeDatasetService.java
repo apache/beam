@@ -32,6 +32,7 @@ import com.google.api.services.bigquery.model.TableDataInsertAllResponse;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.cloud.bigquery.storage.v1.AppendRowsRequest;
 import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
 import com.google.cloud.bigquery.storage.v1.BatchCommitWriteStreamsResponse;
 import com.google.cloud.bigquery.storage.v1.Exceptions;
@@ -43,6 +44,8 @@ import com.google.cloud.bigquery.storage.v1.WriteStream.Type;
 import com.google.errorprone.annotations.FormatMethod;
 import com.google.errorprone.annotations.FormatString;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.DescriptorProtos;
+import com.google.protobuf.Descriptors;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.Timestamp;
@@ -62,28 +65,31 @@ import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.StreamAppendClient;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.WriteStreamService;
 import org.apache.beam.sdk.io.gcp.bigquery.ErrorContainer;
 import org.apache.beam.sdk.io.gcp.bigquery.InsertRetryPolicy;
 import org.apache.beam.sdk.io.gcp.bigquery.InsertRetryPolicy.Context;
+import org.apache.beam.sdk.io.gcp.bigquery.StorageApiCDC;
 import org.apache.beam.sdk.io.gcp.bigquery.TableRowToStorageApiProto;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.FailsafeValueInSingleWindow;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashBasedTable;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.HashBasedTable;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 
 /** A fake dataset service that can be serialized, for use in testReadFromTable. */
 @Internal
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-public class FakeDatasetService implements DatasetService, Serializable {
+public class FakeDatasetService implements DatasetService, WriteStreamService, Serializable {
   // Table information must be static, as each ParDo will get a separate instance of
   // FakeDatasetServices, and they must all modify the same storage.
-  static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Table<
+  static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Table<
           String, String, Map<String, TableContainer>>
       tables;
   static Map<String, Stream> writeStreams;
@@ -92,8 +98,26 @@ public class FakeDatasetService implements DatasetService, Serializable {
   public void close() throws Exception {}
 
   static class Stream {
+    static class Entry {
+      enum UpdateType {
+        INSERT,
+        UPSERT,
+        DELETE
+      };
+
+      final TableRow tableRow;
+      final UpdateType updateType;
+      final long sqn;
+
+      public Entry(TableRow tableRow, UpdateType updateType, long sqn) {
+        this.tableRow = tableRow;
+        this.updateType = updateType;
+        this.sqn = sqn;
+      }
+    }
+
     final String streamName;
-    final List<TableRow> stream;
+    final List<Entry> stream;
     final TableContainer tableContainer;
     final Type type;
     long nextFlushPosition;
@@ -132,7 +156,7 @@ public class FakeDatasetService implements DatasetService, Serializable {
       return stream.size();
     }
 
-    void appendRows(long position, List<TableRow> rowsToAppend) {
+    void appendRows(long position, List<Entry> rowsToAppend) {
       if (finalized) {
         throw new RuntimeException("Stream already finalized.");
       }
@@ -147,9 +171,7 @@ public class FakeDatasetService implements DatasetService, Serializable {
       }
       stream.addAll(rowsToAppend);
       if (type == Type.COMMITTED) {
-        for (TableRow row : rowsToAppend) {
-          tableContainer.addRow(row, "");
-        }
+        rowsToAppend.forEach(this::applyEntry);
       }
     }
 
@@ -160,7 +182,20 @@ public class FakeDatasetService implements DatasetService, Serializable {
         throw new RuntimeException("");
       }
       for (; nextFlushPosition <= position; ++nextFlushPosition) {
-        tableContainer.addRow(stream.get((int) nextFlushPosition), "");
+        applyEntry(stream.get((int) nextFlushPosition));
+      }
+    }
+
+    void applyEntry(Entry entry) {
+      switch (entry.updateType) {
+        case INSERT:
+          tableContainer.addRow(entry.tableRow, "");
+          break;
+        case UPSERT:
+          tableContainer.upsertRow(entry.tableRow, entry.sqn);
+          break;
+        case DELETE:
+          tableContainer.deleteRow(entry.tableRow, entry.sqn);
       }
     }
 
@@ -169,7 +204,7 @@ public class FakeDatasetService implements DatasetService, Serializable {
         throw new RuntimeException("Can't commit unfinalized stream.");
       }
       Preconditions.checkState(type == Type.PENDING);
-      stream.forEach(tr -> tableContainer.addRow(tr, null));
+      stream.forEach(this::applyEntry);
     }
   }
 
@@ -352,6 +387,26 @@ public class FakeDatasetService implements DatasetService, Serializable {
           stream.setUpdatedSchema(tableSchema);
         }
       }
+    }
+  }
+
+  public void setPrimaryKey(TableReference tableReference, List<String> columns)
+      throws IOException {
+    validateWholeTableReference(tableReference);
+    synchronized (FakeDatasetService.class) {
+      Map<String, TableContainer> dataset =
+          tables.get(tableReference.getProjectId(), tableReference.getDatasetId());
+      if (dataset == null) {
+        throwNotFound(
+            "Tried to get a dataset %s:%s, but no such table was set",
+            tableReference.getProjectId(), tableReference.getDatasetId());
+      }
+      @Nullable TableContainer tableContainer = dataset.get(tableReference.getTableId());
+      if (tableContainer == null) {
+        throwNotFound("Tried to get a table %s, but no such table existed", tableReference);
+      }
+      // Set primary key columns.
+      tableContainer.setPrimaryKeyColumns(columns);
     }
   }
 
@@ -548,14 +603,22 @@ public class FakeDatasetService implements DatasetService, Serializable {
 
   @Override
   public StreamAppendClient getStreamAppendClient(
-      String streamName, Descriptor descriptor, boolean useConnectionPool) {
+      String streamName,
+      DescriptorProtos.DescriptorProto descriptor,
+      boolean useConnectionPool,
+      AppendRowsRequest.MissingValueInterpretation missingValueInterpretation)
+      throws Exception {
     return new StreamAppendClient() {
       private Descriptor protoDescriptor;
       private TableSchema currentSchema;
       private @Nullable com.google.cloud.bigquery.storage.v1.TableSchema updatedSchema;
 
+      private boolean usedForInsert = false;
+      private boolean usedForUpdate = false;
+
       {
-        this.protoDescriptor = descriptor;
+        this.protoDescriptor = TableRowToStorageApiProto.wrapDescriptorProto(descriptor);
+
         synchronized (FakeDatasetService.class) {
           Stream stream = writeStreams.get(streamName);
           if (stream == null) {
@@ -575,7 +638,7 @@ public class FakeDatasetService implements DatasetService, Serializable {
           if (stream == null) {
             throw new RuntimeException("No such stream: " + streamName);
           }
-          List<TableRow> tableRows =
+          List<Stream.Entry> streamEntries =
               Lists.newArrayListWithExpectedSize(rows.getSerializedRowsCount());
           Map<Integer, String> rowIndexToErrorMessage = Maps.newHashMap();
           for (int i = 0; i < rows.getSerializedRowsCount(); ++i) {
@@ -586,21 +649,48 @@ public class FakeDatasetService implements DatasetService, Serializable {
             }
             TableRow tableRow =
                 TableRowToStorageApiProto.tableRowFromMessage(
-                    DynamicMessage.parseFrom(protoDescriptor, bytes));
+                    DynamicMessage.parseFrom(protoDescriptor, bytes),
+                    false,
+                    Predicates.alwaysTrue());
             if (shouldFailRow.apply(tableRow)) {
               rowIndexToErrorMessage.put(i, "Failing row " + tableRow.toPrettyString());
             }
-            tableRows.add(tableRow);
+            String insertTypeStr = null;
+            long changeSequenceNum = -1;
+            Descriptors.FieldDescriptor fieldDescriptor =
+                protoDescriptor.findFieldByName(StorageApiCDC.CHANGE_TYPE_COLUMN);
+            if (fieldDescriptor != null) {
+              insertTypeStr = (String) msg.getField(fieldDescriptor);
+            }
+            fieldDescriptor = protoDescriptor.findFieldByName(StorageApiCDC.CHANGE_SQN_COLUMN);
+            if (fieldDescriptor != null) {
+              String changeSequenceNumHex = (String) msg.getField(fieldDescriptor);
+              changeSequenceNum = Long.parseUnsignedLong(changeSequenceNumHex, 16);
+            }
+            Stream.Entry.UpdateType insertType = Stream.Entry.UpdateType.INSERT;
+            if (insertTypeStr != null) {
+              insertType = Stream.Entry.UpdateType.valueOf(insertTypeStr);
+            }
+            if (insertType == Stream.Entry.UpdateType.INSERT) {
+              Preconditions.checkArgument(
+                  !usedForUpdate, "Stream can't be used for update and insert.");
+              usedForInsert = true;
+            } else {
+              Preconditions.checkArgument(
+                  !usedForInsert, "Stream can't be used for update and insert.");
+              usedForUpdate = true;
+            }
+            streamEntries.add(new Stream.Entry(tableRow, insertType, changeSequenceNum));
           }
           if (!rowIndexToErrorMessage.isEmpty()) {
             return ApiFutures.immediateFailedFuture(
-                new Exceptions.AppendSerializtionError(
+                new Exceptions.AppendSerializationError(
                     Code.INVALID_ARGUMENT.getNumber(),
                     "Append serialization failed for writer: " + streamName,
                     stream.streamName,
                     rowIndexToErrorMessage));
           }
-          stream.appendRows(offset, tableRows);
+          stream.appendRows(offset, streamEntries);
           if (stream.getUpdatedSchema() != null) {
             com.google.cloud.bigquery.storage.v1.TableSchema newSchema =
                 TableRowToStorageApiProto.schemaToProtoTableSchema(stream.getUpdatedSchema());

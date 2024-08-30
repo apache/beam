@@ -31,7 +31,7 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.Convention
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.FrameworkConfig;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.Frameworks;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.RuleSet;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 /** Common setup for ZetaSQL tests. */
 public abstract class ZetaSqlTestBase {

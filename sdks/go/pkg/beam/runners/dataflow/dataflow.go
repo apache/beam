@@ -35,6 +35,7 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/pipelinex"
@@ -46,7 +47,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/dataflow/dataflowlib"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/gcsx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/hooks/perf"
-	"github.com/golang/protobuf/proto"
 )
 
 // TODO(herohde) 5/16/2017: the Dataflow flags should match the other SDKs.
@@ -69,6 +69,7 @@ var (
 	network                = flag.String("network", "", "GCP network (optional)")
 	subnetwork             = flag.String("subnetwork", "", "GCP subnetwork (optional)")
 	noUsePublicIPs         = flag.Bool("no_use_public_ips", false, "Workers must not use public IP addresses (optional)")
+	usePublicIPs           = flag.Bool("use_public_ips", true, "Workers must use public IP addresses (optional)")
 	tempLocation           = flag.String("temp_location", "", "Temp location (optional)")
 	workerMachineType      = flag.String("worker_machine_type", "", "GCE machine type (optional)")
 	machineType            = flag.String("machine_type", "", "alias of worker_machine_type (optional)")
@@ -233,7 +234,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 	if *dryRun {
 		log.Info(ctx, "Dry-run: not submitting job!")
 
-		log.Info(ctx, proto.MarshalTextString(model))
+		log.Info(ctx, model.String())
 		job, err := dataflowlib.Translate(ctx, model, opts, workerURL, modelURL)
 		if err != nil {
 			return nil, err
@@ -243,6 +244,16 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 	}
 
 	return dataflowlib.Execute(ctx, model, opts, workerURL, modelURL, *endpoint, *jobopts.Async)
+}
+
+func isFlagPassed(name string) bool {
+	found := false
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == name {
+			found = true
+		}
+	})
+	return found
 }
 
 func getJobOptions(ctx context.Context, streaming bool) (*dataflowlib.JobOptions, error) {
@@ -292,6 +303,17 @@ func getJobOptions(ctx context.Context, streaming bool) (*dataflowlib.JobOptions
 	if *transformMapping != "" {
 		if err := json.Unmarshal([]byte(*transformMapping), &updateTransformMapping); err != nil {
 			return nil, errors.Wrapf(err, "error reading --transform_name_mapping flag as JSON")
+		}
+	}
+	if *usePublicIPs == *noUsePublicIPs {
+		useSet := isFlagPassed("use_public_ips")
+		noUseSet := isFlagPassed("no_use_public_ips")
+		// If use_public_ips was explicitly set but no_use_public_ips was not, use that value
+		// We take the explicit value of no_use_public_ips if it was set but use_public_ips was not.
+		if useSet && !noUseSet {
+			*noUsePublicIPs = !*usePublicIPs
+		} else if useSet && noUseSet {
+			return nil, errors.New("exactly one of usePublicIPs and noUsePublicIPs must be true, please check that only one is true")
 		}
 	}
 
@@ -420,7 +442,17 @@ func getContainerImage(ctx context.Context) string {
 		if *image != "" {
 			return *image
 		}
-		return jobopts.GetEnvironmentConfig(ctx)
+		envConfig := jobopts.GetEnvironmentConfig(ctx)
+		if envConfig == core.DefaultDockerImage {
+			// It's possible the user set the image exactly manually, but unlikely.
+			// Prefer using the gcr.io image by default.
+			// Note: This doesn't change the dev experience, which requires a user
+			// to have a dev image.
+			// However, RC versions should automatically be picked up, since
+			// they are never tagged the RC number, just the main version.
+			return "gcr.io/cloud-dataflow/v1beta3/beam_go_sdk:" + core.SdkVersion
+		}
+		return envConfig
 	}
 	panic(fmt.Sprintf("Unsupported environment %v", urn))
 }

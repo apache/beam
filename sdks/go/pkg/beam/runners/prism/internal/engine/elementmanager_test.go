@@ -61,7 +61,7 @@ func TestElementHeap(t *testing.T) {
 func TestStageState_minPendingTimestamp(t *testing.T) {
 
 	newState := func() *stageState {
-		return makeStageState("test", []string{"testInput"}, nil, []string{"testOutput"})
+		return makeStageState("test", []string{"testInput"}, []string{"testOutput"}, nil)
 	}
 	t.Run("noElements", func(t *testing.T) {
 		ss := newState()
@@ -188,13 +188,13 @@ func TestStageState_minPendingTimestamp(t *testing.T) {
 }
 
 func TestStageState_UpstreamWatermark(t *testing.T) {
-	impulse := makeStageState("impulse", nil, nil, []string{"output"})
+	impulse := makeStageState("impulse", nil, []string{"output"}, nil)
 	_, up := impulse.UpstreamWatermark()
 	if got, want := up, mtime.MaxTimestamp; got != want {
 		t.Errorf("impulse.UpstreamWatermark() = %v, want %v", got, want)
 	}
 
-	dofn := makeStageState("dofn", []string{"input"}, nil, []string{"output"})
+	dofn := makeStageState("dofn", []string{"input"}, []string{"output"}, nil)
 	dofn.updateUpstreamWatermark("input", 42)
 
 	_, up = dofn.UpstreamWatermark()
@@ -202,7 +202,7 @@ func TestStageState_UpstreamWatermark(t *testing.T) {
 		t.Errorf("dofn.UpstreamWatermark() = %v, want %v", got, want)
 	}
 
-	flatten := makeStageState("flatten", []string{"a", "b", "c"}, nil, []string{"output"})
+	flatten := makeStageState("flatten", []string{"a", "b", "c"}, []string{"output"}, nil)
 	flatten.updateUpstreamWatermark("a", 50)
 	flatten.updateUpstreamWatermark("b", 42)
 	flatten.updateUpstreamWatermark("c", 101)
@@ -216,7 +216,7 @@ func TestStageState_updateWatermarks(t *testing.T) {
 	inputCol := "testInput"
 	outputCol := "testOutput"
 	newState := func() (*stageState, *stageState, *ElementManager) {
-		underTest := makeStageState("underTest", []string{inputCol}, nil, []string{outputCol})
+		underTest := makeStageState("underTest", []string{inputCol}, []string{outputCol}, nil)
 		outStage := makeStageState("outStage", []string{outputCol}, nil, nil)
 		em := &ElementManager{
 			consumers: map[string][]string{
@@ -294,7 +294,9 @@ func TestStageState_updateWatermarks(t *testing.T) {
 			ss.input = test.initInput
 			ss.output = test.initOutput
 			ss.updateUpstreamWatermark(inputCol, test.upstream)
-			ss.updateWatermarks(test.minPending, test.minStateHold, em)
+			ss.pending = append(ss.pending, element{timestamp: test.minPending})
+			ss.watermarkHolds.Add(test.minStateHold, 1)
+			ss.updateWatermarks(em)
 			if got, want := ss.input, test.wantInput; got != want {
 				pcol, up := ss.UpstreamWatermark()
 				t.Errorf("ss.updateWatermarks(%v,%v); ss.input = %v, want %v (upstream %v %v)", test.minPending, test.minStateHold, got, want, pcol, up)
@@ -314,8 +316,9 @@ func TestStageState_updateWatermarks(t *testing.T) {
 
 func TestElementManager(t *testing.T) {
 	t.Run("impulse", func(t *testing.T) {
+		ctx, cancelFn := context.WithCancelCause(context.Background())
 		em := NewElementManager(Config{})
-		em.AddStage("impulse", nil, nil, []string{"output"})
+		em.AddStage("impulse", nil, []string{"output"}, nil)
 		em.AddStage("dofn", []string{"output"}, nil, nil)
 
 		em.Impulse("impulse")
@@ -325,7 +328,7 @@ func TestElementManager(t *testing.T) {
 		}
 
 		var i int
-		ch := em.Bundles(context.Background(), func() string {
+		ch := em.Bundles(ctx, cancelFn, func() string {
 			defer func() { i++ }()
 			return fmt.Sprintf("%v", i)
 		})
@@ -336,7 +339,7 @@ func TestElementManager(t *testing.T) {
 		if got, want := rb.StageID, "dofn"; got != want {
 			t.Errorf("stage to execute = %v, want %v", got, want)
 		}
-		em.PersistBundle(rb, nil, TentativeData{}, PColInfo{}, nil, nil)
+		em.PersistBundle(rb, nil, TentativeData{}, PColInfo{}, Residuals{})
 		_, ok = <-ch
 		if ok {
 			t.Error("Bundles channel expected to be closed")
@@ -369,14 +372,15 @@ func TestElementManager(t *testing.T) {
 	}
 
 	t.Run("dofn", func(t *testing.T) {
+		ctx, cancelFn := context.WithCancelCause(context.Background())
 		em := NewElementManager(Config{})
-		em.AddStage("impulse", nil, nil, []string{"input"})
-		em.AddStage("dofn1", []string{"input"}, nil, []string{"output"})
+		em.AddStage("impulse", nil, []string{"input"}, nil)
+		em.AddStage("dofn1", []string{"input"}, []string{"output"}, nil)
 		em.AddStage("dofn2", []string{"output"}, nil, nil)
 		em.Impulse("impulse")
 
 		var i int
-		ch := em.Bundles(context.Background(), func() string {
+		ch := em.Bundles(ctx, cancelFn, func() string {
 			defer func() { i++ }()
 			t.Log("generating bundle", i)
 			return fmt.Sprintf("%v", i)
@@ -395,7 +399,7 @@ func TestElementManager(t *testing.T) {
 			"output": info,
 		}
 
-		em.PersistBundle(rb, outputCoders, td, info, nil, nil)
+		em.PersistBundle(rb, outputCoders, td, info, Residuals{})
 		rb, ok = <-ch
 		if !ok {
 			t.Error("Bundles channel not expected to be closed")
@@ -408,7 +412,7 @@ func TestElementManager(t *testing.T) {
 		if !cmp.Equal([]byte{127, 223, 59, 100, 90, 28, 172, 9, 0, 0, 0, 1, 15, 3, 65, 66, 67}, data[0]) {
 			t.Errorf("unexpected data, got %v", data[0])
 		}
-		em.PersistBundle(rb, outputCoders, TentativeData{}, info, nil, nil)
+		em.PersistBundle(rb, outputCoders, TentativeData{}, info, Residuals{})
 		rb, ok = <-ch
 		if ok {
 			t.Error("Bundles channel expected to be closed", rb)
@@ -420,14 +424,15 @@ func TestElementManager(t *testing.T) {
 	})
 
 	t.Run("side", func(t *testing.T) {
+		ctx, cancelFn := context.WithCancelCause(context.Background())
 		em := NewElementManager(Config{})
-		em.AddStage("impulse", nil, nil, []string{"input"})
-		em.AddStage("dofn1", []string{"input"}, nil, []string{"output"})
-		em.AddStage("dofn2", []string{"input"}, []string{"output"}, nil)
+		em.AddStage("impulse", nil, []string{"input"}, nil)
+		em.AddStage("dofn1", []string{"input"}, []string{"output"}, nil)
+		em.AddStage("dofn2", []string{"input"}, nil, []LinkID{{Transform: "dofn2", Global: "output", Local: "local"}})
 		em.Impulse("impulse")
 
 		var i int
-		ch := em.Bundles(context.Background(), func() string {
+		ch := em.Bundles(ctx, cancelFn, func() string {
 			defer func() { i++ }()
 			t.Log("generating bundle", i)
 			return fmt.Sprintf("%v", i)
@@ -452,7 +457,7 @@ func TestElementManager(t *testing.T) {
 			"impulse": info,
 		}
 
-		em.PersistBundle(rb, outputCoders, td, info, nil, nil)
+		em.PersistBundle(rb, outputCoders, td, info, Residuals{})
 		rb, ok = <-ch
 		if !ok {
 			t.Fatal("Bundles channel not expected to be closed")
@@ -460,7 +465,7 @@ func TestElementManager(t *testing.T) {
 		if got, want := rb.StageID, "dofn2"; got != want {
 			t.Fatalf("stage to execute = %v, want %v", got, want)
 		}
-		em.PersistBundle(rb, outputCoders, TentativeData{}, info, nil, nil)
+		em.PersistBundle(rb, outputCoders, TentativeData{}, info, Residuals{})
 		rb, ok = <-ch
 		if ok {
 			t.Error("Bundles channel expected to be closed")
@@ -471,13 +476,14 @@ func TestElementManager(t *testing.T) {
 		}
 	})
 	t.Run("residual", func(t *testing.T) {
+		ctx, cancelFn := context.WithCancelCause(context.Background())
 		em := NewElementManager(Config{})
-		em.AddStage("impulse", nil, nil, []string{"input"})
+		em.AddStage("impulse", nil, []string{"input"}, nil)
 		em.AddStage("dofn", []string{"input"}, nil, nil)
 		em.Impulse("impulse")
 
 		var i int
-		ch := em.Bundles(context.Background(), func() string {
+		ch := em.Bundles(ctx, cancelFn, func() string {
 			defer func() { i++ }()
 			t.Log("generating bundle", i)
 			return fmt.Sprintf("%v", i)
@@ -490,7 +496,11 @@ func TestElementManager(t *testing.T) {
 
 		// Add a residual
 		resid := es.ToData(info)
-		em.PersistBundle(rb, nil, TentativeData{}, info, resid, nil)
+		residuals := Residuals{}
+		for _, r := range resid {
+			residuals.Data = append(residuals.Data, Residual{Element: r})
+		}
+		em.PersistBundle(rb, nil, TentativeData{}, info, residuals)
 		rb, ok = <-ch
 		if !ok {
 			t.Error("Bundles channel not expected to be closed")
@@ -503,7 +513,7 @@ func TestElementManager(t *testing.T) {
 		if !cmp.Equal([]byte{127, 223, 59, 100, 90, 28, 172, 9, 0, 0, 0, 1, 15, 3, 65, 66, 67}, data[0]) {
 			t.Errorf("unexpected data, got %v", data[0])
 		}
-		em.PersistBundle(rb, nil, TentativeData{}, info, nil, nil)
+		em.PersistBundle(rb, nil, TentativeData{}, info, Residuals{})
 		rb, ok = <-ch
 		if ok {
 			t.Error("Bundles channel expected to be closed", rb)

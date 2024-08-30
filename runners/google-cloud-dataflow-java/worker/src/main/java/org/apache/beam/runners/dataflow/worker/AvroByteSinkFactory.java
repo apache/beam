@@ -27,7 +27,7 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.Sink;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Creates an {@link AvroByteSink} from a {@link CloudObject} spec. */

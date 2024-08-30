@@ -52,11 +52,11 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -204,11 +204,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>Do note that cross-product joins while simpler and easier to program, can cause performance problems.
  */
 @SuppressWarnings({
-  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
-  "rawtypes"
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class CoGroup {
-  private static final List NULL_LIST;
+  private static final List<@Nullable Row> NULL_LIST;
 
   static {
     NULL_LIST = Lists.newArrayList();
@@ -405,7 +404,7 @@ public class CoGroup {
         FieldAccessDescriptor resolved = fieldAccessDescriptor.resolve(schema);
 
         // Create a new tag for the output.
-        TupleTag randomTag = new TupleTag<>();
+        TupleTag<?> randomTag = new TupleTag<>();
         String keyedTag = tag + "_" + randomTag;
         tagToKeyedTag.put(tagIndex, keyedTag);
         PCollection<KV<Row, Row>> keyedPCollection =

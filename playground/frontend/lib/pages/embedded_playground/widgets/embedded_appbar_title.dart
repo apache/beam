@@ -44,7 +44,9 @@ class EmbeddedAppBarTitle extends StatelessWidget {
             icon: SvgPicture.asset(Assets.copy),
             onPressed: () {
               final source = controller.source;
-              Clipboard.setData(ClipboardData(text: source));
+              if (source != null) {
+                Clipboard.setData(ClipboardData(text: source));
+              }
             },
           ),
         ],

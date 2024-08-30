@@ -71,8 +71,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
@@ -636,7 +636,7 @@ public class WindowTest implements Serializable {
     pipeline.run();
   }
 
-  //  This test is usefull because some runners have a special merge implementation
+  //  This test is useful because some runners have a special merge implementation
   // for keyed collections
   @Test
   @Category({ValidatesRunner.class, UsesCustomWindowMerging.class})

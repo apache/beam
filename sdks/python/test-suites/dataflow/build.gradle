@@ -30,13 +30,6 @@ task preCommitIT {
   }
 }
 
-task preCommitIT_V2{
-  getVersionsAsList('dataflow_precommit_it_task_py_versions').each {
-    dependsOn.add(":sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:preCommitIT_batch_V2")
-    dependsOn.add(":sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:preCommitIT_streaming_V2")
-  }
-}
-
 task mongodbioIT {
   getVersionsAsList('dataflow_mongodbio_it_task_py_versions').each {
     dependsOn.add(":sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:mongodbioIT")
@@ -61,18 +54,6 @@ task validatesRunnerStreamingTests {
   }
 }
 
-task validatesRunnerBatchTestsV2 {
-  getVersionsAsList('dataflow_validates_runner_batch_tests_V2').each {
-    dependsOn.add(":sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:validatesRunnerBatchTests")
-  }
-}
-
-task validatesRunnerStreamingTestsV2 {
-  getVersionsAsList('dataflow_validates_runner_streaming_tests_V2').each {
-    dependsOn.add(":sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:validatesRunnerStreamingTests")
-  }
-}
-
 task validatesContainerTests {
   getVersionsAsList('python_versions').each {
     dependsOn.add(":sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:validatesContainer")
@@ -86,8 +67,14 @@ task examplesPostCommit {
 }
 
 task gcpCrossLanguagePostCommit {
-  getVersionsAsList('cross_language_validates_gcp_py_versions').each {
+  getVersionsAsList('cross_language_validates_py_versions').each {
     dependsOn.add(":sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:gcpCrossLanguagePythonUsingJava")
+  }
+}
+
+task ioCrossLanguagePostCommit {
+  getVersionsAsList('cross_language_validates_py_versions').each {
+    dependsOn.add(":sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:ioCrossLanguagePythonUsingJava")
   }
 }
 

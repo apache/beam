@@ -28,6 +28,6 @@ export function camelToSnakeOptions(options: { [key: string]: any }): {
   return Object.fromEntries(
     Object.entries(options)
       .filter(([k, v]) => v != undefined)
-      .map(([k, v]) => [camelToSnake(k), v])
+      .map(([k, v]) => [camelToSnake(k), v]),
   );
 }

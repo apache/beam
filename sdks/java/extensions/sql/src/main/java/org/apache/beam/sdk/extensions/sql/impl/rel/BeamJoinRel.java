@@ -41,8 +41,8 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexInputRef
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexLiteral;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.Pair;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 /**
  * An abstract {@code BeamRelNode} to implement Join Rels.

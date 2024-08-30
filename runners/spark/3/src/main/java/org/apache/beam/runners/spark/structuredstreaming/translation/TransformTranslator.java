@@ -18,14 +18,13 @@
 package org.apache.beam.runners.spark.structuredstreaming.translation;
 
 import static org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers.windowedValueEncoder;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables.getOnlyElement;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables.getOnlyElement;
 
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
-import org.apache.beam.runners.core.construction.TransformInputs;
 import org.apache.beam.runners.spark.structuredstreaming.translation.PipelineTranslator.TranslationState;
 import org.apache.beam.runners.spark.structuredstreaming.translation.PipelineTranslator.UnresolvedTranslation;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.SideInputValues;
@@ -36,6 +35,7 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.construction.TransformInputs;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;

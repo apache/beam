@@ -24,6 +24,12 @@ import (
 	"google.golang.org/api/healthcare/v1"
 )
 
+func TestMain(m *testing.M) {
+	// TODO(https://github.com/apache/beam/issues/27547): Make tests compatible with portable runners.
+	// To work on this change, replace call with `ptest.Main(m)`
+	ptest.MainWithDefault(m, "direct")
+}
+
 func TestDeidentify_Error(t *testing.T) {
 	p, s := beam.NewPipelineWithRoot()
 	out := deidentify(s, "src", "dst", nil, requestReturnErrorFakeClient)

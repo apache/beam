@@ -17,7 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.protobuf;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.Descriptors.EnumValueDescriptor;
@@ -43,9 +44,9 @@ import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.NanosDuration;
 import org.apache.beam.sdk.schemas.logicaltypes.NanosInstant;
 import org.apache.beam.sdk.schemas.logicaltypes.OneOfType;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -168,9 +169,12 @@ class ProtoSchemaTranslator {
     if (alreadyVisitedSchemas.containsKey(descriptor)) {
       @Nullable Schema existingSchema = alreadyVisitedSchemas.get(descriptor);
       if (existingSchema == null) {
+        String name = descriptor.getFullName();
+        if ("google.protobuf.Struct".equals(name)) {
+          throw new UnsupportedOperationException("Infer schema of Struct type is not supported.");
+        }
         throw new IllegalArgumentException(
-            "Cannot infer schema with a circular reference. Proto Field: "
-                + descriptor.getFullName());
+            "Cannot infer schema with a circular reference. Proto Field: " + name);
       }
       return existingSchema;
     }
@@ -203,7 +207,8 @@ class ProtoSchemaTranslator {
 
     for (Descriptors.FieldDescriptor fieldDescriptor : descriptor.getFields()) {
       int fieldDescriptorNumber = fieldDescriptor.getNumber();
-      if (!oneOfComponentFields.contains(fieldDescriptorNumber)) {
+      if (!(oneOfComponentFields.contains(fieldDescriptorNumber)
+          && fieldDescriptor.getRealContainingOneof() != null)) {
         // Store proto field number in metadata.
         FieldType fieldType = beamFieldTypeFromProtoField(fieldDescriptor);
         fields.add(
@@ -338,7 +343,7 @@ class ProtoSchemaTranslator {
             fieldType = FieldType.logicalType(new NanosDuration());
             break;
           case "google.protobuf.Any":
-            throw new RuntimeException("Any not yet supported");
+            throw new UnsupportedOperationException("Any not yet supported");
           default:
             fieldType = FieldType.row(getSchema(protoFieldDescriptor.getMessageType()));
         }
@@ -385,10 +390,10 @@ class ProtoSchemaTranslator {
         case ITERABLE:
           Field field = Field.of("OPTION", fieldType);
           ProtoDynamicMessageSchema schema = ProtoDynamicMessageSchema.forSchema(Schema.of(field));
-          optionsBuilder.setOption(
-              prefix + fieldDescriptor.getFullName(),
-              fieldType,
-              schema.createConverter(field).convertFromProtoValue(entry.getValue()));
+          @SuppressWarnings("rawtypes")
+          ProtoDynamicMessageSchema.Convert convert = schema.createConverter(field);
+          Object value = checkArgumentNotNull(convert.convertFromProtoValue(entry.getValue()));
+          optionsBuilder.setOption(prefix + fieldDescriptor.getFullName(), fieldType, value);
           break;
         case MAP:
         case DATETIME:

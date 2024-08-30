@@ -32,6 +32,7 @@ locals {
     "TF_VAR_state_bucket=$_STATE_BUCKET",
     "TF_VAR_redis_name=$_REDIS_NAME",
     "TF_VAR_redis_tier=$_REDIS_TIER",
+    "TF_VAR_init_min_count=$_INIT_MIN_COUNT",
     "TF_VAR_min_count=$_MIN_COUNT",
     "TF_VAR_max_count=$_MAX_COUNT",
     "TF_VAR_skip_appengine_deploy=$_SKIP_APPENGINE_DEPLOY",

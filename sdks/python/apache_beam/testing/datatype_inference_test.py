@@ -50,7 +50,7 @@ TEST_DATA = [
             OrderedDict([
                 ("a", 1),
                 ("b", 0.12345),
-                ("c", u"Hello World!!"),
+                ("c", "Hello World!!"),
                 ("d", np.array([1, 2, 3], dtype=np.int64)),
                 ("e", b"some bytes"),
             ]),
@@ -61,7 +61,7 @@ TEST_DATA = [
             ]),
             OrderedDict([
                 ("a", 100000),
-                ("c", u"XoXoX"),
+                ("c", "XoXoX"),
                 ("d", np.array([4, 5, 6], dtype=np.int64)),
                 ("e", b""),
             ]),

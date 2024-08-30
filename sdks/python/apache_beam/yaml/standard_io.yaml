@@ -1,0 +1,259 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# This file enumerates the various IOs that are available by default as
+# top-level transforms in Beam's YAML.
+#
+# Note that there may be redundant implementations. In these cases the specs
+# should be kept in sync.
+# TODO(yaml): See if this can be enforced programmatically.
+
+- type: renaming
+  transforms:
+    'ReadFromBigQuery': 'ReadFromBigQuery'
+    'WriteToBigQuery': 'WriteToBigQuery'
+  config:
+    mappings:
+      'ReadFromBigQuery':
+        query: 'query'
+        table: 'table_spec'
+        fields: 'selected_fields'
+        row_restriction: 'row_restriction'
+      'WriteToBigQuery':
+        table: 'table'
+        create_disposition: 'create_disposition'
+        write_disposition: 'write_disposition'
+        error_handling: 'error_handling'
+        # TODO(https://github.com/apache/beam/issues/30058): Required until autosharding support is fixed
+        num_streams: 'num_streams'
+    underlying_provider:
+      type: beamJar
+      transforms:
+        'ReadFromBigQuery': 'beam:schematransform:org.apache.beam:bigquery_storage_read:v1'
+        'WriteToBigQuery': 'beam:schematransform:org.apache.beam:bigquery_storage_write:v2'
+      config:
+        gradle_target: 'sdks:java:extensions:sql:expansion-service:shadowJar'
+
+- type: renaming
+  transforms:
+    'ReadFromKafka': 'ReadFromKafka'
+    'WriteToKafka': 'WriteToKafka'
+  config:
+    mappings:
+      'ReadFromKafka':
+        'schema': 'schema'
+        'consumer_config': 'consumer_config_updates'
+        'format': 'format'
+        'topic': 'topic'
+        'bootstrap_servers': 'bootstrap_servers'
+        'confluent_schema_registry_url': 'confluent_schema_registry_url'
+        'confluent_schema_registry_subject': 'confluent_schema_registry_subject'
+        'auto_offset_reset_config': 'auto_offset_reset_config'
+        'error_handling': 'error_handling'
+        'file_descriptor_path': 'file_descriptor_path'
+        'message_name': 'message_name'
+      'WriteToKafka':
+        'format': 'format'
+        'topic': 'topic'
+        'bootstrap_servers': 'bootstrap_servers'
+        'producer_config_updates': 'producer_config_updates'
+        'error_handling': 'error_handling'
+        'file_descriptor_path': 'file_descriptor_path'
+        'message_name': 'message_name'
+        'schema': 'schema'
+    underlying_provider:
+      type: beamJar
+      transforms:
+        'ReadFromKafka': 'beam:schematransform:org.apache.beam:kafka_read:v1'
+        'WriteToKafka': 'beam:schematransform:org.apache.beam:kafka_write:v1'
+      config:
+        gradle_target: 'sdks:java:io:expansion-service:shadowJar'
+
+- type: renaming
+  transforms:
+    'ReadFromPubSubLite': 'ReadFromPubSubLite'
+    'WriteToPubSubLite': 'WriteToPubSubLite'
+  config:
+    mappings:
+      'ReadFromPubSubLite':
+        'project': 'project'
+        'schema': 'schema'
+        'format': 'format'
+        'subscription_name': 'subscription_name'
+        'location': 'location'
+        'attributes': 'attributes'
+        'attribute_map': 'attribute_map'
+        'attribute_id': 'attribute_id'
+        'error_handling': 'error_handling'
+        'file_descriptor_path': 'file_descriptor_path'
+        'message_name': 'message_name'
+      'WriteToPubSubLite':
+        'project': 'project'
+        'format': 'format'
+        'topic_name': 'topic_name'
+        'location': 'location'
+        'attributes': 'attributes'
+        'attribute_id': 'attribute_id'
+        'error_handling': 'error_handling'
+        'file_descriptor_path': 'file_descriptor_path'
+        'message_name': 'message_name'
+        'schema': 'schema'
+    underlying_provider:
+      type: beamJar
+      transforms:
+        'ReadFromPubSubLite': 'beam:schematransform:org.apache.beam:pubsublite_read:v1'
+        'WriteToPubSubLite': 'beam:schematransform:org.apache.beam:pubsublite_write:v1'
+      config:
+        gradle_target: 'sdks:java:io:google-cloud-platform:expansion-service:shadowJar'
+
+- type: python
+  transforms:
+    'ReadFromBigQuery': 'apache_beam.yaml.yaml_io.read_from_bigquery'
+    # Disable until https://github.com/apache/beam/issues/28162 is resolved.
+    # 'WriteToBigQuery': 'apache_beam.yaml.yaml_io.write_to_bigquery'
+    'ReadFromText': 'apache_beam.yaml.yaml_io.read_from_text'
+    'WriteToText': 'apache_beam.yaml.yaml_io.write_to_text'
+    'ReadFromPubSub': 'apache_beam.yaml.yaml_io.read_from_pubsub'
+    'WriteToPubSub': 'apache_beam.yaml.yaml_io.write_to_pubsub'
+
+# Declared as a renaming transform to avoid exposing all
+# (implementation-specific) pandas arguments and aligning with possible Java
+# implementation.
+# Invoking these directly as a PyTransform is still an option for anyone wanting
+# to use these power-features in a language-dependent manner.
+- type: renaming
+  transforms:
+    'ReadFromCsv': 'ReadFromCsv'
+    'WriteToCsv': 'WriteToCsv'
+    'ReadFromJson': 'ReadFromJson'
+    'WriteToJson': 'WriteToJson'
+    'ReadFromParquet': 'ReadFromParquet'
+    'WriteToParquet': 'WriteToParquet'
+    'ReadFromAvro': 'ReadFromAvro'
+    'WriteToAvro': 'WriteToAvro'
+  config:
+    mappings:
+      'ReadFromCsv':
+        path: 'path'
+        delimiter: 'sep'
+        comment: 'comment'
+      'WriteToCsv':
+        path: 'path'
+        delimiter: 'sep'
+      'ReadFromJson':
+        path: 'path'
+      'WriteToJson':
+        path: 'path'
+      'ReadFromParquet':
+        path: 'file_pattern'
+      'WriteToParquet':
+        path: 'file_path_prefix'
+      'ReadFromAvro':
+        path: 'file_pattern'
+      'WriteToAvro':
+        path: 'file_path_prefix'
+    defaults:
+      'ReadFromParquet':
+        as_rows: True
+      'ReadFromAvro':
+        as_rows: True
+    underlying_provider:
+      type: python
+      transforms:
+        'ReadFromCsv': 'apache_beam.io.ReadFromCsv'
+        'WriteToCsv': 'apache_beam.io.WriteToCsv'
+        'ReadFromJson': 'apache_beam.io.ReadFromJson'
+        'WriteToJson': 'apache_beam.io.WriteToJson'
+        'ReadFromParquet': 'apache_beam.io.ReadFromParquet'
+        'WriteToParquet': 'apache_beam.io.WriteToParquet'
+        'ReadFromAvro': 'apache_beam.io.ReadFromAvro'
+        'WriteToAvro': 'apache_beam.io.WriteToAvro'
+
+- type: beamJar
+  transforms:
+    'WriteToCsv': 'beam:schematransform:org.apache.beam:csv_write:v1'
+    'WriteToJson': 'beam:schematransform:org.apache.beam:json_write:v1'
+  config:
+    gradle_target: 'sdks:java:extensions:schemaio-expansion-service:shadowJar'
+
+- type: renaming
+  transforms:
+    'ReadFromJdbc': 'ReadFromJdbc'
+    'WriteToJdbc': 'WriteToJdbc'
+    'ReadFromMySql': 'ReadFromJdbc'
+    'WriteToMySql': 'WriteToJdbc'
+    'ReadFromPostgres': 'ReadFromJdbc'
+    'WriteToPostgres': 'WriteToJdbc'
+    'ReadFromOracle': 'ReadFromJdbc'
+    'WriteToOracle': 'WriteToJdbc'
+    'ReadFromSqlServer': 'ReadFromJdbc'
+    'WriteToSqlServer': 'WriteToJdbc'
+  config:
+    mappings:
+      'ReadFromJdbc':
+        driver_class_name: 'driver_class_name'
+        type: 'jdbc_type'
+        url: 'jdbc_url'
+        username: 'username'
+        password: 'password'
+        table: 'location'
+        query: 'read_query'
+        driver_jars: 'driver_jars'
+        connection_properties: 'connection_properties'
+        connection_init_sql: 'connection_init_sql'
+      'WriteToJdbc':
+        driver_class_name: 'driver_class_name'
+        type: 'jdbc_type'
+        url: 'jdbc_url'
+        username: 'username'
+        password: 'password'
+        table: 'location'
+        driver_jars: 'driver_jars'
+        connection_properties: 'connection_properties'
+        connection_init_sql: 'connection_init_sql'
+      'ReadFromMySql': 'ReadFromJdbc'
+      'WriteToMySql': 'WriteToJdbc'
+      'ReadFromPostgres': 'ReadFromJdbc'
+      'WriteToPostgres': 'WriteToJdbc'
+      'ReadFromOracle':  'ReadFromJdbc'
+      'WriteToOracle': 'WriteToJdbc'
+      'ReadFromSqlServer': 'ReadFromJdbc'
+      'WriteToSqlServer': 'WriteToJdbc'
+    defaults:
+      'ReadFromMySql':
+        jdbcType: 'mysql'
+      'WriteToMySql':
+        jdbcType: 'mysql'
+      'ReadFromPostgres':
+        jdbcType: 'postgres'
+      'WriteToPostgres':
+        jdbcType: 'postgres'
+      'ReadFromOracle':
+        jdbcType: 'oracle'
+      'WriteToOracle':
+        jdbcType: 'oracle'
+      'ReadFromSqlServer':
+        jdbcType: 'mssql'
+      'WriteToSqlServer':
+        jdbcType: 'mssql'
+    underlying_provider:
+      type: beamJar
+      transforms:
+        'ReadFromJdbc': 'beam:schematransform:org.apache.beam:jdbc_read:v1'
+        'WriteToJdbc': 'beam:schematransform:org.apache.beam:jdbc_write:v1'
+      config:
+        gradle_target: 'sdks:java:extensions:schemaio-expansion-service:shadowJar'

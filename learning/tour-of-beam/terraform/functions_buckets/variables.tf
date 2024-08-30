@@ -19,3 +19,7 @@
 variable "region" {
   description = "The GCP region where GCS bucket will be created (For Cloud Functions source code)"
 }
+
+variable "environment" {
+  description = "The name of the environment for deployment. Will create directory where terraform config files will be stored"
+}

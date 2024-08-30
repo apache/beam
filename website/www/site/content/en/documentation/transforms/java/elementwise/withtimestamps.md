@@ -28,7 +28,10 @@ limitations under the License.
 Assigns timestamps to all the elements of a collection.
 
 ## Examples
-See [BEAM-7702](https://issues.apache.org/jira/browse/BEAM-7702) for updates.
+
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" path="SDK_JAVA_Latest" show="main_section" >}}
+{{< /playground >}}
 
 ## Related transforms
 * [Reify](/documentation/transforms/java/elementwise/reify)

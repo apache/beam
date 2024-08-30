@@ -25,14 +25,16 @@ import '../code.dart';
 
 const _noGraphSdks = [Sdk.go, Sdk.scio];
 
+const areExamplesDeployed = ExampleDescriptor._repository != '' &&
+    ExampleDescriptor._ref != '';
+
 /// Describes an example for the purpose of integration tests.
 class ExampleDescriptor {
   static const _schemaAndHost = 'https://github.com';
   static const _rawSchemaAndHost = 'https://raw.githubusercontent.com';
 
-  static const _defaultOwner = 'apache';
-  static const _defaultRepository = 'beam';
-  static const _defaultRef = 'master';
+  static const _repository = String.fromEnvironment('example-repository');
+  static const _ref = String.fromEnvironment('example-ref');
 
   const ExampleDescriptor(
     this.name, {
@@ -42,11 +44,11 @@ class ExampleDescriptor {
     this.contextLine1Based,
     this.croppedFoldedVisibleText,
     this.foldedVisibleText,
+    this.fullText,
     this.outputContains,
     this.outputTail,
-    this.owner = _defaultOwner,
-    this.repository = _defaultRepository,
-    this.ref = _defaultRef,
+    this.repository = _repository,
+    this.ref = _ref,
   });
 
   /// 1-based line index to set cursor to.
@@ -61,10 +63,8 @@ class ExampleDescriptor {
   /// File path relative to the repository root, starting with `/`.
   final String path;
 
-  /// The owner of the GitHub repository where this example code is stored.
-  final String owner;
-
-  /// The name of the GitHub repository where this example code is stored.
+  /// The owner and repository where this example code is stored,
+  /// like 'apache/beam'.
   final String repository;
 
   /// The branch name or commit hash of the GitHub repository
@@ -73,6 +73,9 @@ class ExampleDescriptor {
 
   /// The SDK of this example.
   final Sdk sdk;
+
+  /// Full text to override the one we would get from HTTPS.
+  final String? fullText;
 
   /// Visible text when using `visibleSectionNames` and `foldOutsideSections()`.
   final String? croppedFoldedVisibleText;
@@ -96,13 +99,13 @@ class ExampleDescriptor {
   ///
   /// Example:
   /// https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/MinimalWordCount.java
-  String get url => '$_schemaAndHost/$owner/$repository/blob/$ref$path';
+  String get url => '$_schemaAndHost/$repository/blob/$ref$path';
 
   /// The URL to view the file raw content on GitHub.
   ///
   /// Example:
   /// https://raw.githubusercontent.com/apache/beam/master/examples/java/src/main/java/org/apache/beam/examples/MinimalWordCount.java
-  String get rawUrl => '$_rawSchemaAndHost/$owner/$repository/$ref$path';
+  String get rawUrl => '$_rawSchemaAndHost/$repository/$ref$path';
 
   /// The visible text in the code editor after required foldings.
   Future<String> getVisibleText() async {
@@ -113,8 +116,8 @@ class ExampleDescriptor {
 
   /// The full code of the example.
   Future<String> getFullText() async {
-    final response = await http.get(Uri.parse(rawUrl));
-    return cutTagComments(response.body);
+    final text = fullText ?? (await http.get(Uri.parse(rawUrl))).body;
+    return cutTagComments(text);
   }
 
   /// Cuts the comments containing meta tags from the file in the repository

@@ -25,10 +25,8 @@ import com.google.api.services.dataflow.model.CounterStructuredName;
 import com.google.api.services.dataflow.model.CounterStructuredNameAndMetadata;
 import com.google.api.services.dataflow.model.CounterUpdate;
 import java.io.Closeable;
-import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
-import org.apache.beam.runners.core.SimpleDoFnRunner;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
 import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Kind;
@@ -40,9 +38,8 @@ import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.ProfileScope;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OperationContext;
 import org.apache.beam.sdk.metrics.MetricsContainer;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.format.PeriodFormatter;
@@ -251,9 +248,6 @@ public class DataflowOperationContext implements OperationContext {
       return description.toString();
     }
 
-    private static final ImmutableSet<String> FRAMEWORK_CLASSES =
-        ImmutableSet.of(SimpleDoFnRunner.class.getName(), DoFnInstanceManagers.class.getName());
-
     protected String getLullMessage(Thread trackedThread, Duration lullDuration) {
       StringBuilder message = new StringBuilder();
       message.append("Operation ongoing");
@@ -264,10 +258,15 @@ public class DataflowOperationContext implements OperationContext {
           .append(" for at least ")
           .append(formatDuration(lullDuration))
           .append(" without outputting or completing in state ")
-          .append(getStateName());
+          .append(getStateName())
+          .append(" in thread ")
+          .append(trackedThread.getName())
+          .append(" with id ")
+          .append(trackedThread.getId());
+
       message.append("\n");
 
-      message.append(getStackTraceForLullMessage(trackedThread.getStackTrace()));
+      message.append(StackTraceUtil.getStackTraceForLullMessage(trackedThread.getStackTrace()));
       return message.toString();
     }
 
@@ -293,17 +292,7 @@ public class DataflowOperationContext implements OperationContext {
       dataflowLoggingHandler.publish(this, logRecord);
 
       if (shouldLogFullThreadDump(lullDuration)) {
-        Map<Thread, StackTraceElement[]> threadSet = Thread.getAllStackTraces();
-        for (Map.Entry<Thread, StackTraceElement[]> entry : threadSet.entrySet()) {
-          Thread thread = entry.getKey();
-          StackTraceElement[] stackTrace = entry.getValue();
-          StringBuilder message = new StringBuilder();
-          message.append(thread.toString()).append(":\n");
-          message.append(getStackTraceForLullMessage(stackTrace));
-          logRecord = new LogRecord(Level.INFO, message.toString());
-          logRecord.setLoggerName(DataflowOperationContext.LOG.getName());
-          dataflowLoggingHandler.publish(this, logRecord);
-        }
+        StackTraceUtil.logAllStackTraces();
       }
     }
 
@@ -329,17 +318,6 @@ public class DataflowOperationContext implements OperationContext {
         return true;
       }
       return false;
-    }
-
-    private String getStackTraceForLullMessage(StackTraceElement[] stackTrace) {
-      StringBuilder message = new StringBuilder();
-      for (StackTraceElement e : stackTrace) {
-        if (FRAMEWORK_CLASSES.contains(e.getClassName())) {
-          break;
-        }
-        message.append("  at ").append(e).append("\n");
-      }
-      return message.toString();
     }
 
     public @Nullable MetricsContainer getMetricsContainer() {

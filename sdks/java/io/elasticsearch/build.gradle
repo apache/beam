@@ -23,7 +23,7 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Elasticsearch"
 ext.summary = "IO to read and write on Elasticsearch"
 
 dependencies {
-  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.vendored_guava_32_1_2_jre
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation library.java.http_client
   implementation library.java.http_core
@@ -35,6 +35,6 @@ dependencies {
   implementation library.java.slf4j_api
   implementation "org.apache.httpcomponents:httpasyncclient:4.1.4"
   implementation "org.apache.httpcomponents:httpcore-nio:4.4.12"
-  implementation "org.elasticsearch.client:elasticsearch-rest-client:7.9.2"
-  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
+  implementation "org.elasticsearch.client:elasticsearch-rest-client:7.17.22"
+  testImplementation project(path: ":sdks:java:io:common")
 }

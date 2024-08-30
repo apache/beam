@@ -369,6 +369,10 @@ message StandardPTransforms {
     // Represents the GroupIntoBatches.WithShardedKey operation.
     // Payload: GroupIntoBatchesPayload
     GROUP_INTO_BATCHES_WITH_SHARDED_KEY = 6 [(beam_urn) = "beam:transform:group_into_batches_with_sharded_key:v1"];
+
+    REDISTRIBUTE_BY_KEY = 8 [(beam_urn) = "beam:transform:redistribute_by_key:v1"];
+
+    REDISTRIBUTE_ARBITRARILY = 9 [(beam_urn) = "beam:transform:redistribute_arbitrarily:v1"];
   }
   // Payload for all of these: CombinePayload
   enum CombineComponents {
@@ -475,7 +479,11 @@ message StandardUserStateTypes {
     // StateKey.MultimapKeysUserState or StateKey.MultimapUserState.
     MULTIMAP = 1 [(beam_urn) = "beam:user_state:multimap:v1"];
 
-    // TODO(https://github.com/apache/beam/issues/20486): Add protocol to support OrderedListState
+    // Represents a user state specification that supports an ordered list.
+    //
+    // StateRequests performed on this user state must use
+    // StateKey.OrderedListUserState.
+    ORDERED_LIST = 2 [(beam_urn) = "beam:user_state:ordered_list:v1"];
   }
 }
 
@@ -738,6 +746,10 @@ message WriteFilesPayload {
   bool runner_determined_sharding = 4;
 
   map<string, SideInput> side_inputs = 5;
+
+  // This is different from runner based sharding. This is done by the runner backend, where as runner_determined_sharding 
+  // is by the runner translator
+  bool auto_sharded = 6;
 }
 
 // Payload used by Google Cloud Pub/Sub read transform.
@@ -807,6 +819,10 @@ message GroupIntoBatchesPayload {
 
   // (Optional) Max duration a batch is allowed to be cached in states.
   int64 max_buffering_duration_millis = 2;
+}
+
+message RedistributePayload {
+  bool allow_duplicates = 1;
 }
 
 // A coder, the binary format for serialization and deserialization of data in
@@ -1563,13 +1579,26 @@ message Environment {
 
 message StandardEnvironments {
   enum Environments {
-    DOCKER = 0 [(beam_urn) = "beam:env:docker:v1"]; // A managed docker container to run user code.
+    // A managed docker container to run user code.
+    // Payload should be DockerPayload.
+    DOCKER = 0 [(beam_urn) = "beam:env:docker:v1"];
 
-    PROCESS = 1 [(beam_urn) = "beam:env:process:v1"]; // A managed native process to run user code.
+    // A managed native process to run user code.
+    // Payload should be ProcessPayload.
+    PROCESS = 1 [(beam_urn) = "beam:env:process:v1"];
 
-    EXTERNAL = 2 [(beam_urn) = "beam:env:external:v1"]; // An external non managed process to run user code.
+    // An external non managed process to run user code.
+    // Payload should be ExternalPayload.
+    EXTERNAL = 2 [(beam_urn) = "beam:env:external:v1"];
 
-    DEFAULT = 3 [(beam_urn) = "beam:env:default:v1"]; // Used as a stub when context is missing a runner-provided default environment.
+    // Used as a stub when context is missing a runner-provided default environment.
+    DEFAULT = 3 [(beam_urn) = "beam:env:default:v1"];
+
+    // A selection of equivalent fully-specified environments a runner may use.
+    // Note that this environment itself does not declare any dependencies or capabilities,
+    // as those may differ among the several alternatives.
+    // Payload should be AnyOfEnvironmentPayload.
+    ANYOF = 4 [(beam_urn) = "beam:env:anyof:v1"];
   }
 }
 
@@ -1586,8 +1615,13 @@ message ProcessPayload {
 }
 
 message ExternalPayload {
-  ApiServiceDescriptor endpoint = 1;
+  ApiServiceDescriptor endpoint = 1;  // Serving BeamFnExternalWorkerPool API.
   map<string, string> params = 2;  // Arbitrary extra parameters to pass
+}
+
+message AnyOfEnvironmentPayload {
+  // Each is fully contained (with their own dependencies, capabilities, etc.)
+  repeated Environment environments = 1;
 }
 
 // These URNs are used to indicate capabilities of environments that cannot
@@ -1642,6 +1676,15 @@ message StandardProtocols {
     // during bundle processing. This is disabled by default and enabled with the
     // `enable_data_sampling` experiment.
     DATA_SAMPLING = 8 [(beam_urn) = "beam:protocol:data_sampling:v1"];
+
+    // Indicates whether the SDK sets the consuming_received_data field on
+    // the ProcessBundleProgressResponse messages.
+    SDK_CONSUMING_RECEIVED_DATA = 9
+    [(beam_urn) = "beam:protocol:sdk_consuming_received_data:v1"];
+
+    // Indicates whether the SDK supports ordered list state.
+    ORDERED_LIST_STATE = 10
+    [(beam_urn) = "beam:protocol:ordered_list_state:v1"];
   }
 }
 
@@ -1657,6 +1700,11 @@ message StandardRunnerProtocols {
     // https://s.apache.org/beam-fn-api-control-data-embedding
     CONTROL_RESPONSE_ELEMENTS_EMBEDDING = 6
     [(beam_urn) = "beam:protocol:control_response_elements_embedding:v1"];
+
+    // Indicates that this runner can handle the multimap_keys_values_side_input
+    // style read of a multimap side input.
+    MULTIMAP_KEYS_VALUES_SIDE_INPUT = 7
+    [(beam_urn) = "beam:protocol:multimap_keys_values_side_input:v1"];
   }
 }
 
@@ -1982,5 +2030,9 @@ message StandardResourceHints {
     // SDKs should convert the size to bytes, but can allow users to specify human-friendly units (e.g. GiB).
     // Payload: ASCII encoded string of the base 10 representation of an integer number of bytes.
     MIN_RAM_BYTES = 1 [(beam_urn) = "beam:resources:min_ram_bytes:v1"];
+    // Describes desired number of CPUs available in transform's execution environment.
+    // SDKs should accept and validate a positive integer count.
+    // Payload: ASCII encoded string of the base 10 representation of an integer number of CPUs.
+    CPU_COUNT = 2 [(beam_urn) = "beam:resources:cpu_count:v1"];
   }
 }

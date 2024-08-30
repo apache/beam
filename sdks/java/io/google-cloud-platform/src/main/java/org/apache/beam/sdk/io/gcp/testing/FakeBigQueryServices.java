@@ -34,7 +34,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryOptions;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices;
 import org.apache.beam.sdk.io.gcp.bigquery.TableRowJsonCoder;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 /** A fake implementation of BigQuery's query service.. */
 @Internal
@@ -43,7 +43,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 })
 public class FakeBigQueryServices implements BigQueryServices {
   private JobService jobService;
-  private DatasetService datasetService;
+  private FakeDatasetService datasetService;
   private StorageClient storageClient;
 
   public FakeBigQueryServices withJobService(JobService jobService) {
@@ -68,6 +68,11 @@ public class FakeBigQueryServices implements BigQueryServices {
 
   @Override
   public DatasetService getDatasetService(BigQueryOptions bqOptions) {
+    return datasetService;
+  }
+
+  @Override
+  public WriteStreamService getWriteStreamService(BigQueryOptions bqOptions) {
     return datasetService;
   }
 

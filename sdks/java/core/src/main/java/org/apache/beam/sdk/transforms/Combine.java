@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -29,6 +29,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -66,8 +67,8 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -200,6 +201,13 @@ public class Combine {
       GlobalCombineFn<? super InputT, ?, OutputT> fn,
       DisplayData.ItemSpec<? extends Class<?>> fnDisplayData) {
     return new PerKey<>(fn, fnDisplayData, false /*fewKeys*/);
+  }
+
+  /** Returns a {@link PerKey Combine.PerKey}, and set fewKeys in {@link GroupByKey}. */
+  @Internal
+  public static <K, InputT, OutputT> PerKey<K, InputT, OutputT> fewKeys(
+      GlobalCombineFn<? super InputT, ?, OutputT> fn) {
+    return new PerKey<>(fn, displayDataForFn(fn), true /*fewKeys*/);
   }
 
   /** Returns a {@link PerKey Combine.PerKey}, and set fewKeys in {@link GroupByKey}. */
@@ -1547,7 +1555,7 @@ public class Combine {
      */
     public PerKeyWithHotKeyFanout<K, InputT, OutputT> withHotKeyFanout(
         SerializableFunction<? super K, Integer> hotKeyFanout) {
-      return new PerKeyWithHotKeyFanout<>(fn, fnDisplayData, hotKeyFanout);
+      return new PerKeyWithHotKeyFanout<>(fn, fnDisplayData, hotKeyFanout, fewKeys, sideInputs);
     }
 
     /**
@@ -1569,7 +1577,9 @@ public class Combine {
             public Integer apply(K unused) {
               return hotKeyFanout;
             }
-          });
+          },
+          fewKeys,
+          sideInputs);
     }
 
     /** Returns the {@link GlobalCombineFn} used by this Combine operation. */
@@ -1615,14 +1625,20 @@ public class Combine {
     private final GlobalCombineFn<? super InputT, ?, OutputT> fn;
     private final DisplayData.ItemSpec<? extends Class<?>> fnDisplayData;
     private final SerializableFunction<? super K, Integer> hotKeyFanout;
+    private final boolean fewKeys;
+    private final List<PCollectionView<?>> sideInputs;
 
     private PerKeyWithHotKeyFanout(
         GlobalCombineFn<? super InputT, ?, OutputT> fn,
         DisplayData.ItemSpec<? extends Class<?>> fnDisplayData,
-        SerializableFunction<? super K, Integer> hotKeyFanout) {
+        SerializableFunction<? super K, Integer> hotKeyFanout,
+        boolean fewKeys,
+        List<PCollectionView<?>> sideInputs) {
       this.fn = fn;
       this.fnDisplayData = fnDisplayData;
       this.hotKeyFanout = hotKeyFanout;
+      this.fewKeys = fewKeys;
+      this.sideInputs = sideInputs;
     }
 
     @Override
@@ -1911,6 +1927,14 @@ public class Combine {
       }
 
       // Combine the hot and cold keys separately.
+      Combine.PerKey<KV<K, Integer>, InputT, AccumT> hotPreCombineTransform =
+          fewKeys
+              ? Combine.fewKeys(hotPreCombine, fnDisplayData)
+              : Combine.perKey(hotPreCombine, fnDisplayData);
+      if (!sideInputs.isEmpty()) {
+        hotPreCombineTransform = hotPreCombineTransform.withSideInputs(sideInputs);
+      }
+
       PCollection<KV<K, InputOrAccum<InputT, AccumT>>> precombinedHot =
           split
               .get(hot)
@@ -1919,7 +1943,7 @@ public class Combine {
                       KvCoder.of(inputCoder.getKeyCoder(), VarIntCoder.of()),
                       inputCoder.getValueCoder()))
               .setWindowingStrategyInternal(preCombineStrategy)
-              .apply("PreCombineHot", Combine.perKey(hotPreCombine, fnDisplayData))
+              .apply("PreCombineHot", hotPreCombineTransform)
               .apply(
                   "StripNonce",
                   MapElements.via(
@@ -1954,10 +1978,18 @@ public class Combine {
               .setCoder(KvCoder.of(inputCoder.getKeyCoder(), inputOrAccumCoder));
 
       // Combine the union of the pre-processed hot and cold key results.
+      Combine.PerKey<K, InputOrAccum<InputT, AccumT>, OutputT> postCombineTransform =
+          fewKeys
+              ? Combine.fewKeys(postCombine, fnDisplayData)
+              : Combine.perKey(postCombine, fnDisplayData);
+      if (!sideInputs.isEmpty()) {
+        postCombineTransform = postCombineTransform.withSideInputs(sideInputs);
+      }
+
       return PCollectionList.of(precombinedHot)
           .and(preprocessedCold)
           .apply(Flatten.pCollections())
-          .apply("PostCombine", Combine.perKey(postCombine, fnDisplayData));
+          .apply("PostCombine", postCombineTransform);
     }
 
     @Override
@@ -1970,6 +2002,11 @@ public class Combine {
       }
       builder.add(
           DisplayData.item("fanoutFn", hotKeyFanout.getClass()).withLabel("Fanout Function"));
+    }
+
+    /** Returns the side inputs used by this Combine operation. */
+    public List<PCollectionView<?>> getSideInputs() {
+      return sideInputs;
     }
 
     /**

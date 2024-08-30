@@ -118,11 +118,12 @@ def getRemainingComments(accessToken, pr, initialComments):
   check_urls = str(list(map(lambda c : c["targetUrl"], commit["status"]["contexts"])))
   remainingComments = []
   for comment in initialComments:
-    if f'/{comment[1]}_Phrase/' not in check_urls and f'/{comment[1]}_PR/' not in check_urls and f'/{comment[1]}_Commit/' not in check_urls and f'/{comment[1]}/' not in check_urls:
+    if f'/{comment[1]}_Phrase/' not in check_urls and f'/{comment[1]}_PR/' not in check_urls \
+        and f'/{comment[1]}_Commit/' not in check_urls and f'/{comment[1]}/' not in check_urls \
+        and 'Sickbay' not in comment[1]:
       print(comment)
       remainingComments.append(comment)
   return remainingComments
-
 
 ################################################################################
 if __name__ == '__main__':
@@ -140,7 +141,7 @@ if __name__ == '__main__':
   for i in range(len(comments)):
     parts = comments[i].split(',')
     comments[i] = (parts[0], parts[1])
-  
+
   if not probeGitHubIsUp():
     print("GitHub is unavailable, skipping fetching data.")
     exit()
@@ -151,7 +152,8 @@ if __name__ == '__main__':
 
   pr = input("Enter the Beam PR number to test (e.g. 11403): ")
   subjectId = getSubjectId(accessToken, pr)
-  
+
+  # TODO(yathu): also auto rerun failed GitHub Action workflow
   remainingComments = getRemainingComments(accessToken, pr, comments)
   if len(remainingComments) == 0:
     print('Jobs have been started for all comments. If you would like to retry all jobs, create a new commit before running this script.')

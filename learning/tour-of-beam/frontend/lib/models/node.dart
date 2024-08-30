@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+import 'package:equatable/equatable.dart';
+
 import '../repositories/models/node.dart';
 import '../repositories/models/node_type_enum.dart';
 import 'group.dart';
@@ -23,7 +25,7 @@ import 'parent_node.dart';
 import 'unit.dart';
 
 /// The data class for any Tour of Beam node of a content tree.
-abstract class NodeModel {
+abstract class NodeModel with EquatableMixin {
   final String id;
   final String title;
   final NodeModel? parent;
@@ -59,6 +61,13 @@ abstract class NodeModel {
         return UnitModel.fromResponse(node.unit!, parent);
     }
   }
+
+  @override
+  List<Object?> get props => [
+        id,
+        title,
+        parent,
+      ];
 
   NodeModel? getLastNodeFromBreadcrumbIds(List<String> breadcrumbIds);
 

@@ -17,6 +17,10 @@
  */
 options {
     IGNORE_CASE=true;
+    DEBUG_PARSER = false;
+    DEBUG_LOOKAHEAD = false;
+    DEBUG_TOKEN_MANAGER = false;
+    STATIC = false;
 }
 
 PARSER_BEGIN(ColumnTypeParser)
@@ -73,30 +77,33 @@ TOKEN :
 
 TOKEN :
 {
-    < ARRAY       : "ARRAY" >
-  | < DATE        : "DATE" >
-  | < DATETIME    : "DATETIME" >
-  | < ENUM8       : "ENUM8" >
-  | < ENUM16      : "ENUM16" >
-  | < FIXEDSTRING : "FIXEDSTRING" >
-  | < FLOAT32     : "FLOAT32" >
-  | < FLOAT64     : "FLOAT64" >
-  | < STRING      : "STRING" >
-  | < INT8        : "INT8" >
-  | < INT16       : "INT16" >
-  | < INT32       : "INT32" >
-  | < INT64       : "INT64" >
-  | < UINT8       : "UINT8" >
-  | < UINT16      : "UINT16" >
-  | < UINT32      : "UINT32" >
-  | < UINT64      : "UINT64" >
-  | < NULLABLE    : "NULLABLE" >
-  | < LPAREN      : "(" >
-  | < RPAREN      : ")" >
-  | < CAST        : "CAST" >
-  | < AS          : "AS" >
-  | < COMMA       : "," >
-  | < EQ          : "=" >
+    < ARRAY          : "ARRAY" >
+  | < DATE           : "DATE" >
+  | < DATETIME       : "DATETIME" >
+  | < ENUM8          : "ENUM8" >
+  | < ENUM16         : "ENUM16" >
+  | < FIXEDSTRING    : "FIXEDSTRING" >
+  | < FLOAT32        : "FLOAT32" >
+  | < FLOAT64        : "FLOAT64" >
+  | < STRING         : "STRING" >
+  | < INT8           : "INT8" >
+  | < INT16          : "INT16" >
+  | < INT32          : "INT32" >
+  | < INT64          : "INT64" >
+  | < UINT8          : "UINT8" >
+  | < UINT16         : "UINT16" >
+  | < UINT32         : "UINT32" >
+  | < UINT64         : "UINT64" >
+  | < NULLABLE       : "NULLABLE" >
+  | < LPAREN         : "(" >
+  | < RPAREN         : ")" >
+  | < CAST           : "CAST" >
+  | < AS             : "AS" >
+  | < COMMA          : "," >
+  | < EQ             : "=" >
+  | < BOOL           : "BOOL" >
+  | < LOWCARDINALITY : "LOWCARDINALITY" >
+  | < TUPLE          : "TUPLE" >
 }
 
 public ColumnType columnType() :
@@ -110,6 +117,8 @@ public ColumnType columnType() :
         | ct = enum_()
         | ct = array()
         | ct = nullable()
+        | ct = lowcardenality()
+        | ct = tuple()
     )
     {
         return ct;
@@ -189,6 +198,7 @@ private TypeName typeName() :
         | <UINT16>   { return TypeName.UINT16;   }
         | <UINT32>   { return TypeName.UINT32;   }
         | <UINT64>   { return TypeName.UINT64;   }
+        | <BOOL>     { return TypeName.BOOL;     }
     )
 }
 
@@ -259,6 +269,33 @@ private Map<String, Integer> enumElements() :
     }
 }
 
+private Map.Entry<String, ColumnType> tupleElement() :
+{
+    String key;
+    ColumnType value;
+    Token token;
+}
+{
+    ( (key = string() ) ( value = columnType() ) )  {
+        return Maps.immutableEntry(key, value);
+    }
+}
+
+private Map<String, ColumnType> tupleElements() :
+{
+    Map.Entry<String, ColumnType> el;
+    List<Map.Entry<String, ColumnType>> entries = Lists.newArrayList();
+}
+{
+    (
+                  ( el = tupleElement() { entries.add(el); } )
+        ( <COMMA> ( el = tupleElement() { entries.add(el); } ) )*
+    )
+    {
+        return ImmutableMap.copyOf(entries);
+    }
+}
+
 private ColumnType enum_() :
 {
     Map<String, Integer> elements;
@@ -275,4 +312,28 @@ private ColumnType enum_() :
             return ColumnType.enum16(elements);
         }
     )
+}
+
+private ColumnType lowcardenality() :
+{
+        ColumnType ct;
+}
+{
+    (
+        (<LOWCARDINALITY> <LPAREN> (ct = primitive()) <RPAREN>) { return ct; }
+    )
+}
+
+private ColumnType tuple() :
+{
+    Map<String, ColumnType> elements;
+}
+{
+    (
+        (<TUPLE> <LPAREN> ( elements = tupleElements() ) <RPAREN>)
+        {
+            return ColumnType.tuple(elements);
+        }
+    )
+
 }

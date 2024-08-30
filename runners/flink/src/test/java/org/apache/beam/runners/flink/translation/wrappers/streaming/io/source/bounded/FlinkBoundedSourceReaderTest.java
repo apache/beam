@@ -20,6 +20,7 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.b
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.verify;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -30,10 +31,11 @@ import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.TestBoundedCountingSource;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.FlinkSourceReaderTestBase;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.FlinkSourceSplit;
-import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.SourceTestCompat.TestMetricGroup;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.SourceTestMetrics.TestMetricGroup;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
@@ -59,6 +61,20 @@ public class FlinkBoundedSourceReaderTest
 
       executor.triggerScheduledTasks();
       assertEquals(InputStatus.END_OF_INPUT, reader.pollNext(mockReaderOutput));
+    }
+  }
+
+  @Test
+  public void testPollEmitsMaxWatermark() throws Exception {
+    ManuallyTriggeredScheduledExecutorService executor =
+        new ManuallyTriggeredScheduledExecutorService();
+    ReaderOutput<WindowedValue<KV<Integer, Integer>>> mockReaderOutput =
+        Mockito.mock(ReaderOutput.class);
+    try (FlinkBoundedSourceReader<KV<Integer, Integer>> reader =
+        (FlinkBoundedSourceReader<KV<Integer, Integer>>) createReader(executor, Long.MAX_VALUE)) {
+      reader.notifyNoMoreSplits();
+      assertEquals(InputStatus.NOTHING_AVAILABLE, reader.pollNext(mockReaderOutput));
+      verify(mockReaderOutput).emitWatermark(Watermark.MAX_WATERMARK);
     }
   }
 
@@ -107,8 +123,6 @@ public class FlinkBoundedSourceReaderTest
       snapshot = reader.snapshotState(0L);
     }
 
-    // Create a new validating output because the first split will be consumed from very beginning.
-    validatingOutput = new RecordsValidatingOutput(splits);
     // Create another reader, add the snapshot splits back.
     try (SourceReader<WindowedValue<KV<Integer, Integer>>, FlinkSourceSplit<KV<Integer, Integer>>>
         reader = createReader()) {
@@ -133,14 +147,16 @@ public class FlinkBoundedSourceReaderTest
       long idleTimeoutMs,
       @Nullable Function<WindowedValue<KV<Integer, Integer>>, Long> timestampExtractor,
       TestMetricGroup testMetricGroup) {
+
     FlinkPipelineOptions pipelineOptions = FlinkPipelineOptions.defaults();
     pipelineOptions.setShutdownSourcesAfterIdleMs(idleTimeoutMs);
     SourceReaderContext mockContext = createSourceReaderContext(testMetricGroup);
     if (executor != null) {
       return new FlinkBoundedSourceReader<>(
-          mockContext, pipelineOptions, executor, timestampExtractor);
+          "FlinkBoundedSource", mockContext, pipelineOptions, executor, timestampExtractor);
     } else {
-      return new FlinkBoundedSourceReader<>(mockContext, pipelineOptions, timestampExtractor);
+      return new FlinkBoundedSourceReader<>(
+          "FlinkBoundedSource", mockContext, pipelineOptions, timestampExtractor);
     }
   }
 }

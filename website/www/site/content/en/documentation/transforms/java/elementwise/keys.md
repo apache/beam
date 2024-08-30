@@ -28,12 +28,10 @@ limitations under the License.
 Takes a collection of key-value pairs, and returns the key of each element.
 
 ## Examples
-**Example**
 
-{{< highlight java >}}
-PCollection<KV<String, Integer>> keyValuePairs = /* ... */;
-PCollection<String> keys = keyValuePairs.apply(Keys.create());
-{{< /highlight >}}
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" path="SDK_JAVA_Keys" show="main_section" >}}
+{{< /playground >}}
 
 ## Related transforms
 * [KvSwap](/documentation/transforms/java/elementwise/kvswap) swaps key-value pair values.

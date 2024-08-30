@@ -59,9 +59,10 @@ Run Portable_Python PreCommit
 Run PostCommit_Java_Dataflow
 Run PostCommit_Java_DataflowV2
 Run PostCommit_Java_Hadoop_Versions
-Run Python 3.7 PostCommit
 Run Python 3.8 PostCommit
 Run Python 3.9 PostCommit
+Run Python 3.10 PostCommit
+Run Python 3.11 PostCommit
 Run Python Dataflow V2 ValidatesRunner
 Run Python Dataflow ValidatesContainer
 Run Python Dataflow ValidatesRunner
@@ -78,6 +79,7 @@ Run PythonDocs PreCommit
 Run PythonFormatter PreCommit
 Run PythonLint PreCommit
 Run Python_PVR_Flink PreCommit
+Run Python_Xlang_Gcp_Direct PostCommit
 Run RAT PreCommit
 Run SQL PostCommit
 Run SQL PreCommit
@@ -93,6 +95,7 @@ Run Twister2 ValidatesRunner
 Run Typescript PreCommit
 Run ULR Loopback ValidatesRunner
 Run Whitespace PreCommit
+Run Xlang_Generated_Transforms PreCommit
 Run XVR_Direct PostCommit
 Run XVR_Flink PostCommit
 Run XVR_JavaUsingPython_Dataflow PostCommit

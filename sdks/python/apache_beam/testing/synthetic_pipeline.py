@@ -42,6 +42,7 @@ import os
 import sys
 import time
 from random import Random
+from typing import Optional
 from typing import Tuple
 
 import apache_beam as beam
@@ -64,6 +65,12 @@ try:
 except ImportError:
   np = None
 
+try:
+  from .fast_test_utils import LCGenerator
+except ImportError:
+  # Cythonized lib not available
+  from .test_utils import LCGenerator
+
 
 class _Random(Random):
   """A subclass of `random.Random` from the Python Standard Library that
@@ -74,7 +81,8 @@ class _Random(Random):
   # for compatibility reasons.
   random_sample = Random.random
 
-  def bytes(self, length):
+  # TODO(yathu) just use builtin rand_bytes when drop py38 support
+  def rand_bytes(self, length):
     """Returns random bytes.
 
     Args:
@@ -83,7 +91,18 @@ class _Random(Random):
     return self.getrandbits(length * 8).to_bytes(length, sys.byteorder)
 
 
-Generator = _Random
+def get_generator(seed: Optional[int] = None, algorithm: Optional[str] = None):
+  if algorithm is None or algorithm == 'builtin':
+    return _Random(seed)
+  elif algorithm == 'lcg':
+    generator = LCGenerator()
+    if seed is not None:
+      generator.seed(seed)
+    return generator
+  else:
+    raise ValueError(
+        'Unknown algorithm %s. Supported algorithms are "builtin" or "lcg".',
+        algorithm)
 
 
 def parse_byte_size(s):
@@ -388,6 +407,14 @@ class SyntheticSource(iobase.BoundedSource):
     else:
       self._sleep_per_input_record_sec = 0
 
+    # algorithm of the generator
+    self.gen_algo = input_spec.get('algorithm', None)
+    if self.gen_algo not in (None, 'builtin', 'lcg'):
+      raise ValueError(
+          'Unknown algorithm for input_spec: %s. Supported '
+          'algorithms are "builtin" and "lcg".',
+          self.gen_algo)
+
   @property
   def element_size(self):
     return self._key_size + self._value_size
@@ -449,17 +476,18 @@ class SyntheticSource(iobase.BoundedSource):
       # Generate hot key.
       # An integer is randomly selected from the range [0, numHotKeys-1]
       # with equal probability.
-      generator_hot = Generator(index % self._num_hot_keys)
-      bytes_ = generator_hot.bytes(self._key_size), generator.bytes(
+      generator_hot = get_generator(
+          seed=index % self._num_hot_keys, algorithm=self.gen_algo)
+      bytes_ = generator_hot.rand_bytes(self._key_size), generator.rand_bytes(
         self._value_size)
     else:
-      bytes_ = generator.bytes(self.element_size)
+      bytes_ = generator.rand_bytes(self.element_size)
       bytes_ = bytes_[:self._key_size], bytes_[self._key_size:]
     return bytes_
 
   def read(self, range_tracker):
     index = range_tracker.start_position()
-    generator = Generator()
+    generator = get_generator(algorithm=self.gen_algo)
     while range_tracker.try_claim(index):
       time.sleep(self._sleep_per_input_record_sec)
       yield self._gen_kv_pair(generator, index)
@@ -580,10 +608,11 @@ class SyntheticSDFAsSource(beam.DoFn):
           SyntheticSDFSourceRestrictionProvider())):
     cur = restriction_tracker.current_restriction().start
     while restriction_tracker.try_claim(cur):
-      r = Generator()
-      r.seed(cur)
+      r = get_generator(algorithm=element.get('algorithm', None), seed=cur)
       time.sleep(element['sleep_per_input_record_sec'])
-      yield r.bytes(element['key_size']), r.bytes(element['value_size'])
+      yield (
+          r.rand_bytes(element['key_size']),
+          r.rand_bytes(element['value_size']))
       cur += 1
 
 
@@ -756,7 +785,10 @@ def parse_args(args):
       '(6) An integer "splitPointFrequencyRecords". '
       '(7) A tuple "delayDistribution" with following values. '
       '    A string "type". Only allowed value is "const". '
-      '    An integer "const". ')
+      '    An integer "const". '
+      '(8) A string "algorithm". Allowed values are "builtin" for Python '
+      '    builtin random generator, and "lcg" for the linear congruential '
+      '    generator equivalent to Java (java.util.Random).')
 
   parser.add_argument(
       '--barrier',

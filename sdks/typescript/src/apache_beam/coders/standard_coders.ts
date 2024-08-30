@@ -29,6 +29,8 @@ import {
 import { BytesCoder, InstantCoder } from "./required_coders";
 import Long from "long";
 import { IntervalWindow } from "../values";
+import { requireForSerialization } from "../serialization";
+import { packageName } from "../utils/packageJson";
 
 // Historical
 export * from "./required_coders";
@@ -222,8 +224,7 @@ export class IntervalWindowCoder implements Coder<IntervalWindow> {
 
 globalRegistry().register(IntervalWindowCoder.URN, IntervalWindowCoder);
 
-import { requireForSerialization } from "../serialization";
 requireForSerialization(
-  "apache-beam/coders/standard_coders",
-  exports as Record<string, unknown>
+  `${packageName}/coders/standard_coders`,
+  exports as Record<string, unknown>,
 );

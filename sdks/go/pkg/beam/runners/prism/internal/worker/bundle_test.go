@@ -17,26 +17,33 @@ package worker
 
 import (
 	"bytes"
+	"context"
 	"sync"
 	"testing"
+
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/engine"
 )
 
 func TestBundle_ProcessOn(t *testing.T) {
-	wk := New("test")
+	wk := New("test", "testEnv")
 	b := &B{
 		InstID:      "testInst",
 		PBDID:       "testPBDID",
 		OutputCount: 1,
-		InputData:   [][]byte{{1, 2, 3}},
+		Input: []*engine.Block{
+			{
+				Kind:  engine.BlockData,
+				Bytes: [][]byte{{1, 2, 3}},
+			}},
 	}
 	b.Init()
 	var completed sync.WaitGroup
 	completed.Add(1)
 	go func() {
-		b.ProcessOn(wk)
+		b.ProcessOn(context.Background(), wk)
 		completed.Done()
 	}()
-	b.DataDone()
+	b.DataOrTimerDone()
 	gotData := <-wk.DataReqs
 	if got, want := gotData.GetData()[0].GetData(), []byte{1, 2, 3}; !bytes.EqualFold(got, want) {
 		t.Errorf("ProcessOn(): data not sent; got %v, want %v", got, want)

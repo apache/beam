@@ -22,7 +22,7 @@ package org.apache.beam.learning.katas.triggers.windowaccummode;
 //   name: WindowAccumulationMode
 //   description: Task from katas to count events using ACCUMULATING as accumulation mode
 //   multifile: true
-//   context_line: 42
+//   context_line: 51
 //   categories:
 //     - Streaming
 //   complexity: MEDIUM

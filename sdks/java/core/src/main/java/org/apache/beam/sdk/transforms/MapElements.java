@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import org.apache.beam.sdk.transforms.Contextful.Fn;
 import org.apache.beam.sdk.transforms.WithFailures.ExceptionElement;
@@ -159,6 +159,10 @@ public class MapElements<InputT, OutputT>
 
   /** A DoFn implementation that handles a trivial map call. */
   private abstract class MapDoFn extends DoFn<InputT, OutputT> {
+
+    /** Holds {@link MapDoFn#outer instance} of enclosing class, used by runner implementations. */
+    final MapElements<InputT, OutputT> outer = MapElements.this;
+
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       builder.delegate(MapElements.this);

@@ -20,11 +20,13 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/ioutilx"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/engine"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/urns"
 	"golang.org/x/exp/slog"
 	"google.golang.org/protobuf/encoding/prototext"
@@ -53,9 +55,12 @@ func isLeafCoder(c *pipepb.Coder) bool {
 //
 // PCollection coders are not inherently WindowValueCoder wrapped, and they are added by the runner
 // for crossing the FnAPI boundary at data sources and data sinks.
-func makeWindowedValueCoder(pID string, comps *pipepb.Components, coders map[string]*pipepb.Coder) string {
+func makeWindowedValueCoder(pID string, comps *pipepb.Components, coders map[string]*pipepb.Coder) (string, error) {
 	col := comps.GetPcollections()[pID]
-	cID := lpUnknownCoders(col.GetCoderId(), coders, comps.GetCoders())
+	cID, err := lpUnknownCoders(col.GetCoderId(), coders, comps.GetCoders())
+	if err != nil {
+		return "", fmt.Errorf("makeWindowedValueCoder: couldn't process coder for pcollection %q %v: %w", pID, prototext.Format(col), err)
+	}
 	wcID := comps.GetWindowingStrategies()[col.GetWindowingStrategyId()].GetWindowCoderId()
 
 	// The runner needs to be defensive, and tell the SDK to Length Prefix
@@ -73,43 +78,48 @@ func makeWindowedValueCoder(pID string, comps *pipepb.Components, coders map[str
 	}
 	// Populate the coders to send with the new windowed value coder.
 	coders[wvcID] = wInC
-	return wvcID
+	return wvcID, nil
 }
 
-// makeWindowCoders makes the coder pair but behavior is ultimately determined by the strategy's windowFn.
-func makeWindowCoders(wc *pipepb.Coder) (exec.WindowDecoder, exec.WindowEncoder) {
+// makeWindowCoders categorizes and provides the encoder, decoder pair for the type of window.
+func makeWindowCoders(wc *pipepb.Coder) (engine.WinCoderType, exec.WindowDecoder, exec.WindowEncoder) {
 	var cwc *coder.WindowCoder
+	var winCoder engine.WinCoderType
 	switch wc.GetSpec().GetUrn() {
 	case urns.CoderGlobalWindow:
+		winCoder = engine.WinGlobal
 		cwc = coder.NewGlobalWindow()
 	case urns.CoderIntervalWindow:
+		winCoder = engine.WinInterval
 		cwc = coder.NewIntervalWindow()
 	default:
+		// TODO(https://github.com/apache/beam/issues/31921): Support custom windowfns instead of panicking here.
+		winCoder = engine.WinCustom
 		slog.LogAttrs(context.TODO(), slog.LevelError, "makeWindowCoders: unknown urn", slog.String("urn", wc.GetSpec().GetUrn()))
 		panic(fmt.Sprintf("makeWindowCoders, unknown urn: %v", prototext.Format(wc)))
 	}
-	return exec.MakeWindowDecoder(cwc), exec.MakeWindowEncoder(cwc)
+	return winCoder, exec.MakeWindowDecoder(cwc), exec.MakeWindowEncoder(cwc)
 }
 
 // lpUnknownCoders takes a coder, and populates coders with any new coders
 // coders that the runner needs to be safe, and speedy.
 // It returns either the passed in coder id, or the new safe coder id.
-func lpUnknownCoders(cID string, bundle, base map[string]*pipepb.Coder) string {
+func lpUnknownCoders(cID string, bundle, base map[string]*pipepb.Coder) (string, error) {
 	// First check if we've already added the LP version of this coder to coders already.
 	lpcID := cID + "_lp"
 	// Check if we've done this one before.
 	if _, ok := bundle[lpcID]; ok {
-		return lpcID
+		return lpcID, nil
 	}
 	// All coders in the coders map have been processed.
 	if _, ok := bundle[cID]; ok {
-		return cID
+		return cID, nil
 	}
 	// Look up the canonical location.
 	c, ok := base[cID]
 	if !ok {
 		// We messed up somewhere.
-		panic(fmt.Sprint("unknown coder id:", cID))
+		return "", fmt.Errorf("lpUnknownCoders: coder %q not present in base map", cID)
 	}
 	// Add the original coder to the coders map.
 	bundle[cID] = c
@@ -124,7 +134,7 @@ func lpUnknownCoders(cID string, bundle, base map[string]*pipepb.Coder) string {
 			ComponentCoderIds: []string{cID},
 		}
 		bundle[lpcID] = lpc
-		return lpcID
+		return lpcID, nil
 	}
 	// We know we have a composite, so if we count this as a leaf, move everything to
 	// the coders map.
@@ -133,12 +143,15 @@ func lpUnknownCoders(cID string, bundle, base map[string]*pipepb.Coder) string {
 		for _, cc := range c.GetComponentCoderIds() {
 			bundle[cc] = base[cc]
 		}
-		return cID
+		return cID, nil
 	}
 	var needNewComposite bool
 	var comps []string
-	for _, cc := range c.GetComponentCoderIds() {
-		rcc := lpUnknownCoders(cc, bundle, base)
+	for i, cc := range c.GetComponentCoderIds() {
+		rcc, err := lpUnknownCoders(cc, bundle, base)
+		if err != nil {
+			return "", fmt.Errorf("lpUnknownCoders: couldn't handle component %d %q of %q %v:\n%w", i, cc, cID, prototext.Format(c), err)
+		}
 		if cc != rcc {
 			needNewComposite = true
 		}
@@ -150,9 +163,9 @@ func lpUnknownCoders(cID string, bundle, base map[string]*pipepb.Coder) string {
 			ComponentCoderIds: comps,
 		}
 		bundle[lpcID] = lpc
-		return lpcID
+		return lpcID, nil
 	}
-	return cID
+	return cID, nil
 }
 
 // reconcileCoders ensures that the bundle coders are primed with initial coders from
@@ -194,7 +207,7 @@ func pullDecoder(c *pipepb.Coder, coders map[string]*pipepb.Coder) func(io.Reade
 	}
 }
 
-// pullDecoderNoAlloc returns a function that decodes a single eleemnt of the given coder.
+// pullDecoderNoAlloc returns a function that decodes a single element of the given coder.
 // Intended to only be used as an internal function for pullDecoder, which will use a io.TeeReader
 // to extract the bytes.
 func pullDecoderNoAlloc(c *pipepb.Coder, coders map[string]*pipepb.Coder) func(io.Reader) {
@@ -203,6 +216,20 @@ func pullDecoderNoAlloc(c *pipepb.Coder, coders map[string]*pipepb.Coder) func(i
 	// Anything length prefixed can be treated as opaque.
 	case urns.CoderBytes, urns.CoderStringUTF8, urns.CoderLengthPrefix:
 		return func(r io.Reader) {
+			l, _ := coder.DecodeVarInt(r)
+			ioutilx.ReadN(r, int(l))
+		}
+	case urns.CoderNullable:
+		return func(r io.Reader) {
+			b, _ := ioutilx.ReadN(r, 1)
+			if len(b) == 0 {
+				return
+			}
+			// Nullable coder is prefixed with 0 or 1 to indicate whether there exists remaining data.
+			prefix := b[0]
+			if prefix == 0 {
+				return
+			}
 			l, _ := coder.DecodeVarInt(r)
 			ioutilx.ReadN(r, int(l))
 		}
@@ -230,6 +257,9 @@ func pullDecoderNoAlloc(c *pipepb.Coder, coders map[string]*pipepb.Coder) func(i
 
 	case urns.CoderKV:
 		ccids := c.GetComponentCoderIds()
+		if len(ccids) != 2 {
+			panic(fmt.Sprintf("KV coder with more than 2 components: %s", prototext.Format(c)))
+		}
 		kd := pullDecoderNoAlloc(coders[ccids[0]], coders)
 		vd := pullDecoderNoAlloc(coders[ccids[1]], coders)
 		return func(r io.Reader) {
@@ -241,4 +271,25 @@ func pullDecoderNoAlloc(c *pipepb.Coder, coders map[string]*pipepb.Coder) func(i
 	default:
 		panic(fmt.Sprintf("unknown coder urn key: %v", urn))
 	}
+}
+
+// debugCoder is developer code to get the structure of a proto coder visible when
+// debugging coder errors in prism. It may sometimes be unused, so we do this to avoid
+// linting errors.
+var _ = debugCoder
+
+func debugCoder(cid string, coders map[string]*pipepb.Coder) string {
+	var b strings.Builder
+	b.WriteString(cid)
+	b.WriteRune('\n')
+	c := coders[cid]
+	if len(c.ComponentCoderIds) > 0 {
+		b.WriteRune('\t')
+		b.WriteString(strings.Join(c.ComponentCoderIds, ", "))
+		b.WriteRune('\n')
+		for _, ccid := range c.GetComponentCoderIds() {
+			b.WriteString(debugCoder(ccid, coders))
+		}
+	}
+	return b.String()
 }

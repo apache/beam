@@ -15,21 +15,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# Random string generator resource. To generate source code buckets name
-resource "random_string" "id" {
-  length = 4
-  upper = false
-  special = false
-}
-
 # Variable for prefix. Used in generated source code buckets name
 variable "resource_name_prefix" {
   type = string
   description = "The resource name prefix applied to all resource naming for the application"
-  default = "tour-of-beam"
+  default = "tourofbeam"
 }
 
 # Local value to store generated GCS bucket name for source code (Cloud Functions)
 locals {
-  cloudfunctions_bucket = "${var.resource_name_prefix}-cfstorage-${random_string.id.result}"
+  cloudfunctions_bucket = "${var.resource_name_prefix}-cfstorage-${var.environment}"
 }

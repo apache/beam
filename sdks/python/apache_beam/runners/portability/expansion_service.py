@@ -19,29 +19,54 @@
 """
 # pytype: skip-file
 
+import copy
 import traceback
 
 from apache_beam import pipeline as beam_pipeline
+from apache_beam.options import pipeline_options
+from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_expansion_api_pb2
 from apache_beam.portability.api import beam_expansion_api_pb2_grpc
 from apache_beam.runners import pipeline_context
-from apache_beam.runners.portability import portable_runner
+from apache_beam.runners.portability import artifact_service
+from apache_beam.runners.portability.artifact_service import BeamFilesystemHandler
+from apache_beam.transforms import environments
 from apache_beam.transforms import external
 from apache_beam.transforms import ptransform
 
 
 class ExpansionServiceServicer(
     beam_expansion_api_pb2_grpc.ExpansionServiceServicer):
-  def __init__(self, options=None):
+  def __init__(self, options=None, loopback_address=None):
     self._options = options or beam_pipeline.PipelineOptions(
-        environment_type=python_urns.EMBEDDED_PYTHON, sdk_location='container')
-    self._default_environment = (
-        portable_runner.PortableRunner._create_environment(self._options))
+        flags=[],
+        environment_type=python_urns.EMBEDDED_PYTHON,
+        sdk_location='container')
+    default_environment = (environments.Environment.from_options(self._options))
+    if loopback_address:
+      loopback_environment = environments.Environment.from_options(
+          beam_pipeline.PipelineOptions(
+              environment_type=common_urns.environments.EXTERNAL.urn,
+              environment_config=loopback_address))
+      default_environment = environments.AnyOfEnvironment(
+          [default_environment, loopback_environment])
+    self._default_environment = default_environment
 
   def Expand(self, request, context=None):
     try:
-      pipeline = beam_pipeline.Pipeline(options=self._options)
+      options = copy.deepcopy(self._options)
+      request_options = pipeline_options.PipelineOptions.from_runner_api(
+          request.pipeline_options)
+      # TODO(https://github.com/apache/beam/issues/20090): Figure out the
+      # correct subset of options to apply to expansion.
+      if request_options.view_as(
+          pipeline_options.StreamingOptions).update_compatibility_version:
+        options.view_as(
+            pipeline_options.StreamingOptions
+        ).update_compatibility_version = request_options.view_as(
+            pipeline_options.StreamingOptions).update_compatibility_version
+      pipeline = beam_pipeline.Pipeline(options=options)
 
       def with_pipeline(component, pcoll_id=None):
         component.pipeline = pipeline
@@ -54,7 +79,8 @@ class ExpansionServiceServicer(
       context = pipeline_context.PipelineContext(
           request.components,
           default_environment=self._default_environment,
-          namespace=request.namespace)
+          namespace=request.namespace,
+          requirements=request.requirements)
       producers = {
           pcoll_id: (context.transforms.get_by_id(t_id), pcoll_tag)
           for t_id,
@@ -106,3 +132,8 @@ class ExpansionServiceServicer(
     except Exception:  # pylint: disable=broad-except
       return beam_expansion_api_pb2.ExpansionResponse(
           error=traceback.format_exc())
+
+  def artifact_service(self):
+    """Returns a service to retrieve artifacts for use in a job."""
+    return artifact_service.ArtifactRetrievalService(
+        BeamFilesystemHandler(None).file_reader)

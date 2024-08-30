@@ -45,7 +45,7 @@ import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -314,7 +314,10 @@ public class DetectNewPartitionsAction {
     for (NewPartition newPartition : newPartitions) {
       if (processNewPartitionsAction.processNewPartition(newPartition, receiver)) {
         outputtedNewPartitions.add(newPartition.getPartition());
-      } else {
+      } else if (streamPartitionsWithWatermark != null) {
+        // streamPartitionsWithWatermark is not null on runs that we update watermark. We only run
+        // reconciliation when we update watermark. Only add incompleteNewPartitions if
+        // reconciliation is being run
         partitionReconciler.addIncompleteNewPartitions(newPartition);
         orphanedMetadataCleaner.addIncompleteNewPartitions(newPartition);
       }
@@ -325,26 +328,26 @@ public class DetectNewPartitionsAction {
       Optional<Instant> maybeWatermark =
           getNewWatermark(streamPartitionsWithWatermark, newPartitions);
       maybeWatermark.ifPresent(metadataTableDao::updateDetectNewPartitionWatermark);
-      // Using NewPartitions and StreamPartitions, evaluate partitions that are possibly not being
-      // streamed. This isn't perfect because there may be partitions moving between
-      // StreamPartitions and NewPartitions while scanning the metadata table. Also, this does not
-      // include NewPartitions marked as deleted from a previous DNP run not yet processed by RCSP.
-      List<ByteStringRange> existingPartitions =
-          streamPartitionsWithWatermark.stream()
-              .map(StreamPartitionWithWatermark::getPartition)
-              .collect(Collectors.toList());
-      existingPartitions.addAll(outputtedNewPartitions);
-      List<ByteStringRange> missingStreamPartitions =
-          getMissingPartitionsFromEntireKeySpace(existingPartitions);
-      orphanedMetadataCleaner.addMissingPartitions(missingStreamPartitions);
-      partitionReconciler.addMissingPartitions(missingStreamPartitions);
-    }
-
-    // Only start reconciling after the pipeline has been running for a while.
-    if (tracker.currentRestriction().getFrom() > 50) {
-      processReconcilerPartitions(
-          receiver, watermarkEstimator, initialPipelineState.getStartTime());
-      cleanUpOrphanedMetadata();
+      // Only start reconciling after the pipeline has been running for a while.
+      if (tracker.currentRestriction().getFrom() > 50) {
+        // Using NewPartitions and StreamPartitions, evaluate partitions that are possibly not being
+        // streamed. This isn't perfect because there may be partitions moving between
+        // StreamPartitions and NewPartitions while scanning the metadata table. Also, this does not
+        // include NewPartitions marked as deleted from a previous DNP run not yet processed by
+        // RCSP.
+        List<ByteStringRange> existingPartitions =
+            streamPartitionsWithWatermark.stream()
+                .map(StreamPartitionWithWatermark::getPartition)
+                .collect(Collectors.toList());
+        existingPartitions.addAll(outputtedNewPartitions);
+        List<ByteStringRange> missingStreamPartitions =
+            getMissingPartitionsFromEntireKeySpace(existingPartitions);
+        orphanedMetadataCleaner.addMissingPartitions(missingStreamPartitions);
+        partitionReconciler.addMissingPartitions(missingStreamPartitions);
+        processReconcilerPartitions(
+            receiver, watermarkEstimator, initialPipelineState.getStartTime());
+        cleanUpOrphanedMetadata();
+      }
     }
 
     return ProcessContinuation.resume().withResumeDelay(Duration.millis(100));

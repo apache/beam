@@ -46,6 +46,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *   <li>{@code by .......................} apply {@link UnaryPredicate} to input elements
  *   <li>{@code output ...................} build output dataset
  * </ol>
+ *
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
  */
 @Audience(Audience.Type.CLIENT)
 @Derived(state = StateComplexity.ZERO, repartitions = 0)
@@ -53,6 +55,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
+@Deprecated
 public class Filter<InputT> extends Operator<InputT> implements CompositeOperator<InputT, InputT> {
 
   /**

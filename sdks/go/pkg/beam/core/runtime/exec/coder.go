@@ -1228,8 +1228,7 @@ func EncodeWindowedValueHeader(enc WindowEncoder, ws []typex.Window, t typex.Eve
 	if err := enc.Encode(ws, w); err != nil {
 		return err
 	}
-	err := coder.EncodePane(p, w)
-	return err
+	return coder.EncodePane(p, w)
 }
 
 // DecodeWindowedValueHeader deserializes a windowed value header.
@@ -1257,6 +1256,7 @@ func DecodeWindowedValueHeader(dec WindowDecoder, r io.Reader) ([]typex.Window, 
 }
 
 // encodeTimer encodes a TimerRecv into a byte stream.
+// Avoids partial writes to provided writer on encoding errors.
 func encodeTimer(elm ElementEncoder, win WindowEncoder, tm TimerRecv, w io.Writer) error {
 	var b bytes.Buffer
 	err := elm.Encode(tm.Key, &b)
@@ -1264,42 +1264,53 @@ func encodeTimer(elm ElementEncoder, win WindowEncoder, tm TimerRecv, w io.Write
 		return errors.WithContext(err, "error encoding key")
 	}
 
-	if err := coder.EncodeStringUTF8(tm.Tag, &b); err != nil {
-		return errors.WithContext(err, "error encoding tag")
-	}
-
-	if err := win.Encode(tm.Windows, &b); err != nil {
-		return errors.WithContext(err, "error encoding window")
-	}
-
-	if err := coder.EncodeBool(tm.Clear, &b); err != nil {
-		return errors.WithContext(err, "error encoding clear bit")
-	}
-
-	if !tm.Clear {
-		if err := coder.EncodeEventTime(tm.FireTimestamp, &b); err != nil {
-			return errors.WithContext(err, "error encoding fire timestamp")
-		}
-		if err := coder.EncodeEventTime(tm.HoldTimestamp, &b); err != nil {
-			return errors.WithContext(err, "error encoding hold timestamp")
-		}
-		if err := coder.EncodePane(tm.Pane, &b); err != nil {
-			return errors.WithContext(err, "error encoding paneinfo")
-		}
+	if err := encodeTimerSuffix(win, tm, &b); err != nil {
+		return err
 	}
 	w.Write(b.Bytes())
 
 	return nil
 }
 
+// encodeTimerSuffix enccodes the timer directly to the provided writer.
+func encodeTimerSuffix(win WindowEncoder, tm TimerRecv, w io.Writer) error {
+	if err := coder.EncodeStringUTF8(tm.Tag, w); err != nil {
+		return errors.WithContext(err, "error encoding tag")
+	}
+
+	if err := win.Encode(tm.Windows, w); err != nil {
+		return errors.WithContext(err, "error encoding window")
+	}
+
+	if err := coder.EncodeBool(tm.Clear, w); err != nil {
+		return errors.WithContext(err, "error encoding clear bit")
+	}
+
+	if !tm.Clear {
+		if err := coder.EncodeEventTime(tm.FireTimestamp, w); err != nil {
+			return errors.WithContext(err, "error encoding fire timestamp")
+		}
+		if err := coder.EncodeEventTime(tm.HoldTimestamp, w); err != nil {
+			return errors.WithContext(err, "error encoding hold timestamp")
+		}
+		if err := coder.EncodePane(tm.Pane, w); err != nil {
+			return errors.WithContext(err, "error encoding paneinfo")
+		}
+	}
+	return nil
+}
+
 // decodeTimer decodes timer byte encoded with standard timer coder spec.
 func decodeTimer(dec ElementDecoder, win WindowDecoder, r io.Reader) (TimerRecv, error) {
 	tm := TimerRecv{}
-	key, err := dec.Decode(r)
+	var keyBuf bytes.Buffer
+	tr := io.TeeReader(r, &keyBuf)
+	key, err := dec.Decode(tr)
 	if err != nil {
 		return tm, errors.WithContext(err, "error decoding key")
 	}
 	tm.Key = key
+	tm.KeyString = keyBuf.String()
 
 	s, err := coder.DecodeStringUTF8(r)
 	if err != nil && err != io.EOF {

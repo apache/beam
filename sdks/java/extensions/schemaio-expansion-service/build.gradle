@@ -32,14 +32,28 @@ applyJavaNature(
 dependencies {
     implementation project(path: ":sdks:java:expansion-service")
     permitUnusedDeclared project(path: ":sdks:java:expansion-service") // BEAM-11761
+    implementation project(":sdks:java:extensions:google-cloud-platform-core")
+    permitUnusedDeclared project(path: ":sdks:java:extensions:google-cloud-platform-core") // BEAM-11761
+    implementation project(":sdks:java:io:csv")
+    permitUnusedDeclared project(path: ":sdks:java:io:csv") // BEAM-11761
     implementation project(":sdks:java:io:jdbc")
     permitUnusedDeclared project(":sdks:java:io:jdbc") // BEAM-11761
+    implementation project(":sdks:java:io:json")
+    permitUnusedDeclared project(path: ":sdks:java:io:json") // BEAM-11761
+    runtimeOnly library.java.everit_json_schema
     implementation library.java.postgres
     permitUnusedDeclared library.java.postgres // BEAM-11761
     implementation project(path: ":model:pipeline", configuration: "shadow")
     implementation project(path: ":sdks:java:core", configuration: "shadow")
-    implementation library.java.vendored_grpc_1_54_0
-    implementation library.java.vendored_guava_26_0_jre
+    implementation library.java.vendored_grpc_1_60_1
+    implementation library.java.vendored_guava_32_1_2_jre
+    // Stage default drivers for JdbcIO schema transforms
+    implementation 'mysql:mysql-connector-java:8.0.22'
+    permitUnusedDeclared 'mysql:mysql-connector-java:8.0.22' // BEAM-11761
+    implementation 'com.oracle.database.jdbc:ojdbc8:23.2.0.0'
+    permitUnusedDeclared 'com.oracle.database.jdbc:ojdbc8:23.2.0.0' // BEAM-11761
+    implementation 'com.microsoft.sqlserver:mssql-jdbc:12.2.0.jre11'
+    permitUnusedDeclared 'com.microsoft.sqlserver:mssql-jdbc:12.2.0.jre11' // BEAM-11761
     testImplementation library.java.junit
     testImplementation library.java.mockito_core
 }

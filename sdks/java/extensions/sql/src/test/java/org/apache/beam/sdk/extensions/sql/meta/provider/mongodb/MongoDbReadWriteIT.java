@@ -56,7 +56,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.bson.Document;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -302,10 +302,9 @@ public class MongoDbReadWriteIT {
             .append(
                 "$or",
                 ImmutableList.of(
-                        new Document("c_varchar", "varchar"),
-                        new Document(
-                            "c_varchar", new Document("$not", new Document("$eq", "fakeString"))))
-                    .asList())
+                    new Document("c_varchar", "varchar"),
+                    new Document(
+                        "c_varchar", new Document("$not", new Document("$eq", "fakeString")))))
             .append("c_boolean", true)
             .append("c_integer", 2147483647);
     final Schema expectedSchema =

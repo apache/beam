@@ -22,7 +22,7 @@ spec:
   adminHashedPassword: "*9177CC8207174BDBB5ED66B2140C75171283F15D"
   nodeImage:
     repository: singlestore/node
-    tag: alma-7.5.22-8b82f8a84e
+    tag: latest
 
   redundancyLevel: 1
 

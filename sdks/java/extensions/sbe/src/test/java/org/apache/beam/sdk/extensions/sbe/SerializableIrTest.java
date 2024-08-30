@@ -29,7 +29,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Resources;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Resources;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;

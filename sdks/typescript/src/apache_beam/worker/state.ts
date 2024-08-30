@@ -41,7 +41,7 @@ export type MaybePromise<T> = PromiseWrapper<T> | ValueWrapper<T>;
 export interface StateProvider {
   getState: <T>(
     stateKey: fnApi.StateKey,
-    decode: (data: Uint8Array) => T
+    decode: (data: Uint8Array) => T,
   ) => MaybePromise<T>;
 }
 
@@ -59,7 +59,7 @@ export class CachingStateProvider implements StateProvider {
     // serialized key, only constructing this proto when interacting with
     // the runner.
     const cacheKey = Buffer.from(fnApi.StateKey.toBinary(stateKey)).toString(
-      "base64"
+      "base64",
     );
     if (this.cache.has(cacheKey)) {
       return this.cache.get(cacheKey)!;
@@ -84,14 +84,14 @@ export class CachingStateProvider implements StateProvider {
 export class GrpcStateProvider implements StateProvider {
   constructor(
     private multiplexingChannel: MultiplexingStateChannel,
-    private instructionId
+    private instructionId,
   ) {}
 
   getState<T>(stateKey: fnApi.StateKey, decode: (data: Uint8Array) => T) {
     return this.multiplexingChannel.getState(
       this.instructionId,
       stateKey,
-      decode
+      decode,
     );
   }
 }
@@ -121,7 +121,7 @@ export class MultiplexingStateChannel {
       endpoint,
       grpc.ChannelCredentials.createInsecure(),
       {},
-      {}
+      {},
     );
     const metadata = new grpc.Metadata();
     metadata.add("worker_id", workerId);
@@ -145,7 +145,7 @@ export class MultiplexingStateChannel {
   getState<T>(
     instructionId: string,
     stateKey: fnApi.StateKey,
-    decode: (data: Uint8Array) => T
+    decode: (data: Uint8Array) => T,
   ): MaybePromise<T> {
     if (this.closed) {
       throw new Error("State stream is closed.");
@@ -160,7 +160,7 @@ export class MultiplexingStateChannel {
     function responseCallback(
       resolve,
       reject,
-      prevChunks: Uint8Array[] = []
+      prevChunks: Uint8Array[] = [],
     ): (response: fnApi.StateResponse) => void {
       return (response) => {
         if (this_.error) {
@@ -189,7 +189,7 @@ export class MultiplexingStateChannel {
           const continueId = "continueStateRequest" + this_.idCounter++;
           this_.callbacks.set(
             continueId,
-            responseCallback(resolve, reject, allChunks)
+            responseCallback(resolve, reject, allChunks),
           );
           this_.stateChannel.write({
             id: continueId,
@@ -235,7 +235,7 @@ export function Uint8ArrayConcat(chunks: Uint8Array[]) {
     return new Uint8Array();
   } else {
     const fullData = new Uint8Array(
-      chunks.map((chunk) => chunk.length).reduce((a, b) => a + b)
+      chunks.map((chunk) => chunk.length).reduce((a, b) => a + b),
     );
     let start = 0;
     for (const chunk of chunks) {

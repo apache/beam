@@ -34,53 +34,50 @@ class StandardExampleLoader extends ExampleLoader {
   final StandardExampleLoadingDescriptor descriptor;
 
   final ExampleCache exampleCache;
-  final _completer = Completer<Example>();
 
   @override
   Sdk? get sdk => descriptor.sdk;
 
   @override
-  Future<Example> get future => _completer.future;
+  late Future<Example> future = _load();
 
   StandardExampleLoader({
     required this.descriptor,
     required this.exampleCache,
-  }) {
-    unawaited(_load());
-  }
+  });
 
-  Future<void> _load() async {
+  Future<Example> _load() async {
     try {
-      final example = await exampleCache.getPrecompiledObject(
+      final exampleWithoutOptions = await exampleCache.getPrecompiledObject(
         descriptor.path,
         descriptor.sdk,
       );
 
-      _completer.complete(example);
+      return exampleWithoutOptions.copyWith(
+        viewOptions: descriptor.viewOptions,
+      );
     } on Exception catch (ex, trace) {
-      await _tryLoadSharedExample(
+      return _tryLoadSharedExample(
         previousExceptions: [ex],
         previousStackTraces: [trace],
       );
     }
   }
 
-  Future<void> _tryLoadSharedExample({
+  Future<Example> _tryLoadSharedExample({
     required List<Exception> previousExceptions,
     required List<StackTrace> previousStackTraces,
   }) async {
     try {
-      final example = await exampleCache.loadSharedExample(
+      return await exampleCache.loadSharedExample(
         descriptor.path,
         viewOptions: descriptor.viewOptions,
       );
-      _completer.complete(example);
     } on Exception catch (ex, trace) {
-      _completer.completeError(
-        MultipleExceptions(
-          exceptions: [...previousExceptions, ex],
-          stackTraces: [...previousStackTraces, trace],
-        ),
+      throw MultipleExceptions(
+        'Cannot load example: ${descriptor.path}',
+        exceptions: [...previousExceptions, ex],
+        stackTraces: [...previousStackTraces, trace],
       );
     }
   }

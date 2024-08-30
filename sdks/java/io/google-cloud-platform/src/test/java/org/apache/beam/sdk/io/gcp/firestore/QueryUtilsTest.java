@@ -34,8 +34,8 @@ import com.google.firestore.v1.StructuredQuery.Order;
 import com.google.firestore.v1.StructuredQuery.UnaryFilter;
 import com.google.firestore.v1.Value;
 import java.util.List;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Before;
 import org.junit.Test;
 

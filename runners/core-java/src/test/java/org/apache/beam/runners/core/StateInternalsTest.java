@@ -50,7 +50,7 @@ import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
@@ -386,10 +386,16 @@ public abstract class StateInternalsTest {
         value.entries().readLater().read(),
         containsInAnyOrder(MapEntry.of("B", 2), MapEntry.of("D", 4), MapEntry.of("E", 5)));
 
+    // isEmpty
+    assertFalse(value.isEmpty().read());
+
     // clear
     value.clear();
     assertThat(value.entries().read(), Matchers.emptyIterable());
     assertThat(underTest.state(NAMESPACE_1, STRING_MAP_ADDR), equalTo(value));
+
+    // isEmpty
+    assertTrue(value.isEmpty().read());
   }
 
   @Test

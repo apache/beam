@@ -38,7 +38,7 @@ Beam provides different ways to implement inference as part of your pipeline. Yo
   </tr>
 </table>
 
-The RunInference API is available with the Beam Python SDK versions 2.40.0 and later. You can use Apache Beam with the RunInference API to use machine learning (ML) models to do local and remote inference with batch and streaming pipelines. Starting with Apache Beam 2.40.0, PyTorch and Scikit-learn frameworks are supported. Tensorflow models are supported through `tfx-bsl`. For more deatils about using RunInference with Python, see [Machine Learning with Python](/documentation/sdks/python-machine-learning/).
+The RunInference API is available with the Beam Python SDK versions 2.40.0 and later. You can use Apache Beam with the RunInference API to use machine learning (ML) models to do local and remote inference with batch and streaming pipelines. Starting with Apache Beam 2.40.0, PyTorch and Scikit-learn frameworks are supported. Tensorflow models are supported through `tfx-bsl`. For more deatils about using RunInference with Python, see [About Beam ML](/documentation/ml/about-ml).
 
 The RunInference API is available with the Beam Java SDK versions 2.41.0 and later through Apache Beam's [Multi-language Pipelines framework](/documentation/programming-guide/#multi-language-pipelines). For information about the Java wrapper transform, see [RunInference.java](https://github.com/apache/beam/blob/master/sdks/java/extensions/python/src/main/java/org/apache/beam/sdk/extensions/python/transforms/RunInference.java). To try it out, see the [Java Sklearn Mnist Classification example](https://github.com/apache/beam/tree/master/examples/multi-language).
 
@@ -47,7 +47,7 @@ You can create multiple types of transforms using the RunInference API: the API 
 {{< table >}}
 | Task | Example |
 | ------- | ---------------|
-| I want to use the RunInference transform | [Modify a Python pipeline to use an ML model](/documentation/sdks/python-machine-learning/#modify-a-python-pipeline-to-use-an-ml-model) |
+| I want to use the RunInference transform | [Modify a Python pipeline to use an ML model](/documentation/ml/about-ml/#modify-a-python-pipeline-to-use-an-ml-model) |
 | I want to use RunInference with PyTorch | [Use RunInference with PyTorch](/documentation/transforms/python/elementwise/runinference-pytorch/) |
 | I want to use RunInference with Sklearn | [Use RunInference with Sklearn](/documentation/transforms/python/elementwise/runinference-sklearn/) |
 | I want to use pre-trained models (PyTorch, Scikit-learn, or TensorFlow) | [Use pre-trained models](/documentation/ml/about-ml/#use-pre-trained-models) |:

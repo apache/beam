@@ -96,6 +96,7 @@ class TourOfBeamApp extends StatelessWidget {
             localizationsDelegates: context.localizationDelegates,
             supportedLocales: context.supportedLocales,
             locale: context.locale,
+            title: 'Tour of Beam',
           );
         },
       ),

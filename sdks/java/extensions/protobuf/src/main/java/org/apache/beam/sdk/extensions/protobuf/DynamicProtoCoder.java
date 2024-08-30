@@ -33,8 +33,8 @@ import org.apache.beam.sdk.coders.CoderProvider;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -152,7 +152,7 @@ public class DynamicProtoCoder extends ProtoCoder<DynamicMessage> {
 
   /** Get the memoized {@link Parser}, possibly initializing it lazily. */
   @Override
-  protected Parser<DynamicMessage> getParser() {
+  protected synchronized Parser<DynamicMessage> getParser() {
     if (memoizedParser == null) {
       DynamicMessage protoMessageInstance =
           DynamicMessage.newBuilder(domain.getDescriptor(messageName)).build();

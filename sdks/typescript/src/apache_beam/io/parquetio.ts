@@ -30,7 +30,7 @@ export function readFromParquet(
   filePattern: string,
   options: {
     columns?: string[];
-  } = {}
+  } = {},
 ): (root: beam.Root) => Promise<beam.PCollection<any>> {
   return async function readFromParquet(root: beam.Root) {
     return root.applyAsync(
@@ -38,21 +38,21 @@ export function readFromParquet(
         path: filePattern,
         format: "parquet",
         ...camelToSnakeOptions(options),
-      })
+      }),
     );
   };
 }
 
 export function writeToParquet(
   filePathPrefix: string,
-  options: { schema?: Schema } = {}
+  options: { schema?: Schema } = {},
 ): (
-  toWrite: beam.PCollection<Object>
+  toWrite: beam.PCollection<Object>,
 ) => Promise<{ filesWritten: beam.PCollection<string> }> {
   return async function writeToJson(toWrite: beam.PCollection<Object>) {
     if (options.schema) {
       toWrite = toWrite.apply(
-        withCoderInternal(RowCoder.fromSchema(options.schema))
+        withCoderInternal(RowCoder.fromSchema(options.schema)),
       );
       delete options.schema;
     }
@@ -62,7 +62,7 @@ export function writeToParquet(
           path: filePathPrefix,
           format: "parquet",
           ...camelToSnakeOptions(options),
-        })
+        }),
       ),
     };
   };

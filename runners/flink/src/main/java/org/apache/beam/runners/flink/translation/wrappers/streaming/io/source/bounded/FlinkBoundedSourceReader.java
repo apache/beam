@@ -22,14 +22,19 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Function;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.FlinkSourceReaderBase;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.FlinkSourceSplit;
+import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.core.io.InputStatus;
@@ -54,20 +59,41 @@ public class FlinkBoundedSourceReader<T> extends FlinkSourceReaderBase<T, Window
   private int currentSplitId;
 
   public FlinkBoundedSourceReader(
+      String stepName,
       SourceReaderContext context,
       PipelineOptions pipelineOptions,
       @Nullable Function<WindowedValue<T>, Long> timestampExtractor) {
-    super(context, pipelineOptions, timestampExtractor);
+
+    super(stepName, context, pipelineOptions, timestampExtractor);
     currentSplitId = -1;
+  }
+
+  @Override
+  protected FlinkSourceSplit<T> getReaderCheckpoint(int splitId, ReaderAndOutput readerAndOutput)
+      throws CoderException {
+    // Sometimes users may decide to run a bounded source in streaming mode as "finite
+    // stream."
+    // For bounded source, the checkpoint granularity is the entire source split.
+    // So, in case of failure, all the data from this split will be consumed again.
+    return new FlinkSourceSplit<>(splitId, readerAndOutput.reader.getCurrentSource());
+  }
+
+  @Override
+  protected Source.Reader<T> createReader(@Nonnull FlinkSourceSplit<T> sourceSplit)
+      throws IOException {
+    Source<T> beamSource = sourceSplit.getBeamSplitSource();
+    return ((BoundedSource<T>) beamSource).createReader(pipelineOptions);
   }
 
   @VisibleForTesting
   protected FlinkBoundedSourceReader(
+      String stepName,
       SourceReaderContext context,
       PipelineOptions pipelineOptions,
       ScheduledExecutorService executor,
       @Nullable Function<WindowedValue<T>, Long> timestampExtractor) {
-    super(executor, context, pipelineOptions, timestampExtractor);
+
+    super(stepName, executor, context, pipelineOptions, timestampExtractor);
     currentSplitId = -1;
   }
 
@@ -76,26 +102,27 @@ public class FlinkBoundedSourceReader<T> extends FlinkSourceReaderBase<T, Window
     checkExceptionAndMaybeThrow();
     if (currentReader == null && !moveToNextNonEmptyReader()) {
       // Nothing to read for now.
-      if (noMoreSplits() && checkIdleTimeoutAndMaybeStartCountdown()) {
-        // All the source splits have been read and idle timeout has passed.
-        LOG.info(
-            "All splits have finished reading, and idle time {} ms has passed.", idleTimeoutMs);
-        return InputStatus.END_OF_INPUT;
-      } else {
-        // This reader either hasn't received NoMoreSplitsEvent yet or it is waiting for idle
-        // timeout.
-        return InputStatus.NOTHING_AVAILABLE;
+      if (noMoreSplits()) {
+        output.emitWatermark(Watermark.MAX_WATERMARK);
+        if (checkIdleTimeoutAndMaybeStartCountdown()) {
+          // All the source splits have been read and idle timeout has passed.
+          LOG.info(
+              "All splits have finished reading, and idle time {} ms has passed.", idleTimeoutMs);
+          return InputStatus.END_OF_INPUT;
+        }
       }
+      // This reader either hasn't received NoMoreSplitsEvent yet or it is waiting for idle
+      // timeout.
+      return InputStatus.NOTHING_AVAILABLE;
     }
-    Source.Reader<T> tempCurrentReader = currentReader;
-    if (tempCurrentReader != null) {
-      T record = tempCurrentReader.getCurrent();
+    if (currentReader != null) {
+      // make null checks happy
+      final @Nonnull Source.Reader<T> splitReader = currentReader;
+      T record = splitReader.getCurrent();
       WindowedValue<T> windowedValue =
           WindowedValue.of(
-              record,
-              tempCurrentReader.getCurrentTimestamp(),
-              GlobalWindow.INSTANCE,
-              PaneInfo.NO_FIRING);
+              record, splitReader.getCurrentTimestamp(), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING);
+
       if (timestampExtractor == null) {
         output.collect(windowedValue);
       } else {
@@ -105,11 +132,11 @@ public class FlinkBoundedSourceReader<T> extends FlinkSourceReaderBase<T, Window
       // If the advance() invocation throws exception here, the job will just fail over and read
       // everything again from
       // the beginning. So the failover granularity is the entire Flink job.
-      if (!tempCurrentReader.advance()) {
+      if (!invocationUtil.invokeAdvance(splitReader)) {
         finishSplit(currentSplitId);
+        LOG.debug("Finished reading from {}", currentSplitId);
         currentReader = null;
         currentSplitId = -1;
-        LOG.debug("Finished reading from {}", currentSplitId);
       }
       // Always return MORE_AVAILABLE here regardless of the availability of next record. If there
       // is no more
@@ -133,7 +160,7 @@ public class FlinkBoundedSourceReader<T> extends FlinkSourceReaderBase<T, Window
     Optional<ReaderAndOutput> readerAndOutput;
     while ((readerAndOutput = createAndTrackNextReader()).isPresent()) {
       ReaderAndOutput rao = readerAndOutput.get();
-      if (rao.reader.start()) {
+      if (invocationUtil.invokeStart(rao.reader)) {
         currentSplitId = Integer.parseInt(rao.splitId);
         currentReader = rao.reader;
         return true;

@@ -18,8 +18,8 @@
 package org.apache.beam.runners.samza.translation;
 
 import java.util.List;
-import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 
@@ -59,7 +59,7 @@ class SamzaPublishView<ElemT, ViewT>
     SamzaPublishViewPayloadTranslator() {}
 
     @Override
-    public String getUrn(SamzaPublishView<?, ?> transform) {
+    public String getUrn() {
       return SAMZA_PUBLISH_VIEW_URN;
     }
   }

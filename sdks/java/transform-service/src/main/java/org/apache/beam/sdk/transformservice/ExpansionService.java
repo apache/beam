@@ -17,16 +17,23 @@
  */
 package org.apache.beam.sdk.transformservice;
 
+import java.io.IOException;
+import java.net.Socket;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeoutException;
 import org.apache.beam.model.expansion.v1.ExpansionApi;
+import org.apache.beam.model.expansion.v1.ExpansionApi.ExpansionResponse;
 import org.apache.beam.model.expansion.v1.ExpansionServiceGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
-import org.apache.beam.runners.core.construction.DefaultExpansionServiceClientFactory;
-import org.apache.beam.runners.core.construction.ExpansionServiceClientFactory;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.ManagedChannelBuilder;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
+import org.apache.beam.sdk.util.construction.DefaultExpansionServiceClientFactory;
+import org.apache.beam.sdk.util.construction.ExpansionServiceClientFactory;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplBase
@@ -40,6 +47,12 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
 
   final List<Endpoints.ApiServiceDescriptor> endpoints;
 
+  private boolean checkedAllServices = false;
+
+  private static final long SERVICE_CHECK_TIMEOUT_MILLIS = 60000;
+
+  private boolean disableServiceCheck = false;
+
   ExpansionService(
       List<Endpoints.ApiServiceDescriptor> endpoints,
       @Nullable ExpansionServiceClientFactory clientFactory) {
@@ -48,10 +61,65 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
         clientFactory != null ? clientFactory : DEFAULT_EXPANSION_SERVICE_CLIENT_FACTORY;
   }
 
+  // Waits till all expansion services are ready.
+  private void waitForAllServicesToBeReady() throws TimeoutException {
+    if (disableServiceCheck) {
+      // Service check disabled. Just returning.
+      return;
+    }
+
+    outer:
+    for (Endpoints.ApiServiceDescriptor endpoint : endpoints) {
+      long start = System.currentTimeMillis();
+      long duration = 10;
+      while (System.currentTimeMillis() - start < SERVICE_CHECK_TIMEOUT_MILLIS) {
+        try {
+          String url = endpoint.getUrl();
+          int portIndex = url.lastIndexOf(":");
+          if (portIndex <= 0) {
+            throw new RuntimeException(
+                "Expected the endpoint to be of the form <host>:<port> but received " + url);
+          }
+          int port = Integer.parseInt(url.substring(portIndex + 1));
+          String host = url.substring(0, portIndex);
+          new Socket(host, port).close();
+          // Current service is up. Checking the next one.
+          continue outer;
+        } catch (IOException exn) {
+          try {
+            Thread.sleep(duration);
+          } catch (InterruptedException e) {
+            // Ignore
+          }
+          duration = (long) (duration * 1.2);
+        }
+      }
+      throw new TimeoutException(
+          "Timeout waiting for the service "
+              + endpoint.getUrl()
+              + " to startup after "
+              + (System.currentTimeMillis() - start)
+              + " milliseconds.");
+    }
+  }
+
+  @VisibleForTesting
+  void disableServiceCheck() {
+    disableServiceCheck = true;
+  }
+
   @Override
   public void expand(
       ExpansionApi.ExpansionRequest request,
       StreamObserver<ExpansionApi.ExpansionResponse> responseObserver) {
+    if (!checkedAllServices) {
+      try {
+        waitForAllServicesToBeReady();
+      } catch (TimeoutException e) {
+        throw new RuntimeException(e);
+      }
+      checkedAllServices = true;
+    }
     try {
       responseObserver.onNext(processExpand(request));
       responseObserver.onCompleted();
@@ -68,6 +136,14 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
   public void discoverSchemaTransform(
       ExpansionApi.DiscoverSchemaTransformRequest request,
       StreamObserver<ExpansionApi.DiscoverSchemaTransformResponse> responseObserver) {
+    if (!checkedAllServices) {
+      try {
+        waitForAllServicesToBeReady();
+      } catch (TimeoutException e) {
+        throw new RuntimeException(e);
+      }
+      checkedAllServices = true;
+    }
     try {
       responseObserver.onNext(processDiscover(request));
       responseObserver.onCompleted();
@@ -80,18 +156,41 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
     }
   }
 
-  /*package*/ ExpansionApi.ExpansionResponse processExpand(ExpansionApi.ExpansionRequest request) {
+  private ExpansionApi.ExpansionResponse getAggregatedErrorResponse(
+      Map<String, ExpansionApi.ExpansionResponse> errorResponses) {
+    StringBuilder errorMessageBuilder = new StringBuilder();
+
+    errorMessageBuilder.append(
+        "Aggregated errors from " + errorResponses.size() + " expansion services." + "\n");
+    for (Map.Entry<String, ExpansionApi.ExpansionResponse> entry : errorResponses.entrySet()) {
+      errorMessageBuilder.append(
+          "Error from expansion service "
+              + entry.getKey()
+              + ": "
+              + entry.getValue().getError()
+              + "\n");
+    }
+
+    return errorResponses
+        .values()
+        .iterator()
+        .next()
+        .toBuilder()
+        .setError(errorMessageBuilder.toString())
+        .build();
+  }
+
+  ExpansionApi.ExpansionResponse processExpand(ExpansionApi.ExpansionRequest request) {
     // Trying out expansion services in order till one succeeds.
     // If all services fail, re-raises the last error.
-    // TODO: when all services fail, return an aggregated error with errors from all services.
-    ExpansionApi.ExpansionResponse lastErrorResponse = null;
+    Map<String, ExpansionResponse> errorResponses = new HashMap<>();
     RuntimeException lastException = null;
     for (Endpoints.ApiServiceDescriptor endpoint : endpoints) {
       try {
         ExpansionApi.ExpansionResponse response =
             expansionServiceClientFactory.getExpansionServiceClient(endpoint).expand(request);
         if (!response.getError().isEmpty()) {
-          lastErrorResponse = response;
+          errorResponses.put(endpoint.getUrl(), response);
           continue;
         }
         return response;
@@ -99,8 +198,11 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
         lastException = e;
       }
     }
-    if (lastErrorResponse != null) {
-      return lastErrorResponse;
+    if (lastException != null) {
+      throw new RuntimeException("Expansion request to transform service failed.", lastException);
+    }
+    if (!errorResponses.isEmpty()) {
+      return getAggregatedErrorResponse(errorResponses);
     } else if (lastException != null) {
       throw new RuntimeException("Expansion request to transform service failed.", lastException);
     } else {

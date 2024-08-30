@@ -22,7 +22,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.CharStreams;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.CharStreams;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
@@ -30,40 +30,61 @@ import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.params.BasicHttpParams;
 import org.apache.http.params.HttpConnectionParams;
 import org.apache.http.params.HttpParams;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** */
 public class GceMetadataUtil {
   private static final String BASE_METADATA_URL = "http://metadata/computeMetadata/v1/";
 
+  private static final Logger LOG = LoggerFactory.getLogger(GceMetadataUtil.class);
+
   static String fetchMetadata(String key) {
+    String requestUrl = BASE_METADATA_URL + key;
     int timeoutMillis = 5000;
     final HttpParams httpParams = new BasicHttpParams();
     HttpConnectionParams.setConnectionTimeout(httpParams, timeoutMillis);
-    HttpClient client = new DefaultHttpClient(httpParams);
-    HttpGet request = new HttpGet(BASE_METADATA_URL + key);
-    request.setHeader("Metadata-Flavor", "Google");
-
+    HttpConnectionParams.setSoTimeout(httpParams, timeoutMillis);
+    String ret = "";
     try {
+      HttpClient client = new DefaultHttpClient(httpParams);
+
+      HttpGet request = new HttpGet(requestUrl);
+      request.setHeader("Metadata-Flavor", "Google");
+
       HttpResponse response = client.execute(request);
-      if (response.getStatusLine().getStatusCode() != 200) {
-        // May mean its running on a non DataflowRunner, in which case it's perfectly normal.
-        return "";
+      if (response.getStatusLine().getStatusCode() == 200) {
+        InputStream in = response.getEntity().getContent();
+        try (final Reader reader = new InputStreamReader(in, StandardCharsets.UTF_8)) {
+          ret = CharStreams.toString(reader);
+        }
       }
-      InputStream in = response.getEntity().getContent();
-      try (final Reader reader = new InputStreamReader(in, StandardCharsets.UTF_8)) {
-        return CharStreams.toString(reader);
-      }
-    } catch (IOException e) {
-      // May mean its running on a non DataflowRunner, in which case it's perfectly normal.
+    } catch (IOException ignored) {
     }
-    return "";
+
+    // The return value can be an empty string, which may mean it's running on a non DataflowRunner.
+    LOG.debug("Fetched GCE Metadata at '{}' and got '{}'", requestUrl, ret);
+
+    return ret;
+  }
+
+  private static String fetchVmInstanceMetadata(String instanceMetadataKey) {
+    return GceMetadataUtil.fetchMetadata("instance/" + instanceMetadataKey);
   }
 
   private static String fetchCustomGceMetadata(String customMetadataKey) {
-    return GceMetadataUtil.fetchMetadata("instance/attributes/" + customMetadataKey);
+    return GceMetadataUtil.fetchVmInstanceMetadata("attributes/" + customMetadataKey);
   }
 
   public static String fetchDataflowJobId() {
     return GceMetadataUtil.fetchCustomGceMetadata("job_id");
+  }
+
+  public static String fetchDataflowJobName() {
+    return GceMetadataUtil.fetchCustomGceMetadata("job_name");
+  }
+
+  public static String fetchDataflowWorkerId() {
+    return GceMetadataUtil.fetchVmInstanceMetadata("id");
   }
 }

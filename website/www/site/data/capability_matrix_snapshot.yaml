@@ -689,9 +689,9 @@ capability-matrix-snapshot:
               l2:
               l3: ""
             - class: flink
-              l1: "Yes"
+              l1: "Partially"
               l2:
-              l3: ""
+              l3: "Support is either incomplete or broken on portable Flink Runner (#19637)"
             - class: spark
               l1:
               l2:
@@ -707,8 +707,8 @@ capability-matrix-snapshot:
               l2: fully supported
               l3: ""
             - class: flink
-              l1: "Partially"
-              l2: Only portable Flink Runner supports this.
+              l1: "No"
+              l2:
               l3: ""
             - class: spark
               l1:
@@ -725,7 +725,7 @@ capability-matrix-snapshot:
               l2:
               l3: ""
             - class: flink
-              l1: "Yes"
+              l1: "Partially"
               l2:
               l3: ""
             - class: spark
@@ -743,7 +743,7 @@ capability-matrix-snapshot:
               l2:
               l3: ""
             - class: flink
-              l1: "No"
+              l1:
               l2:
               l3: ""
             - class: spark
@@ -761,8 +761,8 @@ capability-matrix-snapshot:
               l2: Only Dataflow Runner V2 supports this.
               l3: ""
             - class: flink
-              l1: "Partially"
-              l2: Only portable Flink Runner supports this with checkpointing enabled.
+              l1: "No"
+              l2:
               l3: ""
             - class: spark
               l1:

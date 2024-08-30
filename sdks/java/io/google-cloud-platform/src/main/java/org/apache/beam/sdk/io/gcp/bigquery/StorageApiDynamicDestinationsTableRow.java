@@ -20,21 +20,25 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Message;
 import java.util.concurrent.ExecutionException;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.Preconditions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonNull Object>
     extends StorageApiDynamicDestinations<T, DestinationT> {
   private final SerializableFunction<T, TableRow> formatFunction;
+  private final @Nullable SerializableFunction<T, TableRow> formatRecordOnFailureFunction;
+
+  private final boolean usesCdc;
   private final CreateDisposition createDisposition;
   private final boolean ignoreUnknownValues;
   private final boolean autoSchemaUpdates;
@@ -48,11 +52,15 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
   StorageApiDynamicDestinationsTableRow(
       DynamicDestinations<T, DestinationT> inner,
       SerializableFunction<T, TableRow> formatFunction,
+      @Nullable SerializableFunction<T, TableRow> formatRecordOnFailureFunction,
+      boolean usesCdc,
       CreateDisposition createDisposition,
       boolean ignoreUnknownValues,
       boolean autoSchemaUpdates) {
     super(inner);
     this.formatFunction = formatFunction;
+    this.formatRecordOnFailureFunction = formatRecordOnFailureFunction;
+    this.usesCdc = usesCdc;
     this.createDisposition = createDisposition;
     this.ignoreUnknownValues = ignoreUnknownValues;
     this.autoSchemaUpdates = autoSchemaUpdates;
@@ -73,6 +81,7 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
     final com.google.cloud.bigquery.storage.v1.TableSchema protoTableSchema;
     final TableRowToStorageApiProto.SchemaInformation schemaInformation;
     final Descriptor descriptor;
+    final @Nullable Descriptor cdcDescriptor;
 
     TableRowConverter(
         TableSchema tableSchema,
@@ -82,6 +91,7 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
       this.protoTableSchema = TableRowToStorageApiProto.schemaToProtoTableSchema(tableSchema);
       this.schemaInformation = schemaInformation;
       this.descriptor = descriptor;
+      this.cdcDescriptor = null;
     }
 
     TableRowConverter(DestinationT destination, DatasetService datasetService) throws Exception {
@@ -122,7 +132,14 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
       // This allows us to support field relaxation downstream.
       descriptor =
           TableRowToStorageApiProto.getDescriptorFromTableSchema(
-              Preconditions.checkStateNotNull(tableSchema), !autoSchemaUpdates);
+              Preconditions.checkStateNotNull(tableSchema), !autoSchemaUpdates, false);
+      if (usesCdc) {
+        cdcDescriptor =
+            TableRowToStorageApiProto.getDescriptorFromTableSchema(
+                Preconditions.checkStateNotNull(tableSchema), !autoSchemaUpdates, true);
+      } else {
+        cdcDescriptor = null;
+      }
     }
 
     @Override
@@ -131,18 +148,33 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
     }
 
     @Override
-    public TableRow toTableRow(T element) {
-      return formatFunction.apply(element);
-    }
-
-    @Override
-    public StorageApiWritePayload toMessage(T element) throws Exception {
-      return toMessage(formatFunction.apply(element), true);
-    }
-
-    @Override
-    public StorageApiWritePayload toMessage(TableRow tableRow, boolean respectRequired)
+    public DescriptorProtos.DescriptorProto getDescriptor(boolean includeCdcColumns)
         throws Exception {
+      return cdcDescriptor != null ? cdcDescriptor.toProto() : descriptor.toProto();
+    }
+
+    @Override
+    public TableRow toFailsafeTableRow(T element) {
+      if (formatRecordOnFailureFunction != null) {
+        return formatRecordOnFailureFunction.apply(element);
+      } else {
+        return formatFunction.apply(element);
+      }
+    }
+
+    @Override
+    public StorageApiWritePayload toMessage(
+        T element, @Nullable RowMutationInformation rowMutationInformation) throws Exception {
+      TableRow tableRow = formatFunction.apply(element);
+
+      String changeType = null;
+      String changeSequenceNum = null;
+      Descriptor descriptorToUse = descriptor;
+      if (rowMutationInformation != null) {
+        changeType = rowMutationInformation.getMutationType().toString();
+        changeSequenceNum = rowMutationInformation.getChangeSequenceNumber();
+        descriptorToUse = Preconditions.checkStateNotNull(cdcDescriptor);
+      }
       // If autoSchemaUpdates==true, then we allow unknown values at this step and insert them into
       // the unknownFields variable. This allows us to handle schema updates in the write stage.
       boolean ignoreUnknown = ignoreUnknownValues || autoSchemaUpdates;
@@ -151,12 +183,17 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
       Message msg =
           TableRowToStorageApiProto.messageFromTableRow(
               schemaInformation,
-              descriptor,
+              descriptorToUse,
               tableRow,
               ignoreUnknown,
               allowMissingFields,
-              unknownFields);
-      return StorageApiWritePayload.of(msg.toByteArray(), unknownFields);
+              unknownFields,
+              changeType,
+              changeSequenceNum);
+      return StorageApiWritePayload.of(
+          msg.toByteArray(),
+          unknownFields,
+          formatRecordOnFailureFunction != null ? toFailsafeTableRow(element) : null);
     }
   };
 }

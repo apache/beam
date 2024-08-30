@@ -27,6 +27,8 @@ import json
 import logging
 import random
 import threading
+from dataclasses import dataclass
+from dataclasses import field
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
@@ -66,7 +68,6 @@ from apache_beam.runners.worker import data_sampler
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import operations
 from apache_beam.runners.worker import statesampler
-from apache_beam.runners.worker.data_sampler import OutputSampler
 from apache_beam.transforms import TimeDomain
 from apache_beam.transforms import core
 from apache_beam.transforms import environments
@@ -194,8 +195,8 @@ class DataInputOperation(RunnerIOOperation):
     self.stop = float('inf')
     self.started = False
 
-  def setup(self):
-    super().setup()
+  def setup(self, data_sampler=None):
+    super().setup(data_sampler)
     # We must do this manually as we don't have a spec or spec.output_coders.
     self.receivers = [
         operations.ConsumerSet.create(
@@ -226,8 +227,13 @@ class DataInputOperation(RunnerIOOperation):
         if self.index == self.stop - 1:
           return
         self.index += 1
-      decoded_value = self.windowed_coder_impl.decode_from_stream(
-          input_stream, True)
+      try:
+        decoded_value = self.windowed_coder_impl.decode_from_stream(
+            input_stream, True)
+      except Exception as exn:
+        raise ValueError(
+            "Error decoding input stream with coder " +
+            str(self.windowed_coder)) from exn
       self.output(decoded_value)
 
   def monitoring_infos(self, transform_id, tag_to_pcollection_id):
@@ -372,12 +378,18 @@ coder_impl.FastPrimitivesCoderImpl.register_iterable_like_type(
 
 
 class StateBackedSideInputMap(object):
+
+  _BULK_READ_LIMIT = 100
+  _BULK_READ_FULLY = "fully"
+  _BULK_READ_PARTIALLY = "partially"
+
   def __init__(self,
                state_handler,  # type: sdk_worker.CachingStateHandler
                transform_id,  # type: str
                tag,  # type: Optional[str]
                side_input_data,  # type: pvalue.SideInputData
-               coder  # type: WindowedValueCoder
+               coder,  # type: WindowedValueCoder
+               use_bulk_read = False,  # type: bool
               ):
     # type: (...) -> None
     self._state_handler = state_handler
@@ -388,6 +400,7 @@ class StateBackedSideInputMap(object):
     self._target_window_coder = coder.window_coder
     # TODO(robertwb): Limit the cache size.
     self._cache = {}  # type: Dict[BoundedWindow, Any]
+    self._use_bulk_read = use_bulk_read
 
   def __getitem__(self, window):
     target_window = self._side_input_data.window_mapping_fn(window)
@@ -411,12 +424,55 @@ class StateBackedSideInputMap(object):
                 side_input_id=self._tag,
                 window=self._target_window_coder.encode(target_window),
                 key=b''))
+        kv_iter_state_key = beam_fn_api_pb2.StateKey(
+            multimap_keys_values_side_input=beam_fn_api_pb2.StateKey.
+            MultimapKeysValuesSideInput(
+                transform_id=self._transform_id,
+                side_input_id=self._tag,
+                window=self._target_window_coder.encode(target_window)))
         cache = {}
-        key_coder_impl = self._element_coder.key_coder().get_impl()
+        key_coder = self._element_coder.key_coder()
+        key_coder_impl = key_coder.get_impl()
         value_coder = self._element_coder.value_coder()
+        use_bulk_read = self._use_bulk_read
 
         class MultiMap(object):
+          _bulk_read = None
+          _lock = threading.Lock()
+
           def __getitem__(self, key):
+            if use_bulk_read:
+              if self._bulk_read is None:
+                with self._lock:
+                  if self._bulk_read is None:
+                    try:
+                      # Attempt to bulk read the key-values over the iterable
+                      # protocol which, if supported, can be much more efficient
+                      # than point lookups if it fits into memory.
+                      for ix, (k, vs) in enumerate(_StateBackedIterable(
+                          state_handler,
+                          kv_iter_state_key,
+                          coders.TupleCoder(
+                              (key_coder, coders.IterableCoder(value_coder))))):
+                        cache[k] = vs
+                        if ix > StateBackedSideInputMap._BULK_READ_LIMIT:
+                          self._bulk_read = (
+                              StateBackedSideInputMap._BULK_READ_PARTIALLY)
+                          break
+                      else:
+                        # We reached the end of the iteration without breaking.
+                        self._bulk_read = (
+                            StateBackedSideInputMap._BULK_READ_FULLY)
+                    except Exception:
+                      _LOGGER.error(
+                          "Iterable access of map side inputs unsupported.",
+                          exc_info=True)
+                      self._bulk_read = (
+                          StateBackedSideInputMap._BULK_READ_PARTIALLY)
+
+              if (self._bulk_read == StateBackedSideInputMap._BULK_READ_FULLY):
+                return cache.get(key, [])
+
             if key not in cache:
               keyed_state_key = beam_fn_api_pb2.StateKey()
               keyed_state_key.CopyFrom(state_key)
@@ -424,6 +480,7 @@ class StateBackedSideInputMap(object):
                   key_coder_impl.encode_nested(key))
               cache[key] = _StateBackedIterable(
                   state_handler, keyed_state_key, value_coder)
+
             return cache[key]
 
           def __reduce__(self):
@@ -827,6 +884,17 @@ def only_element(iterable):
   return element
 
 
+def _environments_compatible(submission, runtime):
+  # type: (str, str) -> bool
+  if submission == runtime:
+    return True
+  if 'rc' in submission and runtime in submission:
+    # TODO(https://github.com/apache/beam/issues/28084): Loosen
+    # the check for RCs until RC containers install the matching version.
+    return True
+  return False
+
+
 def _verify_descriptor_created_in_a_compatible_env(process_bundle_descriptor):
   # type: (beam_fn_api_pb2.ProcessBundleDescriptor) -> None
 
@@ -835,7 +903,7 @@ def _verify_descriptor_created_in_a_compatible_env(process_bundle_descriptor):
     env = process_bundle_descriptor.environments[t.environment_id]
     for c in env.capabilities:
       if (c.startswith(environments.SDK_VERSION_CAPABILITY_PREFIX) and
-          c != runtime_sdk):
+          not _environments_compatible(c, runtime_sdk)):
         raise RuntimeError(
             "Pipeline construction environment and pipeline runtime "
             "environment are not compatible. If you use a custom "
@@ -852,6 +920,7 @@ class BundleProcessor(object):
   """ A class for processing bundles of elements. """
 
   def __init__(self,
+               runner_capabilities,  # type: FrozenSet[str]
                process_bundle_descriptor,  # type: beam_fn_api_pb2.ProcessBundleDescriptor
                state_handler,  # type: sdk_worker.CachingStateHandler
                data_channel_factory,  # type: data_plane.DataChannelFactory
@@ -862,16 +931,21 @@ class BundleProcessor(object):
     """Initialize a bundle processor.
 
     Args:
+      runner_capabilities (``FrozenSet[str]``): The set of capabilities of the
+        runner with which we will be interacting
       process_bundle_descriptor (``beam_fn_api_pb2.ProcessBundleDescriptor``):
         a description of the stage that this ``BundleProcessor``is to execute.
       state_handler (CachingStateHandler).
       data_channel_factory (``data_plane.DataChannelFactory``).
     """
+    self.runner_capabilities = runner_capabilities
     self.process_bundle_descriptor = process_bundle_descriptor
     self.state_handler = state_handler
     self.data_channel_factory = data_channel_factory
     self.data_sampler = data_sampler
     self.current_instruction_id = None  # type: Optional[str]
+    # Represents whether the SDK is consuming received data.
+    self.consuming_received_data = False
 
     _verify_descriptor_created_in_a_compatible_env(process_bundle_descriptor)
     # There is no guarantee that the runner only set
@@ -897,38 +971,10 @@ class BundleProcessor(object):
         'fnapi-step-%s' % self.process_bundle_descriptor.id,
         self.counter_factory)
 
-    if self.data_sampler:
-      self.add_data_sampling_operations(process_bundle_descriptor)
-
     self.ops = self.create_execution_tree(self.process_bundle_descriptor)
     for op in reversed(self.ops.values()):
-      op.setup()
+      op.setup(self.data_sampler)
     self.splitting_lock = threading.Lock()
-
-  def add_data_sampling_operations(self, pbd):
-    # type: (beam_fn_api_pb2.ProcessBundleDescriptor) -> None
-
-    """Adds a DataSamplingOperation to every PCollection.
-
-    Implementation note: the alternative to this, is to add modify each
-    Operation and forward a DataSampler to manually sample when an element is
-    processed. This gets messy very quickly and is not future-proof as new
-    operation types will need to be updated. This is the cleanest way of adding
-    new operations to the final execution tree.
-    """
-    coder = coders.FastPrimitivesCoder()
-
-    for pcoll_id in pbd.pcollections:
-      transform_id = 'synthetic-data-sampling-transform-{}'.format(pcoll_id)
-      transform_proto: beam_runner_api_pb2.PTransform = pbd.transforms[
-          transform_id]
-      transform_proto.unique_name = transform_id
-      transform_proto.spec.urn = SYNTHETIC_DATA_SAMPLING_URN
-
-      coder_id = pbd.pcollections[pcoll_id].coder_id
-      transform_proto.spec.payload = coder.encode((pcoll_id, coder_id))
-
-      transform_proto.inputs['None'] = pcoll_id
 
   def create_execution_tree(
       self,
@@ -936,12 +982,14 @@ class BundleProcessor(object):
   ):
     # type: (...) -> collections.OrderedDict[str, operations.DoOperation]
     transform_factory = BeamTransformFactory(
+        self.runner_capabilities,
         descriptor,
         self.data_channel_factory,
         self.counter_factory,
         self.state_sampler,
         self.state_handler,
-        self.data_sampler)
+        self.data_sampler,
+    )
 
     self.timers_info = transform_factory.extract_timers_info()
 
@@ -966,6 +1014,12 @@ class BundleProcessor(object):
           for tag,
           pcoll_id in descriptor.transforms[transform_id].outputs.items()
       }
+
+      # Initialize transform-specific state in the Data Sampler.
+      if self.data_sampler:
+        self.data_sampler.initialize_samplers(
+            transform_id, descriptor, transform_factory.get_coder)
+
       return transform_factory.create_operation(
           transform_id, transform_consumers)
 
@@ -1009,7 +1063,7 @@ class BundleProcessor(object):
         expected_input_ops.append(op)
 
     try:
-      execution_context = ExecutionContext()
+      execution_context = ExecutionContext(instruction_id=instruction_id)
       self.current_instruction_id = instruction_id
       self.state_sampler.start()
       # Start all operations.
@@ -1046,9 +1100,13 @@ class BundleProcessor(object):
           self.ops[transform_id].add_timer_info(timer_family_id, timer_info)
 
       # Process data and timer inputs
+      # We are currently not consuming received data.
+      self.consuming_received_data = False
       for data_channel, expected_inputs in data_channels.items():
         for element in data_channel.input_elements(instruction_id,
                                                    expected_inputs):
+          # Since we have received a set of elements and are consuming it.
+          self.consuming_received_data = True
           if isinstance(element, beam_fn_api_pb2.Elements.Timers):
             timer_coder_impl = (
                 self.timers_info[(
@@ -1060,6 +1118,8 @@ class BundleProcessor(object):
           elif isinstance(element, beam_fn_api_pb2.Elements.Data):
             input_op_by_transform_id[element.transform_id].process_encoded(
                 element.data)
+          # We are done consuming the set of elements.
+          self.consuming_received_data = False
 
       # Finish all operations.
       for op in self.ops.values():
@@ -1078,6 +1138,7 @@ class BundleProcessor(object):
               self.requires_finalization())
 
     finally:
+      self.consuming_received_data = False
       # Ensure any in-flight split attempts complete.
       with self.splitting_lock:
         self.current_instruction_id = None
@@ -1204,15 +1265,24 @@ class BundleProcessor(object):
       op.teardown()
 
 
-class ExecutionContext(object):
-  def __init__(self):
-    self.delayed_applications = [
-    ]  # type: List[Tuple[operations.DoOperation, common.SplitResultResidual]]
+@dataclass
+class ExecutionContext:
+  # Any splits to be processed later.
+  delayed_applications: List[Tuple[operations.DoOperation,
+                                   common.SplitResultResidual]] = field(
+                                       default_factory=list)
+
+  # The exception sampler for the currently executing PTransform.
+  output_sampler: Optional[data_sampler.OutputSampler] = None
+
+  # The current instruction being executed.
+  instruction_id: Optional[str] = None
 
 
 class BeamTransformFactory(object):
   """Factory for turning transform_protos into executable operations."""
   def __init__(self,
+               runner_capabilities,  # type: FrozenSet[str]
                descriptor,  # type: beam_fn_api_pb2.ProcessBundleDescriptor
                data_channel_factory,  # type: data_plane.DataChannelFactory
                counter_factory,  # type: counters.CounterFactory
@@ -1220,6 +1290,7 @@ class BeamTransformFactory(object):
                state_handler,  # type: sdk_worker.CachingStateHandler
                data_sampler,  # type: Optional[data_sampler.DataSampler]
               ):
+    self.runner_capabilities = runner_capabilities
     self.descriptor = descriptor
     self.data_channel_factory = data_channel_factory
     self.counter_factory = counter_factory
@@ -1645,8 +1716,11 @@ def _create_pardo_operation(
             transform_id,
             tag,
             si,
-            input_tags_to_coders[tag]) for tag,
-        si in tagged_side_inputs
+            input_tags_to_coders[tag],
+            use_bulk_read=(
+                common_urns.runner_protocols.MULTIMAP_KEYS_VALUES_SIDE_INPUT.urn
+                in factory.runner_capabilities))
+        for (tag, si) in tagged_side_inputs
     ]
   else:
     side_input_maps = []
@@ -1987,52 +2061,3 @@ def create_to_string_fn(
 
   return _create_simple_pardo_operation(
       factory, transform_id, transform_proto, consumers, ToString())
-
-
-class DataSamplingOperation(operations.Operation):
-  """Operation that samples incoming elements."""
-
-  def __init__(
-      self,
-      name_context,  # type: common.NameContext
-      counter_factory,  # type: counters.CounterFactory
-      state_sampler,  # type: statesampler.StateSampler
-      pcoll_id,  # type: str
-      sample_coder,  # type: coders.Coder
-      data_sampler,  # type: data_sampler.DataSampler
-  ):
-    # type: (...) -> None
-    super().__init__(name_context, None, counter_factory, state_sampler)
-    self._coder = sample_coder  # type: coders.Coder
-    self._pcoll_id = pcoll_id  # type: str
-
-    self._sampler: OutputSampler = data_sampler.sample_output(
-        self._pcoll_id, sample_coder)
-
-  def process(self, windowed_value):
-    # type: (windowed_value.WindowedValue) -> None
-    self._sampler.sample(windowed_value)
-
-
-@BeamTransformFactory.register_urn(SYNTHETIC_DATA_SAMPLING_URN, (bytes))
-def create_data_sampling_op(
-    factory,  # type: BeamTransformFactory
-    transform_id,  # type: str
-    transform_proto,  # type: beam_runner_api_pb2.PTransform
-    pcoll_and_coder_id,  # type: bytes
-    consumers,  # type: Dict[str, List[operations.Operation]]
-):
-  # Creating this operation should only occur when data sampling is enabled.
-  data_sampler = factory.data_sampler
-  assert data_sampler is not None
-
-  coder = coders.FastPrimitivesCoder()
-  pcoll_id, coder_id = coder.decode(pcoll_and_coder_id)
-  return DataSamplingOperation(
-      common.NameContext(transform_proto.unique_name, transform_id),
-      factory.counter_factory,
-      factory.state_sampler,
-      pcoll_id,
-      factory.get_coder(coder_id),
-      data_sampler,
-  )

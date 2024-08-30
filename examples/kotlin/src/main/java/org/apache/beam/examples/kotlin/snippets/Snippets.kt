@@ -84,7 +84,7 @@ object Snippets {
             pipeline: Pipeline, writeProject: String = "", writeDataset: String = "", writeTable: String = "") {
         run {
             // [START BigQueryTableSpec]
-            val tableSpec = "clouddataflow-readonly:samples.weather_stations"
+            val tableSpec = "apache-beam-testing.samples.weather_stations"
             // [END BigQueryTableSpec]
         }
 
@@ -104,7 +104,7 @@ object Snippets {
         }
 
         run {
-            val tableSpec = "clouddataflow-readonly:samples.weather_stations"
+            val tableSpec = "apache-beam-testing.samples.weather_stations"
             // [START BigQueryReadTable]
             val maxTemperatures = pipeline.apply(BigQueryIO.readTableRows().from(tableSpec))
                     // Each row is of type TableRow
@@ -118,7 +118,7 @@ object Snippets {
         }
 
         run {
-            val tableSpec = "clouddataflow-readonly:samples.weather_stations"
+            val tableSpec = "apache-beam-testing.samples.weather_stations"
             // [START BigQueryReadFunction]
             val maxTemperatures = pipeline.apply(
                     BigQueryIO.read { it.record["max_temperature"] as Double? }
@@ -132,7 +132,7 @@ object Snippets {
             val maxTemperatures = pipeline.apply(
                     BigQueryIO.read { it.record["max_temperature"] as Double? }
                             .fromQuery(
-                                    "SELECT max_temperature FROM [clouddataflow-readonly:samples.weather_stations]")
+                                    "SELECT max_temperature FROM [apache-beam-testing.samples.weather_stations]")
                             .withCoder(DoubleCoder.of()))
             // [END BigQueryReadQuery]
         }
@@ -167,7 +167,7 @@ object Snippets {
         // [END BigQuerySchemaJson]
 
         run {
-            var tableSpec = "clouddataflow-readonly:samples.weather_stations"
+            var tableSpec = "apache-beam-testing.samples.weather_stations"
             if (writeProject.isNotEmpty() && writeDataset.isNotEmpty() && writeTable.isNotEmpty()) {
                 tableSpec = "$writeProject:$writeDataset.$writeTable"
             }
@@ -259,7 +259,7 @@ object Snippets {
                     }
                             .fromQuery("""
                                 SELECT year, month, day, max_temperature
-                                FROM [clouddataflow-readonly:samples.weather_stations]
+                                FROM [apache-beam-testing.samples.weather_stations]
                                 WHERE year BETWEEN 2007 AND 2009
                             """.trimIndent())
                             .withCoder(AvroCoder.of(WeatherData::class.java)))
@@ -297,7 +297,7 @@ object Snippets {
                             .withWriteDisposition(WriteDisposition.WRITE_TRUNCATE))
             // [END BigQueryWriteDynamicDestinations]
 
-            var tableSpec = "clouddataflow-readonly:samples.weather_stations"
+            var tableSpec = "apache-beam-testing.samples.weather_stations"
             if (writeProject.isNotEmpty() && writeDataset.isNotEmpty() && writeTable.isNotEmpty()) {
                 tableSpec = "$writeProject:$writeDataset.${writeTable}_partitioning"
             }

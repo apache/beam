@@ -23,7 +23,7 @@ import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
 import org.apache.beam.sdk.io.gcp.pubsublite.internal.ExternalTransformConfig.ReadExternalBuilder;
 import org.apache.beam.sdk.io.gcp.pubsublite.internal.ExternalTransformConfig.WriteExternalBuilder;
 import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
 @AutoService(ExternalTransformRegistrar.class)
 public class ExternalTransformRegistrarImpl implements ExternalTransformRegistrar {

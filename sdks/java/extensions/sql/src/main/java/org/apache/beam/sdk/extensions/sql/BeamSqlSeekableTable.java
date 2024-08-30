@@ -19,6 +19,9 @@ package org.apache.beam.sdk.extensions.sql;
 
 import java.io.Serializable;
 import java.util.List;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.Row;
 
 /**
@@ -26,12 +29,22 @@ import org.apache.beam.sdk.values.Row;
  * FROM FACT_TABLE JOIN LOOKUP_TABLE ON ...}.
  */
 public interface BeamSqlSeekableTable extends Serializable {
-  /** prepare the instance. */
-  default void setUp() {};
+  /**
+   * prepare the instance.
+   *
+   * @param joinSubsetType joining subset schema
+   */
+  default void setUp(Schema joinSubsetType) {}
+
+  default void startBundle(
+      DoFn<Row, Row>.StartBundleContext context, PipelineOptions pipelineOptions) {}
+
+  default void finishBundle(
+      DoFn<Row, Row>.FinishBundleContext context, PipelineOptions pipelineOptions) {}
 
   /** return a list of {@code Row} with given key set. */
   List<Row> seekRow(Row lookupSubRow);
 
   /** cleanup resources of the instance. */
-  default void tearDown() {};
+  default void tearDown() {}
 }

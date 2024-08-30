@@ -24,7 +24,7 @@ package org.apache.beam.examples.cookbook;
 //     duplicate lines across all the files.
 //   multifile: false
 //   pipeline_options: --output output.txt
-//   context_line: 65
+//   context_line: 102
 //   categories:
 //     - Filtering
 //     - Options

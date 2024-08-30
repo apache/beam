@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.samza.runtime;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -37,7 +37,6 @@ import org.apache.beam.runners.core.SimplePushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.TimerInternals;
-import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.fnexecution.control.ExecutableStageContext;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
@@ -54,11 +53,12 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.construction.graph.ExecutableStage;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterators;
 import org.apache.samza.config.Config;
 import org.apache.samza.context.Context;
 import org.apache.samza.operators.Scheduler;
@@ -197,13 +197,20 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
     final FutureCollector<OutT> outputFutureCollector = createFutureCollector();
 
     this.bundleManager =
-        new ClassicBundleManager<>(
-            createBundleProgressListener(),
-            outputFutureCollector,
-            samzaPipelineOptions.getMaxBundleSize(),
-            samzaPipelineOptions.getMaxBundleTimeMs(),
-            timerRegistry,
-            bundleCheckTimerId);
+        isPortable
+            ? new PortableBundleManager<>(
+                createBundleProgressListener(),
+                samzaPipelineOptions.getMaxBundleSize(),
+                samzaPipelineOptions.getMaxBundleTimeMs(),
+                timerRegistry,
+                bundleCheckTimerId)
+            : new ClassicBundleManager<>(
+                createBundleProgressListener(),
+                outputFutureCollector,
+                samzaPipelineOptions.getMaxBundleSize(),
+                samzaPipelineOptions.getMaxBundleTimeMs(),
+                timerRegistry,
+                bundleCheckTimerId);
 
     this.timerInternalsFactory =
         SamzaTimerInternalsFactory.createTimerInternalFactory(

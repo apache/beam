@@ -36,13 +36,14 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
+import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.CombineFnUtil;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -217,6 +218,34 @@ public class SparkCombineFnTest {
     assertUnorderedEquals(
         Lists.newArrayList("3:999", "5:1999", "5:2999", "2:3999", "1:5999", "1:6999", "1:7999"),
         result);
+  }
+
+  @Test
+  public void testGlobalWindowMergeAccumulatorsWithEarliestCombiner() throws Exception {
+    SparkCombineFn<KV<String, Integer>, Integer, Long, Long> sparkCombineFn =
+        SparkCombineFn.keyed(
+            combineFn,
+            opts,
+            Collections.emptyMap(),
+            WindowingStrategy.globalDefault().withTimestampCombiner(TimestampCombiner.EARLIEST));
+
+    Instant ts = BoundedWindow.TIMESTAMP_MIN_VALUE;
+    WindowedValue<KV<String, Integer>> first = input("key", 1, ts);
+    WindowedValue<KV<String, Integer>> second = input("key", 2, ts);
+    WindowedValue<KV<String, Integer>> third = input("key", 3, ts);
+    WindowedValue<Long> accumulator = WindowedValue.valueInGlobalWindow(0L);
+    SparkCombineFn.SingleWindowWindowedAccumulator<KV<String, Integer>, Integer, Long> acc1 =
+        SparkCombineFn.SingleWindowWindowedAccumulator.create(KV::getValue, accumulator);
+    SparkCombineFn.SingleWindowWindowedAccumulator<KV<String, Integer>, Integer, Long> acc2 =
+        SparkCombineFn.SingleWindowWindowedAccumulator.create(KV::getValue, accumulator);
+    SparkCombineFn.SingleWindowWindowedAccumulator<KV<String, Integer>, Integer, Long> acc3 =
+        SparkCombineFn.SingleWindowWindowedAccumulator.create(KV::getValue, accumulator);
+    acc1.add(first, sparkCombineFn);
+    acc2.add(second, sparkCombineFn);
+    acc3.merge(acc1, sparkCombineFn);
+    acc3.merge(acc2, sparkCombineFn);
+    acc3.add(third, sparkCombineFn);
+    assertEquals(6, (long) Iterables.getOnlyElement(sparkCombineFn.extractOutput(acc3)).getValue());
   }
 
   private static Combine.CombineFn<Integer, Long, Long> getSumFn() {

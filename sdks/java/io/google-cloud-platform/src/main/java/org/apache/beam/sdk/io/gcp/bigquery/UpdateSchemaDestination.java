@@ -39,9 +39,9 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -271,7 +271,7 @@ public class UpdateSchemaDestination<DestinationT>
     try {
       destinationTable = datasetService.getTable(tableReference);
       if (destinationTable == null) {
-        return null; // no need to update schema ahead if table does not exists
+        return null; // no need to update schema ahead if table does not exist
       }
     } catch (IOException | InterruptedException e) {
       LOG.warn("Failed to get table {} with {}", tableReference, e.toString());
@@ -281,17 +281,19 @@ public class UpdateSchemaDestination<DestinationT>
     // or when destination schema is null (the write will set the schema)
     // or when provided schema is null (e.g. when using CREATE_NEVER disposition)
     if (destinationTable.getSchema() == null
+        || destinationTable.getSchema().isEmpty()
         || destinationTable.getSchema().equals(schema)
         || schema == null) {
       return null;
     }
     if (timePartitioning != null) {
       loadConfig.setTimePartitioning(timePartitioning);
-      // only set clustering if timePartitioning is set
-      if (clustering != null) {
-        loadConfig.setClustering(clustering);
-      }
     }
+
+    if (clustering != null) {
+      loadConfig.setClustering(clustering);
+    }
+
     if (kmsKey != null) {
       loadConfig.setDestinationEncryptionConfiguration(
           new EncryptionConfiguration().setKmsKeyName(kmsKey));
@@ -322,7 +324,7 @@ public class UpdateSchemaDestination<DestinationT>
                 jobService.startLoadJob(
                     jobRef, loadConfig, new ByteArrayContent("text/plain", new byte[0]));
               } catch (IOException | InterruptedException e) {
-                LOG.warn("Load job {} failed with {}", jobRef, e.toString());
+                LOG.warn("Schema update load job {} failed with {}", jobRef, e.toString());
                 throw new RuntimeException(e);
               }
               return null;

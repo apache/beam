@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.metrics;
 
 import java.util.Set;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Objects;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**

@@ -15,8 +15,6 @@
 # limitations under the License.
 #
 
-# cython: language_level=3
-
 """
 This file contains metric cell classes. A metric cell is used to accumulate
 in-memory changes to a metric. It represents a specific metric in a single
@@ -99,9 +97,9 @@ class CounterCell(MetricCell):
 
   Tracks the current value and delta of a counter metric.
 
-  Each cell tracks the state of a metric independently per context per bundle.
-  Therefore, each metric has a different cell in each bundle, cells are
-  aggregated by the runner.
+  Each cell tracks the state of an integer metric independently per context
+  per bundle. Therefore, each metric has a different cell in each bundle,
+  cells are aggregated by the runner.
 
   This class is thread safe.
   """
@@ -126,6 +124,7 @@ class CounterCell(MetricCell):
     self.update(-n)
 
   def update(self, value):
+    # type: (int) -> None
     if cython.compiled:
       ivalue = value
       # Since We hold the GIL, no need for another lock.
@@ -265,6 +264,62 @@ class GaugeCell(MetricCell):
         name.name,
         self.get_cumulative(),
         ptransform=transform_id)
+
+
+class StringSetCell(MetricCell):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Tracks the current value for a StringSet metric.
+
+  Each cell tracks the state of a metric independently per context per bundle.
+  Therefore, each metric has a different cell in each bundle, that is later
+  aggregated.
+
+  This class is thread safe.
+  """
+  def __init__(self, *args):
+    super().__init__(*args)
+    self.data = StringSetAggregator.identity_element()
+
+  def add(self, value):
+    self.update(value)
+
+  def update(self, value):
+    # type: (str) -> None
+    if cython.compiled:
+      # We will hold the GIL throughout the entire _update.
+      self._update(value)
+    else:
+      with self._lock:
+        self._update(value)
+
+  def _update(self, value):
+    self.data.add(value)
+
+  def get_cumulative(self):
+    # type: () -> set
+    with self._lock:
+      return set(self.data)
+
+  def combine(self, other):
+    # type: (StringSetCell) -> StringSetCell
+    combined = StringSetAggregator().combine(self.data, other.data)
+    result = StringSetCell()
+    result.data = combined
+    return result
+
+  def to_runner_api_monitoring_info_impl(self, name, transform_id):
+    from apache_beam.metrics import monitoring_infos
+
+    return monitoring_infos.user_set_string(
+        name.namespace,
+        name.name,
+        self.get_cumulative(),
+        ptransform=transform_id)
+
+  def reset(self):
+    # type: () -> None
+    self.data = StringSetAggregator.identity_element()
 
 
 class DistributionResult(object):
@@ -552,3 +607,22 @@ class GaugeAggregator(MetricAggregator):
   def result(self, x):
     # type: (GaugeData) -> GaugeResult
     return GaugeResult(x.get_cumulative())
+
+
+class StringSetAggregator(MetricAggregator):
+  @staticmethod
+  def identity_element():
+    # type: () -> set
+    return set()
+
+  def combine(self, x, y):
+    # type: (set, set) -> set
+    if len(x) == 0:
+      return y
+    elif len(y) == 0:
+      return x
+    else:
+      return set.union(x, y)
+
+  def result(self, x):
+    return x

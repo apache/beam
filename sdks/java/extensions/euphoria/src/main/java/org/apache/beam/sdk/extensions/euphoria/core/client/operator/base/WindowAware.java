@@ -25,8 +25,10 @@ import org.apache.beam.sdk.transforms.windowing.Window;
  * Operator aware of windows.
  *
  * @param <T> the type of windowed element
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
  */
 @Audience(Audience.Type.INTERNAL)
+@Deprecated
 public interface WindowAware<T> {
 
   /**

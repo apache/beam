@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.gcp.bigtable.changestreams.dofn;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -88,8 +87,6 @@ public class InitializeDoFnTest {
     metadataTableAdminDao =
         spy(new MetadataTableAdminDao(adminClient, null, changeStreamName, tableId));
     metadataTableAdminDao.createMetadataTable();
-    doReturn(true).when(metadataTableAdminDao).isAppProfileSingleClusterAndTransactional(any());
-    when(daoFactory.getMetadataTableAdminDao()).thenReturn(metadataTableAdminDao);
     metadataTableDao =
         new MetadataTableDao(
             dataClient, tableId, metadataTableAdminDao.getChangeStreamNamePrefix());
@@ -102,10 +99,7 @@ public class InitializeDoFnTest {
     Instant startTime = Instant.now();
     InitializeDoFn initializeDoFn =
         new InitializeDoFn(
-            daoFactory,
-            "app-profile",
-            startTime,
-            BigtableIO.ExistingPipelineOptions.FAIL_IF_EXISTS);
+            daoFactory, startTime, BigtableIO.ExistingPipelineOptions.FAIL_IF_EXISTS);
     initializeDoFn.processElement(outputReceiver);
     verify(outputReceiver, times(1)).output(new InitialPipelineState(startTime, false));
   }
@@ -116,10 +110,7 @@ public class InitializeDoFnTest {
     Instant startTime = Instant.now();
     InitializeDoFn initializeDoFn =
         new InitializeDoFn(
-            daoFactory,
-            "app-profile",
-            startTime,
-            BigtableIO.ExistingPipelineOptions.FAIL_IF_EXISTS);
+            daoFactory, startTime, BigtableIO.ExistingPipelineOptions.FAIL_IF_EXISTS);
     initializeDoFn.processElement(outputReceiver);
     verify(outputReceiver, never()).output(any());
   }
@@ -139,51 +130,7 @@ public class InitializeDoFnTest {
     Instant startTime = Instant.now();
     InitializeDoFn initializeDoFn =
         new InitializeDoFn(
-            daoFactory,
-            "app-profile",
-            startTime,
-            BigtableIO.ExistingPipelineOptions.FAIL_IF_EXISTS);
-    initializeDoFn.processElement(outputReceiver);
-    verify(outputReceiver, times(1)).output(new InitialPipelineState(startTime, false));
-    assertNull(dataClient.readRow(tableId, metadataTableAdminDao.getChangeStreamNamePrefix()));
-  }
-
-  @Test
-  public void testInitializeNewWithoutDNP() throws IOException {
-    // DNP row doesn't exist, so we output with provided start time and we clean up any existing
-    // rows under the prefix.
-    dataClient.mutateRow(
-        RowMutation.create(
-                tableId,
-                metadataTableAdminDao
-                    .getChangeStreamNamePrefix()
-                    .concat(ByteString.copyFromUtf8("existing_row")))
-            .setCell(
-                MetadataTableAdminDao.CF_WATERMARK, MetadataTableAdminDao.QUALIFIER_DEFAULT, 123));
-    Instant startTime = Instant.now();
-    InitializeDoFn initializeDoFn =
-        new InitializeDoFn(
-            daoFactory, "app-profile", startTime, BigtableIO.ExistingPipelineOptions.NEW);
-    initializeDoFn.processElement(outputReceiver);
-    verify(outputReceiver, times(1)).output(new InitialPipelineState(startTime, false));
-    assertNull(dataClient.readRow(tableId, metadataTableAdminDao.getChangeStreamNamePrefix()));
-  }
-
-  @Test
-  public void testInitializeNewWithDNP() throws IOException {
-    metadataTableDao.updateDetectNewPartitionWatermark(Instant.now());
-    dataClient.mutateRow(
-        RowMutation.create(
-                tableId,
-                metadataTableAdminDao
-                    .getChangeStreamNamePrefix()
-                    .concat(ByteString.copyFromUtf8("existing_row")))
-            .setCell(
-                MetadataTableAdminDao.CF_WATERMARK, MetadataTableAdminDao.QUALIFIER_DEFAULT, 123));
-    Instant startTime = Instant.now();
-    InitializeDoFn initializeDoFn =
-        new InitializeDoFn(
-            daoFactory, "app-profile", startTime, BigtableIO.ExistingPipelineOptions.NEW);
+            daoFactory, startTime, BigtableIO.ExistingPipelineOptions.FAIL_IF_EXISTS);
     initializeDoFn.processElement(outputReceiver);
     verify(outputReceiver, times(1)).output(new InitialPipelineState(startTime, false));
     assertNull(dataClient.readRow(tableId, metadataTableAdminDao.getChangeStreamNamePrefix()));
@@ -201,8 +148,7 @@ public class InitializeDoFnTest {
                 MetadataTableAdminDao.CF_WATERMARK, MetadataTableAdminDao.QUALIFIER_DEFAULT, 123));
     Instant startTime = Instant.now();
     InitializeDoFn initializeDoFn =
-        new InitializeDoFn(
-            daoFactory, "app-profile", startTime, BigtableIO.ExistingPipelineOptions.RESUME_OR_NEW);
+        new InitializeDoFn(daoFactory, startTime, BigtableIO.ExistingPipelineOptions.RESUME_OR_NEW);
     initializeDoFn.processElement(outputReceiver);
     // We want to resume but there's no DNP row, so we resume from the startTime provided.
     verify(outputReceiver, times(1)).output(new InitialPipelineState(startTime, false));
@@ -222,8 +168,7 @@ public class InitializeDoFnTest {
                 MetadataTableAdminDao.CF_WATERMARK, MetadataTableAdminDao.QUALIFIER_DEFAULT, 123));
     Instant startTime = Instant.now();
     InitializeDoFn initializeDoFn =
-        new InitializeDoFn(
-            daoFactory, "app-profile", startTime, BigtableIO.ExistingPipelineOptions.RESUME_OR_NEW);
+        new InitializeDoFn(daoFactory, startTime, BigtableIO.ExistingPipelineOptions.RESUME_OR_NEW);
     initializeDoFn.processElement(outputReceiver);
     verify(outputReceiver, times(1)).output(new InitialPipelineState(resumeTime, true));
     assertNull(dataClient.readRow(tableId, metadataTableAdminDao.getChangeStreamNamePrefix()));
@@ -241,8 +186,7 @@ public class InitializeDoFnTest {
                 MetadataTableAdminDao.CF_WATERMARK, MetadataTableAdminDao.QUALIFIER_DEFAULT, 123));
     Instant startTime = Instant.now();
     InitializeDoFn initializeDoFn =
-        new InitializeDoFn(
-            daoFactory, "app-profile", startTime, ExistingPipelineOptions.SKIP_CLEANUP);
+        new InitializeDoFn(daoFactory, startTime, ExistingPipelineOptions.SKIP_CLEANUP);
     initializeDoFn.processElement(outputReceiver);
     // Skip cleanup will always resume from startTime
     verify(outputReceiver, times(1)).output(new InitialPipelineState(startTime, false));
@@ -264,8 +208,7 @@ public class InitializeDoFnTest {
                 MetadataTableAdminDao.CF_WATERMARK, MetadataTableAdminDao.QUALIFIER_DEFAULT, 123));
     Instant startTime = Instant.now();
     InitializeDoFn initializeDoFn =
-        new InitializeDoFn(
-            daoFactory, "app-profile", startTime, ExistingPipelineOptions.SKIP_CLEANUP);
+        new InitializeDoFn(daoFactory, startTime, ExistingPipelineOptions.SKIP_CLEANUP);
     initializeDoFn.processElement(outputReceiver);
     // We don't want the pipeline to resume to avoid duplicates
     verify(outputReceiver, never()).output(any());

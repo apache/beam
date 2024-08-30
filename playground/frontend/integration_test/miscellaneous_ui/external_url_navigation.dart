@@ -90,6 +90,9 @@ Future<void> _checkMenuItems(WidgetTester wt) async {
 }
 
 Future<void> _checkExampleDescription(WidgetTester wt) async {
+  final url = wt.findPlaygroundController().selectedExample?.urlVcs;
+  expect(url, isNotNull);
+
   await _tapAndExpectNavigationEvent(
     wt,
     [
@@ -99,7 +102,7 @@ Future<void> _checkExampleDescription(WidgetTester wt) async {
             matching: find.byType(GithubButton),
           ),
     ],
-    javaMinimalWordCount.url,
+    url!,
   );
 }
 

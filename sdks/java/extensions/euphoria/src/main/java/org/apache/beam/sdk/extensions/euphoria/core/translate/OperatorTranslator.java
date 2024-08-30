@@ -27,10 +27,12 @@ import org.apache.beam.sdk.values.PCollectionList;
  * @param <InputT> the type of input elements
  * @param <OutputT> the type of output elements
  * @param <OperatorT> the type of the euphoria operator
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
  */
 @SuppressWarnings({
   "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
+@Deprecated
 public interface OperatorTranslator<InputT, OutputT, OperatorT extends Operator> {
 
   /**

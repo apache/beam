@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.io.synthetic;
 
 import static org.apache.beam.sdk.io.synthetic.delay.SyntheticDelay.delay;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Random;
@@ -28,10 +28,10 @@ import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheLoader;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.LoadingCache;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.RateLimiter;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheLoader;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.LoadingCache;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.RateLimiter;
 import org.joda.time.Duration;
 
 /**
@@ -58,7 +58,7 @@ public class SyntheticStep extends DoFn<KV<byte[], byte[]>, KV<byte[], byte[]>> 
   private final KV<Long, Long> idAndThroughput;
 
   private final Counter throttlingCounter =
-      Metrics.counter("dataflow-throttling-metrics", "throttling-msecs");
+      Metrics.counter("dataflow-throttling-metrics", Metrics.THROTTLE_TIME_COUNTER_NAME);
 
   /**
    * Static cache to store one worker level rate limiter for a step. Value in KV is the desired

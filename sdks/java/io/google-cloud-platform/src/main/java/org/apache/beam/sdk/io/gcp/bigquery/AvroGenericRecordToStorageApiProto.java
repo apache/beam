@@ -40,10 +40,10 @@ import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils.TypeWithNullability;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Functions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Functions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.Days;
 import org.joda.time.Instant;
 import org.joda.time.ReadableInstant;
@@ -53,7 +53,6 @@ import org.joda.time.ReadableInstant;
  * for use with the Storage write API.
  */
 public class AvroGenericRecordToStorageApiProto {
-
   static final Map<Schema.Type, TableFieldSchema.Type> PRIMITIVE_TYPES =
       ImmutableMap.<Schema.Type, TableFieldSchema.Type>builder()
           .put(Schema.Type.INT, TableFieldSchema.Type.INT64)
@@ -84,7 +83,7 @@ public class AvroGenericRecordToStorageApiProto {
           .put(Schema.Type.LONG, Functions.identity())
           .put(Schema.Type.FLOAT, o -> Double.parseDouble(Float.valueOf((float) o).toString()))
           .put(Schema.Type.DOUBLE, Function.identity())
-          .put(Schema.Type.STRING, Function.identity())
+          .put(Schema.Type.STRING, Object::toString)
           .put(Schema.Type.BOOLEAN, Function.identity())
           .put(Schema.Type.ENUM, o -> o.toString())
           .put(Schema.Type.BYTES, o -> ByteString.copyFrom((byte[]) o))
@@ -164,6 +163,19 @@ public class AvroGenericRecordToStorageApiProto {
   }
 
   /**
+   * Forwards {@param changeSequenceNum} to {@link #messageFromGenericRecord(Descriptor,
+   * GenericRecord, String, String)} via {@link Long#toHexString}.
+   */
+  public static DynamicMessage messageFromGenericRecord(
+      Descriptor descriptor,
+      GenericRecord record,
+      @Nullable String changeType,
+      long changeSequenceNum) {
+    return messageFromGenericRecord(
+        descriptor, record, changeType, Long.toHexString(changeSequenceNum));
+  }
+
+  /**
    * Given an Avro {@link GenericRecord} object, returns a protocol-buffer message that can be used
    * to write data using the BigQuery Storage streaming API.
    *
@@ -172,7 +184,10 @@ public class AvroGenericRecordToStorageApiProto {
    * @return A dynamic message representation of a Proto payload to be used for StorageWrite API
    */
   public static DynamicMessage messageFromGenericRecord(
-      Descriptor descriptor, GenericRecord record) {
+      Descriptor descriptor,
+      GenericRecord record,
+      @Nullable String changeType,
+      @Nullable String changeSequenceNum) {
     Schema schema = record.getSchema();
     DynamicMessage.Builder builder = DynamicMessage.newBuilder(descriptor);
     for (Schema.Field field : schema.getFields()) {
@@ -185,12 +200,25 @@ public class AvroGenericRecordToStorageApiProto {
         builder.setField(fieldDescriptor, value);
       }
     }
+    if (changeType != null) {
+      builder.setField(
+          org.apache.beam.sdk.util.Preconditions.checkStateNotNull(
+              descriptor.findFieldByName(StorageApiCDC.CHANGE_TYPE_COLUMN)),
+          changeType);
+      builder.setField(
+          org.apache.beam.sdk.util.Preconditions.checkStateNotNull(
+              descriptor.findFieldByName(StorageApiCDC.CHANGE_SQN_COLUMN)),
+          org.apache.beam.sdk.util.Preconditions.checkStateNotNull(changeSequenceNum));
+    }
     return builder.build();
   }
 
   private static TableFieldSchema fieldDescriptorFromAvroField(Schema.Field field) {
     @Nullable Schema schema = field.schema();
     Preconditions.checkNotNull(schema, "Unexpected null schema!");
+    if (StorageApiCDC.COLUMNS.contains(field.name())) {
+      throw new RuntimeException("Reserved field name " + field.name() + " in user schema.");
+    }
     TableFieldSchema.Builder builder =
         TableFieldSchema.newBuilder().setName(field.name().toLowerCase());
     Schema elementType = null;
@@ -219,17 +247,15 @@ public class AvroGenericRecordToStorageApiProto {
         break;
       case MAP:
         Schema keyType = Schema.create(Schema.Type.STRING);
-        Schema valueType = TypeWithNullability.create(schema.getElementType()).getType();
+        Schema valueType = Schema.create(schema.getValueType().getType());
         if (valueType == null) {
           throw new RuntimeException("Unexpected null element type!");
         }
         TableFieldSchema keyFieldSchema =
-            fieldDescriptorFromAvroField(
-                new Schema.Field("key", keyType, "key of the map entry", Schema.Field.NULL_VALUE));
+            fieldDescriptorFromAvroField(new Schema.Field("key", keyType, "key of the map entry"));
         TableFieldSchema valueFieldSchema =
             fieldDescriptorFromAvroField(
-                new Schema.Field(
-                    "value", valueType, "value of the map entry", Schema.Field.NULL_VALUE));
+                new Schema.Field("value", valueType, "value of the map entry"));
         builder =
             builder
                 .setType(TableFieldSchema.Type.STRUCT)
@@ -247,11 +273,11 @@ public class AvroGenericRecordToStorageApiProto {
             elementType.getType() != Schema.Type.UNION,
             "Multiple non-null union types are not supported.");
         TableFieldSchema unionFieldSchema =
-            fieldDescriptorFromAvroField(
-                new Schema.Field(field.name(), elementType, field.doc(), field.defaultVal()));
+            fieldDescriptorFromAvroField(new Schema.Field(field.name(), elementType, field.doc()));
         builder =
             builder
                 .setType(unionFieldSchema.getType())
+                .setMode(unionFieldSchema.getMode())
                 .addAllFields(unionFieldSchema.getFieldsList());
         break;
       default:
@@ -286,7 +312,9 @@ public class AvroGenericRecordToStorageApiProto {
       FieldDescriptor fieldDescriptor, Schema.Field avroField, String name, GenericRecord record) {
     @Nullable Object value = record.get(name);
     if (value == null) {
-      if (fieldDescriptor.isOptional()) {
+      if (fieldDescriptor.isOptional()
+          || avroField.schema().getTypes().stream()
+              .anyMatch(t -> t.getType() == Schema.Type.NULL)) {
         return null;
       } else {
         throw new IllegalArgumentException(
@@ -300,7 +328,8 @@ public class AvroGenericRecordToStorageApiProto {
       FieldDescriptor fieldDescriptor, Schema avroSchema, Object value) {
     switch (avroSchema.getType()) {
       case RECORD:
-        return messageFromGenericRecord(fieldDescriptor.getMessageType(), (GenericRecord) value);
+        return messageFromGenericRecord(
+            fieldDescriptor.getMessageType(), (GenericRecord) value, null, -1);
       case ARRAY:
         Iterable<Object> iterable = (Iterable<Object>) value;
         @Nullable Schema arrayElementType = avroSchema.getElementType();
@@ -318,7 +347,7 @@ public class AvroGenericRecordToStorageApiProto {
         return toProtoValue(fieldDescriptor, type.getType(), value);
       case MAP:
         Map<CharSequence, Object> map = (Map<CharSequence, Object>) value;
-        Schema valueType = TypeWithNullability.create(avroSchema.getElementType()).getType();
+        Schema valueType = Schema.create(avroSchema.getValueType().getType());
         if (valueType == null) {
           throw new RuntimeException("Unexpected null element type!");
         }

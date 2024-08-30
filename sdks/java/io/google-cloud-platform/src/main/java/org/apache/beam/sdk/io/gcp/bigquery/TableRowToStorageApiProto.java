@@ -30,6 +30,7 @@ import com.google.protobuf.DescriptorProtos.FieldDescriptorProto;
 import com.google.protobuf.DescriptorProtos.FieldDescriptorProto.Label;
 import com.google.protobuf.DescriptorProtos.FieldDescriptorProto.Type;
 import com.google.protobuf.DescriptorProtos.FileDescriptorProto;
+import com.google.protobuf.Descriptors;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.DescriptorValidationException;
 import com.google.protobuf.Descriptors.FieldDescriptor;
@@ -48,25 +49,26 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
-import java.time.temporal.ChronoUnit;
 import java.util.AbstractMap;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.util.Preconditions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.BaseEncoding;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Days;
 
@@ -75,6 +77,7 @@ import org.joda.time.Days;
  * with the Storage write API.
  */
 public class TableRowToStorageApiProto {
+
   // Custom formatter that accepts "2022-05-09 18:04:59.123456"
   // The old dremel parser accepts this format, and so does insertall. We need to accept it
   // for backwards compatibility, and it is based on UTC time.
@@ -95,9 +98,12 @@ public class TableRowToStorageApiProto {
       new DateTimeFormatterBuilder()
           // 'yyyy-MM-dd(T| )HH:mm:ss.SSSSSSSSS'
           .append(DATETIME_SPACE_FORMATTER)
-          // 'yyyy-MM-dd(T| )HH:mm:ss.SSSSSSSSS(+HH:MM:ss|Z)'
+          // 'yyyy-MM-dd(T| )HH:mm:ss.SSSSSSSSS(+HH:mm:ss|Z)'
           .optionalStart()
           .appendOffsetId()
+          .optionalEnd()
+          .optionalStart()
+          .appendOffset("+HH:mm", "+00:00")
           .optionalEnd()
           // 'yyyy-MM-dd(T| )HH:mm:ss.SSSSSSSSS [time_zone]', time_zone -> UTC, Asia/Kolkata, etc
           // if both an offset and a time zone are provided, the offset takes precedence
@@ -209,11 +215,22 @@ public class TableRowToStorageApiProto {
           .put(TableFieldSchema.Type.JSON, "JSON")
           .build();
 
-  public static TableFieldSchema.Mode modeToProtoMode(String mode) {
-    return Optional.ofNullable(mode)
-        .map(Mode::valueOf)
-        .map(m -> MODE_MAP_JSON_PROTO.get(m))
-        .orElse(TableFieldSchema.Mode.REQUIRED);
+  public static TableFieldSchema.Mode modeToProtoMode(
+      @Nullable String defaultValueExpression, String mode) {
+    TableFieldSchema.Mode resultMode =
+        Optional.ofNullable(mode)
+            .map(Mode::valueOf)
+            .map(MODE_MAP_JSON_PROTO::get)
+            .orElse(TableFieldSchema.Mode.NULLABLE);
+    if (defaultValueExpression == null) {
+      return resultMode;
+    } else {
+      // If there is a default value expression, treat this field as if it were nullable or
+      // repeated.
+      return resultMode.equals(TableFieldSchema.Mode.REPEATED)
+          ? resultMode
+          : TableFieldSchema.Mode.NULLABLE;
+    }
   }
 
   public static String protoModeToJsonMode(TableFieldSchema.Mode protoMode) {
@@ -299,16 +316,14 @@ public class TableRowToStorageApiProto {
   public static TableFieldSchema tableFieldToProtoTableField(
       com.google.api.services.bigquery.model.TableFieldSchema field) {
     TableFieldSchema.Builder builder = TableFieldSchema.newBuilder();
-    builder.setName(field.getName());
+    builder.setName(field.getName().toLowerCase());
     if (field.getDescription() != null) {
       builder.setDescription(field.getDescription());
     }
     if (field.getMaxLength() != null) {
       builder.setMaxLength(field.getMaxLength());
     }
-    if (field.getMode() != null) {
-      builder.setMode(modeToProtoMode(field.getMode()));
-    }
+    builder.setMode(modeToProtoMode(field.getDefaultValueExpression(), field.getMode()));
     if (field.getPrecision() != null) {
       builder.setPrecision(field.getPrecision());
     }
@@ -341,7 +356,7 @@ public class TableRowToStorageApiProto {
             new SchemaInformation(
                 field, Iterables.concat(this.parentSchemas, ImmutableList.of(this)));
         subFields.add(schemaInformation);
-        subFieldsByName.put(field.getName(), schemaInformation);
+        subFieldsByName.put(field.getName().toLowerCase(), schemaInformation);
       }
     }
 
@@ -362,9 +377,9 @@ public class TableRowToStorageApiProto {
     }
 
     public SchemaInformation getSchemaForField(String name) {
-      SchemaInformation schemaInformation = subFieldsByName.get(name);
+      SchemaInformation schemaInformation = subFieldsByName.get(name.toLowerCase());
       if (schemaInformation == null) {
-        throw new RuntimeException("Schema field not found: " + name);
+        throw new RuntimeException("Schema field not found: " + name.toLowerCase());
       }
       return schemaInformation;
     }
@@ -392,7 +407,7 @@ public class TableRowToStorageApiProto {
     }
   }
 
-  static final Map<TableFieldSchema.Type, Type> PRIMITIVE_TYPES =
+  static final Map<TableFieldSchema.Type, Type> PRIMITIVE_TYPES_BQ_TO_PROTO =
       ImmutableMap.<TableFieldSchema.Type, Type>builder()
           .put(TableFieldSchema.Type.INT64, Type.TYPE_INT64)
           .put(TableFieldSchema.Type.DOUBLE, Type.TYPE_DOUBLE)
@@ -409,10 +424,33 @@ public class TableRowToStorageApiProto {
           .put(TableFieldSchema.Type.JSON, Type.TYPE_STRING)
           .build();
 
+  static final Map<Descriptors.FieldDescriptor.Type, TableFieldSchema.Type>
+      PRIMITIVE_TYPES_PROTO_TO_BQ =
+          ImmutableMap.<Descriptors.FieldDescriptor.Type, TableFieldSchema.Type>builder()
+              .put(Descriptors.FieldDescriptor.Type.INT32, TableFieldSchema.Type.INT64)
+              .put(FieldDescriptor.Type.FIXED32, TableFieldSchema.Type.INT64)
+              .put(FieldDescriptor.Type.UINT32, TableFieldSchema.Type.INT64)
+              .put(FieldDescriptor.Type.SFIXED32, TableFieldSchema.Type.INT64)
+              .put(FieldDescriptor.Type.SINT32, TableFieldSchema.Type.INT64)
+              .put(FieldDescriptor.Type.INT64, TableFieldSchema.Type.INT64)
+              .put(FieldDescriptor.Type.FIXED64, TableFieldSchema.Type.NUMERIC)
+              .put(FieldDescriptor.Type.UINT64, TableFieldSchema.Type.NUMERIC)
+              .put(FieldDescriptor.Type.SFIXED64, TableFieldSchema.Type.INT64)
+              .put(FieldDescriptor.Type.SINT64, TableFieldSchema.Type.INT64)
+              .put(FieldDescriptor.Type.DOUBLE, TableFieldSchema.Type.DOUBLE)
+              .put(FieldDescriptor.Type.FLOAT, TableFieldSchema.Type.DOUBLE)
+              .put(FieldDescriptor.Type.STRING, TableFieldSchema.Type.STRING)
+              .put(FieldDescriptor.Type.BOOL, TableFieldSchema.Type.BOOL)
+              .put(FieldDescriptor.Type.BYTES, TableFieldSchema.Type.BYTES)
+              .build();
+
   public static Descriptor getDescriptorFromTableSchema(
-      com.google.api.services.bigquery.model.TableSchema jsonSchema, boolean respectRequired)
+      com.google.api.services.bigquery.model.TableSchema jsonSchema,
+      boolean respectRequired,
+      boolean includeCdcColumns)
       throws DescriptorValidationException {
-    return getDescriptorFromTableSchema(schemaToProtoTableSchema(jsonSchema), respectRequired);
+    return getDescriptorFromTableSchema(
+        schemaToProtoTableSchema(jsonSchema), respectRequired, includeCdcColumns);
   }
 
   /**
@@ -420,8 +458,14 @@ public class TableRowToStorageApiProto {
    * data using the BigQuery Storage API.
    */
   public static Descriptor getDescriptorFromTableSchema(
-      TableSchema tableSchema, boolean respectRequired) throws DescriptorValidationException {
-    DescriptorProto descriptorProto = descriptorSchemaFromTableSchema(tableSchema, respectRequired);
+      TableSchema tableSchema, boolean respectRequired, boolean includeCdcColumns)
+      throws DescriptorValidationException {
+    return wrapDescriptorProto(
+        descriptorSchemaFromTableSchema(tableSchema, respectRequired, includeCdcColumns));
+  }
+
+  public static Descriptor wrapDescriptorProto(DescriptorProto descriptorProto)
+      throws DescriptorValidationException {
     FileDescriptorProto fileDescriptorProto =
         FileDescriptorProto.newBuilder().addMessageType(descriptorProto).build();
     FileDescriptor fileDescriptor =
@@ -436,15 +480,17 @@ public class TableRowToStorageApiProto {
       AbstractMap<String, Object> map,
       boolean ignoreUnknownValues,
       boolean allowMissingRequiredFields,
-      @Nullable TableRow unknownFields)
+      @Nullable TableRow unknownFields,
+      @Nullable String changeType,
+      @Nullable String changeSequenceNum)
       throws SchemaConversionException {
     DynamicMessage.Builder builder = DynamicMessage.newBuilder(descriptor);
     for (final Map.Entry<String, Object> entry : map.entrySet()) {
-      @Nullable
-      FieldDescriptor fieldDescriptor = descriptor.findFieldByName(entry.getKey().toLowerCase());
+      String key = entry.getKey().toLowerCase();
+      @Nullable FieldDescriptor fieldDescriptor = descriptor.findFieldByName(key);
       if (fieldDescriptor == null) {
         if (unknownFields != null) {
-          unknownFields.set(entry.getKey().toLowerCase(), entry.getValue());
+          unknownFields.set(key, entry.getValue());
         }
         if (ignoreUnknownValues) {
           continue;
@@ -456,16 +502,24 @@ public class TableRowToStorageApiProto {
                   + schemaInformation.getFullName());
         }
       }
+
       SchemaInformation fieldSchemaInformation =
           schemaInformation.getSchemaForField(entry.getKey());
       try {
         Supplier<@Nullable TableRow> getNestedUnknown =
-            () ->
-                (unknownFields == null)
-                    ? null
-                    : (TableRow)
-                        unknownFields.computeIfAbsent(
-                            entry.getKey().toLowerCase(), k -> new TableRow());
+            () -> {
+              if (unknownFields == null) {
+                return null;
+              }
+              TableRow nestedUnknown = new TableRow();
+              if (fieldDescriptor.isRepeated()) {
+                ((List<TableRow>)
+                        (unknownFields.computeIfAbsent(key, k -> new ArrayList<TableRow>())))
+                    .add(nestedUnknown);
+                return nestedUnknown;
+              }
+              return (TableRow) unknownFields.computeIfAbsent(key, k -> nestedUnknown);
+            };
 
         @Nullable
         Object value =
@@ -479,6 +533,15 @@ public class TableRowToStorageApiProto {
         if (value != null) {
           builder.setField(fieldDescriptor, value);
         }
+        // For STRUCT fields, we add a placeholder to unknownFields using the getNestedUnknown
+        // supplier (in case we encounter unknown nested fields). If the placeholder comes out
+        // to be empty, we should clean it up
+        if (fieldSchemaInformation.getType().equals(TableFieldSchema.Type.STRUCT)
+            && unknownFields != null
+            && unknownFields.get(key) instanceof Map
+            && ((Map<?, ?>) unknownFields.get(key)).isEmpty()) {
+          unknownFields.remove(key);
+        }
       } catch (Exception e) {
         throw new SchemaDoesntMatchException(
             "Problem converting field "
@@ -488,12 +551,50 @@ public class TableRowToStorageApiProto {
             e);
       }
     }
+
+    if (changeType != null) {
+      builder.setField(
+          Preconditions.checkStateNotNull(
+              descriptor.findFieldByName(StorageApiCDC.CHANGE_TYPE_COLUMN)),
+          changeType);
+      builder.setField(
+          Preconditions.checkStateNotNull(
+              descriptor.findFieldByName(StorageApiCDC.CHANGE_SQN_COLUMN)),
+          Preconditions.checkStateNotNull(changeSequenceNum));
+    }
+
     try {
       return builder.build();
     } catch (Exception e) {
       throw new SchemaDoesntMatchException(
           "Couldn't convert schema for " + schemaInformation.getFullName(), e);
     }
+  }
+
+  /**
+   * Forwards {@param changeSequenceNum} to {@link #messageFromTableRow(SchemaInformation,
+   * Descriptor, TableRow, boolean, boolean, TableRow, String, String)} via {@link
+   * Long#toHexString}.
+   */
+  public static DynamicMessage messageFromTableRow(
+      SchemaInformation schemaInformation,
+      Descriptor descriptor,
+      TableRow tableRow,
+      boolean ignoreUnknownValues,
+      boolean allowMissingRequiredFields,
+      final @Nullable TableRow unknownFields,
+      @Nullable String changeType,
+      long changeSequenceNum)
+      throws SchemaConversionException {
+    return messageFromTableRow(
+        schemaInformation,
+        descriptor,
+        tableRow,
+        ignoreUnknownValues,
+        allowMissingRequiredFields,
+        unknownFields,
+        changeType,
+        Long.toHexString(changeSequenceNum));
   }
 
   /**
@@ -507,7 +608,9 @@ public class TableRowToStorageApiProto {
       TableRow tableRow,
       boolean ignoreUnknownValues,
       boolean allowMissingRequiredFields,
-      final @Nullable TableRow unknownFields)
+      final @Nullable TableRow unknownFields,
+      @Nullable String changeType,
+      @Nullable String changeSequenceNum)
       throws SchemaConversionException {
     @Nullable Object fValue = tableRow.get("f");
     if (fValue instanceof List) {
@@ -571,6 +674,16 @@ public class TableRowToStorageApiProto {
               e);
         }
       }
+      if (changeType != null) {
+        builder.setField(
+            Preconditions.checkStateNotNull(
+                descriptor.findFieldByName(StorageApiCDC.CHANGE_TYPE_COLUMN)),
+            changeType);
+        builder.setField(
+            Preconditions.checkStateNotNull(
+                descriptor.findFieldByName(StorageApiCDC.CHANGE_SQN_COLUMN)),
+            Preconditions.checkStateNotNull(changeSequenceNum));
+      }
 
       // If there are unknown fields, copy them into the output.
       if (unknownFields != null) {
@@ -592,30 +705,91 @@ public class TableRowToStorageApiProto {
           tableRow,
           ignoreUnknownValues,
           allowMissingRequiredFields,
-          unknownFields);
+          unknownFields,
+          changeType,
+          changeSequenceNum);
     }
   }
 
-  @VisibleForTesting
-  static DescriptorProto descriptorSchemaFromTableSchema(
-      com.google.api.services.bigquery.model.TableSchema tableSchema, boolean respectRequired) {
-    return descriptorSchemaFromTableSchema(schemaToProtoTableSchema(tableSchema), respectRequired);
+  static TableSchema tableSchemaFromDescriptor(Descriptor descriptor) {
+    List<TableFieldSchema> tableFields =
+        descriptor.getFields().stream()
+            .map(f -> tableFieldSchemaFromDescriptorField(f))
+            .collect(toList());
+    return TableSchema.newBuilder().addAllFields(tableFields).build();
+  }
+
+  static TableFieldSchema tableFieldSchemaFromDescriptorField(FieldDescriptor fieldDescriptor) {
+    TableFieldSchema.Builder tableFieldSchemaBuilder = TableFieldSchema.newBuilder();
+    tableFieldSchemaBuilder = tableFieldSchemaBuilder.setName(fieldDescriptor.getName());
+
+    switch (fieldDescriptor.getType()) {
+      case MESSAGE:
+        tableFieldSchemaBuilder = tableFieldSchemaBuilder.setType(TableFieldSchema.Type.STRUCT);
+        TableSchema nestedTableField = tableSchemaFromDescriptor(fieldDescriptor.getMessageType());
+        tableFieldSchemaBuilder =
+            tableFieldSchemaBuilder.addAllFields(nestedTableField.getFieldsList());
+        break;
+      default:
+        TableFieldSchema.Type type = PRIMITIVE_TYPES_PROTO_TO_BQ.get(fieldDescriptor.getType());
+        if (type == null) {
+          throw new UnsupportedOperationException(
+              "proto type " + fieldDescriptor.getType() + " is unsupported.");
+        }
+        tableFieldSchemaBuilder = tableFieldSchemaBuilder.setType(type);
+    }
+
+    if (fieldDescriptor.isRepeated()) {
+      tableFieldSchemaBuilder = tableFieldSchemaBuilder.setMode(TableFieldSchema.Mode.REPEATED);
+    } else if (fieldDescriptor.isRequired()) {
+      tableFieldSchemaBuilder = tableFieldSchemaBuilder.setMode(TableFieldSchema.Mode.REQUIRED);
+    } else {
+      tableFieldSchemaBuilder = tableFieldSchemaBuilder.setMode(TableFieldSchema.Mode.NULLABLE);
+    }
+    return tableFieldSchemaBuilder.build();
   }
 
   @VisibleForTesting
   static DescriptorProto descriptorSchemaFromTableSchema(
-      TableSchema tableSchema, boolean respectRequired) {
-    return descriptorSchemaFromTableFieldSchemas(tableSchema.getFieldsList(), respectRequired);
+      com.google.api.services.bigquery.model.TableSchema tableSchema,
+      boolean respectRequired,
+      boolean includeCdcColumns) {
+    return descriptorSchemaFromTableSchema(
+        schemaToProtoTableSchema(tableSchema), respectRequired, includeCdcColumns);
+  }
+
+  @VisibleForTesting
+  static DescriptorProto descriptorSchemaFromTableSchema(
+      TableSchema tableSchema, boolean respectRequired, boolean includeCdcColumns) {
+    return descriptorSchemaFromTableFieldSchemas(
+        tableSchema.getFieldsList(), respectRequired, includeCdcColumns);
   }
 
   private static DescriptorProto descriptorSchemaFromTableFieldSchemas(
-      Iterable<TableFieldSchema> tableFieldSchemas, boolean respectRequired) {
+      Iterable<TableFieldSchema> tableFieldSchemas,
+      boolean respectRequired,
+      boolean includeCdcColumns) {
     DescriptorProto.Builder descriptorBuilder = DescriptorProto.newBuilder();
     // Create a unique name for the descriptor ('-' characters cannot be used).
     descriptorBuilder.setName("D" + UUID.randomUUID().toString().replace("-", "_"));
     int i = 1;
     for (TableFieldSchema fieldSchema : tableFieldSchemas) {
       fieldDescriptorFromTableField(fieldSchema, i++, descriptorBuilder, respectRequired);
+    }
+    if (includeCdcColumns) {
+      FieldDescriptorProto.Builder fieldDescriptorBuilder = FieldDescriptorProto.newBuilder();
+      fieldDescriptorBuilder = fieldDescriptorBuilder.setName(StorageApiCDC.CHANGE_TYPE_COLUMN);
+      fieldDescriptorBuilder = fieldDescriptorBuilder.setNumber(i++);
+      fieldDescriptorBuilder = fieldDescriptorBuilder.setType(Type.TYPE_STRING);
+      fieldDescriptorBuilder = fieldDescriptorBuilder.setLabel(Label.LABEL_OPTIONAL);
+      descriptorBuilder.addField(fieldDescriptorBuilder.build());
+
+      fieldDescriptorBuilder = FieldDescriptorProto.newBuilder();
+      fieldDescriptorBuilder = fieldDescriptorBuilder.setName(StorageApiCDC.CHANGE_SQN_COLUMN);
+      fieldDescriptorBuilder = fieldDescriptorBuilder.setNumber(i++);
+      fieldDescriptorBuilder = fieldDescriptorBuilder.setType(Type.TYPE_STRING);
+      fieldDescriptorBuilder = fieldDescriptorBuilder.setLabel(Label.LABEL_OPTIONAL);
+      descriptorBuilder.addField(fieldDescriptorBuilder.build());
     }
     return descriptorBuilder.build();
   }
@@ -625,19 +799,24 @@ public class TableRowToStorageApiProto {
       int fieldNumber,
       DescriptorProto.Builder descriptorBuilder,
       boolean respectRequired) {
+    if (StorageApiCDC.COLUMNS.contains(fieldSchema.getName())) {
+      throw new RuntimeException(
+          "Reserved field name " + fieldSchema.getName() + " in user schema.");
+    }
     FieldDescriptorProto.Builder fieldDescriptorBuilder = FieldDescriptorProto.newBuilder();
     fieldDescriptorBuilder = fieldDescriptorBuilder.setName(fieldSchema.getName().toLowerCase());
     fieldDescriptorBuilder = fieldDescriptorBuilder.setNumber(fieldNumber);
     switch (fieldSchema.getType()) {
       case STRUCT:
         DescriptorProto nested =
-            descriptorSchemaFromTableFieldSchemas(fieldSchema.getFieldsList(), respectRequired);
+            descriptorSchemaFromTableFieldSchemas(
+                fieldSchema.getFieldsList(), respectRequired, false);
         descriptorBuilder.addNestedType(nested);
         fieldDescriptorBuilder =
             fieldDescriptorBuilder.setType(Type.TYPE_MESSAGE).setTypeName(nested.getName());
         break;
       default:
-        @Nullable Type type = PRIMITIVE_TYPES.get(fieldSchema.getType());
+        @Nullable Type type = PRIMITIVE_TYPES_BQ_TO_PROTO.get(fieldSchema.getType());
         if (type == null) {
           throw new UnsupportedOperationException(
               "Converting BigQuery type " + fieldSchema.getType() + " to Beam type is unsupported");
@@ -647,9 +826,9 @@ public class TableRowToStorageApiProto {
 
     if (fieldSchema.getMode() == TableFieldSchema.Mode.REPEATED) {
       fieldDescriptorBuilder = fieldDescriptorBuilder.setLabel(Label.LABEL_REPEATED);
-    } else if (!respectRequired || fieldSchema.getMode() == TableFieldSchema.Mode.NULLABLE) {
+    } else if (!respectRequired || fieldSchema.getMode() != TableFieldSchema.Mode.REQUIRED) {
       fieldDescriptorBuilder = fieldDescriptorBuilder.setLabel(Label.LABEL_OPTIONAL);
-    } else if (fieldSchema.getMode() == TableFieldSchema.Mode.REQUIRED) {
+    } else {
       fieldDescriptorBuilder = fieldDescriptorBuilder.setLabel(Label.LABEL_REQUIRED);
     }
     descriptorBuilder.addField(fieldDescriptorBuilder.build());
@@ -761,23 +940,23 @@ public class TableRowToStorageApiProto {
           try {
             // '2011-12-03T10:15:30Z', '2011-12-03 10:15:30+05:00'
             // '2011-12-03 10:15:30 UTC', '2011-12-03T10:15:30 America/New_York'
-            return ChronoUnit.MICROS.between(
-                Instant.EPOCH, Instant.from(TIMESTAMP_FORMATTER.parse((String) value)));
+            Instant timestamp = Instant.from(TIMESTAMP_FORMATTER.parse((String) value));
+            return toEpochMicros(timestamp);
           } catch (DateTimeException e) {
             try {
               // for backwards compatibility, default time zone is UTC for values with no time-zone
               // '2011-12-03T10:15:30'
-              return ChronoUnit.MICROS.between(
-                  Instant.EPOCH,
-                  Instant.from(TIMESTAMP_FORMATTER.withZone(ZoneOffset.UTC).parse((String) value)));
+              Instant timestamp =
+                  Instant.from(TIMESTAMP_FORMATTER.withZone(ZoneOffset.UTC).parse((String) value));
+              return toEpochMicros(timestamp);
             } catch (DateTimeParseException err) {
               // "12345667"
-              return ChronoUnit.MICROS.between(
-                  Instant.EPOCH, Instant.ofEpochMilli(Long.parseLong((String) value)));
+              Instant timestamp = Instant.ofEpochMilli(Long.parseLong((String) value));
+              return toEpochMicros(timestamp);
             }
           }
         } else if (value instanceof Instant) {
-          return ChronoUnit.MICROS.between(Instant.EPOCH, (Instant) value);
+          return toEpochMicros((Instant) value);
         } else if (value instanceof org.joda.time.Instant) {
           // joda instant precision is millisecond
           return ((org.joda.time.Instant) value).getMillis() * 1000L;
@@ -876,7 +1055,9 @@ public class TableRowToStorageApiProto {
               tableRow,
               ignoreUnknownValues,
               allowMissingRequiredFields,
-              getUnknownNestedFields.get());
+              getUnknownNestedFields.get(),
+              null,
+              null);
         } else if (value instanceof AbstractMap) {
           // This will handle nested rows.
           AbstractMap<String, Object> map = ((AbstractMap<String, Object>) value);
@@ -886,7 +1067,9 @@ public class TableRowToStorageApiProto {
               map,
               ignoreUnknownValues,
               allowMissingRequiredFields,
-              getUnknownNestedFields.get());
+              getUnknownNestedFields.get(),
+              null,
+              null);
         }
         break;
       default:
@@ -904,32 +1087,57 @@ public class TableRowToStorageApiProto {
             + schemaInformation.getType());
   }
 
+  private static long toEpochMicros(Instant timestamp) {
+    // i.e 1970-01-01T00:01:01.000040Z: 61 * 1000_000L + 40000/1000 = 61000040
+    return timestamp.getEpochSecond() * 1000_000L + timestamp.getNano() / 1000;
+  }
+
   @VisibleForTesting
-  public static TableRow tableRowFromMessage(Message message) {
+  public static TableRow tableRowFromMessage(
+      Message message, boolean includeCdcColumns, Predicate<String> includeField) {
+    return tableRowFromMessage(message, includeCdcColumns, includeField, "");
+  }
+
+  public static TableRow tableRowFromMessage(
+      Message message,
+      boolean includeCdcColumns,
+      Predicate<String> includeField,
+      String namePrefix) {
     // TODO: Would be more correct to generate TableRows using setF.
     TableRow tableRow = new TableRow();
     for (Map.Entry<FieldDescriptor, Object> field : message.getAllFields().entrySet()) {
+      StringBuilder fullName = new StringBuilder();
       FieldDescriptor fieldDescriptor = field.getKey();
+      fullName = fullName.append(namePrefix).append(fieldDescriptor.getName());
       Object fieldValue = field.getValue();
-      tableRow.putIfAbsent(
-          fieldDescriptor.getName(), jsonValueFromMessageValue(fieldDescriptor, fieldValue, true));
+      if ((includeCdcColumns || !StorageApiCDC.COLUMNS.contains(fullName.toString()))
+          && includeField.test(fieldDescriptor.getName())) {
+        tableRow.put(
+            fieldDescriptor.getName(),
+            jsonValueFromMessageValue(
+                fieldDescriptor, fieldValue, true, includeField, fullName.append(".").toString()));
+      }
     }
     return tableRow;
   }
 
   public static Object jsonValueFromMessageValue(
-      FieldDescriptor fieldDescriptor, Object fieldValue, boolean expandRepeated) {
+      FieldDescriptor fieldDescriptor,
+      Object fieldValue,
+      boolean expandRepeated,
+      Predicate<String> includeField,
+      String prefix) {
     if (expandRepeated && fieldDescriptor.isRepeated()) {
       List<Object> valueList = (List<Object>) fieldValue;
       return valueList.stream()
-          .map(v -> jsonValueFromMessageValue(fieldDescriptor, v, false))
+          .map(v -> jsonValueFromMessageValue(fieldDescriptor, v, false, includeField, prefix))
           .collect(toList());
     }
 
     switch (fieldDescriptor.getType()) {
       case GROUP:
       case MESSAGE:
-        return tableRowFromMessage((Message) fieldValue);
+        return tableRowFromMessage((Message) fieldValue, false, includeField, prefix);
       case BYTES:
         return BaseEncoding.base64().encode(((ByteString) fieldValue).toByteArray());
       case ENUM:

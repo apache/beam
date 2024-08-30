@@ -16,6 +16,23 @@
 # limitations under the License.
 #
 
+# pytype: skip-file
+# pylint:disable=line-too-long
+
+# beam-playground:
+#   name: GroupIntoBatches
+#   description: Demonstration of GroupIntoBatches transform usage.
+#   multifile: false
+#   default_example: false
+#   context_line: 39
+#   categories:
+#     - Core Transforms
+#   complexity: BASIC
+#   tags:
+#     - transforms
+#     - strings
+#     - group
+
 
 def groupintobatches(test=None):
   # [START groupintobatches]
@@ -41,3 +58,7 @@ def groupintobatches(test=None):
     # [END groupintobatches]
     if test:
       test(batches_with_keys)
+
+
+if __name__ == '__main__':
+  groupintobatches()

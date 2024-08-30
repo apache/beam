@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.io.snowflake;
 
 import static org.apache.beam.sdk.io.TextIO.readFiles;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
 import com.opencsv.CSVParser;
@@ -83,9 +83,9 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1079,13 +1079,17 @@ public class SnowflakeIO {
                   ParDo.of(new MapObjectsArrayToCsvFn(getQuotationMark())))
               .setCoder(StringUtf8Coder.of());
 
+      String filePrefix = getFileNameTemplate();
+      if (filePrefix == null) {
+        filePrefix = UUID.randomUUID().toString().subSequence(0, 8).toString();
+      }
       WriteFilesResult<Void> filesResult =
           mappedUserData.apply(
               "Write files to specified location",
               FileIO.<String>write()
                   .via(TextIO.sink())
                   .to(stagingBucketDir)
-                  .withPrefix(UUID.randomUUID().toString().subSequence(0, 8).toString())
+                  .withPrefix(filePrefix)
                   .withSuffix(".csv")
                   .withNumShards(numShards)
                   .withCompression(Compression.GZIP));

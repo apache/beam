@@ -1,0 +1,129 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+
+#Action used to trigger a failed check re-run within a PR using a comment. Add this action to your workflow with an if condition 
+#to check if the comment is present 
+#If the check is failed this will trigger it again. If its not failed a new instance of workflow will run which will not show in the status box or checks tab in the PR and can be found in the actions tab https://github.com/apache/beam/actions
+
+name: "Rerun Job Action"
+description: Re-runs a job that is attached to the PR as Check Run
+inputs:
+  pull_request_url:
+    description: "The URL of the PR"
+    required: true
+  github_repository:
+    description: "The GitHub repository"
+    required: true
+  github_token:
+    description: "The GitHub token"
+    required: true
+  github_job:
+    description: "The GitHub job"
+    required: true
+  github_current_run_id:
+    description: "The GitHub current run id. Not the same that is fetched in this action"
+    required: true
+
+
+runs:
+  using: composite
+  steps:
+  - name: Get Last Commit SHA
+    shell: bash
+    run: | 
+      URL=${{inputs.pull_request_url}}/commits
+      PRSHA=$(curl  \
+      -H 'Authorization: Bearer ${{inputs.github_token}}' \
+      -H "Accept: application/vnd.github+json" \
+      -H "X-GitHub-Api-Version: 2022-11-28" \
+      -s $URL  | jq -r '.[-1].sha' ) 
+      echo prsha=$PRSHA >> $GITHUB_ENV
+  - name: Get Status and Conclusion for PR Job
+    shell: bash
+    run: | 
+      JOB="${{inputs.github_job}}"
+      QUERY_JOB=${JOB// /+}
+      URL="${{github.api_url}}/repos/${{inputs.github_repository}}/commits/${{env.prsha}}/check-runs?check_name=$QUERY_JOB"
+      CHECK_RUN=$(curl  \
+      -H 'Authorization: Bearer ${{inputs.github_token}}' \
+      -H "Accept: application/vnd.github+json" \
+      -H "X-GitHub-Api-Version: 2022-11-28" \
+      -s $URL | jq -r '.check_runs | .[] | select(.name=="${{inputs.github_job}}")')
+      if [ -z "$CHECK_RUN" ]; then
+        echo "No check runs found for this job"
+        echo skip=true >> $GITHUB_ENV
+        exit 0
+      fi
+      read -r STATUS CONCLUSION CHECK_SUITE_ID<<< $(echo $CHECK_RUN | jq -r '"\(.status) \(.conclusion) \(.check_suite.id)"')
+      echo status=$STATUS >> $GITHUB_ENV
+      echo conclusion=$CONCLUSION >> $GITHUB_ENV
+      echo check_suite_id=$CHECK_SUITE_ID >> $GITHUB_ENV
+ 
+
+  - name: Disable Rerun for Success or Skipped
+    if: ${{(env.status == 'completed' && (env.conclusion == 'success' || env.conclusion == 'skipped')) || env.skip == 'true'}}
+    shell: bash
+    run: echo rerun=false >> $GITHUB_ENV
+
+  - name: Get Run ID
+    if: ${{env.rerun != 'false' }}
+    shell: bash
+    run: | 
+      URL="${{github.api_url}}/repos/${{inputs.github_repository}}/actions/runs?check_suite_id=${{env.check_suite_id}}"
+      RUN_ID=$(curl  \
+      -H 'Authorization: Bearer ${{inputs.github_token}}' \
+      -H "Accept: application/vnd.github+json" \
+      -H "X-GitHub-Api-Version: 2022-11-28" \
+      -s $URL | jq -r '.workflow_runs | .[0] | .id')
+      echo run_id=$RUN_ID >> $GITHUB_ENV
+  - name: Get Job ID
+    if: ${{env.rerun != 'false' }}
+    shell: bash
+    run: | 
+      URL="${{github.api_url}}/repos/${{inputs.github_repository}}/actions/runs/${{env.run_id}}/jobs"
+      JOB_ID=$(curl  \
+      -H 'Authorization: Bearer ${{inputs.github_token}}' \
+      -H "Accept: application/vnd.github+json" \
+      -H "X-GitHub-Api-Version: 2022-11-28" \
+      -s $URL | jq -r '.jobs | .[] | select(.name=="${{inputs.github_job}}") | .id ')
+      echo job_id=$JOB_ID >> $GITHUB_ENV
+  - name: Trigger Re-run
+    if: ${{env.rerun != 'false' }}
+    shell: bash
+    run: | 
+      URL="${{github.api_url}}/repos/${{inputs.github_repository}}/actions/jobs/${{env.job_id}}/rerun"
+      curl -X POST \
+      -H 'Authorization: Bearer ${{inputs.github_token}}' \
+      -H "Accept: application/vnd.github+json" \
+      -H "X-GitHub-Api-Version: 2022-11-28" \
+      -s $URL 
+  - name: Install GH Cli
+    if: ${{env.rerun != 'false' }}
+    shell: bash
+    run: |
+      wget https://github.com/cli/cli/releases/download/v2.31.0/gh_2.31.0_linux_amd64.tar.gz
+      tar -xvf gh_2.31.0_linux_amd64.tar.gz
+      sudo mv gh_2.31.0_linux_amd64/bin/gh /usr/local/bin
+  - name: Exit rest of the run
+    if: ${{env.rerun != 'false' }}
+    shell: bash
+    run: |
+      gh run cancel ${{ inputs.github_current_run_id }}
+      gh run watch ${{ inputs.github_current_run_id }}
+    env:
+      GITHUB_TOKEN: ${{ inputs.github_token }}

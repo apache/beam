@@ -28,14 +28,16 @@ from decimal import Decimal
 
 import pytest
 from hamcrest.core import assert_that as hamcrest_assert
+from hamcrest.core.core.allof import all_of
 
 import apache_beam as beam
-from apache_beam.io.external.generate_sequence import GenerateSequence
 from apache_beam.io.gcp.bigquery import StorageWriteToBigQuery
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultStreamingMatcher
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.transforms.periodicsequence import PeriodicImpulse
 from apache_beam.utils.timestamp import Timestamp
 
 # Protect against environments where bigquery library is not available.
@@ -52,8 +54,9 @@ _LOGGER = logging.getLogger(__name__)
 
 @pytest.mark.uses_gcp_java_expansion_service
 @unittest.skipUnless(
-    os.environ.get('EXPANSION_PORT'),
-    "EXPANSION_PORT environment var is not provided.")
+    os.environ.get('EXPANSION_JARS'),
+    "EXPANSION_JARS environment var is not provided, "
+    "indicating that jars have not been built")
 class BigQueryXlangStorageWriteIT(unittest.TestCase):
   BIGQUERY_DATASET = 'python_xlang_storage_write'
 
@@ -104,6 +107,7 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
     self.test_pipeline = TestPipeline(is_integration_test=True)
     self.args = self.test_pipeline.get_full_options_as_args()
     self.project = self.test_pipeline.get_option('project')
+    self._runner = PipelineOptions(self.args).get_all_options()['runner']
 
     self.bigquery_client = BigQueryWrapper()
     self.dataset_id = '%s_%s_%s' % (
@@ -111,9 +115,6 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
     self.bigquery_client.get_or_create_dataset(self.project, self.dataset_id)
     _LOGGER.info(
         "Created dataset %s in project %s", self.dataset_id, self.project)
-
-    _LOGGER.info("expansion port: %s", os.environ.get('EXPANSION_PORT'))
-    self.expansion_service = ('localhost:%s' % os.environ.get('EXPANSION_PORT'))
 
   def tearDown(self):
     try:
@@ -130,6 +131,8 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
           self.project)
 
   def parse_expected_data(self, expected_elements):
+    if not isinstance(expected_elements, list):
+      expected_elements = [expected_elements]
     data = []
     for row in expected_elements:
       values = list(row.values())
@@ -159,8 +162,7 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
               table=table_id,
               method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
               schema=schema,
-              use_at_least_once=use_at_least_once,
-              expansion_service=self.expansion_service))
+              use_at_least_once=use_at_least_once))
     hamcrest_assert(p, bq_matcher)
 
   def test_all_types(self):
@@ -240,12 +242,68 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
       _ = (
           p
           | beam.Create(row_elements)
-          | StorageWriteToBigQuery(
-              table=table_id, expansion_service=self.expansion_service))
+          | StorageWriteToBigQuery(table=table_id))
     hamcrest_assert(p, bq_matcher)
 
-  def run_streaming(
-      self, table_name, auto_sharding=False, use_at_least_once=False):
+  def test_write_to_dynamic_destinations(self):
+    base_table_spec = '{}.dynamic_dest_'.format(self.dataset_id)
+    spec_with_project = '{}:{}'.format(self.project, base_table_spec)
+    tables = [base_table_spec + str(record['int']) for record in self.ELEMENTS]
+
+    bq_matchers = [
+        BigqueryFullResultMatcher(
+            project=self.project,
+            query="SELECT * FROM %s" % tables[i],
+            data=self.parse_expected_data(self.ELEMENTS[i]))
+        for i in range(len(tables))
+    ]
+
+    with beam.Pipeline(argv=self.args) as p:
+      _ = (
+          p
+          | beam.Create(self.ELEMENTS)
+          | beam.io.WriteToBigQuery(
+              table=lambda record: spec_with_project + str(record['int']),
+              method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
+              schema=self.ALL_TYPES_SCHEMA,
+              use_at_least_once=False))
+    hamcrest_assert(p, all_of(*bq_matchers))
+
+  def test_write_to_dynamic_destinations_with_beam_rows(self):
+    base_table_spec = '{}.dynamic_dest_'.format(self.dataset_id)
+    spec_with_project = '{}:{}'.format(self.project, base_table_spec)
+    tables = [base_table_spec + str(record['int']) for record in self.ELEMENTS]
+
+    bq_matchers = [
+        BigqueryFullResultMatcher(
+            project=self.project,
+            query="SELECT * FROM %s" % tables[i],
+            data=self.parse_expected_data(self.ELEMENTS[i]))
+        for i in range(len(tables))
+    ]
+
+    row_elements = [
+        beam.Row(
+            my_int=e['int'],
+            my_float=e['float'],
+            my_numeric=e['numeric'],
+            my_string=e['str'],
+            my_bool=e['bool'],
+            my_bytes=e['bytes'],
+            my_timestamp=e['timestamp']) for e in self.ELEMENTS
+    ]
+
+    with beam.Pipeline(argv=self.args) as p:
+      _ = (
+          p
+          | beam.Create(row_elements)
+          | beam.io.WriteToBigQuery(
+              table=lambda record: spec_with_project + str(record.my_int),
+              method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
+              use_at_least_once=False))
+    hamcrest_assert(p, all_of(*bq_matchers))
+
+  def run_streaming(self, table_name, num_streams=0, use_at_least_once=False):
     elements = self.ELEMENTS.copy()
     schema = self.ALL_TYPES_SCHEMA
     table_id = '{}:{}.{}'.format(self.project, self.dataset_id, table_name)
@@ -260,32 +318,46 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
         streaming=True,
         allow_unsafe_triggers=True)
 
+    auto_sharding = (num_streams == 0)
     with beam.Pipeline(argv=args) as p:
       _ = (
           p
-          | GenerateSequence(
-              start=0, stop=4, expansion_service=self.expansion_service)
-          | beam.Map(lambda x: elements[x])
+          | PeriodicImpulse(0, 4, 1)
+          | beam.Map(lambda t: elements[t])
           | beam.io.WriteToBigQuery(
               table=table_id,
               method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
               schema=schema,
+              triggering_frequency=1,
               with_auto_sharding=auto_sharding,
-              use_at_least_once=use_at_least_once,
-              expansion_service=self.expansion_service))
+              num_storage_api_streams=num_streams,
+              use_at_least_once=use_at_least_once))
     hamcrest_assert(p, bq_matcher)
 
-  def test_streaming(self):
-    table = 'streaming'
+  def skip_if_not_dataflow_runner(self) -> bool:
+    # skip if dataflow runner is not specified
+    if not self._runner or "dataflowrunner" not in self._runner.lower():
+      self.skipTest(
+          "Streaming with exactly-once route has the requirement "
+          "`beam:requirement:pardo:on_window_expiration:v1`, "
+          "which is currently only supported by the Dataflow runner")
+
+  def test_streaming_with_fixed_num_streams(self):
+    self.skip_if_not_dataflow_runner()
+    table = 'streaming_fixed_num_streams'
+    self.run_streaming(table_name=table, num_streams=4)
+
+  @unittest.skip(
+      "Streaming to the Storage Write API sink with autosharding is broken "
+      "with Dataflow Runner V2.")
+  def test_streaming_with_auto_sharding(self):
+    self.skip_if_not_dataflow_runner()
+    table = 'streaming_with_auto_sharding'
     self.run_streaming(table_name=table)
 
   def test_streaming_with_at_least_once(self):
-    table = 'streaming'
+    table = 'streaming_with_at_least_once'
     self.run_streaming(table_name=table, use_at_least_once=True)
-
-  def test_streaming_with_auto_sharding(self):
-    table = 'streaming_with_auto_sharding'
-    self.run_streaming(table_name=table, auto_sharding=True)
 
 
 if __name__ == '__main__':

@@ -58,7 +58,7 @@ func (*pardo) PrepareUrns() []string {
 
 // PrepareTransform handles special processing with respect to ParDos, since their handling is dependant on supported features
 // and requirements.
-func (h *pardo) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipepb.Components) (*pipepb.Components, []string) {
+func (h *pardo) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipepb.Components) prepareResult {
 
 	// ParDos are a pain in the butt.
 	// Combines, by comparison, are dramatically simpler.
@@ -82,28 +82,35 @@ func (h *pardo) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipepb
 		!pdo.RequestsFinalization &&
 		!pdo.RequiresStableInput &&
 		!pdo.RequiresTimeSortedInput &&
-		len(pdo.StateSpecs) == 0 &&
-		len(pdo.TimerFamilySpecs) == 0 &&
 		pdo.RestrictionCoderId == "" {
 		// Which inputs are Side inputs don't change the graph further,
 		// so they're not included here. Any nearly any ParDo can have them.
 
 		// At their simplest, we don't need to do anything special at pre-processing time, and simply pass through as normal.
-		return &pipepb.Components{
-			Transforms: map[string]*pipepb.PTransform{
-				tid: t,
+
+		// StatefulDoFns need to be marked as being roots.
+		var forcedRoots []string
+		if len(pdo.StateSpecs)+len(pdo.TimerFamilySpecs) > 0 {
+			forcedRoots = append(forcedRoots, tid)
+		}
+
+		return prepareResult{
+			SubbedComps: &pipepb.Components{
+				Transforms: map[string]*pipepb.PTransform{
+					tid: t,
+				},
 			},
-		}, nil
+			ForcedRoots: forcedRoots,
+		}
 	}
 
 	// Side inputs add to topology and make fusion harder to deal with
 	// (side input producers can't be in the same stage as their consumers)
-	// But we don't have fusion yet, so no worries.
 
 	// State, Timers, Stable Input, Time Sorted Input, and some parts of SDF
-	// Are easier to deal including a fusion break. But We can do that with a
-	// runner specific transform for stable input, and another for timesorted
-	// input.
+	// Are easier to deal with by including a fusion break. But we can do that with a
+	// runner specific transform for stable input, and another for time sorted input.
+	// TODO add
 
 	// SplittableDoFns have 3 required phases and a 4th optional phase.
 	//
@@ -171,7 +178,7 @@ func (h *pardo) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipepb
 		ckvERSID: coder(urns.CoderKV, ckvERID, cSID),
 	}
 
-	// PCollections only have two new ones.
+	// There are only two new PCollections.
 	// INPUT -> same as ordinary DoFn
 	// PWR, uses ckvER
 	// SPLITnSIZED, uses ckvERS
@@ -194,7 +201,7 @@ func (h *pardo) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipepb
 		nSPLITnSIZEDID: pcol(nSPLITnSIZEDID, ckvERSID),
 	}
 
-	// PTransforms have 3 new ones, with process sized elements and restrictions
+	// There are 3 new PTransforms, with process sized elements and restrictions
 	// taking the brunt of the complexity, consuming the inputs
 
 	ePWRID := "e" + tid + "_pwr"
@@ -202,15 +209,19 @@ func (h *pardo) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipepb
 	eProcessID := "e" + tid + "_processandsplit"
 
 	tform := func(name, urn, in, out string) *pipepb.PTransform {
+		// Apparently we also send side inputs to PairWithRestriction
+		// and SplitAndSize. We should consider wether we could simply
+		// drop the side inputs from the ParDo payload instead, which
+		// could lead to an additional fusion oppportunity.
+		newInputs := maps.Clone(t.GetInputs())
+		newInputs[inputLocalID] = in
 		return &pipepb.PTransform{
 			UniqueName: name,
 			Spec: &pipepb.FunctionSpec{
 				Urn:     urn,
 				Payload: pardoPayload,
 			},
-			Inputs: map[string]string{
-				inputLocalID: in,
-			},
+			Inputs: newInputs,
 			Outputs: map[string]string{
 				"i0": out,
 			},
@@ -235,10 +246,16 @@ func (h *pardo) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipepb
 			EnvironmentId: t.GetEnvironmentId(),
 		},
 	}
-
-	return &pipepb.Components{
-		Coders:       coders,
-		Pcollections: pcols,
-		Transforms:   tforms,
-	}, t.GetSubtransforms()
+	return prepareResult{
+		SubbedComps: &pipepb.Components{
+			Coders:       coders,
+			Pcollections: pcols,
+			Transforms:   tforms,
+		},
+		RemovedLeaves: removeSubTransforms(comps, t.GetSubtransforms()),
+		// Force ProcessSized to be a root to ensure SDFs are able to split
+		// between elements or within elements.
+		// Also this is where a transform would be stateful anyway.
+		ForcedRoots: []string{eProcessID},
+	}
 }

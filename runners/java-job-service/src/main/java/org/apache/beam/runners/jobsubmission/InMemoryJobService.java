@@ -49,20 +49,20 @@ import org.apache.beam.model.jobmanagement.v1.JobApi.RunJobResponse;
 import org.apache.beam.model.jobmanagement.v1.JobServiceGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.runners.core.construction.graph.PipelineValidator;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactStagingService;
 import org.apache.beam.sdk.fn.server.FnService;
 import org.apache.beam.sdk.fn.server.GrpcFnServer;
 import org.apache.beam.sdk.fn.stream.SynchronizedStreamObserver;
 import org.apache.beam.sdk.function.ThrowingConsumer;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.Struct;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.Status;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.StatusException;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.StatusRuntimeException;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.apache.beam.sdk.util.construction.Environments;
+import org.apache.beam.sdk.util.construction.graph.PipelineValidator;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Status;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.StatusException;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.StatusRuntimeException;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -198,11 +198,7 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
 
       stagingService
           .getService()
-          .registerJob(
-              stagingSessionToken,
-              Maps.transformValues(
-                  request.getPipeline().getComponents().getEnvironmentsMap(),
-                  RunnerApi.Environment::getDependenciesList));
+          .registerJob(stagingSessionToken, extractDependencies(request.getPipeline()));
 
       // send response
       PrepareJobResponse response =
@@ -287,26 +283,50 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
     }
   }
 
+  private Map<String, List<RunnerApi.ArtifactInformation>> extractDependencies(
+      RunnerApi.Pipeline pipeline) {
+    Map<String, List<RunnerApi.ArtifactInformation>> dependencies = new HashMap<>();
+    for (Map.Entry<String, RunnerApi.Environment> entry :
+        pipeline.getComponents().getEnvironmentsMap().entrySet()) {
+      List<RunnerApi.Environment> subEnvs = Environments.expandAnyOfEnvironments(entry.getValue());
+      for (int i = 0; i < subEnvs.size(); i++) {
+        dependencies.put(i + ":" + entry.getKey(), subEnvs.get(i).getDependenciesList());
+      }
+    }
+    return dependencies;
+  }
+
   private RunnerApi.Pipeline resolveDependencies(RunnerApi.Pipeline pipeline, String stagingToken) {
     Map<String, List<RunnerApi.ArtifactInformation>> resolvedDependencies =
         stagingService.getService().getStagedArtifacts(stagingToken);
     Map<String, RunnerApi.Environment> newEnvironments = new HashMap<>();
     for (Map.Entry<String, RunnerApi.Environment> entry :
         pipeline.getComponents().getEnvironmentsMap().entrySet()) {
-      if (entry.getValue().getDependenciesCount() > 0 && resolvedDependencies == null) {
-        throw new RuntimeException(
-            "Artifact dependencies provided but not staged for " + entry.getKey());
+      List<RunnerApi.Environment> subEnvs = Environments.expandAnyOfEnvironments(entry.getValue());
+      List<RunnerApi.Environment> newSubEnvs = new ArrayList<>();
+      for (int i = 0; i < subEnvs.size(); i++) {
+        RunnerApi.Environment subEnv = subEnvs.get(i);
+        if (subEnv.getDependenciesCount() > 0 && resolvedDependencies == null) {
+          throw new RuntimeException(
+              "Artifact dependencies provided but not staged for " + entry.getKey());
+        }
+        newSubEnvs.add(
+            subEnv.getDependenciesCount() == 0
+                ? subEnv
+                : subEnv
+                    .toBuilder()
+                    .clearDependencies()
+                    .addAllDependencies(resolvedDependencies.get(i + ":" + entry.getKey()))
+                    .build());
       }
-      newEnvironments.put(
-          entry.getKey(),
-          entry.getValue().getDependenciesCount() == 0
-              ? entry.getValue()
-              : entry
-                  .getValue()
-                  .toBuilder()
-                  .clearDependencies()
-                  .addAllDependencies(resolvedDependencies.get(entry.getKey()))
-                  .build());
+      if (newSubEnvs.size() == 1) {
+        newEnvironments.put(entry.getKey(), newSubEnvs.get(0));
+      } else {
+        newEnvironments.put(
+            entry.getKey(),
+            Environments.createAnyOfEnvironment(
+                newSubEnvs.toArray(new RunnerApi.Environment[newSubEnvs.size()])));
+      }
     }
     RunnerApi.Pipeline.Builder builder = pipeline.toBuilder();
     builder.getComponentsBuilder().clearEnvironments().putAllEnvironments(newEnvironments);

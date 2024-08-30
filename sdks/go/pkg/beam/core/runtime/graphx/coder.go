@@ -27,7 +27,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/protox"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -162,7 +162,7 @@ func (b *CoderUnmarshaller) WindowCoder(id string) (*coder.WindowCoder, error) {
 
 	c, err := b.peek(id)
 	if err != nil {
-		return nil, err
+		return nil, errors.Errorf("could not unmarshal window coder: %w", err)
 	}
 
 	w, err := urnToWindowCoder(c.GetSpec().GetUrn())
@@ -218,7 +218,7 @@ func (b *CoderUnmarshaller) makeCoder(id string, c *pipepb.Coder) (*coder.Coder,
 		id := components[1]
 		elm, err := b.peek(id)
 		if err != nil {
-			return nil, err
+			return nil, errors.Errorf("could not unmarshal kv coder value component: %w", err)
 		}
 
 		switch elm.GetSpec().GetUrn() {
@@ -261,7 +261,7 @@ func (b *CoderUnmarshaller) makeCoder(id string, c *pipepb.Coder) (*coder.Coder,
 
 		sub, err := b.peek(components[0])
 		if err != nil {
-			return nil, err
+			return nil, errors.Errorf("could not unmarshal length prefix coder component: %w", err)
 		}
 
 		// No payload means this coder was length prefixed by the runner
@@ -307,7 +307,7 @@ func (b *CoderUnmarshaller) makeCoder(id string, c *pipepb.Coder) (*coder.Coder,
 		}
 		w, err := b.WindowCoder(components[1])
 		if err != nil {
-			return nil, err
+			return nil, errors.Errorf("could not unmarshal window coder: %w", err)
 		}
 		t := typex.New(typex.WindowedValueType, elm.T)
 		wvc := &coder.Coder{Kind: coder.WindowedValue, T: t, Components: []*coder.Coder{elm}, Window: w}
@@ -356,7 +356,7 @@ func (b *CoderUnmarshaller) makeCoder(id string, c *pipepb.Coder) (*coder.Coder,
 		}
 		w, err := b.WindowCoder(components[1])
 		if err != nil {
-			return nil, err
+			return nil, errors.Errorf("could not unmarshal window coder for timer: %w", err)
 		}
 		return coder.NewT(elm, w), nil
 	case urnRowCoder:
@@ -389,7 +389,7 @@ func (b *CoderUnmarshaller) makeCoder(id string, c *pipepb.Coder) (*coder.Coder,
 	case urnGlobalWindow:
 		w, err := b.WindowCoder(id)
 		if err != nil {
-			return nil, err
+			return nil, errors.Errorf("could not unmarshal global window coder: %w", err)
 		}
 		return &coder.Coder{Kind: coder.Window, T: typex.New(reflect.TypeOf((*struct{})(nil)).Elem()), Window: w}, nil
 	default:
@@ -400,7 +400,7 @@ func (b *CoderUnmarshaller) makeCoder(id string, c *pipepb.Coder) (*coder.Coder,
 func (b *CoderUnmarshaller) peek(id string) (*pipepb.Coder, error) {
 	c, ok := b.models[id]
 	if !ok {
-		return nil, errors.Errorf("coder with id %v not found", id)
+		return nil, errors.Errorf("(peek) coder with id %v not found", id)
 	}
 	return c, nil
 }
@@ -615,8 +615,8 @@ func (b *CoderMarshaller) internRowCoder(schema *pipepb.Schema) string {
 }
 
 func (b *CoderMarshaller) internCoder(coder *pipepb.Coder) string {
-	key := proto.MarshalTextString(coder)
-	if id, exists := b.coder2id[key]; exists {
+	key := coder.String()
+	if id, exists := b.coder2id[(key)]; exists {
 		return id
 	}
 
@@ -626,7 +626,7 @@ func (b *CoderMarshaller) internCoder(coder *pipepb.Coder) string {
 	} else {
 		id = fmt.Sprintf("c%v@%v", len(b.coder2id), b.Namespace)
 	}
-	b.coder2id[key] = id
+	b.coder2id[string(key)] = id
 	b.coders[id] = coder
 	return id
 }

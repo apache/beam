@@ -33,7 +33,7 @@ import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldName;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldNumber;
 import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.CaseFormat;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.CaseFormat;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
@@ -1362,13 +1362,13 @@ public class TestJavaBeans {
   @DefaultSchema(JavaBeanSchema.class)
   public static class ParameterNullableBean {
 
-    @org.apache.avro.reflect.Nullable private Float value;
+    @Nullable private Float value;
 
-    public @org.apache.avro.reflect.Nullable Float getValue() {
+    public @Nullable Float getValue() {
       return value;
     }
 
-    public void setValue(@org.apache.avro.reflect.Nullable Float value) {
+    public void setValue(@Nullable Float value) {
       this.value = value;
     }
   }
@@ -1379,14 +1379,14 @@ public class TestJavaBeans {
   @DefaultSchema(JavaBeanSchema.class)
   public static class FieldWithDescriptionBean {
 
-    @org.apache.avro.reflect.Nullable private Float value;
+    @Nullable private Float value;
 
     @SchemaFieldDescription("This value is the value stored in the object as a float.")
-    public @org.apache.avro.reflect.Nullable Float getValue() {
+    public @Nullable Float getValue() {
       return value;
     }
 
-    public void setValue(@org.apache.avro.reflect.Nullable Float value) {
+    public void setValue(@Nullable Float value) {
       this.value = value;
     }
   }

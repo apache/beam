@@ -69,7 +69,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.joda.time.Duration;
 import org.junit.Assert;
 import org.junit.Before;
@@ -548,9 +548,9 @@ public class DocumentationExamplesTest {
 
     // suppose animals contains : [ "mouse", "rat", "elephant", "cat", "X", "duck"]
     PCollection<KV<Integer, Long>> countOfAnimalNamesByLength =
-        ReduceByKey.named("to-letters-couts")
+        ReduceByKey.named("to-letters-counts")
             .of(animals)
-            .keyBy(String::length) // length of animal name will be used as groupping key
+            .keyBy(String::length) // length of animal name will be used as grouping key
             // we need to count each animal name once, so why not to optimize each string to 1
             .valueBy(e -> 1)
             .reduceBy(Stream::count)
@@ -573,7 +573,7 @@ public class DocumentationExamplesTest {
 
     // suppose animals contains : [ "mouse", "rat", "elephant", "cat", "X", "duck"]
     PCollection<KV<Integer, Long>> countOfAnimalNamesByLength =
-        ReduceByKey.named("to-letters-couts")
+        ReduceByKey.named("to-letters-counts")
             .of(animals)
             .keyBy(String::length) // length of animal name will be used as grouping key
             // we need to count each animal name once, so why not to optimize each string to 1
@@ -598,7 +598,7 @@ public class DocumentationExamplesTest {
 
     // suppose animals contains : [ "mouse", "rat", "elephant", "cat", "X", "duck"]
     PCollection<KV<Integer, Long>> countOfAnimalNamesByLength =
-        ReduceByKey.named("to-letters-couts")
+        ReduceByKey.named("to-letters-counts")
             .of(animals)
             .keyBy(String::length) // length of animal name will e used as grouping key
             // we need to count each animal name once, so why not to optimize each string to 1
@@ -630,7 +630,7 @@ public class DocumentationExamplesTest {
         pipeline.apply(Create.of("mouse", "rat", "elephant", "cat", "X", "duck"));
 
     PCollection<KV<Integer, Long>> countOfAnimalNamesByLength =
-        ReduceByKey.named("to-letters-couts")
+        ReduceByKey.named("to-letters-counts")
             .of(animals)
             .keyBy(String::length) // length of animal name will e used as grouping key
             // we need to count each animal name once, so why not to optimize each string to 1
@@ -668,7 +668,7 @@ public class DocumentationExamplesTest {
 
     // suppose animals contains : [ "mouse", "rat", "elephant", "cat", "X", "duck"]
     PCollection<KV<Integer, Long>> countOfAnimalNamesByLength =
-        ReduceByKey.named("to-letters-couts")
+        ReduceByKey.named("to-letters-counts")
             .of(animals)
             .keyBy(String::length) // length of animal name will be used as grouping key
             // we need to count each animal name once, so why not to optimize each string to 1

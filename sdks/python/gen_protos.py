@@ -18,7 +18,7 @@
 """
 Generates Python proto modules and grpc stubs for Beam protos.
 """
-
+import argparse
 import contextlib
 import glob
 import inspect
@@ -27,9 +27,7 @@ import os
 import platform
 import re
 import shutil
-import subprocess
 import sys
-import time
 from collections import defaultdict
 from importlib import import_module
 
@@ -60,7 +58,7 @@ LICENSE_HEADER = """
 NO_PROMISES_NOTICE = """
 \"\"\"
 For internal use only; no backwards-compatibility guarantees.
-Automatically generated when running setup.py sdist or build[_py].
+Automatically generated when running python -m build.
 \"\"\"
 """
 
@@ -321,43 +319,6 @@ def find_by_ext(root_dir, ext):
       if file.endswith(ext):
         yield clean_path(os.path.join(root, file))
 
-
-def ensure_grpcio_exists():
-  try:
-    from grpc_tools import protoc  # pylint: disable=unused-import
-  except ImportError:
-    return _install_grpcio_tools()
-
-
-def _install_grpcio_tools():
-  """
-  Though wheels are available for grpcio-tools, setup_requires uses
-  easy_install which doesn't understand them.  This means that it is
-  compiled from scratch (which is expensive as it compiles the full
-  protoc compiler).  Instead, we attempt to install a wheel in a temporary
-  directory and add it to the path as needed.
-  See https://github.com/pypa/setuptools/issues/377
-  """
-  install_path = os.path.join(PYTHON_SDK_ROOT, '.eggs', 'grpcio-wheels')
-  logging.warning('Installing grpcio-tools into %s', install_path)
-  start = time.time()
-  subprocess.check_call([
-      sys.executable,
-      '-m',
-      'pip',
-      'install',
-      '--target',
-      install_path,
-      '--upgrade',
-      '-r',
-      os.path.join(PYTHON_SDK_ROOT, 'build-requirements.txt')
-  ])
-  logging.warning(
-      'Installing grpcio-tools took %0.2f seconds.', time.time() - start)
-
-  return install_path
-
-
 def build_relative_import(root_path, import_path, start_file_path):
   tail_path = import_path.replace('.', os.path.sep)
   source_path = os.path.join(root_path, tail_path)
@@ -511,33 +472,31 @@ def generate_proto_files(force=False):
   if not os.path.exists(PYTHON_OUTPUT_PATH):
     os.mkdir(PYTHON_OUTPUT_PATH)
 
-  grpcio_install_loc = ensure_grpcio_exists()
   protoc_gen_mypy = _find_protoc_gen_mypy()
-  with PythonPath(grpcio_install_loc):
-    from grpc_tools import protoc
-    builtin_protos = pkg_resources.resource_filename('grpc_tools', '_proto')
-    args = (
-        [sys.executable] +  # expecting to be called from command line
-        ['--proto_path=%s' % builtin_protos] +
-        ['--proto_path=%s' % d
-         for d in proto_dirs] + ['--python_out=%s' % PYTHON_OUTPUT_PATH] +
-        ['--plugin=protoc-gen-mypy=%s' % protoc_gen_mypy] +
-        # new version of mypy-protobuf converts None to zero default value
-        # and remove Optional from the param type annotation. This causes
-        # some mypy errors. So to mitigate and fall back to old behavior,
-        # use `relax_strict_optional_primitives` flag. more at
-        # https://github.com/nipunn1313/mypy-protobuf/tree/main#relax_strict_optional_primitives # pylint:disable=line-too-long
-        ['--mypy_out=relax_strict_optional_primitives:%s' % PYTHON_OUTPUT_PATH
-         ] +
-        # TODO(robertwb): Remove the prefix once it's the default.
-        ['--grpc_python_out=grpc_2_0:%s' % PYTHON_OUTPUT_PATH] + proto_files)
+  from grpc_tools import protoc
+  builtin_protos = pkg_resources.resource_filename('grpc_tools', '_proto')
+  args = (
+      [sys.executable] +  # expecting to be called from command line
+      ['--proto_path=%s' % builtin_protos] +
+      ['--proto_path=%s' % d
+      for d in proto_dirs] + ['--python_out=%s' % PYTHON_OUTPUT_PATH] +
+      ['--plugin=protoc-gen-mypy=%s' % protoc_gen_mypy] +
+      # new version of mypy-protobuf converts None to zero default value
+      # and remove Optional from the param type annotation. This causes
+      # some mypy errors. So to mitigate and fall back to old behavior,
+      # use `relax_strict_optional_primitives` flag. more at
+      # https://github.com/nipunn1313/mypy-protobuf/tree/main#relax_strict_optional_primitives # pylint:disable=line-too-long
+      ['--mypy_out=relax_strict_optional_primitives:%s' % PYTHON_OUTPUT_PATH
+      ] +
+      # TODO(robertwb): Remove the prefix once it's the default.
+      ['--grpc_python_out=grpc_2_0:%s' % PYTHON_OUTPUT_PATH] + proto_files)
 
-    LOG.info('Regenerating Python proto definitions (%s).' % regenerate_reason)
-    ret_code = protoc.main(args)
-    if ret_code:
-      raise RuntimeError(
-          'Protoc returned non-zero status (see logs for details): '
-          '%s' % ret_code)
+  LOG.info('Regenerating Python proto definitions (%s).' % regenerate_reason)
+  ret_code = protoc.main(args)
+  if ret_code:
+    raise RuntimeError(
+        'Protoc returned non-zero status (see logs for details): '
+        '%s' % ret_code)
 
   # copy resource files
   for path in MODEL_RESOURCES:
@@ -548,7 +507,7 @@ def generate_proto_files(force=False):
   # force relative import paths for proto files
   compiled_import_re = re.compile('^from (.*) import (.*)$')
   for file_path in find_by_ext(PYTHON_OUTPUT_PATH,
-                               ('_pb2.py', '_pb2_grpc.py', '_pb2.pyi')):
+                              ('_pb2.py', '_pb2_grpc.py', '_pb2.pyi')):
     proto_packages.add(os.path.dirname(file_path))
     lines = []
     with open(file_path, encoding='utf-8') as f:
@@ -566,12 +525,13 @@ def generate_proto_files(force=False):
       f.writelines(lines)
 
   generate_init_files_lite(PYTHON_OUTPUT_PATH)
-  with PythonPath(grpcio_install_loc):
-    for proto_package in proto_packages:
-      generate_urn_files(proto_package, PYTHON_OUTPUT_PATH)
-
+  for proto_package in proto_packages:
+    generate_urn_files(proto_package, PYTHON_OUTPUT_PATH)
     generate_init_files_full(PYTHON_OUTPUT_PATH)
 
 
 if __name__ == '__main__':
-  generate_proto_files(force=True)
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--no-force', dest='force', action='store_false')
+  args = parser.parse_args()
+  generate_proto_files(force=args.force)

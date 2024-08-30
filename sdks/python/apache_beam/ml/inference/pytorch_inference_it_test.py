@@ -32,6 +32,7 @@ try:
   import torch
   from apache_beam.examples.inference import pytorch_image_classification
   from apache_beam.examples.inference import pytorch_image_segmentation
+  from apache_beam.examples.inference import pytorch_model_per_key_image_segmentation
   from apache_beam.examples.inference import pytorch_language_modeling
 except ImportError as e:
   torch = None
@@ -129,6 +130,53 @@ class PyTorchInference(unittest.TestCase):
 
   @pytest.mark.uses_pytorch
   @pytest.mark.it_postcommit
+  @pytest.mark.timeout(1800)
+  def test_torch_run_inference_coco_maskrcnn_resnet50_fpn_v1_and_v2(self):
+    test_pipeline = TestPipeline(is_integration_test=True)
+    # text files containing absolute path to the coco validation data on GCS
+    file_of_image_names = 'gs://apache-beam-ml/testing/inputs/it_coco_validation_inputs.txt'  # pylint: disable=line-too-long
+    output_file_dir = 'gs://apache-beam-ml/testing/predictions'
+    output_file = '/'.join([output_file_dir, str(uuid.uuid4()), 'result.txt'])
+
+    model_state_dict_paths = [
+      'gs://apache-beam-ml/models/torchvision.models.detection.maskrcnn_resnet50_fpn.pth',  # pylint: disable=line-too-long
+      'gs://apache-beam-ml/models/torchvision.models.detection.maskrcnn_resnet50_fpn_v2.pth'  # pylint: disable=line-too-long
+    ]
+    images_dir = 'gs://apache-beam-ml/datasets/coco/raw-data/val2017'
+    extra_opts = {
+        'input': file_of_image_names,
+        'output': output_file,
+        'model_state_dict_paths': ','.join(model_state_dict_paths),
+        'images_dir': images_dir,
+    }
+    pytorch_model_per_key_image_segmentation.run(
+        test_pipeline.get_full_options_as_args(**extra_opts),
+        save_main_session=False)
+
+    self.assertEqual(FileSystems().exists(output_file), True)
+    predictions = process_outputs(filepath=output_file)
+    actuals_file = 'gs://apache-beam-ml/testing/expected_outputs/test_torch_run_inference_coco_maskrcnn_resnet50_fpn_v1_and_v2_actuals.txt'  # pylint: disable=line-too-long
+    actuals = process_outputs(filepath=actuals_file)
+
+    predictions_dict = {}
+    for prediction in predictions:
+      p = prediction.split('---')
+      filename = p[0]
+      v1predictions = p[1]
+      v2predictions = p[2]
+      predictions_dict[filename] = (v1predictions, v2predictions)
+
+    for actual in actuals:
+      a = actual.split('---')
+      filename = a[0]
+      v1actuals = a[1]
+      v2actuals = a[2]
+      v1prediction_labels, v2prediction_labels = predictions_dict[filename]
+      self.assertEqual(v1actuals, v1prediction_labels)
+      self.assertEqual(v2actuals, v2prediction_labels)
+
+  @pytest.mark.uses_pytorch
+  @pytest.mark.it_postcommit
   def test_torch_run_inference_bert_for_masked_lm(self):
     test_pipeline = TestPipeline(is_integration_test=True)
     # Path to text file containing some sentences
@@ -141,6 +189,41 @@ class PyTorchInference(unittest.TestCase):
         'input': file_of_sentences,
         'output': output_file,
         'model_state_dict_path': model_state_dict_path,
+    }
+    pytorch_language_modeling.run(
+        test_pipeline.get_full_options_as_args(**extra_opts),
+        save_main_session=False)
+
+    self.assertEqual(FileSystems().exists(output_file), True)
+    predictions = process_outputs(filepath=output_file)
+    actuals_file = 'gs://apache-beam-ml/testing/expected_outputs/test_torch_run_inference_bert_for_masked_lm_actuals.txt'  # pylint: disable=line-too-long
+    actuals = process_outputs(filepath=actuals_file)
+
+    predictions_dict = {}
+    for prediction in predictions:
+      text, predicted_text = prediction.split(';')
+      predictions_dict[text] = predicted_text
+
+    for actual in actuals:
+      text, actual_predicted_text = actual.split(';')
+      predicted_predicted_text = predictions_dict[text]
+      self.assertEqual(actual_predicted_text, predicted_predicted_text)
+
+  @pytest.mark.uses_pytorch
+  @pytest.mark.it_postcommit
+  def test_torch_run_inference_bert_for_masked_lm_large_model(self):
+    test_pipeline = TestPipeline(is_integration_test=True)
+    # Path to text file containing some sentences
+    file_of_sentences = 'gs://apache-beam-ml/datasets/custom/sentences.txt'  # pylint: disable=line-too-long
+    output_file_dir = 'gs://apache-beam-ml/testing/predictions'
+    output_file = '/'.join([output_file_dir, str(uuid.uuid4()), 'result.txt'])
+
+    model_state_dict_path = 'gs://apache-beam-ml/models/huggingface.BertForMaskedLM.bert-base-uncased.pth'  # pylint: disable=line-too-long
+    extra_opts = {
+        'input': file_of_sentences,
+        'output': output_file,
+        'model_state_dict_path': model_state_dict_path,
+        'large_model': True,
     }
     pytorch_language_modeling.run(
         test_pipeline.get_full_options_as_args(**extra_opts),

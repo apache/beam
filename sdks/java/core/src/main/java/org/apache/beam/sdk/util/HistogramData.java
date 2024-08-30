@@ -18,11 +18,14 @@
 package org.apache.beam.sdk.util;
 
 import com.google.auto.value.AutoValue;
+import com.google.auto.value.extension.memoized.Memoized;
 import java.io.Serializable;
 import java.math.RoundingMode;
 import java.util.Arrays;
 import java.util.Objects;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.math.DoubleMath;
+import javax.annotation.concurrent.GuardedBy;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.math.DoubleMath;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.math.IntMath;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,7 +47,15 @@ public class HistogramData implements Serializable {
   private long[] buckets;
   private long numBoundedBucketRecords;
   private long numTopRecords;
+  private double topRecordsSum;
   private long numBottomRecords;
+  private double bottomRecordsSum;
+
+  @GuardedBy("this")
+  private double sumOfSquaredDeviations;
+
+  @GuardedBy("this")
+  private double mean;
 
   /**
    * Create a histogram.
@@ -56,7 +67,11 @@ public class HistogramData implements Serializable {
     this.buckets = new long[bucketType.getNumBuckets()];
     this.numBoundedBucketRecords = 0;
     this.numTopRecords = 0;
+    this.topRecordsSum = 0;
     this.numBottomRecords = 0;
+    this.bottomRecordsSum = 0;
+    this.mean = 0;
+    this.sumOfSquaredDeviations = 0;
   }
 
   public BucketType getBucketType() {
@@ -77,6 +92,55 @@ public class HistogramData implements Serializable {
     return new HistogramData(LinearBuckets.of(start, width, numBuckets));
   }
 
+  /**
+   * Returns a histogram object with exponential boundaries. The input parameter {@code scale}
+   * determines a coefficient 'base' which species bucket boundaries.
+   *
+   * <pre>
+   * base = 2**(2**(-scale)) e.g.
+   * scale=1 => base=2**(1/2)=sqrt(2)
+   * scale=0 => base=2**(1)=2
+   * scale=-1 => base=2**(2)=4
+   * </pre>
+   *
+   * This bucketing strategy makes it simple/numerically stable to compute bucket indexes for
+   * datapoints.
+   *
+   * <pre>
+   * Bucket boundaries are given by the following table where n=numBuckets.
+   * | 'Bucket Index' | Bucket Boundaries   |
+   * |---------------|---------------------|
+   * | Underflow     | (-inf, 0)           |
+   * | 0             | [0, base)           |
+   * | 1             | [base, base^2)      |
+   * | 2             | [base^2, base^3)    |
+   * | i             | [base^i, base^(i+1))|
+   * | n-1           | [base^(n-1), base^n)|
+   * | Overflow      | [base^n, inf)       |
+   * </pre>
+   *
+   * <pre>
+   * Example scale/boundaries:
+   * When scale=1, buckets 0,1,2...i have lowerbounds 0, 2^(1/2), 2^(2/2), ... 2^(i/2).
+   * When scale=0, buckets 0,1,2...i have lowerbounds 0, 2, 2^2, ... 2^(i).
+   * When scale=-1, buckets 0,1,2...i have lowerbounds 0, 4, 4^2, ... 4^(i).
+   * </pre>
+   *
+   * Scale parameter is similar to <a
+   * href="https://opentelemetry.io/docs/specs/otel/metrics/data-model/#exponentialhistogram">
+   * OpenTelemetry's notion of ExponentialHistogram</a>. Bucket boundaries are modified to make them
+   * compatible with GCP's exponential histogram.
+   *
+   * @param numBuckets The number of buckets. Clipped so that the largest bucket's lower bound is
+   *     not greater than 2^32-1 (uint32 max).
+   * @param scale Integer between [-3, 3] which determines bucket boundaries. Larger values imply
+   *     more fine grained buckets.
+   * @return a new Histogram instance.
+   */
+  public static HistogramData exponential(int scale, int numBuckets) {
+    return new HistogramData(ExponentialBuckets.of(scale, numBuckets));
+  }
+
   public void record(double... values) {
     for (double value : values) {
       record(value);
@@ -92,10 +156,14 @@ public class HistogramData implements Serializable {
       }
 
       incTopBucketCount(other.numTopRecords);
+      this.topRecordsSum = other.topRecordsSum;
       incBottomBucketCount(other.numBottomRecords);
+      this.bottomRecordsSum = other.bottomRecordsSum;
       for (int i = 0; i < other.buckets.length; i++) {
         incBucketCount(i, other.buckets[i]);
       }
+      this.mean = other.mean;
+      this.sumOfSquaredDeviations = other.sumOfSquaredDeviations;
     }
   }
 
@@ -120,20 +188,80 @@ public class HistogramData implements Serializable {
     this.buckets = new long[bucketType.getNumBuckets()];
     this.numBoundedBucketRecords = 0;
     this.numTopRecords = 0;
+    this.topRecordsSum = 0;
     this.numBottomRecords = 0;
+    this.bottomRecordsSum = 0;
+    this.mean = 0;
+    this.sumOfSquaredDeviations = 0;
+  }
+
+  /**
+   * Copies all updates to a new histogram object and resets 'this' histogram.
+   *
+   * @return New histogram object that has the the same updates as 'this'.
+   */
+  public synchronized HistogramData getAndReset() {
+    HistogramData other = new HistogramData(this.getBucketType());
+    other.update(this);
+    this.clear();
+    return other;
   }
 
   public synchronized void record(double value) {
     double rangeTo = bucketType.getRangeTo();
     double rangeFrom = bucketType.getRangeFrom();
     if (value >= rangeTo) {
-      numTopRecords++;
+      recordTopRecordsValue(value);
     } else if (value < rangeFrom) {
-      numBottomRecords++;
+      recordBottomRecordsValue(value);
     } else {
       buckets[bucketType.getBucketIndex(value)]++;
       numBoundedBucketRecords++;
     }
+    updateStatistics(value);
+  }
+
+  /**
+   * Update 'mean' and 'sum of squared deviations' statistics with the newly recorded value <a
+   * href="https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Welford's_online_algorithm">
+   * Welford's Method</a>.
+   *
+   * @param value
+   */
+  private synchronized void updateStatistics(double value) {
+    long count = getTotalCount();
+    if (count == 1) {
+      mean = value;
+      return;
+    }
+
+    double oldMean = mean;
+    mean = oldMean + (value - oldMean) / count;
+    sumOfSquaredDeviations += (value - mean) * (value - oldMean);
+  }
+
+  /**
+   * Increment the {@code numTopRecords} and update {@code topRecordsSum} when a new overflow value
+   * is recorded. This function should only be called when a Histogram is recording a value greater
+   * than the upper bound of it's largest bucket.
+   *
+   * @param value
+   */
+  private synchronized void recordTopRecordsValue(double value) {
+    numTopRecords++;
+    topRecordsSum += value;
+  }
+
+  /**
+   * Increment the {@code numBottomRecords} and update {@code bottomRecordsSum} when a new underflow
+   * value is recorded. This function should only be called when a Histogram is recording a value
+   * smaller than the lowerbound bound of it's smallest bucket.
+   *
+   * @param value
+   */
+  private synchronized void recordBottomRecordsValue(double value) {
+    numBottomRecords++;
+    bottomRecordsSum += value;
   }
 
   public synchronized long getTotalCount() {
@@ -165,8 +293,24 @@ public class HistogramData implements Serializable {
     return numTopRecords;
   }
 
+  public synchronized double getTopBucketMean() {
+    return numTopRecords == 0 ? 0 : topRecordsSum / numTopRecords;
+  }
+
   public synchronized long getBottomBucketCount() {
     return numBottomRecords;
+  }
+
+  public synchronized double getBottomBucketMean() {
+    return numBottomRecords == 0 ? 0 : bottomRecordsSum / numBottomRecords;
+  }
+
+  public synchronized double getMean() {
+    return mean;
+  }
+
+  public synchronized double getSumOfSquaredDeviations() {
+    return sumOfSquaredDeviations;
   }
 
   public double p99() {
@@ -225,6 +369,159 @@ public class HistogramData implements Serializable {
     // Get the accumulated bucket size from bucket index 0 until endIndex.
     // Generally, this can be calculated as `sigma(0 <= i < endIndex) getBucketSize(i)`.
     double getAccumulatedBucketSize(int endIndex);
+  }
+
+  @AutoValue
+  public abstract static class ExponentialBuckets implements BucketType {
+
+    // Minimum scale factor. Bucket boundaries can grow at a rate of at most: 2^(2^3)=2^8=256
+    private static final int MINIMUM_SCALE = -3;
+
+    // Minimum scale factor. Bucket boundaries must grow at a rate of at least 2^(2^-3)=2^(1/8)
+    private static final int MAXIMUM_SCALE = 3;
+
+    // Maximum number of buckets that is supported when 'scale' is zero.
+    private static final int ZERO_SCALE_MAX_NUM_BUCKETS = 32;
+
+    @Memoized
+    public double getBase() {
+      return Math.pow(2, Math.pow(2, -getScale()));
+    }
+
+    public abstract int getScale();
+
+    /**
+     * Set to 2**scale which is equivalent to 1/log_2(base). Memoized to use in {@code
+     * getBucketIndexPositiveScale}
+     */
+    @Memoized
+    public double getInvLog2GrowthFactor() {
+      return Math.pow(2, getScale());
+    }
+
+    @Override
+    public abstract int getNumBuckets();
+
+    /* Memoized since this value is used everytime a datapoint is recorded. */
+    @Memoized
+    @Override
+    public double getRangeTo() {
+      return Math.pow(getBase(), getNumBuckets());
+    }
+
+    public static ExponentialBuckets of(int scale, int numBuckets) {
+      if (scale < MINIMUM_SCALE) {
+        throw new IllegalArgumentException(
+            String.format("Scale should be greater than %d: %d", MINIMUM_SCALE, scale));
+      }
+
+      if (scale > MAXIMUM_SCALE) {
+        throw new IllegalArgumentException(
+            String.format("Scale should be less than %d: %d", MAXIMUM_SCALE, scale));
+      }
+      if (numBuckets <= 0) {
+        throw new IllegalArgumentException(
+            String.format("numBuckets should be positive: %d", numBuckets));
+      }
+
+      int clippedNumBuckets = ExponentialBuckets.computeNumberOfBuckets(scale, numBuckets);
+      return new AutoValue_HistogramData_ExponentialBuckets(scale, clippedNumBuckets);
+    }
+
+    /**
+     * numBuckets is clipped so that the largest bucket's lower bound is not greater than 2^32-1
+     * (uint32 max). This value is log_base(2^32) which simplifies as follows:
+     *
+     * <pre>
+     * log_base(2^32)
+     * = log_2(2^32)/log_2(base)
+     * = 32/(2**-scale)
+     * = 32*(2**scale)
+     * </pre>
+     */
+    private static int computeNumberOfBuckets(int scale, int inputNumBuckets) {
+      if (scale == 0) {
+        // When base=2 then the bucket at index 31 contains [2^31, 2^32).
+        return Math.min(ZERO_SCALE_MAX_NUM_BUCKETS, inputNumBuckets);
+      } else if (scale > 0) {
+        // When scale is positive 32*(2**scale) is equivalent to a right bit-shift.
+        return Math.min(inputNumBuckets, ZERO_SCALE_MAX_NUM_BUCKETS << scale);
+      } else {
+        // When scale is negative 32*(2**scale) is equivalent to a left bit-shift.
+        return Math.min(inputNumBuckets, ZERO_SCALE_MAX_NUM_BUCKETS >> -scale);
+      }
+    }
+
+    @Override
+    public int getBucketIndex(double value) {
+      if (value < getBase()) {
+        return 0;
+      }
+
+      // When scale is non-positive, 'base' and 'bucket boundaries' will be integers.
+      // In this scenario `value` and `floor(value)` will belong to the same bucket.
+      int index;
+      if (getScale() > 0) {
+        index = getBucketIndexPositiveScale(value);
+      } else if (getScale() < 0) {
+        index = getBucketIndexNegativeScale(DoubleMath.roundToInt(value, RoundingMode.FLOOR));
+      } else {
+        index = getBucketIndexZeroScale(DoubleMath.roundToInt(value, RoundingMode.FLOOR));
+      }
+      // Ensure that a valid index is returned in the off chance of a numerical instability error.
+      return Math.max(Math.min(index, getNumBuckets() - 1), 0);
+    }
+
+    private int getBucketIndexZeroScale(int value) {
+      return IntMath.log2(value, RoundingMode.FLOOR);
+    }
+
+    private int getBucketIndexNegativeScale(int value) {
+      return getBucketIndexZeroScale(value) >> (-getScale());
+    }
+
+    // This method is valid for all 'scale' values but we fallback to more efficient methods for
+    // non-positive scales.
+    // For a value>base we would like to find an i s.t. :
+    // base^i <= value < base^(i+1)
+    // i <= log_base(value) < i+1
+    // i = floor(log_base(value))
+    // i = floor(log_2(value)/log_2(base))
+    private int getBucketIndexPositiveScale(double value) {
+      return DoubleMath.roundToInt(
+          getInvLog2GrowthFactor() * DoubleMath.log2(value), RoundingMode.FLOOR);
+    }
+
+    @Override
+    public double getBucketSize(int index) {
+      if (index < 0) {
+        return 0;
+      }
+      if (index == 0) {
+        return getBase();
+      }
+
+      // bucketSize = (base)^(i+1) - (base)^i
+      //            = (base)^i(base - 1)
+      return Math.pow(getBase(), index) * (getBase() - 1);
+    }
+
+    @Override
+    public double getAccumulatedBucketSize(int endIndex) {
+      if (endIndex < 0) {
+        return 0;
+      }
+      return Math.pow(getBase(), endIndex + 1);
+    }
+
+    @Override
+    public double getRangeFrom() {
+      return 0;
+    }
+
+    @Memoized
+    @Override
+    public abstract int hashCode();
   }
 
   @AutoValue

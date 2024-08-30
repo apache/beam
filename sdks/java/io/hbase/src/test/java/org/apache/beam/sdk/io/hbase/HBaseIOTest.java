@@ -51,11 +51,12 @@ import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.MiniHBaseCluster;
+import org.apache.hadoop.hbase.StartMiniClusterOption;
 import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.client.Admin;
 import org.apache.hadoop.hbase.client.BufferedMutator;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
-import org.apache.hadoop.hbase.client.HBaseAdmin;
 import org.apache.hadoop.hbase.client.Mutation;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
@@ -85,7 +86,7 @@ public class HBaseIOTest {
   @Rule public TemporaryHBaseTable tmpTable = new TemporaryHBaseTable();
 
   private static HBaseTestingUtility htu;
-  private static HBaseAdmin admin;
+  private static Admin admin;
 
   private static final Configuration conf = HBaseConfiguration.create();
   private static final byte[] COLUMN_FAMILY = Bytes.toBytes("info");
@@ -103,10 +104,12 @@ public class HBaseIOTest {
 
     // We don't use the full htu.startMiniCluster() to avoid starting unneeded HDFS/MR daemons
     htu.startMiniZKCluster();
-    MiniHBaseCluster hbm = htu.startMiniHBaseCluster(1, 4);
+    StartMiniClusterOption option =
+        StartMiniClusterOption.builder().numMasters(1).numRegionServers(4).build();
+    MiniHBaseCluster hbm = htu.startMiniHBaseCluster(option);
     hbm.waitForActiveAndReadyMaster();
 
-    admin = htu.getHBaseAdmin();
+    admin = htu.getAdmin();
   }
 
   @AfterClass

@@ -57,6 +57,8 @@ def copyLicenseScripts = tasks.register("copyLicenseScripts", Copy){
     into "build/target/license_scripts"
 }
 
+def pushContainers = project.rootProject.hasProperty(["isRelease"]) || project.rootProject.hasProperty("push-containers")
+
 docker {
   name containerImageName(
           name: project.docker_image_default_repo_prefix + "python_expansion_service",
@@ -68,8 +70,10 @@ docker {
   // tags used by dockerTag task
   tags containerImageTags()
   files "./build"
-  buildx project.containerPlatforms() != [project.nativeArchitecture()]
+  buildx project.useBuildx()
   platform(*project.containerPlatforms())
+  load project.useBuildx() && !pushContainers
+  push pushContainers
 }
 
 dockerPrepare.dependsOn goBuild
@@ -94,5 +98,5 @@ if (project.rootProject.hasProperty(["docker-pull-licenses"])) {
 }
 
 task pushAll {
-  dependsOn dockerPush
+  dependsOn docker
 }

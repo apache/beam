@@ -26,9 +26,11 @@ import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience
  * @param <LeftT> the type of the left operand
  * @param <RightT> the type of the right operand
  * @param <OutputT> the type of the result of the function application
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
  */
 @Audience(Audience.Type.CLIENT)
 @FunctionalInterface
+@Deprecated
 public interface BinaryFunction<LeftT, RightT, OutputT> extends Serializable {
 
   /**

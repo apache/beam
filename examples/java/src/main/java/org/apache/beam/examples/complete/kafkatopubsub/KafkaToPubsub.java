@@ -22,7 +22,7 @@ import static org.apache.beam.examples.complete.kafkatopubsub.kafka.consumer.Uti
 import static org.apache.beam.examples.complete.kafkatopubsub.kafka.consumer.Utils.getKafkaCredentialsFromVault;
 import static org.apache.beam.examples.complete.kafkatopubsub.kafka.consumer.Utils.isSslSpecified;
 import static org.apache.beam.examples.complete.kafkatopubsub.kafka.consumer.Utils.parseKafkaConsumerConfig;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.ArrayList;
 import java.util.Arrays;

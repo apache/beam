@@ -45,6 +45,7 @@ body:
         - "Priority: 3 (nice-to-have improvement)"
         - "Priority: 2 (default / most normal work should be filed as P2)"
         - "Priority: 1 (urgent / mostly reserved for critical bugs)"
+      default: 1
     validations:
       required: true
   - type: checkboxes
@@ -58,10 +59,12 @@ body:
        - label: "Component: Go SDK"
        - label: "Component: Typescript SDK"
        - label: "Component: IO connector"
+       - label: "Component: Beam YAML"
        - label: "Component: Beam examples"
        - label: "Component: Beam playground"
        - label: "Component: Beam katas"
        - label: "Component: Website"
+       - label: "Component: Infrastructure"
        - label: "Component: Spark Runner"
        - label: "Component: Flink Runner"
        - label: "Component: Samza Runner"

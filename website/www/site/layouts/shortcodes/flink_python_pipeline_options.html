@@ -16,12 +16,16 @@ This is an auto-generated file.
 Use generatePipelineOptionsTableJava and generatePipelineOptionsTablePython respectively.
 Should be called before running the tests.
 -->
-<div class="table-container-wrapper">
 <table class="table table-bordered">
 <tr>
   <td><code>allow_non_restored_state</code></td>
   <td>Flag indicating whether non restored state is allowed if the savepoint contains state for an operator that is no longer part of the pipeline.</td>
   <td>Default: <code>false</code></td>
+</tr>
+<tr>
+  <td><code>attached_mode</code></td>
+  <td>Specifies if the pipeline is submitted in attached or detached mode</td>
+  <td>Default: <code>true</code></td>
 </tr>
 <tr>
   <td><code>auto_balance_write_files_sharding_enabled</code></td>
@@ -54,6 +58,11 @@ Should be called before running the tests.
   <td>Default: <code>false</code></td>
 </tr>
 <tr>
+  <td><code>enable_stable_input_drain</code></td>
+  <td>Allow drain operation for flink pipelines that contain RequiresStableInput operator. Note that at time of draining,the RequiresStableInput contract might be violated if there any processing related failures in the DoFn operator.</td>
+  <td>Default: <code>false</code></td>
+</tr>
+<tr>
   <td><code>execution_mode_for_batch</code></td>
   <td>Flink mode for data exchange of batch pipelines. Reference {@link org.apache.flink.api.common.ExecutionMode}. Set this to BATCH_FORCED if pipelines get blocked, see https://issues.apache.org/jira/browse/FLINK-10672</td>
   <td>Default: <code>PIPELINED</code></td>
@@ -79,6 +88,11 @@ Should be called before running the tests.
   <td>Default: <code>false</code></td>
 </tr>
 <tr>
+  <td><code>file_input_split_max_size_m_b</code></td>
+  <td>Set the maximum size of input split when data is read from a filesystem. 0 implies no max size.</td>
+  <td>Default: <code>0</code></td>
+</tr>
+<tr>
   <td><code>finish_bundle_before_checkpointing</code></td>
   <td>If set, finishes the current bundle and flushes all output before checkpointing the state of the operators. By default, starts checkpointing immediately and buffers any remaining bundle output as part of the checkpoint. The setting may affect the checkpoint alignment.</td>
   <td>Default: <code>false</code></td>
@@ -94,19 +108,29 @@ Should be called before running the tests.
   <td>Default: <code>[auto]</code></td>
 </tr>
 <tr>
+  <td><code>force_unaligned_checkpoint_enabled</code></td>
+  <td>Forces unaligned checkpoints, particularly allowing them for iterative jobs.</td>
+  <td>Default: <code>false</code></td>
+</tr>
+<tr>
+  <td><code>job_check_interval_in_secs</code></td>
+  <td>Set job check interval in seconds under detached mode in method waitUntilFinish, by default it is 5 seconds</td>
+  <td>Default: <code>5</code></td>
+</tr>
+<tr>
   <td><code>latency_tracking_interval</code></td>
   <td>Interval in milliseconds for sending latency tracking marks from the sources to the sinks. Interval value <= 0 disables the feature.</td>
   <td>Default: <code>0</code></td>
 </tr>
 <tr>
   <td><code>max_bundle_size</code></td>
-  <td>The maximum number of elements in a bundle.</td>
-  <td>Default: <code>1000</code></td>
+  <td>The maximum number of elements in a bundle. Default values are 1000 for a streaming job and 1,000,000 for batch</td>
+  <td>Default: <code>MaxBundleSizeFactory</code></td>
 </tr>
 <tr>
   <td><code>max_bundle_time_mills</code></td>
-  <td>The maximum time to wait before finalising a bundle (in milliseconds).</td>
-  <td>Default: <code>1000</code></td>
+  <td>The maximum time to wait before finalising a bundle (in milliseconds). Default values are 1000 for streaming and 10,000 for batch.</td>
+  <td>Default: <code>MaxBundleTimeFactory</code></td>
 </tr>
 <tr>
   <td><code>max_parallelism</code></td>
@@ -132,6 +156,11 @@ Should be called before running the tests.
   <td><code>object_reuse</code></td>
   <td>Sets the behavior of reusing objects.</td>
   <td>Default: <code>false</code></td>
+</tr>
+<tr>
+  <td><code>operator_chaining</code></td>
+  <td>Sets the behavior of operator chaining.</td>
+  <td>Default: <code>true</code></td>
 </tr>
 <tr>
   <td><code>parallelism</code></td>
@@ -178,5 +207,9 @@ Should be called before running the tests.
   <td>State backend path to persist state backend data. Used to initialize state backend.</td>
   <td></td>
 </tr>
+<tr>
+  <td><code>unaligned_checkpoint_enabled</code></td>
+  <td>If set, Unaligned checkpoints contain in-flight data (i.e., data stored in buffers) as part of the checkpoint state, allowing checkpoint barriers to overtake these buffers. Thus, the checkpoint duration becomes independent of the current throughput as checkpoint barriers are effectively not embedded into the stream of data anymore</td>
+  <td>Default: <code>false</code></td>
+</tr>
 </table>
-</div>

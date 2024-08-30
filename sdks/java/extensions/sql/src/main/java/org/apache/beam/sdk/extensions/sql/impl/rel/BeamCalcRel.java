@@ -19,7 +19,7 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import static org.apache.beam.sdk.schemas.Schema.Field;
 import static org.apache.beam.sdk.schemas.Schema.FieldType;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
@@ -103,8 +103,8 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlOperator
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.validate.SqlConformance;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.validate.SqlConformanceEnum;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.validate.SqlUserDefinedFunction;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.codehaus.commons.compiler.CompileException;
 import org.codehaus.janino.ScriptEvaluator;
@@ -395,6 +395,7 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
         }
         return ((ByteString) value).getBytes();
       case ARRAY:
+      case ITERABLE:
         return toBeamList((List<Object>) value, fieldType.getCollectionElementType(), verifyValues);
       case MAP:
         return toBeamMap(
@@ -558,6 +559,9 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
         case ROW:
           value = Expressions.call(expression, "getRow", fieldName);
           break;
+        case ITERABLE:
+          value = Expressions.call(expression, "getIterable", fieldName);
+          break;
         case LOGICAL_TYPE:
           String identifier = fieldType.getLogicalType().getIdentifier();
           if (FixedString.IDENTIFIER.equals(identifier)
@@ -634,6 +638,7 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
           return nullOr(
               value, Expressions.new_(ByteString.class, Expressions.convert_(value, byte[].class)));
         case ARRAY:
+        case ITERABLE:
           return nullOr(value, toCalciteList(value, fieldType.getCollectionElementType()));
         case MAP:
           return nullOr(value, toCalciteMap(value, fieldType.getMapValueType()));

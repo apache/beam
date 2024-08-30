@@ -20,20 +20,20 @@ package org.apache.beam.runners.flink;
 import java.io.File;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.security.Permission;
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import org.apache.beam.runners.core.construction.resources.PipelineResources;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.sdk.util.construction.resources.PipelineResources;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.flink.client.cli.CliFrontend;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -72,6 +72,8 @@ public class FlinkSubmissionTest {
   /** Counter which keeps track of the number of jobs submitted. */
   private static int expectedNumberOfJobs;
 
+  public static boolean useDataStreamForBatch;
+
   @BeforeClass
   public static void beforeClass() throws Exception {
     Configuration config = new Configuration();
@@ -105,12 +107,24 @@ public class FlinkSubmissionTest {
   }
 
   @Test
+  public void testSubmissionBatchUseDataStream() throws Exception {
+    FlinkSubmissionTest.useDataStreamForBatch = true;
+    runSubmission(false, false);
+  }
+
+  @Test
   public void testSubmissionStreaming() throws Exception {
     runSubmission(false, true);
   }
 
   @Test
   public void testDetachedSubmissionBatch() throws Exception {
+    runSubmission(true, false);
+  }
+
+  @Test
+  public void testDetachedSubmissionBatchUseDataStream() throws Exception {
+    FlinkSubmissionTest.useDataStreamForBatch = true;
     runSubmission(true, false);
   }
 
@@ -164,6 +178,7 @@ public class FlinkSubmissionTest {
   /** The Flink program which is executed by the CliFrontend. */
   public static void main(String[] args) {
     FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    options.setUseDataStreamForBatch(useDataStreamForBatch);
     options.setRunner(FlinkRunner.class);
     options.setStreaming(streaming);
     options.setParallelism(1);
@@ -184,7 +199,8 @@ public class FlinkSubmissionTest {
             flinkCluster.getClusterPort(),
             RestOptions.PORT.key(),
             flinkCluster.getRestPort());
-    Files.write(file.toPath(), config.getBytes(Charsets.UTF_8));
+
+    Files.write(file.toPath(), config.getBytes(StandardCharsets.UTF_8));
 
     // Create a new environment with the location of the Flink config for CliFrontend
     ImmutableMap<String, String> newEnv =

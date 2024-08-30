@@ -19,8 +19,8 @@ package org.apache.beam.sdk.io.aws2.kinesis;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.apache.beam.sdk.io.aws2.kinesis.TimeUtil.minTimestamp;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -38,8 +38,8 @@ import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.RandomStringUtils;
 import org.apache.beam.sdk.util.Preconditions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ForwardingIterator;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ForwardingIterator;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;

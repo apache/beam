@@ -35,7 +35,6 @@ this module in your notebook or application code.
 # pytype: skip-file
 
 import logging
-import warnings
 from datetime import timedelta
 from typing import Dict
 from typing import List
@@ -406,10 +405,10 @@ class Clusters:
   To configure a pipeline to run on a local FlinkRunner, explicitly set the
   default cluster metadata to None: ib.clusters.set_default_cluster(None).
   """
-  # Explicitly set the Flink version here to ensure compatibility with 2.0
+  # Explicitly set the Flink version here to ensure compatibility with 2.1
   # Dataproc images:
-  # https://cloud.google.com/dataproc/docs/concepts/versioning/dataproc-release-2.0
-  DATAPROC_FLINK_VERSION = '1.12'
+  # https://cloud.google.com/dataproc/docs/concepts/versioning/dataproc-release-2.1
+  DATAPROC_FLINK_VERSION = '1.15'
 
   # The minimum worker number to create a Dataproc cluster.
   DATAPROC_MINIMUM_WORKER_NUM = 2
@@ -496,11 +495,6 @@ class Clusters:
       dcm = self.pipelines.pop(p, None)
       if dcm:
         dcm.pipelines.remove(p)
-        warnings.filterwarnings(
-            'ignore',
-            'options is deprecated since First stable release. References to '
-            '<pipeline>.options will not be supported',
-            category=DeprecationWarning)
         p_flink_options = p.options.view_as(FlinkRunnerOptions)
         p_flink_options.flink_master = '[auto]'
         p_flink_options.flink_version = None

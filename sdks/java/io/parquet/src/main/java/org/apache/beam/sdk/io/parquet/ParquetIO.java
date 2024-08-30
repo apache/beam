@@ -60,9 +60,9 @@ import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.parquet.HadoopReadOptions;
 import org.apache.parquet.ParquetReadOptions;
@@ -1046,13 +1046,13 @@ public class ParquetIO {
       return toBuilder().setCompressionCodec(compressionCodecName).build();
     }
 
-    /** Specifies configuration to be passed into the sink's writer. */
+    /** Specify Hadoop configuration for ParquetWriter. */
     public Sink withConfiguration(Map<String, String> configuration) {
       checkArgument(configuration != null, "configuration can not be null");
       return toBuilder().setConfiguration(SerializableConfiguration.fromMap(configuration)).build();
     }
 
-    /** Specify Hadoop configuration for ParquetReader. */
+    /** Specify Hadoop configuration for ParquetWriter. */
     public Sink withConfiguration(Configuration configuration) {
       checkArgument(configuration != null, "configuration can not be null");
       return toBuilder().setConfiguration(new SerializableConfiguration(configuration)).build();

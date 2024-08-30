@@ -101,6 +101,17 @@ class PTransformTest(unittest.TestCase):
         """inputs=('ci',) side_inputs=('cs',)>""",
         str(inputs_tr))
 
+  def test_named_annotations(self):
+    t = beam.Impulse()
+    t.annotations = lambda: {'test': 'value'}
+    named_t = 'Name' >> t
+    self.assertEqual(named_t.annotations(), {'test': 'value'})
+    original_annotations = named_t.annotations()
+    named_t.annotations = lambda: {'another': 'value', **original_annotations}
+    # Verify this is reflected on the original transform,
+    # which is what gets used in apply.
+    self.assertEqual(t.annotations(), {'test': 'value', 'another': 'value'})
+
   def test_do_with_do_fn(self):
     class AddNDoFn(beam.DoFn):
       def process(self, element, addon):
@@ -1063,6 +1074,17 @@ class SelectTest(unittest.TestCase):
               ),
           ]),
           label='CheckFromAttrs')
+
+  def test_type_inference(self):
+    with TestPipeline() as p:
+      input_rows = p | beam.Create([beam.Row(s='abc', i=1)])
+      output_rows = input_rows | beam.Select(
+          's', 'i', s_again='s', expr=lambda x: x.i + 1)
+      field_types = dict(output_rows.element_type._fields)
+      self.assertEqual(field_types['s'], str)
+      self.assertEqual(field_types['i'], int)
+      self.assertEqual(field_types['s_again'], str)
+      self.assertEqual(field_types['expr'], int)
 
 
 @beam.ptransform_fn

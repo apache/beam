@@ -17,8 +17,8 @@
  */
 package org.apache.beam.fn.harness.state;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -26,6 +26,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.Cache;
@@ -33,6 +34,7 @@ import org.apache.beam.fn.harness.Caches;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest.CacheToken;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -41,6 +43,7 @@ import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
+import org.apache.beam.sdk.state.GroupingState;
 import org.apache.beam.sdk.state.MapState;
 import org.apache.beam.sdk.state.MultimapState;
 import org.apache.beam.sdk.state.OrderedListState;
@@ -59,13 +62,16 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.CombineFnUtil;
+import org.apache.beam.sdk.util.construction.BeamUrns;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Instant;
 
 /** Provides access to side inputs and state via a {@link BeamFnStateClient}. */
 @SuppressWarnings({
@@ -74,6 +80,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 })
 public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
   private final PipelineOptions pipelineOptions;
+  private final Set<String> runnerCapabilites;
   private final Map<StateKey, Object> stateKeyObjectCache;
   private final Map<TupleTag<?>, SideInputSpec> sideInputSpecMap;
   private final BeamFnStateClient beamFnStateClient;
@@ -91,6 +98,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
 
   public FnApiStateAccessor(
       PipelineOptions pipelineOptions,
+      Set<String> runnerCapabilites,
       String ptransformId,
       Supplier<String> processBundleInstructionId,
       Supplier<List<CacheToken>> cacheTokens,
@@ -103,6 +111,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
       Supplier<K> currentKeySupplier,
       Supplier<BoundedWindow> currentWindowSupplier) {
     this.pipelineOptions = pipelineOptions;
+    this.runnerCapabilites = runnerCapabilites;
     this.stateKeyObjectCache = Maps.newHashMap();
     this.sideInputSpecMap = sideInputSpecMap;
     this.beamFnStateClient = beamFnStateClient;
@@ -238,7 +247,11 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
                               processBundleInstructionId.get(),
                               key,
                               ((KvCoder) sideInputSpec.getCoder()).getKeyCoder(),
-                              ((KvCoder) sideInputSpec.getCoder()).getValueCoder()));
+                              ((KvCoder) sideInputSpec.getCoder()).getValueCoder(),
+                              runnerCapabilites.contains(
+                                  BeamUrns.getUrn(
+                                      RunnerApi.StandardRunnerProtocols.Enum
+                                          .MULTIMAP_KEYS_VALUES_SIDE_INPUT))));
                 default:
                   throw new IllegalStateException(
                       String.format(
@@ -590,8 +603,73 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
   @Override
   public <T> OrderedListState<T> bindOrderedList(
       String id, StateSpec<OrderedListState<T>> spec, Coder<T> elemCoder) {
-    throw new UnsupportedOperationException(
-        "TODO: Add support for a sorted-list state to the Fn API.");
+    return (OrderedListState<T>)
+        stateKeyObjectCache.computeIfAbsent(
+            createOrderedListUserStateKey(id),
+            new Function<StateKey, Object>() {
+              @Override
+              public Object apply(StateKey key) {
+                return new OrderedListState<T>() {
+                  private final OrderedListUserState<T> impl =
+                      createOrderedListUserState(key, elemCoder);
+
+                  @Override
+                  public void clear() {
+                    impl.clear();
+                  }
+
+                  @Override
+                  public void add(TimestampedValue<T> value) {
+                    impl.add(value);
+                  }
+
+                  @Override
+                  public ReadableState<Boolean> isEmpty() {
+                    return new ReadableState<Boolean>() {
+                      @Override
+                      public @Nullable Boolean read() {
+                        return !impl.read().iterator().hasNext();
+                      }
+
+                      @Override
+                      public ReadableState<Boolean> readLater() {
+                        return this;
+                      }
+                    };
+                  }
+
+                  @Nullable
+                  @Override
+                  public Iterable<TimestampedValue<T>> read() {
+                    return readRange(
+                        Instant.ofEpochMilli(Long.MIN_VALUE), Instant.ofEpochMilli(Long.MAX_VALUE));
+                  }
+
+                  @Override
+                  public GroupingState<TimestampedValue<T>, Iterable<TimestampedValue<T>>>
+                      readLater() {
+                    return this;
+                  }
+
+                  @Override
+                  public Iterable<TimestampedValue<T>> readRange(
+                      Instant minTimestamp, Instant limitTimestamp) {
+                    return impl.readRange(minTimestamp, limitTimestamp);
+                  }
+
+                  @Override
+                  public void clearRange(Instant minTimestamp, Instant limitTimestamp) {
+                    impl.clearRange(minTimestamp, limitTimestamp);
+                  }
+
+                  @Override
+                  public OrderedListState<T> readRangeLater(
+                      Instant minTimestamp, Instant limitTimestamp) {
+                    return this;
+                  }
+                };
+              }
+            });
   }
 
   @Override
@@ -735,14 +813,8 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
   private Cache<?, ?> getCacheFor(StateKey stateKey) {
     switch (stateKey.getTypeCase()) {
       case BAG_USER_STATE:
-        for (CacheToken token : cacheTokens.get()) {
-          if (!token.hasUserState()) {
-            continue;
-          }
-          return Caches.subCache(processWideCache, token, stateKey);
-        }
-        break;
       case MULTIMAP_KEYS_USER_STATE:
+      case ORDERED_LIST_USER_STATE:
         for (CacheToken token : cacheTokens.get()) {
           if (!token.hasUserState()) {
             continue;
@@ -834,6 +906,30 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
     builder
         .getMultimapKeysUserStateBuilder()
         .setWindow(encodedCurrentWindowSupplier.get())
+        .setTransformId(ptransformId)
+        .setUserStateId(stateId);
+    return builder.build();
+  }
+
+  private <T> OrderedListUserState<T> createOrderedListUserState(
+      StateKey stateKey, Coder<T> valueCoder) {
+    OrderedListUserState<T> rval =
+        new OrderedListUserState<>(
+            getCacheFor(stateKey),
+            beamFnStateClient,
+            processBundleInstructionId.get(),
+            stateKey,
+            valueCoder);
+    stateFinalizers.add(rval::asyncClose);
+    return rval;
+  }
+
+  private StateKey createOrderedListUserStateKey(String stateId) {
+    StateKey.Builder builder = StateKey.newBuilder();
+    builder
+        .getOrderedListUserStateBuilder()
+        .setWindow(encodedCurrentWindowSupplier.get())
+        .setKey(encodedCurrentKeySupplier.get())
         .setTransformId(ptransformId)
         .setUserStateId(stateId);
     return builder.build();

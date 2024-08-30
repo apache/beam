@@ -44,8 +44,10 @@ import com.google.cloud.spanner.Key;
 import com.google.cloud.spanner.KeyRange;
 import com.google.cloud.spanner.KeySet;
 import com.google.cloud.spanner.Mutation;
+import com.google.cloud.spanner.Options;
 import com.google.cloud.spanner.Options.ReadQueryUpdateTransactionOption;
 import com.google.cloud.spanner.Options.RpcPriority;
+import com.google.cloud.spanner.OptionsImposter;
 import com.google.cloud.spanner.ReadOnlyTransaction;
 import com.google.cloud.spanner.ResultSets;
 import com.google.cloud.spanner.SpannerExceptionFactory;
@@ -83,9 +85,9 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.joda.time.Duration;
 import org.junit.Before;
 import org.junit.Rule;
@@ -227,8 +229,7 @@ public class SpannerIOWriteTest implements Serializable {
                     }
                     Statement st = (Statement) argument;
                     return st.getSql().contains("information_schema.columns")
-                        && st.getSql()
-                            .contains("('information_schema', 'spanner_sys', 'pg_catalog')");
+                        && st.getSql().contains("'public'");
                   }
                 })))
         .thenReturn(ResultSets.forRows(type, rows));
@@ -278,6 +279,32 @@ public class SpannerIOWriteTest implements Serializable {
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("requires database id to be set with");
     write.expand(null);
+  }
+
+  @Test
+  public void runBatchQueryTestWithMaxCommitDelay() {
+    SpannerIO.Write write =
+        SpannerIO.write()
+            .withSpannerConfig(SPANNER_CONFIG)
+            .withServiceFactory(serviceFactory)
+            .withMaxCommitDelay(100L);
+    assertEquals(100L, write.getSpannerConfig().getMaxCommitDelay().get().getMillis());
+
+    Mutation mutation = buildUpsertMutation(2L);
+    PCollection<Mutation> mutations = pipeline.apply(Create.of(mutation));
+    mutations.apply(write);
+    pipeline.run();
+
+    verify(serviceFactory.mockDatabaseClient(), times(1))
+        .writeAtLeastOnceWithOptions(
+            mutationsInNoOrder(buildMutationBatch(mutation)),
+            any(ReadQueryUpdateTransactionOption.class),
+            argThat(
+                opts -> {
+                  Options options = OptionsImposter.fromTransactionOptions(opts);
+                  return java.time.Duration.ofMillis(100L)
+                      .equals(OptionsImposter.maxCommitDelay(options));
+                }));
   }
 
   @Test
@@ -758,12 +785,22 @@ public class SpannerIOWriteTest implements Serializable {
 
   @Test
   public void retryOnSchemaChangeException() throws InterruptedException {
-    List<Mutation> mutationList = Arrays.asList(buildUpsertMutation((long) 1));
-
     String errString =
         "Transaction aborted. "
             + "Database schema probably changed during transaction, retry may succeed.";
+    retryOnAbortedExceptionWithMessage(errString);
+  }
 
+  @Test
+  public void retryOnEmulatorRejectedConcurrentTransaction() throws InterruptedException {
+    String errString =
+        "Transaction 199 aborted due to active transaction 167. "
+            + "The emulator only supports one transaction at a time.";
+    retryOnAbortedExceptionWithMessage(errString);
+  }
+
+  public void retryOnAbortedExceptionWithMessage(String errString) throws InterruptedException {
+    List<Mutation> mutationList = Arrays.asList(buildUpsertMutation((long) 1));
     // mock sleeper so that it does not actually sleep.
     WriteToSpannerFn.sleeper = Mockito.mock(Sleeper.class);
 
@@ -806,11 +843,22 @@ public class SpannerIOWriteTest implements Serializable {
 
   @Test
   public void retryMaxOnSchemaChangeException() throws InterruptedException {
-    List<Mutation> mutationList = Arrays.asList(buildUpsertMutation((long) 1));
-
     String errString =
         "Transaction aborted. "
             + "Database schema probably changed during transaction, retry may succeed.";
+    retryMaxOnAbortedExceptionWithMessage(errString);
+  }
+
+  @Test
+  public void retryMaxOnEmulatorRejectedConcurrentTransaction() throws InterruptedException {
+    String errString =
+        "Transaction 199 aborted due to active transaction 167. "
+            + "The emulator only supports one transaction at a time.";
+    retryOnAbortedExceptionWithMessage(errString);
+  }
+
+  public void retryMaxOnAbortedExceptionWithMessage(String errString) throws InterruptedException {
+    List<Mutation> mutationList = Arrays.asList(buildUpsertMutation((long) 1));
 
     // mock sleeper so that it does not actually sleep.
     WriteToSpannerFn.sleeper = Mockito.mock(Sleeper.class);

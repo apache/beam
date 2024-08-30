@@ -29,7 +29,7 @@ import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.CoreMatchers;
 import org.junit.Rule;
@@ -120,7 +120,11 @@ public class CoderPropertiesTest {
       error = e;
     }
     assertNotNull("Expected AssertionError", error);
-    assertThat(error.getMessage(), CoreMatchers.containsString("<84>, <101>, <115>, <116>, <68>"));
+    assertThat(
+        error.getMessage(),
+        CoreMatchers.anyOf(
+            CoreMatchers.containsString("<84>, <101>, <115>, <116>, <68>"),
+            CoreMatchers.containsString("<84b>, <101b>, <115b>, <116b>, <68b>")));
   }
 
   @Test
@@ -136,6 +140,7 @@ public class CoderPropertiesTest {
       changedState = 10;
     }
 
+    @SuppressWarnings("InlineMeInliner") // inline `Strings.repeat()` - Java 11+ API only
     @Override
     public void encode(String value, OutputStream outStream) throws CoderException, IOException {
       changedState += 1;

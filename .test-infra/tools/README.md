@@ -47,7 +47,7 @@ Example:
 - Original
 
 ```bash
-python_versions_arr=("3.8.16" "3.7.16" "3.9.16" "3.10.10")
+python_versions_arr=("3.8.16" "3.9.16" "3.10.10" "3.11.4")
 ```
 
 - Change

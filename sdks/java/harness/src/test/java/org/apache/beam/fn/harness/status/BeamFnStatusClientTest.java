@@ -47,10 +47,10 @@ import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
 import org.apache.beam.sdk.fn.test.TestStreams;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.inprocess.InProcessServerBuilder;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Uninterruptibles;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.inprocess.InProcessServerBuilder;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -75,7 +75,7 @@ public class BeamFnStatusClientTest {
       when(executionStateTracker.getStatus())
           .thenReturn(
               ExecutionStateTrackerStatus.create(
-                  "ptransformId", "ptransformIdName", Thread.currentThread(), i * 1000));
+                  "ptransformId", "ptransformIdName", Thread.currentThread(), i * 1000, null));
       String instruction = Integer.toString(i);
       when(processorCache.find(instruction)).thenReturn(processor);
       bundleProcessorMap.put(instruction, processor);

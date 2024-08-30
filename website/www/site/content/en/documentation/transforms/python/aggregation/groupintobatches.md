@@ -29,17 +29,9 @@ In the following example, we create a pipeline with a `PCollection` of produce b
 
 We use `GroupIntoBatches` to get fixed-sized batches for every key, which outputs a list of elements for every key.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupintobatches.py" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupintobatches.py" groupintobatches >}}
-{{< /highlight >}}
-
-{{< paragraph class="notebook-skip" >}}
-Output:
-{{< /paragraph >}}
-
-{{< highlight class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupintobatches_test.py" batches_with_keys >}}
-{{< /highlight >}}
+{{< playground height="700px" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_GroupIntoBatches" show="groupintobatches" >}}
+{{< /playground >}}
 
 ## Related transforms
 

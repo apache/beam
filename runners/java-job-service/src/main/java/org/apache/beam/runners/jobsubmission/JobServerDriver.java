@@ -26,7 +26,7 @@ import org.apache.beam.sdk.expansion.service.ExpansionServer;
 import org.apache.beam.sdk.expansion.service.ExpansionService;
 import org.apache.beam.sdk.fn.server.GrpcFnServer;
 import org.apache.beam.sdk.fn.server.ServerFactory;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.kohsuke.args4j.Option;
 import org.kohsuke.args4j.spi.ExplicitBooleanOptionHandler;
 import org.slf4j.Logger;
@@ -119,12 +119,24 @@ public abstract class JobServerDriver implements Runnable {
       return port;
     }
 
+    public void setPort(int port) {
+      this.port = port;
+    }
+
     public int getArtifactPort() {
       return artifactPort;
     }
 
+    public void setArtifactPort(int artifactPort) {
+      this.artifactPort = artifactPort;
+    }
+
     public int getExpansionPort() {
       return expansionPort;
+    }
+
+    public void setExpansionPort(int expansionPort) {
+      this.expansionPort = expansionPort;
     }
 
     public String getArtifactStagingPath() {

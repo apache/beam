@@ -101,13 +101,13 @@ import org.apache.beam.sdk.schemas.utils.ReflectUtils.ClassWithSchema;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multimap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 @SuppressWarnings({
@@ -476,7 +476,8 @@ class ProtoByteBuddyUtils {
     return CACHED_GETTERS.computeIfAbsent(
         ClassWithSchema.create(clazz, schema),
         c -> {
-          List<FieldValueTypeInformation> types = fieldValueTypeSupplier.get(clazz, schema);
+          List<FieldValueTypeInformation> types =
+              fieldValueTypeSupplier.get(TypeDescriptor.of(clazz), schema);
           return types.stream()
               .map(
                   t ->
@@ -965,7 +966,7 @@ class ProtoByteBuddyUtils {
       // Create a map of case enum value to getter. This must be sorted, so store in a TreeMap.
       TreeMap<Integer, FieldValueGetter<ProtoT, OneOfType.Value>> oneOfGetters = Maps.newTreeMap();
       Map<String, FieldValueTypeInformation> oneOfFieldTypes =
-          fieldValueTypeSupplier.get(clazz, oneOfType.getOneOfSchema()).stream()
+          fieldValueTypeSupplier.get(TypeDescriptor.of(clazz), oneOfType.getOneOfSchema()).stream()
               .collect(Collectors.toMap(FieldValueTypeInformation::getName, f -> f));
       for (Field oneOfField : oneOfType.getOneOfSchema().getFields()) {
         int protoFieldIndex = getFieldNumber(oneOfField);

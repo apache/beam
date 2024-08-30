@@ -15,8 +15,11 @@
 
 import asyncio
 import logging
+import os
 from pathlib import Path
 from typing import List
+
+from tqdm.asyncio import tqdm
 
 from api.v1.api_pb2 import Sdk, SDK_PYTHON, SDK_JAVA
 from api.v1.api_pb2 import (
@@ -29,8 +32,8 @@ from api.v1.api_pb2 import (
 )
 from config import Origin, Config
 from grpc_client import GRPCClient
+from helper import update_example_status
 from models import Example, SdkEnum
-from helper import get_statuses
 
 
 class VerifyException(Exception):
@@ -61,6 +64,98 @@ class Verifier:
         asyncio.run(self._run_and_verify(examples))
         logging.info("Finish of executing Playground examples")
 
+    async def _get_statuses(
+            self,
+            client: GRPCClient,
+            examples: List[Example],
+            concurrency: int = 10
+    ):
+        """
+        Receive status and update example.status and example.pipeline_id for
+        each example
+
+        Args:
+            examples: beam examples for processing and updating statuses and
+            pipeline_id values.
+        """
+        tasks = []
+        try:
+            concurrency = int(os.environ["BEAM_CONCURRENCY"])
+            logging.info("override default concurrency: %d", concurrency)
+        except (KeyError, ValueError):
+            pass
+
+        semaphore = asyncio.Semaphore(concurrency)
+
+        async def _semaphored_task(example):
+            await semaphore.acquire()
+            try:
+                await update_example_status(example, client)
+                await self._populate_fields(example, client)
+            finally:
+                semaphore.release()
+
+        for example in examples:
+            if example.tag.never_run:
+                logging.info("skipping non runnable example %s", example.filepath)
+            else:
+                tasks.append(_semaphored_task(example))
+        await tqdm.gather(*tasks)
+
+    async def _populate_fields(self, example: Example, client: GRPCClient):
+        """
+        Populate fields of the example reading them from the backend or from the repository.
+        Args:
+            example: beam example that should be verified
+        """
+        if example.tag.never_run:
+            logging.info("populating example fields from provided files %s", example.filepath)
+            self._populate_from_repo(example)
+        else:
+            await self._populate_from_runner(example, client)
+
+    def _populate_from_repo(self, example: Example):
+        """
+        Populate fields of the example reading them from the repository.
+        Args:
+            example: beam example that should be verified
+        """
+        path = Path(example.filepath)
+        example_folder = path.parent
+
+        log_file_path = example_folder / self.LOGS_FILENAME
+        # Check if the file exists and read its content
+        if log_file_path.exists():
+            example.logs = log_file_path.read_text()
+        graph_file_path = example_folder / self.GRAPH_FILENAME
+        # Check if the file exists and read its content
+        if graph_file_path.exists():
+            example.graph = graph_file_path.read_text()
+        output_file_path = example_folder / self.OUTPUT_FILENAME
+        # Check if the file exists and read its content
+        if output_file_path.exists():
+            example.output = output_file_path.read_text()
+        compile_output_file_path = example_folder / self.COMPILE_OUTPUT_FILENAME
+        # Check if the file exists and read its content
+        if compile_output_file_path.exists():
+            example.compile_output = compile_output_file_path.read_text()
+
+    async def _populate_from_runner(self, example: Example, client: GRPCClient):
+        try:
+            example.compile_output = await client.get_compile_output(
+                example.pipeline_id
+            )
+            example.output = await client.get_run_output(example.pipeline_id, example.filepath)
+            example.logs = await client.get_log(example.pipeline_id, example.filepath)
+            if example.sdk in [SDK_JAVA, SDK_PYTHON]:
+                example.graph = await client.get_graph(
+                    example.pipeline_id, example.filepath
+                )
+        except Exception as e:
+            logging.error(example.url_vcs)
+            logging.error(example.compile_output)
+            raise RuntimeError(f"error in {example.tag.name}") from e
+
     async def _run_and_verify(self, examples: List[Example]):
         """
         Run beam examples and keep their output.
@@ -72,67 +167,10 @@ class Verifier:
             examples: beam examples that should be run
         """
 
-
-        async def _populate_fields(example: Example):
-            """
-            Populate fields of the example reading them from the backend or from the repository.
-            Args:
-                example: beam example that should be verified
-            """
-            if example.tag.never_run:
-                logging.info("populating example fields from provided files %s", example.filepath)
-                _populate_from_repo(example)
-            else:
-                await _populate_from_runner(example)
-
-        def _populate_from_repo(example: Example):
-            """
-            Populate fields of the example reading them from the repository.
-            Args:
-                example: beam example that should be verified
-            """
-            path = Path(example.filepath)
-            example_folder = path.parent
-
-            log_file_path = example_folder / self.LOGS_FILENAME
-            # Check if the file exists and read its content
-            if log_file_path.exists():
-                example.logs = log_file_path.read_text()
-            graph_file_path = example_folder / self.GRAPH_FILENAME
-            # Check if the file exists and read its content
-            if graph_file_path.exists():
-                example.graph = graph_file_path.read_text()
-            output_file_path = example_folder / self.OUTPUT_FILENAME
-            # Check if the file exists and read its content
-            if output_file_path.exists():
-                example.output = output_file_path.read_text()
-            compile_output_file_path = example_folder / self.COMPILE_OUTPUT_FILENAME
-            # Check if the file exists and read its content
-            if compile_output_file_path.exists():
-                example.compile_output = compile_output_file_path.read_text()
-
-        async def _populate_from_runner(example: Example):
-            try:
-                example.compile_output = await client.get_compile_output(
-                    example.pipeline_id
-                )
-                example.output = await client.get_run_output(example.pipeline_id, example.filepath)
-                example.logs = await client.get_log(example.pipeline_id, example.filepath)
-                if example.sdk in [SDK_JAVA, SDK_PYTHON]:
-                    example.graph = await client.get_graph(
-                        example.pipeline_id, example.filepath
-                    )
-            except Exception as e:
-                logging.error(example.url_vcs)
-                logging.error(example.compile_output)
-                raise RuntimeError(f"error in {example.tag.name}") from e
-
         async with GRPCClient() as client:
-            await get_statuses(
+            await self._get_statuses(
                 client, examples
             )  # run examples code and wait until all are executed
-            tasks = [_populate_fields(example) for example in examples]
-            await asyncio.gather(*tasks)
             await self._verify_examples(client, examples, self._origin)
 
     async def _verify_examples(

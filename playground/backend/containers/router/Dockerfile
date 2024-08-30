@@ -16,7 +16,7 @@
 # limitations under the License.
 ###############################################################################
 #Dokerfile to set up the Beam Go SDK
-ARG BASE_IMAGE=golang:1.18-bullseye
+ARG BASE_IMAGE=golang:1.20-bullseye
 #Two-stage assembly
 FROM $BASE_IMAGE AS build
 ARG GIT_COMMIT="<unknown>"

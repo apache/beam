@@ -37,11 +37,12 @@ from typing import List
 from typing import NamedTuple
 from typing import Optional
 from typing import Tuple
+from typing import Union
 
 from apache_beam import coders
+from apache_beam.io import iobase
 from apache_beam.io.iobase import Read
 from apache_beam.io.iobase import Write
-from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
 from apache_beam.transforms import Flatten
 from apache_beam.transforms import Map
 from apache_beam.transforms import PTransform
@@ -110,9 +111,7 @@ class PubsubMessage(object):
     return 'PubsubMessage(%s, %s)' % (self.data, self.attributes)
 
   @staticmethod
-  def _from_proto_str(proto_msg):
-    # type: (bytes) -> PubsubMessage
-
+  def _from_proto_str(proto_msg: bytes) -> 'PubsubMessage':
     """Construct from serialized form of ``PubsubMessage``.
 
     Args:
@@ -150,7 +149,7 @@ class PubsubMessage(object):
       containing the payload of this object.
     """
     msg = pubsub.types.PubsubMessage()
-    if len(self.data) > (10 << 20):
+    if len(self.data) > (10_000_000):
       raise ValueError('A pubsub message data field must not exceed 10MB')
     msg.data = self.data
 
@@ -179,15 +178,13 @@ class PubsubMessage(object):
     msg.ordering_key = self.ordering_key
 
     serialized = pubsub.types.PubsubMessage.serialize(msg)
-    if len(serialized) > (10 << 20):
+    if len(serialized) > (10_000_000):
       raise ValueError(
           'Serialized pubsub message exceeds the publish request limit of 10MB')
     return serialized
 
   @staticmethod
-  def _from_message(msg):
-    # type: (Any) -> PubsubMessage
-
+  def _from_message(msg: Any) -> 'PubsubMessage':
     """Construct from ``google.cloud.pubsub_v1.subscriber.message.Message``.
 
     https://googleapis.github.io/google-cloud-python/latest/pubsub/subscriber/api/message.html
@@ -211,14 +208,11 @@ class ReadFromPubSub(PTransform):
 
   def __init__(
       self,
-      topic=None,  # type: Optional[str]
-      subscription=None,  # type: Optional[str]
-      id_label=None,  # type: Optional[str]
-      with_attributes=False,  # type: bool
-      timestamp_attribute=None  # type: Optional[str]
-  ):
-    # type: (...) -> None
-
+      topic: Optional[str] = None,
+      subscription: Optional[str] = None,
+      id_label: Optional[str] = None,
+      with_attributes: bool = False,
+      timestamp_attribute: Optional[str] = None) -> None:
     """Initializes ``ReadFromPubSub``.
 
     Args:
@@ -261,6 +255,7 @@ class ReadFromPubSub(PTransform):
         timestamp_attribute=timestamp_attribute)
 
   def expand(self, pvalue):
+    # TODO(BEAM-27443): Apply a proper transform rather than Read.
     pcoll = pvalue.pipeline | Read(self._source)
     pcoll.element_type = bytes
     if self.with_attributes:
@@ -326,17 +321,16 @@ class WriteToPubSub(PTransform):
 
   def __init__(
       self,
-      topic,  # type: str
-      with_attributes=False,  # type: bool
-      id_label=None,  # type: Optional[str]
-      timestamp_attribute=None  # type: Optional[str]
-  ):
-    # type: (...) -> None
-
+      topic: str,
+      with_attributes: bool = False,
+      id_label: Optional[str] = None,
+      timestamp_attribute: Optional[str] = None) -> None:
     """Initializes ``WriteToPubSub``.
 
     Args:
-      topic: Cloud Pub/Sub topic in the form "/topics/<project>/<topic>".
+      topic:
+          Cloud Pub/Sub topic in the form
+          "projects/<project>/topics/<topic>".
       with_attributes:
         True - input elements will be :class:`~PubsubMessage` objects.
         False - input elements will be of type ``bytes`` (message
@@ -356,8 +350,7 @@ class WriteToPubSub(PTransform):
     self._sink = _PubSubSink(topic, id_label, timestamp_attribute)
 
   @staticmethod
-  def message_to_proto_str(element):
-    # type: (PubsubMessage) -> bytes
+  def message_to_proto_str(element: PubsubMessage) -> bytes:
     if not isinstance(element, PubsubMessage):
       raise TypeError(
           'Unexpected element. Type: %s (expected: PubsubMessage), '
@@ -365,16 +358,15 @@ class WriteToPubSub(PTransform):
     return element._to_proto_str(for_publish=True)
 
   @staticmethod
-  def bytes_to_proto_str(element):
-    # type: (bytes) -> bytes
+  def bytes_to_proto_str(element: Union[bytes, str]) -> bytes:
     msg = PubsubMessage(element, {})
     return msg._to_proto_str(for_publish=True)
 
   def expand(self, pcoll):
     if self.with_attributes:
-      pcoll = pcoll | 'ToProtobuf' >> Map(self.message_to_proto_str)
+      pcoll = pcoll | 'ToProtobufX' >> Map(self.message_to_proto_str)
     else:
-      pcoll = pcoll | 'ToProtobuf' >> Map(self.bytes_to_proto_str)
+      pcoll = pcoll | 'ToProtobufY' >> Map(self.bytes_to_proto_str)
     pcoll.element_type = bytes
     return pcoll | Write(self._sink)
 
@@ -423,7 +415,8 @@ def parse_subscription(full_subscription):
   return project, subscription_name
 
 
-class _PubSubSource(dataflow_io.NativeSource):
+# TODO(BEAM-27443): Remove (or repurpose as a proper PTransform).
+class _PubSubSource(iobase.SourceBase):
   """Source for a Cloud Pub/Sub topic or subscription.
 
   This ``NativeSource`` is overridden by a native Pubsub implementation.
@@ -434,12 +427,11 @@ class _PubSubSource(dataflow_io.NativeSource):
   """
   def __init__(
       self,
-      topic=None,  # type: Optional[str]
-      subscription=None,  # type: Optional[str]
-      id_label=None,  # type: Optional[str]
-      with_attributes=False,  # type: bool
-      timestamp_attribute=None  # type: Optional[str]
-  ):
+      topic: Optional[str] = None,
+      subscription: Optional[str] = None,
+      id_label: Optional[str] = None,
+      with_attributes: bool = False,
+      timestamp_attribute: Optional[str] = None):
     self.coder = coders.BytesCoder()
     self.full_topic = topic
     self.full_subscription = subscription
@@ -460,11 +452,6 @@ class _PubSubSource(dataflow_io.NativeSource):
     if subscription:
       self.project, self.subscription_name = parse_subscription(subscription)
 
-  @property
-  def format(self):
-    """Source format name required for remote execution."""
-    return 'pubsub'
-
   def display_data(self):
     return {
         'id_label': DisplayDataItem(self.id_label,
@@ -480,14 +467,15 @@ class _PubSubSource(dataflow_io.NativeSource):
             label='Timestamp Attribute').drop_if_none(),
     }
 
-  def reader(self):
-    raise NotImplementedError
+  def default_output_coder(self):
+    return self.coder
 
   def is_bounded(self):
     return False
 
 
-class _PubSubSink(dataflow_io.NativeSink):
+# TODO(BEAM-27443): Remove in favor of a proper WriteToPubSub transform.
+class _PubSubSink(object):
   """Sink for a Cloud Pub/Sub topic.
 
   This ``NativeSource`` is overridden by a native Pubsub implementation.
@@ -504,14 +492,6 @@ class _PubSubSink(dataflow_io.NativeSink):
     self.timestamp_attribute = timestamp_attribute
 
     self.project, self.topic_name = parse_topic(topic)
-
-  @property
-  def format(self):
-    """Sink format name required for remote execution."""
-    return 'pubsub'
-
-  def writer(self):
-    raise NotImplementedError
 
 
 class PubSubSourceDescriptor(NamedTuple):
@@ -570,8 +550,8 @@ class MultipleReadFromPubSub(PTransform):
   """
   def __init__(
       self,
-      pubsub_source_descriptors,  # type: List[PubSubSourceDescriptor]
-      with_attributes=False,  # type: bool
+      pubsub_source_descriptors: List[PubSubSourceDescriptor],
+      with_attributes: bool = False,
   ):
     """Initializes ``PubSubMultipleReader``.
 

@@ -58,10 +58,16 @@ func (*combine) PrepareUrns() []string {
 }
 
 // PrepareTransform returns lifted combines and removes the leaves if enabled. Otherwise returns nothing.
-func (h *combine) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipepb.Components) (*pipepb.Components, []string) {
+func (h *combine) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipepb.Components) prepareResult {
 	// If we aren't lifting, the "default impl" for combines should be sufficient.
 	if !h.config.EnableLifting {
-		return nil, nil
+		return prepareResult{
+			SubbedComps: &pipepb.Components{
+				Transforms: map[string]*pipepb.PTransform{
+					tid: t,
+				},
+			},
+		}
 	}
 
 	// To lift a combine, the spec should contain a CombinePayload.
@@ -135,7 +141,7 @@ func (h *combine) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipe
 
 	// Now we need the output collection ID
 	var pcolOutID string
-	// There's only one input.
+	// There's only one output.
 	for _, pcol := range t.GetOutputs() {
 		pcolOutID = pcol
 	}
@@ -197,13 +203,14 @@ func (h *combine) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipe
 			liftEID:    tform(liftEID, urns.TransformPreCombine, pcolInID, liftedNID, t.GetEnvironmentId()),
 			gbkEID:     tform(gbkEID, urns.TransformGBK, liftedNID, groupedNID, ""),
 			mergeEID:   tform(mergeEID, urns.TransformMerge, groupedNID, mergedNID, t.GetEnvironmentId()),
-			extractEID: tform(mergeEID, urns.TransformExtract, mergedNID, pcolOutID, t.GetEnvironmentId()),
+			extractEID: tform(extractEID, urns.TransformExtract, mergedNID, pcolOutID, t.GetEnvironmentId()),
 		},
 	}
 
-	// Now we return everything!
-	// TODO recurse through sub transforms to remove?
 	// We don't need to remove the composite, since we don't add it in
 	// when we return the new transforms, so it's not in the topology.
-	return newComps, t.GetSubtransforms()
+	return prepareResult{
+		SubbedComps:   newComps,
+		RemovedLeaves: removeSubTransforms(comps, t.GetSubtransforms()),
+	}
 }

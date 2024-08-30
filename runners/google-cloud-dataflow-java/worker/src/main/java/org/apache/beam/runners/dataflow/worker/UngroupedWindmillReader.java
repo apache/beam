@@ -35,7 +35,7 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
@@ -91,12 +91,20 @@ class UngroupedWindmillReader<T> extends NativeReader<WindowedValue<T>> {
 
   @Override
   public NativeReaderIterator<WindowedValue<T>> iterator() throws IOException {
-    return new UngroupedWindmillReaderIterator(context.getWork());
+    return new UngroupedWindmillReaderIterator(context.getWorkItem());
   }
 
   class UngroupedWindmillReaderIterator extends WindmillReaderIteratorBase {
     UngroupedWindmillReaderIterator(Windmill.WorkItem work) {
       super(work);
+    }
+
+    @Override
+    public boolean advance() throws IOException {
+      if (context.workIsFailed()) {
+        return false;
+      }
+      return super.advance();
     }
 
     @Override

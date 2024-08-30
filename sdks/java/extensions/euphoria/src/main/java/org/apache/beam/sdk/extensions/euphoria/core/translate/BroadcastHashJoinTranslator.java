@@ -30,9 +30,9 @@ import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashBasedTable;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Table;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.HashBasedTable;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Table;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -47,10 +47,13 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *   <li>Input {@link PCollection} of broadcast side has to be the same instance
  *   <li>Key extractor of broadcast side has to be the same {@link UnaryFunction} instance
  * </ul>
+ *
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
  */
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
+@Deprecated
 public class BroadcastHashJoinTranslator<LeftT, RightT, KeyT, OutputT>
     extends AbstractJoinTranslator<LeftT, RightT, KeyT, OutputT> {
 

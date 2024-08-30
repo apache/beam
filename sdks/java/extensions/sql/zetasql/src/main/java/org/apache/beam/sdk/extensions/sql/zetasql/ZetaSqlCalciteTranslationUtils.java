@@ -45,8 +45,8 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.type.SqlTyp
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.DateString;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.TimeString;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.TimestampString;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
 /**
  * Utility methods for ZetaSQL <=> Calcite translation.

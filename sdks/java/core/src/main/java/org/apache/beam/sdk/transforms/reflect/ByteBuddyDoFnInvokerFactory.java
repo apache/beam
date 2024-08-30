@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.transforms.reflect;
 
 import static org.apache.beam.sdk.util.common.ReflectHelpers.findClassLoader;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -105,8 +105,8 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Primitives;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Primitives;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
@@ -385,7 +385,7 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
   public static class DefaultNewWatermarkEstimator {
 
     /**
-     * Constructs a new watermark estimator from the state type if it is annotated wtih {@link
+     * Constructs a new watermark estimator from the state type if it is annotated with {@link
      * HasDefaultWatermarkEstimator} otherwise returns a watermark estimator that always reports the
      * minimum watermark.
      */
@@ -432,7 +432,7 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
             .getProgress()
             .getWorkRemaining();
       } else {
-        return 1.0;
+        return 0.0;
       }
     }
 

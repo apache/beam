@@ -29,8 +29,8 @@ import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Suppliers;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Message;
@@ -43,6 +43,11 @@ import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Transform for reading from Apache Pulsar. Support is currently incomplete, and there may be bugs;
+ * see https://github.com/apache/beam/issues/31078 for more info, and comment in that issue if you
+ * run into issues with this IO.
+ */
 @DoFn.UnboundedPerElement
 @SuppressWarnings({"rawtypes", "nullness"})
 public class ReadFromPulsarDoFn extends DoFn<PulsarSourceDescriptor, PulsarMessage> {

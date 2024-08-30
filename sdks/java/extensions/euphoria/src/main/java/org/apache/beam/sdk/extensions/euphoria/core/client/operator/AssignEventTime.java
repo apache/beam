@@ -45,6 +45,8 @@ import org.joda.time.Duration;
  *    .eventTimeBy(evt-time-fn)
  *    .output();
  * }</pre>
+ *
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
  */
 @Audience(Audience.Type.CLIENT)
 @Derived(state = StateComplexity.ZERO, repartitions = 0)
@@ -52,6 +54,7 @@ import org.joda.time.Duration;
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
+@Deprecated
 public class AssignEventTime<InputT> extends Operator<InputT>
     implements CompositeOperator<InputT, InputT> {
 

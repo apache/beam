@@ -23,11 +23,14 @@ import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience
 /**
  * Util class that helps instantiations of objects throwing {@link RuntimeException}. For core
  * purposes only. Should not be used in client code.
+ *
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
  */
 @Audience(Audience.Type.EXECUTOR)
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
+@Deprecated
 public class InstanceUtils {
 
   public static <T> T create(Class<T> cls) {

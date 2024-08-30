@@ -17,14 +17,16 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.BackOffUtils;
 import com.google.api.client.util.Sleeper;
 import com.google.api.services.bigquery.model.Table;
+import com.google.api.services.bigquery.model.TableConstraints;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -44,8 +46,8 @@ import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
@@ -178,6 +180,11 @@ class DynamicDestinationsHelpers {
     }
 
     @Override
+    public @Nullable TableConstraints getTableConstraints(DestinationT destination) {
+      return inner.getTableConstraints(destination);
+    }
+
+    @Override
     public TableDestination getTable(DestinationT destination) {
       return inner.getTable(destination);
     }
@@ -214,6 +221,30 @@ class DynamicDestinationsHelpers {
     }
   }
 
+  static class ConstantTableConstraintsDestinations<T, DestinationT>
+      extends DelegatingDynamicDestinations<T, DestinationT> {
+    private final String jsonTableConstraints;
+
+    ConstantTableConstraintsDestinations(
+        DynamicDestinations<T, DestinationT> inner, TableConstraints tableConstraints) {
+      super(inner);
+      this.jsonTableConstraints = BigQueryHelpers.toJsonString(tableConstraints);
+    }
+
+    @Override
+    public TableConstraints getTableConstraints(DestinationT destination) {
+      return BigQueryHelpers.fromJsonString(jsonTableConstraints, TableConstraints.class);
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(this)
+          .add("inner", inner)
+          .add("tableConstraints", jsonTableConstraints)
+          .toString();
+    }
+  }
+
   /** Returns the same schema for every table. */
   static class ConstantSchemaDestinations<T, DestinationT>
       extends DelegatingDynamicDestinations<T, DestinationT> {
@@ -242,23 +273,28 @@ class DynamicDestinationsHelpers {
     }
   }
 
-  static class ConstantTimePartitioningDestinations<T>
+  static class ConstantTimePartitioningClusteringDestinations<T>
       extends DelegatingDynamicDestinations<T, TableDestination> {
 
-    private final ValueProvider<String> jsonTimePartitioning;
+    private final @Nullable ValueProvider<String> jsonTimePartitioning;
     private final @Nullable ValueProvider<String> jsonClustering;
 
-    ConstantTimePartitioningDestinations(
+    ConstantTimePartitioningClusteringDestinations(
         DynamicDestinations<T, TableDestination> inner,
         ValueProvider<String> jsonTimePartitioning,
         ValueProvider<String> jsonClustering) {
       super(inner);
-      Preconditions.checkArgumentNotNull(
-          jsonTimePartitioning, "jsonTimePartitioning provider can not be null");
-      if (jsonTimePartitioning.isAccessible()) {
-        Preconditions.checkArgumentNotNull(
-            jsonTimePartitioning.get(), "jsonTimePartitioning can not be null");
-      }
+
+      checkArgument(
+          (jsonTimePartitioning != null
+                  && jsonTimePartitioning.isAccessible()
+                  && jsonTimePartitioning.get() != null)
+              || (jsonClustering != null
+                  && jsonClustering.isAccessible()
+                  && jsonClustering.get() != null),
+          "at least one of jsonTimePartitioning or jsonClustering must be non-null, accessible "
+              + "and present");
+
       this.jsonTimePartitioning = jsonTimePartitioning;
       this.jsonClustering = jsonClustering;
     }
@@ -266,13 +302,19 @@ class DynamicDestinationsHelpers {
     @Override
     public TableDestination getDestination(@Nullable ValueInSingleWindow<T> element) {
       TableDestination destination = super.getDestination(element);
-      String partitioning = this.jsonTimePartitioning.get();
-      checkArgument(partitioning != null, "jsonTimePartitioning can not be null");
+      String partitioning =
+          Optional.ofNullable(jsonTimePartitioning).map(ValueProvider::get).orElse(null);
+      if (partitioning == null
+          || JsonParser.parseString(partitioning).getAsJsonObject().isEmpty()) {
+        partitioning = destination.getJsonTimePartitioning();
+      }
+      String clustering = Optional.ofNullable(jsonClustering).map(ValueProvider::get).orElse(null);
+      if (clustering == null || JsonParser.parseString(clustering).getAsJsonObject().isEmpty()) {
+        clustering = destination.getJsonClustering();
+      }
+
       return new TableDestination(
-          destination.getTableSpec(),
-          destination.getTableDescription(),
-          partitioning,
-          Optional.ofNullable(jsonClustering).map(ValueProvider::get).orElse(null));
+          destination.getTableSpec(), destination.getTableDescription(), partitioning, clustering);
     }
 
     @Override
@@ -286,10 +328,10 @@ class DynamicDestinationsHelpers {
 
     @Override
     public String toString() {
-      MoreObjects.ToStringHelper helper =
-          MoreObjects.toStringHelper(this)
-              .add("inner", inner)
-              .add("jsonTimePartitioning", jsonTimePartitioning);
+      MoreObjects.ToStringHelper helper = MoreObjects.toStringHelper(this).add("inner", inner);
+      if (jsonTimePartitioning != null) {
+        helper.add("jsonTimePartitioning", jsonTimePartitioning);
+      }
       if (jsonClustering != null) {
         helper.add("jsonClustering", jsonClustering);
       }
@@ -421,12 +463,17 @@ class DynamicDestinationsHelpers {
       }
     }
 
-    /** Returns the table schema for the destination. */
+    /**
+     * Returns the table schema for the destination. If possible, will return the existing table
+     * schema.
+     */
     @Override
     public @Nullable TableSchema getSchema(DestinationT destination) {
       TableDestination wrappedDestination = super.getTable(destination);
       @Nullable Table existingTable = getBigQueryTable(wrappedDestination.getTableReference());
-      if (existingTable == null || existingTable.getSchema() == null) {
+      if (existingTable == null
+          || existingTable.getSchema() == null
+          || existingTable.getSchema().isEmpty()) {
         return super.getSchema(destination);
       } else {
         return existingTable.getSchema();

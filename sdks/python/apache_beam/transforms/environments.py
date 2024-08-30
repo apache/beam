@@ -45,23 +45,23 @@ from typing import overload
 from google.protobuf import message
 
 from apache_beam import coders
+from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners.portability import stager
-from apache_beam.runners.portability.sdk_container_builder import SdkContainerImageBuilder
 from apache_beam.transforms.resources import resource_hints_from_options
 from apache_beam.utils import proto_utils
 
 if TYPE_CHECKING:
   from apache_beam.options.pipeline_options import PipelineOptions
-  from apache_beam.options.pipeline_options import PortableOptions
   from apache_beam.runners.pipeline_context import PipelineContext
 
 __all__ = [
     'Environment',
+    'AnyOfEnvironment',
     'DefaultEnvironment',
     'DockerEnvironment',
     'ProcessEnvironment',
@@ -257,7 +257,26 @@ class Environment(object):
     Args:
       options: The PortableOptions object.
     """
-    raise NotImplementedError
+    if cls != Environment:
+      raise NotImplementedError
+
+    portable_options = options.view_as(PortableOptions)
+    environment_type = portable_options.environment_type
+    if not environment_type:
+      environment_urn = common_urns.environments.DOCKER.urn
+    elif environment_type.startswith('beam:env:'):
+      environment_urn = environment_type
+    elif environment_type == 'LOOPBACK':
+      environment_urn = python_urns.EMBEDDED_PYTHON_LOOPBACK
+    else:
+      try:
+        environment_urn = getattr(
+            common_urns.environments, environment_type).urn
+      except AttributeError:
+        raise ValueError('Unknown environment type: %s' % environment_type)
+
+    env_class = Environment.get_env_cls_from_urn(environment_urn)
+    return env_class.from_options(portable_options)  # type: ignore
 
 
 @Environment.register_urn(common_urns.environments.DEFAULT.urn, None)
@@ -337,6 +356,9 @@ class DockerEnvironment(Environment):
   def from_options(cls, options):
     # type: (PortableOptions) -> DockerEnvironment
     if options.view_as(SetupOptions).prebuild_sdk_container_engine:
+      # Imported here to avoid circular dependencies.
+      # pylint: disable=wrong-import-order, wrong-import-position
+      from apache_beam.runners.portability.sdk_container_builder import SdkContainerImageBuilder
       prebuilt_container_image = SdkContainerImageBuilder.build_container_image(
           options)
       return cls.from_container_image(
@@ -373,7 +395,6 @@ class DockerEnvironment(Environment):
         APACHE_BEAM_DOCKER_IMAGE_PREFIX +
         '_python{version_suffix}_sdk:{tag}'.format(
             version_suffix=version_suffix, tag=sdk_version))
-    logging.info('Default Python SDK image for environment is %s' % (image))
     return image
 
 
@@ -564,6 +585,24 @@ class ExternalEnvironment(Environment):
         resource_hints=resource_hints_from_options(options))
 
 
+def expand_anyof_environments(env_proto):
+  if env_proto.urn == common_urns.environments.ANYOF.urn:
+    for alt in beam_runner_api_pb2.AnyOfEnvironmentPayload.FromString(
+        env_proto.payload).environments:
+      yield from expand_anyof_environments(alt)
+  else:
+    yield env_proto
+
+
+def resolve_anyof_environment(env_proto, *preferred_types):
+  all_environments = list(expand_anyof_environments(env_proto))
+  for preferred_type in preferred_types:
+    for env in all_environments:
+      if env.urn == preferred_type:
+        return env
+  return all_environments[0]
+
+
 @Environment.register_urn(python_urns.EMBEDDED_PYTHON, None)
 class EmbeddedPythonEnvironment(Environment):
   def to_runner_api_parameter(self, context):
@@ -700,6 +739,27 @@ class EmbeddedPythonGrpcEnvironment(Environment):
     return cls(capabilities=python_sdk_capabilities(), artifacts=())
 
 
+@Environment.register_urn(python_urns.EMBEDDED_PYTHON_LOOPBACK, None)
+class PythonLoopbackEnvironment(EmbeddedPythonEnvironment):
+  """Used as a stub when the loopback worker has not yet been started."""
+  def to_runner_api_parameter(self, context):
+    # type: (PipelineContext) -> Tuple[str, None]
+    return python_urns.EMBEDDED_PYTHON_LOOPBACK, None
+
+  @staticmethod
+  def from_runner_api_parameter(unused_payload,  # type: None
+      capabilities,  # type: Iterable[str]
+      artifacts,  # type: Iterable[beam_runner_api_pb2.ArtifactInformation]
+      resource_hints,  # type: Mapping[str, bytes]
+      context  # type: PipelineContext
+                                ):
+    # type: (...) -> PythonLoopbackEnvironment
+    return PythonLoopbackEnvironment(
+        capabilities=capabilities,
+        artifacts=artifacts,
+        resource_hints=resource_hints)
+
+
 @Environment.register_urn(python_urns.SUBPROCESS_SDK, bytes)
 class SubprocessSDKEnvironment(Environment):
   def __init__(
@@ -755,6 +815,45 @@ class SubprocessSDKEnvironment(Environment):
         command_string, capabilities=python_sdk_capabilities(), artifacts=())
 
 
+@Environment.register_urn(
+    common_urns.environments.ANYOF.urn,
+    beam_runner_api_pb2.AnyOfEnvironmentPayload)
+class AnyOfEnvironment(Environment):
+  def __init__(self, environments):
+    self._environments = environments
+
+  def to_runner_api_parameter(self, context):
+    # type: (PipelineContext) -> Tuple[str, beam_runner_api_pb2.AnyOfEnvironmentPayload]
+    return (
+        common_urns.environments.ANYOF.urn,
+        beam_runner_api_pb2.AnyOfEnvironmentPayload(
+            environments=[
+                env.to_runner_api(context) for env in self._environments
+            ]))
+
+  @staticmethod
+  def from_runner_api_parameter(payload,  # type: beam_runner_api_pb2.AnyOfEnvironmentPayload
+      capabilities,  # type: Iterable[str]
+      artifacts,  # type: Iterable[beam_runner_api_pb2.ArtifactInformation]
+      resource_hints,  # type: Mapping[str, bytes]
+      context  # type: PipelineContext
+                                ):
+    # type: (...) -> AnyOfEnvironment
+    return AnyOfEnvironment([
+        Environment.from_runner_api(env, context)
+        for env in payload.environments
+    ])
+
+  @staticmethod
+  def create_proto(
+      environments: Iterable[beam_runner_api_pb2.Environment]
+  ) -> beam_runner_api_pb2.Environment:
+    return beam_runner_api_pb2.Environment(
+        urn=common_urns.environments.ANYOF.urn,
+        payload=beam_runner_api_pb2.AnyOfEnvironmentPayload(
+            environments=environments).SerializeToString())
+
+
 class PyPIArtifactRegistry(object):
   _registered_artifacts = set()  # type: Set[Tuple[str, str]]
 
@@ -795,6 +894,7 @@ def _python_sdk_capabilities_iter():
   yield common_urns.sdf_components.TRUNCATE_SIZED_RESTRICTION.urn
   yield common_urns.primitives.TO_STRING.urn
   yield common_urns.protocols.DATA_SAMPLING.urn
+  yield common_urns.protocols.SDK_CONSUMING_RECEIVED_DATA.urn
 
 
 def python_sdk_dependencies(options, tmp_dir=None):

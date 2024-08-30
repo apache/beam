@@ -36,7 +36,7 @@ import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A Reader that receives elements from Pubsub, via a Windmill server. */
@@ -104,12 +104,20 @@ class PubsubReader<T> extends NativeReader<WindowedValue<T>> {
 
   @Override
   public NativeReaderIterator<WindowedValue<T>> iterator() throws IOException {
-    return new PubsubReaderIterator(context.getWork());
+    return new PubsubReaderIterator(context.getWorkItem());
   }
 
   class PubsubReaderIterator extends WindmillReaderIteratorBase<T> {
     protected PubsubReaderIterator(Windmill.WorkItem work) {
       super(work);
+    }
+
+    @Override
+    public boolean advance() throws IOException {
+      if (context.workIsFailed()) {
+        return false;
+      }
+      return super.advance();
     }
 
     @Override

@@ -27,7 +27,7 @@ import { Root, PCollection } from "../pvalue";
  */
 export function create<T>(
   elements: T[],
-  reshuffle: boolean = true
+  reshuffle: boolean = true,
 ): PTransform<Root, PCollection<T>> {
   function create(root: Root): PCollection<T> {
     const pcoll = root

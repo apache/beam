@@ -70,7 +70,7 @@ import sys
 import warnings
 
 if sys.version_info.major == 3:
-  if sys.version_info.minor <= 6 or sys.version_info.minor >= 12:
+  if sys.version_info.minor <= 7 or sys.version_info.minor >= 13:
     warnings.warn(
         'This version of Apache Beam has not been sufficiently tested on '
         'Python %s.%s. You may encounter bugs or missing features.' %
@@ -94,6 +94,14 @@ from apache_beam.transforms import *
 from apache_beam.pvalue import PCollection
 from apache_beam.pvalue import Row
 from apache_beam.pvalue import TaggedOutput
+
+try:
+  # Add mitigation for CVE-2023-47248 while Beam allows affected versions
+  # of pyarrow. (https://github.com/apache/beam/issues/29392)
+  import pyarrow_hotfix
+except ImportError:
+  pass
+
 # pylint: enable=wrong-import-position
 
 __version__ = version.__version__

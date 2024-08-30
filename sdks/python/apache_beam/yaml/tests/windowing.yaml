@@ -1,0 +1,122 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+pipelines:
+  - pipeline:
+      type: composite
+      transforms:
+        - type: Create
+          config:
+            elements:
+              - {k: "x", t: 1}
+              - {k: "x", t: 8}
+              - {k: "x", t: 11}
+              - {k: "y", t: 101}
+
+        - type: AssignTimestamps
+          input: Create
+          config:
+            timestamp: t
+
+        - type: chain
+          name: Global
+          input: AssignTimestamps
+          transforms:
+
+            - type: Combine
+              config:
+                group_by: 'k'
+                combine:
+                  t: sum
+              windowing:
+                type: global
+
+            - type: AssertEqual
+              config:
+                elements:
+                  - {k: "x", t: 20}
+                  - {k: "y", t: 101}
+
+        - type: chain
+          name: Fixed
+          input: AssignTimestamps
+          transforms:
+
+            - type: Combine
+              config:
+                group_by: 'k'
+                combine:
+                  t: sum
+              windowing:
+                type: fixed
+                size: 10s
+                offset: 5s
+
+            - type: AssertEqual
+              config:
+                elements:
+                  - {k: "x", t: 1}
+                  - {k: "x", t: 19}
+
+                  - {k: "y", t: 101}
+
+        - type: chain
+          name: Sliding
+          input: AssignTimestamps
+          transforms:
+
+            - type: Combine
+              config:
+                group_by: 'k'
+                combine:
+                  t: sum
+              windowing:
+                type: sliding
+                size: 20s
+                period: 10s
+
+            - type: AssertEqual
+              config:
+                elements:
+                  - {k: "x", t: 9}    # [-10, 10)
+                  - {k: "x", t: 20}   # [  0, 20)
+                  - {k: "x", t: 11}   # [ 10, 30)
+
+                  - {k: "y", t: 101}  # [90, 110)
+                  - {k: "y", t: 101}  # [100, 120)
+
+        - type: chain
+          name: Sessions
+          input: AssignTimestamps
+          transforms:
+
+            - type: Combine
+              config:
+                group_by: 'k'
+                combine:
+                  t: sum
+              windowing:
+                type: sessions
+                gap: 5s
+
+            - type: AssertEqual
+              config:
+                elements:
+                  - {k: "x", t: 1}
+                  - {k: "x", t: 19}
+
+                  - {k: "y", t: 101}

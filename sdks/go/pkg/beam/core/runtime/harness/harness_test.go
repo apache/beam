@@ -23,7 +23,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 )
 
 // validDescriptor describes a valid pipeline with a source and a sink, but doesn't do anything else.
@@ -94,7 +94,7 @@ func invalidDescriptor(t *testing.T) *fnpb.ProcessBundleDescriptor {
 
 func TestControl_getOrCreatePlan(t *testing.T) {
 	testBDID := bundleDescriptorID("test")
-	testPlan, err := exec.UnmarshalPlan(validDescriptor(t))
+	testPlan, err := exec.UnmarshalPlan(validDescriptor(t), nil)
 	if err != nil {
 		t.Fatal("bad testPlan")
 	}

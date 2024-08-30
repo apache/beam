@@ -22,9 +22,13 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"math"
 	"net"
+	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
@@ -40,6 +44,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/prototext"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 // A W manages worker environments, sending them work
@@ -52,14 +57,19 @@ type W struct {
 	fnpb.UnimplementedBeamFnLoggingServer
 	fnpb.UnimplementedProvisionServiceServer
 
-	ID string
+	ID, Env string
+
+	JobKey, ArtifactEndpoint string
+	EnvPb                    *pipepb.Environment
+	PipelineOptions          *structpb.Struct
 
 	// Server management
 	lis    net.Listener
 	server *grpc.Server
 
 	// These are the ID sources
-	inst, bund uint64
+	inst               uint64
+	connected, stopped atomic.Bool
 
 	InstReqs chan *fnpb.InstructionRequest
 	DataReqs chan *fnpb.Elements
@@ -67,8 +77,6 @@ type W struct {
 	mu                 sync.Mutex
 	activeInstructions map[string]controlResponder              // Active instructions keyed by InstructionID
 	Descriptors        map[string]*fnpb.ProcessBundleDescriptor // Stages keyed by PBDID
-
-	D *DataService
 }
 
 type controlResponder interface {
@@ -76,14 +84,17 @@ type controlResponder interface {
 }
 
 // New starts the worker server components of FnAPI Execution.
-func New(id string) *W {
+func New(id, env string) *W {
 	lis, err := net.Listen("tcp", ":0")
 	if err != nil {
 		panic(fmt.Sprintf("failed to listen: %v", err))
 	}
-	var opts []grpc.ServerOption
+	opts := []grpc.ServerOption{
+		grpc.MaxRecvMsgSize(math.MaxInt32),
+	}
 	wk := &W{
 		ID:     id,
+		Env:    env,
 		lis:    lis,
 		server: grpc.NewServer(opts...),
 
@@ -92,19 +103,19 @@ func New(id string) *W {
 
 		activeInstructions: make(map[string]controlResponder),
 		Descriptors:        make(map[string]*fnpb.ProcessBundleDescriptor),
-
-		D: &DataService{},
 	}
-	slog.Info("Serving Worker components", slog.String("endpoint", wk.Endpoint()))
+	slog.Debug("Serving Worker components", slog.String("endpoint", wk.Endpoint()))
 	fnpb.RegisterBeamFnControlServer(wk.server, wk)
 	fnpb.RegisterBeamFnDataServer(wk.server, wk)
 	fnpb.RegisterBeamFnLoggingServer(wk.server, wk)
 	fnpb.RegisterBeamFnStateServer(wk.server, wk)
+	fnpb.RegisterProvisionServiceServer(wk.server, wk)
 	return wk
 }
 
 func (wk *W) Endpoint() string {
-	return wk.lis.Addr().String()
+	_, port, _ := net.SplitHostPort(wk.lis.Addr().String())
+	return fmt.Sprintf("localhost:%v", port)
 }
 
 // Serve serves on the started listener. Blocks.
@@ -126,19 +137,24 @@ func (wk *W) LogValue() slog.Value {
 // Stop the GRPC server.
 func (wk *W) Stop() {
 	slog.Debug("stopping", "worker", wk)
+	wk.stopped.Store(true)
 	close(wk.InstReqs)
 	close(wk.DataReqs)
-	wk.server.Stop()
+
+	// Give the SDK side 5 seconds to gracefully stop, before
+	// hard stopping all RPCs.
+	tim := time.AfterFunc(5*time.Second, func() {
+		wk.server.Stop()
+	})
+	wk.server.GracefulStop()
+	tim.Stop()
+
 	wk.lis.Close()
 	slog.Debug("stopped", "worker", wk)
 }
 
 func (wk *W) NextInst() string {
-	return fmt.Sprintf("inst%03d", atomic.AddUint64(&wk.inst, 1))
-}
-
-func (wk *W) NextStage() string {
-	return fmt.Sprintf("stage%03d", atomic.AddUint64(&wk.bund, 1))
+	return fmt.Sprintf("inst-%v-%03d", wk.Env, atomic.AddUint64(&wk.inst, 1))
 }
 
 // TODO set logging level.
@@ -150,20 +166,24 @@ func (wk *W) GetProvisionInfo(_ context.Context, _ *fnpb.GetProvisionInfoRequest
 	}
 	resp := &fnpb.GetProvisionInfoResponse{
 		Info: &fnpb.ProvisionInfo{
-			// TODO: Add the job's Pipeline options
 			// TODO: Include runner capabilities with the per job configuration.
 			RunnerCapabilities: []string{
 				urns.CapabilityMonitoringInfoShortIDs,
 			},
-			LoggingEndpoint:  endpoint,
-			ControlEndpoint:  endpoint,
-			ArtifactEndpoint: endpoint,
-			// TODO add this job's RetrievalToken
-			// TODO add this job's artifact Dependencies
+			LoggingEndpoint: endpoint,
+			ControlEndpoint: endpoint,
+			ArtifactEndpoint: &pipepb.ApiServiceDescriptor{
+				Url: wk.ArtifactEndpoint,
+			},
+
+			RetrievalToken:  wk.JobKey,
+			Dependencies:    wk.EnvPb.GetDependencies(),
+			PipelineOptions: wk.PipelineOptions,
 
 			Metadata: map[string]string{
 				"runner":         "prism",
 				"runner_version": core.SdkVersion,
+				"variant":        "test",
 			},
 		},
 	}
@@ -179,15 +199,30 @@ func (wk *W) Logging(stream fnpb.BeamFnLogging_LoggingServer) error {
 			return nil
 		}
 		if err != nil {
-			slog.Error("logging.Recv", err, "worker", wk)
-			return err
+			switch status.Code(err) {
+			case codes.Canceled:
+				return nil
+			default:
+				slog.Error("logging.Recv", err, "worker", wk)
+				return err
+			}
 		}
 		for _, l := range in.GetLogEntries() {
 			if l.Severity >= minsev {
 				// TODO: Connect to the associated Job for this worker instead of
 				// logging locally for SDK side logging.
-				slog.LogAttrs(context.TODO(), toSlogSev(l.GetSeverity()), l.GetMessage(),
-					slog.String(slog.SourceKey, l.GetLogLocation()),
+				file := l.GetLogLocation()
+				i := strings.LastIndex(file, ":")
+				line, _ := strconv.Atoi(file[i+1:])
+				if i > 0 {
+					file = file[:i]
+				}
+
+				slog.LogAttrs(stream.Context(), toSlogSev(l.GetSeverity()), l.GetMessage(),
+					slog.Any(slog.SourceKey, &slog.Source{
+						File: file,
+						Line: line,
+					}),
 					slog.Time(slog.TimeKey, l.GetTimestamp().AsTime()),
 					slog.Any("worker", wk),
 				)
@@ -224,40 +259,43 @@ func (wk *W) GetProcessBundleDescriptor(ctx context.Context, req *fnpb.GetProces
 	return desc, nil
 }
 
+// Connected indicates whether the worker has connected to the control RPC.
+func (wk *W) Connected() bool {
+	return wk.connected.Load()
+}
+
+// Stopped indicates that the worker has stopped.
+func (wk *W) Stopped() bool {
+	return wk.stopped.Load()
+}
+
 // Control relays instructions to SDKs and back again, coordinated via unique instructionIDs.
 //
 // Requests come from the runner, and are sent to the client in the SDK.
 func (wk *W) Control(ctrl fnpb.BeamFnControl_ControlServer) error {
-	done := make(chan bool)
+	wk.connected.Store(true)
+	done := make(chan error, 1)
 	go func() {
 		for {
 			resp, err := ctrl.Recv()
 			if err == io.EOF {
 				slog.Debug("ctrl.Recv finished; marking done", "worker", wk)
-				done <- true // means stream is finished
+				done <- nil // means stream is finished
 				return
 			}
 			if err != nil {
 				switch status.Code(err) {
-				case codes.Canceled: // Might ignore this all the time instead.
-					slog.Error("ctrl.Recv Canceled", err, "worker", wk)
-					done <- true // means stream is finished
+				case codes.Canceled:
+					done <- err // means stream is finished
 					return
 				default:
-					slog.Error("ctrl.Recv failed", err, "worker", wk)
+					slog.Error("ctrl.Recv failed", "error", err, "worker", wk)
 					panic(err)
 				}
 			}
 
-			// TODO: Do more than assume these are ProcessBundleResponses.
 			wk.mu.Lock()
 			if b, ok := wk.activeInstructions[resp.GetInstructionId()]; ok {
-				// TODO. Better pipeline error handling.
-				if resp.Error != "" {
-					slog.LogAttrs(context.TODO(), slog.LevelError, "ctrl.Recv pipeline error",
-						slog.String("error", resp.GetError()))
-					panic(resp.GetError())
-				}
 				b.Respond(resp)
 			} else {
 				slog.Debug("ctrl.Recv: %v", resp)
@@ -266,13 +304,39 @@ func (wk *W) Control(ctrl fnpb.BeamFnControl_ControlServer) error {
 		}
 	}()
 
-	for req := range wk.InstReqs {
-		ctrl.Send(req)
+	for {
+		select {
+		case req, ok := <-wk.InstReqs:
+			if !ok {
+				slog.Debug("Worker shutting down.", "worker", wk)
+				return nil
+			}
+			if err := ctrl.Send(req); err != nil {
+				return err
+			}
+		case <-ctrl.Context().Done():
+			wk.mu.Lock()
+			// Fail extant instructions
+			slog.Debug("SDK Disconnected", "worker", wk, "ctx_error", ctrl.Context().Err(), "outstanding_instructions", len(wk.activeInstructions))
+
+			msg := fmt.Sprintf("SDK worker disconnected: %v, %v active instructions", wk.String(), len(wk.activeInstructions))
+			for instID, b := range wk.activeInstructions {
+				b.Respond(&fnpb.InstructionResponse{
+					InstructionId: instID,
+					Error:         msg,
+				})
+			}
+			wk.mu.Unlock()
+			return context.Cause(ctrl.Context())
+		case err := <-done:
+			if err != nil {
+				slog.Warn("Control done", "error", err, "worker", wk)
+			} else {
+				slog.Debug("Control done", "worker", wk)
+			}
+			return err
+		}
 	}
-	slog.Debug("ctrl.Send finished waiting on done")
-	<-done
-	slog.Debug("Control done")
-	return nil
 }
 
 // Data relays elements and timer bytes to SDKs and back again, coordinated via
@@ -289,7 +353,6 @@ func (wk *W) Data(data fnpb.BeamFnData_DataServer) error {
 			if err != nil {
 				switch status.Code(err) {
 				case codes.Canceled:
-					slog.Error("data.Recv Canceled", err, "worker", wk)
 					return
 				default:
 					slog.Error("data.Recv failed", err, "worker", wk)
@@ -300,7 +363,7 @@ func (wk *W) Data(data fnpb.BeamFnData_DataServer) error {
 			for _, d := range resp.GetData() {
 				cr, ok := wk.activeInstructions[d.GetInstructionId()]
 				if !ok {
-					slog.Info("data.Recv for unknown bundle", "response", resp)
+					slog.Info("data.Recv data for unknown bundle", "response", resp)
 					continue
 				}
 				// Received data is always for an active ProcessBundle instruction
@@ -313,19 +376,42 @@ func (wk *W) Data(data fnpb.BeamFnData_DataServer) error {
 					b.OutputData.WriteData(colID, d.GetData())
 				}
 				if d.GetIsLast() {
-					b.DataDone()
+					b.DataOrTimerDone()
+				}
+			}
+			for _, t := range resp.GetTimers() {
+				cr, ok := wk.activeInstructions[t.GetInstructionId()]
+				if !ok {
+					slog.Info("data.Recv timers for unknown bundle", "response", resp)
+					continue
+				}
+				// Received data is always for an active ProcessBundle instruction
+				b := cr.(*B)
+
+				if len(t.GetTimers()) > 0 {
+					b.OutputData.WriteTimers(t.GetTransformId(), t.GetTimerFamilyId(), t.GetTimers())
+				}
+				if t.GetIsLast() {
+					b.DataOrTimerDone()
 				}
 			}
 			wk.mu.Unlock()
 		}
 	}()
-
-	for req := range wk.DataReqs {
-		if err := data.Send(req); err != nil {
-			slog.LogAttrs(context.TODO(), slog.LevelDebug, "data.Send error", slog.Any("error", err))
+	for {
+		select {
+		case req, ok := <-wk.DataReqs:
+			if !ok {
+				return nil
+			}
+			if err := data.Send(req); err != nil {
+				slog.LogAttrs(context.TODO(), slog.LevelDebug, "data.Send error", slog.Any("error", err))
+			}
+		case <-data.Context().Done():
+			slog.Debug("Data context canceled")
+			return context.Cause(data.Context())
 		}
 	}
-	return nil
 }
 
 // State relays elements and timer bytes to SDKs and back again, coordinated via
@@ -346,24 +432,27 @@ func (wk *W) State(state fnpb.BeamFnState_StateServer) error {
 			if err != nil {
 				switch status.Code(err) {
 				case codes.Canceled:
-					slog.Error("state.Recv Canceled", err, "worker", wk)
 					return
 				default:
 					slog.Error("state.Recv failed", err, "worker", wk)
 					panic(err)
 				}
 			}
+
+			// State requests are always for an active ProcessBundle instruction
+			wk.mu.Lock()
+			b, ok := wk.activeInstructions[req.GetInstructionId()].(*B)
+			wk.mu.Unlock()
+			if !ok {
+				slog.Warn("state request after bundle inactive", "instruction", req.GetInstructionId(), "worker", wk)
+				continue
+			}
 			switch req.GetRequest().(type) {
 			case *fnpb.StateRequest_Get:
 				// TODO: move data handling to be pcollection based.
 
-				// State requests are always for an active ProcessBundle instruction
-				wk.mu.Lock()
-				b := wk.activeInstructions[req.GetInstructionId()].(*B)
-				wk.mu.Unlock()
 				key := req.GetStateKey()
-				slog.Debug("StateRequest_Get", prototext.Format(req), "bundle", b)
-
+				slog.Debug("StateRequest_Get", "request", prototext.Format(req), "bundle", b)
 				var data [][]byte
 				switch key.GetType().(type) {
 				case *fnpb.StateKey_IterableSideInput_:
@@ -378,13 +467,30 @@ func (wk *W) State(state fnpb.BeamFnState_StateServer) error {
 							panic(fmt.Sprintf("error decoding iterable side input window key %v: %v", wKey, err))
 						}
 					}
-					winMap := b.IterableSideInputData[ikey.GetTransformId()][ikey.GetSideInputId()]
+					winMap := b.IterableSideInputData[SideInputKey{TransformID: ikey.GetTransformId(), Local: ikey.GetSideInputId()}]
+
 					var wins []typex.Window
 					for w := range winMap {
 						wins = append(wins, w)
 					}
 					slog.Debug(fmt.Sprintf("side input[%v][%v] I Key: %v Windows: %v", req.GetId(), req.GetInstructionId(), w, wins))
+
 					data = winMap[w]
+
+				case *fnpb.StateKey_MultimapKeysSideInput_:
+					mmkey := key.GetMultimapKeysSideInput()
+					wKey := mmkey.GetWindow()
+					var w typex.Window = window.GlobalWindow{}
+					if len(wKey) > 0 {
+						w, err = exec.MakeWindowDecoder(coder.NewIntervalWindow()).DecodeSingle(bytes.NewBuffer(wKey))
+						if err != nil {
+							panic(fmt.Sprintf("error decoding multimap side input window key %v: %v", wKey, err))
+						}
+					}
+					winMap := b.MultiMapSideInputData[SideInputKey{TransformID: mmkey.GetTransformId(), Local: mmkey.GetSideInputId()}]
+					for k := range winMap[w] {
+						data = append(data, []byte(k))
+					}
 
 				case *fnpb.StateKey_MultimapSideInput_:
 					mmkey := key.GetMultimapSideInput()
@@ -395,37 +501,82 @@ func (wk *W) State(state fnpb.BeamFnState_StateServer) error {
 					} else {
 						w, err = exec.MakeWindowDecoder(coder.NewIntervalWindow()).DecodeSingle(bytes.NewBuffer(wKey))
 						if err != nil {
-							panic(fmt.Sprintf("error decoding iterable side input window key %v: %v", wKey, err))
+							panic(fmt.Sprintf("error decoding multimap side input window key %v: %v", wKey, err))
 						}
 					}
 					dKey := mmkey.GetKey()
-					winMap := b.MultiMapSideInputData[mmkey.GetTransformId()][mmkey.GetSideInputId()]
-					var wins []typex.Window
-					for w := range winMap {
-						wins = append(wins, w)
-					}
-					slog.Debug(fmt.Sprintf("side input[%v][%v] MM Key: %v Windows: %v", req.GetId(), req.GetInstructionId(), w, wins))
+					winMap := b.MultiMapSideInputData[SideInputKey{TransformID: mmkey.GetTransformId(), Local: mmkey.GetSideInputId()}]
+
+					slog.Debug(fmt.Sprintf("side input[%v][%v] MultiMap Window: %v", req.GetId(), req.GetInstructionId(), w))
 
 					data = winMap[w][string(dKey)]
 
+				case *fnpb.StateKey_BagUserState_:
+					bagkey := key.GetBagUserState()
+					data = b.OutputData.GetBagState(engine.LinkID{Transform: bagkey.GetTransformId(), Local: bagkey.GetUserStateId()}, bagkey.GetWindow(), bagkey.GetKey())
+				case *fnpb.StateKey_MultimapUserState_:
+					mmkey := key.GetMultimapUserState()
+					data = b.OutputData.GetMultimapState(engine.LinkID{Transform: mmkey.GetTransformId(), Local: mmkey.GetUserStateId()}, mmkey.GetWindow(), mmkey.GetKey(), mmkey.GetMapKey())
+				case *fnpb.StateKey_MultimapKeysUserState_:
+					mmkey := key.GetMultimapKeysUserState()
+					data = b.OutputData.GetMultimapKeysState(engine.LinkID{Transform: mmkey.GetTransformId(), Local: mmkey.GetUserStateId()}, mmkey.GetWindow(), mmkey.GetKey())
 				default:
-					panic(fmt.Sprintf("unsupported StateKey Access type: %T: %v", key.GetType(), prototext.Format(key)))
+					panic(fmt.Sprintf("unsupported StateKey Get type: %T: %v", key.GetType(), prototext.Format(key)))
 				}
 
 				// Encode the runner iterable (no length, just consecutive elements), and send it out.
 				// This is also where we can handle things like State Backed Iterables.
-				var buf bytes.Buffer
-				for _, value := range data {
-					buf.Write(value)
-				}
 				responses <- &fnpb.StateResponse{
 					Id: req.GetId(),
 					Response: &fnpb.StateResponse_Get{
 						Get: &fnpb.StateGetResponse{
-							Data: buf.Bytes(),
+							Data: bytes.Join(data, []byte{}),
 						},
 					},
 				}
+
+			case *fnpb.StateRequest_Append:
+				key := req.GetStateKey()
+				switch key.GetType().(type) {
+				case *fnpb.StateKey_BagUserState_:
+					bagkey := key.GetBagUserState()
+					b.OutputData.AppendBagState(engine.LinkID{Transform: bagkey.GetTransformId(), Local: bagkey.GetUserStateId()}, bagkey.GetWindow(), bagkey.GetKey(), req.GetAppend().GetData())
+				case *fnpb.StateKey_MultimapUserState_:
+					mmkey := key.GetMultimapUserState()
+					b.OutputData.AppendMultimapState(engine.LinkID{Transform: mmkey.GetTransformId(), Local: mmkey.GetUserStateId()}, mmkey.GetWindow(), mmkey.GetKey(), mmkey.GetMapKey(), req.GetAppend().GetData())
+				default:
+					panic(fmt.Sprintf("unsupported StateKey Append type: %T: %v", key.GetType(), prototext.Format(key)))
+				}
+
+				responses <- &fnpb.StateResponse{
+					Id: req.GetId(),
+					Response: &fnpb.StateResponse_Append{
+						Append: &fnpb.StateAppendResponse{},
+					},
+				}
+
+			case *fnpb.StateRequest_Clear:
+				key := req.GetStateKey()
+				switch key.GetType().(type) {
+				case *fnpb.StateKey_BagUserState_:
+					bagkey := key.GetBagUserState()
+					b.OutputData.ClearBagState(engine.LinkID{Transform: bagkey.GetTransformId(), Local: bagkey.GetUserStateId()}, bagkey.GetWindow(), bagkey.GetKey())
+				case *fnpb.StateKey_MultimapUserState_:
+					mmkey := key.GetMultimapUserState()
+					b.OutputData.ClearMultimapState(engine.LinkID{Transform: mmkey.GetTransformId(), Local: mmkey.GetUserStateId()}, mmkey.GetWindow(), mmkey.GetKey(), mmkey.GetMapKey())
+				case *fnpb.StateKey_MultimapKeysUserState_:
+					mmkey := key.GetMultimapUserState()
+					b.OutputData.ClearMultimapKeysState(engine.LinkID{Transform: mmkey.GetTransformId(), Local: mmkey.GetUserStateId()}, mmkey.GetWindow(), mmkey.GetKey())
+				default:
+					panic(fmt.Sprintf("unsupported StateKey Clear type: %T: %v", key.GetType(), prototext.Format(key)))
+				}
+				responses <- &fnpb.StateResponse{
+					Id: req.GetId(),
+					Response: &fnpb.StateResponse_Clear{
+						Clear: &fnpb.StateClearResponse{},
+					},
+				}
+
 			default:
 				panic(fmt.Sprintf("unsupported StateRequest kind %T: %v", req.GetRequest(), prototext.Format(req)))
 			}
@@ -455,7 +606,7 @@ func (cr *chanResponder) Respond(resp *fnpb.InstructionResponse) {
 
 // sendInstruction is a helper for creating and sending worker single RPCs, blocking
 // until the response returns.
-func (wk *W) sendInstruction(req *fnpb.InstructionRequest) *fnpb.InstructionResponse {
+func (wk *W) sendInstruction(ctx context.Context, req *fnpb.InstructionRequest) *fnpb.InstructionResponse {
 	cr := chanResponderPool.Get().(*chanResponder)
 	progInst := wk.NextInst()
 	wk.mu.Lock()
@@ -471,46 +622,30 @@ func (wk *W) sendInstruction(req *fnpb.InstructionRequest) *fnpb.InstructionResp
 
 	req.InstructionId = progInst
 
-	// Tell the SDK to start processing the bundle.
+	if wk.Stopped() {
+		return nil
+	}
 	wk.InstReqs <- req
-	// Protos are safe as nil, so just return directly.
-	return <-cr.Resp
+
+	select {
+	case <-ctx.Done():
+		return &fnpb.InstructionResponse{
+			InstructionId: progInst,
+			Error:         "context canceled before receive",
+		}
+	case resp := <-cr.Resp:
+		// Protos are safe as nil, so just return directly.
+		return resp
+	}
 }
 
 // MonitoringMetadata is a convenience method to request the metadata for monitoring shortIDs.
-func (wk *W) MonitoringMetadata(unknownIDs []string) *fnpb.MonitoringInfosMetadataResponse {
-	return wk.sendInstruction(&fnpb.InstructionRequest{
+func (wk *W) MonitoringMetadata(ctx context.Context, unknownIDs []string) *fnpb.MonitoringInfosMetadataResponse {
+	return wk.sendInstruction(ctx, &fnpb.InstructionRequest{
 		Request: &fnpb.InstructionRequest_MonitoringInfos{
 			MonitoringInfos: &fnpb.MonitoringInfosMetadataRequest{
 				MonitoringInfoId: unknownIDs,
 			},
 		},
 	}).GetMonitoringInfos()
-}
-
-// DataService is slated to be deleted in favour of stage based state
-// management for side inputs.
-type DataService struct {
-	mu sync.Mutex
-	// TODO actually quick process the data to windows here as well.
-	raw map[string][][]byte
-}
-
-// Commit tentative data to the datastore.
-func (d *DataService) Commit(tent engine.TentativeData) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	if d.raw == nil {
-		d.raw = map[string][][]byte{}
-	}
-	for colID, data := range tent.Raw {
-		d.raw[colID] = append(d.raw[colID], data...)
-	}
-}
-
-// GetAllData is a hack for Side Inputs until watermarks are sorted out.
-func (d *DataService) GetAllData(colID string) [][]byte {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	return d.raw[colID]
 }

@@ -38,7 +38,7 @@ async function main() {
   // python apache_beam/runners/portability/local_job_service_main.py --port 3333
   await new PortableRunner("localhost:3333").run(async (root) => {
     const lines = await root.applyAsync(
-      textio.readFromText("gs://dataflow-samples/shakespeare/kinglear.txt")
+      textio.readFromText("gs://dataflow-samples/shakespeare/kinglear.txt"),
     );
 
     lines.apply(wordCount).map(console.log);

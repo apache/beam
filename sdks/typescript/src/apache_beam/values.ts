@@ -17,6 +17,8 @@
  */
 
 import Long from "long";
+import { requireForSerialization } from "./serialization";
+import { packageName } from "./utils/packageJson";
 
 export type KV<K, V> = {
   key: K;
@@ -36,7 +38,10 @@ export class GlobalWindow implements Window {
 }
 
 export class IntervalWindow implements Window {
-  constructor(public start: Instant, public end: Instant) {}
+  constructor(
+    public start: Instant,
+    public end: Instant,
+  ) {}
 
   maxTimestamp() {
     return this.end.sub(1);
@@ -65,5 +70,4 @@ export enum Timing {
   UNKNOWN = "UNKNOWN",
 }
 
-import { requireForSerialization } from "./serialization";
-requireForSerialization("apache-beam/values", exports);
+requireForSerialization(`${packageName}/values`, exports);

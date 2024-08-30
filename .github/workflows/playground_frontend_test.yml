@@ -28,8 +28,13 @@ on:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
+  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login}}'
   cancel-in-progress: true
+
+env:
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
+  GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
 jobs:
   playground_frontend_test:
@@ -37,13 +42,13 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      FLUTTER_VERSION: '3.7.3'
+      FLUTTER_VERSION: '3.10.4'
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: 'Cache Flutter Dependencies'
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: /opt/hostedtoolcache/flutter
           key: ${{ runner.OS }}-flutter-install-cache-${{ env.FLUTTER_VERSION }}
@@ -84,7 +89,7 @@ jobs:
         working-directory: playground/frontend
         run: flutter test
 
-      - uses: nanasess/setup-chromedriver@v1
+      - uses: nanasess/setup-chromedriver@v2
 
       - name: 'Integration tests'
         run: |

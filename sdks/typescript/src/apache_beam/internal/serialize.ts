@@ -20,12 +20,13 @@ import * as serialize_closures from "serialize-closures";
 import Long from "long";
 
 import { requireForSerialization, registeredObjects } from "../serialization";
+import { packageName } from "../utils/packageJson";
 
 const BIGINT_PREFIX = ":bigint:";
 
 const generator = function* () {};
 
-requireForSerialization("apache-beam", {
+requireForSerialization(packageName, {
   generator: generator,
   generator_prototype: generator.prototype,
   TextEncoder: TextEncoder,
@@ -38,11 +39,11 @@ export function serializeFn(obj: unknown): Uint8Array {
     JSON.stringify(
       serialize_closures.serialize(
         obj,
-        serialize_closures.defaultBuiltins.concat(registeredObjects)
+        serialize_closures.defaultBuiltins.concat(registeredObjects),
       ),
       (key, value) =>
-        typeof value === "bigint" ? `${BIGINT_PREFIX}${value}` : value
-    )
+        typeof value === "bigint" ? `${BIGINT_PREFIX}${value}` : value,
+    ),
   );
 }
 
@@ -51,8 +52,8 @@ export function deserializeFn(s: Uint8Array): any {
     JSON.parse(new TextDecoder().decode(s), (key, value) =>
       typeof value === "string" && value.startsWith(BIGINT_PREFIX)
         ? BigInt(value.substr(BIGINT_PREFIX.length))
-        : value
+        : value,
     ),
-    serialize_closures.defaultBuiltins.concat(registeredObjects)
+    serialize_closures.defaultBuiltins.concat(registeredObjects),
   );
 }

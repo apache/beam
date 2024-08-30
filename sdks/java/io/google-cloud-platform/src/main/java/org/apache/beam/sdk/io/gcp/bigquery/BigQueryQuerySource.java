@@ -25,7 +25,7 @@ import org.apache.beam.sdk.extensions.avro.io.AvroSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 
 /** A {@link BigQuerySourceBase} for querying BigQuery tables. */
 @VisibleForTesting

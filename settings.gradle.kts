@@ -17,9 +17,15 @@
  */
 import com.gradle.enterprise.gradleplugin.internal.extension.BuildScanExtensionWithHiddenFeatures
 
+pluginManagement {
+  plugins {
+     id("org.javacc.javacc") version "3.0.2" // enable the JavaCC parser generator
+  }
+}
+
 plugins {
-  id("com.gradle.enterprise") version "3.13.2"
-  id("com.gradle.common-custom-user-data-gradle-plugin") version "1.10"
+  id("com.gradle.develocity") version "3.17.6"
+  id("com.gradle.common-custom-user-data-gradle-plugin") version "2.0.1"
 }
 
 
@@ -29,16 +35,12 @@ val isJenkinsBuild = arrayOf("JENKINS_HOME", "BUILD_ID").all { System.getenv(it)
 val isGithubActionsBuild = arrayOf("GITHUB_REPOSITORY", "GITHUB_RUN_ID").all { System.getenv(it) != null }
 val isCi = isJenkinsBuild || isGithubActionsBuild
 
-gradleEnterprise {
+develocity {
   server = "https://ge.apache.org"
-  allowUntrustedServer = false
 
   buildScan {
-    capture { isTaskInputFiles = true }
-    isUploadInBackground = !isCi
-    publishAlways()
-    this as BuildScanExtensionWithHiddenFeatures
-    publishIfAuthenticated()
+    uploadInBackground = !isCi
+    publishing.onlyIf { it.isAuthenticated }
     obfuscation {
       ipAddresses { addresses -> addresses.map { "0.0.0.0" } }
     }
@@ -49,8 +51,15 @@ buildCache {
   local {
     isEnabled = true
   }
-  remote(gradleEnterprise.buildCache) {
-    isEnabled = false
+  remote<HttpBuildCache> {
+    url = uri("https://beam-cache.apache.org/cache/")
+    isAllowUntrustedServer = false
+    credentials {
+      username = System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME")
+      password = System.getenv("GRADLE_ENTERPRISE_CACHE_PASSWORD")
+    }
+    isEnabled = !System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME").isNullOrBlank()
+    isPush = isCi && !System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME").isNullOrBlank()
   }
 }
 
@@ -68,11 +77,13 @@ include(":examples:java:cdap:hubspot")
 include(":examples:java:cdap:salesforce")
 include(":examples:java:cdap:servicenow")
 include(":examples:java:cdap:zendesk")
+include(":examples:java:webapis")
 include(":examples:kotlin")
 include(":examples:multi-language")
 include(":learning")
 include(":learning:tour-of-beam")
 include(":learning:tour-of-beam:frontend")
+include(":learning:tour-of-beam:terraform")
 include(":model:fn-execution")
 include(":model:job-management")
 include(":model:pipeline")
@@ -90,28 +101,30 @@ include(":playground:backend:containers:scio")
 include(":playground:terraform")
 include(":playground:kafka-emulator")
 
-include(":learning:tour-of-beam:frontend")
-
-include(":runners:core-construction-java")
+include(":it:cassandra")
+include(":it:common")
+include(":it:conditions")
+include(":it:elasticsearch")
+include(":it:google-cloud-platform")
+include(":it:jdbc")
+include(":it:kafka")
+include(":it:testcontainers")
+include(":it:truthmatchers")
+include(":it:mongodb")
+include(":it:splunk")
+include(":it:neo4j")
 include(":runners:core-java")
 include(":runners:direct-java")
 include(":runners:extensions-java:metrics")
-include(":learning")
-include(":learning:tour-of-beam")
-include(":learning:tour-of-beam:terraform")
 /* Begin Flink Runner related settings */
-// Flink 1.12
-include(":runners:flink:1.12")
-include(":runners:flink:1.12:job-server")
-include(":runners:flink:1.12:job-server-container")
-// Flink 1.13
-include(":runners:flink:1.13")
-include(":runners:flink:1.13:job-server")
-include(":runners:flink:1.13:job-server-container")
-// Flink 1.14
-include(":runners:flink:1.14")
-include(":runners:flink:1.14:job-server")
-include(":runners:flink:1.14:job-server-container")
+/* When updating these versions, please make sure that the following files are updated as well:
+  * FLINK_VERSIONS in .github/actions/setup-default-test-properties/test-properties.json
+  * flink_versions in sdks/go/examples/wasm/README.md
+  * PUBLISHED_FLINK_VERSIONS in sdks/python/apache_beam/options/pipeline_options.py
+  * PUBLISHED_FLINK_VERSIONS in sdks/typescript/src/apache_beam/runners/flink.ts
+  * verify versions in website/www/site/content/en/documentation/runners/flink.md
+  * verify version in sdks/python/apache_beam/runners/interactive/interactive_beam.py
+ */
 // Flink 1.15
 include(":runners:flink:1.15")
 include(":runners:flink:1.15:job-server")
@@ -120,9 +133,18 @@ include(":runners:flink:1.15:job-server-container")
 include(":runners:flink:1.16")
 include(":runners:flink:1.16:job-server")
 include(":runners:flink:1.16:job-server-container")
+// Flink 1.17
+include(":runners:flink:1.17")
+include(":runners:flink:1.17:job-server")
+include(":runners:flink:1.17:job-server-container")
+// Flink 1.18
+include(":runners:flink:1.18")
+include(":runners:flink:1.18:job-server")
+include(":runners:flink:1.18:job-server-container")
 /* End Flink Runner related settings */
 include(":runners:twister2")
 include(":runners:google-cloud-dataflow-java")
+include(":runners:google-cloud-dataflow-java:arm")
 include(":runners:google-cloud-dataflow-java:examples")
 include(":runners:google-cloud-dataflow-java:examples-streaming")
 include(":runners:java-fn-execution")
@@ -130,6 +152,8 @@ include(":runners:java-job-service")
 include(":runners:jet")
 include(":runners:local-java")
 include(":runners:portability:java")
+include(":runners:prism")
+include(":runners:prism:java")
 include(":runners:spark:3")
 include(":runners:spark:3:job-server")
 include(":runners:spark:3:job-server:container")
@@ -148,6 +172,7 @@ include(":sdks:java:container:agent")
 include(":sdks:java:container:java8")
 include(":sdks:java:container:java11")
 include(":sdks:java:container:java17")
+include(":sdks:java:container:java21")
 include(":sdks:java:core")
 include(":sdks:java:core:jmh")
 include(":sdks:java:expansion-service")
@@ -161,6 +186,7 @@ include(":sdks:java:extensions:google-cloud-platform-core")
 include(":sdks:java:extensions:jackson")
 include(":sdks:java:extensions:join-library")
 include(":sdks:java:extensions:ml")
+include(":sdks:java:extensions:ordered")
 include(":sdks:java:extensions:protobuf")
 include(":sdks:java:extensions:python")
 include(":sdks:java:extensions:sbe")
@@ -180,13 +206,13 @@ include(":sdks:java:extensions:sql:udf")
 include(":sdks:java:extensions:sql:udf-test-provider")
 include(":sdks:java:extensions:timeseries")
 include(":sdks:java:extensions:zetasketch")
-include(":sdks:java:fn-execution")
 include(":sdks:java:harness")
 include(":sdks:java:harness:jmh")
 include(":sdks:java:io:amazon-web-services")
 include(":sdks:java:io:amazon-web-services2")
 include(":sdks:java:io:amqp")
 include(":sdks:java:io:azure")
+include(":sdks:java:io:azure-cosmos")
 include(":sdks:java:io:cassandra")
 include(":sdks:java:io:clickhouse")
 include(":sdks:java:io:common")
@@ -194,9 +220,6 @@ include(":sdks:java:io:contextualtextio")
 include(":sdks:java:io:debezium")
 include(":sdks:java:io:debezium:expansion-service")
 include(":sdks:java:io:elasticsearch")
-include(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-2")
-include(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-5")
-include(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-6")
 include(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-7")
 include(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-8")
 include(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-common")
@@ -206,6 +229,7 @@ include(":sdks:java:io:bigquery-io-perf-tests")
 include(":sdks:java:io:cdap")
 include(":sdks:java:io:csv")
 include(":sdks:java:io:file-schema-transform")
+include(":sdks:java:io:google-ads")
 include(":sdks:java:io:google-cloud-platform")
 include(":sdks:java:io:google-cloud-platform:expansion-service")
 include(":sdks:java:io:hadoop-common")
@@ -215,7 +239,9 @@ include(":sdks:java:io:hbase")
 include(":sdks:java:io:hcatalog")
 include(":sdks:java:io:jdbc")
 include(":sdks:java:io:jms")
+include(":sdks:java:io:json")
 include(":sdks:java:io:kafka")
+include(":sdks:java:io:kafka:upgrade")
 include(":sdks:java:io:kinesis")
 include(":sdks:java:io:kinesis:expansion-service")
 include(":sdks:java:io:kudu")
@@ -226,6 +252,7 @@ include(":sdks:java:io:parquet")
 include(":sdks:java:io:pulsar")
 include(":sdks:java:io:rabbitmq")
 include(":sdks:java:io:redis")
+include(":sdks:java:io:rrio")
 include(":sdks:java:io:solr")
 include(":sdks:java:io:sparkreceiver:2")
 include(":sdks:java:io:snowflake")
@@ -250,58 +277,65 @@ include(":sdks:java:testing:test-utils")
 include(":sdks:java:testing:tpcds")
 include(":sdks:java:testing:watermarks")
 include(":sdks:java:transform-service")
+include(":sdks:java:transform-service:app")
+include(":sdks:java:transform-service:launcher")
 include(":sdks:java:transform-service:controller-container")
 include(":sdks:python")
 include(":sdks:python:apache_beam:testing:load_tests")
 include(":sdks:python:apache_beam:testing:benchmarks:nexmark")
 include(":sdks:python:container")
-include(":sdks:python:container:py37")
 include(":sdks:python:container:py38")
 include(":sdks:python:container:py39")
 include(":sdks:python:container:py310")
 include(":sdks:python:container:py311")
+include(":sdks:python:container:py312")
 include(":sdks:python:expansion-service-container")
 include(":sdks:python:test-suites:dataflow")
-include(":sdks:python:test-suites:dataflow:py37")
 include(":sdks:python:test-suites:dataflow:py38")
 include(":sdks:python:test-suites:dataflow:py39")
 include(":sdks:python:test-suites:dataflow:py310")
 include(":sdks:python:test-suites:dataflow:py311")
+include(":sdks:python:test-suites:dataflow:py312")
 include(":sdks:python:test-suites:direct")
-include(":sdks:python:test-suites:direct:py37")
 include(":sdks:python:test-suites:direct:py38")
 include(":sdks:python:test-suites:direct:py39")
 include(":sdks:python:test-suites:direct:py310")
 include(":sdks:python:test-suites:direct:py311")
+include(":sdks:python:test-suites:direct:py312")
 include(":sdks:python:test-suites:direct:xlang")
-include(":sdks:python:test-suites:portable:py37")
 include(":sdks:python:test-suites:portable:py38")
 include(":sdks:python:test-suites:portable:py39")
 include(":sdks:python:test-suites:portable:py310")
 include(":sdks:python:test-suites:portable:py311")
+include(":sdks:python:test-suites:portable:py312")
 include(":sdks:python:test-suites:tox:pycommon")
-include(":sdks:python:test-suites:tox:py37")
 include(":sdks:python:test-suites:tox:py38")
 include(":sdks:python:test-suites:tox:py39")
 include(":sdks:python:test-suites:tox:py310")
 include(":sdks:python:test-suites:tox:py311")
+include(":sdks:python:test-suites:tox:py312")
 include(":sdks:python:test-suites:xlang")
 include(":sdks:typescript")
 include(":sdks:typescript:container")
-include(":vendor:bytebuddy-1_12_8")
-include(":vendor:grpc-1_54_0")
+include(":vendor:grpc-1_60_1")
 include(":vendor:calcite-1_28_0")
-include(":vendor:guava-26_0-jre")
+include(":vendor:guava-32_1_2-jre")
 include(":website")
 include(":runners:google-cloud-dataflow-java:worker")
 include(":runners:google-cloud-dataflow-java:worker:windmill")
 // no dots allowed for project paths
 include("beam-test-infra-metrics")
 project(":beam-test-infra-metrics").projectDir = file(".test-infra/metrics")
+include("beam-test-infra-mock-apis")
+project(":beam-test-infra-mock-apis").projectDir = file(".test-infra/mock-apis")
+include("beam-test-infra-pipelines")
+project(":beam-test-infra-pipelines").projectDir = file(".test-infra/pipelines")
 include("beam-test-tools")
 project(":beam-test-tools").projectDir = file(".test-infra/tools")
 include("beam-test-jenkins")
 project(":beam-test-jenkins").projectDir = file(".test-infra/jenkins")
+include("beam-test-gha")
+project(":beam-test-gha").projectDir = file(".github")
 include("beam-validate-runner")
 project(":beam-validate-runner").projectDir = file(".test-infra/validate-runner")
 include("com.google.api.gax.batching")
@@ -323,3 +357,17 @@ include("sdks:java:io:kafka:kafka-100")
 findProject(":sdks:java:io:kafka:kafka-100")?.name = "kafka-100"
 include("sdks:java:io:kafka:kafka-01103")
 findProject(":sdks:java:io:kafka:kafka-01103")?.name = "kafka-01103"
+include("sdks:java:managed")
+findProject(":sdks:java:managed")?.name = "managed"
+include("sdks:java:io:iceberg")
+findProject(":sdks:java:io:iceberg")?.name = "iceberg"
+include("sdks:java:io:solace")
+findProject(":sdks:java:io:solace")?.name = "solace"
+include("sdks:java:extensions:combiners")
+findProject(":sdks:java:extensions:combiners")?.name = "combiners"
+include("sdks:java:io:iceberg:hive")
+findProject(":sdks:java:io:iceberg:hive")?.name = "hive"
+include("sdks:java:io:iceberg:hive:exec")
+findProject(":sdks:java:io:iceberg:hive:exec")?.name = "exec"
+include("sdks:java:io:iceberg:bigquerymetastore")
+findProject(":sdks:java:io:iceberg:bigquerymetastore")?.name = "bigquerymetastore"

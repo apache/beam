@@ -22,7 +22,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 
 /**
- * An abstraction to create schema capable and aware transforms. The interface is intended to be
+ * An abstraction representing schema capable and aware transforms. The interface is intended to be
  * used in conjunction with the interface {@link SchemaTransformProvider}.
  *
  * <p>The interfaces can be implemented to make transforms available in other SDKs in addition to
@@ -33,6 +33,5 @@ import org.apache.beam.sdk.values.PCollectionRowTuple;
  * compatibility guarantees and it should not be implemented outside of the Beam repository.
  */
 @Internal
-public interface SchemaTransform {
-  PTransform<PCollectionRowTuple, PCollectionRowTuple> buildTransform();
-}
+public abstract class SchemaTransform
+    extends PTransform<PCollectionRowTuple, PCollectionRowTuple> {}

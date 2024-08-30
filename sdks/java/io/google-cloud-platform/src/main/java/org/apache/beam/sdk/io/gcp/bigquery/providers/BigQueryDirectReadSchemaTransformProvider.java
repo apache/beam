@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery.providers;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.auto.service.AutoService;
@@ -40,13 +40,12 @@ import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 
 /**
  * An implementation of {@link TypedSchemaTransformProvider} for BigQuery Storage Read API jobs
@@ -162,29 +161,14 @@ public class BigQueryDirectReadSchemaTransformProvider
    * BigQueryDirectReadSchemaTransformConfiguration} and instantiated by {@link
    * BigQueryDirectReadSchemaTransformProvider}.
    */
-  private static class BigQueryDirectReadSchemaTransform implements SchemaTransform {
+  protected static class BigQueryDirectReadSchemaTransform extends SchemaTransform {
+    private BigQueryServices testBigQueryServices = null;
     private final BigQueryDirectReadSchemaTransformConfiguration configuration;
 
     BigQueryDirectReadSchemaTransform(
         BigQueryDirectReadSchemaTransformConfiguration configuration) {
       // Validate configuration parameters before PTransform expansion
       configuration.validate();
-      this.configuration = configuration;
-    }
-
-    @Override
-    public PTransform<PCollectionRowTuple, PCollectionRowTuple> buildTransform() {
-      return new BigQueryDirectReadPCollectionRowTupleTransform(configuration);
-    }
-  }
-
-  static class BigQueryDirectReadPCollectionRowTupleTransform
-      extends PTransform<PCollectionRowTuple, PCollectionRowTuple> {
-    private final BigQueryDirectReadSchemaTransformConfiguration configuration;
-    private BigQueryServices testBigQueryServices = null;
-
-    BigQueryDirectReadPCollectionRowTupleTransform(
-        BigQueryDirectReadSchemaTransformConfiguration configuration) {
       this.configuration = configuration;
     }
 

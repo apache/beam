@@ -55,6 +55,13 @@ public class KafkaRecordCoderTest {
     verifySerialization(consumerRecord.headers());
   }
 
+  @Test
+  public void testKafkaRecordSerializableWithNullValueHeader() throws IOException {
+    RecordHeaders headers = new RecordHeaders();
+    headers.add("headerKey", null);
+    verifySerialization(headers);
+  }
+
   private void verifySerialization(Headers headers) throws IOException {
     KafkaRecord<String, String> kafkaRecord =
         new KafkaRecord<>(

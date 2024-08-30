@@ -18,14 +18,12 @@
 package org.apache.beam.runners.dataflow.util;
 
 import java.io.IOException;
-import java.util.UUID;
-import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.SchemaApi;
-import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.util.JsonFormat;
+import org.apache.beam.sdk.util.construction.SdkComponents;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.util.JsonFormat;
 
 /** Translator for row coders. */
 public class RowCoderCloudObjectTranslator implements CloudObjectTranslator<RowCoder> {
@@ -58,10 +56,7 @@ public class RowCoderCloudObjectTranslator implements CloudObjectTranslator<RowC
       SchemaApi.Schema.Builder schemaBuilder = SchemaApi.Schema.newBuilder();
       JsonFormat.parser().merge(Structs.getString(cloudObject, SCHEMA), schemaBuilder);
       Schema schema = SchemaTranslation.schemaFromProto(schemaBuilder.build());
-      @Nullable UUID uuid = schema.getUUID();
-      if (schema.isEncodingPositionsOverridden() && uuid != null) {
-        RowCoder.overrideEncodingPositions(uuid, schema.getEncodingPositions());
-      }
+      SchemaCoderCloudObjectTranslator.overrideEncodingPositions(schema);
       return RowCoder.of(schema);
     } catch (IOException e) {
       throw new RuntimeException(e);

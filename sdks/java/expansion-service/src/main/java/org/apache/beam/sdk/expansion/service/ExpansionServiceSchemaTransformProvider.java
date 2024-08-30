@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.expansion.service;
 
-import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
+import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -28,15 +28,15 @@ import org.apache.beam.model.pipeline.v1.ExternalTransforms.SchemaTransformPaylo
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.RowCoder;
-import org.apache.beam.sdk.expansion.service.ExpansionService.TransformProvider;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.InvalidProtocolBufferException;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 @SuppressWarnings({"rawtypes"})
@@ -91,7 +91,7 @@ public class ExpansionServiceSchemaTransformProvider
   }
 
   @Override
-  public PTransform getTransform(FunctionSpec spec) {
+  public PTransform getTransform(FunctionSpec spec, PipelineOptions options) {
     SchemaTransformPayload payload;
     try {
       payload = SchemaTransformPayload.parseFrom(spec.getPayload());
@@ -129,13 +129,12 @@ public class ExpansionServiceSchemaTransformProvider
     Row configRow;
     try {
       configRow =
-          RowCoder.of(provider.configurationSchema())
-              .decode(payload.getConfigurationRow().newInput());
+          RowCoder.of(configSchemaFromRequest).decode(payload.getConfigurationRow().newInput());
     } catch (IOException e) {
       throw new RuntimeException("Error decoding payload", e);
     }
 
-    return provider.from(configRow).buildTransform();
+    return provider.from(configRow);
   }
 
   Iterable<org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider> getAllProviders() {

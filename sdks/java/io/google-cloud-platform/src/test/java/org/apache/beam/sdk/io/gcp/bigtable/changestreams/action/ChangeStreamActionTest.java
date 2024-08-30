@@ -30,15 +30,17 @@ import static org.mockito.Mockito.when;
 
 import com.google.cloud.bigtable.data.v2.models.ChangeStreamContinuationToken;
 import com.google.cloud.bigtable.data.v2.models.ChangeStreamMutation;
+import com.google.cloud.bigtable.data.v2.models.ChangeStreamRecord;
 import com.google.cloud.bigtable.data.v2.models.CloseStream;
 import com.google.cloud.bigtable.data.v2.models.Heartbeat;
 import com.google.cloud.bigtable.data.v2.models.Range.ByteStringRange;
 import com.google.protobuf.ByteString;
 import com.google.rpc.Status;
+import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.ChangeStreamMetrics;
-import org.apache.beam.sdk.io.gcp.bigtable.changestreams.estimator.ThroughputEstimator;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.estimator.BytesThroughputEstimator;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.model.PartitionRecord;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.restriction.ReadChangeStreamPartitionProgressTracker;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.restriction.StreamProgress;
@@ -49,8 +51,13 @@ import org.apache.beam.sdk.values.KV;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
 import org.mockito.Mockito;
+import org.mockito.junit.MockitoJUnitRunner;
 
+@RunWith(MockitoJUnitRunner.Silent.class)
 public class ChangeStreamActionTest {
 
   private ChangeStreamMetrics metrics;
@@ -58,9 +65,10 @@ public class ChangeStreamActionTest {
 
   private RestrictionTracker<StreamProgress, StreamProgress> tracker;
   private PartitionRecord partitionRecord;
-  private DoFn.OutputReceiver<KV<ByteString, ChangeStreamMutation>> receiver;
+  private DoFn.OutputReceiver<KV<ByteString, ChangeStreamRecord>> receiver;
   private ManualWatermarkEstimator<Instant> watermarkEstimator;
-  private ThroughputEstimator<KV<ByteString, ChangeStreamMutation>> throughputEstimator;
+  private BytesThroughputEstimator<KV<ByteString, ChangeStreamRecord>> throughputEstimator;
+  @Captor private ArgumentCaptor<StreamProgress> streamProgressArgumentCaptor;
 
   @Before
   public void setUp() {
@@ -69,10 +77,12 @@ public class ChangeStreamActionTest {
     partitionRecord = mock(PartitionRecord.class);
     receiver = mock(DoFn.OutputReceiver.class);
     watermarkEstimator = mock(ManualWatermarkEstimator.class);
-    throughputEstimator = mock(ThroughputEstimator.class);
+    throughputEstimator = mock(BytesThroughputEstimator.class);
 
-    action = new ChangeStreamAction(metrics, throughputEstimator);
+    action = new ChangeStreamAction(metrics);
     when(tracker.tryClaim(any())).thenReturn(true);
+    when(partitionRecord.getPartition()).thenReturn(ByteStringRange.create("a", "b"));
+    when(throughputEstimator.get()).thenReturn(BigDecimal.valueOf(1000));
   }
 
   @Test
@@ -87,14 +97,40 @@ public class ChangeStreamActionTest {
         .thenReturn(changeStreamContinuationToken);
 
     final Optional<DoFn.ProcessContinuation> result =
-        action.run(partitionRecord, mockHeartBeat, tracker, receiver, watermarkEstimator, false);
+        action.run(
+            partitionRecord,
+            mockHeartBeat,
+            tracker,
+            receiver,
+            watermarkEstimator,
+            throughputEstimator);
 
     assertFalse(result.isPresent());
     verify(metrics).incHeartbeatCount();
     verify(watermarkEstimator).setWatermark(eq(lowWatermark));
-    StreamProgress streamProgress = new StreamProgress(changeStreamContinuationToken, lowWatermark);
-    verify(tracker).tryClaim(eq(streamProgress));
-    verify(throughputEstimator, never()).update(any(), any());
+    StreamProgress streamProgress =
+        new StreamProgress(
+            changeStreamContinuationToken,
+            lowWatermark,
+            BigDecimal.valueOf(1000),
+            Instant.now(),
+            true);
+    verify(tracker).tryClaim(streamProgressArgumentCaptor.capture());
+    assertEquals(
+        streamProgress.getCurrentToken(),
+        streamProgressArgumentCaptor.getValue().getCurrentToken());
+    assertEquals(
+        streamProgress.getThroughputEstimate(),
+        streamProgressArgumentCaptor.getValue().getThroughputEstimate());
+    assertEquals(
+        streamProgress.getEstimatedLowWatermark(),
+        streamProgressArgumentCaptor.getValue().getEstimatedLowWatermark());
+    assertEquals(
+        streamProgress.isHeartbeat(), streamProgressArgumentCaptor.getValue().isHeartbeat());
+    KV<ByteString, ChangeStreamRecord> record =
+        KV.of(ByteStringRange.serializeToByteString(partitionRecord.getPartition()), mockHeartBeat);
+    verify(receiver).outputWithTimestamp(eq(record), eq(Instant.EPOCH));
+    verify(throughputEstimator).update(any(), eq(record));
   }
 
   @Test
@@ -109,14 +145,19 @@ public class ChangeStreamActionTest {
         .thenReturn(Collections.singletonList(changeStreamContinuationToken));
 
     final Optional<DoFn.ProcessContinuation> result =
-        action.run(partitionRecord, mockCloseStream, tracker, receiver, watermarkEstimator, false);
+        action.run(
+            partitionRecord,
+            mockCloseStream,
+            tracker,
+            receiver,
+            watermarkEstimator,
+            throughputEstimator);
 
     assertTrue(result.isPresent());
     assertEquals(DoFn.ProcessContinuation.resume(), result.get());
     verify(metrics).incClosestreamCount();
     StreamProgress streamProgress = new StreamProgress(mockCloseStream);
     verify(tracker).tryClaim(eq(streamProgress));
-    verify(throughputEstimator, never()).update(any(), any());
   }
 
   @Test
@@ -134,18 +175,40 @@ public class ChangeStreamActionTest {
     Mockito.when(changeStreamMutation.getEstimatedLowWatermark())
         .thenReturn(toThreetenInstant(lowWatermark));
     Mockito.when(changeStreamMutation.getType()).thenReturn(ChangeStreamMutation.MutationType.USER);
-    KV<ByteString, ChangeStreamMutation> record =
+    KV<ByteString, ChangeStreamRecord> record =
         KV.of(changeStreamMutation.getRowKey(), changeStreamMutation);
 
     final Optional<DoFn.ProcessContinuation> result =
         action.run(
-            partitionRecord, changeStreamMutation, tracker, receiver, watermarkEstimator, false);
+            partitionRecord,
+            changeStreamMutation,
+            tracker,
+            receiver,
+            watermarkEstimator,
+            throughputEstimator);
 
     assertFalse(result.isPresent());
     verify(metrics).incChangeStreamMutationUserCounter();
     verify(metrics, never()).incChangeStreamMutationGcCounter();
-    StreamProgress streamProgress = new StreamProgress(changeStreamContinuationToken, lowWatermark);
-    verify(tracker).tryClaim(eq(streamProgress));
+    StreamProgress streamProgress =
+        new StreamProgress(
+            changeStreamContinuationToken,
+            lowWatermark,
+            BigDecimal.valueOf(1000),
+            Instant.now(),
+            false);
+    verify(tracker).tryClaim(streamProgressArgumentCaptor.capture());
+    assertEquals(
+        streamProgress.getCurrentToken(),
+        streamProgressArgumentCaptor.getValue().getCurrentToken());
+    assertEquals(
+        streamProgress.getThroughputEstimate(),
+        streamProgressArgumentCaptor.getValue().getThroughputEstimate());
+    assertEquals(
+        streamProgress.getEstimatedLowWatermark(),
+        streamProgressArgumentCaptor.getValue().getEstimatedLowWatermark());
+    assertEquals(
+        streamProgress.isHeartbeat(), streamProgressArgumentCaptor.getValue().isHeartbeat());
     verify(receiver).outputWithTimestamp(eq(record), eq(Instant.EPOCH));
     verify(watermarkEstimator).setWatermark(eq(lowWatermark));
     verify(throughputEstimator).update(any(), eq(record));
@@ -167,18 +230,40 @@ public class ChangeStreamActionTest {
         .thenReturn(toThreetenInstant(lowWatermark));
     Mockito.when(changeStreamMutation.getType())
         .thenReturn(ChangeStreamMutation.MutationType.GARBAGE_COLLECTION);
-    KV<ByteString, ChangeStreamMutation> record =
+    KV<ByteString, ChangeStreamRecord> record =
         KV.of(changeStreamMutation.getRowKey(), changeStreamMutation);
 
     final Optional<DoFn.ProcessContinuation> result =
         action.run(
-            partitionRecord, changeStreamMutation, tracker, receiver, watermarkEstimator, false);
+            partitionRecord,
+            changeStreamMutation,
+            tracker,
+            receiver,
+            watermarkEstimator,
+            throughputEstimator);
 
     assertFalse(result.isPresent());
     verify(metrics).incChangeStreamMutationGcCounter();
     verify(metrics, never()).incChangeStreamMutationUserCounter();
-    StreamProgress streamProgress = new StreamProgress(changeStreamContinuationToken, lowWatermark);
-    verify(tracker).tryClaim(eq(streamProgress));
+    StreamProgress streamProgress =
+        new StreamProgress(
+            changeStreamContinuationToken,
+            lowWatermark,
+            BigDecimal.valueOf(1000),
+            Instant.now(),
+            false);
+    verify(tracker).tryClaim(streamProgressArgumentCaptor.capture());
+    assertEquals(
+        streamProgress.getCurrentToken(),
+        streamProgressArgumentCaptor.getValue().getCurrentToken());
+    assertEquals(
+        streamProgress.getThroughputEstimate(),
+        streamProgressArgumentCaptor.getValue().getThroughputEstimate());
+    assertEquals(
+        streamProgress.getEstimatedLowWatermark(),
+        streamProgressArgumentCaptor.getValue().getEstimatedLowWatermark());
+    assertEquals(
+        streamProgress.isHeartbeat(), streamProgressArgumentCaptor.getValue().isHeartbeat());
     verify(receiver).outputWithTimestamp(eq(record), eq(Instant.EPOCH));
     verify(watermarkEstimator).setWatermark(eq(lowWatermark));
     verify(throughputEstimator).update(any(), eq(record));

@@ -365,8 +365,10 @@ class ComputedExpression(Expression):
     self._preserves_partition_by = preserves_partition_by
 
   def placeholders(self):
-    return frozenset.union(
-        frozenset(), *[arg.placeholders() for arg in self.args()])
+    if not hasattr(self, '_placeholders'):
+      self._placeholders = frozenset.union(
+          frozenset(), *[arg.placeholders() for arg in self.args()])
+    return self._placeholders
 
   def args(self):
     return self._args
@@ -404,8 +406,10 @@ def allow_non_parallel_operations(allow=True):
     yield
   else:
     old_value, _ALLOW_NON_PARALLEL.value = _ALLOW_NON_PARALLEL.value, allow
-    yield
-    _ALLOW_NON_PARALLEL.value = old_value
+    try:
+      yield
+    finally:
+      _ALLOW_NON_PARALLEL.value = old_value
 
 
 class NonParallelOperation(Exception):

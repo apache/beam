@@ -54,7 +54,7 @@ func init() {
 type disabledResolver bool
 
 func (p disabledResolver) Sym2Addr(name string) (uintptr, error) {
-	return 0, errors.Errorf("%v not found. Use runtime.RegisterFunction in unit tests", name)
+	return 0, errors.Errorf("%v not found. Register DoFns and functions with the beam/register package.", name)
 }
 
 // Execute evaluates the pipeline on whether it can run without reflection.

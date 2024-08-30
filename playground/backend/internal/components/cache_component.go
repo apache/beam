@@ -43,7 +43,7 @@ func (cp *CacheComponent) GetSdkCatalogFromCacheOrDatastore(ctx context.Context,
 	defer cancel()
 	sdks, err := cp.cache.GetSdkCatalog(cctx)
 	if err != nil {
-		logger.Errorf("error during getting the sdk catalog from the cache, err: %s", err.Error())
+		logger.Warnf("error during getting the sdk catalog from the cache, err: %s", err.Error())
 		return cp.getSdks(ctx, cacheRequestTimeout)
 	} else {
 		return sdks, nil
@@ -71,7 +71,7 @@ func (cp *CacheComponent) GetCatalogFromCacheOrDatastore(ctx context.Context, ca
 	defer cancel()
 	catalog, err := cp.cache.GetCatalog(cctx)
 	if err != nil {
-		logger.Errorf("error during getting the catalog from the cache, err: %s", err.Error())
+		logger.Warnf("error during getting the catalog from the cache, err: %s", err.Error())
 		return cp.getCatalog(ctx, cacheRequestTimeout)
 	} else {
 		return catalog, nil

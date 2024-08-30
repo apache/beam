@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
@@ -57,8 +57,14 @@ abstract class BigtableWriteOptions implements Serializable {
   /** Returns the target latency if latency based throttling is enabled. */
   abstract @Nullable Integer getThrottlingTargetMs();
 
+  /** Returns the target latency if latency based throttling report to runner is enabled. */
+  abstract @Nullable Integer getThrottlingReportTargetMs();
+
   /** Returns true if batch write flow control is enabled. Otherwise return false. */
   abstract @Nullable Boolean getFlowControl();
+
+  /** Returns the time to wait when closing the writer. */
+  abstract @Nullable Duration getCloseWaitTimeout();
 
   abstract Builder toBuilder();
 
@@ -85,7 +91,11 @@ abstract class BigtableWriteOptions implements Serializable {
 
     abstract Builder setThrottlingTargetMs(int targetMs);
 
+    abstract Builder setThrottlingReportTargetMs(int targetMs);
+
     abstract Builder setFlowControl(boolean enableFlowControl);
+
+    abstract Builder setCloseWaitTimeout(Duration timeout);
 
     abstract BigtableWriteOptions build();
   }

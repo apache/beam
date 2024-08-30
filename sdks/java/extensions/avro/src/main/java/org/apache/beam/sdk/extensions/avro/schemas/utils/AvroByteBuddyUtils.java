@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.avro.schemas.utils;
 
+import static org.apache.beam.sdk.util.ByteBuddyUtils.getClassLoadingStrategy;
+
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Type;
@@ -25,7 +27,6 @@ import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.type.TypeDescription.ForLoadedType;
 import net.bytebuddy.dynamic.DynamicType;
-import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
 import net.bytebuddy.implementation.MethodCall;
 import net.bytebuddy.implementation.bytecode.StackManipulation;
 import net.bytebuddy.implementation.bytecode.assign.TypeCasting;
@@ -43,7 +44,7 @@ import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.TypeConversionsFactory;
 import org.apache.beam.sdk.schemas.utils.ReflectUtils.ClassWithSchema;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 
 @SuppressWarnings({
   "nullness", // TODO(https://github.com/apache/beam/issues/20497)
@@ -95,7 +96,7 @@ class AvroByteBuddyUtils {
           .make()
           .load(
               ReflectHelpers.findClassLoader(clazz.getClassLoader()),
-              ClassLoadingStrategy.Default.INJECTION)
+              getClassLoadingStrategy(clazz))
           .getLoaded()
           .getDeclaredConstructor()
           .newInstance();

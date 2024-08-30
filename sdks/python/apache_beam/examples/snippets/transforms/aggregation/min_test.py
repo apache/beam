@@ -23,7 +23,8 @@ import mock
 from apache_beam.examples.snippets.util import assert_matches_stdout
 from apache_beam.testing.test_pipeline import TestPipeline
 
-from . import min as beam_min
+from . import min_globally as beam_min_globally
+from . import min_per_key as beam_min_per_key
 
 
 def check_min_element(actual):
@@ -44,13 +45,17 @@ def check_elements_with_min_value_per_key(actual):
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
 @mock.patch(
-    'apache_beam.examples.snippets.transforms.aggregation.min.print', str)
+    'apache_beam.examples.snippets.transforms.aggregation.min_globally.print',
+    str)
+@mock.patch(
+    'apache_beam.examples.snippets.transforms.aggregation.min_per_key.print',
+    str)
 class MinTest(unittest.TestCase):
   def test_min_globally(self):
-    beam_min.min_globally(check_min_element)
+    beam_min_globally.min_globally(check_min_element)
 
   def test_min_per_key(self):
-    beam_min.min_per_key(check_elements_with_min_value_per_key)
+    beam_min_per_key.min_per_key(check_elements_with_min_value_per_key)
 
 
 if __name__ == '__main__':

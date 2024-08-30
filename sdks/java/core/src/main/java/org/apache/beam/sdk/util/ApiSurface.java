@@ -36,23 +36,23 @@ import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Function;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Predicate;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimaps;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Ordering;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.reflect.ClassPath;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.reflect.Invokable;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.reflect.Parameter;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.reflect.TypeToken;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Function;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicate;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.FluentIterable;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multimap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multimaps;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Ordering;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.reflect.ClassPath;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.reflect.Invokable;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.reflect.Parameter;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.reflect.TypeToken;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.StringDescription;
@@ -179,10 +179,10 @@ public class ApiSurface {
         // <helper_lambdas>
 
         final Function<Matcher<Class<?>>, String> toMessage =
-            abandonedClassMacther -> {
+            abandonedClassMatcher -> {
               final StringDescription description = new StringDescription();
               description.appendText("No ");
-              abandonedClassMacther.describeTo(description);
+              abandonedClassMatcher.describeTo(description);
               return description.toString();
             };
 
@@ -471,7 +471,7 @@ public class ApiSurface {
    * A map from exposed types to place where they are exposed, in the sense of being a part of a
    * public-facing API surface.
    *
-   * <p>This map is the adjencency list representation of a directed graph, where an edge from type
+   * <p>This map is the adjacency list representation of a directed graph, where an edge from type
    * {@code T1} to type {@code T2} indicates that {@code T2} directly exposes {@code T1} in its API
    * surface.
    *
@@ -527,7 +527,7 @@ public class ApiSurface {
         || getPrunedPattern().matcher(clazz.getName()).matches();
   }
 
-  /** Whether a type has already beens sufficiently processed. */
+  /** Whether a type has already been sufficiently processed. */
   private boolean done(Type type) {
     return visited.contains(type);
   }

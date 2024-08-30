@@ -18,7 +18,6 @@
  */
 
 t = new TestScripts(args)
-mobileGamingCommands = new MobileGamingCommands(testScripts: t)
 
 /*
  * Run the mobile game examples on DirectRunner.
@@ -36,6 +35,8 @@ String command_output_text
  * Run the UserScore example with DirectRunner
  * */
 
+mobileGamingCommands = new MobileGamingCommands(testScripts: t, testRunId: UUID.randomUUID().toString())
+
 t.intent("Running: UserScore example on DirectRunner")
 t.run(mobileGamingCommands.createPipelineCommand("UserScore", runner))
 command_output_text = t.run "grep user19_BananaWallaby ${mobileGamingCommands.getUserScoreOutputName(runner)}* "
@@ -46,6 +47,8 @@ t.success("UserScore successfully run on DirectRunners.")
 /**
  * Run the HourlyTeamScore example with DirectRunner
  * */
+
+mobileGamingCommands = new MobileGamingCommands(testScripts: t, testRunId: UUID.randomUUID().toString())
 
 t.intent("Running: HourlyTeamScore example on DirectRunner")
 t.run(mobileGamingCommands.createPipelineCommand("HourlyTeamScore", runner))

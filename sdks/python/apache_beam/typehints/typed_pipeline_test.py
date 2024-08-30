@@ -64,10 +64,6 @@ class MainInputTest(unittest.TestCase):
     result = ['1', '10', '100'] | beam.Map(int, 16)
     self.assertEqual([1, 16, 256], sorted(result))
 
-  @unittest.skipIf(
-      sys.version_info < (3, 7, 0),
-      'Function signatures for builtins are not available in Python 3 before '
-      'version 3.7.')
   def test_non_function_fails(self):
     with self.assertRaises(typehints.TypeCheckError):
       [1, 2, 3] | beam.Map(str.upper)
@@ -888,15 +884,7 @@ class AnnotationsTest(unittest.TestCase):
 
   def test_pardo_wrapper_builtin_type(self):
     th = beam.ParDo(list).get_type_hints()
-    if sys.version_info < (3, 7):
-      self.assertEqual(
-          th.input_types,
-          ((typehints.Any, typehints.decorators._ANY_VAR_POSITIONAL), {
-              '__unknown__keywords': typehints.decorators._ANY_VAR_KEYWORD
-          }))
-    else:
-      # Python 3.7+ supports signatures for builtins like 'list'.
-      self.assertEqual(th.input_types, ((typehints.Any, ), {}))
+    self.assertEqual(th.input_types, ((typehints.Any, ), {}))
 
     self.assertEqual(th.output_types, ((typehints.Any, ), {}))
 

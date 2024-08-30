@@ -44,6 +44,8 @@ def cleanupTask = project.tasks.register("fnApiJobServerCleanup", Exec) {
   args '-c', ". ${envDir}/bin/activate && python -m apache_beam.runners.portability.local_job_service_main --pid_file ${pidFile} --stop"
 }
 
+def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+
 createCrossLanguageValidatesRunnerTask(
   startJobServer: setupTask,
   cleanupJobServer: cleanupTask,
@@ -66,4 +68,21 @@ createCrossLanguageValidatesRunnerTask(
     "--tests \"./test/integration/xlang ./test/integration/io/xlang/...\"",
     "--endpoint localhost:${jobPort}",
   ],
+)
+
+createTransformServiceTask(
+        startJobServer: setupTask,
+        cleanupJobServer: cleanupTask,
+        numParallelTests: 1,
+        collectMarker: 'uses_transform_service',
+        pythonPipelineOptions: [
+                "--runner=TestDirectRunner",
+                "--project=${gcpProject}",
+        ],
+        pytestOptions: [
+                "--capture=no",  // print stdout instantly
+                "--timeout=4500", // timeout of whole command execution
+                "--color=yes", // console color
+                "--log-cli-level=INFO" //log level info
+        ]
 )

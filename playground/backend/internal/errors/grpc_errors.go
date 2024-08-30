@@ -38,3 +38,9 @@ func InternalError(title string, formatMessage string, args ...interface{}) erro
 	message := fmt.Sprintf(formatMessage, args...)
 	return status.Errorf(codes.Internal, "%s: %s", title, message)
 }
+
+// ResourceExhaustedError returns error with ResourceExhausted code error and message like "title: message"
+func ResourceExhaustedError(title string, formatMessage string, args ...interface{}) error {
+	message := fmt.Sprintf(formatMessage, args...)
+	return status.Errorf(codes.ResourceExhausted, "%s: %s", title, message)
+}

@@ -26,7 +26,9 @@ import org.apache.beam.sdk.transforms.DoFn;
  *
  * @param <OutputT> type of output
  * @param <ElemT> type of element
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
  */
+@Deprecated
 public interface CollectorAdapter<InputT, OutputT, ElemT> extends Serializable {
 
   /**

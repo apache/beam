@@ -36,19 +36,19 @@ runs:
       shell: bash
       run: |
           echo "---------------------Downloading Python Staging RC----------------------------"
-          wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.zip
-          wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.zip.sha512
-          if [[ ! -f apache-beam-$RELEASE_VER.zip ]]; then
+          wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.tar.gz
+          wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.tar.gz.sha512
+          if [[ ! -f apache-beam-$RELEASE_VER.tar.gz ]]; then
             { echo "Fail to download Python Staging RC files." ;exit 1; }
           fi
 
           echo "--------------------------Verifying Hashes------------------------------------"
-          sha512sum -c apache-beam-${RELEASE_VER}.zip.sha512
+          sha512sum -c apache-beam-${RELEASE_VER}.tar.gz.sha512
 
           `which pip` install --upgrade pip
           `which pip` install --upgrade setuptools
 
     - name: Installing python SDK
       shell: bash
-      run: pip install apache-beam-${RELEASE_VER}.zip[gcp]
+      run: pip install apache-beam-${RELEASE_VER}.tar.gz[gcp]
       

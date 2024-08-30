@@ -263,19 +263,32 @@ tasks.register("integrationTest_standalone_share_code") {
 
 void runIntegrationTest(String path, String url) {
   // Run with -PdeviceId=web-server for headless tests.
+  // Run with -PexamplesRepository=apache/beam -PexamplesRef=master to verify that deployed examples match the given branch or commit.
   String deviceId = project.hasProperty("deviceId") ? project.deviceId : "chrome"
+  String examplesRepository = project.hasProperty("examplesRepository") ? project.examplesRepository : null
+  String examplesRef = project.hasProperty("examplesRef") ? project.examplesRef : null
+
+  List<String> flutterArgs = [
+    "drive",
+    "--driver=test_driver/integration_test.dart",
+    "--target=integration_test/${path}_test.dart",
+    "--web-launch-url='$url'",
+    "--device-id=$deviceId",
+  ]
+
+  if (examplesRepository != null) {
+    flutterArgs.add("--dart-define=examples-repository=$examplesRepository")
+  }
+  if (examplesRef != null) {
+    flutterArgs.add("--dart-define=examples-ref=$examplesRef")
+  }
 
   exec {
     executable("flutter")
-    args(
-      "drive",
-      "--driver=test_driver/integration_test.dart",
-      "--target=integration_test/${path}_test.dart",
-      "--web-launch-url='$url'",
-      "--device-id=$deviceId",
-    )
+    args(flutterArgs)
   }
 }
+
 
 task copyDockerfileDependencies(type: Copy) {
    group = "build"

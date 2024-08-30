@@ -41,7 +41,6 @@ from google.protobuf.json_format import MessageToJson
 from apache_beam import version as beam_version
 from apache_beam.internal.gcp.auth import get_service_credentials
 from apache_beam.internal.http_client import get_new_http
-from apache_beam.io.gcp.internal.clients import storage
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions  # pylint: disable=unused-import
 from apache_beam.options.pipeline_options import SetupOptions
@@ -210,12 +209,9 @@ class _SdkContainerImageCloudBuilder(SdkContainerImageBuilder):
       credentials = None
     else:
       credentials = get_service_credentials(options)
-    self._storage_client = storage.StorageV1(
-        url='https://www.googleapis.com/storage/v1',
-        credentials=credentials,
-        get_credentials=(not self._google_cloud_options.no_auth),
-        http=get_new_http(),
-        response_encoding='utf8')
+    from apache_beam.io.gcp.gcsio import create_storage_client
+    self._storage_client = create_storage_client(
+        options, not self._google_cloud_options.no_auth)
     self._cloudbuild_client = cloudbuild.CloudbuildV1(
         credentials=credentials,
         get_credentials=(not self._google_cloud_options.no_auth),
@@ -252,7 +248,13 @@ class _SdkContainerImageCloudBuilder(SdkContainerImageBuilder):
     build.steps = []
     step = cloudbuild.BuildStep()
     step.name = 'gcr.io/kaniko-project/executor:latest'
-    step.args = ['--destination=' + container_image_name, '--cache=true']
+    # Disable compression caching to allow for large images to be cached.
+    # See: https://github.com/GoogleContainerTools/kaniko/issues/1669
+    step.args = [
+        '--destination=' + container_image_name,
+        '--cache=true',
+        '--compressed-caching=false',
+    ]
     step.dir = SOURCE_FOLDER
 
     build.steps.append(step)
@@ -301,27 +303,23 @@ class _SdkContainerImageCloudBuilder(SdkContainerImageBuilder):
         "Python SDK container built and pushed as %s." % container_image_name)
 
   def _upload_to_gcs(self, local_file_path, gcs_location):
-    gcs_bucket, gcs_object = self._get_gcs_bucket_and_name(gcs_location)
-    request = storage.StorageObjectsInsertRequest(
-        bucket=gcs_bucket, name=gcs_object)
+    bucket_name, blob_name = self._get_gcs_bucket_and_name(gcs_location)
     _LOGGER.info('Starting GCS upload to %s...', gcs_location)
-    total_size = os.path.getsize(local_file_path)
-    from apitools.base.py import exceptions
+    from google.cloud import storage
+    from google.cloud.exceptions import Forbidden
+    from google.cloud.exceptions import NotFound
     try:
-      with open(local_file_path, 'rb') as stream:
-        upload = storage.Upload(stream, 'application/octet-stream', total_size)
-        self._storage_client.objects.Insert(request, upload=upload)
-    except exceptions.HttpError as e:
-      reportable_errors = {
-          403: 'access denied',
-          404: 'bucket not found',
-      }
-      if e.status_code in reportable_errors:
+      bucket = self._storage_client.get_bucket(bucket_name)
+      blob = bucket.get_blob(blob_name)
+      if not blob:
+        blob = storage.Blob(name=blob_name, bucket=bucket)
+      blob.upload_from_filename(local_file_path)
+    except Exception as e:
+      if isinstance(e, (Forbidden, NotFound)):
         raise IOError((
             'Could not upload to GCS path %s: %s. Please verify '
             'that credentials are valid and that you have write '
-            'access to the specified path.') %
-                      (gcs_location, reportable_errors[e.status_code]))
+            'access to the specified path.') % (gcs_location, e.message))
       raise
     _LOGGER.info('Completed GCS upload to %s.', gcs_location)
 

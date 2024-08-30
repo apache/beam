@@ -46,6 +46,8 @@ public abstract class TextRowCountEstimator {
   @SuppressWarnings("mutable")
   public abstract byte @Nullable [] getDelimiters();
 
+  public abstract int getSkipHeaderLines();
+
   public abstract String getFilePattern();
 
   public abstract Compression getCompression();
@@ -62,7 +64,8 @@ public abstract class TextRowCountEstimator {
         .setNumSampledBytesPerFile(DEFAULT_NUM_BYTES_PER_FILE)
         .setCompression(DEFAULT_COMPRESSION)
         .setDirectoryTreatment(DEFAULT_DIRECTORY_TREATMENT)
-        .setEmptyMatchTreatment(DEFAULT_EMPTY_MATCH_TREATMENT);
+        .setEmptyMatchTreatment(DEFAULT_EMPTY_MATCH_TREATMENT)
+        .setSkipHeaderLines(0);
   }
 
   /**
@@ -114,7 +117,8 @@ public abstract class TextRowCountEstimator {
           new TextSource(
               ValueProvider.StaticValueProvider.of(file.getMetadata().resourceId().toString()),
               getEmptyMatchTreatment(),
-              getDelimiters());
+              getDelimiters(),
+              getSkipHeaderLines());
       FileBasedSource<String> source =
           CompressedSource.from(textSource).withCompression(file.getCompression());
       try (BoundedSource.BoundedReader<String> reader =
@@ -159,6 +163,8 @@ public abstract class TextRowCountEstimator {
     public abstract Builder setCompression(Compression compression);
 
     public abstract Builder setDelimiters(byte @Nullable [] delimiters);
+
+    public abstract Builder setSkipHeaderLines(int skipHeaderLines);
 
     public abstract Builder setFilePattern(String filePattern);
 

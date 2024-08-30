@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-$schema: 'http://json-schema.org/schema#'
+$schema: 'http://json-schema.org/draft-07/schema#'
 $id: https://github.com/apache/beam/tree/master/sdks/python/apache_beam/yaml/pipeline.schema.yaml
 
 $defs:
@@ -25,82 +25,114 @@ $defs:
     properties:
       type: { type: string }
       name: { type: string }
+      windowing:
+        $ref: '#/$defs/windowing'
       input:
         oneOf:
           - type: string
+          - type: array
+            items: { type: string }
           - type: object
+            properties: { __line__: {}}
             additionalProperties:
               type: string
       output:
         oneOf:
           - type: string
           - type: object
+            properties: { __line__: {}}
             additionalProperties:
               type: string
     additionalProperties: true
     required:
       - type
 
-  leafTransform:
+  nestedTransform:
     allOf:
-      - $ref: '#/$defs/transformBase'
       - type: object
         properties:
-          type:
-            not:
-              anyOf:
-                - const: chain
-                - const: composite
-          args:
-            type: object
-
-  chainTransform:
-    allOf:
-      - $ref: '#/$defs/transformBase'
-      - type: object
-        properties:
-          type:
-            const: chain
+          type: {}
           name: {}
           input: {}
           output: {}
-          transforms:
-            type: array
-            items:
-              allOf:
-                - $ref: '#/$defs/transform'
-                - type: object
-                  properties:
-                    # Must be implicit.
-                    input: { not: {} }
-                    output: { not: {} }
-        additionalProperties: false
-        required:
-          - transforms
-
-  compositeTransform:
-    allOf:
-      - $ref: '#/$defs/transformBase'
-      - type: object
-        properties:
-          type:
-            const: composite
-          name: {}
-          input: {}
-          output: {}
+          windowing: {}
           transforms:
             type: array
             items:
               $ref: '#/$defs/transform'
+          extra_transforms:
+            type: array
+            items:
+              $ref: '#/$defs/transform'
+          source:
+            $ref: '#/$defs/transform'
+          sink:
+            $ref: '#/$defs/transform'
+          __line__: {}
+          __uuid__: {}
         additionalProperties: false
-        required:
+      - anyOf:
+        - required:
           - transforms
+        - required:
+          - source
+          - sink
+
+  implicitInputOutputs:
+    properties:
+      transforms:
+        type: array
+        items:
+          properties:
+            # Must be implicit.
+            input: { not: {} }
+            output: { not: {} }
+      source:
+        properties:
+          # Must be implicit.
+          input: { not: {} }
+          output: { not: {} }
+      sink:
+        properties:
+          # Must be implicit.
+          input: { not: {} }
+          output: { not: {} }
 
   transform:
-    oneOf:
-      - $ref: '#/$defs/leafTransform'
-      - $ref: '#/$defs/chainTransform'
-      - $ref: '#/$defs/compositeTransform'
+    allOf:
+      - $ref: '#/$defs/transformBase'
+      - if:
+          properties: { type: { const: composite }}
+        then:
+          allOf:
+            - $ref: '#/$defs/nestedTransform'
+            - properties:
+                extra_transforms: { not: {} }
+      - if:
+          properties: { type: { const: chain }}
+        then:
+          allOf:
+            - $ref: '#/$defs/nestedTransform'
+            - $ref: '#/$defs/implicitInputOutputs'
+
+      - if:
+          not:
+            anyOf:
+              - properties: { type: { const: composite }}
+              - properties: { type: { const: chain }}
+        then:
+          properties:
+            type: {}
+            name: {}
+            input: {}
+            output: {}
+            windowing: {}
+            config: { type: object }
+            __line__: {}
+            __uuid__: {}
+          additionalProperties: false
+
+  windowing: {}  # TODO
 
   provider:
     # TODO(robertwb): Consider enumerating the provider types along with
@@ -110,21 +142,74 @@ $defs:
       type: { type: string }
       transforms:
         type: object
+        properties: { __line__: {}}
         additionalProperties:
           type: string
+      config: { type: object }
+      __line__: {}
+      __uuid__: {}
+    additionalProperties: false
     required:
       - type
       - transforms
+      - config
+
+  providerInclude:
+    # TODO(robertwb): Consider enumerating the provider types along with
+    # the arguments they accept/expect (possibly in a separate schema file).
+    type: object
+    properties:
+      include: { type: string }
+      __line__: {}
+      __uuid__: {}
+    additionalProperties: false
+    required:
+      - include
+
+  providerOrProviderInclude:
+    if:
+      allOf: [
+        { properties: { include: { type: string }}},
+        { required: [ "include" ] }
+      ]
+    then:
+      $ref: '#/$defs/providerInclude'
+    else:
+      $ref: '#/$defs/provider'
 
 type: object
 properties:
   pipeline:
-    type: array
-    items:
-      $ref: '#/$defs/transform'
+    allOf:
+      # These are the only top-level properties defined in pipeline.
+      - type: object
+        properties:
+          type:
+            oneOf:
+              - { const: composite }
+              - { const: chain }
+          windowing:
+            $ref: '#/$defs/windowing'
+          transforms: {}
+          extra_transforms: {}
+          sink: {}
+          source: {}
+          __line__: {}
+          __uuid__: {}
+        additionalProperties: false
+      # This defines the allowable contents of the attributes above.
+      - $ref: '#/$defs/nestedTransform'
+      # A chain-type transform, like a chain composite, must have implicit io.
+      - if:
+          properties: { type: { const: chain }}
+          required: [type]
+        then:
+          $ref: '#/$defs/implicitInputOutputs'
   providers:
     type: array
     items:
-      $ref: '#/$defs/provider'
+      $ref: '#/$defs/providerOrProviderInclude'
+  options:
+    type: object
 required:
   - pipeline

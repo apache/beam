@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.io.redis;
 
 import static java.util.stream.Collectors.toList;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists.transform;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists.transform;
 import static org.hamcrest.CoreMatchers.hasItems;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
@@ -45,7 +45,7 @@ import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;

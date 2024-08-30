@@ -35,8 +35,6 @@ limitations under the License.
 
 Being productive and successful as a machine learning practitioner is often dependent on your ability to efficiently leverage large volumes of data in a way that is uniquely tailored to your resources, requirements, and budget. Whether starting your next AI/ML project or upscaling an existing project, consider adding Apache Beam to your project.
 
-<iframe class="video video--medium-size" width="560" height="315" src="https://www.youtube.com/embed/ga2TNdrFRoU" frameborder="0" allowfullscreen></iframe>
-
 ## Use Beam ML
 
 I want use Beam ML to do:
@@ -54,7 +52,7 @@ Beam provides different ways to implement inference as part of your pipeline. Yo
 
 ### RunInference
 
-The RunInfernce API is available with the Beam Python SDK versions 2.40.0 and later. You can use Apache Beam with the RunInference API to use machine learning (ML) models to do local and remote inference with batch and streaming pipelines. Starting with Apache Beam 2.40.0, PyTorch and Scikit-learn frameworks are supported. Tensorflow models are supported through `tfx-bsl`. For more deatils about using RunInference with Python, see [Machine Learning with Python](/documentation/sdks/python-machine-learning/).
+The RunInfernce API is available with the Beam Python SDK versions 2.40.0 and later. You can use Apache Beam with the RunInference API to use machine learning (ML) models to do local and remote inference with batch and streaming pipelines. Starting with Apache Beam 2.40.0, PyTorch and Scikit-learn frameworks are supported. Tensorflow models are supported through `tfx-bsl`. For more deatils about using RunInference, see [About Beam ML](/documentation/ml/about-ml).
 
 The RunInference API is available with the Beam Java SDK versions 2.41.0 and later through Apache Beam's [Multi-language Pipelines framework](/documentation/programming-guide/#multi-language-pipelines). For information about the Java wrapper transform, see [RunInference.java](https://github.com/apache/beam/blob/master/sdks/java/extensions/python/src/main/java/org/apache/beam/sdk/extensions/python/transforms/RunInference.java). To try it out, see the [Java Sklearn Mnist Classification example](https://github.com/apache/beam/tree/master/examples/multi-language).
 
@@ -63,7 +61,7 @@ You can create multiple types of transforms using the RunInference API: the API 
 {{< table >}}
 | Task | Example |
 | ------- | ---------------|
-| I want to use the RunInference transform | [Modify a Python pipeline to use an ML model](/documentation/sdks/python-machine-learning/#modify-a-python-pipeline-to-use-an-ml-model) |
+| I want to use the RunInference transform | [Modify a Python pipeline to use an ML model](/documentation/ml/about-ml/#modify-a-python-pipeline-to-use-an-ml-model) |
 | I want to use RunInference with PyTorch | [Use RunInference with PyTorch](/documentation/transforms/python/elementwise/runinference-pytorch/) |
 | I want to use RunInference with Sklearn | [Use RunInference with Sklearn](/documentation/transforms/python/elementwise/runinference-sklearn/) |
 | I want to use pre-trained models (PyTorch, Scikit-learn, or TensorFlow) | [Use pre-trained models](/documentation/ml/about-ml/#use-pre-trained-models) |
@@ -89,7 +87,9 @@ You can use Apache Beam for data validation and preprocessing by setting up data
 {{< table >}}
 | Task | Example |
 | ------- | ---------------|
-| I want to explore my data | [Data Processing Example](/documentation/ml/data-processing) |:
+| I want to transform my data for preprocessing| [Preprocess data with MLTransform](/documentation/ml/preprocess-data) |
+| I want to explore my data | [Data exploration workflow and example](/documentation/ml/data-processing) |
+| I want to enrich my data | [Data enrichment wth Enrichment transform](https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/beam-ml/bigtable_enrichment_transform.ipynb) |:
 {{< /table >}}
 
 

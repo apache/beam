@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io.clickhouse;
 
-import com.clickhouse.client.ClickHouseFormat;
 import com.clickhouse.client.ClickHouseRequest;
+import com.clickhouse.data.ClickHouseFormat;
 import com.clickhouse.jdbc.ClickHouseConnection;
 import com.clickhouse.jdbc.ClickHouseDataSource;
 import com.clickhouse.jdbc.ClickHouseStatement;
@@ -27,6 +27,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 import java.util.stream.Collectors;
@@ -45,12 +46,13 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
+import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
@@ -108,9 +110,12 @@ import org.slf4j.LoggerFactory;
  * <tr><td>{@link TableSchema.TypeName#ARRAY}</td> <td>{@link Schema.TypeName#ARRAY}</td></tr>
  * <tr><td>{@link TableSchema.TypeName#ENUM8}</td> <td>{@link Schema.TypeName#STRING}</td></tr>
  * <tr><td>{@link TableSchema.TypeName#ENUM16}</td> <td>{@link Schema.TypeName#STRING}</td></tr>
+ * <tr><td>{@link TableSchema.TypeName#BOOL}</td> <td>{@link Schema.TypeName#BOOLEAN}</td></tr>
+ * <tr><td>{@link TableSchema.TypeName#TUPLE}</td> <td>{@link Schema.TypeName#ROW}</td></tr>
  * </table>
  *
- * Nullable row columns are supported through Nullable type in ClickHouse.
+ * Nullable row columns are supported through Nullable type in ClickHouse. Low cardinality hint is
+ * supported through LowCardinality DataType in ClickHouse.
  *
  * <p>Nested rows should be unnested using {@link Select#flattenedSchema()}. Type casting should be
  * done using {@link org.apache.beam.sdk.schemas.transforms.Cast} before {@link ClickHouseIO}.
@@ -174,12 +179,16 @@ public class ClickHouseIO {
         tableSchema = getTableSchema(jdbcUrl(), table());
       }
 
+      String sdkVersion = ReleaseInfo.getReleaseInfo().getSdkVersion();
+      String userAgent = String.format("Apache Beam/%s", sdkVersion);
+
       Properties properties = properties();
 
       set(properties, "max_insert_block_size", maxInsertBlockSize());
       set(properties, "insert_quorum", insertQuorum());
       set(properties, "insert_distributed_sync", insertDistributedSync());
       set(properties, "insert_deduplication", insertDeduplicate());
+      set(properties, "product_name", userAgent);
 
       WriteFn<T> fn =
           new AutoValue_ClickHouseIO_WriteFn.Builder<T>()
@@ -435,7 +444,7 @@ public class ClickHouseIO {
                       ClickHouseWriter.writeRow(out, schema(), row);
                     }
                   })
-              .sendAndWait(); // query happens in a separate thread
+              .executeAndWait(); // query happens in a separate thread
           buffer.clear();
           break;
         } catch (SQLException e) {
@@ -473,6 +482,15 @@ public class ClickHouseIO {
     }
   }
 
+  private static String tuplePreprocessing(String payload) {
+    List<String> l =
+        Arrays.stream(payload.trim().split(","))
+            .map(s -> s.trim().replaceAll(" +", "' "))
+            .collect(Collectors.toList());
+    String content =
+        String.join(",", l).trim().replaceAll("Tuple\\(", "Tuple('").replaceAll(",", ",'");
+    return content;
+  }
   /**
    * Returns {@link TableSchema} for a given table.
    *
@@ -496,7 +514,13 @@ public class ClickHouseIO {
           String defaultTypeStr = rs.getString("default_type");
           String defaultExpression = rs.getString("default_expression");
 
-          ColumnType columnType = ColumnType.parse(type);
+          ColumnType columnType = null;
+          if (type.toLowerCase().trim().startsWith("tuple(")) {
+            String content = tuplePreprocessing(type);
+            columnType = ColumnType.parse(content);
+          } else {
+            columnType = ColumnType.parse(type);
+          }
           DefaultType defaultType = DefaultType.parse(defaultTypeStr).orElse(null);
 
           Object defaultValue;

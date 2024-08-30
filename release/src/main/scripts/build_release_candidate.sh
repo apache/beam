@@ -44,6 +44,7 @@ LOCAL_WEBSITE_UPDATE_DIR=website_update_dir
 LOCAL_PYTHON_DOC=python_doc
 LOCAL_TYPESCRIPT_DOC=typescript_doc
 LOCAL_JAVA_DOC=java_doc
+LOCAL_YAML_DOC=yaml_doc
 LOCAL_WEBSITE_REPO=beam_website_repo
 
 USER_REMOTE_URL=
@@ -193,19 +194,19 @@ if [[ $confirmation = "y" ]]; then
   echo "----------------Downloading Source Release-------------------"
   # GitHub strips the "v" from "v2.29.0" in naming zip and the dir inside it
   RC_DIR="beam-${RELEASE}-RC${RC_NUM}"
-  RC_ZIP="${RC_DIR}.zip"
+  RC_ZIP="${RC_DIR}.tar.gz"
   # We want to strip the -RC1 suffix from the directory name inside the zip
   RELEASE_DIR="beam-${RELEASE}"
 
-  SOURCE_RELEASE_ZIP="apache-beam-${RELEASE}-source-release.zip"
+  SOURCE_RELEASE_ZIP="apache-beam-${RELEASE}-source-release.tar.gz"
   # Check whether there is an existing dist dir
   if (svn ls "${SOURCE_RELEASE_ZIP}"); then
     echo "Removing existing ${SOURCE_RELEASE_ZIP}."
     svn delete "${SOURCE_RELEASE_ZIP}"
   fi
 
-  echo "Downloading: ${GIT_BEAM_ARCHIVE}/${RC_TAG}.zip"
-  wget ${GIT_BEAM_ARCHIVE}/${RC_TAG}.zip  -O "${RC_ZIP}"
+  echo "Downloading: ${GIT_BEAM_ARCHIVE}/${RC_TAG}.tar.gz"
+  wget ${GIT_BEAM_ARCHIVE}/${RC_TAG}.tar.gz  -O "${RC_ZIP}"
 
   unzip "$RC_ZIP"
   rm "$RC_ZIP"
@@ -214,7 +215,7 @@ if [[ $confirmation = "y" ]]; then
   rm -r "$RELEASE_DIR"
 
   echo "----Signing Source Release ${SOURCE_RELEASE_ZIP}-----"
-  gpg --local-user ${SIGNING_KEY} --armor --detach-sig "${SOURCE_RELEASE_ZIP}"
+  gpg --local-user ${SIGNING_KEY} --armor --batch --yes --detach-sig "${SOURCE_RELEASE_ZIP}"
 
   echo "----Creating Hash Value for ${SOURCE_RELEASE_ZIP}----"
   sha512sum ${SOURCE_RELEASE_ZIP} > ${SOURCE_RELEASE_ZIP}.sha512
@@ -268,11 +269,11 @@ if [[ $confirmation = "y" ]]; then
 
   cd "${SVN_ARTIFACTS_DIR}"
 
-  echo "------Checking Hash Value for apache-beam-${RELEASE}.zip-----"
-  sha512sum -c "apache-beam-${RELEASE}.zip.sha512"
+  echo "------Checking Hash Value for apache-beam-${RELEASE}.tar.gz-----"
+  sha512sum -c "apache-beam-${RELEASE}.tar.gz.sha512"
 
-  echo "------Signing Source Release apache-beam-${RELEASE}.zip------"
-  gpg --local-user "${SIGNING_KEY}" --armor --detach-sig "apache-beam-${RELEASE}.zip"
+  echo "------Signing Source Release apache-beam-${RELEASE}.tar.gz------"
+  gpg --local-user "${SIGNING_KEY}" --armor --detach-sig "apache-beam-${RELEASE}.tar.gz"
 
   for artifact in *.whl; do
     echo "----------Checking Hash Value for ${artifact} wheel-----------"
@@ -281,7 +282,7 @@ if [[ $confirmation = "y" ]]; then
 
   for artifact in *.whl; do
     echo "------------------Signing ${artifact} wheel-------------------"
-    gpg --local-user "${SIGNING_KEY}" --armor --detach-sig "${artifact}"
+    gpg --local-user "${SIGNING_KEY}" --armor --batch --yes --detach-sig "${artifact}"
   done
 
   cd ..
@@ -333,6 +334,7 @@ if [[ $confirmation = "y" ]]; then
   mkdir -p ${LOCAL_PYTHON_DOC}
   mkdir -p ${LOCAL_TYPESCRIPT_DOC}
   mkdir -p ${LOCAL_JAVA_DOC}
+  mkdir -p ${LOCAL_YAML_DOC}
   mkdir -p ${LOCAL_WEBSITE_REPO}
 
   echo "------------------Building Python Doc------------------------"
@@ -346,7 +348,7 @@ if [[ $confirmation = "y" ]]; then
   cd ${BEAM_ROOT_DIR}
   RELEASE_COMMIT=$(git rev-list -n 1 "tags/${RC_TAG}")
   # TODO(https://github.com/apache/beam/issues/20209): Don't hardcode py version in this file.
-  cd sdks/python && pip install -r build-requirements.txt && tox -e py38-docs
+  cd sdks/python && tox -e docs
   GENERATED_PYDOC=~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_PYTHON_DOC}/${BEAM_ROOT_DIR}/sdks/python/target/docs/_build
   rm -rf ${GENERATED_PYDOC}/.doctrees
 
@@ -363,6 +365,13 @@ if [[ $confirmation = "y" ]]; then
   cd ${BEAM_ROOT_DIR}
   ./gradlew :sdks:java:javadoc:aggregateJavadoc -PisRelease --no-daemon --no-parallel
   GENERATE_JAVADOC=~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_JAVA_DOC}/${BEAM_ROOT_DIR}/sdks/java/javadoc/build/docs/javadoc/
+
+  echo "----------------------Building YAML Doc----------------------"
+  cd ~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_YAML_DOC}
+  git clone --branch "${RC_TAG}" --depth 1 ${GIT_REPO_URL}
+  cd ${BEAM_ROOT_DIR}
+  ./gradlew :sdks:python:generateYamlDocs -PisRelease
+  GENERATE_YAMLDOC=~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_YAML_DOC}/${BEAM_ROOT_DIR}/sdks/python/build/yaml-ref.html
 
   echo "------------------Updating Release Docs---------------------"
   cd ~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_WEBSITE_REPO}
@@ -389,6 +398,13 @@ if [[ $confirmation = "y" ]]; then
   # Update current symlink to point to the latest release
   unlink typedoc/current | true
   ln -s ${RELEASE} typedoc/current
+
+  echo "............Copying generated yaml docs into beam-site.........."
+  mkdir -p yamldoc
+  cp -r ${GENERATE_YAMLDOC} yamldoc/${RELEASE}/index.html
+  # Update current symlink to point to the latest release
+  unlink yamldoc/current | true
+  ln -s ${RELEASE} yamldoc/current
 
   git add -A
   git commit -m "Update beam-site for release ${RELEASE}." -m "Content generated from commit ${RELEASE_COMMIT}."
@@ -419,4 +435,5 @@ if [[ $confirmation = "y" ]]; then
   rm -rf ~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_JAVA_DOC}
   rm -rf ~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_PYTHON_DOC}
   rm -rf ~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_TYPESCRIPT_DOC}
+  rm -rf ~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_YAML_DOC}
 fi

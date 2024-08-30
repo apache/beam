@@ -19,14 +19,10 @@ package org.apache.beam.runners.spark.stateful;
 
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsTest;
-import org.junit.Ignore;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link SparkStateInternals}. This is based on {@link StateInternalsTest}. Ignore set
- * and map tests.
- */
+/** Tests for {@link SparkStateInternals}. This is based on {@link StateInternalsTest}. */
 @RunWith(JUnit4.class)
 public class SparkStateInternalsTest extends StateInternalsTest {
 
@@ -34,32 +30,4 @@ public class SparkStateInternalsTest extends StateInternalsTest {
   protected StateInternals createStateInternals() {
     return SparkStateInternals.forKey("dummyKey");
   }
-
-  @Override
-  @Ignore
-  public void testSet() {}
-
-  @Override
-  @Ignore
-  public void testSetIsEmpty() {}
-
-  @Override
-  @Ignore
-  public void testMergeSetIntoSource() {}
-
-  @Override
-  @Ignore
-  public void testMergeSetIntoNewNamespace() {}
-
-  @Override
-  @Ignore
-  public void testMap() {}
-
-  @Override
-  @Ignore
-  public void testSetReadable() {}
-
-  @Override
-  @Ignore
-  public void testMapReadable() {}
 }

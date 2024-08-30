@@ -20,9 +20,9 @@ package org.apache.beam.sdk.io.synthetic.delay;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.io.synthetic.SyntheticOptions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Stopwatch;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Uninterruptibles;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Stopwatch;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hashing;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.joda.time.Duration;
 
 /** Utility functions used in {@link org.apache.beam.sdk.io.synthetic}. */

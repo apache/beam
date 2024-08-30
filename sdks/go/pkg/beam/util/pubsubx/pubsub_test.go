@@ -19,6 +19,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"sync"
 	"testing"
 
 	"cloud.google.com/go/pubsub"
@@ -172,8 +173,11 @@ func TestPublish(t *testing.T) {
 		t.Fatalf("publish failed: %v", err)
 	}
 	cctx, cancel := context.WithCancel(ctx)
+	var mu sync.Mutex
 	var got []string
 	sub.Receive(cctx, func(_ context.Context, msg *pubsub.Message) {
+		mu.Lock()
+		defer mu.Unlock()
 		got = append(got, string(msg.Data))
 		msg.Ack()
 		if len(got) >= len(want) {

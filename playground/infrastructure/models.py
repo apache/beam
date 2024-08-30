@@ -38,7 +38,6 @@ class DatasetFormat(str, Enum):
 
 class DatasetLocation(str, Enum):
     LOCAL = "local"
-    GCS = "GCS"
 
 
 class Dataset(BaseModel):
@@ -72,24 +71,101 @@ class Tag(BaseModel):
     Tag represents the beam-playground embedded yaml content
     """
 
+    # These parameters are parsed from YAML and are required:
+
+    categories: List[str] = []
+    """
+    Titles of categories to list this snippet in. Non-existent categories will be created.
+    """
+
+    complexity: ComplexityEnum
+    """
+    How hard is the snippet to understand.
+    """
+
+    context_line: int = 1
+    """
+    The line number to scroll to when the snippet is loaded.
+    This applies after the metadata block is removed from the file, so discount for those lines.
+    Integer, 1-based.
+    """
+
+    description: str
+    """
+    Description text to show on mouse over.
+    """
+
+    name: str = Field(..., min_length=1)
+    """
+    Name to show in the dropdown and to compose snippet ID from.
+    """
+
+    # These parameters are parsed from YAML and are optional:
+
+    datasets: Dict[str, Dataset] = {}
+    """
+    Datasets which will be used by emulators. Example:
+    datasets:
+      CountWords:
+        location: local
+        format: json
+    """
+
+    default_example: bool = False
+    """
+    Whether this is the default example in its SDK.
+    If multiple snippets set this to `true` the behavior is undefined.
+    """
+
+    emulators: List[Emulator] = []
+    """
+    List of emulators to start during pipeline execution. Currently only `kafka` type is supported.
+    Example:
+    emulators:
+      - type: kafka
+        topic:
+          id: dataset
+          source_dataset: CountWords
+    """
+
+    always_run: bool = False
+    """
+    The example output will not be cached and playground will always run its code when user clicks 'Run' if this is set to 'True'
+    """
+
+    never_run: bool = False
+    """
+    If 'True', it will not be possible to run this example from Playground UI. It will be read-only.
+    """
+
+
+    multifile: bool = False
+    """
+    Whether this is a file of a multi-file example.
+    """
+
+    pipeline_options: str = ""
+    """
+    Pipeline options. Example:
+    pipeline_options: --name1 value1 --name2 value2
+    """
+
+    tags: List[str] = []
+    """
+    Tags by which this snippet can be found in the dropdown.
+    """
+
+    url_notebook: Optional[HttpUrl] = None
+    """
+    The URL of the Colab notebook that is based on this snippet.
+    """
+
+    # These parameters are NOT parsed from YAML but are added at construction:
+
     filepath: str = Field(..., min_length=1)
+    files: List[ImportFile] = []
     line_start: int
     line_finish: int
-    context_line: int = 1
-    name: str = Field(..., min_length=1)
-    complexity: ComplexityEnum
-    description: str
-    categories: List[str] = []
-    pipeline_options: str = ""
-    datasets: Dict[str, Dataset] = {}
-    emulators: List[Emulator] = []
-    always_run: bool = False
-    never_run: bool = False
-    multifile: bool = False
-    default_example: bool = False
-    tags: List[str] = []
-    url_notebook: Optional[HttpUrl] = None
-    files: List[ImportFile] = []
 
     class Config:
         supported_categories = []

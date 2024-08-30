@@ -36,6 +36,7 @@ from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import ProfilingOptions
 from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.options.pipeline_options import WorkerOptions
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners.internal import names
@@ -52,7 +53,7 @@ def _import_beam_plugins(plugins):
   for plugin in plugins:
     try:
       importlib.import_module(plugin)
-      _LOGGER.info('Imported beam-plugin %s', plugin)
+      _LOGGER.debug('Imported beam-plugin %s', plugin)
     except ImportError:
       try:
         _LOGGER.debug((
@@ -61,7 +62,7 @@ def _import_beam_plugins(plugins):
                       plugin)
         module, _ = plugin.rsplit('.', 1)
         importlib.import_module(module)
-        _LOGGER.info('Imported %s for beam-plugin %s', module, plugin)
+        _LOGGER.debug('Imported %s for beam-plugin %s', module, plugin)
       except ImportError as exc:
         _LOGGER.warning('Failed to import beam-plugin %s', plugin, exc_info=exc)
 
@@ -102,10 +103,9 @@ def create_harness(environment, dry_run=False):
   pickle_library = sdk_pipeline_options.view_as(SetupOptions).pickle_library
   pickler.set_library(pickle_library)
 
-  if 'SEMI_PERSISTENT_DIRECTORY' in environment:
-    semi_persistent_directory = environment['SEMI_PERSISTENT_DIRECTORY']
-  else:
-    semi_persistent_directory = None
+  semi_persistent_directory = environment.get('SEMI_PERSISTENT_DIRECTORY', None)
+  runner_capabilities = frozenset(
+      environment.get('RUNNER_CAPABILITIES', '').split())
 
   _LOGGER.info('semi_persistent_directory: %s', semi_persistent_directory)
   _worker_id = environment.get('WORKER_ID', None)
@@ -153,21 +153,21 @@ def create_harness(environment, dry_run=False):
   if dry_run:
     return
 
-  data_sampler = None
-  if 'enable_data_sampling' in experiments:
-    data_sampler = DataSampler()
+  data_sampler = DataSampler.create(sdk_pipeline_options)
 
   sdk_harness = SdkHarness(
       control_address=control_service_descriptor.url,
       status_address=status_service_descriptor.url,
       worker_id=_worker_id,
-      state_cache_size=_get_state_cache_size(experiments),
+      state_cache_size=_get_state_cache_size_bytes(
+          options=sdk_pipeline_options),
       data_buffer_time_limit_ms=_get_data_buffer_time_limit_ms(experiments),
       profiler_factory=profiler.Profile.factory_from_options(
           sdk_pipeline_options.view_as(ProfilingOptions)),
       enable_heap_dump=enable_heap_dump,
       data_sampler=data_sampler,
-      deferred_exception=deferred_exception)
+      deferred_exception=deferred_exception,
+      runner_capabilities=runner_capabilities)
   return fn_log_handler, sdk_harness, sdk_pipeline_options
 
 
@@ -241,24 +241,28 @@ def _parse_pipeline_options(options_json):
   return PipelineOptions.from_dictionary(_load_pipeline_options(options_json))
 
 
-def _get_state_cache_size(experiments):
-  """Defines the upper number of state items to cache.
-
-  Note: state_cache_size is an experimental flag and might not be available in
-  future releases.
+def _get_state_cache_size_bytes(options):
+  """Return the maximum size of state cache in bytes.
 
   Returns:
-    an int indicating the maximum number of megabytes to cache.
-      Default is 0 MB
+    an int indicating the maximum number of bytes to cache.
   """
-
+  max_cache_memory_usage_mb = options.view_as(
+      WorkerOptions).max_cache_memory_usage_mb
+  # to maintain backward compatibility
+  experiments = options.view_as(DebugOptions).experiments or []
   for experiment in experiments:
     # There should only be 1 match so returning from the loop
     if re.match(r'state_cache_size=', experiment):
+      _LOGGER.warning(
+          '--experiments=state_cache_size=X is deprecated and will be removed '
+          'in future releases.'
+          'Please use --max_cache_memory_usage_mb=X to set the cache size for '
+          'user state API and side inputs.')
       return int(
           re.match(r'state_cache_size=(?P<state_cache_size>.*)',
                    experiment).group('state_cache_size')) << 20
-  return 0
+  return max_cache_memory_usage_mb << 20
 
 
 def _get_data_buffer_time_limit_ms(experiments):

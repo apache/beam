@@ -20,7 +20,7 @@ package org.apache.beam.runners.spark.structuredstreaming.io;
 import static java.util.stream.Collectors.toList;
 import static org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop.emptyList;
 import static org.apache.beam.sdk.util.WindowedValue.timestampedValueInGlobalWindow;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static scala.collection.JavaConverters.asScalaIterator;
 
 import java.io.Closeable;
@@ -31,13 +31,14 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.IntSupplier;
 import java.util.function.Supplier;
+import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.AbstractIterator;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.AbstractIterator;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.spark.InterruptibleIterator;
 import org.apache.spark.Partition;
 import org.apache.spark.SparkContext;
@@ -288,7 +289,7 @@ public class BoundedDatasetFactory {
     }
 
     @Override
-    protected WindowedValue<T> computeNext() {
+    protected @CheckForNull WindowedValue<T> computeNext() {
       try {
         if (started ? reader.advance() : start()) {
           return timestampedValueInGlobalWindow(reader.getCurrent(), reader.getCurrentTimestamp());

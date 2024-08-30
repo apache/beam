@@ -24,6 +24,7 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.util.MinimalPrettyPrinter;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -43,9 +44,9 @@ import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
 import org.apache.beam.runners.dataflow.worker.DataflowOperationContext.DataflowExecutionState;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.CountingOutputStream;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.CountingOutputStream;
 
 /**
  * Formats {@link LogRecord} into JSON format for Cloud Logging. Any exception is represented using
@@ -111,7 +112,13 @@ public class DataflowWorkerLoggingHandler extends Handler {
   DataflowWorkerLoggingHandler(Supplier<OutputStream> factory, long sizeLimit) throws IOException {
     this.setFormatter(new SimpleFormatter());
     this.outputStreamFactory = factory;
-    this.generatorFactory = new ObjectMapper().getFactory();
+    this.generatorFactory =
+        new ObjectMapper()
+            // Required to avoid flushing to the file in the middle of a log message and potentially
+            // breaking its JSON formatting, if the first part is read from the file before the rest
+            // of the message:
+            .disable(SerializationFeature.FLUSH_AFTER_WRITE_VALUE)
+            .getFactory();
     this.sizeLimit = sizeLimit < 1 ? Long.MAX_VALUE : sizeLimit;
     createOutputStream();
   }

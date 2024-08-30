@@ -19,8 +19,13 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.accumulators;
 
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 
-/** Histogram is a type of accumulator recording a distribution of different values. */
+/**
+ * Histogram is a type of accumulator recording a distribution of different values.
+ *
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
+ */
 @Audience(Audience.Type.CLIENT)
+@Deprecated
 public interface Histogram extends Accumulator {
 
   /**

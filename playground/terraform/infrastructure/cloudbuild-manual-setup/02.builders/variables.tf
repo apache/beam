@@ -109,7 +109,10 @@ variable "gke_machine_type" {
   description = "Machine type for GKE Nodes. Default: e2-standard-8"
   default = "e2-standard-8"
 }
-
+variable "init_min_count" {
+  description = "value for initial node count for GKE cluster. Default: 1"
+  default = 1
+}
 variable "max_count" {
   description = "Max node count for GKE cluster. Default: 4"
   default = 4

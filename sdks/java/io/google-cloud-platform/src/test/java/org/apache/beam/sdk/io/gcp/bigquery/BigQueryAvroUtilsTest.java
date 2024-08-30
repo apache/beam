@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.greaterThan;
 import static org.junit.Assert.assertEquals;
 
 import com.google.api.services.bigquery.model.TableFieldSchema;
@@ -41,9 +42,9 @@ import org.apache.avro.reflect.Nullable;
 import org.apache.avro.util.Utf8;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.BaseEncoding;
 import org.apache.commons.lang3.tuple.Pair;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -144,7 +145,7 @@ public class BigQueryAvroUtilsTest {
       }
       // After a Field is added to a Schema, it is assigned a position, so we can't simply reuse
       // the existing Field.
-      avroFields.add(new Schema.Field(field.name(), schema, field.doc(), field.defaultValue()));
+      avroFields.add(new Schema.Field(field.name(), schema, field.doc(), field.defaultVal()));
     }
     Schema avroSchema = Schema.createRecord(avroFields);
 
@@ -339,6 +340,95 @@ public class BigQueryAvroUtilsTest {
     assertThat(
         BigQueryAvroUtils.formatTimestamp(-(1969L * 365 + 477) * 86400 * 1_000_000),
         equalTo("0001-01-01 00:00:00 UTC"));
+  }
+
+  @Test
+  public void testSchemaCollisionsInAvroConversion() {
+    TableSchema schema = new TableSchema();
+    schema.setFields(
+        Lists.newArrayList(
+            new TableFieldSchema()
+                .setName("key_value_pair_1")
+                .setType("RECORD")
+                .setMode("REPEATED")
+                .setFields(
+                    Lists.newArrayList(
+                        new TableFieldSchema().setName("key").setType("STRING"),
+                        new TableFieldSchema()
+                            .setName("value")
+                            .setType("RECORD")
+                            .setFields(
+                                Lists.newArrayList(
+                                    new TableFieldSchema()
+                                        .setName("string_value")
+                                        .setType("STRING"),
+                                    new TableFieldSchema().setName("int_value").setType("INTEGER"),
+                                    new TableFieldSchema().setName("double_value").setType("FLOAT"),
+                                    new TableFieldSchema()
+                                        .setName("float_value")
+                                        .setType("FLOAT"))))),
+            new TableFieldSchema()
+                .setName("key_value_pair_2")
+                .setType("RECORD")
+                .setMode("REPEATED")
+                .setFields(
+                    Lists.newArrayList(
+                        new TableFieldSchema().setName("key").setType("STRING"),
+                        new TableFieldSchema()
+                            .setName("value")
+                            .setType("RECORD")
+                            .setFields(
+                                Lists.newArrayList(
+                                    new TableFieldSchema()
+                                        .setName("string_value")
+                                        .setType("STRING"),
+                                    new TableFieldSchema().setName("int_value").setType("INTEGER"),
+                                    new TableFieldSchema().setName("double_value").setType("FLOAT"),
+                                    new TableFieldSchema()
+                                        .setName("float_value")
+                                        .setType("FLOAT"))))),
+            new TableFieldSchema()
+                .setName("key_value_pair_3")
+                .setType("RECORD")
+                .setMode("REPEATED")
+                .setFields(
+                    Lists.newArrayList(
+                        new TableFieldSchema().setName("key").setType("STRING"),
+                        new TableFieldSchema()
+                            .setName("value")
+                            .setType("RECORD")
+                            .setFields(
+                                Lists.newArrayList(
+                                    new TableFieldSchema()
+                                        .setName("key_value_pair_1")
+                                        .setType("RECORD")
+                                        .setMode("REPEATED")
+                                        .setFields(
+                                            Lists.newArrayList(
+                                                new TableFieldSchema()
+                                                    .setName("key")
+                                                    .setType("STRING"),
+                                                new TableFieldSchema()
+                                                    .setName("value")
+                                                    .setType("RECORD")
+                                                    .setFields(
+                                                        Lists.newArrayList(
+                                                            new TableFieldSchema()
+                                                                .setName("string_value")
+                                                                .setType("STRING"),
+                                                            new TableFieldSchema()
+                                                                .setName("int_value")
+                                                                .setType("INTEGER"),
+                                                            new TableFieldSchema()
+                                                                .setName("double_value")
+                                                                .setType("FLOAT"),
+                                                            new TableFieldSchema()
+                                                                .setName("float_value")
+                                                                .setType("FLOAT"))))))))),
+            new TableFieldSchema().setName("platform").setType("STRING")));
+    // To string should be sufficient here as this exercises Avro's conversion feature
+    String output = BigQueryAvroUtils.toGenericAvroSchema("root", schema.getFields()).toString();
+    assertThat(output.length(), greaterThan(0));
   }
 
   /** Pojo class used as the record type in tests. */

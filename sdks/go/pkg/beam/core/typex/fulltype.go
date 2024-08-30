@@ -124,7 +124,7 @@ func New(t reflect.Type, components ...FullType) FullType {
 			if len(components) != 2 {
 				panic(fmt.Sprintf("Invalid number of components for KV: %v, %v", t, components))
 			}
-			if isAnyNonKVComposite(components) {
+			if isAnyNonKVAndNonWindowedComposite(components) {
 				panic(fmt.Sprintf("Invalid to nest composite composites inside KV: %v, %v", t, components))
 			}
 			return &tree{class, t, components}
@@ -163,6 +163,15 @@ func New(t reflect.Type, components ...FullType) FullType {
 func isAnyNonKVComposite(list []FullType) bool {
 	for _, t := range list {
 		if t.Class() == Composite && t.Type() != KVType {
+			return true
+		}
+	}
+	return false
+}
+
+func isAnyNonKVAndNonWindowedComposite(list []FullType) bool {
+	for _, t := range list {
+		if t.Class() == Composite && t.Type() != KVType && t.Type() != WindowedValueType {
 			return true
 		}
 	}

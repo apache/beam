@@ -33,7 +33,7 @@ const defaultArtifactDir = path.join(
   os.homedir(),
   ".apache_beam",
   "cache",
-  "artifacts"
+  "artifacts",
 );
 
 /**
@@ -43,7 +43,7 @@ const defaultArtifactDir = path.join(
 export async function* resolveArtifacts(
   client: IArtifactRetrievalServiceClient,
   artifacts: Iterable<runnerApi.ArtifactInformation>,
-  localDir: string = defaultArtifactDir
+  localDir: string = defaultArtifactDir,
 ): AsyncGenerator<runnerApi.ArtifactInformation, void, unknown> {
   const resolved = await client.resolveArtifacts({
     artifacts: Array.from(artifacts),
@@ -51,11 +51,11 @@ export async function* resolveArtifacts(
   }).response;
 
   async function storeArtifact(
-    artifact: runnerApi.ArtifactInformation
+    artifact: runnerApi.ArtifactInformation,
   ): Promise<runnerApi.ArtifactInformation> {
     if (artifact.typeUrn === "beam:artifact:type:file:v1") {
       const payload = runnerApi.ArtifactFilePayload.fromBinary(
-        artifact.typePayload
+        artifact.typePayload,
       );
       // As we're storing artifacts by hash, we can safely re-use if we've
       // ever seen this before.
@@ -116,7 +116,7 @@ export async function* resolveArtifacts(
 export async function offerArtifacts(
   client: IArtifactStagingServiceClient,
   stagingToken: string,
-  rootDir: string = defaultArtifactDir
+  rootDir: string = defaultArtifactDir,
 ) {
   const call = client.reverseArtifactRetrievalService();
   call.responses.onMessage(async (msg) => {
@@ -138,7 +138,7 @@ export async function offerArtifacts(
         switch (msg.request.getArtifact.artifact!.typeUrn) {
           case "beam:artifact:type:file:v1":
             const payload = runnerApi.ArtifactFilePayload.fromBinary(
-              msg.request.getArtifact.artifact!.typePayload
+              msg.request.getArtifact.artifact!.typePayload,
             );
             const filePath = path.normalize(payload.path);
             if (!filePath.startsWith(rootDir)) {
@@ -146,7 +146,7 @@ export async function offerArtifacts(
                 "Refusing to serve " +
                   filePath +
                   " as it is not under " +
-                  rootDir
+                  rootDir,
               );
             }
             const handle = fs.createReadStream(filePath);
@@ -173,7 +173,7 @@ export async function offerArtifacts(
           default:
             throw new Error(
               "Unknown artifact type " +
-                msg.request.getArtifact.artifact!.typeUrn
+                msg.request.getArtifact.artifact!.typeUrn,
             );
         }
         break;
@@ -200,6 +200,6 @@ function tempFile(dir) {
       crypto
         .randomBytes(16)
         .toString("base64")
-        .replace(/[^a-zA-Z0-9]/g, "_")
+        .replace(/[^a-zA-Z0-9]/g, "_"),
   );
 }

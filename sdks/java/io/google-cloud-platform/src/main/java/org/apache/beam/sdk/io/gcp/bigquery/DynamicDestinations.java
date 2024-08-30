@@ -18,8 +18,9 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.apache.beam.sdk.values.TypeDescriptors.extractFromTypeParameters;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
+import com.google.api.services.bigquery.model.TableConstraints;
 import com.google.api.services.bigquery.model.TableSchema;
 import java.io.Serializable;
 import java.util.List;
@@ -32,7 +33,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -131,6 +132,10 @@ public abstract class DynamicDestinations<T, DestinationT> implements Serializab
   /**
    * Returns an object that represents at a high level which table is being written to. May not
    * return null.
+   *
+   * <p>The method must return a unique object for different destination tables involved over all
+   * BigQueryIO write transforms in the same pipeline. See
+   * https://github.com/apache/beam/issues/32335 for details.
    */
   public abstract DestinationT getDestination(@Nullable ValueInSingleWindow<T> element);
 
@@ -153,6 +158,14 @@ public abstract class DynamicDestinations<T, DestinationT> implements Serializab
 
   /** Returns the table schema for the destination. */
   public abstract @Nullable TableSchema getSchema(DestinationT destination);
+
+  /**
+   * Returns TableConstraints (including primary and foreign key) to be used when creating the
+   * table. Note: this is not currently supported when using FILE_LOADS!.
+   */
+  public @Nullable TableConstraints getTableConstraints(DestinationT destination) {
+    return null;
+  }
 
   // Gets the destination coder. If the user does not provide one, try to find one in the coder
   // registry. If no coder can be found, throws CannotProvideCoderException.

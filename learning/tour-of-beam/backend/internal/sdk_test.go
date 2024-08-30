@@ -76,7 +76,6 @@ func TestSdkList(t *testing.T) {
 			{"java", "Java"},
 			{"python", "Python"},
 			{"go", "Go"},
-			{"scio", "SCIO"},
 		},
 	}, MakeSdkList())
 }

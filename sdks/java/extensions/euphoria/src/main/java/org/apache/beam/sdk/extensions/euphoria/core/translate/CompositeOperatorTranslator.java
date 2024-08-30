@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.translate;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.CompositeOperator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
@@ -30,10 +30,12 @@ import org.apache.beam.sdk.values.PCollectionList;
  * @param <InputT> input type
  * @param <OutputT> output type
  * @param <OperatorT> operator type
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
  */
 @SuppressWarnings({
   "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
+@Deprecated
 public class CompositeOperatorTranslator<InputT, OutputT, OperatorT extends Operator>
     implements OperatorTranslator<InputT, OutputT, OperatorT> {
 

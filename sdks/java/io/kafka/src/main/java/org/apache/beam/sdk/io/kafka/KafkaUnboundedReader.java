@@ -17,12 +17,13 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -44,17 +45,18 @@ import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.io.kafka.KafkaCheckpointMark.PartitionMark;
 import org.apache.beam.sdk.io.kafka.KafkaIO.Read;
 import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Gauge;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.metrics.SourceMetrics;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.Preconditions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Closeables;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterators;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Closeables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -217,6 +219,15 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
         pState.recordConsumed(offset, recordSize, offsetGap);
         bytesRead.inc(recordSize);
         bytesReadBySplit.inc(recordSize);
+
+        Distribution rawSizes =
+            Metrics.distribution(
+                METRIC_NAMESPACE, RAW_SIZE_METRIC_PREFIX + pState.topicPartition.toString());
+        rawSizes.update(recordSize);
+
+        for (Map.Entry<String, Long> backlogSplit : perPartitionBacklogMetrics.entrySet()) {
+          backlogBytesOfSplit.set(backlogSplit.getValue());
+        }
         return true;
 
       } else { // -- (b)
@@ -309,6 +320,8 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
 
   @VisibleForTesting static final String METRIC_NAMESPACE = "KafkaIOReader";
 
+  @VisibleForTesting static final String RAW_SIZE_METRIC_PREFIX = "rawSize/";
+
   @VisibleForTesting
   static final String CHECKPOINT_MARK_COMMITS_ENQUEUED_METRIC = "checkpointMarkCommitsEnqueued";
 
@@ -332,6 +345,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
   private final Counter bytesReadBySplit;
   private final Gauge backlogBytesOfSplit;
   private final Gauge backlogElementsOfSplit;
+  private HashMap<String, Long> perPartitionBacklogMetrics = new HashMap<String, Long>();;
   private final Counter checkpointMarkCommitsEnqueued =
       Metrics.counter(METRIC_NAMESPACE, CHECKPOINT_MARK_COMMITS_ENQUEUED_METRIC);
   // Checkpoint marks skipped in favor of newer mark (only the latest needs to be committed).
@@ -348,7 +362,9 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
    */
   private static final Duration KAFKA_POLL_TIMEOUT = Duration.millis(1000);
 
-  private static final Duration RECORDS_DEQUEUE_POLL_TIMEOUT = Duration.millis(10);
+  private Duration recordsDequeuePollTimeout;
+  private static final Duration RECORDS_DEQUEUE_POLL_TIMEOUT_MIN = Duration.millis(1);
+  private static final Duration RECORDS_DEQUEUE_POLL_TIMEOUT_MAX = Duration.millis(20);
   private static final Duration RECORDS_ENQUEUE_POLL_TIMEOUT = Duration.millis(100);
 
   // Use a separate thread to read Kafka messages. Kafka Consumer does all its work including
@@ -480,6 +496,10 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
       lastWatermark = timestampPolicy.getWatermark(mkTimestampPolicyContext());
       return lastWatermark;
     }
+
+    String name() {
+      return this.topicPartition.toString();
+    }
   }
 
   KafkaUnboundedReader(
@@ -517,14 +537,16 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
         prevWatermark = Optional.of(new Instant(ckptMark.getWatermarkMillis()));
       }
 
-      states.add(
-          new PartitionState<>(
+      PartitionState<K, V> state =
+          new PartitionState<K, V>(
               tp,
               nextOffset,
               source
                   .getSpec()
                   .getTimestampPolicyFactory()
-                  .createTimestampPolicy(tp, prevWatermark)));
+                  .createTimestampPolicy(tp, prevWatermark));
+      states.add(state);
+      perPartitionBacklogMetrics.put(state.name(), 0L);
     }
 
     partitionStates = ImmutableList.copyOf(states);
@@ -534,6 +556,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     bytesReadBySplit = SourceMetrics.bytesReadBySplit(splitId);
     backlogBytesOfSplit = SourceMetrics.backlogBytesOfSplit(splitId);
     backlogElementsOfSplit = SourceMetrics.backlogElementsOfSplit(splitId);
+    recordsDequeuePollTimeout = Duration.millis(10);
   }
 
   private void consumerPollLoop() {
@@ -550,10 +573,8 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
               records, RECORDS_ENQUEUE_POLL_TIMEOUT.getMillis(), TimeUnit.MILLISECONDS)) {
             records = ConsumerRecords.empty();
           }
-          KafkaCheckpointMark checkpointMark = finalizedCheckpointMark.getAndSet(null);
-          if (checkpointMark != null) {
-            commitCheckpointMark(checkpointMark);
-          }
+
+          commitCheckpointMark();
         } catch (InterruptedException e) {
           LOG.warn("{}: consumer thread is interrupted", this, e); // not expected
           break;
@@ -569,17 +590,21 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     }
   }
 
-  private void commitCheckpointMark(KafkaCheckpointMark checkpointMark) {
-    LOG.debug("{}: Committing finalized checkpoint {}", this, checkpointMark);
-    Consumer<byte[], byte[]> consumer = Preconditions.checkStateNotNull(this.consumer);
+  private void commitCheckpointMark() {
+    KafkaCheckpointMark checkpointMark = finalizedCheckpointMark.getAndSet(null);
 
-    consumer.commitSync(
-        checkpointMark.getPartitions().stream()
-            .filter(p -> p.getNextOffset() != UNINITIALIZED_OFFSET)
-            .collect(
-                Collectors.toMap(
-                    p -> new TopicPartition(p.getTopic(), p.getPartition()),
-                    p -> new OffsetAndMetadata(p.getNextOffset()))));
+    if (checkpointMark != null) {
+      LOG.debug("{}: Committing finalized checkpoint {}", this, checkpointMark);
+      Consumer<byte[], byte[]> consumer = Preconditions.checkStateNotNull(this.consumer);
+
+      consumer.commitSync(
+          checkpointMark.getPartitions().stream()
+              .filter(p -> p.getNextOffset() != UNINITIALIZED_OFFSET)
+              .collect(
+                  Collectors.toMap(
+                      p -> new TopicPartition(p.getTopic(), p.getPartition()),
+                      p -> new OffsetAndMetadata(p.getNextOffset()))));
+    }
   }
 
   /**
@@ -603,8 +628,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     try {
       // poll available records, wait (if necessary) up to the specified timeout.
       records =
-          availableRecordsQueue.poll(
-              RECORDS_DEQUEUE_POLL_TIMEOUT.getMillis(), TimeUnit.MILLISECONDS);
+          availableRecordsQueue.poll(recordsDequeuePollTimeout.getMillis(), TimeUnit.MILLISECONDS);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       LOG.warn("{}: Unexpected", this, e);
@@ -616,7 +640,17 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
       if (consumerPollException.get() != null) {
         throw new IOException("Exception while reading from Kafka", consumerPollException.get());
       }
+      if (recordsDequeuePollTimeout.isLongerThan(RECORDS_DEQUEUE_POLL_TIMEOUT_MIN)) {
+        recordsDequeuePollTimeout = recordsDequeuePollTimeout.minus(Duration.millis(1));
+        LOG.debug("Reducing poll timeout for reader to " + recordsDequeuePollTimeout.getMillis());
+      }
       return;
+    }
+
+    if (recordsDequeuePollTimeout.isShorterThan(RECORDS_DEQUEUE_POLL_TIMEOUT_MAX)) {
+      recordsDequeuePollTimeout = recordsDequeuePollTimeout.plus(Duration.millis(1));
+      LOG.debug("Increasing poll timeout for reader to " + recordsDequeuePollTimeout.getMillis());
+      LOG.debug("Record count: " + records.count());
     }
 
     partitionStates.forEach(p -> p.recordIter = records.records(p.topicPartition).iterator());
@@ -694,6 +728,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
       if (pBacklog == UnboundedReader.BACKLOG_UNKNOWN) {
         return UnboundedReader.BACKLOG_UNKNOWN;
       }
+      perPartitionBacklogMetrics.put(p.name(), pBacklog);
       backlogCount += pBacklog;
     }
 
@@ -732,6 +767,9 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
         LOG.warn("An internal thread is taking a long time to shutdown. will retry.");
       }
     }
+
+    // Commit any pending finalized checkpoint before shutdown.
+    commitCheckpointMark();
 
     Closeables.close(keyDeserializerInstance, true);
     Closeables.close(valueDeserializerInstance, true);

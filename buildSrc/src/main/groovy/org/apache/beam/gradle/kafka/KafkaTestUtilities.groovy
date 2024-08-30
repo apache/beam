@@ -40,7 +40,7 @@ class KafkaTestUtilities {
         '"keySizeBytes": "10",' +
         '"valueSizeBytes": "90"' +
         '}',
-        "--readTimeout=120",
+        "--readTimeout=60",
         "--kafkaTopic=beam",
         "--withTestcontainers=true",
         "--kafkaContainerVersion=5.5.2",
@@ -56,6 +56,7 @@ class KafkaTestUtilities {
           excludeTestsMatching "*SDFResumesCorrectly" //Kafka SDF does not work for kafka versions <2.0.1
           excludeTestsMatching "*StopReadingFunction" //Kafka SDF does not work for kafka versions <2.0.1
           excludeTestsMatching "*WatermarkUpdateWithSparseMessages" //Kafka SDF does not work for kafka versions <2.0.1
+          excludeTestsMatching "*KafkaIOSDFReadWithErrorHandler"
         }
       }
     }

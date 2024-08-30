@@ -20,7 +20,7 @@ package org.apache.beam.runners.dataflow.util;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A utility for manipulating well-known cloud types. */

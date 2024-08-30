@@ -26,7 +26,7 @@ This can be found at
 https://raw.githubusercontent.com/apache/beam/v<VERSION_NUMBER>/sdks/go.sum
 ```
 
-<p class="paragraph-wrap">Replace `<VERSION_NUMBER>` with the major.minor.patch version of the SDK. For example, <a href="https://raw.githubusercontent.com/apache/beam/v{{< param release_latest >}}/sdks/go.sum" target="_blank" rel="noopener noreferrer">https://raw.githubusercontent.com/apache/beam/v{{< param release_latest >}}/sdks/go.sum</a> will provide the dependencies for the {{< param release_latest >}} release.</p>
+<p class="paragraph-wrap">Replace `&lt;VERSION_NUMBER&gt;` with the major.minor.patch version of the SDK. For example, <a href="https://raw.githubusercontent.com/apache/beam/v{{< param release_latest >}}/sdks/go.sum" target="_blank" rel="noopener noreferrer">https://raw.githubusercontent.com/apache/beam/v{{< param release_latest >}}/sdks/go.sum</a> will provide the dependencies for the {{< param release_latest >}} release.</p>
 
 **Note:** To just view direct dependencies, you can view the `go.mod` file instead, direct dependencies
 are listed in the initial `require` statement. This can be found at `https://raw.githubusercontent.com/apache/beam/v<VERSION_NUMBER>/sdks/go.mod`

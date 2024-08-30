@@ -17,10 +17,17 @@
  */
 package org.apache.beam.sdk.tpcds;
 
+import static org.apache.beam.sdk.tpcds.SqlTransformRunner.METRICS_NAMESPACE;
+import static org.apache.beam.sdk.tpcds.SqlTransformRunner.OUTPUT_COUNTER;
+
 import java.util.concurrent.Callable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineResult.State;
+import org.apache.beam.sdk.metrics.MetricNameFilter;
+import org.apache.beam.sdk.metrics.MetricQueryResults;
+import org.apache.beam.sdk.metrics.MetricResult;
+import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,6 +55,35 @@ public class TpcdsRun implements Callable<TpcdsRunResult> {
       // Make sure to set the job status to be successful only when pipelineResult's final state is
       // DONE.
       boolean isSuccessful = state == State.DONE;
+
+      // Check a number of output records - it MUST be greater than 0.
+      if (isSuccessful) {
+        long outputRecords = 0;
+        MetricQueryResults metrics =
+            pipelineResult
+                .metrics()
+                .queryMetrics(
+                    MetricsFilter.builder()
+                        .addNameFilter(MetricNameFilter.named(METRICS_NAMESPACE, OUTPUT_COUNTER))
+                        .build());
+        if (metrics.getCounters().iterator().hasNext()) {
+          // Despite it's iterable, it should contain only one entry
+          MetricResult<Long> metricResult = metrics.getCounters().iterator().next();
+          if (metricResult.getAttempted() != null && metricResult.getAttempted() > 0) {
+            outputRecords = metricResult.getAttempted();
+          }
+        }
+
+        // It's expected a "greater than zero" number of output records for successful jobs.
+        if (outputRecords <= 0) {
+          LOG.warn(
+              "Output records counter for job \"{}\" is {}",
+              pipeline.getOptions().getJobName(),
+              outputRecords);
+          isSuccessful = false;
+        }
+      }
+
       tpcdsRunResult =
           new TpcdsRunResult(
               isSuccessful, startTimeStamp, endTimeStamp, pipeline.getOptions(), pipelineResult);

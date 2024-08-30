@@ -33,10 +33,15 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/** {@link OperatorTranslator Translator } for Euphoria {@link Join} operator. */
+/**
+ * {@link OperatorTranslator Translator } for Euphoria {@link Join} operator.
+ *
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
+ */
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
+@Deprecated
 public class JoinTranslator<LeftT, RightT, KeyT, OutputT>
     extends AbstractJoinTranslator<LeftT, RightT, KeyT, OutputT> {
 
@@ -249,7 +254,7 @@ public class JoinTranslator<LeftT, RightT, KeyT, OutputT>
       Join<LeftT, RightT, KeyT, OutputT> operator,
       PCollection<LeftT> left,
       PCollection<KV<KeyT, LeftT>> leftKeyed,
-      PCollection<RightT> reight,
+      PCollection<RightT> right,
       PCollection<KV<KeyT, RightT>> rightKeyed) {
     final AccumulatorProvider accumulators =
         new LazyAccumulatorProvider(AccumulatorProvider.of(leftKeyed.getPipeline()));

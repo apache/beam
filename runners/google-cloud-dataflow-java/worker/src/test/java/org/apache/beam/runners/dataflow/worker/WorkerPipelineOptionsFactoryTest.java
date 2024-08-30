@@ -25,7 +25,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.sdk.testing.RestoreSystemProperties;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -52,7 +52,7 @@ public class WorkerPipelineOptionsFactoryTest {
 
     @SuppressWarnings("deprecation") // testing deprecated functionality
     DataflowWorkerHarnessOptions options =
-        WorkerPipelineOptionsFactory.createFromSystemProperties();
+        WorkerPipelineOptionsFactory.createFromSystemProperties(DataflowWorkerHarnessOptions.class);
     assertEquals("test_worker_id", options.getWorkerId());
     assertEquals("test_job_id", options.getJobId());
     assertEquals(999, options.getNumWorkers());
@@ -74,7 +74,7 @@ public class WorkerPipelineOptionsFactoryTest {
 
     @SuppressWarnings("deprecation") // testing deprecated functionality
     DataflowWorkerHarnessOptions options =
-        WorkerPipelineOptionsFactory.createFromSystemProperties();
+        WorkerPipelineOptionsFactory.createFromSystemProperties(DataflowWorkerHarnessOptions.class);
     assertEquals("test_worker_id_2", options.getWorkerId());
     assertEquals("test_job_id_2", options.getJobId());
     assertEquals(1000, options.getNumWorkers());

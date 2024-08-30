@@ -29,11 +29,14 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * A {@code Context} that holds only single value. There is no window associated with the value, so
  * the {@code getWindow()} will always throw {@code UnsupportedOperationException}. This context
  * will free the value as soon as {@code getAndResetValue()} is called.
+ *
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
  */
 @Audience(Audience.Type.EXECUTOR)
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
+@Deprecated
 public class SingleValueContext<T> implements Context, Collector<T> {
 
   private final @Nullable Context wrap;

@@ -17,17 +17,17 @@
  */
 package org.apache.beam.runners.flink;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.List;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems;
-import org.apache.beam.runners.core.construction.PTransformMatchers;
-import org.apache.beam.runners.core.construction.PTransformTranslation;
-import org.apache.beam.runners.core.construction.SplittableParDo;
-import org.apache.beam.runners.core.construction.SplittableParDoNaiveBounded;
 import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.sdk.util.construction.PTransformMatchers;
+import org.apache.beam.sdk.util.construction.PTransformTranslation;
+import org.apache.beam.sdk.util.construction.SplittableParDo;
+import org.apache.beam.sdk.util.construction.SplittableParDoNaiveBounded;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 /** {@link PTransform} overrides for Flink runner. */
 @SuppressWarnings({
@@ -37,17 +37,18 @@ class FlinkTransformOverrides {
   static List<PTransformOverride> getDefaultOverrides(FlinkPipelineOptions options) {
     ImmutableList.Builder<PTransformOverride> builder = ImmutableList.builder();
     if (options.isStreaming()) {
-      builder
-          .add(
-              PTransformOverride.of(
-                  FlinkStreamingPipelineTranslator.StreamingShardedWriteFactory
-                      .writeFilesNeedsOverrides(),
-                  new FlinkStreamingPipelineTranslator.StreamingShardedWriteFactory(
-                      checkNotNull(options))))
-          .add(
-              PTransformOverride.of(
-                  PTransformMatchers.urnEqualTo(PTransformTranslation.CREATE_VIEW_TRANSFORM_URN),
-                  CreateStreamingFlinkView.Factory.INSTANCE));
+      builder.add(
+          PTransformOverride.of(
+              FlinkStreamingPipelineTranslator.StreamingShardedWriteFactory
+                  .writeFilesNeedsOverrides(),
+              new FlinkStreamingPipelineTranslator.StreamingShardedWriteFactory(
+                  checkNotNull(options))));
+    }
+    if (options.isStreaming() || options.getUseDataStreamForBatch()) {
+      builder.add(
+          PTransformOverride.of(
+              PTransformMatchers.urnEqualTo(PTransformTranslation.CREATE_VIEW_TRANSFORM_URN),
+              CreateStreamingFlinkView.Factory.INSTANCE));
     }
     builder
         .add(

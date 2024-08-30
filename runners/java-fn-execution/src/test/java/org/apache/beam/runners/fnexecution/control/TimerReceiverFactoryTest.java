@@ -20,12 +20,16 @@ package org.apache.beam.runners.fnexecution.control;
 import static org.junit.Assert.assertEquals;
 
 import org.apache.beam.sdk.values.KV;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class TimerReceiverFactoryTest {
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
+
   @Test
   public void testEncodeAndDecode() {
     KV<String, String> expected = KV.of("123:\"ab\n'c:", "456:sdf:d");

@@ -24,7 +24,15 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 )
+
+func init() {
+	register.DoFn2x1[[]byte, func(*beam.T) bool, error]((*boundsFn)(nil))
+	register.DoFn3x1[[]byte, func(*beam.T) bool, func(*beam.T) bool, error]((*thresholdFn)(nil))
+	register.Emitter1[beam.T]()
+	register.Iter1[beam.T]()
+}
 
 // EqualsFloat calls into TryEqualsFloat, checkong that two PCollections of non-complex
 // numeric types are equal, with each element being within a provided threshold of an
@@ -110,11 +118,11 @@ func AllWithinBounds(s beam.Scope, col beam.PCollection, lo, hi float64) {
 		lo, hi = hi, lo
 	}
 	s = s.Scope(fmt.Sprintf("passert.AllWithinBounds([%v, %v])", lo, hi))
-	beam.ParDo0(s, &boundsFn{lo: lo, hi: hi}, beam.Impulse(s), beam.SideInput{Input: col})
+	beam.ParDo0(s, &boundsFn{Lo: lo, Hi: hi}, beam.Impulse(s), beam.SideInput{Input: col})
 }
 
 type boundsFn struct {
-	lo, hi float64
+	Lo, Hi float64
 }
 
 func (f *boundsFn) ProcessElement(_ []byte, col func(*beam.T) bool) error {
@@ -122,9 +130,9 @@ func (f *boundsFn) ProcessElement(_ []byte, col func(*beam.T) bool) error {
 	var input beam.T
 	for col(&input) {
 		val := toFloat(input)
-		if val < f.lo {
+		if val < f.Lo {
 			tooLow = append(tooLow, val)
-		} else if val > f.hi {
+		} else if val > f.Hi {
 			tooHigh = append(tooHigh, val)
 		}
 	}
@@ -134,11 +142,11 @@ func (f *boundsFn) ProcessElement(_ []byte, col func(*beam.T) bool) error {
 	errorStrings := []string{}
 	if len(tooLow) != 0 {
 		sort.Float64s(tooLow)
-		errorStrings = append(errorStrings, fmt.Sprintf("values below minimum value %v: %v", f.lo, tooLow))
+		errorStrings = append(errorStrings, fmt.Sprintf("values below minimum value %v: %v", f.Lo, tooLow))
 	}
 	if len(tooHigh) != 0 {
 		sort.Float64s(tooHigh)
-		errorStrings = append(errorStrings, fmt.Sprintf("values above maximum value %v: %v", f.hi, tooHigh))
+		errorStrings = append(errorStrings, fmt.Sprintf("values above maximum value %v: %v", f.Hi, tooHigh))
 	}
 	return errors.New(strings.Join(errorStrings, "\n"))
 }

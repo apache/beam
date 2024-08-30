@@ -69,7 +69,7 @@ If you have additional material that you would like to see here, please let us k
 
 ### Machine Learning
 
-*   **[Machine Learning with Python using the RunInference API](/documentation/sdks/python-machine-learning/)** - Use Apache Beam with the RunInference API to use machine learning (ML) models to do local and remote inference with batch and streaming pipelines. Follow the [RunInference API pipeline examples](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/inference) to do image classification, image segmentation, language modeling, and MNIST digit classification. See examples of [RunInference transforms](/documentation/transforms/python/elementwise/runinference/).
+*   **[Machine Learning using the RunInference API](/documentation/ml/about-ml)** - Use Apache Beam with the RunInference API to use machine learning (ML) models to do local and remote inference with batch and streaming pipelines. Follow the [RunInference API pipeline examples](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/inference) to do image classification, image segmentation, language modeling, and MNIST digit classification. See examples of [RunInference transforms](/documentation/transforms/python/elementwise/runinference/).
 *   **[Machine Learning Preprocessing and Prediction](https://cloud.google.com/dataflow/examples/molecules-walkthrough)** - Predict the molecular energy from data stored in the [Spatial Data File](https://en.wikipedia.org/wiki/Spatial_Data_File) (SDF) format. Train a [TensorFlow](https://www.tensorflow.org/) model with [tf.Transform](https://github.com/tensorflow/transform) for preprocessing in Python. This also shows how to create batch and streaming prediction pipelines in Apache Beam.
 *   **[Machine Learning Preprocessing](https://cloud.google.com/blog/products/ai-machine-learning/pre-processing-tensorflow-pipelines-tftransform-google-cloud)** - Find the optimal parameter settings for simulated physical machines like a bottle filler or cookie machine. The goal of each simulated machine is to have the same input/output of the actual machine, making it a "digital twin". This uses [tf.Transform](https://github.com/tensorflow/transform) for preprocessing.
 
@@ -80,6 +80,16 @@ If you have additional material that you would like to see here, please let us k
 *   **[Timely and Stateful Processing](/blog/2017/08/28/timely-processing.html)** - An example on how to do batched RPC calls. The call requests are stored in a mutable state as they are received. Once there are either enough requests or a certain time has passed, the batch of requests is triggered to be sent.
 *   **[Running External Libraries](https://cloud.google.com/blog/products/gcp/running-external-libraries-with-cloud-dataflow-for-grid-computing-workloads)** - Call an external library written in a language that does not have a native SDK in Apache Beam such as C++.
 
+## Videos {#videos}
+
+*  **[Getting Started with Apache Beam](https://www.youtube.com/playlist?list=PLIivdWyY5sqIEiHGunZXg_yoS7unlHNJt)** - Five part video series for understanding basic to advanced concepts.
+*  See more [Videos and Podcasts](/get-started/resources/videos-and-podcasts/)
+
+## Courses {#courses}
+
+*  **[Beam College](https://beamcollege.dev/)** -- Free live and recorded lessons for learning Beam and data processing.
+*  **[Serverless Data Processing](https://www.coursera.org/specializations/serverless-data-processing-with-dataflow)** - Course specialized for Dataflow runner.
+
 ## Books {#books}
 
 ### Building Big Data Pipelines with Apache Beam
@@ -89,6 +99,14 @@ If you have additional material that you would like to see here, please let us k
 ###  Streaming Systems: The What, Where, When, and How of Large-Scale Data Processing
 
 **[Streaming Systems: The What, Where, When, and How of Large-Scale Data Processing](https://learning.oreilly.com/library/view/streaming-systems/9781491983867/)** by Tyler Akidau, Slava Chernyak, Reuven Lax. (August 2018). Expanded from Tyler Akidau’s popular blog posts "Streaming 101" and "Streaming 102", this book takes you from an introductory level to a nuanced understanding of the what, where, when, and how of processing real-time data streams.
+
+
+## Certifications {#certifications}
+
+### Getting Started with Apache Beam Quest
+
+**[Get Started with Apache Beam](https://www.cloudskillsboost.google/course_templates/724)**  This quest includes four labs that teach you how to write and test Apache Beam pipelines. Three of the labs use Java and one uses Python. Each lab takes about 1.5 hours to complete. When you complete the quest, you're granted a badge that you can use to show your Beam expertise.
+
 
 ## Interactive Labs {#interactive-labs}
 
@@ -133,11 +151,16 @@ complexity. Beam Katas are available for both Java and Python SDKs.
 
 ## Code Examples {#code-examples}
 
+### Dataflow Cookbook
+
+The [cookbook](https://github.com/GoogleCloudPlatform/dataflow-cookbook) includes examples in Java, Python, and Scala (via Scio), provides ready-to-launch and self-contained Beam pipelines.
+
 ### Java
 
 *   **[Snippets 1](https://github.com/apache/beam/tree/master/examples/java/src/main/java/org/apache/beam/examples/cookbook)** - Commonly-used data analysis patterns such as how to use [BigQuery](https://cloud.google.com/bigquery), a CombinePerKey transform, remove duplicate lines in files, filtering, joining PCollections, getting the maximum value of a PCollection, etc.
 *   **[Snippets 2](https://github.com/apache/beam/tree/master/examples/java/src/main/java/org/apache/beam/examples/common)** - Additional examples on common tasks such as configuring [BigQuery](https://cloud.google.com/bigquery), [PubSub](https://cloud.google.com/pubsub/), writing one file per window, etc.
 *   **[Complete Examples](https://github.com/apache/beam/tree/master/examples/java/src/main/java/org/apache/beam/examples/complete)** - End-to-end example pipelines such as an auto complete, a streaming word extract, calculating the Term Frequency-Inverse Document Frequency ([TF-IDF](https://en.wikipedia.org/wiki/Tf%E2%80%93idf)), getting the top Wikipedia sessions, traffic max lane flow, traffic routes, etc.
+*   **[Pub/Sub to BigQuery](https://github.com/GoogleCloudPlatform/cloud-code-samples/tree/v1/java/java-dataflow-samples/read-pubsub-write-bigquery)** - A complete example demonstrates using Apache Beam on Dataflow to convert JSON encoded Pub/Sub subscription message strings into structured data and write that data to a BigQuery table.
 
 ### Python
 

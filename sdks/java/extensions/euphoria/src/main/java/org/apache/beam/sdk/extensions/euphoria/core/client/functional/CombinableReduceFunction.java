@@ -22,7 +22,10 @@ import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience
 /**
  * Function reducing stream of elements into single one of the same type. The applied function has
  * to be commutative associative.
+ *
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
  */
 @Audience(Audience.Type.CLIENT)
 @FunctionalInterface
+@Deprecated
 public interface CombinableReduceFunction<T> extends ReduceFunction<T, T> {}

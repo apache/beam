@@ -52,16 +52,17 @@ import hashlib
 import logging
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
+from importlib.metadata import distribution
 from typing import Callable
 from typing import List
 from typing import Optional
 from typing import Tuple
 from urllib.parse import urlparse
 
-import pkg_resources
-from pkg_resources import parse_version
+from packaging import version
 
 from apache_beam.internal import pickler
 from apache_beam.internal.http_client import get_new_http
@@ -84,6 +85,8 @@ from apache_beam.utils import retry
 WORKFLOW_TARBALL_FILE = 'workflow.tar.gz'
 REQUIREMENTS_FILE = 'requirements.txt'
 EXTRA_PACKAGES_FILE = 'extra_packages.txt'
+# Filename that stores the submission environment dependencies.
+SUBMISSION_ENV_DEPENDENCIES_FILE = 'submission_environment_dependencies.txt'
 # One of the choices for user to use for requirements cache during staging
 SKIP_REQUIREMENTS_CACHE = 'skip'
 
@@ -114,12 +117,6 @@ class Stager(object):
   def commit_manifest(self):
     """Commits manifest."""
     raise NotImplementedError
-
-  @staticmethod
-  def get_sdk_package_name():
-    """For internal use only; no backwards-compatibility guarantees.
-        Returns the PyPI package name to be staged."""
-    return names.BEAM_PACKAGE_NAME
 
   @staticmethod
   def _create_file_stage_to_artifact(local_path, staged_name):
@@ -165,9 +162,10 @@ class Stager(object):
   def create_job_resources(options,  # type: PipelineOptions
                            temp_dir,  # type: str
                            build_setup_args=None,  # type: Optional[List[str]]
-                           pypi_requirements=None, # type: Optional[List[str]]
+                           pypi_requirements=None,  # type: Optional[List[str]]
                            populate_requirements_cache=None,  # type: Optional[Callable[[str, str, bool], None]]
-                           skip_prestaged_dependencies=False, # type: Optional[bool]
+                           skip_prestaged_dependencies=False,  # type: Optional[bool]
+                           log_submission_env_dependencies=True,  # type: Optional[bool]
                            ):
     """For internal use only; no backwards-compatibility guarantees.
 
@@ -189,6 +187,8 @@ class Stager(object):
             cache. Used only for testing.
           skip_prestaged_dependencies: Skip staging dependencies that can be
             added into SDK containers during prebuilding.
+          log_submission_env_dependencies: (Optional) param to stage and log
+            submission environment dependencies. Defaults to True.
 
         Returns:
           A list of ArtifactInformation to be used for staging resources.
@@ -214,7 +214,8 @@ class Stager(object):
           os.path.join(tempfile.gettempdir(), 'dataflow-requirements-cache') if
           (setup_options.requirements_cache is None) else
           setup_options.requirements_cache)
-      if not os.path.exists(requirements_cache_path):
+      if (setup_options.requirements_cache != SKIP_REQUIREMENTS_CACHE and
+          not os.path.exists(requirements_cache_path)):
         os.makedirs(requirements_cache_path)
 
       # Stage a requirements file if present.
@@ -296,30 +297,28 @@ class Stager(object):
                 setup_options.extra_packages, temp_dir=temp_dir))
 
       if hasattr(setup_options, 'sdk_location'):
+        sdk_location = setup_options.sdk_location
+        if Stager._is_remote_path(sdk_location):
+          try:
+            resources.extend(
+                Stager._create_beam_sdk(
+                    sdk_remote_location=setup_options.sdk_location,
+                    temp_dir=temp_dir,
+                ))
+          except:
+            raise RuntimeError(
+                'The --sdk_location option was used with an unsupported '
+                'type of location: %s' % sdk_location)
 
-        if (setup_options.sdk_location == 'default') or Stager._is_remote_path(
-            setup_options.sdk_location):
-          # If --sdk_location is not specified then the appropriate package
-          # will be obtained from PyPI (https://pypi.python.org) based on the
-          # version of the currently running SDK. If the option is
-          # present then no version matching is made and the exact URL or path
-          # is expected.
-          #
-          # Unit tests running in the 'python setup.py test' context will
-          # not have the sdk_location attribute present and therefore we
-          # will not stage SDK.
-          sdk_remote_location = 'pypi' if (
-              setup_options.sdk_location == 'default'
-          ) else setup_options.sdk_location
-          resources.extend(
-              Stager._create_beam_sdk(sdk_remote_location, temp_dir))
-        elif setup_options.sdk_location == 'container':
-          # Use the SDK that's built into the container, rather than re-staging
-          # it.
+        elif sdk_location == 'default':
+          # Use default location for a runner.
+          pass
+        elif sdk_location == 'container':
+          # Used in the past to indicate that SDK should be used from container
+          # image instead of being staged.
+          # Equivalent to 'default' now, leaving for backwards compatibility.
           pass
         else:
-          # This branch is also used by internal tests running with the SDK
-          # built at head.
           if os.path.isdir(setup_options.sdk_location):
             sdk_path = os.path.join(
                 setup_options.sdk_location, names.STAGED_SDK_SOURCES_FILENAME)
@@ -345,7 +344,6 @@ class Stager(object):
               raise RuntimeError(
                   'The file "%s" cannot be found. Its location was specified '
                   'by the --sdk_location command-line option.' % sdk_path)
-
     # The following artifacts are not processed by python sdk container boot
     # sequence in a setup mode and hence should not be skipped even if a
     # prebuilt sdk container image is used.
@@ -373,6 +371,13 @@ class Stager(object):
         resources.append(
             Stager._create_file_stage_to_artifact(
                 pickled_session_file, names.PICKLED_MAIN_SESSION_FILE))
+
+    # stage the submission environment dependencies, if enabled.
+    if (log_submission_env_dependencies and
+        not options.view_as(DebugOptions).lookup_experiment(
+            'disable_logging_submission_environment')):
+      resources.extend(
+          Stager._create_stage_submission_env_dependencies(temp_dir))
 
     return resources
 
@@ -603,11 +608,9 @@ class Stager(object):
             '".tar", ".tar.gz", ".whl" or ".zip" instead of %s' % package)
       if os.path.basename(package).endswith('.whl'):
         _LOGGER.warning(
-            'The .whl package "%s" is provided in --extra_package. '
-            'This functionality is not officially supported. Since wheel '
-            'packages are binary distributions, this package must be '
-            'binary-compatible with the worker environment (e.g. Python 2.7 '
-            'running on an x64 Linux host).' % package)
+            'The .whl package "%s" provided in --extra_package '
+            'must be binary-compatible with the worker runtime environment.' %
+            package)
 
       if not os.path.isfile(package):
         if Stager._is_remote_path(package):
@@ -713,8 +716,8 @@ class Stager(object):
     # TODO(anandinguva): When https://github.com/pypa/pip/issues/10760 is
     # addressed, download wheel based on glibc version in Beam's Python
     # Base image
-    pip_version = pkg_resources.get_distribution('pip').version
-    if parse_version(pip_version) >= parse_version('19.3'):
+    pip_version = distribution('pip').version
+    if version.parse(pip_version) >= version.parse('19.3'):
       # pip can only recognize manylinux2014_x86_64 wheels
       # from version 19.3.
       return 'manylinux2014_x86_64'
@@ -782,15 +785,31 @@ class Stager(object):
     try:
       os.chdir(os.path.dirname(setup_file))
       if build_setup_args is None:
-        build_setup_args = [
-            Stager._get_python_executable(),
-            os.path.basename(setup_file),
-            'sdist',
-            '--dist-dir',
-            temp_dir
-        ]
-      _LOGGER.info('Executing command: %s', build_setup_args)
-      processes.check_output(build_setup_args)
+        # if build is installed in the user env, use it to
+        # build the sdist else fallback to legacy setup.py sdist call.
+        try:
+          build_setup_args = [
+              Stager._get_python_executable(),
+              '-m',
+              'build',
+              '--no-isolation',  # Otherwise, we need internet access to PyPI.
+              '--sdist',
+              '--outdir',
+              temp_dir,
+              os.path.dirname(setup_file),
+          ]
+          _LOGGER.info('Executing command: %s', build_setup_args)
+          processes.check_output(build_setup_args)
+        except RuntimeError:
+          build_setup_args = [
+              Stager._get_python_executable(),
+              os.path.basename(setup_file),
+              'sdist',
+              '--dist-dir',
+              temp_dir
+          ]
+          _LOGGER.info('Executing command: %s', build_setup_args)
+          processes.check_output(build_setup_args)
       output_files = glob.glob(os.path.join(temp_dir, '*.tar.gz'))
       if not output_files:
         raise RuntimeError(
@@ -824,8 +843,7 @@ class Stager(object):
 
       Args:
         sdk_remote_location: A URL from which the file can be downloaded or a
-          remote file location. The SDK file can be a tarball or a wheel. Set
-          to 'pypi' to download and stage a wheel and source SDK from PyPi.
+          remote file location. The SDK file can be a tarball or a wheel.
         temp_dir: path to temporary location where the file should be
           downloaded.
 
@@ -836,136 +854,51 @@ class Stager(object):
       Raises:
         RuntimeError: if staging was not successful.
       """
-    if sdk_remote_location == 'pypi':
-      sdk_local_file = Stager._download_pypi_sdk_package(temp_dir)
-      sdk_sources_staged_name = Stager.\
-          _desired_sdk_filename_in_staging_location(sdk_local_file)
-      _LOGGER.info('Staging SDK sources from PyPI: %s', sdk_sources_staged_name)
-      staged_sdk_files = [
-          Stager._create_file_stage_to_artifact(
-              sdk_local_file, sdk_sources_staged_name)
-      ]
-      try:
-        abi_suffix = 'm' if sys.version_info < (3, 8) else ''
-        # Stage binary distribution of the SDK, for now on a best-effort basis.
-        platform_tag = Stager._get_platform_for_default_sdk_container()
-        sdk_local_file = Stager._download_pypi_sdk_package(
-            temp_dir,
-            fetch_binary=True,
-            language_version_tag='%d%d' %
-            (sys.version_info[0], sys.version_info[1]),
-            abi_tag='cp%d%d%s' %
-            (sys.version_info[0], sys.version_info[1], abi_suffix),
-            platform_tag=platform_tag)
-        sdk_binary_staged_name = Stager.\
-            _desired_sdk_filename_in_staging_location(sdk_local_file)
-        _LOGGER.info(
-            'Staging binary distribution of the SDK from PyPI: %s',
-            sdk_binary_staged_name)
-        staged_sdk_files.append(
-            Stager._create_file_stage_to_artifact(
-                sdk_local_file, sdk_binary_staged_name))
-      except RuntimeError as e:
-        _LOGGER.warning(
-            'Failed to download requested binary distribution '
-            'of the SDK: %s',
-            repr(e))
 
-      return staged_sdk_files
-    elif Stager._is_remote_path(sdk_remote_location):
-      sdk_remote_parsed = urlparse(sdk_remote_location)
-      sdk_remote_filename = os.path.basename(sdk_remote_parsed.path)
-      local_download_file = os.path.join(temp_dir, sdk_remote_filename)
-      Stager._download_file(sdk_remote_location, local_download_file)
-      staged_name = Stager._desired_sdk_filename_in_staging_location(
-          local_download_file)
-      _LOGGER.info('Staging Beam SDK from %s', sdk_remote_location)
-      return [
-          Stager._create_file_stage_to_artifact(
-              local_download_file, staged_name)
-      ]
-    else:
-      raise RuntimeError(
-          'The --sdk_location option was used with an unsupported '
-          'type of location: %s' % sdk_remote_location)
-
-  @staticmethod
-  def _download_pypi_sdk_package(
-      temp_dir,
-      fetch_binary=False,
-      language_version_tag='39',
-      language_implementation_tag='cp',
-      abi_tag='cp39',
-      platform_tag='manylinux2014_x86_64'):
-    """Downloads SDK package from PyPI and returns path to local path."""
-    package_name = Stager.get_sdk_package_name()
-    try:
-      version = pkg_resources.get_distribution(package_name).version
-    except pkg_resources.DistributionNotFound:
-      raise RuntimeError(
-          'Please set --sdk_location command-line option '
-          'or install a valid {} distribution.'.format(package_name))
-    cmd_args = [
-        Stager._get_python_executable(),
-        '-m',
-        'pip',
-        'download',
-        '--dest',
-        temp_dir,
-        '%s==%s' % (package_name, version),
-        '--no-deps'
+    sdk_remote_parsed = urlparse(sdk_remote_location)
+    sdk_remote_filename = os.path.basename(sdk_remote_parsed.path)
+    local_download_file = os.path.join(temp_dir, sdk_remote_filename)
+    Stager._download_file(sdk_remote_location, local_download_file)
+    staged_name = Stager._desired_sdk_filename_in_staging_location(
+        local_download_file)
+    _LOGGER.info('Staging Beam SDK from %s', sdk_remote_location)
+    return [
+        Stager._create_file_stage_to_artifact(local_download_file, staged_name)
     ]
 
-    if fetch_binary:
-      _LOGGER.info('Downloading binary distribution of the SDK from PyPi')
-      # Get a wheel distribution for the SDK from PyPI.
-      cmd_args.extend([
-          '--only-binary',
-          ':all:',
-          '--python-version',
-          language_version_tag,
-          '--implementation',
-          language_implementation_tag,
-          '--abi',
-          abi_tag,
-          '--platform',
-          platform_tag
-      ])
-      # Example wheel: with manylinux14 tag.
-      # apache_beam-2.43.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl # pylint: disable=line-too-long
-      if platform_tag == 'manylinux2014_x86_64':
-        platform_tag = 'manylinux_2_17_x86_64.' + platform_tag
-      expected_files = [
-          os.path.join(
-              temp_dir,
-              '%s-%s-%s%s-%s-%s.whl' % (
-                  package_name.replace('-', '_'),
-                  version,
-                  language_implementation_tag,
-                  language_version_tag,
-                  abi_tag,
-                  platform_tag)),
-      ]
+  @staticmethod
+  def _create_stage_submission_env_dependencies(temp_dir):
+    """Create and stage a file with list of dependencies installed in the
+    submission environment.
 
-    else:
-      _LOGGER.info('Downloading source distribution of the SDK from PyPi')
-      cmd_args.extend(['--no-binary', ':all:'])
-      expected_files = [
-          os.path.join(temp_dir, '%s-%s.zip' % (package_name, version)),
-          os.path.join(temp_dir, '%s-%s.tar.gz' % (package_name, version))
-      ]
+    This list can be used at runtime to compare against the dependencies in the
+    runtime environment. This allows runners to warn users about any potential
+    dependency mismatches and help debug issues related to
+    environment mismatches.
 
-    _LOGGER.info('Executing command: %s', cmd_args)
+    Args:
+      temp_dir: path to temporary location where the file should be
+        downloaded.
+
+    Returns:
+      A list of ArtifactInformation of local file path that will be staged to
+      the staging location.
+    """
     try:
-      processes.check_output(cmd_args)
-    except processes.CalledProcessError as e:
-      raise RuntimeError(repr(e))
-
-    for sdk_file in expected_files:
-      if os.path.exists(sdk_file):
-        return sdk_file
-
-    raise RuntimeError(
-        'Failed to download a distribution for the running SDK. '
-        'Expected either one of %s to be found in the download folder.' %
-        (expected_files))
+      local_dependency_file_path = os.path.join(
+          temp_dir, SUBMISSION_ENV_DEPENDENCIES_FILE)
+      dependencies = subprocess.check_output(
+          [sys.executable, '-m', 'pip', 'freeze'])
+      local_python_path = f"Python Path: {sys.executable}\n"
+      with open(local_dependency_file_path, 'w') as f:
+        f.write(local_python_path + str(dependencies))
+      return [
+          Stager._create_file_stage_to_artifact(
+              local_dependency_file_path, SUBMISSION_ENV_DEPENDENCIES_FILE),
+      ]
+    except Exception as e:
+      _LOGGER.warning(
+          "Couldn't stage a list of installed dependencies in "
+          "submission environment. Got exception: %s",
+          e)
+      return []

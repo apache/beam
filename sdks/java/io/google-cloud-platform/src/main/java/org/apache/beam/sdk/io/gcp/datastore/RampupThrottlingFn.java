@@ -31,7 +31,7 @@ import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.MovingFunction;
 import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -53,7 +53,8 @@ public class RampupThrottlingFn<T> extends DoFn<T, T> implements Serializable {
   private final PCollectionView<Instant> firstInstantSideInput;
 
   @VisibleForTesting
-  Counter throttlingMsecs = Metrics.counter(RampupThrottlingFn.class, "throttling-msecs");
+  Counter throttlingMsecs =
+      Metrics.counter(RampupThrottlingFn.class, Metrics.THROTTLE_TIME_COUNTER_NAME);
 
   // Initialized on every setup.
   private transient MovingFunction successfulOps;

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.options;
 
+import com.google.api.services.dataflow.Dataflow;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.dataflow.DataflowRunner;
@@ -51,6 +52,7 @@ public interface DataflowPipelineOptions
         GcsOptions,
         StreamingOptions,
         DataflowWorkerLoggingOptions,
+        DataflowStreamingPipelineOptions,
         DataflowProfilingOptions,
         PubsubOptions {
 
@@ -111,7 +113,10 @@ public interface DataflowPipelineOptions
    */
   @Description(
       "Service options are set by the user and configure the service. This "
-          + "decouples service side feature availability from the Apache Beam release cycle.")
+          + "decouples service side feature availability from the Apache Beam release cycle. "
+          + "For a list of service options, see "
+          + "https://cloud.google.com/dataflow/docs/reference/service-options "
+          + "in the Dataflow documentation.")
   List<String> getDataflowServiceOptions();
 
   void setDataflowServiceOptions(List<String> options);
@@ -136,6 +141,25 @@ public interface DataflowPipelineOptions
 
   void setRegion(String region);
 
+  /**
+   * Dataflow endpoint to use.
+   *
+   * <p>Defaults to the current version of the Google Cloud Dataflow API, at the time the current
+   * SDK version was released.
+   *
+   * <p>If the string contains "://", then this is treated as a URL, otherwise {@link
+   * #getApiRootUrl()} is used as the root URL.
+   */
+  @Description(
+      "The URL for the Dataflow API. If the string contains \"://\", this"
+          + " will be treated as the entire URL, otherwise will be treated relative to apiRootUrl.")
+  @Override
+  @Default.String(Dataflow.DEFAULT_SERVICE_PATH)
+  String getDataflowEndpoint();
+
+  @Override
+  void setDataflowEndpoint(String value);
+
   /** Labels that will be applied to the billing records for this job. */
   @Description("Labels that will be applied to the billing records for this job.")
   Map<String, String> getLabels();
@@ -151,14 +175,7 @@ public interface DataflowPipelineOptions
   @Description("The customized dataflow worker jar")
   String getDataflowWorkerJar();
 
-  void setDataflowWorkerJar(String dataflowWorkerJafr);
-
-  // Disable this support for now until the Dataflow backend fully supports this option.
-  @Description("Whether to allow dynamic pubsub destinations. Temporary option: will be removed.")
-  @Default.Boolean(false)
-  Boolean getEnableDynamicPubsubDestinations();
-
-  void setEnableDynamicPubsubDestinations(Boolean enable);
+  void setDataflowWorkerJar(String dataflowWorkerJar);
 
   /** Set of available Flexible Resource Scheduling goals. */
   enum FlexResourceSchedulingGoal {
@@ -193,7 +210,7 @@ public interface DataflowPipelineOptions
       } catch (Exception e) {
         throw new IllegalArgumentException(
             "Error constructing default value for stagingLocation: failed to retrieve gcpTempLocation. "
-                + "Either stagingLocation must be set explicitly or a valid value must be provided"
+                + "Either stagingLocation must be set explicitly or a valid value must be provided "
                 + "for gcpTempLocation.",
             e);
       }

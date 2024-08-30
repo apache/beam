@@ -37,14 +37,20 @@ JOB_SERVER_CACHE = {}
 
 
 class SparkRunner(portable_runner.PortableRunner):
-  def run_pipeline(self, pipeline, options):
+  """A runner for launching jobs on Spark, automatically starting a local
+  spark master if one is not given.
+  """
+
+  # Inherits run_portable_pipeline from PortableRunner.
+
+  def default_environment(self, options):
     spark_options = options.view_as(pipeline_options.SparkRunnerOptions)
     portable_options = options.view_as(pipeline_options.PortableOptions)
     if (re.match(LOCAL_MASTER_PATTERN, spark_options.spark_master_url) and
         not portable_options.environment_type and
         not portable_options.output_executable_path):
       portable_options.environment_type = 'LOOPBACK'
-    return super().run_pipeline(pipeline, options)
+    return super().default_environment(options)
 
   def default_job_server(self, options):
     spark_options = options.view_as(pipeline_options.SparkRunnerOptions)

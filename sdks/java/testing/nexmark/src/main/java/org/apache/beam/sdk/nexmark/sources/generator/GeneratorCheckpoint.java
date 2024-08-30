@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.nexmark.sources.generator;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects.toStringHelper;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects.toStringHelper;
 
 import java.io.IOException;
 import java.io.InputStream;

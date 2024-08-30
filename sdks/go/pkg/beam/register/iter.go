@@ -131,7 +131,7 @@ func Iter1[T any]() {
 	exec.RegisterInput(itT, registerFunc)
 }
 
-// Iter1 registers parameters from your DoFn with a
+// Iter2 registers parameters from your DoFn with a
 // signature func(*T1, *T2) bool and optimizes their execution.
 // This must be done by passing in type parameters of all inputs as constraints,
 // aka: register.Iter2[T1, T2]()

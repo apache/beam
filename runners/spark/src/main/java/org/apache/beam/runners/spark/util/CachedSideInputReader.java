@@ -23,7 +23,7 @@ import org.apache.beam.runners.spark.util.SideInputStorage.Key;
 import org.apache.beam.runners.spark.util.SideInputStorage.Value;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
 import org.apache.spark.util.SizeEstimator;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;

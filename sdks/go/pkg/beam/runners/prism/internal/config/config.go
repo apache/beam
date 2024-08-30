@@ -231,7 +231,7 @@ func (r *HandlerRegistry) Variants() []string {
 	return r.variantIDs
 }
 
-// Handlers returns the IDs of all handlers used in variations.
+// UsedHandlers returns the IDs of all handlers used in variations.
 func (r *HandlerRegistry) UsedHandlers() []string {
 	return r.handerIDs
 }

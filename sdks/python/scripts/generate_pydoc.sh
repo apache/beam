@@ -71,6 +71,7 @@ excluded_patterns=(
     'apache_beam/testing/benchmarks/load_tests/'
     'apache_beam/testing/analyzers'
     'apache_beam/testing/.*test.py'
+    'apache_beam/testing/fast_test_utils.*'
     'apache_beam/tools/'
     'apache_beam/tools/map_fn_microbenchmark.*'
     'apache_beam/transforms/cy_combiners.*'
@@ -79,6 +80,7 @@ excluded_patterns=(
     'apache_beam/utils/counters.*'
     'apache_beam/utils/windowed_value.*'
     'apache_beam/version.py'
+    'apache_beam/yaml/integration_tests.py'
     '**/internal/*'
     '*_it.py'
     '*_pb2.py'
@@ -130,7 +132,11 @@ release = version
 autoclass_content = 'both'
 autodoc_inherit_docstrings = False
 autodoc_member_order = 'bysource'
-autodoc_mock_imports = ["tensorrt", "cuda", "torch", "onnxruntime", "onnx", "tensorflow", "tensorflow_hub"]
+autodoc_mock_imports = ["tensorrt", "cuda", "torch",
+    "onnxruntime", "onnx", "tensorflow", "tensorflow_hub",
+    "tensorflow_transform", "tensorflow_metadata", "transformers", "xgboost", "datatable", "transformers",
+    "sentence_transformers", "redis", "tensorflow_text", "feast",
+    ]
 
 # Allow a special section for documenting DataFrame API
 napoleon_custom_sections = ['Differences from pandas']
@@ -193,12 +199,17 @@ ignore_identifiers = [
   'apache_beam.transforms.ptransform.PTransformWithSideInputs',
   'apache_beam.transforms.trigger._ParallelTriggerFn',
   'apache_beam.transforms.trigger.InMemoryUnmergedState',
+  'apache_beam.transforms.utils.BatchElements',
   'apache_beam.typehints.typehints.AnyTypeConstraint',
   'apache_beam.typehints.typehints.CompositeTypeHint',
   'apache_beam.typehints.typehints.TypeConstraint',
   'apache_beam.typehints.typehints.validate_composite_type_param()',
   'apache_beam.utils.windowed_value._IntervalWindowBase',
   'apache_beam.coders.coder_impl.StreamCoderImpl',
+  'apache_beam.io.requestresponse.Caller',
+  'apache_beam.io.requestresponse.Repeater',
+  'apache_beam.io.requestresponse.PreCallThrottler',
+  'apache_beam.io.requestresponse.Cache',
 
   # Private classes which are used within the same module
   'apache_beam.transforms.external_test.PayloadBase',
@@ -213,6 +224,8 @@ ignore_identifiers = [
   '_BundleFinalizerParam',
   '_RestrictionDoFnParam',
   '_WatermarkEstimatorParam',
+  '_BundleContextParam',
+  '_SetupContextParam',
 
   # Sphinx cannot find this py:class reference target
   'callable',

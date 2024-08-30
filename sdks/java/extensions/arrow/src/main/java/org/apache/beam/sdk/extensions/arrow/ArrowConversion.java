@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.arrow;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -46,6 +46,7 @@ import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 
@@ -291,7 +292,7 @@ public class ArrowConversion {
       }
 
       @Override
-      public List<FieldValueGetter> create(Class<?> clazz, Schema schema) {
+      public List<FieldValueGetter> create(TypeDescriptor<?> typeDescriptor, Schema schema) {
         return this.fieldVectors.stream()
             .map(
                 (fieldVector) -> {

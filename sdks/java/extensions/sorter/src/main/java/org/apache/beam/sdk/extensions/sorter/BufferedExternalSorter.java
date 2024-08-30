@@ -17,14 +17,14 @@
  */
 package org.apache.beam.sdk.extensions.sorter;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.IOException;
 import java.io.Serializable;
 import org.apache.beam.sdk.extensions.sorter.ExternalSorter.Options.SorterType;
 import org.apache.beam.sdk.values.KV;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.checker.nullness.qual.RequiresNonNull;
 
 /**
  * {@link Sorter} that will use in memory sorting until the values can't fit into memory and will
@@ -121,7 +121,7 @@ public class BufferedExternalSorter implements Sorter {
 
   @Override
   public void add(KV<byte[], byte[]> record) throws IOException {
-    if (inMemorySorter != null) {
+    if (this.inMemorySorter != null) {
       if (inMemorySorter.addIfRoom(record)) {
         return;
       } else {
@@ -139,8 +139,8 @@ public class BufferedExternalSorter implements Sorter {
    * Transfers all of the records loaded so far into the in memory sorter over to the external
    * sorter.
    */
-  @RequiresNonNull("inMemorySorter")
   private void transferToExternalSorter() throws IOException {
+    checkStateNotNull(this.inMemorySorter);
     for (KV<byte[], byte[]> record : inMemorySorter.sort()) {
       externalSorter.add(record);
     }

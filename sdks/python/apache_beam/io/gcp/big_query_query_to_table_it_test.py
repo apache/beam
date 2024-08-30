@@ -30,6 +30,8 @@ import unittest
 
 import pytest
 from hamcrest.core.core.allof import all_of
+from tenacity import retry
+from tenacity import stop_after_attempt
 
 from apache_beam.io.gcp import big_query_query_to_table_pipeline
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
@@ -83,7 +85,7 @@ STANDARD_QUERY = (
 NEW_TYPES_QUERY = ('SELECT bytes, date, time FROM [%s.%s]')
 DIALECT_OUTPUT_SCHEMA = ('{"fields": [{"name": "fruit","type": "STRING"}]}')
 DIALECT_OUTPUT_VERIFY_QUERY = ('SELECT fruit from `%s`;')
-DIALECT_OUTPUT_EXPECTED = [(u'apple', ), (u'orange', )]
+DIALECT_OUTPUT_EXPECTED = [('apple', ), ('orange', )]
 
 
 class BigQueryQueryToTableIT(unittest.TestCase):
@@ -155,6 +157,7 @@ class BigQueryQueryToTableIT(unittest.TestCase):
     self.assertTrue(passed, 'Error in BQ setup: %s' % errors)
 
   @pytest.mark.it_postcommit
+  @retry(reraise=True, stop=stop_after_attempt(3))
   def test_big_query_legacy_sql(self):
     verify_query = DIALECT_OUTPUT_VERIFY_QUERY % self.output_table
     expected_checksum = test_utils.compute_hash(DIALECT_OUTPUT_EXPECTED)

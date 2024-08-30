@@ -32,7 +32,8 @@ public class Neo4jTestUtil {
   public static final String NEO4J_VERSION = "latest";
   public static final String NEO4J_NETWORK_ALIAS = "neo4jcontainer";
   public static final String NEO4J_USERNAME = "neo4j";
-  public static final String NEO4J_PASSWORD = "abcd";
+  public static final String NEO4J_PASSWORD =
+      "abcdefgh"; // The minimum password length is 8 characters
   public static final String NEO4J_DATABASE = "neo4j";
 
   public static final String getUrl(String hostname, int port) {

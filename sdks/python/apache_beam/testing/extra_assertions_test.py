@@ -27,8 +27,8 @@ from apache_beam.testing.extra_assertions import ExtraAssertionsMixin
 
 class ExtraAssertionsMixinTest(ExtraAssertionsMixin, unittest.TestCase):
   def test_assert_array_count_equal_strings(self):
-    data1 = [u"±♠Ωℑ", u"hello", "world"]
-    data2 = ["hello", u"±♠Ωℑ", u"world"]
+    data1 = ["±♠Ωℑ", "hello", "world"]
+    data2 = ["hello", "±♠Ωℑ", "world"]
     self.assertUnhashableCountEqual(data1, data2)
 
   def test_assert_array_count_equal_mixed(self):
@@ -37,7 +37,7 @@ class ExtraAssertionsMixinTest(ExtraAssertionsMixin, unittest.TestCase):
             'a': 1, 123: 1.234
         },
         ['d', 1],
-        u"±♠Ωℑ",
+        "±♠Ωℑ",
         np.zeros((3, 6)),
         (1, 2, 3, 'b'),
         'def',
@@ -55,7 +55,7 @@ class ExtraAssertionsMixinTest(ExtraAssertionsMixin, unittest.TestCase):
         None,
         'abc',
         'def',
-        u"±♠Ωℑ",
+        "±♠Ωℑ",
         100,
         (1, 2, 3, 'b'),
         np.zeros((3, 6)),

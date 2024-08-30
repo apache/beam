@@ -26,20 +26,20 @@ import (
 
 func TestCoGBK(t *testing.T) {
 	integration.CheckFilters(t)
-	ptest.RunAndValidate(t, CoGBK())
+	ptest.BuildAndRun(t, CoGBK)
 }
 
 func TestReshuffle(t *testing.T) {
 	integration.CheckFilters(t)
-	ptest.RunAndValidate(t, Reshuffle())
+	ptest.BuildAndRun(t, Reshuffle)
 }
 
 func TestReshuffleKV(t *testing.T) {
 	integration.CheckFilters(t)
-	ptest.RunAndValidate(t, ReshuffleKV())
+	ptest.BuildAndRun(t, ReshuffleKV)
 }
 
 func TestGBKShortRead(t *testing.T) {
 	integration.CheckFilters(t)
-	ptest.RunAndValidate(t, GBKShortRead())
+	ptest.BuildAndRun(t, GBKShortRead)
 }

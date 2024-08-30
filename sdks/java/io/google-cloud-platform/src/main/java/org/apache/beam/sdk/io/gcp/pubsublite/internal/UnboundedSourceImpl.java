@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsublite.internal;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.cloud.pubsublite.Offset;
 import com.google.cloud.pubsublite.Partition;
@@ -33,7 +33,7 @@ import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.gcp.pubsublite.SubscriberOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Optional;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class UnboundedSourceImpl extends UnboundedSource<SequencedMessage, CheckpointMarkImpl> {

@@ -206,6 +206,7 @@ class TrivialInferenceTest(unittest.TestCase):
     self.assertReturnType(
         typehints.List[int],
         lambda xs: [x for x in xs], [typehints.Tuple[int, int, int]])
+
     self.assertReturnType(
         typehints.List[typehints.Union[int, float]],
         lambda xs: [x for x in xs], [typehints.Tuple[int, float]])
@@ -251,10 +252,29 @@ class TrivialInferenceTest(unittest.TestCase):
     self.assertReturnType(
         typehints.Tuple[int, typehints.Any], lambda: (1, f(x=1.0)))
 
+  def testCallNullaryMethod(self):
+    class Foo:
+      pass
+
+    self.assertReturnType(
+        typehints.Tuple[Foo, typehints.Any], lambda x: (x, x.unknown()), [Foo])
+
+  def testCallNestedLambda(self):
+    class Foo:
+      pass
+
+    self.assertReturnType(
+        typehints.Tuple[Foo, int], lambda x: (x, (lambda: 3)()), [Foo])
+
   def testClosure(self):
     x = 1
     y = 1.0
     self.assertReturnType(typehints.Tuple[int, float], lambda: (x, y))
+
+  @unittest.skip("https://github.com/apache/beam/issues/28420")
+  def testLocalClosure(self):
+    self.assertReturnType(
+        typehints.Tuple[int, int], lambda x: (x, (lambda: x)()), [int])
 
   def testGlobals(self):
     self.assertReturnType(int, lambda: global_int)

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.flink.metrics;
 
+import java.util.Objects;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
@@ -30,7 +31,7 @@ public class Metrics {
     if (metric instanceof Counter) {
       return Long.toString(((Counter) metric).getCount());
     } else if (metric instanceof Gauge) {
-      return ((Gauge) metric).getValue().toString();
+      return Objects.toString(((Gauge<?>) metric).getValue());
     } else if (metric instanceof Meter) {
       return Double.toString(((Meter) metric).getRate());
     } else if (metric instanceof Histogram) {

@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -33,7 +33,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 
 /**
  * The {@code PTransform}s that allow to compute different set functions across {@link
@@ -173,7 +173,7 @@ public class Sets {
    *
    * <p>The argument should not be modified after this is called.
    *
-   * <p>The elements of the output {@link PCollection} which will follow INTESECT_ALL Semantics as
+   * <p>The elements of the output {@link PCollection} which will follow INTERSECT_ALL Semantics as
    * follows: Given there are m elements on pipeline which is constructed {@link PCollection} (left)
    * and n elements on in provided {@link PCollection} (right): - it will output MIN(m - n, 0)
    * elements of left for all elements which are present in both left and right.

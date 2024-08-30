@@ -22,7 +22,7 @@ package org.apache.beam.learning.katas.coretransforms.cogroupbykey;
 //   name: JoinPCollections
 //   description: Task from katas that joins two PCollections.
 //   multifile: true
-//   context_line: 48
+//   context_line: 54
 //   categories:
 //     - Combiners
 //     - Core Transforms

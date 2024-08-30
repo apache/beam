@@ -42,6 +42,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.reflect.AvroSchema;
@@ -50,10 +51,10 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
+import org.apache.beam.sdk.extensions.avro.io.AvroGeneratedUser;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.Primitive;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoDomain;
-import org.apache.beam.sdk.io.AvroGeneratedUser;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.IncomingMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.OutgoingMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
@@ -70,14 +71,18 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
+import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandlingTestUtils.ErrorSinkTransform;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.sdk.values.ValueInSingleWindow;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -232,6 +237,9 @@ public class PubsubIOTest {
     assertThat(pubsubRead.getTopicProvider(), not(nullValue()));
     assertThat(pubsubRead.getTopicProvider().isAccessible(), is(true));
     assertThat(pubsubRead.getTopicProvider().get().asPath(), equalTo(provider.get()));
+    assertThat(
+        pubsubRead.getTopicProvider().get().dataCatalogSegments(),
+        equalTo(ImmutableList.of("project", "topic")));
   }
 
   @Test
@@ -482,6 +490,46 @@ public class PubsubIOTest {
   }
 
   @Test
+  public void testFailedParseWithErrorHandlerConfigured() throws Exception {
+    ByteString data = ByteString.copyFrom("Hello, World!".getBytes(StandardCharsets.UTF_8));
+    RuntimeException exception = new RuntimeException("Some error message");
+    ImmutableList<IncomingMessage> expectedReads =
+        ImmutableList.of(
+            IncomingMessage.of(
+                com.google.pubsub.v1.PubsubMessage.newBuilder().setData(data).build(),
+                1234L,
+                0,
+                UUID.randomUUID().toString(),
+                UUID.randomUUID().toString()));
+    ImmutableList<OutgoingMessage> expectedWrites = ImmutableList.of();
+    clientFactory =
+        PubsubTestClient.createFactoryForPullAndPublish(
+            SUBSCRIPTION, TOPIC, CLOCK, 60, expectedReads, expectedWrites, ImmutableList.of());
+
+    ErrorHandler<BadRecord, PCollection<Long>> errorHandler =
+        pipeline.registerBadRecordErrorHandler(new ErrorSinkTransform());
+    PCollection<String> read =
+        pipeline.apply(
+            PubsubIO.readStrings()
+                .fromSubscription(SUBSCRIPTION.getPath())
+                .withErrorHandler(errorHandler)
+                .withClock(CLOCK)
+                .withClientFactory(clientFactory)
+                .withCoderAndParseFn(
+                    StringUtf8Coder.of(),
+                    SimpleFunction.fromSerializableFunctionWithOutputType(
+                        message -> {
+                          throw exception;
+                        },
+                        TypeDescriptors.strings())));
+    errorHandler.close();
+
+    PAssert.thatSingleton(errorHandler.getOutput()).isEqualTo(1L);
+    PAssert.that(read).empty();
+    pipeline.run();
+  }
+
+  @Test
   public void testProto() {
     ProtoCoder<Primitive> coder = ProtoCoder.of(Primitive.class);
     ImmutableList<Primitive> inputs =
@@ -573,7 +621,7 @@ public class PubsubIOTest {
 
   @Test
   public void testAvroGenericRecords() {
-    AvroCoder<GenericRecord> coder = AvroCoder.of(GenericRecord.class, SCHEMA);
+    AvroCoder<GenericRecord> coder = AvroCoder.of(SCHEMA);
     List<GenericRecord> inputs =
         ImmutableList.of(
             new AvroGeneratedUser("Bob", 256, null),
@@ -612,7 +660,7 @@ public class PubsubIOTest {
 
   @Test
   public void testAvroSpecificRecord() {
-    AvroCoder<AvroGeneratedUser> coder = AvroCoder.of(AvroGeneratedUser.class);
+    AvroCoder<AvroGeneratedUser> coder = AvroCoder.specific(AvroGeneratedUser.class);
     List<AvroGeneratedUser> inputs =
         ImmutableList.of(
             new AvroGeneratedUser("Bob", 256, null),
@@ -654,6 +702,66 @@ public class PubsubIOTest {
   }
 
   @Test
+  public void testWriteMalformedMessagesWithErrorHandler() throws Exception {
+    OutgoingMessage msg =
+        OutgoingMessage.of(
+            com.google.pubsub.v1.PubsubMessage.newBuilder()
+                .setData(ByteString.copyFromUtf8("foo"))
+                .build(),
+            0,
+            null,
+            "projects/project/topics/topic1");
+
+    try (PubsubTestClientFactory factory =
+        PubsubTestClient.createFactoryForPublish(null, ImmutableList.of(msg), ImmutableList.of())) {
+      TimestampedValue<PubsubMessage> pubsubMsg =
+          TimestampedValue.of(
+              new PubsubMessage(
+                      msg.getMessage().getData().toByteArray(),
+                      Collections.emptyMap(),
+                      msg.recordId())
+                  .withTopic(msg.topic()),
+              Instant.ofEpochMilli(msg.getTimestampMsSinceEpoch()));
+
+      TimestampedValue<PubsubMessage> failingPubsubMsg =
+          TimestampedValue.of(
+              new PubsubMessage(
+                      "foo".getBytes(StandardCharsets.UTF_8),
+                      Collections.emptyMap(),
+                      msg.recordId())
+                  .withTopic("badTopic"),
+              Instant.ofEpochMilli(msg.getTimestampMsSinceEpoch()));
+
+      PCollection<PubsubMessage> messages =
+          pipeline.apply(
+              Create.timestamped(ImmutableList.of(pubsubMsg, failingPubsubMsg))
+                  .withCoder(PubsubMessageWithTopicCoder.of()));
+      messages.setIsBoundedInternal(PCollection.IsBounded.BOUNDED);
+      ErrorHandler<BadRecord, PCollection<Long>> badRecordErrorHandler =
+          pipeline.registerBadRecordErrorHandler(new ErrorSinkTransform());
+      // The most straightforward method to simulate a bad message is to have a format function that
+      // deterministically fails based on some value
+      messages.apply(
+          PubsubIO.writeMessages()
+              .toBuilder()
+              .setFormatFn(
+                  (ValueInSingleWindow<PubsubMessage> messageAndWindow) -> {
+                    if (messageAndWindow.getValue().getTopic().equals("badTopic")) {
+                      throw new RuntimeException("expected exception");
+                    }
+                    return messageAndWindow.getValue();
+                  })
+              .build()
+              .to("projects/project/topics/topic1")
+              .withClientFactory(factory)
+              .withErrorHandler(badRecordErrorHandler));
+      badRecordErrorHandler.close();
+      PAssert.thatSingleton(badRecordErrorHandler.getOutput()).isEqualTo(1L);
+      pipeline.run();
+    }
+  }
+
+  @Test
   public void testReadMessagesWithCoderAndParseFn() {
     Coder<PubsubMessage> coder = PubsubMessagePayloadOnlyCoder.of();
     List<PubsubMessage> inputs =
@@ -671,6 +779,49 @@ public class PubsubIOTest {
                 .withClientFactory(clientFactory));
 
     List<String> outputs = ImmutableList.of("foo", "bar");
+    PAssert.that(read).containsInAnyOrder(outputs);
+    pipeline.run();
+  }
+
+  static class AppendSuffixAttributeToStringPayloadParseFn
+      extends SimpleFunction<PubsubMessage, String> {
+    @Override
+    public String apply(PubsubMessage input) {
+      String payload = new String(input.getPayload(), StandardCharsets.UTF_8);
+      String suffixAttribute = input.getAttributeMap().get("suffix");
+      return payload + suffixAttribute;
+    }
+  }
+
+  private IncomingMessage messageWithSuffixAttribute(String payload, String suffix) {
+    return IncomingMessage.of(
+        com.google.pubsub.v1.PubsubMessage.newBuilder()
+            .setData(ByteString.copyFromUtf8(payload))
+            .putAttributes("suffix", suffix)
+            .build(),
+        1234L,
+        0,
+        UUID.randomUUID().toString(),
+        UUID.randomUUID().toString());
+  }
+
+  @Test
+  public void testReadMessagesWithAttributesWithCoderAndParseFn() {
+    ImmutableList<IncomingMessage> inputs =
+        ImmutableList.of(
+            messageWithSuffixAttribute("foo", "-some-suffix"),
+            messageWithSuffixAttribute("bar", "-some-other-suffix"));
+    clientFactory = PubsubTestClient.createFactoryForPull(CLOCK, SUBSCRIPTION, 60, inputs);
+
+    PCollection<String> read =
+        pipeline.apply(
+            PubsubIO.readMessagesWithAttributesWithCoderAndParseFn(
+                    StringUtf8Coder.of(), new AppendSuffixAttributeToStringPayloadParseFn())
+                .fromSubscription(SUBSCRIPTION.getPath())
+                .withClock(CLOCK)
+                .withClientFactory(clientFactory));
+
+    List<String> outputs = ImmutableList.of("foo-some-suffix", "bar-some-other-suffix");
     PAssert.that(read).containsInAnyOrder(outputs);
     pipeline.run();
   }
@@ -734,10 +885,45 @@ public class PubsubIOTest {
 
       PCollection<PubsubMessage> messages =
           pipeline.apply(
-              Create.timestamped(pubsubMessages).withCoder(new PubsubMessageWithTopicCoder()));
+              Create.timestamped(pubsubMessages).withCoder(PubsubMessageWithTopicCoder.of()));
       if (!isBounded) {
         messages = messages.setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED);
       }
+      messages.apply(PubsubIO.writeMessagesDynamic().withClientFactory(factory));
+      pipeline.run();
+    }
+  }
+
+  @Test
+  public void testBigMessageBounded() throws IOException {
+    String bigMsg =
+        IntStream.range(0, 100_000).mapToObj(_unused -> "x").collect(Collectors.joining(""));
+
+    OutgoingMessage msg =
+        OutgoingMessage.of(
+            com.google.pubsub.v1.PubsubMessage.newBuilder()
+                .setData(ByteString.copyFromUtf8(bigMsg))
+                .build(),
+            0,
+            null,
+            "projects/project/topics/topic1");
+
+    try (PubsubTestClientFactory factory =
+        PubsubTestClient.createFactoryForPublish(null, ImmutableList.of(msg), ImmutableList.of())) {
+      TimestampedValue<PubsubMessage> pubsubMsg =
+          TimestampedValue.of(
+              new PubsubMessage(
+                      msg.getMessage().getData().toByteArray(),
+                      Collections.emptyMap(),
+                      msg.recordId())
+                  .withTopic(msg.topic()),
+              Instant.ofEpochMilli(msg.getTimestampMsSinceEpoch()));
+
+      PCollection<PubsubMessage> messages =
+          pipeline.apply(
+              Create.timestamped(ImmutableList.of(pubsubMsg))
+                  .withCoder(PubsubMessageWithTopicCoder.of()));
+      messages.setIsBoundedInternal(PCollection.IsBounded.BOUNDED);
       messages.apply(PubsubIO.writeMessagesDynamic().withClientFactory(factory));
       pipeline.run();
     }

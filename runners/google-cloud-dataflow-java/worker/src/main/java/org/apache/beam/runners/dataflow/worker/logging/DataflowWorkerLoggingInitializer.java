@@ -35,9 +35,12 @@ import java.util.logging.Level;
 import java.util.logging.LogManager;
 import java.util.logging.Logger;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerLoggingOptions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableBiMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.sdk.options.SdkHarnessOptions;
+import org.apache.beam.sdk.options.SdkHarnessOptions.LogLevel;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableBiMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.slf4j.LoggerFactory;
 
 /**
  * Sets up {@link java.util.logging} configuration on the Dataflow worker with a rotating file
@@ -54,6 +57,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
   "ForbidDefaultCharset"
 })
 public class DataflowWorkerLoggingInitializer {
+  private static final org.slf4j.Logger LOG =
+      LoggerFactory.getLogger(DataflowWorkerLoggingInitializer.class);
   private static final String ROOT_LOGGER_NAME = "";
 
   @VisibleForTesting
@@ -188,14 +193,32 @@ public class DataflowWorkerLoggingInitializer {
     if (!initialized) {
       throw new RuntimeException("configure() called before initialize()");
     }
-    if (options.getDefaultWorkerLogLevel() != null) {
-      Level defaultLevel = getJulLevel(options.getDefaultWorkerLogLevel());
-      LogManager.getLogManager().getLogger(ROOT_LOGGER_NAME).setLevel(defaultLevel);
+
+    // For compatibility reason, we do not call SdkHarnessOptions.getConfiguredLoggerFromOptions
+    // to config the logging for legacy worker, instead replicate the config steps used for
+    // DataflowWorkerLoggingOptions for default log level and log level overrides.
+    SdkHarnessOptions harnessOptions = options.as(SdkHarnessOptions.class);
+    boolean usedDeprecated = false;
+
+    // default value for both DefaultSdkHarnessLogLevel and DefaultWorkerLogLevel are INFO
+    Level overrideLevel = getJulLevel(harnessOptions.getDefaultSdkHarnessLogLevel());
+    if (options.getDefaultWorkerLogLevel() != null && options.getDefaultWorkerLogLevel() != INFO) {
+      overrideLevel = getJulLevel(options.getDefaultWorkerLogLevel());
+      usedDeprecated = true;
     }
+    LogManager.getLogManager().getLogger(ROOT_LOGGER_NAME).setLevel(overrideLevel);
 
     if (options.getWorkerLogLevelOverrides() != null) {
       for (Map.Entry<String, DataflowWorkerLoggingOptions.Level> loggerOverride :
           options.getWorkerLogLevelOverrides().entrySet()) {
+        Logger logger = Logger.getLogger(loggerOverride.getKey());
+        logger.setLevel(getJulLevel(loggerOverride.getValue()));
+        configuredLoggers.add(logger);
+      }
+      usedDeprecated = true;
+    } else if (harnessOptions.getSdkHarnessLogLevelOverrides() != null) {
+      for (Map.Entry<String, SdkHarnessOptions.LogLevel> loggerOverride :
+          harnessOptions.getSdkHarnessLogLevelOverrides().entrySet()) {
         Logger logger = Logger.getLogger(loggerOverride.getKey());
         logger.setLevel(getJulLevel(loggerOverride.getValue()));
         configuredLoggers.add(logger);
@@ -222,6 +245,12 @@ public class DataflowWorkerLoggingInitializer {
               SYSTEM_ERR_LOG_NAME,
               getJulLevel(options.getWorkerSystemErrMessageLevel()),
               Charset.defaultCharset()));
+    }
+
+    if (usedDeprecated) {
+      LOG.warn(
+          "Deprecated DataflowWorkerLoggingOptions are used for log level settings."
+              + "Consider using options defined in SdkHarnessOptions for forward compatibility.");
     }
   }
 
@@ -251,6 +280,10 @@ public class DataflowWorkerLoggingInitializer {
 
   private static Level getJulLevel(DataflowWorkerLoggingOptions.Level level) {
     return LEVELS.inverse().get(level);
+  }
+
+  private static Level getJulLevel(SdkHarnessOptions.LogLevel level) {
+    return LogLevel.LEVEL_CONFIGURATION.get(level);
   }
 
   @VisibleForTesting

@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming.io.source;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -37,19 +35,20 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
-import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.compat.FlinkSourceCompat;
-import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.runners.flink.metrics.FlinkMetricContainerWithoutAccumulator;
+import org.apache.beam.runners.flink.metrics.ReaderInvocationUtil;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceOutput;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.metrics.Counter;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -75,9 +74,6 @@ public abstract class FlinkSourceReaderBase<T, OutputT>
   private static final Logger LOG = LoggerFactory.getLogger(FlinkSourceReaderBase.class);
   protected static final CompletableFuture<Void> AVAILABLE_NOW =
       CompletableFuture.completedFuture(null);
-  // Some dummy instances to make the annotation checker happy with AtomicReference.
-  protected static final CompletableFuture<Void> DUMMY_FUTURE = new CompletableFuture<>();
-  protected static final Exception NO_EXCEPTION = new Exception();
 
   protected final PipelineOptions pipelineOptions;
   protected final @Nullable Function<OutputT, Long> timestampExtractor;
@@ -87,19 +83,23 @@ public abstract class FlinkSourceReaderBase<T, OutputT>
   protected final SourceReaderContext context;
   private final ScheduledExecutorService executor;
 
+  protected final ReaderInvocationUtil<T, Source.Reader<T>> invocationUtil;
   protected final Counter numRecordsInCounter;
   protected final long idleTimeoutMs;
   private final CompletableFuture<Void> idleTimeoutFuture;
-  private final AtomicReference<Throwable> exception;
+  private final AtomicReference<@Nullable Throwable> exception;
   private boolean idleTimeoutCountingDown;
-  private CompletableFuture<Void> waitingForSplitChangeFuture;
+  private final AtomicReference<CompletableFuture<Void>> waitingForSplitChangeFuture =
+      new AtomicReference<>(new CompletableFuture<>());
   private boolean noMoreSplits;
 
   protected FlinkSourceReaderBase(
+      String stepName,
       SourceReaderContext context,
       PipelineOptions pipelineOptions,
       @Nullable Function<OutputT, Long> timestampExtractor) {
     this(
+        stepName,
         Executors.newSingleThreadScheduledExecutor(
             r -> new Thread(r, "FlinkSource-Executor-Thread-" + context.getIndexOfSubtask())),
         context,
@@ -108,6 +108,7 @@ public abstract class FlinkSourceReaderBase<T, OutputT>
   }
 
   protected FlinkSourceReaderBase(
+      String stepName,
       ScheduledExecutorService executor,
       SourceReaderContext context,
       PipelineOptions pipelineOptions,
@@ -116,16 +117,16 @@ public abstract class FlinkSourceReaderBase<T, OutputT>
     this.pipelineOptions = pipelineOptions;
     this.timestampExtractor = timestampExtractor;
     this.beamSourceReaders = new ConcurrentHashMap<>();
-    this.exception = new AtomicReference<>(NO_EXCEPTION);
+    this.exception = new AtomicReference<>();
     this.executor = executor;
     this.idleTimeoutMs =
         pipelineOptions.as(FlinkPipelineOptions.class).getShutdownSourcesAfterIdleMs();
     this.idleTimeoutFuture = new CompletableFuture<>();
-    this.waitingForSplitChangeFuture = new CompletableFuture<>();
     this.idleTimeoutCountingDown = false;
-    // TODO: Remove the casting and use SourceReaderMetricGroup after minimum FLink version is
-    // upgraded to 1.14 and above.
-    this.numRecordsInCounter = FlinkSourceCompat.getNumRecordsInCounter(context);
+    this.numRecordsInCounter = context.metricGroup().getIOMetricGroup().getNumRecordsInCounter();
+    FlinkMetricContainerWithoutAccumulator metricsContainer =
+        new FlinkMetricContainerWithoutAccumulator(context.metricGroup());
+    this.invocationUtil = new ReaderInvocationUtil<>(stepName, pipelineOptions, metricsContainer);
   }
 
   @Override
@@ -140,21 +141,15 @@ public abstract class FlinkSourceReaderBase<T, OutputT>
     // Add all the source splits being actively read.
     beamSourceReaders.forEach(
         (splitId, readerAndOutput) -> {
-          Source.Reader<T> reader = readerAndOutput.reader;
-          if (reader instanceof BoundedSource.BoundedReader) {
-            // Sometimes users may decide to run a bounded source in streaming mode as "finite
-            // stream."
-            // For bounded source, the checkpoint granularity is the entire source split.
-            // So, in case of failure, all the data from this split will be consumed again.
-            splitsState.add(new FlinkSourceSplit<>(splitId, reader.getCurrentSource()));
-          } else if (reader instanceof UnboundedSource.UnboundedReader) {
-            // The checkpoint for unbounded sources is fine granular.
-            byte[] checkpointState =
-                getAndEncodeCheckpointMark((UnboundedSource.UnboundedReader<OutputT>) reader);
-            splitsState.add(
-                new FlinkSourceSplit<>(splitId, reader.getCurrentSource(), checkpointState));
+          try {
+            FlinkSourceSplit<T> checkpoint = getReaderCheckpoint(splitId, readerAndOutput);
+            splitsState.add(checkpoint);
+          } catch (IOException e) {
+            throw new IllegalStateException(
+                String.format("Failed to get checkpoint for split %d", splitId), e);
           }
         });
+    addSplitsToUnfinishedForCheckpoint(checkpointId, splitsState);
     return splitsState;
   }
 
@@ -167,21 +162,23 @@ public abstract class FlinkSourceReaderBase<T, OutputT>
       // Regardless of whether there is data available from the alive readers, the
       // main thread needs to be woken up if there is a split change. Hence, we
       // need to combine the data available future with the split change future.
-      if (waitingForSplitChangeFuture.isDone()) {
-        waitingForSplitChangeFuture = new CompletableFuture<>();
+      if (waitingForSplitChangeFuture.get().isDone()) {
+        waitingForSplitChangeFuture.set(new CompletableFuture<>());
       }
-      return CompletableFuture.anyOf(aliveReaderAvailableFuture, waitingForSplitChangeFuture)
+      return CompletableFuture.anyOf(aliveReaderAvailableFuture, waitingForSplitChangeFuture.get())
           .thenAccept(ignored -> {});
     } else if (noMoreSplits) {
       // All the splits have been read, wait for idle timeout.
+      LOG.info("All splits have been read, waiting for shutdown timeout {}", idleTimeoutMs);
       checkIdleTimeoutAndMaybeStartCountdown();
       return idleTimeoutFuture;
     } else {
-      // There is no live readers, waiting for new split assignments or no more splits notification.
-      if (waitingForSplitChangeFuture.isDone()) {
-        waitingForSplitChangeFuture = new CompletableFuture<>();
+      // There are no live readers, waiting for new split assignments or no more splits
+      // notification.
+      if (waitingForSplitChangeFuture.get().isDone()) {
+        waitingForSplitChangeFuture.set(new CompletableFuture<>());
       }
-      return waitingForSplitChangeFuture;
+      return waitingForSplitChangeFuture.get();
     }
   }
 
@@ -190,7 +187,7 @@ public abstract class FlinkSourceReaderBase<T, OutputT>
     checkExceptionAndMaybeThrow();
     LOG.info("Received NoMoreSplits signal from enumerator.");
     noMoreSplits = true;
-    waitingForSplitChangeFuture.complete(null);
+    waitingForSplitChangeFuture.get().complete(null);
   }
 
   @Override
@@ -198,7 +195,7 @@ public abstract class FlinkSourceReaderBase<T, OutputT>
     checkExceptionAndMaybeThrow();
     LOG.info("Adding splits {}", splits);
     sourceSplits.addAll(splits);
-    waitingForSplitChangeFuture.complete(null);
+    waitingForSplitChangeFuture.get().complete(null);
   }
 
   @Override
@@ -219,9 +216,27 @@ public abstract class FlinkSourceReaderBase<T, OutputT>
    */
   protected abstract CompletableFuture<Void> isAvailableForAliveReaders();
 
+  /** Create {@link FlinkSourceSplit} for given {@code splitId}. */
+  protected abstract FlinkSourceSplit<T> getReaderCheckpoint(
+      int splitId, ReaderAndOutput readerAndOutput) throws IOException;
+
+  /** Create {@link Source.Reader} for given {@link FlinkSourceSplit}. */
+  protected abstract Source.Reader<T> createReader(@Nonnull FlinkSourceSplit<T> sourceSplit)
+      throws IOException;
+
+  /**
+   * To be overridden in unbounded reader. Notify the reader of created splits that will be part of
+   * checkpoint. Will be processed during notifyCheckpointComplete to finalize the associated
+   * CheckpointMarks.
+   */
+  protected void addSplitsToUnfinishedForCheckpoint(
+      long checkpointId, List<FlinkSourceSplit<T>> splits) {
+    // nop
+  }
+
   // ----------------- protected helper methods for subclasses --------------------
 
-  protected Optional<ReaderAndOutput> createAndTrackNextReader() throws IOException {
+  protected final Optional<ReaderAndOutput> createAndTrackNextReader() throws IOException {
     FlinkSourceSplit<T> sourceSplit = sourceSplits.poll();
     if (sourceSplit != null) {
       Source.Reader<T> reader = createReader(sourceSplit);
@@ -232,7 +247,7 @@ public abstract class FlinkSourceReaderBase<T, OutputT>
     return Optional.empty();
   }
 
-  protected void finishSplit(int splitIndex) throws IOException {
+  protected final void finishSplit(int splitIndex) throws IOException {
     ReaderAndOutput readerAndOutput = beamSourceReaders.remove(splitIndex);
     if (readerAndOutput != null) {
       LOG.info("Finished reading from split {}", readerAndOutput.splitId);
@@ -243,7 +258,7 @@ public abstract class FlinkSourceReaderBase<T, OutputT>
     }
   }
 
-  protected boolean checkIdleTimeoutAndMaybeStartCountdown() {
+  protected final boolean checkIdleTimeoutAndMaybeStartCountdown() {
     if (idleTimeoutMs <= 0) {
       idleTimeoutFuture.complete(null);
     } else if (!idleTimeoutCountingDown) {
@@ -253,7 +268,7 @@ public abstract class FlinkSourceReaderBase<T, OutputT>
     return idleTimeoutFuture.isDone();
   }
 
-  protected boolean noMoreSplits() {
+  protected final boolean noMoreSplits() {
     return noMoreSplits;
   }
 
@@ -273,19 +288,19 @@ public abstract class FlinkSourceReaderBase<T, OutputT>
   }
 
   protected void recordException(Throwable e) {
-    if (!exception.compareAndSet(NO_EXCEPTION, e)) {
-      exception.get().addSuppressed(e);
+    if (!exception.compareAndSet(null, e)) {
+      Optional.ofNullable(exception.get()).ifPresent(exc -> exc.addSuppressed(e));
     }
   }
 
   protected void checkExceptionAndMaybeThrow() {
-    if (exception.get() != NO_EXCEPTION) {
+    if (exception.get() != null) {
       throw new RuntimeException("The source reader received exception.", exception.get());
     }
   }
 
   protected boolean hasException() {
-    return exception.get() != NO_EXCEPTION;
+    return exception.get() != null;
   }
 
   protected Collection<FlinkSourceSplit<T>> sourceSplits() {
@@ -298,49 +313,6 @@ public abstract class FlinkSourceReaderBase<T, OutputT>
 
   protected static void ignoreReturnValue(Object o) {
     // do nothing.
-  }
-  // ------------------------------ private methods ------------------------------
-
-  @SuppressWarnings("unchecked")
-  private <CheckpointMarkT extends UnboundedSource.CheckpointMark>
-      byte[] getAndEncodeCheckpointMark(UnboundedSource.UnboundedReader<OutputT> reader) {
-    UnboundedSource<OutputT, CheckpointMarkT> source =
-        (UnboundedSource<OutputT, CheckpointMarkT>) reader.getCurrentSource();
-    CheckpointMarkT checkpointMark = (CheckpointMarkT) reader.getCheckpointMark();
-    Coder<CheckpointMarkT> coder = source.getCheckpointMarkCoder();
-    try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-      coder.encode(checkpointMark, baos);
-      return baos.toByteArray();
-    } catch (IOException ioe) {
-      throw new RuntimeException("Failed to encode checkpoint mark.", ioe);
-    }
-  }
-
-  private Source.Reader<T> createReader(@Nonnull FlinkSourceSplit<T> sourceSplit)
-      throws IOException {
-    Source<T> beamSource = sourceSplit.getBeamSplitSource();
-    if (beamSource instanceof BoundedSource) {
-      return ((BoundedSource<T>) beamSource).createReader(pipelineOptions);
-    } else if (beamSource instanceof UnboundedSource) {
-      return createUnboundedSourceReader(beamSource, sourceSplit.getSplitState());
-    } else {
-      throw new IllegalStateException("Unknown source type " + beamSource.getClass());
-    }
-  }
-
-  private <CheckpointMarkT extends UnboundedSource.CheckpointMark>
-      Source.Reader<T> createUnboundedSourceReader(
-          Source<T> beamSource, @Nullable byte[] splitState) throws IOException {
-    UnboundedSource<T, CheckpointMarkT> unboundedSource =
-        (UnboundedSource<T, CheckpointMarkT>) beamSource;
-    Coder<CheckpointMarkT> coder = unboundedSource.getCheckpointMarkCoder();
-    if (splitState == null) {
-      return unboundedSource.createReader(pipelineOptions, null);
-    } else {
-      try (ByteArrayInputStream bais = new ByteArrayInputStream(splitState)) {
-        return unboundedSource.createReader(pipelineOptions, coder.decode(bais));
-      }
-    }
   }
 
   // -------------------- protected helper class ---------------------
@@ -366,17 +338,27 @@ public abstract class FlinkSourceReaderBase<T, OutputT>
       return outputForSplit;
     }
 
-    public boolean startOrAdvance() throws IOException {
+    public boolean startOrAdvance(ReaderOutput<OutputT> output) throws IOException {
       if (started) {
-        return reader.advance();
-      } else {
-        started = true;
-        return reader.start();
+        // associate output with the split
+        getAndMaybeCreateSplitOutput(output);
+        return invocationUtil.invokeAdvance(reader);
       }
+      started = true;
+      return invocationUtil.invokeStart(reader);
     }
 
     public @Nullable SourceOutput<OutputT> sourceOutput() {
       return outputForSplit;
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(this)
+          .add("splitId", splitId)
+          .add("reader", reader)
+          .add("started", started)
+          .toString();
     }
   }
 

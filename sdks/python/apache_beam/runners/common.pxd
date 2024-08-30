@@ -46,7 +46,7 @@ cdef class MethodWrapper(object):
   cdef object key_arg_name
   cdef object restriction_provider
   cdef object restriction_provider_arg_name
-  cdef object watermark_estimator_provider
+  cdef public object watermark_estimator_provider
   cdef object watermark_estimator_provider_arg_name
   cdef object dynamic_timer_tag_arg_name
   cdef bint unbounded_per_element
@@ -74,6 +74,8 @@ cdef class DoFnInvoker(object):
   cdef OutputHandler output_handler
   cdef object user_state_context
   cdef public object bundle_finalizer_param
+  cdef object _setup_context_values
+  cdef object _bundle_context_values
 
   cpdef invoke_process(self, WindowedValue windowed_value,
                        restriction=*, watermark_estimator_state=*,
@@ -100,7 +102,9 @@ cdef class PerWindowInvoker(DoFnInvoker):
   cdef dict kwargs_for_process_batch
   cdef list placeholders_for_process_batch
   cdef bint has_windowed_inputs
-  cdef bint cache_globally_windowed_args
+  cdef bint recalculate_window_args
+  cdef bint has_cached_window_args
+  cdef bint has_cached_window_batch_args
   cdef object process_method
   cdef object process_batch_method
   cdef bint is_splittable
@@ -121,6 +125,8 @@ cdef class DoFnRunner:
   cdef list side_inputs
   cdef DoFnInvoker do_fn_invoker
   cdef public object bundle_finalizer_param
+  cdef str transform_id
+  cdef object execution_context
   cpdef process(self, WindowedValue windowed_value)
 
 

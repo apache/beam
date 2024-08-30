@@ -17,12 +17,15 @@
  */
 package org.apache.beam.sdk.io.hadoop;
 
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
 import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Map;
+import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.Job;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -30,7 +33,13 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /**
  * A wrapper to allow Hadoop {@link Configuration}s to be serialized using Java's standard
  * serialization mechanisms.
+ *
+ * <p>SerializableConfiguration is not thread safe. For example, serialized configuration could be
+ * corrupted if {@link SerializableConfiguration#writeExternal} and {@link
+ * SerializableConfiguration#readExternal} are run at the same time, or the {@link Configuration} is
+ * changed outside during writeExternal.
  */
+@NotThreadSafe
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
@@ -38,6 +47,11 @@ public class SerializableConfiguration implements Externalizable {
   private static final long serialVersionUID = 0L;
 
   private transient Configuration conf;
+
+  // a flag marking conf might be changed so pending invalidate cache used by writeExternal
+  private transient boolean confMutated;
+
+  private transient byte[] serializationCache;
 
   public SerializableConfiguration() {}
 
@@ -49,17 +63,29 @@ public class SerializableConfiguration implements Externalizable {
   }
 
   public Configuration get() {
+    // get() call returns the original conf, which is mutable by caller
+    confMutated = true;
     return conf;
   }
 
   @Override
   public void writeExternal(ObjectOutput out) throws IOException {
+    if (confMutated || serializationCache == null) {
+      confMutated = false;
+      ByteArrayOutputStream baos = new ByteArrayOutputStream(512);
+      try (DataOutputStream dos = new DataOutputStream(baos)) {
+        // this call is slow.
+        conf.write(dos);
+        serializationCache = baos.toByteArray();
+      }
+    }
     out.writeUTF(conf.getClass().getCanonicalName());
-    conf.write(out);
+    out.write(serializationCache);
   }
 
   @Override
   public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+    confMutated = true;
     String className = in.readUTF();
     try {
       conf =

@@ -48,3 +48,9 @@ service CloudWindmillServiceV1Alpha1 {
   rpc CommitWorkStream(stream .windmill.StreamingCommitWorkRequest)
     returns (stream .windmill.StreamingCommitResponse);
 }
+
+service CloudWindmillMetadataServiceV1Alpha1 {
+  // Gets worker metadata.  Response is a stream.
+  rpc GetWorkerMetadata(stream.windmill.WorkerMetadataRequest)
+      returns (stream.windmill.WorkerMetadataResponse);
+}

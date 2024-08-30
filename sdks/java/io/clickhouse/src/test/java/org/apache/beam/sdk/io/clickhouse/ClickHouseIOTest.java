@@ -139,6 +139,84 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
   }
 
   @Test
+  public void testTupleType() throws Exception {
+    Schema tupleSchema =
+        Schema.of(
+            Schema.Field.of("f0", FieldType.STRING), Schema.Field.of("f1", FieldType.BOOLEAN));
+    Schema schema = Schema.of(Schema.Field.of("t0", FieldType.row(tupleSchema)));
+    Row row1Tuple = Row.withSchema(tupleSchema).addValue("tuple").addValue(true).build();
+
+    Row row1 = Row.withSchema(schema).addValue(row1Tuple).build();
+
+    executeSql(
+        "CREATE TABLE test_named_tuples (" + "t0 Tuple(`f0` String, `f1` Bool)" + ") ENGINE=Log");
+
+    pipeline.apply(Create.of(row1).withRowSchema(schema)).apply(write("test_named_tuples"));
+
+    pipeline.run().waitUntilFinish();
+
+    try (ResultSet rs = executeQuery("SELECT * FROM test_named_tuples")) {
+      rs.next();
+      assertEquals("[tuple, true]", rs.getString("t0"));
+    }
+
+    try (ResultSet rs = executeQuery("SELECT t0.f0 as f0, t0.f1 as f1 FROM test_named_tuples")) {
+      rs.next();
+      assertEquals("tuple", rs.getString("f0"));
+      assertEquals("true", rs.getString("f1"));
+    }
+  }
+
+  @Test
+  public void testComplexTupleType() throws Exception {
+    Schema sizeSchema =
+        Schema.of(
+            Schema.Field.of("width", FieldType.INT64.withNullable(true)),
+            Schema.Field.of("height", FieldType.INT64.withNullable(true)));
+
+    Schema browserSchema =
+        Schema.of(
+            Schema.Field.of("name", FieldType.STRING.withNullable(true)),
+            Schema.Field.of("size", FieldType.row(sizeSchema)),
+            Schema.Field.of("version", FieldType.STRING.withNullable(true)));
+
+    Schema propSchema =
+        Schema.of(
+            Schema.Field.of("browser", FieldType.row(browserSchema)),
+            Schema.Field.of("deviceCategory", FieldType.STRING.withNullable(true)));
+
+    Schema schema = Schema.of(Schema.Field.of("prop", FieldType.row(propSchema)));
+
+    Row sizeRow = Row.withSchema(sizeSchema).addValue(10L).addValue(20L).build();
+    Row browserRow =
+        Row.withSchema(browserSchema).addValue("test").addValue(sizeRow).addValue("1.0.0").build();
+    Row propRow = Row.withSchema(propSchema).addValue(browserRow).addValue("mobile").build();
+    Row row1 = Row.withSchema(schema).addValue(propRow).build();
+
+    executeSql(
+        "CREATE TABLE test_named_complex_tuples ("
+            + "`prop` Tuple(`browser` Tuple(`name` Nullable(String),`size` Tuple(`width` Nullable(Int64), `height` Nullable(Int64)),`version` Nullable(String)),`deviceCategory` Nullable(String))"
+            + ") ENGINE=Log");
+
+    pipeline.apply(Create.of(row1).withRowSchema(schema)).apply(write("test_named_complex_tuples"));
+
+    pipeline.run().waitUntilFinish();
+
+    try (ResultSet rs = executeQuery("SELECT * FROM test_named_complex_tuples")) {
+      rs.next();
+      assertEquals("[[test, [10, 20], 1.0.0], mobile]", rs.getString("prop"));
+    }
+
+    try (ResultSet rs =
+        executeQuery(
+            "SELECT prop.browser.name as name, prop.browser.size as size FROM test_named_complex_tuples")) {
+      rs.next();
+      assertEquals("test", rs.getString("name"));
+      assertEquals("[10, 20]", rs.getString("size"));
+    }
+  }
+
+  @Test
   public void testPrimitiveTypes() throws Exception {
     Schema schema =
         Schema.of(
@@ -159,7 +237,9 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
             Schema.Field.of("f14", FieldType.STRING),
             Schema.Field.of("f15", FieldType.STRING),
             Schema.Field.of("f16", FieldType.BYTES),
-            Schema.Field.of("f17", FieldType.logicalType(FixedBytes.of(3))));
+            Schema.Field.of("f17", FieldType.logicalType(FixedBytes.of(3))),
+            Schema.Field.of("f18", FieldType.BOOLEAN),
+            Schema.Field.of("f19", FieldType.STRING));
     Row row1 =
         Row.withSchema(schema)
             .addValue(new DateTime(2030, 10, 1, 0, 0, 0, DateTimeZone.UTC))
@@ -180,6 +260,8 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
             .addValue("qwe")
             .addValue(new byte[] {'a', 's', 'd'})
             .addValue(new byte[] {'z', 'x', 'c'})
+            .addValue(true)
+            .addValue("lowcardenality")
             .build();
 
     executeSql(
@@ -201,7 +283,9 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
             + "f14 Enum16('abc' = -1, 'cde' = -2),"
             + "f15 FixedString(3),"
             + "f16 FixedString(3),"
-            + "f17 FixedString(3)"
+            + "f17 FixedString(3),"
+            + "f18 Bool,"
+            + "f19 LowCardinality(String)"
             + ") ENGINE=Log");
 
     pipeline.apply(Create.of(row1).withRowSchema(schema)).apply(write("test_primitive_types"));
@@ -229,6 +313,8 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
       assertArrayEquals(new byte[] {'q', 'w', 'e'}, rs.getBytes("f15"));
       assertArrayEquals(new byte[] {'a', 's', 'd'}, rs.getBytes("f16"));
       assertArrayEquals(new byte[] {'z', 'x', 'c'}, rs.getBytes("f17"));
+      assertEquals("true", rs.getString("f18"));
+      assertEquals("lowcardenality", rs.getString("f19"));
     }
   }
 
@@ -250,7 +336,8 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
             Schema.Field.of("f11", FieldType.array(FieldType.INT64)),
             Schema.Field.of("f12", FieldType.array(FieldType.INT64)),
             Schema.Field.of("f13", FieldType.array(FieldType.STRING)),
-            Schema.Field.of("f14", FieldType.array(FieldType.STRING)));
+            Schema.Field.of("f14", FieldType.array(FieldType.STRING)),
+            Schema.Field.of("f15", FieldType.array(FieldType.BOOLEAN)));
     Row row1 =
         Row.withSchema(schema)
             .addArray(
@@ -272,6 +359,7 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
             .addArray(12L, 13L)
             .addArray("abc", "cde")
             .addArray("cde", "abc")
+            .addArray(true, false)
             .build();
 
     executeSql(
@@ -290,7 +378,8 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
             + "f11 Array(UInt32),"
             + "f12 Array(UInt64),"
             + "f13 Array(Enum8('abc' = 1, 'cde' = 2)),"
-            + "f14 Array(Enum16('abc' = -1, 'cde' = -2))"
+            + "f14 Array(Enum16('abc' = -1, 'cde' = -2)),"
+            + "f15 Array(Bool)"
             + ") ENGINE=Log");
 
     pipeline
@@ -302,21 +391,23 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
     try (ResultSet rs = executeQuery("SELECT * FROM test_array_of_primitive_types")) {
       rs.next();
 
-      assertEquals("['2030-10-01','2031-10-01']", rs.getString("f0"));
-      assertEquals("['2030-10-09 08:07:06','2031-10-09 08:07:06']", rs.getString("f1"));
+      assertEquals("[2030-10-01, 2031-10-01]", rs.getString("f0"));
+      assertEquals("[2030-10-09T08:07:06, 2031-10-09T08:07:06]", rs.getString("f1"));
+      // Since comparing float/double values is not precise, we compare the string representation
       assertEquals("[2.2,3.3]", rs.getString("f2"));
       assertEquals("[3.3,4.4]", rs.getString("f3"));
-      assertEquals("[4,5]", rs.getString("f4"));
-      assertEquals("[5,6]", rs.getString("f5"));
-      assertEquals("[6,7]", rs.getString("f6"));
-      assertEquals("[7,8]", rs.getString("f7"));
-      assertEquals("['eight','nine']", rs.getString("f8"));
-      assertEquals("[9,10]", rs.getString("f9"));
-      assertEquals("[10,11]", rs.getString("f10"));
-      assertEquals("[11,12]", rs.getString("f11"));
-      assertEquals("[12,13]", rs.getString("f12"));
-      assertEquals("['abc','cde']", rs.getString("f13"));
-      assertEquals("['cde','abc']", rs.getString("f14"));
+      assertArrayEquals(new byte[] {4, 5}, (byte[]) rs.getArray("f4").getArray());
+      assertArrayEquals(new short[] {5, 6}, (short[]) rs.getArray("f5").getArray());
+      assertArrayEquals(new int[] {6, 7}, (int[]) rs.getArray("f6").getArray());
+      assertArrayEquals(new long[] {7L, 8L}, (long[]) rs.getArray("f7").getArray());
+      assertArrayEquals(new String[] {"eight", "nine"}, (String[]) rs.getArray("f8").getArray());
+      assertArrayEquals(new byte[] {9, 10}, (byte[]) rs.getArray("f9").getArray());
+      assertArrayEquals(new short[] {10, 11}, (short[]) rs.getArray("f10").getArray());
+      assertArrayEquals(new int[] {11, 12}, (int[]) rs.getArray("f11").getArray());
+      assertArrayEquals(new long[] {12L, 13L}, (long[]) rs.getArray("f12").getArray());
+      assertArrayEquals(new String[] {"abc", "cde"}, (String[]) rs.getArray("f13").getArray());
+      assertArrayEquals(new String[] {"cde", "abc"}, (String[]) rs.getArray("f14").getArray());
+      assertArrayEquals(new boolean[] {true, false}, (boolean[]) rs.getArray("f15").getArray());
     }
   }
 

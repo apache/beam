@@ -52,7 +52,9 @@ import com.google.spanner.v1.Type;
 import com.google.spanner.v1.TypeCode;
 import io.grpc.Status;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.runners.direct.DirectRunner;
 import org.apache.beam.sdk.Pipeline;
@@ -68,7 +70,6 @@ import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -114,37 +115,7 @@ public class SpannerChangeStreamErrorTest implements Serializable {
   }
 
   @Test
-  @Ignore("BEAM-12164 Reenable this test when databaseClient.getDialect returns the right message.")
-  public void testResourceExhaustedDoesNotRetry() {
-    mockSpannerService.setExecuteStreamingSqlExecutionTime(
-        SimulatedExecutionTime.ofStickyException(Status.RESOURCE_EXHAUSTED.asRuntimeException()));
-
-    final Timestamp startTimestamp = Timestamp.ofTimeSecondsAndNanos(0, 1000);
-    final Timestamp endTimestamp =
-        Timestamp.ofTimeSecondsAndNanos(startTimestamp.getSeconds(), startTimestamp.getNanos() + 1);
-    try {
-      pipeline.apply(
-          SpannerIO.readChangeStream()
-              .withSpannerConfig(getSpannerConfig())
-              .withChangeStreamName(TEST_CHANGE_STREAM)
-              .withMetadataDatabase(TEST_DATABASE)
-              .withMetadataTable(TEST_TABLE)
-              .withInclusiveStartAt(startTimestamp)
-              .withInclusiveEndAt(endTimestamp));
-      pipeline.run().waitUntilFinish();
-    } finally {
-      thrown.expect(SpannerException.class);
-      // databaseClient.getDialect does not currently bubble up the correct message.
-      // Instead, the error returned is: "DEADLINE_EXCEEDED: Operation did not complete "
-      // "in the given time"
-      thrown.expectMessage("RESOURCE_EXHAUSTED - Statement: 'SELECT 'POSTGRESQL' AS DIALECT");
-      assertThat(
-          mockSpannerService.countRequestsOfType(ExecuteSqlRequest.class), Matchers.equalTo(0));
-    }
-  }
-
-  @Test
-  @Ignore("BEAM-12164 Reenable this test when databaseClient.getDialect returns the right message.")
+  // Error code UNAVAILABLE is retried repeatedly until the RPC times out.
   public void testUnavailableExceptionRetries() throws InterruptedException {
     DirectOptions options = PipelineOptionsFactory.as(DirectOptions.class);
     options.setBlockOnRun(false);
@@ -177,23 +148,28 @@ public class SpannerChangeStreamErrorTest implements Serializable {
       // databaseClient.getDialect does not currently bubble up the correct message.
       // Instead, the error returned is: "DEADLINE_EXCEEDED: Operation did not complete "
       // "in the given time"
-      thrown.expectMessage("UNAVAILABLE - Statement: 'SELECT 'POSTGRESQL' AS DIALECT");
+      thrown.expectMessage("DEADLINE_EXCEEDED");
       assertThat(
           mockSpannerService.countRequestsOfType(ExecuteSqlRequest.class), Matchers.equalTo(0));
     }
   }
 
   @Test
-  @Ignore("BEAM-12164 Reenable this test when databaseClient.getDialect returns the right message.")
-  public void testAbortedExceptionNotRetried() {
+  // Error code ABORTED is retried repeatedly until it times out.
+  public void testAbortedExceptionRetries() throws InterruptedException {
     mockSpannerService.setExecuteStreamingSqlExecutionTime(
         SimulatedExecutionTime.ofStickyException(Status.ABORTED.asRuntimeException()));
+
+    DirectOptions options = PipelineOptionsFactory.as(DirectOptions.class);
+    options.setBlockOnRun(false);
+    options.setRunner(DirectRunner.class);
+    Pipeline nonBlockingPipeline = TestPipeline.create(options);
 
     final Timestamp startTimestamp = Timestamp.ofTimeSecondsAndNanos(0, 1000);
     final Timestamp endTimestamp =
         Timestamp.ofTimeSecondsAndNanos(startTimestamp.getSeconds(), startTimestamp.getNanos() + 1);
     try {
-      pipeline.apply(
+      nonBlockingPipeline.apply(
           SpannerIO.readChangeStream()
               .withSpannerConfig(getSpannerConfig())
               .withChangeStreamName(TEST_CHANGE_STREAM)
@@ -201,57 +177,21 @@ public class SpannerChangeStreamErrorTest implements Serializable {
               .withMetadataTable(TEST_TABLE)
               .withInclusiveStartAt(startTimestamp)
               .withInclusiveEndAt(endTimestamp));
-      pipeline.run().waitUntilFinish();
+      PipelineResult result = nonBlockingPipeline.run();
+      while (result.getState() != RUNNING) {
+        Thread.sleep(50);
+      }
+      // The pipeline continues making requests to Spanner to retry the Aborted errors.
+      assertNull(result.waitUntilFinish(Duration.millis(500)));
     } finally {
-      thrown.expect(SpannerException.class);
-      // databaseClient.getDialect does not currently bubble up the correct message.
-      // Instead, the error returned is: "DEADLINE_EXCEEDED: Operation did not complete "
-      // "in the given time"
-      thrown.expectMessage("ABORTED - Statement: 'SELECT 'POSTGRESQL' AS DIALECT");
+      thrown.expectMessage("DEADLINE_EXCEEDED");
       assertThat(
           mockSpannerService.countRequestsOfType(ExecuteSqlRequest.class), Matchers.equalTo(0));
     }
   }
 
   @Test
-  public void testAbortedExceptionNotRetriedithDefaultsForStreamSqlRetrySettings() {
-    mockSpannerService.setExecuteStreamingSqlExecutionTime(
-        SimulatedExecutionTime.ofStickyException(Status.ABORTED.asRuntimeException()));
-
-    final Timestamp startTimestamp = Timestamp.ofTimeSecondsAndNanos(0, 1000);
-    final Timestamp endTimestamp =
-        Timestamp.ofTimeSecondsAndNanos(startTimestamp.getSeconds(), startTimestamp.getNanos() + 1);
-    final SpannerConfig changeStreamConfig =
-        SpannerConfig.create()
-            .withEmulatorHost(StaticValueProvider.of(SPANNER_HOST))
-            .withIsLocalChannelProvider(StaticValueProvider.of(true))
-            .withCommitRetrySettings(null)
-            .withExecuteStreamingSqlRetrySettings(null)
-            .withProjectId(TEST_PROJECT)
-            .withInstanceId(TEST_INSTANCE)
-            .withDatabaseId(TEST_DATABASE);
-    try {
-      pipeline.apply(
-          SpannerIO.readChangeStream()
-              .withSpannerConfig(changeStreamConfig)
-              .withChangeStreamName(TEST_CHANGE_STREAM)
-              .withMetadataDatabase(TEST_DATABASE)
-              .withMetadataTable(TEST_TABLE)
-              .withInclusiveStartAt(startTimestamp)
-              .withInclusiveEndAt(endTimestamp));
-      pipeline.run().waitUntilFinish();
-    } finally {
-      // databaseClient.getDialect does not currently bubble up the correct message.
-      // Instead, the error returned is: "DEADLINE_EXCEEDED: Operation did not complete "
-      // "in the given time"
-      thrown.expect(SpannerException.class);
-      thrown.expectMessage("ABORTED - Statement: 'SELECT 'POSTGRESQL' AS DIALECT");
-      assertThat(
-          mockSpannerService.countRequestsOfType(ExecuteSqlRequest.class), Matchers.equalTo(0));
-    }
-  }
-
-  @Test
+  // Error code UNKNOWN is not retried.
   public void testUnknownExceptionDoesNotRetry() {
     mockSpannerService.setExecuteStreamingSqlExecutionTime(
         SimulatedExecutionTime.ofStickyException(Status.UNKNOWN.asRuntimeException()));
@@ -271,14 +211,76 @@ public class SpannerChangeStreamErrorTest implements Serializable {
       pipeline.run().waitUntilFinish();
     } finally {
       thrown.expect(SpannerException.class);
-      thrown.expectMessage("UNKNOWN - Statement: 'SELECT 'POSTGRESQL' AS DIALECT");
+      thrown.expectMessage("UNKNOWN");
       assertThat(
           mockSpannerService.countRequestsOfType(ExecuteSqlRequest.class), Matchers.equalTo(0));
     }
   }
 
   @Test
-  @Ignore("BEAM-12164 Reenable this test when databaseClient.getDialect works.")
+  // Error code RESOURCE_EXHAUSTED is retried repeatedly.
+  public void testResourceExhaustedRetry() {
+    mockSpannerService.setExecuteStreamingSqlExecutionTime(
+        SimulatedExecutionTime.ofStickyException(Status.RESOURCE_EXHAUSTED.asRuntimeException()));
+
+    final Timestamp startTimestamp = Timestamp.ofTimeSecondsAndNanos(0, 1000);
+    final Timestamp endTimestamp =
+        Timestamp.ofTimeSecondsAndNanos(startTimestamp.getSeconds(), startTimestamp.getNanos() + 1);
+
+    try {
+      pipeline.apply(
+          SpannerIO.readChangeStream()
+              .withSpannerConfig(getSpannerConfig())
+              .withChangeStreamName(TEST_CHANGE_STREAM)
+              .withMetadataDatabase(TEST_DATABASE)
+              .withMetadataTable(TEST_TABLE)
+              .withInclusiveStartAt(startTimestamp)
+              .withInclusiveEndAt(endTimestamp));
+      pipeline.run().waitUntilFinish();
+    } finally {
+      thrown.expectMessage("DEADLINE_EXCEEDED");
+      assertThat(
+          mockSpannerService.countRequestsOfType(ExecuteSqlRequest.class), Matchers.equalTo(0));
+    }
+  }
+
+  @Test
+  public void testResourceExhaustedRetryWithDefaultSettings() {
+    mockSpannerService.setExecuteStreamingSqlExecutionTime(
+        SimulatedExecutionTime.ofStickyException(Status.RESOURCE_EXHAUSTED.asRuntimeException()));
+
+    final Timestamp startTimestamp = Timestamp.ofTimeSecondsAndNanos(0, 1000);
+    final Timestamp endTimestamp =
+        Timestamp.ofTimeSecondsAndNanos(startTimestamp.getSeconds(), startTimestamp.getNanos() + 1);
+    final SpannerConfig changeStreamConfig =
+        SpannerConfig.create()
+            .withEmulatorHost(StaticValueProvider.of(SPANNER_HOST))
+            .withIsLocalChannelProvider(StaticValueProvider.of(true))
+            .withCommitRetrySettings(null)
+            .withExecuteStreamingSqlRetrySettings(null)
+            .withProjectId(TEST_PROJECT)
+            .withInstanceId(TEST_INSTANCE)
+            .withDatabaseId(TEST_DATABASE);
+
+    try {
+      pipeline.apply(
+          SpannerIO.readChangeStream()
+              .withSpannerConfig(changeStreamConfig)
+              .withChangeStreamName(TEST_CHANGE_STREAM)
+              .withMetadataDatabase(TEST_DATABASE)
+              .withMetadataTable(TEST_TABLE)
+              .withInclusiveStartAt(startTimestamp)
+              .withInclusiveEndAt(endTimestamp));
+      pipeline.run().waitUntilFinish();
+    } finally {
+      thrown.expect(SpannerException.class);
+      thrown.expectMessage("RESOURCE_EXHAUSTED");
+      assertThat(
+          mockSpannerService.countRequestsOfType(ExecuteSqlRequest.class), Matchers.equalTo(0));
+    }
+  }
+
+  @Test
   public void testInvalidRecordReceived() {
     final Timestamp startTimestamp = Timestamp.ofTimeSecondsAndNanos(0, 1000);
     final Timestamp endTimestamp =
@@ -310,12 +312,70 @@ public class SpannerChangeStreamErrorTest implements Serializable {
               .withInclusiveEndAt(endTimestamp));
       pipeline.run().waitUntilFinish();
     } finally {
-      thrown.expect(PipelineExecutionException.class);
+      thrown.expect(SpannerException.class);
       // DatabaseClient.getDialect returns "DEADLINE_EXCEEDED: Operation did not complete in the "
       // given time" even though we mocked it out.
-      thrown.expectMessage("Field not found");
+      thrown.expectMessage("DEADLINE_EXCEEDED");
       assertThat(
           mockSpannerService.countRequestsOfType(ExecuteSqlRequest.class), Matchers.equalTo(0));
+    }
+  }
+
+  @Test
+  public void testInvalidRecordReceivedWithDefaultSettings() {
+    final Timestamp startTimestamp = Timestamp.ofTimeSecondsAndNanos(0, 1000);
+    final Timestamp endTimestamp =
+        Timestamp.ofTimeSecondsAndNanos(startTimestamp.getSeconds(), startTimestamp.getNanos() + 1);
+
+    mockGetDialect();
+    mockTableExists();
+    mockGetWatermark(startTimestamp);
+    ResultSet getPartitionResultSet = mockGetParentPartition(startTimestamp, endTimestamp);
+    mockchangePartitionState(startTimestamp, endTimestamp, "CREATED");
+    mockchangePartitionState(startTimestamp, endTimestamp, "SCHEDULED");
+    mockGetPartitionsAfter(
+        Timestamp.ofTimeSecondsAndNanos(startTimestamp.getSeconds(), startTimestamp.getNanos() - 1),
+        getPartitionResultSet);
+    mockGetPartitionsAfter(
+        Timestamp.ofTimeSecondsAndNanos(startTimestamp.getSeconds(), startTimestamp.getNanos()),
+        ResultSet.newBuilder().setMetadata(PARTITION_METADATA_RESULT_SET_METADATA).build());
+    mockGetPartitionsAfter(
+        Timestamp.ofTimeSecondsAndNanos(startTimestamp.getSeconds(), startTimestamp.getNanos() + 1),
+        ResultSet.newBuilder().setMetadata(PARTITION_METADATA_RESULT_SET_METADATA).build());
+    mockInvalidChangeStreamRecordReceived(startTimestamp, endTimestamp);
+
+    try {
+      RetrySettings quickRetrySettings =
+          RetrySettings.newBuilder()
+              .setInitialRetryDelay(org.threeten.bp.Duration.ofMillis(250))
+              .setMaxRetryDelay(org.threeten.bp.Duration.ofSeconds(1))
+              .setRetryDelayMultiplier(5)
+              .setTotalTimeout(org.threeten.bp.Duration.ofSeconds(1))
+              .build();
+      final SpannerConfig changeStreamConfig =
+          SpannerConfig.create()
+              .withEmulatorHost(StaticValueProvider.of(SPANNER_HOST))
+              .withIsLocalChannelProvider(StaticValueProvider.of(true))
+              .withCommitRetrySettings(quickRetrySettings)
+              .withExecuteStreamingSqlRetrySettings(null)
+              .withProjectId(TEST_PROJECT)
+              .withInstanceId(TEST_INSTANCE)
+              .withDatabaseId(TEST_DATABASE);
+
+      pipeline.apply(
+          SpannerIO.readChangeStream()
+              .withSpannerConfig(changeStreamConfig)
+              .withChangeStreamName(TEST_CHANGE_STREAM)
+              .withMetadataDatabase(TEST_DATABASE)
+              .withMetadataTable(TEST_TABLE)
+              .withInclusiveStartAt(startTimestamp)
+              .withInclusiveEndAt(endTimestamp));
+      pipeline.run().waitUntilFinish();
+    } finally {
+      thrown.expect(PipelineExecutionException.class);
+      thrown.expectMessage("Field not found");
+      assertThat(
+          mockSpannerService.countRequestsOfType(ExecuteSqlRequest.class), Matchers.greaterThan(0));
     }
   }
 
@@ -485,6 +545,41 @@ public class SpannerChangeStreamErrorTest implements Serializable {
             .build();
     mockSpannerService.putStatementResult(
         StatementResult.query(tableExistsStatement, tableExistsResultSet));
+  }
+
+  private ResultSet mockchangePartitionState(
+      Timestamp startTimestamp, Timestamp after3Seconds, String state) {
+    List<String> tokens = new ArrayList<>();
+    tokens.add("Parent0");
+    Statement getPartitionStatement =
+        Statement.newBuilder(
+                "SELECT * FROM my-metadata-table WHERE PartitionToken IN UNNEST(@partitionTokens) AND State = @state")
+            .bind("partitionTokens")
+            .toStringArray(tokens)
+            .bind("state")
+            .to(state)
+            .build();
+    ResultSet getPartitionResultSet =
+        ResultSet.newBuilder()
+            .addRows(
+                ListValue.newBuilder()
+                    .addValues(Value.newBuilder().setStringValue("Parent0"))
+                    .addValues(Value.newBuilder().setListValue(ListValue.newBuilder().build()))
+                    .addValues(Value.newBuilder().setStringValue(startTimestamp.toString()))
+                    .addValues(Value.newBuilder().setStringValue(after3Seconds.toString()))
+                    .addValues(Value.newBuilder().setStringValue("500"))
+                    .addValues(Value.newBuilder().setStringValue(State.CREATED.name()))
+                    .addValues(Value.newBuilder().setStringValue(startTimestamp.toString()))
+                    .addValues(Value.newBuilder().setStringValue(startTimestamp.toString()))
+                    .addValues(Value.newBuilder().setNullValue(NullValue.NULL_VALUE).build())
+                    .addValues(Value.newBuilder().setNullValue(NullValue.NULL_VALUE).build())
+                    .addValues(Value.newBuilder().setNullValue(NullValue.NULL_VALUE).build())
+                    .build())
+            .setMetadata(PARTITION_METADATA_RESULT_SET_METADATA)
+            .build();
+    mockSpannerService.putStatementResult(
+        StatementResult.query(getPartitionStatement, getPartitionResultSet));
+    return getPartitionResultSet;
   }
 
   private void mockGetDialect() {

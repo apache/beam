@@ -16,7 +16,7 @@
 # limitations under the License.
 ###############################################################################
 
-FROM node:16
+FROM node:18.18-bullseye-slim
 LABEL Author "Apache Beam <dev@beam.apache.org>"
 ARG TARGETOS
 ARG TARGETARCH
@@ -31,5 +31,5 @@ COPY target/apache-beam.tgz ./apache-beam.tgz
 # Install dependencies and compile
 RUN npm install apache-beam.tgz
 
-COPY target/launcher/${TARGETOS}_${TARGETARCH}/boot /opt/apache/beam
+COPY target/launcher/${TARGETOS}_${TARGETARCH}/boot /opt/apache/beam/
 ENTRYPOINT ["/opt/apache/beam/boot"]

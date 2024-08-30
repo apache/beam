@@ -22,42 +22,67 @@ labels:
     reviewers:
       - lostluck
       - jrmccluskey
-      - riteshghorse
     exclusionList:
       - youngoli
   - name: Python
     reviewers:
-      - AnandInguva
       - damccorm
       - jrmccluskey
       - tvalentyn
-      - riteshghorse
       - liferoad
+      - shunping
     exclusionList: []
   - name: Java
     reviewers:
       - Abacn
       - kennknowles
       - robertwb
-      - bvolpato
+      - m-trieu
+      - damondouglas
     exclusionList: []
   - name: IO
     reviewers:
       - chamikaramj
       - johnjcasey
-      - pabloem
       - Abacn
       - ahmedabu98
-      - bvolpato
-      - manavgarg
+      - damondouglas
+      - shunping
     exclusionList: []
   - name: spanner
     reviewers:
       - nielm
+  - name: bigtable
+    reviewers:
+      - igorbernstein2
+      - mutianf
+    exclusionList: []
+  - name: healthcare
+    reviewers:
+      - svetakvsundhar
     exclusionList: []
   - name: Build
     reviewers:
       - damccorm
       - Abacn
     exclusionList: []
-fallbackReviewers: []
+  - name: website
+    reviewers:
+      - rszper
+      - melap
+      - damccorm
+      - liferoad
+      - kennknowles
+    exclusionList: []
+fallbackReviewers:
+  - Abacn
+  - chamikaramj
+  - damccorm
+  - damondouglas
+  - johnjcasey
+  - jrmccluskey
+  - kennknowles
+  - lostluck
+  - robertwb
+  - shunping
+  - tvalentyn

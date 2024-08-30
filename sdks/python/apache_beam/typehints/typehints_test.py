@@ -19,6 +19,7 @@
 
 # pytype: skip-file
 
+import collections.abc
 import functools
 import sys
 import typing
@@ -619,6 +620,13 @@ class ListHintTestCase(TypeHintTestCase):
       self.assertCompatible(list, typing.List)
       self.assertCompatible(list[int], typing.List[int])
 
+  def test_is_typing_generic(self):
+    self.assertTrue(typehints.is_typing_generic(typing.List[str]))
+
+  def test_builtin_is_typing_generic(self):
+    if sys.version_info >= (3, 9):
+      self.assertTrue(typehints.is_typing_generic(list[str]))
+
 
 class KVHintTestCase(TypeHintTestCase):
   def test_getitem_param_must_be_tuple(self):
@@ -791,6 +799,10 @@ class BaseSetHintTest:
         except TypeError:
           self.fail("built-in composite raised TypeError unexpectedly")
 
+    def test_non_typing_generic(self):
+      testCase = DummyTestClass1()
+      self.assertFalse(typehints.is_typing_generic(testCase))
+
     def test_compatibility(self):
       hint1 = self.beam_type[typehints.List[str]]
       hint2 = self.beam_type[typehints.Tuple[int, int]]
@@ -834,11 +846,52 @@ class SetHintTestCase(BaseSetHintTest.CommonTests):
   beam_type = typehints.Set
   string_type = 'Set'
 
+  def test_builtin_compatibility(self):
+    if sys.version_info >= (3, 9):
+      self.assertCompatible(set[int], collections.abc.Set[int])
+      self.assertCompatible(set[int], collections.abc.MutableSet[int])
+
+  def test_collections_compatibility(self):
+    if sys.version_info >= (3, 9):
+      self.assertCompatible(
+          collections.abc.Set[int], collections.abc.MutableSet[int])
+      self.assertCompatible(
+          collections.abc.MutableSet[int], collections.abc.Set[int])
+
 
 class FrozenSetHintTestCase(BaseSetHintTest.CommonTests):
   py_type = frozenset
   beam_type = typehints.FrozenSet
   string_type = 'FrozenSet'
+
+
+class CollectionHintTestCase(TypeHintTestCase):
+  def test_type_constraint_compatibility(self):
+    self.assertCompatible(typehints.Collection[int], typehints.Set[int])
+    self.assertCompatible(typehints.Iterable[int], typehints.Collection[int])
+    self.assertCompatible(typehints.Collection[int], typehints.FrozenSet[int])
+    self.assertCompatible(
+        typehints.Collection[typehints.Any], typehints.Collection[int])
+    self.assertCompatible(typehints.Collection[int], typehints.Tuple[int])
+    self.assertCompatible(typehints.Any, typehints.Collection[str])
+    self.assertCompatible(typehints.Collection[str], typehints.List[str])
+
+  def test_one_way_compatibility(self):
+    self.assertNotCompatible(typehints.Set[int], typehints.Collection[int])
+    self.assertNotCompatible(
+        typehints.FrozenSet[int], typehints.Collection[int])
+    self.assertNotCompatible(typehints.Tuple[int], typehints.Collection[int])
+    self.assertNotCompatible(typehints.Collection[int], typehints.Iterable[int])
+    self.assertNotCompatible(typehints.List[str], typehints.Collection[str])
+
+  def test_getitem_invalid_composite_type_param(self):
+    with self.assertRaises(TypeError) as e:
+      typehints.Collection[5]
+    self.assertEqual(
+        'Parameter to a Collection hint must be a '
+        'non-sequence, a type, or a TypeConstraint. 5 is '
+        'an instance of int.',
+        e.exception.args[0])
 
 
 class IterableHintTestCase(TypeHintTestCase):
@@ -869,6 +922,7 @@ class IterableHintTestCase(TypeHintTestCase):
     self.assertCompatible(
         typehints.Iterable[typehints.Any],
         typehints.List[typehints.Tuple[int, bool]])
+    self.assertCompatible(typehints.Iterable[int], typehints.Collection[int])
 
   def test_tuple_compatibility(self):
     self.assertCompatible(typehints.Iterable[int], typehints.Tuple[int, ...])

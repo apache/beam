@@ -1114,15 +1114,15 @@ class BaseTestStreamTranscriptTest(TranscriptTest):
     if is_order_agnostic:
       reshuffle_seed = random.randrange(1 << 20)
       keys = [
-          u'original',
-          u'reversed',
-          u'reshuffled(%s)' % reshuffle_seed,
-          u'one-element-bundles',
-          u'one-element-bundles-reversed',
-          u'two-element-bundles'
+          'original',
+          'reversed',
+          'reshuffled(%s)' % reshuffle_seed,
+          'one-element-bundles',
+          'one-element-bundles-reversed',
+          'two-element-bundles'
       ]
     else:
-      keys = [u'key1', u'key2']
+      keys = ['key1', 'key2']
 
     # Elements are encoded as a json strings to allow other languages to
     # decode elements while executing the test stream.

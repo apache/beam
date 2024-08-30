@@ -19,7 +19,7 @@ package org.apache.beam.sdk.io;
 
 import com.google.auto.service.AutoService;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** {@link AutoService} registrar for the {@link LocalFileSystem}. */

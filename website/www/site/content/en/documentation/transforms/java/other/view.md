@@ -28,7 +28,10 @@ limitations under the License.
 Operations for turning a collection into view that may be used as a side-input to a `ParDo`.
 
 ## Examples
-See [BEAM-7704](https://issues.apache.org/jira/browse/BEAM-7704) for updates.
+
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" path="SDK_JAVA_View" show="main_section" >}}
+{{< /playground >}}
 
 ## Related transforms
 * [ParDo](/documentation/transforms/java/elementwise/pardo)

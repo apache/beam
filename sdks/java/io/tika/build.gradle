@@ -26,7 +26,7 @@ def tika_version = "1.26"
 def bndlib_version = "1.50.0"
 
 dependencies {
-  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.vendored_guava_32_1_2_jre
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation "org.apache.tika:tika-core:$tika_version"
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")

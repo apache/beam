@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.avro.schemas.utils;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -60,7 +60,6 @@ import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.avro.reflect.AvroIgnore;
 import org.apache.avro.reflect.AvroName;
 import org.apache.avro.reflect.ReflectData;
-import org.apache.avro.specific.SpecificData;
 import org.apache.avro.specific.SpecificRecord;
 import org.apache.avro.util.Utf8;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
@@ -94,11 +93,11 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.CaseFormat;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.CaseFormat;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Days;
 import org.joda.time.Duration;
@@ -145,14 +144,6 @@ import org.joda.time.ReadableInstant;
   "rawtypes"
 })
 public class AvroUtils {
-
-  static {
-    // This works around a bug in the Avro library (AVRO-1891) around SpecificRecord's handling
-    // of DateTime types.
-    SpecificData.get().addLogicalTypeConversion(new AvroCoder.JodaTimestampConversion());
-    GenericData.get().addLogicalTypeConversion(new AvroCoder.JodaTimestampConversion());
-  }
-
   private static final ForLoadedType BYTES = new ForLoadedType(byte[].class);
   private static final ForLoadedType JAVA_INSTANT = new ForLoadedType(java.time.Instant.class);
   private static final ForLoadedType JAVA_LOCALE_DATE =
@@ -160,6 +151,26 @@ public class AvroUtils {
   private static final ForLoadedType JODA_READABLE_INSTANT =
       new ForLoadedType(ReadableInstant.class);
   private static final ForLoadedType JODA_INSTANT = new ForLoadedType(Instant.class);
+
+  public static void addLogicalTypeConversions(final GenericData data) {
+    // do not add DecimalConversion by default as schema must have extra 'scale' and 'precision'
+    // properties. avro reflect already handles BigDecimal as string with the 'java-class' property
+    data.addLogicalTypeConversion(new Conversions.UUIDConversion());
+    // joda-time
+    data.addLogicalTypeConversion(new AvroJodaTimeConversions.DateConversion());
+    data.addLogicalTypeConversion(new AvroJodaTimeConversions.TimeConversion());
+    data.addLogicalTypeConversion(new AvroJodaTimeConversions.TimeMicrosConversion());
+    data.addLogicalTypeConversion(new AvroJodaTimeConversions.TimestampConversion());
+    data.addLogicalTypeConversion(new AvroJodaTimeConversions.TimestampMicrosConversion());
+    // java-time
+    data.addLogicalTypeConversion(new AvroJavaTimeConversions.DateConversion());
+    data.addLogicalTypeConversion(new AvroJavaTimeConversions.TimeMillisConversion());
+    data.addLogicalTypeConversion(new AvroJavaTimeConversions.TimeMicrosConversion());
+    data.addLogicalTypeConversion(new AvroJavaTimeConversions.TimestampMillisConversion());
+    data.addLogicalTypeConversion(new AvroJavaTimeConversions.TimestampMicrosConversion());
+    data.addLogicalTypeConversion(new AvroJavaTimeConversions.LocalTimestampMillisConversion());
+    data.addLogicalTypeConversion(new AvroJavaTimeConversions.LocalTimestampMicrosConversion());
+  }
 
   // Unwrap an AVRO schema into the base type an whether it is nullable.
   public static class TypeWithNullability {
@@ -449,6 +460,16 @@ public class AvroUtils {
   /**
    * Converts AVRO schema to Beam row schema.
    *
+   * @param clazz avro class
+   */
+  public static Schema toBeamSchema(Class<?> clazz) {
+    ReflectData data = new ReflectData(clazz.getClassLoader());
+    return toBeamSchema(data.getSchema(clazz));
+  }
+
+  /**
+   * Converts AVRO schema to Beam row schema.
+   *
    * @param schema schema of type RECORD
    */
   public static Schema toBeamSchema(org.apache.avro.Schema schema) {
@@ -609,7 +630,7 @@ public class AvroUtils {
   }
 
   private static class RowToAvroBytesFn extends SimpleFunction<Row, byte[]> {
-    private final transient org.apache.avro.Schema avroSchema;
+    private final org.apache.avro.Schema avroSchema;
     private final AvroCoder<GenericRecord> coder;
 
     RowToAvroBytesFn(Schema beamSchema) {
@@ -787,14 +808,14 @@ public class AvroUtils {
   private static final class AvroSpecificRecordFieldValueTypeSupplier
       implements FieldValueTypeSupplier {
     @Override
-    public List<FieldValueTypeInformation> get(Class<?> clazz) {
+    public List<FieldValueTypeInformation> get(TypeDescriptor<?> typeDescriptor) {
       throw new RuntimeException("Unexpected call.");
     }
 
     @Override
-    public List<FieldValueTypeInformation> get(Class<?> clazz, Schema schema) {
+    public List<FieldValueTypeInformation> get(TypeDescriptor<?> typeDescriptor, Schema schema) {
       Map<String, String> mapping = getMapping(schema);
-      List<Method> methods = ReflectUtils.getMethods(clazz);
+      List<Method> methods = ReflectUtils.getMethods(typeDescriptor.getRawType());
       List<FieldValueTypeInformation> types = Lists.newArrayList();
       for (int i = 0; i < methods.size(); ++i) {
         Method method = methods.get(i);
@@ -843,8 +864,9 @@ public class AvroUtils {
 
   private static final class AvroPojoFieldValueTypeSupplier implements FieldValueTypeSupplier {
     @Override
-    public List<FieldValueTypeInformation> get(Class<?> clazz) {
-      List<java.lang.reflect.Field> classFields = ReflectUtils.getFields(clazz);
+    public List<FieldValueTypeInformation> get(TypeDescriptor<?> typeDescriptor) {
+      List<java.lang.reflect.Field> classFields =
+          ReflectUtils.getFields(typeDescriptor.getRawType());
       Map<String, FieldValueTypeInformation> types = Maps.newHashMap();
       for (int i = 0; i < classFields.size(); ++i) {
         java.lang.reflect.Field f = classFields.get(i);
@@ -862,36 +884,46 @@ public class AvroUtils {
   }
 
   /** Get field types for an AVRO-generated SpecificRecord or a POJO. */
-  public static <T> List<FieldValueTypeInformation> getFieldTypes(Class<T> clazz, Schema schema) {
-    if (TypeDescriptor.of(clazz).isSubtypeOf(TypeDescriptor.of(SpecificRecord.class))) {
+  public static <T> List<FieldValueTypeInformation> getFieldTypes(
+      TypeDescriptor<T> typeDescriptor, Schema schema) {
+    if (typeDescriptor.isSubtypeOf(TypeDescriptor.of(SpecificRecord.class))) {
       return JavaBeanUtils.getFieldTypes(
-          clazz, schema, new AvroSpecificRecordFieldValueTypeSupplier());
+          typeDescriptor, schema, new AvroSpecificRecordFieldValueTypeSupplier());
     } else {
-      return POJOUtils.getFieldTypes(clazz, schema, new AvroPojoFieldValueTypeSupplier());
+      return POJOUtils.getFieldTypes(typeDescriptor, schema, new AvroPojoFieldValueTypeSupplier());
     }
   }
 
   /** Get generated getters for an AVRO-generated SpecificRecord or a POJO. */
-  public static <T> List<FieldValueGetter> getGetters(Class<T> clazz, Schema schema) {
-    if (TypeDescriptor.of(clazz).isSubtypeOf(TypeDescriptor.of(SpecificRecord.class))) {
+  public static <T> List<FieldValueGetter> getGetters(
+      TypeDescriptor<T> typeDescriptor, Schema schema) {
+    if (typeDescriptor.isSubtypeOf(TypeDescriptor.of(SpecificRecord.class))) {
       return JavaBeanUtils.getGetters(
-          clazz,
+          typeDescriptor,
           schema,
           new AvroSpecificRecordFieldValueTypeSupplier(),
           new AvroTypeConversionFactory());
     } else {
       return POJOUtils.getGetters(
-          clazz, schema, new AvroPojoFieldValueTypeSupplier(), new AvroTypeConversionFactory());
+          typeDescriptor,
+          schema,
+          new AvroPojoFieldValueTypeSupplier(),
+          new AvroTypeConversionFactory());
     }
   }
 
   /** Get an object creator for an AVRO-generated SpecificRecord. */
-  public static <T> SchemaUserTypeCreator getCreator(Class<T> clazz, Schema schema) {
-    if (TypeDescriptor.of(clazz).isSubtypeOf(TypeDescriptor.of(SpecificRecord.class))) {
-      return AvroByteBuddyUtils.getCreator((Class<? extends SpecificRecord>) clazz, schema);
+  public static <T> SchemaUserTypeCreator getCreator(
+      TypeDescriptor<T> typeDescriptor, Schema schema) {
+    if (typeDescriptor.isSubtypeOf(TypeDescriptor.of(SpecificRecord.class))) {
+      return AvroByteBuddyUtils.getCreator(
+          (Class<? extends SpecificRecord>) typeDescriptor.getRawType(), schema);
     } else {
       return POJOUtils.getSetFieldCreator(
-          clazz, schema, new AvroPojoFieldValueTypeSupplier(), new AvroTypeConversionFactory());
+          typeDescriptor,
+          schema,
+          new AvroPojoFieldValueTypeSupplier(),
+          new AvroTypeConversionFactory());
     }
   }
 

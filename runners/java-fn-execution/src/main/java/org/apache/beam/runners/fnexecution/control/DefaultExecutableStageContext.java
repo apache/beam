@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.fnexecution.control;
 
-import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
+import org.apache.beam.sdk.util.construction.graph.ExecutableStage;
 
 /** Implementation of a {@link ExecutableStageContext}. */
 public class DefaultExecutableStageContext implements ExecutableStageContext, AutoCloseable {

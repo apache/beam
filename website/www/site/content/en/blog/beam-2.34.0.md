@@ -61,6 +61,12 @@ notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527
 * Fixed error when importing the DataFrame API with pandas 1.0.x installed ([BEAM-12945](https://issues.apache.org/jira/browse/BEAM-12945)).
 * Fixed top.SmallestPerKey implementation in the Go SDK ([BEAM-12946](https://issues.apache.org/jira/browse/BEAM-12946)).
 
+### Known Issues
+
+* Large Java BigQueryIO writes with the FILE_LOADS method will fail in batch mode (specifically, when copy jobs are used).
+  This results in the error message: `IllegalArgumentException: Attempting to access unknown side input`.
+  Please upgrade to a newer version (> 2.34.0) or use another write method (e.g. `STORAGE_WRITE_API`).
+
 ## List of Contributors
 
 According to git shortlog, the following people contributed to the 2.34.0 release. Thank you to all contributors!

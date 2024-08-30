@@ -17,9 +17,10 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.services.bigquery.model.Table;
+import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.bigquery.storage.v1.CreateReadSessionRequest;
 import com.google.cloud.bigquery.storage.v1.DataFormat;
@@ -33,12 +34,13 @@ import org.apache.beam.sdk.extensions.arrow.ArrowConversion;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.StorageClient;
+import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.Preconditions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -100,21 +102,27 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
   }
 
   @Override
-  public List<? extends BoundedSource<T>> split(
+  public List<BigQueryStorageStreamSource<T>> split(
       long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
     BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
     @Nullable Table targetTable = getTargetTable(bqOptions);
 
     ReadSession.Builder readSessionBuilder = ReadSession.newBuilder();
+    Lineage lineage = Lineage.getSources();
     if (targetTable != null) {
-      readSessionBuilder.setTable(
-          BigQueryHelpers.toTableResourceName(targetTable.getTableReference()));
+      TableReference tableReference = targetTable.getTableReference();
+      readSessionBuilder.setTable(BigQueryHelpers.toTableResourceName(tableReference));
+      // register the table as lineage source
+      lineage.add("bigquery", BigQueryHelpers.dataCatalogSegments(tableReference, bqOptions));
     } else {
       // If the table does not exist targetTable will be null.
       // Construct the table id if we can generate it. For error recording/logging.
       @Nullable String tableReferenceId = getTargetTableId(bqOptions);
       if (tableReferenceId != null) {
         readSessionBuilder.setTable(tableReferenceId);
+        // register the table as lineage source
+        TableReference tableReference = BigQueryHelpers.parseTableUrn(tableReferenceId);
+        lineage.add("bigquery", BigQueryHelpers.dataCatalogSegments(tableReference, bqOptions));
       }
     }
 
@@ -137,7 +145,7 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
     // an appropriate number of streams for the Session to produce reasonable throughput.
     // This is required when using the Read API Source V2.
     int streamCount = 0;
-    if (!bqOptions.getEnableBundling()) {
+    if (!bqOptions.getEnableStorageReadApiV2()) {
       if (desiredBundleSizeBytes > 0) {
         long tableSizeBytes = (targetTable != null) ? targetTable.getNumBytes() : 0;
         streamCount = (int) Math.min(tableSizeBytes / desiredBundleSizeBytes, MAX_SPLIT_COUNT);
@@ -167,27 +175,11 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
     }
 
     if (readSession.getStreamsList().isEmpty()) {
-      // The underlying table is empty or all rows have been pruned.
+      LOG.info(
+          "Returned stream list is empty. The underlying table is empty or all rows have been pruned.");
       return ImmutableList.of();
-    }
-
-    streamCount = readSession.getStreamsList().size();
-    int streamsPerBundle = 0;
-    double bytesPerStream = 0;
-    LOG.info(
-        "Estimated bytes this ReadSession will scan when all Streams are consumed: '{}'",
-        readSession.getEstimatedTotalBytesScanned());
-    if (bqOptions.getEnableBundling()) {
-      if (desiredBundleSizeBytes > 0) {
-        bytesPerStream =
-            (double) readSession.getEstimatedTotalBytesScanned() / readSession.getStreamsCount();
-        LOG.info("Estimated bytes each Stream will consume: '{}'", bytesPerStream);
-        streamsPerBundle = (int) Math.ceil(desiredBundleSizeBytes / bytesPerStream);
-      } else {
-        streamsPerBundle = (int) Math.ceil((double) streamCount / 10);
-      }
-      streamsPerBundle = Math.min(streamCount, streamsPerBundle);
-      LOG.info("Distributing '{}' Streams per StreamBundle.", streamsPerBundle);
+    } else {
+      LOG.info("Read session returned {} streams", readSession.getStreamsList().size());
     }
 
     Schema sessionSchema;
@@ -204,37 +196,18 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
       throw new IllegalArgumentException(
           "data is not in a supported dataFormat: " + readSession.getDataFormat());
     }
-    int streamIndex = 0;
+
     Preconditions.checkStateNotNull(
         targetTable); // TODO: this is inconsistent with method above, where it can be null
     TableSchema trimmedSchema =
         BigQueryAvroUtils.trimBigQueryTableSchema(targetTable.getSchema(), sessionSchema);
-    if (!bqOptions.getEnableBundling()) {
-      List<BigQueryStorageStreamSource<T>> sources = Lists.newArrayList();
-      for (ReadStream readStream : readSession.getStreamsList()) {
-        sources.add(
-            BigQueryStorageStreamSource.create(
-                readSession, readStream, trimmedSchema, parseFn, outputCoder, bqServices));
-      }
-      return ImmutableList.copyOf(sources);
-    }
-    List<ReadStream> streamBundle = Lists.newArrayList();
-    List<BigQueryStorageStreamBundleSource<T>> sources = Lists.newArrayList();
+    List<BigQueryStorageStreamSource<T>> sources = Lists.newArrayList();
     for (ReadStream readStream : readSession.getStreamsList()) {
-      streamIndex++;
-      streamBundle.add(readStream);
-      if (streamIndex % streamsPerBundle == 0) {
-        sources.add(
-            BigQueryStorageStreamBundleSource.create(
-                readSession, streamBundle, trimmedSchema, parseFn, outputCoder, bqServices, 1L));
-        streamBundle = Lists.newArrayList();
-      }
-    }
-    if (streamIndex % streamsPerBundle != 0) {
       sources.add(
-          BigQueryStorageStreamBundleSource.create(
-              readSession, streamBundle, trimmedSchema, parseFn, outputCoder, bqServices, 1L));
+          BigQueryStorageStreamSource.create(
+              readSession, readStream, trimmedSchema, parseFn, outputCoder, bqServices));
     }
+
     return ImmutableList.copyOf(sources);
   }
 

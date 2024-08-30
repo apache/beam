@@ -28,7 +28,10 @@ limitations under the License.
 Provides a variety of functionality based on regular expressions.
 
 ## Examples
-See [BEAM-7702](https://issues.apache.org/jira/browse/BEAM-7702) for updates.
+
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" path="SDK_JAVA_Regex" show="main_section" >}}
+{{< /playground >}}
 
 ## Related transforms
 * [MapElements](/documentation/transforms/java/elementwise/mapelements)

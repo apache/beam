@@ -26,8 +26,11 @@ import org.slf4j.LoggerFactory;
 /**
  * Placeholder implementation of {@link AccumulatorProvider} that may be used in executors as a
  * default.
+ *
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
  */
 @Audience(Audience.Type.EXECUTOR)
+@Deprecated
 public class VoidAccumulatorProvider implements AccumulatorProvider {
 
   private static final Logger LOG = LoggerFactory.getLogger(VoidAccumulatorProvider.class);

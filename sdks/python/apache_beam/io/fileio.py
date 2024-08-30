@@ -90,7 +90,6 @@ parameter can be anything, as long as elements can be grouped by it.
 
 import collections
 import logging
-import os
 import random
 import uuid
 from collections import namedtuple
@@ -195,7 +194,8 @@ class MatchFiles(beam.PTransform):
     self._empty_match_treatment = empty_match_treatment
 
   def expand(self, pcoll) -> beam.PCollection[filesystem.FileMetadata]:
-    return pcoll.pipeline | beam.Create([self._file_pattern]) | MatchAll()
+    return pcoll.pipeline | beam.Create([self._file_pattern]) | MatchAll(
+        empty_match_treatment=self._empty_match_treatment)
 
 
 class MatchAll(beam.PTransform):
@@ -266,6 +266,13 @@ class MatchContinuously(beam.PTransform):
 
   MatchContinuously is experimental.  No backwards-compatibility
   guarantees.
+
+  Matching continuously scales poorly, as it is stateful, and requires storing
+  file ids in memory. In addition, because it is memory-only, if a pipeline is
+  restarted, already processed files will be reprocessed. Consider an alternate
+  technique, such as Pub/Sub Notifications
+  (https://cloud.google.com/storage/docs/pubsub-notifications)
+  when using GCS if possible.
   """
   def __init__(
       self,
@@ -299,6 +306,11 @@ class MatchContinuously(beam.PTransform):
     self.match_upd = match_updated_files
     self.apply_windowing = apply_windowing
     self.empty_match_treatment = empty_match_treatment
+    _LOGGER.warning(
+        'Matching Continuously is stateful, and can scale poorly. '
+        'Consider using Pub/Sub Notifications '
+        '(https://cloud.google.com/storage/docs/pubsub-notifications) '
+        'if possible')
 
   def expand(self, pbegin) -> beam.PCollection[filesystem.FileMetadata]:
     # invoke periodic impulse
@@ -508,8 +520,6 @@ class WriteToFiles(beam.PTransform):
   **Note:** For unbounded ``PCollection``\s, this transform does not support
   multiple firings per Window (due to the fact that files are named only by
   their destination, and window, at the moment).
-
-  WriteToFiles is experimental.  No backwards-compatibility guarantees.
   """
 
   # We allow up to 20 different destinations to be written in a single bundle.
@@ -691,11 +701,20 @@ class _MoveTempFilesIntoFinalDestinationFn(beam.DoFn):
 
     move_from = [f.file_name for f in temp_file_results]
     move_to = [f.file_name for f in final_file_results]
+
     _LOGGER.info(
-        'Moving temporary files %s to dir: %s as %s',
-        map(os.path.basename, move_from),
+        'Moving %d temporary files to dir: %s as %s',
+        len(move_from),
         self.path.get(),
         move_to)
+
+    try:
+      filesystems.FileSystems.mkdirs(self.path.get())
+    except IOError as e:
+      cause = repr(e)
+      if 'FileExistsError' not in cause:
+        # Usually harmless. Especially if see FileExistsError so no need to log
+        _LOGGER.debug('Fail to create dir for final destination: %s', cause)
 
     try:
       filesystems.FileSystems.rename(
@@ -726,11 +745,13 @@ class _MoveTempFilesIntoFinalDestinationFn(beam.DoFn):
       orphaned_files = [m.path for m in match_result[0].metadata_list]
 
       if len(orphaned_files) > 0:
-        _LOGGER.info(
-            'Some files may be left orphaned in the temporary folder: %s',
+        _LOGGER.warning(
+            'Some files may be left orphaned in the temporary folder: %s. '
+            'This may be a result of retried work items or insufficient'
+            'permissions to delete these temp files.',
             orphaned_files)
     except BeamIOError as e:
-      _LOGGER.info('Exceptions when checking orphaned files: %s', e)
+      _LOGGER.warning('Exceptions when checking orphaned files: %s', e)
 
 
 class _WriteShardedRecordsFn(beam.DoFn):

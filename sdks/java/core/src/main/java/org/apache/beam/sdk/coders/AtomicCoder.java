@@ -37,7 +37,7 @@ public abstract class AtomicCoder<T> extends StructuredCoder<T> {
    *
    * <p>Unless overridden, does not throw. An {@link AtomicCoder} is presumed to be deterministic
    *
-   * @throws NonDeterministicException if overridden to indicate that this sublcass of {@link
+   * @throws NonDeterministicException if overridden to indicate that this subclass of {@link
    *     AtomicCoder} is not deterministic
    */
   @Override

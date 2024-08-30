@@ -16,10 +16,16 @@
 package jobservices
 
 import (
+	"context"
 	"fmt"
+	"math"
 	"net"
+	"os"
 	"sync"
+	"sync/atomic"
+	"time"
 
+	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
 	"golang.org/x/exp/slog"
 	"google.golang.org/grpc"
@@ -28,6 +34,8 @@ import (
 type Server struct {
 	jobpb.UnimplementedJobServiceServer
 	jobpb.UnimplementedArtifactStagingServiceServer
+	jobpb.UnimplementedArtifactRetrievalServiceServer
+	fnpb.UnimplementedProvisionServiceServer
 
 	// Server management
 	lis    net.Listener
@@ -35,11 +43,22 @@ type Server struct {
 
 	// Job Management
 	mu    sync.Mutex
-	index uint32
+	index uint32 // Use with atomics.
 	jobs  map[string]*Job
+
+	// IdleShutdown management. Needs to use atomics, since they
+	// may be both while already holding the lock, or when not
+	// (eg via job state).
+	idleTimer          atomic.Pointer[time.Timer]
+	terminatedJobCount uint32 // Use with atomics.
+	idleTimeout        time.Duration
+	cancelFn           context.CancelCauseFunc
 
 	// execute defines how a job is executed.
 	execute func(*Job)
+
+	// Artifact hack
+	artifacts map[string][]byte
 }
 
 // NewServer acquires the indicated port.
@@ -54,10 +73,13 @@ func NewServer(port int, execute func(*Job)) *Server {
 		execute: execute,
 	}
 	slog.Info("Serving JobManagement", slog.String("endpoint", s.Endpoint()))
-	var opts []grpc.ServerOption
+	opts := []grpc.ServerOption{
+		grpc.MaxRecvMsgSize(math.MaxInt32),
+	}
 	s.server = grpc.NewServer(opts...)
 	jobpb.RegisterJobServiceServer(s.server, s)
 	jobpb.RegisterArtifactStagingServiceServer(s.server, s)
+	jobpb.RegisterArtifactRetrievalServiceServer(s.server, s)
 	return s
 }
 
@@ -68,7 +90,8 @@ func (s *Server) getJob(id string) *Job {
 }
 
 func (s *Server) Endpoint() string {
-	return s.lis.Addr().String()
+	_, port, _ := net.SplitHostPort(s.lis.Addr().String())
+	return fmt.Sprintf("localhost:%v", port)
 }
 
 // Serve serves on the started listener. Blocks.
@@ -79,4 +102,43 @@ func (s *Server) Serve() {
 // Stop the GRPC server.
 func (s *Server) Stop() {
 	s.server.GracefulStop()
+}
+
+// IdleShutdown allows the server to call the cancelFn if there have been no active jobs
+// for at least the given timeout.
+func (s *Server) IdleShutdown(timeout time.Duration, cancelFn context.CancelCauseFunc) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.idleTimeout = timeout
+	s.cancelFn = cancelFn
+
+	// Stop gap to kill the process less gracefully.
+	if s.cancelFn == nil {
+		s.cancelFn = func(cause error) {
+			os.Exit(1)
+		}
+	}
+
+	s.idleTimer.Store(time.AfterFunc(timeout, s.idleShutdownCallback))
+}
+
+// idleShutdownCallback is called by the AfterFunc timer for idle shutdown.
+func (s *Server) idleShutdownCallback() {
+	index := atomic.LoadUint32(&s.index)
+	terminated := atomic.LoadUint32(&s.terminatedJobCount)
+	if index == terminated {
+		slog.Info("shutting down after being idle", "idleTimeout", s.idleTimeout)
+		s.cancelFn(nil)
+	}
+}
+
+// jobTerminated marks that the job has been terminated, and if there are no active jobs, starts the idle timer.
+func (s *Server) jobTerminated() {
+	if s.idleTimer.Load() != nil {
+		terminated := atomic.AddUint32(&s.terminatedJobCount, 1)
+		total := atomic.LoadUint32(&s.index)
+		if total == terminated {
+			s.idleTimer.Store(time.AfterFunc(s.idleTimeout, s.idleShutdownCallback))
+		}
+	}
 }

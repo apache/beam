@@ -17,18 +17,6 @@
  */
 package org.apache.beam.sdk.testing;
 
-// beam-playground:
-//   name: TestStreamTest
-//   description: Unit-test for the TestStream example.
-//   multifile: false
-//   context_line: 87
-//   categories:
-//     - Streaming
-//   complexity: ADVANCED
-//   tags:
-//     - stream
-//     - test
-
 import static org.apache.beam.sdk.transforms.windowing.Window.into;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
@@ -77,7 +65,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;

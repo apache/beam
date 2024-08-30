@@ -37,7 +37,7 @@ import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
 import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
-import org.apache.beam.runners.flink.metrics.FlinkMetricContainer.FlinkDistributionGauge;
+import org.apache.beam.runners.flink.metrics.FlinkMetricContainerBase.FlinkDistributionGauge;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.DistributionResult;
@@ -46,9 +46,10 @@ import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsContainer;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentMatcher;
@@ -59,7 +60,7 @@ import org.mockito.MockitoAnnotations;
 public class FlinkMetricContainerTest {
 
   @Mock private RuntimeContext runtimeContext;
-  @Mock private MetricGroupWrapper metricGroup;
+  @Mock private OperatorMetricGroup metricGroup;
 
   FlinkMetricContainer container;
 

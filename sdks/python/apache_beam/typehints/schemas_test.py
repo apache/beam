@@ -22,6 +22,7 @@
 import itertools
 import pickle
 import unittest
+from typing import Any
 from typing import ByteString
 from typing import List
 from typing import Mapping
@@ -40,8 +41,10 @@ from parameterized import parameterized_class
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import schema_pb2
 from apache_beam.typehints import row_type
+from apache_beam.typehints import typehints
 from apache_beam.typehints.native_type_compatibility import match_is_named_tuple
 from apache_beam.typehints.schemas import SchemaTypeRegistry
+from apache_beam.typehints.schemas import named_fields_from_element_type
 from apache_beam.typehints.schemas import named_tuple_from_schema
 from apache_beam.typehints.schemas import named_tuple_to_schema
 from apache_beam.typehints.schemas import typing_from_runner_api
@@ -641,6 +644,16 @@ class SchemaTest(unittest.TestCase):
     instance = simple_row_type(np.int64(35), 'baz')
     self.assertIsInstance(instance, simple_row_type.user_type)
     self.assertEqual(instance, (np.int64(35), 'baz'))
+
+  def test_union(self):
+    with_int = row_type.RowTypeConstraint.from_fields([('common', str),
+                                                       ('unique', int)])
+    with_any = row_type.RowTypeConstraint.from_fields([('common', str),
+                                                       ('unique', Any)])
+    union_type = typehints.Union[with_int, with_any]
+    self.assertEqual(
+        named_fields_from_element_type(union_type), [('common', str),
+                                                     ('unique', Any)])
 
 
 class HypothesisTest(unittest.TestCase):

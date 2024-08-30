@@ -87,6 +87,7 @@ import org.joda.time.Duration;
  * @param <ValueT> Output type of #valueBy method
  * @param <AccT> type of accumulator (if CombineFn used)
  * @param <OutputT> Type of output value
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
  */
 @Audience(Audience.Type.CLIENT)
 @Recommended(
@@ -100,6 +101,7 @@ import org.joda.time.Duration;
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
+@Deprecated
 public class ReduceByKey<InputT, KeyT, ValueT, AccT, OutputT>
     extends ShuffleOperator<InputT, KeyT, KV<KeyT, OutputT>> implements TypeAware.Value<ValueT> {
 

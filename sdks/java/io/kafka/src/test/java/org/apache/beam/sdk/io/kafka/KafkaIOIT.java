@@ -22,13 +22,14 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
 
-import com.google.cloud.Timestamp;
 import java.io.IOException;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
@@ -43,8 +44,11 @@ import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.common.IOITHelper;
 import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
+import org.apache.beam.sdk.io.kafka.KafkaIOTest.FailingLongSerializer;
+import org.apache.beam.sdk.io.kafka.ReadFromKafkaDoFnTest.FailingDeserializer;
 import org.apache.beam.sdk.io.synthetic.SyntheticBoundedSource;
 import org.apache.beam.sdk.io.synthetic.SyntheticSourceOptions;
+import org.apache.beam.sdk.managed.Managed;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.ExperimentalOptions;
@@ -71,8 +75,9 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.Keys;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Values;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler.BadRecordErrorHandler;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandlingTestUtils.ErrorSinkTransform;
 import org.apache.beam.sdk.transforms.windowing.CalendarWindows;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -81,9 +86,9 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.NewPartitions;
 import org.apache.kafka.clients.admin.NewTopic;
@@ -125,13 +130,11 @@ public class KafkaIOIT {
 
   private static final String RUN_TIME_METRIC_NAME = "run_time";
 
-  private static final String READ_ELEMENT_METRIC_NAME = "kafka_read_element_count";
-
   private static final String NAMESPACE = KafkaIOIT.class.getName();
 
   private static final String TEST_ID = UUID.randomUUID().toString();
 
-  private static final String TIMESTAMP = Timestamp.now().toString();
+  private static final String TIMESTAMP = Instant.now().toString();
 
   private static final Logger LOG = LoggerFactory.getLogger(KafkaIOIT.class);
 
@@ -353,6 +356,68 @@ public class KafkaIOIT {
     }
   }
 
+  // This test verifies that bad data from Kafka is properly sent to the error handler
+  @Test
+  public void testKafkaIOSDFReadWithErrorHandler() throws IOException {
+    writePipeline
+        .apply(Create.of(KV.of("key", "val")))
+        .apply(
+            "Write to Kafka",
+            KafkaIO.<String, String>write()
+                .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
+                .withKeySerializer(StringSerializer.class)
+                .withValueSerializer(StringSerializer.class)
+                .withTopic(options.getKafkaTopic() + "-failingDeserialization"));
+
+    PipelineResult writeResult = writePipeline.run();
+    PipelineResult.State writeState = writeResult.waitUntilFinish();
+    assertNotEquals(PipelineResult.State.FAILED, writeState);
+
+    BadRecordErrorHandler<PCollection<Long>> eh =
+        sdfReadPipeline.registerBadRecordErrorHandler(new ErrorSinkTransform());
+    sdfReadPipeline.apply(
+        KafkaIO.<String, String>read()
+            .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
+            .withTopic(options.getKafkaTopic() + "-failingDeserialization")
+            .withConsumerConfigUpdates(ImmutableMap.of("auto.offset.reset", "earliest"))
+            .withKeyDeserializer(FailingDeserializer.class)
+            .withValueDeserializer(FailingDeserializer.class)
+            .withBadRecordErrorHandler(eh));
+    eh.close();
+
+    PAssert.thatSingleton(Objects.requireNonNull(eh.getOutput())).isEqualTo(1L);
+
+    PipelineResult readResult = sdfReadPipeline.run();
+    PipelineResult.State readState =
+        readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()));
+    cancelIfTimeouted(readResult, readState);
+    assertNotEquals(PipelineResult.State.FAILED, readState);
+  }
+
+  @Test
+  public void testKafkaIOWriteWithErrorHandler() throws IOException {
+
+    BadRecordErrorHandler<PCollection<Long>> eh =
+        writePipeline.registerBadRecordErrorHandler(new ErrorSinkTransform());
+    writePipeline
+        .apply("Create single KV", Create.of(KV.of("key", 4L)))
+        .apply(
+            "Write to Kafka",
+            KafkaIO.<String, Long>write()
+                .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
+                .withKeySerializer(StringSerializer.class)
+                .withValueSerializer(FailingLongSerializer.class)
+                .withTopic(options.getKafkaTopic() + "-failingSerialization")
+                .withBadRecordErrorHandler(eh));
+    eh.close();
+
+    PAssert.thatSingleton(Objects.requireNonNull(eh.getOutput())).isEqualTo(1L);
+
+    PipelineResult writeResult = writePipeline.run();
+    PipelineResult.State writeState = writeResult.waitUntilFinish();
+    assertNotEquals(PipelineResult.State.FAILED, writeState);
+  }
+
   // This test roundtrips a single KV<Null,Null> to verify that externalWithMetadata
   // can handle null keys and values correctly.
   @Test
@@ -483,14 +548,12 @@ public class KafkaIOIT {
 
   @Test
   public void testKafkaWithStopReadingFunction() {
-    CheckStopReadingFn checkStopReadingFn = new CheckStopReadingFn();
+    AlwaysStopCheckStopReadingFn checkStopReadingFn = new AlwaysStopCheckStopReadingFn();
 
-    PipelineResult readResult = runWithStopReadingFn(checkStopReadingFn, "stop-reading");
-
-    assertEquals(-1, readElementMetric(readResult, NAMESPACE, READ_ELEMENT_METRIC_NAME));
+    runWithStopReadingFn(checkStopReadingFn, "stop-reading", 0L);
   }
 
-  private static class CheckStopReadingFn implements SerializableFunction<TopicPartition, Boolean> {
+  private static class AlwaysStopCheckStopReadingFn implements CheckStopReadingFn {
     @Override
     public Boolean apply(TopicPartition input) {
       return true;
@@ -501,11 +564,7 @@ public class KafkaIOIT {
   public void testKafkaWithDelayedStopReadingFunction() {
     DelayedCheckStopReadingFn checkStopReadingFn = new DelayedCheckStopReadingFn();
 
-    PipelineResult readResult = runWithStopReadingFn(checkStopReadingFn, "delayed-stop-reading");
-
-    assertEquals(
-        sourceOptions.numRecords,
-        readElementMetric(readResult, NAMESPACE, READ_ELEMENT_METRIC_NAME));
+    runWithStopReadingFn(checkStopReadingFn, "delayed-stop-reading", sourceOptions.numRecords);
   }
 
   public static final Schema KAFKA_TOPIC_SCHEMA =
@@ -549,18 +608,18 @@ public class KafkaIOIT {
   private static final int FIVE_MINUTES_IN_MS = 5 * 60 * 1000;
 
   @Test(timeout = FIVE_MINUTES_IN_MS)
-  public void testKafkaViaSchemaTransformJson() {
-    runReadWriteKafkaViaSchemaTransforms(
+  public void testKafkaViaManagedSchemaTransformJson() {
+    runReadWriteKafkaViaManagedSchemaTransforms(
         "JSON", SCHEMA_IN_JSON, JsonUtils.beamSchemaFromJsonSchema(SCHEMA_IN_JSON));
   }
 
   @Test(timeout = FIVE_MINUTES_IN_MS)
-  public void testKafkaViaSchemaTransformAvro() {
-    runReadWriteKafkaViaSchemaTransforms(
+  public void testKafkaViaManagedSchemaTransformAvro() {
+    runReadWriteKafkaViaManagedSchemaTransforms(
         "AVRO", AvroUtils.toAvroSchema(KAFKA_TOPIC_SCHEMA).toString(), KAFKA_TOPIC_SCHEMA);
   }
 
-  public void runReadWriteKafkaViaSchemaTransforms(
+  public void runReadWriteKafkaViaManagedSchemaTransforms(
       String format, String schemaDefinition, Schema beamSchema) {
     String topicName = options.getKafkaTopic() + "-schema-transform" + UUID.randomUUID();
     PCollectionRowTuple.of(
@@ -588,15 +647,13 @@ public class KafkaIOIT {
                 .setRowSchema(beamSchema))
         .apply(
             "Write to Kafka",
-            new KafkaWriteSchemaTransformProvider()
-                .from(
-                    KafkaWriteSchemaTransformProvider.KafkaWriteSchemaTransformConfiguration
-                        .builder()
-                        .setTopic(topicName)
-                        .setBootstrapServers(options.getKafkaBootstrapServerAddresses())
-                        .setFormat(format)
-                        .build())
-                .buildTransform());
+            Managed.write(Managed.KAFKA)
+                .withConfig(
+                    ImmutableMap.<String, Object>builder()
+                        .put("topic", topicName)
+                        .put("bootstrap_servers", options.getKafkaBootstrapServerAddresses())
+                        .put("format", format)
+                        .build()));
 
     PAssert.that(
             PCollectionRowTuple.empty(readPipeline)
@@ -604,17 +661,19 @@ public class KafkaIOIT {
                     "Read from unbounded Kafka",
                     // A timeout of 30s for local, container-based tests, and 2 minutes for
                     // real-kafka tests.
-                    new KafkaReadSchemaTransformProvider(
-                            true, options.isWithTestcontainers() ? 30 : 120)
-                        .from(
-                            KafkaReadSchemaTransformConfiguration.builder()
-                                .setFormat(format)
-                                .setAutoOffsetResetConfig("earliest")
-                                .setSchema(schemaDefinition)
-                                .setTopic(topicName)
-                                .setBootstrapServers(options.getKafkaBootstrapServerAddresses())
-                                .build())
-                        .buildTransform())
+                    Managed.read(Managed.KAFKA)
+                        .withConfig(
+                            ImmutableMap.<String, Object>builder()
+                                .put("format", format)
+                                .put("auto_offset_reset_config", "earliest")
+                                .put("schema", schemaDefinition)
+                                .put("topic", topicName)
+                                .put(
+                                    "bootstrap_servers", options.getKafkaBootstrapServerAddresses())
+                                .put(
+                                    "max_read_time_seconds",
+                                    options.isWithTestcontainers() ? 30 : 120)
+                                .build()))
                 .get("output"))
         .containsInAnyOrder(
             LongStream.range(0L, 1000L)
@@ -642,13 +701,12 @@ public class KafkaIOIT {
     assertEquals(PipelineResult.State.DONE, readResult.getState());
   }
 
-  private static class DelayedCheckStopReadingFn
-      implements SerializableFunction<TopicPartition, Boolean> {
+  private static class DelayedCheckStopReadingFn implements CheckStopReadingFn {
     int checkCount = 0;
 
     @Override
     public Boolean apply(TopicPartition input) {
-      if (checkCount >= 5) {
+      if (checkCount >= 10) {
         return true;
       }
       checkCount++;
@@ -656,8 +714,8 @@ public class KafkaIOIT {
     }
   }
 
-  private PipelineResult runWithStopReadingFn(
-      SerializableFunction<TopicPartition, Boolean> function, String topicSuffix) {
+  private void runWithStopReadingFn(
+      CheckStopReadingFn function, String topicSuffix, Long expectedCount) {
     writePipeline
         .apply("Generate records", Read.from(new SyntheticBoundedSource(sourceOptions)))
         .apply("Measure write time", ParDo.of(new TimeMonitor<>(NAMESPACE, WRITE_TIME_METRIC_NAME)))
@@ -666,21 +724,31 @@ public class KafkaIOIT {
             writeToKafka().withTopic(options.getKafkaTopic() + "-" + topicSuffix));
 
     readPipeline.getOptions().as(Options.class).setStreaming(true);
-    readPipeline
-        .apply(
-            "Read from unbounded Kafka",
-            readFromKafka()
-                .withTopic(options.getKafkaTopic() + "-" + topicSuffix)
-                .withCheckStopReadingFn(function))
-        .apply("Measure read time", ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC_NAME)));
+    PCollection<Long> count =
+        readPipeline
+            .apply(
+                "Read from unbounded Kafka",
+                readFromKafka()
+                    .withTopic(options.getKafkaTopic() + "-" + topicSuffix)
+                    .withCheckStopReadingFn(function))
+            .apply(
+                "Measure read time", ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC_NAME)))
+            .apply("Window", Window.into(CalendarWindows.years(1)))
+            .apply(
+                "Counting element",
+                Combine.globally(Count.<KafkaRecord<byte[], byte[]>>combineFn()).withoutDefaults());
+
+    if (expectedCount == 0L) {
+      PAssert.that(count).empty();
+    } else {
+      PAssert.thatSingleton(count).isEqualTo(expectedCount);
+    }
 
     PipelineResult writeResult = writePipeline.run();
     writeResult.waitUntilFinish();
 
     PipelineResult readResult = readPipeline.run();
     readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()));
-
-    return readResult;
   }
 
   @Test
@@ -691,7 +759,7 @@ public class KafkaIOIT {
 
     String topicName = "SparseDataTopicPartition-" + UUID.randomUUID();
     Map<Integer, String> records = new HashMap<>();
-    for (int i = 0; i < 5; i++) {
+    for (int i = 1; i <= 5; i++) {
       records.put(i, String.valueOf(i));
     }
 
@@ -730,7 +798,7 @@ public class KafkaIOIT {
 
       PipelineResult readResult = sdfReadPipeline.run();
 
-      Thread.sleep(options.getReadTimeout() * 1000);
+      Thread.sleep(options.getReadTimeout() * 1000 * 2);
 
       for (String value : records.values()) {
         kafkaIOITExpectedLogs.verifyError(value);
@@ -756,11 +824,6 @@ public class KafkaIOIT {
         OutputReceiver<KV<Integer, KafkaRecord<Integer, String>>> receiver) {
       receiver.output(KV.of(record.getPartition(), record));
     }
-  }
-
-  private long readElementMetric(PipelineResult result, String namespace, String name) {
-    MetricsReader metricsReader = new MetricsReader(result, namespace);
-    return metricsReader.getCounterMetric(name);
   }
 
   private Set<NamedTestResult> readMetrics(PipelineResult writeResult, PipelineResult readResult) {

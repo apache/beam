@@ -27,11 +27,13 @@ import java.math.BigInteger;
 import java.util.Arrays;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -50,7 +52,7 @@ public class BigQueryClusteringIT {
   private static final Long EXPECTED_BYTES = 16000L;
   private static final BigInteger EXPECTED_ROWS = new BigInteger("1000");
   private static final String WEATHER_SAMPLES_TABLE =
-      "clouddataflow-readonly:samples.weather_stations";
+      "apache-beam-testing.samples.weather_stations";
   private static final String DATASET_NAME = "BigQueryClusteringIT";
   private static final Clustering CLUSTERING =
       new Clustering().setFields(Arrays.asList("station_number"));
@@ -68,7 +70,8 @@ public class BigQueryClusteringIT {
   public void setUp() {
     PipelineOptionsFactory.register(BigQueryClusteringITOptions.class);
     options = TestPipeline.testingPipelineOptions().as(BigQueryClusteringITOptions.class);
-    options.setTempLocation(options.getTempRoot() + "/temp-it/");
+    options.setTempLocation(
+        FileSystems.matchNewDirectory(options.getTempRoot(), "temp-it").toString());
     bqClient = BigqueryClient.getNewBigqueryClient(options.getAppName());
   }
 
@@ -169,7 +172,9 @@ public class BigQueryClusteringIT {
         .apply(
             BigQueryIO.writeTableRows()
                 .to(new ClusteredDestinations(tableName))
-                .withClustering(CLUSTERING)
+                .withJsonClustering(
+                    ValueProvider.StaticValueProvider.of(
+                        BigQueryHelpers.toJsonString(CLUSTERING.getFields())))
                 .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
                 .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE)
                 .withMethod(BigQueryIO.Write.Method.FILE_LOADS));

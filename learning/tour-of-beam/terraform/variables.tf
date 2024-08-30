@@ -16,7 +16,6 @@
 # under the License.
 
 # GCP Project ID
-# Provided as a result of gcloud command
 variable "project_id" {
   description = "The ID of the Google Cloud project within which resources are provisioned"
 }
@@ -24,12 +23,6 @@ variable "project_id" {
 # GCP Region where infrastructure will be deployed
 variable "region" {
   description = "The region of the Google Cloud project within which resources are provisioned"
-}
-
-# User account that will be deploying Tour of Beam infrastructure
-# Provided as a result of gcloud command
-variable "gcloud_init_account" {
-  description = "User Account ID logged in with gcloud init command (e.g. username@domain.com)"
 }
 
 # Existing Playground router hostname:port details

@@ -69,6 +69,10 @@ public class EncoderFactory {
           // Spark 3.1.x
           return STATIC_INVOKE_CONSTRUCTOR.newInstance(
               cls, type, fun, seqOf(args), propagateNull, true);
+        case 7:
+          // Spark 3.2.0
+          return STATIC_INVOKE_CONSTRUCTOR.newInstance(
+              cls, type, fun, seqOf(args), emptyList(), propagateNull, true);
         case 8:
           // Spark 3.2.x, 3.3.x
           return STATIC_INVOKE_CONSTRUCTOR.newInstance(
@@ -89,8 +93,14 @@ public class EncoderFactory {
       // created reflectively. This is fine as it's just needed once to create the query plan.
       switch (STATIC_INVOKE_CONSTRUCTOR.getParameterCount()) {
         case 6:
+          // Spark 3.1.x
           return INVOKE_CONSTRUCTOR.newInstance(obj, fun, type, seqOf(args), false, nullable);
+        case 7:
+          // Spark 3.2.0
+          return INVOKE_CONSTRUCTOR.newInstance(
+              obj, fun, type, seqOf(args), emptyList(), false, nullable);
         case 8:
+          // Spark 3.2.x, 3.3.x
           return INVOKE_CONSTRUCTOR.newInstance(
               obj, fun, type, seqOf(args), emptyList(), false, nullable, true);
         default:

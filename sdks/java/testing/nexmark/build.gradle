@@ -64,7 +64,7 @@ configurations {
 }
 
 dependencies {
-  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.vendored_guava_32_1_2_jre
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation project(":sdks:java:io:google-cloud-platform")
   implementation project(":sdks:java:extensions:avro")
@@ -88,7 +88,7 @@ dependencies {
   compileOnly library.java.error_prone_annotations
   testRuntimeOnly library.java.slf4j_jdk14
   testImplementation project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntimeMigration")
-  testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
+  testImplementation project(path: ":sdks:java:testing:test-utils")
   gradleRun project(project.path)
   gradleRun project(path: nexmarkRunnerDependency, configuration: runnerConfiguration)
 }
@@ -144,7 +144,7 @@ def getNexmarkArgs = {
 //
 // Parameters:
 //   -Pnexmark.runner
-//       Specify a runner subproject, such as ":runners:spark:3" or ":runners:flink:1.13"
+//       Specify a runner subproject, such as ":runners:spark:3" or ":runners:flink:1.17"
 //       Defaults to ":runners:direct-java"
 //
 //   -Pnexmark.args

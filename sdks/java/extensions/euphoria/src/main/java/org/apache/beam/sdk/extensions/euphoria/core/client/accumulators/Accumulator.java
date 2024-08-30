@@ -24,6 +24,9 @@ import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience
  * during the flow execution.
  *
  * <p>Accumulators are inspired by the Hadoop/MapReduce counters.
+ *
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
  */
 @Audience(Audience.Type.INTERNAL)
+@Deprecated
 public interface Accumulator {}

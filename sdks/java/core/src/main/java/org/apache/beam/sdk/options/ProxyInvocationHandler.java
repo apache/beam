@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.options;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.core.JsonGenerator;
@@ -49,11 +49,13 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.sdk.options.PipelineOptionsFactory.AnnotationPredicates;
 import org.apache.beam.sdk.options.PipelineOptionsFactory.Registration;
@@ -63,16 +65,16 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Defaults;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashMultimap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableClassToInstanceMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Defaults;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.FluentIterable;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.HashMultimap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableClassToInstanceMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multimap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -97,6 +99,8 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
    * No two instances of this class are considered equivalent hence we generate a random hash code.
    */
   private final int hashCode = ThreadLocalRandom.current().nextInt();
+
+  private final AtomicInteger revision;
 
   private static final class ComputedProperties {
     final ImmutableClassToInstanceMap<PipelineOptions> interfaceToProxyCache;
@@ -158,7 +162,7 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
   private final ImmutableMap<String, JsonNode> jsonOptions;
 
   ProxyInvocationHandler(Map<String, Object> options) {
-    this(bindOptions(options), Maps.newHashMap());
+    this(bindOptions(options), Maps.newHashMap(), 0);
   }
 
   private static Map<String, BoundValue> bindOptions(Map<String, Object> inputOptions) {
@@ -171,9 +175,10 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
   }
 
   private ProxyInvocationHandler(
-      Map<String, BoundValue> options, Map<String, JsonNode> jsonOptions) {
+      Map<String, BoundValue> options, Map<String, JsonNode> jsonOptions, int revision) {
     this.options = new ConcurrentHashMap<>(options);
     this.jsonOptions = ImmutableMap.copyOf(jsonOptions);
+    this.revision = new AtomicInteger(revision);
     this.computedProperties =
         new ComputedProperties(
             ImmutableClassToInstanceMap.of(),
@@ -193,6 +198,8 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
       return hashCode();
     } else if (args == null && "outputRuntimeOptions".equals(method.getName())) {
       return outputRuntimeOptions((PipelineOptions) proxy);
+    } else if (args == null && "revision".equals(method.getName())) {
+      return revision.get();
     } else if (args != null && "as".equals(method.getName()) && args[0] instanceof Class) {
       @SuppressWarnings("unchecked")
       Class<? extends PipelineOptions> clazz = (Class<? extends PipelineOptions>) args[0];
@@ -222,9 +229,13 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
       }
       return options.get(propertyName).getValue();
     } else if (properties.settersToPropertyNames.containsKey(methodName)) {
-      options.put(
-          properties.settersToPropertyNames.get(methodName),
-          BoundValue.fromExplicitOption(args[0]));
+      BoundValue prev =
+          options.put(
+              properties.settersToPropertyNames.get(methodName),
+              BoundValue.fromExplicitOption(args[0]));
+      if (prev == null ? args[0] != null : !Objects.equals(args[0], prev.getValue())) {
+        revision.incrementAndGet();
+      }
       return Void.TYPE;
     }
     throw new RuntimeException(
@@ -781,6 +792,8 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
 
       jgen.writeFieldName("display_data");
       jgen.writeObject(serializedDisplayData);
+
+      jgen.writeNumberField("revision", handler.revision.get());
       jgen.writeEndObject();
     }
 
@@ -879,9 +892,9 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
           fields.put(field.getKey(), field.getValue());
         }
       }
-
+      int revision = objectNode.hasNonNull("revision") ? objectNode.get("revision").asInt() : 0;
       PipelineOptions options =
-          new ProxyInvocationHandler(Maps.newHashMap(), fields).as(PipelineOptions.class);
+          new ProxyInvocationHandler(Maps.newHashMap(), fields, revision).as(PipelineOptions.class);
       ValueProvider.RuntimeValueProvider.setRuntimeOptions(options);
       return options;
     }

@@ -30,7 +30,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 import org.apache.beam.examples.complete.game.utils.GameConstants;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
 /**
  * This is a generator that simulates usage data from a mobile game, and either publishes the data

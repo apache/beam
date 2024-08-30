@@ -21,11 +21,13 @@ import static org.apache.beam.sdk.io.kafka.ConfluentSchemaRegistryDeserializerPr
 import static org.apache.beam.sdk.metrics.MetricResultsMatchers.attemptedMetricsResult;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.isA;
+import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -51,6 +53,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -68,13 +71,15 @@ import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
-import org.apache.beam.sdk.io.AvroGeneratedUser;
+import org.apache.beam.sdk.extensions.avro.io.AvroGeneratedUser;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.io.kafka.KafkaIO.Read.FakeFlinkPipelineOptions;
 import org.apache.beam.sdk.io.kafka.KafkaMocks.PositionErrorConsumerFactory;
 import org.apache.beam.sdk.io.kafka.KafkaMocks.SendErrorProducerFactory;
+import org.apache.beam.sdk.metrics.DistributionResult;
+import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
@@ -98,6 +103,8 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler.BadRecordErrorHandler;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandlingTestUtils.ErrorSinkTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -106,10 +113,10 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Uninterruptibles;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -120,9 +127,12 @@ import org.apache.kafka.clients.producer.MockProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.clients.producer.internals.DefaultPartitioner;
+import org.apache.kafka.common.Cluster;
 import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.errors.SerializationException;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.Headers;
 import org.apache.kafka.common.header.internals.RecordHeader;
@@ -178,6 +188,8 @@ public class KafkaIOTest {
   private static final Instant LOG_APPEND_START_TIME = new Instant(600 * 1000);
   private static final String TIMESTAMP_START_MILLIS_CONFIG = "test.timestamp.start.millis";
   private static final String TIMESTAMP_TYPE_CONFIG = "test.timestamp.type";
+  static List<String> mkKafkaTopics = ImmutableList.of("topic_a", "topic_b");
+  static String mkKafkaServers = "myServer1:9092,myServer2:9092";
 
   // Update mock consumer with records distributed among the given topics, each with given number
   // of partitions. Records are assigned in round-robin order among the partitions.
@@ -369,7 +381,7 @@ public class KafkaIOTest {
 
   static KafkaIO.Read<Integer, Long> mkKafkaReadTransform(
       int numElements, @Nullable SerializableFunction<KV<Integer, Long>, Instant> timestampFn) {
-    return mkKafkaReadTransform(numElements, numElements, timestampFn);
+    return mkKafkaReadTransform(numElements, numElements, timestampFn, false, 0);
   }
 
   /**
@@ -379,17 +391,17 @@ public class KafkaIOTest {
   static KafkaIO.Read<Integer, Long> mkKafkaReadTransform(
       int numElements,
       @Nullable Integer maxNumRecords,
-      @Nullable SerializableFunction<KV<Integer, Long>, Instant> timestampFn) {
-
-    List<String> topics = ImmutableList.of("topic_a", "topic_b");
+      @Nullable SerializableFunction<KV<Integer, Long>, Instant> timestampFn,
+      @Nullable Boolean redistribute,
+      @Nullable Integer numKeys) {
 
     KafkaIO.Read<Integer, Long> reader =
         KafkaIO.<Integer, Long>read()
-            .withBootstrapServers("myServer1:9092,myServer2:9092")
-            .withTopics(topics)
+            .withBootstrapServers(mkKafkaServers)
+            .withTopics(mkKafkaTopics)
             .withConsumerFactoryFn(
                 new ConsumerFactoryFn(
-                    topics, 10, numElements, OffsetResetStrategy.EARLIEST)) // 20 partitions
+                    mkKafkaTopics, 10, numElements, OffsetResetStrategy.EARLIEST)) // 20 partitions
             .withKeyDeserializer(IntegerDeserializer.class)
             .withValueDeserializer(LongDeserializer.class);
     if (maxNumRecords != null) {
@@ -397,10 +409,16 @@ public class KafkaIOTest {
     }
 
     if (timestampFn != null) {
-      return reader.withTimestampFn(timestampFn);
-    } else {
-      return reader;
+      reader = reader.withTimestampFn(timestampFn);
     }
+
+    if (redistribute) {
+      if (numKeys != null) {
+        reader = reader.withRedistribute().withRedistributeNumKeys(numKeys);
+      }
+      reader = reader.withRedistribute();
+    }
+    return reader;
   }
 
   private static class AssertMultipleOf implements SerializableFunction<Iterable<Long>, Void> {
@@ -610,6 +628,42 @@ public class KafkaIOTest {
   }
 
   @Test
+  public void testCommitOffsetsInFinalizeAndRedistributeErrors() {
+    thrown.expect(Exception.class);
+    thrown.expectMessage("commitOffsetsInFinalize() can't be enabled with isRedistributed");
+
+    int numElements = 1000;
+
+    PCollection<Long> input =
+        p.apply(
+                mkKafkaReadTransform(numElements, numElements, new ValueAsTimestampFn(), true, 0)
+                    .withConsumerConfigUpdates(
+                        ImmutableMap.of(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, true))
+                    .withoutMetadata())
+            .apply(Values.create());
+
+    addCountingAsserts(input, numElements);
+    p.run();
+  }
+
+  @Test
+  public void testNumKeysIgnoredWithRedistributeNotEnabled() {
+    int numElements = 1000;
+
+    PCollection<Long> input =
+        p.apply(
+                mkKafkaReadTransform(numElements, numElements, new ValueAsTimestampFn(), false, 0)
+                    .withConsumerConfigUpdates(
+                        ImmutableMap.of(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, true))
+                    .withoutMetadata())
+            .apply(Values.create());
+
+    addCountingAsserts(input, numElements);
+
+    p.run();
+  }
+
+  @Test
   public void testUnreachableKafkaBrokers() {
     // Expect an exception when the Kafka brokers are not reachable on the workers.
     // We specify partitions explicitly so that splitting does not involve server interaction.
@@ -678,10 +732,11 @@ public class KafkaIOTest {
 
     int numElements = 1000;
     String topic = "my_topic";
+    String bootStrapServer = "none";
 
     KafkaIO.Read<Integer, Long> reader =
         KafkaIO.<Integer, Long>read()
-            .withBootstrapServers("none")
+            .withBootstrapServers(bootStrapServer)
             .withTopic("my_topic")
             .withConsumerFactoryFn(
                 new ConsumerFactoryFn(
@@ -693,19 +748,24 @@ public class KafkaIOTest {
     PCollection<Long> input = p.apply(reader.withoutMetadata()).apply(Values.create());
 
     addCountingAsserts(input, numElements);
-    p.run();
+    PipelineResult result = p.run();
+    assertThat(
+        Lineage.query(result.metrics(), Lineage.Type.SOURCE),
+        hasItem(String.format("kafka:%s.%s", bootStrapServer, topic)));
   }
 
   @Test
   public void testUnboundedSourceWithExplicitPartitions() {
     int numElements = 1000;
 
-    List<String> topics = ImmutableList.of("test");
+    String topic = "test";
+    List<String> topics = ImmutableList.of(topic);
+    String bootStrapServer = "none";
 
     KafkaIO.Read<byte[], Long> reader =
         KafkaIO.<byte[], Long>read()
-            .withBootstrapServers("none")
-            .withTopicPartitions(ImmutableList.of(new TopicPartition("test", 5)))
+            .withBootstrapServers(bootStrapServer)
+            .withTopicPartitions(ImmutableList.of(new TopicPartition(topic, 5)))
             .withConsumerFactoryFn(
                 new ConsumerFactoryFn(
                     topics, 10, numElements, OffsetResetStrategy.EARLIEST)) // 10 partitions
@@ -719,6 +779,103 @@ public class KafkaIOTest {
     PAssert.that(input).satisfies(new AssertMultipleOf(5));
 
     PAssert.thatSingleton(input.apply(Count.globally())).isEqualTo(numElements / 10L);
+
+    PipelineResult result = p.run();
+    assertThat(
+        Lineage.query(result.metrics(), Lineage.Type.SOURCE),
+        hasItem(String.format("kafka:%s.%s", bootStrapServer, topic)));
+  }
+
+  @Test
+  public void testUnboundedSourceWithPattern() {
+    int numElements = 1000;
+
+    List<String> topics =
+        ImmutableList.of(
+            "best", "gest", "hest", "jest", "lest", "nest", "pest", "rest", "test", "vest", "west",
+            "zest");
+    String bootStrapServer = "none";
+
+    KafkaIO.Read<byte[], Long> reader =
+        KafkaIO.<byte[], Long>read()
+            .withBootstrapServers("none")
+            .withTopicPattern("[a-z]est")
+            .withConsumerFactoryFn(
+                new ConsumerFactoryFn(topics, 10, numElements, OffsetResetStrategy.EARLIEST))
+            .withKeyDeserializer(ByteArrayDeserializer.class)
+            .withValueDeserializer(LongDeserializer.class)
+            .withMaxNumRecords(numElements);
+
+    PCollection<Long> input = p.apply(reader.withoutMetadata()).apply(Values.create());
+
+    addCountingAsserts(input, numElements);
+    PipelineResult result = p.run();
+    String[] expect =
+        topics.stream()
+            .map(topic -> String.format("kafka:%s.%s", bootStrapServer, topic))
+            .toArray(String[]::new);
+    assertThat(Lineage.query(result.metrics(), Lineage.Type.SOURCE), containsInAnyOrder(expect));
+  }
+
+  @Test
+  public void testUnboundedSourceWithPartiallyMatchedPattern() {
+    int numElements = 1000;
+    long numMatchedElements = numElements / 2; // Expected elements if split across 2 topics
+
+    List<String> topics = ImmutableList.of("test", "Test");
+    String bootStrapServer = "none";
+
+    KafkaIO.Read<byte[], Long> reader =
+        KafkaIO.<byte[], Long>read()
+            .withBootstrapServers(bootStrapServer)
+            .withTopicPattern("[a-z]est")
+            .withConsumerFactoryFn(
+                new ConsumerFactoryFn(topics, 1, numElements, OffsetResetStrategy.EARLIEST))
+            .withKeyDeserializer(ByteArrayDeserializer.class)
+            .withValueDeserializer(LongDeserializer.class)
+            .withMaxNumRecords(numMatchedElements);
+
+    PCollection<Long> input = p.apply(reader.withoutMetadata()).apply(Values.create());
+
+    // With 1 partition per topic element to partition allocation alternates between test and Test,
+    // producing even elements for test and odd elements for Test.
+    // The pattern only matches test, so we expect even elements.
+    PAssert.that(input).satisfies(new AssertMultipleOf(2));
+
+    PAssert.thatSingleton(input.apply("Count", Count.globally())).isEqualTo(numMatchedElements);
+
+    PipelineResult result = p.run();
+    assertThat(
+        Lineage.query(result.metrics(), Lineage.Type.SOURCE),
+        hasItem(String.format("kafka:%s.test", bootStrapServer)));
+    assertThat(
+        Lineage.query(result.metrics(), Lineage.Type.SOURCE),
+        not(hasItem(String.format("kafka:%s.Test", bootStrapServer))));
+  }
+
+  @Test
+  public void testUnboundedSourceWithUnmatchedPattern() {
+    // Expect an exception when provided pattern doesn't match any Kafka topics.
+    thrown.expect(PipelineExecutionException.class);
+    thrown.expectCause(instanceOf(IllegalStateException.class));
+    thrown.expectMessage(
+        "Could not find any partitions. Please check Kafka configuration and topic names");
+
+    int numElements = 1000;
+
+    List<String> topics = ImmutableList.of("chest", "crest", "egest", "guest", "quest", "wrest");
+
+    KafkaIO.Read<byte[], Long> reader =
+        KafkaIO.<byte[], Long>read()
+            .withBootstrapServers("none")
+            .withTopicPattern("[a-z]est")
+            .withConsumerFactoryFn(
+                new ConsumerFactoryFn(topics, 10, numElements, OffsetResetStrategy.EARLIEST))
+            .withKeyDeserializer(ByteArrayDeserializer.class)
+            .withValueDeserializer(LongDeserializer.class)
+            .withMaxNumRecords(numElements);
+
+    p.apply(reader.withoutMetadata()).apply(Values.create());
 
     p.run();
   }
@@ -1297,12 +1454,67 @@ public class KafkaIOTest {
 
     int numElements = 1000;
 
-    try (MockProducerWrapper producerWrapper = new MockProducerWrapper()) {
+    try (MockProducerWrapper producerWrapper = new MockProducerWrapper(new LongSerializer())) {
 
       ProducerSendCompletionThread completionThread =
           new ProducerSendCompletionThread(producerWrapper.mockProducer).start();
 
       String topic = "test";
+      String bootStrapServer = "none";
+
+      p.apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn()).withoutMetadata())
+          .apply(
+              KafkaIO.<Integer, Long>write()
+                  .withBootstrapServers(bootStrapServer)
+                  .withTopic(topic)
+                  .withKeySerializer(IntegerSerializer.class)
+                  .withValueSerializer(LongSerializer.class)
+                  .withInputTimestamp()
+                  .withProducerFactoryFn(new ProducerFactoryFn(producerWrapper.producerKey)));
+
+      PipelineResult result = p.run();
+
+      completionThread.shutdown();
+
+      verifyProducerRecords(producerWrapper.mockProducer, topic, numElements, false, true);
+      assertThat(
+          Lineage.query(result.metrics(), Lineage.Type.SINK),
+          hasItem(String.format("kafka:%s.%s", bootStrapServer, topic)));
+    }
+  }
+
+  public static class FailingLongSerializer implements Serializer<Long> {
+    // enables instantiation by registrys
+    public FailingLongSerializer() {}
+
+    @Override
+    public byte[] serialize(String topic, Long data) {
+      throw new SerializationException("ExpectedSerializationException");
+    }
+
+    @Override
+    public void configure(Map<String, ?> configs, boolean isKey) {
+      // intentionally left blank for compatibility with older kafka versions
+    }
+  }
+
+  @Test
+  public void testSinkWithSerializationErrors() throws Exception {
+    // Attempt to write 10 elements to Kafka, but they will all fail to serialize, and be sent to
+    // the DLQ
+
+    int numElements = 10;
+
+    try (MockProducerWrapper producerWrapper =
+        new MockProducerWrapper(new FailingLongSerializer())) {
+
+      ProducerSendCompletionThread completionThread =
+          new ProducerSendCompletionThread(producerWrapper.mockProducer).start();
+
+      String topic = "test";
+
+      BadRecordErrorHandler<PCollection<Long>> eh =
+          p.registerBadRecordErrorHandler(new ErrorSinkTransform());
 
       p.apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn()).withoutMetadata())
           .apply(
@@ -1310,15 +1522,20 @@ public class KafkaIOTest {
                   .withBootstrapServers("none")
                   .withTopic(topic)
                   .withKeySerializer(IntegerSerializer.class)
-                  .withValueSerializer(LongSerializer.class)
+                  .withValueSerializer(FailingLongSerializer.class)
                   .withInputTimestamp()
-                  .withProducerFactoryFn(new ProducerFactoryFn(producerWrapper.producerKey)));
+                  .withProducerFactoryFn(new ProducerFactoryFn(producerWrapper.producerKey))
+                  .withBadRecordErrorHandler(eh));
+
+      eh.close();
+
+      PAssert.thatSingleton(Objects.requireNonNull(eh.getOutput())).isEqualTo(10L);
 
       p.run();
 
       completionThread.shutdown();
 
-      verifyProducerRecords(producerWrapper.mockProducer, topic, numElements, false, true);
+      verifyProducerRecords(producerWrapper.mockProducer, topic, 0, false, true);
     }
   }
 
@@ -1328,7 +1545,7 @@ public class KafkaIOTest {
 
     int numElements = 1000;
 
-    try (MockProducerWrapper producerWrapper = new MockProducerWrapper()) {
+    try (MockProducerWrapper producerWrapper = new MockProducerWrapper(new LongSerializer())) {
 
       ProducerSendCompletionThread completionThread =
           new ProducerSendCompletionThread(producerWrapper.mockProducer).start();
@@ -1360,7 +1577,7 @@ public class KafkaIOTest {
 
     int numElements = 1000;
 
-    try (MockProducerWrapper producerWrapper = new MockProducerWrapper()) {
+    try (MockProducerWrapper producerWrapper = new MockProducerWrapper(new LongSerializer())) {
 
       ProducerSendCompletionThread completionThread =
           new ProducerSendCompletionThread(producerWrapper.mockProducer).start();
@@ -1392,7 +1609,7 @@ public class KafkaIOTest {
     // Set different output topic names
     int numElements = 1000;
 
-    try (MockProducerWrapper producerWrapper = new MockProducerWrapper()) {
+    try (MockProducerWrapper producerWrapper = new MockProducerWrapper(new LongSerializer())) {
 
       ProducerSendCompletionThread completionThread =
           new ProducerSendCompletionThread(producerWrapper.mockProducer).start();
@@ -1437,7 +1654,7 @@ public class KafkaIOTest {
     // Set different output topic names
     int numElements = 1;
     SimpleEntry<String, String> header = new SimpleEntry<>("header_key", "header_value");
-    try (MockProducerWrapper producerWrapper = new MockProducerWrapper()) {
+    try (MockProducerWrapper producerWrapper = new MockProducerWrapper(new LongSerializer())) {
 
       ProducerSendCompletionThread completionThread =
           new ProducerSendCompletionThread(producerWrapper.mockProducer).start();
@@ -1480,7 +1697,7 @@ public class KafkaIOTest {
   public void testSinkProducerRecordsWithCustomTS() throws Exception {
     int numElements = 1000;
 
-    try (MockProducerWrapper producerWrapper = new MockProducerWrapper()) {
+    try (MockProducerWrapper producerWrapper = new MockProducerWrapper(new LongSerializer())) {
 
       ProducerSendCompletionThread completionThread =
           new ProducerSendCompletionThread(producerWrapper.mockProducer).start();
@@ -1519,7 +1736,7 @@ public class KafkaIOTest {
   public void testSinkProducerRecordsWithCustomPartition() throws Exception {
     int numElements = 1000;
 
-    try (MockProducerWrapper producerWrapper = new MockProducerWrapper()) {
+    try (MockProducerWrapper producerWrapper = new MockProducerWrapper(new LongSerializer())) {
 
       ProducerSendCompletionThread completionThread =
           new ProducerSendCompletionThread(producerWrapper.mockProducer).start();
@@ -1643,32 +1860,36 @@ public class KafkaIOTest {
 
     int numElements = 1000;
 
-    try (MockProducerWrapper producerWrapper = new MockProducerWrapper()) {
+    try (MockProducerWrapper producerWrapper = new MockProducerWrapper(new LongSerializer())) {
 
       ProducerSendCompletionThread completionThread =
           new ProducerSendCompletionThread(producerWrapper.mockProducer).start();
 
-      String topic = "test";
+      String topic = "test-eos";
+      String bootStrapServer = "none";
 
       p.apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn()).withoutMetadata())
           .apply(
               KafkaIO.<Integer, Long>write()
-                  .withBootstrapServers("none")
+                  .withBootstrapServers(bootStrapServer)
                   .withTopic(topic)
                   .withKeySerializer(IntegerSerializer.class)
                   .withValueSerializer(LongSerializer.class)
-                  .withEOS(1, "test")
+                  .withEOS(1, "test-eos")
                   .withConsumerFactoryFn(
                       new ConsumerFactoryFn(
                           Lists.newArrayList(topic), 10, 10, OffsetResetStrategy.EARLIEST))
                   .withPublishTimestampFunction((e, ts) -> ts)
                   .withProducerFactoryFn(new ProducerFactoryFn(producerWrapper.producerKey)));
 
-      p.run();
+      PipelineResult result = p.run();
 
       completionThread.shutdown();
 
       verifyProducerRecords(producerWrapper.mockProducer, topic, numElements, false, true);
+      assertThat(
+          Lineage.query(result.metrics(), Lineage.Type.SINK),
+          hasItem(String.format("kafka:%s.%s", bootStrapServer, topic)));
     }
   }
 
@@ -1721,7 +1942,7 @@ public class KafkaIOTest {
 
     int numElements = 1000;
 
-    try (MockProducerWrapper producerWrapper = new MockProducerWrapper()) {
+    try (MockProducerWrapper producerWrapper = new MockProducerWrapper(new LongSerializer())) {
 
       ProducerSendCompletionThread completionThreadWithErrors =
           new ProducerSendCompletionThread(producerWrapper.mockProducer, 10, 100).start();
@@ -1761,7 +1982,7 @@ public class KafkaIOTest {
 
     PCollection<Long> input =
         p.apply(
-                mkKafkaReadTransform(numElements, maxNumRecords, new ValueAsTimestampFn())
+                mkKafkaReadTransform(numElements, maxNumRecords, new ValueAsTimestampFn(), false, 0)
                     .withStartReadTime(new Instant(startTime))
                     .withoutMetadata())
             .apply(Values.create());
@@ -1785,12 +2006,73 @@ public class KafkaIOTest {
     int startTime = numElements / 20;
 
     p.apply(
-            mkKafkaReadTransform(numElements, numElements, new ValueAsTimestampFn())
+            mkKafkaReadTransform(numElements, numElements, new ValueAsTimestampFn(), false, 0)
                 .withStartReadTime(new Instant(startTime))
                 .withoutMetadata())
         .apply(Values.create());
 
     p.run();
+  }
+
+  @Test
+  public void testUnboundedSourceRawSizeMetric() {
+    final String readStep = "readFromKafka";
+    final int numElements = 1000;
+    final int numPartitionsPerTopic = 10;
+    final int recordSize = 12; // The size of key and value is defined in ConsumerFactoryFn.
+
+    List<String> topics = ImmutableList.of("test");
+
+    KafkaIO.Read<byte[], Long> reader =
+        KafkaIO.<byte[], Long>read()
+            .withBootstrapServers("none")
+            .withTopicPartitions(
+                ImmutableList.of(new TopicPartition("test", 5), new TopicPartition("test", 8)))
+            .withConsumerFactoryFn(
+                new ConsumerFactoryFn(
+                    topics, numPartitionsPerTopic, numElements, OffsetResetStrategy.EARLIEST))
+            .withKeyDeserializer(ByteArrayDeserializer.class)
+            .withValueDeserializer(LongDeserializer.class)
+            .withMaxNumRecords(numElements / numPartitionsPerTopic * 2); // 2 is the # of partitions
+
+    p.apply(readStep, reader.withoutMetadata()).apply(Values.create());
+
+    PipelineResult result = p.run();
+
+    MetricQueryResults metrics =
+        result
+            .metrics()
+            .queryMetrics(
+                MetricsFilter.builder()
+                    .addNameFilter(
+                        MetricNameFilter.inNamespace(KafkaUnboundedReader.METRIC_NAMESPACE))
+                    .build());
+
+    assertThat(
+        metrics.getDistributions(),
+        hasItem(
+            attemptedMetricsResult(
+                KafkaUnboundedReader.METRIC_NAMESPACE,
+                KafkaUnboundedReader.RAW_SIZE_METRIC_PREFIX + "test-5",
+                readStep,
+                DistributionResult.create(
+                    recordSize * numElements / numPartitionsPerTopic,
+                    numElements / numPartitionsPerTopic,
+                    recordSize,
+                    recordSize))));
+
+    assertThat(
+        metrics.getDistributions(),
+        hasItem(
+            attemptedMetricsResult(
+                KafkaUnboundedReader.METRIC_NAMESPACE,
+                KafkaUnboundedReader.RAW_SIZE_METRIC_PREFIX + "test-8",
+                readStep,
+                DistributionResult.create(
+                    recordSize * numElements / numPartitionsPerTopic,
+                    numElements / numPartitionsPerTopic,
+                    recordSize,
+                    recordSize))));
   }
 
   @Test
@@ -1830,8 +2112,27 @@ public class KafkaIOTest {
   }
 
   @Test
+  public void testSourceWithPatternDisplayData() {
+    KafkaIO.Read<byte[], byte[]> read =
+        KafkaIO.readBytes()
+            .withBootstrapServers("myServer1:9092,myServer2:9092")
+            .withTopicPattern("[a-z]est")
+            .withConsumerFactoryFn(
+                new ConsumerFactoryFn(
+                    Lists.newArrayList("test"), 10, 10, OffsetResetStrategy.EARLIEST));
+
+    DisplayData displayData = DisplayData.from(read);
+
+    assertThat(displayData, hasDisplayItem("topicPattern", "[a-z]est"));
+    assertThat(displayData, hasDisplayItem("enable.auto.commit", false));
+    assertThat(displayData, hasDisplayItem("bootstrap.servers", "myServer1:9092,myServer2:9092"));
+    assertThat(displayData, hasDisplayItem("auto.offset.reset", "latest"));
+    assertThat(displayData, hasDisplayItem("receive.buffer.bytes", 524288));
+  }
+
+  @Test
   public void testSinkDisplayData() {
-    try (MockProducerWrapper producerWrapper = new MockProducerWrapper()) {
+    try (MockProducerWrapper producerWrapper = new MockProducerWrapper(new LongSerializer())) {
       KafkaIO.Write<Integer, Long> write =
           KafkaIO.<Integer, Long>write()
               .withBootstrapServers("myServerA:9092,myServerB:9092")
@@ -1855,7 +2156,7 @@ public class KafkaIOTest {
 
     int numElements = 1000;
 
-    try (MockProducerWrapper producerWrapper = new MockProducerWrapper()) {
+    try (MockProducerWrapper producerWrapper = new MockProducerWrapper(new LongSerializer())) {
 
       ProducerSendCompletionThread completionThread =
           new ProducerSendCompletionThread(producerWrapper.mockProducer).start();
@@ -1895,6 +2196,18 @@ public class KafkaIOTest {
 
       completionThread.shutdown();
     }
+  }
+
+  @Test(expected = IllegalStateException.class)
+  public void testWithInvalidConsumerPollingTimeout() {
+    KafkaIO.<Integer, Long>read().withConsumerPollingTimeout(-5L);
+  }
+
+  @Test
+  public void testWithValidConsumerPollingTimeout() {
+    KafkaIO.Read<Integer, Long> reader =
+        KafkaIO.<Integer, Long>read().withConsumerPollingTimeout(15L);
+    assertEquals(15, reader.getConsumerPollingTimeout());
   }
 
   private static void verifyProducerRecords(
@@ -1947,14 +2260,22 @@ public class KafkaIOTest {
       }
     }
 
-    MockProducerWrapper() {
+    MockProducerWrapper(Serializer<Long> valueSerializer) {
       producerKey = String.valueOf(ThreadLocalRandom.current().nextLong());
       mockProducer =
           new MockProducer<Integer, Long>(
+              Cluster.empty()
+                  .withPartitions(
+                      ImmutableMap.of(
+                          new TopicPartition("test", 0),
+                          new PartitionInfo("test", 0, null, null, null),
+                          new TopicPartition("test", 1),
+                          new PartitionInfo("test", 1, null, null, null))),
               false, // disable synchronous completion of send. see ProducerSendCompletionThread
               // below.
+              new DefaultPartitioner(),
               new IntegerSerializer(),
-              new LongSerializer()) {
+              valueSerializer) {
 
             // override flush() so that it does not complete all the waiting sends, giving a chance
             // to

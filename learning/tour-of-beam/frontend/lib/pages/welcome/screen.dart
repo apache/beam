@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+import 'dart:async';
+
 import 'package:app_state/app_state.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/gestures.dart';
@@ -60,10 +62,10 @@ class _WideWelcome extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return IntrinsicHeight(
+    return const IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
+        children: [
           Expanded(
             child: _SdkSelection(),
           ),
@@ -83,8 +85,8 @@ class _NarrowWelcome extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: const [
+    return const Column(
+      children: [
         _SdkSelection(),
         _TourSummary(),
       ],
@@ -157,7 +159,7 @@ class _SdkSelection extends StatelessWidget {
     if (sdk == null) {
       return;
     }
-    await GetIt.instance.get<PageStack>().push(TourPage(sdk: sdk));
+    await GetIt.instance.get<PageStack>().push(TourPage());
   }
 }
 
@@ -171,9 +173,6 @@ class _TourSummary extends StatelessWidget {
       animation: appNotifier,
       builder: (context, child) {
         final sdk = appNotifier.sdk;
-        if (sdk == null) {
-          return Container();
-        }
 
         return Padding(
           padding: const EdgeInsets.symmetric(
@@ -259,7 +258,7 @@ class _IntroTextBody extends StatelessWidget {
                     .copyWith(color: Theme.of(context).primaryColor),
                 recognizer: TapGestureRecognizer()
                   ..onTap = () {
-                    _openLoginDialog(context);
+                    unawaited(_openLoginDialog(context));
                   },
               ),
             TextSpan(text: '\n\n${'pages.welcome.selectLanguage'.tr()}'),
@@ -269,8 +268,8 @@ class _IntroTextBody extends StatelessWidget {
     );
   }
 
-  void _openLoginDialog(BuildContext context) {
-    showDialog(
+  Future<void> _openLoginDialog(BuildContext context) async {
+    await showDialog(
       context: context,
       builder: (context) => Dialog(
         child: LoginContent(

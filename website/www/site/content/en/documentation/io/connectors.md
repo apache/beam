@@ -50,7 +50,10 @@ This table provides a consolidated, at-a-glance overview of the available built-
       ✔
       <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.fileio.html">native</a>
     </td>
-    <td>Not available</td>
+     <td class="present">
+      ✔
+      <a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/fileio">native</a>
+    </td>
     <td>Not available</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
@@ -79,7 +82,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
   </tr>
   <tr>
-    <td>TextIO</td>
+    <td>TextIO (<a href="/performance/textio">metrics</a>)</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
     <td class="present">
@@ -158,7 +161,10 @@ This table provides a consolidated, at-a-glance overview of the available built-
       ✔
       <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.parquetio.html">native</a>
     </td>
-    <td>Not available</td>
+    <td class="present">
+      ✔
+      <a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/parquetio">native</a>
+    </td>
     <td class="present">
       ✔
       <a href="https://github.com/apache/beam/blob/master/sdks/typescript/src/apache_beam/io/parquetio.ts">via X-language</a>
@@ -200,7 +206,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="absent">✘</td>
   </tr>
   <tr>
-    <td>GcsFileSystem</td>
+    <td>GcsFileSystem (<a href="/performance/textio">metrics</a>)</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
     <td class="present">
@@ -522,7 +528,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
   </tr>
   <tr>
-    <td>BigQueryIO (<a href="/documentation/io/built-in/google-bigquery/">guide</a>)</td>
+    <td>BigQueryIO (<a href="/documentation/io/built-in/google-bigquery/">guide</a>) (<a href="/performance/bigquery">metrics</a>)</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
     <td class="present">
@@ -536,6 +542,9 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">
       ✔
       <a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/bigqueryio">native</a>
+      <br>
+      ✔
+      <a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/xlang/bigqueryio">via X-language</a>
     </td>
     <td class="present">
       ✔
@@ -545,7 +554,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
   </tr>
   <tr>
-    <td>BigTableIO</td>
+    <td>BigTableIO (<a href="/performance/bigtable">metrics</a>)</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
     <td class="present">
@@ -554,12 +563,21 @@ This table provides a consolidated, at-a-glance overview of the available built-
     </td>
     <td class="present">
       ✔
-      <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.bigtableio.html">native</a>
+      <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.bigtableio.html">native</a> (sink)
+      <br>
+      ✔
+      <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.bigtableio.html">via X-language</a>
+    </td>
+    <td class="present">
+      ✔
+      <a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/bigtableio">native</a> (sink)
+      <br>
+      ✔
+      <a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/xlang/bigtableio">via X-language</a>
     </td>
     <td>Not available</td>
-    <td>Not available</td>
     <td class="present">✔</td>
-    <td class="absent">✔</td>
+    <td class="present">✔</td>
   </tr>
   <tr>
     <td>DatastoreIO</td>
@@ -610,7 +628,10 @@ This table provides a consolidated, at-a-glance overview of the available built-
       ✔
       <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.spanner.html">via X-language</a>
     </td>
-    <td>Not available</td>
+    <td class="present">
+      ✔
+      <a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/spannerio">native</a>
+    </td>
     <td>Not available</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
@@ -667,7 +688,10 @@ This table provides a consolidated, at-a-glance overview of the available built-
       ✔
       <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.mongodbio.html">native</a>
     </td>
-    <td>Not available</td>
+    <td class="present">
+      ✔
+      <a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/mongodbio">native</a>
+    </td>
     <td>Not available</td>
     <td class="present">✔</td>
     <td class="absent">✘</td>
@@ -779,7 +803,10 @@ This table provides a consolidated, at-a-glance overview of the available built-
       <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/healthcare/FhirIO.html">native</a>
     </td>
     <td>Not available</td>
-    <td>Not available</td>
+    <td class="present">
+      ✔
+      <a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/fhirio">native</a>
+    </td>
     <td>Not available</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
@@ -793,6 +820,23 @@ This table provides a consolidated, at-a-glance overview of the available built-
       <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/healthcare/HL7v2IO.html">native</a>
     </td>
     <td>Not available</td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+  </tr>
+  <tr>
+    <td>DicomIO</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/healthcare/DicomIO.html">native</a>
+    </td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.healthcare.dicomio.html">native</a>
+    </td>
     <td>Not available</td>
     <td>Not available</td>
     <td class="present">✔</td>
@@ -905,7 +949,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
   </tr>
   <tr>
-    <td>SingleStoreDB</td>
+    <td>SingleStoreDB (<a href="/documentation/io/built-in/singlestore/">guide</a>)</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
     <td class="present">
@@ -914,8 +958,49 @@ This table provides a consolidated, at-a-glance overview of the available built-
     </td>
     <td>Not available</td>
     <td>Not available</td>
+    <td>Not available</td>
     <td class="present">✔</td>
     <td class="absent">✘</td>
+  </tr>
+  <tr>
+    <td>GoogleAdsIO</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/googleads/GoogleAdsIO.html">native</a>
+    </td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+  </tr>
+  <tr>
+    <td>
+      Web APIs (<a href="/documentation/io/built-in/webapis/">guide</a>)
+    </td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">✔ <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/io/requestresponse/RequestResponseIO.html">native</a></td>
+    <td class="present">✔ <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.requestresponse.html?highlight=requestresponse#apache_beam.io.requestresponse.RequestResponseIO">native</a></td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+  </tr>
+  <tr>
+    <td>
+      Iceberg (Managed I/O)
+    </td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">✔ <a href="https://beam.apache.org/releases/javadoc/2.56.0/org/apache/beam/sdk/managed/Managed.html">native</a></td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
   </tr>
 </table>
 </div>
@@ -1094,6 +1179,38 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>Not available</td>
     <td class="present">✔</td>
     <td class="absent">✘</td>
+  </tr>
+  <tr>
+    <td>
+      <a href="https://cloud.google.com/bigtable/docs/hbase-dataflow-java">Cloud Bigtable (HBase based)</a>
+    </td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      native
+    </td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+  </tr>
+  <tr>
+    <td>
+      <a href="https://github.com/beam-pyio">Beam PyIO (Collection of Python IO connectors)</a>
+    </td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td>Not available</td>
+    <td class="present">
+      ✔
+      native
+    </td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
   </tr>
 </table>
 </div>

@@ -25,7 +25,9 @@ import org.apache.beam.sdk.values.PCollectionList;
  *
  * @param <InputT> type of input
  * @param <OutputT> type of output
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
  */
+@Deprecated
 public interface CompositeOperator<InputT, OutputT> {
 
   /**

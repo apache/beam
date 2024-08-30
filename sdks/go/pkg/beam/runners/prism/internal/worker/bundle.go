@@ -16,6 +16,9 @@
 package worker
 
 import (
+	"bytes"
+	"context"
+	"fmt"
 	"sync/atomic"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
@@ -24,21 +27,29 @@ import (
 	"golang.org/x/exp/slog"
 )
 
+// SideInputKey is for data lookups for a given bundle.
+type SideInputKey struct {
+	TransformID, Local string
+}
+
 // B represents an extant ProcessBundle instruction sent to an SDK worker.
 // Generally manipulated by another package to interact with a worker.
 type B struct {
 	InstID string // ID for the instruction processing this bundle.
 	PBDID  string // ID for the ProcessBundleDescriptor
 
-	// InputTransformID is data being sent to the SDK.
-	InputTransformID string
-	InputData        [][]byte // Data specifically for this bundle.
+	// InputTransformID is where data is being sent to in the SDK.
+	InputTransformID       string
+	Input                  []*engine.Block // Data and Timers for this bundle.
+	EstimatedInputElements int
+	HasTimers              []struct{ Transform, TimerFamily string } // Timer streams to terminate.
 
-	// TODO change to a single map[tid] -> map[input] -> map[window] -> struct { Iter data, MultiMap data } instead of all maps.
-	// IterableSideInputData is a map from transformID, to inputID, to window, to data.
-	IterableSideInputData map[string]map[string]map[typex.Window][][]byte
-	// MultiMapSideInputData is a map from transformID, to inputID, to window, to data key, to data values.
-	MultiMapSideInputData map[string]map[string]map[typex.Window]map[string][][]byte
+	// IterableSideInputData is a map from transformID + inputID, to window, to data.
+	IterableSideInputData map[SideInputKey]map[typex.Window][][]byte
+	// MultiMapSideInputData is a map from transformID + inputID, to window, to data key, to data values.
+	MultiMapSideInputData map[SideInputKey]map[typex.Window]map[string][][]byte
+
+	// State lives in OutputData
 
 	// OutputCount is the number of data or timer outputs this bundle has.
 	// We need to see this many closed data channels before the bundle is complete.
@@ -50,10 +61,9 @@ type B struct {
 	dataSema   atomic.Int32
 	OutputData engine.TentativeData
 
-	// TODO move response channel to an atomic and an additional
-	// block on the DataWait channel, to allow progress & splits for
-	// no output DoFns.
-	Resp chan *fnpb.ProcessBundleResponse
+	Resp      chan *fnpb.ProcessBundleResponse
+	BundleErr error
+	responded bool
 
 	SinkToPCollection map[string]string
 }
@@ -61,18 +71,19 @@ type B struct {
 // Init initializes the bundle's internal state for waiting on all
 // data and for relaying a response back.
 func (b *B) Init() {
-	// We need to see final data signals that match the number of
+	// We need to see final data and timer signals that match the number of
 	// outputs the stage this bundle executes posesses
-	b.dataSema.Store(int32(b.OutputCount))
+	outCap := int32(b.OutputCount + len(b.HasTimers))
+	b.dataSema.Store(outCap)
 	b.DataWait = make(chan struct{})
-	if b.OutputCount == 0 {
+	if outCap == 0 {
 		close(b.DataWait) // Can happen if there are no outputs for the bundle.
 	}
 	b.Resp = make(chan *fnpb.ProcessBundleResponse, 1)
 }
 
-// DataDone indicates a final element has been received from a Data or Timer output.
-func (b *B) DataDone() {
+// DataOrTimerDone indicates a final element has been received from a Data or Timer output.
+func (b *B) DataOrTimerDone() {
 	sema := b.dataSema.Add(-1)
 	if sema == 0 {
 		close(b.DataWait)
@@ -86,6 +97,16 @@ func (b *B) LogValue() slog.Value {
 }
 
 func (b *B) Respond(resp *fnpb.InstructionResponse) {
+	if b.responded {
+		slog.Warn("additional bundle response", "bundle", b, "resp", resp)
+		return
+	}
+	b.responded = true
+	if resp.GetError() != "" {
+		b.BundleErr = fmt.Errorf("bundle %v %v failed:%v", resp.GetInstructionId(), b.PBDID, resp.GetError())
+		close(b.Resp)
+		return
+	}
 	b.Resp <- resp.GetProcessBundle()
 }
 
@@ -97,7 +118,7 @@ func (b *B) Respond(resp *fnpb.InstructionResponse) {
 //
 // While this method mostly manipulates a W, putting it on a B avoids mixing the workers
 // public GRPC APIs up with local calls.
-func (b *B) ProcessOn(wk *W) <-chan struct{} {
+func (b *B) ProcessOn(ctx context.Context, wk *W) <-chan struct{} {
 	wk.mu.Lock()
 	wk.activeInstructions[b.InstID] = b
 	wk.mu.Unlock()
@@ -114,19 +135,67 @@ func (b *B) ProcessOn(wk *W) <-chan struct{} {
 		},
 	}
 
-	// TODO: make batching decisions.
-	for i, d := range b.InputData {
-		wk.DataReqs <- &fnpb.Elements{
-			Data: []*fnpb.Elements_Data{
+	// TODO: make batching decisions on the maxium to send per elements block, to reduce processing time overhead.
+	for _, block := range b.Input {
+		elms := &fnpb.Elements{}
+
+		dataBuf := bytes.Join(block.Bytes, []byte{})
+		switch block.Kind {
+		case engine.BlockData:
+			elms.Data = []*fnpb.Elements_Data{
 				{
 					InstructionId: b.InstID,
 					TransformId:   b.InputTransformID,
-					Data:          d,
-					IsLast:        i+1 == len(b.InputData),
+					Data:          dataBuf,
 				},
-			},
+			}
+		case engine.BlockTimer:
+			elms.Timers = []*fnpb.Elements_Timers{
+				{
+					InstructionId: b.InstID,
+					TransformId:   block.Transform,
+					TimerFamilyId: block.Family,
+					Timers:        dataBuf,
+				},
+			}
+		default:
+			panic("unknown engine.Block kind")
+		}
+
+		select {
+		case wk.DataReqs <- elms:
+		case <-ctx.Done():
+			b.DataOrTimerDone()
+			return b.DataWait
 		}
 	}
+
+	// Send last of everything for now.
+	timers := make([]*fnpb.Elements_Timers, 0, len(b.HasTimers))
+	for _, tid := range b.HasTimers {
+		timers = append(timers, &fnpb.Elements_Timers{
+			InstructionId: b.InstID,
+			TransformId:   tid.Transform,
+			TimerFamilyId: tid.TimerFamily,
+			IsLast:        true,
+		})
+	}
+	select {
+	case wk.DataReqs <- &fnpb.Elements{
+		Timers: timers,
+		Data: []*fnpb.Elements_Data{
+			{
+				InstructionId: b.InstID,
+				TransformId:   b.InputTransformID,
+				IsLast:        true,
+			},
+		},
+	}:
+	case <-ctx.Done():
+		b.DataOrTimerDone()
+		return b.DataWait
+	}
+
 	return b.DataWait
 }
 
@@ -137,18 +206,24 @@ func (b *B) Cleanup(wk *W) {
 	wk.mu.Unlock()
 }
 
-func (b *B) Progress(wk *W) *fnpb.ProcessBundleProgressResponse {
-	return wk.sendInstruction(&fnpb.InstructionRequest{
+// Progress sends a progress request for the given bundle to the passed in worker, blocking on the response.
+func (b *B) Progress(ctx context.Context, wk *W) (*fnpb.ProcessBundleProgressResponse, error) {
+	resp := wk.sendInstruction(ctx, &fnpb.InstructionRequest{
 		Request: &fnpb.InstructionRequest_ProcessBundleProgress{
 			ProcessBundleProgress: &fnpb.ProcessBundleProgressRequest{
 				InstructionId: b.InstID,
 			},
 		},
-	}).GetProcessBundleProgress()
+	})
+	if resp.GetError() != "" {
+		return nil, fmt.Errorf("progress[%v] error from SDK: %v", b.InstID, resp.GetError())
+	}
+	return resp.GetProcessBundleProgress(), nil
 }
 
-func (b *B) Split(wk *W, fraction float64, allowedSplits []int64) *fnpb.ProcessBundleSplitResponse {
-	return wk.sendInstruction(&fnpb.InstructionRequest{
+// Split sends a split request for the given bundle to the passed in worker, blocking on the response.
+func (b *B) Split(ctx context.Context, wk *W, fraction float64, allowedSplits []int64) (*fnpb.ProcessBundleSplitResponse, error) {
+	resp := wk.sendInstruction(ctx, &fnpb.InstructionRequest{
 		Request: &fnpb.InstructionRequest_ProcessBundleSplit{
 			ProcessBundleSplit: &fnpb.ProcessBundleSplitRequest{
 				InstructionId: b.InstID,
@@ -156,10 +231,14 @@ func (b *B) Split(wk *W, fraction float64, allowedSplits []int64) *fnpb.ProcessB
 					b.InputTransformID: {
 						FractionOfRemainder:    fraction,
 						AllowedSplitPoints:     allowedSplits,
-						EstimatedInputElements: int64(len(b.InputData)),
+						EstimatedInputElements: int64(b.EstimatedInputElements),
 					},
 				},
 			},
 		},
-	}).GetProcessBundleSplit()
+	})
+	if resp.GetError() != "" {
+		return nil, fmt.Errorf("split[%v] error from SDK: %v", b.InstID, resp.GetError())
+	}
+	return resp.GetProcessBundleSplit(), nil
 }

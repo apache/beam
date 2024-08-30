@@ -19,6 +19,8 @@
 import math
 import os
 import pickle
+import sys
+import tempfile
 import time
 import unittest
 from typing import Any
@@ -27,6 +29,7 @@ from typing import Iterable
 from typing import Mapping
 from typing import Optional
 from typing import Sequence
+from typing import Union
 
 import pytest
 
@@ -41,11 +44,78 @@ from apache_beam.testing.util import equal_to
 from apache_beam.transforms import trigger
 from apache_beam.transforms import window
 from apache_beam.transforms.periodicsequence import TimestampedValue
+from apache_beam.utils import multi_process_shared
 
 
 class FakeModel:
   def predict(self, example: int) -> int:
     return example + 1
+
+
+class FakeStatefulModel:
+  def __init__(self, state: int):
+    if state == 100:
+      raise Exception('Oh no')
+    self._state = state
+
+  def predict(self, example: int) -> int:
+    return self._state
+
+  def increment_state(self, amount: int):
+    self._state += amount
+
+
+class FakeSlowModel:
+  def __init__(self, sleep_on_load_seconds=0, file_path_write_on_del=None):
+
+    self._file_path_write_on_del = file_path_write_on_del
+    time.sleep(sleep_on_load_seconds)
+
+  def predict(self, example: int) -> int:
+    time.sleep(example)
+    return example
+
+  def __del__(self):
+    if self._file_path_write_on_del is not None:
+      with open(self._file_path_write_on_del, 'a') as myfile:
+        myfile.write('Deleted FakeSlowModel')
+
+
+class FakeIncrementingModel:
+  def __init__(self):
+    self._state = 0
+
+  def predict(self, example: int) -> int:
+    self._state += 1
+    return self._state
+
+
+class FakeSlowModelHandler(base.ModelHandler[int, int, FakeModel]):
+  def __init__(
+      self,
+      sleep_on_load: int,
+      multi_process_shared=False,
+      file_path_write_on_del=None):
+    self._sleep_on_load = sleep_on_load
+    self._multi_process_shared = multi_process_shared
+    self._file_path_write_on_del = file_path_write_on_del
+
+  def load_model(self):
+    return FakeSlowModel(self._sleep_on_load, self._file_path_write_on_del)
+
+  def run_inference(
+      self,
+      batch: Sequence[int],
+      model: FakeModel,
+      inference_args=None) -> Iterable[int]:
+    for example in batch:
+      yield model.predict(example)
+
+  def share_model_across_processes(self) -> bool:
+    return self._multi_process_shared
+
+  def batch_elements_kwargs(self):
+    return {'min_batch_size': 1, 'max_batch_size': 1}
 
 
 class FakeModelHandler(base.ModelHandler[int, int, FakeModel]):
@@ -55,16 +125,29 @@ class FakeModelHandler(base.ModelHandler[int, int, FakeModel]):
       min_batch_size=1,
       max_batch_size=9999,
       multi_process_shared=False,
+      state=None,
+      incrementing=False,
+      max_copies=1,
+      num_bytes_per_element=None,
       **kwargs):
     self._fake_clock = clock
     self._min_batch_size = min_batch_size
     self._max_batch_size = max_batch_size
     self._env_vars = kwargs.get('env_vars', {})
     self._multi_process_shared = multi_process_shared
+    self._state = state
+    self._incrementing = incrementing
+    self._max_copies = max_copies
+    self._num_bytes_per_element = num_bytes_per_element
 
   def load_model(self):
+    assert (not self._incrementing or self._state is None)
     if self._fake_clock:
       self._fake_clock.current_time_ns += 500_000_000  # 500ms
+    if self._incrementing:
+      return FakeIncrementingModel()
+    if self._state is not None:
+      return FakeStatefulModel(self._state)
     return FakeModel()
 
   def run_inference(
@@ -95,6 +178,14 @@ class FakeModelHandler(base.ModelHandler[int, int, FakeModel]):
   def share_model_across_processes(self):
     return self._multi_process_shared
 
+  def model_copies(self):
+    return self._max_copies
+
+  def get_num_bytes(self, batch: Sequence[int]) -> int:
+    if self._num_bytes_per_element:
+      return self._num_bytes_per_element * len(batch)
+    return super().get_num_bytes(batch)
+
 
 class FakeModelHandlerReturnsPredictionResult(
     base.ModelHandler[int, base.PredictionResult, FakeModel]):
@@ -102,19 +193,23 @@ class FakeModelHandlerReturnsPredictionResult(
       self,
       clock=None,
       model_id='fake_model_id_default',
-      multi_process_shared=False):
+      multi_process_shared=False,
+      state=None):
     self.model_id = model_id
     self._fake_clock = clock
     self._env_vars = {}
     self._multi_process_shared = multi_process_shared
+    self._state = state
 
   def load_model(self):
+    if self._state is not None:
+      return FakeStatefulModel(0)
     return FakeModel()
 
   def run_inference(
       self,
       batch: Sequence[int],
-      model: FakeModel,
+      model: Union[FakeModel, FakeStatefulModel],
       inference_args=None) -> Iterable[base.PredictionResult]:
     multi_process_shared_loaded = "multi_process_shared" in str(type(model))
     if self._multi_process_shared != multi_process_shared_loaded:
@@ -127,6 +222,8 @@ class FakeModelHandlerReturnsPredictionResult(
           model_id=self.model_id,
           example=example,
           inference=model.predict(example))
+      if self._state is not None:
+        model.increment_state(1)  # type: ignore[union-attr]
 
   def update_model_path(self, model_path: Optional[str] = None):
     self.model_id = model_path if model_path else self.model_id
@@ -226,6 +323,58 @@ class RunInferenceBaseTest(unittest.TestCase):
           FakeModelHandler(multi_process_shared=True))
       assert_that(actual, equal_to(expected), label='assert:inferences')
 
+  def test_run_inference_impl_simple_examples_multi_process_shared_multi_copy(
+      self):
+    with TestPipeline() as pipeline:
+      examples = [1, 5, 3, 10]
+      expected = [example + 1 for example in examples]
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      actual = pcoll | base.RunInference(
+          FakeModelHandler(multi_process_shared=True, max_copies=4))
+      assert_that(actual, equal_to(expected), label='assert:inferences')
+
+  def test_run_inference_impl_multi_process_shared_incrementing_multi_copy(
+      self):
+    with TestPipeline() as pipeline:
+      examples = [1, 5, 3, 10, 1, 5, 3, 10, 1, 5, 3, 10, 1, 5, 3, 10]
+      expected = [1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4]
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      actual = pcoll | base.RunInference(
+          FakeModelHandler(
+              multi_process_shared=True,
+              max_copies=4,
+              incrementing=True,
+              max_batch_size=1))
+      assert_that(actual, equal_to(expected), label='assert:inferences')
+
+  def test_run_inference_impl_mps_nobatch_incrementing_multi_copy(self):
+    with TestPipeline() as pipeline:
+      examples = [1, 5, 3, 10, 1, 5, 3, 10, 1, 5, 3, 10, 1, 5, 3, 10]
+      expected = [1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4]
+      batched_examples = [[example] for example in examples]
+      pcoll = pipeline | 'start' >> beam.Create(batched_examples)
+      actual = pcoll | base.RunInference(
+          FakeModelHandler(
+              multi_process_shared=True, max_copies=4,
+              incrementing=True).with_no_batching())
+      assert_that(actual, equal_to(expected), label='assert:inferences')
+
+  def test_run_inference_impl_keyed_mps_incrementing_multi_copy(self):
+    with TestPipeline() as pipeline:
+      examples = [1, 5, 3, 10, 1, 5, 3, 10, 1, 5, 3, 10, 1, 5, 3, 10]
+      keyed_examples = [('abc', example) for example in examples]
+      expected = [1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4]
+      keyed_expected = [('abc', val) for val in expected]
+      pcoll = pipeline | 'start' >> beam.Create(keyed_examples)
+      actual = pcoll | base.RunInference(
+          base.KeyedModelHandler(
+              FakeModelHandler(
+                  multi_process_shared=True,
+                  max_copies=4,
+                  incrementing=True,
+                  max_batch_size=1)))
+      assert_that(actual, equal_to(keyed_expected), label='assert:inferences')
+
   def test_run_inference_impl_with_keyed_examples(self):
     with TestPipeline() as pipeline:
       examples = [1, 5, 3, 10]
@@ -235,6 +384,186 @@ class RunInferenceBaseTest(unittest.TestCase):
       actual = pcoll | base.RunInference(
           base.KeyedModelHandler(FakeModelHandler()))
       assert_that(actual, equal_to(expected), label='assert:inferences')
+
+  def test_run_inference_impl_with_keyed_examples_many_model_handlers(self):
+    with TestPipeline() as pipeline:
+      examples = [1, 5, 3, 10]
+      keyed_examples = [(i, example) for i, example in enumerate(examples)]
+      expected = [(i, example + 1) for i, example in enumerate(examples)]
+      expected[0] = (0, 200)
+      pcoll = pipeline | 'start' >> beam.Create(keyed_examples)
+      mhs = [
+          base.KeyModelMapping([0],
+                               FakeModelHandler(
+                                   state=200, multi_process_shared=True)),
+          base.KeyModelMapping([1, 2, 3],
+                               FakeModelHandler(multi_process_shared=True))
+      ]
+      actual = pcoll | base.RunInference(base.KeyedModelHandler(mhs))
+      assert_that(actual, equal_to(expected), label='assert:inferences')
+
+  def test_run_inference_impl_with_keyed_examples_many_model_handlers_metrics(
+      self):
+    pipeline = TestPipeline()
+    examples = [1, 5, 3, 10]
+    metrics_namespace = 'test_namespace'
+    keyed_examples = [(i, example) for i, example in enumerate(examples)]
+    pcoll = pipeline | 'start' >> beam.Create(keyed_examples)
+    mhs = [
+        base.KeyModelMapping([0],
+                             FakeModelHandler(
+                                 state=200, multi_process_shared=True)),
+        base.KeyModelMapping([1, 2, 3],
+                             FakeModelHandler(multi_process_shared=True))
+    ]
+    _ = pcoll | base.RunInference(
+        base.KeyedModelHandler(mhs), metrics_namespace=metrics_namespace)
+    result = pipeline.run()
+    result.wait_until_finish()
+
+    metrics_filter = MetricsFilter().with_namespace(namespace=metrics_namespace)
+    metrics = result.metrics().query(metrics_filter)
+    assert len(metrics['counters']) != 0
+    assert len(metrics['distributions']) != 0
+
+    metrics_filter = MetricsFilter().with_name('0-_num_inferences')
+    metrics = result.metrics().query(metrics_filter)
+    num_inferences_counter_key_0 = metrics['counters'][0]
+    self.assertEqual(num_inferences_counter_key_0.committed, 1)
+
+    metrics_filter = MetricsFilter().with_name('1-_num_inferences')
+    metrics = result.metrics().query(metrics_filter)
+    num_inferences_counter_key_1 = metrics['counters'][0]
+    self.assertEqual(num_inferences_counter_key_1.committed, 3)
+
+    metrics_filter = MetricsFilter().with_name('num_inferences')
+    metrics = result.metrics().query(metrics_filter)
+    num_inferences_counter_aggregate = metrics['counters'][0]
+    self.assertEqual(num_inferences_counter_aggregate.committed, 4)
+
+    metrics_filter = MetricsFilter().with_name('0-_failed_batches_counter')
+    metrics = result.metrics().query(metrics_filter)
+    failed_batches_counter_key_0 = metrics['counters']
+    self.assertEqual(len(failed_batches_counter_key_0), 0)
+
+    metrics_filter = MetricsFilter().with_name('failed_batches_counter')
+    metrics = result.metrics().query(metrics_filter)
+    failed_batches_counter_aggregate = metrics['counters']
+    self.assertEqual(len(failed_batches_counter_aggregate), 0)
+
+    metrics_filter = MetricsFilter().with_name(
+        '0-_load_model_latency_milli_secs')
+    metrics = result.metrics().query(metrics_filter)
+    load_latency_dist_key_0 = metrics['distributions'][0]
+    self.assertEqual(load_latency_dist_key_0.committed.count, 1)
+
+    metrics_filter = MetricsFilter().with_name('load_model_latency_milli_secs')
+    metrics = result.metrics().query(metrics_filter)
+    load_latency_dist_aggregate = metrics['distributions'][0]
+    self.assertEqual(load_latency_dist_aggregate.committed.count, 2)
+
+  def test_run_inference_impl_with_keyed_examples_many_mhs_max_models_hint(
+      self):
+    pipeline = TestPipeline()
+    examples = [1, 5, 3, 10, 2, 4, 6, 8, 9, 7, 1, 5, 3, 10, 2, 4, 6, 8, 9, 7]
+    metrics_namespace = 'test_namespace'
+    keyed_examples = [(i, example) for i, example in enumerate(examples)]
+    pcoll = pipeline | 'start' >> beam.Create(keyed_examples)
+    mhs = [
+        base.KeyModelMapping([0, 2, 4, 6, 8],
+                             FakeModelHandler(
+                                 state=200, multi_process_shared=True)),
+        base.KeyModelMapping(
+            [1, 3, 5, 7, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19],
+            FakeModelHandler(multi_process_shared=True))
+    ]
+    _ = pcoll | base.RunInference(
+        base.KeyedModelHandler(mhs, max_models_per_worker_hint=1),
+        metrics_namespace=metrics_namespace)
+    result = pipeline.run()
+    result.wait_until_finish()
+
+    metrics_filter = MetricsFilter().with_namespace(namespace=metrics_namespace)
+    metrics = result.metrics().query(metrics_filter)
+    assert len(metrics['counters']) != 0
+    assert len(metrics['distributions']) != 0
+
+    metrics_filter = MetricsFilter().with_name('load_model_latency_milli_secs')
+    metrics = result.metrics().query(metrics_filter)
+    load_latency_dist_aggregate = metrics['distributions'][0]
+    # We should flip back and forth between models a bit since
+    # max_models_per_worker_hint=1, but we shouldn't thrash forever
+    # since most examples belong to the second ModelMapping
+    self.assertGreater(load_latency_dist_aggregate.committed.count, 2)
+    self.assertLess(load_latency_dist_aggregate.committed.count, 12)
+
+  def test_keyed_many_model_handlers_validation(self):
+    def mult_two(example: str) -> int:
+      return int(example) * 2
+
+    mhs = [
+        base.KeyModelMapping(
+            [0],
+            FakeModelHandler(
+                state=200,
+                multi_process_shared=True).with_preprocess_fn(mult_two)),
+        base.KeyModelMapping([1, 2, 3],
+                             FakeModelHandler(multi_process_shared=True))
+    ]
+    with self.assertRaises(ValueError):
+      base.KeyedModelHandler(mhs)
+
+    mhs = [
+        base.KeyModelMapping(
+            [0],
+            FakeModelHandler(
+                state=200,
+                multi_process_shared=True).with_postprocess_fn(mult_two)),
+        base.KeyModelMapping([1, 2, 3],
+                             FakeModelHandler(multi_process_shared=True))
+    ]
+    with self.assertRaises(ValueError):
+      base.KeyedModelHandler(mhs)
+
+    mhs = [
+        base.KeyModelMapping([0],
+                             FakeModelHandler(
+                                 state=200, multi_process_shared=True)),
+        base.KeyModelMapping([0, 1, 2, 3],
+                             FakeModelHandler(multi_process_shared=True))
+    ]
+    with self.assertRaises(ValueError):
+      base.KeyedModelHandler(mhs)
+
+    mhs = [
+        base.KeyModelMapping([],
+                             FakeModelHandler(
+                                 state=200, multi_process_shared=True)),
+        base.KeyModelMapping([0, 1, 2, 3],
+                             FakeModelHandler(multi_process_shared=True))
+    ]
+    with self.assertRaises(ValueError):
+      base.KeyedModelHandler(mhs)
+
+  def test_keyed_model_handler_get_num_bytes(self):
+    mh = base.KeyedModelHandler(FakeModelHandler(num_bytes_per_element=10))
+    batch = [('key1', 1), ('key2', 2), ('key1', 3)]
+    expected = len(pickle.dumps(('key1', 'key2', 'key1'))) + 30
+    actual = mh.get_num_bytes(batch)
+    self.assertEqual(expected, actual)
+
+  def test_keyed_model_handler_multiple_models_get_num_bytes(self):
+    mhs = [
+        base.KeyModelMapping(['key1'],
+                             FakeModelHandler(num_bytes_per_element=10)),
+        base.KeyModelMapping(['key2'],
+                             FakeModelHandler(num_bytes_per_element=20))
+    ]
+    mh = base.KeyedModelHandler(mhs)
+    batch = [('key1', 1), ('key2', 2), ('key1', 3)]
+    expected = len(pickle.dumps(('key1', 'key2', 'key1'))) + 40
+    actual = mh.get_num_bytes(batch)
+    self.assertEqual(expected, actual)
 
   def test_run_inference_impl_with_maybe_keyed_examples(self):
     with TestPipeline() as pipeline:
@@ -292,6 +621,14 @@ class RunInferenceBaseTest(unittest.TestCase):
       pcoll = pipeline | 'start' >> beam.Create(examples)
       actual = pcoll | base.RunInference(
           FakeModelHandler().with_preprocess_fn(mult_two))
+      assert_that(actual, equal_to(expected), label='assert:inferences')
+
+  def test_run_inference_prebatched(self):
+    with TestPipeline() as pipeline:
+      examples = [[1, 5], [3, 10]]
+      expected = [int(example) + 1 for batch in examples for example in batch]
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      actual = pcoll | base.RunInference(FakeModelHandler().with_no_batching())
       assert_that(actual, equal_to(expected), label='assert:inferences')
 
   def test_run_inference_preprocessing_multiple_fns(self):
@@ -491,6 +828,88 @@ class RunInferenceBaseTest(unittest.TestCase):
       bad_without_error = other.failed_inferences | beam.Map(lambda x: x[0][0])
       assert_that(
           bad_without_error, equal_to(expected_bad), label='assert:failures')
+
+  def test_run_inference_timeout_on_load_dlq(self):
+    with TestPipeline() as pipeline:
+      examples = [1, 2]
+      expected_good = []
+      expected_bad = [1, 2]
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      main, other = pcoll | base.RunInference(
+          FakeSlowModelHandler(10)).with_exception_handling(timeout=2)
+      assert_that(main, equal_to(expected_good), label='assert:inferences')
+
+      # bad.failed_inferences will be in form [batch[elements], error].
+      # Just pull out bad element.
+      bad_without_error = other.failed_inferences | beam.Map(lambda x: x[0][0])
+      assert_that(
+          bad_without_error, equal_to(expected_bad), label='assert:failures')
+
+  def test_run_inference_timeout_on_inference_dlq(self):
+    with TestPipeline() as pipeline:
+      examples = [10, 11]
+      expected_good = []
+      expected_bad = [10, 11]
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      main, other = pcoll | base.RunInference(
+          FakeSlowModelHandler(0)).with_exception_handling(timeout=5)
+      assert_that(main, equal_to(expected_good), label='assert:inferences')
+
+      # bad.failed_inferences will be in form [batch[elements], error].
+      # Just pull out bad element.
+      bad_without_error = other.failed_inferences | beam.Map(lambda x: x[0][0])
+      assert_that(
+          bad_without_error, equal_to(expected_bad), label='assert:failures')
+
+  def test_run_inference_timeout_not_hit(self):
+    with TestPipeline() as pipeline:
+      examples = [1, 2]
+      expected_good = [1, 2]
+      expected_bad = []
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      main, other = pcoll | base.RunInference(
+          FakeSlowModelHandler(3)).with_exception_handling(timeout=500)
+      assert_that(main, equal_to(expected_good), label='assert:inferences')
+
+      # bad.failed_inferences will be in form [batch[elements], error].
+      # Just pull out bad element.
+      bad_without_error = other.failed_inferences | beam.Map(lambda x: x[0][0])
+      assert_that(
+          bad_without_error, equal_to(expected_bad), label='assert:failures')
+
+  @unittest.skipIf(
+      sys.version_info < (3, 11),
+      "This test relies on the __del__ lifecycle method, but __del__ does " +
+      "not get invoked in the same way on older versions of Python, " +
+      "breaking this test. See " +
+      "github.com/python/cpython/issues/87950#issuecomment-1807570983 " +
+      "for example.")
+  def test_run_inference_timeout_does_garbage_collection(self):
+    with tempfile.TemporaryDirectory() as tmp_dirname:
+      tmp_path = os.path.join(tmp_dirname, 'tmp_filename')
+      with TestPipeline() as pipeline:
+        # Start with bad example which gets timed out.
+        # Then provide plenty of time for GC to happen.
+        examples = [20] + [1] * 15 + [20, 20, 20]
+        expected_good = [1] * 15
+        expected_bad = [20, 20, 20, 20]
+        pcoll = pipeline | 'start' >> beam.Create(examples)
+        main, other = pcoll | base.RunInference(
+            FakeSlowModelHandler(
+              0, True, tmp_path)).with_exception_handling(timeout=5)
+
+        assert_that(main, equal_to(expected_good), label='assert:inferences')
+
+        # # bad.failed_inferences will be in form [batch[elements], error].
+        # # Just pull out bad element.
+        bad_without_error = other.failed_inferences | beam.Map(
+            lambda x: x[0][0])
+        assert_that(
+            bad_without_error, equal_to(expected_bad), label='assert:failures')
+
+      with open(tmp_path) as f:
+        s = f.read()
+        self.assertNotEqual(s, '')
 
   def test_run_inference_impl_inference_args(self):
     with TestPipeline() as pipeline:
@@ -851,6 +1270,202 @@ class RunInferenceBaseTest(unittest.TestCase):
 
       assert_that(result_pcoll, equal_to(expected_result))
 
+  def test_run_inference_side_input_in_batch_per_key_models(self):
+    first_ts = math.floor(time.time()) - 30
+    interval = 7
+
+    sample_main_input_elements = ([
+        ('key1', first_ts - 2),
+        ('key2', first_ts + 1),
+        ('key2', first_ts + 8),
+        ('key1', first_ts + 15),
+        ('key2', first_ts + 22),
+        ('key1', first_ts + 29),
+    ])
+
+    sample_side_input_elements = [
+        (
+            first_ts + 1,
+            [
+                base.KeyModelPathMapping(
+                    keys=['key1'], update_path='fake_model_id_default'),
+                base.KeyModelPathMapping(
+                    keys=['key2'], update_path='fake_model_id_default')
+            ]),
+        # if model_id is empty string, we use the default model
+        # handler model URI.
+        (
+            first_ts + 8,
+            [
+                base.KeyModelPathMapping(
+                    keys=['key1'], update_path='fake_model_id_1'),
+                base.KeyModelPathMapping(
+                    keys=['key2'], update_path='fake_model_id_default')
+            ]),
+        (
+            first_ts + 15,
+            [
+                base.KeyModelPathMapping(
+                    keys=['key1'], update_path='fake_model_id_1'),
+                base.KeyModelPathMapping(
+                    keys=['key2'], update_path='fake_model_id_2')
+            ]),
+    ]
+
+    model_handler = base.KeyedModelHandler([
+        base.KeyModelMapping(['key1'],
+                             FakeModelHandlerReturnsPredictionResult(
+                                 multi_process_shared=True, state=True)),
+        base.KeyModelMapping(['key2'],
+                             FakeModelHandlerReturnsPredictionResult(
+                                 multi_process_shared=True, state=True))
+    ])
+
+    class _EmitElement(beam.DoFn):
+      def process(self, element):
+        for e in element:
+          yield e
+
+    with TestPipeline() as pipeline:
+      side_input = (
+          pipeline
+          |
+          "CreateSideInputElements" >> beam.Create(sample_side_input_elements)
+          | beam.Map(lambda x: TimestampedValue(x[1], x[0]))
+          | beam.WindowInto(
+              window.FixedWindows(interval),
+              accumulation_mode=trigger.AccumulationMode.DISCARDING)
+          | beam.Map(lambda x: ('key', x))
+          | beam.GroupByKey()
+          | beam.Map(lambda x: x[1])
+          | "EmitSideInput" >> beam.ParDo(_EmitElement()))
+
+      result_pcoll = (
+          pipeline
+          | beam.Create(sample_main_input_elements)
+          | "MapTimeStamp" >> beam.Map(lambda x: TimestampedValue(x, x[1]))
+          | "ApplyWindow" >> beam.WindowInto(window.FixedWindows(interval))
+          | "RunInference" >> base.RunInference(
+              model_handler, model_metadata_pcoll=side_input)
+          | beam.Map(lambda x: x[1]))
+
+      expected_model_id_order = [
+          'fake_model_id_default',
+          'fake_model_id_default',
+          'fake_model_id_default',
+          'fake_model_id_1',
+          'fake_model_id_2',
+          'fake_model_id_1',
+      ]
+
+      expected_inferences = [
+          0,
+          0,
+          1,
+          0,
+          0,
+          1,
+      ]
+
+      expected_result = [
+          base.PredictionResult(
+              example=sample_main_input_elements[i][1],
+              inference=expected_inferences[i],
+              model_id=expected_model_id_order[i])
+          for i in range(len(expected_inferences))
+      ]
+
+      assert_that(result_pcoll, equal_to(expected_result))
+
+  def test_run_inference_side_input_in_batch_per_key_models_split_cohort(self):
+    first_ts = math.floor(time.time()) - 30
+    interval = 7
+
+    sample_main_input_elements = ([
+        ('key1', first_ts - 2),
+        ('key2', first_ts + 1),
+        ('key1', first_ts + 8),
+        ('key2', first_ts + 15),
+        ('key1', first_ts + 22),
+    ])
+
+    sample_side_input_elements = [
+        (
+            first_ts + 1,
+            [
+                base.KeyModelPathMapping(
+                    keys=['key1', 'key2'], update_path='fake_model_id_default')
+            ]),
+        # if model_id is empty string, we use the default model
+        # handler model URI.
+        (
+            first_ts + 8,
+            [
+                base.KeyModelPathMapping(
+                    keys=['key1'], update_path='fake_model_id_1'),
+                base.KeyModelPathMapping(
+                    keys=['key2'], update_path='fake_model_id_default')
+            ]),
+        (
+            first_ts + 15,
+            [
+                base.KeyModelPathMapping(
+                    keys=['key1'], update_path='fake_model_id_1'),
+                base.KeyModelPathMapping(
+                    keys=['key2'], update_path='fake_model_id_2')
+            ]),
+    ]
+
+    model_handler = base.KeyedModelHandler([
+        base.KeyModelMapping(
+            ['key1', 'key2'],
+            FakeModelHandlerReturnsPredictionResult(multi_process_shared=True))
+    ])
+
+    class _EmitElement(beam.DoFn):
+      def process(self, element):
+        for e in element:
+          yield e
+
+    with TestPipeline() as pipeline:
+      side_input = (
+          pipeline
+          |
+          "CreateSideInputElements" >> beam.Create(sample_side_input_elements)
+          | beam.Map(lambda x: TimestampedValue(x[1], x[0]))
+          | beam.WindowInto(
+              window.FixedWindows(interval),
+              accumulation_mode=trigger.AccumulationMode.DISCARDING)
+          | beam.Map(lambda x: ('key', x))
+          | beam.GroupByKey()
+          | beam.Map(lambda x: x[1])
+          | "EmitSideInput" >> beam.ParDo(_EmitElement()))
+
+      result_pcoll = (
+          pipeline
+          | beam.Create(sample_main_input_elements)
+          | "MapTimeStamp" >> beam.Map(lambda x: TimestampedValue(x, x[1]))
+          | "ApplyWindow" >> beam.WindowInto(window.FixedWindows(interval))
+          | "RunInference" >> base.RunInference(
+              model_handler, model_metadata_pcoll=side_input)
+          | beam.Map(lambda x: x[1]))
+
+      expected_model_id_order = [
+          'fake_model_id_default',
+          'fake_model_id_default',
+          'fake_model_id_1',
+          'fake_model_id_2',
+          'fake_model_id_1'
+      ]
+      expected_result = [
+          base.PredictionResult(
+              example=sample_main_input_elements[i][1],
+              inference=sample_main_input_elements[i][1] + 1,
+              model_id=expected_model_id_order[i]) for i in range(5)
+      ]
+
+      assert_that(result_pcoll, equal_to(expected_result))
+
   def test_run_inference_side_input_in_batch_multi_process_shared(self):
     first_ts = math.floor(time.time()) - 30
     interval = 7
@@ -963,6 +1578,295 @@ class RunInferenceBaseTest(unittest.TestCase):
       pcoll = pipeline | 'start' >> beam.Create(examples)
       actual = pcoll | base.RunInference(FakeModelHandlerNoEnvVars())
       assert_that(actual, equal_to(expected), label='assert:inferences')
+
+  def test_model_manager_loads_shared_model(self):
+    mhs = {
+        'key1': FakeModelHandler(state=1),
+        'key2': FakeModelHandler(state=2),
+        'key3': FakeModelHandler(state=3)
+    }
+    mm = base._ModelManager(mh_map=mhs)
+    tag1 = mm.load('key1').model_tag
+    # Use bad_mh's load function to make sure we're actually loading the
+    # version already stored
+    bad_mh = FakeModelHandler(state=100)
+    model1 = multi_process_shared.MultiProcessShared(
+        bad_mh.load_model, tag=tag1).acquire()
+    self.assertEqual(1, model1.predict(10))
+
+    tag2 = mm.load('key2').model_tag
+    tag3 = mm.load('key3').model_tag
+    model2 = multi_process_shared.MultiProcessShared(
+        bad_mh.load_model, tag=tag2).acquire()
+    model3 = multi_process_shared.MultiProcessShared(
+        bad_mh.load_model, tag=tag3).acquire()
+    self.assertEqual(2, model2.predict(10))
+    self.assertEqual(3, model3.predict(10))
+
+  def test_model_manager_evicts_models(self):
+    mh1 = FakeModelHandler(state=1)
+    mh2 = FakeModelHandler(state=2)
+    mh3 = FakeModelHandler(state=3)
+    mhs = {'key1': mh1, 'key2': mh2, 'key3': mh3}
+    mm = base._ModelManager(mh_map=mhs)
+    mm.increment_max_models(2)
+    tag1 = mm.load('key1').model_tag
+    sh1 = multi_process_shared.MultiProcessShared(mh1.load_model, tag=tag1)
+    model1 = sh1.acquire()
+    self.assertEqual(1, model1.predict(10))
+    model1.increment_state(5)
+
+    tag2 = mm.load('key2').model_tag
+    tag3 = mm.load('key3').model_tag
+    sh2 = multi_process_shared.MultiProcessShared(mh2.load_model, tag=tag2)
+    model2 = sh2.acquire()
+    sh3 = multi_process_shared.MultiProcessShared(mh3.load_model, tag=tag3)
+    model3 = sh3.acquire()
+    model2.increment_state(5)
+    model3.increment_state(5)
+    self.assertEqual(7, model2.predict(10))
+    self.assertEqual(8, model3.predict(10))
+    sh2.release(model2)
+    sh3.release(model3)
+
+    # model1 should have retained a valid reference to the model until released
+    self.assertEqual(6, model1.predict(10))
+    sh1.release(model1)
+
+    # This should now have been garbage collected, so it now it should get
+    # recreated and shouldn't have the state updates
+    model1 = multi_process_shared.MultiProcessShared(
+        mh1.load_model, tag=tag1).acquire()
+    self.assertEqual(1, model1.predict(10))
+
+    # These should not get recreated, so they should have the state updates
+    model2 = multi_process_shared.MultiProcessShared(
+        mh2.load_model, tag=tag2).acquire()
+    self.assertEqual(7, model2.predict(10))
+    model3 = multi_process_shared.MultiProcessShared(
+        mh3.load_model, tag=tag3).acquire()
+    self.assertEqual(8, model3.predict(10))
+
+  def test_model_manager_evicts_models_after_update(self):
+    mh1 = FakeModelHandler(state=1)
+    mhs = {'key1': mh1}
+    mm = base._ModelManager(mh_map=mhs)
+    tag1 = mm.load('key1').model_tag
+    sh1 = multi_process_shared.MultiProcessShared(mh1.load_model, tag=tag1)
+    model1 = sh1.acquire()
+    self.assertEqual(1, model1.predict(10))
+    model1.increment_state(5)
+    self.assertEqual(6, model1.predict(10))
+    mm.update_model_handler('key1', 'fake/path', 'key1')
+    self.assertEqual(6, model1.predict(10))
+    sh1.release(model1)
+
+    tag1 = mm.load('key1').model_tag
+    sh1 = multi_process_shared.MultiProcessShared(mh1.load_model, tag=tag1)
+    model1 = sh1.acquire()
+    self.assertEqual(1, model1.predict(10))
+    model1.increment_state(5)
+    self.assertEqual(6, model1.predict(10))
+    sh1.release(model1)
+
+    # Shouldn't evict if path is the same as last update
+    mm.update_model_handler('key1', 'fake/path', 'key1')
+    tag1 = mm.load('key1').model_tag
+    sh1 = multi_process_shared.MultiProcessShared(mh1.load_model, tag=tag1)
+    model1 = sh1.acquire()
+    self.assertEqual(6, model1.predict(10))
+    sh1.release(model1)
+
+  def test_model_manager_evicts_correct_num_of_models_after_being_incremented(
+      self):
+    mh1 = FakeModelHandler(state=1)
+    mh2 = FakeModelHandler(state=2)
+    mh3 = FakeModelHandler(state=3)
+    mhs = {'key1': mh1, 'key2': mh2, 'key3': mh3}
+    mm = base._ModelManager(mh_map=mhs)
+    mm.increment_max_models(1)
+    mm.increment_max_models(1)
+    tag1 = mm.load('key1').model_tag
+    sh1 = multi_process_shared.MultiProcessShared(mh1.load_model, tag=tag1)
+    model1 = sh1.acquire()
+    self.assertEqual(1, model1.predict(10))
+    model1.increment_state(5)
+    self.assertEqual(6, model1.predict(10))
+    sh1.release(model1)
+
+    tag2 = mm.load('key2').model_tag
+    tag3 = mm.load('key3').model_tag
+    sh2 = multi_process_shared.MultiProcessShared(mh2.load_model, tag=tag2)
+    model2 = sh2.acquire()
+    sh3 = multi_process_shared.MultiProcessShared(mh3.load_model, tag=tag3)
+    model3 = sh3.acquire()
+    model2.increment_state(5)
+    model3.increment_state(5)
+    self.assertEqual(7, model2.predict(10))
+    self.assertEqual(8, model3.predict(10))
+    sh2.release(model2)
+    sh3.release(model3)
+
+    # This should get recreated, so it shouldn't have the state updates
+    model1 = multi_process_shared.MultiProcessShared(
+        mh1.load_model, tag=tag1).acquire()
+    self.assertEqual(1, model1.predict(10))
+
+    # These should not get recreated, so they should have the state updates
+    model2 = multi_process_shared.MultiProcessShared(
+        mh2.load_model, tag=tag2).acquire()
+    self.assertEqual(7, model2.predict(10))
+    model3 = multi_process_shared.MultiProcessShared(
+        mh3.load_model, tag=tag3).acquire()
+    self.assertEqual(8, model3.predict(10))
+
+  def test_run_inference_loads_different_models(self):
+    mh1 = FakeModelHandler(incrementing=True, min_batch_size=3)
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'start' >> beam.Create([1, 2, 3])
+      actual = (
+          pcoll
+          | 'ri1' >> base.RunInference(mh1)
+          | 'ri2' >> base.RunInference(mh1))
+      assert_that(actual, equal_to([1, 2, 3]), label='assert:inferences')
+
+  def test_run_inference_loads_different_models_multi_process_shared(self):
+    mh1 = FakeModelHandler(
+        incrementing=True, min_batch_size=3, multi_process_shared=True)
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'start' >> beam.Create([1, 2, 3])
+      actual = (
+          pcoll
+          | 'ri1' >> base.RunInference(mh1)
+          | 'ri2' >> base.RunInference(mh1))
+      assert_that(actual, equal_to([1, 2, 3]), label='assert:inferences')
+
+  def test_runinference_loads_same_model_with_identifier_multi_process_shared(
+      self):
+    mh1 = FakeModelHandler(
+        incrementing=True, min_batch_size=3, multi_process_shared=True)
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'start' >> beam.Create([1, 2, 3])
+      actual = (
+          pcoll
+          | 'ri1' >> base.RunInference(
+              mh1,
+              model_identifier='same_model_with_identifier_multi_process_shared'
+          )
+          | 'ri2' >> base.RunInference(
+              mh1,
+              model_identifier='same_model_with_identifier_multi_process_shared'
+          ))
+      assert_that(actual, equal_to([4, 5, 6]), label='assert:inferences')
+
+  def test_run_inference_watch_file_pattern_side_input_label(self):
+    pipeline = TestPipeline()
+    # label of the WatchPattern transform.
+    side_input_str = 'WatchFilePattern/ApplyGlobalWindow'
+    from apache_beam.ml.inference.utils import WatchFilePattern
+    file_pattern_side_input = (
+        pipeline
+        | 'WatchFilePattern' >> WatchFilePattern(file_pattern='fake/path/*'))
+    pcoll = pipeline | 'start' >> beam.Create([1, 2, 3])
+    result_pcoll = pcoll | base.RunInference(
+        FakeModelHandler(), model_metadata_pcoll=file_pattern_side_input)
+    assert side_input_str in str(result_pcoll.producer.side_inputs[0])
+
+  def test_run_inference_watch_file_pattern_keyword_arg_side_input_label(self):
+    # label of the WatchPattern transform.
+    side_input_str = 'WatchFilePattern/ApplyGlobalWindow'
+    pipeline = TestPipeline()
+    pcoll = pipeline | 'start' >> beam.Create([1, 2, 3])
+    result_pcoll = pcoll | base.RunInference(
+        FakeModelHandler(), watch_model_pattern='fake/path/*')
+    assert side_input_str in str(result_pcoll.producer.side_inputs[0])
+
+  def test_model_status_provides_valid_tags(self):
+    ms = base._ModelStatus(False)
+
+    self.assertTrue(ms.is_valid_tag('tag1'))
+    self.assertTrue(ms.is_valid_tag('tag2'))
+
+    self.assertEqual('tag1', ms.get_valid_tag('tag1'))
+    self.assertEqual('tag2', ms.get_valid_tag('tag2'))
+
+    self.assertTrue(ms.is_valid_tag('tag1'))
+    self.assertTrue(ms.is_valid_tag('tag2'))
+
+    ms.try_mark_current_model_invalid(0)
+
+    self.assertFalse(ms.is_valid_tag('tag1'))
+    self.assertFalse(ms.is_valid_tag('tag2'))
+
+    self.assertEqual('tag1_reload_1', ms.get_valid_tag('tag1'))
+    self.assertEqual('tag2_reload_1', ms.get_valid_tag('tag2'))
+
+    self.assertTrue(ms.is_valid_tag('tag1_reload_1'))
+    self.assertTrue(ms.is_valid_tag('tag2_reload_1'))
+
+    ms.try_mark_current_model_invalid(0)
+
+    self.assertFalse(ms.is_valid_tag('tag1'))
+    self.assertFalse(ms.is_valid_tag('tag2'))
+    self.assertFalse(ms.is_valid_tag('tag1_reload_1'))
+    self.assertFalse(ms.is_valid_tag('tag2_reload_1'))
+
+    self.assertEqual('tag1_reload_2', ms.get_valid_tag('tag1'))
+    self.assertEqual('tag2_reload_2', ms.get_valid_tag('tag2'))
+
+    self.assertTrue(ms.is_valid_tag('tag1_reload_2'))
+    self.assertTrue(ms.is_valid_tag('tag2_reload_2'))
+
+  def test_model_status_provides_valid_garbage_collection(self):
+    ms = base._ModelStatus(True)
+
+    self.assertTrue(ms.is_valid_tag('mspvgc_tag1'))
+    self.assertTrue(ms.is_valid_tag('mspvgc_tag2'))
+
+    ms.try_mark_current_model_invalid(1)
+
+    tags = ms.get_tags_for_garbage_collection()
+
+    self.assertEqual(0, len(tags))
+
+    time.sleep(4)
+
+    ms.try_mark_current_model_invalid(1)
+
+    time.sleep(4)
+
+    self.assertTrue(ms.is_valid_tag('mspvgc_tag3'))
+
+    tags = ms.get_tags_for_garbage_collection()
+
+    self.assertEqual(2, len(tags))
+    self.assertTrue('mspvgc_tag1' in tags)
+    self.assertTrue('mspvgc_tag2' in tags)
+
+    ms.try_mark_current_model_invalid(0)
+
+    tags = ms.get_tags_for_garbage_collection()
+
+    self.assertEqual(3, len(tags))
+    self.assertTrue('mspvgc_tag1' in tags)
+    self.assertTrue('mspvgc_tag2' in tags)
+    self.assertTrue('mspvgc_tag3' in tags)
+
+    ms.mark_tags_deleted(set(['mspvgc_tag1', 'mspvgc_tag2']))
+    tags = ms.get_tags_for_garbage_collection()
+
+    self.assertEqual(['mspvgc_tag3'], tags)
+
+    ms.mark_tags_deleted(set(['mspvgc_tag1']))
+    tags = ms.get_tags_for_garbage_collection()
+
+    self.assertEqual(1, len(tags))
+    self.assertEqual('mspvgc_tag3', tags[0])
+
+    ms.mark_tags_deleted(set(['mspvgc_tag3']))
+    tags = ms.get_tags_for_garbage_collection()
+
+    self.assertEqual(0, len(tags))
 
 
 if __name__ == '__main__':

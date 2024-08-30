@@ -20,7 +20,9 @@ package org.apache.beam.sdk.extensions.sorter;
 import java.io.IOException;
 import java.util.Iterator;
 import javax.annotation.Nonnull;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -131,6 +133,20 @@ public class SortValues<PrimaryKeyT, SecondaryKeyT, ValueT>
     return getSecondaryKeyValueCoder(inputCoder).getValueCoder();
   }
 
+  private static <T> T elementOf(Coder<T> coder, byte[] bytes) throws CoderException {
+    if (coder instanceof ByteArrayCoder) {
+      return (T) bytes;
+    }
+    return CoderUtils.decodeFromByteArray(coder, bytes);
+  }
+
+  private static <T> byte[] bytesOf(Coder<T> coder, T element) throws CoderException {
+    if (element instanceof byte[]) {
+      return (byte[]) element;
+    }
+    return CoderUtils.encodeToByteArray(coder, element);
+  }
+
   private static class SortValuesDoFn<PrimaryKeyT, SecondaryKeyT, ValueT>
       extends DoFn<
           KV<PrimaryKeyT, Iterable<KV<SecondaryKeyT, ValueT>>>,
@@ -156,9 +172,7 @@ public class SortValues<PrimaryKeyT, SecondaryKeyT, ValueT>
         Sorter sorter = BufferedExternalSorter.create(sorterOptions);
         for (KV<SecondaryKeyT, ValueT> record : records) {
           sorter.add(
-              KV.of(
-                  CoderUtils.encodeToByteArray(keyCoder, record.getKey()),
-                  CoderUtils.encodeToByteArray(valueCoder, record.getValue())));
+              KV.of(bytesOf(keyCoder, record.getKey()), bytesOf(valueCoder, record.getValue())));
         }
 
         c.output(KV.of(c.element().getKey(), new DecodingIterable(sorter.sort())));
@@ -197,9 +211,9 @@ public class SortValues<PrimaryKeyT, SecondaryKeyT, ValueT>
       public KV<SecondaryKeyT, ValueT> next() {
         KV<byte[], byte[]> next = iterator.next();
         try {
-          return KV.of(
-              CoderUtils.decodeFromByteArray(keyCoder, next.getKey()),
-              CoderUtils.decodeFromByteArray(valueCoder, next.getValue()));
+          SecondaryKeyT secondaryKey = elementOf(keyCoder, next.getKey());
+          ValueT value = elementOf(valueCoder, next.getValue());
+          return KV.of(secondaryKey, value);
         } catch (IOException e) {
           throw new RuntimeException(e);
         }

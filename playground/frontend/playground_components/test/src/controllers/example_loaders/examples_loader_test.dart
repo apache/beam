@@ -33,6 +33,8 @@ void main() async {
   final setEmptyIfNotExistsTrue = <Sdk>[];
   final setEmptyIfNotExistsFalse = <Sdk>[];
 
+  await PlaygroundComponents.ensureInitialized();
+
   setUp(() {
     setExampleTrue.clear();
     setExampleFalse.clear();
@@ -121,7 +123,6 @@ void main() async {
 
       group('Error.', () {
         test('Load empty example instead', () async {
-          Exception? thrown;
           const descriptor = ExamplesLoadingDescriptor(
             descriptors: [
               TestExampleLoadingDescriptor(Sdk.go, succeed: false),
@@ -130,13 +131,8 @@ void main() async {
             initialSdk: Sdk.python,
           );
 
-          try {
-            await examplesLoader.loadIfNew(descriptor);
-          } on ExamplesLoadingException catch (ex) {
-            thrown = ex;
-          }
+          await examplesLoader.loadIfNew(descriptor);
 
-          expect(thrown, isA<Exception>());
           expect(setEmptyIfNotExistsTrue, [Sdk.python]);
           expect(setEmptyIfNotExistsFalse, [Sdk.go]);
         });

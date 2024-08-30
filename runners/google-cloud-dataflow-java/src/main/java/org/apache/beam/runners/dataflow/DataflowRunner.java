@@ -18,14 +18,16 @@
 package org.apache.beam.runners.dataflow;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.apache.beam.runners.core.construction.resources.PipelineResources.detectClassPathResourcesToStage;
+import static org.apache.beam.sdk.io.gcp.pubsub.PubsubIO.ENABLE_CUSTOM_PUBSUB_SINK;
+import static org.apache.beam.sdk.io.gcp.pubsub.PubsubIO.ENABLE_CUSTOM_PUBSUB_SOURCE;
 import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
 import static org.apache.beam.sdk.util.SerializableUtils.serializeToByteArray;
 import static org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects.firstNonNull;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings.isNullOrEmpty;
+import static org.apache.beam.sdk.util.construction.resources.PipelineResources.detectClassPathResourcesToStage;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects.firstNonNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings.isNullOrEmpty;
 
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -35,6 +37,7 @@ import com.google.api.services.dataflow.model.Job;
 import com.google.api.services.dataflow.model.ListJobsResponse;
 import com.google.api.services.dataflow.model.SdkHarnessContainerImage;
 import com.google.api.services.dataflow.model.WorkerPool;
+import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -56,29 +59,13 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.runners.core.construction.BeamUrns;
-import org.apache.beam.runners.core.construction.DeduplicatedFlattenFactory;
-import org.apache.beam.runners.core.construction.EmptyFlattenAsCreateFactory;
-import org.apache.beam.runners.core.construction.Environments;
-import org.apache.beam.runners.core.construction.External;
-import org.apache.beam.runners.core.construction.PTransformMatchers;
-import org.apache.beam.runners.core.construction.PTransformReplacements;
-import org.apache.beam.runners.core.construction.PipelineTranslation;
-import org.apache.beam.runners.core.construction.ReplacementOutputs;
-import org.apache.beam.runners.core.construction.SdkComponents;
-import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
-import org.apache.beam.runners.core.construction.SplittableParDo;
-import org.apache.beam.runners.core.construction.SplittableParDoNaiveBounded;
-import org.apache.beam.runners.core.construction.UnboundedReadFromBoundedSource;
-import org.apache.beam.runners.core.construction.UnconsumedReads;
-import org.apache.beam.runners.core.construction.WriteFilesTranslation;
-import org.apache.beam.runners.core.construction.graph.ProjectionPushdownOptimizer;
 import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.JobSpecification;
 import org.apache.beam.runners.dataflow.StreamingViewOverrides.StreamingCreatePCollectionViewFactory;
 import org.apache.beam.runners.dataflow.TransformTranslator.StepTranslationContext;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
+import org.apache.beam.runners.dataflow.options.DataflowStreamingPipelineOptions;
 import org.apache.beam.runners.dataflow.util.DataflowTemplateJob;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil;
 import org.apache.beam.runners.dataflow.util.PackageUtil.StagedFile;
@@ -102,6 +89,8 @@ import org.apache.beam.sdk.io.WriteFiles;
 import org.apache.beam.sdk.io.WriteFilesResult;
 import org.apache.beam.sdk.io.fs.ResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.io.gcp.bigquery.StorageApiLoads;
+import org.apache.beam.sdk.io.gcp.bigquery.StreamingWriteTables;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageWithAttributesAndMessageIdCoder;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageWithAttributesCoder;
@@ -124,11 +113,13 @@ import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Combine.GroupedValues;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Redistribute.RedistributeByKey;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.View;
@@ -144,6 +135,26 @@ import org.apache.beam.sdk.util.NameUtils;
 import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
+import org.apache.beam.sdk.util.construction.BeamUrns;
+import org.apache.beam.sdk.util.construction.DeduplicatedFlattenFactory;
+import org.apache.beam.sdk.util.construction.EmptyFlattenAsCreateFactory;
+import org.apache.beam.sdk.util.construction.Environments;
+import org.apache.beam.sdk.util.construction.External;
+import org.apache.beam.sdk.util.construction.ExternalTranslationOptions;
+import org.apache.beam.sdk.util.construction.PTransformMatchers;
+import org.apache.beam.sdk.util.construction.PTransformReplacements;
+import org.apache.beam.sdk.util.construction.PTransformTranslation.TransformPayloadTranslator;
+import org.apache.beam.sdk.util.construction.PipelineTranslation;
+import org.apache.beam.sdk.util.construction.ReplacementOutputs;
+import org.apache.beam.sdk.util.construction.SdkComponents;
+import org.apache.beam.sdk.util.construction.SingleInputOutputOverrideFactory;
+import org.apache.beam.sdk.util.construction.SplittableParDo;
+import org.apache.beam.sdk.util.construction.SplittableParDoNaiveBounded;
+import org.apache.beam.sdk.util.construction.TransformPayloadTranslatorRegistrar;
+import org.apache.beam.sdk.util.construction.UnboundedReadFromBoundedSource;
+import org.apache.beam.sdk.util.construction.UnconsumedReads;
+import org.apache.beam.sdk.util.construction.WriteFilesTranslation;
+import org.apache.beam.sdk.util.construction.graph.ProjectionPushdownOptimizer;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -156,19 +167,19 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.InvalidProtocolBufferException;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.TextFormat;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Utf8;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.HashCode;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Files;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.HashCode;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hashing;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Files;
 import org.joda.time.DateTimeUtils;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
@@ -391,18 +402,20 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     // Adding the Java version to the SDK name for user's and support convenience.
     String agentJavaVer = "(JRE 8 environment)";
-    if (Environments.getJavaVersion() == Environments.JavaVersion.java17) {
-      agentJavaVer = "(JRE 17 environment)";
-    } else if (Environments.getJavaVersion() == Environments.JavaVersion.java11) {
-      agentJavaVer = "(JRE 11 environment)";
+    if (Environments.getJavaVersion() != Environments.JavaVersion.java8) {
+      agentJavaVer =
+          String.format("(JRE %s environment)", Environments.getJavaVersion().specification());
     }
 
     DataflowRunnerInfo dataflowRunnerInfo = DataflowRunnerInfo.getDataflowRunnerInfo();
+    String userAgentName = dataflowRunnerInfo.getName();
+    Preconditions.checkArgument(
+        !userAgentName.equals(""), "Dataflow runner's `name` property cannot be empty.");
+    String userAgentVersion = dataflowRunnerInfo.getVersion();
+    Preconditions.checkArgument(
+        !userAgentVersion.equals(""), "Dataflow runner's `version` property cannot be empty.");
     String userAgent =
-        String.format(
-                "%s/%s%s",
-                dataflowRunnerInfo.getName(), dataflowRunnerInfo.getVersion(), agentJavaVer)
-            .replace(" ", "_");
+        String.format("%s/%s%s", userAgentName, userAgentVersion, agentJavaVer).replace(" ", "_");
     dataflowOptions.setUserAgent(userAgent);
 
     return new DataflowRunner(dataflowOptions);
@@ -489,6 +502,23 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     this.ptransformViewsWithNonDeterministicKeyCoders = new HashSet<>();
   }
 
+  private static class AlwaysCreateViaRead<T>
+      implements PTransformOverrideFactory<PBegin, PCollection<T>, Create.Values<T>> {
+    @Override
+    public PTransformOverrideFactory.PTransformReplacement<PBegin, PCollection<T>>
+        getReplacementTransform(
+            AppliedPTransform<PBegin, PCollection<T>, Create.Values<T>> appliedTransform) {
+      return PTransformOverrideFactory.PTransformReplacement.of(
+          appliedTransform.getPipeline().begin(), appliedTransform.getTransform().alwaysUseRead());
+    }
+
+    @Override
+    public final Map<PCollection<?>, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PCollection<?>> outputs, PCollection<T> newOutput) {
+      return ReplacementOutputs.singleton(outputs, newOutput);
+    }
+  }
+
   private List<PTransformOverride> getOverrides(boolean streaming) {
     ImmutableList.Builder<PTransformOverride> overridesBuilder = ImmutableList.builder();
 
@@ -502,6 +532,13 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         .add(
             PTransformOverride.of(
                 PTransformMatchers.emptyFlatten(), EmptyFlattenAsCreateFactory.instance()));
+
+    if (streaming) {
+      // For update compatibility, always use a Read for Create in streaming mode.
+      overridesBuilder.add(
+          PTransformOverride.of(
+              PTransformMatchers.classEqualTo(Create.Values.class), new AlwaysCreateViaRead()));
+    }
 
     // By default Dataflow runner replaces single-output ParDo with a ParDoSingle override.
     // However, we want a different expansion for single-output splittable ParDo.
@@ -517,20 +554,26 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                 new SplittableParDoOverrides.SplittableParDoOverrideFactory()));
 
     if (streaming) {
-      if (!hasExperiment(options, "enable_custom_pubsub_source")) {
+      if (!hasExperiment(options, ENABLE_CUSTOM_PUBSUB_SOURCE)) {
         overridesBuilder.add(
             PTransformOverride.of(
                 PTransformMatchers.classEqualTo(PubsubUnboundedSource.class),
                 new StreamingPubsubIOReadOverrideFactory()));
       }
-      if (!hasExperiment(options, "enable_custom_pubsub_sink")) {
+      if (!hasExperiment(options, ENABLE_CUSTOM_PUBSUB_SINK)) {
         overridesBuilder.add(
             PTransformOverride.of(
                 PTransformMatchers.classEqualTo(PubsubUnboundedSink.class),
                 new StreamingPubsubIOWriteOverrideFactory(this)));
       }
 
-      overridesBuilder.add(KafkaIO.Read.KAFKA_READ_OVERRIDE);
+      try {
+        overridesBuilder.add(KafkaIO.Read.KAFKA_READ_OVERRIDE);
+      } catch (NoClassDefFoundError e) {
+        // Do nothing. io-kafka is an optional dependency of runners-google-cloud-dataflow-java
+        // and only needed when KafkaIO is used in the pipeline.
+      }
+
       overridesBuilder.add(SubscribeTransform.V1_READ_OVERRIDE);
 
       if (!hasExperiment(options, "enable_file_dynamic_sharding")) {
@@ -655,6 +698,34 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             PTransformOverride.of(
                 PTransformMatchers.classEqualTo(ParDo.SingleOutput.class),
                 new PrimitiveParDoSingleFactory()));
+
+    overridesBuilder.add(
+        PTransformOverride.of(
+            PTransformMatchers.classEqualTo(RedistributeByKey.class),
+            new RedistributeByKeyOverrideFactory()));
+
+    if (streaming) {
+      // For update compatibility, always use a Read for Create in streaming mode.
+      overridesBuilder
+          .add(
+              PTransformOverride.of(
+                  PTransformMatchers.classEqualTo(Create.Values.class), new AlwaysCreateViaRead()))
+          // Create is implemented in terms of BoundedRead.
+          .add(
+              PTransformOverride.of(
+                  PTransformMatchers.classEqualTo(Read.Bounded.class),
+                  new StreamingBoundedReadOverrideFactory()))
+          // Streaming Bounded Read is implemented in terms of Streaming Unbounded Read.
+          .add(
+              PTransformOverride.of(
+                  PTransformMatchers.classEqualTo(Read.Unbounded.class),
+                  new StreamingUnboundedReadOverrideFactory()))
+          .add(
+              PTransformOverride.of(
+                  PTransformMatchers.classEqualTo(ParDo.SingleOutput.class),
+                  new PrimitiveParDoSingleFactory()));
+    }
+
     return overridesBuilder.build();
   }
 
@@ -818,6 +889,21 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               .build();
       return PTransformReplacement.of(PTransformReplacements.getSingletonMainInput(transform), rep);
     }
+  }
+
+  private RunnerApi.Pipeline resolveAnyOfEnvironments(RunnerApi.Pipeline pipeline) {
+    RunnerApi.Pipeline.Builder pipelineBuilder = pipeline.toBuilder();
+    RunnerApi.Components.Builder componentsBuilder = pipelineBuilder.getComponentsBuilder();
+    componentsBuilder.clearEnvironments();
+    for (Map.Entry<String, RunnerApi.Environment> entry :
+        pipeline.getComponents().getEnvironmentsMap().entrySet()) {
+      componentsBuilder.putEnvironments(
+          entry.getKey(),
+          Environments.resolveAnyOfEnvironment(
+              entry.getValue(),
+              BeamUrns.getUrn(RunnerApi.StandardEnvironments.Environments.DOCKER)));
+    }
+    return pipelineBuilder.build();
   }
 
   protected RunnerApi.Pipeline applySdkEnvironmentOverrides(
@@ -985,7 +1071,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   private List<RunnerApi.ArtifactInformation> getDefaultArtifacts() {
     ImmutableList.Builder<String> pathsToStageBuilder = ImmutableList.builder();
     String windmillBinary =
-        options.as(DataflowPipelineDebugOptions.class).getOverrideWindmillBinary();
+        options.as(DataflowStreamingPipelineOptions.class).getOverrideWindmillBinary();
     String dataflowWorkerJar = options.getDataflowWorkerJar();
     if (dataflowWorkerJar != null && !dataflowWorkerJar.isEmpty() && !useUnifiedWorker(options)) {
       // Put the user specified worker jar at the start of the classpath, to be consistent with the
@@ -1029,14 +1115,25 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     return visitor.isMultiLanguage;
   }
 
+  private static boolean includesTransformUpgrades(Pipeline pipeline) {
+    return (pipeline
+            .getOptions()
+            .as(ExternalTranslationOptions.class)
+            .getTransformsToOverride()
+            .size()
+        > 0);
+  }
+
   @Override
   public DataflowPipelineJob run(Pipeline pipeline) {
-    if (DataflowRunner.isMultiLanguagePipeline(pipeline)) {
+    // Multi-language pipelines and pipelines that include upgrades should automatically be upgraded
+    // to Runner v2.
+    if (DataflowRunner.isMultiLanguagePipeline(pipeline) || includesTransformUpgrades(pipeline)) {
       List<String> experiments = firstNonNull(options.getExperiments(), Collections.emptyList());
       if (!experiments.contains("use_runner_v2")) {
         LOG.info(
             "Automatically enabling Dataflow Runner v2 since the pipeline used cross-language"
-                + " transforms");
+                + " transforms or pipeline needed a transform upgrade.");
         options.setExperiments(
             ImmutableList.<String>builder().addAll(experiments).add("use_runner_v2").build());
       }
@@ -1066,6 +1163,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     logWarningIfPCollectionViewHasNonDeterministicKeyCoder(pipeline);
+    logWarningIfBigqueryDLQUnused(pipeline);
     if (shouldActAsStreaming(pipeline)) {
       options.setStreaming(true);
 
@@ -1115,6 +1213,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         PipelineTranslation.toProto(pipeline, portableComponents, false);
     // Note that `stageArtifacts` has to be called before `resolveArtifact` because
     // `resolveArtifact` updates local paths to staged paths in pipeline proto.
+    portablePipelineProto = resolveAnyOfEnvironments(portablePipelineProto);
     List<DataflowPackage> packages = stageArtifacts(portablePipelineProto);
     portablePipelineProto = resolveArtifacts(portablePipelineProto);
     portablePipelineProto = applySdkEnvironmentOverrides(portablePipelineProto, options);
@@ -1132,9 +1231,14 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     DataflowPackage stagedPipeline =
         options.getStager().stageToFile(serializedProtoPipeline, PIPELINE_FILE_NAME);
     dataflowOptions.setPipelineUrl(stagedPipeline.getLocation());
-    // Now rewrite things to be as needed for v1 (mutates the pipeline)
-    // This way the job submitted is valid for v1 and v2, simultaneously
-    replaceV1Transforms(pipeline);
+
+    if (useUnifiedWorker(options)) {
+      LOG.info("Skipping v1 transform replacements since job will run on v2.");
+    } else {
+      // Now rewrite things to be as needed for v1 (mutates the pipeline)
+      // This way the job submitted is valid for v1 and v2, simultaneously
+      replaceV1Transforms(pipeline);
+    }
     // Capture the SdkComponents for look up during step translations
     SdkComponents dataflowV1Components = SdkComponents.create();
     dataflowV1Components.registerEnvironment(
@@ -1143,8 +1247,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             .addAllDependencies(getDefaultArtifacts())
             .addAllCapabilities(Environments.getJavaCapabilities())
             .build());
+    // No need to perform transform upgrading for the Runner v1 proto.
     RunnerApi.Pipeline dataflowV1PipelineProto =
-        PipelineTranslation.toProto(pipeline, dataflowV1Components, true);
+        PipelineTranslation.toProto(pipeline, dataflowV1Components, true, false);
 
     if (LOG.isDebugEnabled()) {
       LOG.debug(
@@ -1276,15 +1381,36 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       hooks.modifyEnvironmentBeforeSubmission(newJob.getEnvironment());
     }
 
+    // enable upload_graph when the graph is too large
+    byte[] jobGraphBytes = DataflowPipelineTranslator.jobToString(newJob).getBytes(UTF_8);
+    int jobGraphByteSize = jobGraphBytes.length;
+    if (jobGraphByteSize >= CREATE_JOB_REQUEST_LIMIT_BYTES
+        && !hasExperiment(options, "upload_graph")
+        && !useUnifiedWorker(options)) {
+      List<String> experiments = firstNonNull(options.getExperiments(), Collections.emptyList());
+      options.setExperiments(
+          ImmutableList.<String>builder().addAll(experiments).add("upload_graph").build());
+      LOG.info(
+          "The job graph size ({} in bytes) is larger than {}. Automatically add "
+              + "the upload_graph option to experiments.",
+          jobGraphByteSize,
+          CREATE_JOB_REQUEST_LIMIT_BYTES);
+    }
+
+    if (hasExperiment(options, "upload_graph") && useUnifiedWorker(options)) {
+      ArrayList<String> experiments = new ArrayList<>(options.getExperiments());
+      while (experiments.remove("upload_graph")) {}
+      options.setExperiments(experiments);
+      LOG.warn(
+          "The upload_graph experiment was specified, but it does not apply "
+              + "to runner v2 jobs. Option has been automatically removed.");
+    }
+
     // Upload the job to GCS and remove the graph object from the API call.  The graph
     // will be downloaded from GCS by the service.
     if (hasExperiment(options, "upload_graph")) {
       DataflowPackage stagedGraph =
-          options
-              .getStager()
-              .stageToFile(
-                  DataflowPipelineTranslator.jobToString(newJob).getBytes(UTF_8),
-                  DATAFLOW_GRAPH_FILE_NAME);
+          options.getStager().stageToFile(jobGraphBytes, DATAFLOW_GRAPH_FILE_NAME);
       newJob.getSteps().clear();
       newJob.setStepsLocation(stagedGraph.getLocation());
     }
@@ -1334,6 +1460,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       newJob.setReplaceJobId(jobIdToUpdate);
     }
     if (options.getCreateFromSnapshot() != null && !options.getCreateFromSnapshot().isEmpty()) {
+      newJob.setTransformNameMapping(options.getTransformNameMapping());
       newJob.setCreatedFromSnapshotId(options.getCreateFromSnapshot());
     }
 
@@ -1343,7 +1470,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     } catch (GoogleJsonResponseException e) {
       String errorMessages = "Unexpected errors";
       if (e.getDetails() != null) {
-        if (Utf8.encodedLength(newJob.toString()) >= CREATE_JOB_REQUEST_LIMIT_BYTES) {
+        if (jobGraphByteSize >= CREATE_JOB_REQUEST_LIMIT_BYTES) {
           errorMessages =
               "The size of the serialized JSON representation of the pipeline "
                   + "exceeds the allowable limit. "
@@ -1460,7 +1587,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                   SdkHarnessContainerImage image = new SdkHarnessContainerImage();
                   image.setEnvironmentId(environmentInfo.environmentId());
                   image.setContainerImage(environmentInfo.containerUrl());
-                  if (environmentInfo.containerUrl().toLowerCase().contains("python")) {
+                  if (!environmentInfo
+                      .capabilities()
+                      .contains(
+                          BeamUrns.getUrn(
+                              RunnerApi.StandardProtocols.Enum.MULTI_CORE_BUNDLE_PROCESSING))) {
                     image.setUseSingleCorePerContainer(true);
                   }
                   image.setCapabilities(environmentInfo.capabilities());
@@ -1566,6 +1697,62 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   /////////////////////////////////////////////////////////////////////////////
 
+  private void logWarningIfBigqueryDLQUnused(Pipeline pipeline) {
+    Map<PCollection<?>, String> unconsumedDLQ = Maps.newHashMap();
+    pipeline.traverseTopologically(
+        new PipelineVisitor.Defaults() {
+          @Override
+          public CompositeBehavior enterCompositeTransform(Node node) {
+            PTransform<?, ?> transform = node.getTransform();
+            if (transform != null) {
+              TupleTag<?> failedTag = null;
+              String rootBigQueryTransform = "";
+              if (transform.getClass().equals(StorageApiLoads.class)) {
+                StorageApiLoads<?, ?> storageLoads = (StorageApiLoads<?, ?>) transform;
+                // If the storage load is directing exceptions to an error handler, we don't need to
+                // warn for unconsumed rows
+                if (!storageLoads.usesErrorHandler()) {
+                  failedTag = storageLoads.getFailedRowsTag();
+                }
+                // For storage API the transform that outputs failed rows is nested one layer below
+                // BigQueryIO.
+                rootBigQueryTransform = node.getEnclosingNode().getFullName();
+              } else if (transform.getClass().equals(StreamingWriteTables.class)) {
+                StreamingWriteTables<?> streamingInserts = (StreamingWriteTables<?>) transform;
+                failedTag = streamingInserts.getFailedRowsTupleTag();
+                // For streaming inserts the transform that outputs failed rows is nested two layers
+                // below BigQueryIO.
+                rootBigQueryTransform = node.getEnclosingNode().getEnclosingNode().getFullName();
+              }
+              if (failedTag != null) {
+                PCollection<?> dlq = node.getOutputs().get(failedTag);
+                if (dlq != null) {
+                  unconsumedDLQ.put(dlq, rootBigQueryTransform);
+                }
+              }
+            }
+
+            for (PCollection<?> input : node.getInputs().values()) {
+              unconsumedDLQ.remove(input);
+            }
+            return CompositeBehavior.ENTER_TRANSFORM;
+          }
+
+          @Override
+          public void visitPrimitiveTransform(Node node) {
+            for (PCollection<?> input : node.getInputs().values()) {
+              unconsumedDLQ.remove(input);
+            }
+          }
+        });
+    for (String unconsumed : unconsumedDLQ.values()) {
+      LOG.warn(
+          "No transform processes the failed-inserts output from BigQuery sink: "
+              + unconsumed
+              + "! Not processing failed inserts means that those rows will be lost.");
+    }
+  }
+
   /** Outputs a warning about PCollection views without deterministic key coders. */
   private void logWarningIfPCollectionViewHasNonDeterministicKeyCoder(Pipeline pipeline) {
     // We need to wait till this point to determine the names of the transforms since only
@@ -1618,7 +1805,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   /**
-   * Returns true if the passed in {@link PCollection} needs to be materialiazed using an indexed
+   * Returns true if the passed in {@link PCollection} needs to be materialized using an indexed
    * format.
    */
   boolean doesPCollectionRequireIndexedFormat(PCollection<?> pcol) {
@@ -1643,7 +1830,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         options.isEnableStreamingEngine(),
         "Runner determined sharding not available in Dataflow for GroupIntoBatches for"
             + " non-Streaming-Engine jobs. In order to use runner determined sharding, please use"
-            + " --streaming --enable_streaming_engine");
+            + " --streaming --experiments=enable_streaming_engine");
     pCollectionsPreservedKeys.add(pcol);
     pcollectionsRequiringAutoSharding.add(pcol);
   }
@@ -1857,14 +2044,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               ((NestedValueProvider) overriddenTransform.getTopicProvider()).propertyName());
         }
       } else {
-        DataflowPipelineOptions options =
-            input.getPipeline().getOptions().as(DataflowPipelineOptions.class);
-        if (options.getEnableDynamicPubsubDestinations()) {
-          stepContext.addInput(PropertyNames.PUBSUB_DYNAMIC_DESTINATIONS, true);
-        } else {
-          throw new RuntimeException(
-              "Dynamic Pubsub destinations not yet supported. Topic must be set.");
-        }
+        stepContext.addInput(PropertyNames.PUBSUB_DYNAMIC_DESTINATIONS, true);
       }
       if (overriddenTransform.getTimestampAttribute() != null) {
         stepContext.addInput(
@@ -2311,6 +2491,13 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         if (WriteFilesTranslation.isWindowedWrites(transform)) {
           replacement = replacement.withWindowedWrites();
         }
+
+        if (WriteFilesTranslation.isAutoSharded(transform)) {
+          replacement = replacement.withAutoSharding();
+          return PTransformReplacement.of(
+              PTransformReplacements.getSingletonMainInput(transform), replacement);
+        }
+
         return PTransformReplacement.of(
             PTransformReplacements.getSingletonMainInput(transform),
             replacement.withNumShards(numShards));
@@ -2387,17 +2574,12 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         || hasExperiment(options, "use_portable_job_submission");
   }
 
-  static boolean useStreamingEngine(DataflowPipelineOptions options) {
-    return hasExperiment(options, GcpOptions.STREAMING_ENGINE_EXPERIMENT)
-        || hasExperiment(options, GcpOptions.WINDMILL_SERVICE_EXPERIMENT);
-  }
-
   static void verifyDoFnSupported(
       DoFn<?, ?> fn, boolean streaming, DataflowPipelineOptions options) {
-    if (DoFnSignatures.usesMultimapState(fn)) {
+    if (!streaming && DoFnSignatures.usesMultimapState(fn)) {
       throw new UnsupportedOperationException(
           String.format(
-              "%s does not currently support %s",
+              "%s does not currently support %s in batch mode",
               DataflowRunner.class.getSimpleName(), MultimapState.class.getSimpleName()));
     }
     if (streaming && DoFnSignatures.requiresTimeSortedInput(fn)) {
@@ -2406,28 +2588,25 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               "%s does not currently support @RequiresTimeSortedInput in streaming mode.",
               DataflowRunner.class.getSimpleName()));
     }
-
-    boolean streamingEngine = useStreamingEngine(options);
     boolean isUnifiedWorker = useUnifiedWorker(options);
-    if (DoFnSignatures.usesSetState(fn)) {
-      if (streaming && (isUnifiedWorker || streamingEngine)) {
-        throw new UnsupportedOperationException(
-            String.format(
-                "%s does not currently support %s when using %s",
-                DataflowRunner.class.getSimpleName(),
-                SetState.class.getSimpleName(),
-                isUnifiedWorker ? "streaming on unified worker" : "streaming engine"));
-      }
+
+    if (DoFnSignatures.usesMultimapState(fn) && isUnifiedWorker) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "%s does not currently support %s running using streaming on unified worker",
+              DataflowRunner.class.getSimpleName(), MultimapState.class.getSimpleName()));
     }
-    if (DoFnSignatures.usesMapState(fn)) {
-      if (streaming && (isUnifiedWorker || streamingEngine)) {
-        throw new UnsupportedOperationException(
-            String.format(
-                "%s does not currently support %s when using %s",
-                DataflowRunner.class.getSimpleName(),
-                MapState.class.getSimpleName(),
-                isUnifiedWorker ? "streaming on unified worker" : "streaming engine"));
-      }
+    if (DoFnSignatures.usesSetState(fn) && streaming && isUnifiedWorker) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "%s does not currently support %s when using streaming on unified worker",
+              DataflowRunner.class.getSimpleName(), SetState.class.getSimpleName()));
+    }
+    if (DoFnSignatures.usesMapState(fn) && streaming && isUnifiedWorker) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "%s does not currently support %s when using streaming on unified worker",
+              DataflowRunner.class.getSimpleName(), MapState.class.getSimpleName()));
     }
     if (DoFnSignatures.usesBundleFinalizer(fn) && !isUnifiedWorker) {
       throw new UnsupportedOperationException(
@@ -2446,6 +2625,50 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           String.format(
               "%s does not currently support state or timers with merging windows",
               DataflowRunner.class.getSimpleName()));
+    }
+  }
+
+  /**
+   * These are for dataflow-specific classes where we put fake stubs in the pipeline proto to pass
+   * validation.
+   */
+  private static class DataflowPayloadTranslator
+      implements TransformPayloadTranslator<PTransform<?, ?>> {
+    @Override
+    public String getUrn(PTransform transform) {
+      return "dataflow_stub:" + transform.getClass().getName();
+    }
+
+    @Override
+    public String getUrn() {
+      throw new UnsupportedOperationException(
+          "URN of DataflowPayloadTranslator depends on the transform. Please use 'getUrn(PTransform transform)' instead.");
+    }
+
+    @Override
+    public RunnerApi.FunctionSpec translate(
+        AppliedPTransform<?, ?, PTransform<?, ?>> application, SdkComponents components)
+        throws IOException {
+      return RunnerApi.FunctionSpec.newBuilder().setUrn(getUrn(application.getTransform())).build();
+    }
+  }
+
+  @SuppressWarnings({
+    "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
+  })
+  @AutoService(TransformPayloadTranslatorRegistrar.class)
+  public static class DataflowTransformTranslator implements TransformPayloadTranslatorRegistrar {
+    @Override
+    public Map<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator>
+        getTransformPayloadTranslators() {
+      TransformPayloadTranslator dummyTranslator = new DataflowPayloadTranslator();
+      return ImmutableMap.<Class<? extends PTransform>, TransformPayloadTranslator>builder()
+          .put(CreateDataflowView.class, dummyTranslator)
+          .put(BatchViewOverrides.GroupByKeyAndSortValuesOnly.class, dummyTranslator)
+          .put(StreamingPubsubIORead.class, dummyTranslator)
+          .put(StreamingUnboundedRead.ReadWithIds.class, dummyTranslator)
+          .put(CombineGroupedValues.class, dummyTranslator)
+          .build();
     }
   }
 }

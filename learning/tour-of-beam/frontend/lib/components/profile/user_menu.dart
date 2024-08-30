@@ -16,12 +16,15 @@
  * limitations under the License.
  */
 
+import 'dart:async';
+
 import 'package:easy_localization/easy_localization.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:get_it/get_it.dart';
 import 'package:playground_components/playground_components.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../assets/assets.gen.dart';
 import '../../auth/notifier.dart';
@@ -104,15 +107,11 @@ class _Buttons extends StatelessWidget {
       children: [
         _IconLabel(
           isSvg: false,
-          onTap: () {},
+          onTap: () {
+            unawaited(launchUrl(Uri.parse(BeamLinks.website)));
+          },
           iconPath: Assets.png.profileWebsite.path,
           label: 'ui.toWebsite'.tr(),
-        ),
-        const BeamDivider(),
-        _IconLabel(
-          onTap: () {},
-          iconPath: Assets.svg.profileAbout,
-          label: 'ui.about'.tr(),
         ),
         const BeamDivider(),
         _IconLabel(

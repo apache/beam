@@ -20,7 +20,7 @@ package org.apache.beam.sdk.io.azure.options;
 import com.google.auto.service.AutoService;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 /** A registrar containing the default Azure options. */
 @AutoService(PipelineOptionsRegistrar.class)

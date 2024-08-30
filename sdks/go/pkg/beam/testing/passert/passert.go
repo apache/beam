@@ -39,9 +39,13 @@ import (
 func Diff(s beam.Scope, a, b beam.PCollection) (left, both, right beam.PCollection) {
 	imp := beam.Impulse(s)
 
-	t := beam.ValidateNonCompositeType(a)
-	beam.ValidateNonCompositeType(b)
-	return beam.ParDo3(s, &diffFn{Type: beam.EncodedType{T: t.Type()}}, imp, beam.SideInput{Input: a}, beam.SideInput{Input: b})
+	ta := beam.ValidateNonCompositeType(a)
+	tb := beam.ValidateNonCompositeType(b)
+
+	if !typex.IsEqual(ta, tb) {
+		panic(fmt.Sprintf("passert.Diff input PColections don't have matching types: %v != %v", ta, tb))
+	}
+	return beam.ParDo3(s, &diffFn{Type: beam.EncodedType{T: ta.Type()}}, imp, beam.SideInput{Input: a}, beam.SideInput{Input: b})
 }
 
 // diffFn computes the symmetrical multi-set difference of 2 collections, under

@@ -29,10 +29,10 @@ import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.util.common.ReflectHelpers.ObjectsClassComparator;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -300,6 +300,29 @@ public class SchemaRegistry {
         typeDescriptor,
         getToRowFunction(typeDescriptor),
         getFromRowFunction(typeDescriptor));
+  }
+
+  /**
+   * Retrieve a registered {@link SchemaProvider} for a given {@link TypeDescriptor}. If no schema
+   * exists, throws {@link * NoSuchSchemaException}.
+   */
+  public <T> SchemaProvider getSchemaProvider(TypeDescriptor<T> typeDescriptor)
+      throws NoSuchSchemaException {
+    for (SchemaProvider provider : providers) {
+      Schema schema = provider.schemaFor(typeDescriptor);
+      if (schema != null) {
+        return provider;
+      }
+    }
+    throw new NoSuchSchemaException();
+  }
+
+  /**
+   * Retrieve a registered {@link SchemaProvider} for a given {@link Class}. If no schema exists,
+   * throws {@link * NoSuchSchemaException}.
+   */
+  public <T> SchemaProvider getSchemaProvider(Class<T> clazz) throws NoSuchSchemaException {
+    return getSchemaProvider(TypeDescriptor.of(clazz));
   }
 
   private <ReturnT> ReturnT getProviderResult(Function<SchemaProvider, ReturnT> f)

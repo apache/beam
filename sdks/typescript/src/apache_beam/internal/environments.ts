@@ -40,7 +40,7 @@ export function jsEnvironment(
   urn: string,
   payload: Uint8Array,
   resourceHints: { [key: string]: Uint8Array } = {},
-  artifacts: runnerApi.ArtifactInformation[] = []
+  artifacts: runnerApi.ArtifactInformation[] = [],
 ): runnerApi.Environment {
   return {
     urn: urn,
@@ -55,7 +55,7 @@ export function jsEnvironment(
 function asNewEnvironment(
   env: runnerApi.Environment,
   urn: string,
-  payload: Uint8Array
+  payload: Uint8Array,
 ) {
   return {
     urn: urn,
@@ -69,7 +69,7 @@ function asNewEnvironment(
 
 export function asExternalEnvironment(
   env: runnerApi.Environment,
-  address: string
+  address: string,
 ) {
   return asNewEnvironment(
     env,
@@ -80,17 +80,17 @@ export function asExternalEnvironment(
         authentication: null!,
       },
       params: {},
-    })
+    }),
   );
 }
 
 export function asDockerEnvironment(
   env: runnerApi.Environment,
-  containerImage: string
+  containerImage: string,
 ) {
   return asNewEnvironment(
     env,
     "beam:env:docker:v1",
-    runnerApi.DockerPayload.toBinary({ containerImage: containerImage })
+    runnerApi.DockerPayload.toBinary({ containerImage: containerImage }),
   );
 }

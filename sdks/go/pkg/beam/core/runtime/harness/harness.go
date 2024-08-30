@@ -30,6 +30,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/harness/statecache"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/hooks"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
@@ -40,6 +41,7 @@ import (
 	"golang.org/x/sync/singleflight"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // URNMonitoringInfoShortID is a URN indicating support for short monitoring info IDs.
@@ -155,6 +157,11 @@ func MainWithOptions(ctx context.Context, loggingEndpoint, controlEndpoint strin
 		state:                &StateChannelManager{},
 		cache:                &sideCache,
 		runnerCapabilities:   rcMap,
+	}
+
+	if enabled, ok := rcMap[graphx.URNDataSampling]; ok && enabled {
+		ctrl.dataSampler = exec.NewDataSampler(ctx)
+		go ctrl.dataSampler.Process()
 	}
 
 	// if the runner supports worker status api then expose SDK harness status
@@ -304,6 +311,7 @@ type control struct {
 	// TODO(BEAM-11097): Cache is currently unused.
 	cache              *statecache.SideInputCache
 	runnerCapabilities map[string]bool
+	dataSampler        *exec.DataSampler
 }
 
 func (c *control) metStoreToString(statusInfo *strings.Builder) {
@@ -345,7 +353,7 @@ func (c *control) getOrCreatePlan(bdID bundleDescriptorID) (*exec.Plan, error) {
 		}
 		desc = newDesc.(*fnpb.ProcessBundleDescriptor)
 	}
-	newPlan, err := exec.UnmarshalPlan(desc)
+	newPlan, err := exec.UnmarshalPlan(desc, c.dataSampler)
 	if err != nil {
 		return nil, errors.WithContextf(err, "invalid bundle desc: %v\n%v\n", bdID, desc.String())
 	}
@@ -393,7 +401,8 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		c.mu.Unlock()
 
 		if err != nil {
-			return fail(ctx, instID, "Failed: %v", err)
+			c.failed[instID] = err
+			return fail(ctx, instID, "ProcessBundle failed: %v", err)
 		}
 
 		tokens := msg.GetCacheTokens()
@@ -414,7 +423,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 
 		c.cache.CompleteBundle(tokens...)
 
-		mons, pylds := monitoring(plan, store, c.runnerCapabilities[URNMonitoringInfoShortID])
+		mons, pylds, _ := monitoring(plan, store, c.runnerCapabilities[URNMonitoringInfoShortID])
 
 		checkpoints := plan.Checkpoint()
 		requiresFinalization := false
@@ -427,6 +436,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 			// If there was an error on the data channel reads, fail this bundle
 			// since we may have had a short read.
 			c.failed[instID] = dataError
+			err = dataError
 		} else {
 			// Non failure plans should either be moved to the finalized state
 			// or to plans so they can be re-used.
@@ -536,14 +546,15 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 			}
 		}
 
-		mons, pylds := monitoring(plan, store, c.runnerCapabilities[URNMonitoringInfoShortID])
+		mons, pylds, consumingReceivedData := monitoring(plan, store, c.runnerCapabilities[URNMonitoringInfoShortID])
 
 		return &fnpb.InstructionResponse{
 			InstructionId: string(instID),
 			Response: &fnpb.InstructionResponse_ProcessBundleProgress{
 				ProcessBundleProgress: &fnpb.ProcessBundleProgressResponse{
-					MonitoringData:  pylds,
-					MonitoringInfos: mons,
+					MonitoringData:        pylds,
+					MonitoringInfos:       mons,
+					ConsumingReceivedData: &consumingReceivedData,
 				},
 			},
 		}
@@ -652,7 +663,30 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 				},
 			},
 		}
+	case req.GetSampleData() != nil:
+		msg := req.GetSampleData()
+		var samples = make(map[string]*fnpb.SampleDataResponse_ElementList)
+		if c.dataSampler != nil {
+			var elementsMap = c.dataSampler.GetSamples(msg.GetPcollectionIds())
+			for pid, elements := range elementsMap {
+				var elementList fnpb.SampleDataResponse_ElementList
+				for i := range elements {
+					var sampledElement = &fnpb.SampledElement{
+						Element:         elements[i].Element,
+						SampleTimestamp: timestamppb.New(elements[i].Timestamp),
+					}
+					elementList.Elements = append(elementList.Elements, sampledElement)
+				}
+				samples[pid] = &elementList
+			}
+		}
 
+		return &fnpb.InstructionResponse{
+			InstructionId: string(instID),
+			Response: &fnpb.InstructionResponse_SampleData{
+				SampleData: &fnpb.SampleDataResponse{ElementSamples: samples},
+			},
+		}
 	default:
 		return fail(ctx, instID, "Unexpected request: %v", req)
 	}
@@ -706,6 +740,6 @@ func fail(ctx context.Context, id instructionID, format string, args ...any) *fn
 // dial to the specified endpoint. if timeout <=0, call blocks until
 // grpc.Dial succeeds.
 func dial(ctx context.Context, endpoint, purpose string, timeout time.Duration) (*grpc.ClientConn, error) {
-	log.Infof(ctx, "Connecting via grpc @ %s for %s ...", endpoint, purpose)
+	log.Output(ctx, log.SevDebug, 1, fmt.Sprintf("Connecting via grpc @ %s for %s ...", endpoint, purpose))
 	return grpcx.Dial(ctx, endpoint, timeout)
 }

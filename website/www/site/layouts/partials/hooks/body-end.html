@@ -16,7 +16,5 @@
 <script src="{{ $heroDesktop.RelPermalink }}"></script>
 {{ $heroMobile := resources.Get "js/hero/hero-mobile.js" | minify | fingerprint }}
 <script src="{{ $heroMobile.RelPermalink }}"></script>
-{{ $swiperSlider := resources.Get "js/swiper-bundle.min.js" | minify | fingerprint }}
-<script src="{{ $swiperSlider.RelPermalink }}"></script>
-{{ $quotesSlider := resources.Get "js/quotes-slider.js" | minify | fingerprint }}
+{{ $quotesSlider := resources.Get "js/sliders/quotes.js" | minify | fingerprint }}
 <script src="{{ $quotesSlider.RelPermalink }}"></script>

@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.io.kinesis;
 
 import java.io.Serializable;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Ordering;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Ordering;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 

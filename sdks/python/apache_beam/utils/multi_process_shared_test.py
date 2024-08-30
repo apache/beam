@@ -19,6 +19,7 @@
 import logging
 import threading
 import unittest
+from typing import Any
 
 from apache_beam.utils import multi_process_shared
 
@@ -57,6 +58,30 @@ class Counter(object):
     raise RuntimeError(msg)
 
 
+class CounterWithBadAttr(object):
+  def __init__(self, start=0):
+    self.running = start
+    self.lock = threading.Lock()
+
+  def get(self):
+    return self.running
+
+  def increment(self, value=1):
+    with self.lock:
+      self.running += value
+      return self.running
+
+  def error(self, msg):
+    raise RuntimeError(msg)
+
+  def __getattribute__(self, __name: str) -> Any:
+    if __name == 'error':
+      raise AttributeError('error is not actually supported on this platform')
+    else:
+      # Default behaviour
+      return object.__getattribute__(self, __name)
+
+
 class MultiProcessSharedTest(unittest.TestCase):
   @classmethod
   def setUpClass(cls):
@@ -71,6 +96,15 @@ class MultiProcessSharedTest(unittest.TestCase):
     self.assertEqual(self.shared.increment(10), 11)
     self.assertEqual(self.shared.increment(value=10), 21)
     self.assertEqual(self.shared.get(), 21)
+
+  def test_call_illegal_attr(self):
+    shared_handle = multi_process_shared.MultiProcessShared(
+        CounterWithBadAttr, tag='test_call_illegal_attr', always_proxy=True)
+    shared = shared_handle.acquire()
+
+    self.assertEqual(shared.get(), 0)
+    self.assertEqual(shared.increment(), 1)
+    self.assertEqual(shared.get(), 1)
 
   def test_call_callable(self):
     self.assertEqual(self.sharedCallable(), 0)
@@ -106,6 +140,81 @@ class MultiProcessSharedTest(unittest.TestCase):
         Counter, tag='test_release')
     shared2 = multi_process_shared.MultiProcessShared(
         Counter, tag='test_release')
+
+    counter1 = shared1.acquire()
+    counter2 = shared2.acquire()
+    self.assertEqual(counter1.increment(), 1)
+    self.assertEqual(counter2.increment(), 2)
+
+    counter1again = shared1.acquire()
+    self.assertEqual(counter1again.increment(), 3)
+
+    shared1.release(counter1)
+    shared2.release(counter2)
+
+    with self.assertRaisesRegex(Exception, 'released'):
+      counter1.get()
+    with self.assertRaisesRegex(Exception, 'released'):
+      counter2.get()
+
+    self.assertEqual(counter1again.get(), 3)
+
+    shared1.release(counter1again)
+
+    counter1New = shared1.acquire()
+    self.assertEqual(counter1New.get(), 0)
+
+    with self.assertRaisesRegex(Exception, 'released'):
+      counter1.get()
+
+  def test_unsafe_hard_delete(self):
+    shared1 = multi_process_shared.MultiProcessShared(
+        Counter, tag='test_unsafe_hard_delete', always_proxy=True)
+    shared2 = multi_process_shared.MultiProcessShared(
+        Counter, tag='test_unsafe_hard_delete', always_proxy=True)
+
+    counter1 = shared1.acquire()
+    counter2 = shared2.acquire()
+    self.assertEqual(counter1.increment(), 1)
+    self.assertEqual(counter2.increment(), 2)
+
+    multi_process_shared.MultiProcessShared(
+        Counter, tag='test_unsafe_hard_delete').unsafe_hard_delete()
+
+    with self.assertRaises(Exception):
+      counter1.get()
+    with self.assertRaises(Exception):
+      counter2.get()
+
+    shared3 = multi_process_shared.MultiProcessShared(
+        Counter, tag='test_unsafe_hard_delete', always_proxy=True)
+
+    counter3 = shared3.acquire()
+
+    self.assertEqual(counter3.increment(), 1)
+
+  def test_unsafe_hard_delete_no_op(self):
+    shared1 = multi_process_shared.MultiProcessShared(
+        Counter, tag='test_unsafe_hard_delete_no_op', always_proxy=True)
+    shared2 = multi_process_shared.MultiProcessShared(
+        Counter, tag='test_unsafe_hard_delete_no_op', always_proxy=True)
+
+    counter1 = shared1.acquire()
+    counter2 = shared2.acquire()
+    self.assertEqual(counter1.increment(), 1)
+    self.assertEqual(counter2.increment(), 2)
+
+    multi_process_shared.MultiProcessShared(
+        Counter, tag='no_tag_to_delete').unsafe_hard_delete()
+
+    self.assertEqual(counter1.increment(), 3)
+    self.assertEqual(counter2.increment(), 4)
+
+  def test_release_always_proxy(self):
+    shared1 = multi_process_shared.MultiProcessShared(
+        Counter, tag='test_release_always_proxy', always_proxy=True)
+    shared2 = multi_process_shared.MultiProcessShared(
+        Counter, tag='test_release_always_proxy', always_proxy=True)
 
     counter1 = shared1.acquire()
     counter2 = shared2.acquire()

@@ -32,6 +32,9 @@ in parallel. For example, a single element to execute a one-time
 `ParDo` or a list of filenames to be read.
 
 ## Examples
-See [Issue 19498](https://github.com/apache/beam/issues/19498) for updates.
+
+{{< playground height="700px" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_Create" show="create" >}}
+{{< /playground >}}
 
 ## Related transforms

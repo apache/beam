@@ -31,10 +31,12 @@ import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.sdk.fn.test.TestStreams;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
@@ -47,6 +49,7 @@ import org.mockito.MockitoAnnotations;
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class GrpcStateServiceTest {
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private static final long TIMEOUT_MS = 30 * 1000;
 
   private GrpcStateService stateService;

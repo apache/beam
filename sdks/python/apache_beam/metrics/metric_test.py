@@ -17,18 +17,6 @@
 
 # pytype: skip-file
 
-# beam-playground:
-#   name: MetricTest
-#   description: Unit-test for the Metric example.
-#   multifile: false
-#   context_line: 52
-#   categories:
-#   - Metrics
-#   complexity: MEDIUM
-#   tags:
-#     - metrics
-#     - test
-
 import unittest
 
 import hamcrest as hc
@@ -40,6 +28,7 @@ from apache_beam.metrics.cells import DistributionData
 from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.execution import MetricsContainer
 from apache_beam.metrics.execution import MetricsEnvironment
+from apache_beam.metrics.metric import Lineage
 from apache_beam.metrics.metric import MetricResults
 from apache_beam.metrics.metric import Metrics
 from apache_beam.metrics.metric import MetricsFilter
@@ -258,6 +247,27 @@ class MetricsTest(unittest.TestCase):
             DistributionData(12, 2, 2, 10))
     finally:
       sampler.stop()
+
+
+class LineageTest(unittest.TestCase):
+  def test_fq_name(self):
+    test_cases = {
+        "apache-beam": "apache-beam",
+        "`apache-beam`": "`apache-beam`",
+        "apache.beam": "`apache.beam`",
+        "apache:beam": "`apache:beam`",
+        "apache beam": "`apache beam`",
+        "`apache beam`": "`apache beam`",
+        "apache\tbeam": "`apache\tbeam`",
+        "apache\nbeam": "`apache\nbeam`"
+    }
+    for k, v in test_cases.items():
+      self.assertEqual("apache:" + v, Lineage.get_fq_name("apache", k))
+      self.assertEqual(
+          "apache:beam:" + v, Lineage.get_fq_name("apache", k, route="beam"))
+      self.assertEqual(
+          "apache:beam:" + v + '.' + v,
+          Lineage.get_fq_name("apache", k, k, route="beam"))
 
 
 if __name__ == '__main__':

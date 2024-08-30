@@ -20,15 +20,30 @@ import (
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 )
+
+func TestMain(m *testing.M) {
+	ptest.Main(m)
+}
+
+func isA(input string) bool        { return input == "a" }
+func isB(input string) bool        { return input == "b" }
+func lessThan13(input int) bool    { return input < 13 }
+func greaterThan13(input int) bool { return input > 13 }
+
+func init() {
+	register.Function1x1(isA)
+	register.Function1x1(isB)
+	register.Function1x1(lessThan13)
+	register.Function1x1(greaterThan13)
+}
 
 func TestTrue_string(t *testing.T) {
 	p, s := beam.NewPipelineWithRoot()
 	col := beam.Create(s, "a", "a", "a")
-	True(s, col, func(input string) bool {
-		return input == "a"
-	})
+	True(s, col, isA)
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("Pipeline failed: %v", err)
 	}
@@ -37,9 +52,7 @@ func TestTrue_string(t *testing.T) {
 func TestTrue_numeric(t *testing.T) {
 	p, s := beam.NewPipelineWithRoot()
 	col := beam.Create(s, 3, 3, 6)
-	True(s, col, func(input int) bool {
-		return input < 13
-	})
+	True(s, col, lessThan13)
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("Pipeline failed: %v", err)
 	}
@@ -48,9 +61,7 @@ func TestTrue_numeric(t *testing.T) {
 func TestTrue_bad(t *testing.T) {
 	p, s := beam.NewPipelineWithRoot()
 	col := beam.Create(s, "a", "a", "b")
-	True(s, col, func(input string) bool {
-		return input == "a"
-	})
+	True(s, col, isA)
 	err := ptest.Run(p)
 	if err == nil {
 		t.Fatalf("Pipeline succeeded when it should haved failed, got %v", err)
@@ -63,9 +74,7 @@ func TestTrue_bad(t *testing.T) {
 func TestFalse_string(t *testing.T) {
 	p, s := beam.NewPipelineWithRoot()
 	col := beam.Create(s, "a", "a", "a")
-	False(s, col, func(input string) bool {
-		return input == "b"
-	})
+	False(s, col, isB)
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("Pipeline failed: %v", err)
 	}
@@ -74,9 +83,7 @@ func TestFalse_string(t *testing.T) {
 func TestFalse_numeric(t *testing.T) {
 	p, s := beam.NewPipelineWithRoot()
 	col := beam.Create(s, 3, 3, 6)
-	False(s, col, func(input int) bool {
-		return input > 13
-	})
+	False(s, col, greaterThan13)
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("Pipeline failed: %v", err)
 	}
@@ -85,9 +92,7 @@ func TestFalse_numeric(t *testing.T) {
 func TestFalse_bad(t *testing.T) {
 	p, s := beam.NewPipelineWithRoot()
 	col := beam.Create(s, "a", "a", "b")
-	False(s, col, func(input string) bool {
-		return input == "b"
-	})
+	False(s, col, isB)
 	err := ptest.Run(p)
 	if err == nil {
 		t.Fatalf("Pipeline succeeded when it should haved failed, got %v", err)

@@ -86,7 +86,7 @@ def read_gbq(
 
 
 @frame_base.with_docs_from(pd)
-def read_csv(path, *args, splittable=False, **kwargs):
+def read_csv(path, *args, splittable=False, binary=True, **kwargs):
   """If your files are large and records do not contain quoted newlines, you may
   pass the extra argument ``splittable=True`` to enable dynamic splitting for
   this read on newlines. Using this option for records that do contain quoted
@@ -99,6 +99,7 @@ def read_csv(path, *args, splittable=False, **kwargs):
       args,
       kwargs,
       incremental=True,
+      binary=binary,
       splitter=_TextFileSplitter(args, kwargs) if splittable else None)
 
 
@@ -281,8 +282,9 @@ class _ReadFromPandas(beam.PTransform):
       if not self.binary:
         handle = TextIOWrapper(handle)
       if self.incremental:
-        sample = next(
-            self.reader(handle, *self.args, **dict(self.kwargs, chunksize=100)))
+        with self.reader(handle, *self.args, **dict(self.kwargs,
+                                                    chunksize=100)) as stream:
+          sample = next(stream)
       else:
         sample = self.reader(handle, *self.args, **self.kwargs)
 

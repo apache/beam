@@ -56,6 +56,7 @@ body:
         - "Priority: 2 (backlog / disabled test but we think the product is healthy)"
         - "Priority: 1 (unhealthy code / failing or flaky postcommit so we cannot be sure the product is healthy)"
         - "Priority: 0 (outage / failing precommit test impacting development)"
+      default: 1
     validations:
       required: true
   - type: checkboxes
@@ -69,10 +70,12 @@ body:
        - label: "Component: Go SDK"
        - label: "Component: Typescript SDK"
        - label: "Component: IO connector"
+       - label: "Component: Beam YAML"
        - label: "Component: Beam examples"
        - label: "Component: Beam playground"
        - label: "Component: Beam katas"
        - label: "Component: Website"
+       - label: "Component: Infrastructure"
        - label: "Component: Spark Runner"
        - label: "Component: Flink Runner"
        - label: "Component: Samza Runner"

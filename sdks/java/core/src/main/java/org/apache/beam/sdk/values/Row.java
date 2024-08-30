@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.values;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
@@ -47,7 +47,7 @@ import org.apache.beam.sdk.values.RowUtils.FieldOverride;
 import org.apache.beam.sdk.values.RowUtils.FieldOverrides;
 import org.apache.beam.sdk.values.RowUtils.RowFieldMatcher;
 import org.apache.beam.sdk.values.RowUtils.RowPosition;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.ReadableDateTime;
@@ -786,12 +786,12 @@ public abstract class Row implements Serializable {
     // withFieldValue or
     // withFieldValues.
 
-    public Builder addValue(@Nullable Object values) {
-      this.values.add(values);
+    public Builder addValue(@Nullable Object value) {
+      this.values.add(value);
       return this;
     }
 
-    public Builder addValues(List<Object> values) {
+    public Builder addValues(List<@Nullable Object> values) {
       this.values.addAll(values);
       return this;
     }
@@ -822,7 +822,7 @@ public abstract class Row implements Serializable {
     // method is largely
     // used internal to Beam.
     @Internal
-    public Row attachValues(List<Object> attachedValues) {
+    public Row attachValues(List<@Nullable Object> attachedValues) {
       checkState(this.values.isEmpty());
       return new RowWithStorage(schema, attachedValues);
     }
@@ -892,5 +892,54 @@ public abstract class Row implements Serializable {
     return Row.withSchema(schema)
         .addValues(Collections.nCopies(schema.getFieldCount(), null))
         .build();
+  }
+
+  /** Returns an equivalent {@link Row} with fields lexicographically sorted by their name. */
+  public Row sorted() {
+    Schema sortedSchema = getSchema().sorted();
+    return sortedSchema.getFields().stream()
+        .map(
+            field -> {
+              if (field.getType().getRowSchema() != null) {
+                Row innerRow = getValue(field.getName());
+                if (innerRow != null) {
+                  return innerRow.sorted();
+                }
+              }
+              return (Object) getValue(field.getName());
+            })
+        .collect(Row.toRow(sortedSchema));
+  }
+
+  /** Returns an equivalent {@link Row} with `snake_case` field names. */
+  public Row toSnakeCase() {
+    return getSchema().getFields().stream()
+        .map(
+            field -> {
+              if (field.getType().getRowSchema() != null) {
+                Row innerRow = getValue(field.getName());
+                if (innerRow != null) {
+                  return innerRow.toSnakeCase();
+                }
+              }
+              return (Object) getValue(field.getName());
+            })
+        .collect(toRow(getSchema().toSnakeCase()));
+  }
+
+  /** Returns an equivalent {@link Row} with `lowerCamelCase` field names. */
+  public Row toCamelCase() {
+    return getSchema().getFields().stream()
+        .map(
+            field -> {
+              if (field.getType().getRowSchema() != null) {
+                Row innerRow = getValue(field.getName());
+                if (innerRow != null) {
+                  return innerRow.toCamelCase();
+                }
+              }
+              return (Object) getValue(field.getName());
+            })
+        .collect(toRow(getSchema().toCamelCase()));
   }
 }

@@ -80,7 +80,7 @@ export class Worker {
   constructor(
     private id: string,
     private endpoints: WorkerEndpoints,
-    options: Object = {}
+    options: Object = {},
   ) {
     const metadata = new grpc.Metadata();
     metadata.add("worker_id", this.id);
@@ -88,7 +88,7 @@ export class Worker {
       endpoints.controlUrl,
       grpc.ChannelCredentials.createInsecure(),
       {},
-      {}
+      {},
     );
     this.controlChannel = this.controlClient.control(metadata);
     this.controlChannel.on("data", this.handleRequest.bind(this));
@@ -152,7 +152,7 @@ export class Worker {
 
   async progress(request): Promise<InstructionResponse> {
     const processor = this.activeBundleProcessors.get(
-      request.request.processBundleProgress.instructionId
+      request.request.processBundleProgress.instructionId,
     );
     if (processor) {
       const monitoringData = processor.monitoringData(this.metricsShortIdCache);
@@ -164,7 +164,7 @@ export class Worker {
           processBundleProgress: {
             monitoringInfos: Array.from(monitoringData.entries()).map(
               ([id, payload]) =>
-                this.metricsShortIdCache.asMonitoringInfo(id, payload)
+                this.metricsShortIdCache.asMonitoringInfo(id, payload),
             ),
             monitoringData: Object.fromEntries(monitoringData.entries()),
           },
@@ -183,7 +183,7 @@ export class Worker {
 
   async split(request): Promise<InstructionResponse> {
     const processor = this.activeBundleProcessors.get(
-      request.request.processBundleSplit.instructionId
+      request.request.processBundleSplit.instructionId,
     );
     console.log(request.request.processBundleSplit, processor === undefined);
     if (processor) {
@@ -193,7 +193,7 @@ export class Worker {
         response: {
           oneofKind: "processBundleSplit",
           processBundleSplit: processor.split(
-            request.request.processBundleSplit
+            request.request.processBundleSplit,
           ),
         },
       };
@@ -237,11 +237,11 @@ export class Worker {
             } else {
               this.processBundleDescriptors.set(
                 descriptorId,
-                maybeStripDataflowWindowedWrappings(value)
+                maybeStripDataflowWindowedWrappings(value),
               );
               this.process(request);
             }
-          }
+          },
         );
         return;
       }
@@ -260,7 +260,7 @@ export class Worker {
             requiresFinalization: false,
             monitoringInfos: Array.from(monitoringData.entries()).map(
               ([id, payload]) =>
-                this.metricsShortIdCache.asMonitoringInfo(id, payload)
+                this.metricsShortIdCache.asMonitoringInfo(id, payload),
             ),
             monitoringData: Object.fromEntries(monitoringData.entries()),
           },
@@ -290,7 +290,7 @@ export class Worker {
       return new BundleProcessor(
         this.processBundleDescriptors.get(descriptorId)!,
         this.getDataChannel.bind(this),
-        this.getStateChannel.bind(this)
+        this.getStateChannel.bind(this),
       );
     }
   }
@@ -309,7 +309,7 @@ export class Worker {
     if (!this.dataChannels.has(endpoint)) {
       this.dataChannels.set(
         endpoint,
-        new MultiplexingDataChannel(endpoint, this.id)
+        new MultiplexingDataChannel(endpoint, this.id),
       );
     }
     return this.dataChannels.get(endpoint)!;
@@ -319,7 +319,7 @@ export class Worker {
     if (!this.stateChannels.has(endpoint)) {
       this.stateChannels.set(
         endpoint,
-        new MultiplexingStateChannel(endpoint, this.id)
+        new MultiplexingStateChannel(endpoint, this.id),
       );
     }
     return this.stateChannels.get(endpoint)!;
@@ -348,7 +348,7 @@ export class BundleProcessor {
     descriptor: ProcessBundleDescriptor,
     getDataChannel: (string) => MultiplexingDataChannel,
     getStateChannel: ((string) => MultiplexingStateChannel) | StateProvider,
-    root_urns = ["beam:runner:source:v1"]
+    root_urns = ["beam:runner:source:v1"],
   ) {
     this.descriptor = descriptor;
     this.getDataChannel = getDataChannel;
@@ -370,7 +370,7 @@ export class BundleProcessor {
             consumers.get(pcollectionId)!.push(transformId);
           });
         }
-      }
+      },
     );
 
     function getReceiver(pcollectionId: string): Receiver {
@@ -380,8 +380,8 @@ export class BundleProcessor {
           new Receiver(
             (consumers.get(pcollectionId) || []).map(getOperator),
             this_.loggingStageInfo,
-            this_.metricsContainer.elementCountMetric(pcollectionId)
-          )
+            this_.metricsContainer.elementCountMetric(pcollectionId),
+          ),
         );
       }
       return this_.receivers.get(pcollectionId)!;
@@ -400,9 +400,9 @@ export class BundleProcessor {
               this_.getStateProvider.bind(this_),
               this_.getBundleId.bind(this_),
               this_.loggingStageInfo,
-              this_.metricsContainer
-            )
-          )
+              this_.metricsContainer,
+            ),
+          ),
         );
         creationOrderedOperators.push(this_.operators.get(transformId)!);
       }
@@ -414,7 +414,7 @@ export class BundleProcessor {
         if (root_urns.includes(transform?.spec?.urn!)) {
           getOperator(transformId);
         }
-      }
+      },
     );
     this.topologicallyOrderedOperators = creationOrderedOperators.reverse();
   }
@@ -425,10 +425,10 @@ export class BundleProcessor {
         this.stateProvider = new CachingStateProvider(
           new GrpcStateProvider(
             this.getStateChannel(
-              this.descriptor.stateApiServiceDescriptor!.url
+              this.descriptor.stateApiServiceDescriptor!.url,
             ),
-            this.getBundleId()
-          )
+            this.getBundleId(),
+          ),
         );
       } else {
         this.stateProvider = this.getStateChannel;
@@ -474,7 +474,7 @@ export class BundleProcessor {
   split(splitRequest: ProcessBundleSplitRequest): ProcessBundleSplitResponse {
     const root = this.topologicallyOrderedOperators[0] as DataSourceOperator;
     for (const [target, desiredSplit] of Object.entries(
-      splitRequest.desiredSplits
+      splitRequest.desiredSplits,
     )) {
       if (target == root.transformId) {
         const channelSplit = root.split(desiredSplit);
@@ -510,7 +510,7 @@ function isPrimitive(transform: PTransform): boolean {
 }
 
 function maybeStripDataflowWindowedWrappings(
-  descriptor: ProcessBundleDescriptor
+  descriptor: ProcessBundleDescriptor,
 ): ProcessBundleDescriptor {
   for (const pcoll of Object.values(descriptor.pcollections)) {
     const coder = descriptor.coders[pcoll.coderId];

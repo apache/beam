@@ -25,8 +25,8 @@ locals {
       entry_point = "cleanupSnippets"
     },
     {
-      name        = "playground-function-delete-${var.env}"
-      description = "Playground function delete-${var.env}"
+      name        = "playground-function-put-${var.env}"
+      description = "Playground function put-${var.env}"
       entry_point = "putSnippet"
     },
     {

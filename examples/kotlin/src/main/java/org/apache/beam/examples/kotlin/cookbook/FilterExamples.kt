@@ -65,12 +65,12 @@ import java.util.logging.Logger
  * See examples/kotlin/README.md for instructions about how to configure different runners.
  *
  *
- * The BigQuery input table defaults to `clouddataflow-readonly:samples.weather_stations`
+ * The BigQuery input table defaults to `apache-beam-testing.samples.weather_stations`
  * and can be overridden with `--input`.
  */
 object FilterExamples {
     // Default to using a 1000 row subset of the public weather station table publicdata:samples.gsod.
-    private const val WEATHER_SAMPLES_TABLE = "clouddataflow-readonly:samples.weather_stations"
+    private const val WEATHER_SAMPLES_TABLE = "apache-beam-testing.samples.weather_stations"
     internal val LOG = Logger.getLogger(FilterExamples::class.java.name)
     internal const val MONTH_TO_FILTER = 7
 

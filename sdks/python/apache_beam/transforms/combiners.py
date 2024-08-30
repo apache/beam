@@ -317,7 +317,7 @@ class Top(object):
 
   @staticmethod
   @ptransform.ptransform_fn
-  def SmallestPerKey(pcoll, n, *, key=None, reverse=None):
+  def SmallestPerKey(pcoll, n, *, key=None):
     """Identifies the N least elements associated with each key."""
     return pcoll | Top.PerKey(n, key, reverse=True)
 
@@ -380,7 +380,7 @@ class _MergeTopPerBundle(core.DoFn):
         return False
 
     if self._compare or self._key:
-      heapc = []  # type: List[cy_combiners.ComparableValue]
+      heapc: List[cy_combiners.ComparableValue] = []
       for bundle in bundles:
         if not heapc:
           heapc = [
@@ -755,6 +755,23 @@ class ToListCombineFn(core.CombineFn):
   def add_input(self, accumulator, element):
     accumulator.append(element)
     return accumulator
+
+  def merge_accumulators(self, accumulators):
+    return sum(accumulators, [])
+
+  def extract_output(self, accumulator):
+    return accumulator
+
+
+@with_input_types(T)
+@with_output_types(T)
+class ConcatListCombineFn(core.CombineFn):
+  """CombineFn for concatenating lists together."""
+  def create_accumulator(self):
+    return []
+
+  def add_input(self, accumulator, element):
+    return accumulator + element
 
   def merge_accumulators(self, accumulators):
     return sum(accumulators, [])

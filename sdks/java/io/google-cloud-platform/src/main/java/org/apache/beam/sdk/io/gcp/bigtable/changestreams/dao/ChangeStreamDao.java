@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao;
 
-import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.ByteStringRangeHelper.formatByteStringRange;
 import static org.apache.beam.sdk.io.gcp.bigtable.changestreams.TimestampConverter.toThreetenInstant;
 
 import com.google.api.gax.rpc.ServerStream;
@@ -36,14 +35,10 @@ import org.apache.beam.sdk.io.gcp.bigtable.changestreams.model.PartitionRecord;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.restriction.StreamProgress;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Data access object to list and read stream partitions of a table. */
 @Internal
 public class ChangeStreamDao {
-  private static final Logger LOG = LoggerFactory.getLogger(ChangeStreamDao.class);
-
   private final BigtableDataClient dataClient;
   private final String tableId;
 
@@ -75,8 +70,7 @@ public class ChangeStreamDao {
       PartitionRecord partition,
       StreamProgress streamProgress,
       @Nullable Instant endTime,
-      Duration heartbeatDuration,
-      boolean shouldDebug)
+      Duration heartbeatDuration)
       throws IOException {
     ReadChangeStreamQuery query =
         ReadChangeStreamQuery.create(tableId).streamPartition(partition.getPartition());
@@ -98,12 +92,6 @@ public class ChangeStreamDao {
       query.endTime(TimestampConverter.toThreetenInstant(endTime));
     }
     query.heartbeatDuration(org.threeten.bp.Duration.ofMillis(heartbeatDuration.getMillis()));
-    if (shouldDebug) {
-      LOG.info(
-          "RCSP {} ReadChangeStreamRequest: {}",
-          formatByteStringRange(partition.getPartition()),
-          query);
-    }
     return dataClient.readChangeStream(query);
   }
 }

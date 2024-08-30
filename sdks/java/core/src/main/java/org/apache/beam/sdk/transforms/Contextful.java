@@ -19,7 +19,7 @@ package org.apache.beam.sdk.transforms;
 
 import java.io.Serializable;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 
 /** Pair of a bit of user code (a "closure") and the {@link Requirements} needed to run it. */
 public final class Contextful<ClosureT> implements Serializable {

@@ -31,8 +31,15 @@ public abstract class NameContext {
    * systemName} and a {@code userName}.
    */
   public static NameContext create(
-      String stageName, String originalName, String systemName, String userName) {
-    return new AutoValue_NameContext(stageName, originalName, systemName, userName);
+      String stageName,
+      @Nullable String originalName,
+      String systemName,
+      @Nullable String userName) {
+    return NameContext.newBuilder(stageName)
+        .setOriginalName(originalName)
+        .setSystemName(systemName)
+        .setUserName(userName)
+        .build();
   }
 
   /**
@@ -40,11 +47,19 @@ public abstract class NameContext {
    * specific steps..
    */
   public static NameContext forStage(String stageName) {
-    return new AutoValue_NameContext(stageName, null, null, null);
+    return newBuilder(stageName).build();
+  }
+
+  public static Builder newBuilder(String stageName) {
+    return new AutoValue_NameContext.Builder()
+        .setStageName(stageName)
+        .setUserName(null)
+        .setSystemName(null)
+        .setOriginalName(null);
   }
 
   /** Returns the name of the stage this instruction is executing in. */
-  public abstract @Nullable String stageName();
+  public abstract String stageName();
 
   /**
    * Returns the "original" name of this instruction. This name is a short name assigned by the SDK
@@ -83,4 +98,17 @@ public abstract class NameContext {
    * <p>Examples: "MapElements/Map", "BigShuffle.GroupByFirstNBytes/GroupByKey/Reify"
    */
   public abstract @Nullable String userName();
+
+  @AutoValue.Builder
+  public abstract static class Builder {
+    public abstract Builder setStageName(String value);
+
+    public abstract Builder setOriginalName(@Nullable String value);
+
+    public abstract Builder setSystemName(@Nullable String value);
+
+    public abstract Builder setUserName(@Nullable String value);
+
+    public abstract NameContext build();
+  }
 }

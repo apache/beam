@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 import static org.apache.kafka.clients.consumer.ConsumerConfig.AUTO_OFFSET_RESET_CONFIG;
 
 import com.google.auto.service.AutoService;
@@ -31,15 +31,15 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import org.apache.beam.runners.core.construction.PTransformMatchers;
-import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
@@ -61,12 +61,14 @@ import org.apache.beam.sdk.io.kafka.KafkaIOReadImplementationCompatibility.Kafka
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
+import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 import org.apache.beam.sdk.schemas.transforms.Convert;
@@ -76,26 +78,37 @@ import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Redistribute;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
+import org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler.BadRecordErrorHandler;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler.DefaultErrorHandler;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators.Manual;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators.MonotonicallyIncreasing;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators.WallTime;
 import org.apache.beam.sdk.util.Preconditions;
+import org.apache.beam.sdk.util.construction.PTransformMatchers;
+import org.apache.beam.sdk.util.construction.ReplacementOutputs;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Comparators;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
@@ -165,6 +178,10 @@ import org.slf4j.LoggerFactory;
  *      // TopicPartition during runtime. Note that only {@link ReadFromKafkaDoFn} respect the
  *      // signal.
  *      .withCheckStopReadingFn(new SerializedFunction<TopicPartition, Boolean>() {})
+ *
+ *      //If you would like to send messages that fail to be parsed from Kafka to an alternate sink,
+ *      //use the error handler pattern as defined in {@link ErrorHandler}
+ *      .withBadRecordErrorHandler(errorHandler)
  *
  *      // finally, if you don't need Kafka metadata, you can drop it.g
  *      .withoutMetadata() // PCollection<KV<Long, String>>
@@ -350,10 +367,11 @@ import org.slf4j.LoggerFactory;
  * href="https://beam.apache.org/blog/splittable-do-fn/">blog post</a> and <a
  * href="https://s.apache.org/beam-fn-api">design doc</a>. The major difference from {@link
  * KafkaIO.Read} is, {@link ReadSourceDescriptors} doesn't require source descriptions(e.g., {@link
- * KafkaIO.Read#getTopicPartitions()}, {@link KafkaIO.Read#getTopics()}, {@link
- * KafkaIO.Read#getStartReadTime()}, etc.) during the pipeline construction time. Instead, the
- * pipeline can populate these source descriptions during runtime. For example, the pipeline can
- * query Kafka topics from a BigQuery table and read these topics via {@link ReadSourceDescriptors}.
+ * KafkaIO.Read#getTopicPattern()}, {@link KafkaIO.Read#getTopicPartitions()}, {@link
+ * KafkaIO.Read#getTopics()}, {@link KafkaIO.Read#getStartReadTime()}, etc.) during the pipeline
+ * construction time. Instead, the pipeline can populate these source descriptions during runtime.
+ * For example, the pipeline can query Kafka topics from a BigQuery table and read these topics via
+ * {@link ReadSourceDescriptors}.
  *
  * <h3>Common Kafka Consumer Configurations</h3>
  *
@@ -382,11 +400,19 @@ import org.slf4j.LoggerFactory;
  *
  * <pre>{@code
  * pipeline
- *  .apply(Create.of(KafkaSourceDescriptor.of(new TopicPartition("topic", 1)))
- *  .apply(KafkaIO.readAll()
- *          .withBootstrapServers("broker_1:9092,broker_2:9092")
- *          .withKeyDeserializer(LongDeserializer.class).
- *          .withValueDeserializer(StringDeserializer.class));
+ *  .apply(Create.of(
+ *    KafkaSourceDescriptor.of(
+ *      new TopicPartition("topic", 1),
+ *      null,
+ *      null,
+ *      null,
+ *      null,
+ *      null)))
+ *   .apply(
+ *     KafkaIO.<Long, String>readSourceDescriptors()
+ *       .withBootstrapServers("broker_1:9092,broker_2:9092")
+ *       .withKeyDeserializer(LongDeserializer.class)
+ *       .withValueDeserializer(StringDeserializer.class));
  * }</pre>
  *
  * Note that the {@code bootstrapServers} can also be populated from the {@link
@@ -399,8 +425,10 @@ import org.slf4j.LoggerFactory;
  *      new TopicPartition("topic", 1),
  *      null,
  *      null,
- *      ImmutableList.of("broker_1:9092", "broker_2:9092"))
- *  .apply(KafkaIO.readAll()
+ *      null,
+ *      null,
+ *      ImmutableList.of("broker_1:9092", "broker_2:9092"))))
+ *  .apply(KafkaIO.<Long, String>readSourceDescriptors()
  *         .withKeyDeserializer(LongDeserializer.class).
  *         .withValueDeserializer(StringDeserializer.class));
  * }</pre>
@@ -428,17 +456,19 @@ import org.slf4j.LoggerFactory;
  *
  * <pre>{@code
  * pipeline
- * .apply(Create.of(
+ *  .apply(Create.of(
  *    KafkaSourceDescriptor.of(
  *      new TopicPartition("topic", 1),
  *      null,
  *      null,
- *      ImmutableList.of("broker_1:9092", "broker_2:9092"))
- * .apply(KafkaIO.readAll()
- *          .withKeyDeserializer(LongDeserializer.class).
- *          .withValueDeserializer(StringDeserializer.class)
- *          .withProcessingTime()
- *          .commitOffsets());
+ *      null,
+ *      null,
+ *      ImmutableList.of("broker_1:9092", "broker_2:9092"))))
+ * .apply(KafkaIO.<Long, String>readSourceDescriptors()
+ *        .withKeyDeserializer(LongDeserializer.class).
+ *        .withValueDeserializer(StringDeserializer.class)
+ *        .withProcessingTime()
+ *        .commitOffsets());
  * }</pre>
  *
  * <h3>Writing to Kafka</h3>
@@ -466,6 +496,11 @@ import org.slf4j.LoggerFactory;
  *      .withInputTimestamp() // element timestamp is used while publishing to Kafka
  *      // or you can also set a custom timestamp with a function.
  *      .withPublishTimestampFunction((elem, elemTs) -> ...)
+ *
+ *      // Optionally, records that fail to serialize can be sent to an error handler
+ *      // See {@link ErrorHandler} for details of for details of configuring a bad record error
+ *      // handler
+ *      .withBadRecordErrorHandler(errorHandler)
  *
  *      // Optionally enable exactly-once sink (on supported runners). See JavaDoc for withEOS().
  *      .withEOS(20, "eos-sink-group-id");
@@ -569,6 +604,10 @@ public class KafkaIO {
         .setCommitOffsetsInFinalizeEnabled(false)
         .setDynamicRead(false)
         .setTimestampPolicyFactory(TimestampPolicyFactory.withProcessingTime())
+        .setConsumerPollingTimeout(2L)
+        .setRedistributed(false)
+        .setAllowDuplicates(false)
+        .setRedistributeNumKeys(0)
         .build();
   }
 
@@ -590,13 +629,7 @@ public class KafkaIO {
    */
   public static <K, V> Write<K, V> write() {
     return new AutoValue_KafkaIO_Write.Builder<K, V>()
-        .setWriteRecordsTransform(
-            new AutoValue_KafkaIO_WriteRecords.Builder<K, V>()
-                .setProducerConfig(WriteRecords.DEFAULT_PRODUCER_PROPERTIES)
-                .setEOS(false)
-                .setNumShards(0)
-                .setConsumerFactoryFn(KafkaIOUtils.KAFKA_CONSUMER_FACTORY_FN)
-                .build())
+        .setWriteRecordsTransform(writeRecords())
         .build();
   }
 
@@ -611,6 +644,8 @@ public class KafkaIO {
         .setEOS(false)
         .setNumShards(0)
         .setConsumerFactoryFn(KafkaIOUtils.KAFKA_CONSUMER_FACTORY_FN)
+        .setBadRecordRouter(BadRecordRouter.THROWING_ROUTER)
+        .setBadRecordErrorHandler(new DefaultErrorHandler<>())
         .build();
   }
 
@@ -624,63 +659,85 @@ public class KafkaIO {
   @AutoValue.CopyAnnotations
   public abstract static class Read<K, V>
       extends PTransform<PBegin, PCollection<KafkaRecord<K, V>>> {
-    @Pure
-    abstract Map<String, Object> getConsumerConfig();
+
+    public static final Class<AutoValue_KafkaIO_Read> AUTOVALUE_CLASS =
+        AutoValue_KafkaIO_Read.class;
 
     @Pure
-    abstract @Nullable List<String> getTopics();
+    public abstract Map<String, Object> getConsumerConfig();
 
     @Pure
-    abstract @Nullable List<TopicPartition> getTopicPartitions();
+    public abstract @Nullable List<String> getTopics();
 
     @Pure
-    abstract @Nullable Coder<K> getKeyCoder();
+    public abstract @Nullable List<TopicPartition> getTopicPartitions();
 
     @Pure
-    abstract @Nullable Coder<V> getValueCoder();
+    public abstract @Nullable Pattern getTopicPattern();
 
     @Pure
-    abstract SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
+    public abstract @Nullable Coder<K> getKeyCoder();
+
+    @Pure
+    public abstract @Nullable Coder<V> getValueCoder();
+
+    @Pure
+    public abstract SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
         getConsumerFactoryFn();
 
     @Pure
-    abstract @Nullable SerializableFunction<KafkaRecord<K, V>, Instant> getWatermarkFn();
+    public abstract @Nullable SerializableFunction<KafkaRecord<K, V>, Instant> getWatermarkFn();
 
     @Pure
-    abstract long getMaxNumRecords();
+    public abstract long getMaxNumRecords();
 
     @Pure
-    abstract @Nullable Duration getMaxReadTime();
+    public abstract @Nullable Duration getMaxReadTime();
 
     @Pure
-    abstract @Nullable Instant getStartReadTime();
+    public abstract @Nullable Instant getStartReadTime();
 
     @Pure
-    abstract @Nullable Instant getStopReadTime();
+    public abstract @Nullable Instant getStopReadTime();
 
     @Pure
-    abstract boolean isCommitOffsetsInFinalizeEnabled();
+    public abstract boolean isCommitOffsetsInFinalizeEnabled();
 
     @Pure
-    abstract boolean isDynamicRead();
+    public abstract boolean isDynamicRead();
 
     @Pure
-    abstract @Nullable Duration getWatchTopicPartitionDuration();
+    public abstract boolean isRedistributed();
 
     @Pure
-    abstract TimestampPolicyFactory<K, V> getTimestampPolicyFactory();
+    public abstract boolean isAllowDuplicates();
 
     @Pure
-    abstract @Nullable Map<String, Object> getOffsetConsumerConfig();
+    public abstract int getRedistributeNumKeys();
 
     @Pure
-    abstract @Nullable DeserializerProvider<K> getKeyDeserializerProvider();
+    public abstract @Nullable Duration getWatchTopicPartitionDuration();
 
     @Pure
-    abstract @Nullable DeserializerProvider<V> getValueDeserializerProvider();
+    public abstract TimestampPolicyFactory<K, V> getTimestampPolicyFactory();
 
     @Pure
-    abstract @Nullable SerializableFunction<TopicPartition, Boolean> getCheckStopReadingFn();
+    public abstract @Nullable Map<String, Object> getOffsetConsumerConfig();
+
+    @Pure
+    public abstract @Nullable DeserializerProvider<K> getKeyDeserializerProvider();
+
+    @Pure
+    public abstract @Nullable DeserializerProvider<V> getValueDeserializerProvider();
+
+    @Pure
+    public abstract @Nullable CheckStopReadingFn getCheckStopReadingFn();
+
+    @Pure
+    public abstract @Nullable ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
+
+    @Pure
+    public abstract long getConsumerPollingTimeout();
 
     abstract Builder<K, V> toBuilder();
 
@@ -691,6 +748,8 @@ public class KafkaIO {
       abstract Builder<K, V> setTopics(List<String> topics);
 
       abstract Builder<K, V> setTopicPartitions(List<TopicPartition> topicPartitions);
+
+      abstract Builder<K, V> setTopicPattern(Pattern topicPattern);
 
       abstract Builder<K, V> setKeyCoder(Coder<K> keyCoder);
 
@@ -715,6 +774,12 @@ public class KafkaIO {
 
       abstract Builder<K, V> setWatchTopicPartitionDuration(Duration duration);
 
+      abstract Builder<K, V> setRedistributed(boolean withRedistribute);
+
+      abstract Builder<K, V> setAllowDuplicates(boolean allowDuplicates);
+
+      abstract Builder<K, V> setRedistributeNumKeys(int redistributeNumKeys);
+
       abstract Builder<K, V> setTimestampPolicyFactory(
           TimestampPolicyFactory<K, V> timestampPolicyFactory);
 
@@ -726,8 +791,17 @@ public class KafkaIO {
       abstract Builder<K, V> setValueDeserializerProvider(
           DeserializerProvider<V> deserializerProvider);
 
-      abstract Builder<K, V> setCheckStopReadingFn(
-          SerializableFunction<TopicPartition, Boolean> checkStopReadingFn);
+      abstract Builder<K, V> setCheckStopReadingFn(@Nullable CheckStopReadingFn checkStopReadingFn);
+
+      abstract Builder<K, V> setBadRecordErrorHandler(
+          @Nullable ErrorHandler<BadRecord, ?> badRecordErrorHandler);
+
+      Builder<K, V> setCheckStopReadingFn(
+          @Nullable SerializableFunction<TopicPartition, Boolean> checkStopReadingFn) {
+        return setCheckStopReadingFn(CheckStopReadingFnWrapper.of(checkStopReadingFn));
+      }
+
+      abstract Builder<K, V> setConsumerPollingTimeout(long consumerPollingTimeout);
 
       abstract Read<K, V> build();
 
@@ -792,6 +866,31 @@ public class KafkaIO {
         // We can expose dynamic read to external build when ReadFromKafkaDoFn is the default
         // implementation.
         builder.setDynamicRead(false);
+
+        if (config.consumerPollingTimeout != null) {
+          if (config.consumerPollingTimeout <= 0) {
+            throw new IllegalArgumentException("consumerPollingTimeout should be > 0.");
+          }
+          builder.setConsumerPollingTimeout(config.consumerPollingTimeout);
+        } else {
+          builder.setConsumerPollingTimeout(2L);
+        }
+
+        if (config.redistribute != null) {
+          builder.setRedistributed(config.redistribute);
+          if (config.redistributeNumKeys != null) {
+            builder.setRedistributeNumKeys((int) config.redistributeNumKeys);
+          }
+          if (config.allowDuplicates != null) {
+            builder.setAllowDuplicates(config.allowDuplicates);
+          }
+
+        } else {
+          builder.setRedistributed(false);
+          builder.setRedistributeNumKeys(0);
+          builder.setAllowDuplicates(false);
+        }
+        System.out.println("xxx builder service" + builder.toString());
       }
 
       private static <T> Coder<T> resolveCoder(Class<Deserializer<T>> deserializer) {
@@ -854,7 +953,11 @@ public class KafkaIO {
         private Long maxNumRecords;
         private Long maxReadTime;
         private Boolean commitOffsetInFinalize;
+        private Long consumerPollingTimeout;
         private String timestampPolicy;
+        private Integer redistributeNumKeys;
+        private Boolean redistribute;
+        private Boolean allowDuplicates;
 
         public void setConsumerConfig(Map<String, String> consumerConfig) {
           this.consumerConfig = consumerConfig;
@@ -895,6 +998,22 @@ public class KafkaIO {
         public void setTimestampPolicy(String timestampPolicy) {
           this.timestampPolicy = timestampPolicy;
         }
+
+        public void setConsumerPollingTimeout(Long consumerPollingTimeout) {
+          this.consumerPollingTimeout = consumerPollingTimeout;
+        }
+
+        public void setRedistributeNumKeys(Integer redistributeNumKeys) {
+          this.redistributeNumKeys = redistributeNumKeys;
+        }
+
+        public void setRedistribute(Boolean redistribute) {
+          this.redistribute = redistribute;
+        }
+
+        public void setAllowDuplicates(Boolean allowDuplicates) {
+          this.allowDuplicates = allowDuplicates;
+        }
       }
     }
 
@@ -922,8 +1041,9 @@ public class KafkaIO {
      */
     public Read<K, V> withTopics(List<String> topics) {
       checkState(
-          getTopicPartitions() == null || getTopicPartitions().isEmpty(),
-          "Only topics or topicPartitions can be set, not both");
+          (getTopicPartitions() == null || getTopicPartitions().isEmpty())
+              && getTopicPattern() == null,
+          "Only one of topics, topicPartitions or topicPattern can be set");
       return toBuilder().setTopics(ImmutableList.copyOf(topics)).build();
     }
 
@@ -936,9 +1056,48 @@ public class KafkaIO {
      */
     public Read<K, V> withTopicPartitions(List<TopicPartition> topicPartitions) {
       checkState(
-          getTopics() == null || getTopics().isEmpty(),
-          "Only topics or topicPartitions can be set, not both");
+          (getTopics() == null || getTopics().isEmpty()) && getTopicPattern() == null,
+          "Only one of topics, topicPartitions or topicPattern can be set");
       return toBuilder().setTopicPartitions(ImmutableList.copyOf(topicPartitions)).build();
+    }
+
+    /**
+     * Sets redistribute transform that hints to the runner to try to redistribute the work evenly.
+     */
+    public Read<K, V> withRedistribute() {
+      if (getRedistributeNumKeys() == 0 && isRedistributed()) {
+        LOG.warn("This will create a key per record, which is sub-optimal for most use cases.");
+      }
+      return toBuilder().setRedistributed(true).build();
+    }
+
+    public Read<K, V> withAllowDuplicates(Boolean allowDuplicates) {
+      if (!isAllowDuplicates()) {
+        LOG.warn("Setting this value without setting withRedistribute() will have no effect.");
+      }
+      return toBuilder().setAllowDuplicates(allowDuplicates).build();
+    }
+
+    public Read<K, V> withRedistributeNumKeys(int redistributeNumKeys) {
+      checkState(
+          isRedistributed(),
+          "withRedistributeNumKeys is ignored if withRedistribute() is not enabled on the transform.");
+      return toBuilder().setRedistributeNumKeys(redistributeNumKeys).build();
+    }
+
+    /**
+     * Internally sets a {@link java.util.regex.Pattern} of topics to read from. All the partitions
+     * from each of the matching topics are read.
+     *
+     * <p>See {@link KafkaUnboundedSource#split(int, PipelineOptions)} for description of how the
+     * partitions are distributed among the splits.
+     */
+    public Read<K, V> withTopicPattern(String topicPattern) {
+      checkState(
+          (getTopics() == null || getTopics().isEmpty())
+              && (getTopicPartitions() == null || getTopicPartitions().isEmpty()),
+          "Only one of topics, topicPartitions or topicPattern can be set");
+      return toBuilder().setTopicPattern(Pattern.compile(topicPattern)).build();
     }
 
     /**
@@ -969,6 +1128,14 @@ public class KafkaIO {
       return toBuilder().setKeyDeserializerProvider(deserializerProvider).build();
     }
 
+    public Read<K, V> withKeyDeserializerProviderAndCoder(
+        DeserializerProvider<K> deserializerProvider, Coder<K> keyCoder) {
+      return toBuilder()
+          .setKeyDeserializerProvider(deserializerProvider)
+          .setKeyCoder(keyCoder)
+          .build();
+    }
+
     /**
      * Sets a Kafka {@link Deserializer} to interpret value bytes read from Kafka.
      *
@@ -995,6 +1162,14 @@ public class KafkaIO {
 
     public Read<K, V> withValueDeserializer(DeserializerProvider<V> deserializerProvider) {
       return toBuilder().setValueDeserializerProvider(deserializerProvider).build();
+    }
+
+    public Read<K, V> withValueDeserializerProviderAndCoder(
+        DeserializerProvider<V> deserializerProvider, Coder<V> valueCoder) {
+      return toBuilder()
+          .setValueDeserializerProvider(deserializerProvider)
+          .setValueCoder(valueCoder)
+          .build();
     }
 
     /**
@@ -1247,12 +1422,36 @@ public class KafkaIO {
     }
 
     /**
+     * A custom {@link CheckStopReadingFn} that determines whether the {@link ReadFromKafkaDoFn}
+     * should stop reading from the given {@link TopicPartition}.
+     */
+    public Read<K, V> withCheckStopReadingFn(CheckStopReadingFn checkStopReadingFn) {
+      return toBuilder().setCheckStopReadingFn(checkStopReadingFn).build();
+    }
+
+    /**
      * A custom {@link SerializableFunction} that determines whether the {@link ReadFromKafkaDoFn}
      * should stop reading from the given {@link TopicPartition}.
      */
     public Read<K, V> withCheckStopReadingFn(
         SerializableFunction<TopicPartition, Boolean> checkStopReadingFn) {
-      return toBuilder().setCheckStopReadingFn(checkStopReadingFn).build();
+      return toBuilder()
+          .setCheckStopReadingFn(CheckStopReadingFnWrapper.of(checkStopReadingFn))
+          .build();
+    }
+
+    public Read<K, V> withBadRecordErrorHandler(ErrorHandler<BadRecord, ?> badRecordErrorHandler) {
+      return toBuilder().setBadRecordErrorHandler(badRecordErrorHandler).build();
+    }
+
+    /**
+     * Sets the timeout time in seconds for Kafka consumer polling request in the {@link
+     * ReadFromKafkaDoFn}. A lower timeout optimizes for latency. Increase the timeout if the
+     * consumer is not fetching any records. The default is 2 seconds.
+     */
+    public Read<K, V> withConsumerPollingTimeout(long duration) {
+      checkState(duration > 0, "Consumer polling timeout must be greater than 0.");
+      return toBuilder().setConsumerPollingTimeout(duration).build();
     }
 
     /** Returns a {@link PTransform} for PCollection of {@link KV}, dropping Kafka metatdata. */
@@ -1274,8 +1473,9 @@ public class KafkaIO {
       if (!isDynamicRead()) {
         checkArgument(
             (getTopics() != null && getTopics().size() > 0)
-                || (getTopicPartitions() != null && getTopicPartitions().size() > 0),
-            "Either withTopic(), withTopics() or withTopicPartitions() is required");
+                || (getTopicPartitions() != null && getTopicPartitions().size() > 0)
+                || getTopicPattern() != null,
+            "Either withTopic(), withTopics(), withTopicPartitions() or withTopicPattern() is required");
       } else {
         checkArgument(
             ExperimentalOptions.hasExperiment(input.getPipeline().getOptions(), "beam_fn_api"),
@@ -1471,6 +1671,11 @@ public class KafkaIO {
 
       @Override
       public PCollection<KafkaRecord<K, V>> expand(PBegin input) {
+        if (kafkaRead.getBadRecordErrorHandler() != null) {
+          LOG.warn(
+              "The Legacy implementation of Kafka Read does not support writing malformed"
+                  + " messages to an error handler. Use the SDF implementation instead.");
+        }
         // Handles unbounded source to bounded conversion if maxNumRecords or maxReadTime is set.
         Unbounded<KafkaRecord<K, V>> unbounded =
             org.apache.beam.sdk.io.Read.from(
@@ -1491,6 +1696,25 @@ public class KafkaIO {
                   .withMaxNumRecords(kafkaRead.getMaxNumRecords());
         }
 
+        if (kafkaRead.isRedistributed()) {
+          // fail here instead.
+          checkArgument(
+              kafkaRead.isCommitOffsetsInFinalizeEnabled(),
+              "commitOffsetsInFinalize() can't be enabled with isRedistributed");
+          PCollection<KafkaRecord<K, V>> output = input.getPipeline().apply(transform);
+          if (kafkaRead.getRedistributeNumKeys() == 0) {
+            return output.apply(
+                "Insert Redistribute",
+                Redistribute.<KafkaRecord<K, V>>arbitrarily()
+                    .withAllowDuplicates(kafkaRead.isAllowDuplicates()));
+          } else {
+            return output.apply(
+                "Insert Redistribute with Shards",
+                Redistribute.<KafkaRecord<K, V>>arbitrarily()
+                    .withAllowDuplicates(kafkaRead.isAllowDuplicates())
+                    .withNumBuckets((int) kafkaRead.getRedistributeNumKeys()));
+          }
+        }
         return input.getPipeline().apply(transform);
       }
     }
@@ -1511,12 +1735,26 @@ public class KafkaIO {
                 .withValueDeserializerProvider(kafkaRead.getValueDeserializerProvider())
                 .withManualWatermarkEstimator()
                 .withTimestampPolicyFactory(kafkaRead.getTimestampPolicyFactory())
-                .withCheckStopReadingFn(kafkaRead.getCheckStopReadingFn());
+                .withCheckStopReadingFn(kafkaRead.getCheckStopReadingFn())
+                .withConsumerPollingTimeout(kafkaRead.getConsumerPollingTimeout());
         if (kafkaRead.isCommitOffsetsInFinalizeEnabled()) {
           readTransform = readTransform.commitOffsets();
         }
         if (kafkaRead.getStopReadTime() != null) {
           readTransform = readTransform.withBounded();
+        }
+        if (kafkaRead.getBadRecordErrorHandler() != null) {
+          readTransform =
+              readTransform.withBadRecordErrorHandler(kafkaRead.getBadRecordErrorHandler());
+        }
+        if (kafkaRead.isRedistributed()) {
+          readTransform = readTransform.withRedistribute();
+        }
+        if (kafkaRead.isAllowDuplicates()) {
+          readTransform = readTransform.withAllowDuplicates();
+        }
+        if (kafkaRead.getRedistributeNumKeys() > 0) {
+          readTransform = readTransform.withRedistributeNumKeys(kafkaRead.getRedistributeNumKeys());
         }
         PCollection<KafkaSourceDescriptor> output;
         if (kafkaRead.isDynamicRead()) {
@@ -1537,6 +1775,7 @@ public class KafkaIO {
                       kafkaRead.getConsumerConfig(),
                       kafkaRead.getCheckStopReadingFn(),
                       topics,
+                      kafkaRead.getTopicPattern(),
                       kafkaRead.getStartReadTime(),
                       kafkaRead.getStopReadTime()));
         } else {
@@ -1545,6 +1784,22 @@ public class KafkaIO {
                   .getPipeline()
                   .apply(Impulse.create())
                   .apply(ParDo.of(new GenerateKafkaSourceDescriptor(kafkaRead)));
+        }
+        if (kafkaRead.isRedistributed()) {
+          PCollection<KafkaRecord<K, V>> pcol =
+              output.apply(readTransform).setCoder(KafkaRecordCoder.of(keyCoder, valueCoder));
+          if (kafkaRead.getRedistributeNumKeys() == 0) {
+            return pcol.apply(
+                "Insert Redistribute",
+                Redistribute.<KafkaRecord<K, V>>arbitrarily()
+                    .withAllowDuplicates(kafkaRead.isAllowDuplicates()));
+          } else {
+            return pcol.apply(
+                "Insert Redistribute with Shards",
+                Redistribute.<KafkaRecord<K, V>>arbitrarily()
+                    .withAllowDuplicates(true)
+                    .withNumBuckets((int) kafkaRead.getRedistributeNumKeys()));
+          }
         }
         return output.apply(readTransform).setCoder(KafkaRecordCoder.of(keyCoder, valueCoder));
       }
@@ -1561,6 +1816,7 @@ public class KafkaIO {
         this.consumerFactoryFn = read.getConsumerFactoryFn();
         this.topics = read.getTopics();
         this.topicPartitions = read.getTopicPartitions();
+        this.topicPattern = read.getTopicPattern();
         this.startReadTime = read.getStartReadTime();
         this.stopReadTime = read.getStopReadTime();
       }
@@ -1578,15 +1834,30 @@ public class KafkaIO {
 
       @VisibleForTesting final @Nullable List<String> topics;
 
+      private final @Nullable Pattern topicPattern;
+
       @ProcessElement
       public void processElement(OutputReceiver<KafkaSourceDescriptor> receiver) {
         List<TopicPartition> partitions =
             new ArrayList<>(Preconditions.checkStateNotNull(topicPartitions));
         if (partitions.isEmpty()) {
           try (Consumer<?, ?> consumer = consumerFactoryFn.apply(consumerConfig)) {
-            for (String topic : Preconditions.checkStateNotNull(topics)) {
-              for (PartitionInfo p : consumer.partitionsFor(topic)) {
-                partitions.add(new TopicPartition(p.topic(), p.partition()));
+            List<String> topics = Preconditions.checkStateNotNull(this.topics);
+            if (topics.isEmpty()) {
+              Pattern pattern = Preconditions.checkStateNotNull(topicPattern);
+              for (Map.Entry<String, List<PartitionInfo>> entry :
+                  consumer.listTopics().entrySet()) {
+                if (pattern.matcher(entry.getKey()).matches()) {
+                  for (PartitionInfo p : entry.getValue()) {
+                    partitions.add(new TopicPartition(p.topic(), p.partition()));
+                  }
+                }
+              }
+            } else {
+              for (String topic : topics) {
+                for (PartitionInfo p : consumer.partitionsFor(topic)) {
+                  partitions.add(new TopicPartition(p.topic(), p.partition()));
+                }
               }
             }
           }
@@ -1634,12 +1905,16 @@ public class KafkaIO {
       super.populateDisplayData(builder);
       List<String> topics = Preconditions.checkStateNotNull(getTopics());
       List<TopicPartition> topicPartitions = Preconditions.checkStateNotNull(getTopicPartitions());
+      Pattern topicPattern = getTopicPattern();
       if (topics.size() > 0) {
         builder.add(DisplayData.item("topics", Joiner.on(",").join(topics)).withLabel("Topic/s"));
       } else if (topicPartitions.size() > 0) {
         builder.add(
             DisplayData.item("topicPartitions", Joiner.on(",").join(topicPartitions))
                 .withLabel("Topic Partition/s"));
+      } else if (topicPattern != null) {
+        builder.add(
+            DisplayData.item("topicPattern", topicPattern.pattern()).withLabel("Topic Pattern"));
       }
       Set<String> disallowedConsumerPropertiesKeys =
           KafkaIOUtils.DISALLOWED_CONSUMER_PROPERTIES.keySet();
@@ -1714,10 +1989,10 @@ public class KafkaIO {
   static class KafkaHeader {
 
     String key;
-    byte[] value;
+    byte @Nullable [] value;
 
     @SchemaCreate
-    public KafkaHeader(String key, byte[] value) {
+    public KafkaHeader(String key, byte @Nullable [] value) {
       this.key = key;
       this.value = value;
     }
@@ -1865,9 +2140,9 @@ public class KafkaIO {
    * the transform will expand to:
    *
    * <pre>{@code
-   * PCollection<KafkaSourceDescriptor> --> ParDo(ReadFromKafkaDoFn<KafkaSourceDescriptor, KV<KafkaSourceDescriptor, KafkaRecord>>) --> Reshuffle() --> Map(output KafkaRecord)
-   *                                                                                                                                         |
-   *                                                                                                                                         --> KafkaCommitOffset
+   * PCollection<KafkaSourceDescriptor> --> ParDo(ReadFromKafkaDoFn<KafkaSourceDescriptor, KV<KafkaSourceDescriptor, KafkaRecord>>) --> Map(output KafkaRecord)
+   *                                                                                                          |
+   *                                                                                                          --> KafkaCommitOffset
    * }</pre>
    *
    * . Note that this expansion is not supported when running with x-lang on Dataflow.
@@ -1876,6 +2151,8 @@ public class KafkaIO {
   @AutoValue.CopyAnnotations
   public abstract static class ReadSourceDescriptors<K, V>
       extends PTransform<PCollection<KafkaSourceDescriptor>, PCollection<KafkaRecord<K, V>>> {
+
+    private final TupleTag<KV<KafkaSourceDescriptor, KafkaRecord<K, V>>> records = new TupleTag<>();
 
     private static final Logger LOG = LoggerFactory.getLogger(ReadSourceDescriptors.class);
 
@@ -1902,7 +2179,7 @@ public class KafkaIO {
         getConsumerFactoryFn();
 
     @Pure
-    abstract @Nullable SerializableFunction<TopicPartition, Boolean> getCheckStopReadingFn();
+    abstract @Nullable CheckStopReadingFn getCheckStopReadingFn();
 
     @Pure
     abstract @Nullable SerializableFunction<KafkaRecord<K, V>, Instant>
@@ -1916,7 +2193,25 @@ public class KafkaIO {
     abstract boolean isCommitOffsetEnabled();
 
     @Pure
+    abstract boolean isRedistribute();
+
+    @Pure
+    abstract boolean isAllowDuplicates();
+
+    @Pure
+    abstract int getRedistributeNumKeys();
+
+    @Pure
     abstract @Nullable TimestampPolicyFactory<K, V> getTimestampPolicyFactory();
+
+    @Pure
+    abstract BadRecordRouter getBadRecordRouter();
+
+    @Pure
+    abstract ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
+
+    @Pure
+    abstract long getConsumerPollingTimeout();
 
     abstract boolean isBounded();
 
@@ -1933,7 +2228,12 @@ public class KafkaIO {
           SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> consumerFactoryFn);
 
       abstract ReadSourceDescriptors.Builder<K, V> setCheckStopReadingFn(
-          @Nullable SerializableFunction<TopicPartition, Boolean> checkStopReadingFn);
+          @Nullable CheckStopReadingFn checkStopReadingFn);
+
+      ReadSourceDescriptors.Builder<K, V> setCheckStopReadingFn(
+          @Nullable SerializableFunction<TopicPartition, Boolean> checkStopReadingFn) {
+        return setCheckStopReadingFn(CheckStopReadingFnWrapper.of(checkStopReadingFn));
+      }
 
       abstract ReadSourceDescriptors.Builder<K, V> setKeyDeserializerProvider(
           @Nullable DeserializerProvider<K> deserializerProvider);
@@ -1957,7 +2257,21 @@ public class KafkaIO {
       abstract ReadSourceDescriptors.Builder<K, V> setTimestampPolicyFactory(
           TimestampPolicyFactory<K, V> policy);
 
+      abstract ReadSourceDescriptors.Builder<K, V> setBadRecordRouter(
+          BadRecordRouter badRecordRouter);
+
+      abstract ReadSourceDescriptors.Builder<K, V> setBadRecordErrorHandler(
+          ErrorHandler<BadRecord, ?> badRecordErrorHandler);
+
+      abstract ReadSourceDescriptors.Builder<K, V> setConsumerPollingTimeout(long duration);
+
       abstract ReadSourceDescriptors.Builder<K, V> setBounded(boolean bounded);
+
+      abstract ReadSourceDescriptors.Builder<K, V> setRedistribute(boolean withRedistribute);
+
+      abstract ReadSourceDescriptors.Builder<K, V> setAllowDuplicates(boolean allowDuplicates);
+
+      abstract ReadSourceDescriptors.Builder<K, V> setRedistributeNumKeys(int redistributeNumKeys);
 
       abstract ReadSourceDescriptors<K, V> build();
     }
@@ -1968,6 +2282,12 @@ public class KafkaIO {
           .setConsumerConfig(KafkaIOUtils.DEFAULT_CONSUMER_PROPERTIES)
           .setCommitOffsetEnabled(false)
           .setBounded(false)
+          .setBadRecordRouter(BadRecordRouter.THROWING_ROUTER)
+          .setBadRecordErrorHandler(new ErrorHandler.DefaultErrorHandler<>())
+          .setConsumerPollingTimeout(2L)
+          .setRedistribute(false)
+          .setAllowDuplicates(false)
+          .setRedistributeNumKeys(0)
           .build()
           .withProcessingTime()
           .withMonotonicallyIncreasingWatermarkEstimator();
@@ -2052,12 +2372,23 @@ public class KafkaIO {
     }
 
     /**
+     * A custom {@link CheckStopReadingFn} that determines whether the {@link ReadFromKafkaDoFn}
+     * should stop reading from the given {@link TopicPartition}.
+     */
+    public ReadSourceDescriptors<K, V> withCheckStopReadingFn(
+        @Nullable CheckStopReadingFn checkStopReadingFn) {
+      return toBuilder().setCheckStopReadingFn(checkStopReadingFn).build();
+    }
+
+    /**
      * A custom {@link SerializableFunction} that determines whether the {@link ReadFromKafkaDoFn}
      * should stop reading from the given {@link TopicPartition}.
      */
     public ReadSourceDescriptors<K, V> withCheckStopReadingFn(
         @Nullable SerializableFunction<TopicPartition, Boolean> checkStopReadingFn) {
-      return toBuilder().setCheckStopReadingFn(checkStopReadingFn).build();
+      return toBuilder()
+          .setCheckStopReadingFn(CheckStopReadingFnWrapper.of(checkStopReadingFn))
+          .build();
     }
 
     /**
@@ -2114,6 +2445,19 @@ public class KafkaIO {
     public ReadSourceDescriptors<K, V> withProcessingTime() {
       return withExtractOutputTimestampFn(
           ReadSourceDescriptors.ExtractOutputTimestampFns.useProcessingTime());
+    }
+
+    /** Enable Redistribute. */
+    public ReadSourceDescriptors<K, V> withRedistribute() {
+      return toBuilder().setRedistribute(true).build();
+    }
+
+    public ReadSourceDescriptors<K, V> withAllowDuplicates() {
+      return toBuilder().setAllowDuplicates(true).build();
+    }
+
+    public ReadSourceDescriptors<K, V> withRedistributeNumKeys(int redistributeNumKeys) {
+      return toBuilder().setRedistributeNumKeys(redistributeNumKeys).build();
     }
 
     /** Use the creation time of {@link KafkaRecord} as the output timestamp. */
@@ -2210,6 +2554,23 @@ public class KafkaIO {
       return toBuilder().setConsumerConfig(consumerConfig).build();
     }
 
+    public ReadSourceDescriptors<K, V> withBadRecordErrorHandler(
+        ErrorHandler<BadRecord, ?> errorHandler) {
+      return toBuilder()
+          .setBadRecordRouter(BadRecordRouter.RECORDING_ROUTER)
+          .setBadRecordErrorHandler(errorHandler)
+          .build();
+    }
+
+    /**
+     * Sets the timeout time in seconds for Kafka consumer polling request in the {@link
+     * ReadFromKafkaDoFn}. A lower timeout optimizes for latency. Increase the timeout if the
+     * consumer is not fetching any records. The default is 2 seconds.
+     */
+    public ReadSourceDescriptors<K, V> withConsumerPollingTimeout(long duration) {
+      return toBuilder().setConsumerPollingTimeout(duration).build();
+    }
+
     ReadAllFromRow<K, V> forExternalBuild() {
       return new ReadAllFromRow<>(this);
     }
@@ -2289,6 +2650,12 @@ public class KafkaIO {
         }
       }
 
+      if (isRedistribute()) {
+        if (getRedistributeNumKeys() == 0) {
+          LOG.warn("This will create a key per record, which is sub-optimal for most use cases.");
+        }
+      }
+
       if (getConsumerConfig().get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG) == null) {
         LOG.warn(
             "The bootstrapServers is not set. It must be populated through the KafkaSourceDescriptor during runtime otherwise the pipeline will fail.");
@@ -2300,9 +2667,18 @@ public class KafkaIO {
       Coder<KafkaRecord<K, V>> recordCoder = KafkaRecordCoder.of(keyCoder, valueCoder);
 
       try {
+        PCollectionTuple pCollectionTuple =
+            input.apply(
+                ParDo.of(ReadFromKafkaDoFn.<K, V>create(this, records))
+                    .withOutputTags(records, TupleTagList.of(BadRecordRouter.BAD_RECORD_TAG)));
+        getBadRecordErrorHandler()
+            .addErrorCollection(
+                pCollectionTuple
+                    .get(BadRecordRouter.BAD_RECORD_TAG)
+                    .setCoder(BadRecord.getCoder(input.getPipeline())));
         PCollection<KV<KafkaSourceDescriptor, KafkaRecord<K, V>>> outputWithDescriptor =
-            input
-                .apply(ParDo.of(ReadFromKafkaDoFn.<K, V>create(this)))
+            pCollectionTuple
+                .get(records)
                 .setCoder(
                     KvCoder.of(
                         input
@@ -2310,30 +2686,59 @@ public class KafkaIO {
                             .getSchemaRegistry()
                             .getSchemaCoder(KafkaSourceDescriptor.class),
                         recordCoder));
-        if (isCommitOffsetEnabled() && !configuredKafkaCommit()) {
-          outputWithDescriptor =
-              outputWithDescriptor
-                  .apply(Reshuffle.viaRandomKey())
-                  .setCoder(
-                      KvCoder.of(
-                          input
-                              .getPipeline()
-                              .getSchemaRegistry()
-                              .getSchemaCoder(KafkaSourceDescriptor.class),
-                          recordCoder));
-          PCollection<Void> unused = outputWithDescriptor.apply(new KafkaCommitOffset<K, V>(this));
-          unused.setCoder(VoidCoder.of());
+
+        boolean applyCommitOffsets =
+            isCommitOffsetEnabled() && !configuredKafkaCommit() && !isRedistribute();
+        if (!applyCommitOffsets) {
+          return outputWithDescriptor
+              .apply(MapElements.into(new TypeDescriptor<KafkaRecord<K, V>>() {}).via(KV::getValue))
+              .setCoder(recordCoder);
         }
-        PCollection<KafkaRecord<K, V>> output =
-            outputWithDescriptor
-                .apply(
-                    MapElements.into(new TypeDescriptor<KafkaRecord<K, V>>() {})
-                        .via(element -> element.getValue()))
-                .setCoder(recordCoder);
-        return output;
+
+        // Add transform for committing offsets to Kafka with consistency with beam pipeline data
+        // processing.
+        String requestedVersionString =
+            input
+                .getPipeline()
+                .getOptions()
+                .as(StreamingOptions.class)
+                .getUpdateCompatibilityVersion();
+        if (requestedVersionString != null) {
+          List<String> requestedVersion = Arrays.asList(requestedVersionString.split("\\."));
+          List<String> targetVersion = Arrays.asList("2", "60", "0");
+
+          if (Comparators.lexicographical(Comparator.<String>naturalOrder())
+                  .compare(requestedVersion, targetVersion)
+              < 0) {
+            return expand259Commits(
+                outputWithDescriptor, recordCoder, input.getPipeline().getSchemaRegistry());
+          }
+        }
+        outputWithDescriptor.apply(new KafkaCommitOffset<>(this, false)).setCoder(VoidCoder.of());
+        return outputWithDescriptor
+            .apply(MapElements.into(new TypeDescriptor<KafkaRecord<K, V>>() {}).via(KV::getValue))
+            .setCoder(recordCoder);
       } catch (NoSuchSchemaException e) {
         throw new RuntimeException(e.getMessage());
       }
+    }
+
+    private PCollection<KafkaRecord<K, V>> expand259Commits(
+        PCollection<KV<KafkaSourceDescriptor, KafkaRecord<K, V>>> outputWithDescriptor,
+        Coder<KafkaRecord<K, V>> recordCoder,
+        SchemaRegistry schemaRegistry)
+        throws NoSuchSchemaException {
+      // Reshuffles the data and then branches off applying commit offsets.
+      outputWithDescriptor =
+          outputWithDescriptor
+              .apply(Reshuffle.viaRandomKey())
+              .setCoder(
+                  KvCoder.of(
+                      schemaRegistry.getSchemaCoder(KafkaSourceDescriptor.class), recordCoder));
+      outputWithDescriptor.apply(new KafkaCommitOffset<>(this, true)).setCoder(VoidCoder.of());
+      return outputWithDescriptor
+          .apply(MapElements.into(new TypeDescriptor<KafkaRecord<K, V>>() {}).via(KV::getValue))
+          .setCoder(recordCoder);
     }
 
     private Coder<K> getKeyCoder(CoderRegistry coderRegistry) {
@@ -2410,38 +2815,44 @@ public class KafkaIO {
     // {@link WriteRecords}. See example at {@link PubsubIO.Write}.
 
     @Pure
-    abstract @Nullable String getTopic();
+    public abstract @Nullable String getTopic();
 
     @Pure
-    abstract Map<String, Object> getProducerConfig();
+    public abstract Map<String, Object> getProducerConfig();
 
     @Pure
-    abstract @Nullable SerializableFunction<Map<String, Object>, Producer<K, V>>
+    public abstract @Nullable SerializableFunction<Map<String, Object>, Producer<K, V>>
         getProducerFactoryFn();
 
     @Pure
-    abstract @Nullable Class<? extends Serializer<K>> getKeySerializer();
+    public abstract @Nullable Class<? extends Serializer<K>> getKeySerializer();
 
     @Pure
-    abstract @Nullable Class<? extends Serializer<V>> getValueSerializer();
+    public abstract @Nullable Class<? extends Serializer<V>> getValueSerializer();
 
     @Pure
-    abstract @Nullable KafkaPublishTimestampFunction<ProducerRecord<K, V>>
+    public abstract @Nullable KafkaPublishTimestampFunction<ProducerRecord<K, V>>
         getPublishTimestampFunction();
 
     // Configuration for EOS sink
     @Pure
-    abstract boolean isEOS();
+    public abstract boolean isEOS();
 
     @Pure
-    abstract @Nullable String getSinkGroupId();
+    public abstract @Nullable String getSinkGroupId();
 
     @Pure
-    abstract int getNumShards();
+    public abstract int getNumShards();
 
     @Pure
-    abstract @Nullable SerializableFunction<Map<String, Object>, ? extends Consumer<?, ?>>
+    public abstract @Nullable SerializableFunction<Map<String, Object>, ? extends Consumer<?, ?>>
         getConsumerFactoryFn();
+
+    @Pure
+    public abstract BadRecordRouter getBadRecordRouter();
+
+    @Pure
+    public abstract ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
 
     abstract Builder<K, V> toBuilder();
 
@@ -2452,9 +2863,9 @@ public class KafkaIO {
       abstract Builder<K, V> setProducerConfig(Map<String, Object> producerConfig);
 
       abstract Builder<K, V> setProducerFactoryFn(
-          SerializableFunction<Map<String, Object>, Producer<K, V>> fn);
+          @Nullable SerializableFunction<Map<String, Object>, Producer<K, V>> fn);
 
-      abstract Builder<K, V> setKeySerializer(Class<? extends Serializer<K>> serializer);
+      abstract Builder<K, V> setKeySerializer(@Nullable Class<? extends Serializer<K>> serializer);
 
       abstract Builder<K, V> setValueSerializer(Class<? extends Serializer<V>> serializer);
 
@@ -2469,6 +2880,11 @@ public class KafkaIO {
 
       abstract Builder<K, V> setConsumerFactoryFn(
           SerializableFunction<Map<String, Object>, ? extends Consumer<?, ?>> fn);
+
+      abstract Builder<K, V> setBadRecordRouter(BadRecordRouter router);
+
+      abstract Builder<K, V> setBadRecordErrorHandler(
+          ErrorHandler<BadRecord, ?> badRecordErrorHandler);
 
       abstract WriteRecords<K, V> build();
     }
@@ -2616,6 +3032,14 @@ public class KafkaIO {
       return toBuilder().setConsumerFactoryFn(consumerFactoryFn).build();
     }
 
+    public WriteRecords<K, V> withBadRecordErrorHandler(
+        ErrorHandler<BadRecord, ?> badRecordErrorHandler) {
+      return toBuilder()
+          .setBadRecordRouter(BadRecordRouter.RECORDING_ROUTER)
+          .setBadRecordErrorHandler(badRecordErrorHandler)
+          .build();
+    }
+
     @Override
     public PDone expand(PCollection<ProducerRecord<K, V>> input) {
       checkArgument(
@@ -2627,6 +3051,9 @@ public class KafkaIO {
 
       if (isEOS()) {
         checkArgument(getTopic() != null, "withTopic() is required when isEOS() is true");
+        checkArgument(
+            getBadRecordErrorHandler() instanceof DefaultErrorHandler,
+            "BadRecordErrorHandling isn't supported with Kafka Exactly Once writing");
         KafkaExactlyOnceSink.ensureEOSSupport();
 
         // TODO: Verify that the group_id does not have existing state stored on Kafka unless
@@ -2637,7 +3064,19 @@ public class KafkaIO {
 
         input.apply(new KafkaExactlyOnceSink<>(this));
       } else {
-        input.apply(ParDo.of(new KafkaWriter<>(this)));
+        // Even though the errors are the only output from writing to Kafka, we maintain a
+        // PCollectionTuple
+        // with a void tag as the 'primary' output for easy forward compatibility
+        PCollectionTuple pCollectionTuple =
+            input.apply(
+                ParDo.of(new KafkaWriter<>(this))
+                    .withOutputTags(
+                        new TupleTag<Void>(), TupleTagList.of(BadRecordRouter.BAD_RECORD_TAG)));
+        getBadRecordErrorHandler()
+            .addErrorCollection(
+                pCollectionTuple
+                    .get(BadRecordRouter.BAD_RECORD_TAG)
+                    .setCoder(BadRecord.getCoder(input.getPipeline())));
       }
       return PDone.in(input.getPipeline());
     }
@@ -2702,9 +3141,12 @@ public class KafkaIO {
     // we shouldn't have to duplicate the same API for similar transforms like {@link Write} and
     // {@link WriteRecords}. See example at {@link PubsubIO.Write}.
 
+    public static final Class<AutoValue_KafkaIO_Write> AUTOVALUE_CLASS =
+        AutoValue_KafkaIO_Write.class;
+
     abstract @Nullable String getTopic();
 
-    abstract WriteRecords<K, V> getWriteRecordsTransform();
+    public abstract WriteRecords<K, V> getWriteRecordsTransform();
 
     abstract Builder<K, V> toBuilder();
 
@@ -2895,6 +3337,15 @@ public class KafkaIO {
     public Write<K, V> withProducerConfigUpdates(Map<String, Object> configUpdates) {
       return withWriteRecordsTransform(
           getWriteRecordsTransform().withProducerConfigUpdates(configUpdates));
+    }
+
+    /**
+     * Configure a {@link BadRecordErrorHandler} for sending records to if they fail to serialize
+     * when being sent to Kafka.
+     */
+    public Write<K, V> withBadRecordErrorHandler(ErrorHandler<BadRecord, ?> badRecordErrorHandler) {
+      return withWriteRecordsTransform(
+          getWriteRecordsTransform().withBadRecordErrorHandler(badRecordErrorHandler));
     }
 
     @Override

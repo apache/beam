@@ -82,18 +82,29 @@
 
 import typing
 
+import numpy as np
+
 from apache_beam.transforms.external import BeamJarExpansionService
 from apache_beam.transforms.external import ExternalTransform
 from apache_beam.transforms.external import NamedTupleBasedPayloadBuilder
 
 ReadFromKafkaSchema = typing.NamedTuple(
     'ReadFromKafkaSchema',
-    [('consumer_config', typing.Mapping[str, str]),
-     ('topics', typing.List[str]), ('key_deserializer', str),
-     ('value_deserializer', str), ('start_read_time', typing.Optional[int]),
-     ('max_num_records', typing.Optional[int]),
-     ('max_read_time', typing.Optional[int]),
-     ('commit_offset_in_finalize', bool), ('timestamp_policy', str)])
+    [
+        ('consumer_config', typing.Mapping[str, str]),
+        ('topics', typing.List[str]),
+        ('key_deserializer', str),
+        ('value_deserializer', str),
+        ('start_read_time', typing.Optional[int]),
+        ('max_num_records', typing.Optional[int]),
+        ('max_read_time', typing.Optional[int]),
+        ('commit_offset_in_finalize', bool),
+        ('timestamp_policy', str),
+        ('consumer_polling_timeout', typing.Optional[int]),
+        ('redistribute', typing.Optional[bool]),
+        ('redistribute_num_keys', typing.Optional[np.int32]),
+        ('allow_duplicates', typing.Optional[bool]),
+    ])
 
 
 def default_io_expansion_service(append_args=None):
@@ -134,8 +145,12 @@ class ReadFromKafka(ExternalTransform):
       max_read_time=None,
       commit_offset_in_finalize=False,
       timestamp_policy=processing_time_policy,
+      consumer_polling_timeout=2,
       with_metadata=False,
       expansion_service=None,
+      redistribute=False,
+      redistribute_num_keys=np.int32(0),
+      allow_duplicates=False,
   ):
     """
     Initializes a read operation from Kafka.
@@ -159,6 +174,10 @@ class ReadFromKafka(ExternalTransform):
     :param commit_offset_in_finalize: Whether to commit offsets when finalizing.
     :param timestamp_policy: The built-in timestamp policy which is used for
         extracting timestamp from KafkaRecord.
+    :param consumer_polling_timeout: Kafka client polling request
+        timeout time in seconds. A lower timeout optimizes for latency. Increase                                   
+        the timeout if the consumer is not fetching any records. Default is 2
+        seconds.
     :param with_metadata: whether the returned PCollection should contain
         Kafka related metadata or not. If False (default), elements of the
         returned PCollection will be of type 'bytes' if True, elements of the
@@ -166,6 +185,12 @@ class ReadFromKafka(ExternalTransform):
         this only works when using default key and value deserializers where
         Java Kafka Reader reads keys and values as 'byte[]'.
     :param expansion_service: The address (host:port) of the ExpansionService.
+    :param redistribute: whether a Redistribute transform should be applied 
+        immediately after the read.
+    :param redistribute_num_keys: Configures how many keys the Redistribute 
+        spreads the data across.
+    :param allow_duplicates: whether the Redistribute transform allows for 
+        duplicates (this serves solely as a hint to the underlying runner).
     """
     if timestamp_policy not in [ReadFromKafka.processing_time_policy,
                                 ReadFromKafka.create_time_policy,
@@ -186,7 +211,11 @@ class ReadFromKafka(ExternalTransform):
                 max_read_time=max_read_time,
                 start_read_time=start_read_time,
                 commit_offset_in_finalize=commit_offset_in_finalize,
-                timestamp_policy=timestamp_policy)),
+                timestamp_policy=timestamp_policy,
+                consumer_polling_timeout=consumer_polling_timeout,
+                redistribute=redistribute,
+                redistribute_num_keys=redistribute_num_keys,
+                allow_duplicates=allow_duplicates)),
         expansion_service or default_io_expansion_service())
 
 

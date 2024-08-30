@@ -27,7 +27,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.regex.Pattern;
 import org.apache.beam.sdk.util.NumberedShardedFile;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Files;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Files;
 import org.apache.commons.lang3.SystemUtils;
 import org.junit.Rule;
 import org.junit.Test;
@@ -59,7 +59,7 @@ public class FileChecksumMatcherTest {
   @Test
   public void testMatcherThatVerifiesSingleFile() throws IOException {
     File tmpFile = tmpFolder.newFile("result-000-of-001");
-    Files.write("Test for file checksum verifier.", tmpFile, StandardCharsets.UTF_8);
+    Files.asCharSink(tmpFile, StandardCharsets.UTF_8).write("Test for file checksum verifier.");
 
     assertThat(
         new NumberedShardedFile(tmpFile.getPath()),
@@ -73,9 +73,9 @@ public class FileChecksumMatcherTest {
     File tmpFile1 = tmpFolder.newFile("result-000-of-002");
     File tmpFile2 = tmpFolder.newFile("result-001-of-002");
     File tmpFile3 = tmpFolder.newFile("tmp");
-    Files.write("To be or not to be, ", tmpFile1, StandardCharsets.UTF_8);
-    Files.write("it is not a question.", tmpFile2, StandardCharsets.UTF_8);
-    Files.write("tmp", tmpFile3, StandardCharsets.UTF_8);
+    Files.asCharSink(tmpFile1, StandardCharsets.UTF_8).write("To be or not to be, ");
+    Files.asCharSink(tmpFile2, StandardCharsets.UTF_8).write("it is not a question.");
+    Files.asCharSink(tmpFile3, StandardCharsets.UTF_8).write("tmp");
 
     assertThat(
         new NumberedShardedFile(tmpFolder.getRoot().toPath().resolve("result-*").toString()),
@@ -87,7 +87,7 @@ public class FileChecksumMatcherTest {
     // TODO: Java core test failing on windows, https://github.com/apache/beam/issues/20483
     assumeFalse(SystemUtils.IS_OS_WINDOWS);
     File emptyFile = tmpFolder.newFile("result-000-of-001");
-    Files.write("", emptyFile, StandardCharsets.UTF_8);
+    Files.asCharSink(emptyFile, StandardCharsets.UTF_8).write("");
 
     assertThat(
         new NumberedShardedFile(tmpFolder.getRoot().toPath().resolve("*").toString()),
@@ -101,8 +101,8 @@ public class FileChecksumMatcherTest {
     assumeFalse(SystemUtils.IS_OS_WINDOWS);
     File tmpFile1 = tmpFolder.newFile("result0-total2");
     File tmpFile2 = tmpFolder.newFile("result1-total2");
-    Files.write("To be or not to be, ", tmpFile1, StandardCharsets.UTF_8);
-    Files.write("it is not a question.", tmpFile2, StandardCharsets.UTF_8);
+    Files.asCharSink(tmpFile1, StandardCharsets.UTF_8).write("To be or not to be, ");
+    Files.asCharSink(tmpFile2, StandardCharsets.UTF_8).write("it is not a question.");
 
     Pattern customizedTemplate =
         Pattern.compile("(?x) result (?<shardnum>\\d+) - total (?<numshards>\\d+)");

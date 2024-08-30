@@ -36,9 +36,9 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.junit.Rule;
@@ -405,7 +405,7 @@ public class RowTest {
   }
 
   @Test
-  public void testCreateMapWithNullValue() {
+  public void testCreateAndCompareMapWithNullValue() {
     Map<Integer, String> data = new HashMap();
     data.put(1, "value1");
     data.put(2, "value2");
@@ -416,6 +416,25 @@ public class RowTest {
             .collect(toSchema());
     Row row = Row.withSchema(type).addValue(data).build();
     assertEquals(data, row.getMap("map"));
+
+    Map<Integer, String> onlyNullValueData = new HashMap();
+    onlyNullValueData.put(1, null);
+    onlyNullValueData.put(2, null);
+
+    Map<Integer, String> otherOnlyNullValueData = new HashMap();
+    otherOnlyNullValueData.put(3, null);
+    otherOnlyNullValueData.put(4, null);
+
+    Row otherNonNullValue =
+        Row.withSchema(type)
+            .addValue(ImmutableMap.of(1, "value1", 2, "value2", 3, "value3", 4, "value4"))
+            .build();
+    Row otherNullValue = Row.withSchema(type).addValue(data).build();
+    Row onlyNullValue = Row.withSchema(type).addValue(onlyNullValueData).build();
+    Row otherOnlyNullValue = Row.withSchema(type).addValue(otherOnlyNullValueData).build();
+    assertNotEquals(otherNonNullValue, row);
+    assertEquals(otherNullValue, row);
+    assertNotEquals(onlyNullValue, otherOnlyNullValue);
   }
 
   @Test
@@ -786,5 +805,95 @@ public class RowTest {
     assertEquals(enumerationType.valueOf(0), row.getValue(0));
     assertEquals(
         enumerationType.valueOf("zero"), row.getLogicalTypeValue(0, EnumerationType.Value.class));
+  }
+
+  @Test
+  public void testSorted() {
+    Schema unsortedNestedSchema =
+        Schema.builder().addStringField("bb").addStringField("aa").addStringField("cc").build();
+    Schema unsortedSchema =
+        Schema.builder()
+            .addStringField("d")
+            .addStringField("c")
+            .addRowField("e", unsortedNestedSchema)
+            .addStringField("b")
+            .addStringField("a")
+            .build();
+    Row unsortedNestedRow =
+        Row.withSchema(unsortedNestedSchema).addValues("bb_val", "aa_val", "cc_val").build();
+    Row unsortedRow =
+        Row.withSchema(unsortedSchema)
+            .addValues("d_val", "c_val", unsortedNestedRow, "b_val", "a_val")
+            .build();
+
+    Row expectedSortedNestedRow =
+        Row.withSchema(unsortedNestedSchema.sorted())
+            .addValues("aa_val", "bb_val", "cc_val")
+            .build();
+    Row expectedSortedRow =
+        Row.withSchema(unsortedSchema.sorted())
+            .addValues("a_val", "b_val", "c_val", "d_val", expectedSortedNestedRow)
+            .build();
+
+    Row sortedRow = unsortedRow.sorted();
+    assertEquals(expectedSortedNestedRow, sortedRow.getRow("e"));
+    assertEquals(expectedSortedRow, sortedRow);
+    assertNotEquals(unsortedRow, sortedRow);
+  }
+
+  @Test
+  public void testToSnakeCase() {
+    Schema innerSchema =
+        Schema.builder()
+            .addStringField("myFirstNestedStringField")
+            .addStringField("mySecondNestedStringField")
+            .build();
+    Schema schema =
+        Schema.builder()
+            .addStringField("myFirstStringField")
+            .addStringField("mySecondStringField")
+            .addRowField("myRowField", innerSchema)
+            .build();
+
+    Row innerRow = Row.withSchema(innerSchema).addValues("nested1", "nested2").build();
+    Row row = Row.withSchema(schema).addValues("str1", "str2", innerRow).build();
+
+    Row expectedSnakeCaseInnerRow =
+        Row.withSchema(innerSchema.toSnakeCase()).addValues("nested1", "nested2").build();
+    Row expectedSnakeCaseRow =
+        Row.withSchema(schema.toSnakeCase())
+            .addValues("str1", "str2", expectedSnakeCaseInnerRow)
+            .build();
+
+    assertEquals(expectedSnakeCaseInnerRow, row.toSnakeCase().getRow("my_row_field"));
+    assertEquals(expectedSnakeCaseRow, row.toSnakeCase());
+  }
+
+  @Test
+  public void testToCamelCase() {
+    Schema innerSchema =
+        Schema.builder()
+            .addStringField("my_first_nested_string_field")
+            .addStringField("my_second_nested_string_field")
+            .build();
+    Schema schema =
+        Schema.builder()
+            .addStringField("my_first_string_field")
+            .addStringField("my_second_string_field")
+            .addRowField("my_row_field", innerSchema)
+            .build();
+
+    Row innerRow = Row.withSchema(innerSchema).addValues("nested1", "nested2").build();
+    Row row = Row.withSchema(schema).addValues("str1", "str2", innerRow).build();
+
+    Row expectedCamelCaseInnerRow =
+        Row.withSchema(innerSchema.toCamelCase()).addValues("nested1", "nested2").build();
+    Row expectedCamelCaseRow =
+        Row.withSchema(schema.toCamelCase())
+            .addValues("str1", "str2", expectedCamelCaseInnerRow)
+            .build();
+
+    assertEquals(expectedCamelCaseInnerRow, row.toCamelCase().getRow("myRowField"));
+    assertEquals(expectedCamelCaseRow, row.toCamelCase());
   }
 }

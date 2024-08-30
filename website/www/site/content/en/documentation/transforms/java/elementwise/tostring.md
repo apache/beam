@@ -29,7 +29,10 @@ A variety of utility transforms for invoking the `toString()` method
 on every element in the input collection.
 
 ## Examples
-See [BEAM-7702](https://issues.apache.org/jira/browse/BEAM-7702) for updates.
+
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" path="SDK_JAVA_ToString" show="main_section" >}}
+{{< /playground >}}
 
 ## Related transforms
 * [MapElements](/documentation/transforms/java/elementwise/mapelements)

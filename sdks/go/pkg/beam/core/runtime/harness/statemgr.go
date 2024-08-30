@@ -16,6 +16,7 @@
 package harness
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -28,7 +29,8 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type writeTypeEnum int32
@@ -451,6 +453,9 @@ func (r *stateKeyReader) Read(buf []byte) (int, error) {
 		r.buf = nil
 	default:
 		r.buf = r.buf[n:]
+		if len(r.buf) == 0 {
+			r.buf = nil
+		}
 	}
 	return n, nil
 }
@@ -468,6 +473,7 @@ func (r *stateKeyWriter) Write(buf []byte) (int, error) {
 	localChannel := r.ch
 	r.mu.Unlock()
 
+	toSend := bytes.Clone(buf)
 	var req *fnpb.StateRequest
 	switch r.writeType {
 	case writeTypeAppend:
@@ -477,7 +483,7 @@ func (r *stateKeyWriter) Write(buf []byte) (int, error) {
 			StateKey:      r.key,
 			Request: &fnpb.StateRequest_Append{
 				Append: &fnpb.StateAppendRequest{
-					Data: buf,
+					Data: toSend,
 				},
 			},
 		}
@@ -498,7 +504,7 @@ func (r *stateKeyWriter) Write(buf []byte) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	return len(buf), nil
+	return len(toSend), nil
 }
 
 // StateChannelManager manages data channels over the State API. A fixed number of channels
@@ -525,7 +531,12 @@ func (m *StateChannelManager) Open(ctx context.Context, port exec.Port) (*StateC
 		return nil, err
 	}
 	ch.forceRecreate = func(id string, err error) {
-		log.Warnf(ctx, "forcing StateChannel[%v] reconnection on port %v due to %v", id, port, err)
+		switch status.Code(err) {
+		case codes.Canceled:
+			// Don't log on context canceled path.
+		default:
+			log.Warnf(ctx, "forcing StateChannel[%v] reconnection on port %v due to %v", id, port, err)
+		}
 		m.mu.Lock()
 		delete(m.ports, port.URL)
 		m.mu.Unlock()
@@ -626,7 +637,7 @@ func (c *StateChannel) read(ctx context.Context) {
 		if !ok {
 			// This can happen if Send returns an error that write handles, but
 			// the message was actually sent.
-			log.Errorf(ctx, "StateChannel[%v].read: no consumer for state response: %v", c.id, proto.MarshalTextString(msg))
+			log.Errorf(ctx, "StateChannel[%v].read: no consumer for state response: %v", c.id, msg.String())
 			continue
 		}
 
@@ -634,7 +645,7 @@ func (c *StateChannel) read(ctx context.Context) {
 		case ch <- msg:
 			// ok
 		default:
-			panic(fmt.Sprintf("StateChannel[%v].read: failed to consume state response: %v", c.id, proto.MarshalTextString(msg)))
+			panic(fmt.Sprintf("StateChannel[%v].read: failed to consume state response: %v", c.id, msg.String()))
 		}
 	}
 }

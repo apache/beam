@@ -111,6 +111,38 @@ func TestParseMinRAMHint_panic(t *testing.T) {
 	ParseMinRAM("a bad byte string")
 }
 
+func TestCPUCountHint_MergeWith(t *testing.T) {
+	low := CPUCountHint{value: 2}
+	high := CPUCountHint{value: 128}
+
+	if got, want := low.MergeWithOuter(high), high; got != want {
+		t.Errorf("%v.MergeWith(%v) = %v, want %v", low, high, got, want)
+	}
+	if got, want := high.MergeWithOuter(low), high; got != want {
+		t.Errorf("%v.MergeWith(%v) = %v, want %v", high, low, got, want)
+	}
+}
+
+func TestCPUCountHint_Payload(t *testing.T) {
+	tests := []struct {
+		value   uint64
+		payload string
+	}{
+		{0, "0"},
+		{2, "2"},
+		{11, "11"},
+		{2003, "2003"},
+		{1.2e7, "12000000"},
+	}
+
+	for _, test := range tests {
+		h := CPUCountHint{value: test.value}
+		if got, want := h.Payload(), []byte(test.payload); !bytes.Equal(got, want) {
+			t.Errorf("%v.Payload() = %v, want %v", h, got, want)
+		}
+	}
+}
+
 // We copy the URN from the proto for use as a constant rather than perform a direct look up
 // each time, or increase initialization time. However we do need to validate that they are
 // correct, and match the standard hint urns, so that's done here.
@@ -130,7 +162,11 @@ func TestStandardHintUrns(t *testing.T) {
 	}, {
 		h:   MinRAMBytes(2e9),
 		urn: getStandardURN(pipepb.StandardResourceHints_MIN_RAM_BYTES),
+	}, {
+		h:   CPUCount(4),
+		urn: getStandardURN(pipepb.StandardResourceHints_CPU_COUNT),
 	}}
+
 	for _, test := range tests {
 		if got, want := test.h.URN(), test.urn; got != want {
 			t.Errorf("Checked urn for %T, got %q, want %q", test.h, got, want)
@@ -154,12 +190,12 @@ func (h customHint) MergeWithOuter(outer Hint) Hint {
 }
 
 func TestHints_Equal(t *testing.T) {
-	hs := NewHints(MinRAMBytes(2e9), Accelerator("type:pants;count1;install-pajamas"))
+	hs := NewHints(MinRAMBytes(2e9), Accelerator("type:pants;count1;install-pajamas"), CPUCount(4))
 
 	if got, want := hs.Equal(hs), true; got != want {
 		t.Errorf("Self equal test: hs.Equal(hs) = %v, want %v", got, want)
 	}
-	eq := NewHints(MinRAMBytes(2e9), Accelerator("type:pants;count1;install-pajamas"))
+	eq := NewHints(MinRAMBytes(2e9), Accelerator("type:pants;count1;install-pajamas"), CPUCount(4))
 	if got, want := hs.Equal(eq), true; got != want {
 		t.Errorf("identical equal test: hs.Equal(eq) = %v, want %v", got, want)
 	}
@@ -223,12 +259,13 @@ func TestHints_MergeWithOuter(t *testing.T) {
 
 func TestHints_Payloads(t *testing.T) {
 	{
-		hs := NewHints(MinRAMBytes(2e9), Accelerator("type:jeans;count1;"))
+		hs := NewHints(MinRAMBytes(2e9), Accelerator("type:jeans;count1;"), CPUCount(4))
 
 		got := hs.Payloads()
 		want := map[string][]byte{
 			"beam:resources:min_ram_bytes:v1": []byte("2000000000"),
 			"beam:resources:accelerator:v1":   []byte("type:jeans;count1;"),
+			"beam:resources:cpu_count:v1":     []byte("4"),
 		}
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("hs.Payloads() = %v, want %v", got, want)
@@ -248,7 +285,7 @@ func TestHints_Payloads(t *testing.T) {
 func TestHints_NilHints(t *testing.T) {
 	var hs1, hs2 Hints
 
-	hs := NewHints(MinRAMBytes(2e9), Accelerator("type:pants;count1;install-pajamas"))
+	hs := NewHints(MinRAMBytes(2e9), Accelerator("type:pants;count1;install-pajamas"), CPUCount(4))
 
 	if got, want := hs1.Equal(hs2), true; got != want {
 		t.Errorf("nils equal test: (nil).Equal(nil) = %v, want %v", got, want)

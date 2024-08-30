@@ -24,7 +24,7 @@ jobs:
     permissions:
       issues: write
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - uses: damccorm/tag-ur-it@6fa72bbf1a2ea157b533d7e7abeafdb5855dbea5
       with:
         repo-token: "${{ secrets.GITHUB_TOKEN }}"

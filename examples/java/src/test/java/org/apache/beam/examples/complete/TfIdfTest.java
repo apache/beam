@@ -17,19 +17,6 @@
  */
 package org.apache.beam.examples.complete;
 
-// beam-playground:
-//   name: TfIdfTest
-//   description: Unit-test for the TfIdf example.
-//   multifile: false
-//   context_line: 45
-//   categories:
-//     - Side Input
-//     - Flatten
-//   complexity: BASIC
-//   tags:
-//     - tfidf
-//     - test
-
 import java.net.URI;
 import java.util.Arrays;
 import org.apache.beam.sdk.coders.StringDelegateCoder;

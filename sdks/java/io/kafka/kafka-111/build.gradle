@@ -18,6 +18,7 @@
 project.ext {
     delimited="1.1.1"
     undelimited="111"
+    sdfCompatible=false
 }
 
 apply from: "../kafka-integration-test.gradle"

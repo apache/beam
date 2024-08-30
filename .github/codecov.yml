@@ -44,6 +44,14 @@ coverage:
         base: auto
         paths:
           - "sdks/go/pkg"
+      java:
+        flags: 
+          - java
+        target: auto
+        threshold: 5%
+        base: auto
+        paths:
+          - "sdks/java"
 
 parsers:
   gcov:
@@ -65,6 +73,7 @@ ignore:
   - "**/*_microbenchmark.py"
   - "sdks/go/pkg/beam/register/register.go"
   - "sdks/python/apache_beam/testing/benchmarks/nexmark/**"
+  - "sdks/python/apache_beam/examples/**"
 
 # See https://docs.codecov.com/docs/flags for options.
 flag_management:

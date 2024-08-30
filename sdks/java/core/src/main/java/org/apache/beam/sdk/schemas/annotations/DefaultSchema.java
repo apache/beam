@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.schemas.annotations;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.Serializable;
 import java.lang.annotation.Documented;
@@ -35,8 +35,8 @@ import org.apache.beam.sdk.schemas.SchemaProviderRegistrar;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -101,7 +101,7 @@ public @interface DefaultSchema {
                 try {
                   return new ProviderAndDescriptor(
                       providerClass.getDeclaredConstructor().newInstance(),
-                      TypeDescriptor.of(clazz));
+                      typeDescriptor.getSupertype((Class) clazz));
                 } catch (NoSuchMethodException
                     | InstantiationException
                     | IllegalAccessException
@@ -121,6 +121,24 @@ public @interface DefaultSchema {
             } while (clazz != null && !clazz.equals(Object.class));
             return null;
           });
+    }
+
+    /**
+     * Retrieves the underlying {@link SchemaProvider} for the given {@link TypeDescriptor}. If no
+     * provider is found, returns null.
+     */
+    public @Nullable <T> SchemaProvider getUnderlyingSchemaProvider(
+        TypeDescriptor<T> typeDescriptor) {
+      ProviderAndDescriptor providerAndDescriptor = getSchemaProvider(typeDescriptor);
+      return providerAndDescriptor != null ? providerAndDescriptor.schemaProvider : null;
+    }
+
+    /**
+     * Retrieves the underlying {@link SchemaProvider} for the given {@link Class}. If no provider
+     * is found, returns null.
+     */
+    public @Nullable <T> SchemaProvider getUnderlyingSchemaProvider(Class<T> clazz) {
+      return getUnderlyingSchemaProvider(TypeDescriptor.of(clazz));
     }
 
     @Override

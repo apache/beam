@@ -36,7 +36,7 @@ package main
 //     is flattened together over several rounds. This is most clearly seen via a
 //     visual representation of the pipeline, such as the one produced by the 'dot' runner.
 //   multifile: false
-//   context_line: 59
+//   context_line: 80
 //   categories:
 //     - Flatten
 //     - Branching

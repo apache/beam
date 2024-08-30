@@ -21,7 +21,6 @@ import java.util.Collection;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
-import org.apache.beam.sdk.extensions.sql.impl.rule.BeamAggregateProjectMergeRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamAggregationRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamBasicAggregationRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamCalcMergeRule;
@@ -49,7 +48,7 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.rules.CoreR
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.rules.PruneEmptyRules;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.RuleSet;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.RuleSets;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 /**
  * {@link RuleSet} used in {@code BeamQueryPlanner}. It translates a standard Calcite {@link
@@ -83,7 +82,7 @@ public class BeamRuleSets {
           CoreRules.PROJECT_SET_OP_TRANSPOSE,
 
           // aggregation and projection rules
-          BeamAggregateProjectMergeRule.INSTANCE,
+          // BeamAggregateProjectMergeRule.INSTANCE,
           // push a projection past a filter or vice versa
           CoreRules.PROJECT_FILTER_TRANSPOSE,
           CoreRules.FILTER_PROJECT_TRANSPOSE,

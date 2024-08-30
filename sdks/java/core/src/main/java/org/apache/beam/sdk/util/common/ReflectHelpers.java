@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.util.common;
 
 import static java.util.Arrays.asList;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.AnnotatedElement;
@@ -38,12 +38,12 @@ import java.util.LinkedHashSet;
 import java.util.Queue;
 import java.util.ServiceLoader;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Function;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSortedSet;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Queues;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Function;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.FluentIterable;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSortedSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Queues;
 
 /** Utilities for working with with {@link Class Classes} and {@link Method Methods}. */
 @SuppressWarnings({"nullness", "keyfor"}) // TODO(https://github.com/apache/beam/issues/20497)
@@ -214,7 +214,7 @@ public class ReflectHelpers {
   /**
    * Finds the appropriate {@code ClassLoader} to be used by the {@link ServiceLoader#load} call,
    * which by default would use the proposed {@code ClassLoader}, which can be null. The fallback is
-   * as follows: context ClassLoader, class ClassLoader and finaly the system ClassLoader.
+   * as follows: context ClassLoader, class ClassLoader and finally the system ClassLoader.
    */
   public static ClassLoader findClassLoader(final ClassLoader proposed) {
     ClassLoader classLoader = proposed;

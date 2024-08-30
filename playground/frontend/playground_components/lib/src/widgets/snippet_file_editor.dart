@@ -30,6 +30,7 @@ import '../theme/theme.dart';
 
 class SnippetFileEditor extends StatefulWidget {
   SnippetFileEditor({
+    required this.autofocus,
     required this.controller,
     required this.eventSnippetContext,
     required this.isEditable,
@@ -38,6 +39,7 @@ class SnippetFileEditor extends StatefulWidget {
           key: ValueKey(controller.savedFile),
         );
 
+  final bool autofocus;
   final SnippetFileEditingController controller;
   final EventSnippetContext eventSnippetContext;
   final bool isEditable;
@@ -69,7 +71,7 @@ class _SnippetFileEditorState extends State<SnippetFileEditor> {
   void didChangeDependencies() {
     super.didChangeDependencies();
 
-    if (!_didAutoFocus) {
+    if (widget.autofocus && !_didAutoFocus) {
       _didAutoFocus = true;
       SchedulerBinding.instance.addPostFrameCallback((_) {
         if (mounted) {

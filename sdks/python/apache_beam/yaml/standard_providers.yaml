@@ -19,7 +19,85 @@
 # TODO(robertwb): Perhaps auto-generate this file?
 
 - type: 'beamJar'
-  gradle_target: 'sdks:java:extensions:sql:expansion-service:shadowJar'
-  version: BEAM_VERSION
+  config:
+    gradle_target: 'sdks:java:extensions:sql:expansion-service:shadowJar'
+    version: BEAM_VERSION
   transforms:
      Sql: 'beam:external:java:sql:v1'
+     Flatten: 'beam:schematransform:org.apache.beam:yaml:flatten:v1'
+     LogForTesting: 'beam:schematransform:org.apache.beam:yaml:log_for_testing:v1'
+
+# TODO(robertwb): Auto-detect redundantly provided transforms for maximal fusion.
+- type: 'beamJar'
+  config:
+    gradle_target: 'sdks:java:io:expansion-service:shadowJar'
+    version: BEAM_VERSION
+  transforms:
+     Flatten: 'beam:schematransform:org.apache.beam:yaml:flatten:v1'
+     LogForTesting: 'beam:schematransform:org.apache.beam:yaml:log_for_testing:v1'
+
+- type: 'beamJar'
+  config:
+    gradle_target: 'sdks:java:io:google-cloud-platform:expansion-service:shadowJar'
+    version: BEAM_VERSION
+  transforms:
+     Flatten: 'beam:schematransform:org.apache.beam:yaml:flatten:v1'
+     LogForTesting: 'beam:schematransform:org.apache.beam:yaml:log_for_testing:v1'
+
+- type: 'beamJar'
+  config:
+    gradle_target: 'sdks:java:extensions:schemaio-expansion-service:shadowJar'
+    version: BEAM_VERSION
+  transforms:
+     Flatten: 'beam:schematransform:org.apache.beam:yaml:flatten:v1'
+     LogForTesting: 'beam:schematransform:org.apache.beam:yaml:log_for_testing:v1'
+
+- type: 'python'
+  config: {}
+  transforms:
+    MLTransform: 'apache_beam.yaml.yaml_ml.ml_transform'
+
+- type: renaming
+  transforms:
+    'MapToFields-java': 'MapToFields-java'
+    'MapToFields-generic': 'MapToFields-java'
+    'Filter-java': 'Filter-java'
+    'Filter-generic': 'Filter-java'
+    'Explode': 'Explode'
+  config:
+    mappings:
+      'Sql':
+        query: 'query'
+        # Unfortunately dialect is a java logical type.
+      'MapToFields-generic':
+        language: 'language'
+        append: 'append'
+        drop: 'drop'
+        fields: 'fields'
+        error_handling: 'error_handling'
+      'MapToFields-java':
+        language: 'language'
+        append: 'append'
+        drop: 'drop'
+        fields: 'fields'
+        error_handling: 'error_handling'
+      'Filter-generic':
+        language: 'language'
+        keep: 'keep'
+        error_handling: 'error_handling'
+      'Filter-java':
+        language: 'language'
+        keep: 'keep'
+        error_handling: 'error_handling'
+      'Explode':
+        fields: 'fields'
+        cross_product: 'cross_product'
+    underlying_provider:
+      type: beamJar
+      transforms:
+        Sql: "schematransform:org.apache.beam:sql_transform:v1"
+        MapToFields-java: "beam:schematransform:org.apache.beam:yaml:map_to_fields-java:v1"
+        Filter-java: "beam:schematransform:org.apache.beam:yaml:filter-java:v1"
+        Explode: "beam:schematransform:org.apache.beam:yaml:explode:v1"
+      config:
+        gradle_target: 'sdks:java:extensions:sql:expansion-service:shadowJar'

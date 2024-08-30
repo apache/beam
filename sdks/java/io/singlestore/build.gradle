@@ -27,7 +27,7 @@ description = "Apache Beam :: SDKs :: Java :: IO :: SingleStore"
 ext.summary = "IO to read and write on SingleStore datasource."
 
 dependencies {
-    implementation library.java.vendored_guava_26_0_jre
+    implementation library.java.vendored_guava_32_1_2_jre
     implementation library.java.joda_time
     implementation project(path: ":sdks:java:core", configuration: "shadow")
     implementation library.java.singlestore_jdbc
@@ -35,9 +35,10 @@ dependencies {
     implementation library.java.dbcp2
 
     testImplementation library.java.junit
-    testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
+    testImplementation project(path: ":sdks:java:io:common")
     testImplementation library.java.dbcp2
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
     testImplementation library.java.slf4j_api
-    testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
+    testImplementation library.java.mockito_core
+    testImplementation project(path: ":sdks:java:testing:test-utils")
 }

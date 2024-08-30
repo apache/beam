@@ -40,6 +40,10 @@ PACKED_COMBINE_FN = "beam:combinefn:packed_python:v1"
 # Components: The coders for the tuple elements, in order.
 TUPLE_CODER = "beam:coder:tuple:v1"
 
+# This allows us to decode TimestampedPrefixed(LengthPrefixed(AnyWindowCoder)).
+TIMESTAMP_PREFIXED_OPAQUE_WINDOW_CODER = (
+    "beam:timestamp_prefixed_opaque_window_coder:v1")
+
 # Invoke UserFns in process, via direct function calls.
 # Payload: None.
 EMBEDDED_PYTHON = "beam:env:embedded_python:v1"
@@ -48,6 +52,10 @@ EMBEDDED_PYTHON = "beam:env:embedded_python:v1"
 # Payload: (optional) Number of worker threads, followed by ',' and the size of
 # the state cache, as a decimal string, e.g. '2,1000'.
 EMBEDDED_PYTHON_GRPC = "beam:env:embedded_python_grpc:v1"
+
+# Invoke UserFns via a yet-to-be-started loopback external worker.
+# Payload: None.
+EMBEDDED_PYTHON_LOOPBACK = "beam:env:embedded_python_loopback:v1"
 
 # Instantiate SDK harness via a command line provided in the payload.
 # This is different than the standard process environment in that it

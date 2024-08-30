@@ -28,7 +28,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
-	"github.com/golang/protobuf/proto"
 )
 
 // JobOptions capture the various options for submitting jobs
@@ -39,15 +38,17 @@ type JobOptions struct {
 	// Experiments are additional experiments.
 	Experiments []string
 
-	// TODO(herohde) 3/17/2018: add further parametrization as needed
-
 	// Worker is the worker binary override.
 	Worker string
 
-	// RetainDocker is an option to pass to the runner.
+	// RetainDocker is an option to pass to the runner indicating the docker containers should be cached.
 	RetainDocker bool
 
+	// Indicates a limit on parallelism the runner should impose.
 	Parallelism int
+
+	// Loopback indicates this job is running in loopback mode and will reconnect to the local process.
+	Loopback bool
 }
 
 // Prepare prepares a job to the given job service. It returns the preparation id
@@ -74,7 +75,7 @@ func Prepare(ctx context.Context, client jobpb.JobServiceClient, p *pipepb.Pipel
 	}
 	resp, err := client.Prepare(ctx, req)
 	if err != nil {
-		return "", "", "", errors.Wrap(err, "failed to connect to job service")
+		return "", "", "", errors.Wrap(err, "job failed to prepare")
 	}
 	return resp.GetPreparationId(), resp.GetArtifactStagingEndpoint().GetUrl(), resp.GetStagingSessionToken(), nil
 }
@@ -101,10 +102,17 @@ func WaitForCompletion(ctx context.Context, client jobpb.JobServiceClient, jobID
 		return errors.Wrap(err, "failed to get job stream")
 	}
 
+	mostRecentError := "<no error received>"
+	var errReceived, jobFailed bool
+
 	for {
 		msg, err := stream.Recv()
 		if err != nil {
 			if err == io.EOF {
+				if jobFailed {
+					// Connection finished, so time to exit, produce what we have.
+					return errors.Errorf("job %v failed:\n%v", jobID, mostRecentError)
+				}
 				return nil
 			}
 			return err
@@ -114,13 +122,17 @@ func WaitForCompletion(ctx context.Context, client jobpb.JobServiceClient, jobID
 		case msg.GetStateResponse() != nil:
 			resp := msg.GetStateResponse()
 
-			log.Infof(ctx, "Job state: %v", resp.GetState().String())
+			log.Infof(ctx, "Job[%v] state: %v", jobID, resp.GetState().String())
 
 			switch resp.State {
 			case jobpb.JobState_DONE, jobpb.JobState_CANCELLED:
 				return nil
 			case jobpb.JobState_FAILED:
-				return errors.Errorf("job %v failed", jobID)
+				jobFailed = true
+				if errReceived {
+					return errors.Errorf("job %v failed:\n%v", jobID, mostRecentError)
+				}
+				// Otherwise we should wait for at least one error log from the runner.
 			}
 
 		case msg.GetMessageResponse() != nil:
@@ -129,8 +141,17 @@ func WaitForCompletion(ctx context.Context, client jobpb.JobServiceClient, jobID
 			text := fmt.Sprintf("%v (%v): %v", resp.GetTime(), resp.GetMessageId(), resp.GetMessageText())
 			log.Output(ctx, messageSeverity(resp.GetImportance()), 1, text)
 
+			if resp.GetImportance() >= jobpb.JobMessage_JOB_MESSAGE_ERROR {
+				errReceived = true
+				mostRecentError = resp.GetMessageText()
+
+				if jobFailed {
+					return errors.Errorf("job %v failed:\n%w", jobID, errors.New(mostRecentError))
+				}
+			}
+
 		default:
-			return errors.Errorf("unexpected job update: %v", proto.MarshalTextString(msg))
+			return errors.Errorf("unexpected job update: %v", msg.String())
 		}
 	}
 }

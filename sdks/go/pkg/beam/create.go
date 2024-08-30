@@ -20,7 +20,13 @@ import (
 	"reflect"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 )
+
+func init() {
+	register.DoFn2x1[[]byte, func(T), error]((*createFn)(nil))
+	register.Emitter1[T]()
+}
 
 // Create inserts a fixed non-empty set of values into the pipeline. The values must
 // be of the same type 'A' and the returned PCollection is of type A.

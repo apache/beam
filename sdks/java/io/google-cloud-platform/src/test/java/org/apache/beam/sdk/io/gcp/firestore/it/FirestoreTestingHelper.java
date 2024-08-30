@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.firestore.it;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects.firstNonNull;
+
 import com.google.api.core.ApiFunction;
 import com.google.api.core.ApiFuture;
 import com.google.api.core.ApiFutures;
@@ -65,10 +67,10 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Streams;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Streams;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
@@ -104,7 +106,7 @@ final class FirestoreTestingHelper implements TestRule {
     DataLayout value() default DataLayout.Shallow;
   }
 
-  private final GcpOptions options;
+  private final GcpOptions gcpOptions;
   private final org.apache.beam.sdk.io.gcp.firestore.FirestoreOptions firestoreBeamOptions;
   private final FirestoreOptions firestoreOptions;
 
@@ -125,17 +127,18 @@ final class FirestoreTestingHelper implements TestRule {
       "initialization.fields.uninitialized") // testClass and testName are managed via #apply
   public FirestoreTestingHelper(CleanupMode cleanupMode) {
     this.cleanupMode = cleanupMode;
-    options = TestPipeline.testingPipelineOptions().as(GcpOptions.class);
+    gcpOptions = TestPipeline.testingPipelineOptions().as(GcpOptions.class);
     firestoreBeamOptions =
         TestPipeline.testingPipelineOptions()
             .as(org.apache.beam.sdk.io.gcp.firestore.FirestoreOptions.class);
     firestoreOptions =
         FirestoreOptions.newBuilder()
-            .setCredentials(options.getGcpCredential())
-            .setProjectId(options.getProject())
+            .setCredentials(gcpOptions.getGcpCredential())
+            .setProjectId(
+                firstNonNull(firestoreBeamOptions.getFirestoreProject(), gcpOptions.getProject()))
             .setDatabaseId(firestoreBeamOptions.getFirestoreDb())
+            .setHost(firestoreBeamOptions.getFirestoreHost())
             .build();
-
     fs = firestoreOptions.getService();
     rpc = (FirestoreRpc) firestoreOptions.getRpc();
   }

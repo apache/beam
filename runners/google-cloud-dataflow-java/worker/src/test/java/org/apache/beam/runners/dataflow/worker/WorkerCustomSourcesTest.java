@@ -31,12 +31,13 @@ import static org.apache.beam.sdk.testing.SourceTestUtils.readFromSource;
 import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
 import static org.apache.beam.sdk.util.SerializableUtils.deserializeFromByteArray;
 import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables.getStackTraceAsString;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables.getStackTraceAsString;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.lessThan;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
@@ -48,6 +49,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
+import static org.mockito.Mockito.mock;
 
 import com.google.api.services.dataflow.model.ApproximateReportedProgress;
 import com.google.api.services.dataflow.model.DataflowPackage;
@@ -73,10 +75,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.LogManager;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.runners.core.construction.Environments;
-import org.apache.beam.runners.core.construction.PipelineTranslation;
-import org.apache.beam.runners.core.construction.SdkComponents;
-import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.dataflow.DataflowPipelineTranslator;
 import org.apache.beam.runners.dataflow.DataflowRunner;
@@ -90,9 +88,17 @@ import org.apache.beam.runners.dataflow.worker.WorkerCustomSources.SplittableOnl
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.NoopProfileScope;
+import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
+import org.apache.beam.runners.dataflow.worker.streaming.Work;
+import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
 import org.apache.beam.runners.dataflow.worker.testing.TestCountingSource;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.NativeReaderIterator;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
+import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
+import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReader;
+import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -111,13 +117,17 @@ import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.construction.Environments;
+import org.apache.beam.sdk.util.construction.PipelineTranslation;
+import org.apache.beam.sdk.util.construction.SdkComponents;
+import org.apache.beam.sdk.util.construction.SplittableParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.ValueWithRecordId;
-import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -133,6 +143,8 @@ import org.junit.runners.JUnit4;
 public class WorkerCustomSourcesTest {
   @Rule public ExpectedException expectedException = ExpectedException.none();
   @Rule public ExpectedLogs logged = ExpectedLogs.none(WorkerCustomSources.class);
+
+  private static final String COMPUTATION_ID = "computationId";
 
   private DataflowPipelineOptions options;
 
@@ -180,6 +192,16 @@ public class WorkerCustomSourcesTest {
           contains(valueInGlobalWindow(0L + 2 * i), valueInGlobalWindow(1L + 2 * i)));
       assertTrue(bundle.getSource().getMetadata().getEstimatedSizeBytes() > 0);
     }
+  }
+
+  private static Work createMockWork(Windmill.WorkItem workItem, Watermarks watermarks) {
+    return Work.create(
+        workItem,
+        watermarks,
+        Work.createProcessingContext(
+            COMPUTATION_ID, new FakeGetDataClient(), ignored -> {}, mock(HeartbeatSender.class)),
+        Instant::now,
+        Collections.emptyList());
   }
 
   private static class SourceProducingSubSourcesInSplit extends MockSource {
@@ -570,12 +592,12 @@ public class WorkerCustomSourcesTest {
   public void testReadUnboundedReader() throws Exception {
     CounterSet counterSet = new CounterSet();
     StreamingModeExecutionStateRegistry executionStateRegistry =
-        new StreamingModeExecutionStateRegistry(null);
+        new StreamingModeExecutionStateRegistry();
     ReaderCache readerCache = new ReaderCache(Duration.standardMinutes(1), Runnable::run);
     StreamingModeExecutionContext context =
         new StreamingModeExecutionContext(
             counterSet,
-            "computationId",
+            COMPUTATION_ID,
             readerCache,
             /*stateNameMap=*/ ImmutableMap.of(),
             /*stateCache=*/ null,
@@ -601,18 +623,18 @@ public class WorkerCustomSourcesTest {
       // Initialize streaming context with state from previous iteration.
       context.start(
           "key",
-          Windmill.WorkItem.newBuilder()
-              .setKey(ByteString.copyFromUtf8("0000000000000001")) // key is zero-padded index.
-              .setWorkToken(i) // Must be increasing across activations for cache to be used.
-              .setCacheToken(1)
-              .setSourceState(
-                  Windmill.SourceState.newBuilder().setState(state).build()) // Source state.
-              .build(),
-          new Instant(0), // input watermark
-          null, // output watermark
-          null, // synchronized processing time
-          null, // StateReader
-          null, // StateFetcher
+          createMockWork(
+              Windmill.WorkItem.newBuilder()
+                  .setKey(ByteString.copyFromUtf8("0000000000000001")) // key is zero-padded index.
+                  .setWorkToken(i) // Must be increasing across activations for cache to be used.
+                  .setCacheToken(1)
+                  .setSourceState(
+                      Windmill.SourceState.newBuilder().setState(state).build()) // Source state.
+                  .build(),
+              Watermarks.builder().setInputDataWatermark(new Instant(0)).build()),
+          mock(WindmillStateReader.class),
+          mock(SideInputStateFetcher.class),
+          OperationalLimits.builder().build(),
           Windmill.WorkItemCommitRequest.newBuilder());
 
       @SuppressWarnings({"unchecked", "rawtypes"})
@@ -660,7 +682,7 @@ public class WorkerCustomSourcesTest {
       assertNotNull(
           readerCache.acquireReader(
               context.getComputationKey(),
-              context.getWork().getCacheToken(),
+              context.getWorkItem().getCacheToken(),
               context.getWorkToken() + 1));
       assertEquals(7L, context.getBacklogBytes());
     }
@@ -930,5 +952,89 @@ public class WorkerCustomSourcesTest {
     assertEquals(5.0, progress.getConsumedParallelism().getValue(), 1e-6);
     assertNull(progress.getRemainingParallelism());
     logged.verifyWarn("remaining parallelism");
+  }
+
+  @Test
+  public void testFailedWorkItemsAbort() throws Exception {
+    CounterSet counterSet = new CounterSet();
+    StreamingModeExecutionStateRegistry executionStateRegistry =
+        new StreamingModeExecutionStateRegistry();
+    StreamingModeExecutionContext context =
+        new StreamingModeExecutionContext(
+            counterSet,
+            COMPUTATION_ID,
+            new ReaderCache(Duration.standardMinutes(1), Runnable::run),
+            /*stateNameMap=*/ ImmutableMap.of(),
+            WindmillStateCache.builder()
+                .setSizeMb(options.getWorkerCacheMb())
+                .build()
+                .forComputation(COMPUTATION_ID),
+            StreamingStepMetricsContainer.createRegistry(),
+            new DataflowExecutionStateTracker(
+                ExecutionStateSampler.newForTest(),
+                executionStateRegistry.getState(
+                    NameContext.forStage("stageName"), "other", null, NoopProfileScope.NOOP),
+                counterSet,
+                PipelineOptionsFactory.create(),
+                "test-work-item-id"),
+            executionStateRegistry,
+            Long.MAX_VALUE);
+
+    options.setNumWorkers(5);
+    int maxElements = 100;
+    DataflowPipelineDebugOptions debugOptions = options.as(DataflowPipelineDebugOptions.class);
+    debugOptions.setUnboundedReaderMaxElements(maxElements);
+
+    ByteString state = ByteString.EMPTY;
+    Windmill.WorkItem workItem =
+        Windmill.WorkItem.newBuilder()
+            .setKey(ByteString.copyFromUtf8("0000000000000001")) // key is zero-padded index.
+            .setWorkToken(0)
+            .setCacheToken(1)
+            .setSourceState(
+                Windmill.SourceState.newBuilder().setState(state).build()) // Source state.
+            .build();
+    Work dummyWork =
+        Work.create(
+            workItem,
+            Watermarks.builder().setInputDataWatermark(new Instant(0)).build(),
+            Work.createProcessingContext(
+                COMPUTATION_ID,
+                new FakeGetDataClient(),
+                ignored -> {},
+                mock(HeartbeatSender.class)),
+            Instant::now,
+            Collections.emptyList());
+    context.start(
+        "key",
+        dummyWork,
+        mock(WindmillStateReader.class),
+        mock(SideInputStateFetcher.class),
+        OperationalLimits.builder().build(),
+        Windmill.WorkItemCommitRequest.newBuilder());
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    NativeReader<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>> reader =
+        (NativeReader)
+            WorkerCustomSources.create(
+                (CloudObject)
+                    serializeToCloudSource(new TestCountingSource(Integer.MAX_VALUE), options)
+                        .getSpec(),
+                options,
+                context);
+
+    NativeReaderIterator<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>> readerIterator =
+        reader.iterator();
+    int numReads = 0;
+    while ((numReads == 0) ? readerIterator.start() : readerIterator.advance()) {
+      WindowedValue<ValueWithRecordId<KV<Integer, Integer>>> value = readerIterator.getCurrent();
+      assertEquals(KV.of(0, numReads), value.getValue().getValue());
+      numReads++;
+      // Fail the work item after reading two elements.
+      if (numReads == 2) {
+        dummyWork.setFailed();
+      }
+    }
+    assertThat(numReads, equalTo(2));
   }
 }

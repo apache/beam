@@ -75,4 +75,7 @@ class HiveExampleLoadingDescriptor extends ExampleLoadingDescriptor {
       viewOptions: ExampleViewOptions.fromShortMap(map),
     );
   }
+
+  @override
+  bool get isSerializableToUrl => false;
 }

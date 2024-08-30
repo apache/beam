@@ -18,6 +18,7 @@ on:
   pull_request_target:
     types: ["synchronize"] # Synchronize is the action that runs after pushes to the user branch
   issue_comment:
+    types: [created]
 permissions: read-all
 jobs:
   process-pr-update:
@@ -35,11 +36,11 @@ jobs:
 
     steps:
       # Pin to master so users can't do anything malicious on their own branch and run it here.
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           ref: 'master'
       - name: Setup Node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: 16
       - name: Install pr-bot npm dependencies

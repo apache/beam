@@ -34,13 +34,12 @@ import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType.Value;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.junit.Assume;
-import org.junit.Ignore;
 import org.junit.Test;
 
 /** Unit tests for {@link RowCoder}. */
@@ -285,17 +284,14 @@ public class RowCoderTest {
   }
 
   @Test
-  @Ignore
-  public void testConsistentWithEqualsMapWithBytesKeyField() throws Exception {
+  public void testEqualsMapWithBytesKeyFieldWorksOnReferenceEquality() throws Exception {
     FieldType fieldType = FieldType.map(FieldType.BYTES, FieldType.INT32);
     Schema schema = Schema.of(Schema.Field.of("f1", fieldType));
     RowCoder coder = RowCoder.of(schema);
 
-    Map<byte[], Integer> map1 = Collections.singletonMap(new byte[] {1, 2, 3, 4}, 1);
-    Row row1 = Row.withSchema(schema).addValue(map1).build();
-
-    Map<byte[], Integer> map2 = Collections.singletonMap(new byte[] {1, 2, 3, 4}, 1);
-    Row row2 = Row.withSchema(schema).addValue(map2).build();
+    Map<byte[], Integer> map = Collections.singletonMap(new byte[] {1, 2, 3, 4}, 1);
+    Row row1 = Row.withSchema(schema).addValue(map).build();
+    Row row2 = Row.withSchema(schema).addValue(map).build();
 
     Assume.assumeTrue(coder.consistentWithEquals());
 

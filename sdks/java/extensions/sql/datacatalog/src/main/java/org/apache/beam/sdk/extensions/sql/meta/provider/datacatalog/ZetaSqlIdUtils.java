@@ -18,10 +18,11 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider.datacatalog;
 
 import static java.util.stream.Collectors.joining;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.List;
 import java.util.regex.Pattern;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
 /** Utils to work with ZetaSQL-compatible IDs. */
 class ZetaSqlIdUtils {
@@ -70,7 +71,10 @@ class ZetaSqlIdUtils {
 
   private static String replaceWhitespaces(String s) {
     return WHITESPACES.keySet().stream()
-        .reduce(s, (str, whitespace) -> str.replaceAll(whitespace, WHITESPACES.get(whitespace)));
+        .reduce(
+            s,
+            (str, whitespace) ->
+                str.replaceAll(whitespace, checkNotNull(WHITESPACES.get(whitespace))));
   }
 
   private static String backtickIfNeeded(String s) {

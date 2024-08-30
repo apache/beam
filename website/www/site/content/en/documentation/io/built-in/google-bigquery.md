@@ -261,7 +261,7 @@ BigQuery's exported JSON format.
 
 {{< paragraph class="language-py" >}}
 ***Note:*** `BigQuerySource()` is deprecated as of Beam SDK 2.25.0. Before 2.25.0, to read from
-a BigQuery table using the Beam SDK, you will apply a `Read` transform on a `BigQuerySource`. For example,
+a BigQuery table using the Beam SDK, apply a `Read` transform on a `BigQuerySource`. For example,
 `beam.io.Read(beam.io.BigQuerySource(table_spec))`.
 {{< /paragraph >}}
 
@@ -363,7 +363,7 @@ GitHub](https://github.com/apache/beam/blob/master/examples/java/src/main/java/o
 {{< /highlight >}}
 
 {{< highlight py >}}
-# The SDK for Python does not support the BigQuery Storage API.
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_read_table_with_storage_api >}}
 {{< /highlight >}}
 
 The following code snippet reads with a query string.
@@ -397,8 +397,8 @@ for the destination table(s):
    whether the destination table must exist or can be created by the write
    operation.
  * The destination table's write disposition. The write disposition specifies
-   whether the data you write will replace an existing table, append rows to an
-   existing table, or write only to an empty table.
+   whether the data you write replaces an existing table, appends rows to an
+   existing table, or writes only to an empty table.
 
 In addition, if your write operation creates a new BigQuery table, you must also
 supply a table schema for the destination table.
@@ -502,6 +502,8 @@ fail later when the write attempts happen.
 
 If your BigQuery write operation creates a new table, you must provide schema
 information. The schema contains information about each field in the table.
+When updating a pipeline with a new schema, the existing schema fields must
+stay in the same order, or the pipeline will break, failing to write to BigQuery.
 
 {{< paragraph class="language-java" >}}
 To create a table schema in Java, you can either use a `TableSchema` object, or
@@ -512,7 +514,7 @@ use a string that contains a JSON-serialized `TableSchema` object.
 To create a table schema in Python, you can either use a `TableSchema` object,
 or use a string that defines a list of fields. Single string based schemas do
 not support nested fields, repeated fields, or specifying a BigQuery mode for
-fields (the mode will always be set to `NULLABLE`).
+fields (the mode is always set to `NULLABLE`).
 {{< /paragraph >}}
 
 #### Using a TableSchema
@@ -539,7 +541,7 @@ To create and use a table schema as a `TableSchema` object, follow these steps.
 
 2. Create and append a `TableFieldSchema` object for each field in your table.
 
-3. Next, use the `schema` parameter to provide your table schema when you apply
+3. Use the `schema` parameter to provide your table schema when you apply
    a write transform. Set the parameter’s value to the `TableSchema` object.
 {{< /paragraph >}}
 
@@ -728,8 +730,8 @@ The following examples use this `PCollection` that contains quotes.
 The `writeTableRows` method writes a `PCollection` of BigQuery `TableRow`
 objects to a BigQuery table. Each element in the `PCollection` represents a
 single row in the table. This example uses `writeTableRows` to write elements to a
-`PCollection<TableRow>`.  The write operation creates a table if needed; if the
-table already exists, it will be replaced.
+`PCollection<TableRow>`.  The write operation creates a table if needed. If the
+table already exists, it is replaced.
 {{< /paragraph >}}
 
 {{< highlight java >}}
@@ -745,7 +747,7 @@ table already exists, it will be replaced.
 {{< paragraph class="language-py" >}}
 The following example code shows how to apply a `WriteToBigQuery` transform to
 write a `PCollection` of dictionaries to a BigQuery table. The write operation
-creates a table if needed; if the table already exists, it will be replaced.
+creates a table if needed. If the table already exists, it is replaced.
 {{< /paragraph >}}
 
 {{< highlight py >}}
@@ -759,8 +761,8 @@ The `write` transform writes a `PCollection` of custom typed objects to a BigQue
 table. Use `.withFormatFunction(SerializableFunction)` to provide a formatting
 function that converts each input element in the `PCollection` into a
 `TableRow`.  This example uses `write` to write a `PCollection<String>`. The
-write operation creates a table if needed; if the table already exists, it will
-be replaced.
+write operation creates a table if needed. If the table already exists, it is
+replaced.
 {{< /paragraph >}}
 
 {{< highlight java >}}
@@ -779,6 +781,16 @@ Starting with version 2.36.0 of the Beam SDK for Java, you can use the
 [BigQuery Storage Write API](https://cloud.google.com/bigquery/docs/write-api)
 from the BigQueryIO connector.
 
+Also after version 2.47.0 of Beam SDK for Python, SDK supports BigQuery Storage Write API.
+
+{{< paragraph class="language-py" >}}
+BigQuery Storage Write API for Python SDK currently has some limitations on supported data types. As this method makes use of cross-language transforms, we are limited to the types supported at the cross-language boundary. For example, `apache_beam.utils.timestamp.Timestamp` is needed to write a `TIMESTAMP` BigQuery type. Also, some types (e.g. `DATETIME`) are not supported yet. For more details, please refer to the [full type mapping](https://github.com/apache/beam/blob/0b430748cdd2e25edc553747ce018195e9cce888/sdks/python/apache_beam/io/gcp/bigquery_tools.py#L112-L123).
+{{< /paragraph >}}
+
+{{< paragraph class="language-py" >}}
+**Note:** If you want to run WriteToBigQuery with Storage Write API from the source code, you need to run `./gradlew :sdks:java:io:google-cloud-platform:expansion-service:build` to build the expansion-service jar. If you are running from a released Beam SDK, the jar is already included.
+{{< /paragraph >}}
+
 #### Exactly-once semantics
 
 To write to BigQuery using the Storage Write API, set `withMethod` to
@@ -795,7 +807,7 @@ BigQueryIO.writeTableRows()
 );
 {{< /highlight >}}
 {{< highlight py >}}
-# The SDK for Python does not support the BigQuery Storage API.
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_write_with_storage_write_api >}}
 {{< /highlight >}}
 
 If you want to change the behavior of BigQueryIO so that all the BigQuery sinks
@@ -820,7 +832,7 @@ TableSchema schema = new TableSchema().setFields(
                 .setMode("REQUIRED")));
 {{< /highlight >}}
 {{< highlight py >}}
-# The SDK for Python does not support the BigQuery Storage API.
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_write_schema >}}
 {{< /highlight >}}
 
 For streaming pipelines, you need to set two additional parameters: the number
@@ -834,7 +846,7 @@ BigQueryIO.writeTableRows()
 );
 {{< /highlight >}}
 {{< highlight py >}}
-# The SDK for Python does not support the BigQuery Storage API.
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_storage_write_api_with_frequency >}}
 {{< /highlight >}}
 
 The number of streams defines the parallelism of the BigQueryIO Write transform
@@ -843,6 +855,7 @@ pipeline uses. You can set it explicitly on the transform via
 [`withNumStorageWriteApiStreams`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.Write.html#withNumStorageWriteApiStreams-int-)
 or provide the `numStorageWriteApiStreams` option to the pipeline as defined in
 [`BigQueryOptions`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryOptions.html).
+Please note this is only supported for streaming pipelines.
 
 Triggering frequency determines how soon the data is visible for querying in
 BigQuery. You can explicitly set it via
@@ -859,32 +872,37 @@ the BigQuery service, so you should use only as many streams as needed for your
 use case. Triggering frequency in single-digit seconds is a good choice for most
 pipelines.
 
-Currently, `STORAGE_WRITE_API` doesn’t support
-[`withAutoSharding`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.Write.html#withAutoSharding--).
-The method will be supported in a future release.
+{{< paragraph class="language-java" wrap="span">}}
+Similar to streaming inserts, `STORAGE_WRITE_API` supports dynamically determining
+the number of parallel streams to write to BigQuery (starting 2.42.0). You can
+explicitly enable this using [`withAutoSharding`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.Write.html#withAutoSharding--).
 
-When using `STORAGE_WRITE_API`, the PCollection returned by
-[`WriteResult.getFailedInserts`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/WriteResult.html#getFailedInserts--)
-will not contain the failed rows. If there are data validation errors, the
-transform will throw a `RuntimeException`.
+`STORAGE_WRITE_API` defaults to dynamic sharding when
+`numStorageWriteApiStreams` is set to 0 or is unspecified.
+
+{{< /paragraph >}}
+
+When using `STORAGE_WRITE_API`, the `PCollection` returned by
+[`WriteResult.getFailedStorageApiInserts`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/WriteResult.html#getFailedStorageApiInserts--)
+contains the rows that failed to be written to the Storage Write API sink.
 
 #### At-least-once semantics
 
 If your use case allows for potential duplicate records in the target table, you
 can use the
 [`STORAGE_API_AT_LEAST_ONCE`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.Write.Method.html#STORAGE_API_AT_LEAST_ONCE)
-method. Because this method doesn’t persist the records to be written to
-BigQuery into its shuffle storage (needed to provide the exactly-once semantics
-of the `STORAGE_WRITE_API` method), it is cheaper and results in lower latency
-for most pipelines. If you use `STORAGE_API_AT_LEAST_ONCE`, you don’t need to
+method. This method doesn’t persist the records to be written to
+BigQuery into its shuffle storage, which is needed to provide the exactly-once semantics
+of the `STORAGE_WRITE_API` method. Therefore, for most pipelines, using this method is often
+less expensive and results in lower latency.
+If you use `STORAGE_API_AT_LEAST_ONCE`, you don’t need to
 specify the number of streams, and you can’t specify the triggering frequency.
 
 Auto sharding is not applicable for `STORAGE_API_AT_LEAST_ONCE`.
 
-When using `STORAGE_API_AT_LEAST_ONCE`, the PCollection returned by
-[`WriteResult.getFailedInserts`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/WriteResult.html#getFailedInserts--)
-will not contain the failed rows. If there are data validation errors, the
-transform will throw a `RuntimeException`.
+When using `STORAGE_API_AT_LEAST_ONCE`, the `PCollection` returned by
+[`WriteResult.getFailedStorageApiInserts`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/WriteResult.html#getFailedStorageApiInserts--)
+contains the rows that failed to be written to the Storage Write API sink.
 
 #### Quotas
 

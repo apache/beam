@@ -21,8 +21,8 @@ import static org.apache.beam.sdk.testing.CombineFnTester.testCombineFn;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasNamespace;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFor;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
@@ -79,10 +79,10 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.TimestampedValue;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.MatcherAssert;
 import org.hamcrest.Matchers;
@@ -1030,6 +1030,30 @@ public class CombineTest implements Serializable {
           Combine.globally(new TestCombineFnWithContext(view)).withSideInputs(view).withFanout(1);
 
       assertEquals(Collections.singletonList(view), combine.getSideInputs());
+    }
+
+    @Test
+    @Category({ValidatesRunner.class, UsesSideInputs.class})
+    public void testHotKeyCombineWithSideInputs() {
+      PCollection<KV<String, Integer>> input =
+          createInput(
+              pipeline,
+              Arrays.asList(
+                  KV.of("a", 1), KV.of("a", 1), KV.of("a", 4), KV.of("b", 1), KV.of("b", 13)));
+      PCollection<Integer> sum =
+          input.apply(Values.create()).apply("Sum", Combine.globally(new SumInts()));
+      PCollectionView<Integer> sumView = sum.apply(View.asSingleton());
+
+      PCollection<KV<String, String>> combinePerKeyWithSideInputsAndHotKey =
+          input.apply(
+              Combine.<String, Integer, String>perKey(new TestCombineFnWithContext(sumView))
+                  .withSideInputs(sumView)
+                  .withHotKeyFanout(1));
+
+      PAssert.that(combinePerKeyWithSideInputsAndHotKey)
+          .containsInAnyOrder(Arrays.asList(KV.of("a", "20:114"), KV.of("b", "20:113")));
+
+      pipeline.run();
     }
   }
 

@@ -246,7 +246,7 @@ public abstract class FileReadSchemaTransformFormatProviderTest {
     PCollection<Row> inputRows = writePipeline.apply(Create.of(rows).withRowSchema(schema));
     PCollection<Row> filePatterns =
         PCollectionRowTuple.of("input", inputRows)
-            .apply(writeTransform.buildTransform())
+            .apply(writeTransform)
             .get("output")
             .setRowSchema(FileWriteSchemaTransformProvider.OUTPUT_SCHEMA)
             .apply(
@@ -261,9 +261,7 @@ public abstract class FileReadSchemaTransformFormatProviderTest {
             .setRowSchema(filePatternSchema);
 
     PCollection<Row> outputRows =
-        PCollectionRowTuple.of("input", filePatterns)
-            .apply(readTransform.buildTransform())
-            .get("output");
+        PCollectionRowTuple.of("input", filePatterns).apply(readTransform).get("output");
 
     if (getFormat().equals("json")) {
       rows =

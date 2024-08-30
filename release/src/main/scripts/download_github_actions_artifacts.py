@@ -44,36 +44,40 @@ def parse_arguments():
       description=
       "Script for downloading GitHub Actions artifacts from 'Build python wheels' workflow."
   )
-  parser.add_argument("--github-user", required=True)
+  parser.add_argument("--github-token-var", required=False, default='GITHUB_TOKEN')
   parser.add_argument("--repo-url", required=True)
   parser.add_argument("--rc-tag", required=True)
   parser.add_argument("--release-commit", required=True)
   parser.add_argument("--artifacts_dir", required=True)
   parser.add_argument("--rc_number", required=False, default="")
+  parser.add_argument("--yes", required=False, default=False)
 
   args = parser.parse_args()
-  github_token = ask_for_github_token()
+  github_token = get_github_token(args.github_token_var)
 
   print("You passed following arguments:")
   pprint.pprint({**vars(args), **{"github_token": github_token}})
 
-  if not get_yes_or_no_answer("Do you want to continue?"):
+  if not args.yes and not get_yes_or_no_answer("Do you want to continue?"):
     print("You said NO. Quitting ...")
     sys.exit(1)
 
-  user_github_id = args.github_user
   repo_url = args.repo_url
   rc_tag = args.rc_tag
   release_commit = args.release_commit
   artifacts_dir = args.artifacts_dir if os.path.isabs(args.artifacts_dir) \
     else os.path.abspath(args.artifacts_dir)
   rc_number = args.rc_number
+  skip_prompts = args.yes
 
-  return github_token, user_github_id, repo_url, rc_tag, release_commit, artifacts_dir, rc_number
+  return github_token, repo_url, rc_tag, release_commit, artifacts_dir, rc_number, skip_prompts
 
 
-def ask_for_github_token():
-  """Ask for github token and print basic information about it."""
+def get_github_token(github_token_var):
+  """Get GitHub token from env or ask for it and print basic information about it."""
+  if github_token_var in os.environ:
+    return os.environ[github_token_var]
+
   url = "https://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token"
   message = (
       f"You need to have a github access token with public_repo scope. "
@@ -239,7 +243,7 @@ def wait_for_workflow_run_to_finish(
         )
 
 
-def prepare_directory(artifacts_dir):
+def prepare_directory(artifacts_dir, skip_prompts):
   """Creates given directory and asks for confirmation if directory exists before clearing it."""
   print(f"Preparing Artifacts directory: {artifacts_dir}")
   if os.path.isdir(artifacts_dir):
@@ -247,7 +251,7 @@ def prepare_directory(artifacts_dir):
         f"Found that directory already exists.\n"
         f"Any existing content in it will be erased. Proceed?\n"
         f"Your answer")
-    if get_yes_or_no_answer(question):
+    if skip_prompts or get_yes_or_no_answer(question):
       print(f"Clearing directory: {artifacts_dir}")
       shutil.rmtree(artifacts_dir, ignore_errors=True)
     else:
@@ -321,12 +325,12 @@ if __name__ == "__main__":
   )
   (
       github_token,
-      user_github_id,
       repo_url,
       rc_tag,
       release_commit,
       artifacts_dir,
       rc_number,
+      skip_prompts,
   ) = parse_arguments()
 
   try:
@@ -334,7 +338,7 @@ if __name__ == "__main__":
     run_id = get_last_run_id(
         workflow_id, repo_url, rc_tag, release_commit, github_token)
     validate_run(run_id, repo_url, github_token)
-    prepare_directory(artifacts_dir)
+    prepare_directory(artifacts_dir, skip_prompts)
     fetch_github_artifacts(run_id, repo_url, artifacts_dir, github_token, rc_number)
     print("Script finished successfully!")
     print(f"Artifacts available in directory: {artifacts_dir}")

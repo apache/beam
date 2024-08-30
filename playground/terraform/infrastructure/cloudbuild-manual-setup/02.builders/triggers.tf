@@ -61,6 +61,7 @@ resource "google_cloudbuild_trigger" "playground_infrastructure" {
     _SKIP_APPENGINE_DEPLOY  = var.skip_appengine_deploy
     _GKE_MACHINE_TYPE       = var.gke_machine_type
     _ENVIRONMENT_NAME       = var.playground_environment_name
+    _INIT_MIN_COUNT         = var.init_min_count
     _MAX_COUNT              = var.max_count
     _MIN_COUNT              = var.min_count
     _PLAYGROUND_REGION      = var.playground_region

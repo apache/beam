@@ -30,7 +30,10 @@ a collection, or the largest (or smallest) set of values associated
 with each key in a collection of key-value pairs.
 
 ## Examples
-See [BEAM-7703](https://issues.apache.org/jira/browse/BEAM-7703) for updates.
+
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" path="SDK_JAVA_Top" show="main_section" >}}
+{{< /playground >}}
 
 ## Related transforms
 * [Sample](/documentation/transforms/java/aggregation/sample)

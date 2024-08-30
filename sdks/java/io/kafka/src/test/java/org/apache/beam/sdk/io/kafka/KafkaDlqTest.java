@@ -22,6 +22,7 @@ import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.io.kafka.KafkaReadSchemaTransformProvider.ErrorFn;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.transforms.providers.ErrorHandling;
 import org.apache.beam.sdk.schemas.utils.JsonUtils;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -47,7 +48,6 @@ public class KafkaDlqTest {
 
   private static final Schema BEAMSCHEMA =
       Schema.of(Schema.Field.of("name", Schema.FieldType.STRING));
-  private static final Schema ERRORSCHEMA = KafkaReadSchemaTransformProvider.ERROR_SCHEMA;
 
   private static final List<Row> ROWS =
       Arrays.asList(
@@ -75,13 +75,14 @@ public class KafkaDlqTest {
     } catch (Exception e) {
     }
     PCollection<byte[]> input = p.apply(Create.of(messages));
+    Schema errorSchema = ErrorHandling.errorSchemaBytes();
     PCollectionTuple output =
         input.apply(
-            ParDo.of(new ErrorFn("Kafka-read-error-counter", valueMapper))
+            ParDo.of(new ErrorFn("Kafka-read-error-counter", valueMapper, errorSchema, true))
                 .withOutputTags(OUTPUTTAG, TupleTagList.of(ERRORTAG)));
 
     output.get(OUTPUTTAG).setRowSchema(BEAMSCHEMA);
-    output.get(ERRORTAG).setRowSchema(ERRORSCHEMA);
+    output.get(ERRORTAG).setRowSchema(errorSchema);
 
     PAssert.that(output.get(OUTPUTTAG)).containsInAnyOrder(ROWS);
     p.run().waitUntilFinish();
@@ -98,13 +99,14 @@ public class KafkaDlqTest {
     } catch (Exception e) {
     }
     PCollection<byte[]> input = p.apply(Create.of(messagesWithError));
+    Schema errorSchema = ErrorHandling.errorSchemaBytes();
     PCollectionTuple output =
         input.apply(
-            ParDo.of(new ErrorFn("Read-Error-Counter", valueMapper))
+            ParDo.of(new ErrorFn("Read-Error-Counter", valueMapper, errorSchema, true))
                 .withOutputTags(OUTPUTTAG, TupleTagList.of(ERRORTAG)));
 
     output.get(OUTPUTTAG).setRowSchema(BEAMSCHEMA);
-    output.get(ERRORTAG).setRowSchema(ERRORSCHEMA);
+    output.get(ERRORTAG).setRowSchema(errorSchema);
 
     PCollection<Long> count = output.get(ERRORTAG).apply("error_count", Count.globally());
 

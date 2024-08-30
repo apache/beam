@@ -56,7 +56,7 @@ public class ElasticsearchIOTest implements Serializable {
 
     // Start the container. This step might take some time...
     container.start();
-    client = ElasticsearchIOTestUtils.clientFromContainer(container);
+    client = ElasticsearchIOTestUtils.clientFromContainer(container, true);
     setDefaultTemplate(client);
   }
 
@@ -105,12 +105,30 @@ public class ElasticsearchIOTest implements Serializable {
   }
 
   @Test
+  public void testReadPIT() throws Exception {
+    // need to create the index using the helper method (not create it at first insertion)
+    // for the indexSettings() to be run
+    createIndex(elasticsearchIOTestCommon.restClient, getEsIndex());
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testReadPIT();
+  }
+
+  @Test
   public void testReadWithQueryString() throws Exception {
     // need to create the index using the helper method (not create it at first insertion)
     // for the indexSettings() to be run
     createIndex(elasticsearchIOTestCommon.restClient, getEsIndex());
     elasticsearchIOTestCommon.setPipeline(pipeline);
-    elasticsearchIOTestCommon.testRead();
+    elasticsearchIOTestCommon.testReadWithQueryString();
+  }
+
+  @Test
+  public void testReadWithQueryStringAndPIT() throws Exception {
+    // need to create the index using the helper method (not create it at first insertion)
+    // for the indexSettings() to be run
+    createIndex(elasticsearchIOTestCommon.restClient, getEsIndex());
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testReadWithQueryAndPIT();
   }
 
   @Test
@@ -291,5 +309,11 @@ public class ElasticsearchIOTest implements Serializable {
   public void testWriteWindowPreservation() throws Exception {
     elasticsearchIOTestCommon.setPipeline(pipeline);
     elasticsearchIOTestCommon.testWriteWindowPreservation();
+  }
+
+  @Test
+  public void testWriteWithClientResponseException() throws Exception {
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testWriteWithElasticClientResponseException();
   }
 }

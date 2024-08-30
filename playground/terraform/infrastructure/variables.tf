@@ -164,7 +164,10 @@ variable "gke_location" {
 variable "location" {
   description = "Location of GKE cluster"
 }
-
+variable "init_min_count" {
+  description = "Initial cluster node count"
+  default     = 1
+}
 variable "min_count" {
   description = "Min cluster node count"
   default     = 2

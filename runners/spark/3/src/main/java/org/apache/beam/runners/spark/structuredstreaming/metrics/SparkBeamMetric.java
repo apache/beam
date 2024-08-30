@@ -18,7 +18,7 @@
 package org.apache.beam.runners.spark.structuredstreaming.metrics;
 
 import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAttemptedOnlyMetricResults;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Predicates.not;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates.not;
 
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Metric;
@@ -36,9 +36,9 @@ import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Streams;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Streams;
 
 /**
  * An adapter between the {@link MetricsContainerStepMap} and the Dropwizard {@link Metric}

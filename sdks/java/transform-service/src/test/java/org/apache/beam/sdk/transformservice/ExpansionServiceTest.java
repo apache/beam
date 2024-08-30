@@ -20,6 +20,9 @@ package org.apache.beam.sdk.transformservice;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.model.expansion.v1.ExpansionApi.DiscoverSchemaTransformRequest;
@@ -31,9 +34,10 @@ import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
-import org.apache.beam.runners.core.construction.ExpansionServiceClient;
-import org.apache.beam.runners.core.construction.ExpansionServiceClientFactory;
-import org.apache.beam.vendor.grpc.v1p54p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.sdk.util.construction.ExpansionServiceClient;
+import org.apache.beam.sdk.util.construction.ExpansionServiceClientFactory;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Resources;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -60,6 +64,8 @@ public class ExpansionServiceTest {
     endpoints.add(endpoint2);
     clientFactory = Mockito.mock(ExpansionServiceClientFactory.class);
     expansionService = new ExpansionService(endpoints, clientFactory);
+    // We do not run actual services in unit tests.
+    expansionService.disableServiceCheck();
   }
 
   @Test
@@ -131,7 +137,10 @@ public class ExpansionServiceTest {
     ArgumentCaptor<ExpansionResponse> expansionResponseCapture =
         ArgumentCaptor.forClass(ExpansionResponse.class);
     Mockito.verify(responseObserver).onNext(expansionResponseCapture.capture());
-    assertEquals("expansion error 2", expansionResponseCapture.getValue().getError());
+
+    // Error response should contain errors from both expansion services.
+    assertTrue(expansionResponseCapture.getValue().getError().contains("expansion error 1"));
+    assertTrue(expansionResponseCapture.getValue().getError().contains("expansion error 2"));
   }
 
   @Test
@@ -225,5 +234,16 @@ public class ExpansionServiceTest {
         ArgumentCaptor.forClass(DiscoverSchemaTransformResponse.class);
     Mockito.verify(responseObserver).onNext(discoverResponseCapture.capture());
     assertEquals(0, discoverResponseCapture.getValue().getSchemaTransformConfigsCount());
+  }
+
+  @Test
+  public void testLoadTransformServiceConfig() throws Exception {
+    URL transformServiceConfigFile = Resources.getResource("./test_transform_service_config.yml");
+    TransformServiceConfig config =
+        TransformServiceConfig.parseFromYamlStream(
+            Files.newInputStream(Paths.get(transformServiceConfigFile.getPath())));
+    assertEquals(2, config.getExpansionservices().size());
+    assertTrue(config.getExpansionservices().contains("dummy-service-1:5001"));
+    assertTrue(config.getExpansionservices().contains("dummy-service-2:5002"));
   }
 }

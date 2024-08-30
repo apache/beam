@@ -31,7 +31,6 @@ except ImportError:  # pylint: disable=bare-except
   raise unittest.SkipTest('Dependencies are not installed')
 
 _INPUT_GCS_BUCKET_ROOT = 'gs://apache-beam-ml/datasets/cloudml/criteo'
-_CRITEO_FEATURES_FILE = 'testdata/criteo/expected/features.tfrecord.gz'
 _OUTPUT_GCS_BUCKET_ROOT = 'gs://temp-storage-for-end-to-end-tests/tft/'
 
 

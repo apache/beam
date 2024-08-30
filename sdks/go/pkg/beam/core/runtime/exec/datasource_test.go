@@ -16,6 +16,7 @@
 package exec
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -36,6 +37,10 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/rtrackers/offsetrange"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
+
+func compareProgressReportSnapshots(expected ProgressReportSnapshot, got ProgressReportSnapshot) bool {
+	return expected.Name == got.Name && expected.ID == got.ID && expected.Count == got.Count && expected.pcol == got.pcol
+}
 
 func TestDataSource_PerElement(t *testing.T) {
 	tests := []struct {
@@ -231,7 +236,7 @@ func TestDataSource_Iterators(t *testing.T) {
 				snap.pcol.SizeSum = int64(len(test.keys) * (1 + len(test.vals)) * sizeOfSmallInt)
 				snap.pcol.SizeMin = int64((1 + len(test.vals)) * sizeOfSmallInt)
 				snap.pcol.SizeMax = int64((1 + len(test.vals)) * sizeOfSmallInt)
-				if got, want := source.Progress(), snap; got != want {
+				if got, want := source.Progress(), snap; !compareProgressReportSnapshots(want, got) {
 					t.Errorf("progress didn't match: got %v, want %v", got, want)
 				}
 			})
@@ -1020,6 +1025,8 @@ func runOnRoots(ctx context.Context, t *testing.T, p *Plan, name string, mthd fu
 
 type TestDataManager struct {
 	Ch chan Elements
+
+	TimerWrites map[string]*bytes.Buffer
 }
 
 func (dm *TestDataManager) OpenElementChan(ctx context.Context, id StreamID, expectedTimerTransforms []string) (<-chan Elements, error) {
@@ -1031,8 +1038,26 @@ func (dm *TestDataManager) OpenWrite(ctx context.Context, id StreamID) (io.Write
 }
 
 func (dm *TestDataManager) OpenTimerWrite(ctx context.Context, id StreamID, family string) (io.WriteCloser, error) {
-	return nil, nil
+	if dm.TimerWrites == nil {
+		dm.TimerWrites = map[string]*bytes.Buffer{}
+	}
+	buf, ok := dm.TimerWrites[family]
+	if !ok {
+		buf = &bytes.Buffer{}
+		dm.TimerWrites[family] = buf
+	}
+	return struct {
+		*bytes.Buffer
+		io.Closer
+	}{
+		Buffer: buf,
+		Closer: noopCloser{},
+	}, nil
 }
+
+type noopCloser struct{}
+
+func (noopCloser) Close() error { return nil }
 
 type chanWriter struct {
 	Ch  chan Elements
@@ -1102,7 +1127,7 @@ func validateSource(t *testing.T, out *CaptureNode, source *DataSource, expected
 	if got, want := len(out.Elements), len(expected); got != want {
 		t.Fatalf("lengths don't match: got %v, want %v", got, want)
 	}
-	if got, want := source.Progress(), quickTestSnapshot(source, int64(len(expected))); got != want {
+	if got, want := source.Progress(), quickTestSnapshot(source, int64(len(expected))); !compareProgressReportSnapshots(want, got) {
 		t.Fatalf("progress snapshot didn't match: got %v, want %v", got, want)
 	}
 	if !equalList(out.Elements, expected) {

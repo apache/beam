@@ -24,10 +24,15 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeParameter;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/** A collections of {@link TypeDescriptor} construction methods. */
+/**
+ * A collections of {@link TypeDescriptor} construction methods.
+ *
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
+ */
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
+@Deprecated
 public class TypeUtils {
 
   /**

@@ -35,7 +35,8 @@ that key in each input collection.
 See more information in the [Beam Programming Guide](/documentation/programming-guide/#cogroupbykey).
 
 ## Examples
-**Example**: Say you have two different files with user data; one file has
+
+**Example 1**: Say you have two different files with user data; one file has
 names and email addresses and the other file has names and phone numbers.
 
 You can join those two data sets, using the username as a common key and the
@@ -65,6 +66,12 @@ result.apply(ParDo.of(new DoFn<KV<K, CoGbkResult>, /* some result */>() {
     ...
 }));
 {{< /highlight >}}
+
+**Example 2:**
+
+{{< playground height="700px" >}}
+{{< playground_snippet language="java" path="SDK_JAVA_GroupByKey" show="main_section" >}}
+{{< /playground >}}
 
 ## Related transforms
 * [GroupByKey](/documentation/transforms/java/aggregation/groupbykey)

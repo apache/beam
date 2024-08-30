@@ -31,7 +31,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryFileLoadsWriteSchemaTransformProvider.PCollectionRowTupleTransform;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryFileLoadsWriteSchemaTransformProvider.BigQueryWriteSchemaTransform;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices;
@@ -41,8 +41,6 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.io.InvalidConfigurationException;
-import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
-import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -109,22 +107,21 @@ public class BigQueryFileLoadsWriteSchemaTransformProviderTest {
 
   @Test
   public void testLoad() throws IOException, InterruptedException {
-    SchemaTransformProvider provider = new BigQueryFileLoadsWriteSchemaTransformProvider();
+    BigQueryFileLoadsWriteSchemaTransformProvider provider =
+        new BigQueryFileLoadsWriteSchemaTransformProvider();
     BigQueryFileLoadsWriteSchemaTransformConfiguration configuration =
         BigQueryFileLoadsWriteSchemaTransformConfiguration.builder()
             .setTableSpec(BigQueryHelpers.toTableSpec(TABLE_REFERENCE))
             .setWriteDisposition(WriteDisposition.WRITE_TRUNCATE.name())
             .setCreateDisposition(CreateDisposition.CREATE_IF_NEEDED.name())
             .build();
-    Row configurationRow = configuration.toBeamRow();
-    SchemaTransform schemaTransform = provider.from(configurationRow);
-    PCollectionRowTupleTransform pCollectionRowTupleTransform =
-        (PCollectionRowTupleTransform) schemaTransform.buildTransform();
-    pCollectionRowTupleTransform.setTestBigQueryServices(fakeBigQueryServices);
+    BigQueryWriteSchemaTransform schemaTransform =
+        (BigQueryWriteSchemaTransform) provider.from(configuration);
+    schemaTransform.setTestBigQueryServices(fakeBigQueryServices);
     String tag = provider.inputCollectionNames().get(0);
     PCollectionRowTuple input =
         PCollectionRowTuple.of(tag, p.apply(Create.of(ROWS).withRowSchema(SCHEMA)));
-    input.apply(pCollectionRowTupleTransform);
+    input.apply(schemaTransform);
 
     p.run();
 
@@ -161,7 +158,7 @@ public class BigQueryFileLoadsWriteSchemaTransformProviderTest {
     for (Pair<
             BigQueryFileLoadsWriteSchemaTransformConfiguration.Builder, Class<? extends Exception>>
         caze : cases) {
-      PCollectionRowTupleTransform transform = transformFrom(caze.getLeft().build());
+      BigQueryWriteSchemaTransform transform = transformFrom(caze.getLeft().build());
       if (caze.getRight() != null) {
         assertThrows(caze.getRight(), () -> transform.validate(p.getOptions()));
       } else {
@@ -201,7 +198,7 @@ public class BigQueryFileLoadsWriteSchemaTransformProviderTest {
     for (Pair<
             BigQueryFileLoadsWriteSchemaTransformConfiguration.Builder, BigQueryIO.Write<TableRow>>
         caze : cases) {
-      PCollectionRowTupleTransform transform = transformFrom(caze.getLeft().build());
+      BigQueryWriteSchemaTransform transform = transformFrom(caze.getLeft().build());
       Map<Identifier, Item> gotDisplayData = DisplayData.from(transform.toWrite(SCHEMA)).asMap();
       Map<Identifier, Item> wantDisplayData = DisplayData.from(caze.getRight()).asMap();
       Set<Identifier> keys = new HashSet<>();
@@ -237,7 +234,7 @@ public class BigQueryFileLoadsWriteSchemaTransformProviderTest {
                     Row.nullRow(
                         Schema.builder().addNullableField("name", FieldType.STRING).build()))));
 
-    PCollectionRowTupleTransform transform =
+    BigQueryWriteSchemaTransform transform =
         transformFrom(
             BigQueryFileLoadsWriteSchemaTransformConfiguration.builder()
                 .setTableSpec(BigQueryHelpers.toTableSpec(TABLE_REFERENCE))
@@ -254,11 +251,12 @@ public class BigQueryFileLoadsWriteSchemaTransformProviderTest {
     p.run();
   }
 
-  private PCollectionRowTupleTransform transformFrom(
+  private BigQueryWriteSchemaTransform transformFrom(
       BigQueryFileLoadsWriteSchemaTransformConfiguration configuration) {
-    SchemaTransformProvider provider = new BigQueryFileLoadsWriteSchemaTransformProvider();
-    PCollectionRowTupleTransform transform =
-        (PCollectionRowTupleTransform) provider.from(configuration.toBeamRow()).buildTransform();
+    BigQueryFileLoadsWriteSchemaTransformProvider provider =
+        new BigQueryFileLoadsWriteSchemaTransformProvider();
+    BigQueryWriteSchemaTransform transform =
+        (BigQueryWriteSchemaTransform) provider.from(configuration);
 
     transform.setTestBigQueryServices(fakeBigQueryServices);
 

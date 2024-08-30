@@ -25,7 +25,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
 /**
- * {@code PTransorm}s to use Regular Expressions to process elements in a {@link PCollection}.
+ * {@code PTransform}s to use Regular Expressions to process elements in a {@link PCollection}.
  *
  * <p>{@link Regex#matches(String, int)} can be used to see if an entire line matches a Regex.
  * {@link Regex#matchesKV(String, int, int)} can be used to see if an entire line matches a Regex

@@ -24,7 +24,7 @@
  *
  * <pre>{@code
  * PCollection<TableRow> inputData = pipeline.apply(
- *     BigQueryIO.readTableRows().from("clouddataflow-readonly:samples.weather_stations"));
+ *     BigQueryIO.readTableRows().from("apache-beam-testing.samples.weather_stations"));
  * }</pre>
  *
  * and {@code Write} transforms that persist PCollections to external storage:

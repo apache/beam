@@ -24,7 +24,7 @@ import collections
 import decimal
 import json
 import logging
-import random
+import secrets
 import time
 import uuid
 from typing import TYPE_CHECKING
@@ -44,6 +44,7 @@ from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.bigquery_io_metadata import create_bigquery_io_metadata
 from apache_beam.io.iobase import BoundedSource
 from apache_beam.io.textio import _TextSource
+from apache_beam.metrics.metric import Lineage
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.value_provider import ValueProvider
@@ -63,7 +64,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def bigquery_export_destination_uri(
-    gcs_location_vp: Optional[ValueProvider],
+    gcs_location_vp: Union[str, Optional[ValueProvider]],
     temp_location: Optional[str],
     unique_id: str,
     directory_only: bool = False,
@@ -75,7 +76,10 @@ def bigquery_export_destination_uri(
 
   gcs_location = None
   if gcs_location_vp is not None:
-    gcs_location = gcs_location_vp.get()
+    if isinstance(gcs_location_vp, ValueProvider):
+      gcs_location = gcs_location_vp.get()
+    else:
+      gcs_location = gcs_location_vp
 
   if gcs_location is not None:
     gcs_base = gcs_location
@@ -144,13 +148,16 @@ class _PassThroughThenCleanupTempDatasets(PTransform):
     self.side_input = side_input
 
   def expand(self, input):
+    pipeline_options = input.pipeline.options
+
     class PassThrough(beam.DoFn):
       def process(self, element):
         yield element
 
     class CleanUpProjects(beam.DoFn):
       def process(self, unused_element, unused_signal, pipeline_details):
-        bq = bigquery_tools.BigQueryWrapper()
+        bq = bigquery_tools.BigQueryWrapper.from_pipeline_options(
+            pipeline_options)
         pipeline_details = pipeline_details[0]
         if 'temp_table_ref' in pipeline_details.keys():
           temp_table_ref = pipeline_details['temp_table_ref']
@@ -206,7 +213,7 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
     self._source_uuid = unique_id
     self.kms_key = kms_key
     self.project = project
-    self.temp_dataset = temp_dataset or 'bq_read_all_%s' % uuid.uuid4().hex
+    self.temp_dataset = temp_dataset
     self.query_priority = query_priority
     self.bq_io_metadata = None
 
@@ -220,21 +227,27 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
         'temp_dataset': str(self.temp_dataset)
     }
 
-  def _get_temp_dataset(self):
-    if isinstance(self.temp_dataset, str):
-      return DatasetReference(
-          datasetId=self.temp_dataset, projectId=self._get_project())
-    else:
+  def _get_temp_dataset_id(self):
+    if self.temp_dataset is None:
+      return None
+    elif isinstance(self.temp_dataset, DatasetReference):
+      return self.temp_dataset.datasetId
+    elif isinstance(self.temp_dataset, str):
       return self.temp_dataset
+    else:
+      raise ValueError("temp_dataset has to be either str or DatasetReference")
+
+  def start_bundle(self):
+    self.bq = bigquery_tools.BigQueryWrapper(
+        temp_dataset_id=self._get_temp_dataset_id(),
+        client=bigquery_tools.BigQueryWrapper._bigquery_client(self.options))
 
   def process(self,
               element: 'ReadFromBigQueryRequest') -> Iterable[BoundedSource]:
-    bq = bigquery_tools.BigQueryWrapper(
-        temp_dataset_id=self._get_temp_dataset().datasetId)
-
     if element.query is not None:
-      self._setup_temporary_dataset(bq, element)
-      table_reference = self._execute_query(bq, element)
+      if not self.bq.created_temp_dataset:
+        self._setup_temporary_dataset(self.bq, element)
+      table_reference = self._execute_query(self.bq, element)
     else:
       assert element.table
       table_reference = bigquery_tools.parse_table_reference(
@@ -243,19 +256,27 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
     if not table_reference.projectId:
       table_reference.projectId = self._get_project()
 
-    schema, metadata_list = self._export_files(bq, element, table_reference)
+    schema, metadata_list = self._export_files(
+        self.bq, element, table_reference)
 
     for metadata in metadata_list:
       yield self._create_source(metadata.path, schema)
 
+    Lineage.sources().add(
+        'bigquery',
+        table_reference.projectId,
+        table_reference.datasetId,
+        table_reference.tableId)
+
     if element.query is not None:
-      bq._delete_table(
+      self.bq._delete_table(
           table_reference.projectId,
           table_reference.datasetId,
           table_reference.tableId)
 
-    if bq.created_temp_dataset:
-      self._clean_temporary_dataset(bq, element)
+  def finish_bundle(self):
+    if self.bq.created_temp_dataset:
+      self.bq.clean_up_temporary_dataset(self._get_project())
 
   def _get_bq_metadata(self):
     if not self.bq_io_metadata:
@@ -281,12 +302,6 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
         self._get_project(), element.query, not element.use_standard_sql)
     bq.create_temporary_dataset(self._get_project(), location)
 
-  def _clean_temporary_dataset(
-      self,
-      bq: bigquery_tools.BigQueryWrapper,
-      element: 'ReadFromBigQueryRequest'):
-    bq.clean_up_temporary_dataset(self._get_project())
-
   def _execute_query(
       self,
       bq: bigquery_tools.BigQueryWrapper,
@@ -295,7 +310,7 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
         self._job_name,
         self._source_uuid,
         bigquery_tools.BigQueryJobTypes.QUERY,
-        '%s_%s' % (int(time.time()), random.randint(0, 1000)))
+        '%s_%s' % (int(time.time()), secrets.token_hex(3)))
     job = bq._start_query_job(
         self._get_project(),
         element.query,

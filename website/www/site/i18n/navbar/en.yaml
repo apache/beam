@@ -48,3 +48,13 @@
   translation: "About"
 - id: nav-connectors
   translation: "I/O Connectors"
+- id: nav-performance-general
+  translation: "General"
+- id: nav-performance-bigquery
+  translation: "BigQuery"
+- id: nav-performance-bigtable
+  translation: "BigTable"
+- id: nav-performance-textio
+  translation: "TextIO"
+- id: nav-performance-glossary
+  translation: "Glossary"

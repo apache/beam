@@ -76,7 +76,7 @@ class ProtoCoderTest(unittest.TestCase):
     ma = test_message.MessageA()
     mb = ma.field2.add()
     mb.field1 = True
-    ma.field1 = u'hello world'
+    ma.field1 = 'hello world'
     expected_coder = coders.ProtoCoder(ma.__class__)
     real_coder = coders_registry.get_coder(ma.__class__)
     self.assertEqual(expected_coder, real_coder)
@@ -90,7 +90,7 @@ class DeterministicProtoCoderTest(unittest.TestCase):
     ma = test_message.MessageA()
     mb = ma.field2.add()
     mb.field1 = True
-    ma.field1 = u'hello world'
+    ma.field1 = 'hello world'
     expected_coder = coders.DeterministicProtoCoder(ma.__class__)
     real_coder = (
         coders_registry.get_coder(
@@ -130,7 +130,7 @@ class ProtoPlusCoderTest(unittest.TestCase):
   def test_proto_plus_coder(self):
     ma = ProtoPlusMessageA()
     ma.field2 = [ProtoPlusMessageB(field1=True)]
-    ma.field1 = u'hello world'
+    ma.field1 = 'hello world'
     expected_coder = coders.ProtoPlusCoder(ma.__class__)
     real_coder = coders_registry.get_coder(ma.__class__)
     self.assertTrue(issubclass(ma.__class__, proto.Message))
@@ -234,6 +234,12 @@ class NullableCoderTest(unittest.TestCase):
     nondeterministic = coders.NullableCoder(coders.Base64PickleCoder())
     with pytest.raises(ValueError):
       nondeterministic.as_deterministic_coder('label')
+
+
+class LengthPrefixCoderTest(unittest.TestCase):
+  def test_to_type_hint(self):
+    coder = coders.LengthPrefixCoder(coders.BytesCoder())
+    assert coder.to_type_hint() is bytes
 
 
 if __name__ == '__main__':
