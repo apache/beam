@@ -145,7 +145,8 @@ import org.slf4j.LoggerFactory;
   "keyfor",
   "nullness"
 }) // TODO(https://github.com/apache/beam/issues/20497)
-public class DoFnOperator<PreInputT, InputT, OutputT> extends AbstractStreamOperator<WindowedValue<OutputT>>
+public class DoFnOperator<PreInputT, InputT, OutputT>
+    extends AbstractStreamOperator<WindowedValue<OutputT>>
     implements OneInputStreamOperator<WindowedValue<PreInputT>, WindowedValue<OutputT>>,
         TwoInputStreamOperator<WindowedValue<PreInputT>, RawUnionValue, WindowedValue<OutputT>>,
         Triggerable<ByteBuffer, TimerData> {
