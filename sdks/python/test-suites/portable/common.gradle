@@ -92,10 +92,11 @@ tasks.register("portableLocalRunnerJuliaSetWithSetupPy") {
           && cd ${pythonRootDir} \\
           && pip install -e . \\
           && cd apache_beam/examples/complete/juliaset \\
+          && pip install -e . \\
           && python juliaset_main.py \\
               --runner=PortableRunner \\
               --job_endpoint=embed \\
-              --setup_file=./setup.py \\
+              --setup_file=./pyproject.toml \\
               --coordinate_output=/tmp/juliaset \\
               --grid_size=1
           """

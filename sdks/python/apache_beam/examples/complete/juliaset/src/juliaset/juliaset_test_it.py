@@ -48,7 +48,7 @@ class JuliaSetTestIT(unittest.TestCase):
         'coordinate_output': coordinate_output,
         'grid_size': self.GRID_SIZE,
         'setup_file': os.path.normpath(
-            os.path.join(os.path.dirname(__file__), '..', 'setup.py')),
+            os.path.join(os.path.dirname(__file__), '../..', 'setup.py')),
         'on_success_matcher': all_of(PipelineStateMatcher(PipelineState.DONE)),
     }
     args = pipeline.get_full_options_as_args(**extra_args)
