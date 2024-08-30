@@ -47,7 +47,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Integration tests for {@link BigQueryIO#readTableRows()} using {@link Method#DIRECT_READ} */
+/** Integration tests for {@link BigQueryIO#readTableRows()} using {@link Method#DIRECT_READ}. */
 @RunWith(JUnit4.class)
 public class BigQueryIOStorageReadTableRowIT {
 
