@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.FailedPreconditionException;
 import com.google.api.services.bigquery.model.TableReference;
+import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.bigquery.storage.v1.ReadRowsRequest;
 import com.google.cloud.bigquery.storage.v1.ReadRowsResponse;
 import com.google.cloud.bigquery.storage.v1.ReadSession;
@@ -48,6 +49,7 @@ import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.Preconditions;
+import org.apache.beam.sdk.util.SerializableSupplier;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.RequiresNonNull;
@@ -62,11 +64,36 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
   public static <T> BigQueryStorageStreamSource<T> create(
       ReadSession readSession,
       ReadStream readStream,
-      BigQueryStorageReader<T> reader,
+      TableSchema tableSchema,
+      BigQueryStorageReaderFactory<T> readerFactory,
       Coder<T> outputCoder,
       BigQueryServices bqServices) {
     return new BigQueryStorageStreamSource<>(
-        readSession, readStream, reader, outputCoder, bqServices);
+        readSession,
+        readStream,
+        new SerializableTableSchemaSupplier(tableSchema),
+        readerFactory,
+        outputCoder,
+        bqServices);
+  }
+
+  private static class SerializableTableSchemaSupplier
+      implements SerializableSupplier<TableSchema> {
+    private transient TableSchema tableSchema;
+    private final String jsonSchema;
+
+    SerializableTableSchemaSupplier(TableSchema tableSchema) {
+      this.tableSchema = tableSchema;
+      this.jsonSchema = BigQueryHelpers.toJsonString(tableSchema);
+    }
+
+    @Override
+    public TableSchema get() {
+      if (tableSchema == null) {
+        tableSchema = BigQueryHelpers.fromJsonString(jsonSchema, TableSchema.class);
+      }
+      return tableSchema;
+    }
   }
 
   /**
@@ -75,24 +102,28 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
    */
   public BigQueryStorageStreamSource<T> fromExisting(ReadStream newReadStream) {
     return new BigQueryStorageStreamSource<>(
-        readSession, newReadStream, reader, outputCoder, bqServices);
+        readSession, newReadStream, tableSchemaSupplier, readerFactory, outputCoder, bqServices);
   }
 
   private final ReadSession readSession;
   private final ReadStream readStream;
-  private final BigQueryStorageReader<T> reader;
+  private final SerializableTableSchemaSupplier tableSchemaSupplier;
+  private final BigQueryStorageReaderFactory<T> readerFactory;
   private final Coder<T> outputCoder;
   private final BigQueryServices bqServices;
 
   private BigQueryStorageStreamSource(
       ReadSession readSession,
       ReadStream readStream,
-      BigQueryStorageReader<T> reader,
+      SerializableTableSchemaSupplier tableSchemaSupplier,
+      BigQueryStorageReaderFactory<T> readerFactory,
       Coder<T> outputCoder,
       BigQueryServices bqServices) {
     this.readSession = Preconditions.checkArgumentNotNull(readSession, "readSession");
     this.readStream = Preconditions.checkArgumentNotNull(readStream, "stream");
-    this.reader = Preconditions.checkArgumentNotNull(reader, "reader");
+    this.tableSchemaSupplier =
+        Preconditions.checkArgumentNotNull(tableSchemaSupplier, "tableSchemaSupplier");
+    this.readerFactory = Preconditions.checkArgumentNotNull(readerFactory, "readerFactory");
     this.outputCoder = Preconditions.checkArgumentNotNull(outputCoder, "outputCoder");
     this.bqServices = Preconditions.checkArgumentNotNull(bqServices, "bqServices");
   }
@@ -182,7 +213,8 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
     private BigQueryStorageStreamReader(
         BigQueryStorageStreamSource<T> source, BigQueryOptions options) throws IOException {
       this.source = source;
-      this.reader = source.reader;
+      this.reader =
+          source.readerFactory.getReader(source.tableSchemaSupplier.get(), source.readSession);
       this.storageClient = source.bqServices.getStorageClient(options);
       // number of stream determined from server side for storage read api v2
       this.splitAllowed = !options.getEnableStorageReadApiV2();

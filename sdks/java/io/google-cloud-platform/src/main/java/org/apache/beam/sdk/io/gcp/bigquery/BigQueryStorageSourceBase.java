@@ -185,12 +185,12 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
     if (selectedFieldsProvider != null) {
       tableSchema = BigQueryUtils.trimSchema(tableSchema, selectedFieldsProvider.get());
     }
-    BigQueryStorageReader<T> reader = readerFactory.getReader(tableSchema, readSession);
+
     List<BigQueryStorageStreamSource<T>> sources = Lists.newArrayList();
     for (ReadStream readStream : readSession.getStreamsList()) {
       sources.add(
           BigQueryStorageStreamSource.create(
-              readSession, readStream, reader, outputCoder, bqServices));
+              readSession, readStream, tableSchema, readerFactory, outputCoder, bqServices));
     }
 
     return ImmutableList.copyOf(sources);

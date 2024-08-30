@@ -1918,14 +1918,12 @@ public class BigQueryIO {
                                       c.sideInput(tableSchemaView), TableSchema.class);
                               ReadStream readStream = c.element();
 
-                              BigQueryStorageReader<T> reader =
-                                  getBigQueryReaderFactory().getReader(tableSchema, readSession);
-
                               BigQueryStorageStreamSource<T> streamSource =
                                   BigQueryStorageStreamSource.create(
                                       readSession,
                                       readStream,
-                                      reader,
+                                      tableSchema,
+                                      getBigQueryReaderFactory(),
                                       outputCoder,
                                       getBigQueryServices());
 

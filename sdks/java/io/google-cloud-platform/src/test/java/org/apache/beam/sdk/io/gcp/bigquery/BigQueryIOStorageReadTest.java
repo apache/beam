@@ -173,20 +173,12 @@ public class BigQueryIOStorageReadTest {
           asList(
               field("name", new ArrowType.Utf8()), field("number", new ArrowType.Int(64, true))));
 
-  private static final BigQueryReaderFactory<TableRow> TABLE_ROW_AVRO_READER_FACTORY =
+  private static final BigQueryStorageReaderFactory<TableRow> TABLE_ROW_AVRO_READER_FACTORY =
       BigQueryReaderFactory.avro(
           null, AvroDatumFactory.generic(), BigQueryAvroUtils::convertGenericRecordToTableRow);
 
-  private static final BigQueryStorageReader<TableRow> TABLE_ROW_AVRO_READER =
-      new BigQueryStorageAvroReader<>(
-          AVRO_SCHEMA,
-          AVRO_SCHEMA,
-          AvroDatumFactory.generic(),
-          BigQueryAvroUtils::convertGenericRecordToTableRow);
-
-  private static final BigQueryStorageReader<TableRow> TABLE_ROW_ARROW_READER =
-      new BigQueryStorageArrowReader<>(
-          ARROW_SCHEMA, BigQueryUtils.fromTableSchema(TABLE_SCHEMA), BigQueryUtils::toTableRow);
+  private static final BigQueryStorageReaderFactory<TableRow> TABLE_ROW_ARROW_READER_FACTORY =
+      BigQueryReaderFactory.arrow(null, BigQueryUtils::toTableRow);
 
   private transient PipelineOptions options;
   private final transient TemporaryFolder testFolder = new TemporaryFolder();
@@ -731,7 +723,8 @@ public class BigQueryIOStorageReadTest {
         BigQueryStorageStreamSource.create(
             ReadSession.getDefaultInstance(),
             ReadStream.getDefaultInstance(),
-            TABLE_ROW_AVRO_READER,
+            TABLE_SCHEMA,
+            TABLE_ROW_AVRO_READER_FACTORY,
             TableRowJsonCoder.of(),
             new FakeBigQueryServices());
 
@@ -745,7 +738,8 @@ public class BigQueryIOStorageReadTest {
         BigQueryStorageStreamSource.create(
             ReadSession.getDefaultInstance(),
             ReadStream.getDefaultInstance(),
-            TABLE_ROW_AVRO_READER,
+            TABLE_SCHEMA,
+            TABLE_ROW_AVRO_READER_FACTORY,
             TableRowJsonCoder.of(),
             new FakeBigQueryServices());
 
@@ -773,7 +767,8 @@ public class BigQueryIOStorageReadTest {
         BigQueryStorageStreamSource.create(
             readSession,
             ReadStream.newBuilder().setName("readStream").build(),
-            TABLE_ROW_AVRO_READER,
+            TABLE_SCHEMA,
+            TABLE_ROW_AVRO_READER_FACTORY,
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withStorageClient(fakeStorageClient));
 
@@ -816,7 +811,8 @@ public class BigQueryIOStorageReadTest {
         BigQueryStorageStreamSource.create(
             readSession,
             ReadStream.newBuilder().setName("readStream").build(),
-            TABLE_ROW_AVRO_READER,
+            TABLE_SCHEMA,
+            TABLE_ROW_AVRO_READER_FACTORY,
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withStorageClient(fakeStorageClient));
 
@@ -872,7 +868,8 @@ public class BigQueryIOStorageReadTest {
         BigQueryStorageStreamSource.create(
             readSession,
             ReadStream.newBuilder().setName("readStream").build(),
-            TABLE_ROW_AVRO_READER,
+            TABLE_SCHEMA,
+            TABLE_ROW_AVRO_READER_FACTORY,
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withStorageClient(fakeStorageClient));
 
@@ -956,7 +953,8 @@ public class BigQueryIOStorageReadTest {
         BigQueryStorageStreamSource.create(
             readSession,
             ReadStream.newBuilder().setName("parentStream").build(),
-            TABLE_ROW_AVRO_READER,
+            TABLE_SCHEMA,
+            TABLE_ROW_AVRO_READER_FACTORY,
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withStorageClient(fakeStorageClient));
 
@@ -1040,7 +1038,8 @@ public class BigQueryIOStorageReadTest {
                 .setAvroSchema(AvroSchema.newBuilder().setSchema(AVRO_SCHEMA_STRING))
                 .build(),
             ReadStream.newBuilder().setName("parentStream").build(),
-            TABLE_ROW_AVRO_READER,
+            TABLE_SCHEMA,
+            TABLE_ROW_AVRO_READER_FACTORY,
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withStorageClient(fakeStorageClient));
 
@@ -1176,7 +1175,8 @@ public class BigQueryIOStorageReadTest {
                 .setAvroSchema(AvroSchema.newBuilder().setSchema(AVRO_SCHEMA_STRING))
                 .build(),
             readStreams.get(0),
-            TABLE_ROW_AVRO_READER,
+            TABLE_SCHEMA,
+            TABLE_ROW_AVRO_READER_FACTORY,
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withStorageClient(fakeStorageClient));
 
@@ -1239,7 +1239,8 @@ public class BigQueryIOStorageReadTest {
                 .setAvroSchema(AvroSchema.newBuilder().setSchema(AVRO_SCHEMA_STRING))
                 .build(),
             ReadStream.newBuilder().setName("parentStream").build(),
-            TABLE_ROW_AVRO_READER,
+            TABLE_SCHEMA,
+            TABLE_ROW_AVRO_READER_FACTORY,
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withStorageClient(fakeStorageClient));
 
@@ -1327,7 +1328,8 @@ public class BigQueryIOStorageReadTest {
                 .setAvroSchema(AvroSchema.newBuilder().setSchema(AVRO_SCHEMA_STRING))
                 .build(),
             ReadStream.newBuilder().setName("parentStream").build(),
-            TABLE_ROW_AVRO_READER,
+            TABLE_SCHEMA,
+            TABLE_ROW_AVRO_READER_FACTORY,
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withStorageClient(fakeStorageClient));
 
@@ -1426,7 +1428,8 @@ public class BigQueryIOStorageReadTest {
         BigQueryStorageStreamSource.create(
             readSession,
             ReadStream.newBuilder().setName("readStream").build(),
-            TABLE_ROW_AVRO_READER,
+            TABLE_SCHEMA,
+            TABLE_ROW_AVRO_READER_FACTORY,
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withStorageClient(fakeStorageClient));
 
@@ -1752,7 +1755,8 @@ public class BigQueryIOStorageReadTest {
         BigQueryStorageStreamSource.create(
             readSession,
             ReadStream.newBuilder().setName("readStream").build(),
-            TABLE_ROW_ARROW_READER,
+            TABLE_SCHEMA,
+            TABLE_ROW_ARROW_READER_FACTORY,
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withStorageClient(fakeStorageClient));
 
@@ -1800,7 +1804,8 @@ public class BigQueryIOStorageReadTest {
         BigQueryStorageStreamSource.create(
             readSession,
             ReadStream.newBuilder().setName("readStream").build(),
-            TABLE_ROW_ARROW_READER,
+            TABLE_SCHEMA,
+            TABLE_ROW_ARROW_READER_FACTORY,
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withStorageClient(fakeStorageClient));
 
@@ -1881,7 +1886,8 @@ public class BigQueryIOStorageReadTest {
         BigQueryStorageStreamSource.create(
             readSession,
             ReadStream.newBuilder().setName("parentStream").build(),
-            TABLE_ROW_ARROW_READER,
+            TABLE_SCHEMA,
+            TABLE_ROW_ARROW_READER_FACTORY,
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withStorageClient(fakeStorageClient));
 
@@ -1961,7 +1967,8 @@ public class BigQueryIOStorageReadTest {
                 .setDataFormat(DataFormat.ARROW)
                 .build(),
             ReadStream.newBuilder().setName("parentStream").build(),
-            TABLE_ROW_ARROW_READER,
+            TABLE_SCHEMA,
+            TABLE_ROW_ARROW_READER_FACTORY,
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withStorageClient(fakeStorageClient));
 
@@ -2079,7 +2086,8 @@ public class BigQueryIOStorageReadTest {
                 .setDataFormat(DataFormat.ARROW)
                 .build(),
             readStreams.get(0),
-            TABLE_ROW_ARROW_READER,
+            TABLE_SCHEMA,
+            TABLE_ROW_ARROW_READER_FACTORY,
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withStorageClient(fakeStorageClient));
 
@@ -2138,7 +2146,8 @@ public class BigQueryIOStorageReadTest {
                 .setDataFormat(DataFormat.ARROW)
                 .build(),
             ReadStream.newBuilder().setName("parentStream").build(),
-            TABLE_ROW_ARROW_READER,
+            TABLE_SCHEMA,
+            TABLE_ROW_ARROW_READER_FACTORY,
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withStorageClient(fakeStorageClient));
 
@@ -2223,7 +2232,8 @@ public class BigQueryIOStorageReadTest {
                 .setDataFormat(DataFormat.ARROW)
                 .build(),
             ReadStream.newBuilder().setName("parentStream").build(),
-            TABLE_ROW_ARROW_READER,
+            TABLE_SCHEMA,
+            TABLE_ROW_ARROW_READER_FACTORY,
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withStorageClient(fakeStorageClient));
 
@@ -2321,14 +2331,15 @@ public class BigQueryIOStorageReadTest {
     when(fakeStorageClient.readRows(expectedRequest, ""))
         .thenReturn(new FakeBigQueryServerStream<>(responses));
 
-    BigQueryStorageAvroReader<GenericRecord, GenericRecord> avroReader =
-        new BigQueryStorageAvroReader<>(
-            AVRO_SCHEMA, AVRO_SCHEMA, AvroDatumFactory.generic(), SerializableFunctions.identity());
+    BigQueryStorageReaderFactory<GenericRecord> readerFactory =
+        BigQueryReaderFactory.avro(
+            null, AvroDatumFactory.generic(), SerializableFunctions.identity());
     BigQueryStorageStreamSource<GenericRecord> streamSource =
         BigQueryStorageStreamSource.create(
             readSession,
             ReadStream.newBuilder().setName("readStream").build(),
-            avroReader,
+            TABLE_SCHEMA,
+            readerFactory,
             AvroCoder.generic(AVRO_SCHEMA),
             new FakeBigQueryServices().withStorageClient(fakeStorageClient));
 

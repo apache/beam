@@ -108,8 +108,7 @@ public class BigQueryStorageReaderTest {
   public void bigQueryStorageReaderFactory_avroReader() throws Exception {
     AvroDatumFactory<GenericRecord> datumFactory = AvroDatumFactory.generic();
     BigQueryReaderFactory<GenericRecord> factory =
-        BigQueryReaderFactory.avro(
-            AVRO_SCHEMA, datumFactory, SerializableFunctions.identity());
+        BigQueryReaderFactory.avro(AVRO_SCHEMA, datumFactory, SerializableFunctions.identity());
 
     BigQueryStorageReader<GenericRecord> reader =
         factory.getReader(TABLE_SCHEMA, AVRO_READ_SESSION);
