@@ -806,7 +806,7 @@ class BatchElements(PTransform):
   of BatchElements is used to batch elements across bundles. This is most
   impactful in streaming applications where many bundles only contain one
   element. Larger max_batch_duration_secs values `might` reduce the throughput
-  of the transform, while smaller values `might` improve the throughput but
+  of the transform, while smaller values might improve the throughput but
   make it more likely that batches are smaller than the target batch size.
 
   As a general recommendation, start with low values (e.g. 0.005 aka 5ms) and
