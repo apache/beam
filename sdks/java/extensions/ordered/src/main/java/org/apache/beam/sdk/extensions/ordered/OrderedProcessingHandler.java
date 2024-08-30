@@ -54,6 +54,7 @@ public abstract class OrderedProcessingHandler<
   private boolean produceStatusUpdateOnEveryEvent = DEFAULT_PRODUCE_STATUS_UPDATE_ON_EVERY_EVENT;
 
   private SequenceType sequenceType = SequenceType.PER_KEY;
+  private @Nullable Long initialGlobalSequence;
 
   /**
    * Provide concrete classes which will be used by the ordered processing transform.
@@ -72,6 +73,7 @@ public abstract class OrderedProcessingHandler<
     this.keyTClass = keyTClass;
     this.stateTClass = stateTClass;
     this.resultTClass = resultTClass;
+    this.initialGlobalSequence = null;
   }
 
   /** @return the event examiner instance which will be used by the transform. */
@@ -226,5 +228,13 @@ public abstract class OrderedProcessingHandler<
 
   public void setSequenceType(SequenceType sequenceType) {
     this.sequenceType = sequenceType;
+  }
+
+  public @javax.annotation.Nullable Long getInitialGlobalSequence() {
+    return initialGlobalSequence;
+  }
+
+  public void setInitialGlobalSequence(Long initialGlobalSequence) {
+    this.initialGlobalSequence = initialGlobalSequence;
   }
 }

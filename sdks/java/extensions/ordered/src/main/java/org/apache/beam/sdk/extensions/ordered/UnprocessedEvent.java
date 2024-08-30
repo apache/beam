@@ -68,6 +68,7 @@ public abstract class UnprocessedEvent<EventT> {
     return new AutoValue_UnprocessedEvent<>(event, reason, failureDetails);
   }
 
+  // TODO: do we need another reason, "before the initial event"?
   public enum Reason {
     duplicate,
     buffered,

@@ -25,7 +25,6 @@ import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
-import org.apache.beam.sdk.extensions.ordered.GlobalSequenceTracker.SequenceAndTimestamp;
 import org.apache.beam.sdk.extensions.ordered.UnprocessedEvent.UnprocessedEventCoder;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.SchemaCoder;
@@ -39,6 +38,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -126,11 +126,12 @@ public abstract class OrderedEventProcessor<
 
     switch (handler.getSequenceType()) {
       case GLOBAL:
-        final PCollectionView<SequenceAndTimestamp> latestContinuousSequence =
+        final PCollectionView<CompletedSequenceRange> latestContinuousSequence =
             input
                 .apply("Convert to SequenceAndTimestamp",
-                    ParDo.of(new EventToSequenceAndTimestampConverter<>()))
-                .apply("Global Sequence Tracker", new GlobalSequenceTracker());
+                    ParDo.of(new ToTimestampedEventConverter<>()))
+                .apply("Global Sequence Tracker",
+                    new GlobalSequenceTracker<>(handler.getEventExaminer()));
 
         PCollection<KV<EventKeyT, KV<Long, EventT>>> tickers = input.apply("Create Tickers",
             new PerKeyTickerGenerator<>(keyCoder, eventCoder, Duration.standardSeconds(5)));
@@ -219,14 +220,14 @@ public abstract class OrderedEventProcessor<
     return result;
   }
 
-  static class EventToSequenceAndTimestampConverter<EventKeyT, EventT>
-      extends DoFn<KV<EventKeyT, KV<Long, EventT>>, SequenceAndTimestamp> {
+  static class ToTimestampedEventConverter<EventKeyT, EventT> extends
+      DoFn<KV<EventKeyT, KV<Long, EventT>>, TimestampedValue<KV<EventKeyT, KV<Long, EventT>>>> {
 
     @ProcessElement
     public void convert(@Element KV<EventKeyT, KV<Long, EventT>> element,
-        @Timestamp Instant timestamp, OutputReceiver<SequenceAndTimestamp> outputReceiver) {
-      outputReceiver.output(
-          SequenceAndTimestamp.create(element.getValue().getKey(), timestamp));
+        @Timestamp Instant timestamp,
+        OutputReceiver<TimestampedValue<KV<EventKeyT, KV<Long, EventT>>>> outputReceiver) {
+      outputReceiver.output(TimestampedValue.of(element, timestamp));
     }
   }
 

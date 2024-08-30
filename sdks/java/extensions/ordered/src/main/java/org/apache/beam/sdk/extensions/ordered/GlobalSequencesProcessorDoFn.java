@@ -2,7 +2,6 @@ package org.apache.beam.sdk.extensions.ordered;
 
 import org.apache.beam.sdk.coders.BooleanCoder;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.extensions.ordered.GlobalSequenceTracker.SequenceAndTimestamp;
 import org.apache.beam.sdk.extensions.ordered.ProcessingState.ProcessingStateCoder;
 import org.apache.beam.sdk.state.OrderedListState;
 import org.apache.beam.sdk.state.StateSpec;
@@ -54,7 +53,7 @@ class GlobalSequencesProcessorDoFn<EventT, EventKeyT, ResultT,
   @SuppressWarnings("unused")
   private final TimerSpec statusEmissionTimer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
-  private final PCollectionView<SequenceAndTimestamp> latestContinuousSequenceSideInput;
+  private final PCollectionView<CompletedSequenceRange> latestContinuousSequenceSideInput;
 
   /**
    * Stateful DoFn to do the bulk of processing.
@@ -81,7 +80,7 @@ class GlobalSequencesProcessorDoFn<EventT, EventKeyT, ResultT,
       TupleTag<KV<EventKeyT, KV<Long, UnprocessedEvent<EventT>>>>
           unprocessedEventTupleTag,
       boolean produceStatusUpdateOnEveryEvent, long maxNumberOfResultsToProduce,
-      PCollectionView<SequenceAndTimestamp> latestContinuousSequenceSideInput) {
+      PCollectionView<CompletedSequenceRange> latestContinuousSequenceSideInput) {
     super(eventExaminer, mainOutputTupleTag, statusTupleTag,
         statusUpdateFrequency, unprocessedEventTupleTag, produceStatusUpdateOnEveryEvent,
         maxNumberOfResultsToProduce);
@@ -115,7 +114,7 @@ class GlobalSequencesProcessorDoFn<EventT, EventKeyT, ResultT,
       MultiOutputReceiver outputReceiver,
       BoundedWindow window) {
 
-    SequenceAndTimestamp lastContinuousSequence = context.sideInput(
+    CompletedSequenceRange lastContinuousSequence = context.sideInput(
         latestContinuousSequenceSideInput);
 
     EventT event = eventAndSequence.getValue().getValue();
@@ -180,7 +179,7 @@ class GlobalSequencesProcessorDoFn<EventT, EventKeyT, ResultT,
 
   private void setBatchEmissionTimerIfNeeded(Timer batchEmissionTimer,
       ProcessingState<EventKeyT> processingState) {
-    SequenceAndTimestamp lastCompleteGlobalSequence = processingState.getLastCompleteGlobalSequence();
+    CompletedSequenceRange lastCompleteGlobalSequence = processingState.getLastCompleteGlobalSequence();
     if (processingState.getBufferedEventCount() > 0 && lastCompleteGlobalSequence != null) {
       batchEmissionTimer.set(lastCompleteGlobalSequence.getTimestamp());
     }
@@ -205,7 +204,7 @@ class GlobalSequencesProcessorDoFn<EventT, EventKeyT, ResultT,
 
     StateT state = mutableStateState.read();
 
-    SequenceAndTimestamp lastCompleteGlobalSequence = processingState.getLastCompleteGlobalSequence();
+    CompletedSequenceRange lastCompleteGlobalSequence = processingState.getLastCompleteGlobalSequence();
     if (lastCompleteGlobalSequence == null) {
       LOG.warn("Last complete global instance is null.");
       return;
@@ -219,8 +218,10 @@ class GlobalSequencesProcessorDoFn<EventT, EventKeyT, ResultT,
 
     LOG.info("Emission timer: " + processingState);
 
+    this.numberOfResultsBeforeBundleStart = processingState.getResultCount();
+
     state = processBufferedEventRange(processingState, state, bufferedEventsState, outputReceiver,
-        batchEmissionTimer, lastCompleteGlobalSequence.getSequence());
+        batchEmissionTimer, lastCompleteGlobalSequence);
 
     saveStates(
         processingStatusState,

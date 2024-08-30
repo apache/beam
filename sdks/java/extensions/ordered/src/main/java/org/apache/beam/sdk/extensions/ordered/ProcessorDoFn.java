@@ -294,7 +294,7 @@ abstract class ProcessorDoFn<
   @Nullable StateTypeT processBufferedEventRange(ProcessingState<EventKeyTypeT> processingState,
       @Nullable StateTypeT state,
       OrderedListState<EventTypeT> bufferedEventsState, MultiOutputReceiver outputReceiver,
-      Timer largeBatchEmissionTimer, long lastKnownCompleteSequenceNumber) {
+      Timer largeBatchEmissionTimer, CompletedSequenceRange completedSequenceRange) {
     Long earliestBufferedSequence = processingState.getEarliestBufferedSequence();
     Long latestBufferedSequence = processingState.getLatestBufferedSequence();
     if(earliestBufferedSequence == null || latestBufferedSequence == null) {
@@ -332,7 +332,8 @@ abstract class ProcessorDoFn<
       boolean currentEventIsNotInSequence = lastOutputSequence != null && eventSequence > lastOutputSequence + 1;
       boolean stopProcessing = checkForSequenceGapInBufferedEvents() ?
           currentEventIsNotInSequence :
-          (! (eventSequence <= lastKnownCompleteSequenceNumber) && currentEventIsNotInSequence);
+          // TODO: can it be made more clear?
+          (! (eventSequence <= completedSequenceRange.getEnd()) && currentEventIsNotInSequence);
       if (stopProcessing) {
         processingState.foundSequenceGap(eventSequence);
         // Records will be cleared up to this element

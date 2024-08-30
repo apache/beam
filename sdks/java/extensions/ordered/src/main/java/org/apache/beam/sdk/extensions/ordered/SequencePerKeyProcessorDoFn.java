@@ -193,7 +193,7 @@ class SequencePerKeyProcessorDoFn<EventTypeT, EventKeyTypeT, ResultTypeT,
     }
 
     processBufferedEventRange(processingState, state, bufferedEventsState, outputReceiver,
-        largeBatchEmissionTimer, Long.MIN_VALUE);
+        largeBatchEmissionTimer, CompletedSequenceRange.EMPTY);
   }
 
   @OnTimer(LARGE_BATCH_EMISSION_TIMER)

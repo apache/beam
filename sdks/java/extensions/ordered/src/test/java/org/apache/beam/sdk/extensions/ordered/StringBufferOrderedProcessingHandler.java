@@ -32,6 +32,8 @@ public class StringBufferOrderedProcessingHandler
   public StringBufferOrderedProcessingHandler(int emissionFrequency, long initialSequence) {
     super(String.class, String.class, StringBuilderState.class, String.class);
     this.eventExaminer = new StringEventExaminer(initialSequence, emissionFrequency);
+    // needed when using global sequences
+    setInitialGlobalSequence(initialSequence);
   }
 
   @Override

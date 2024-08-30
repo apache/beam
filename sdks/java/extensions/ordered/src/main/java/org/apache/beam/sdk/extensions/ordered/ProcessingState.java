@@ -28,9 +28,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
-import org.apache.beam.sdk.extensions.ordered.GlobalSequenceTracker.SequenceAndTimestamp;
 import org.apache.beam.sdk.extensions.ordered.GlobalSequenceTracker.SequenceAndTimestampCoder;
-import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.initialization.qual.Initialized;
 
@@ -54,7 +52,7 @@ class ProcessingState<KeyT> {
 
   private long resultCount;
 
-  @Nullable private SequenceAndTimestamp lastCompleteGlobalSequence;
+  @Nullable private CompletedSequenceRange lastCompleteGlobalSequence;
 
   private KeyT key;
 
@@ -136,11 +134,11 @@ class ProcessingState<KeyT> {
     return key;
   }
 
-  public @Nullable SequenceAndTimestamp getLastCompleteGlobalSequence() {
+  public @Nullable CompletedSequenceRange getLastCompleteGlobalSequence() {
     return lastCompleteGlobalSequence;
   }
 
-  public void setLastCompleteGlobalSequence(@Nullable SequenceAndTimestamp lastCompleteGlobalSequence) {
+  public void setLastCompleteGlobalSequence(@Nullable CompletedSequenceRange lastCompleteGlobalSequence) {
     this.lastCompleteGlobalSequence = lastCompleteGlobalSequence;
   }
 
@@ -304,7 +302,7 @@ class ProcessingState<KeyT> {
     return resultCount - numberOfResultsBeforeBundleStart;
   }
 
-  public void updateGlobalSequenceDetails(SequenceAndTimestamp updated) {
+  public void updateGlobalSequenceDetails(CompletedSequenceRange updated) {
     // TODO: do we need to select max? Do we care about the timestamp?
     this.lastCompleteGlobalSequence = updated;
   }
@@ -322,7 +320,7 @@ class ProcessingState<KeyT> {
     private static final VarIntCoder INTEGER_CODER = VarIntCoder.of();
     private static final BooleanCoder BOOLEAN_CODER = BooleanCoder.of();
 
-    private static final NullableCoder<SequenceAndTimestamp> SEQUENCE_AND_TIMESTAMP_CODER =
+    private static final NullableCoder<CompletedSequenceRange> SEQUENCE_AND_TIMESTAMP_CODER =
         NullableCoder.of(SequenceAndTimestampCoder.of());
 
     private Coder<KeyT> keyCoder;
@@ -360,7 +358,7 @@ class ProcessingState<KeyT> {
       long resultCount = LONG_CODER.decode(inStream);
       boolean isLastEventReceived = BOOLEAN_CODER.decode(inStream);
       KeyT key = keyCoder.decode(inStream);
-      SequenceAndTimestamp lastCompleteGlobalSequence = SEQUENCE_AND_TIMESTAMP_CODER.decode(inStream);
+      CompletedSequenceRange lastCompleteGlobalSequence = SEQUENCE_AND_TIMESTAMP_CODER.decode(inStream);
 
       ProcessingState<KeyT> result = new ProcessingState<>(
           key,
