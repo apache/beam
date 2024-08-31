@@ -174,7 +174,7 @@ public class SpannerReadSchemaTransformProvider
           !Strings.isNullOrEmpty(this.getDatabaseId()),
           invalidConfigMessage + "Database ID must be specified.");
       if (Strings.isNullOrEmpty(this.getQuery())) {
-       checkArgument(
+        checkArgument(
             !Strings.isNullOrEmpty(this.getTableId()),
             invalidConfigMessage + "Table name must be specified for table read.");
         checkArgument(
