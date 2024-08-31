@@ -167,24 +167,19 @@ public class SpannerReadSchemaTransformProvider
 
     public void validate() {
       String invalidConfigMessage = "Invalid Cloud Spanner Read configuration: ";
-      checkNotNull(
-          this.getProjectId(),
-          invalidConfigMessage + "Project ID must be specified for SQL query.");
-      checkNotNull(
-          this.getInstanceId(),
-          invalidConfigMessage + "Instance ID must be specified for SQL query.");
-      checkNotNull(
-          this.getDatabaseId(),
-          invalidConfigMessage + "Database ID must be specified for SQL query.");
-
+      checkArgument(
+          !Strings.isNullOrEmpty(this.getInstanceId()),
+          invalidConfigMessage + "Instance ID must be specified.");
+      checkArgument(
+          !Strings.isNullOrEmpty(this.getDatabaseId()),
+          invalidConfigMessage + "Database ID must be specified.");
       if (Strings.isNullOrEmpty(this.getQuery())) {
-        checkNotNull(
-            this.getTableId(),
+       checkArgument(
+            !Strings.isNullOrEmpty(this.getTableId()),
             invalidConfigMessage + "Table name must be specified for table read.");
         checkArgument(
             this.getColumns() != null && !this.getColumns().isEmpty(),
             invalidConfigMessage + "Columns must be specified for table read.");
-
       } else {
         checkArgument(
             !Strings.isNullOrEmpty(this.getQuery()),
@@ -204,6 +199,7 @@ public class SpannerReadSchemaTransformProvider
     }
 
     @SchemaFieldDescription("Specifies the GCP project ID.")
+    @Nullable
     public abstract String getProjectId();
 
     @SchemaFieldDescription("Specifies the Cloud Spanner instance.")
