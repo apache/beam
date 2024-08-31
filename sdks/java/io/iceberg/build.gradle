@@ -55,7 +55,6 @@ dependencies {
     implementation "org.apache.iceberg:iceberg-orc:$iceberg_version"
     implementation library.java.hadoop_common
 
-    testImplementation project(path: ":sdks:java:io:iceberg:bigquerymetastore", configuration: "shadow")
     testImplementation library.java.hadoop_client
     testImplementation library.java.bigdataoss_gcsio
     testImplementation library.java.bigdataoss_gcs_connector
@@ -110,11 +109,6 @@ task integrationTest(type: Test) {
     outputs.upToDateWhen { false }
 
     include '**/*IT.class'
-    // BQ metastore catalog doesn't support java 8
-    if (project.findProperty('testJavaVersion') == '8' ||
-            JavaVersion.current().equals(JavaVersion.VERSION_1_8)) {
-        exclude '**/BigQueryMetastoreCatalogIT.class'
-    }
 
     maxParallelForks 4
     classpath = sourceSets.test.runtimeClasspath
