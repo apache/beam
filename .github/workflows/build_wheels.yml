@@ -274,6 +274,7 @@ jobs:
       if: startsWith(matrix.os_python.os, 'macos')
       run: brew install coreutils
     - name: Add checksums
+      if: ${{ contains(matrix.os_python.python, matrix.py_version) }}
       working-directory: apache-beam-source/wheelhouse/
       run: |
         for file in *.whl; do
@@ -281,6 +282,7 @@ jobs:
         done
       shell: bash
     - name: Upload wheels as artifacts
+      if: ${{ contains(matrix.os_python.python, matrix.py_version) }}
       # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
       uses: actions/upload-artifact@v3
       with:
