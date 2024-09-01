@@ -251,6 +251,7 @@ public class SpannerWriteSchemaTransformProvider
   public abstract static class SpannerWriteSchemaTransformConfiguration implements Serializable {
 
     @SchemaFieldDescription("Specifies the GCP project.")
+    @Nullable
     public abstract String getProjectId();
 
     @SchemaFieldDescription("Specifies the Cloud Spanner instance.")
@@ -288,10 +289,6 @@ public class SpannerWriteSchemaTransformProvider
 
     public void validate() {
       String invalidConfigMessage = "Invalid Spanner Write configuration: ";
-
-      checkArgument(
-          !Strings.isNullOrEmpty(this.getProjectId()),
-          invalidConfigMessage + "Project ID for a Spanner Write must be specified.");
 
       checkArgument(
           !Strings.isNullOrEmpty(this.getInstanceId()),
