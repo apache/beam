@@ -622,9 +622,6 @@ public class BigQueryIO {
   static final SerializableFunction<AvroWriteRequest<GenericRecord>, GenericRecord>
       GENERIC_RECORD_IDENTITY_FORMATTER = AvroWriteRequest::getElement;
 
-  static final AvroSink.DatumWriterFactory<GenericRecord> GENERIC_DATUM_WRITER_FACTORY =
-      AvroDatumFactory.generic();
-
   /**
    * @deprecated Use {@link #readAvro(SerializableFunction)}, {@link
    *     #readArrow(SerializableFunction)} or {@link #readTableRows} instead. {@link
@@ -2216,7 +2213,7 @@ public class BigQueryIO {
     }
 
     /**
-     * Enable the logical type in Extract jobs
+     * Enable the logical type in Extract jobs.
      *
      * @see <a href=https://cloud.google.com/bigquery/docs/exporting-data#avro_export_details>BQ
      *     avro export</a>
@@ -2845,7 +2842,7 @@ public class BigQueryIO {
      */
     public Write<T> withAvroFormatFunction(
         SerializableFunction<AvroWriteRequest<T>, GenericRecord> avroFormatFunction) {
-      return withAvroWriter(avroFormatFunction, GENERIC_DATUM_WRITER_FACTORY);
+      return withAvroWriter(avroFormatFunction, AvroDatumFactory.generic());
     }
 
     /**
