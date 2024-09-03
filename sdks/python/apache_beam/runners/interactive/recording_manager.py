@@ -35,6 +35,7 @@ from apache_beam.runners.interactive import interactive_runner as ir
 from apache_beam.runners.interactive import pipeline_fragment as pf
 from apache_beam.runners.interactive import utils
 from apache_beam.runners.interactive.caching.cacheable import CacheKey
+from apache_beam.runners.interactive.options import capture_control
 from apache_beam.runners.runner import PipelineState
 
 _LOGGER = logging.getLogger(__name__)
