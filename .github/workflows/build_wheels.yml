@@ -207,7 +207,7 @@ jobs:
     steps:
       - name: Download compressed sources from artifacts
         # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4.1.7
         with:
           name: source_zip
           path: source/
@@ -238,14 +238,14 @@ jobs:
     steps:
     - name: Download python source distribution from artifacts
       # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4.1.7
       with:
         name: source
         path: apache-beam-source
     - name: Download Python SDK RC source distribution from artifacts
       if: ${{ needs.build_source.outputs.is_rc == 1 }}
       # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4.1.7
       with:
         name: source_rc${{ needs.build_source.outputs.rc_num }}
         path: apache-beam-source-rc
@@ -334,7 +334,7 @@ jobs:
     steps:
     - name: Download wheels from artifacts
       # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4.1.7
       with:
         name: wheelhouse-${{ matrix.os }}${{ (matrix.arch == 'aarch64' && '-aarch64') || '' }}
         path: wheelhouse/
