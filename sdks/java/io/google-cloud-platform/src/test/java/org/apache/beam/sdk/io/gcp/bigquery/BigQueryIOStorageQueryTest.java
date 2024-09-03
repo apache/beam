@@ -102,7 +102,9 @@ public class BigQueryIOStorageQueryTest {
 
   private static final BigQueryReaderFactory<TableRow> TABLE_ROW_AVRO_READER_FACTORY =
       BigQueryReaderFactory.avro(
-          null, AvroDatumFactory.generic(), BigQueryAvroUtils::convertGenericRecordToTableRow);
+          null,
+          AvroDatumFactory.generic(),
+          (s, r) -> BigQueryAvroUtils.convertGenericRecordToTableRow(r));
 
   private transient BigQueryOptions options;
   private transient TemporaryFolder testFolder = new TemporaryFolder();

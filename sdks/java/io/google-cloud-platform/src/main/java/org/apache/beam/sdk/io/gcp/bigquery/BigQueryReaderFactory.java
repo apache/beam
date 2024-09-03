@@ -29,6 +29,7 @@ import org.apache.beam.sdk.extensions.avro.io.AvroSource;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.transforms.SerializableBiFunction;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.SerializableSupplier;
 import org.apache.beam.sdk.values.Row;
@@ -36,21 +37,29 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 abstract class BigQueryReaderFactory<T> implements BigQueryStorageReaderFactory<T>, Serializable {
 
+  // TODO make file source params generic (useAvroLogicalTypes)
   abstract BoundedSource<T> getSource(
-      MatchResult.Metadata metadata, TableSchema tableSchema, Coder<T> coder);
+      MatchResult.Metadata metadata,
+      TableSchema tableSchema,
+      Boolean useAvroLogicalTypes,
+      Coder<T> coder);
 
+  // TODO make file source params generic (useAvroLogicalTypes)
   abstract BoundedSource<T> getSource(
-      String fileNameOrPattern, TableSchema tableSchema, Coder<T> coder);
+      String fileNameOrPattern,
+      TableSchema tableSchema,
+      Boolean useAvroLogicalTypes,
+      Coder<T> coder);
 
   static <AvroT, T> BigQueryReaderFactory<T> avro(
       org.apache.avro.@Nullable Schema schema,
       AvroSource.DatumReaderFactory<AvroT> readerFactory,
-      SerializableFunction<AvroT, T> fromAvro) {
+      SerializableBiFunction<TableSchema, AvroT, T> fromAvro) {
     return new BigQueryAvroReaderFactory<>(schema, readerFactory, fromAvro);
   }
 
   static <T> BigQueryReaderFactory<T> arrow(
-      @Nullable Schema schema, SerializableFunction<Row, T> fromArrow) {
+      @Nullable Schema schema, SerializableBiFunction<TableSchema, Row, T> fromArrow) {
     return new BigQueryArrowReaderFactory<>(schema, fromArrow);
   }
 
@@ -77,42 +86,54 @@ abstract class BigQueryReaderFactory<T> implements BigQueryStorageReaderFactory<
   }
 
   static class BigQueryAvroReaderFactory<AvroT, T> extends BigQueryReaderFactory<T> {
-    private final SerializableFunction<TableSchema, org.apache.avro.Schema> schemaFactory;
+    private final SerializableBiFunction<TableSchema, Boolean, org.apache.avro.Schema>
+        schemaFactory;
     private final AvroSource.DatumReaderFactory<AvroT> readerFactory;
-    private final SerializableFunction<AvroT, T> fromAvro;
+    private final SerializableBiFunction<TableSchema, AvroT, T> fromAvro;
 
     BigQueryAvroReaderFactory(
         org.apache.avro.@Nullable Schema schema,
         AvroSource.DatumReaderFactory<AvroT> readerFactory,
-        SerializableFunction<AvroT, T> fromAvro) {
+        SerializableBiFunction<TableSchema, AvroT, T> fromAvro) {
       this.readerFactory = readerFactory;
       this.fromAvro = fromAvro;
       if (schema == null) {
         this.schemaFactory = BigQueryUtils::toGenericAvroSchema;
       } else {
         SerializableSchemaSupplier schemaSupplier = new SerializableSchemaSupplier(schema);
-        this.schemaFactory = tableSchema -> schemaSupplier.get();
+        this.schemaFactory = (tableSchema, lt) -> schemaSupplier.get();
       }
     }
 
     @Override
     public AvroSource<T> getSource(
-        MatchResult.Metadata metadata, TableSchema tableSchema, Coder<T> coder) {
-      return getSource(AvroSource.from(metadata), tableSchema, coder);
+        MatchResult.Metadata metadata,
+        TableSchema tableSchema,
+        Boolean useAvroLogicalTypes,
+        Coder<T> coder) {
+      return getSource(AvroSource.from(metadata), tableSchema, useAvroLogicalTypes, coder);
     }
 
     @Override
     public AvroSource<T> getSource(
-        String fileNameOrPattern, TableSchema tableSchema, Coder<T> coder) {
-      return getSource(AvroSource.from(fileNameOrPattern), tableSchema, coder);
+        String fileNameOrPattern,
+        TableSchema tableSchema,
+        Boolean useAvroLogicalTypes,
+        Coder<T> coder) {
+      return getSource(AvroSource.from(fileNameOrPattern), tableSchema, useAvroLogicalTypes, coder);
     }
 
     private AvroSource<T> getSource(
-        AvroSource<GenericRecord> source, TableSchema tableSchema, Coder<T> coder) {
+        AvroSource<GenericRecord> source,
+        TableSchema tableSchema,
+        Boolean useAvroLogicalTypes,
+        Coder<T> coder) {
+      SerializableFunction<GenericRecord, T> parseFn =
+          (r) -> fromAvro.apply(tableSchema, (AvroT) r);
       return source
-          .withSchema(schemaFactory.apply(tableSchema))
+          .withSchema(schemaFactory.apply(tableSchema, useAvroLogicalTypes))
           .withDatumReaderFactory(readerFactory)
-          .withParseFn((SerializableFunction<GenericRecord, T>) fromAvro, coder);
+          .withParseFn(parseFn, coder);
     }
 
     @Override
@@ -120,8 +141,10 @@ abstract class BigQueryReaderFactory<T> implements BigQueryStorageReaderFactory<
         TableSchema tableSchema, ReadSession readSession) throws IOException {
       org.apache.avro.Schema writerSchema =
           new org.apache.avro.Schema.Parser().parse(readSession.getAvroSchema().getSchema());
-      org.apache.avro.Schema readerSchema = schemaFactory.apply(tableSchema);
-      return new BigQueryStorageAvroReader<>(writerSchema, readerSchema, readerFactory, fromAvro);
+      org.apache.avro.Schema readerSchema = schemaFactory.apply(tableSchema, true);
+      SerializableFunction<AvroT, T> fromAvroRecord = (r) -> fromAvro.apply(tableSchema, r);
+      return new BigQueryStorageAvroReader<>(
+          writerSchema, readerSchema, readerFactory, fromAvroRecord);
     }
   }
 
@@ -130,9 +153,10 @@ abstract class BigQueryReaderFactory<T> implements BigQueryStorageReaderFactory<
   /////////////////////////////////////////////////////////////////////////////
   static class BigQueryArrowReaderFactory<T> extends BigQueryReaderFactory<T> {
     private final SerializableFunction<TableSchema, Schema> schemaFactory;
-    private final SerializableFunction<Row, T> parseFn;
+    private final SerializableBiFunction<TableSchema, Row, T> parseFn;
 
-    BigQueryArrowReaderFactory(@Nullable Schema schema, SerializableFunction<Row, T> parseFn) {
+    BigQueryArrowReaderFactory(
+        @Nullable Schema schema, SerializableBiFunction<TableSchema, Row, T> parseFn) {
       this.parseFn = parseFn;
       if (schema == null) {
         this.schemaFactory = BigQueryUtils::fromTableSchema;
@@ -143,12 +167,19 @@ abstract class BigQueryReaderFactory<T> implements BigQueryStorageReaderFactory<
 
     @Override
     BoundedSource<T> getSource(
-        MatchResult.Metadata metadata, TableSchema tableSchema, Coder<T> coder) {
+        MatchResult.Metadata metadata,
+        TableSchema tableSchema,
+        Boolean useAvroLogicalTypes,
+        Coder<T> coder) {
       throw new UnsupportedOperationException("Arrow file source not supported");
     }
 
     @Override
-    BoundedSource<T> getSource(String fileNameOrPattern, TableSchema tableSchema, Coder<T> coder) {
+    BoundedSource<T> getSource(
+        String fileNameOrPattern,
+        TableSchema tableSchema,
+        Boolean useAvroLogicalTypes,
+        Coder<T> coder) {
       throw new UnsupportedOperationException("Arrow file source not supported");
     }
 
@@ -156,10 +187,11 @@ abstract class BigQueryReaderFactory<T> implements BigQueryStorageReaderFactory<
     public BigQueryStorageArrowReader<T> getReader(TableSchema tableSchema, ReadSession readSession)
         throws IOException {
       try (InputStream input = readSession.getArrowSchema().getSerializedSchema().newInput()) {
-        org.apache.arrow.vector.types.pojo.Schema arrowSchema =
+        org.apache.arrow.vector.types.pojo.Schema writerSchema =
             ArrowConversion.arrowSchemaFromInput(input);
-        Schema schema = schemaFactory.apply(tableSchema);
-        return new BigQueryStorageArrowReader<>(arrowSchema, schema, parseFn);
+        Schema readerSchema = schemaFactory.apply(tableSchema);
+        SerializableFunction<Row, T> fromRow = (r) -> parseFn.apply(tableSchema, r);
+        return new BigQueryStorageArrowReader<>(writerSchema, readerSchema, fromRow);
       }
     }
   }

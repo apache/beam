@@ -119,6 +119,7 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
+import org.apache.beam.sdk.transforms.SerializableBiFunction;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.SimpleFunction;
@@ -624,10 +625,6 @@ public class BigQueryIO {
   static final AvroSink.DatumWriterFactory<GenericRecord> GENERIC_DATUM_WRITER_FACTORY =
       AvroDatumFactory.generic();
 
-  private static final SerializableFunction<TableSchema, org.apache.avro.Schema>
-      DEFAULT_AVRO_SCHEMA_FACTORY =
-          input -> BigQueryAvroUtils.toGenericAvroSchema("root", input.getFields());
-
   /**
    * @deprecated Use {@link #readAvro(SerializableFunction)}, {@link
    *     #readArrow(SerializableFunction)} or {@link #readTableRows} instead. {@link
@@ -660,14 +657,15 @@ public class BigQueryIO {
     if (dataFormat == DataFormat.AVRO) {
       return readAvroImpl(
           null,
+          true,
           AvroDatumFactory.generic(),
-          BigQueryAvroUtils::convertGenericRecordToTableRow,
+          (s, r) -> BigQueryAvroUtils.convertGenericRecordToTableRow(r),
           TableRowJsonCoder.of(),
           TypeDescriptor.of(TableRow.class));
     } else if (dataFormat == DataFormat.ARROW) {
       return readArrowImpl(
           null,
-          BigQueryUtils::toTableRow,
+          (s, r) -> BigQueryUtils.toTableRow(r),
           TableRowJsonCoder.of(),
           TypeDescriptor.of(TableRow.class));
     } else {
@@ -742,8 +740,9 @@ public class BigQueryIO {
   public static <T> TypedRead<T> read(SerializableFunction<SchemaAndRecord, T> parseFn) {
     return readAvroImpl(
         null,
+        false,
         AvroDatumFactory.generic(),
-        new SchemaAndRecordParseFn<>(parseFn),
+        (s, r) -> parseFn.apply(new SchemaAndRecord(r, s)),
         null,
         TypeDescriptors.outputOf(parseFn));
   }
@@ -765,38 +764,43 @@ public class BigQueryIO {
     if (readerFactory instanceof AvroDatumFactory) {
       td = TypeDescriptor.of(((AvroDatumFactory<T>) readerFactory).getType());
     }
-    return readAvroImpl(null, readerFactory, SerializableFunctions.identity(), null, td);
+    return readAvroImpl(null, false, readerFactory, (s, r) -> r, null, td);
   }
 
   /**
    * Reads from a BigQuery table or query and returns a {@link PCollection} with one element per
-   * each row of the table or query result as {@link GenericRecord}.
+   * each row of the table or query result as {@link GenericRecord}. Logical type in Extract jobs
+   * will be enabled.
    */
   public static TypedRead<GenericRecord> readAvro() {
     return readAvroImpl(
         null,
+        true,
         AvroDatumFactory.generic(),
-        SerializableFunctions.identity(),
+        (s, r) -> r,
         null,
         TypeDescriptor.of(GenericRecord.class));
   }
 
   /**
    * Reads from a BigQuery table or query and returns a {@link PCollection} with one element per
-   * each row of the table or query result as {@link GenericRecord} with the desired schema.
+   * each row of the table or query result as {@link GenericRecord} with the desired schema. Logical
+   * type in Extract jobs will be enabled.
    */
   public static TypedRead<GenericRecord> readAvro(org.apache.avro.Schema schema) {
     return readAvroImpl(
         schema,
+        true,
         AvroDatumFactory.generic(),
-        SerializableFunctions.identity(),
+        (s, r) -> r,
         AvroCoder.generic(schema),
         TypeDescriptor.of(GenericRecord.class));
   }
 
   /**
    * Reads from a BigQuery table or query and returns a {@link PCollection} with one element per
-   * each row of the table or query result as input avro class.
+   * each row of the table or query result as input avro class. Logical type in Extract jobs will be
+   * enabled.
    */
   public static <T> TypedRead<T> readAvro(Class<T> recordClass) {
     org.apache.avro.Schema schema = ReflectData.get().getSchema(recordClass);
@@ -810,13 +814,14 @@ public class BigQueryIO {
     }
     AvroCoder<T> coder = AvroCoder.of(factory, schema);
     TypeDescriptor<T> td = TypeDescriptor.of(recordClass);
-    return readAvroImpl(schema, factory, SerializableFunctions.identity(), coder, td);
+    return readAvroImpl(schema, true, factory, (s, r) -> r, coder, td);
   }
 
   /**
    * Reads from a BigQuery table or query and returns a {@link PCollection} with one element per
    * each row of the table or query result. This API directly deserializes BigQuery AVRO data to the
    * input class, based on the appropriate {@link org.apache.avro.io.DatumReader} and schema.
+   * Logical type in Extract jobs will be enabled.
    */
   public static <T> TypedRead<T> readAvro(
       org.apache.avro.Schema schema, AvroSource.DatumReaderFactory<T> readerFactory) {
@@ -826,28 +831,30 @@ public class BigQueryIO {
       coder = AvroCoder.of((AvroDatumFactory<T>) readerFactory, schema);
       td = TypeDescriptor.of(((AvroDatumFactory<T>) readerFactory).getType());
     }
-    return readAvroImpl(schema, readerFactory, SerializableFunctions.identity(), coder, td);
+    return readAvroImpl(schema, true, readerFactory, (s, r) -> r, coder, td);
   }
 
   /**
    * Reads from a BigQuery table or query and returns a {@link PCollection} with one element per
    * each row of the table or query result, parsed from the BigQuery AVRO format using the specified
-   * function.
+   * function. Logical type in Extract jobs will be enabled.
    */
   public static <T> TypedRead<T> readAvro(
       SerializableFunction<GenericRecord, T> avroFormatFunction) {
     return readAvroImpl(
         null,
+        true,
         AvroDatumFactory.generic(),
-        avroFormatFunction,
+        (s, r) -> avroFormatFunction.apply(r),
         null,
         TypeDescriptors.outputOf(avroFormatFunction));
   }
 
   private static <AvroT, T> TypedRead<T> readAvroImpl(
       org.apache.avro.@Nullable Schema schema, // when null infer from TableSchema at runtime
+      Boolean useAvroLogicalTypes,
       AvroSource.DatumReaderFactory<AvroT> readerFactory,
-      SerializableFunction<AvroT, T> avroFormatFunction,
+      SerializableBiFunction<TableSchema, AvroT, T> avroFormatFunction,
       @Nullable Coder<T> coder,
       @Nullable TypeDescriptor<T> typeDescriptor) {
     BigQueryReaderFactory<T> bqReaderFactory =
@@ -862,7 +869,7 @@ public class BigQueryIO {
         .setBigQueryServices(new BigQueryServicesImpl())
         .setBigQueryReaderFactory(bqReaderFactory)
         .setMethod(TypedRead.Method.DEFAULT)
-        .setUseAvroLogicalTypes(false)
+        .setUseAvroLogicalTypes(useAvroLogicalTypes)
         .setFormat(DataFormat.AVRO)
         .setProjectionPushdownApplied(false)
         .setBadRecordErrorHandler(new DefaultErrorHandler<>())
@@ -877,8 +884,7 @@ public class BigQueryIO {
    * each row of the table or query result as {@link Row}.
    */
   public static TypedRead<Row> readArrow() {
-    return readArrowImpl(
-        null, SerializableFunctions.identity(), null, TypeDescriptor.of(Row.class));
+    return readArrowImpl(null, (s, r) -> r, null, TypeDescriptor.of(Row.class));
   }
 
   /**
@@ -886,11 +892,7 @@ public class BigQueryIO {
    * each row of the table or query result as {@link Row} with the desired schema..
    */
   public static TypedRead<Row> readArrow(Schema schema) {
-    return readArrowImpl(
-        schema,
-        SerializableFunctions.identity(),
-        RowCoder.of(schema),
-        TypeDescriptor.of(Row.class));
+    return readArrowImpl(schema, (s, r) -> r, RowCoder.of(schema), TypeDescriptor.of(Row.class));
   }
 
   /**
@@ -900,12 +902,15 @@ public class BigQueryIO {
    */
   public static <T> TypedRead<T> readArrow(SerializableFunction<Row, T> arrowFormatFunction) {
     return readArrowImpl(
-        null, arrowFormatFunction, null, TypeDescriptors.outputOf(arrowFormatFunction));
+        null,
+        (s, r) -> arrowFormatFunction.apply(r),
+        null,
+        TypeDescriptors.outputOf(arrowFormatFunction));
   }
 
   private static <T> TypedRead<T> readArrowImpl(
       @Nullable Schema schema, // when null infer from TableSchema at runtime
-      SerializableFunction<Row, T> arrowFormatFunction,
+      SerializableBiFunction<TableSchema, Row, T> arrowFormatFunction,
       @Nullable Coder<T> coder,
       TypeDescriptor<T> typeDescriptor) {
     BigQueryReaderFactory<T> bqReaderFactory =
@@ -940,21 +945,6 @@ public class BigQueryIO {
         schema = AvroUtils.toBeamSchema(record.getSchema());
       }
       return AvroUtils.toBeamRowStrict(record, schema);
-    }
-  }
-
-  static class SchemaAndRecordParseFn<T> implements SerializableFunction<GenericRecord, T> {
-    private final SerializableFunction<SchemaAndRecord, T> parseFn;
-
-    SchemaAndRecordParseFn(SerializableFunction<SchemaAndRecord, T> parseFn) {
-      this.parseFn = parseFn;
-    }
-
-    @Override
-    public T apply(GenericRecord record) {
-      org.apache.beam.sdk.schemas.Schema beamSchema = AvroUtils.toBeamSchema(record.getSchema());
-      TableSchema tableSchema = BigQueryUtils.toTableSchema(beamSchema);
-      return parseFn.apply(new SchemaAndRecord(record, tableSchema));
     }
   }
 
@@ -1241,12 +1231,15 @@ public class BigQueryIO {
     }
 
     @VisibleForTesting
-    Coder<T> inferCoder(CoderRegistry coderRegistry, TableSchema tableSchema) {
+    Coder<T> inferCoder(
+        CoderRegistry coderRegistry, TableSchema tableSchema, Boolean useAvroLogicalTypes) {
       try {
         TypeDescriptor<T> td = getTypeDescriptor();
         Class<?> rawType = td == null ? null : td.getRawType();
         if (GenericRecord.class.equals(rawType)) {
-          return (Coder<T>) AvroCoder.generic(BigQueryUtils.toGenericAvroSchema(tableSchema));
+          return (Coder<T>)
+              AvroCoder.generic(
+                  BigQueryUtils.toGenericAvroSchema(tableSchema, useAvroLogicalTypes));
         } else if (Row.class.equals(rawType)) {
           return (Coder<T>) RowCoder.of(BigQueryUtils.fromTableSchema(tableSchema));
         } else {
@@ -1455,8 +1448,11 @@ public class BigQueryIO {
       // read table schema and infer coder if possible
       Coder<T> c;
       if (getCoder() == null) {
-        tableSchema = getTableSchema(sourceDef, bqOptions, getSelectedFields());
-        c = inferCoder(p.getCoderRegistry(), tableSchema);
+        tableSchema = requestTableSchema(sourceDef, bqOptions, getSelectedFields());
+        // when using direct read, logical types are enabled by default
+        boolean useAvroLogicalTypes =
+            getUseAvroLogicalTypes() || getMethod() == TypedRead.Method.DIRECT_READ;
+        c = inferCoder(p.getCoderRegistry(), tableSchema, useAvroLogicalTypes);
       } else {
         c = getCoder();
       }
@@ -1468,7 +1464,7 @@ public class BigQueryIO {
         tableSchema =
             tableSchema != null
                 ? tableSchema
-                : getTableSchema(sourceDef, bqOptions, getSelectedFields());
+                : requestTableSchema(sourceDef, bqOptions, getSelectedFields());
         beamSchema = BigQueryUtils.fromTableSchema(tableSchema);
       }
 
@@ -1626,7 +1622,7 @@ public class BigQueryIO {
       return rows;
     }
 
-    private static TableSchema getTableSchema(
+    private static TableSchema requestTableSchema(
         BigQuerySourceDef sourceDef,
         BigQueryOptions bqOptions,
         ValueProvider<List<String>> selectedFields) {
@@ -2219,6 +2215,12 @@ public class BigQueryIO {
       return toBuilder().setBigQueryServices(testServices).build();
     }
 
+    /**
+     * Enable the logical type in Extract jobs
+     *
+     * @see <a href=https://cloud.google.com/bigquery/docs/exporting-data#avro_export_details>BQ
+     *     avro export</a>
+     */
     public TypedRead<T> useAvroLogicalTypes() {
       return toBuilder().setUseAvroLogicalTypes(true).build();
     }
@@ -3716,7 +3718,9 @@ public class BigQueryIO {
                 hasSchema,
                 "A schema must be provided if an avroFormatFunction "
                     + "is set but no avroSchemaFactory is defined.");
-            avroSchemaFactory = DEFAULT_AVRO_SCHEMA_FACTORY;
+            final Boolean useAvroLogicalTypes = getUseAvroLogicalTypes();
+            avroSchemaFactory =
+                (schema) -> BigQueryUtils.toGenericAvroSchema(schema, useAvroLogicalTypes);
           }
           rowWriterFactory = avroRowWriterFactory.prepare(dynamicDestinations, avroSchemaFactory);
         } else if (formatFunction != null) {
@@ -3947,8 +3951,10 @@ public class BigQueryIO {
               recordWriterFactory =
                   (RowWriterFactory.AvroRowWriterFactory<T, GenericRecord, DestinationT>)
                       rowWriterFactory;
+          final Boolean useAvroLogicalTypes = getUseAvroLogicalTypes();
           SerializableFunction<@Nullable TableSchema, org.apache.avro.Schema> avroSchemaFactory =
-              Optional.ofNullable(getAvroSchemaFactory()).orElse(DEFAULT_AVRO_SCHEMA_FACTORY);
+              Optional.ofNullable(getAvroSchemaFactory())
+                  .orElse((s) -> BigQueryUtils.toGenericAvroSchema(s, useAvroLogicalTypes));
 
           storageApiDynamicDestinations =
               new StorageApiDynamicDestinationsGenericRecord<>(

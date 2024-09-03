@@ -40,7 +40,6 @@ import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.avro.io.AvroDatumFactory;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.junit.Test;
@@ -96,8 +95,7 @@ public class BigQueryStorageReaderTest {
 
   @Test
   public void bigQueryStorageReaderFactory_arrowReader() throws Exception {
-    BigQueryReaderFactory<Row> factory =
-        BigQueryReaderFactory.arrow(BEAM_SCHEMA, SerializableFunctions.identity());
+    BigQueryReaderFactory<Row> factory = BigQueryReaderFactory.arrow(BEAM_SCHEMA, (s, r) -> r);
 
     BigQueryStorageReader<Row> reader = factory.getReader(TABLE_SCHEMA, ARROW_READ_SESSION);
     assertThat(reader, instanceOf(BigQueryStorageArrowReader.class));
@@ -108,7 +106,7 @@ public class BigQueryStorageReaderTest {
   public void bigQueryStorageReaderFactory_avroReader() throws Exception {
     AvroDatumFactory<GenericRecord> datumFactory = AvroDatumFactory.generic();
     BigQueryReaderFactory<GenericRecord> factory =
-        BigQueryReaderFactory.avro(AVRO_SCHEMA, datumFactory, SerializableFunctions.identity());
+        BigQueryReaderFactory.avro(AVRO_SCHEMA, datumFactory, (s, r) -> r);
 
     BigQueryStorageReader<GenericRecord> reader =
         factory.getReader(TABLE_SCHEMA, AVRO_READ_SESSION);

@@ -511,7 +511,7 @@ public class FakeJobService implements JobService, Serializable {
   private List<TableRow> readAvroTableRows(String filename, TableSchema tableSchema)
       throws IOException {
     List<TableRow> tableRows = Lists.newArrayList();
-    Schema readerSchema = BigQueryUtils.toGenericAvroSchema(tableSchema);
+    Schema readerSchema = BigQueryUtils.toGenericAvroSchema(tableSchema, true);
     DatumReader<GenericRecord> reader = new GenericDatumReader<>();
     reader.setSchema(readerSchema);
     try (FileReader<GenericRecord> dfr = DataFileReader.openReader(new File(filename), reader)) {

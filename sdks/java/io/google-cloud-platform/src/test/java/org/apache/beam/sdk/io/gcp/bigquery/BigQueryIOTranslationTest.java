@@ -38,13 +38,11 @@ import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
-@Ignore // TODO enable this once cleared
 public class BigQueryIOTranslationTest {
 
   // A mapping from Read transform builder methods to the corresponding schema fields in
@@ -60,8 +58,7 @@ public class BigQueryIOTranslationTest {
     READ_TRANSFORM_SCHEMA_MAPPING.put(
         "getWithTemplateCompatibility", "with_template_compatibility");
     READ_TRANSFORM_SCHEMA_MAPPING.put("getBigQueryServices", "bigquery_services");
-    READ_TRANSFORM_SCHEMA_MAPPING.put("getParseFn", "parse_fn");
-    READ_TRANSFORM_SCHEMA_MAPPING.put("getDatumReaderFactory", "datum_reader_factory");
+    READ_TRANSFORM_SCHEMA_MAPPING.put("getBigQueryReaderFactory", "bigquery_reader_factory");
     READ_TRANSFORM_SCHEMA_MAPPING.put("getQueryPriority", "query_priority");
     READ_TRANSFORM_SCHEMA_MAPPING.put("getQueryLocation", "query_location");
     READ_TRANSFORM_SCHEMA_MAPPING.put("getQueryTempDataset", "query_temp_dataset");
@@ -155,9 +152,10 @@ public class BigQueryIOTranslationTest {
         new BigQueryIOTranslation.BigQueryIOReadTranslator();
     Row row = translator.toConfigRow(readTransform);
 
+    PipelineOptions options = PipelineOptionsFactory.create();
+    options.as(StreamingOptions.class).setUpdateCompatibilityVersion("2.60.0");
     BigQueryIO.TypedRead<TableRow> readTransformFromRow =
-        (BigQueryIO.TypedRead<TableRow>)
-            translator.fromConfigRow(row, PipelineOptionsFactory.create());
+        (BigQueryIO.TypedRead<TableRow>) translator.fromConfigRow(row, options);
     assertNotNull(readTransformFromRow.getTable());
     assertEquals("dummyproject", readTransformFromRow.getTable().getProjectId());
     assertEquals("dummydataset", readTransformFromRow.getTable().getDatasetId());
@@ -187,8 +185,9 @@ public class BigQueryIOTranslationTest {
         new BigQueryIOTranslation.BigQueryIOReadTranslator();
     Row row = translator.toConfigRow(readTransform);
 
-    BigQueryIO.TypedRead<?> readTransformFromRow =
-        translator.fromConfigRow(row, PipelineOptionsFactory.create());
+    PipelineOptions options = PipelineOptionsFactory.create();
+    options.as(StreamingOptions.class).setUpdateCompatibilityVersion("2.60.0");
+    BigQueryIO.TypedRead<?> readTransformFromRow = translator.fromConfigRow(row, options);
     assertEquals("dummyquery", readTransformFromRow.getQuery().get());
     assertNotNull(readTransformFromRow.getBigQueryReaderFactory());
     assertTrue(readTransformFromRow.getUseAvroLogicalTypes());

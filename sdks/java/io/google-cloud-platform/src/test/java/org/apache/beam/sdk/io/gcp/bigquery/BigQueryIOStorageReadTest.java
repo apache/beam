@@ -109,7 +109,6 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
@@ -175,10 +174,12 @@ public class BigQueryIOStorageReadTest {
 
   private static final BigQueryStorageReaderFactory<TableRow> TABLE_ROW_AVRO_READER_FACTORY =
       BigQueryReaderFactory.avro(
-          null, AvroDatumFactory.generic(), BigQueryAvroUtils::convertGenericRecordToTableRow);
+          null,
+          AvroDatumFactory.generic(),
+          (s, r) -> BigQueryAvroUtils.convertGenericRecordToTableRow(r));
 
   private static final BigQueryStorageReaderFactory<TableRow> TABLE_ROW_ARROW_READER_FACTORY =
-      BigQueryReaderFactory.arrow(null, BigQueryUtils::toTableRow);
+      BigQueryReaderFactory.arrow(null, (s, r) -> BigQueryUtils.toTableRow(r));
 
   private transient PipelineOptions options;
   private final transient TemporaryFolder testFolder = new TemporaryFolder();
@@ -2332,8 +2333,7 @@ public class BigQueryIOStorageReadTest {
         .thenReturn(new FakeBigQueryServerStream<>(responses));
 
     BigQueryStorageReaderFactory<GenericRecord> readerFactory =
-        BigQueryReaderFactory.avro(
-            null, AvroDatumFactory.generic(), SerializableFunctions.identity());
+        BigQueryReaderFactory.avro(null, AvroDatumFactory.generic(), (s, r) -> r);
     BigQueryStorageStreamSource<GenericRecord> streamSource =
         BigQueryStorageStreamSource.create(
             readSession,

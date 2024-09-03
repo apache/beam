@@ -34,7 +34,6 @@ import java.time.format.DateTimeFormatterBuilder;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import org.apache.avro.Conversions;
 import org.apache.avro.LogicalType;
@@ -42,11 +41,10 @@ import org.apache.avro.LogicalTypes;
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
 import org.apache.avro.Schema.Type;
+import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableCollection;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMultimap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.BaseEncoding;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.format.DateTimeFormat;
@@ -60,35 +58,102 @@ import org.joda.time.format.DateTimeFormatter;
  */
 class BigQueryAvroUtils {
 
+  static class DateTimeLogicalType extends LogicalType {
+    public DateTimeLogicalType() {
+      super("datetime");
+    }
+  }
+
+  static final DateTimeLogicalType DATETIME_LOGICAL_TYPE = new DateTimeLogicalType();
+
   /**
    * Defines the valid mapping between BigQuery types and native Avro types.
    *
-   * <p>Some BigQuery types are duplicated here since slightly different Avro records are produced
-   * when exporting data in Avro format and when reading data directly using the read API.
+   * @see <a href=https://cloud.google.com/bigquery/docs/exporting-data#avro_export_details>BQ avro
+   *     export</a>
+   * @see <a href=https://cloud.google.com/bigquery/docs/reference/storage#avro_schema_details>BQ
+   *     avro storage</a>
    */
-  static final ImmutableMultimap<String, Type> BIG_QUERY_TO_AVRO_TYPES =
-      ImmutableMultimap.<String, Type>builder()
-          .put("STRING", Type.STRING)
-          .put("GEOGRAPHY", Type.STRING)
-          .put("BYTES", Type.BYTES)
-          .put("INTEGER", Type.LONG)
-          .put("INT64", Type.LONG)
-          .put("FLOAT", Type.DOUBLE)
-          .put("FLOAT64", Type.DOUBLE)
-          .put("NUMERIC", Type.BYTES)
-          .put("BIGNUMERIC", Type.BYTES)
-          .put("BOOLEAN", Type.BOOLEAN)
-          .put("BOOL", Type.BOOLEAN)
-          .put("TIMESTAMP", Type.LONG)
-          .put("RECORD", Type.RECORD)
-          .put("STRUCT", Type.RECORD)
-          .put("DATE", Type.STRING)
-          .put("DATE", Type.INT)
-          .put("DATETIME", Type.STRING)
-          .put("TIME", Type.STRING)
-          .put("TIME", Type.LONG)
-          .put("JSON", Type.STRING)
-          .build();
+  static Schema getPrimitiveType(TableFieldSchema schema, Boolean useAvroLogicalTypes) {
+    String bqType = schema.getType();
+    switch (bqType) {
+      case "BOOL":
+      case "BOOLEAN":
+        // boolean
+        return SchemaBuilder.builder().booleanType();
+      case "BYTES":
+        // bytes
+        return SchemaBuilder.builder().bytesType();
+      case "FLOAT64":
+        // double
+        return SchemaBuilder.builder().doubleType();
+      case "INT64":
+      case "INT":
+      case "SMALLINT":
+      case "INTEGER":
+      case "BIGINT":
+      case "TINYINT":
+      case "BYTEINT":
+        // long
+        return SchemaBuilder.builder().longType();
+      case "STRING":
+        // string
+        return SchemaBuilder.builder().stringType();
+      case "NUMERIC":
+      case "BIGNUMERIC":
+        // decimal
+        LogicalType logicalType;
+        if (schema.getScale() != null) {
+          logicalType =
+              LogicalTypes.decimal(schema.getPrecision().intValue(), schema.getScale().intValue());
+        } else if (schema.getPrecision() != null) {
+          logicalType = LogicalTypes.decimal(schema.getPrecision().intValue());
+        } else if (bqType.equals("NUMERIC")) {
+          logicalType = LogicalTypes.decimal(38, 9);
+        } else {
+          logicalType = LogicalTypes.decimal(77, 38);
+        }
+        return logicalType.addToSchema(SchemaBuilder.builder().bytesType());
+      case "DATE":
+        if (useAvroLogicalTypes) {
+          return LogicalTypes.date().addToSchema(SchemaBuilder.builder().intType());
+        } else {
+          return SchemaBuilder.builder().stringType();
+        }
+      case "DATETIME":
+        if (useAvroLogicalTypes) {
+          return DATETIME_LOGICAL_TYPE.addToSchema(SchemaBuilder.builder().stringType());
+        } else {
+          return SchemaBuilder.builder().stringType();
+        }
+      case "TIME":
+        if (useAvroLogicalTypes) {
+          return LogicalTypes.timeMicros().addToSchema(SchemaBuilder.builder().longType());
+        } else {
+          return SchemaBuilder.builder().stringType();
+        }
+      case "TIMESTAMP":
+        if (useAvroLogicalTypes) {
+          return LogicalTypes.timestampMicros().addToSchema(SchemaBuilder.builder().longType());
+        } else {
+          return SchemaBuilder.builder().stringType();
+        }
+      case "GEOGRAPHY":
+      case "JSON":
+        // sql types
+        if (useAvroLogicalTypes) {
+          return SchemaBuilder.builder().stringBuilder().prop("sqlType", bqType).endString();
+        } else {
+          return SchemaBuilder.builder().stringType();
+        }
+      case "RECORD":
+      case "STRUCT":
+        // record
+        throw new IllegalArgumentException("RECORD/STRUCT are not primitive types");
+      default:
+        throw new IllegalArgumentException("Unknown BigQuery type: " + bqType);
+    }
+  }
 
   /**
    * Formats BigQuery seconds-since-epoch into String matching JSON export. Thread-safe and
@@ -307,14 +372,17 @@ class BigQueryAvroUtils {
     }
   }
 
-  static Schema toGenericAvroSchema(
-      String schemaName, List<TableFieldSchema> fieldSchemas, @Nullable String namespace) {
+  private static Schema toGenericAvroSchema(
+      String schemaName,
+      List<TableFieldSchema> fieldSchemas,
+      Boolean useAvroLogicalTypes,
+      @Nullable String namespace) {
 
     String nextNamespace = namespace == null ? null : String.format("%s.%s", namespace, schemaName);
 
     List<Field> avroFields = new ArrayList<>();
     for (TableFieldSchema bigQueryField : fieldSchemas) {
-      avroFields.add(convertField(bigQueryField, nextNamespace));
+      avroFields.add(convertField(bigQueryField, useAvroLogicalTypes, nextNamespace));
     }
     return Schema.createRecord(
         schemaName,
@@ -324,15 +392,15 @@ class BigQueryAvroUtils {
         avroFields);
   }
 
-  static Schema toGenericAvroSchema(TableSchema tableSchema) {
-    return toGenericAvroSchema("root", tableSchema.getFields());
+  static Schema toGenericAvroSchema(
+      String schemaName, List<TableFieldSchema> fieldSchemas, Boolean useAvroLogicalTypes) {
+    String namespace =
+        hasNamespaceCollision(fieldSchemas) ? "org.apache.beam.sdk.io.gcp.bigquery" : null;
+    return toGenericAvroSchema(schemaName, fieldSchemas, useAvroLogicalTypes, namespace);
   }
 
-  static Schema toGenericAvroSchema(String schemaName, List<TableFieldSchema> fieldSchemas) {
-    return toGenericAvroSchema(
-        schemaName,
-        fieldSchemas,
-        hasNamespaceCollision(fieldSchemas) ? "org.apache.beam.sdk.io.gcp.bigquery" : null);
+  static Schema toGenericAvroSchema(TableSchema tableSchema, Boolean useAvroLogicalTypes) {
+    return toGenericAvroSchema("root", tableSchema.getFields(), useAvroLogicalTypes);
   }
 
   // To maintain backwards compatibility we only disambiguate collisions in the field namespaces as
@@ -359,64 +427,30 @@ class BigQueryAvroUtils {
   @SuppressWarnings({
     "nullness" // Avro library not annotated
   })
-  private static Field convertField(TableFieldSchema bigQueryField, @Nullable String namespace) {
-    ImmutableCollection<Type> avroTypes = BIG_QUERY_TO_AVRO_TYPES.get(bigQueryField.getType());
-    if (avroTypes.isEmpty()) {
-      throw new IllegalArgumentException(
-          "Unable to map BigQuery field type " + bigQueryField.getType() + " to avro type.");
+  private static Field convertField(
+      TableFieldSchema bigQueryField, Boolean useLogicalTypes, @Nullable String namespace) {
+    String fieldName = bigQueryField.getName();
+    Schema fieldSchema;
+    String bqType = bigQueryField.getType();
+    if ("RECORD".equals(bqType) || "STRUCT".equals(bqType)) {
+      fieldSchema =
+          toGenericAvroSchema(fieldName, bigQueryField.getFields(), useLogicalTypes, namespace);
+    } else {
+      fieldSchema = getPrimitiveType(bigQueryField, useLogicalTypes);
     }
 
-    Type avroType = avroTypes.iterator().next();
-    Schema elementSchema;
-    if (avroType == Type.RECORD) {
-      elementSchema =
-          toGenericAvroSchema(bigQueryField.getName(), bigQueryField.getFields(), namespace);
-    } else {
-      elementSchema = handleAvroLogicalTypes(bigQueryField, avroType);
-    }
-    Schema fieldSchema;
-    if (bigQueryField.getMode() == null || "NULLABLE".equals(bigQueryField.getMode())) {
-      fieldSchema = Schema.createUnion(Schema.create(Type.NULL), elementSchema);
-    } else if ("REQUIRED".equals(bigQueryField.getMode())) {
-      fieldSchema = elementSchema;
-    } else if ("REPEATED".equals(bigQueryField.getMode())) {
-      fieldSchema = Schema.createArray(elementSchema);
-    } else {
-      throw new IllegalArgumentException(
-          String.format("Unknown BigQuery Field Mode: %s", bigQueryField.getMode()));
+    String bqMode = bigQueryField.getMode();
+    if (bqMode == null || "NULLABLE".equals(bqMode)) {
+      fieldSchema = SchemaBuilder.unionOf().nullType().and().type(fieldSchema).endUnion();
+    } else if ("REPEATED".equals(bqMode)) {
+      fieldSchema = SchemaBuilder.array().items(fieldSchema);
+    } else if (!"REQUIRED".equals(bqMode)) {
+      throw new IllegalArgumentException(String.format("Unknown BigQuery Field Mode: %s", bqMode));
     }
     return new Field(
-        bigQueryField.getName(),
+        fieldName,
         fieldSchema,
         bigQueryField.getDescription(),
         (Object) null /* Cast to avoid deprecated JsonNode constructor. */);
-  }
-
-  // https://cloud.google.com/bigquery/docs/reference/storage#avro_schema_details
-  private static Schema handleAvroLogicalTypes(TableFieldSchema bigQueryField, Type avroType) {
-    String bqType = bigQueryField.getType();
-    switch (bqType) {
-      case "NUMERIC":
-        {
-          int precision = Optional.ofNullable(bigQueryField.getPrecision()).orElse(38L).intValue();
-          int scale = Optional.ofNullable(bigQueryField.getScale()).orElse(9L).intValue();
-          return LogicalTypes.decimal(precision, scale).addToSchema(Schema.create(Type.BYTES));
-        }
-      case "BIGNUMERIC":
-        {
-          int precision = Optional.ofNullable(bigQueryField.getPrecision()).orElse(77L).intValue();
-          int scale = Optional.ofNullable(bigQueryField.getScale()).orElse(38L).intValue();
-          return LogicalTypes.decimal(precision, scale).addToSchema(Schema.create(Type.BYTES));
-        }
-      case "TIMESTAMP":
-        return LogicalTypes.timestampMicros().addToSchema(Schema.create(Type.LONG));
-      case "GEOGRAPHY":
-      case "JSON":
-        Schema schema = Schema.create(Type.STRING);
-        schema.addProp("sqlType", bqType);
-        return schema;
-      default:
-        return Schema.create(avroType);
-    }
   }
 }

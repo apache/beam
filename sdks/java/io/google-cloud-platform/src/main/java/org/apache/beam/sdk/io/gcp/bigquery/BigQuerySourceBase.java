@@ -243,9 +243,13 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
     Stream<BoundedSource<T>> sources;
     // If metadata is available, create source with said metadata
     if (metadata != null) {
-      sources = metadata.stream().map(m -> readerFactory.getSource(m, schema, coder));
+      sources =
+          metadata.stream()
+              .map(m -> readerFactory.getSource(m, schema, useAvroLogicalTypes, coder));
     } else {
-      sources = files.stream().map(f -> readerFactory.getSource(f.toString(), schema, coder));
+      sources =
+          files.stream()
+              .map(f -> readerFactory.getSource(f.toString(), schema, useAvroLogicalTypes, coder));
     }
 
     return sources.collect(collectingAndThen(toList(), ImmutableList::copyOf));

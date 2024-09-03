@@ -322,15 +322,20 @@ public class BigQueryUtils {
       case "BYTES":
         return FieldType.BYTES;
       case "INT64":
+      case "INT":
+      case "SMALLINT":
       case "INTEGER":
+      case "BIGINT":
+      case "TINYINT":
+      case "BYTEINT":
         return FieldType.INT64;
       case "FLOAT64":
-      case "FLOAT":
         return FieldType.DOUBLE;
       case "BOOL":
       case "BOOLEAN":
         return FieldType.BOOLEAN;
       case "NUMERIC":
+      case "BIGNUMERIC":
         return FieldType.DECIMAL;
       case "TIMESTAMP":
         return FieldType.DATETIME;
@@ -355,6 +360,10 @@ public class BigQueryUtils {
 
         Schema rowSchema = fromTableFieldSchema(nestedFields, options);
         return FieldType.row(rowSchema);
+      case "GEOGRAPHY":
+      case "JSON":
+        // TODO Add metadata for custom sql types
+        return FieldType.STRING;
       default:
         throw new UnsupportedOperationException(
             "Converting BigQuery type " + typeName + " to Beam type is unsupported");
@@ -447,14 +456,22 @@ public class BigQueryUtils {
   }
 
   /** Convert a list of BigQuery {@link TableSchema} to Avro {@link org.apache.avro.Schema}. */
-  public static org.apache.avro.Schema toGenericAvroSchema(TableSchema tableSchema) {
+  public static org.apache.avro.Schema toGenericAvroSchema(
+      TableSchema tableSchema, Boolean useLogicalTypes) {
     return toGenericAvroSchema("root", tableSchema.getFields());
+  }
+
+  /** @deprecated use {@link #toGenericAvroSchema(String,List,Boolean)} */
+  @Deprecated
+  public static org.apache.avro.Schema toGenericAvroSchema(
+      String schemaName, List<TableFieldSchema> fieldSchemas) {
+    return toGenericAvroSchema(schemaName, fieldSchemas, false);
   }
 
   /** Convert a list of BigQuery {@link TableFieldSchema} to Avro {@link org.apache.avro.Schema}. */
   public static org.apache.avro.Schema toGenericAvroSchema(
-      String schemaName, List<TableFieldSchema> fieldSchemas) {
-    return BigQueryAvroUtils.toGenericAvroSchema(schemaName, fieldSchemas);
+      String schemaName, List<TableFieldSchema> fieldSchemas, Boolean useLogicalTypes) {
+    return BigQueryAvroUtils.toGenericAvroSchema(schemaName, fieldSchemas, useLogicalTypes);
   }
 
   private static final BigQueryIO.TypedRead.ToBeamRowFunction<TableRow>

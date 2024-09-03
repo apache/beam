@@ -149,7 +149,9 @@ public class BigQueryIOReadTest implements Serializable {
 
   private BigQueryReaderFactory<TableRow> readerFactory =
       BigQueryReaderFactory.avro(
-          null, AvroDatumFactory.generic(), BigQueryAvroUtils::convertGenericRecordToTableRow);
+          null,
+          AvroDatumFactory.generic(),
+          (s, r) -> BigQueryAvroUtils.convertGenericRecordToTableRow(r));
 
   private static class MyData implements Serializable {
     private String name;
@@ -1164,7 +1166,7 @@ public class BigQueryIOReadTest implements Serializable {
     TableSchema tableSchema = new TableSchema();
     assertEquals(
         KvCoder.of(ByteStringCoder.of(), ProtoCoder.of(Mutation.class)),
-        BigQueryIO.read(parseFn).inferCoder(CoderRegistry.createDefault(), tableSchema));
+        BigQueryIO.read(parseFn).inferCoder(CoderRegistry.createDefault(), tableSchema, false));
   }
 
   @Test
@@ -1174,8 +1176,8 @@ public class BigQueryIOReadTest implements Serializable {
     fields.add(new TableFieldSchema().setName("age").setType("NUMERIC"));
     TableSchema tableSchema = new TableSchema().setFields(fields);
     assertEquals(
-        AvroCoder.generic(BigQueryUtils.toGenericAvroSchema(tableSchema)),
-        BigQueryIO.readAvro().inferCoder(CoderRegistry.createDefault(), tableSchema));
+        AvroCoder.generic(BigQueryUtils.toGenericAvroSchema(tableSchema, false)),
+        BigQueryIO.readAvro().inferCoder(CoderRegistry.createDefault(), tableSchema, false));
   }
 
   @Test
@@ -1186,6 +1188,6 @@ public class BigQueryIOReadTest implements Serializable {
     TableSchema tableSchema = new TableSchema().setFields(fields);
     assertEquals(
         RowCoder.of(BigQueryUtils.fromTableSchema(tableSchema)),
-        BigQueryIO.readArrow().inferCoder(CoderRegistry.createDefault(), tableSchema));
+        BigQueryIO.readArrow().inferCoder(CoderRegistry.createDefault(), tableSchema, false));
   }
 }
