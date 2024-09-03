@@ -606,6 +606,7 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   SideInputParam = _DoFnParam('SideInputParam')
   TimestampParam = _DoFnParam('TimestampParam')
   WindowParam = _DoFnParam('WindowParam')
+  WindowedValueParam = _DoFnParam('WindowedValueParam')
   PaneInfoParam = _DoFnParam('PaneInfoParam')
   WatermarkEstimatorParam = _WatermarkEstimatorParam
   BundleFinalizerParam = _BundleFinalizerParam
@@ -626,6 +627,7 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
       SideInputParam,
       TimestampParam,
       WindowParam,
+      WindowedValueParam,
       WatermarkEstimatorParam,
       PaneInfoParam,
       BundleFinalizerParam,
