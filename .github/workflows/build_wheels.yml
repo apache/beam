@@ -128,13 +128,13 @@ jobs:
         run: mv $(ls | grep "apache-beam-\|apache_beam-") apache-beam-source
       - name: Upload source as artifact
         # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: source
           path: sdks/python/apache-beam-source
       - name: Upload compressed sources as artifacts
         # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: source_zip
           path: sdks/python/dist
@@ -173,14 +173,14 @@ jobs:
       - name: Upload RC source as artifact
         if: steps.is_rc.outputs.is_rc == 1
         # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: source_rc${{ steps.get_rc_version.outputs.RC_NUM }}
           path: sdks/python/apache-beam-source-rc
       - name: Upload compressed RC sources as artifacts
         if: steps.is_rc.outputs.is_rc == 1
         # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: source_zip_rc${{ steps.get_rc_version.outputs.RC_NUM }}
           path: sdks/python/dist
@@ -207,7 +207,7 @@ jobs:
     steps:
       - name: Download compressed sources from artifacts
         # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4.1.7.1.7
         with:
           name: source_zip
           path: source/
@@ -238,14 +238,14 @@ jobs:
     steps:
     - name: Download python source distribution from artifacts
       # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4.1.7.1.7
       with:
         name: source
         path: apache-beam-source
     - name: Download Python SDK RC source distribution from artifacts
       if: ${{ needs.build_source.outputs.is_rc == 1 }}
       # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4.1.7.1.7
       with:
         name: source_rc${{ needs.build_source.outputs.rc_num }}
         path: apache-beam-source-rc
@@ -284,7 +284,7 @@ jobs:
     - name: Upload wheels as artifacts
       if: ${{ contains(matrix.os_python.python, matrix.py_version) }}
       # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: wheelhouse-${{ matrix.os_python.os }}${{ (matrix.os_python.arch == 'aarch64' && '-aarch64') || '' }}
         path: apache-beam-source/wheelhouse/
@@ -310,7 +310,7 @@ jobs:
     - name: Upload RC wheels as artifacts
       if: ${{ needs.build_source.outputs.is_rc == 1 }}
       # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: wheelhouse-rc${{ needs.build_source.outputs.rc_num }}-${{ matrix.os_python.os }}${{ (matrix.arch == 'aarch64' && '-aarch64') || '' }}
         path: apache-beam-source-rc/wheelhouse/
@@ -334,7 +334,7 @@ jobs:
     steps:
     - name: Download wheels from artifacts
       # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4.1.7.1.7
       with:
         name: wheelhouse-${{ matrix.os }}${{ (matrix.arch == 'aarch64' && '-aarch64') || '' }}
         path: wheelhouse/
