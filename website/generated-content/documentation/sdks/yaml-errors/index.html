@@ -43,7 +43,10 @@ permanently fail, but often it is desirable to allow the pipeline to continue,
 re-directing bad records to another path for special handling or simply
 recording them for later off-line analysis. This is often called the
 &ldquo;dead letter queue&rdquo; pattern.</p><p>Beam YAML has special support for this pattern if the transform supports a
-<code>error_handling</code> config parameter with an <code>output</code> field. For example,
+<code>error_handling</code> config parameter with an <code>output</code> field.
+The <code>output</code> parameter is a name that must referenced as an input to
+another transform that will process the errors (e.g. by writing them out).
+For example,
 the following code will write all &ldquo;good&rdquo; processed records to one file and
 any &ldquo;bad&rdquo; records to a separate file.</p><pre tabindex=0><code>pipeline:
   transforms:
