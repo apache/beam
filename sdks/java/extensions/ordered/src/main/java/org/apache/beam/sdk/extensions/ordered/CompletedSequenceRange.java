@@ -9,7 +9,7 @@ import org.joda.time.Instant;
 @AutoValue
 public abstract class CompletedSequenceRange {
   public static final CompletedSequenceRange EMPTY =
-      CompletedSequenceRange.create(Long.MIN_VALUE, Long.MIN_VALUE, Instant.ofEpochMilli(
+      CompletedSequenceRange.of(Long.MIN_VALUE, Long.MIN_VALUE, Instant.ofEpochMilli(
           Long.MIN_VALUE));
 
   public abstract long getStart();
@@ -20,7 +20,7 @@ public abstract class CompletedSequenceRange {
     return this.equals(EMPTY);
   }
 
-  public static CompletedSequenceRange create(long start, long end, Instant timestamp) {
+  public static CompletedSequenceRange of(long start, long end, Instant timestamp) {
     return new AutoValue_CompletedSequenceRange(start, end, timestamp);
   }
 }

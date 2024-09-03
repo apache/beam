@@ -30,5 +30,6 @@ dependencies {
     testImplementation library.java.hamcrest
     testImplementation library.java.slf4j_jdk14
     testImplementation project(path: ':sdks:java:core')
+    testImplementation 'junit:junit:4.13.1'
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

@@ -82,7 +82,7 @@ class GlobalSequenceTracker<EventKeyT, EventT, ResultT, StateT extends MutableSt
       long start = VarLongCoder.of().decode(inStream);
       long end = VarLongCoder.of().decode(inStream);
       Instant timestamp = InstantCoder.of().decode(inStream);
-      return CompletedSequenceRange.create(start, end, timestamp);
+      return CompletedSequenceRange.of(start, end, timestamp);
     }
   }
 
