@@ -85,6 +85,7 @@ class BigQueryAvroUtils {
         // bytes
         return SchemaBuilder.builder().bytesType();
       case "FLOAT64":
+      case "FLOAT": // even if not a valid BQ type, it is used in the schema
         // double
         return SchemaBuilder.builder().doubleType();
       case "INT64":

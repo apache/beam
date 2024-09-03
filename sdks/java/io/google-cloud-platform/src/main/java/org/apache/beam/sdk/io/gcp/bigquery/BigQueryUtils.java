@@ -330,6 +330,7 @@ public class BigQueryUtils {
       case "BYTEINT":
         return FieldType.INT64;
       case "FLOAT64":
+      case "FLOAT": // even if not a valid BQ type, it is used in the schema
         return FieldType.DOUBLE;
       case "BOOL":
       case "BOOLEAN":

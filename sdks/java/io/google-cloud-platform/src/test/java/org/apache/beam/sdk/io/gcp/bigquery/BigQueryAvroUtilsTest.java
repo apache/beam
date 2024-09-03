@@ -65,10 +65,10 @@ public class BigQueryAvroUtilsTest {
    */
   private List<TableFieldSchema> fields =
       Lists.newArrayList(
-          new TableFieldSchema().setName("number").setType("INT64").setMode("REQUIRED"),
+          new TableFieldSchema().setName("number").setType("INTEGER").setMode("REQUIRED"),
           new TableFieldSchema().setName("species").setType("STRING").setMode("NULLABLE"),
-          new TableFieldSchema().setName("quality").setType("FLOAT64") /* default to NULLABLE */,
-          new TableFieldSchema().setName("quantity").setType("INT64") /* default to NULLABLE */,
+          new TableFieldSchema().setName("quality").setType("FLOAT") /* default to NULLABLE */,
+          new TableFieldSchema().setName("quantity").setType("INTEGER") /* default to NULLABLE */,
           new TableFieldSchema().setName("birthday").setType("TIMESTAMP").setMode("NULLABLE"),
           new TableFieldSchema().setName("birthdayMoney").setType("NUMERIC").setMode("NULLABLE"),
           new TableFieldSchema()
@@ -469,13 +469,11 @@ public class BigQueryAvroUtilsTest {
                                     new TableFieldSchema()
                                         .setName("string_value")
                                         .setType("STRING"),
-                                    new TableFieldSchema().setName("int_value").setType("INT64"),
-                                    new TableFieldSchema()
-                                        .setName("double_value")
-                                        .setType("FLOAT64"),
+                                    new TableFieldSchema().setName("int_value").setType("INTEGER"),
+                                    new TableFieldSchema().setName("double_value").setType("FLOAT"),
                                     new TableFieldSchema()
                                         .setName("float_value")
-                                        .setType("FLOAT64"))))),
+                                        .setType("FLOAT"))))),
             new TableFieldSchema()
                 .setName("key_value_pair_2")
                 .setType("RECORD")
@@ -491,13 +489,11 @@ public class BigQueryAvroUtilsTest {
                                     new TableFieldSchema()
                                         .setName("string_value")
                                         .setType("STRING"),
-                                    new TableFieldSchema().setName("int_value").setType("INT64"),
-                                    new TableFieldSchema()
-                                        .setName("double_value")
-                                        .setType("FLOAT64"),
+                                    new TableFieldSchema().setName("int_value").setType("INTEGER"),
+                                    new TableFieldSchema().setName("double_value").setType("FLOAT"),
                                     new TableFieldSchema()
                                         .setName("float_value")
-                                        .setType("FLOAT64"))))),
+                                        .setType("FLOAT"))))),
             new TableFieldSchema()
                 .setName("key_value_pair_3")
                 .setType("RECORD")
@@ -529,13 +525,13 @@ public class BigQueryAvroUtilsTest {
                                                                 .setType("STRING"),
                                                             new TableFieldSchema()
                                                                 .setName("int_value")
-                                                                .setType("INT64"),
+                                                                .setType("INTEGER"),
                                                             new TableFieldSchema()
                                                                 .setName("double_value")
-                                                                .setType("FLOAT64"),
+                                                                .setType("FLOAT"),
                                                             new TableFieldSchema()
                                                                 .setName("float_value")
-                                                                .setType("FLOAT64"))))))))),
+                                                                .setType("FLOAT"))))))))),
             new TableFieldSchema().setName("platform").setType("STRING")));
     // To string should be sufficient here as this exercises Avro's conversion feature
     String output = BigQueryAvroUtils.toGenericAvroSchema(schema, false).toString();
