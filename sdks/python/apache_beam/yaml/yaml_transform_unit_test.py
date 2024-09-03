@@ -901,7 +901,8 @@ class MainTest(unittest.TestCase):
     spec['transforms'] = [
         normalize_inputs_outputs(t) for t in spec['transforms']
     ]
-    with self.assertRaisesRegex(ValueError, r"Unconsumed error.*"):
+    with self.assertRaisesRegex(ValueError,
+                                r"Unconsumed error.*MyTransform.errors"):
       ensure_errors_consumed(spec)
 
   def test_ensure_errors_consumed_in_transform(self):
