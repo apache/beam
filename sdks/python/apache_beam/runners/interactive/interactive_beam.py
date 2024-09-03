@@ -875,7 +875,12 @@ def show(
 
 
 @progress_indicated
-def collect(pcoll, n='inf', duration='inf', include_window_info=False):
+def collect(
+    pcoll,
+    n='inf',
+    duration='inf',
+    include_window_info=False,
+    force_compute=False):
   """Materializes the elements from a PCollection into a Dataframe.
 
   This reads each element from file and reads only the amount that it needs
@@ -889,6 +894,8 @@ def collect(pcoll, n='inf', duration='inf', include_window_info=False):
         a string duration. Default 'inf'.
     include_window_info: (optional) if True, appends the windowing information
         to each row. Default False.
+    force_compute: (optional) if True, forces recomputation rather than using
+        cached PCollections
 
   For example::
 
@@ -938,7 +945,7 @@ def collect(pcoll, n='inf', duration='inf', include_window_info=False):
       user_pipeline, create_if_absent=True)
 
   # If already computed, directly read the stream and return.
-  if pcoll in ie.current_env().computed_pcollections:
+  if pcoll in ie.current_env().computed_pcollections and not force_compute:
     pcoll_name = find_pcoll_name(pcoll)
     elements = list(
         recording_manager.read(pcoll_name, pcoll, n, duration).read())
@@ -947,7 +954,10 @@ def collect(pcoll, n='inf', duration='inf', include_window_info=False):
         include_window_info=include_window_info,
         element_type=element_type)
 
-  recording = recording_manager.record([pcoll], max_n=n, max_duration=duration)
+  recording = recording_manager.record([pcoll],
+                                       max_n=n,
+                                       max_duration=duration,
+                                       force_compute=force_compute)
 
   try:
     elements = list(recording.stream(pcoll).read())
