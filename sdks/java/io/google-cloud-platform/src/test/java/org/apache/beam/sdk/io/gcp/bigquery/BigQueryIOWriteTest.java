@@ -1219,14 +1219,14 @@ public class BigQueryIOWriteTest implements Serializable {
             .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
             .withTestServices(fakeBqServices)
             .withAvroFormatFunction(
-                r -> {
-                  GenericRecord rec = new GenericData.Record(r.getSchema());
-                  InputRecord i = r.getElement();
-                  rec.put("strval", i.strVal());
-                  rec.put("longval", i.longVal());
-                  rec.put("doubleval", i.doubleVal());
-                  rec.put("instantval", i.instantVal().getMillis() * 1000);
-                  return rec;
+                wr -> {
+                  InputRecord i = wr.getElement();
+                  return new GenericRecordBuilder(wr.getSchema())
+                      .set("strval", i.strVal())
+                      .set("longval", i.longVal())
+                      .set("doubleval", i.doubleVal())
+                      .set("instantval", i.instantVal().getMillis() * 1000)
+                      .build();
                 })
             .withoutValidation();
     TableSchema tableSchema =

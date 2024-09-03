@@ -86,6 +86,7 @@ abstract class BigQueryReaderFactory<T> implements BigQueryStorageReaderFactory<
   }
 
   static class BigQueryAvroReaderFactory<AvroT, T> extends BigQueryReaderFactory<T> {
+    // we need to know if logical-types were used in the export to generate the correct schema
     private final SerializableBiFunction<TableSchema, Boolean, org.apache.avro.Schema>
         schemaFactory;
     private final AvroSource.DatumReaderFactory<AvroT> readerFactory;
@@ -100,6 +101,7 @@ abstract class BigQueryReaderFactory<T> implements BigQueryStorageReaderFactory<
       if (schema == null) {
         this.schemaFactory = BigQueryUtils::toGenericAvroSchema;
       } else {
+        // avro 1.8 schema is not serializable
         SerializableSchemaSupplier schemaSupplier = new SerializableSchemaSupplier(schema);
         this.schemaFactory = (tableSchema, lt) -> schemaSupplier.get();
       }

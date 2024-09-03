@@ -3715,9 +3715,7 @@ public class BigQueryIO {
                 hasSchema,
                 "A schema must be provided if an avroFormatFunction "
                     + "is set but no avroSchemaFactory is defined.");
-            final Boolean useAvroLogicalTypes = getUseAvroLogicalTypes();
-            avroSchemaFactory =
-                (schema) -> BigQueryUtils.toGenericAvroSchema(schema, useAvroLogicalTypes);
+            avroSchemaFactory = BigQueryUtils::toGenericAvroSchema;
           }
           rowWriterFactory = avroRowWriterFactory.prepare(dynamicDestinations, avroSchemaFactory);
         } else if (formatFunction != null) {
@@ -3948,10 +3946,10 @@ public class BigQueryIO {
               recordWriterFactory =
                   (RowWriterFactory.AvroRowWriterFactory<T, GenericRecord, DestinationT>)
                       rowWriterFactory;
-          final Boolean useAvroLogicalTypes = getUseAvroLogicalTypes();
+
           SerializableFunction<@Nullable TableSchema, org.apache.avro.Schema> avroSchemaFactory =
               Optional.ofNullable(getAvroSchemaFactory())
-                  .orElse((s) -> BigQueryUtils.toGenericAvroSchema(s, useAvroLogicalTypes));
+                  .orElse(BigQueryUtils::toGenericAvroSchema);
 
           storageApiDynamicDestinations =
               new StorageApiDynamicDestinationsGenericRecord<>(

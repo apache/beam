@@ -457,16 +457,20 @@ public class BigQueryUtils {
   }
 
   /** Convert a list of BigQuery {@link TableSchema} to Avro {@link org.apache.avro.Schema}. */
-  public static org.apache.avro.Schema toGenericAvroSchema(
-      TableSchema tableSchema, Boolean useLogicalTypes) {
-    return toGenericAvroSchema("root", tableSchema.getFields());
+  public static org.apache.avro.Schema toGenericAvroSchema(TableSchema tableSchema) {
+    return toGenericAvroSchema(tableSchema, true);
   }
 
-  /** @deprecated use {@link #toGenericAvroSchema(String,List,Boolean)} */
-  @Deprecated
+  /** Convert a list of BigQuery {@link TableSchema} to Avro {@link org.apache.avro.Schema}. */
+  public static org.apache.avro.Schema toGenericAvroSchema(
+      TableSchema tableSchema, Boolean useLogicalTypes) {
+    return toGenericAvroSchema("root", tableSchema.getFields(), useLogicalTypes);
+  }
+
+  /** Convert a list of BigQuery {@link TableFieldSchema} to Avro {@link org.apache.avro.Schema}. */
   public static org.apache.avro.Schema toGenericAvroSchema(
       String schemaName, List<TableFieldSchema> fieldSchemas) {
-    return toGenericAvroSchema(schemaName, fieldSchemas, false);
+    return toGenericAvroSchema(schemaName, fieldSchemas, true);
   }
 
   /** Convert a list of BigQuery {@link TableFieldSchema} to Avro {@link org.apache.avro.Schema}. */
