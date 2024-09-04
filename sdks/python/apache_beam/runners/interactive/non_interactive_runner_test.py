@@ -101,6 +101,50 @@ class NonInteractiveRunnerTest(unittest.TestCase):
     self.assertEqual(count_side_effects('a'), 2)
 
   @unittest.skipIf(sys.platform == "win32", "[BEAM-10627]")
+  def test_multiple_collect(self):
+    clear_side_effect()
+    p = beam.Pipeline(direct_runner.DirectRunner())
+
+    # Initial collection runs the pipeline.
+    pcollA = p | 'A' >> beam.Create(['a']) | 'As' >> beam.Map(cause_side_effect)
+    pcollB = p | 'B' >> beam.Create(['b']) | 'Bs' >> beam.Map(cause_side_effect)
+    collectedA, collectedB = ib.collect(pcollA, pcollB)
+    self.assertEqual(set(collectedA[0]), set(['a']))
+    self.assertEqual(set(collectedB[0]), set(['b']))
+    self.assertEqual(count_side_effects('a'), 1)
+    self.assertEqual(count_side_effects('b'), 1)
+
+    # Collecting the PCollection again uses the cache.
+    collectedA, collectedB = ib.collect(pcollA, pcollB)
+    self.assertEqual(set(collectedA[0]), set(['a']))
+    self.assertEqual(set(collectedB[0]), set(['b']))
+    self.assertEqual(count_side_effects('a'), 1)
+    self.assertEqual(count_side_effects('b'), 1)
+
+    # Using the PCollection uses the cache.
+    pcollAA = pcollA | beam.Map(
+        lambda x: 2 * x) | 'AAs' >> beam.Map(cause_side_effect)
+    collectedA, collectedB, collectedAA = ib.collect(pcollA, pcollB, pcollAA)
+    self.assertEqual(set(collectedA[0]), set(['a']))
+    self.assertEqual(set(collectedB[0]), set(['b']))
+    self.assertEqual(set(collectedAA[0]), set(['aa']))
+    self.assertEqual(count_side_effects('a'), 1)
+    self.assertEqual(count_side_effects('b'), 1)
+    self.assertEqual(count_side_effects('aa'), 1)
+
+    # Duplicates are only computed once.
+    pcollBB = pcollB | beam.Map(
+        lambda x: 2 * x) | 'BBs' >> beam.Map(cause_side_effect)
+    collectedAA, collectedAAagain, collectedBB, collectedBBagain = ib.collect(
+        pcollAA, pcollAA, pcollBB, pcollBB)
+    self.assertEqual(set(collectedAA[0]), set(['aa']))
+    self.assertEqual(set(collectedAAagain[0]), set(['aa']))
+    self.assertEqual(set(collectedBB[0]), set(['bb']))
+    self.assertEqual(set(collectedBBagain[0]), set(['bb']))
+    self.assertEqual(count_side_effects('aa'), 1)
+    self.assertEqual(count_side_effects('bb'), 1)
+
+  @unittest.skipIf(sys.platform == "win32", "[BEAM-10627]")
   def test_wordcount(self):
     class WordExtractingDoFn(beam.DoFn):
       def process(self, element):
