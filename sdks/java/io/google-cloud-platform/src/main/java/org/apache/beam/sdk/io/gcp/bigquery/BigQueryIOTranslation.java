@@ -40,6 +40,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.avro.io.AvroDatumFactory;
+import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.FromBeamRowFunction;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.QueryPriority;
@@ -280,20 +281,32 @@ public class BigQueryIOTranslation {
         if (TransformUpgrader.compareVersions(updateCompatibilityBeamVersion, "2.60.0") < 0) {
           // best effort migration
           // if user was specifying a custom datum_reader_factory, that would fail
-          SerializableBiFunction<TableSchema, GenericRecord, ?> fromAvro;
-          byte[] parseFn = configRow.getBytes("parse_fn");
-          if (parseFn != null) {
-            SerializableFunction<SchemaAndRecord, ?> fn =
-                (SerializableFunction<SchemaAndRecord, ?>) fromByteArray(parseFn);
-            fromAvro = (s, r) -> fn.apply(new SchemaAndRecord(r, s));
-            builder.setBigQueryReaderFactory(
-                BigQueryReaderFactory.avro( // TODO arrow ?
-                    null,
-                    AvroDatumFactory.generic(), // TODO datum_reader_factory
-                    fromAvro));
+          byte[] formatBytes = configRow.getBytes("format");
+          DataFormat dataFormat = null;
+          if (formatBytes != null) {
+            dataFormat = (DataFormat) fromByteArray(formatBytes);
+          }
+
+          byte[] parseFnBytes = configRow.getBytes("parse_fn");
+          if (parseFnBytes != null) {
+            SerializableFunction<SchemaAndRecord, ?> parseFn =
+                (SerializableFunction<SchemaAndRecord, ?>) fromByteArray(parseFnBytes);
+            BigQueryReaderFactory<?> readerFactory;
+            if (DataFormat.ARROW.equals(dataFormat)) {
+              SerializableBiFunction<TableSchema, Row, ?> fromArrow =
+                  (s, r) -> parseFn.apply(new SchemaAndRecord(AvroUtils.toGenericRecord(r), s));
+              readerFactory = BigQueryReaderFactory.arrow(null, fromArrow);
+            } else {
+              // default to avro
+              SerializableBiFunction<TableSchema, GenericRecord, ?> fromAvro =
+                  (s, r) -> parseFn.apply(new SchemaAndRecord(r, s));
+              readerFactory =
+                  BigQueryReaderFactory.avro(null, AvroDatumFactory.generic(), fromAvro);
+            }
+            builder.setBigQueryReaderFactory(readerFactory);
 
             if (configRow.getBytes("type_descriptor") == null) {
-              TypeDescriptor typeDescriptor = TypeDescriptors.outputOf(fn);
+              TypeDescriptor typeDescriptor = TypeDescriptors.outputOf(parseFn);
               if (!typeDescriptor.hasUnresolvedParameters()) {
                 builder.setTypeDescriptor(typeDescriptor);
               }
@@ -302,10 +315,10 @@ public class BigQueryIOTranslation {
         } else {
           // This property was added for Beam 2.60.0 hence not available when
           // upgrading the transform from previous Beam versions.
-          byte[] readerFactory = configRow.getBytes("bigquery_reader_factory");
-          if (readerFactory != null) {
+          byte[] readerFactoryBytes = configRow.getBytes("bigquery_reader_factory");
+          if (readerFactoryBytes != null) {
             builder.setBigQueryReaderFactory(
-                (BigQueryReaderFactory<?>) fromByteArray(readerFactory));
+                (BigQueryReaderFactory<?>) fromByteArray(readerFactoryBytes));
           }
         }
 
@@ -314,7 +327,7 @@ public class BigQueryIOTranslation {
           builder = builder.setMethod((TypedRead.Method) fromByteArray(methodBytes));
         }
         byte[] formatBytes = configRow.getBytes("format");
-        if (methodBytes != null) {
+        if (formatBytes != null) {
           builder = builder.setFormat((DataFormat) fromByteArray(formatBytes));
         }
         Collection<String> selectedFields = configRow.getArray("selected_fields");
