@@ -29,7 +29,6 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.LogicalType;
-import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.sdk.values.Row;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -47,7 +46,6 @@ public class OneOfType implements LogicalType<OneOfType.Value, Row> {
 
   private final Schema oneOfSchema;
   private final EnumerationType enumerationType;
-  private final byte[] schemaProtoRepresentation;
 
   private OneOfType(List<Field> fields) {
     this(fields, null);
@@ -65,7 +63,6 @@ public class OneOfType implements LogicalType<OneOfType.Value, Row> {
       enumerationType = EnumerationType.create(enumValues);
     }
     oneOfSchema = Schema.builder().addFields(nullableFields).build();
-    schemaProtoRepresentation = SchemaTranslation.schemaToProto(oneOfSchema, false).toByteArray();
   }
 
   /** Create an {@link OneOfType} logical type. */
@@ -103,12 +100,12 @@ public class OneOfType implements LogicalType<OneOfType.Value, Row> {
 
   @Override
   public FieldType getArgumentType() {
-    return FieldType.BYTES;
+    return FieldType.row(oneOfSchema);
   }
 
   @Override
-  public byte[] getArgument() {
-    return schemaProtoRepresentation;
+  public Row getArgument() {
+    return Row.nullRow(oneOfSchema);
   }
 
   @Override

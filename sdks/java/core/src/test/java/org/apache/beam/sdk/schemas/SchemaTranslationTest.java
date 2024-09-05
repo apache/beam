@@ -307,6 +307,7 @@ public class SchemaTranslationTest {
       Schema decodedSchema = SchemaTranslation.schemaFromProto(schemaProto);
 
       SchemaApi.Schema reencodedSchemaProto = SchemaTranslation.schemaToProto(decodedSchema, true);
+      reencodedSchemaProto = reencodedSchemaProto.toBuilder().clearId().build();
 
       assertThat(reencodedSchemaProto, equalTo(schemaProto));
     }
