@@ -127,13 +127,11 @@ jobs:
         # https://github.com/pypa/setuptools/issues/4300 changed naming. Match both old and new names.
         run: mv $(ls | grep "apache-beam-\|apache_beam-") apache-beam-source
       - name: Upload source as artifact
-        # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
         uses: actions/upload-artifact@v4
         with:
           name: source
           path: sdks/python/apache-beam-source
       - name: Upload compressed sources as artifacts
-        # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
         uses: actions/upload-artifact@v4
         with:
           name: source_zip
@@ -172,14 +170,12 @@ jobs:
         run: mv $(ls | grep "apache-beam-\|apache_beam-") apache-beam-source-rc
       - name: Upload RC source as artifact
         if: steps.is_rc.outputs.is_rc == 1
-        # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
         uses: actions/upload-artifact@v4
         with:
           name: source_rc${{ steps.get_rc_version.outputs.RC_NUM }}
           path: sdks/python/apache-beam-source-rc
       - name: Upload compressed RC sources as artifacts
         if: steps.is_rc.outputs.is_rc == 1
-        # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
         uses: actions/upload-artifact@v4
         with:
           name: source_zip_rc${{ steps.get_rc_version.outputs.RC_NUM }}
@@ -283,8 +279,8 @@ jobs:
       shell: bash
     - name: Upload wheels as artifacts
       if: ${{ contains(matrix.os_python.python, matrix.py_version) }}
-      # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
-      uses: actions/upload-artifact@v4
+      # Pinned to v3 because of https://github.com/actions/upload-artifact?tab=readme-ov-file#breaking-changes
+      uses: actions/upload-artifact@v3
       with:
         name: wheelhouse-${{ matrix.os_python.os }}${{ (matrix.os_python.arch == 'aarch64' && '-aarch64') || '' }}
         path: apache-beam-source/wheelhouse/
@@ -333,8 +329,8 @@ jobs:
             arch: aarch64
     steps:
     - name: Download wheels from artifacts
-      # Pinned to v3 because of https://github.com/actions/download-artifact/issues/249
-      uses: actions/download-artifact@v4.1.8
+      # Pinned to v3 because of https://github.com/actions/upload-artifact?tab=readme-ov-file#breaking-changes
+      uses: actions/download-artifact@v3
       with:
         name: wheelhouse-${{ matrix.os }}${{ (matrix.arch == 'aarch64' && '-aarch64') || '' }}
         path: wheelhouse/
