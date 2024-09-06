@@ -80,24 +80,30 @@ public class TextSourceTest {
 
   @Test
   public void testDelimiterFinder() {
+    // Simple pattern
     assertEquals(Arrays.asList("A", "C"), split("AB", "AABC"));
     assertEquals(Arrays.asList("A", "B", "C"), split("AB", "AABBABC"));
 
+    // When mismatched at 2 (zero-indexed), the substring "AA" has subsequence "A"
     assertEquals(Arrays.asList("A", "C"), split("AAB", "AAABC"));
     assertEquals(Arrays.asList("ABAB"), split("AAB", "ABAB"));
     assertEquals(Arrays.asList("A", "A", "B"), split("AAB", "AAABAAABB"));
 
+    // The last byte is the same as the first byte.
     assertEquals(Arrays.asList("A", "B"), split("AABA", "AAABAB"));
     assertEquals(Arrays.asList("AABBA"), split("AABA", "AABBA"));
 
+    // "ABAB" has subsequence "AB".
     assertEquals(Arrays.asList("", "D"), split("ABABC", "ABABCD"));
     assertEquals(Arrays.asList("ABABAD"), split("ABABC", "ABABAD"));
     assertEquals(Arrays.asList("ABABBD"), split("ABABC", "ABABBD"));
     assertEquals(Arrays.asList("AB"), split("ABABC", "ABABABC"));
 
+    // "ABCAB" has subsequence "AB".
     assertEquals(Arrays.asList(""), split("ABCABD", "ABCABD"));
     assertEquals(Arrays.asList("ABC"), split("ABCABD", "ABCABCABD"));
 
+    // Repetition of 3 bytes pattern.
     assertEquals(Arrays.asList("AABAAB"), split("AABAAC", "AABAAB"));
     assertEquals(Arrays.asList(""), split("AABAAC", "AABAAC"));
     assertEquals(Arrays.asList("A", "D"), split("AABAAC", "AAABAACD"));
@@ -105,16 +111,23 @@ public class TextSourceTest {
     assertEquals(Arrays.asList("AABA", "D"), split("AABAAC", "AABAAABAACD"));
     assertEquals(Arrays.asList("AABAA", "D"), split("AABAAC", "AABAAAABAACD"));
 
+    // Same characters repeated 3 times.
     assertEquals(Arrays.asList("AAA"), split("AAAA", "AAA"));
     assertEquals(Arrays.asList(""), split("AAAA", "AAAA"));
     assertEquals(Arrays.asList("AAAB"), split("AAAA", "AAAB"));
     assertEquals(Arrays.asList("", "B"), split("AAAA", "AAAAB"));
 
+    // 3 times repeated pattern followed by a different byte.
     assertEquals(Arrays.asList(""), split("AAAB", "AAAB"));
     assertEquals(Arrays.asList("A", "B"), split("AAAB", "AAAABB"));
     assertEquals(Arrays.asList("AA", "B"), split("AAAB", "AAAAABB"));
     assertEquals(Arrays.asList("AAA", "B"), split("AAAB", "AAAAAABB"));
     assertEquals(Arrays.asList("AAAA", "B"), split("AAAB", "AAAAAAABB"));
+
+    // Multiple empty strings return.
+    assertEquals(Arrays.asList("", "", ""), split("AA", "AAAAAA"));
+    assertEquals(Arrays.asList("", "", ""), split("AB", "ABABAB"));
+    assertEquals(Arrays.asList("", "", ""), split("AAB", "AABAABAAB"));
   }
 
   List<String> split(String delimiter, String text) {
