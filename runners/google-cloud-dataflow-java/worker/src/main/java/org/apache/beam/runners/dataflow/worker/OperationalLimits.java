@@ -17,37 +17,38 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import com.google.auto.value.AutoBuilder;
+import com.google.auto.value.AutoValue;
+import org.apache.beam.sdk.annotations.Internal;
 
 /** Keep track of any operational limits required by the backend. */
-public class OperationalLimits {
+@AutoValue
+@Internal
+public abstract class OperationalLimits {
+
+  private static final long DEFAULT_MAX_WORK_ITEM_COMMIT_BYTES = 180 << 20;
+
   // Maximum size of a commit from a single work item.
-  public final long maxWorkItemCommitBytes;
+  public abstract long getMaxWorkItemCommitBytes();
   // Maximum size of a single output element's serialized key.
-  public final long maxOutputKeyBytes;
+  public abstract long getMaxOutputKeyBytes();
   // Maximum size of a single output element's serialized value.
-  public final long maxOutputValueBytes;
+  public abstract long getMaxOutputValueBytes();
 
-  OperationalLimits(long maxWorkItemCommitBytes, long maxOutputKeyBytes, long maxOutputValueBytes) {
-    this.maxWorkItemCommitBytes = maxWorkItemCommitBytes;
-    this.maxOutputKeyBytes = maxOutputKeyBytes;
-    this.maxOutputValueBytes = maxOutputValueBytes;
+  @AutoValue.Builder
+  public abstract static class Builder {
+
+    public abstract Builder setMaxWorkItemCommitBytes(long bytes);
+
+    public abstract Builder setMaxOutputKeyBytes(long bytes);
+
+    public abstract Builder setMaxOutputValueBytes(long bytes);
+
+    public abstract OperationalLimits build();
   }
 
-  @AutoBuilder(ofClass = OperationalLimits.class)
-  public interface Builder {
-    Builder setMaxWorkItemCommitBytes(long bytes);
-
-    Builder setMaxOutputKeyBytes(long bytes);
-
-    Builder setMaxOutputValueBytes(long bytes);
-
-    OperationalLimits build();
-  }
-
-  public static Builder builder() {
-    return new AutoBuilder_OperationalLimits_Builder()
-        .setMaxWorkItemCommitBytes(Long.MAX_VALUE)
+  public static OperationalLimits.Builder builder() {
+    return new AutoValue_OperationalLimits.Builder()
+        .setMaxWorkItemCommitBytes(DEFAULT_MAX_WORK_ITEM_COMMIT_BYTES)
         .setMaxOutputKeyBytes(Long.MAX_VALUE)
         .setMaxOutputValueBytes(Long.MAX_VALUE);
   }

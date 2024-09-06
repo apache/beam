@@ -923,6 +923,15 @@ message WorkerMetadataResponse {
   reserved 4;
 }
 
+// Settings to control runtime behavior of the java runner v1 user worker.
+message UserWorkerRunnerV1Settings {
+  // If true, use separate channels for each windmill RPC.
+  optional bool use_windmill_isolated_channels = 1 [default = true];
+
+  // If true, use separate streaming RPC for windmill heartbeats and state reads.
+  optional bool use_separate_windmill_heartbeat_streams = 2 [default = true];
+}
+
 service WindmillAppliance {
   // Gets streaming Dataflow work.
   rpc GetWork(.windmill.GetWorkRequest) returns (.windmill.GetWorkResponse);

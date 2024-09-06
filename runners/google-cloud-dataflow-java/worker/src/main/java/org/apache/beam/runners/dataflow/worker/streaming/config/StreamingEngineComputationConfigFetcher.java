@@ -30,16 +30,18 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.StreamSupport;
 import javax.annotation.concurrent.ThreadSafe;
+import org.apache.beam.runners.dataflow.worker.OperationalLimits;
 import org.apache.beam.runners.dataflow.worker.WorkUnitClient;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.UserWorkerRunnerV1Settings;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Sleeper;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
@@ -72,7 +74,7 @@ public final class StreamingEngineComputationConfigFetcher implements Computatio
   private final long globalConfigRefreshPeriodMillis;
   private final WorkUnitClient dataflowServiceClient;
   private final ScheduledExecutorService globalConfigRefresher;
-  private final Consumer<StreamingEnginePipelineConfig> onStreamingConfig;
+  private final StreamingEnginePipelineConfigManager configManager;
   private final AtomicBoolean hasReceivedGlobalConfig;
 
   private StreamingEngineComputationConfigFetcher(
@@ -80,25 +82,25 @@ public final class StreamingEngineComputationConfigFetcher implements Computatio
       long globalConfigRefreshPeriodMillis,
       WorkUnitClient dataflowServiceClient,
       ScheduledExecutorService globalConfigRefresher,
-      Consumer<StreamingEnginePipelineConfig> onStreamingConfig) {
+      StreamingEnginePipelineConfigManager configManager) {
     this.globalConfigRefreshPeriodMillis = globalConfigRefreshPeriodMillis;
     this.dataflowServiceClient = dataflowServiceClient;
     this.globalConfigRefresher = globalConfigRefresher;
-    this.onStreamingConfig = onStreamingConfig;
+    this.configManager = configManager;
     this.hasReceivedGlobalConfig = new AtomicBoolean(hasReceivedGlobalConfig);
   }
 
   public static StreamingEngineComputationConfigFetcher create(
       long globalConfigRefreshPeriodMillis,
       WorkUnitClient dataflowServiceClient,
-      Consumer<StreamingEnginePipelineConfig> onStreamingConfig) {
+      StreamingEnginePipelineConfigManager configManager) {
     return new StreamingEngineComputationConfigFetcher(
         /* hasReceivedGlobalConfig= */ false,
         globalConfigRefreshPeriodMillis,
         dataflowServiceClient,
         Executors.newSingleThreadScheduledExecutor(
             new ThreadFactoryBuilder().setNameFormat(CONFIG_REFRESHER_THREAD_NAME).build()),
-        onStreamingConfig);
+        configManager);
   }
 
   @VisibleForTesting
@@ -107,13 +109,13 @@ public final class StreamingEngineComputationConfigFetcher implements Computatio
       long globalConfigRefreshPeriodMillis,
       WorkUnitClient dataflowServiceClient,
       Function<String, ScheduledExecutorService> executorSupplier,
-      Consumer<StreamingEnginePipelineConfig> onStreamingConfig) {
+      StreamingEnginePipelineConfigManager configManager) {
     return new StreamingEngineComputationConfigFetcher(
         hasReceivedGlobalConfig,
         globalConfigRefreshPeriodMillis,
         dataflowServiceClient,
         executorSupplier.apply(CONFIG_REFRESHER_THREAD_NAME),
-        onStreamingConfig);
+        configManager);
   }
 
   @VisibleForTesting
@@ -159,9 +161,7 @@ public final class StreamingEngineComputationConfigFetcher implements Computatio
 
   private StreamingEnginePipelineConfig createPipelineConfig(StreamingConfigTask config) {
     StreamingEnginePipelineConfig.Builder pipelineConfig = StreamingEnginePipelineConfig.builder();
-    if (config.getUserStepToStateFamilyNameMap() != null) {
-      pipelineConfig.setUserStepToStateFamilyNameMap(config.getUserStepToStateFamilyNameMap());
-    }
+    OperationalLimits.Builder operationalLimits = OperationalLimits.builder();
 
     if (config.getWindmillServiceEndpoint() != null
         && !config.getWindmillServiceEndpoint().isEmpty()) {
@@ -184,21 +184,34 @@ public final class StreamingEngineComputationConfigFetcher implements Computatio
     if (config.getMaxWorkItemCommitBytes() != null
         && config.getMaxWorkItemCommitBytes() > 0
         && config.getMaxWorkItemCommitBytes() <= Integer.MAX_VALUE) {
-      pipelineConfig.setMaxWorkItemCommitBytes(config.getMaxWorkItemCommitBytes().intValue());
+      operationalLimits.setMaxWorkItemCommitBytes(config.getMaxWorkItemCommitBytes().intValue());
     }
 
     if (config.getOperationalLimits() != null) {
       if (config.getOperationalLimits().getMaxKeyBytes() != null
           && config.getOperationalLimits().getMaxKeyBytes() > 0
           && config.getOperationalLimits().getMaxKeyBytes() <= Integer.MAX_VALUE) {
-        pipelineConfig.setMaxOutputKeyBytes(config.getOperationalLimits().getMaxKeyBytes());
+        operationalLimits.setMaxOutputKeyBytes(config.getOperationalLimits().getMaxKeyBytes());
       }
       if (config.getOperationalLimits().getMaxProductionOutputBytes() != null
           && config.getOperationalLimits().getMaxProductionOutputBytes() > 0
           && config.getOperationalLimits().getMaxProductionOutputBytes() <= Integer.MAX_VALUE) {
-        pipelineConfig.setMaxOutputValueBytes(
+        operationalLimits.setMaxOutputValueBytes(
             config.getOperationalLimits().getMaxProductionOutputBytes());
       }
+    }
+
+    pipelineConfig.setOperationalLimits(operationalLimits.build());
+
+    byte[] settings_bytes = config.decodeUserWorkerRunnerV1Settings();
+    if (settings_bytes != null) {
+      UserWorkerRunnerV1Settings settings = UserWorkerRunnerV1Settings.newBuilder().build();
+      try {
+        settings = UserWorkerRunnerV1Settings.parseFrom(settings_bytes);
+      } catch (InvalidProtocolBufferException e) {
+        LOG.error("Parsing UserWorkerRunnerV1Settings failed", e);
+      }
+      pipelineConfig.setUserWorkerJobSettings(settings);
     }
 
     return pipelineConfig.build();
@@ -259,7 +272,7 @@ public final class StreamingEngineComputationConfigFetcher implements Computatio
   @SuppressWarnings("FutureReturnValueIgnored")
   private void schedulePeriodicGlobalConfigRequests() {
     globalConfigRefresher.scheduleWithFixedDelay(
-        () -> fetchGlobalConfig().ifPresent(onStreamingConfig),
+        () -> fetchGlobalConfig().ifPresent(configManager::setConfig),
         0,
         globalConfigRefreshPeriodMillis,
         TimeUnit.MILLISECONDS);
@@ -274,7 +287,7 @@ public final class StreamingEngineComputationConfigFetcher implements Computatio
       LOG.info("Sending request to get initial global configuration for this worker.");
       Optional<StreamingEnginePipelineConfig> globalConfig = fetchGlobalConfig();
       if (globalConfig.isPresent()) {
-        onStreamingConfig.accept(globalConfig.get());
+        configManager.setConfig(globalConfig.get());
         hasReceivedGlobalConfig.set(true);
         break;
       }
@@ -292,6 +305,7 @@ public final class StreamingEngineComputationConfigFetcher implements Computatio
 
   @FunctionalInterface
   private interface ThrowingFetchWorkItemFn {
+
     Optional<WorkItem> fetchWorkItem() throws IOException;
   }
 }
