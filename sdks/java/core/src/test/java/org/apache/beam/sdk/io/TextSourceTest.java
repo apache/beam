@@ -119,7 +119,7 @@ public class TextSourceTest {
 
   List<String> split(String delimiter, String text) {
     byte[] delimiterBytes = delimiter.getBytes(StandardCharsets.UTF_8);
-    TextSource.DelimiterFinder finder = new TextSource.DelimiterFinder(delimiterBytes);
+    TextSource.KMPDelimiterFinder finder = new TextSource.KMPDelimiterFinder(delimiterBytes);
 
     byte[] textBytes = text.getBytes(StandardCharsets.UTF_8);
 
