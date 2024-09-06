@@ -39,3 +39,6 @@ python-snappy  # Optimizes execution of some Beam codepaths.
 scipy
 scikit-learn
 build>=1.0,<2 # tool to build sdist from setup.py in stager.
+# Authentication for Google Artifact Registry when using --extra-index-url or --index-url in requirements.txt in
+# Dataflow, which allows installing python packages from private Python repositories in GAR.
+keyrings.google-artifactregistry-auth
