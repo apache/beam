@@ -51,7 +51,7 @@ class SerializableAvroCodecFactory implements Externalizable {
   private static final Pattern xzPattern = Pattern.compile(XZ_CODEC + "-(?<level>\\d)");
 
   // Don't reference `DataFileConstants.ZSTANDARD_CODEC` directly for Avro 1.8 compat
-  private static final Pattern zstdPattern = Pattern.compile("zstandard\\[(?<level>\\d+)\\]");
+  private static final Pattern zstdPattern = Pattern.compile("zstandard\\[(?<level>-?\\d+)\\]");
 
   private @Nullable CodecFactory codecFactory;
 

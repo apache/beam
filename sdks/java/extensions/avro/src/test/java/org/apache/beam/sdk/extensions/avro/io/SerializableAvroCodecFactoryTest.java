@@ -108,7 +108,7 @@ public class SerializableAvroCodecFactoryTest {
       return;
     }
 
-    for (int i = 1; i <= 22; i++) {
+    for (int i = -7; i <= 22; i++) {
       SerializableAvroCodecFactory codecFactory = new SerializableAvroCodecFactory();
 
       // Deserialize a ZStandardCodec instance from bytes; we can't reference the class directly
