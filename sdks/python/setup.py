@@ -394,19 +394,18 @@ if __name__ == '__main__':
       # BEAM-8840: Do NOT use tests_require or setup_requires.
       extras_require={
           'docs': [
-              'jinja2>=3.0,<3.1',
+              'jinja2>=3.0,<3.2',
               'Sphinx>=1.5.2,<2.0',
               'docstring-parser>=0.15,<1.0',
               # Pinning docutils as a workaround for Sphinx issue:
               # https://github.com/sphinx-doc/sphinx/issues/9727
               'docutils==0.17.1',
-              'jinja2>=3.0,<3.1',
               'pandas<2.2.0',
           ],
           'test': [
               'docstring-parser>=0.15,<1.0',
               'freezegun>=0.3.12',
-              'jinja2>=3.0,<3.1',
+              'jinja2>=3.0,<3.2',
               'joblib>=1.0.1',
               'mock>=1.0.1,<6.0.0',
               'pandas<2.2.0',
@@ -511,7 +510,7 @@ if __name__ == '__main__':
           ],
           'yaml': [
               'docstring-parser>=0.15,<1.0',
-              'jinja2>=3.0,<3.1',
+              'jinja2>=3.0,<3.2',
               'pyyaml>=3.12,<7.0.0',
               'virtualenv-clone>=0.5,<1.0',
           ] + dataframe_dependency
