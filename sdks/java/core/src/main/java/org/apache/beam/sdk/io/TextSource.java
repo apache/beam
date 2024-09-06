@@ -119,8 +119,7 @@ public class TextSource extends FileBasedSource<String> {
     private final byte @Nullable [] delimiter;
     private final int skipHeaderLines;
 
-    // The output stream can contain the delimiter at the last. It must exclude the delimiter when
-    // converting into currentValue.
+    // Used to build up results that span buffers. It may contain the delimiter as a suffix.
     private final SubstringByteArrayOutputStream str;
 
     // Buffer for text read from the underlying file.
@@ -402,11 +401,13 @@ public class TextSource extends FileBasedSource<String> {
       delimiterFinder.reset();
 
       while (true) {
-        int startPosn = bufferPosn;
-        while (bufferPosn >= bufferLength) {
-          startPosn = bufferPosn = 0;
+        if (bufferPosn >= bufferLength) {
+          bufferPosn = 0;
           byteBuffer.clear();
-          bufferLength = inChannel.read(byteBuffer);
+
+          do {
+            bufferLength = inChannel.read(byteBuffer);
+          } while (bufferLength == 0);
 
           if (bufferLength < 0) {
             eof = true;
@@ -421,10 +422,7 @@ public class TextSource extends FileBasedSource<String> {
           }
         }
 
-        if (eof) {
-          break;
-        }
-
+        int startPosn = bufferPosn;
         boolean delimiterFound = false;
         for (; bufferPosn < bufferLength; ++bufferPosn) {
           if (delimiterFinder.feed(buffer[bufferPosn])) {
@@ -504,7 +502,7 @@ public class TextSource extends FileBasedSource<String> {
   static class KMPDelimiterFinder {
     private final byte[] delimiter;
     private final int[] table;
-    int k; // the current position in delimiter
+    int delimiterOffset; // the current position in delimiter
 
     public KMPDelimiterFinder(byte[] delimiter) {
       this.delimiter = delimiter;
@@ -515,26 +513,26 @@ public class TextSource extends FileBasedSource<String> {
     public boolean feed(byte b) {
       // Modified "Description of pseudocode for the search algorithm" in Wikipedia
       while (true) {
-        if (b == delimiter[k]) {
-          ++k;
-          if (k == delimiter.length) {
+        if (b == delimiter[delimiterOffset]) {
+          ++delimiterOffset;
+          if (delimiterOffset == delimiter.length) {
             // return when the first occurrence is found.
-            k = 0;
+            delimiterOffset = 0;
             return true;
           }
           return false;
         }
 
-        k = table[k];
-        if (k < 0) {
-          ++k;
+        delimiterOffset = table[delimiterOffset];
+        if (delimiterOffset < 0) {
+          ++delimiterOffset;
           return false;
         }
       }
     }
 
     public void reset() {
-      k = 0;
+      delimiterOffset = 0;
     }
 
     private void compile() {
