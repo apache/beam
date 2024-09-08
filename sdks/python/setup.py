@@ -450,7 +450,12 @@ if __name__ == '__main__':
               'google-cloud-videointelligence>=2.0,<3',
               'google-cloud-vision>=2,<4',
               'google-cloud-recommendations-ai>=0.1.0,<0.11.0',
-              'google-cloud-aiplatform>=1.26.0, < 2.0'
+              'google-cloud-aiplatform>=1.26.0, < 2.0',
+              # Authentication for Google Artifact Registry when using
+              # --extra-index-url or --index-url in requirements.txt in
+              # Dataflow, which allows installing python packages from private
+              # Python repositories in GAR.
+              'keyrings.google-artifactregistry-auth'
           ],
           'interactive': [
               'facets-overview>=1.1.0,<2',
