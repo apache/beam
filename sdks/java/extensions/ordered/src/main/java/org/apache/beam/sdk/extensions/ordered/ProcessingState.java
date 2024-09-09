@@ -28,7 +28,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
-import org.apache.beam.sdk.extensions.ordered.GlobalSequenceTracker.SequenceAndTimestampCoder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.initialization.qual.Initialized;
 
@@ -321,7 +320,7 @@ class ProcessingState<KeyT> {
     private static final BooleanCoder BOOLEAN_CODER = BooleanCoder.of();
 
     private static final NullableCoder<CompletedSequenceRange> SEQUENCE_AND_TIMESTAMP_CODER =
-        NullableCoder.of(SequenceAndTimestampCoder.of());
+        NullableCoder.of(CompletedSequenceRange.CompletedSequenceRangeCoder.of());
 
     private Coder<KeyT> keyCoder;
 
