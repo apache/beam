@@ -47,12 +47,11 @@ import org.apache.beam.runners.dataflow.worker.streaming.ComputationStateCache;
 import org.apache.beam.runners.dataflow.worker.streaming.StageInfo;
 import org.apache.beam.runners.dataflow.worker.streaming.WorkHeartbeatResponseProcessor;
 import org.apache.beam.runners.dataflow.worker.streaming.config.ComputationConfig;
-import org.apache.beam.runners.dataflow.worker.streaming.config.FixedPipelineConfigManagerImpl;
+import org.apache.beam.runners.dataflow.worker.streaming.config.FixedGlobalConfigHandle;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingApplianceComputationConfigFetcher;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingEngineComputationConfigFetcher;
-import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingEnginePipelineConfig;
-import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingEnginePipelineConfigManager;
-import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingEnginePipelineConfigManagerImpl;
+import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfig;
+import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfigHandleImpl;
 import org.apache.beam.runners.dataflow.worker.streaming.harness.SingleSourceWorkerHarness;
 import org.apache.beam.runners.dataflow.worker.streaming.harness.SingleSourceWorkerHarness.GetWorkSender;
 import org.apache.beam.runners.dataflow.worker.streaming.harness.StreamingCounters;
@@ -180,7 +179,6 @@ public final class StreamingDataflowWorker {
       WorkFailureProcessor workFailureProcessor,
       StreamingCounters streamingCounters,
       MemoryMonitor memoryMonitor,
-      StreamingEnginePipelineConfigManager configManager,
       GrpcWindmillStreamFactory windmillStreamFactory,
       Function<String, ScheduledExecutorService> executorSupplier,
       ConcurrentMap<String, StageInfo> stageInfoMap) {
@@ -237,7 +235,7 @@ public final class StreamingDataflowWorker {
             hotKeyLogger,
             sampler,
             ID_GENERATOR,
-            configManager,
+            configFetcher.getGlobalConfigHandle(),
             stageInfoMap);
 
     ThrottlingGetDataMetricTracker getDataMetricTracker =
@@ -297,7 +295,7 @@ public final class StreamingDataflowWorker {
             .setCurrentActiveCommitBytes(workCommitter::currentActiveCommitBytes)
             .setGetDataStatusProvider(getDataClient::printHtml)
             .setWorkUnitExecutor(workUnitExecutor)
-            .setConfigManager(configManager)
+            .setglobalConfigHandle(configFetcher.getGlobalConfigHandle())
             .build();
 
     Windmill.GetWorkRequest request =
@@ -346,12 +344,6 @@ public final class StreamingDataflowWorker {
                 new ThreadFactoryBuilder().setNameFormat(threadName).build());
     GrpcWindmillStreamFactory.Builder windmillStreamFactoryBuilder =
         createGrpcwindmillStreamFactoryBuilder(options, clientId);
-    StreamingEnginePipelineConfigManager configManager =
-        options.isEnableStreamingEngine()
-            ? new StreamingEnginePipelineConfigManagerImpl()
-            : new FixedPipelineConfigManagerImpl(
-                StreamingEnginePipelineConfig.builder()
-                    .build()); // appliance is initialized with default settings
 
     ConfigFetcherComputationStateCacheAndWindmillClient
         configFetcherComputationStateCacheAndWindmillClient =
@@ -359,7 +351,6 @@ public final class StreamingDataflowWorker {
                 options,
                 dataflowServiceClient,
                 windmillStreamFactoryBuilder,
-                configManager,
                 configFetcher ->
                     ComputationStateCache.create(
                         configFetcher,
@@ -416,7 +407,6 @@ public final class StreamingDataflowWorker {
         workFailureProcessor,
         streamingCounters,
         memoryMonitor,
-        configManager,
         configFetcherComputationStateCacheAndWindmillClient.windmillStreamFactory(),
         executorSupplier,
         stageInfo);
@@ -433,7 +423,6 @@ public final class StreamingDataflowWorker {
           DataflowWorkerHarnessOptions options,
           WorkUnitClient dataflowServiceClient,
           GrpcWindmillStreamFactory.Builder windmillStreamFactoryBuilder,
-          StreamingEnginePipelineConfigManager configManager,
           Function<ComputationConfig.Fetcher, ComputationStateCache> computationStateCacheFactory) {
     ComputationConfig.Fetcher configFetcher;
     WindmillServerStub windmillServer;
@@ -442,12 +431,10 @@ public final class StreamingDataflowWorker {
     if (options.isEnableStreamingEngine()) {
       GrpcDispatcherClient dispatcherClient =
           GrpcDispatcherClient.create(createStubFactory(options));
-      configManager.onConfig(dispatcherClient::onJobConfig);
       configFetcher =
           StreamingEngineComputationConfigFetcher.create(
-              options.getGlobalConfigRefreshPeriod().getMillis(),
-              dataflowServiceClient,
-              configManager);
+              options.getGlobalConfigRefreshPeriod().getMillis(), dataflowServiceClient);
+      configFetcher.getGlobalConfigHandle().onConfig(dispatcherClient::onJobConfig);
       computationStateCache = computationStateCacheFactory.apply(configFetcher);
       windmillStreamFactory =
           windmillStreamFactoryBuilder
@@ -475,7 +462,10 @@ public final class StreamingDataflowWorker {
         windmillServer = new JniWindmillApplianceServer(options.getLocalWindmillHostport());
       }
 
-      configFetcher = new StreamingApplianceComputationConfigFetcher(windmillServer::getConfig);
+      configFetcher =
+          new StreamingApplianceComputationConfigFetcher(
+              windmillServer::getConfig,
+              new FixedGlobalConfigHandle(StreamingGlobalConfig.builder().build()));
       computationStateCache = computationStateCacheFactory.apply(configFetcher);
     }
 
@@ -495,7 +485,7 @@ public final class StreamingDataflowWorker {
       HotKeyLogger hotKeyLogger,
       Supplier<Instant> clock,
       Function<String, ScheduledExecutorService> executorSupplier,
-      StreamingEnginePipelineConfigManager configManager,
+      StreamingGlobalConfigHandleImpl globalConfigHandle,
       int localRetryTimeoutMs) {
     ConcurrentMap<String, StageInfo> stageInfo = new ConcurrentHashMap<>();
     BoundedQueueExecutor workExecutor = createWorkUnitExecutor(options);
@@ -504,19 +494,20 @@ public final class StreamingDataflowWorker {
             .setSizeMb(options.getWorkerCacheMb())
             .setSupportMapViaMultimap(options.isEnableStreamingEngine())
             .build();
-    StreamingEnginePipelineConfig config = configManager.getConfig();
-    if (!config.windmillServiceEndpoints().isEmpty()) {
-      windmillServer.setWindmillServiceEndpoints(config.windmillServiceEndpoints());
-    }
     ComputationConfig.Fetcher configFetcher =
         options.isEnableStreamingEngine()
             ? StreamingEngineComputationConfigFetcher.forTesting(
                 /* hasReceivedGlobalConfig= */ true,
                 options.getGlobalConfigRefreshPeriod().getMillis(),
                 workUnitClient,
-                executorSupplier,
-                configManager)
-            : new StreamingApplianceComputationConfigFetcher(windmillServer::getConfig);
+                globalConfigHandle,
+                executorSupplier)
+            : new StreamingApplianceComputationConfigFetcher(
+                windmillServer::getConfig, globalConfigHandle);
+    StreamingGlobalConfig config = configFetcher.getGlobalConfigHandle().getConfig();
+    if (!config.windmillServiceEndpoints().isEmpty()) {
+      windmillServer.setWindmillServiceEndpoints(config.windmillServiceEndpoints());
+    }
     ConcurrentMap<String, String> stateNameMap =
         new ConcurrentHashMap<>(prePopulatedStateNameMappings);
     ComputationStateCache computationStateCache =
@@ -583,7 +574,6 @@ public final class StreamingDataflowWorker {
         workFailureProcessor,
         streamingCounters,
         memoryMonitor,
-        configManager,
         options.isEnableStreamingEngine()
             ? windmillStreamFactory
                 .setHealthCheckIntervalMillis(

@@ -39,8 +39,8 @@ import org.apache.beam.runners.dataflow.worker.status.DebugCapture;
 import org.apache.beam.runners.dataflow.worker.status.LastExceptionDataProvider;
 import org.apache.beam.runners.dataflow.worker.status.WorkerStatusPages;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationStateCache;
-import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingEnginePipelineConfig;
-import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingEnginePipelineConfigManager;
+import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfig;
+import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfigHandle;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.ChannelzServlet;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillStreamFactory;
@@ -80,7 +80,7 @@ public final class StreamingWorkerStatusPages {
   private final DebugCapture.@Nullable Manager debugCapture;
   private final @Nullable ChannelzServlet channelzServlet;
 
-  private final AtomicReference<StreamingEnginePipelineConfig> seConfig = new AtomicReference<>();
+  private final AtomicReference<StreamingGlobalConfig> seConfig = new AtomicReference<>();
 
   StreamingWorkerStatusPages(
       Supplier<Instant> clock,
@@ -96,7 +96,7 @@ public final class StreamingWorkerStatusPages {
       Consumer<PrintWriter> getDataStatusProvider,
       BoundedQueueExecutor workUnitExecutor,
       ScheduledExecutorService statusPageDumper,
-      StreamingEnginePipelineConfigManager configManager) {
+      StreamingGlobalConfigHandle globalConfigHandle) {
     this.clock = clock;
     this.clientId = clientId;
     this.isRunning = isRunning;
@@ -110,7 +110,7 @@ public final class StreamingWorkerStatusPages {
     this.getDataStatusProvider = getDataStatusProvider;
     this.workUnitExecutor = workUnitExecutor;
     this.statusPageDumper = statusPageDumper;
-    configManager.onConfig(seConfig::set);
+    globalConfigHandle.onConfig(seConfig::set);
   }
 
   public static StreamingWorkerStatusPages.Builder builder() {
@@ -273,7 +273,7 @@ public final class StreamingWorkerStatusPages {
 
     Builder setStatusPageDumper(ScheduledExecutorService statusPageDumper);
 
-    Builder setConfigManager(StreamingEnginePipelineConfigManager configManager);
+    Builder setglobalConfigHandle(StreamingGlobalConfigHandle globalConfigHandle);
 
     StreamingWorkerStatusPages build();
   }

@@ -74,33 +74,31 @@ public final class StreamingEngineComputationConfigFetcher implements Computatio
   private final long globalConfigRefreshPeriodMillis;
   private final WorkUnitClient dataflowServiceClient;
   private final ScheduledExecutorService globalConfigRefresher;
-  private final StreamingEnginePipelineConfigManager configManager;
+  private final StreamingGlobalConfigHandleImpl globalConfigHandle;
   private final AtomicBoolean hasReceivedGlobalConfig;
 
   private StreamingEngineComputationConfigFetcher(
       boolean hasReceivedGlobalConfig,
       long globalConfigRefreshPeriodMillis,
       WorkUnitClient dataflowServiceClient,
-      ScheduledExecutorService globalConfigRefresher,
-      StreamingEnginePipelineConfigManager configManager) {
+      StreamingGlobalConfigHandleImpl globalConfigHandle,
+      ScheduledExecutorService globalConfigRefresher) {
     this.globalConfigRefreshPeriodMillis = globalConfigRefreshPeriodMillis;
     this.dataflowServiceClient = dataflowServiceClient;
     this.globalConfigRefresher = globalConfigRefresher;
-    this.configManager = configManager;
+    this.globalConfigHandle = globalConfigHandle;
     this.hasReceivedGlobalConfig = new AtomicBoolean(hasReceivedGlobalConfig);
   }
 
   public static StreamingEngineComputationConfigFetcher create(
-      long globalConfigRefreshPeriodMillis,
-      WorkUnitClient dataflowServiceClient,
-      StreamingEnginePipelineConfigManager configManager) {
+      long globalConfigRefreshPeriodMillis, WorkUnitClient dataflowServiceClient) {
     return new StreamingEngineComputationConfigFetcher(
         /* hasReceivedGlobalConfig= */ false,
         globalConfigRefreshPeriodMillis,
         dataflowServiceClient,
+        new StreamingGlobalConfigHandleImpl(),
         Executors.newSingleThreadScheduledExecutor(
-            new ThreadFactoryBuilder().setNameFormat(CONFIG_REFRESHER_THREAD_NAME).build()),
-        configManager);
+            new ThreadFactoryBuilder().setNameFormat(CONFIG_REFRESHER_THREAD_NAME).build()));
   }
 
   @VisibleForTesting
@@ -108,14 +106,14 @@ public final class StreamingEngineComputationConfigFetcher implements Computatio
       boolean hasReceivedGlobalConfig,
       long globalConfigRefreshPeriodMillis,
       WorkUnitClient dataflowServiceClient,
-      Function<String, ScheduledExecutorService> executorSupplier,
-      StreamingEnginePipelineConfigManager configManager) {
+      StreamingGlobalConfigHandleImpl globalConfigHandle,
+      Function<String, ScheduledExecutorService> executorSupplier) {
     return new StreamingEngineComputationConfigFetcher(
         hasReceivedGlobalConfig,
         globalConfigRefreshPeriodMillis,
         dataflowServiceClient,
-        executorSupplier.apply(CONFIG_REFRESHER_THREAD_NAME),
-        configManager);
+        globalConfigHandle,
+        executorSupplier.apply(CONFIG_REFRESHER_THREAD_NAME));
   }
 
   @VisibleForTesting
@@ -159,8 +157,8 @@ public final class StreamingEngineComputationConfigFetcher implements Computatio
     }
   }
 
-  private StreamingEnginePipelineConfig createPipelineConfig(StreamingConfigTask config) {
-    StreamingEnginePipelineConfig.Builder pipelineConfig = StreamingEnginePipelineConfig.builder();
+  private StreamingGlobalConfig createPipelineConfig(StreamingConfigTask config) {
+    StreamingGlobalConfig.Builder pipelineConfig = StreamingGlobalConfig.builder();
     OperationalLimits.Builder operationalLimits = OperationalLimits.builder();
 
     if (config.getWindmillServiceEndpoint() != null
@@ -247,6 +245,11 @@ public final class StreamingEngineComputationConfigFetcher implements Computatio
   }
 
   @Override
+  public StreamingGlobalConfigHandle getGlobalConfigHandle() {
+    return globalConfigHandle;
+  }
+
+  @Override
   public void stop() {
     // We have already shutdown or start has not been called.
     if (globalConfigRefresher.isShutdown() || !hasReceivedGlobalConfig.get()) {
@@ -272,7 +275,7 @@ public final class StreamingEngineComputationConfigFetcher implements Computatio
   @SuppressWarnings("FutureReturnValueIgnored")
   private void schedulePeriodicGlobalConfigRequests() {
     globalConfigRefresher.scheduleWithFixedDelay(
-        () -> fetchGlobalConfig().ifPresent(configManager::setConfig),
+        () -> fetchGlobalConfig().ifPresent(globalConfigHandle::setConfig),
         0,
         globalConfigRefreshPeriodMillis,
         TimeUnit.MILLISECONDS);
@@ -285,9 +288,9 @@ public final class StreamingEngineComputationConfigFetcher implements Computatio
   private synchronized void fetchInitialPipelineGlobalConfig() {
     while (!hasReceivedGlobalConfig.get()) {
       LOG.info("Sending request to get initial global configuration for this worker.");
-      Optional<StreamingEnginePipelineConfig> globalConfig = fetchGlobalConfig();
+      Optional<StreamingGlobalConfig> globalConfig = fetchGlobalConfig();
       if (globalConfig.isPresent()) {
-        configManager.setConfig(globalConfig.get());
+        globalConfigHandle.setConfig(globalConfig.get());
         hasReceivedGlobalConfig.set(true);
         break;
       }
@@ -298,7 +301,7 @@ public final class StreamingEngineComputationConfigFetcher implements Computatio
     LOG.info("Initial global configuration received, harness is now ready");
   }
 
-  private Optional<StreamingEnginePipelineConfig> fetchGlobalConfig() {
+  private Optional<StreamingGlobalConfig> fetchGlobalConfig() {
     return fetchConfigWithRetry(dataflowServiceClient::getGlobalStreamingConfigWorkItem)
         .map(config -> createPipelineConfig(config));
   }

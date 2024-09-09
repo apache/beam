@@ -50,7 +50,7 @@ import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.ProfileScope;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
-import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingEnginePipelineConfigManager;
+import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfigHandle;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInput;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputState;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
@@ -108,7 +108,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
   private final ImmutableMap<String, String> stateNameMap;
   private final WindmillStateCache.ForComputation stateCache;
   private final ReaderCache readerCache;
-  private final StreamingEnginePipelineConfigManager configManager;
+  private final StreamingGlobalConfigHandle configManager;
   private final boolean throwExceptionOnLargeOutput;
   private volatile long backlogBytes;
 
@@ -155,7 +155,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       MetricsContainerRegistry<StreamingStepMetricsContainer> metricsContainerRegistry,
       DataflowExecutionStateTracker executionStateTracker,
       StreamingModeExecutionStateRegistry executionStateRegistry,
-      StreamingEnginePipelineConfigManager configManager,
+      StreamingGlobalConfigHandle configManager,
       long sinkByteLimit,
       boolean throwExceptionOnLargeOutput) {
     super(

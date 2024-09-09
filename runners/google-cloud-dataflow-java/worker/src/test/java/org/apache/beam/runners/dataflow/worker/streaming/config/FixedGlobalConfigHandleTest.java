@@ -18,7 +18,11 @@
 package org.apache.beam.runners.dataflow.worker.streaming.config;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.runners.dataflow.worker.OperationalLimits;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.UserWorkerRunnerV1Settings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
@@ -28,12 +32,12 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
-public class FixedPipelineConfigManagerImplTest {
+public class FixedGlobalConfigHandleTest {
 
   @Test
   public void getConfig() {
-    StreamingEnginePipelineConfig config =
-        StreamingEnginePipelineConfig.builder()
+    StreamingGlobalConfig config =
+        StreamingGlobalConfig.builder()
             .setOperationalLimits(
                 OperationalLimits.builder()
                     .setMaxOutputValueBytes(123)
@@ -46,7 +50,35 @@ public class FixedPipelineConfigManagerImplTest {
                     .setUseSeparateWindmillHeartbeatStreams(false)
                     .build())
             .build();
-    FixedPipelineConfigManagerImpl configManager = new FixedPipelineConfigManagerImpl(config);
+    FixedGlobalConfigHandle configManager = new FixedGlobalConfigHandle(config);
+    assertEquals(config, configManager.getConfig());
+  }
+
+  @Test
+  public void onConfig() throws InterruptedException {
+    StreamingGlobalConfig config =
+        StreamingGlobalConfig.builder()
+            .setOperationalLimits(
+                OperationalLimits.builder()
+                    .setMaxOutputValueBytes(123)
+                    .setMaxOutputKeyBytes(324)
+                    .setMaxWorkItemCommitBytes(456)
+                    .build())
+            .setWindmillServiceEndpoints(ImmutableSet.of(HostAndPort.fromHost("windmillHost")))
+            .setUserWorkerJobSettings(
+                UserWorkerRunnerV1Settings.newBuilder()
+                    .setUseSeparateWindmillHeartbeatStreams(false)
+                    .build())
+            .build();
+    FixedGlobalConfigHandle configManager = new FixedGlobalConfigHandle(config);
+    AtomicReference<StreamingGlobalConfig> configFromCallback = new AtomicReference<>();
+    CountDownLatch latch = new CountDownLatch(1);
+    configManager.onConfig(
+        cbConfig -> {
+          configFromCallback.set(cbConfig);
+          latch.countDown();
+        });
+    assertTrue(latch.await(10, TimeUnit.SECONDS));
     assertEquals(config, configManager.getConfig());
   }
 }

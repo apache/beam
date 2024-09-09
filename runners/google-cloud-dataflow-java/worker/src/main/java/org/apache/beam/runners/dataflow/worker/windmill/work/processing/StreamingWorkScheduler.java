@@ -42,7 +42,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.KeyCommitTooLargeExcept
 import org.apache.beam.runners.dataflow.worker.streaming.StageInfo;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
-import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingEnginePipelineConfigManager;
+import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfigHandle;
 import org.apache.beam.runners.dataflow.worker.streaming.harness.StreamingCounters;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcherFactory;
@@ -84,7 +84,7 @@ public final class StreamingWorkScheduler {
   private final HotKeyLogger hotKeyLogger;
   private final ConcurrentMap<String, StageInfo> stageInfoMap;
   private final DataflowExecutionStateSampler sampler;
-  private final StreamingEnginePipelineConfigManager configManager;
+  private final StreamingGlobalConfigHandle configManager;
 
   public StreamingWorkScheduler(
       DataflowWorkerHarnessOptions options,
@@ -98,7 +98,7 @@ public final class StreamingWorkScheduler {
       HotKeyLogger hotKeyLogger,
       ConcurrentMap<String, StageInfo> stageInfoMap,
       DataflowExecutionStateSampler sampler,
-      StreamingEnginePipelineConfigManager configManager) {
+      StreamingGlobalConfigHandle configManager) {
     this.options = options;
     this.clock = clock;
     this.computationWorkExecutorFactory = computationWorkExecutorFactory;
@@ -126,7 +126,7 @@ public final class StreamingWorkScheduler {
       HotKeyLogger hotKeyLogger,
       DataflowExecutionStateSampler sampler,
       IdGenerator idGenerator,
-      StreamingEnginePipelineConfigManager configManager,
+      StreamingGlobalConfigHandle configManager,
       ConcurrentMap<String, StageInfo> stageInfoMap) {
     ComputationWorkExecutorFactory computationWorkExecutorFactory =
         new ComputationWorkExecutorFactory(

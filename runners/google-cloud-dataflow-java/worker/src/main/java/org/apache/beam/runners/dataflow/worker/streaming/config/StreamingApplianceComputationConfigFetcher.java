@@ -48,11 +48,14 @@ public final class StreamingApplianceComputationConfigFetcher implements Computa
 
   private final ApplianceComputationConfigFetcher applianceComputationConfigFetcher;
   private final ConcurrentHashMap<String, String> systemNameToComputationIdMap;
+  private final StreamingGlobalConfigHandle globalConfigHandle;
 
   public StreamingApplianceComputationConfigFetcher(
-      ApplianceComputationConfigFetcher applianceComputationConfigFetcher) {
+      ApplianceComputationConfigFetcher applianceComputationConfigFetcher,
+      StreamingGlobalConfigHandle globalConfigHandle) {
     this.applianceComputationConfigFetcher = applianceComputationConfigFetcher;
     this.systemNameToComputationIdMap = new ConcurrentHashMap<>();
+    this.globalConfigHandle = globalConfigHandle;
   }
 
   /** Returns a {@code Table<ComputationId, TransformUserName, StateFamilyName>} */
@@ -110,6 +113,11 @@ public final class StreamingApplianceComputationConfigFetcher implements Computa
         transformUserNameToStateFamilyByComputationId(response),
         response.getNameMapList().stream()
             .collect(toImmutableMap(NameMapEntry::getUserName, NameMapEntry::getSystemName)));
+  }
+
+  @Override
+  public StreamingGlobalConfigHandle getGlobalConfigHandle() {
+    return globalConfigHandle;
   }
 
   private Optional<ComputationConfig> createComputationConfig(

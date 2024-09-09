@@ -55,13 +55,13 @@ public class StreamingEngineComputationConfigFetcherTest {
   private StreamingEngineComputationConfigFetcher createConfigFetcher(
       boolean waitForInitialConfig,
       long globalConfigRefreshPeriod,
-      StreamingEnginePipelineConfigManagerImpl configManager) {
+      StreamingGlobalConfigHandleImpl globalConfigHandle) {
     return StreamingEngineComputationConfigFetcher.forTesting(
         !waitForInitialConfig,
         globalConfigRefreshPeriod,
         mockDataflowServiceClient,
-        ignored -> Executors.newSingleThreadScheduledExecutor(),
-        configManager);
+        globalConfigHandle,
+        ignored -> Executors.newSingleThreadScheduledExecutor());
   }
 
   @After
@@ -76,12 +76,11 @@ public class StreamingEngineComputationConfigFetcherTest {
             .setJobId("job")
             .setStreamingConfigTask(new StreamingConfigTask().setMaxWorkItemCommitBytes(10L));
     CountDownLatch waitForInitialConfig = new CountDownLatch(1);
-    Set<StreamingEnginePipelineConfig> receivedPipelineConfig = new HashSet<>();
+    Set<StreamingGlobalConfig> receivedPipelineConfig = new HashSet<>();
     when(mockDataflowServiceClient.getGlobalStreamingConfigWorkItem())
         .thenReturn(Optional.of(initialConfig));
-    StreamingEnginePipelineConfigManagerImpl configManager =
-        new StreamingEnginePipelineConfigManagerImpl();
-    configManager.onConfig(
+    StreamingGlobalConfigHandleImpl globalConfigHandle = new StreamingGlobalConfigHandleImpl();
+    globalConfigHandle.onConfig(
         config -> {
           try {
             receivedPipelineConfig.add(config);
@@ -91,13 +90,13 @@ public class StreamingEngineComputationConfigFetcherTest {
           }
         });
     streamingEngineConfigFetcher =
-        createConfigFetcher(/* waitForInitialConfig= */ true, 0, configManager);
+        createConfigFetcher(/* waitForInitialConfig= */ true, 0, globalConfigHandle);
     Thread asyncStartConfigLoader = new Thread(streamingEngineConfigFetcher::start);
     asyncStartConfigLoader.start();
     waitForInitialConfig.countDown();
     asyncStartConfigLoader.join();
-    StreamingEnginePipelineConfig.Builder configBuilder =
-        StreamingEnginePipelineConfig.builder()
+    StreamingGlobalConfig.Builder configBuilder =
+        StreamingGlobalConfig.builder()
             .setOperationalLimits(
                 OperationalLimits.builder()
                     .setMaxWorkItemCommitBytes(
@@ -121,7 +120,7 @@ public class StreamingEngineComputationConfigFetcherTest {
             .setJobId("job")
             .setStreamingConfigTask(new StreamingConfigTask().setMaxWorkItemCommitBytes(100L));
     CountDownLatch numExpectedRefreshes = new CountDownLatch(3);
-    Set<StreamingEnginePipelineConfig> receivedPipelineConfig = new HashSet<>();
+    Set<StreamingGlobalConfig> receivedPipelineConfig = new HashSet<>();
     when(mockDataflowServiceClient.getGlobalStreamingConfigWorkItem())
         .thenReturn(Optional.of(firstConfig))
         .thenReturn(Optional.of(secondConfig))
@@ -131,16 +130,15 @@ public class StreamingEngineComputationConfigFetcherTest {
         // ConfigFetcher should not do anything with a config that doesn't contain a
         // StreamingConfigTask.
         .thenReturn(Optional.of(new WorkItem().setJobId("jobId")));
-    StreamingEnginePipelineConfigManagerImpl configManager =
-        new StreamingEnginePipelineConfigManagerImpl();
-    configManager.onConfig(
+    StreamingGlobalConfigHandleImpl globalConfigHandle = new StreamingGlobalConfigHandleImpl();
+    globalConfigHandle.onConfig(
         config -> {
           receivedPipelineConfig.add(config);
           numExpectedRefreshes.countDown();
         });
     streamingEngineConfigFetcher =
         createConfigFetcher(
-            /* waitForInitialConfig= */ true, Duration.millis(100).getMillis(), configManager);
+            /* waitForInitialConfig= */ true, Duration.millis(100).getMillis(), globalConfigHandle);
 
     Thread asyncStartConfigLoader = new Thread(streamingEngineConfigFetcher::start);
     asyncStartConfigLoader.start();
@@ -148,21 +146,21 @@ public class StreamingEngineComputationConfigFetcherTest {
     asyncStartConfigLoader.join();
     assertThat(receivedPipelineConfig)
         .containsExactly(
-            StreamingEnginePipelineConfig.builder()
+            StreamingGlobalConfig.builder()
                 .setOperationalLimits(
                     OperationalLimits.builder()
                         .setMaxWorkItemCommitBytes(
                             firstConfig.getStreamingConfigTask().getMaxWorkItemCommitBytes())
                         .build())
                 .build(),
-            StreamingEnginePipelineConfig.builder()
+            StreamingGlobalConfig.builder()
                 .setOperationalLimits(
                     OperationalLimits.builder()
                         .setMaxWorkItemCommitBytes(
                             secondConfig.getStreamingConfigTask().getMaxWorkItemCommitBytes())
                         .build())
                 .build(),
-            StreamingEnginePipelineConfig.builder()
+            StreamingGlobalConfig.builder()
                 .setOperationalLimits(
                     OperationalLimits.builder()
                         .setMaxWorkItemCommitBytes(
@@ -173,10 +171,9 @@ public class StreamingEngineComputationConfigFetcherTest {
 
   @Test
   public void testGetComputationConfig() throws IOException {
-    StreamingEnginePipelineConfigManagerImpl configManager =
-        new StreamingEnginePipelineConfigManagerImpl();
+    StreamingGlobalConfigHandleImpl globalConfigHandle = new StreamingGlobalConfigHandleImpl();
     streamingEngineConfigFetcher =
-        createConfigFetcher(/* waitForInitialConfig= */ false, 0, configManager);
+        createConfigFetcher(/* waitForInitialConfig= */ false, 0, globalConfigHandle);
     String computationId = "computationId";
     String stageName = "stageName";
     String systemName = "systemName";
@@ -209,12 +206,11 @@ public class StreamingEngineComputationConfigFetcherTest {
 
   @Test
   public void testGetComputationConfig_noComputationPresent() throws IOException {
-    Set<StreamingEnginePipelineConfig> receivedPipelineConfig = new HashSet<>();
-    StreamingEnginePipelineConfigManagerImpl configManager =
-        new StreamingEnginePipelineConfigManagerImpl();
-    configManager.onConfig(receivedPipelineConfig::add);
+    Set<StreamingGlobalConfig> receivedPipelineConfig = new HashSet<>();
+    StreamingGlobalConfigHandleImpl globalConfigHandle = new StreamingGlobalConfigHandleImpl();
+    globalConfigHandle.onConfig(receivedPipelineConfig::add);
     streamingEngineConfigFetcher =
-        createConfigFetcher(/* waitForInitialConfig= */ false, 0, configManager);
+        createConfigFetcher(/* waitForInitialConfig= */ false, 0, globalConfigHandle);
     when(mockDataflowServiceClient.getStreamingConfigWorkItem(anyString()))
         .thenReturn(Optional.empty());
     Optional<ComputationConfig> pipelineConfig =
@@ -225,10 +221,9 @@ public class StreamingEngineComputationConfigFetcherTest {
 
   @Test
   public void testGetComputationConfig_fetchConfigFromDataflowError() throws IOException {
-    StreamingEnginePipelineConfigManagerImpl configManager =
-        new StreamingEnginePipelineConfigManagerImpl();
+    StreamingGlobalConfigHandleImpl globalConfigHandle = new StreamingGlobalConfigHandleImpl();
     streamingEngineConfigFetcher =
-        createConfigFetcher(/* waitForInitialConfig= */ false, 0, configManager);
+        createConfigFetcher(/* waitForInitialConfig= */ false, 0, globalConfigHandle);
     RuntimeException e = new RuntimeException("something bad happened.");
     when(mockDataflowServiceClient.getStreamingConfigWorkItem(anyString())).thenThrow(e);
     Throwable fetchConfigError =

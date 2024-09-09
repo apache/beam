@@ -47,7 +47,7 @@ import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationWorkExecutor;
 import org.apache.beam.runners.dataflow.worker.streaming.StageInfo;
-import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingEnginePipelineConfigManager;
+import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfigHandle;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.MapTaskExecutor;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputObjectAndByteCounter;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ReadOperation;
@@ -95,7 +95,7 @@ final class ComputationWorkExecutorFactory {
 
   private final long maxSinkBytes;
   private final IdGenerator idGenerator;
-  private final StreamingEnginePipelineConfigManager configManager;
+  private final StreamingGlobalConfigHandle configManager;
   private final boolean throwExceptionOnLargeOutput;
 
   ComputationWorkExecutorFactory(
@@ -106,7 +106,7 @@ final class ComputationWorkExecutorFactory {
       DataflowExecutionStateSampler sampler,
       CounterSet pendingDeltaCounters,
       IdGenerator idGenerator,
-      StreamingEnginePipelineConfigManager configManager) {
+      StreamingGlobalConfigHandle configManager) {
     this.options = options;
     this.mapTaskExecutorFactory = mapTaskExecutorFactory;
     this.readerCache = readerCache;

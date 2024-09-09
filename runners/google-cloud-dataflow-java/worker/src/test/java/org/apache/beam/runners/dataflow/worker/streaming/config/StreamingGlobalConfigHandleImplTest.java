@@ -34,13 +34,12 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
-public class StreamingEnginePipelineConfigManagerImplTest {
+public class StreamingGlobalConfigHandleImplTest {
   @Test
   public void getConfig() {
-    StreamingEnginePipelineConfigManagerImpl configManager =
-        new StreamingEnginePipelineConfigManagerImpl();
-    StreamingEnginePipelineConfig config =
-        StreamingEnginePipelineConfig.builder()
+    StreamingGlobalConfigHandleImpl globalConfigHandle = new StreamingGlobalConfigHandleImpl();
+    StreamingGlobalConfig config =
+        StreamingGlobalConfig.builder()
             .setOperationalLimits(
                 OperationalLimits.builder()
                     .setMaxOutputValueBytes(123)
@@ -53,17 +52,16 @@ public class StreamingEnginePipelineConfigManagerImplTest {
                     .setUseSeparateWindmillHeartbeatStreams(false)
                     .build())
             .build();
-    configManager.setConfig(config);
-    assertEquals(config, configManager.getConfig());
+    globalConfigHandle.setConfig(config);
+    assertEquals(config, globalConfigHandle.getConfig());
   }
 
   @Test
   public void onConfig_configSetAfterRegisteringCallback() throws InterruptedException {
     CountDownLatch latch = new CountDownLatch(1);
-    StreamingEnginePipelineConfigManagerImpl configManager =
-        new StreamingEnginePipelineConfigManagerImpl();
-    StreamingEnginePipelineConfig configToSet =
-        StreamingEnginePipelineConfig.builder()
+    StreamingGlobalConfigHandleImpl globalConfigHandle = new StreamingGlobalConfigHandleImpl();
+    StreamingGlobalConfig configToSet =
+        StreamingGlobalConfig.builder()
             .setOperationalLimits(
                 OperationalLimits.builder()
                     .setMaxOutputValueBytes(123)
@@ -76,24 +74,23 @@ public class StreamingEnginePipelineConfigManagerImplTest {
                     .setUseSeparateWindmillHeartbeatStreams(false)
                     .build())
             .build();
-    AtomicReference<StreamingEnginePipelineConfig> configFromCallback = new AtomicReference<>();
-    configManager.onConfig(
+    AtomicReference<StreamingGlobalConfig> configFromCallback = new AtomicReference<>();
+    globalConfigHandle.onConfig(
         config -> {
           configFromCallback.set(config);
           latch.countDown();
         });
-    configManager.setConfig(configToSet);
+    globalConfigHandle.setConfig(configToSet);
     assertTrue(latch.await(10, TimeUnit.SECONDS));
-    assertEquals(configFromCallback.get(), configManager.getConfig());
+    assertEquals(configFromCallback.get(), globalConfigHandle.getConfig());
   }
 
   @Test
   public void onConfig_configSetBeforeRegisteringCallback() throws InterruptedException {
     CountDownLatch latch = new CountDownLatch(1);
-    StreamingEnginePipelineConfigManagerImpl configManager =
-        new StreamingEnginePipelineConfigManagerImpl();
-    StreamingEnginePipelineConfig configToSet =
-        StreamingEnginePipelineConfig.builder()
+    StreamingGlobalConfigHandleImpl globalConfigHandle = new StreamingGlobalConfigHandleImpl();
+    StreamingGlobalConfig configToSet =
+        StreamingGlobalConfig.builder()
             .setOperationalLimits(
                 OperationalLimits.builder()
                     .setMaxOutputValueBytes(123)
@@ -106,26 +103,25 @@ public class StreamingEnginePipelineConfigManagerImplTest {
                     .setUseSeparateWindmillHeartbeatStreams(false)
                     .build())
             .build();
-    AtomicReference<StreamingEnginePipelineConfig> configFromCallback = new AtomicReference<>();
-    configManager.setConfig(configToSet);
-    configManager.onConfig(
+    AtomicReference<StreamingGlobalConfig> configFromCallback = new AtomicReference<>();
+    globalConfigHandle.setConfig(configToSet);
+    globalConfigHandle.onConfig(
         config -> {
           configFromCallback.set(config);
           latch.countDown();
         });
     assertTrue(latch.await(10, TimeUnit.SECONDS));
-    assertEquals(configFromCallback.get(), configManager.getConfig());
+    assertEquals(configFromCallback.get(), globalConfigHandle.getConfig());
   }
 
   @Test
   public void onConfig_shouldNotCallCallbackForIfConfigRemainsSame() throws InterruptedException {
     CountDownLatch latch = new CountDownLatch(1);
     AtomicInteger callbackCount = new AtomicInteger(0);
-    StreamingEnginePipelineConfigManagerImpl configManager =
-        new StreamingEnginePipelineConfigManagerImpl();
-    Supplier<StreamingEnginePipelineConfig> configToSet =
+    StreamingGlobalConfigHandleImpl globalConfigHandle = new StreamingGlobalConfigHandleImpl();
+    Supplier<StreamingGlobalConfig> configToSet =
         () ->
-            StreamingEnginePipelineConfig.builder()
+            StreamingGlobalConfig.builder()
                 .setOperationalLimits(
                     OperationalLimits.builder()
                         .setMaxOutputValueBytes(123)
@@ -138,14 +134,14 @@ public class StreamingEnginePipelineConfigManagerImplTest {
                         .setUseSeparateWindmillHeartbeatStreams(false)
                         .build())
                 .build();
-    configManager.onConfig(
+    globalConfigHandle.onConfig(
         config -> {
           callbackCount.incrementAndGet();
           latch.countDown();
         });
-    configManager.setConfig(configToSet.get());
+    globalConfigHandle.setConfig(configToSet.get());
     // call setter again with same config
-    configManager.setConfig(configToSet.get());
+    globalConfigHandle.setConfig(configToSet.get());
     assertTrue(latch.await(10, TimeUnit.SECONDS));
     assertEquals(1, callbackCount.get());
   }

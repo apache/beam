@@ -28,19 +28,19 @@ import org.apache.beam.sdk.annotations.Internal;
 
 @Internal
 @ThreadSafe
-public class StreamingEnginePipelineConfigManagerImpl
-    implements StreamingEnginePipelineConfigManager {
+public class StreamingGlobalConfigHandleImpl implements StreamingGlobalConfigHandle {
 
-  private final AtomicReference<StreamingEnginePipelineConfig> streamingEngineConfig =
+  private final AtomicReference<StreamingGlobalConfig> streamingEngineConfig =
       new AtomicReference<>();
 
-  private final CopyOnWriteArrayList<Consumer<StreamingEnginePipelineConfig>> config_callbacks =
+  private final CopyOnWriteArrayList<Consumer<StreamingGlobalConfig>> config_callbacks =
       new CopyOnWriteArrayList<>();
 
   /*
    * Returns the latest StreamingEnginePipelineConfig
    */
-  public StreamingEnginePipelineConfig getConfig() {
+  @Override
+  public StreamingGlobalConfig getConfig() {
     Preconditions.checkState(
         streamingEngineConfig.get() != null,
         "Global config should be set before any processing is done");
@@ -51,8 +51,9 @@ public class StreamingEnginePipelineConfigManagerImpl
    * Subscribe to config updates by registering a callback.
    * Callback will be called the first time with settings, if any, inline before the method returns.
    */
-  public void onConfig(@Nonnull Consumer<StreamingEnginePipelineConfig> callback) {
-    StreamingEnginePipelineConfig config;
+  @Override
+  public void onConfig(@Nonnull Consumer<StreamingGlobalConfig> callback) {
+    StreamingGlobalConfig config;
     synchronized (this) {
       config_callbacks.add(callback);
       config = streamingEngineConfig.get();
@@ -65,8 +66,8 @@ public class StreamingEnginePipelineConfigManagerImpl
   /*
    * Package private setter for setting config
    */
-  void setConfig(@Nonnull StreamingEnginePipelineConfig config) {
-    Iterator<Consumer<StreamingEnginePipelineConfig>> iterator;
+  void setConfig(@Nonnull StreamingGlobalConfig config) {
+    Iterator<Consumer<StreamingGlobalConfig>> iterator;
     synchronized (this) {
       if (config.equals(streamingEngineConfig.get())) {
         return;

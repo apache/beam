@@ -29,7 +29,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
-import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingEnginePipelineConfig;
+import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfig;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillMetadataServiceV1Alpha1Grpc;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillMetadataServiceV1Alpha1Grpc.CloudWindmillMetadataServiceV1Alpha1Stub;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc;
@@ -148,7 +148,7 @@ public class GrpcDispatcherClient {
     return dispatcherStubs.get().hasInitializedEndpoints();
   }
 
-  public void onJobConfig(StreamingEnginePipelineConfig config) {
+  public void onJobConfig(StreamingGlobalConfig config) {
     if (config.windmillServiceEndpoints().isEmpty()) {
       return;
     }

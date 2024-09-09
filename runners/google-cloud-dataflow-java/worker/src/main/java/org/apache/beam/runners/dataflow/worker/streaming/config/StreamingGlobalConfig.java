@@ -27,10 +27,10 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPor
 /** Global pipeline config for pipelines running in Streaming Engine mode. */
 @AutoValue
 @Internal
-public abstract class StreamingEnginePipelineConfig {
+public abstract class StreamingGlobalConfig {
 
-  public static StreamingEnginePipelineConfig.Builder builder() {
-    return new AutoValue_StreamingEnginePipelineConfig.Builder()
+  public static StreamingGlobalConfig.Builder builder() {
+    return new AutoValue_StreamingGlobalConfig.Builder()
         .setWindmillServiceEndpoints(ImmutableSet.of())
         .setUserWorkerJobSettings(UserWorkerRunnerV1Settings.newBuilder().build())
         .setOperationalLimits(OperationalLimits.builder().build());
@@ -51,6 +51,6 @@ public abstract class StreamingEnginePipelineConfig {
 
     public abstract Builder setUserWorkerJobSettings(UserWorkerRunnerV1Settings settings);
 
-    public abstract StreamingEnginePipelineConfig build();
+    public abstract StreamingGlobalConfig build();
   }
 }

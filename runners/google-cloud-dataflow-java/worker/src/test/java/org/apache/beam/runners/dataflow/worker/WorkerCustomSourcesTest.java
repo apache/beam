@@ -90,9 +90,9 @@ import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.NoopProfileScope;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
-import org.apache.beam.runners.dataflow.worker.streaming.config.FixedPipelineConfigManagerImpl;
-import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingEnginePipelineConfig;
-import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingEnginePipelineConfigManager;
+import org.apache.beam.runners.dataflow.worker.streaming.config.FixedGlobalConfigHandle;
+import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfig;
+import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfigHandle;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
 import org.apache.beam.runners.dataflow.worker.testing.TestCountingSource;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
@@ -597,8 +597,8 @@ public class WorkerCustomSourcesTest {
     StreamingModeExecutionStateRegistry executionStateRegistry =
         new StreamingModeExecutionStateRegistry();
     ReaderCache readerCache = new ReaderCache(Duration.standardMinutes(1), Runnable::run);
-    StreamingEnginePipelineConfigManager configManager =
-        new FixedPipelineConfigManagerImpl(StreamingEnginePipelineConfig.builder().build());
+    StreamingGlobalConfigHandle configManager =
+        new FixedGlobalConfigHandle(StreamingGlobalConfig.builder().build());
     StreamingModeExecutionContext context =
         new StreamingModeExecutionContext(
             counterSet,
@@ -965,8 +965,8 @@ public class WorkerCustomSourcesTest {
     CounterSet counterSet = new CounterSet();
     StreamingModeExecutionStateRegistry executionStateRegistry =
         new StreamingModeExecutionStateRegistry();
-    StreamingEnginePipelineConfigManager configManager =
-        new FixedPipelineConfigManagerImpl(StreamingEnginePipelineConfig.builder().build());
+    StreamingGlobalConfigHandle configManager =
+        new FixedGlobalConfigHandle(StreamingGlobalConfig.builder().build());
     StreamingModeExecutionContext context =
         new StreamingModeExecutionContext(
             counterSet,

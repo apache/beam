@@ -28,17 +28,21 @@ import org.apache.beam.sdk.annotations.Internal;
  *  StreamingEnginePipelineConfigManager returning a fixed config
  *  initialized during construction. Used for Appliance and Tests.
  */
-public class FixedPipelineConfigManagerImpl implements StreamingEnginePipelineConfigManager {
+public class FixedGlobalConfigHandle implements StreamingGlobalConfigHandle {
 
-  private final StreamingEnginePipelineConfig config;
+  private final StreamingGlobalConfig config;
 
-  public FixedPipelineConfigManagerImpl(StreamingEnginePipelineConfig config) {
+  public FixedGlobalConfigHandle(StreamingGlobalConfig config) {
     this.config = config;
   }
 
-  public StreamingEnginePipelineConfig getConfig() {
+  @Override
+  public StreamingGlobalConfig getConfig() {
     return config;
   }
 
-  public void onConfig(@Nonnull Consumer<StreamingEnginePipelineConfig> callback) {}
+  @Override
+  public void onConfig(@Nonnull Consumer<StreamingGlobalConfig> callback) {
+    callback.accept(config);
+  }
 }

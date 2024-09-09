@@ -102,8 +102,8 @@ import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
 import org.apache.beam.runners.dataflow.worker.streaming.ShardedKey;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
-import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingEnginePipelineConfig;
-import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingEnginePipelineConfigManager;
+import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfig;
+import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfigHandleImpl;
 import org.apache.beam.runners.dataflow.worker.testing.RestoreDataflowLoggingMDC;
 import org.apache.beam.runners.dataflow.worker.testing.TestCountingSource;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
@@ -277,8 +277,7 @@ public class StreamingDataflowWorkerTest {
   @Rule public TestRule restoreMDC = new RestoreDataflowLoggingMDC();
   @Rule public ErrorCollector errorCollector = new ErrorCollector();
   WorkUnitClient mockWorkUnitClient = mock(WorkUnitClient.class);
-  StreamingEnginePipelineConfigManager mockConfigManager =
-      mock(StreamingEnginePipelineConfigManager.class);
+  StreamingGlobalConfigHandleImpl mockConfigManager = mock(StreamingGlobalConfigHandleImpl.class);
   HotKeyLogger hotKeyLogger = mock(HotKeyLogger.class);
 
   private @Nullable ComputationStateCache computationStateCache = null;
@@ -841,7 +840,7 @@ public class StreamingDataflowWorkerTest {
   private StreamingDataflowWorker makeWorker(
       StreamingDataflowWorkerTestParams streamingDataflowWorkerTestParams) {
     when(mockConfigManager.getConfig())
-        .thenReturn(streamingDataflowWorkerTestParams.streamingEnginePipelineConfig());
+        .thenReturn(streamingDataflowWorkerTestParams.streamingGlobalConfig());
     StreamingDataflowWorker worker =
         StreamingDataflowWorker.forTesting(
             streamingDataflowWorkerTestParams.stateNameMappings(),
@@ -1218,8 +1217,8 @@ public class StreamingDataflowWorkerTest {
         makeWorker(
             defaultWorkerParams()
                 .setInstructions(instructions)
-                .setStreamingEnginePipelineConfig(
-                    StreamingEnginePipelineConfig.builder()
+                .setStreamingGlobalConfig(
+                    StreamingGlobalConfig.builder()
                         .setOperationalLimits(
                             OperationalLimits.builder().setMaxWorkItemCommitBytes(1000).build())
                         .build())
@@ -1293,8 +1292,8 @@ public class StreamingDataflowWorkerTest {
         makeWorker(
             defaultWorkerParams("--experiments=throw_exceptions_on_large_output")
                 .setInstructions(instructions)
-                .setStreamingEnginePipelineConfig(
-                    StreamingEnginePipelineConfig.builder()
+                .setStreamingGlobalConfig(
+                    StreamingGlobalConfig.builder()
                         .setOperationalLimits(
                             OperationalLimits.builder().setMaxOutputKeyBytes(15).build())
                         .build())
@@ -1330,8 +1329,8 @@ public class StreamingDataflowWorkerTest {
         makeWorker(
             defaultWorkerParams("--experiments=throw_exceptions_on_large_output")
                 .setInstructions(instructions)
-                .setStreamingEnginePipelineConfig(
-                    StreamingEnginePipelineConfig.builder()
+                .setStreamingGlobalConfig(
+                    StreamingGlobalConfig.builder()
                         .setOperationalLimits(
                             OperationalLimits.builder().setMaxOutputValueBytes(15).build())
                         .build())
@@ -4528,7 +4527,7 @@ public class StreamingDataflowWorkerTest {
           .setLocalRetryTimeoutMs(-1)
           .setPublishCounters(false)
           .setClock(Instant::now)
-          .setStreamingEnginePipelineConfig(StreamingEnginePipelineConfig.builder().build());
+          .setStreamingGlobalConfig(StreamingGlobalConfig.builder().build());
     }
 
     abstract ImmutableMap<String, String> stateNameMappings();
@@ -4545,7 +4544,7 @@ public class StreamingDataflowWorkerTest {
 
     abstract int localRetryTimeoutMs();
 
-    abstract StreamingEnginePipelineConfig streamingEnginePipelineConfig();
+    abstract StreamingGlobalConfig streamingGlobalConfig();
 
     @AutoValue.Builder
     abstract static class Builder {
@@ -4580,7 +4579,7 @@ public class StreamingDataflowWorkerTest {
 
       abstract Builder setLocalRetryTimeoutMs(int value);
 
-      abstract Builder setStreamingEnginePipelineConfig(StreamingEnginePipelineConfig config);
+      abstract Builder setStreamingGlobalConfig(StreamingGlobalConfig config);
 
       abstract StreamingDataflowWorkerTestParams build();
     }
