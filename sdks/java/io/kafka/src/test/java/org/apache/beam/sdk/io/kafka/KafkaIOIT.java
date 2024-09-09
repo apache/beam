@@ -103,6 +103,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -815,8 +816,10 @@ public class KafkaIOIT {
     }
   }
 
+  @Ignore(
+      "Test is ignored until GMK is utilized as part of this test suite (https://github.com/apache/beam/issues/32721).")
   @Test
-  public void testReadAndWriteFromKafkaIOWithApplicationDefaultCredentials() throws IOException {
+  public void testReadAndWriteFromKafkaIOWithGCPApplicationDefaultCredentials() throws IOException {
     AdminClient client =
         AdminClient.create(
             ImmutableMap.of("bootstrap.servers", options.getKafkaBootstrapServerAddresses()));
@@ -839,23 +842,22 @@ public class KafkaIOIT {
                   .withTopic(topicName)
                   .withKeySerializer(IntegerSerializer.class)
                   .withValueSerializer(StringSerializer.class)
-                  .withApplicationDefaultCredentials());
+                  .withGCPApplicationDefaultCredentials());
 
       writePipeline.run().waitUntilFinish(Duration.standardSeconds(15));
 
       client.createPartitions(ImmutableMap.of(topicName, NewPartitions.increaseTo(3)));
 
-      sdfReadPipeline
-          .apply(
-              "Read from Kafka",
-              KafkaIO.<Integer, String>read()
-                  .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
-                  .withConsumerConfigUpdates(ImmutableMap.of("auto.offset.reset", "earliest"))
-                  .withTopic(topicName)
-                  .withKeyDeserializer(IntegerDeserializer.class)
-                  .withValueDeserializer(StringDeserializer.class)
-                  .withApplicationDefaultCredentials()
-                  .withoutMetadata());
+      sdfReadPipeline.apply(
+          "Read from Kafka",
+          KafkaIO.<Integer, String>read()
+              .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
+              .withConsumerConfigUpdates(ImmutableMap.of("auto.offset.reset", "earliest"))
+              .withTopic(topicName)
+              .withKeyDeserializer(IntegerDeserializer.class)
+              .withValueDeserializer(StringDeserializer.class)
+              .withGCPApplicationDefaultCredentials()
+              .withoutMetadata());
 
       PipelineResult readResult = sdfReadPipeline.run();
 

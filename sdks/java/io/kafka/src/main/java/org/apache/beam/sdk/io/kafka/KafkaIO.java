@@ -1456,14 +1456,17 @@ public class KafkaIO {
     }
 
     /**
-     * Creates and sets the Application Default Credentials for a Kafka consumer. This allows the consumer
-     * to be authenticated with a Google Kafka Server using OAuth.
+     * Creates and sets the Application Default Credentials for a Kafka consumer. This allows the
+     * consumer to be authenticated with a Google Kafka Server using OAuth.
      */
-    public Read<K, V> withApplicationDefaultCredentials() {
+    public Read<K, V> withGCPApplicationDefaultCredentials() {
 
       return withConsumerConfigUpdates(
-          ImmutableMap.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SASL_SSL",
-              SaslConfigs.SASL_MECHANISM, "OAUTHBEARER",
+          ImmutableMap.of(
+              CommonClientConfigs.SECURITY_PROTOCOL_CONFIG,
+              "SASL_SSL",
+              SaslConfigs.SASL_MECHANISM,
+              "OAUTHBEARER",
               SaslConfigs.SASL_LOGIN_CALLBACK_HANDLER_CLASS,
               "com.google.cloud.hosted.kafka.auth.GcpLoginCallbackHandler",
               SaslConfigs.SASL_JAAS_CONFIG,
@@ -3380,18 +3383,22 @@ public class KafkaIO {
     }
 
     /**
-     * Creates and sets the Application Default Credentials for a Kafka producer. This allows the consumer
-     * to be authenticated with a Google Kafka Server using OAuth.
+     * Creates and sets the Application Default Credentials for a Kafka producer. This allows the
+     * consumer to be authenticated with a Google Kafka Server using OAuth.
      */
-    public Write<K, V> withApplicationDefaultCredentials() {
+    public Write<K, V> withGCPApplicationDefaultCredentials() {
       return withProducerConfigUpdates(
-          ImmutableMap.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SASL_SSL",
-              SaslConfigs.SASL_MECHANISM, "OAUTHBEARER",
+          ImmutableMap.of(
+              CommonClientConfigs.SECURITY_PROTOCOL_CONFIG,
+              "SASL_SSL",
+              SaslConfigs.SASL_MECHANISM,
+              "OAUTHBEARER",
               SaslConfigs.SASL_LOGIN_CALLBACK_HANDLER_CLASS,
               "com.google.cloud.hosted.kafka.auth.GcpLoginCallbackHandler",
               SaslConfigs.SASL_JAAS_CONFIG,
               "org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required;"));
     }
+
     @Override
     public PDone expand(PCollection<KV<K, V>> input) {
       final String topic = Preconditions.checkStateNotNull(getTopic(), "withTopic() is required");

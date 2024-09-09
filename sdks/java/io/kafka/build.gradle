@@ -72,7 +72,7 @@ dependencies {
   implementation library.java.jackson_annotations
   implementation library.java.jackson_databind
   implementation "org.springframework:spring-expression:5.3.27"
-  implementation group: 'com.google.cloud.hosted.kafka', name: 'managed-kafka-auth-login-handler', version: '1.0.1'
+  implementation group: 'com.google.cloud.hosted.kafka', name: 'managed-kafka-auth-login-handler', version: '1.0.2'
   implementation ("io.confluent:kafka-avro-serializer:${confluentVersion}") {
     // zookeeper depends on "spotbugs-annotations:3.1.9" which clashes with current
     // "spotbugs-annotations:3.1.12" used in Beam. Not required.
