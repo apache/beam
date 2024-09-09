@@ -440,14 +440,19 @@ def vllmTests = tasks.create("vllmtests") {
     "sdk_location": files(configurations.distTarBall.files).singleFile,
     "project": "apache-beam-testing",
     "region": "us-central1",
-    "input": "gs://apache-beam-ml/testing/inputs/tensorrt_image_file_names.txt",
-    "output": "gs://apache-beam-ml/outputs/tensorrt_predictions.txt",
+    "model": "facebook/opt-125m'",
+    "output": "gs://apache-beam-ml/outputs/vllm_predictions.txt",
     "disk_size_gb": 75
   ]
   def cmdArgs = mapToArgString(argMap)
+  // Exec one version with and one version without the chat option
   exec {
     executable 'sh'
     args '-c', ". ${envdir}/bin/activate && python -m apache_beam.examples.inference.vllm_text_completion $cmdArgs --experiment='worker_accelerator=type:nvidia-tesla-t4;count:1;install-nvidia-driver'"
+  }
+  exec {
+    executable 'sh'
+    args '-c', ". ${envdir}/bin/activate && python -m apache_beam.examples.inference.vllm_text_completion $cmdArgs --chat --experiment='worker_accelerator=type:nvidia-tesla-t4;count:1;install-nvidia-driver'"
   }
  }
 }
