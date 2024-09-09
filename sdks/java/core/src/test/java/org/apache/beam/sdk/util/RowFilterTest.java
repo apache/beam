@@ -23,6 +23,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -30,6 +31,7 @@ import java.util.Map;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Rule;
 import org.junit.Test;
@@ -251,6 +253,56 @@ public class RowFilterTest {
     assertTrue(expectedKeptSchema.equivalent(RowFilter.keepFields(ROW_SCHEMA, fieldsToKeep)));
   }
 
+  @Test
+  public void testGetNestedField() {
+    List<String> fieldPaths =
+        Arrays.asList(
+            "str", "row.nested_int", "row.nested_row.doubly_nested_int", "row.nested_row");
+    List<Schema.Field> expectedFields =
+        Arrays.asList(
+            Schema.Field.of("str", Schema.FieldType.STRING),
+            Schema.Field.of("nested_int", Schema.FieldType.INT32),
+            Schema.Field.of("doubly_nested_int", Schema.FieldType.INT32),
+            Schema.Field.of("nested_row", Schema.FieldType.row(DOUBLY_NESTED_ROW_SCHEMA)));
+
+    List<Schema.Field> actualFields = new ArrayList<>(fieldPaths.size());
+    for (String fieldPath : fieldPaths) {
+      actualFields.add(
+          RowFilter.getNestedField(ROW_SCHEMA, Splitter.on(".").splitToList(fieldPath)));
+    }
+
+    assertEquals(expectedFields, actualFields);
+  }
+
+  @Test
+  public void testUnnestSchemaFields() {
+    List<String> fieldsToUnnest =
+        Arrays.asList(
+            "str",
+            "arr_int",
+            "nullable_int",
+            "row.nested_int",
+            "row.nested_float",
+            "row.nested_row.doubly_nested_int",
+            "nullable_row.nested_str",
+            "nullable_row.nested_row");
+
+    Schema expectedUnnestedSchema =
+        Schema.builder()
+            .addStringField("str")
+            .addArrayField("arr_int", Schema.FieldType.INT32)
+            .addNullableInt32Field("nullable_int")
+            .addInt32Field("nested_int")
+            .addFloatField("nested_float")
+            .addInt32Field("doubly_nested_int")
+            .addStringField("nested_str")
+            .addRowField("nested_row", DOUBLY_NESTED_ROW_SCHEMA)
+            .build();
+
+    assertTrue(
+        expectedUnnestedSchema.equivalent(RowFilter.unnestFields(ROW_SCHEMA, fieldsToUnnest)));
+  }
+
   private static final Row ORIGINAL_ROW =
       Row.withSchema(ROW_SCHEMA)
           .addValue("str_value")
@@ -329,5 +381,30 @@ public class RowFilterTest {
                     "str", "arr_int", "row.nested_str", "row.nested_row.doubly_nested_str"));
 
     assertEquals(FILTERED_ROW, rowFilter.filter(ORIGINAL_ROW));
+  }
+
+  @Test
+  public void testUnnestRowFields() {
+    List<String> unnestFields =
+        Arrays.asList(
+            "str",
+            "arr_int",
+            "row.nested_str",
+            "row.nested_row.doubly_nested_str",
+            "row.nested_row");
+    RowFilter rowFilter = new RowFilter(ROW_SCHEMA).unnesting(unnestFields);
+
+    Schema unnestedSchema = RowFilter.unnestFields(ROW_SCHEMA, unnestFields);
+    Row expecedRow =
+        Row.withSchema(unnestedSchema)
+            .addValues(
+                ORIGINAL_ROW.getString("str"),
+                ORIGINAL_ROW.getArray("arr_int"),
+                ORIGINAL_ROW.getRow("row").getString("nested_str"),
+                ORIGINAL_ROW.getRow("row").getRow("nested_row").getString("doubly_nested_str"),
+                ORIGINAL_ROW.getRow("row").getRow("nested_row"))
+            .build();
+
+    assertEquals(expecedRow, rowFilter.filter(ORIGINAL_ROW));
   }
 }

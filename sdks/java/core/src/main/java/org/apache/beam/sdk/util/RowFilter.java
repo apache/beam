@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.util;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -96,10 +98,7 @@ public class RowFilter implements Serializable {
    * }</pre>
    */
   public RowFilter keeping(List<String> fields) {
-    Preconditions.checkState(
-        transformedSchema == null,
-        "This RowFilter has already been configured to filter to the following Schema: %s",
-        transformedSchema);
+    checkUnconfigured();
     validateSchemaContainsFields(rowSchema, fields, "\"keep\"");
     transformedSchema = keepFields(rowSchema, fields);
     return this;
@@ -129,14 +128,54 @@ public class RowFilter implements Serializable {
    * }</pre>
    */
   public RowFilter dropping(List<String> fields) {
-    Preconditions.checkState(
-        transformedSchema == null,
-        "This RowFilter has already been configured to filter to the following Schema: %s",
-        transformedSchema);
+    checkUnconfigured();
     validateSchemaContainsFields(rowSchema, fields, "\"drop\"");
     transformedSchema = dropFields(rowSchema, fields);
     return this;
   }
+
+  /**
+   * Configures this {@link RowFilter} to unnest the specified fields to the top-level and keeping
+   * their leaf names. The unnested fields are kept and everything else is dropped. This will fail
+   * if two fields have identical leaf names. Nested fields can be specified using dot-notation.
+   *
+   * <p>For example, if we want to unnest the list of fields {@code ["abc", "foo.bar",
+   * "foo.xyz.baz"]}, for this input {@link Row}:
+   *
+   * <pre>{@code
+   * abc: 123
+   * foo:
+   *   bar: my_str
+   *   xyz:
+   *     baz: 456
+   *     qwe: 789
+   * }</pre>
+   *
+   * we will get the following output {@link Row}:
+   *
+   * <pre>{@code
+   * abc: 123
+   * bar: my_str
+   * baz: 456
+   * }</pre>
+   *
+   * Note that fields should not have duplicate leaf names. For example, the {@link RowFilter} will
+   * fail when configuring to unnest the list of fields {@code ["abc.bar", "foo.baz.bar"]} because
+   * there is a duplicate leaf name "bar".
+   */
+  public RowFilter unnesting(List<String> fields) {
+    checkUnconfigured();
+    validateSchemaContainsFields(rowSchema, fields, "\"unnest\"");
+    transformedSchema = unnestFields(rowSchema, fields);
+    List<List<String>> fieldPaths = new ArrayList<>(fields.size());
+    for (String fieldPath : fields) {
+      fieldPaths.add(Splitter.on(".").splitToList(fieldPath));
+    }
+    fieldPathsToUnnest = fieldPaths;
+    return this;
+  }
+
+  private @Nullable List<List<String>> fieldPathsToUnnest;
 
   /**
    * Performs a filter operation (keep or drop) on the input {@link Row}. Must have already
@@ -149,6 +188,11 @@ public class RowFilter implements Serializable {
     if (transformedSchema == null) {
       return row;
     }
+    // unnesting case
+    if (fieldPathsToUnnest != null) {
+      return unnestRowValues(row);
+    }
+
     Preconditions.checkState(
         row.getSchema().assignableTo(rowSchema),
         "Encountered Row with schema that is incompatible with this RowFilter's schema."
@@ -163,6 +207,13 @@ public class RowFilter implements Serializable {
   /** Returns the output {@link Row}'s {@link Schema}. */
   public Schema outputSchema() {
     return transformedSchema != null ? transformedSchema : rowSchema;
+  }
+
+  private void checkUnconfigured() {
+    Preconditions.checkState(
+        transformedSchema == null,
+        "This RowFilter has already been configured to filter to the following Schema: %s",
+        transformedSchema);
   }
 
   /**
@@ -261,6 +312,21 @@ public class RowFilter implements Serializable {
     return Row.withSchema(newSchema).withFieldValues(values).build();
   }
 
+  /** Unnests the specified field values in this Row and outputs a new flattened Row. */
+  private Row unnestRowValues(Row row) {
+    Row.Builder builder = Row.withSchema(checkStateNotNull(transformedSchema));
+    for (List<String> fieldPath : checkStateNotNull(fieldPathsToUnnest)) {
+      Row traversingRow = row;
+      int i = 0;
+      while (i < fieldPath.size() - 1) {
+        traversingRow = checkStateNotNull(traversingRow.getRow(fieldPath.get(i++)));
+      }
+
+      builder.addValue(traversingRow.getValue(fieldPath.get(i)));
+    }
+    return builder.build();
+  }
+
   /**
    * Returns a new {@link Schema} with the specified fields removed.
    *
@@ -342,6 +408,46 @@ public class RowFilter implements Serializable {
                 .withNullable(typeToKeep.getNullable());
       }
       newFieldsList.add(fieldToKeep);
+    }
+
+    return new Schema(newFieldsList);
+  }
+
+  @VisibleForTesting
+  static Schema.Field getNestedField(Schema schema, List<String> fieldPath) {
+    Preconditions.checkState(
+        !fieldPath.isEmpty(), "Unexpected call to get nested field without providing a name.");
+    Schema.Field field = schema.getField(fieldPath.get(0));
+
+    if (fieldPath.size() == 1) {
+      return field;
+    }
+    Preconditions.checkState(
+        field.getType().getTypeName().equals(Schema.TypeName.ROW),
+        "Expected type %s for specified nested field '%s', but instead got type %s.",
+        Schema.TypeName.ROW,
+        field,
+        field.getType().getTypeName());
+
+    return getNestedField(
+        checkStateNotNull(field.getType().getRowSchema()), fieldPath.subList(1, fieldPath.size()));
+  }
+
+  /**
+   * Returns a new {@link Schema} where the specified fields are unnested and placed at the top
+   * level.
+   *
+   * <p>No guarantee that field ordering will remain the same.
+   */
+  @VisibleForTesting
+  static Schema unnestFields(Schema schema, List<String> fieldsToUnnest) {
+    if (fieldsToUnnest.isEmpty()) {
+      return schema;
+    }
+    List<Schema.Field> newFieldsList = new ArrayList<>(fieldsToUnnest.size());
+    for (String fieldPath : fieldsToUnnest) {
+      Schema.Field field = getNestedField(schema, Splitter.on(".").splitToList(fieldPath));
+      newFieldsList.add(field);
     }
 
     return new Schema(newFieldsList);
