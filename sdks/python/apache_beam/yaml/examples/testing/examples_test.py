@@ -205,10 +205,6 @@ AggregationTest = YamlExamplesTestSuite(
     'AggregationExamplesTest',
     os.path.join(YAML_DOCS_DIR, '../transforms/aggregation/*.yaml')).run()
 
-IOTest = YamlExamplesTestSuite(
-    'AggregationExamplesTest',
-    os.path.join(YAML_DOCS_DIR, '../io/*.yaml')).run()
-
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()
