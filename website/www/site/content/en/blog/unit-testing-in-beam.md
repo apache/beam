@@ -20,8 +20,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-Testing remains one of the most fundamental components of software engineering. In this blog post, we shed light on some of the constructs that Apache Beam provides to allow for testing. 
-We cover an opinionated set of best practices to write unit tests for your data pipeline in this post. Note that this post does not include integration tests, and those should be authored separately. 
+Testing remains one of the most fundamental components of software engineering. In this blog post, we shed light on some of the constructs that Apache Beam provides to allow for testing.
+We cover an opinionated set of best practices to write unit tests for your data pipeline in this post. Note that this post does not include integration tests, and those should be authored separately.
 All snippets in this post are included in [this notebook](https://github.com/apache/beam/blob/master/examples/notebooks/blog/unittests_in_beam.ipynb). Additionally, please take a look at the [Beam starter projects](https://beam.apache.org/blog/beam-starter-projects/), as these contain tests that exhibit best practices.
 
 
@@ -32,10 +32,10 @@ All snippets in this post are included in [this notebook](https://github.com/apa
 
 2) You should ensure your function is well tested when using it with `Map`, `FlatMap`, or `Filter`. You can assume your function will work as intended when using `Map(your_function)`.
 3) For more complex transforms such as `ParDo`’s, side inputs, timestamp inspection, etc., treat the entire transform as a unit, and test it.
-4) If needed, use mocking to mock any API calls that might be present in your DoFn. The purpose of mocking is to test your functionality extensively, even if this testing requires a specific response from an API call. 
+4) If needed, use mocking to mock any API calls that might be present in your DoFn. The purpose of mocking is to test your functionality extensively, even if this testing requires a specific response from an API call.
 
    1) Be sure to modularize your API calls in separate functions, rather than making the API call directly in the `DoFn`. This will allow for a cleaner experience when mocking the external API calls.
-   
+
 
 ###Example 1
 
@@ -53,9 +53,9 @@ with beam.Pipeline() as p1:
    )
 ```
 
-###Example 2 
+###Example 2
 
-Now let’s use the following function as our example. The functions `median_house_value_per_bedroom`, and `multiply_by_factor` are tested elsewhere, but the pipeline as a whole (which consists of composite transforms) is not. 
+Now let’s use the following function as our example. The functions `median_house_value_per_bedroom`, and `multiply_by_factor` are tested elsewhere, but the pipeline as a whole (which consists of composite transforms) is not.
 
 ```python
 with beam.Pipeline() as p2:
@@ -87,7 +87,7 @@ with beam.Pipeline() as p2:
    result = (
        p2
        | ReadFromText("/content/sample_data/california_housing_test.csv",skip_header_lines=1)
-       | MapAndCombineTransform() 
+       | MapAndCombineTransform()
        | WriteToText("/content/example3")
    )
 ```
@@ -186,7 +186,7 @@ def test_error_message_wrong_length(self, mock_get_data):
 
 ```
 beam.Map(lambda x: x.strip().split(',')) | beam.Map(lambda x: float(x[8])/float(x[4])
-``` 
+```
 
 , instead of `beam.Map(median_house_value_per_bedroom)`.  The latter (separating lambdas into a helper function) is the recommended approach for more testable code, as changes to the function would be modularized.
 5) Use the `assert_that` statement to ensure that PCollection values match up correctly, such as done above
