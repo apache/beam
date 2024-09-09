@@ -55,7 +55,7 @@ public class StreamingEngineComputationConfigFetcherTest {
   private StreamingEngineComputationConfigFetcher createConfigFetcher(
       boolean waitForInitialConfig,
       long globalConfigRefreshPeriod,
-      StreamingEnginePipelineConfigManager configManager) {
+      StreamingEnginePipelineConfigManagerImpl configManager) {
     return StreamingEngineComputationConfigFetcher.forTesting(
         !waitForInitialConfig,
         globalConfigRefreshPeriod,
@@ -79,8 +79,8 @@ public class StreamingEngineComputationConfigFetcherTest {
     Set<StreamingEnginePipelineConfig> receivedPipelineConfig = new HashSet<>();
     when(mockDataflowServiceClient.getGlobalStreamingConfigWorkItem())
         .thenReturn(Optional.of(initialConfig));
-    StreamingEnginePipelineConfigManager configManager =
-        new StreamingEnginePipelineConfigManager(/*initializeWithDefaults=*/ false);
+    StreamingEnginePipelineConfigManagerImpl configManager =
+        new StreamingEnginePipelineConfigManagerImpl();
     configManager.onConfig(
         config -> {
           try {
@@ -131,8 +131,8 @@ public class StreamingEngineComputationConfigFetcherTest {
         // ConfigFetcher should not do anything with a config that doesn't contain a
         // StreamingConfigTask.
         .thenReturn(Optional.of(new WorkItem().setJobId("jobId")));
-    StreamingEnginePipelineConfigManager configManager =
-        new StreamingEnginePipelineConfigManager(/*initializeWithDefaults=*/ false);
+    StreamingEnginePipelineConfigManagerImpl configManager =
+        new StreamingEnginePipelineConfigManagerImpl();
     configManager.onConfig(
         config -> {
           receivedPipelineConfig.add(config);
@@ -173,8 +173,8 @@ public class StreamingEngineComputationConfigFetcherTest {
 
   @Test
   public void testGetComputationConfig() throws IOException {
-    StreamingEnginePipelineConfigManager configManager =
-        new StreamingEnginePipelineConfigManager(/*initializeWithDefaults=*/ false);
+    StreamingEnginePipelineConfigManagerImpl configManager =
+        new StreamingEnginePipelineConfigManagerImpl();
     streamingEngineConfigFetcher =
         createConfigFetcher(/* waitForInitialConfig= */ false, 0, configManager);
     String computationId = "computationId";
@@ -210,8 +210,8 @@ public class StreamingEngineComputationConfigFetcherTest {
   @Test
   public void testGetComputationConfig_noComputationPresent() throws IOException {
     Set<StreamingEnginePipelineConfig> receivedPipelineConfig = new HashSet<>();
-    StreamingEnginePipelineConfigManager configManager =
-        new StreamingEnginePipelineConfigManager(/*initializeWithDefaults=*/ false);
+    StreamingEnginePipelineConfigManagerImpl configManager =
+        new StreamingEnginePipelineConfigManagerImpl();
     configManager.onConfig(receivedPipelineConfig::add);
     streamingEngineConfigFetcher =
         createConfigFetcher(/* waitForInitialConfig= */ false, 0, configManager);
@@ -225,8 +225,8 @@ public class StreamingEngineComputationConfigFetcherTest {
 
   @Test
   public void testGetComputationConfig_fetchConfigFromDataflowError() throws IOException {
-    StreamingEnginePipelineConfigManager configManager =
-        new StreamingEnginePipelineConfigManager(/*initializeWithDefaults=*/ false);
+    StreamingEnginePipelineConfigManagerImpl configManager =
+        new StreamingEnginePipelineConfigManagerImpl();
     streamingEngineConfigFetcher =
         createConfigFetcher(/* waitForInitialConfig= */ false, 0, configManager);
     RuntimeException e = new RuntimeException("something bad happened.");

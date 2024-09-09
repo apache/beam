@@ -90,6 +90,8 @@ import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.NoopProfileScope;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
+import org.apache.beam.runners.dataflow.worker.streaming.config.FixedPipelineConfigManagerImpl;
+import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingEnginePipelineConfig;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingEnginePipelineConfigManager;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
 import org.apache.beam.runners.dataflow.worker.testing.TestCountingSource;
@@ -596,7 +598,7 @@ public class WorkerCustomSourcesTest {
         new StreamingModeExecutionStateRegistry();
     ReaderCache readerCache = new ReaderCache(Duration.standardMinutes(1), Runnable::run);
     StreamingEnginePipelineConfigManager configManager =
-        new StreamingEnginePipelineConfigManager(/*initializeWithDefaults=*/ true);
+        new FixedPipelineConfigManagerImpl(StreamingEnginePipelineConfig.builder().build());
     StreamingModeExecutionContext context =
         new StreamingModeExecutionContext(
             counterSet,
@@ -964,7 +966,7 @@ public class WorkerCustomSourcesTest {
     StreamingModeExecutionStateRegistry executionStateRegistry =
         new StreamingModeExecutionStateRegistry();
     StreamingEnginePipelineConfigManager configManager =
-        new StreamingEnginePipelineConfigManager(/*initializeWithDefaults=*/ true);
+        new FixedPipelineConfigManagerImpl(StreamingEnginePipelineConfig.builder().build());
     StreamingModeExecutionContext context =
         new StreamingModeExecutionContext(
             counterSet,

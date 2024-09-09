@@ -47,10 +47,12 @@ import org.apache.beam.runners.dataflow.worker.streaming.ComputationStateCache;
 import org.apache.beam.runners.dataflow.worker.streaming.StageInfo;
 import org.apache.beam.runners.dataflow.worker.streaming.WorkHeartbeatResponseProcessor;
 import org.apache.beam.runners.dataflow.worker.streaming.config.ComputationConfig;
+import org.apache.beam.runners.dataflow.worker.streaming.config.FixedPipelineConfigManagerImpl;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingApplianceComputationConfigFetcher;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingEngineComputationConfigFetcher;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingEnginePipelineConfig;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingEnginePipelineConfigManager;
+import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingEnginePipelineConfigManagerImpl;
 import org.apache.beam.runners.dataflow.worker.streaming.harness.SingleSourceWorkerHarness;
 import org.apache.beam.runners.dataflow.worker.streaming.harness.SingleSourceWorkerHarness.GetWorkSender;
 import org.apache.beam.runners.dataflow.worker.streaming.harness.StreamingCounters;
@@ -345,9 +347,11 @@ public final class StreamingDataflowWorker {
     GrpcWindmillStreamFactory.Builder windmillStreamFactoryBuilder =
         createGrpcwindmillStreamFactoryBuilder(options, clientId);
     StreamingEnginePipelineConfigManager configManager =
-        new StreamingEnginePipelineConfigManager(
-            /*initializeWithDefaults=*/ !options
-                .isEnableStreamingEngine()); // appliance is initialized with default settings
+        options.isEnableStreamingEngine()
+            ? new StreamingEnginePipelineConfigManagerImpl()
+            : new FixedPipelineConfigManagerImpl(
+                StreamingEnginePipelineConfig.builder()
+                    .build()); // appliance is initialized with default settings
 
     ConfigFetcherComputationStateCacheAndWindmillClient
         configFetcherComputationStateCacheAndWindmillClient =

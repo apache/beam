@@ -24,16 +24,21 @@ import org.apache.beam.sdk.annotations.Internal;
 
 @Internal
 @ThreadSafe
-public interface StreamingEnginePipelineConfigManager {
+/*
+ *  StreamingEnginePipelineConfigManager returning a fixed config
+ *  initialized during construction. Used for Appliance and Tests.
+ */
+public class FixedPipelineConfigManagerImpl implements StreamingEnginePipelineConfigManager {
 
-  /*
-   * Returns the latest StreamingEnginePipelineConfig
-   */
-  StreamingEnginePipelineConfig getConfig();
+  private final StreamingEnginePipelineConfig config;
 
-  /*
-   * Subscribe to config updates by registering a callback.
-   * Callback should be called the first time with settings, if any, inline before the method returns.
-   */
-  void onConfig(@Nonnull Consumer<StreamingEnginePipelineConfig> callback);
+  public FixedPipelineConfigManagerImpl(StreamingEnginePipelineConfig config) {
+    this.config = config;
+  }
+
+  public StreamingEnginePipelineConfig getConfig() {
+    return config;
+  }
+
+  public void onConfig(@Nonnull Consumer<StreamingEnginePipelineConfig> callback) {}
 }

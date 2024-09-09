@@ -59,6 +59,8 @@ import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.NoopProfi
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.ProfileScope;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
+import org.apache.beam.runners.dataflow.worker.streaming.config.FixedPipelineConfigManagerImpl;
+import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingEnginePipelineConfig;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingEnginePipelineConfigManager;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
@@ -109,7 +111,7 @@ public class StreamingModeExecutionContextTest {
     CounterSet counterSet = new CounterSet();
     ConcurrentHashMap<String, String> stateNameMap = new ConcurrentHashMap<>();
     StreamingEnginePipelineConfigManager configManager =
-        new StreamingEnginePipelineConfigManager(/*initializeWithDefaults=*/ true);
+        new FixedPipelineConfigManagerImpl(StreamingEnginePipelineConfig.builder().build());
     stateNameMap.put(NameContextsForTests.nameContextForTest().userName(), "testStateFamily");
     executionContext =
         new StreamingModeExecutionContext(
