@@ -440,7 +440,7 @@ def vllmTests = tasks.create("vllmTests") {
     "sdk_location": files(configurations.distTarBall.files).singleFile,
     "project": "apache-beam-testing",
     "region": "us-central1",
-    "model": "facebook/opt-125m'",
+    "model": "facebook/opt-125m",
     "output": "gs://apache-beam-ml/outputs/vllm_predictions.txt",
     "disk_size_gb": 75
   ]
