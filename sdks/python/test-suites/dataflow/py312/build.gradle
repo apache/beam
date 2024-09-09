@@ -22,7 +22,3 @@ applyPythonNature()
 // Required to setup a Python 3 virtualenv and task names.
 pythonVersion = '3.12'
 apply from: "../common.gradle"
-
-toxTask "testPy312vllm", "py312-vllm", "${posargs}"
-test.dependsOn "testPy38onnx-113"
-postCommitPyDep.dependsOn "testPy38onnx-113"
