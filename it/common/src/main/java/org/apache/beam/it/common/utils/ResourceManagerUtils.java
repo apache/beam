@@ -27,10 +27,10 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Random;
 import java.util.regex.Pattern;
-import javax.annotation.Nullable;
 import org.apache.beam.it.common.ResourceManager;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.HashFunction;
 import org.apache.commons.lang3.RandomStringUtils;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

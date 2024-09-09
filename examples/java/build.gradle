@@ -176,5 +176,5 @@ task wordCount(type:JavaExec) {
   mainClass = "org.apache.beam.examples.WordCount"
   classpath = sourceSets.main.runtimeClasspath
   systemProperties = System.getProperties()
-  args = ["--output=/tmp/ouput.txt"]
+  args = ["--output=/tmp/output.txt"]
 }

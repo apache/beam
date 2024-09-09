@@ -18,9 +18,7 @@
 package org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.mock;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -32,9 +30,13 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.runners.dataflow.worker.KeyTokenInvalidException;
 import org.apache.beam.runners.dataflow.worker.WorkItemCancelledException;
+import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
+import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
+import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.joda.time.Duration;
@@ -80,43 +82,43 @@ public class WorkFailureProcessorTest {
         ignored -> Windmill.ReportStatsResponse.newBuilder().setFailed(isWorkFailed).build());
   }
 
-  private static Work createWork(Supplier<Instant> clock, Consumer<Work> processWorkFn) {
-    return Work.create(
-        Windmill.WorkItem.newBuilder()
-            .setKey(ByteString.EMPTY)
-            .setWorkToken(1L)
-            .setCacheToken(1L)
-            .setShardingKey(1L)
-            .build(),
-        clock,
-        new ArrayList<>(),
+  private static ExecutableWork createWork(Supplier<Instant> clock, Consumer<Work> processWorkFn) {
+    return ExecutableWork.create(
+        Work.create(
+            Windmill.WorkItem.newBuilder().setKey(ByteString.EMPTY).setWorkToken(1L).build(),
+            Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
+            Work.createProcessingContext(
+                "computationId",
+                new FakeGetDataClient(),
+                ignored -> {},
+                mock(HeartbeatSender.class)),
+            clock,
+            new ArrayList<>()),
         processWorkFn);
   }
 
-  private static Work createWork() {
-    return createWork(Instant::now, ignored -> {});
-  }
-
-  private static Work createWork(Consumer<Work> processWorkFn) {
+  private static ExecutableWork createWork(Consumer<Work> processWorkFn) {
     return createWork(Instant::now, processWorkFn);
   }
 
   @Test
   public void logAndProcessFailure_doesNotRetryKeyTokenInvalidException() {
-    Work work = spy(createWork());
+    Set<Work> executedWork = new HashSet<>();
+    ExecutableWork work = createWork(executedWork::add);
     WorkFailureProcessor workFailureProcessor =
         createWorkFailureProcessor(streamingEngineFailureReporter());
     Set<Work> invalidWork = new HashSet<>();
     workFailureProcessor.logAndProcessFailure(
         DEFAULT_COMPUTATION_ID, work, new KeyTokenInvalidException("key"), invalidWork::add);
 
-    verify(work, times(0)).run();
-    assertThat(invalidWork).containsExactly(work);
+    assertThat(executedWork).isEmpty();
+    assertThat(invalidWork).containsExactly(work.work());
   }
 
   @Test
   public void logAndProcessFailure_doesNotRetryWhenWorkItemCancelled() {
-    Work work = spy(createWork());
+    Set<Work> executedWork = new HashSet<>();
+    ExecutableWork work = createWork(executedWork::add);
     WorkFailureProcessor workFailureProcessor =
         createWorkFailureProcessor(streamingEngineFailureReporter());
     Set<Work> invalidWork = new HashSet<>();
@@ -126,55 +128,58 @@ public class WorkFailureProcessorTest {
         new WorkItemCancelledException(work.getWorkItem().getShardingKey()),
         invalidWork::add);
 
-    verify(work, times(0)).run();
-    assertThat(invalidWork).containsExactly(work);
+    assertThat(executedWork).isEmpty();
+    assertThat(invalidWork).containsExactly(work.work());
   }
 
   @Test
   public void logAndProcessFailure_doesNotRetryOOM() {
-    Work work = spy(createWork());
+    Set<Work> executedWork = new HashSet<>();
+    ExecutableWork work = createWork(executedWork::add);
     WorkFailureProcessor workFailureProcessor =
         createWorkFailureProcessor(streamingEngineFailureReporter());
     Set<Work> invalidWork = new HashSet<>();
     workFailureProcessor.logAndProcessFailure(
         DEFAULT_COMPUTATION_ID, work, new OutOfMemoryError(), invalidWork::add);
 
-    verify(work, times(0)).run();
-    assertThat(invalidWork).containsExactly(work);
+    assertThat(executedWork).isEmpty();
+    assertThat(invalidWork).containsExactly(work.work());
   }
 
   @Test
   public void logAndProcessFailure_doesNotRetryWhenFailureReporterMarksAsNonRetryable() {
-    Work work = spy(createWork());
+    Set<Work> executedWork = new HashSet<>();
+    ExecutableWork work = createWork(executedWork::add);
     WorkFailureProcessor workFailureProcessor =
         createWorkFailureProcessor(streamingApplianceFailureReporter(true));
     Set<Work> invalidWork = new HashSet<>();
     workFailureProcessor.logAndProcessFailure(
         DEFAULT_COMPUTATION_ID, work, new RuntimeException(), invalidWork::add);
 
-    verify(work, times(0)).run();
-    assertThat(invalidWork).containsExactly(work);
+    assertThat(executedWork).isEmpty();
+    assertThat(invalidWork).containsExactly(work.work());
   }
 
   @Test
   public void logAndProcessFailure_doesNotRetryAfterLocalRetryTimeout() {
-    Work veryOldWork =
-        spy(createWork(() -> Instant.now().minus(Duration.standardDays(30)), ignored -> {}));
+    Set<Work> executedWork = new HashSet<>();
+    ExecutableWork veryOldWork =
+        createWork(() -> Instant.now().minus(Duration.standardDays(30)), executedWork::add);
     WorkFailureProcessor workFailureProcessor =
         createWorkFailureProcessor(streamingEngineFailureReporter());
     Set<Work> invalidWork = new HashSet<>();
     workFailureProcessor.logAndProcessFailure(
         DEFAULT_COMPUTATION_ID, veryOldWork, new RuntimeException(), invalidWork::add);
 
-    verify(veryOldWork, times(0)).run();
-    assertThat(invalidWork).contains(veryOldWork);
+    assertThat(executedWork).isEmpty();
+    assertThat(invalidWork).contains(veryOldWork.work());
   }
 
   @Test
   public void logAndProcessFailure_retriesOnUncaughtUnhandledException_streamingEngine()
       throws InterruptedException {
     CountDownLatch runWork = new CountDownLatch(1);
-    Work work = spy(createWork(ignored -> runWork.countDown()));
+    ExecutableWork work = createWork(ignored -> runWork.countDown());
     WorkFailureProcessor workFailureProcessor =
         createWorkFailureProcessor(streamingEngineFailureReporter());
     Set<Work> invalidWork = new HashSet<>();
@@ -182,7 +187,6 @@ public class WorkFailureProcessorTest {
         DEFAULT_COMPUTATION_ID, work, new RuntimeException(), invalidWork::add);
 
     runWork.await();
-    verify(work, times(1)).run();
     assertThat(invalidWork).isEmpty();
   }
 
@@ -190,7 +194,7 @@ public class WorkFailureProcessorTest {
   public void logAndProcessFailure_retriesOnUncaughtUnhandledException_streamingAppliance()
       throws InterruptedException {
     CountDownLatch runWork = new CountDownLatch(1);
-    Work work = spy(createWork(ignored -> runWork.countDown()));
+    ExecutableWork work = createWork(ignored -> runWork.countDown());
     WorkFailureProcessor workFailureProcessor =
         createWorkFailureProcessor(streamingApplianceFailureReporter(false));
     Set<Work> invalidWork = new HashSet<>();
@@ -198,7 +202,6 @@ public class WorkFailureProcessorTest {
         DEFAULT_COMPUTATION_ID, work, new RuntimeException(), invalidWork::add);
 
     runWork.await();
-    verify(work, times(1)).run();
     assertThat(invalidWork).isEmpty();
   }
 }

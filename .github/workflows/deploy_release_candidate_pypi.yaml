@@ -18,9 +18,7 @@ on:
         required: true
 
 env:
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
-  GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
-  GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
 
 jobs:
   deploy_release_candidate_pypi:
@@ -37,6 +35,7 @@ jobs:
       uses: ./.github/actions/setup-environment-action
       with:
         python-version: 3.11
+        disable-cache: true
     - name: Install dependencies
       run: |
         pip install python-dateutil
@@ -68,8 +67,8 @@ jobs:
         cd "${PYTHON_ARTIFACTS_DIR}"
         ls
 
-        echo "------Checking Hash Value for apache-beam-${RELEASE}rc${{ github.event.inputs.RC }}.tar.gz-----"
-        sha512sum -c "apache-beam-${RELEASE}rc${{ github.event.inputs.RC }}.tar.gz.sha512"
+        echo "------Checking Hash Value for apache_beam-${RELEASE}rc${{ github.event.inputs.RC }}.tar.gz-----"
+        sha512sum -c "apache_beam-${RELEASE}rc${{ github.event.inputs.RC }}.tar.gz.sha512"
         
         for artifact in *.whl; do
           echo "----------Checking Hash Value for ${artifact} wheel-----------"

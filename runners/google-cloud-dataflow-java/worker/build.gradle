@@ -131,7 +131,7 @@ applyJavaNature(
             dependencies {
                 // We have to include jetty-server/jetty-servlet and all of its transitive dependencies
                 // which includes several org.eclipse.jetty artifacts + servlet-api
-                include(dependency("org.eclipse.jetty:.*:9.2.10.v20150310"))
+                include(dependency("org.eclipse.jetty:.*:9.4.54.v20240208"))
                 include(dependency("javax.servlet:javax.servlet-api:3.1.0"))
             }
             relocate("org.eclipse.jetty", getWorkerRelocatedPath("org.eclipse.jetty"))
@@ -200,8 +200,8 @@ dependencies {
     compileOnly "org.conscrypt:conscrypt-openjdk-uber:2.5.1"
 
     implementation "javax.servlet:javax.servlet-api:3.1.0"
-    implementation "org.eclipse.jetty:jetty-server:9.2.10.v20150310"
-    implementation "org.eclipse.jetty:jetty-servlet:9.2.10.v20150310"
+    implementation "org.eclipse.jetty:jetty-server:9.4.54.v20240208"
+    implementation "org.eclipse.jetty:jetty-servlet:9.4.54.v20240208"
     implementation library.java.avro
     implementation library.java.jackson_annotations
     implementation library.java.jackson_core

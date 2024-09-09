@@ -18,8 +18,8 @@ name: PostCommit Java IO Performance Tests
 on:
   issue_comment:
     types: [created]
-#  schedule:
-#  - cron: '0 4/6 * * *'
+  schedule:
+  - cron: '0 4/6 * * *'
   pull_request_target:
     paths: ['release/trigger_all_tests.json', '.github/trigger_files/beam_PostCommit_Java_IO_Performance_Tests.json']
   workflow_dispatch:
@@ -27,12 +27,12 @@ on:
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
 permissions:
   actions: write
-  pull-requests: read
-  checks: read
+  pull-requests: write
+  checks: write
   contents: read
   deployments: read
   id-token: none
-  issues: read
+  issues: write
   discussions: read
   packages: read
   pages: read
@@ -46,7 +46,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
@@ -87,7 +87,7 @@ jobs:
     - name: Setup environment
       uses: ./.github/actions/setup-environment-action
       with:
-        java-version: 8
+        java-version: default
     - name: Authenticate on GCP
       uses: google-github-actions/auth@v2
       with:

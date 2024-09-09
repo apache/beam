@@ -33,6 +33,7 @@ import javax.annotation.Nonnull;
 import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.GaugeCell;
 import org.apache.beam.runners.core.metrics.MetricsMap;
+import org.apache.beam.runners.core.metrics.StringSetCell;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Gauge;
@@ -41,8 +42,8 @@ import org.apache.beam.sdk.metrics.LabeledMetricNameUtils;
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsContainer;
+import org.apache.beam.sdk.metrics.StringSet;
 import org.apache.beam.sdk.util.HistogramData;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Function;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
@@ -68,11 +69,13 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
 
   private MetricsMap<MetricName, GaugeCell> gauges = new MetricsMap<>(GaugeCell::new);
 
+  private MetricsMap<MetricName, StringSetCell> stringSet = new MetricsMap<>(StringSetCell::new);
+
   private MetricsMap<MetricName, DeltaDistributionCell> distributions =
       new MetricsMap<>(DeltaDistributionCell::new);
 
-  private MetricsMap<KV<MetricName, HistogramData.BucketType>, LockFreeHistogram>
-      perWorkerHistograms = new MetricsMap<>(LockFreeHistogram::new);
+  private final ConcurrentHashMap<MetricName, LockFreeHistogram> perWorkerHistograms =
+      new ConcurrentHashMap<>();
 
   private final Map<MetricName, Instant> perWorkerCountersByFirstStaleTime;
 
@@ -161,17 +164,30 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
   }
 
   @Override
+  public StringSet getStringSet(MetricName metricName) {
+    return stringSet.get(metricName);
+  }
+
+  @Override
   public Histogram getPerWorkerHistogram(
       MetricName metricName, HistogramData.BucketType bucketType) {
-    if (enablePerWorkerMetrics) {
-      return perWorkerHistograms.get(KV.of(metricName, bucketType));
-    } else {
+    if (!enablePerWorkerMetrics) {
       return MetricsContainer.super.getPerWorkerHistogram(metricName, bucketType);
     }
+
+    LockFreeHistogram val = perWorkerHistograms.get(metricName);
+    if (val != null) {
+      return val;
+    }
+
+    return perWorkerHistograms.computeIfAbsent(
+        metricName, name -> new LockFreeHistogram(metricName, bucketType));
   }
 
   public Iterable<CounterUpdate> extractUpdates() {
-    return counterUpdates().append(distributionUpdates());
+    return counterUpdates()
+        .append(distributionUpdates())
+        .append(gaugeUpdates().append(stringSetUpdates()));
   }
 
   private FluentIterable<CounterUpdate> counterUpdates() {
@@ -192,6 +208,36 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
 
                 return MetricsToCounterUpdateConverter.fromCounter(
                     MetricKey.create(stepName, entry.getKey()), false, value);
+              }
+            })
+        .filter(Predicates.notNull());
+  }
+
+  private FluentIterable<CounterUpdate> gaugeUpdates() {
+    return FluentIterable.from(gauges.entries())
+        .transform(
+            new Function<Entry<MetricName, GaugeCell>, CounterUpdate>() {
+              @Override
+              public @Nullable CounterUpdate apply(
+                  @Nonnull Map.Entry<MetricName, GaugeCell> entry) {
+                long value = entry.getValue().getCumulative().value();
+                org.joda.time.Instant timestamp = entry.getValue().getCumulative().timestamp();
+                return MetricsToCounterUpdateConverter.fromGauge(
+                    MetricKey.create(stepName, entry.getKey()), value, timestamp);
+              }
+            })
+        .filter(Predicates.notNull());
+  }
+
+  private FluentIterable<CounterUpdate> stringSetUpdates() {
+    return FluentIterable.from(stringSet.entries())
+        .transform(
+            new Function<Entry<MetricName, StringSetCell>, CounterUpdate>() {
+              @Override
+              public @Nullable CounterUpdate apply(
+                  @Nonnull Map.Entry<MetricName, StringSetCell> entry) {
+                return MetricsToCounterUpdateConverter.fromStringSet(
+                    MetricKey.create(stepName, entry.getKey()), entry.getValue().getCumulative());
               }
             })
         .filter(Predicates.notNull());
@@ -300,7 +346,7 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
         });
     perWorkerHistograms.forEach(
         (k, v) -> {
-          v.getSnapshotAndReset().ifPresent(snapshot -> histograms.put(k.getKey(), snapshot));
+          v.getSnapshotAndReset().ifPresent(snapshot -> histograms.put(k, snapshot));
         });
 
     deleteStaleCounters(currentZeroValuedCounters, Instant.now(clock));

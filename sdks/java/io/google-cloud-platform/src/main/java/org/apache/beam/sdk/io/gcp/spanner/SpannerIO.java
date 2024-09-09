@@ -60,10 +60,12 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Objects;
 import java.util.OptionalInt;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.ServiceCallMetric;
@@ -473,6 +475,14 @@ public class SpannerIO {
         .build();
   }
 
+  public static Read readWithSchema() {
+    return read()
+        .withBeamRowConverters(
+            TypeDescriptor.of(Struct.class),
+            StructUtils.structToBeamRow(),
+            StructUtils.structFromBeamRow());
+  }
+
   /**
    * Returns a transform that creates a batch transaction. By default, {@link
    * TimestampBound#strong()} transaction is created, to override this use {@link
@@ -706,6 +716,12 @@ public class SpannerIO {
   @AutoValue
   public abstract static class Read extends PTransform<PBegin, PCollection<Struct>> {
 
+    interface ToBeamRowFunction
+        extends SerializableFunction<Schema, SerializableFunction<Struct, Row>> {}
+
+    interface FromBeamRowFunction
+        extends SerializableFunction<Schema, SerializableFunction<Row, Struct>> {}
+
     abstract SpannerConfig getSpannerConfig();
 
     abstract ReadOperation getReadOperation();
@@ -717,6 +733,12 @@ public class SpannerIO {
     abstract @Nullable PartitionOptions getPartitionOptions();
 
     abstract Boolean getBatching();
+
+    abstract @Nullable TypeDescriptor<Struct> getTypeDescriptor();
+
+    abstract @Nullable ToBeamRowFunction getToBeamRowFn();
+
+    abstract @Nullable FromBeamRowFunction getFromBeamRowFn();
 
     abstract Builder toBuilder();
 
@@ -735,7 +757,24 @@ public class SpannerIO {
 
       abstract Builder setBatching(Boolean batching);
 
+      abstract Builder setTypeDescriptor(TypeDescriptor<Struct> typeDescriptor);
+
+      abstract Builder setToBeamRowFn(ToBeamRowFunction toRowFn);
+
+      abstract Builder setFromBeamRowFn(FromBeamRowFunction fromRowFn);
+
       abstract Read build();
+    }
+
+    public Read withBeamRowConverters(
+        TypeDescriptor<Struct> typeDescriptor,
+        ToBeamRowFunction toRowFn,
+        FromBeamRowFunction fromRowFn) {
+      return toBuilder()
+          .setTypeDescriptor(typeDescriptor)
+          .setToBeamRowFn(toRowFn)
+          .setFromBeamRowFn(fromRowFn)
+          .build();
     }
 
     /** Specifies the Cloud Spanner configuration. */
@@ -874,6 +913,14 @@ public class SpannerIO {
       return withSpannerConfig(config.withRpcPriority(RpcPriority.HIGH));
     }
 
+    private SpannerSourceDef createSourceDef() {
+      if (getReadOperation().getQuery() != null) {
+        return SpannerQuerySourceDef.create(getSpannerConfig(), getReadOperation().getQuery());
+      }
+      return SpannerTableSourceDef.create(
+          getSpannerConfig(), getReadOperation().getTable(), getReadOperation().getColumns());
+    }
+
     @Override
     public PCollection<Struct> expand(PBegin input) {
       getSpannerConfig().validate();
@@ -884,6 +931,10 @@ public class SpannerIO {
 
       if (getReadOperation().getQuery() != null) {
         // TODO: validate query?
+        if (getReadOperation().getTable() != null) {
+          throw new IllegalArgumentException(
+              "Both query and table cannot be specified at the same time for SpannerIO.read().");
+        }
       } else if (getReadOperation().getTable() != null) {
         // Assume read
         checkNotNull(
@@ -896,7 +947,14 @@ public class SpannerIO {
                 + " list of columns to set with withColumns method");
       } else {
         throw new IllegalArgumentException(
-            "SpannerIO.read() requires configuring query or read operation.");
+            "SpannerIO.read() requires query OR table to set with withTable OR withQuery method.");
+      }
+
+      final SpannerSourceDef sourceDef = createSourceDef();
+
+      Schema beamSchema = null;
+      if (getTypeDescriptor() != null && getToBeamRowFn() != null && getFromBeamRowFn() != null) {
+        beamSchema = sourceDef.getBeamSchema();
       }
 
       ReadAll readAll =
@@ -905,7 +963,19 @@ public class SpannerIO {
               .withTimestampBound(getTimestampBound())
               .withBatching(getBatching())
               .withTransaction(getTransaction());
-      return input.apply(Create.of(getReadOperation())).apply("Execute query", readAll);
+
+      PCollection<Struct> rows =
+          input.apply(Create.of(getReadOperation())).apply("Execute query", readAll);
+
+      if (beamSchema != null) {
+        rows.setSchema(
+            beamSchema,
+            getTypeDescriptor(),
+            getToBeamRowFn().apply(beamSchema),
+            getFromBeamRowFn().apply(beamSchema));
+      }
+
+      return rows;
     }
 
     SerializableFunction<Struct, Row> getFormatFn() {
@@ -1184,6 +1254,18 @@ public class SpannerIO {
     public Write withCommitDeadline(Duration commitDeadline) {
       SpannerConfig config = getSpannerConfig();
       return withSpannerConfig(config.withCommitDeadline(commitDeadline));
+    }
+
+    /**
+     * Specifies max commit delay for the Commit API call for throughput optimized writes. If not
+     * set, Spanner might set a small delay if it thinks that will amortize the cost of the writes.
+     * For more information about the feature, <a
+     * href="https://cloud.google.com/spanner/docs/throughput-optimized-writes#default-behavior">see
+     * documentation</a>
+     */
+    public Write withMaxCommitDelay(long millis) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withMaxCommitDelay(millis));
     }
 
     /**
@@ -1725,11 +1807,6 @@ public class SpannerIO {
           new PostProcessingMetricsDoFn(metrics);
 
       LOG.info("Partition metadata table that will be used is " + partitionMetadataTableName);
-      input
-          .getPipeline()
-          .getOptions()
-          .as(SpannerChangeStreamOptions.class)
-          .setMetadataTable(partitionMetadataTableName);
 
       final PCollection<byte[]> impulseOut = input.apply(Impulse.create());
       final PCollection<PartitionMetadata> partitionsOut =
@@ -2227,15 +2304,9 @@ public class SpannerIO {
     private void spannerWriteWithRetryIfSchemaChange(List<Mutation> batch) throws SpannerException {
       for (int retry = 1; ; retry++) {
         try {
-          if (spannerConfig.getRpcPriority() != null
-              && spannerConfig.getRpcPriority().get() != null) {
-            spannerAccessor
-                .getDatabaseClient()
-                .writeAtLeastOnceWithOptions(
-                    batch, Options.priority(spannerConfig.getRpcPriority().get()));
-          } else {
-            spannerAccessor.getDatabaseClient().writeAtLeastOnce(batch);
-          }
+          spannerAccessor
+              .getDatabaseClient()
+              .writeAtLeastOnceWithOptions(batch, getTransactionOptions());
           reportServiceCallMetricsForBatch(batch, "ok");
           return;
         } catch (AbortedException e) {
@@ -2254,6 +2325,21 @@ public class SpannerIO {
           throw e;
         }
       }
+    }
+
+    private Options.TransactionOption[] getTransactionOptions() {
+      return Stream.of(
+              spannerConfig.getRpcPriority() != null && spannerConfig.getRpcPriority().get() != null
+                  ? Options.priority(spannerConfig.getRpcPriority().get())
+                  : null,
+              spannerConfig.getMaxCommitDelay() != null
+                      && spannerConfig.getMaxCommitDelay().get() != null
+                  ? Options.maxCommitDelay(
+                      java.time.Duration.ofMillis(
+                          spannerConfig.getMaxCommitDelay().get().getMillis()))
+                  : null)
+          .filter(Objects::nonNull)
+          .toArray(Options.TransactionOption[]::new);
     }
 
     private void reportServiceCallMetricsForBatch(List<Mutation> batch, String statusCode) {

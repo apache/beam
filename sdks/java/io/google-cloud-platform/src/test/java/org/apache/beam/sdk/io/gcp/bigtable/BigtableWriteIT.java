@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.bigtable;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
 
 import com.google.api.gax.rpc.ServerStream;
@@ -39,8 +40,10 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.GenerateSequence;
+import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.testing.PAssert;
@@ -142,7 +145,7 @@ public class BigtableWriteIT implements Serializable {
                 .withProjectId(project)
                 .withInstanceId(options.getInstanceId())
                 .withTableId(tableId));
-    p.run();
+    PipelineResult r = p.run();
 
     // Test number of column families and column family name equality
     Table table = getTable(tableId);
@@ -154,6 +157,7 @@ public class BigtableWriteIT implements Serializable {
     // Test table data equality
     List<KV<ByteString, ByteString>> tableData = getTableData(tableId);
     assertThat(tableData, Matchers.containsInAnyOrder(testData.toArray()));
+    checkLineageSinkMetric(r, tableId);
   }
 
   @Test
@@ -340,7 +344,7 @@ public class BigtableWriteIT implements Serializable {
     errorHandler.close();
     PAssert.thatSingleton(Objects.requireNonNull(errorHandler.getOutput())).isEqualTo(2L);
 
-    p.run();
+    PipelineResult r = p.run();
 
     // Test number of column families and column family name equality
     Table table = getTable(tableId);
@@ -352,6 +356,7 @@ public class BigtableWriteIT implements Serializable {
     // Test table data equality
     List<KV<ByteString, ByteString>> tableData = getTableData(tableId);
     assertEquals(998, tableData.size());
+    checkLineageSinkMetric(r, tableId);
   }
 
   @After
@@ -410,6 +415,17 @@ public class BigtableWriteIT implements Serializable {
   private void deleteTable(String tableId) {
     if (tableAdminClient != null) {
       tableAdminClient.deleteTable(tableId);
+    }
+  }
+
+  private void checkLineageSinkMetric(PipelineResult r, String tableId) {
+    // Only check lineage metrics on direct runner until Dataflow runner v2 supported report back
+    if (options.getRunner().getName().contains("DirectRunner")) {
+      assertThat(
+          Lineage.query(r.metrics(), Lineage.Type.SINK),
+          hasItem(
+              Lineage.getFqName(
+                  "bigtable", ImmutableList.of(project, options.getInstanceId(), tableId))));
     }
   }
 }

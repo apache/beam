@@ -96,7 +96,7 @@ or on the dev mailing list, for [example](https://lists.apache.org/thread/jgjdt5
 Beam uses [GCP-BOM](https://cloud.google.com/java/docs/bom) to manage Google Cloud-related dependencies. A [script](../scripts/tools/bomupgrader.py) is used to upgrade GCP-BOM dependencies. To upgrade, find the latest BOM version in https://mvnrepository.com/artifact/com.google.cloud/libraries-bom and run
 
 ```
-python scripts/tools/gcpbomupgrader.py <latest_bom_version>
+python scripts/tools/bomupgrader.py <latest_bom_version>
 ```
 
 then the changes will made in place.

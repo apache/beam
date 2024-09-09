@@ -117,6 +117,15 @@ A     B
     self.assertCountEqual(['a,b,c', '1,2,3', '3,4,7'],
                           set(self.read_all_lines(output + 'out.csv*')))
 
+  def test_wide_csv_with_dtypes(self):
+    # Verify https://github.com/apache/beam/issues/31152 is resolved.
+    cols = ','.join(f'col{ix}' for ix in range(123))
+    data = ','.join(str(ix) for ix in range(123))
+    input = self.temp_dir({'tmp.csv': f'{cols}\n{data}'})
+    with beam.Pipeline() as p:
+      pcoll = p | beam.io.ReadFromCsv(f'{input}tmp.csv', dtype=str)
+      assert_that(pcoll | beam.Map(max), equal_to(['99']))
+
   def test_sharding_parameters(self):
     data = pd.DataFrame({'label': ['11a', '37a', '389a'], 'rank': [0, 1, 2]})
     output = self.temp_dir()

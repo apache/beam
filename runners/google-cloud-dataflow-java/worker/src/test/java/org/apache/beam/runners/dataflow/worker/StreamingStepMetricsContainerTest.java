@@ -33,14 +33,17 @@ import com.google.api.services.dataflow.model.CounterStructuredNameAndMetadata;
 import com.google.api.services.dataflow.model.CounterUpdate;
 import com.google.api.services.dataflow.model.DataflowHistogramValue;
 import com.google.api.services.dataflow.model.DistributionUpdate;
+import com.google.api.services.dataflow.model.IntegerGauge;
 import com.google.api.services.dataflow.model.Linear;
 import com.google.api.services.dataflow.model.MetricValue;
 import com.google.api.services.dataflow.model.PerStepNamespaceMetrics;
+import com.google.api.services.dataflow.model.StringList;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -50,15 +53,18 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Kind;
 import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Origin;
 import org.apache.beam.sdk.metrics.Distribution;
+import org.apache.beam.sdk.metrics.Gauge;
 import org.apache.beam.sdk.metrics.LabeledMetricNameUtils;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.metrics.NoOpCounter;
 import org.apache.beam.sdk.metrics.NoOpHistogram;
+import org.apache.beam.sdk.metrics.StringSet;
 import org.apache.beam.sdk.util.HistogramData;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.hamcrest.collection.IsEmptyIterable;
 import org.hamcrest.collection.IsMapContaining;
+import org.joda.time.DateTimeUtils;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.Timeout;
@@ -205,6 +211,118 @@ public class StreamingStepMetricsContainerTest {
                         .setMax(longToSplitInt(3))
                         .setMin(longToSplitInt(3))
                         .setSum(longToSplitInt(3)))));
+  }
+
+  @Test
+  public void testGaugeUpdateExtraction() {
+
+    // Freeze the clock, since gauge metrics depend on time.
+    DateTimeUtils.setCurrentMillisFixed(10L);
+    Gauge gauge = c1.getGauge(name1);
+    gauge.set(7);
+    gauge.set(5);
+    gauge.set(6);
+
+    // Only have the last update.
+    Iterable<CounterUpdate> updates = StreamingStepMetricsContainer.extractMetricUpdates(registry);
+    assertThat(
+        updates,
+        containsInAnyOrder(
+            new CounterUpdate()
+                .setStructuredNameAndMetadata(
+                    new CounterStructuredNameAndMetadata()
+                        .setName(
+                            new CounterStructuredName()
+                                .setOrigin(Origin.USER.toString())
+                                .setOriginNamespace("ns")
+                                .setName("name1")
+                                .setOriginalStepName("s1"))
+                        .setMetadata(new CounterMetadata().setKind(Kind.LATEST_VALUE.toString())))
+                .setCumulative(false)
+                .setIntegerGauge(
+                    new IntegerGauge()
+                        .setValue(longToSplitInt(6))
+                        .setTimestamp(org.joda.time.Instant.ofEpochMilli(10L).toString()))));
+
+    DateTimeUtils.setCurrentMillisFixed(20L);
+    gauge.set(8);
+
+    assertThat(
+        updates,
+        containsInAnyOrder(
+            new CounterUpdate()
+                .setStructuredNameAndMetadata(
+                    new CounterStructuredNameAndMetadata()
+                        .setName(
+                            new CounterStructuredName()
+                                .setOrigin(Origin.USER.toString())
+                                .setOriginNamespace("ns")
+                                .setName("name1")
+                                .setOriginalStepName("s1"))
+                        .setMetadata(new CounterMetadata().setKind(Kind.LATEST_VALUE.toString())))
+                .setCumulative(false)
+                .setIntegerGauge(
+                    new IntegerGauge()
+                        .setValue(longToSplitInt(8))
+                        .setTimestamp(org.joda.time.Instant.ofEpochMilli(20L).toString()))));
+
+    // Release freeze on clock.
+    DateTimeUtils.setCurrentMillisSystem();
+  }
+
+  @Test
+  public void testStringSetUpdateExtraction() {
+    StringSet stringSet = c1.getStringSet(name1);
+    stringSet.add("ab");
+    stringSet.add("cd", "ef");
+    stringSet.add("gh");
+    stringSet.add("gh");
+
+    CounterUpdate name1Update =
+        new CounterUpdate()
+            .setStructuredNameAndMetadata(
+                new CounterStructuredNameAndMetadata()
+                    .setName(
+                        new CounterStructuredName()
+                            .setOrigin(Origin.USER.toString())
+                            .setOriginNamespace("ns")
+                            .setName("name1")
+                            .setOriginalStepName("s1"))
+                    .setMetadata(new CounterMetadata().setKind(Kind.SET.toString())))
+            .setCumulative(false)
+            .setStringList(new StringList().setElements(Arrays.asList("ab", "cd", "ef", "gh")));
+
+    Iterable<CounterUpdate> updates = StreamingStepMetricsContainer.extractMetricUpdates(registry);
+    assertThat(updates, containsInAnyOrder(name1Update));
+
+    stringSet = c2.getStringSet(name2);
+    stringSet.add("ij");
+    stringSet.add("kl", "mn");
+    stringSet.add("mn");
+
+    CounterUpdate name2Update =
+        new CounterUpdate()
+            .setStructuredNameAndMetadata(
+                new CounterStructuredNameAndMetadata()
+                    .setName(
+                        new CounterStructuredName()
+                            .setOrigin(Origin.USER.toString())
+                            .setOriginNamespace("ns")
+                            .setName("name2")
+                            .setOriginalStepName("s2"))
+                    .setMetadata(new CounterMetadata().setKind(Kind.SET.toString())))
+            .setCumulative(false)
+            .setStringList(new StringList().setElements(Arrays.asList("ij", "kl", "mn")));
+
+    updates = StreamingStepMetricsContainer.extractMetricUpdates(registry);
+    assertThat(updates, containsInAnyOrder(name1Update, name2Update));
+
+    c1.getStringSet(name1).add("op");
+    name1Update.setStringList(
+        new StringList().setElements(Arrays.asList("ab", "cd", "ef", "gh", "op")));
+
+    updates = StreamingStepMetricsContainer.extractMetricUpdates(registry);
+    assertThat(updates, containsInAnyOrder(name1Update, name2Update));
   }
 
   @Test

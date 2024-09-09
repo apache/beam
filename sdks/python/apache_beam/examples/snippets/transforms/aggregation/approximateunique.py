@@ -20,12 +20,13 @@
 # pylint:disable=line-too-long
 
 # beam-playground:
-#   name: AppromximateUnique
+#   name: ApproximateUnique
 #   description: Demonstration of ApproximateUnique transform usage.
 #   multifile: false
 #   default_example: false
 #   context_line: 37
 #   categories:
+#     - Core Transforms
 #   complexity: BASIC
 #   tags:
 #     - transforms

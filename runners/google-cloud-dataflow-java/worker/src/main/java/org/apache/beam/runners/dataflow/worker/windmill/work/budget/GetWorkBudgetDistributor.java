@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.work.budget;
 
-import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.WindmillStreamSender;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableCollection;
 
@@ -28,6 +27,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
  */
 @Internal
 public interface GetWorkBudgetDistributor {
-  void distributeBudget(
-      ImmutableCollection<WindmillStreamSender> streams, GetWorkBudget getWorkBudget);
+  <T extends GetWorkBudgetSpender> void distributeBudget(
+      ImmutableCollection<T> streams, GetWorkBudget getWorkBudget);
 }

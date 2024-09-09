@@ -22,6 +22,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.sameInstance;
+import static org.junit.Assert.assertEquals;
 
 import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
 import com.google.cloud.bigquery.storage.v1.Exceptions;
@@ -36,6 +37,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.RetryManager.Operation.Context;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Histogram;
 import org.apache.beam.sdk.metrics.MetricName;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.util.HistogramData;
 import org.apache.beam.sdk.values.KV;
@@ -169,11 +171,17 @@ public class BigQuerySinkMetricsTest {
     appendRowsThrottleCounter.inc(1);
     assertThat(
         appendRowsThrottleCounter.getName().getName(),
-        equalTo("ThrottledTime*rpc_method:APPEND_ROWS;"));
+        equalTo("ThrottledTime*rpc_method:APPEND_ROWS;throttling-msecs"));
 
+    // check that both sub-counters have been incremented
     MetricName counterName =
         MetricName.named("BigQuerySink", "ThrottledTime*rpc_method:APPEND_ROWS;");
     testContainer.assertPerWorkerCounterValue(counterName, 1L);
+
+    counterName =
+        MetricName.named(
+            BigQueryServicesImpl.StorageClientImpl.class, Metrics.THROTTLE_TIME_COUNTER_NAME);
+    assertEquals(1L, (long) testContainer.getCounter(counterName).getCumulative());
   }
 
   @Test

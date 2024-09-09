@@ -1743,6 +1743,36 @@ class JsonTest(unittest.TestCase):
 
         assert_that(pcoll, equal_to(records))
 
+  def test_numeric_strings_preserved(self):
+    records = [
+        beam.Row(
+            as_string=str(ix),
+            as_float_string=str(float(ix)),
+            as_int=ix,
+            as_float=float(ix)) for ix in range(3)
+    ]
+    with tempfile.TemporaryDirectory() as dest:
+      with TestPipeline() as p:
+        # pylint: disable=expression-not-assigned
+        p | beam.Create(records) | beam.io.WriteToJson(
+            os.path.join(dest, 'out'))
+      with TestPipeline() as p:
+        pcoll = (
+            p
+            | beam.io.ReadFromJson(os.path.join(dest, 'out*'))
+            | beam.Map(lambda t: beam.Row(**dict(zip(type(t)._fields, t)))))
+
+        assert_that(pcoll, equal_to(records))
+
+        # This test should be redundant as Python equality does not equate
+        # numeric values with their string representations, but this is much
+        # more explicit about what we're asserting here.
+        def check_types(element):
+          for a, b in zip(element, records[0]):
+            assert type(a) == type(b), (a, b, type(a), type(b))
+
+        _ = pcoll | beam.Map(check_types)
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

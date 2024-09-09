@@ -21,6 +21,7 @@ import io.grpc.Status;
 import java.time.Instant;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.NestedCounter;
 import org.apache.beam.sdk.io.gcp.bigquery.RetryManager.Operation.Context;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.DelegatingCounter;
@@ -114,7 +115,7 @@ public class BigQuerySinkMetrics {
     nameBuilder.addLabel(RPC_METHOD, method.toString());
     MetricName metricName = nameBuilder.build(METRICS_NAMESPACE);
 
-    // Create Exponential histogram buckets wtih the following parameters:
+    // Create Exponential histogram buckets with the following parameters:
     // 0 scale, resulting in bucket widths with a size 2 growth factor.
     // 17 buckets, so the max latency of that can be stored is (2^17 millis ~= 130 seconds).
     HistogramData.BucketType buckets = HistogramData.ExponentialBuckets.of(0, 17);
@@ -158,6 +159,7 @@ public class BigQuerySinkMetrics {
     }
 
     MetricName metricName = nameBuilder.build(METRICS_NAMESPACE);
+
     return new DelegatingCounter(metricName, false, true);
   }
 
@@ -166,12 +168,20 @@ public class BigQuerySinkMetrics {
    * @return Counter that tracks throttled time due to RPC retries.
    */
   public static Counter throttledTimeCounter(RpcMethod method) {
+
     LabeledMetricNameUtils.MetricNameBuilder nameBuilder =
         LabeledMetricNameUtils.MetricNameBuilder.baseNameBuilder(THROTTLED_TIME);
     nameBuilder.addLabel(RPC_METHOD, method.toString());
     MetricName metricName = nameBuilder.build(METRICS_NAMESPACE);
-
-    return new DelegatingCounter(metricName, false, true);
+    // for specific method
+    Counter fineCounter = new DelegatingCounter(metricName, false, true);
+    // for overall throttling time, used by runner for scaling decision
+    Counter coarseCounter = BigQueryServicesImpl.StorageClientImpl.THROTTLING_MSECS;
+    return new NestedCounter(
+        MetricName.named(
+            METRICS_NAMESPACE, metricName.getName() + coarseCounter.getName().getName()),
+        fineCounter,
+        coarseCounter);
   }
 
   /**

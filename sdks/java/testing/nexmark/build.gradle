@@ -88,7 +88,7 @@ dependencies {
   compileOnly library.java.error_prone_annotations
   testRuntimeOnly library.java.slf4j_jdk14
   testImplementation project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntimeMigration")
-  testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
+  testImplementation project(path: ":sdks:java:testing:test-utils")
   gradleRun project(project.path)
   gradleRun project(path: nexmarkRunnerDependency, configuration: runnerConfiguration)
 }

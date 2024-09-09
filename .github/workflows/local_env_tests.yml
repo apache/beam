@@ -35,7 +35,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
@@ -46,12 +46,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
         with:
-          go-version: '1.21'
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.8'
+          go-version: default
+          python-version: default
       - name: "Installing local env dependencies"
         run: "sudo ./local-env-setup.sh"
         id: local_env_install_ubuntu
@@ -64,12 +63,11 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
         with:
-          go-version: '1.21'
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.8'
+          go-version: default
+          python-version: default
       - name: "Installing local env dependencies"
         run: "./local-env-setup.sh"
         id: local_env_install_mac

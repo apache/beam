@@ -579,14 +579,15 @@ class _GlobalWindowsBatchingDoFn(DoFn):
     self._batch_size_estimator.ignore_next_timing()
 
   def process(self, element):
-    self._batch.append(element)
-    self._running_batch_size += self._element_size_fn(element)
-    if self._running_batch_size >= self._target_batch_size:
+    element_size = self._element_size_fn(element)
+    if self._running_batch_size + element_size > self._target_batch_size:
       with self._batch_size_estimator.record_time(self._running_batch_size):
         yield window.GlobalWindows.windowed_value_at_end_of_window(self._batch)
       self._batch = []
       self._running_batch_size = 0
       self._target_batch_size = self._batch_size_estimator.next_batch_size()
+    self._batch.append(element)
+    self._running_batch_size += element_size
 
   def finish_bundle(self):
     if self._batch:
@@ -621,15 +622,18 @@ class _WindowAwareBatchingDoFn(DoFn):
 
   def process(self, element, window=DoFn.WindowParam):
     batch = self._batches[window]
-    batch.elements.append(element)
-    batch.size += self._element_size_fn(element)
-    if batch.size >= self._target_batch_size:
+    element_size = self._element_size_fn(element)
+    if batch.size + element_size > self._target_batch_size:
       with self._batch_size_estimator.record_time(batch.size):
         yield windowed_value.WindowedValue(
             batch.elements, window.max_timestamp(), (window, ))
       del self._batches[window]
       self._target_batch_size = self._batch_size_estimator.next_batch_size()
-    elif len(self._batches) > self._MAX_LIVE_WINDOWS:
+
+    self._batches[window].elements.append(element)
+    self._batches[window].size += element_size
+
+    if len(self._batches) > self._MAX_LIVE_WINDOWS:
       window, batch = max(
           self._batches.items(),
           key=lambda window_batch: window_batch[1].size)
@@ -797,6 +801,20 @@ class BatchElements(PTransform):
   Elements are batched per-window and batches emitted in the window
   corresponding to its contents. Each batch is emitted with a timestamp at
   the end of their window.
+
+  When the max_batch_duration_secs arg is provided, a stateful implementation
+  of BatchElements is used to batch elements across bundles. This is most
+  impactful in streaming applications where many bundles only contain one
+  element. Larger max_batch_duration_secs values `might` reduce the throughput
+  of the transform, while smaller values might improve the throughput but
+  make it more likely that batches are smaller than the target batch size.
+
+  As a general recommendation, start with low values (e.g. 0.005 aka 5ms) and
+  increase as needed to get the desired tradeoff between target batch size
+  and latency or throughput.
+
+  For more information on tuning parameters to this transform, see
+  https://beam.apache.org/documentation/patterns/batch-elements
 
   Args:
     min_batch_size: (optional) the smallest size of a batch

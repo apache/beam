@@ -44,7 +44,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
   FlinkVersion: 1.15
@@ -63,7 +63,7 @@ jobs:
       matrix:
         job_name: ["beam_PostCommit_XVR_Flink"]
         job_phrase: ["Run XVR_Flink PostCommit"]
-        python_version: ['3.8','3.11']
+        python_version: ['3.8','3.12']
     steps:
       - uses: actions/checkout@v4
       - name: Setup repository
@@ -77,7 +77,7 @@ jobs:
         with:
           python-version: |
             3.8
-            3.11
+            ${{ matrix.python_version }}
       - name: run PostCommit XVR Flink script
         env:
           CLOUDSDK_CONFIG: ${{ env.KUBELET_GCLOUD_CONFIG_PATH}}

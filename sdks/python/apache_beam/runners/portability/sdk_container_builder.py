@@ -209,17 +209,9 @@ class _SdkContainerImageCloudBuilder(SdkContainerImageBuilder):
       credentials = None
     else:
       credentials = get_service_credentials(options)
-    from google.cloud import storage
-    if credentials:
-      self._storage_client = storage.Client(
-          credentials=credentials.get_google_auth_credentials(),
-          project=self._google_cloud_options.project,
-          extra_headers={
-              "User-Agent": "apache-beam/%s (GPN:Beam)" %
-              beam_version.__version__
-          })
-    else:
-      self._storage_client = storage.Client.create_anonymous_client()
+    from apache_beam.io.gcp.gcsio import create_storage_client
+    self._storage_client = create_storage_client(
+        options, not self._google_cloud_options.no_auth)
     self._cloudbuild_client = cloudbuild.CloudbuildV1(
         credentials=credentials,
         get_credentials=(not self._google_cloud_options.no_auth),

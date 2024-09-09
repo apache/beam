@@ -22,23 +22,30 @@ import com.google.cloud.bigquery.storage.v1.ProtoSchemaConverter;
 import com.google.cloud.bigquery.storage.v1.TableSchema;
 import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.Descriptors;
+import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.Message;
 import java.lang.reflect.InvocationTargetException;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
 import org.checkerframework.checker.nullness.qual.NonNull;
 
 /** Storage API DynamicDestinations used when the input is a compiled protocol buffer. */
 class StorageApiDynamicDestinationsProto<T extends Message, DestinationT extends @NonNull Object>
     extends StorageApiDynamicDestinations<T, DestinationT> {
-  DescriptorProtos.DescriptorProto descriptorProto;
+  private final DescriptorProtos.DescriptorProto descriptorProto;
+  private final @Nullable SerializableFunction<T, TableRow> formatRecordOnFailureFunction;
 
   @SuppressWarnings({"unchecked", "nullness"})
   StorageApiDynamicDestinationsProto(
-      DynamicDestinations<T, DestinationT> inner, Class<T> protoClass) {
+      DynamicDestinations<T, DestinationT> inner,
+      Class<T> protoClass,
+      @Nullable SerializableFunction<T, TableRow> formatRecordOnFailureFunction) {
     super(inner);
     try {
+      this.formatRecordOnFailureFunction = formatRecordOnFailureFunction;
       this.descriptorProto =
           fixNestedTypes(
               (Descriptors.Descriptor)
@@ -84,12 +91,28 @@ class StorageApiDynamicDestinationsProto<T extends Message, DestinationT extends
       // we can forward
       // the through directly. This means that we don't currently support ignoreUnknownValues or
       // autoUpdateSchema.
-      return StorageApiWritePayload.of(element.toByteArray(), null);
+      return StorageApiWritePayload.of(
+          element.toByteArray(),
+          null,
+          formatRecordOnFailureFunction != null ? toFailsafeTableRow(element) : null);
     }
 
     @Override
-    public TableRow toTableRow(T element) {
-      throw new RuntimeException("Not implemented!");
+    public TableRow toFailsafeTableRow(T element) {
+      if (formatRecordOnFailureFunction != null) {
+        return formatRecordOnFailureFunction.apply(element);
+      } else {
+        try {
+          return TableRowToStorageApiProto.tableRowFromMessage(
+              DynamicMessage.parseFrom(
+                  TableRowToStorageApiProto.wrapDescriptorProto(descriptorProto),
+                  element.toByteArray()),
+              true,
+              Predicates.alwaysTrue());
+        } catch (Exception e) {
+          throw new RuntimeException(e);
+        }
+      }
     }
   };
 

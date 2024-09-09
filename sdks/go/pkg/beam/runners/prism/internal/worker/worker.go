@@ -28,6 +28,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
@@ -139,7 +140,15 @@ func (wk *W) Stop() {
 	wk.stopped.Store(true)
 	close(wk.InstReqs)
 	close(wk.DataReqs)
-	wk.server.Stop()
+
+	// Give the SDK side 5 seconds to gracefully stop, before
+	// hard stopping all RPCs.
+	tim := time.AfterFunc(5*time.Second, func() {
+		wk.server.Stop()
+	})
+	wk.server.GracefulStop()
+	tim.Stop()
+
 	wk.lis.Close()
 	slog.Debug("stopped", "worker", wk)
 }
@@ -354,7 +363,7 @@ func (wk *W) Data(data fnpb.BeamFnData_DataServer) error {
 			for _, d := range resp.GetData() {
 				cr, ok := wk.activeInstructions[d.GetInstructionId()]
 				if !ok {
-					slog.Info("data.Recv for unknown bundle", "response", resp)
+					slog.Info("data.Recv data for unknown bundle", "response", resp)
 					continue
 				}
 				// Received data is always for an active ProcessBundle instruction
@@ -373,7 +382,7 @@ func (wk *W) Data(data fnpb.BeamFnData_DataServer) error {
 			for _, t := range resp.GetTimers() {
 				cr, ok := wk.activeInstructions[t.GetInstructionId()]
 				if !ok {
-					slog.Info("data.Recv for unknown bundle", "response", resp)
+					slog.Info("data.Recv timers for unknown bundle", "response", resp)
 					continue
 				}
 				// Received data is always for an active ProcessBundle instruction
@@ -443,7 +452,7 @@ func (wk *W) State(state fnpb.BeamFnState_StateServer) error {
 				// TODO: move data handling to be pcollection based.
 
 				key := req.GetStateKey()
-				slog.Debug("StateRequest_Get", prototext.Format(req), "bundle", b)
+				slog.Debug("StateRequest_Get", "request", prototext.Format(req), "bundle", b)
 				var data [][]byte
 				switch key.GetType().(type) {
 				case *fnpb.StateKey_IterableSideInput_:
@@ -467,6 +476,21 @@ func (wk *W) State(state fnpb.BeamFnState_StateServer) error {
 					slog.Debug(fmt.Sprintf("side input[%v][%v] I Key: %v Windows: %v", req.GetId(), req.GetInstructionId(), w, wins))
 
 					data = winMap[w]
+
+				case *fnpb.StateKey_MultimapKeysSideInput_:
+					mmkey := key.GetMultimapKeysSideInput()
+					wKey := mmkey.GetWindow()
+					var w typex.Window = window.GlobalWindow{}
+					if len(wKey) > 0 {
+						w, err = exec.MakeWindowDecoder(coder.NewIntervalWindow()).DecodeSingle(bytes.NewBuffer(wKey))
+						if err != nil {
+							panic(fmt.Sprintf("error decoding multimap side input window key %v: %v", wKey, err))
+						}
+					}
+					winMap := b.MultiMapSideInputData[SideInputKey{TransformID: mmkey.GetTransformId(), Local: mmkey.GetSideInputId()}]
+					for k := range winMap[w] {
+						data = append(data, []byte(k))
+					}
 
 				case *fnpb.StateKey_MultimapSideInput_:
 					mmkey := key.GetMultimapSideInput()

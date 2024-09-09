@@ -196,7 +196,7 @@ class WriteToBigQuery(beam.PTransform):
 # [START abuse_detect]
 class CalculateSpammyUsers(beam.PTransform):
   """Filter out all but those users with a high clickrate, which we will
-  consider as 'spammy' uesrs.
+  consider as 'spammy' users.
 
   We do this by finding the mean total score per user, then using that
   information as a side input to filter out all but those user scores that are

@@ -29,7 +29,6 @@ import static org.mockito.Mockito.when;
 import com.google.api.core.ApiFuture;
 import com.google.api.core.SettableApiFuture;
 import com.google.api.gax.batching.Batcher;
-import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.gax.rpc.ApiCallContext;
 import com.google.api.gax.rpc.ResponseObserver;
 import com.google.api.gax.rpc.ServerStream;
@@ -171,8 +170,6 @@ public class BigtableServiceImplTest {
     // Set up client to return callable
     when(mockBigtableDataClient.readRowsCallable(any(RowAdapter.class))).thenReturn(callable);
 
-    RetrySettings retrySettings =
-        bigtableDataSettings.getStubSettings().bulkReadRowsSettings().getRetrySettings();
     BigtableService.Reader underTest =
         new BigtableServiceImpl.BigtableReaderImpl(
             mockBigtableDataClient,
@@ -180,9 +177,7 @@ public class BigtableServiceImplTest {
             bigtableDataSettings.getInstanceId(),
             mockBigtableSource.getTableId().get(),
             mockBigtableSource.getRanges(),
-            null,
-            Duration.millis(retrySettings.getInitialRpcTimeout().toMillis()),
-            Duration.millis(retrySettings.getTotalTimeout().toMillis()));
+            null);
 
     underTest.start();
     Assert.assertEquals(expectedRow, underTest.getCurrentRow());
@@ -230,8 +225,6 @@ public class BigtableServiceImplTest {
     when(mockBigtableDataClient.readRowsCallable(any(RowAdapter.class))).thenReturn(callable);
     when(mockBigtableSource.getTableId()).thenReturn(StaticValueProvider.of(TABLE_ID));
 
-    RetrySettings retrySettings =
-        bigtableDataSettings.getStubSettings().bulkReadRowsSettings().getRetrySettings();
     BigtableService.Reader underTest =
         new BigtableServiceImpl.BigtableSegmentReaderImpl(
             mockBigtableDataClient,
@@ -242,13 +235,73 @@ public class BigtableServiceImplTest {
             RowFilter.getDefaultInstance(),
             SEGMENT_SIZE,
             DEFAULT_BYTE_SEGMENT_SIZE,
-            Duration.millis(retrySettings.getInitialRpcTimeout().toMillis()),
-            Duration.millis(retrySettings.getTotalTimeout().toMillis()),
             mockCallMetric);
 
     underTest.start();
     Assert.assertEquals(expectedRow, underTest.getCurrentRow());
     Assert.assertFalse(underTest.advance());
+
+    Mockito.verify(mockCallMetric, Mockito.times(2)).call("ok");
+  }
+
+  /**
+   * This test ensures that protobuf creation and interactions with {@link BigtableDataClient} work
+   * as expected. This test checks that a single row is returned from the future.
+   *
+   * @throws IOException
+   */
+  @Test
+  public void testReadSingleRangeAtSegmentLimit() throws Exception {
+    RowSet.Builder ranges = RowSet.newBuilder();
+    ranges.addRowRanges(
+        generateRowRange(
+            generateByteString(DEFAULT_PREFIX, SEGMENT_SIZE),
+            generateByteString(DEFAULT_PREFIX, SEGMENT_SIZE - 1)));
+
+    // Set up Callable to be returned by stub.createReadRowsCallable()
+    ServerStreamingCallable<Query, Row> mockCallable = Mockito.mock(ServerStreamingCallable.class);
+    List<List<Row>> expectedResults =
+        ImmutableList.of(
+            generateSegmentResult(DEFAULT_PREFIX, 0, SEGMENT_SIZE), ImmutableList.of());
+
+    // Return multiple answers when mockCallable is called
+    doAnswer(
+            new MultipleAnswer<Row>(
+                ImmutableList.of(
+                    generateSegmentResult(DEFAULT_PREFIX, 0, SEGMENT_SIZE),
+                    generateSegmentResult(DEFAULT_PREFIX, SEGMENT_SIZE, SEGMENT_SIZE * 2),
+                    ImmutableList.of())))
+        .when(mockCallable)
+        .call(any(Query.class), any(ResponseObserver.class), any(ApiCallContext.class));
+
+    when(mockStub.createReadRowsCallable(any(RowAdapter.class))).thenReturn(mockCallable);
+    ServerStreamingCallable<Query, Row> callable =
+        mockStub.createReadRowsCallable(new BigtableServiceImpl.BigtableRowProtoAdapter());
+    // Set up client to return callable
+    when(mockBigtableDataClient.readRowsCallable(any(RowAdapter.class))).thenReturn(callable);
+    when(mockBigtableSource.getTableId()).thenReturn(StaticValueProvider.of(TABLE_ID));
+
+    BigtableService.Reader underTest =
+        new BigtableServiceImpl.BigtableSegmentReaderImpl(
+            mockBigtableDataClient,
+            bigtableDataSettings.getProjectId(),
+            bigtableDataSettings.getInstanceId(),
+            mockBigtableSource.getTableId().get(),
+            ranges.build(),
+            RowFilter.getDefaultInstance(),
+            SEGMENT_SIZE,
+            DEFAULT_BYTE_SEGMENT_SIZE,
+            mockCallMetric);
+
+    List<Row> actualResults = new ArrayList<>();
+    Assert.assertTrue(underTest.start());
+    do {
+      actualResults.add(underTest.getCurrentRow());
+    } while (underTest.advance());
+
+    Assert.assertEquals(
+        expectedResults.stream().flatMap(Collection::stream).collect(Collectors.toList()),
+        actualResults);
 
     Mockito.verify(mockCallMetric, Mockito.times(2)).call("ok");
   }
@@ -287,8 +340,6 @@ public class BigtableServiceImplTest {
     // Set up client to return callable
     when(mockBigtableDataClient.readRowsCallable(any(RowAdapter.class))).thenReturn(callable);
 
-    RetrySettings retrySettings =
-        bigtableDataSettings.getStubSettings().bulkReadRowsSettings().getRetrySettings();
     BigtableService.Reader underTest =
         new BigtableServiceImpl.BigtableSegmentReaderImpl(
             mockBigtableDataClient,
@@ -299,8 +350,6 @@ public class BigtableServiceImplTest {
             RowFilter.getDefaultInstance(),
             SEGMENT_SIZE,
             DEFAULT_BYTE_SEGMENT_SIZE,
-            Duration.millis(retrySettings.getInitialRpcTimeout().toMillis()),
-            Duration.millis(retrySettings.getTotalTimeout().toMillis()),
             mockCallMetric);
 
     List<Row> actualResults = new ArrayList<>();
@@ -357,8 +406,6 @@ public class BigtableServiceImplTest {
     // Set up client to return callable
     when(mockBigtableDataClient.readRowsCallable(any(RowAdapter.class))).thenReturn(callable);
 
-    RetrySettings retrySettings =
-        bigtableDataSettings.getStubSettings().bulkReadRowsSettings().getRetrySettings();
     BigtableService.Reader underTest =
         new BigtableServiceImpl.BigtableSegmentReaderImpl(
             mockBigtableDataClient,
@@ -369,8 +416,6 @@ public class BigtableServiceImplTest {
             RowFilter.getDefaultInstance(),
             SEGMENT_SIZE,
             DEFAULT_BYTE_SEGMENT_SIZE,
-            Duration.millis(retrySettings.getInitialRpcTimeout().toMillis()),
-            Duration.millis(retrySettings.getTotalTimeout().toMillis()),
             mockCallMetric);
 
     List<Row> actualResults = new ArrayList<>();
@@ -428,8 +473,6 @@ public class BigtableServiceImplTest {
     // Set up client to return callable
     when(mockBigtableDataClient.readRowsCallable(any(RowAdapter.class))).thenReturn(callable);
 
-    RetrySettings retrySettings =
-        bigtableDataSettings.getStubSettings().bulkReadRowsSettings().getRetrySettings();
     BigtableService.Reader underTest =
         new BigtableServiceImpl.BigtableSegmentReaderImpl(
             mockBigtableDataClient,
@@ -440,8 +483,6 @@ public class BigtableServiceImplTest {
             RowFilter.getDefaultInstance(),
             SEGMENT_SIZE,
             DEFAULT_BYTE_SEGMENT_SIZE,
-            Duration.millis(retrySettings.getInitialRpcTimeout().toMillis()),
-            Duration.millis(retrySettings.getTotalTimeout().toMillis()),
             mockCallMetric);
 
     List<Row> actualResults = new ArrayList<>();
@@ -484,8 +525,6 @@ public class BigtableServiceImplTest {
     // Set up client to return callable
     when(mockBigtableDataClient.readRowsCallable(any(RowAdapter.class))).thenReturn(callable);
 
-    RetrySettings retrySettings =
-        bigtableDataSettings.getStubSettings().bulkReadRowsSettings().getRetrySettings();
     BigtableService.Reader underTest =
         new BigtableServiceImpl.BigtableSegmentReaderImpl(
             mockBigtableDataClient,
@@ -496,8 +535,6 @@ public class BigtableServiceImplTest {
             RowFilter.getDefaultInstance(),
             SEGMENT_SIZE,
             DEFAULT_BYTE_SEGMENT_SIZE,
-            Duration.millis(retrySettings.getInitialRpcTimeout().toMillis()),
-            Duration.millis(retrySettings.getTotalTimeout().toMillis()),
             mockCallMetric);
 
     List<Row> actualResults = new ArrayList<>();
@@ -555,8 +592,6 @@ public class BigtableServiceImplTest {
     // Set up client to return callable
     when(mockBigtableDataClient.readRowsCallable(any(RowAdapter.class))).thenReturn(callable);
 
-    RetrySettings retrySettings =
-        bigtableDataSettings.getStubSettings().bulkReadRowsSettings().getRetrySettings();
     BigtableService.Reader underTest =
         new BigtableServiceImpl.BigtableSegmentReaderImpl(
             mockBigtableDataClient,
@@ -567,8 +602,6 @@ public class BigtableServiceImplTest {
             RowFilter.getDefaultInstance(),
             SEGMENT_SIZE,
             DEFAULT_BYTE_SEGMENT_SIZE,
-            Duration.millis(retrySettings.getInitialRpcTimeout().toMillis()),
-            Duration.millis(retrySettings.getTotalTimeout().toMillis()),
             mockCallMetric);
 
     List<Row> actualResults = new ArrayList<>();
@@ -624,8 +657,6 @@ public class BigtableServiceImplTest {
     // Set up client to return callable
     when(mockBigtableDataClient.readRowsCallable(any(RowAdapter.class))).thenReturn(callable);
 
-    RetrySettings retrySettings =
-        bigtableDataSettings.getStubSettings().bulkReadRowsSettings().getRetrySettings();
     BigtableService.Reader underTest =
         new BigtableServiceImpl.BigtableSegmentReaderImpl(
             mockBigtableDataClient,
@@ -636,8 +667,6 @@ public class BigtableServiceImplTest {
             RowFilter.getDefaultInstance(),
             segmentSize,
             DEFAULT_BYTE_SEGMENT_SIZE,
-            Duration.millis(retrySettings.getInitialRpcTimeout().toMillis()),
-            Duration.millis(retrySettings.getTotalTimeout().toMillis()),
             mockCallMetric);
 
     Assert.assertTrue(underTest.start());
@@ -707,8 +736,6 @@ public class BigtableServiceImplTest {
     // Set up client to return callable
     when(mockBigtableDataClient.readRowsCallable(any(RowAdapter.class))).thenReturn(callable);
 
-    RetrySettings retrySettings =
-        bigtableDataSettings.getStubSettings().bulkReadRowsSettings().getRetrySettings();
     BigtableService.Reader underTest =
         new BigtableServiceImpl.BigtableSegmentReaderImpl(
             mockBigtableDataClient,
@@ -719,8 +746,6 @@ public class BigtableServiceImplTest {
             RowFilter.getDefaultInstance(),
             SEGMENT_SIZE,
             segmentByteLimit,
-            Duration.millis(retrySettings.getInitialRpcTimeout().toMillis()),
-            Duration.millis(retrySettings.getTotalTimeout().toMillis()),
             mockCallMetric);
 
     List<Row> actualResults = new ArrayList<>();
@@ -773,8 +798,6 @@ public class BigtableServiceImplTest {
         mockStub.createReadRowsCallable(new BigtableServiceImpl.BigtableRowProtoAdapter());
     // Set up client to return callable
     when(mockBigtableDataClient.readRowsCallable(any(RowAdapter.class))).thenReturn(callable);
-    RetrySettings retrySettings =
-        bigtableDataSettings.getStubSettings().bulkReadRowsSettings().getRetrySettings();
     BigtableService.Reader underTest =
         new BigtableServiceImpl.BigtableSegmentReaderImpl(
             mockBigtableDataClient,
@@ -785,8 +808,6 @@ public class BigtableServiceImplTest {
             RowFilter.getDefaultInstance(),
             SEGMENT_SIZE,
             DEFAULT_BYTE_SEGMENT_SIZE,
-            Duration.millis(retrySettings.getInitialRpcTimeout().toMillis()),
-            Duration.millis(retrySettings.getTotalTimeout().toMillis()),
             mockCallMetric);
 
     IOException returnedError = null;

@@ -332,6 +332,11 @@ def createValidatesRunnerTask(Map m) {
           // FlinkBatchExecutionInternalTimeService does not support timer registration on timer firing.
           excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testOnTimerTimestampSkew'
         }
+        // Extremely flaky: https://github.com/apache/beam/issues/19814
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInProcessElementStateful'
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInStartBundleStateful'
+        // TODO(https://github.com/apache/beam/issues/29972) due to runtimeContext initialized after initial split
+        excludeTestsMatching 'org.apache.beam.sdk.metrics.MetricsTest$AttemptedMetricTests.testBoundedSourceMetricsInSplit'
       }
     }
   }
@@ -373,8 +378,12 @@ tasks.register("validatesRunnerSickbay", Test) {
   }
 }
 
-// Generates :runners:flink:1.17:runQuickstartJavaFlinkLocal
-createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner: 'FlinkLocal')
+if (project.ext.flink_major == project.ext.latestFlinkVersion) {
+  // TODO(yathu) support running validation on all supported Flink versions
+  // currently maven-archetype Flink profile pinned to single Flink version
+  // Generates :runners:flink:<latestFlinkVersion>:runQuickstartJavaFlinkLocal
+  createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner: 'FlinkLocal')
+}
 
 tasks.register("examplesIntegrationTest", Test) {
   group = "Verification"

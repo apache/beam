@@ -25,6 +25,13 @@ from datetime import datetime
 
 import mock
 
+from apache_beam import version as beam_version
+from apache_beam.metrics.execution import MetricsContainer
+from apache_beam.metrics.execution import MetricsEnvironment
+from apache_beam.metrics.metricbase import MetricName
+from apache_beam.runners.worker import statesampler
+from apache_beam.utils import counters
+
 # pylint: disable=wrong-import-order, wrong-import-position
 
 try:
@@ -224,6 +231,23 @@ class SampleOptions(object):
     self.dataflow_kms_key = kms_key
 
 
+_DEFAULT_UNIVERSE_DOMAIN = "googleapis.com"
+
+
+def _make_credentials(project=None, universe_domain=_DEFAULT_UNIVERSE_DOMAIN):
+  import google.auth.credentials
+
+  if project is not None:
+    return mock.Mock(
+        spec=google.auth.credentials.Credentials,
+        project_id=project,
+        universe_domain=universe_domain,
+    )
+
+  return mock.Mock(
+      spec=google.auth.credentials.Credentials, universe_domain=universe_domain)
+
+
 @unittest.skipIf(NotFound is None, 'GCP dependencies are not installed')
 class TestGCSIO(unittest.TestCase):
   def _insert_random_file(
@@ -255,6 +279,60 @@ class TestGCSIO(unittest.TestCase):
     self.client = FakeGcsClient()
     self.gcs = gcsio.GcsIO(self.client)
     self.client.create_bucket("gcsio-test")
+
+  def test_read_bucket_metric(self):
+    sampler = statesampler.StateSampler('', counters.CounterFactory())
+    statesampler.set_current_tracker(sampler)
+    state1 = sampler.scoped_state(
+        'mystep', 'myState', metrics_container=MetricsContainer('mystep'))
+
+    try:
+      sampler.start()
+      with state1:
+        client = FakeGcsClient()
+        gcs = gcsio.GcsIO(client, {"enable_bucket_read_metric_counter": True})
+        client.create_bucket("gcsio-test")
+        file_name = 'gs://gcsio-test/dummy_file'
+        file_size = 1234
+        self._insert_random_file(client, file_name, file_size)
+        reader = gcs.open(file_name, 'r')
+        reader.read()
+
+        container = MetricsEnvironment.current_container()
+        self.assertEqual(
+            container.get_counter(
+                MetricName(
+                    "apache_beam.io.gcp.gcsio.BeamBlobReader",
+                    "GCS_read_bytes_counter_gcsio-test")).get_cumulative(),
+            file_size)
+    finally:
+      sampler.stop()
+
+  def test_write_bucket_metric(self):
+    sampler = statesampler.StateSampler('', counters.CounterFactory())
+    statesampler.set_current_tracker(sampler)
+    state1 = sampler.scoped_state(
+        'mystep', 'myState', metrics_container=MetricsContainer('mystep'))
+
+    try:
+      sampler.start()
+      with state1:
+        client = FakeGcsClient()
+        gcs = gcsio.GcsIO(client, {"enable_bucket_write_metric_counter": True})
+        client.create_bucket("gcsio-test")
+        file_name = 'gs://gcsio-test/dummy_file'
+        gcsFile = gcs.open(file_name, 'w')
+        gcsFile.write(str.encode("some text"))
+
+        container = MetricsEnvironment.current_container()
+        self.assertEqual(
+            container.get_counter(
+                MetricName(
+                    "apache_beam.io.gcp.gcsio.BeamBlobWriter",
+                    "GCS_write_bytes_counter_gcsio-test")).get_cumulative(),
+            9)
+    finally:
+      sampler.stop()
 
   def test_default_bucket_name(self):
     self.assertEqual(
@@ -453,7 +531,8 @@ class TestGCSIO(unittest.TestCase):
 
     with mock.patch('apache_beam.io.gcp.gcsio.BeamBlobReader') as reader:
       self.gcs.open(file_name, read_buffer_size=read_buffer_size)
-      reader.assert_called_with(blob, chunk_size=read_buffer_size)
+      reader.assert_called_with(
+          blob, chunk_size=read_buffer_size, enable_read_bucket_metric=False)
 
   def test_file_write_call(self):
     file_name = 'gs://gcsio-test/write_file'
@@ -519,6 +598,82 @@ class TestGCSIO(unittest.TestCase):
 
     blob.delete()
     self.assertFalse(blob_name in bucket.blobs)
+
+  @mock.patch('google.cloud._http.JSONConnection._do_request')
+  @mock.patch('apache_beam.internal.gcp.auth.get_service_credentials')
+  def test_headers(self, mock_get_service_credentials, mock_do_request):
+    from apache_beam.internal.gcp.auth import _ApitoolsCredentialsAdapter
+    mock_get_service_credentials.return_value = _ApitoolsCredentialsAdapter(
+        _make_credentials("test-project"))
+
+    gcs = gcsio.GcsIO(pipeline_options={"job_name": "test-job-name"})
+    # no HTTP request when initializing GcsIO
+    mock_do_request.assert_not_called()
+
+    import requests
+    response = requests.Response()
+    response.status_code = 200
+    mock_do_request.return_value = response
+
+    # The function of get_bucket() is supposed to send only one HTTP request
+    gcs.get_bucket("test-bucket")
+    mock_do_request.assert_called_once()
+    call_args = mock_do_request.call_args[0]
+
+    # Headers are specified as the third argument of
+    # google.cloud._http.JSONConnection._do_request
+    actual_headers = call_args[2]
+    beam_user_agent = "apache-beam/%s (GPN:Beam)" % beam_version.__version__
+    self.assertIn(beam_user_agent, actual_headers['User-Agent'])
+    self.assertEqual(actual_headers['x-goog-custom-audit-job'], 'test-job-name')
+
+  @mock.patch('google.cloud._http.JSONConnection._do_request')
+  @mock.patch('apache_beam.internal.gcp.auth.get_service_credentials')
+  def test_create_default_bucket(
+      self, mock_get_service_credentials, mock_do_request):
+    from apache_beam.internal.gcp.auth import _ApitoolsCredentialsAdapter
+    mock_get_service_credentials.return_value = _ApitoolsCredentialsAdapter(
+        _make_credentials("test-project"))
+
+    gcs = gcsio.GcsIO(pipeline_options={"job_name": "test-job-name"})
+    # no HTTP request when initializing GcsIO
+    mock_do_request.assert_not_called()
+
+    import requests
+    response = requests.Response()
+    response.status_code = 200
+    mock_do_request.return_value = response
+
+    # The function of create_bucket() is supposed to send only one HTTP request
+    gcs.create_bucket("test-bucket", "test-project")
+    mock_do_request.assert_called_once()
+    call_args = mock_do_request.call_args[0]
+
+    # Request data is specified as the fourth argument of
+    # google.cloud._http.JSONConnection._do_request
+    actual_request_data = call_args[3]
+
+    import json
+    request_data_json = json.loads(actual_request_data)
+    # verify soft delete policy is disabled by default in the bucket creation
+    # request
+    self.assertEqual(
+        request_data_json['softDeletePolicy']['retentionDurationSeconds'], 0)
+
+  @mock.patch("apache_beam.io.gcp.gcsio.GcsIO.get_bucket")
+  def test_is_soft_delete_enabled(self, mock_get_bucket):
+    bucket = mock.MagicMock()
+    mock_get_bucket.return_value = bucket
+
+    # soft delete policy enabled
+    bucket.soft_delete_policy.retention_duration_seconds = 1024
+    self.assertTrue(
+        self.gcs.is_soft_delete_enabled("gs://beam_with_soft_delete/tmp"))
+
+    # soft delete policy disabled
+    bucket.soft_delete_policy.retention_duration_seconds = 0
+    self.assertFalse(
+        self.gcs.is_soft_delete_enabled("gs://beam_without_soft_delete/tmp"))
 
 
 if __name__ == '__main__':

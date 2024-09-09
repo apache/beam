@@ -30,10 +30,8 @@ from typing import Tuple
 import pandas as pd
 
 import apache_beam as beam
-from apache_beam import version as beam_version
 from apache_beam.dataframe.convert import to_pcollection
 from apache_beam.dataframe.frame_base import DeferredBase
-from apache_beam.internal.gcp import auth
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.pipeline import Pipeline
 from apache_beam.portability.api import beam_runner_api_pb2
@@ -42,6 +40,7 @@ from apache_beam.runners.interactive.caching.cacheable import CacheKey
 from apache_beam.runners.interactive.caching.expression_cache import ExpressionCache
 from apache_beam.testing.test_stream import WindowedValueHolder
 from apache_beam.typehints.schemas import named_fields_from_element_type
+from apache_beam.utils.windowed_value import WindowedValue
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -85,6 +84,8 @@ def to_element_list(
       elif isinstance(e, WindowedValueHolder):
         yield (
             e.windowed_value if include_window_info else e.windowed_value.value)
+      elif isinstance(e, WindowedValue):
+        yield (e if include_window_info else e.value)
       else:
         yield e
 
@@ -452,20 +453,8 @@ def assert_bucket_exists(bucket_name):
   try:
     from google.cloud.exceptions import ClientError
     from google.cloud.exceptions import NotFound
-    from google.cloud import storage
-    credentials = auth.get_service_credentials(PipelineOptions())
-    if credentials:
-      # We set project to None, so it will not try to use project id from
-      # the environment (ADC).
-      storage_client = storage.Client(
-          credentials=credentials.get_google_auth_credentials(),
-          project=None,
-          extra_headers={
-              "User-Agent": "apache-beam/%s (GPN:Beam)" %
-              beam_version.__version__
-          })
-    else:
-      storage_client = storage.Client.create_anonymous_client()
+    from apache_beam.io.gcp.gcsio import create_storage_client
+    storage_client = create_storage_client(PipelineOptions())
     storage_client.get_bucket(bucket_name)
   except ClientError as e:
     if isinstance(e, NotFound):

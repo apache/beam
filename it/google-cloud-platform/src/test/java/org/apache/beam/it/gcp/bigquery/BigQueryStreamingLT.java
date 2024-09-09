@@ -180,8 +180,7 @@ public class BigQueryStreamingLT extends IOLoadTestBase {
      * The expected table to check against for correctness. If unset, the test will run a batch
      * FILE_LOADS job and use the resulting table as a source of truth.
      */
-    @Nullable
-    abstract String getExpectedTable();
+    abstract @Nullable String getExpectedTable();
 
     static TestConfiguration of(
         int numMin,

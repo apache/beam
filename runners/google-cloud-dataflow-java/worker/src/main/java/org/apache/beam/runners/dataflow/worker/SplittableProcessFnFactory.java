@@ -28,6 +28,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.runners.core.KeyedWorkItem;
@@ -56,6 +58,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -115,7 +118,10 @@ class SplittableProcessFnFactory {
   private static class SplittableDoFnRunnerFactory<
           InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT>
       implements DoFnRunnerFactory<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> {
+    private final AtomicReference<ScheduledExecutorService> ses = new AtomicReference<>();
+
     @Override
+    @SuppressWarnings("nullness") // nullable atomic reference guaranteed nonnull when get
     public DoFnRunner<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> createRunner(
         DoFn<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> fn,
         PipelineOptions options,
@@ -131,6 +137,13 @@ class SplittableProcessFnFactory {
         OutputManager outputManager,
         DoFnSchemaInformation doFnSchemaInformation,
         Map<String, PCollectionView<?>> sideInputMapping) {
+      if (this.ses.get() == null) {
+        this.ses.compareAndSet(
+            null,
+            Executors.newScheduledThreadPool(
+                Runtime.getRuntime().availableProcessors(),
+                new ThreadFactoryBuilder().setNameFormat("df-sdf-executor-%d").build()));
+      }
       ProcessFn<InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT> processFn =
           (ProcessFn<InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT>) fn;
       processFn.setStateInternalsFactory(key -> (StateInternals) stepContext.stateInternals());
@@ -162,7 +175,7 @@ class SplittableProcessFnFactory {
                 }
               },
               sideInputReader,
-              Executors.newSingleThreadScheduledExecutor(Executors.defaultThreadFactory()),
+              ses.get(),
               // Commit at least once every 10 seconds or 10k records.  This keeps the watermark
               // advancing smoothly, and ensures that not too much work will have to be reprocessed
               // in the event of a crash.

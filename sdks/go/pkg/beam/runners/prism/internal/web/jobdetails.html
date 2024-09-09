@@ -33,7 +33,7 @@ limitations under the License. See accompanying LICENSE file.
                         onclick="if (jobManager !== null) { jobManager.cancel('{{.JobID}}') }"
                 >Cancel</button>
             </div>
-            <div>{{.State}}</div>
+            <div class="job-state">{{.State}}</div>
         </header>
         <section class="container">
             {{ if .Error}}<div class="child">{{.Error}}</div>{{end}}

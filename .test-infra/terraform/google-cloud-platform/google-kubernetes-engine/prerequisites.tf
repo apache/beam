@@ -36,6 +36,30 @@ data "google_compute_subnetwork" "default" {
   depends_on = [google_project_service.required]
   name       = var.subnetwork
   region     = var.region
+  lifecycle {
+    postcondition {
+      condition     = self.private_ip_google_access
+      error_message = <<EOT
+fatal: ${self.id} misconfigured: private Google access disabled.
+See https://cloud.google.com/vpc/docs/configure-private-google-access for details.
+EOT
+    }
+  }
+}
+
+// Query the Google Compute Router to make sure it exists; needed to access resources outside the VPC network
+// for private nodes.
+data "google_compute_router" "default" {
+  name    = var.router
+  network = data.google_compute_network.default.name
+  region  = data.google_compute_subnetwork.default.region
+}
+
+// Query the Google Compute Router NAT to make sure it exists.
+data "google_compute_router_nat" "default" {
+  name   = var.router_nat
+  router = data.google_compute_router.default.name
+  region = data.google_compute_router.default.region
 }
 
 // Query the Service Account.

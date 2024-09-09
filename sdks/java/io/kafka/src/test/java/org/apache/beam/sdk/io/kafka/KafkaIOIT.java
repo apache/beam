@@ -22,8 +22,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
 
-import com.google.cloud.Timestamp;
 import java.io.IOException;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -48,6 +48,7 @@ import org.apache.beam.sdk.io.kafka.KafkaIOTest.FailingLongSerializer;
 import org.apache.beam.sdk.io.kafka.ReadFromKafkaDoFnTest.FailingDeserializer;
 import org.apache.beam.sdk.io.synthetic.SyntheticBoundedSource;
 import org.apache.beam.sdk.io.synthetic.SyntheticSourceOptions;
+import org.apache.beam.sdk.managed.Managed;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.ExperimentalOptions;
@@ -133,7 +134,7 @@ public class KafkaIOIT {
 
   private static final String TEST_ID = UUID.randomUUID().toString();
 
-  private static final String TIMESTAMP = Timestamp.now().toString();
+  private static final String TIMESTAMP = Instant.now().toString();
 
   private static final Logger LOG = LoggerFactory.getLogger(KafkaIOIT.class);
 
@@ -607,18 +608,18 @@ public class KafkaIOIT {
   private static final int FIVE_MINUTES_IN_MS = 5 * 60 * 1000;
 
   @Test(timeout = FIVE_MINUTES_IN_MS)
-  public void testKafkaViaSchemaTransformJson() {
-    runReadWriteKafkaViaSchemaTransforms(
+  public void testKafkaViaManagedSchemaTransformJson() {
+    runReadWriteKafkaViaManagedSchemaTransforms(
         "JSON", SCHEMA_IN_JSON, JsonUtils.beamSchemaFromJsonSchema(SCHEMA_IN_JSON));
   }
 
   @Test(timeout = FIVE_MINUTES_IN_MS)
-  public void testKafkaViaSchemaTransformAvro() {
-    runReadWriteKafkaViaSchemaTransforms(
+  public void testKafkaViaManagedSchemaTransformAvro() {
+    runReadWriteKafkaViaManagedSchemaTransforms(
         "AVRO", AvroUtils.toAvroSchema(KAFKA_TOPIC_SCHEMA).toString(), KAFKA_TOPIC_SCHEMA);
   }
 
-  public void runReadWriteKafkaViaSchemaTransforms(
+  public void runReadWriteKafkaViaManagedSchemaTransforms(
       String format, String schemaDefinition, Schema beamSchema) {
     String topicName = options.getKafkaTopic() + "-schema-transform" + UUID.randomUUID();
     PCollectionRowTuple.of(
@@ -646,13 +647,12 @@ public class KafkaIOIT {
                 .setRowSchema(beamSchema))
         .apply(
             "Write to Kafka",
-            new KafkaWriteSchemaTransformProvider()
-                .from(
-                    KafkaWriteSchemaTransformProvider.KafkaWriteSchemaTransformConfiguration
-                        .builder()
-                        .setTopic(topicName)
-                        .setBootstrapServers(options.getKafkaBootstrapServerAddresses())
-                        .setFormat(format)
+            Managed.write(Managed.KAFKA)
+                .withConfig(
+                    ImmutableMap.<String, Object>builder()
+                        .put("topic", topicName)
+                        .put("bootstrap_servers", options.getKafkaBootstrapServerAddresses())
+                        .put("format", format)
                         .build()));
 
     PAssert.that(
@@ -661,15 +661,18 @@ public class KafkaIOIT {
                     "Read from unbounded Kafka",
                     // A timeout of 30s for local, container-based tests, and 2 minutes for
                     // real-kafka tests.
-                    new KafkaReadSchemaTransformProvider(
-                            true, options.isWithTestcontainers() ? 30 : 120)
-                        .from(
-                            KafkaReadSchemaTransformConfiguration.builder()
-                                .setFormat(format)
-                                .setAutoOffsetResetConfig("earliest")
-                                .setSchema(schemaDefinition)
-                                .setTopic(topicName)
-                                .setBootstrapServers(options.getKafkaBootstrapServerAddresses())
+                    Managed.read(Managed.KAFKA)
+                        .withConfig(
+                            ImmutableMap.<String, Object>builder()
+                                .put("format", format)
+                                .put("auto_offset_reset_config", "earliest")
+                                .put("schema", schemaDefinition)
+                                .put("topic", topicName)
+                                .put(
+                                    "bootstrap_servers", options.getKafkaBootstrapServerAddresses())
+                                .put(
+                                    "max_read_time_seconds",
+                                    options.isWithTestcontainers() ? 30 : 120)
                                 .build()))
                 .get("output"))
         .containsInAnyOrder(

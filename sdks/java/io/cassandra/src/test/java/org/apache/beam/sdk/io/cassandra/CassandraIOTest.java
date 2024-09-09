@@ -61,6 +61,7 @@ import javax.management.remote.JMXConnectorFactory;
 import javax.management.remote.JMXServiceURL;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.common.NetworkTestHelper;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
@@ -472,6 +473,94 @@ public class CassandraIOTest implements Serializable {
                 .withTable(CASSANDRA_TABLE)
                 .withMinNumberOfSplits(20)
                 .withQuery(query)
+                .withCoder(SerializableCoder.of(Scientist.class))
+                .withEntity(Scientist.class));
+
+    PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(1L);
+    PAssert.that(output)
+        .satisfies(
+            input -> {
+              for (Scientist sci : input) {
+                assertNull(sci.name);
+                assertTrue(sci.nameTs != null && sci.nameTs > 0);
+              }
+              return null;
+            });
+
+    pipeline.run();
+  }
+
+  /**
+   * Create a mock value provider class that tests how the query gets expanded in
+   * CassandraIO.ReadFn.
+   */
+  static class MockQueryProvider implements ValueProvider<String> {
+    private volatile String query;
+
+    MockQueryProvider(String query) {
+      this.query = query;
+    }
+
+    @Override
+    public String get() {
+      return query;
+    }
+
+    @Override
+    public boolean isAccessible() {
+      return !query.isEmpty();
+    }
+  }
+
+  @Test
+  public void testReadWithQueryProvider() throws Exception {
+    String query =
+        String.format(
+            "select person_id, writetime(person_name) from %s.%s",
+            CASSANDRA_KEYSPACE, CASSANDRA_TABLE);
+
+    PCollection<Scientist> output =
+        pipeline.apply(
+            CassandraIO.<Scientist>read()
+                .withHosts(Collections.singletonList(CASSANDRA_HOST))
+                .withPort(cassandraPort)
+                .withKeyspace(CASSANDRA_KEYSPACE)
+                .withTable(CASSANDRA_TABLE)
+                .withMinNumberOfSplits(20)
+                .withQuery(new MockQueryProvider(query))
+                .withCoder(SerializableCoder.of(Scientist.class))
+                .withEntity(Scientist.class));
+
+    PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(NUM_ROWS);
+    PAssert.that(output)
+        .satisfies(
+            input -> {
+              for (Scientist sci : input) {
+                assertNull(sci.name);
+                assertTrue(sci.nameTs != null && sci.nameTs > 0);
+              }
+              return null;
+            });
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testReadWithQueryProviderWithWhereQuery() throws Exception {
+    String query =
+        String.format(
+            "select person_id, writetime(person_name) from %s.%s where person_id=10 AND person_department='logic'",
+            CASSANDRA_KEYSPACE, CASSANDRA_TABLE);
+
+    PCollection<Scientist> output =
+        pipeline.apply(
+            CassandraIO.<Scientist>read()
+                .withHosts(Collections.singletonList(CASSANDRA_HOST))
+                .withPort(cassandraPort)
+                .withKeyspace(CASSANDRA_KEYSPACE)
+                .withTable(CASSANDRA_TABLE)
+                .withMinNumberOfSplits(20)
+                .withQuery(new MockQueryProvider(query))
                 .withCoder(SerializableCoder.of(Scientist.class))
                 .withEntity(Scientist.class));
 

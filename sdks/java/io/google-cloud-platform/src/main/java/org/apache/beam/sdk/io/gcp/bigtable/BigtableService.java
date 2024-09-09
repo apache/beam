@@ -30,7 +30,6 @@ import java.util.NoSuchElementException;
 import java.util.concurrent.CompletionStage;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO.BigtableSource;
 import org.apache.beam.sdk.values.KV;
-import org.joda.time.Duration;
 
 /** An interface for real or fake implementations of Cloud Bigtable. */
 interface BigtableService extends Serializable {
@@ -58,6 +57,9 @@ interface BigtableService extends Serializable {
      * @throws IOException if there is an error closing the writer
      */
     void close() throws IOException;
+
+    /** Report Lineage metrics to runner. */
+    default void reportLineage() {}
   }
 
   /** The interface of a class that reads from Cloud Bigtable. */
@@ -77,11 +79,10 @@ interface BigtableService extends Serializable {
      */
     Row getCurrentRow() throws NoSuchElementException;
 
-    // Workaround for ReadRows requests which requires to pass the timeouts in
-    // ApiContext. Can be removed later once it's fixed in Veneer.
-    Duration getAttemptTimeout();
+    void close();
 
-    Duration getOperationTimeout();
+    /** Report Lineage metrics to runner. */
+    default void reportLineage() {}
   }
 
   /** Returns a {@link Reader} that will read from the specified source. */

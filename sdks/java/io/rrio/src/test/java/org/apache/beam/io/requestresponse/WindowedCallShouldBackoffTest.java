@@ -20,6 +20,7 @@ package org.apache.beam.io.requestresponse;
 import static org.apache.beam.sdk.testing.SerializableMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
 
+import org.apache.beam.sdk.util.SerializableSupplier;
 import org.joda.time.Duration;
 import org.junit.Test;
 

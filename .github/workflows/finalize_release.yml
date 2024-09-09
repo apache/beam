@@ -29,9 +29,7 @@ on:
         required: true
         default: 'no'
 env:
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
-  GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
-  GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
 
 permissions:
   contents: write
@@ -105,6 +103,7 @@ jobs:
       uses: ./.github/actions/setup-environment-action
       with:
         python-version: 3.11
+        disable-cache: true
     - name: Install dependencies
       run: |
         pip install python-dateutil

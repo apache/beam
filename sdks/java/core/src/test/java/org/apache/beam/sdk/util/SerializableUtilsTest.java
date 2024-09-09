@@ -24,12 +24,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.testing.InterceptingUrlClassLoader;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.junit.Rule;
 import org.junit.Test;
@@ -93,7 +93,7 @@ public class SerializableUtilsTest {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("unable to deserialize a bogus string");
     SerializableUtils.deserializeFromByteArray(
-        "this isn't legal".getBytes(Charsets.UTF_8), "a bogus string");
+        "this isn't legal".getBytes(StandardCharsets.UTF_8), "a bogus string");
   }
 
   /** A class that is not serializable by Java. */

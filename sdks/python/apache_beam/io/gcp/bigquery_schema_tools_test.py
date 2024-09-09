@@ -136,12 +136,11 @@ class TestBigQueryToSchema(unittest.TestCase):
     with self.assertRaisesRegex(ValueError,
                                 "Encountered an unsupported type: 'DOUBLE'"):
       p = apache_beam.Pipeline()
-      pipeline = p | apache_beam.io.gcp.bigquery.ReadFromBigQuery(
+      _ = p | apache_beam.io.gcp.bigquery.ReadFromBigQuery(
           table="dataset.sample_table",
           method="EXPORT",
           project="project",
           output_type='BEAM_ROW')
-      pipeline
 
   @mock.patch.object(BigQueryWrapper, 'get_table')
   def test_bad_schema_public_api_direct_read(self, get_table):
@@ -159,21 +158,19 @@ class TestBigQueryToSchema(unittest.TestCase):
     with self.assertRaisesRegex(ValueError,
                                 "Encountered an unsupported type: 'DOUBLE'"):
       p = apache_beam.Pipeline()
-      pipeline = p | apache_beam.io.gcp.bigquery.ReadFromBigQuery(
+      _ = p | apache_beam.io.gcp.bigquery.ReadFromBigQuery(
           table="dataset.sample_table",
           method="DIRECT_READ",
           project="project",
           output_type='BEAM_ROW')
-      pipeline
 
   def test_unsupported_value_provider(self):
     with self.assertRaisesRegex(TypeError,
                                 'ReadFromBigQuery: table must be of type string'
                                 '; got ValueProvider instead'):
       p = apache_beam.Pipeline()
-      pipeline = p | apache_beam.io.gcp.bigquery.ReadFromBigQuery(
+      _ = p | apache_beam.io.gcp.bigquery.ReadFromBigQuery(
           table=value_provider.ValueProvider(), output_type='BEAM_ROW')
-      pipeline
 
   def test_unsupported_callable(self):
     def filterTable(table):
@@ -185,9 +182,8 @@ class TestBigQueryToSchema(unittest.TestCase):
                                 'ReadFromBigQuery: table must be of type string'
                                 '; got a callable instead'):
       p = apache_beam.Pipeline()
-      pipeline = p | apache_beam.io.gcp.bigquery.ReadFromBigQuery(
+      _ = p | apache_beam.io.gcp.bigquery.ReadFromBigQuery(
           table=res, output_type='BEAM_ROW')
-      pipeline
 
   def test_unsupported_query_export(self):
     with self.assertRaisesRegex(
@@ -195,12 +191,11 @@ class TestBigQueryToSchema(unittest.TestCase):
         "Both a query and an output type of 'BEAM_ROW' were specified. "
         "'BEAM_ROW' is not currently supported with queries."):
       p = apache_beam.Pipeline()
-      pipeline = p | apache_beam.io.gcp.bigquery.ReadFromBigQuery(
+      _ = p | apache_beam.io.gcp.bigquery.ReadFromBigQuery(
           table="project:dataset.sample_table",
           method="EXPORT",
           query='SELECT name FROM dataset.sample_table',
           output_type='BEAM_ROW')
-      pipeline
 
   def test_unsupported_query_direct_read(self):
     with self.assertRaisesRegex(
@@ -208,12 +203,11 @@ class TestBigQueryToSchema(unittest.TestCase):
         "Both a query and an output type of 'BEAM_ROW' were specified. "
         "'BEAM_ROW' is not currently supported with queries."):
       p = apache_beam.Pipeline()
-      pipeline = p | apache_beam.io.gcp.bigquery.ReadFromBigQuery(
+      _ = p | apache_beam.io.gcp.bigquery.ReadFromBigQuery(
           table="project:dataset.sample_table",
           method="DIRECT_READ",
           query='SELECT name FROM dataset.sample_table',
           output_type='BEAM_ROW')
-      pipeline
 
   if __name__ == '__main__':
     logging.getLogger().setLevel(logging.INFO)

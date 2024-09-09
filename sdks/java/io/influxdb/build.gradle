@@ -35,5 +35,5 @@ dependencies {
   testImplementation library.java.mockito_core
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
   testImplementation project(path: ":sdks:java:extensions:avro", configuration: "testRuntimeMigration")
-  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
+  testImplementation project(path: ":sdks:java:io:common")
 }

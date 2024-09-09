@@ -18,7 +18,8 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-        automaticModuleName: 'org.apache.beam.it.elasticsearch',
+    automaticModuleName: 'org.apache.beam.it.elasticsearch',
+    exportJavadoc: false,
 )
 
 description = "Apache Beam :: IT :: Elasticsearch"
@@ -27,8 +28,13 @@ ext.summary = "Integration test utilities for Elasticsearch."
 def elastic_search_version = "7.9.2"
 
 dependencies {
-    implementation project(path: ":it:testcontainers", configuration: "shadow")
+    implementation project(path: ":it:common")
+    implementation project(path: ":it:testcontainers")
+    implementation library.java.http_core
+    implementation library.java.slf4j_api
+    implementation library.java.testcontainers_base
     implementation library.java.testcontainers_elasticsearch
+    implementation library.java.vendored_guava_32_1_2_jre
     implementation "org.elasticsearch.client:elasticsearch-rest-high-level-client:$elastic_search_version"
     implementation "org.elasticsearch.client:elasticsearch-rest-client:$elastic_search_version"
     implementation "org.elasticsearch:elasticsearch:$elastic_search_version"
@@ -36,6 +42,8 @@ dependencies {
     testImplementation(library.java.truth) {
         exclude group: 'com.google.guava', module: 'guava'
     }
+    testImplementation library.java.guava
+    permitUsedUndeclared library.java.guava
     testImplementation library.java.mockito_inline
     testImplementation library.java.commons_lang3
     testRuntimeOnly library.java.slf4j_simple

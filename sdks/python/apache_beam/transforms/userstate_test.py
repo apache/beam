@@ -437,7 +437,7 @@ class InterfaceTest(unittest.TestCase):
 
 class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
   # pylint: disable=expression-not-assigned
-  all_records = None  # type: List[Any]
+  all_records: List[Any]
 
   def setUp(self):
     # Use state on the TestCase class, since other references would be pickled

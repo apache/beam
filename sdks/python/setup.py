@@ -113,7 +113,7 @@ except PackageNotFoundError:
   # `pipenv` package managers.
   pass
 
-REQUIRED_CYTHON_VERSION = '0.28.1'
+REQUIRED_CYTHON_VERSION = '3.0.0'
 try:
   _CYTHON_VERSION = distribution('cython').version
   if parse_version(_CYTHON_VERSION) < parse_version(REQUIRED_CYTHON_VERSION):
@@ -143,21 +143,9 @@ except ImportError:
 # [BEAM-8181] pyarrow cannot be installed on 32-bit Windows platforms.
 if sys.platform == 'win32' and sys.maxsize <= 2**32:
   pyarrow_dependency = ['']
-elif sys.platform == 'win32' or sys.platform == 'cygwin':
-  # https://github.com/apache/beam/issues/28410 - pyarrow>=13 seeing issues
-  # on windows with error
-  # C:\arrow\cpp\src\arrow\filesystem\s3fs.cc:2904:  arrow::fs::FinalizeS3 was
-  # not called even though S3 was initialized.  This could lead to a
-  # segmentation fault at exit. Keep pyarrow<13 until this is resolved.
-  pyarrow_dependency = [
-      'pyarrow>=3.0.0,<12.0.0',
-      # NOTE: We can remove this once Beam increases the pyarrow lower bound
-      # to a version that fixes CVE.
-      'pyarrow-hotfix<1'
-  ]
 else:
   pyarrow_dependency = [
-      'pyarrow>=3.0.0,<15.0.0',
+      'pyarrow>=3.0.0,<17.0.0',
       # NOTE(https://github.com/apache/beam/issues/29392): We can remove this
       # once Beam increases the pyarrow lower bound to a version that fixes CVE.
       'pyarrow-hotfix<1'
@@ -167,7 +155,7 @@ else:
 # Exclude 1.5.0 and 1.5.1 because of
 # https://github.com/pandas-dev/pandas/issues/45725
 dataframe_dependency = [
-    'pandas>=1.4.3,!=1.5.0,!=1.5.1,<2.1;python_version>="3.8"',
+    'pandas>=1.4.3,!=1.5.0,!=1.5.1,<2.3;python_version>="3.8"',
 ]
 
 
@@ -406,19 +394,21 @@ if __name__ == '__main__':
       # BEAM-8840: Do NOT use tests_require or setup_requires.
       extras_require={
           'docs': [
+              'jinja2>=3.0,<3.2',
               'Sphinx>=1.5.2,<2.0',
               'docstring-parser>=0.15,<1.0',
               # Pinning docutils as a workaround for Sphinx issue:
               # https://github.com/sphinx-doc/sphinx/issues/9727
               'docutils==0.17.1',
-              'pandas<2.1.0',
+              'pandas<2.2.0',
           ],
           'test': [
               'docstring-parser>=0.15,<1.0',
               'freezegun>=0.3.12',
+              'jinja2>=3.0,<3.2',
               'joblib>=1.0.1',
               'mock>=1.0.1,<6.0.0',
-              'pandas<2.1.0',
+              'pandas<2.2.0',
               'parameterized>=0.7.1,<0.10.0',
               'pyhamcrest>=1.9,!=1.10.0,<3.0.0',
               'pyyaml>=3.12,<7.0.0',
@@ -428,6 +418,7 @@ if __name__ == '__main__':
               'pytest-xdist>=2.5.0,<4',
               'pytest-timeout>=2.1.0,<3',
               'scikit-learn>=0.20.0',
+              'setuptools',
               'sqlalchemy>=1.3,<3.0',
               'psycopg2-binary>=2.8.5,<3.0.0',
               'testcontainers[mysql]>=3.0.3,<4.0.0',
@@ -446,7 +437,7 @@ if __name__ == '__main__':
               'google-cloud-datastore>=2.0.0,<3',
               'google-cloud-pubsub>=2.1.0,<3',
               'google-cloud-pubsublite>=1.2.0,<2',
-              'google-cloud-storage>=2.14.0,<3',
+              'google-cloud-storage>=2.18.2,<3',
               # GCP packages required by tests
               'google-cloud-bigquery>=2.0.0,<4',
               'google-cloud-bigquery-storage>=2.6.3,<3',
@@ -459,7 +450,12 @@ if __name__ == '__main__':
               'google-cloud-videointelligence>=2.0,<3',
               'google-cloud-vision>=2,<4',
               'google-cloud-recommendations-ai>=0.1.0,<0.11.0',
-              'google-cloud-aiplatform>=1.26.0, < 2.0'
+              'google-cloud-aiplatform>=1.26.0, < 2.0',
+              # Authentication for Google Artifact Registry when using
+              # --extra-index-url or --index-url in requirements.txt in
+              # Dataflow, which allows installing python packages from private
+              # Python repositories in GAR.
+              'keyrings.google-artifactregistry-auth'
           ],
           'interactive': [
               'facets-overview>=1.1.0,<2',
@@ -483,6 +479,29 @@ if __name__ == '__main__':
               # urllib 2.x is a breaking change for the headless chrome tests
               'urllib3<2,>=1.21.1'
           ],
+          # Optional dependencies to unit-test ML functionality.
+          # We don't expect users to install this extra. Users should install
+          # necessary dependencies individually, or we should create targeted
+          # extras. Keeping the bounds open as much as possible so that we
+          # can find out early when Beam doesn't work with new versions.
+          'ml_test': [
+              'datatable',
+              'embeddings',
+              'onnxruntime',
+              'sentence-transformers',
+              'skl2onnx',
+              'pillow',
+              # Support TF 2.16.0: https://github.com/apache/beam/issues/31294
+              # Once TF version is unpinned, also don't restrict Python version.
+              'tensorflow<2.16.0;python_version<"3.12"',
+              'tensorflow-hub',
+              # https://github.com/tensorflow/transform/issues/313
+              'tensorflow-transform;python_version<"3.11"',
+              'tf2onnx',
+              'torch',
+              'transformers',
+              'xgboost<2.0',  # https://github.com/apache/beam/issues/31252
+          ],
           'aws': ['boto3>=1.9,<2'],
           'azure': [
               'azure-storage-blob>=12.3.2,<13',
@@ -496,6 +515,7 @@ if __name__ == '__main__':
           ],
           'yaml': [
               'docstring-parser>=0.15,<1.0',
+              'jinja2>=3.0,<3.2',
               'pyyaml>=3.12,<7.0.0',
               'virtualenv-clone>=0.5,<1.0',
           ] + dataframe_dependency
@@ -510,6 +530,7 @@ if __name__ == '__main__':
           'Programming Language :: Python :: 3.9',
           'Programming Language :: Python :: 3.10',
           'Programming Language :: Python :: 3.11',
+          'Programming Language :: Python :: 3.12',
           # When updating version classifiers, also update version warnings
           # above and in apache_beam/__init__.py.
           'Topic :: Software Development :: Libraries',

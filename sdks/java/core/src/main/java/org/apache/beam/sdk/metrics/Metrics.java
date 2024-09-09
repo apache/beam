@@ -93,6 +93,23 @@ public class Metrics {
     return new DelegatingGauge(MetricName.named(namespace, name));
   }
 
+  /** Create a metric that accumulates and reports set of unique string values. */
+  public static StringSet stringSet(String namespace, String name) {
+    return new DelegatingStringSet(MetricName.named(namespace, name));
+  }
+
+  /** Create a metric that accumulates and reports set of unique string values. */
+  public static StringSet stringSet(Class<?> namespace, String name) {
+    return new DelegatingStringSet(MetricName.named(namespace, name));
+  }
+
+  /*
+   * A dedicated namespace for client throttling time. User DoFn can increment this metrics and then
+   * runner will put back pressure on scaling decision, if supported.
+   */
+  public static final String THROTTLE_TIME_NAMESPACE = "beam-throttling-metrics";
+  public static final String THROTTLE_TIME_COUNTER_NAME = "throttling-msecs";
+
   /**
    * Implementation of {@link Distribution} that delegates to the instance for the current context.
    */
@@ -138,6 +155,36 @@ public class Metrics {
       MetricsContainer container = MetricsEnvironment.getCurrentContainer();
       if (container != null) {
         container.getGauge(name).set(value);
+      }
+    }
+
+    @Override
+    public MetricName getName() {
+      return name;
+    }
+  }
+
+  /** Implementation of {@link StringSet} that delegates to the instance for the current context. */
+  private static class DelegatingStringSet implements Metric, StringSet, Serializable {
+    private final MetricName name;
+
+    private DelegatingStringSet(MetricName name) {
+      this.name = name;
+    }
+
+    @Override
+    public void add(String value) {
+      MetricsContainer container = MetricsEnvironment.getCurrentContainer();
+      if (container != null) {
+        container.getStringSet(name).add(value);
+      }
+    }
+
+    @Override
+    public void add(String... value) {
+      MetricsContainer container = MetricsEnvironment.getCurrentContainer();
+      if (container != null) {
+        container.getStringSet(name).add(value);
       }
     }
 

@@ -135,7 +135,7 @@ autodoc_member_order = 'bysource'
 autodoc_mock_imports = ["tensorrt", "cuda", "torch",
     "onnxruntime", "onnx", "tensorflow", "tensorflow_hub",
     "tensorflow_transform", "tensorflow_metadata", "transformers", "xgboost", "datatable", "transformers",
-    "sentence_transformers", "redis", "tensorflow_text",
+    "sentence_transformers", "redis", "tensorflow_text", "feast",
     ]
 
 # Allow a special section for documenting DataFrame API
@@ -199,6 +199,7 @@ ignore_identifiers = [
   'apache_beam.transforms.ptransform.PTransformWithSideInputs',
   'apache_beam.transforms.trigger._ParallelTriggerFn',
   'apache_beam.transforms.trigger.InMemoryUnmergedState',
+  'apache_beam.transforms.utils.BatchElements',
   'apache_beam.typehints.typehints.AnyTypeConstraint',
   'apache_beam.typehints.typehints.CompositeTypeHint',
   'apache_beam.typehints.typehints.TypeConstraint',
@@ -223,6 +224,8 @@ ignore_identifiers = [
   '_BundleFinalizerParam',
   '_RestrictionDoFnParam',
   '_WatermarkEstimatorParam',
+  '_BundleContextParam',
+  '_SetupContextParam',
 
   # Sphinx cannot find this py:class reference target
   'callable',

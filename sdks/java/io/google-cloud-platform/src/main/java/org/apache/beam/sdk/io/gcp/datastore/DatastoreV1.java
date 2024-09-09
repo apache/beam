@@ -1711,7 +1711,7 @@ public class DatastoreV1 {
     private WriteBatcher writeBatcher;
     private transient AdaptiveThrottler adaptiveThrottler;
     private final Counter throttlingMsecs =
-        Metrics.counter(DatastoreWriterFn.class, "throttling-msecs");
+        Metrics.counter(DatastoreWriterFn.class, Metrics.THROTTLE_TIME_COUNTER_NAME);
     private final Counter rpcErrors =
         Metrics.counter(DatastoreWriterFn.class, "datastoreRpcErrors");
     private final Counter rpcSuccesses =

@@ -43,7 +43,7 @@ import org.junit.Test;
 public class BigQueryIOTranslationTest {
 
   // A mapping from Read transform builder methods to the corresponding schema fields in
-  // KafkaIOTranslation.
+  // BigQueryIOTranslation.
   static final Map<String, String> READ_TRANSFORM_SCHEMA_MAPPING = new HashMap<>();
 
   static {
@@ -60,6 +60,7 @@ public class BigQueryIOTranslationTest {
     READ_TRANSFORM_SCHEMA_MAPPING.put("getQueryPriority", "query_priority");
     READ_TRANSFORM_SCHEMA_MAPPING.put("getQueryLocation", "query_location");
     READ_TRANSFORM_SCHEMA_MAPPING.put("getQueryTempDataset", "query_temp_dataset");
+    READ_TRANSFORM_SCHEMA_MAPPING.put("getQueryTempProject", "query_temp_project");
     READ_TRANSFORM_SCHEMA_MAPPING.put("getMethod", "method");
     READ_TRANSFORM_SCHEMA_MAPPING.put("getFormat", "format");
     READ_TRANSFORM_SCHEMA_MAPPING.put("getSelectedFields", "selected_fields");
@@ -104,6 +105,9 @@ public class BigQueryIOTranslationTest {
         "getNumStorageWriteApiStreams", "num_storage_write_api_streams");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put(
         "getPropagateSuccessfulStorageApiWrites", "propagate_successful_storage_api_writes");
+    WRITE_TRANSFORM_SCHEMA_MAPPING.put(
+        "getPropagateSuccessfulStorageApiWritesPredicate",
+        "propagate_successful_storage_api_writes_predicate");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getMaxFilesPerPartition", "max_files_per_partition");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getMaxBytesPerPartition", "max_bytes_per_partition");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getTriggeringFrequency", "triggering_frequency");

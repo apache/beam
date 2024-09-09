@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.sdk.coders.Coder;
@@ -78,6 +79,8 @@ public class BeamFnDataInboundObserver implements CloseableFnDataReceiver<BeamFn
   private final int totalNumEndpoints;
   private int numEndpointsThatAreIncomplete;
 
+  private AtomicBoolean consumingReceivedData;
+
   private BeamFnDataInboundObserver(
       List<DataEndpoint<?>> dataEndpoints, List<TimerEndpoint<?>> timerEndpoints) {
     this.transformIdToDataEndpoint = new HashMap<>();
@@ -93,6 +96,7 @@ public class BeamFnDataInboundObserver implements CloseableFnDataReceiver<BeamFn
     this.queue = new CancellableQueue<>(100);
     this.totalNumEndpoints = dataEndpoints.size() + timerEndpoints.size();
     this.numEndpointsThatAreIncomplete = totalNumEndpoints;
+    this.consumingReceivedData = new AtomicBoolean(false);
   }
 
   @Override
@@ -110,6 +114,10 @@ public class BeamFnDataInboundObserver implements CloseableFnDataReceiver<BeamFn
     queue.cancel(CloseException.INSTANCE);
   }
 
+  public boolean isConsumingReceivedData() {
+    return consumingReceivedData.get();
+  }
+
   /**
    * Uses the callers thread to process all elements received until we receive the end of the stream
    * from the upstream producer for all endpoints specified.
@@ -119,7 +127,12 @@ public class BeamFnDataInboundObserver implements CloseableFnDataReceiver<BeamFn
   public void awaitCompletion() throws Exception {
     try {
       while (true) {
+        // The SDK indicates it has consumed all the received data before it attempts to take
+        // more elements off the queue.
+        consumingReceivedData.set(false);
         BeamFnApi.Elements elements = queue.take();
+        // The SDK is no longer blocked on receiving more data from the Runner.
+        consumingReceivedData.set(true);
         if (multiplexElements(elements)) {
           return;
         }
@@ -128,6 +141,7 @@ public class BeamFnDataInboundObserver implements CloseableFnDataReceiver<BeamFn
       queue.cancel(e);
       throw e;
     } finally {
+      consumingReceivedData.set(false);
       close();
     }
   }

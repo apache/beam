@@ -24,7 +24,11 @@ import com.google.api.services.dataflow.model.CounterStructuredName;
 import com.google.api.services.dataflow.model.CounterStructuredNameAndMetadata;
 import com.google.api.services.dataflow.model.CounterUpdate;
 import com.google.api.services.dataflow.model.DistributionUpdate;
+import com.google.api.services.dataflow.model.IntegerGauge;
+import com.google.api.services.dataflow.model.StringList;
+import java.util.ArrayList;
 import org.apache.beam.runners.core.metrics.DistributionData;
+import org.apache.beam.runners.core.metrics.StringSetData;
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
 
@@ -56,7 +60,9 @@ public class MetricsToCounterUpdateConverter {
   public enum Kind {
     DISTRIBUTION("DISTRIBUTION"),
     MEAN("MEAN"),
-    SUM("SUM");
+    SUM("SUM"),
+    LATEST_VALUE("LATEST_VALUE"),
+    SET("SET");
 
     private final String kind;
 
@@ -77,6 +83,31 @@ public class MetricsToCounterUpdateConverter {
         .setStructuredNameAndMetadata(name)
         .setCumulative(isCumulative)
         .setInteger(longToSplitInt(update));
+  }
+
+  public static CounterUpdate fromGauge(
+      MetricKey key, long update, org.joda.time.Instant timestamp) {
+    CounterStructuredNameAndMetadata name = structuredNameAndMetadata(key, Kind.LATEST_VALUE);
+
+    IntegerGauge integerGaugeProto = new IntegerGauge();
+    integerGaugeProto.setValue(longToSplitInt(update)).setTimestamp(timestamp.toString());
+
+    return new CounterUpdate()
+        .setStructuredNameAndMetadata(name)
+        .setCumulative(false)
+        .setIntegerGauge(integerGaugeProto);
+  }
+
+  public static CounterUpdate fromStringSet(MetricKey key, StringSetData stringSetData) {
+    CounterStructuredNameAndMetadata name = structuredNameAndMetadata(key, Kind.SET);
+
+    StringList stringList = new StringList();
+    stringList.setElements(new ArrayList<>(stringSetData.stringSet()));
+
+    return new CounterUpdate()
+        .setStructuredNameAndMetadata(name)
+        .setCumulative(false)
+        .setStringList(stringList);
   }
 
   public static CounterUpdate fromDistribution(

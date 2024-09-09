@@ -202,8 +202,11 @@ class IOTypeHints(NamedTuple):
   origin: List[str]
 
   @classmethod
-  def _make_origin(cls, bases, tb=True, msg=()):
-    # type: (List[IOTypeHints], bool, Iterable[str]) -> List[str]
+  def _make_origin(
+      cls,
+      bases: List['IOTypeHints'],
+      tb: bool = True,
+      msg: Iterable[str] = ()) -> List[str]:
     if msg:
       res = list(msg)
     else:
@@ -229,16 +232,12 @@ class IOTypeHints(NamedTuple):
     return res
 
   @classmethod
-  def empty(cls):
-    # type: () -> IOTypeHints
-
+  def empty(cls) -> 'IOTypeHints':
     """Construct a base IOTypeHints object with no hints."""
     return IOTypeHints(None, None, [])
 
   @classmethod
-  def from_callable(cls, fn):
-    # type: (Callable) -> Optional[IOTypeHints]
-
+  def from_callable(cls, fn: Callable) -> Optional['IOTypeHints']:
     """Construct an IOTypeHints object from a callable's signature.
 
     Supports Python 3 annotations. For partial annotations, sets unknown types
@@ -292,23 +291,19 @@ class IOTypeHints(NamedTuple):
         output_types=(tuple(output_args), {}),
         origin=cls._make_origin([], tb=False, msg=msg))
 
-  def with_input_types(self, *args, **kwargs):
-    # type: (...) -> IOTypeHints
+  def with_input_types(self, *args, **kwargs) -> 'IOTypeHints':
     return self._replace(
         input_types=(args, kwargs), origin=self._make_origin([self]))
 
-  def with_output_types(self, *args, **kwargs):
-    # type: (...) -> IOTypeHints
+  def with_output_types(self, *args, **kwargs) -> 'IOTypeHints':
     return self._replace(
         output_types=(args, kwargs), origin=self._make_origin([self]))
 
-  def with_input_types_from(self, other):
-    # type: (IOTypeHints) -> IOTypeHints
+  def with_input_types_from(self, other: 'IOTypeHints') -> 'IOTypeHints':
     return self._replace(
         input_types=other.input_types, origin=self._make_origin([self]))
 
-  def with_output_types_from(self, other):
-    # type: (IOTypeHints) -> IOTypeHints
+  def with_output_types_from(self, other: 'IOTypeHints') -> 'IOTypeHints':
     return self._replace(
         output_types=other.output_types, origin=self._make_origin([self]))
 
@@ -355,14 +350,14 @@ class IOTypeHints(NamedTuple):
 
   def strip_pcoll_helper(
       self,
-      my_type,            # type: any
-      has_my_type,        # type: Callable[[], bool]
-      my_key,             # type: str
-      special_containers,   # type: List[Union[PBegin, PDone, PCollection]] # noqa: F821
-      error_str,          # type: str
-      source_str          # type: str
-      ):
-    # type: (...) -> IOTypeHints
+      my_type: any,
+      has_my_type: Callable[[], bool],
+      my_key: str,
+      special_containers: List[
+          Union['PBegin', 'PDone', 'PCollection']], # noqa: F821
+      error_str: str,
+      source_str: str
+      ) -> 'IOTypeHints':
     from apache_beam.pvalue import PCollection
 
     if not has_my_type() or not my_type or len(my_type[0]) != 1:
@@ -396,9 +391,7 @@ class IOTypeHints(NamedTuple):
         origin=self._make_origin([self], tb=False, msg=[source_str]),
         **kwarg_dict)
 
-  def strip_iterable(self):
-    # type: () -> IOTypeHints
-
+  def strip_iterable(self) -> 'IOTypeHints':
     """Removes outer Iterable (or equivalent) from output type.
 
     Only affects instances with simple output types, otherwise is a no-op.
@@ -437,8 +430,7 @@ class IOTypeHints(NamedTuple):
         output_types=((yielded_type, ), {}),
         origin=self._make_origin([self], tb=False, msg=['strip_iterable()']))
 
-  def with_defaults(self, hints):
-    # type: (Optional[IOTypeHints]) -> IOTypeHints
+  def with_defaults(self, hints: Optional['IOTypeHints']) -> 'IOTypeHints':
     if not hints:
       return self
     if not self:
@@ -501,8 +493,7 @@ class WithTypeHints(object):
   def __init__(self, *unused_args, **unused_kwargs):
     self._type_hints = IOTypeHints.empty()
 
-  def _get_or_create_type_hints(self):
-    # type: () -> IOTypeHints
+  def _get_or_create_type_hints(self) -> IOTypeHints:
     # __init__ may have not been called
     try:
       # Only return an instance bound to self (see BEAM-8629).
@@ -524,23 +515,24 @@ class WithTypeHints(object):
             self.default_type_hints()).with_defaults(
                 get_type_hints(self.__class__)))
 
-  def _set_type_hints(self, type_hints):
-    # type: (IOTypeHints) -> None
+  def _set_type_hints(self, type_hints: IOTypeHints) -> None:
     self._type_hints = type_hints
 
   def default_type_hints(self):
     return None
 
-  def with_input_types(self, *arg_hints, **kwarg_hints):
-    # type: (WithTypeHintsT, *Any, **Any) -> WithTypeHintsT
+  def with_input_types(
+      self: WithTypeHintsT, *arg_hints: Any,
+      **kwarg_hints: Any) -> WithTypeHintsT:
     arg_hints = native_type_compatibility.convert_to_beam_types(arg_hints)
     kwarg_hints = native_type_compatibility.convert_to_beam_types(kwarg_hints)
     self._type_hints = self._get_or_create_type_hints().with_input_types(
         *arg_hints, **kwarg_hints)
     return self
 
-  def with_output_types(self, *arg_hints, **kwarg_hints):
-    # type: (WithTypeHintsT, *Any, **Any) -> WithTypeHintsT
+  def with_output_types(
+      self: WithTypeHintsT, *arg_hints: Any,
+      **kwarg_hints: Any) -> WithTypeHintsT:
     arg_hints = native_type_compatibility.convert_to_beam_types(arg_hints)
     kwarg_hints = native_type_compatibility.convert_to_beam_types(kwarg_hints)
     self._type_hints = self._get_or_create_type_hints().with_output_types(
@@ -681,9 +673,7 @@ def getcallargs_forhints(func, *type_args, **type_kwargs):
   return dict(bound_args)
 
 
-def get_type_hints(fn):
-  # type: (Any) -> IOTypeHints
-
+def get_type_hints(fn: Any) -> IOTypeHints:
   """Gets the type hint associated with an arbitrary object fn.
 
   Always returns a valid IOTypeHints object, creating one if necessary.
@@ -704,9 +694,8 @@ def get_type_hints(fn):
   # pylint: enable=protected-access
 
 
-def with_input_types(*positional_hints, **keyword_hints):
-  # type: (*Any, **Any) -> Callable[[T], T]
-
+def with_input_types(*positional_hints: Any,
+                     **keyword_hints: Any) -> Callable[[T], T]:
   """A decorator that type-checks defined type-hints with passed func arguments.
 
   All type-hinted arguments can be specified using positional arguments,
@@ -790,9 +779,8 @@ def with_input_types(*positional_hints, **keyword_hints):
   return annotate_input_types
 
 
-def with_output_types(*return_type_hint, **kwargs):
-  # type: (*Any, **Any) -> Callable[[T], T]
-
+def with_output_types(*return_type_hint: Any,
+                      **kwargs: Any) -> Callable[[T], T]:
   """A decorator that type-checks defined type-hints for return values(s).
 
   This decorator will type-check the return value(s) of the decorated function.

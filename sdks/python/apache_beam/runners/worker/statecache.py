@@ -58,39 +58,31 @@ class WeightedValue(object):
   :arg weight The associated weight of the value. If unspecified, the objects
   size will be used.
   """
-  def __init__(self, value, weight):
-    # type: (Any, int) -> None
+  def __init__(self, value: Any, weight: int) -> None:
     self._value = value
     if weight <= 0:
       raise ValueError(
           'Expected weight to be > 0 for %s but received %d' % (value, weight))
     self._weight = weight
 
-  def weight(self):
-    # type: () -> int
+  def weight(self) -> int:
     return self._weight
 
-  def value(self):
-    # type: () -> Any
+  def value(self) -> Any:
     return self._value
 
 
 class CacheAware(object):
   """Allows cache users to override what objects are measured."""
-  def __init__(self):
-    # type: () -> None
+  def __init__(self) -> None:
     pass
 
-  def get_referents_for_cache(self):
-    # type: () -> List[Any]
-
+  def get_referents_for_cache(self) -> List[Any]:
     """Returns the list of objects accounted during cache measurement."""
     raise NotImplementedError()
 
 
-def _safe_isinstance(obj, type):
-  # type: (Any, Union[type, Tuple[type, ...]]) -> bool
-
+def _safe_isinstance(obj: Any, type: Union[type, Tuple[type, ...]]) -> bool:
   """
   Return whether an object is an instance of a class or of a subclass thereof.
   See `isinstance()` for more information.
@@ -106,9 +98,7 @@ def _safe_isinstance(obj, type):
     return False
 
 
-def _size_func(obj):
-  # type: (Any) -> int
-
+def _size_func(obj: Any) -> int:
   """
   Returns the size of the object or a default size if an error occurred during
   sizing.
@@ -136,9 +126,7 @@ def _size_func(obj):
 _size_func.last_log_time = 0  # type: ignore
 
 
-def _get_referents_func(*objs):
-  # type: (List[Any]) -> List[Any]
-
+def _get_referents_func(*objs: List[Any]) -> List[Any]:
   """Returns the list of objects accounted during cache measurement.
 
   Users can inherit CacheAware to override which referents should be
@@ -154,9 +142,7 @@ def _get_referents_func(*objs):
   return rval
 
 
-def _filter_func(o):
-  # type: (Any) -> bool
-
+def _filter_func(o: Any) -> bool:
   """
   Filter out specific types from being measured.
 
@@ -171,9 +157,7 @@ def _filter_func(o):
   return not _safe_isinstance(o, _TYPES_TO_NOT_MEASURE)
 
 
-def get_deep_size(*objs):
-  # type: (Any) -> int
-
+def get_deep_size(*objs: Any) -> int:
   """Calculates the deep size of all the arguments in bytes."""
   return objsize.get_deep_size(
       *objs,
@@ -184,13 +168,11 @@ def get_deep_size(*objs):
 
 class _LoadingValue(WeightedValue):
   """Allows concurrent users of the cache to wait for a value to be loaded."""
-  def __init__(self):
-    # type: () -> None
+  def __init__(self) -> None:
     super().__init__(None, 1)
     self._wait_event = threading.Event()
 
-  def load(self, key, loading_fn):
-    # type: (Any, Callable[[Any], Any]) -> None
+  def load(self, key: Any, loading_fn: Callable[[Any], Any]) -> None:
     try:
       self._value = loading_fn(key)
     except Exception as err:
@@ -198,8 +180,7 @@ class _LoadingValue(WeightedValue):
     finally:
       self._wait_event.set()
 
-  def value(self):
-    # type: () -> Any
+  def value(self) -> Any:
     self._wait_event.wait()
     err = getattr(self, "_error", None)
     if err:
@@ -229,13 +210,12 @@ class StateCache(object):
 
   :arg max_weight The maximum weight of entries to store in the cache in bytes.
   """
-  def __init__(self, max_weight):
-    # type: (int) -> None
+  def __init__(self, max_weight: int) -> None:
     _LOGGER.info('Creating state cache with size %s', max_weight)
     self._max_weight = max_weight
     self._current_weight = 0
-    self._cache = collections.OrderedDict(
-    )  # type: collections.OrderedDict[Any, WeightedValue]
+    self._cache: collections.OrderedDict[
+        Any, WeightedValue] = collections.OrderedDict()
     self._hit_count = 0
     self._miss_count = 0
     self._evict_count = 0
@@ -243,8 +223,7 @@ class StateCache(object):
     self._load_count = 0
     self._lock = threading.RLock()
 
-  def peek(self, key):
-    # type: (Any) -> Any
+  def peek(self, key: Any) -> Any:
     assert self.is_cache_enabled()
     with self._lock:
       value = self._cache.get(key, None)
@@ -256,8 +235,7 @@ class StateCache(object):
       self._hit_count += 1
     return value.value()
 
-  def get(self, key, loading_fn):
-    # type: (Any, Callable[[Any], Any]) -> Any
+  def get(self, key: Any, loading_fn: Callable[[Any], Any]) -> Any:
     assert self.is_cache_enabled() and callable(loading_fn)
 
     self._lock.acquire()
@@ -333,8 +311,7 @@ class StateCache(object):
 
     return value.value()
 
-  def put(self, key, value):
-    # type: (Any, Any) -> None
+  def put(self, key: Any, value: Any) -> None:
     assert self.is_cache_enabled()
     if not _safe_isinstance(value, WeightedValue):
       weight = get_deep_size(value)
@@ -356,22 +333,19 @@ class StateCache(object):
         self._current_weight -= weighted_value.weight()
         self._evict_count += 1
 
-  def invalidate(self, key):
-    # type: (Any) -> None
+  def invalidate(self, key: Any) -> None:
     assert self.is_cache_enabled()
     with self._lock:
       weighted_value = self._cache.pop(key, None)
       if weighted_value is not None:
         self._current_weight -= weighted_value.weight()
 
-  def invalidate_all(self):
-    # type: () -> None
+  def invalidate_all(self) -> None:
     with self._lock:
       self._cache.clear()
       self._current_weight = 0
 
-  def describe_stats(self):
-    # type: () -> str
+  def describe_stats(self) -> str:
     with self._lock:
       request_count = self._hit_count + self._miss_count
       if request_count > 0:
@@ -390,11 +364,9 @@ class StateCache(object):
               self._load_count,
               self._evict_count)
 
-  def is_cache_enabled(self):
-    # type: () -> bool
+  def is_cache_enabled(self) -> bool:
     return self._max_weight > 0
 
-  def size(self):
-    # type: () -> int
+  def size(self) -> int:
     with self._lock:
       return len(self._cache)

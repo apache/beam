@@ -21,7 +21,7 @@
 
 import re
 import sys
-from typing import Type
+from typing import Any
 
 
 class TopClass(object):
@@ -64,7 +64,7 @@ XYZ_OBJECT = Xyz()
 class RecursiveClass(object):
   """A class that contains a reference to itself."""
 
-  SELF_TYPE = None  # type: Type[RecursiveClass]
+  SELF_TYPE: Any = None
 
   def __init__(self, datum):
     self.datum = 'RecursiveClass:%s' % datum

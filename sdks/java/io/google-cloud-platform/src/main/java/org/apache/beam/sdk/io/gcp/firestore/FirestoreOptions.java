@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.firestore;
 
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -75,4 +76,14 @@ public interface FirestoreOptions extends PipelineOptions {
    * @param host the host and port to connect to
    */
   void setFirestoreHost(String host);
+
+  /** The Firestore project ID to connect to. */
+  @Description("Firestore project ID")
+  @Nullable
+  String getFirestoreProject();
+
+  /**
+   * Set the Firestore project ID, it will override the value from {@link GcpOptions#getProject()}.
+   */
+  void setFirestoreProject(String firestoreProject);
 }

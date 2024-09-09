@@ -29,8 +29,8 @@ import (
 
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/grpcx"
-	"github.com/golang/protobuf/jsonpb"
-	google_pb "github.com/golang/protobuf/ptypes/struct"
+	"google.golang.org/protobuf/encoding/protojson"
+	google_pb "google.golang.org/protobuf/types/known/structpb"
 )
 
 // ProvisionInfo returns the runtime provisioning info for the worker.
@@ -65,7 +65,8 @@ func OptionsToProto(v any) (*google_pb.Struct, error) {
 // JSONToProto converts JSON-encoded pipeline options to a proto struct.
 func JSONToProto(data string) (*google_pb.Struct, error) {
 	var out google_pb.Struct
-	if err := jsonpb.UnmarshalString(string(data), &out); err != nil {
+
+	if err := protojson.Unmarshal([]byte(data), &out); err != nil {
 		return nil, err
 	}
 	return &out, nil
@@ -85,5 +86,9 @@ func ProtoToJSON(opt *google_pb.Struct) (string, error) {
 	if opt == nil {
 		return "{}", nil
 	}
-	return (&jsonpb.Marshaler{}).MarshalToString(opt)
+	bytes, err := protojson.Marshal(opt)
+	if err != nil {
+		return "", err
+	}
+	return string(bytes), err
 }

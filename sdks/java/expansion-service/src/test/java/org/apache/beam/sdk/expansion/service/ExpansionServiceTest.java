@@ -32,6 +32,12 @@ import static org.junit.Assert.assertTrue;
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -55,10 +61,10 @@ import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.construction.PipelineTranslation;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Resources;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matchers;
 import org.junit.Test;
@@ -78,7 +84,7 @@ public class ExpansionServiceTest {
   private ExpansionService expansionService = new ExpansionService();
   public static final List<byte[]> BYTE_LIST =
       ImmutableList.of("testing", "compound", "coders").stream()
-          .map(str -> str.getBytes(Charsets.UTF_8))
+          .map(str -> str.getBytes(StandardCharsets.UTF_8))
           .collect(Collectors.toList());
   public static final Map<String, Long> BYTE_KV_LIST =
       ImmutableList.of("testing", "compound", "coders").stream()
@@ -336,6 +342,40 @@ public class ExpansionServiceTest {
     assertThat(config.getFoo(), Matchers.is(1L));
     assertThat(config.getBar(), Matchers.is("test string"));
     assertThat(config.getList(), Matchers.is(ImmutableList.of("abc", "123")));
+  }
+
+  @Test
+  public void testExpansionServiceConfig() throws Exception {
+    URL expansionServiceConfigFile = Resources.getResource("./test_expansion_service_config.yaml");
+    ExpansionServiceConfig config =
+        ExpansionServiceConfig.parseFromYamlStream(
+            Files.newInputStream(Paths.get(expansionServiceConfigFile.getPath())));
+    assertEquals(3, config.getAllowlist().size());
+    assertTrue(config.getAllowlist().contains("beam:transform:my_dummy_transform_1"));
+    assertTrue(config.getAllowlist().contains("beam:transform:my_dummy_transform_2"));
+    assertTrue(config.getAllowlist().contains("beam:transform:my_dummy_transform_3"));
+
+    assertEquals(2, config.getDependencies().size());
+    assertTrue(config.getDependencies().containsKey("beam:transform:my_dummy_transform_2"));
+    assertTrue(config.getDependencies().containsKey("beam:transform:my_dummy_transform_3"));
+
+    assertEquals(1, config.getDependencies().get("beam:transform:my_dummy_transform_2").size());
+    assertEquals(
+        "jars/my_dummy_transform_2_dep1.jar",
+        config.getDependencies().get("beam:transform:my_dummy_transform_2").get(0).getPath());
+    assertEquals(2, config.getDependencies().get("beam:transform:my_dummy_transform_3").size());
+
+    ArrayList<String> expectedDepsOfTransform3 =
+        new ArrayList<>(
+            Arrays.asList(
+                "jars/my_dummy_transform_3_dep1.jar", "jars/my_dummy_transform_3_dep2.jar"));
+
+    assertTrue(
+        expectedDepsOfTransform3.contains(
+            config.getDependencies().get("beam:transform:my_dummy_transform_3").get(0).getPath()));
+    assertTrue(
+        expectedDepsOfTransform3.contains(
+            config.getDependencies().get("beam:transform:my_dummy_transform_3").get(1).getPath()));
   }
 
   @DefaultSchema(AutoValueSchema.class)

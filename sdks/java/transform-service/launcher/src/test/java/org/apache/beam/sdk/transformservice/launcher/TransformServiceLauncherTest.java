@@ -25,12 +25,12 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.UUID;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -77,7 +77,7 @@ public class TransformServiceLauncherTest {
 
     try (Writer fout =
         new OutputStreamWriter(
-            new FileOutputStream(requirementsFile.getAbsolutePath()), Charsets.UTF_8)) {
+            new FileOutputStream(requirementsFile.getAbsolutePath()), StandardCharsets.UTF_8)) {
       fout.write("pypipackage1\n");
       fout.write("pypipackage2\n");
     }
@@ -118,7 +118,7 @@ public class TransformServiceLauncherTest {
     dependency1.deleteOnExit();
     try (Writer fout =
         new OutputStreamWriter(
-            new FileOutputStream(dependency1.getAbsolutePath()), Charsets.UTF_8)) {
+            new FileOutputStream(dependency1.getAbsolutePath()), StandardCharsets.UTF_8)) {
       fout.write("tempdata\n");
     }
 
@@ -128,7 +128,7 @@ public class TransformServiceLauncherTest {
     dependency2.deleteOnExit();
     try (Writer fout =
         new OutputStreamWriter(
-            new FileOutputStream(dependency2.getAbsolutePath()), Charsets.UTF_8)) {
+            new FileOutputStream(dependency2.getAbsolutePath()), StandardCharsets.UTF_8)) {
       fout.write("tempdata\n");
     }
 
@@ -140,7 +140,7 @@ public class TransformServiceLauncherTest {
     requirementsFile.deleteOnExit();
     try (Writer fout =
         new OutputStreamWriter(
-            new FileOutputStream(requirementsFile.getAbsolutePath()), Charsets.UTF_8)) {
+            new FileOutputStream(requirementsFile.getAbsolutePath()), StandardCharsets.UTF_8)) {
       fout.write(dependency1.getAbsolutePath() + "\n");
       fout.write(dependency2.getAbsolutePath() + "\n");
       fout.write("pypipackage" + "\n");
