@@ -56,7 +56,7 @@ import org.junit.runners.JUnit4;
  * Each event is a string for a particular key. The output is a concatenation of all strings.
  */
 @RunWith(JUnit4.class)
-public class OrderedEventProcessorTest {
+public class OrderedEventProcessorTestBase {
   public static final boolean LAST_EVENT_RECEIVED = true;
   public static final int EMISSION_FREQUENCY_ON_EVERY_ELEMENT = 1;
   public static final int INITIAL_SEQUENCE_OF_0 = 0;

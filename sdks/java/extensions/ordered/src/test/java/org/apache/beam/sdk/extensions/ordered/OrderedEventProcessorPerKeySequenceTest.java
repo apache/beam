@@ -20,7 +20,7 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
 
-public class OrderedEventProcessorPerKeySequenceTest extends OrderedEventProcessorTest {
+public class OrderedEventProcessorPerKeySequenceTest extends OrderedEventProcessorTestBase {
 
   @Test
   public void testPerfectOrderingProcessing() throws CannotProvideCoderException {

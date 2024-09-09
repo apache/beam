@@ -302,7 +302,6 @@ class ProcessingState<KeyT> {
   }
 
   public void updateGlobalSequenceDetails(CompletedSequenceRange updated) {
-    // TODO: do we need to select max? Do we care about the timestamp?
     this.lastCompleteGlobalSequence = updated;
   }
 

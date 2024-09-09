@@ -32,7 +32,7 @@ public class StringBufferOrderedProcessingHandler
   public StringBufferOrderedProcessingHandler(int emissionFrequency, long initialSequence) {
     super(String.class, String.class, StringBuilderState.class, String.class);
     this.eventExaminer = new StringEventExaminer(initialSequence, emissionFrequency);
-    // needed when using global sequences
+    // needed when testing global sequences
     setInitialGlobalSequence(initialSequence);
   }
 
