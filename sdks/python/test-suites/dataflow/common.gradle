@@ -424,7 +424,7 @@ def tensorRTTests = tasks.create("tensorRTtests") {
  }
 }
 
-def vllmTests = tasks.create("vllmtests") {
+def vllmTests = tasks.create("vllmTests") {
   dependsOn 'installGcpTest'
   dependsOn ':sdks:python:sdist'
  doLast {
