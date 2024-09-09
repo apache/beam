@@ -56,6 +56,7 @@ import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -1148,6 +1149,20 @@ public class PubsubIO {
               getNeedsOrderingKey());
 
       PCollection<PubsubMessage> preParse = input.apply(source);
+      return expandReadContinued(preParse, topicPath, subscriptionPath);
+    }
+
+    /**
+     * Runner agnostic part of the Expansion.
+     *
+     * <p>Common logics (MapElements, SDK metrics, DLQ, etc) live here as PubsubUnboundedSource is
+     * overridden on Dataflow runner.
+     */
+    private PCollection<T> expandReadContinued(
+        PCollection<PubsubMessage> preParse,
+        @Nullable ValueProvider<TopicPath> topicPath,
+        @Nullable ValueProvider<SubscriptionPath> subscriptionPath) {
+
       TypeDescriptor<T> typeDescriptor = new TypeDescriptor<T>() {};
       PCollection<T> read;
       if (getDeadLetterTopicProvider() == null
@@ -1174,7 +1189,7 @@ public class PubsubIO {
                       "Map Failures To BadRecords",
                       ParDo.of(new ParseReadFailuresToBadRecords(preParse.getCoder())));
           getBadRecordErrorHandler()
-              .addErrorCollection(badRecords.setCoder(BadRecord.getCoder(input.getPipeline())));
+              .addErrorCollection(badRecords.setCoder(BadRecord.getCoder(preParse.getPipeline())));
         } else {
           // Write out failures to the provided dead-letter topic.
           result
@@ -1215,7 +1230,31 @@ public class PubsubIO {
                       .withClientFactory(getPubsubClientFactory()));
         }
       }
-
+      // report Lineage once
+      preParse
+          .getPipeline()
+          .apply(Impulse.create())
+          .apply(
+              ParDo.of(
+                  new DoFn<byte[], Void>() {
+                    @ProcessElement
+                    public void process() {
+                      if (topicPath != null) {
+                        TopicPath topic = topicPath.get();
+                        if (topic != null) {
+                          Lineage.getSources()
+                              .add("pubsub", "topic", topic.getDataCatalogSegments());
+                        }
+                      }
+                      if (subscriptionPath != null) {
+                        SubscriptionPath sub = subscriptionPath.get();
+                        if (sub != null) {
+                          Lineage.getSources()
+                              .add("pubsub", "subscription", sub.getDataCatalogSegments());
+                        }
+                      }
+                    }
+                  }));
       return read.setCoder(getCoder());
     }
 
@@ -1622,10 +1661,6 @@ public class PubsubIO {
       public void finishBundle() throws IOException {
         for (Map.Entry<PubsubTopic, OutgoingData> entry : output.entrySet()) {
           publish(entry.getKey(), entry.getValue().messages);
-        }
-        // Report lineage for all topics seen
-        for (PubsubTopic topic : output.keySet()) {
-          Lineage.getSinks().add("pubsub", "topic", topic.dataCatalogSegments());
         }
         output = null;
         pubsubClient.close();

@@ -307,6 +307,8 @@ async def fetch_workflow_runs():
     number_of_entries_per_page = 100  # The number of results per page (max 100)
     params = {"branch": "master", "page": page, "per_page": number_of_entries_per_page}
     concurrent_requests = 30  # Number of requests to send simultaneously
+    start = datetime.now() - timedelta(days=90)
+    earliest_run_creation_date = start.strftime('%Y-%m-%d')
     semaphore = asyncio.Semaphore(concurrent_requests)
 
     print("Start fetching recent workflow runs")
@@ -338,6 +340,7 @@ async def fetch_workflow_runs():
                     "page": page,
                     "per_page": number_of_entries_per_page,
                     "exclude_pull_requests": "true",
+                    "created": f'>={earliest_run_creation_date}',
                 }
                 workflow_run_tasks.append(fetch(runs_url, semaphore, params, headers))
                 page += 1

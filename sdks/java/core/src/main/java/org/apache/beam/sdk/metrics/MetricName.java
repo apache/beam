@@ -20,6 +20,7 @@ package org.apache.beam.sdk.metrics;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
+import com.google.auto.value.extension.memoized.Memoized;
 import java.io.Serializable;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 
@@ -39,6 +40,7 @@ public abstract class MetricName implements Serializable {
   public abstract String getName();
 
   @Override
+  @Memoized
   public String toString() {
     return getNamespace() + ":" + getName();
   }

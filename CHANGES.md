@@ -66,10 +66,17 @@
 
 ## New Features / Improvements
 
+* Dataflow worker can install packages from Google Artifact Registry Python repositories (Python) ([#32123](https://github.com/apache/beam/issues/32123)).
+* Added support for Zstd codec in SerializableAvroCodecFactory (Java) ([#32349](https://github.com/apache/beam/issues/32349))
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Breaking Changes
 
+* In Python and YAML, ReadFromJson now override the dtype from None to
+  an explicit False.  Most notably, string values like `"123"` are preserved
+  as strings rather than silently coerced (and possibly truncated) to numeric
+  values.  To retain the old behavior, pass `dtype=True` (or any other value
+  accepted by `pandas.read_json`).
 * X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Deprecations
@@ -78,7 +85,7 @@
 
 ## Bugfixes
 
-* Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* (Java) Fixed custom delimiter issues in TextIO ([#32249](https://github.com/apache/beam/issues/32249), [#32251](https://github.com/apache/beam/issues/32251)).
 
 ## Security Fixes
 * Fixed (CVE-YYYY-NNNN)[https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN] (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).

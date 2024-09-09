@@ -882,7 +882,14 @@ def ensure_errors_consumed(spec):
           consumed.add(scope.get_transform_id_and_output_name(input))
     for error_pcoll, t in to_handle.items():
       if error_pcoll not in consumed:
-        raise ValueError(f'Unconsumed error output for {identify_object(t)}.')
+        config = t.get('config', t)
+        transform_name = t.get('name', t.get('type'))
+        error_output_name = config['error_handling']['output']
+        raise ValueError(
+            f'Unconsumed error output for {identify_object(t)}. '
+            f'The output named {transform_name}.{error_output_name} '
+            'must be used as an input to some other transform. '
+            'See https://beam.apache.org/documentation/sdks/yaml-errors')
   return spec
 
 

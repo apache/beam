@@ -23,7 +23,9 @@ import logging
 from functools import partial
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import Dict
 from typing import Optional
+from typing import Union
 
 from apache_beam import typehints
 from apache_beam.coders import coders
@@ -980,7 +982,12 @@ try:
 
   @append_pandas_args(pandas.read_json, exclude=['path_or_buf'])
   def ReadFromJson(
-      path: str, *, orient: str = 'records', lines: bool = True, **kwargs):
+      path: str,
+      *,
+      orient: str = 'records',
+      lines: bool = True,
+      dtype: Union[bool, Dict[str, Any]] = False,
+      **kwargs):
     """A PTransform for reading json values from files into a PCollection.
 
     Args:
@@ -992,11 +999,14 @@ try:
       lines (bool): Whether each line should be considered a separate record,
         as opposed to the entire file being a valid JSON object or list.
         Defaults to True (unlike Pandas).
+      dtype (bool): If True, infer dtypes; if a dict of column to dtype,
+        then use those; if False, then don’t infer dtypes at all.
+        Defaults to False (unlike Pandas).
       **kwargs: Extra arguments passed to `pandas.read_json` (see below).
     """
     from apache_beam.dataframe.io import ReadViaPandas
     return 'ReadFromJson' >> ReadViaPandas(
-        'json', path, orient=orient, lines=lines, **kwargs)
+        'json', path, orient=orient, lines=lines, dtype=dtype, **kwargs)
 
   @append_pandas_args(
       pandas.DataFrame.to_json, exclude=['path_or_buf', 'index'])

@@ -40,6 +40,7 @@ from apache_beam.runners.interactive.caching.cacheable import CacheKey
 from apache_beam.runners.interactive.caching.expression_cache import ExpressionCache
 from apache_beam.testing.test_stream import WindowedValueHolder
 from apache_beam.typehints.schemas import named_fields_from_element_type
+from apache_beam.utils.windowed_value import WindowedValue
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -83,6 +84,8 @@ def to_element_list(
       elif isinstance(e, WindowedValueHolder):
         yield (
             e.windowed_value if include_window_info else e.windowed_value.value)
+      elif isinstance(e, WindowedValue):
+        yield (e if include_window_info else e.value)
       else:
         yield e
 

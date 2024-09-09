@@ -107,6 +107,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
   private final ImmutableMap<String, String> stateNameMap;
   private final WindmillStateCache.ForComputation stateCache;
   private final ReaderCache readerCache;
+  private final boolean throwExceptionOnLargeOutput;
   private volatile long backlogBytes;
 
   /**
@@ -152,7 +153,8 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       MetricsContainerRegistry<StreamingStepMetricsContainer> metricsContainerRegistry,
       DataflowExecutionStateTracker executionStateTracker,
       StreamingModeExecutionStateRegistry executionStateRegistry,
-      long sinkByteLimit) {
+      long sinkByteLimit,
+      boolean throwExceptionOnLargeOutput) {
     super(
         counterFactory,
         metricsContainerRegistry,
@@ -165,6 +167,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     this.stateNameMap = ImmutableMap.copyOf(stateNameMap);
     this.stateCache = stateCache;
     this.backlogBytes = UnboundedReader.BACKLOG_UNKNOWN;
+    this.throwExceptionOnLargeOutput = throwExceptionOnLargeOutput;
   }
 
   @VisibleForTesting
@@ -181,7 +184,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
   }
 
   public boolean throwExceptionsForLargeOutput() {
-    return operationalLimits.throwExceptionOnLargeOutput;
+    return throwExceptionOnLargeOutput;
   }
 
   public boolean workIsFailed() {
