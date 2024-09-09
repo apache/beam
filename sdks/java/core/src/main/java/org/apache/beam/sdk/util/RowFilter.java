@@ -73,55 +73,6 @@ public class RowFilter implements Serializable {
   }
 
   /**
-   * Checks whether a {@link Schema} contains a list of field names. Nested fields can be expressed
-   * with dot-notation. Throws a helpful error in the case where a field doesn't exist, or if a
-   * nested field could not be reached.
-   */
-  @VisibleForTesting
-  static void validateSchemaContainsFields(
-      Schema schema, List<String> specifiedFields, String operation) {
-    Set<String> notFound = new HashSet<>();
-    Set<String> notRowField = new HashSet<>();
-
-    for (String field : specifiedFields) {
-      List<String> levels = Splitter.on(".").splitToList(field);
-
-      Schema currentSchema = schema;
-
-      for (int i = 0; i < levels.size(); i++) {
-        String currentFieldName = String.join(".", levels.subList(0, i + 1));
-
-        if (!currentSchema.hasField(levels.get(i))) {
-          notFound.add(currentFieldName);
-          break;
-        }
-
-        if (i + 1 < levels.size()) {
-          Schema.Field nextField = currentSchema.getField(levels.get(i));
-          if (!nextField.getType().getTypeName().equals(Schema.TypeName.ROW)) {
-            notRowField.add(currentFieldName);
-            break;
-          }
-          currentSchema = Preconditions.checkNotNull(nextField.getType().getRowSchema());
-        }
-      }
-    }
-
-    if (!notFound.isEmpty() || !notRowField.isEmpty()) {
-      String message = "Validation failed for " + operation + ".";
-      if (!notFound.isEmpty()) {
-        message += "\nRow Schema does not contain the following specified fields: " + notFound;
-      }
-      if (!notRowField.isEmpty()) {
-        message +=
-            "\nThe following specified fields are not of type Row. Their nested fields could not be reached: "
-                + notRowField;
-      }
-      throw new IllegalArgumentException(message);
-    }
-  }
-
-  /**
    * Configures this {@link RowFilter} to filter {@link Row}s by keeping only the specified fields.
    * Nested fields can be specified using dot-notation.
    *
@@ -185,6 +136,82 @@ public class RowFilter implements Serializable {
     validateSchemaContainsFields(rowSchema, fields, "\"drop\"");
     transformedSchema = dropFields(rowSchema, fields);
     return this;
+  }
+
+  /**
+   * Performs a filter operation (keep or drop) on the input {@link Row}. Must have already
+   * configured a filter operation with {@link #dropping(List)} or {@link #keeping(List)} for this
+   * {@link RowFilter}.
+   *
+   * <p>If not yet configured, will simply return the same {@link Row}.
+   */
+  public Row filter(Row row) {
+    if (transformedSchema == null) {
+      return row;
+    }
+    Preconditions.checkState(
+        row.getSchema().assignableTo(rowSchema),
+        "Encountered Row with schema that is incompatible with this RowFilter's schema."
+            + "\nRow schema: %s"
+            + "\nSchema used to initialize this RowFilter: %s",
+        row.getSchema(),
+        rowSchema);
+
+    return Preconditions.checkNotNull(copyWithNewSchema(row, outputSchema()));
+  }
+
+  /** Returns the output {@link Row}'s {@link Schema}. */
+  public Schema outputSchema() {
+    return transformedSchema != null ? transformedSchema : rowSchema;
+  }
+
+  /**
+   * Checks whether a {@link Schema} contains a list of field names. Nested fields can be expressed
+   * with dot-notation. Throws a helpful error in the case where a field doesn't exist, or if a
+   * nested field could not be reached.
+   */
+  @VisibleForTesting
+  static void validateSchemaContainsFields(
+      Schema schema, List<String> specifiedFields, String operation) {
+    Set<String> notFound = new HashSet<>();
+    Set<String> notRowField = new HashSet<>();
+
+    for (String field : specifiedFields) {
+      List<String> levels = Splitter.on(".").splitToList(field);
+
+      Schema currentSchema = schema;
+
+      for (int i = 0; i < levels.size(); i++) {
+        String currentFieldName = String.join(".", levels.subList(0, i + 1));
+
+        if (!currentSchema.hasField(levels.get(i))) {
+          notFound.add(currentFieldName);
+          break;
+        }
+
+        if (i + 1 < levels.size()) {
+          Schema.Field nextField = currentSchema.getField(levels.get(i));
+          if (!nextField.getType().getTypeName().equals(Schema.TypeName.ROW)) {
+            notRowField.add(currentFieldName);
+            break;
+          }
+          currentSchema = Preconditions.checkNotNull(nextField.getType().getRowSchema());
+        }
+      }
+    }
+
+    if (!notFound.isEmpty() || !notRowField.isEmpty()) {
+      String message = "Validation failed for " + operation + ".";
+      if (!notFound.isEmpty()) {
+        message += "\nRow Schema does not contain the following specified fields: " + notFound;
+      }
+      if (!notRowField.isEmpty()) {
+        message +=
+            "\nThe following specified fields are not of type Row. Their nested fields could not be reached: "
+                + notRowField;
+      }
+      throw new IllegalArgumentException(message);
+    }
   }
 
   /**
@@ -318,30 +345,5 @@ public class RowFilter implements Serializable {
     }
 
     return new Schema(newFieldsList);
-  }
-
-  /**
-   * Performs a filter operation (keep or drop) on the input {@link Row}. Must have already
-   * configured a filter operation with {@link #dropping(List)} or {@link #keeping(List)} for this
-   * {@link RowFilter}.
-   *
-   * <p>If not yet configured, will simply return the same {@link Row}.
-   */
-  public Row filter(Row row) {
-    if (transformedSchema == null) {
-      return row;
-    }
-    Preconditions.checkState(
-        row.getSchema().assignableTo(rowSchema),
-        "Encountered Row with schema that is incompatible with this RowFilter's schema.\nRow schema: %s\nSchema used to initialize this RowFilter: %s",
-        row.getSchema(),
-        rowSchema);
-
-    return Preconditions.checkNotNull(copyWithNewSchema(row, outputSchema()));
-  }
-
-  /** Returns the output {@link Row}'s {@link Schema}. */
-  public Schema outputSchema() {
-    return transformedSchema != null ? transformedSchema : rowSchema;
   }
 }
