@@ -356,8 +356,6 @@ if __name__ == '__main__':
           'grpcio>=1.33.1,<2,!=1.48.0,!=1.59.*,!=1.60.*,!=1.61.*,!=1.62.0,!=1.62.1',  # pylint: disable=line-too-long
           'hdfs>=2.1.0,<3.0.0',
           'httplib2>=0.8,<0.23.0',
-          # https://github.com/PiotrDabkowski/Js2Py/issues/317
-          'js2py>=0.74,<1; python_version<"3.12"',
           'jsonschema>=4.0.0,<5.0.0',
           'jsonpickle>=3.0.0,<4.0.0',
           # numpy can have breaking changes in minor versions.
@@ -394,19 +392,18 @@ if __name__ == '__main__':
       # BEAM-8840: Do NOT use tests_require or setup_requires.
       extras_require={
           'docs': [
-              'jinja2>=3.0,<3.1',
+              'jinja2>=3.0,<3.2',
               'Sphinx>=1.5.2,<2.0',
               'docstring-parser>=0.15,<1.0',
               # Pinning docutils as a workaround for Sphinx issue:
               # https://github.com/sphinx-doc/sphinx/issues/9727
               'docutils==0.17.1',
-              'jinja2>=3.0,<3.1',
               'pandas<2.2.0',
           ],
           'test': [
               'docstring-parser>=0.15,<1.0',
               'freezegun>=0.3.12',
-              'jinja2>=3.0,<3.1',
+              'jinja2>=3.0,<3.2',
               'joblib>=1.0.1',
               'mock>=1.0.1,<6.0.0',
               'pandas<2.2.0',
@@ -444,14 +441,19 @@ if __name__ == '__main__':
               'google-cloud-bigquery-storage>=2.6.3,<3',
               'google-cloud-core>=2.0.0,<3',
               'google-cloud-bigtable>=2.19.0,<3',
-              'google-cloud-spanner>=3.0.0,<4',
+              'google-cloud-spanner>=3.0.0,<3.48',
               # GCP Packages required by ML functionality
               'google-cloud-dlp>=3.0.0,<4',
               'google-cloud-language>=2.0,<3',
               'google-cloud-videointelligence>=2.0,<3',
               'google-cloud-vision>=2,<4',
               'google-cloud-recommendations-ai>=0.1.0,<0.11.0',
-              'google-cloud-aiplatform>=1.26.0, < 2.0'
+              'google-cloud-aiplatform>=1.26.0, < 2.0',
+              # Authentication for Google Artifact Registry when using
+              # --extra-index-url or --index-url in requirements.txt in
+              # Dataflow, which allows installing python packages from private
+              # Python repositories in GAR.
+              'keyrings.google-artifactregistry-auth'
           ],
           'interactive': [
               'facets-overview>=1.1.0,<2',
@@ -511,9 +513,11 @@ if __name__ == '__main__':
           ],
           'yaml': [
               'docstring-parser>=0.15,<1.0',
-              'jinja2>=3.0,<3.1',
+              'jinja2>=3.0,<3.2',
               'pyyaml>=3.12,<7.0.0',
               'virtualenv-clone>=0.5,<1.0',
+              # https://github.com/PiotrDabkowski/Js2Py/issues/317
+              'js2py>=0.74,<1; python_version<"3.12"',
           ] + dataframe_dependency
       },
       zip_safe=False,
