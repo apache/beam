@@ -135,6 +135,7 @@ public class FlinkSubmissionTest {
 
   private void runSubmission(boolean isDetached, boolean isStreaming) throws Exception {
     PipelineOptions options = PipelineOptionsFactory.create();
+    options.as(FlinkPipelineOptions.class).setStreaming(isStreaming);
     options.setTempLocation(TEMP_FOLDER.getRoot().getPath());
     String jarPath =
         Iterables.getFirst(
@@ -171,7 +172,7 @@ public class FlinkSubmissionTest {
               .allMatch(jobStatus -> jobStatus.getJobState().name().equals("FINISHED"))) {
         return;
       }
-      Thread.sleep(50);
+      Thread.sleep(100);
     }
   }
 
