@@ -115,6 +115,11 @@ task integrationTest(type: Test) {
     testClassesDirs = sourceSets.test.output.classesDirs
 }
 
+tasks.register('catalogTests') {
+    dependsOn integrationTest
+    dependsOn ":sdks:java:io:iceberg:hive:integrationTest"
+}
+
 task loadTest(type: Test) {
     def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
     def gcpTempLocation = project.findProperty('gcpTempLocation') ?: 'gs://temp-storage-for-end-to-end-tests/temp-lt'

@@ -243,6 +243,7 @@ class Pipeline(HasDisplayData):
     self.contains_external_transforms = False
 
     self._display_data = display_data or {}
+    self._error_handlers = []
 
   def display_data(self):
     # type: () -> Dict[str, Any]
@@ -257,6 +258,9 @@ class Pipeline(HasDisplayData):
   def allow_unsafe_triggers(self):
     # type: () -> bool
     return self._options.view_as(TypeOptions).allow_unsafe_triggers
+
+  def _register_error_handler(self, error_handler):
+    self._error_handlers.append(error_handler)
 
   def _current_transform(self):
     # type: () -> AppliedPTransform
@@ -531,6 +535,9 @@ class Pipeline(HasDisplayData):
 
     """Runs the pipeline. Returns whatever our runner returns after running."""
 
+    for error_handler in self._error_handlers:
+      error_handler.verify_closed()
+
     # Records whether this pipeline contains any cross-language transforms.
     self.contains_external_transforms = (
         ExternalTransformFinder.contains_external_transforms(self))
@@ -694,6 +701,10 @@ class Pipeline(HasDisplayData):
       if auto_unique_labels:
         # If auto_unique_labels is set, we will append a unique suffix to the
         # label to make it unique.
+        logging.warning(
+            'Using --auto_unique_labels could cause data loss when '
+            'updating a pipeline or reloading the job state. '
+            'This is not recommended for streaming jobs.')
         unique_label = self._generate_unique_label(transform)
         return self.apply(transform, pvalueish, unique_label)
       else:
@@ -702,7 +713,10 @@ class Pipeline(HasDisplayData):
             'To apply a transform with a specified label, write '
             'pvalue | "label" >> transform or use the option '
             '"auto_unique_labels" to automatically generate unique '
-            'transform labels' % full_label)
+            'transform labels. Note "auto_unique_labels" '
+            'could cause data loss when updating a pipeline or '
+            'reloading the job state. This is not recommended for '
+            'streaming jobs.' % full_label)
     self.applied_labels.add(full_label)
 
     pvalueish, inputs = transform._extract_input_pvalues(pvalueish)

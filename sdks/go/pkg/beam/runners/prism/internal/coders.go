@@ -20,11 +20,13 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/ioutilx"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/engine"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/urns"
 	"golang.org/x/exp/slog"
 	"google.golang.org/protobuf/encoding/prototext"
@@ -79,19 +81,24 @@ func makeWindowedValueCoder(pID string, comps *pipepb.Components, coders map[str
 	return wvcID, nil
 }
 
-// makeWindowCoders makes the coder pair but behavior is ultimately determined by the strategy's windowFn.
-func makeWindowCoders(wc *pipepb.Coder) (exec.WindowDecoder, exec.WindowEncoder) {
+// makeWindowCoders categorizes and provides the encoder, decoder pair for the type of window.
+func makeWindowCoders(wc *pipepb.Coder) (engine.WinCoderType, exec.WindowDecoder, exec.WindowEncoder) {
 	var cwc *coder.WindowCoder
+	var winCoder engine.WinCoderType
 	switch wc.GetSpec().GetUrn() {
 	case urns.CoderGlobalWindow:
+		winCoder = engine.WinGlobal
 		cwc = coder.NewGlobalWindow()
 	case urns.CoderIntervalWindow:
+		winCoder = engine.WinInterval
 		cwc = coder.NewIntervalWindow()
 	default:
+		// TODO(https://github.com/apache/beam/issues/31921): Support custom windowfns instead of panicking here.
+		winCoder = engine.WinCustom
 		slog.LogAttrs(context.TODO(), slog.LevelError, "makeWindowCoders: unknown urn", slog.String("urn", wc.GetSpec().GetUrn()))
 		panic(fmt.Sprintf("makeWindowCoders, unknown urn: %v", prototext.Format(wc)))
 	}
-	return exec.MakeWindowDecoder(cwc), exec.MakeWindowEncoder(cwc)
+	return winCoder, exec.MakeWindowDecoder(cwc), exec.MakeWindowEncoder(cwc)
 }
 
 // lpUnknownCoders takes a coder, and populates coders with any new coders
@@ -250,6 +257,9 @@ func pullDecoderNoAlloc(c *pipepb.Coder, coders map[string]*pipepb.Coder) func(i
 
 	case urns.CoderKV:
 		ccids := c.GetComponentCoderIds()
+		if len(ccids) != 2 {
+			panic(fmt.Sprintf("KV coder with more than 2 components: %s", prototext.Format(c)))
+		}
 		kd := pullDecoderNoAlloc(coders[ccids[0]], coders)
 		vd := pullDecoderNoAlloc(coders[ccids[1]], coders)
 		return func(r io.Reader) {
@@ -261,4 +271,25 @@ func pullDecoderNoAlloc(c *pipepb.Coder, coders map[string]*pipepb.Coder) func(i
 	default:
 		panic(fmt.Sprintf("unknown coder urn key: %v", urn))
 	}
+}
+
+// debugCoder is developer code to get the structure of a proto coder visible when
+// debugging coder errors in prism. It may sometimes be unused, so we do this to avoid
+// linting errors.
+var _ = debugCoder
+
+func debugCoder(cid string, coders map[string]*pipepb.Coder) string {
+	var b strings.Builder
+	b.WriteString(cid)
+	b.WriteRune('\n')
+	c := coders[cid]
+	if len(c.ComponentCoderIds) > 0 {
+		b.WriteRune('\t')
+		b.WriteString(strings.Join(c.ComponentCoderIds, ", "))
+		b.WriteRune('\n')
+		for _, ccid := range c.GetComponentCoderIds() {
+			b.WriteString(debugCoder(ccid, coders))
+		}
+	}
+	return b.String()
 }

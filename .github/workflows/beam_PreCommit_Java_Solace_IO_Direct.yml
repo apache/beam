@@ -95,7 +95,7 @@ jobs:
     - name: run Solace IO IT script
       uses: ./.github/actions/gradle-command-self-hosted-action
       with:
-        gradle-command: :sdks:java:io:solace:integrationTest
+        gradle-command: :sdks:java:io:solace:integrationTest --info
         arguments: |
           -PdisableSpotlessCheck=true \
           -PdisableCheckStyle=true \

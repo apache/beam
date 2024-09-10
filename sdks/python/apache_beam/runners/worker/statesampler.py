@@ -89,46 +89,39 @@ DEFAULT_SAMPLING_PERIOD_MS = 200
 
 
 class StateSampler(statesampler_impl.StateSampler):
-
-  def __init__(self,
-               prefix,  # type: str
-               counter_factory,
-               sampling_period_ms=DEFAULT_SAMPLING_PERIOD_MS):
+  def __init__(
+      self,
+      prefix: str,
+      counter_factory,
+      sampling_period_ms=DEFAULT_SAMPLING_PERIOD_MS):
     self._prefix = prefix
     self._counter_factory = counter_factory
-    self._states_by_name = {
-    }  # type: Dict[CounterName, statesampler_impl.ScopedState]
+    self._states_by_name: Dict[CounterName, statesampler_impl.ScopedState] = {}
     self.sampling_period_ms = sampling_period_ms
-    self.tracked_thread = None  # type: Optional[threading.Thread]
+    self.tracked_thread: Optional[threading.Thread] = None
     self.finished = False
     self.started = False
     super().__init__(sampling_period_ms)
 
   @property
-  def stage_name(self):
-    # type: () -> str
+  def stage_name(self) -> str:
     return self._prefix
 
-  def stop(self):
-    # type: () -> None
+  def stop(self) -> None:
     set_current_tracker(None)
     super().stop()
 
-  def stop_if_still_running(self):
-    # type: () -> None
+  def stop_if_still_running(self) -> None:
     if self.started and not self.finished:
       self.stop()
 
-  def start(self):
-    # type: () -> None
+  def start(self) -> None:
     self.tracked_thread = threading.current_thread()
     set_current_tracker(self)
     super().start()
     self.started = True
 
-  def get_info(self):
-    # type: () -> StateSamplerInfo
-
+  def get_info(self) -> StateSamplerInfo:
     """Returns StateSamplerInfo with transition statistics."""
     return StateSamplerInfo(
         self.current_state().name,
@@ -136,14 +129,13 @@ class StateSampler(statesampler_impl.StateSampler):
         self.time_since_transition,
         self.tracked_thread)
 
-  def scoped_state(self,
-                   name_context,  # type: Union[str, common.NameContext]
-                   state_name,  # type: str
-                   io_target=None,
-                   metrics_container=None  # type: Optional[MetricsContainer]
-                  ):
-    # type: (...) -> statesampler_impl.ScopedState
-
+  def scoped_state(
+      self,
+      name_context: Union[str, 'common.NameContext'],
+      state_name: str,
+      io_target=None,
+      metrics_container: Optional['MetricsContainer'] = None
+  ) -> statesampler_impl.ScopedState:
     """Returns a ScopedState object associated to a Step and a State.
 
     Args:
@@ -173,9 +165,7 @@ class StateSampler(statesampler_impl.StateSampler):
           counter_name, name_context, output_counter, metrics_container)
       return self._states_by_name[counter_name]
 
-  def commit_counters(self):
-    # type: () -> None
-
+  def commit_counters(self) -> None:
     """Updates output counters with latest state statistics."""
     for state in self._states_by_name.values():
       state_msecs = int(1e-6 * state.nsecs)

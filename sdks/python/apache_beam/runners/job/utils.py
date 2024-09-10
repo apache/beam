@@ -27,8 +27,7 @@ from google.protobuf import json_format
 from google.protobuf import struct_pb2
 
 
-def dict_to_struct(dict_obj):
-  # type: (dict) -> struct_pb2.Struct
+def dict_to_struct(dict_obj: dict) -> struct_pb2.Struct:
   try:
     return json_format.ParseDict(dict_obj, struct_pb2.Struct())
   except json_format.ParseError:
@@ -36,6 +35,5 @@ def dict_to_struct(dict_obj):
     raise
 
 
-def struct_to_dict(struct_obj):
-  # type: (struct_pb2.Struct) -> dict
+def struct_to_dict(struct_obj: struct_pb2.Struct) -> dict:
   return json.loads(json_format.MessageToJson(struct_obj))

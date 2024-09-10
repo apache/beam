@@ -19,6 +19,7 @@ package org.apache.beam.io.requestresponse;
 
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
+import org.apache.beam.sdk.util.SerializableSupplier;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.joda.time.Duration;
 import org.joda.time.Instant;

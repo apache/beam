@@ -20,6 +20,7 @@ package org.apache.beam.runners.portability;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeInt64Counter;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeInt64Distribution;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeInt64Gauge;
+import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeStringSet;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 
@@ -27,6 +28,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.model.jobmanagement.v1.JobApi;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobState;
@@ -34,6 +36,7 @@ import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.MetricsApi;
 import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.GaugeData;
+import org.apache.beam.runners.core.metrics.StringSetData;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactStagingService;
 import org.apache.beam.runners.portability.testing.TestJobService;
 import org.apache.beam.sdk.PipelineResult;
@@ -50,6 +53,7 @@ import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Server;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.inprocess.InProcessServerBuilder;
 import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.testing.GrpcCleanupRule;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -68,6 +72,7 @@ public class PortableRunnerTest implements Serializable {
   private static final String COUNTER_TYPE = "beam:metrics:sum_int64:v1";
   private static final String DIST_TYPE = "beam:metrics:distribution_int64:v1";
   private static final String GAUGE_TYPE = "beam:metrics:latest_int64:v1";
+  private static final String STRING_SET_TYPE = "beam:metrics:set_string:v1";
   private static final String NAMESPACE_LABEL = "NAMESPACE";
   private static final String METRIC_NAME_LABEL = "NAME";
   private static final String STEP_NAME_LABEL = "PTRANSFORM";
@@ -76,6 +81,7 @@ public class PortableRunnerTest implements Serializable {
   private static final String STEP_NAME = "testStep";
   private static final Long COUNTER_VALUE = 42L;
   private static final Long GAUGE_VALUE = 64L;
+  private static final Set<String> STRING_SET_VALUE = ImmutableSet.of("ab", "cd");
   private static final Instant GAUGE_TIME =
       GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.standardSeconds(1));
   private static final Long DIST_SUM = 1000L;
@@ -124,6 +130,9 @@ public class PortableRunnerTest implements Serializable {
     assertThat(
         metricQueryResults.getGauges().iterator().next().getAttempted().getValue(),
         is(GAUGE_VALUE));
+    assertThat(
+        metricQueryResults.getStringSets().iterator().next().getAttempted().getStringSet(),
+        is(STRING_SET_VALUE));
   }
 
   private JobApi.MetricResults generateMetricResults() throws Exception {
@@ -155,10 +164,18 @@ public class PortableRunnerTest implements Serializable {
             .setPayload(encodeInt64Gauge(GaugeData.create(GAUGE_VALUE, GAUGE_TIME)))
             .build();
 
+    MetricsApi.MonitoringInfo stringSetMonitoringInfo =
+        MetricsApi.MonitoringInfo.newBuilder()
+            .setType(STRING_SET_TYPE)
+            .putAllLabels(labelMap)
+            .setPayload(encodeStringSet(StringSetData.create(STRING_SET_VALUE)))
+            .build();
+
     return JobApi.MetricResults.newBuilder()
         .addAttempted(counterMonitoringInfo)
         .addAttempted(distMonitoringInfo)
         .addAttempted(gaugeMonitoringInfo)
+        .addAttempted(stringSetMonitoringInfo)
         .build();
   }
 

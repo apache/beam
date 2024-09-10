@@ -26,14 +26,13 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.WindmillStreamSender;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableCollection;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Evenly distributes the provided budget across the available {@link WindmillStreamSender}(s). */
+/** Evenly distributes the provided budget across the available {@link GetWorkBudgetSpender}(s). */
 @Internal
 final class EvenGetWorkBudgetDistributor implements GetWorkBudgetDistributor {
   private static final Logger LOG = LoggerFactory.getLogger(EvenGetWorkBudgetDistributor.class);
@@ -50,10 +49,10 @@ final class EvenGetWorkBudgetDistributor implements GetWorkBudgetDistributor {
   }
 
   @Override
-  public void distributeBudget(
-      ImmutableCollection<WindmillStreamSender> streams, GetWorkBudget getWorkBudget) {
-    if (streams.isEmpty()) {
-      LOG.debug("Cannot distribute budget to no streams.");
+  public <T extends GetWorkBudgetSpender> void distributeBudget(
+      ImmutableCollection<T> budgetOwners, GetWorkBudget getWorkBudget) {
+    if (budgetOwners.isEmpty()) {
+      LOG.debug("Cannot distribute budget to no owners.");
       return;
     }
 
@@ -62,23 +61,21 @@ final class EvenGetWorkBudgetDistributor implements GetWorkBudgetDistributor {
       return;
     }
 
-    Map<WindmillStreamSender, GetWorkBudget> desiredBudgets =
-        computeDesiredBudgets(streams, getWorkBudget);
+    Map<T, GetWorkBudget> desiredBudgets = computeDesiredBudgets(budgetOwners, getWorkBudget);
 
-    for (Entry<WindmillStreamSender, GetWorkBudget> streamAndDesiredBudget :
-        desiredBudgets.entrySet()) {
-      WindmillStreamSender stream = streamAndDesiredBudget.getKey();
+    for (Entry<T, GetWorkBudget> streamAndDesiredBudget : desiredBudgets.entrySet()) {
+      GetWorkBudgetSpender getWorkBudgetSpender = streamAndDesiredBudget.getKey();
       GetWorkBudget desired = streamAndDesiredBudget.getValue();
-      GetWorkBudget remaining = stream.remainingGetWorkBudget();
+      GetWorkBudget remaining = getWorkBudgetSpender.remainingBudget();
       if (isBelowFiftyPercentOfTarget(remaining, desired)) {
         GetWorkBudget adjustment = desired.subtract(remaining);
-        stream.adjustBudget(adjustment);
+        getWorkBudgetSpender.adjustBudget(adjustment);
       }
     }
   }
 
-  private ImmutableMap<WindmillStreamSender, GetWorkBudget> computeDesiredBudgets(
-      ImmutableCollection<WindmillStreamSender> streams, GetWorkBudget totalGetWorkBudget) {
+  private <T extends GetWorkBudgetSpender> ImmutableMap<T, GetWorkBudget> computeDesiredBudgets(
+      ImmutableCollection<T> streams, GetWorkBudget totalGetWorkBudget) {
     GetWorkBudget activeWorkBudget = activeWorkBudgetSupplier.get();
     LOG.info("Current active work budget: {}", activeWorkBudget);
     // TODO: Fix possibly non-deterministic handing out of budgets.

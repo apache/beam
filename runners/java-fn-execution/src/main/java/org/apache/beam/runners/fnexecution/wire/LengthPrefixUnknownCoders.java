@@ -17,7 +17,9 @@
  */
 package org.apache.beam.runners.fnexecution.wire;
 
+import java.util.HashSet;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.function.Predicate;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
@@ -28,6 +30,17 @@ import org.apache.beam.sdk.util.construction.ModelCoders;
 
 /** Utilities for replacing or wrapping unknown coders with {@link LengthPrefixCoder}. */
 public class LengthPrefixUnknownCoders {
+  private static Set<String> otherKnownCoderUrns = new HashSet<>();
+
+  /**
+   * Registers a coder as being of known type and as such not meriting length prefixing.
+   *
+   * @param urn The urn of the coder that should not be length prefixed.
+   */
+  public static void addKnownCoderUrn(String urn) {
+    otherKnownCoderUrns.add(urn);
+  }
+
   /**
    * Recursively traverses the coder tree and wraps the first unknown coder in every branch with a
    * {@link LengthPrefixCoder} unless an ancestor coder is itself a {@link LengthPrefixCoder}. If
@@ -59,7 +72,7 @@ public class LengthPrefixUnknownCoders {
     //     with a length prefix coder or replace it with a length prefix byte array coder.
     if (ModelCoders.LENGTH_PREFIX_CODER_URN.equals(urn)) {
       return replaceWithByteArrayCoder ? lengthPrefixedByteArrayCoderId : coderId;
-    } else if (ModelCoders.urns().contains(urn)) {
+    } else if (ModelCoders.urns().contains(urn) || otherKnownCoderUrns.contains(urn)) {
       return addForModelCoder(coderId, components, replaceWithByteArrayCoder);
     } else {
       return replaceWithByteArrayCoder
@@ -71,6 +84,9 @@ public class LengthPrefixUnknownCoders {
   private static String addForModelCoder(
       String coderId, RunnerApi.Components.Builder components, boolean replaceWithByteArrayCoder) {
     Coder coder = components.getCodersOrThrow(coderId);
+    if (coder.getComponentCoderIdsCount() == 0) {
+      return coderId;
+    }
     RunnerApi.Coder.Builder builder = coder.toBuilder().clearComponentCoderIds();
     for (String componentCoderId : coder.getComponentCoderIdsList()) {
       builder.addComponentCoderIds(

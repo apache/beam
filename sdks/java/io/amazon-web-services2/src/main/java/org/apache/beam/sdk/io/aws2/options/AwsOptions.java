@@ -95,14 +95,14 @@ public interface AwsOptions extends PipelineOptions {
    *
    *     <pre>{@code --awsCredentialsProvider={
    *   "@type": "StaticCredentialsProvider",
-   *   "awsAccessKeyId": "key_id_value",
-   *   "awsSecretKey": "secret_value"
+   *   "accessKeyId": "key_id_value",
+   *   "secretAccessKey": "secret_value"
    * }
    *
    * --awsCredentialsProvider={
    *   "@type": "StaticCredentialsProvider",
-   *   "awsAccessKeyId": "key_id_value",
-   *   "awsSecretKey": "secret_value",
+   *   "accessKeyId": "key_id_value",
+   *   "secretAccessKey": "secret_value",
    *   "sessionToken": "token_value"
    * }}</pre>
    *

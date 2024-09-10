@@ -38,8 +38,7 @@ DEFAULT_PICKLE_LIB = USE_DILL
 desired_pickle_lib = dill_pickler
 
 
-def dumps(o, enable_trace=True, use_zlib=False):
-  # type: (...) -> bytes
+def dumps(o, enable_trace=True, use_zlib=False) -> bytes:
 
   return desired_pickle_lib.dumps(
       o, enable_trace=enable_trace, use_zlib=use_zlib)

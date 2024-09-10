@@ -24,6 +24,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
 
 import com.google.api.services.dataflow.model.CounterMetadata;
 import com.google.api.services.dataflow.model.CounterStructuredName;
@@ -60,8 +61,10 @@ import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReader;
+import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -82,7 +85,6 @@ import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link StreamingModeExecutionContext}. */
@@ -112,7 +114,10 @@ public class StreamingModeExecutionContextTest {
             COMPUTATION_ID,
             new ReaderCache(Duration.standardMinutes(1), Executors.newCachedThreadPool()),
             stateNameMap,
-            WindmillStateCache.ofSizeMbs(options.getWorkerCacheMb()).forComputation("comp"),
+            WindmillStateCache.builder()
+                .setSizeMb(options.getWorkerCacheMb())
+                .build()
+                .forComputation("comp"),
             StreamingStepMetricsContainer.createRegistry(),
             new DataflowExecutionStateTracker(
                 ExecutionStateSampler.newForTest(),
@@ -122,7 +127,8 @@ public class StreamingModeExecutionContextTest {
                 PipelineOptionsFactory.create(),
                 "test-work-item-id"),
             executionStateRegistry,
-            Long.MAX_VALUE);
+            Long.MAX_VALUE,
+            /*throwExceptionOnLargeOutput=*/ false);
   }
 
   private static Work createMockWork(Windmill.WorkItem workItem, Watermarks watermarks) {
@@ -130,9 +136,7 @@ public class StreamingModeExecutionContextTest {
         workItem,
         watermarks,
         Work.createProcessingContext(
-            COMPUTATION_ID,
-            (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance(),
-            ignored -> {}),
+            COMPUTATION_ID, new FakeGetDataClient(), ignored -> {}, mock(HeartbeatSender.class)),
         Instant::now,
         Collections.emptyList());
   }
@@ -154,6 +158,7 @@ public class StreamingModeExecutionContextTest {
             Watermarks.builder().setInputDataWatermark(new Instant(1000)).build()),
         stateReader,
         sideInputStateFetcher,
+        OperationalLimits.builder().build(),
         outputBuilder);
 
     TimerInternals timerInternals = stepContext.timerInternals();
@@ -203,6 +208,7 @@ public class StreamingModeExecutionContextTest {
             Watermarks.builder().setInputDataWatermark(new Instant(1000)).build()),
         stateReader,
         sideInputStateFetcher,
+        OperationalLimits.builder().build(),
         outputBuilder);
     TimerInternals timerInternals = stepContext.timerInternals();
     assertTrue(timerTimestamp.isBefore(timerInternals.currentProcessingTime()));
@@ -238,8 +244,8 @@ public class StreamingModeExecutionContextTest {
 
   @Test
   public void extractMsecCounters() {
-    MetricsContainer metricsContainer = Mockito.mock(MetricsContainer.class);
-    ProfileScope profileScope = Mockito.mock(ProfileScope.class);
+    MetricsContainer metricsContainer = mock(MetricsContainer.class);
+    ProfileScope profileScope = mock(ProfileScope.class);
     ExecutionState start1 =
         executionContext.executionStateRegistry.getState(
             NameContext.create("stage", "original-1", "system-1", "user-1"),

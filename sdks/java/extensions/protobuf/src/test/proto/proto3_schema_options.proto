@@ -90,4 +90,6 @@ message OptionTestMessage {
     }
     OptionEnum single_enum = 8;
     OptionTestSubMessage single_message = 9;
+
+    optional string optional_string = 10;
 }

@@ -119,6 +119,7 @@ import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Redistribute.RedistributeByKey;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.View;
@@ -697,6 +698,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             PTransformOverride.of(
                 PTransformMatchers.classEqualTo(ParDo.SingleOutput.class),
                 new PrimitiveParDoSingleFactory()));
+
+    overridesBuilder.add(
+        PTransformOverride.of(
+            PTransformMatchers.classEqualTo(RedistributeByKey.class),
+            new RedistributeByKeyOverrideFactory()));
 
     if (streaming) {
       // For update compatibility, always use a Read for Create in streaming mode.
@@ -1379,7 +1385,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     byte[] jobGraphBytes = DataflowPipelineTranslator.jobToString(newJob).getBytes(UTF_8);
     int jobGraphByteSize = jobGraphBytes.length;
     if (jobGraphByteSize >= CREATE_JOB_REQUEST_LIMIT_BYTES
-        && !hasExperiment(options, "upload_graph")) {
+        && !hasExperiment(options, "upload_graph")
+        && !useUnifiedWorker(options)) {
       List<String> experiments = firstNonNull(options.getExperiments(), Collections.emptyList());
       options.setExperiments(
           ImmutableList.<String>builder().addAll(experiments).add("upload_graph").build());
@@ -1388,6 +1395,15 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               + "the upload_graph option to experiments.",
           jobGraphByteSize,
           CREATE_JOB_REQUEST_LIMIT_BYTES);
+    }
+
+    if (hasExperiment(options, "upload_graph") && useUnifiedWorker(options)) {
+      ArrayList<String> experiments = new ArrayList<>(options.getExperiments());
+      while (experiments.remove("upload_graph")) {}
+      options.setExperiments(experiments);
+      LOG.warn(
+          "The upload_graph experiment was specified, but it does not apply "
+              + "to runner v2 jobs. Option has been automatically removed.");
     }
 
     // Upload the job to GCS and remove the graph object from the API call.  The graph
@@ -2558,11 +2574,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         || hasExperiment(options, "use_portable_job_submission");
   }
 
-  static boolean useStreamingEngine(DataflowPipelineOptions options) {
-    return hasExperiment(options, GcpOptions.STREAMING_ENGINE_EXPERIMENT)
-        || hasExperiment(options, GcpOptions.WINDMILL_SERVICE_EXPERIMENT);
-  }
-
   static void verifyDoFnSupported(
       DoFn<?, ?> fn, boolean streaming, DataflowPipelineOptions options) {
     if (!streaming && DoFnSignatures.usesMultimapState(fn)) {
@@ -2577,8 +2588,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               "%s does not currently support @RequiresTimeSortedInput in streaming mode.",
               DataflowRunner.class.getSimpleName()));
     }
-
-    boolean streamingEngine = useStreamingEngine(options);
     boolean isUnifiedWorker = useUnifiedWorker(options);
 
     if (DoFnSignatures.usesMultimapState(fn) && isUnifiedWorker) {
@@ -2587,25 +2596,17 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               "%s does not currently support %s running using streaming on unified worker",
               DataflowRunner.class.getSimpleName(), MultimapState.class.getSimpleName()));
     }
-    if (DoFnSignatures.usesSetState(fn)) {
-      if (streaming && (isUnifiedWorker || streamingEngine)) {
-        throw new UnsupportedOperationException(
-            String.format(
-                "%s does not currently support %s when using %s",
-                DataflowRunner.class.getSimpleName(),
-                SetState.class.getSimpleName(),
-                isUnifiedWorker ? "streaming on unified worker" : "streaming engine"));
-      }
+    if (DoFnSignatures.usesSetState(fn) && streaming && isUnifiedWorker) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "%s does not currently support %s when using streaming on unified worker",
+              DataflowRunner.class.getSimpleName(), SetState.class.getSimpleName()));
     }
-    if (DoFnSignatures.usesMapState(fn)) {
-      if (streaming && (isUnifiedWorker || streamingEngine)) {
-        throw new UnsupportedOperationException(
-            String.format(
-                "%s does not currently support %s when using %s",
-                DataflowRunner.class.getSimpleName(),
-                MapState.class.getSimpleName(),
-                isUnifiedWorker ? "streaming on unified worker" : "streaming engine"));
-      }
+    if (DoFnSignatures.usesMapState(fn) && streaming && isUnifiedWorker) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "%s does not currently support %s when using streaming on unified worker",
+              DataflowRunner.class.getSimpleName(), MapState.class.getSimpleName()));
     }
     if (DoFnSignatures.usesBundleFinalizer(fn) && !isUnifiedWorker) {
       throw new UnsupportedOperationException(

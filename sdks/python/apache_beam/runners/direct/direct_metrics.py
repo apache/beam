@@ -28,6 +28,7 @@ from collections import defaultdict
 from apache_beam.metrics.cells import CounterAggregator
 from apache_beam.metrics.cells import DistributionAggregator
 from apache_beam.metrics.cells import GaugeAggregator
+from apache_beam.metrics.cells import StringSetAggregator
 from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.execution import MetricResult
 from apache_beam.metrics.metric import MetricResults
@@ -39,6 +40,7 @@ class DirectMetrics(MetricResults):
     self._distributions = defaultdict(
         lambda: DirectMetric(DistributionAggregator()))
     self._gauges = defaultdict(lambda: DirectMetric(GaugeAggregator()))
+    self._string_sets = defaultdict(lambda: DirectMetric(StringSetAggregator()))
 
   def _apply_operation(self, bundle, updates, op):
     for k, v in updates.counters.items():
@@ -49,6 +51,9 @@ class DirectMetrics(MetricResults):
 
     for k, v in updates.gauges.items():
       op(self._gauges[k], bundle, v)
+
+    for k, v in updates.string_sets.items():
+      op(self._string_sets[k], bundle, v)
 
   def commit_logical(self, bundle, updates):
     op = lambda obj, bundle, update: obj.commit_logical(bundle, update)
@@ -84,11 +89,19 @@ class DirectMetrics(MetricResults):
             v.extract_latest_attempted()) for k,
         v in self._gauges.items() if self.matches(filter, k)
     ]
+    string_sets = [
+        MetricResult(
+            MetricKey(k.step, k.metric),
+            v.extract_committed(),
+            v.extract_latest_attempted()) for k,
+        v in self._string_sets.items() if self.matches(filter, k)
+    ]
 
     return {
         self.COUNTERS: counters,
         self.DISTRIBUTIONS: distributions,
-        self.GAUGES: gauges
+        self.GAUGES: gauges,
+        self.STRINGSETS: string_sets
     }
 
 

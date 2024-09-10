@@ -21,6 +21,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import org.apache.beam.runners.portability.PortableRunner;
@@ -33,7 +34,6 @@ import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.hamcrest.Matchers;
 
@@ -65,7 +65,8 @@ public class TestUniversalRunner extends PipelineRunner<PipelineResult> {
         testOptions.setJobEndpoint(
             "localhost:"
                 + new String(
-                        Files.readAllBytes(Paths.get(localServicePortFilePath)), Charsets.UTF_8)
+                        Files.readAllBytes(Paths.get(localServicePortFilePath)),
+                        StandardCharsets.UTF_8)
                     .trim());
       } catch (IOException e) {
         throw new RuntimeException(

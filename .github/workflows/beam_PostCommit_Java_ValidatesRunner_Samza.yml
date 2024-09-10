@@ -72,12 +72,18 @@ jobs:
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
+        # TODO(https://github.com/apache/beam/issues/32208) move to Java11 after bump to Samza 1.8
         with:
-          java-version: default
+          java-version: |
+            8
+            11
       - name: run validatesRunner script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :runners:samza:validatesRunner
+          arguments: |
+            -PtestJavaVersion=8 \
+            -Pjava8Home=$JAVA_HOME_8_X64 \
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v4
         if: ${{ !success() }}

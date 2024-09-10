@@ -30,7 +30,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotSame;
 
 import com.google.api.client.json.GenericJson;
-import com.google.api.client.json.jackson2.JacksonFactory;
+import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.services.dataflow.model.InstructionOutput;
 import com.google.api.services.dataflow.model.ParDoInstruction;
 import com.google.api.services.dataflow.model.ParallelInstruction;
@@ -89,7 +89,7 @@ public class LengthPrefixUnknownCodersTest {
   public void setup() {
     MockitoAnnotations.initMocks(this);
     instruction = new ParallelInstruction();
-    instruction.setFactory(new JacksonFactory());
+    instruction.setFactory(new GsonFactory());
   }
 
   /** Test wrapping unknown coders with {@code LengthPrefixCoder} */
@@ -142,7 +142,7 @@ public class LengthPrefixUnknownCodersTest {
   public void testLengthPrefixInstructionOutputCoder() throws Exception {
     InstructionOutput output = new InstructionOutput();
     output.setCodec(CloudObjects.asCloudObject(windowedValueCoder, /*sdkComponents=*/ null));
-    output.setFactory(new JacksonFactory());
+    output.setFactory(new GsonFactory());
 
     InstructionOutput prefixedOutput = forInstructionOutput(output, false);
     assertEqualsAsJson(
@@ -267,7 +267,7 @@ public class LengthPrefixUnknownCodersTest {
                             .setCodec(CloudObjects.asCloudObject(coder, /*sdkComponents=*/ null))
                             .setSpec(CloudObject.forClassName(readClassName))));
 
-    parallelInstruction.setFactory(new JacksonFactory());
+    parallelInstruction.setFactory(new GsonFactory());
     return ParallelInstructionNode.create(parallelInstruction, Nodes.ExecutionLocation.UNKNOWN);
   }
 
@@ -276,7 +276,7 @@ public class LengthPrefixUnknownCodersTest {
         new InstructionOutput()
             .setName(name)
             .setCodec(CloudObjects.asCloudObject(coder, /*sdkComponents=*/ null));
-    instructionOutput.setFactory(new JacksonFactory());
+    instructionOutput.setFactory(new GsonFactory());
     return InstructionOutputNode.create(instructionOutput, "fakeId");
   }
 }

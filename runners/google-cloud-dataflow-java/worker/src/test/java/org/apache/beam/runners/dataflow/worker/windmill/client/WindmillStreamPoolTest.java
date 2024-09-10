@@ -38,12 +38,12 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class WindmillStreamPoolTest {
-  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private static final int DEFAULT_NUM_STREAMS = 10;
   private static final int NEW_STREAM_HOLDS = 2;
   private final ConcurrentHashMap<
           TestWindmillStream, WindmillStreamPool.StreamData<TestWindmillStream>>
       holds = new ConcurrentHashMap<>();
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private List<WindmillStreamPool.@Nullable StreamData<TestWindmillStream>> streams;
 
   @Before
@@ -237,7 +237,7 @@ public class WindmillStreamPoolTest {
     }
 
     @Override
-    public void close() {
+    public void halfClose() {
       closed = true;
     }
 
@@ -249,6 +249,16 @@ public class WindmillStreamPoolTest {
     @Override
     public Instant startTime() {
       return startTime;
+    }
+
+    @Override
+    public String backendWorkerToken() {
+      return "";
+    }
+
+    @Override
+    public void shutdown() {
+      halfClose();
     }
   }
 }

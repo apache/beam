@@ -38,7 +38,13 @@ from typing import Dict
 from typing import Optional
 
 __all__ = [
-    'Metric', 'Counter', 'Distribution', 'Gauge', 'Histogram', 'MetricName'
+    'Metric',
+    'Counter',
+    'Distribution',
+    'Gauge',
+    'StringSet',
+    'Histogram',
+    'MetricName'
 ]
 
 
@@ -49,9 +55,12 @@ class MetricName(object):
   allows grouping related metrics together and also prevents collisions
   between multiple metrics of the same name.
   """
-  def __init__(self, namespace, name, urn=None, labels=None):
-    # type: (Optional[str], Optional[str], Optional[str], Optional[Dict[str, str]]) -> None
-
+  def __init__(
+      self,
+      namespace: Optional[str],
+      name: Optional[str],
+      urn: Optional[str] = None,
+      labels: Optional[Dict[str, str]] = None) -> None:
     """Initializes ``MetricName``.
 
     Note: namespace and name should be set for user metrics,
@@ -103,8 +112,7 @@ class MetricName(object):
 
 class Metric(object):
   """Base interface of a metric object."""
-  def __init__(self, metric_name):
-    # type: (MetricName) -> None
+  def __init__(self, metric_name: MetricName) -> None:
     self.metric_name = metric_name
 
 
@@ -133,6 +141,14 @@ class Gauge(Metric):
   Allows tracking of the latest value of a variable during pipeline
   execution."""
   def set(self, value):
+    raise NotImplementedError
+
+
+class StringSet(Metric):
+  """StringSet Metric interface.
+
+  Reports set of unique string values during pipeline execution.."""
+  def add(self, value):
     raise NotImplementedError
 
 

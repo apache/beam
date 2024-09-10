@@ -28,6 +28,7 @@ and displayed as part of their pipeline execution.
 # mypy: disallow-untyped-defs
 
 import logging
+import re
 from typing import TYPE_CHECKING
 from typing import Dict
 from typing import FrozenSet
@@ -39,17 +40,19 @@ from typing import Type
 from typing import Union
 
 from apache_beam.metrics import cells
+from apache_beam.metrics.execution import MetricResult
 from apache_beam.metrics.execution import MetricUpdater
 from apache_beam.metrics.metricbase import Counter
 from apache_beam.metrics.metricbase import Distribution
 from apache_beam.metrics.metricbase import Gauge
 from apache_beam.metrics.metricbase import MetricName
+from apache_beam.metrics.metricbase import StringSet
 
 if TYPE_CHECKING:
   from apache_beam.metrics.execution import MetricKey
   from apache_beam.metrics.metricbase import Metric
 
-__all__ = ['Metrics', 'MetricsFilter']
+__all__ = ['Metrics', 'MetricsFilter', 'Lineage']
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -57,8 +60,7 @@ _LOGGER = logging.getLogger(__name__)
 class Metrics(object):
   """Lets users create/access metric objects during pipeline execution."""
   @staticmethod
-  def get_namespace(namespace):
-    # type: (Union[Type, str]) -> str
+  def get_namespace(namespace: Union[Type, str]) -> str:
     if isinstance(namespace, type):
       return '{}.{}'.format(namespace.__module__, namespace.__name__)
     elif isinstance(namespace, str):
@@ -67,9 +69,8 @@ class Metrics(object):
       raise ValueError('Unknown namespace type')
 
   @staticmethod
-  def counter(namespace, name):
-    # type: (Union[Type, str], str) -> Metrics.DelegatingCounter
-
+  def counter(
+      namespace: Union[Type, str], name: str) -> 'Metrics.DelegatingCounter':
     """Obtains or creates a Counter metric.
 
     Args:
@@ -83,9 +84,9 @@ class Metrics(object):
     return Metrics.DelegatingCounter(MetricName(namespace, name))
 
   @staticmethod
-  def distribution(namespace, name):
-    # type: (Union[Type, str], str) -> Metrics.DelegatingDistribution
-
+  def distribution(
+      namespace: Union[Type, str],
+      name: str) -> 'Metrics.DelegatingDistribution':
     """Obtains or creates a Distribution metric.
 
     Distribution metrics are restricted to integer-only distributions.
@@ -101,9 +102,8 @@ class Metrics(object):
     return Metrics.DelegatingDistribution(MetricName(namespace, name))
 
   @staticmethod
-  def gauge(namespace, name):
-    # type: (Union[Type, str], str) -> Metrics.DelegatingGauge
-
+  def gauge(
+      namespace: Union[Type, str], name: str) -> 'Metrics.DelegatingGauge':
     """Obtains or creates a Gauge metric.
 
     Gauge metrics are restricted to integer-only values.
@@ -118,10 +118,27 @@ class Metrics(object):
     namespace = Metrics.get_namespace(namespace)
     return Metrics.DelegatingGauge(MetricName(namespace, name))
 
+  @staticmethod
+  def string_set(
+      namespace: Union[Type, str], name: str) -> 'Metrics.DelegatingStringSet':
+    """Obtains or creates a String set metric.
+
+    String set metrics are restricted to string values.
+
+    Args:
+      namespace: A class or string that gives the namespace to a metric
+      name: A string that gives a unique name to a metric
+
+    Returns:
+      A StringSet object.
+    """
+    namespace = Metrics.get_namespace(namespace)
+    return Metrics.DelegatingStringSet(MetricName(namespace, name))
+
   class DelegatingCounter(Counter):
     """Metrics Counter that Delegates functionality to MetricsEnvironment."""
-    def __init__(self, metric_name, process_wide=False):
-      # type: (MetricName, bool) -> None
+    def __init__(
+        self, metric_name: MetricName, process_wide: bool = False) -> None:
       super().__init__(metric_name)
       self.inc = MetricUpdater(  # type: ignore[assignment]
           cells.CounterCell,
@@ -131,27 +148,31 @@ class Metrics(object):
 
   class DelegatingDistribution(Distribution):
     """Metrics Distribution Delegates functionality to MetricsEnvironment."""
-    def __init__(self, metric_name):
-      # type: (MetricName) -> None
+    def __init__(self, metric_name: MetricName) -> None:
       super().__init__(metric_name)
       self.update = MetricUpdater(cells.DistributionCell, metric_name)  # type: ignore[assignment]
 
   class DelegatingGauge(Gauge):
     """Metrics Gauge that Delegates functionality to MetricsEnvironment."""
-    def __init__(self, metric_name):
-      # type: (MetricName) -> None
+    def __init__(self, metric_name: MetricName) -> None:
       super().__init__(metric_name)
       self.set = MetricUpdater(cells.GaugeCell, metric_name)  # type: ignore[assignment]
+
+  class DelegatingStringSet(StringSet):
+    """Metrics StringSet that Delegates functionality to MetricsEnvironment."""
+    def __init__(self, metric_name: MetricName) -> None:
+      super().__init__(metric_name)
+      self.add = MetricUpdater(cells.StringSetCell, metric_name)  # type: ignore[assignment]
 
 
 class MetricResults(object):
   COUNTERS = "counters"
   DISTRIBUTIONS = "distributions"
   GAUGES = "gauges"
+  STRINGSETS = "string_sets"
 
   @staticmethod
-  def _matches_name(filter, metric_key):
-    # type: (MetricsFilter, MetricKey) -> bool
+  def _matches_name(filter: 'MetricsFilter', metric_key: 'MetricKey') -> bool:
     if ((filter.namespaces and
          metric_key.metric.namespace not in filter.namespaces) or
         (filter.names and metric_key.metric.name not in filter.names)):
@@ -160,9 +181,7 @@ class MetricResults(object):
       return True
 
   @staticmethod
-  def _is_sub_list(needle, haystack):
-    # type: (List[str], List[str]) -> bool
-
+  def _is_sub_list(needle: List[str], haystack: List[str]) -> bool:
     """True iff `needle` is a sub-list of `haystack` (i.e. a contiguous slice
     of `haystack` exactly matches `needle`"""
     needle_len = len(needle)
@@ -174,9 +193,7 @@ class MetricResults(object):
     return False
 
   @staticmethod
-  def _matches_sub_path(actual_scope, filter_scope):
-    # type: (str, str) -> bool
-
+  def _matches_sub_path(actual_scope: str, filter_scope: str) -> bool:
     """True iff the '/'-delimited pieces of filter_scope exist as a sub-list
     of the '/'-delimited pieces of actual_scope"""
     return bool(
@@ -184,8 +201,7 @@ class MetricResults(object):
             filter_scope.split('/'), actual_scope.split('/')))
 
   @staticmethod
-  def _matches_scope(filter, metric_key):
-    # type: (MetricsFilter, MetricKey) -> bool
+  def _matches_scope(filter: 'MetricsFilter', metric_key: 'MetricKey') -> bool:
     if not filter.steps:
       return True
 
@@ -196,8 +212,8 @@ class MetricResults(object):
     return False
 
   @staticmethod
-  def matches(filter, metric_key):
-    # type: (Optional[MetricsFilter], MetricKey) -> bool
+  def matches(
+      filter: Optional['MetricsFilter'], metric_key: 'MetricKey') -> bool:
     if filter is None:
       return True
 
@@ -206,9 +222,10 @@ class MetricResults(object):
       return True
     return False
 
-  def query(self, filter=None):
-    # type: (Optional[MetricsFilter]) -> Dict[str, List[MetricResults]]
-
+  def query(
+      self,
+      filter: Optional['MetricsFilter'] = None
+  ) -> Dict[str, List['MetricResult']]:
     """Queries the runner for existing user metrics that match the filter.
 
     It should return a dictionary, with lists of each kind of metric, and
@@ -217,11 +234,13 @@ class MetricResults(object):
         {
           "counters": [MetricResult(counter_key, committed, attempted), ...],
           "distributions": [MetricResult(dist_key, committed, attempted), ...],
-          "gauges": []  // Empty list if nothing matched the filter.
+          "gauges": [],  // Empty list if nothing matched the filter.
+          "string_sets": [] [MetricResult(string_set_key, committed, attempted),
+                            ...]
         }
 
     The committed / attempted values are DistributionResult / GaugeResult / int
-    objects.
+    / set objects.
     """
     raise NotImplementedError
 
@@ -236,65 +255,132 @@ class MetricsFilter(object):
 
   Note: This class only supports user defined metrics.
   """
-  def __init__(self):
-    # type: () -> None
-    self._names = set()  # type: Set[str]
-    self._namespaces = set()  # type: Set[str]
-    self._steps = set()  # type: Set[str]
+  def __init__(self) -> None:
+    self._names: Set[str] = set()
+    self._namespaces: Set[str] = set()
+    self._steps: Set[str] = set()
 
   @property
-  def steps(self):
-    # type: () -> FrozenSet[str]
+  def steps(self) -> FrozenSet[str]:
     return frozenset(self._steps)
 
   @property
-  def names(self):
-    # type: () -> FrozenSet[str]
+  def names(self) -> FrozenSet[str]:
     return frozenset(self._names)
 
   @property
-  def namespaces(self):
-    # type: () -> FrozenSet[str]
+  def namespaces(self) -> FrozenSet[str]:
     return frozenset(self._namespaces)
 
-  def with_metric(self, metric):
-    # type: (Metric) -> MetricsFilter
+  def with_metric(self, metric: 'Metric') -> 'MetricsFilter':
     name = metric.metric_name.name or ''
     namespace = metric.metric_name.namespace or ''
     return self.with_name(name).with_namespace(namespace)
 
-  def with_name(self, name):
-    # type: (str) -> MetricsFilter
+  def with_name(self, name: str) -> 'MetricsFilter':
     return self.with_names([name])
 
-  def with_names(self, names):
-    # type: (Iterable[str]) -> MetricsFilter
+  def with_names(self, names: Iterable[str]) -> 'MetricsFilter':
     if isinstance(names, str):
       raise ValueError('Names must be a collection, not a string')
 
     self._names.update(names)
     return self
 
-  def with_namespace(self, namespace):
-    # type: (Union[Type, str]) -> MetricsFilter
+  def with_namespace(self, namespace: Union[Type, str]) -> 'MetricsFilter':
     return self.with_namespaces([namespace])
 
-  def with_namespaces(self, namespaces):
-    # type: (Iterable[Union[Type, str]]) -> MetricsFilter
+  def with_namespaces(
+      self, namespaces: Iterable[Union[Type, str]]) -> 'MetricsFilter':
     if isinstance(namespaces, str):
       raise ValueError('Namespaces must be an iterable, not a string')
 
     self._namespaces.update([Metrics.get_namespace(ns) for ns in namespaces])
     return self
 
-  def with_step(self, step):
-    # type: (str) -> MetricsFilter
+  def with_step(self, step: str) -> 'MetricsFilter':
     return self.with_steps([step])
 
-  def with_steps(self, steps):
-    # type: (Iterable[str]) -> MetricsFilter
+  def with_steps(self, steps: Iterable[str]) -> 'MetricsFilter':
     if isinstance(steps, str):
       raise ValueError('Steps must be an iterable, not a string')
 
     self._steps.update(steps)
     return self
+
+
+class Lineage:
+  """Standard collection of metrics used to record source and sinks information
+  for lineage tracking."""
+
+  LINEAGE_NAMESPACE = "lineage"
+  SOURCE = "sources"
+  SINK = "sinks"
+
+  _METRICS = {
+      SOURCE: Metrics.string_set(LINEAGE_NAMESPACE, SOURCE),
+      SINK: Metrics.string_set(LINEAGE_NAMESPACE, SINK)
+  }
+
+  def __init__(self, label: str) -> None:
+    """Create a Lineage with valid label (:data:`~Lineage.SOURCE` or
+    :data:`~Lineage.SINK`)
+    """
+    self.metric = Lineage._METRICS[label]
+
+  @classmethod
+  def sources(cls) -> 'Lineage':
+    return cls(Lineage.SOURCE)
+
+  @classmethod
+  def sinks(cls) -> 'Lineage':
+    return cls(Lineage.SINK)
+
+  _RESERVED_CHARS = re.compile(r'[:\s.]')
+
+  @staticmethod
+  def wrap_segment(segment: str) -> str:
+    """Wrap segment to valid segment name.
+
+    Specifically, If there are reserved chars (colon, whitespace, dot), escape
+    with backtick. If the segment is already wrapped, return the original.
+    """
+    if segment.startswith("`") and segment.endswith("`"): return segment
+    if Lineage._RESERVED_CHARS.search(segment):
+      return "`" + segment + "`"
+    return segment
+
+  @staticmethod
+  def get_fq_name(
+      system: str, *segments: str, subtype: Optional[str] = None) -> str:
+    """Assemble fully qualified name
+    (`FQN <https://cloud.google.com/data-catalog/docs/fully-qualified-names>`_).
+    Format:
+
+    - `system:segment1.segment2`
+    - `system:subtype:segment1.segment2`
+    - `system:`segment1.with.dots:colons`.segment2`
+
+    This helper method is for internal and testing usage only.
+    """
+    segs = '.'.join(map(Lineage.wrap_segment, segments))
+    if subtype:
+      return ':'.join((system, subtype, segs))
+    return ':'.join((system, segs))
+
+  def add(
+      self, system: str, *segments: str, subtype: Optional[str] = None) -> None:
+    self.metric.add(self.get_fq_name(system, *segments, subtype=subtype))
+
+  @staticmethod
+  def query(results: MetricResults, label: str) -> Set[str]:
+    if not label in Lineage._METRICS:
+      raise ValueError("Label {} does not exist for Lineage", label)
+    response = results.query(
+        MetricsFilter().with_namespace(Lineage.LINEAGE_NAMESPACE).with_name(
+            label))[MetricResults.STRINGSETS]
+    result = set()
+    for metric in response:
+      result.update(metric.committed)
+      result.update(metric.attempted)
+    return result

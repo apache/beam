@@ -21,9 +21,9 @@ import static org.apache.beam.sdk.io.common.IOITHelper.executeWithRetry;
 import static org.apache.beam.sdk.io.common.IOITHelper.getHashForRecordCount;
 import static org.junit.Assert.assertNotEquals;
 
-import com.google.cloud.Timestamp;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
+import java.time.Instant;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.Map;
@@ -237,7 +237,7 @@ public class MongoDBIOIT {
 
   private void collectAndPublishMetrics(PipelineResult writeResult, PipelineResult readResult) {
     String uuid = UUID.randomUUID().toString();
-    String timestamp = Timestamp.now().toString();
+    String timestamp = Instant.now().toString();
 
     Set<Function<MetricsReader, NamedTestResult>> readSuppliers = getReadSuppliers(uuid, timestamp);
     Set<Function<MetricsReader, NamedTestResult>> writeSuppliers =

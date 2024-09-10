@@ -31,7 +31,7 @@ public abstract class ExecutableWork implements Runnable {
 
   public abstract Work work();
 
-  abstract Consumer<Work> executeWorkFn();
+  public abstract Consumer<Work> executeWorkFn();
 
   @Override
   public void run() {

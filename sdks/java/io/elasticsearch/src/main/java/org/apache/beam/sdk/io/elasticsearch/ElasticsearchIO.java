@@ -346,6 +346,8 @@ public class ElasticsearchIO {
 
     public abstract boolean isTrustSelfSignedCerts();
 
+    public abstract boolean isCompressionEnabled();
+
     abstract Builder builder();
 
     @AutoValue.Builder
@@ -378,6 +380,8 @@ public class ElasticsearchIO {
 
       abstract Builder setTrustSelfSignedCerts(boolean trustSelfSignedCerts);
 
+      abstract Builder setCompressionEnabled(boolean compressionEnabled);
+
       abstract ConnectionConfiguration build();
     }
 
@@ -399,6 +403,7 @@ public class ElasticsearchIO {
           .setIndex(index)
           .setType(type)
           .setTrustSelfSignedCerts(false)
+          .setCompressionEnabled(true)
           .build();
     }
 
@@ -418,6 +423,7 @@ public class ElasticsearchIO {
           .setIndex(index)
           .setType("")
           .setTrustSelfSignedCerts(false)
+          .setCompressionEnabled(true)
           .build();
     }
 
@@ -435,6 +441,7 @@ public class ElasticsearchIO {
           .setIndex("")
           .setType("")
           .setTrustSelfSignedCerts(false)
+          .setCompressionEnabled(true)
           .build();
     }
 
@@ -635,6 +642,19 @@ public class ElasticsearchIO {
     }
 
     /**
+     * Configure whether the REST client should compress requests using gzip content encoding and
+     * add the "Accept-Encoding: gzip". The default is true.
+     *
+     * @param compressionEnabled Whether to compress requests using gzip content encoding and add
+     *     the "Accept-Encoding: gzip"
+     * @return a {@link ConnectionConfiguration} describes a connection configuration to
+     *     Elasticsearch.
+     */
+    public ConnectionConfiguration withCompressionEnabled(boolean compressionEnabled) {
+      return builder().setCompressionEnabled(compressionEnabled).build();
+    }
+
+    /**
      * If set, overwrites the default max retry timeout (30000ms) in the Elastic {@link RestClient}
      * and the default socket timeout (30000ms) in the {@link RequestConfig} of the Elastic {@link
      * RestClient}.
@@ -670,6 +690,7 @@ public class ElasticsearchIO {
       builder.addIfNotNull(DisplayData.item("socketTimeout", getSocketTimeout()));
       builder.addIfNotNull(DisplayData.item("connectTimeout", getConnectTimeout()));
       builder.addIfNotNull(DisplayData.item("trustSelfSignedCerts", isTrustSelfSignedCerts()));
+      builder.addIfNotNull(DisplayData.item("compressionEnabled", isCompressionEnabled()));
     }
 
     private SSLContext getSSLContext() throws IOException {
@@ -716,6 +737,9 @@ public class ElasticsearchIO {
       if (getDefaultHeaders() != null) {
         Header[] headerList = new Header[getDefaultHeaders().size()];
         restClientBuilder.setDefaultHeaders(getDefaultHeaders().toArray(headerList));
+      }
+      if (isCompressionEnabled()) {
+        restClientBuilder.setCompressionEnabled(true);
       }
 
       restClientBuilder.setHttpClientConfigCallback(

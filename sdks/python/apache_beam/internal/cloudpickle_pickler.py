@@ -46,9 +46,7 @@ _pickle_lock = threading.RLock()
 RLOCK_TYPE = type(_pickle_lock)
 
 
-def dumps(o, enable_trace=True, use_zlib=False):
-  # type: (...) -> bytes
-
+def dumps(o, enable_trace=True, use_zlib=False) -> bytes:
   """For internal use only; no backwards-compatibility guarantees."""
   with _pickle_lock:
     with io.BytesIO() as file:

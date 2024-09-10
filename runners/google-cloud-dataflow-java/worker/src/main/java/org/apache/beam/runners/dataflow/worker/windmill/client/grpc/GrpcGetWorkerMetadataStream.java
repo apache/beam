@@ -65,11 +65,13 @@ public final class GrpcGetWorkerMetadataStream
       ThrottleTimer getWorkerMetadataThrottleTimer,
       Consumer<WindmillEndpoints> serverMappingConsumer) {
     super(
+        "GetWorkerMetadataStream",
         startGetWorkerMetadataRpcFn,
         backoff,
         streamObserverFactory,
         streamRegistry,
-        logEveryNStreamFailures);
+        logEveryNStreamFailures,
+        "");
     this.workerMetadataRequest = WorkerMetadataRequest.newBuilder().setHeader(jobHeader).build();
     this.metadataVersion = metadataVersion;
     this.getWorkerMetadataThrottleTimer = getWorkerMetadataThrottleTimer;

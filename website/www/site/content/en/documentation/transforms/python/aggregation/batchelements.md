@@ -19,7 +19,7 @@ limitations under the License.
 
 {{< localstorage language language-py >}}
 
-{{< button-pydoc path="apache_beam.transforms.stat" class="BatchElements" >}}
+{{< button-pydoc path="apache_beam.transforms.util" class="BatchElements" >}}
 
 ## Examples
 
@@ -28,4 +28,7 @@ limitations under the License.
 {{< /playground >}}
 
 ## Related transforms
+
 * [GroupIntoBatches](/documentation/transforms/python/aggregation/groupintobatches) batches elements by key
+
+{{< button-pydoc path="apache_beam.transforms.util" class="BatchElements" >}}

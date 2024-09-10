@@ -38,6 +38,7 @@ import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Ascii;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
@@ -210,7 +211,8 @@ public class AwsTypes {
       @Override
       @SuppressWarnings("nullness") // schema nullable for this factory
       protected SerializableFunction pojoTypeConverter(SdkField<?> field) {
-        return fromRowFactory.create(targetClassOf(field.constructor().get()), null);
+        return fromRowFactory.create(
+            TypeDescriptor.of(targetClassOf(field.constructor().get())), null);
       }
     }
 

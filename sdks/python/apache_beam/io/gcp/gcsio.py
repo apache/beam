@@ -43,6 +43,7 @@ from google.cloud.storage.retry import DEFAULT_RETRY
 
 from apache_beam import version as beam_version
 from apache_beam.internal.gcp import auth
+from apache_beam.metrics.metric import Metrics
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.utils import retry
@@ -138,12 +139,19 @@ class GcsIO(object):
   """Google Cloud Storage I/O client."""
   def __init__(self, storage_client=None, pipeline_options=None):
     # type: (Optional[storage.Client], Optional[Union[dict, PipelineOptions]]) -> None
+    if pipeline_options is None:
+      pipeline_options = PipelineOptions()
+    elif isinstance(pipeline_options, dict):
+      pipeline_options = PipelineOptions.from_dictionary(pipeline_options)
     if storage_client is None:
-      if not pipeline_options:
-        pipeline_options = PipelineOptions()
-      elif isinstance(pipeline_options, dict):
-        pipeline_options = PipelineOptions.from_dictionary(pipeline_options)
       storage_client = create_storage_client(pipeline_options)
+
+    google_cloud_options = pipeline_options.view_as(GoogleCloudOptions)
+    self.enable_read_bucket_metric = getattr(
+        google_cloud_options, 'enable_bucket_read_metric_counter', False)
+    self.enable_write_bucket_metric = getattr(
+        google_cloud_options, 'enable_bucket_write_metric_counter', False)
+
     self.client = storage_client
     self._rewrite_cb = None
     self.bucket_to_project_number = {}
@@ -213,10 +221,16 @@ class GcsIO(object):
 
     if mode == 'r' or mode == 'rb':
       blob = bucket.blob(blob_name)
-      return BeamBlobReader(blob, chunk_size=read_buffer_size)
+      return BeamBlobReader(
+          blob,
+          chunk_size=read_buffer_size,
+          enable_read_bucket_metric=self.enable_read_bucket_metric)
     elif mode == 'w' or mode == 'wb':
       blob = bucket.blob(blob_name)
-      return BeamBlobWriter(blob, mime_type)
+      return BeamBlobWriter(
+          blob,
+          mime_type,
+          enable_write_bucket_metric=self.enable_write_bucket_metric)
     else:
       raise ValueError('Invalid file open mode: %s.' % mode)
 
@@ -545,14 +559,33 @@ class GcsIO(object):
 
 
 class BeamBlobReader(BlobReader):
-  def __init__(self, blob, chunk_size=DEFAULT_READ_BUFFER_SIZE):
+  def __init__(
+      self,
+      blob,
+      chunk_size=DEFAULT_READ_BUFFER_SIZE,
+      enable_read_bucket_metric=False):
     super().__init__(blob, chunk_size=chunk_size)
+    self.enable_read_bucket_metric = enable_read_bucket_metric
     self.mode = "r"
+
+  def read(self, size=-1):
+    bytesRead = super().read(size)
+    if self.enable_read_bucket_metric:
+      Metrics.counter(
+          self.__class__,
+          "GCS_read_bytes_counter_" + self._blob.bucket.name).inc(
+              len(bytesRead))
+    return bytesRead
 
 
 class BeamBlobWriter(BlobWriter):
   def __init__(
-      self, blob, content_type, chunk_size=16 * 1024 * 1024, ignore_flush=True):
+      self,
+      blob,
+      content_type,
+      chunk_size=16 * 1024 * 1024,
+      ignore_flush=True,
+      enable_write_bucket_metric=False):
     super().__init__(
         blob,
         content_type=content_type,
@@ -560,3 +593,12 @@ class BeamBlobWriter(BlobWriter):
         ignore_flush=ignore_flush,
         retry=DEFAULT_RETRY)
     self.mode = "w"
+    self.enable_write_bucket_metric = enable_write_bucket_metric
+
+  def write(self, b):
+    bytesWritten = super().write(b)
+    if self.enable_write_bucket_metric:
+      Metrics.counter(
+          self.__class__, "GCS_write_bytes_counter_" +
+          self._blob.bucket.name).inc(bytesWritten)
+    return bytesWritten

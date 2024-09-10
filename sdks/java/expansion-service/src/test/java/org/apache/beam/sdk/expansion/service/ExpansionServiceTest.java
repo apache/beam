@@ -33,6 +33,7 @@ import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -60,7 +61,6 @@ import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.construction.PipelineTranslation;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
@@ -84,7 +84,7 @@ public class ExpansionServiceTest {
   private ExpansionService expansionService = new ExpansionService();
   public static final List<byte[]> BYTE_LIST =
       ImmutableList.of("testing", "compound", "coders").stream()
-          .map(str -> str.getBytes(Charsets.UTF_8))
+          .map(str -> str.getBytes(StandardCharsets.UTF_8))
           .collect(Collectors.toList());
   public static final Map<String, Long> BYTE_KV_LIST =
       ImmutableList.of("testing", "compound", "coders").stream()

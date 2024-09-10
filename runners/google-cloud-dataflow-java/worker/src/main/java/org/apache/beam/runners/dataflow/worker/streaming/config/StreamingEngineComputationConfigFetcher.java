@@ -157,7 +157,7 @@ public final class StreamingEngineComputationConfigFetcher implements Computatio
     }
   }
 
-  private static StreamingEnginePipelineConfig createPipelineConfig(StreamingConfigTask config) {
+  private StreamingEnginePipelineConfig createPipelineConfig(StreamingConfigTask config) {
     StreamingEnginePipelineConfig.Builder pipelineConfig = StreamingEnginePipelineConfig.builder();
     if (config.getUserStepToStateFamilyNameMap() != null) {
       pipelineConfig.setUserStepToStateFamilyNameMap(config.getUserStepToStateFamilyNameMap());
@@ -185,6 +185,20 @@ public final class StreamingEngineComputationConfigFetcher implements Computatio
         && config.getMaxWorkItemCommitBytes() > 0
         && config.getMaxWorkItemCommitBytes() <= Integer.MAX_VALUE) {
       pipelineConfig.setMaxWorkItemCommitBytes(config.getMaxWorkItemCommitBytes().intValue());
+    }
+
+    if (config.getOperationalLimits() != null) {
+      if (config.getOperationalLimits().getMaxKeyBytes() != null
+          && config.getOperationalLimits().getMaxKeyBytes() > 0
+          && config.getOperationalLimits().getMaxKeyBytes() <= Integer.MAX_VALUE) {
+        pipelineConfig.setMaxOutputKeyBytes(config.getOperationalLimits().getMaxKeyBytes());
+      }
+      if (config.getOperationalLimits().getMaxProductionOutputBytes() != null
+          && config.getOperationalLimits().getMaxProductionOutputBytes() > 0
+          && config.getOperationalLimits().getMaxProductionOutputBytes() <= Integer.MAX_VALUE) {
+        pipelineConfig.setMaxOutputValueBytes(
+            config.getOperationalLimits().getMaxProductionOutputBytes());
+      }
     }
 
     return pipelineConfig.build();
@@ -273,7 +287,7 @@ public final class StreamingEngineComputationConfigFetcher implements Computatio
 
   private Optional<StreamingEnginePipelineConfig> fetchGlobalConfig() {
     return fetchConfigWithRetry(dataflowServiceClient::getGlobalStreamingConfigWorkItem)
-        .map(StreamingEngineComputationConfigFetcher::createPipelineConfig);
+        .map(config -> createPipelineConfig(config));
   }
 
   @FunctionalInterface

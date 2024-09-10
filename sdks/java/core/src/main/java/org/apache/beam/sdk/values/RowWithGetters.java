@@ -51,7 +51,7 @@ public class RowWithGetters extends Row {
       Schema schema, Factory<List<FieldValueGetter>> getterFactory, Object getterTarget) {
     super(schema);
     this.getterTarget = getterTarget;
-    this.getters = getterFactory.create(getterTarget.getClass(), schema);
+    this.getters = getterFactory.create(TypeDescriptor.of(getterTarget.getClass()), schema);
   }
 
   @Override

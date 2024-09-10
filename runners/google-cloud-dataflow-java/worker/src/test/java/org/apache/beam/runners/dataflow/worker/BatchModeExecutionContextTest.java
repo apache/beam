@@ -30,6 +30,8 @@ import com.google.api.services.dataflow.model.CounterStructuredName;
 import com.google.api.services.dataflow.model.CounterStructuredNameAndMetadata;
 import com.google.api.services.dataflow.model.CounterUpdate;
 import com.google.api.services.dataflow.model.DistributionUpdate;
+import com.google.api.services.dataflow.model.StringList;
+import java.util.Arrays;
 import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
@@ -41,7 +43,9 @@ import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.ProfileSc
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.MetricName;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.metrics.MetricsContainer;
+import org.apache.beam.sdk.metrics.StringSet;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.hamcrest.Matchers;
 import org.junit.Test;
@@ -159,6 +163,37 @@ public class BatchModeExecutionContextTest {
   }
 
   @Test
+  public void extractMetricUpdatesStringSet() {
+    BatchModeExecutionContext executionContext =
+        BatchModeExecutionContext.forTesting(PipelineOptionsFactory.create(), "testStage");
+    DataflowOperationContext operationContext =
+        executionContext.createOperationContext(NameContextsForTests.nameContextForTest());
+
+    StringSet stringSet =
+        operationContext
+            .metricsContainer()
+            .getStringSet(MetricName.named("namespace", "some-stringset"));
+    stringSet.add("ab");
+    stringSet.add("cd");
+
+    final CounterUpdate expected =
+        new CounterUpdate()
+            .setStructuredNameAndMetadata(
+                new CounterStructuredNameAndMetadata()
+                    .setName(
+                        new CounterStructuredName()
+                            .setOrigin("USER")
+                            .setOriginNamespace("namespace")
+                            .setName("some-stringset")
+                            .setOriginalStepName("originalName"))
+                    .setMetadata(new CounterMetadata().setKind(Kind.SET.toString())))
+            .setCumulative(false)
+            .setStringList(new StringList().setElements(Arrays.asList("ab", "cd")));
+
+    assertThat(executionContext.extractMetricUpdates(false), containsInAnyOrder(expected));
+  }
+
+  @Test
   public void extractMsecCounters() {
     BatchModeExecutionContext executionContext =
         BatchModeExecutionContext.forTesting(PipelineOptionsFactory.create(), "testStage");
@@ -232,7 +267,7 @@ public class BatchModeExecutionContextTest {
             .getCounter(
                 MetricName.named(
                     BatchModeExecutionContext.DATASTORE_THROTTLE_TIME_NAMESPACE,
-                    BatchModeExecutionContext.THROTTLE_TIME_COUNTER_NAME));
+                    Metrics.THROTTLE_TIME_COUNTER_NAME));
     counter.inc(12000);
     counter.inc(17000);
     counter.inc(1000);

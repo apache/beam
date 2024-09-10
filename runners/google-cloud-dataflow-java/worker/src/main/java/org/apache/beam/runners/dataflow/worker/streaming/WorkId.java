@@ -41,9 +41,9 @@ public abstract class WorkId {
         .build();
   }
 
-  abstract long cacheToken();
+  public abstract long cacheToken();
 
-  abstract long workToken();
+  public abstract long workToken();
 
   @AutoValue.Builder
   public abstract static class Builder {

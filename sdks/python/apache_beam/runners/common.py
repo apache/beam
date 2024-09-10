@@ -14,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# cython: language_level=3
 
 """Worker operations executor.
 
@@ -192,6 +191,8 @@ class MethodWrapper(object):
       elif core.DoFn.TimestampParam == v:
         self.timestamp_arg_name = kw
       elif core.DoFn.WindowParam == v:
+        self.window_arg_name = kw
+      elif core.DoFn.WindowedValueParam == v:
         self.window_arg_name = kw
       elif core.DoFn.KeyParam == v:
         self.key_arg_name = kw
@@ -739,6 +740,8 @@ def _get_arg_placeholders(
       args_with_placeholders.append(ArgPlaceholder(d))
     elif core.DoFn.WindowParam == d:
       args_with_placeholders.append(ArgPlaceholder(d))
+    elif core.DoFn.WindowedValueParam == d:
+      args_with_placeholders.append(ArgPlaceholder(d))
     elif core.DoFn.TimestampParam == d:
       args_with_placeholders.append(ArgPlaceholder(d))
     elif core.DoFn.PaneInfoParam == d:
@@ -1022,6 +1025,8 @@ class PerWindowInvoker(DoFnInvoker):
         args_for_process[i] = key
       elif core.DoFn.WindowParam == p:
         args_for_process[i] = window
+      elif core.DoFn.WindowedValueParam == p:
+        args_for_process[i] = windowed_value
       elif core.DoFn.TimestampParam == p:
         args_for_process[i] = windowed_value.timestamp
       elif core.DoFn.PaneInfoParam == p:

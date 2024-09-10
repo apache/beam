@@ -30,16 +30,24 @@ import (
 )
 
 var (
-	jobPort            = flag.Int("job_port", 8073, "specify the job management service port")
-	webPort            = flag.Int("web_port", 8074, "specify the web ui port")
-	jobManagerEndpoint = flag.String("jm_override", "", "set to only stand up a web ui that refers to a seperate JobManagement endpoint")
-	serveHTTP          = flag.Bool("serve_http", true, "enable or disable the web ui")
+	jobPort             = flag.Int("job_port", 8073, "specify the job management service port")
+	webPort             = flag.Int("web_port", 8074, "specify the web ui port")
+	jobManagerEndpoint  = flag.String("jm_override", "", "set to only stand up a web ui that refers to a seperate JobManagement endpoint")
+	serveHTTP           = flag.Bool("serve_http", true, "enable or disable the web ui")
+	idleShutdownTimeout = flag.Duration("idle_shutdown_timeout", -1, "duration that prism will wait for a new job before shutting itself down. Negative durations disable auto shutdown. Defaults to never shutting down.")
 )
 
 func main() {
 	flag.Parse()
-	ctx := context.Background()
-	cli, err := makeJobClient(ctx, prism.Options{Port: *jobPort}, *jobManagerEndpoint)
+	ctx, cancel := context.WithCancelCause(context.Background())
+
+	cli, err := makeJobClient(ctx,
+		prism.Options{
+			Port:                *jobPort,
+			IdleShutdownTimeout: *idleShutdownTimeout,
+			CancelFn:            cancel,
+		},
+		*jobManagerEndpoint)
 	if err != nil {
 		log.Fatalf("error creating job server: %v", err)
 	}
@@ -47,10 +55,9 @@ func main() {
 		if err := prism.CreateWebServer(ctx, cli, prism.Options{Port: *webPort}); err != nil {
 			log.Fatalf("error creating web server: %v", err)
 		}
-	} else {
-		// Block main thread forever to keep main from exiting.
-		<-(chan struct{})(nil) // receives on nil channels block.
 	}
+	// Block main thread forever to keep main from exiting.
+	<-ctx.Done()
 }
 
 func makeJobClient(ctx context.Context, opts prism.Options, endpoint string) (jobpb.JobServiceClient, error) {

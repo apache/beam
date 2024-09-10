@@ -29,6 +29,7 @@ import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.util.construction.Environments;
+import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.util.construction.PipelineTranslation;
 import org.apache.beam.sdk.util.construction.SdkComponents;
 import org.apache.beam.sdk.values.PBegin;
@@ -37,6 +38,7 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 
@@ -108,6 +110,26 @@ class BeamAdapterUtils {
     // Extract the pipeline definition so that we can apply or Flink translation logic.
     SdkComponents components = SdkComponents.create(pipelineOptions);
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, components);
+
+    // Avoid swapping input and output coders for BytesCoders.
+    // As we have instantiated the actual coder objects here, there is no need ot length prefix them
+    // anyway.
+    // TODO(robertwb): Even better would be to avoid coding and decoding along these edges via a
+    // direct
+    // in-memory channel for embedded mode.  As well as improving performance, there could be
+    // control-flow advantages too.
+    for (RunnerApi.PTransform transformProto :
+        pipelineProto.getComponents().getTransforms().values()) {
+      if (FlinkInput.URN.equals(PTransformTranslation.urnForTransformOrNull(transformProto))) {
+        BeamAdapterCoderUtils.registerKnownCoderFor(
+            pipelineProto, Iterables.getOnlyElement(transformProto.getOutputs().values()));
+      } else if (FlinkOutput.URN.equals(
+          PTransformTranslation.urnForTransformOrNull(transformProto))) {
+        BeamAdapterCoderUtils.registerKnownCoderFor(
+            pipelineProto, Iterables.getOnlyElement(transformProto.getInputs().values()));
+      }
+    }
+
     return translator.translate(inputs, pipelineProto, executionEnvironment);
   }
 
