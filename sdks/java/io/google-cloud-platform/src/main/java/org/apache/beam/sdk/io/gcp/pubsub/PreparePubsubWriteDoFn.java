@@ -201,6 +201,7 @@ public class PreparePubsubWriteDoFn<InputT> extends DoFn<InputT, PubsubMessage> 
           inputCoder,
           null,
           "The transform was not configured to publish messages with ordering keys");
+      return;
     }
     try {
       validatePubsubMessageSize(message, maxPublishBatchSize);
