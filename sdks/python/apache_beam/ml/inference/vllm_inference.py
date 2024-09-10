@@ -119,7 +119,7 @@ class _VLLMModelServer():
         if len(models) > 0:
           self._server_started = True
           return
-      except: # pylint: disable=bare-except
+      except:  # pylint: disable=bare-except
         pass
       # Sleep while bringing up the process
       time.sleep(5)

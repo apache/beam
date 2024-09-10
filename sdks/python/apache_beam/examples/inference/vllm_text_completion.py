@@ -57,7 +57,7 @@ CHAT_EXAMPLES = [
         OpenAIChatMessage(
             role='system',
             content=
-            'Red, orange, yellow, green, blue, indigo, and violet are colors in the rainbow.'
+            'Red, orange, yellow, green, blue, indigo, and violet.'
         ),
         OpenAIChatMessage(role='user', content='Do other colors ever appear?')
     ],
