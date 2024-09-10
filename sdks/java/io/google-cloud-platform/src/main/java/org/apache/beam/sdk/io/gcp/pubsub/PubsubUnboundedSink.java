@@ -344,26 +344,22 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
         }
         if (currentBatch == null) {
           currentBatch = new OutgoingData();
-          currentBatch.messages.add(message);
-          // TODO(sjvanrossum): https://github.com/apache/beam/issues/31800
-          currentBatch.bytes += message.getMessage().getData().size();
           orderingKeyBatches.put(currentOrderingKey, currentBatch);
-        } else {
+        } else if (currentBatch.bytes + message.getMessage().getData().size() > publishBatchBytes) {
           // TODO(sjvanrossum): https://github.com/apache/beam/issues/31800
-          if (currentBatch.bytes + message.getMessage().getData().size() > publishBatchBytes) {
-            // Break large (in bytes) batches into smaller.
-            // (We've already broken by batch size using the trigger below, though that may
-            // run slightly over the actual PUBLISH_BATCH_SIZE. We'll consider that ok since
-            // the hard limit from Pubsub is by bytes rather than number of messages.)
-            // BLOCKS until published.
-            publishBatch(currentBatch.messages, currentBatch.bytes);
-            currentBatch.messages.clear();
-            currentBatch.bytes = 0;
-          }
-          currentBatch.messages.add(message);
-          // TODO(sjvanrossum): https://github.com/apache/beam/issues/31800
-          currentBatch.bytes += message.getMessage().getData().size();
+
+          // Break large (in bytes) batches into smaller.
+          // (We've already broken by batch size using the trigger below, though that may
+          // run slightly over the actual PUBLISH_BATCH_SIZE. We'll consider that ok since
+          // the hard limit from Pubsub is by bytes rather than number of messages.)
+          // BLOCKS until published.
+          publishBatch(currentBatch.messages, currentBatch.bytes);
+          currentBatch.messages.clear();
+          currentBatch.bytes = 0;
         }
+        currentBatch.messages.add(message);
+        // TODO(sjvanrossum): https://github.com/apache/beam/issues/31800
+        currentBatch.bytes += message.getMessage().getData().size();
       }
       for (OutgoingData batch : orderingKeyBatches.values()) {
         if (!batch.messages.isEmpty()) {
