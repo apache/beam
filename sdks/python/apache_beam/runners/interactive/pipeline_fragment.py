@@ -34,13 +34,15 @@ class PipelineFragment(object):
   A pipeline fragment is built from the original pipeline definition to include
   only PTransforms that are necessary to produce the given PCollections.
   """
-  def __init__(self, pcolls, options=None):
+  def __init__(self, pcolls, options=None, runner=None):
     """Constructor of PipelineFragment.
 
     Args:
       pcolls: (List[PCollection]) a list of PCollections to build pipeline
           fragment for.
       options: (PipelineOptions) the pipeline options for the implicit
+          pipeline run.
+      runner: (Runner) the pipeline runner for the implicit
           pipeline run.
     """
     assert len(pcolls) > 0, (
@@ -61,6 +63,7 @@ class PipelineFragment(object):
           'given and cannot be used to build a pipeline fragment that produces '
           'the given PCollections.'.format(pcoll))
     self._options = options
+    self._runner = runner
 
     # A copied pipeline instance for modification without changing the user
     # pipeline instance held by the end user. This instance can be processed
@@ -98,7 +101,7 @@ class PipelineFragment(object):
     """Deduce the pipeline fragment as an apache_beam.Pipeline instance."""
     fragment = beam.pipeline.Pipeline.from_runner_api(
         self._runner_pipeline.to_runner_api(),
-        self._runner_pipeline.runner,
+        self._runner or self._runner_pipeline.runner,
         self._options)
     ie.current_env().add_derived_pipeline(self._runner_pipeline, fragment)
     return fragment
@@ -106,6 +109,7 @@ class PipelineFragment(object):
   def run(self, display_pipeline_graph=False, use_cache=True, blocking=False):
     """Shorthand to run the pipeline fragment."""
     fragment = self.deduce_fragment()
+    runner = self._runner or self._runner_pipeline.runner
     from apache_beam.runners.interactive.interactive_runner import InteractiveRunner
     try:
       if isinstance(self._runner_pipeline.runner, InteractiveRunner):
@@ -129,9 +133,8 @@ class PipelineFragment(object):
               'the Beam pipeline to use this function '
               'on unbouded PCollections.')
         result = beam.pipeline.Pipeline.from_runner_api(
-            pipeline_instrument_proto,
-            self._runner_pipeline.runner,
-            self._runner_pipeline._options).run()
+            pipeline_instrument_proto, fragment.runner,
+            fragment._options).run()
         result.wait_until_finish()
         ie.current_env().mark_pcollection_computed(
             pipeline_instrument.cached_pcolls)

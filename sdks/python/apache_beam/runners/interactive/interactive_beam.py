@@ -880,6 +880,8 @@ def collect(
     n='inf',
     duration='inf',
     include_window_info=False,
+    runner=None,
+    options=None,
     force_compute=False,
     force_tuple=False):
   """Materializes the elements from a PCollection into a Dataframe.
@@ -896,6 +898,9 @@ def collect(
         a string duration. Default 'inf'.
     include_window_info: (optional) if True, appends the windowing information
         to each row. Default False.
+    runner: (optional) the runner with which to compute the results
+    options: (optional) any additional pipeline options to use to compute the
+        results
     force_compute: (optional) if True, forces recomputation rather than using
         cached PCollections
     force_tuple: (optional) if True, return a 1-tuple or results rather than
@@ -969,7 +974,12 @@ def collect(
   uncomputed = set(pcolls) - set(computed.keys())
   if uncomputed:
     recording = recording_manager.record(
-        uncomputed, max_n=n, max_duration=duration, force_compute=force_compute)
+        uncomputed,
+        max_n=n,
+        max_duration=duration,
+        runner=runner,
+        options=options,
+        force_compute=force_compute)
 
     try:
       for pcoll in uncomputed:
