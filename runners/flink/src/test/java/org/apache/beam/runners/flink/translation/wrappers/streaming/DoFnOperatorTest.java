@@ -800,10 +800,10 @@ public class DoFnOperatorTest {
     assertThat(testHarness.numKeyedStateEntries(), is(2));
 
     // Cleanup due to end of global window
-    //    testHarness.processWatermark(
-    //        GlobalWindow.INSTANCE.maxTimestamp().plus(Duration.millis(2)).getMillis());
-    //    assertThat(testHarness.numEventTimeTimers(), is(0));
-    //    assertThat(testHarness.numKeyedStateEntries(), is(0));
+    testHarness.processWatermark(
+        GlobalWindow.INSTANCE.maxTimestamp().plus(Duration.millis(2)).getMillis());
+    assertThat(testHarness.numEventTimeTimers(), is(0));
+    assertThat(testHarness.numKeyedStateEntries(), is(0));
 
     // Any new state will also be cleaned up on close
     testHarness.processElement(
@@ -866,6 +866,9 @@ public class DoFnOperatorTest {
     KeySelector<WindowedValue<KV<String, Integer>>, ByteBuffer> keySelector =
         e -> FlinkKeyUtils.encodeKey(e.getValue().getKey(), StringUtf8Coder.of());
 
+    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    options.setStreaming(true);
+
     DoFnOperator<KV<String, Integer>, KV<String, Integer>, KV<String, Integer>> doFnOperator =
         new DoFnOperator<>(
             fn,
@@ -875,11 +878,11 @@ public class DoFnOperatorTest {
             outputTag,
             Collections.emptyList(),
             new DoFnOperator.MultiOutputOutputManagerFactory<>(
-                outputTag, coder, new SerializablePipelineOptions(FlinkPipelineOptions.defaults())),
+                outputTag, coder, new SerializablePipelineOptions(options)),
             windowingStrategy,
             new HashMap<>(), /* side-input mapping */
             Collections.emptyList(), /* side inputs */
-            FlinkPipelineOptions.defaults(),
+            options,
             StringUtf8Coder.of(), /* key coder */
             keySelector,
             DoFnSchemaInformation.create(),
@@ -888,8 +891,7 @@ public class DoFnOperatorTest {
     return new KeyedOneInputStreamOperatorTestHarness<>(
         doFnOperator,
         keySelector,
-        new CoderTypeInformation<>(
-            FlinkKeyUtils.ByteBufferCoder.of(), FlinkPipelineOptions.defaults()));
+        new CoderTypeInformation<>(FlinkKeyUtils.ByteBufferCoder.of(), options));
   }
 
   @Test
