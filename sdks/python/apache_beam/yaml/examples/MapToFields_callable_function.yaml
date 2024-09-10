@@ -1,0 +1,57 @@
+# coding=utf-8
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the 'License'); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an 'AS IS' BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+pipeline:
+  transforms:
+    - type: ReadFromText
+      name: Source
+      config:
+        path: gs://bucket/imput.txt
+    - type: MapToFields
+      name: Transform
+      config:
+        language: python
+        fields:
+          field1:
+            callable: |
+              import json
+              def process(row):
+                return json.loads(row.line).get('field1', '{}')
+          datetime:
+            callable: |
+              import json
+              def process(row):
+                return json.loads(row.line).get('datetime', '{}')
+      input: Source
+    - type: WriteToPubSub
+      name: Sink
+      config:
+        format: json
+        topic: projects/project-id/topics/topic-name
+      input: Transform
+  windowing:
+    type: fixed
+    size: 5
+options:
+  streaming: true
+
+# Imput.json:
+#  {"field1":"test_field1","datetime":"20240807162603054387"}
+# ReadfromText add a line property saving the entire payload inside its field. Use MapToFields Callable function in order to get each desirable field from the payload 
+# Expected Output:
+#  {"field1":"test_field1","datetime":"20240807162603054387"}
