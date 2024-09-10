@@ -33,6 +33,7 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChildPartitionsRec
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.HeartbeatRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.Interruptible;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampRange;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
@@ -62,6 +63,7 @@ public class QueryChangeStreamAction {
 
   private static final Logger LOG = LoggerFactory.getLogger(QueryChangeStreamAction.class);
   private static final Duration BUNDLE_FINALIZER_TIMEOUT = Duration.standardMinutes(5);
+  private static final Duration RESTRICTION_TRACKER_TIMEOUT = Duration.standardSeconds(40);
   private static final String OUT_OF_RANGE_ERROR_MESSAGE = "Specified start_timestamp is invalid";
 
   private final ChangeStreamDao changeStreamDao;
@@ -163,6 +165,11 @@ public class QueryChangeStreamAction {
                 () ->
                     new IllegalStateException(
                         "Partition " + token + " not found in metadata table"));
+
+    // Set the soft timeout to commit the work if any records have been processed.
+    if (tracker instanceof Interruptible) {
+      ((Interruptible) tracker).setSoftTimeout(RESTRICTION_TRACKER_TIMEOUT);
+    }
 
     try (ChangeStreamResultSet resultSet =
         changeStreamDao.changeStreamQuery(

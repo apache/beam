@@ -24,6 +24,7 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.estimator.ThroughputEsti
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChildPartitionsRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.Interruptible;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampRange;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
@@ -43,7 +44,9 @@ public class DataChangeRecordAction {
   private static final Logger LOG = LoggerFactory.getLogger(DataChangeRecordAction.class);
   private final ThroughputEstimator<DataChangeRecord> throughputEstimator;
 
-  /** @param throughputEstimator an estimator to calculate local throughput of this action. */
+  /**
+   * @param throughputEstimator an estimator to calculate local throughput of this action.
+   */
   public DataChangeRecordAction(ThroughputEstimator<DataChangeRecord> throughputEstimator) {
     this.throughputEstimator = throughputEstimator;
   }
@@ -88,6 +91,14 @@ public class DataChangeRecordAction {
 
     final Timestamp commitTimestamp = record.getCommitTimestamp();
     final Instant commitInstant = new Instant(commitTimestamp.toSqlTimestamp().getTime());
+    if (tracker instanceof Interruptible
+        && !((Interruptible) tracker).shouldContinue(commitTimestamp)) {
+      LOG.debug(
+          "[{}] Soft deadline reached with data change record at {}, rescheduling",
+          token,
+          commitTimestamp);
+      return Optional.of(ProcessContinuation.resume());
+    }
     if (!tracker.tryClaim(commitTimestamp)) {
       LOG.debug("[{}] Could not claim queryChangeStream({}), stopping", token, commitTimestamp);
       return Optional.of(ProcessContinuation.stop());

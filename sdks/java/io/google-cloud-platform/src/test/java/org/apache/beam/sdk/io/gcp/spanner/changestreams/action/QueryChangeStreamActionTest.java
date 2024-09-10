@@ -40,12 +40,12 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChildPartitionsRec
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.HeartbeatRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.ReadChangeStreamPartitionRangeTracker;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampRange;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
-import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -65,7 +65,7 @@ public class QueryChangeStreamActionTest {
   private PartitionMetadata partition;
   private ChangeStreamMetrics metrics;
   private TimestampRange restriction;
-  private RestrictionTracker<TimestampRange, Timestamp> restrictionTracker;
+  private ReadChangeStreamPartitionRangeTracker restrictionTracker;
   private OutputReceiver<DataChangeRecord> outputReceiver;
   private ChangeStreamRecordMapper changeStreamRecordMapper;
   private PartitionMetadataMapper partitionMetadataMapper;
@@ -110,7 +110,7 @@ public class QueryChangeStreamActionTest {
             .setScheduledAt(Timestamp.now())
             .build();
     restriction = mock(TimestampRange.class);
-    restrictionTracker = mock(RestrictionTracker.class);
+    restrictionTracker = mock(ReadChangeStreamPartitionRangeTracker.class);
     outputReceiver = mock(OutputReceiver.class);
     watermarkEstimator = mock(ManualWatermarkEstimator.class);
     bundleFinalizer = new BundleFinalizerStub();
