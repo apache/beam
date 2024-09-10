@@ -878,10 +878,10 @@ class RunInferenceBaseTest(unittest.TestCase):
           bad_without_error, equal_to(expected_bad), label='assert:failures')
 
   @unittest.skipIf(
-      sys.version_info < (3, 11),
+      sys.platform == "win32" or sys.version_info < (3, 11),
       "This test relies on the __del__ lifecycle method, but __del__ does " +
-      "not get invoked in the same way on older versions of Python, " +
-      "breaking this test. See " +
+      "not get invoked in the same way on older versions of Python or on " +
+      "windows, breaking this test. See " +
       "github.com/python/cpython/issues/87950#issuecomment-1807570983 " +
       "for example.")
   def test_run_inference_timeout_does_garbage_collection(self):
