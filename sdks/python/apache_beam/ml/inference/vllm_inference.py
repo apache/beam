@@ -34,7 +34,7 @@ from typing import Sequence
 from typing import Tuple
 
 try:
-  import vllm  # type: ignore unused-import
+  import vllm  # pylint: disable=unused-import
   logging.info('vllm module successfully imported.')
 except ModuleNotFoundError:
   msg = 'vllm module was not found. This is ok as long as the specified ' \
@@ -119,7 +119,7 @@ class _VLLMModelServer():
         if len(models) > 0:
           self._server_started = True
           return
-      except:
+      except: # pylint: disable=bare-except
         pass
       # Sleep while bringing up the process
       time.sleep(5)
@@ -127,8 +127,7 @@ class _VLLMModelServer():
     if retries == 0:
       raise Exception(
           'Failed to start vLLM server, process exited with code %s. '
-          'See worker logs to determine cause.'
-          % self._server_process.poll())
+          'See worker logs to determine cause.' % self._server_process.poll())
     else:
       self.start_server(retries - 1)
 
@@ -231,7 +230,7 @@ class VLLMChatModelHandler(ModelHandler[Sequence[OpenAIChatMessage],
 
     Args:
       batch: A sequence of examples as OpenAI messages.
-      model: A _VLLMModelServer containing info for connecting to the spun up server.
+      model: A _VLLMModelServer for connecting to the spun up server.
       inference_args: Any additional arguments for an inference.
 
     Returns:

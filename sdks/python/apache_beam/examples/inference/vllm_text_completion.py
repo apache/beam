@@ -45,29 +45,42 @@ COMPLETION_EXAMPLES = [
 
 CHAT_EXAMPLES = [
     [
-        OpenAIChatMessage(role='user', content='What is an example of a type of penguin?'),
-        OpenAIChatMessage(role='system', content='An emperor penguin is a type of penguin.'),
+        OpenAIChatMessage(
+            role='user', content='What is an example of a type of penguin?'),
+        OpenAIChatMessage(
+            role='system', content='An emperor penguin is a type of penguin.'),
         OpenAIChatMessage(role='user', content='Tell me about them')
     ],
     [
-        OpenAIChatMessage(role='user', content='What colors are in the rainbow?'),
-        OpenAIChatMessage(role='system', content='Red, orange, yellow, green, blue, indigo, and violet are colors in the rainbow.'),
+        OpenAIChatMessage(
+            role='user', content='What colors are in the rainbow?'),
+        OpenAIChatMessage(
+            role='system',
+            content=
+            'Red, orange, yellow, green, blue, indigo, and violet are colors in the rainbow.'
+        ),
         OpenAIChatMessage(role='user', content='Do other colors ever appear?')
     ],
     [
-        OpenAIChatMessage(role='user', content='Who is the president of the United States?')
+        OpenAIChatMessage(
+            role='user', content='Who is the president of the United States?')
     ],
     [
         OpenAIChatMessage(role='user', content='What state is Fargo in?'),
         OpenAIChatMessage(role='system', content='Fargo is in North Dakota.'),
         OpenAIChatMessage(role='user', content='How many people live there?'),
-        OpenAIChatMessage(role='system', content='Approximately 130,000 people live in Fargo, North Dakota.'),
+        OpenAIChatMessage(
+            role='system',
+            content='Approximately 130,000 people live in Fargo, North Dakota.'
+        ),
         OpenAIChatMessage(role='user', content='What is Fargo known for?'),
     ],
     [
-        OpenAIChatMessage(role='user', content='How many fish are in the ocean?'),
+        OpenAIChatMessage(
+            role='user', content='How many fish are in the ocean?'),
     ],
 ]
+
 
 def parse_known_args(argv):
   """Parses args for the workflow."""
