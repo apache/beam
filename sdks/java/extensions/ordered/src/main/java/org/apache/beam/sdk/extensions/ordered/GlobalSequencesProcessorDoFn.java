@@ -122,7 +122,9 @@ class GlobalSequencesProcessorDoFn<EventT, EventKeyT, ResultT,
     EventKeyT key = eventAndSequence.getKey();
     long sequence = eventAndSequence.getValue().getKey();
 
-    LOG.info(key + ": " + sequence + " lastSequence: " + lastContinuousSequence);
+    if(LOG.isTraceEnabled()) {
+      LOG.trace(key + ": " + sequence + " lastSequence: " + lastContinuousSequence);
+    }
 
     ProcessingState<EventKeyT> processingState = processingStateState.read();
 
@@ -216,7 +218,9 @@ class GlobalSequencesProcessorDoFn<EventT, EventKeyT, ResultT,
       return;
     }
 
-    LOG.info("Emission timer: " + processingState);
+    if(LOG.isTraceEnabled()) {
+      LOG.trace("Emission timer: " + processingState);
+    }
 
     this.numberOfResultsBeforeBundleStart = processingState.getResultCount();
 

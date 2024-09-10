@@ -122,6 +122,39 @@ public class OrderedEventProcessorGlobalSequenceTest extends OrderedEventProcess
   }
 
   @Test
+  public void testTreatingSequencesBelowInitialAsDuplicates() throws CannotProvideCoderException {
+    Event[] events = {
+        Event.create(3, "id-1", "d"),
+        Event.create(2, "id-1", "c"),
+
+        // Earlier events
+        Event.create(-1, "id-1", "early-1"),
+        Event.create(-2, "id-1", "early-2"),
+
+        Event.create(0, "id-1", "a"),
+        Event.create(1, "id-1", "b")
+    };
+
+    Collection<KV<String, String>> expectedOutput = new ArrayList<>();
+    expectedOutput.add(KV.of("id-1", "a"));
+    expectedOutput.add(KV.of("id-1", "ab"));
+    expectedOutput.add(KV.of("id-1", "abc"));
+    expectedOutput.add(KV.of("id-1", "abcd"));
+
+    Collection<KV<String, KV<Long, UnprocessedEvent<String>>>> duplicates = new ArrayList<>();
+    duplicates.add(KV.of("id-1", KV.of(-1L, UnprocessedEvent.create("early-1", Reason.duplicate))));
+    duplicates.add(KV.of("id-1", KV.of(-2L, UnprocessedEvent.create("early-2", Reason.duplicate))));
+
+    testGlobalSequenceProcessing(
+        events,
+        expectedOutput,
+        duplicates,
+        EMISSION_FREQUENCY_ON_EVERY_ELEMENT,
+        INITIAL_SEQUENCE_OF_0,
+        LARGE_MAX_RESULTS_PER_OUTPUT);
+  }
+
+  @Test
   public void testHandlingOfCheckedExceptions() throws CannotProvideCoderException {
     Event[] events = {
         Event.create(0, "id-1", "a"),

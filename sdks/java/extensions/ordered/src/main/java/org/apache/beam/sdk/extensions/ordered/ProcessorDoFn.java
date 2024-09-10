@@ -155,7 +155,7 @@ abstract class ProcessorDoFn<
     if (processingState.isNextEvent(currentSequence)) {
       // Event matches expected sequence
       state = currentStateState.read();
-      if(state == null) {
+      if (state == null) {
         LOG.warn("Unexpectedly got an empty state. Most likely cause is pipeline drainage.");
         return null;
       }
@@ -189,7 +189,6 @@ abstract class ProcessorDoFn<
     // This will signal that the state hasn't been mutated and we don't need to save it.
     return null;
   }
-
 
 
   protected void saveStates(
@@ -291,13 +290,14 @@ abstract class ProcessorDoFn<
 
   abstract boolean checkForSequenceGapInBufferedEvents();
 
-  @Nullable StateTypeT processBufferedEventRange(ProcessingState<EventKeyTypeT> processingState,
+  @Nullable
+  StateTypeT processBufferedEventRange(ProcessingState<EventKeyTypeT> processingState,
       @Nullable StateTypeT state,
       OrderedListState<EventTypeT> bufferedEventsState, MultiOutputReceiver outputReceiver,
       Timer largeBatchEmissionTimer, CompletedSequenceRange completedSequenceRange) {
     Long earliestBufferedSequence = processingState.getEarliestBufferedSequence();
     Long latestBufferedSequence = processingState.getLatestBufferedSequence();
-    if(earliestBufferedSequence == null || latestBufferedSequence == null) {
+    if (earliestBufferedSequence == null || latestBufferedSequence == null) {
       return state;
     }
     Instant startRange = fromLong(earliestBufferedSequence);
@@ -316,7 +316,20 @@ abstract class ProcessorDoFn<
       long eventSequence = eventTimestamp.getMillis();
 
       EventTypeT bufferedEvent = timestampedEvent.getValue();
+      boolean skipProcessing = false;
+
+      if (completedSequenceRange != null && eventSequence < completedSequenceRange.getStart()) {
+        // In case of global sequence processing - remove the elements below the range start
+        skipProcessing = true;
+        endClearRange = fromLong(eventSequence);
+      }
       if (processingState.checkForDuplicateBatchedEvent(eventSequence)) {
+        // There could be multiple events under the same sequence number. Only the first one
+        // will get processed. The rest are considered duplicates.
+        skipProcessing = true;
+      }
+
+      if(skipProcessing) {
         outputReceiver
             .get(unprocessedEventsTupleTag)
             .output(
@@ -325,15 +338,19 @@ abstract class ProcessorDoFn<
                     KV.of(
                         eventSequence,
                         UnprocessedEvent.create(bufferedEvent, Reason.duplicate))));
+        // TODO: When there is a large number of duplicates this can cause a situation where
+        // we produce too much output and the runner will start throwing unrecoverable errors.
+        // Need to add counting logic to accumulate both the normal and DLQ outputs.
         continue;
       }
 
       Long lastOutputSequence = processingState.getLastOutputSequence();
-      boolean currentEventIsNotInSequence = lastOutputSequence != null && eventSequence > lastOutputSequence + 1;
+      boolean currentEventIsNotInSequence =
+          lastOutputSequence != null && eventSequence > lastOutputSequence + 1;
       boolean stopProcessing = checkForSequenceGapInBufferedEvents() ?
           currentEventIsNotInSequence :
           // TODO: can it be made more clear?
-          (! (eventSequence <= completedSequenceRange.getEnd()) && currentEventIsNotInSequence);
+          (!(eventSequence <= completedSequenceRange.getEnd()) && currentEventIsNotInSequence);
       if (stopProcessing) {
         processingState.foundSequenceGap(eventSequence);
         // Records will be cleared up to this element
@@ -352,11 +369,15 @@ abstract class ProcessorDoFn<
       endClearRange = fromLong(eventSequence + 1);
 
       try {
-        if(state == null) {
-          LOG.info("Creating a new state: " + processingState.getKey() + " " + bufferedEvent);
+        if (state == null) {
+          if(LOG.isTraceEnabled()) {
+            LOG.trace("Creating a new state: " + processingState.getKey() + " " + bufferedEvent);
+          }
           state = eventExaminer.createStateOnInitialEvent(bufferedEvent);
         } else {
-          LOG.info("Mutating " + processingState.getKey() + " " + bufferedEvent);
+          if(LOG.isTraceEnabled()) {
+            LOG.trace("Mutating " + processingState.getKey() + " " + bufferedEvent);
+          }
           state.mutate(bufferedEvent);
         }
       } catch (Exception e) {
