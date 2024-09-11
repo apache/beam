@@ -109,7 +109,6 @@ class PipelineFragment(object):
   def run(self, display_pipeline_graph=False, use_cache=True, blocking=False):
     """Shorthand to run the pipeline fragment."""
     fragment = self.deduce_fragment()
-    runner = self._runner or self._runner_pipeline.runner
     from apache_beam.runners.interactive.interactive_runner import InteractiveRunner
     try:
       if isinstance(self._runner_pipeline.runner, InteractiveRunner):
