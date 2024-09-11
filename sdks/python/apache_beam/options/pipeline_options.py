@@ -576,6 +576,14 @@ class StandardOptions(PipelineOptions):
         'updating a pipeline or reloading the job state. '
         'This is not recommended for streaming jobs.')
 
+    parser.add_argument(
+        '--no_wait_until_finish',
+        default=False,
+        action='store_true',
+        help='By default, the "with" statement waits for the job to '
+        'complete. Set this flag to bypass this behavior and continue '
+        'execution immediately')
+
 
 class StreamingOptions(PipelineOptions):
   @classmethod
