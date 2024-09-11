@@ -2977,12 +2977,8 @@ class BeamModulePlugin implements Plugin<Project> {
             // TODO: https://github.com/apache/beam/issues/29022
             // pip 23.3 is failing due to Hash mismatch between expected SHA of the packaged and actual SHA.
             // until it is resolved on pip's side, don't use pip's cache.
-            // TODO: https://github.com/apache/beam/issues/32431
-            // Some packages failed on tag check on pip-24.2. We will need to update
-            // them to the latest version (e.g. xgboost) or wait for a new version (e.g. grpcio)
-            // before unpinning pip.
             args '-c', ". ${project.ext.envdir}/bin/activate && " +
-                "pip install --pre --retries 10 pip==24.1 --no-cache-dir && " +
+                "pip install --pre --retries 10 --upgrade pip --no-cache-dir && " +
                 "pip install --pre --retries 10 --upgrade tox --no-cache-dir"
           }
         }
