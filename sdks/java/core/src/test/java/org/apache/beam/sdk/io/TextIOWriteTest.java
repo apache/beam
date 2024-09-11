@@ -39,6 +39,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -63,6 +64,7 @@ import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.UsesUnboundedPCollections;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Values;
@@ -72,7 +74,6 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Function;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Functions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicate;
@@ -97,6 +98,10 @@ import org.junit.runners.JUnit4;
 public class TextIOWriteTest {
   private static final String MY_HEADER = "myHeader";
   private static final String MY_FOOTER = "myFooter";
+  private static final int CUSTOM_FILE_TRIGGERING_RECORD_COUNT = 50000;
+  private static final int CUSTOM_FILE_TRIGGERING_BYTE_COUNT = 32 * 1024 * 1024; // 32MiB
+  private static final Duration CUSTOM_FILE_TRIGGERING_RECORD_BUFFERING_DURATION =
+      Duration.standardSeconds(4);
 
   @Rule public transient TemporaryFolder tempFolder = new TemporaryFolder();
 
@@ -487,7 +492,7 @@ public class TextIOWriteTest {
     List<String> expectedElements = new ArrayList<>(elems.length);
     for (String elem : elems) {
       byte[] encodedElem = CoderUtils.encodeToByteArray(StringUtf8Coder.of(), elem);
-      String line = new String(encodedElem, Charsets.UTF_8);
+      String line = new String(encodedElem, StandardCharsets.UTF_8);
       expectedElements.add(line);
     }
 
@@ -504,7 +509,7 @@ public class TextIOWriteTest {
 
   private static List<String> readLinesFromFile(File f) throws IOException {
     List<String> currentFile = new ArrayList<>();
-    try (BufferedReader reader = Files.newBufferedReader(f.toPath(), Charsets.UTF_8)) {
+    try (BufferedReader reader = Files.newBufferedReader(f.toPath(), StandardCharsets.UTF_8)) {
       while (true) {
         String line = reader.readLine();
         if (line == null) {
@@ -696,6 +701,42 @@ public class TextIOWriteTest {
     RuntimeTestOptions options = PipelineOptionsFactory.as(RuntimeTestOptions.class);
 
     p.apply(Create.of("")).apply(TextIO.write().to(options.getOutput()));
+  }
+
+  @Test
+  @Category({NeedsRunner.class, UsesUnboundedPCollections.class})
+  public void testWriteUnboundedWithCustomBatchParameters() throws Exception {
+    Coder<String> coder = StringUtf8Coder.of();
+    String outputName = "file.txt";
+    Path baseDir = Files.createTempDirectory(tempFolder.getRoot().toPath(), "testwrite");
+    ResourceId baseFilename =
+        FileBasedSink.convertToFileResourceIfPossible(baseDir.resolve(outputName).toString());
+
+    PCollection<String> input =
+        p.apply(Create.of(Arrays.asList(LINES2_ARRAY)).withCoder(coder))
+            .setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED)
+            .apply(Window.into(FixedWindows.of(Duration.standardSeconds(10))));
+
+    TextIO.Write write =
+        TextIO.write()
+            .to(baseFilename)
+            .withWindowedWrites()
+            .withShardNameTemplate(DefaultFilenamePolicy.DEFAULT_UNWINDOWED_SHARD_TEMPLATE)
+            .withBatchSize(CUSTOM_FILE_TRIGGERING_RECORD_COUNT)
+            .withBatchSizeBytes(CUSTOM_FILE_TRIGGERING_BYTE_COUNT)
+            .withBatchMaxBufferingDuration(CUSTOM_FILE_TRIGGERING_RECORD_BUFFERING_DURATION);
+
+    input.apply(write);
+    p.run();
+
+    assertOutputFiles(
+        LINES2_ARRAY,
+        null,
+        null,
+        3,
+        baseFilename,
+        DefaultFilenamePolicy.DEFAULT_UNWINDOWED_SHARD_TEMPLATE,
+        false);
   }
 
   @Test

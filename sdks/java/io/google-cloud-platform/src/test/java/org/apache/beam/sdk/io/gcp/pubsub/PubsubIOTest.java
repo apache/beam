@@ -237,6 +237,9 @@ public class PubsubIOTest {
     assertThat(pubsubRead.getTopicProvider(), not(nullValue()));
     assertThat(pubsubRead.getTopicProvider().isAccessible(), is(true));
     assertThat(pubsubRead.getTopicProvider().get().asPath(), equalTo(provider.get()));
+    assertThat(
+        pubsubRead.getTopicProvider().get().dataCatalogSegments(),
+        equalTo(ImmutableList.of("project", "topic")));
   }
 
   @Test
@@ -732,7 +735,7 @@ public class PubsubIOTest {
       PCollection<PubsubMessage> messages =
           pipeline.apply(
               Create.timestamped(ImmutableList.of(pubsubMsg, failingPubsubMsg))
-                  .withCoder(new PubsubMessageWithTopicCoder()));
+                  .withCoder(PubsubMessageWithTopicCoder.of()));
       messages.setIsBoundedInternal(PCollection.IsBounded.BOUNDED);
       ErrorHandler<BadRecord, PCollection<Long>> badRecordErrorHandler =
           pipeline.registerBadRecordErrorHandler(new ErrorSinkTransform());
@@ -882,7 +885,7 @@ public class PubsubIOTest {
 
       PCollection<PubsubMessage> messages =
           pipeline.apply(
-              Create.timestamped(pubsubMessages).withCoder(new PubsubMessageWithTopicCoder()));
+              Create.timestamped(pubsubMessages).withCoder(PubsubMessageWithTopicCoder.of()));
       if (!isBounded) {
         messages = messages.setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED);
       }
@@ -919,7 +922,7 @@ public class PubsubIOTest {
       PCollection<PubsubMessage> messages =
           pipeline.apply(
               Create.timestamped(ImmutableList.of(pubsubMsg))
-                  .withCoder(new PubsubMessageWithTopicCoder()));
+                  .withCoder(PubsubMessageWithTopicCoder.of()));
       messages.setIsBoundedInternal(PCollection.IsBounded.BOUNDED);
       messages.apply(PubsubIO.writeMessagesDynamic().withClientFactory(factory));
       pipeline.run();

@@ -18,7 +18,6 @@
 package org.apache.beam.runners.dataflow.worker.streaming;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList.toImmutableList;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
@@ -26,20 +25,18 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
-import com.google.auto.value.AutoValue;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.streaming.ActiveWorkState.ActivateWorkResult;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatRequest;
+import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
+import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Rule;
@@ -85,9 +82,7 @@ public class ActiveWorkStateTest {
 
   private static Work.ProcessingContext createWorkProcessingContext() {
     return Work.createProcessingContext(
-        "computationId",
-        (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance(),
-        ignored -> {});
+        "computationId", new FakeGetDataClient(), ignored -> {}, mock(HeartbeatSender.class));
   }
 
   private static WorkId workId(long workToken, long cacheToken) {
@@ -446,71 +441,5 @@ public class ActiveWorkStateTest {
     assertEquals(ActivateWorkResult.STALE, activateWorkResult);
     assertFalse(readOnlyActiveWork.get(shardedKey).contains(newWork));
     assertEquals(queuedWork, readOnlyActiveWork.get(shardedKey).peek());
-  }
-
-  @Test
-  public void testGetKeyHeartbeats() {
-    Instant refreshDeadline = Instant.now();
-    ShardedKey shardedKey1 = shardedKey("someKey", 1L);
-    ShardedKey shardedKey2 = shardedKey("anotherKey", 2L);
-
-    ExecutableWork freshWork = createWork(createWorkItem(3L, 3L, shardedKey1));
-    ExecutableWork refreshableWork1 = expiredWork(createWorkItem(1L, 1L, shardedKey1));
-    refreshableWork1.work().setState(Work.State.COMMITTING);
-    ExecutableWork refreshableWork2 = expiredWork(createWorkItem(2L, 2L, shardedKey2));
-    refreshableWork2.work().setState(Work.State.COMMITTING);
-
-    activeWorkState.activateWorkForKey(refreshableWork1);
-    activeWorkState.activateWorkForKey(freshWork);
-    activeWorkState.activateWorkForKey(refreshableWork2);
-
-    ImmutableList<HeartbeatRequest> requests =
-        activeWorkState.getKeyHeartbeats(refreshDeadline, DataflowExecutionStateSampler.instance());
-
-    ImmutableList<HeartbeatRequestShardingKeyWorkTokenAndCacheToken> expected =
-        ImmutableList.of(
-            HeartbeatRequestShardingKeyWorkTokenAndCacheToken.from(
-                shardedKey1, refreshableWork1.work()),
-            HeartbeatRequestShardingKeyWorkTokenAndCacheToken.from(
-                shardedKey2, refreshableWork2.work()));
-
-    ImmutableList<HeartbeatRequestShardingKeyWorkTokenAndCacheToken> actual =
-        requests.stream()
-            .map(HeartbeatRequestShardingKeyWorkTokenAndCacheToken::from)
-            .collect(toImmutableList());
-
-    assertThat(actual).containsExactlyElementsIn(expected);
-  }
-
-  @AutoValue
-  abstract static class HeartbeatRequestShardingKeyWorkTokenAndCacheToken {
-
-    private static HeartbeatRequestShardingKeyWorkTokenAndCacheToken create(
-        long shardingKey, long workToken, long cacheToken) {
-      return new AutoValue_ActiveWorkStateTest_HeartbeatRequestShardingKeyWorkTokenAndCacheToken(
-          shardingKey, workToken, cacheToken);
-    }
-
-    private static HeartbeatRequestShardingKeyWorkTokenAndCacheToken from(
-        HeartbeatRequest heartbeatRequest) {
-      return create(
-          heartbeatRequest.getShardingKey(),
-          heartbeatRequest.getWorkToken(),
-          heartbeatRequest.getCacheToken());
-    }
-
-    private static HeartbeatRequestShardingKeyWorkTokenAndCacheToken from(
-        ShardedKey shardedKey, Work work) {
-      return create(
-          shardedKey.shardingKey(),
-          work.getWorkItem().getWorkToken(),
-          work.getWorkItem().getCacheToken());
-    }
-
-    abstract long shardingKey();
-
-    abstract long workToken();
-
-    abstract long cacheToken();
   }
 }

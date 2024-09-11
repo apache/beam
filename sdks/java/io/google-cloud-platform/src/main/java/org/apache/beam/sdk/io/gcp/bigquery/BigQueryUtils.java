@@ -175,7 +175,7 @@ public class BigQueryUtils {
 
   /**
    * Native BigQuery formatter for it's timestamp format, depending on the milliseconds stored in
-   * the column, the milli second part will be 6, 3 or absent. Example {@code 2019-08-16
+   * the column, the milli second part will be 6 to 1 or absent. Example {@code 2019-08-16
    * 00:52:07[.123]|[.123456] UTC}
    */
   private static final DateTimeFormatter BIGQUERY_TIMESTAMP_PARSER;
@@ -202,7 +202,7 @@ public class BigQueryUtils {
             .appendOptional(
                 new DateTimeFormatterBuilder()
                     .appendLiteral('.')
-                    .appendFractionOfSecond(3, 6)
+                    .appendFractionOfSecond(1, 6)
                     .toParser())
             .appendLiteral(" UTC")
             .toFormatter()

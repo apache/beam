@@ -17,9 +17,12 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.when;
@@ -62,9 +65,11 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mockito;
@@ -85,6 +90,8 @@ public class SpannerIOReadTest implements Serializable {
   @Rule
   public final transient TestPipeline pipeline =
       TestPipeline.create().enableAbandonedNodeEnforcement(false);
+
+  @Rule public transient ExpectedException thrown = ExpectedException.none();
 
   private FakeServiceFactory serviceFactory;
   private BatchReadOnlyTransaction mockBatchTx;
@@ -138,6 +145,22 @@ public class SpannerIOReadTest implements Serializable {
             .withQuery(QUERY_STATEMENT)
             .withQueryName(QUERY_NAME)
             .withTimestampBound(TIMESTAMP_BOUND));
+  }
+
+  @Test
+  public void runWithQueryAndWithTableAtTheSameTimeFails() {
+    SpannerIO.Read read =
+        SpannerIO.read()
+            .withSpannerConfig(spannerConfig)
+            .withQuery(QUERY_STATEMENT)
+            .withQueryName(QUERY_NAME)
+            .withTable(TABLE_ID)
+            .withColumns("id", "name")
+            .withTimestampBound(TIMESTAMP_BOUND);
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(
+        "Both query and table cannot be specified at the same time for SpannerIO.read().");
+    runBatchQueryTest(read);
   }
 
   @Test
@@ -734,6 +757,28 @@ public class SpannerIOReadTest implements Serializable {
     pipeline.run();
     verifyTableRequestMetricWasSet(spannerConfig, TABLE_ID, "ok", 2);
     verifyQueryRequestMetricWasSet(spannerConfig, QUERY_NAME, "ok", 3);
+  }
+
+  @Test
+  public void runReadFailsToRetrieveSchema() {
+    PCollection<Struct> spannerRows =
+        pipeline.apply(
+            SpannerIO.read()
+                .withInstanceId(INSTANCE_ID)
+                .withDatabaseId(DATABASE_ID)
+                .withTable(TABLE_ID)
+                .withColumns("id", "name"));
+
+    Exception exception = assertThrows(IllegalStateException.class, spannerRows::getSchema);
+    checkMessage("Cannot call getSchema when there is no schema", exception.getMessage());
+  }
+
+  private void checkMessage(String substring, @Nullable String message) {
+    if (message != null) {
+      assertThat(message, containsString(substring));
+    } else {
+      fail();
+    }
   }
 
   private long getRequestMetricCount(HashMap<String, String> baseLabels) {

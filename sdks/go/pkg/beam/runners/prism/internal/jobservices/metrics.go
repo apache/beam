@@ -172,6 +172,17 @@ func buildUrnToOpsMap(mUrn2Spec map[string]*pipepb.MonitoringInfoSpec) map[strin
 			// Defaults should be safe since the metric only exists if we get any values at all.
 			return &distributionInt64{dist: metrics.DistributionValue{Min: math.MaxInt64, Max: math.MinInt64}}
 		},
+		getMetTyp(pipepb.MonitoringInfoTypeUrns_LATEST_INT64_TYPE): func() metricAccumulator {
+			// Initializes the gauge so any new value will override it.
+			return &gaugeInt64{millisSinceEpoch: math.MinInt64}
+		},
+		getMetTyp(pipepb.MonitoringInfoTypeUrns_LATEST_DOUBLE_TYPE): func() metricAccumulator {
+			// Initializes the gauge so any new value will override it.
+			return &gaugeFloat64{millisSinceEpoch: math.MinInt64}
+		},
+		getMetTyp(pipepb.MonitoringInfoTypeUrns_SET_STRING_TYPE): func() metricAccumulator {
+			return &stringSet{set: map[string]struct{}{}}
+		},
 		getMetTyp(pipepb.MonitoringInfoTypeUrns_PROGRESS_TYPE): func() metricAccumulator { return &progress{} },
 	}
 
@@ -347,6 +358,116 @@ func (m *distributionInt64) toProto(key metricKey) *pipepb.MonitoringInfo {
 	}
 }
 
+type gaugeInt64 struct {
+	millisSinceEpoch int64
+	val              int64
+}
+
+func (m *gaugeInt64) accumulate(pyld []byte) error {
+	buf := bytes.NewBuffer(pyld)
+
+	timestamp, err := coder.DecodeVarInt(buf)
+	if err != nil {
+		return err
+	}
+	if m.millisSinceEpoch > timestamp {
+		// Drop values that are older than what we have already.
+		return nil
+	}
+	val, err := coder.DecodeVarInt(buf)
+	if err != nil {
+		return err
+	}
+	m.millisSinceEpoch = timestamp
+	m.val = val
+	return nil
+}
+
+func (m *gaugeInt64) toProto(key metricKey) *pipepb.MonitoringInfo {
+	var buf bytes.Buffer
+	coder.EncodeVarInt(m.millisSinceEpoch, &buf)
+	coder.EncodeVarInt(m.val, &buf)
+	return &pipepb.MonitoringInfo{
+		Urn:     key.Urn(),
+		Type:    getMetTyp(pipepb.MonitoringInfoTypeUrns_LATEST_INT64_TYPE),
+		Payload: buf.Bytes(),
+		Labels:  key.Labels(),
+	}
+}
+
+type gaugeFloat64 struct {
+	millisSinceEpoch int64
+	val              float64
+}
+
+func (m *gaugeFloat64) accumulate(pyld []byte) error {
+	buf := bytes.NewBuffer(pyld)
+
+	timestamp, err := coder.DecodeVarInt(buf)
+	if err != nil {
+		return err
+	}
+	if m.millisSinceEpoch > timestamp {
+		// Drop values that are older than what we have already.
+		return nil
+	}
+	val, err := coder.DecodeDouble(buf)
+	if err != nil {
+		return err
+	}
+	m.millisSinceEpoch = timestamp
+	m.val = val
+	return nil
+}
+
+func (m *gaugeFloat64) toProto(key metricKey) *pipepb.MonitoringInfo {
+	var buf bytes.Buffer
+	coder.EncodeVarInt(m.millisSinceEpoch, &buf)
+	coder.EncodeDouble(m.val, &buf)
+	return &pipepb.MonitoringInfo{
+		Urn:     key.Urn(),
+		Type:    getMetTyp(pipepb.MonitoringInfoTypeUrns_LATEST_DOUBLE_TYPE),
+		Payload: buf.Bytes(),
+		Labels:  key.Labels(),
+	}
+}
+
+type stringSet struct {
+	set map[string]struct{}
+}
+
+func (m *stringSet) accumulate(pyld []byte) error {
+	buf := bytes.NewBuffer(pyld)
+
+	n, err := coder.DecodeInt32(buf)
+	if err != nil {
+		return err
+	}
+	// Assume it's a fixed iterator size.
+	for i := int32(0); i < n; i++ {
+		val, err := coder.DecodeStringUTF8(buf)
+		if err != nil {
+			return err
+		}
+		m.set[val] = struct{}{}
+	}
+	return nil
+}
+
+func (m *stringSet) toProto(key metricKey) *pipepb.MonitoringInfo {
+	var buf bytes.Buffer
+	coder.EncodeInt32(int32(len(m.set)), &buf)
+	for k := range m.set {
+		coder.EncodeStringUTF8(k, &buf)
+	}
+	return &pipepb.MonitoringInfo{
+		Urn:     key.Urn(),
+		Type:    getMetTyp(pipepb.MonitoringInfoTypeUrns_SET_STRING_TYPE),
+		Payload: buf.Bytes(),
+		Labels:  key.Labels(),
+	}
+}
+
 type durability int
 
 const (
@@ -507,7 +628,7 @@ func (m *metricsStore) contributeMetrics(d durability, mdata map[string][]byte) 
 			a = ops.newAccum()
 		}
 		if err := a.accumulate(payload); err != nil {
-			panic(fmt.Sprintf("error decoding metrics %v: %+v\n\t%+v", key.Urn(), key, a))
+			panic(fmt.Sprintf("error decoding metrics %v: %+v\n\t%+v :%v", key.Urn(), key, a, err))
 		}
 		accums[key] = a
 		switch u := key.Urn(); u {

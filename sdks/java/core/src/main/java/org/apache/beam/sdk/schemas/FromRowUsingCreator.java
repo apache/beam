@@ -33,6 +33,7 @@ import org.apache.beam.sdk.schemas.logicaltypes.OneOfType;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.RowWithGetters;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Function;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Collections2;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
@@ -47,23 +48,28 @@ import org.checkerframework.checker.nullness.qual.Nullable;
   "rawtypes"
 })
 class FromRowUsingCreator<T> implements SerializableFunction<Row, T>, Function<Row, T> {
-  private final Class<T> clazz;
+  private final TypeDescriptor<T> typeDescriptor;
   private final GetterBasedSchemaProvider schemaProvider;
   private final Factory<SchemaUserTypeCreator> schemaTypeCreatorFactory;
 
   @SuppressFBWarnings("SE_TRANSIENT_FIELD_NOT_RESTORED")
   private transient @MonotonicNonNull Function[] fieldConverters;
 
-  public FromRowUsingCreator(Class<T> clazz, GetterBasedSchemaProvider schemaProvider) {
-    this(clazz, schemaProvider, new CachingFactory<>(schemaProvider::schemaTypeCreator), null);
+  public FromRowUsingCreator(
+      TypeDescriptor<T> typeDescriptor, GetterBasedSchemaProvider schemaProvider) {
+    this(
+        typeDescriptor,
+        schemaProvider,
+        new CachingFactory<>(schemaProvider::schemaTypeCreator),
+        null);
   }
 
   private FromRowUsingCreator(
-      Class<T> clazz,
+      TypeDescriptor<T> typeDescriptor,
       GetterBasedSchemaProvider schemaProvider,
       Factory<SchemaUserTypeCreator> schemaTypeCreatorFactory,
       @Nullable Function[] fieldConverters) {
-    this.clazz = clazz;
+    this.typeDescriptor = typeDescriptor;
     this.schemaProvider = schemaProvider;
     this.schemaTypeCreatorFactory = schemaTypeCreatorFactory;
     this.fieldConverters = fieldConverters;
@@ -77,7 +83,7 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T>, Function<R
     }
     if (row instanceof RowWithGetters) {
       Object target = ((RowWithGetters) row).getGetterTarget();
-      if (target.getClass().equals(clazz)) {
+      if (target.getClass().equals(typeDescriptor.getRawType())) {
         // Efficient path: simply extract the underlying object instead of creating a new one.
         return (T) target;
       }
@@ -91,7 +97,8 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T>, Function<R
     for (int i = 0; i < row.getFieldCount(); ++i) {
       params[i] = fieldConverters[i].apply(row.getValue(i));
     }
-    SchemaUserTypeCreator creator = schemaTypeCreatorFactory.create(clazz, row.getSchema());
+    SchemaUserTypeCreator creator =
+        schemaTypeCreatorFactory.create(typeDescriptor, row.getSchema());
     return (T) creator.create(params);
   }
 
@@ -99,13 +106,15 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T>, Function<R
     if (fieldConverters == null) {
       CachingFactory<List<FieldValueTypeInformation>> typeFactory =
           new CachingFactory<>(schemaProvider::fieldValueTypeInformations);
-      fieldConverters = fieldConverters(clazz, schema, typeFactory);
+      fieldConverters = fieldConverters(typeDescriptor, schema, typeFactory);
     }
   }
 
   private Function[] fieldConverters(
-      Class<?> clazz, Schema schema, Factory<List<FieldValueTypeInformation>> typeFactory) {
-    List<FieldValueTypeInformation> typeInfos = typeFactory.create(clazz, schema);
+      TypeDescriptor<?> typeDescriptor,
+      Schema schema,
+      Factory<List<FieldValueTypeInformation>> typeFactory) {
+    List<FieldValueTypeInformation> typeInfos = typeFactory.create(typeDescriptor, schema);
     checkState(
         typeInfos.size() == schema.getFieldCount(),
         "Did not have a matching number of type informations and fields.");
@@ -133,10 +142,9 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T>, Function<R
     if (!needsConversion(type)) {
       return FieldConverter.IDENTITY;
     } else if (TypeName.ROW.equals(type.getTypeName())) {
-      Function[] converters =
-          fieldConverters(typeInfo.getRawType(), type.getRowSchema(), typeFactory);
+      Function[] converters = fieldConverters(typeInfo.getType(), type.getRowSchema(), typeFactory);
       return new FromRowUsingCreator(
-          typeInfo.getRawType(), schemaProvider, schemaTypeCreatorFactory, converters);
+          typeInfo.getType(), schemaProvider, schemaTypeCreatorFactory, converters);
     } else if (TypeName.ARRAY.equals(type.getTypeName())) {
       return new ConvertCollection(
           fieldConverter(type.getCollectionElementType(), typeInfo.getElementType(), typeFactory));
@@ -271,11 +279,11 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T>, Function<R
       return false;
     }
     FromRowUsingCreator<?> that = (FromRowUsingCreator<?>) o;
-    return clazz.equals(that.clazz) && schemaProvider.equals(that.schemaProvider);
+    return typeDescriptor.equals(that.typeDescriptor) && schemaProvider.equals(that.schemaProvider);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(clazz, schemaProvider);
+    return Objects.hash(typeDescriptor, schemaProvider);
   }
 }

@@ -46,7 +46,7 @@ permissions:
   statuses: read
 
 env:
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
@@ -60,7 +60,7 @@ jobs:
       matrix:
         job_name: [beam_PostCommit_Java_ValidatesRunner_Dataflow_JavaVersions]
         job_phrase: [Run Dataflow ValidatesRunner Java]
-        java_version: ['11','17']
+        java_version: ['8', '21']
     if: |
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'pull_request_target' ||
@@ -79,11 +79,11 @@ jobs:
         with:
           java-version: |
             ${{ matrix.java_version }}
-            8
+            11
       - name: run jar Java${{ matrix.java_version }} script
         run: |
           ./gradlew runners:google-cloud-dataflow-java:testJar :runners:google-cloud-dataflow-java:worker:shadowJar \
-          -Dorg.gradle.java.home=$JAVA_HOME_8_X64
+          -Dorg.gradle.java.home=$JAVA_HOME_${{ matrix.java_version }}_X64
       - name: run validatesRunner Java${{ matrix.java_version }} script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

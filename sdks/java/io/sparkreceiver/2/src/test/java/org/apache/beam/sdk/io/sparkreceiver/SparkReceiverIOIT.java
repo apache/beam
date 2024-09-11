@@ -21,7 +21,6 @@ import static org.apache.beam.sdk.io.synthetic.SyntheticOptions.fromJsonString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
-import com.google.cloud.Timestamp;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
@@ -31,6 +30,7 @@ import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -98,7 +98,7 @@ public class SparkReceiverIOIT {
 
   private static final String TEST_ID = UUID.randomUUID().toString();
 
-  private static final String TIMESTAMP = Timestamp.now().toString();
+  private static final String TIMESTAMP = Instant.now().toString();
 
   private static final String TEST_MESSAGE_PREFIX = "Test ";
 

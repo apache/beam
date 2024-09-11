@@ -25,6 +25,7 @@ from apache_beam.metrics.cells import DistributionCell
 from apache_beam.metrics.cells import DistributionData
 from apache_beam.metrics.cells import GaugeCell
 from apache_beam.metrics.cells import GaugeData
+from apache_beam.metrics.cells import StringSetCell
 from apache_beam.metrics.metricbase import MetricName
 
 
@@ -167,6 +168,29 @@ class TestGaugeCell(unittest.TestCase):
     name = MetricName('namespace', 'name1')
     mi = g1.to_runner_api_monitoring_info(name, 'transform_id')
     self.assertGreater(mi.start_time.seconds, 0)
+
+
+class TestStringSetCell(unittest.TestCase):
+  def test_not_leak_mutable_set(self):
+    c = StringSetCell()
+    c.add('test')
+    c.add('another')
+    s = c.get_cumulative()
+    self.assertEqual(s, set(('test', 'another')))
+    s.add('yet another')
+    self.assertEqual(c.get_cumulative(), set(('test', 'another')))
+
+  def test_combine_appropriately(self):
+    s1 = StringSetCell()
+    s1.add('1')
+    s1.add('2')
+
+    s2 = StringSetCell()
+    s2.add('1')
+    s2.add('3')
+
+    result = s2.combine(s1)
+    self.assertEqual(result.data, set(('1', '2', '3')))
 
 
 if __name__ == '__main__':

@@ -475,6 +475,14 @@ public class SpannerIO {
         .build();
   }
 
+  public static Read readWithSchema() {
+    return read()
+        .withBeamRowConverters(
+            TypeDescriptor.of(Struct.class),
+            StructUtils.structToBeamRow(),
+            StructUtils.structFromBeamRow());
+  }
+
   /**
    * Returns a transform that creates a batch transaction. By default, {@link
    * TimestampBound#strong()} transaction is created, to override this use {@link
@@ -708,6 +716,12 @@ public class SpannerIO {
   @AutoValue
   public abstract static class Read extends PTransform<PBegin, PCollection<Struct>> {
 
+    interface ToBeamRowFunction
+        extends SerializableFunction<Schema, SerializableFunction<Struct, Row>> {}
+
+    interface FromBeamRowFunction
+        extends SerializableFunction<Schema, SerializableFunction<Row, Struct>> {}
+
     abstract SpannerConfig getSpannerConfig();
 
     abstract ReadOperation getReadOperation();
@@ -719,6 +733,12 @@ public class SpannerIO {
     abstract @Nullable PartitionOptions getPartitionOptions();
 
     abstract Boolean getBatching();
+
+    abstract @Nullable TypeDescriptor<Struct> getTypeDescriptor();
+
+    abstract @Nullable ToBeamRowFunction getToBeamRowFn();
+
+    abstract @Nullable FromBeamRowFunction getFromBeamRowFn();
 
     abstract Builder toBuilder();
 
@@ -737,7 +757,24 @@ public class SpannerIO {
 
       abstract Builder setBatching(Boolean batching);
 
+      abstract Builder setTypeDescriptor(TypeDescriptor<Struct> typeDescriptor);
+
+      abstract Builder setToBeamRowFn(ToBeamRowFunction toRowFn);
+
+      abstract Builder setFromBeamRowFn(FromBeamRowFunction fromRowFn);
+
       abstract Read build();
+    }
+
+    public Read withBeamRowConverters(
+        TypeDescriptor<Struct> typeDescriptor,
+        ToBeamRowFunction toRowFn,
+        FromBeamRowFunction fromRowFn) {
+      return toBuilder()
+          .setTypeDescriptor(typeDescriptor)
+          .setToBeamRowFn(toRowFn)
+          .setFromBeamRowFn(fromRowFn)
+          .build();
     }
 
     /** Specifies the Cloud Spanner configuration. */
@@ -876,6 +913,14 @@ public class SpannerIO {
       return withSpannerConfig(config.withRpcPriority(RpcPriority.HIGH));
     }
 
+    private SpannerSourceDef createSourceDef() {
+      if (getReadOperation().getQuery() != null) {
+        return SpannerQuerySourceDef.create(getSpannerConfig(), getReadOperation().getQuery());
+      }
+      return SpannerTableSourceDef.create(
+          getSpannerConfig(), getReadOperation().getTable(), getReadOperation().getColumns());
+    }
+
     @Override
     public PCollection<Struct> expand(PBegin input) {
       getSpannerConfig().validate();
@@ -886,6 +931,10 @@ public class SpannerIO {
 
       if (getReadOperation().getQuery() != null) {
         // TODO: validate query?
+        if (getReadOperation().getTable() != null) {
+          throw new IllegalArgumentException(
+              "Both query and table cannot be specified at the same time for SpannerIO.read().");
+        }
       } else if (getReadOperation().getTable() != null) {
         // Assume read
         checkNotNull(
@@ -898,7 +947,14 @@ public class SpannerIO {
                 + " list of columns to set with withColumns method");
       } else {
         throw new IllegalArgumentException(
-            "SpannerIO.read() requires configuring query or read operation.");
+            "SpannerIO.read() requires query OR table to set with withTable OR withQuery method.");
+      }
+
+      final SpannerSourceDef sourceDef = createSourceDef();
+
+      Schema beamSchema = null;
+      if (getTypeDescriptor() != null && getToBeamRowFn() != null && getFromBeamRowFn() != null) {
+        beamSchema = sourceDef.getBeamSchema();
       }
 
       ReadAll readAll =
@@ -907,7 +963,19 @@ public class SpannerIO {
               .withTimestampBound(getTimestampBound())
               .withBatching(getBatching())
               .withTransaction(getTransaction());
-      return input.apply(Create.of(getReadOperation())).apply("Execute query", readAll);
+
+      PCollection<Struct> rows =
+          input.apply(Create.of(getReadOperation())).apply("Execute query", readAll);
+
+      if (beamSchema != null) {
+        rows.setSchema(
+            beamSchema,
+            getTypeDescriptor(),
+            getToBeamRowFn().apply(beamSchema),
+            getFromBeamRowFn().apply(beamSchema));
+      }
+
+      return rows;
     }
 
     SerializableFunction<Struct, Row> getFormatFn() {

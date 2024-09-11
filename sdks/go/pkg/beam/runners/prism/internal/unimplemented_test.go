@@ -44,7 +44,6 @@ func TestUnimplemented(t *testing.T) {
 		// {pipeline: primitives.Drain}, // Can't test drain automatically yet.
 
 		// Triggers (Need teststream and are unimplemented.)
-		{pipeline: primitives.TriggerAlways},
 		{pipeline: primitives.TriggerAfterAll},
 		{pipeline: primitives.TriggerAfterAny},
 		{pipeline: primitives.TriggerAfterEach},
@@ -54,9 +53,7 @@ func TestUnimplemented(t *testing.T) {
 		{pipeline: primitives.TriggerElementCount},
 		{pipeline: primitives.TriggerOrFinally},
 		{pipeline: primitives.TriggerRepeat},
-
-		// Needs triggers.
-		{pipeline: primitives.Panes},
+		{pipeline: primitives.TriggerAlways},
 	}
 
 	for _, test := range tests {
@@ -86,7 +83,12 @@ func TestImplemented(t *testing.T) {
 		{pipeline: primitives.Checkpoints},
 		{pipeline: primitives.CoGBK},
 		{pipeline: primitives.ReshuffleKV},
+
+		// The following have been "allowed" to unblock further development
+		// But it's not clear these tests truly validate the expected behavior
+		// of the triggers or panes.
 		{pipeline: primitives.TriggerNever},
+		{pipeline: primitives.Panes},
 	}
 
 	for _, test := range tests {

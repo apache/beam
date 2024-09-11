@@ -52,13 +52,17 @@ __all__ = [
     'ComputeAndApplyVocabulary',
     'ScaleToZScore',
     'ScaleTo01',
+    'ScaleToGaussian',
     'ApplyBuckets',
+    'ApplyBucketsWithInterpolation',
     'Bucketize',
     'TFIDF',
     'TFTOperation',
     'ScaleByMinMax',
     'NGrams',
     'BagOfWords',
+    'HashStrings',
+    'DeduplicateTensorPerRow',
 ]
 
 # Register the expected input types for each operation

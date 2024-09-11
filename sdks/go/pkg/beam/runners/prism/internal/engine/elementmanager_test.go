@@ -316,6 +316,7 @@ func TestStageState_updateWatermarks(t *testing.T) {
 
 func TestElementManager(t *testing.T) {
 	t.Run("impulse", func(t *testing.T) {
+		ctx, cancelFn := context.WithCancelCause(context.Background())
 		em := NewElementManager(Config{})
 		em.AddStage("impulse", nil, []string{"output"}, nil)
 		em.AddStage("dofn", []string{"output"}, nil, nil)
@@ -327,7 +328,7 @@ func TestElementManager(t *testing.T) {
 		}
 
 		var i int
-		ch := em.Bundles(context.Background(), func() string {
+		ch := em.Bundles(ctx, cancelFn, func() string {
 			defer func() { i++ }()
 			return fmt.Sprintf("%v", i)
 		})
@@ -371,6 +372,7 @@ func TestElementManager(t *testing.T) {
 	}
 
 	t.Run("dofn", func(t *testing.T) {
+		ctx, cancelFn := context.WithCancelCause(context.Background())
 		em := NewElementManager(Config{})
 		em.AddStage("impulse", nil, []string{"input"}, nil)
 		em.AddStage("dofn1", []string{"input"}, []string{"output"}, nil)
@@ -378,7 +380,7 @@ func TestElementManager(t *testing.T) {
 		em.Impulse("impulse")
 
 		var i int
-		ch := em.Bundles(context.Background(), func() string {
+		ch := em.Bundles(ctx, cancelFn, func() string {
 			defer func() { i++ }()
 			t.Log("generating bundle", i)
 			return fmt.Sprintf("%v", i)
@@ -422,6 +424,7 @@ func TestElementManager(t *testing.T) {
 	})
 
 	t.Run("side", func(t *testing.T) {
+		ctx, cancelFn := context.WithCancelCause(context.Background())
 		em := NewElementManager(Config{})
 		em.AddStage("impulse", nil, []string{"input"}, nil)
 		em.AddStage("dofn1", []string{"input"}, []string{"output"}, nil)
@@ -429,7 +432,7 @@ func TestElementManager(t *testing.T) {
 		em.Impulse("impulse")
 
 		var i int
-		ch := em.Bundles(context.Background(), func() string {
+		ch := em.Bundles(ctx, cancelFn, func() string {
 			defer func() { i++ }()
 			t.Log("generating bundle", i)
 			return fmt.Sprintf("%v", i)
@@ -473,13 +476,14 @@ func TestElementManager(t *testing.T) {
 		}
 	})
 	t.Run("residual", func(t *testing.T) {
+		ctx, cancelFn := context.WithCancelCause(context.Background())
 		em := NewElementManager(Config{})
 		em.AddStage("impulse", nil, []string{"input"}, nil)
 		em.AddStage("dofn", []string{"input"}, nil, nil)
 		em.Impulse("impulse")
 
 		var i int
-		ch := em.Bundles(context.Background(), func() string {
+		ch := em.Bundles(ctx, cancelFn, func() string {
 			defer func() { i++ }()
 			t.Log("generating bundle", i)
 			return fmt.Sprintf("%v", i)

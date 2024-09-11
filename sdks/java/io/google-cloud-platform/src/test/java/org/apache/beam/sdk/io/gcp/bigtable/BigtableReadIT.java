@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasItem;
+
 import com.google.cloud.bigtable.admin.v2.BigtableTableAdminClient;
 import com.google.cloud.bigtable.admin.v2.BigtableTableAdminSettings;
 import com.google.cloud.bigtable.admin.v2.models.CreateTableRequest;
@@ -28,12 +31,15 @@ import java.io.IOException;
 import java.util.Date;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.StringUtils;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
+import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -110,7 +116,8 @@ public class BigtableReadIT {
         p.apply(BigtableIO.read().withBigtableOptions(bigtableOptionsBuilder).withTableId(tableId))
             .apply(Count.globally());
     PAssert.thatSingleton(count).isEqualTo(numRows);
-    p.run();
+    PipelineResult r = p.run();
+    checkLineageSourceMetric(r, tableId);
   }
 
   @Test
@@ -138,6 +145,19 @@ public class BigtableReadIT {
                     .withMaxBufferElementCount(10))
             .apply(Count.globally());
     PAssert.thatSingleton(count).isEqualTo(numRows);
-    p.run();
+    PipelineResult r = p.run();
+    checkLineageSourceMetric(r, tableId);
+  }
+
+  private void checkLineageSourceMetric(PipelineResult r, String tableId) {
+    // TODO(https://github.com/apache/beam/issues/32071) test malformed,
+    //   when pipeline.run() is non-blocking, the metrics are not available by the time of query
+    if (options.getRunner().getName().contains("DirectRunner")) {
+      assertThat(
+          Lineage.query(r.metrics(), Lineage.Type.SOURCE),
+          hasItem(
+              Lineage.getFqName(
+                  "bigtable", ImmutableList.of(project, options.getInstanceId(), tableId))));
+    }
   }
 }

@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner;
 
+import static org.junit.Assert.assertEquals;
+
 import com.google.api.gax.longrunning.OperationFuture;
 import com.google.cloud.spanner.BatchClient;
 import com.google.cloud.spanner.Database;
@@ -38,6 +40,7 @@ import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
@@ -184,6 +187,37 @@ public class SpannerReadIT {
                 .withTable(options.getTable())
                 .withColumns("Key", "Value")
                 .withTransaction(tx));
+    PAssert.thatSingleton(output.apply("Count rows", Count.<Struct>globally())).isEqualTo(5L);
+
+    p.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testReadWithSchema() throws Exception {
+
+    SpannerConfig spannerConfig = createSpannerConfig();
+
+    PCollectionView<Transaction> tx =
+        p.apply(
+            "Create tx",
+            SpannerIO.createTransaction()
+                .withSpannerConfig(spannerConfig)
+                .withTimestampBound(TimestampBound.strong()));
+
+    PCollection<Struct> output =
+        p.apply(
+            "read db",
+            SpannerIO.readWithSchema()
+                .withSpannerConfig(spannerConfig)
+                .withTable(options.getTable())
+                .withColumns("Key", "Value")
+                .withTransaction(tx));
+    Schema schema =
+        Schema.of(
+            Schema.Field.nullable("Key", Schema.FieldType.INT64),
+            Schema.Field.nullable("Value", Schema.FieldType.STRING));
+    assertEquals(output.getSchema(), schema);
+
     PAssert.thatSingleton(output.apply("Count rows", Count.<Struct>globally())).isEqualTo(5L);
 
     p.run().waitUntilFinish();

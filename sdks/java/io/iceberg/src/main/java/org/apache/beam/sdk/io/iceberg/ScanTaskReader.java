@@ -60,7 +60,7 @@ class ScanTaskReader extends BoundedSource.BoundedReader<Row> {
 
   public ScanTaskReader(ScanTaskSource source) {
     this.source = source;
-    this.project = SchemaAndRowConversions.beamSchemaToIcebergSchema(source.getSchema());
+    this.project = IcebergUtils.beamSchemaToIcebergSchema(source.getSchema());
   }
 
   @Override
@@ -160,7 +160,7 @@ class ScanTaskReader extends BoundedSource.BoundedReader<Row> {
     if (current == null) {
       throw new NoSuchElementException();
     }
-    return SchemaAndRowConversions.recordToRow(source.getSchema(), current);
+    return IcebergUtils.icebergRecordToBeamRow(source.getSchema(), current);
   }
 
   @Override

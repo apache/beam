@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.streaming;
 
-import static org.apache.beam.runners.dataflow.worker.DataflowSystemMetrics.THROTTLING_MSECS_METRIC_NAME;
+import static org.apache.beam.sdk.metrics.Metrics.THROTTLE_TIME_COUNTER_NAME;
 
 import com.google.api.services.dataflow.model.CounterStructuredName;
 import com.google.api.services.dataflow.model.CounterUpdate;
@@ -28,7 +28,6 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.runners.dataflow.worker.DataflowSystemMetrics;
 import org.apache.beam.runners.dataflow.worker.MetricsContainerRegistry;
-import org.apache.beam.runners.dataflow.worker.StreamingDataflowWorker;
 import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext.StreamingModeExecutionStateRegistry;
 import org.apache.beam.runners.dataflow.worker.StreamingStepMetricsContainer;
 import org.apache.beam.runners.dataflow.worker.counters.Counter;
@@ -93,20 +92,13 @@ public abstract class StageInfo {
   }
 
   /**
-   * Checks if the step counter affects any per-stage counters. Currently 'throttled_millis' is the
+   * Checks if the step counter affects any per-stage counters. Currently 'throttled-msecs' is the
    * only counter updated.
    */
   private void translateKnownStepCounters(CounterUpdate stepCounterUpdate) {
     CounterStructuredName structuredName =
         stepCounterUpdate.getStructuredNameAndMetadata().getName();
-    if ((THROTTLING_MSECS_METRIC_NAME.getNamespace().equals(structuredName.getOriginNamespace())
-            && THROTTLING_MSECS_METRIC_NAME.getName().equals(structuredName.getName()))
-        || (StreamingDataflowWorker.BIGQUERY_STREAMING_INSERT_THROTTLE_TIME
-                .getNamespace()
-                .equals(structuredName.getOriginNamespace())
-            && StreamingDataflowWorker.BIGQUERY_STREAMING_INSERT_THROTTLE_TIME
-                .getName()
-                .equals(structuredName.getName()))) {
+    if (THROTTLE_TIME_COUNTER_NAME.equals(structuredName.getName())) {
       long msecs = DataflowCounterUpdateExtractor.splitIntToLong(stepCounterUpdate.getInteger());
       if (msecs > 0) {
         throttledMsecs().addValue(msecs);

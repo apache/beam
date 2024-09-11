@@ -84,19 +84,19 @@ def javaVer = "java8"
 if (project.hasProperty('testJavaVersion')) {
   javaVer = "java${project.getProperty('testJavaVersion')}"
 }
-def dataflowProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
-def dataflowRegion = project.findProperty('dataflowRegion') ?: 'us-central1'
-def dataflowValidatesTempRoot = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-validates-runner-tests'
+def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+def gcpRegion = project.findProperty('gcpRegion') ?: 'us-central1'
+def dataflowValidatesTempRoot = project.findProperty('gcpTempRoot') ?: 'gs://temp-storage-for-validates-runner-tests'
 def firestoreDb = project.findProperty('firestoreDb') ?: 'firestoredb'
-def dockerImageRoot = project.findProperty('docker-repository-root') ?: "us.gcr.io/${dataflowProject}/java-postcommit-it"
+def dockerImageRoot = project.findProperty('docker-repository-root') ?: "us.gcr.io/${gcpProject}/java-postcommit-it"
 def DockerJavaMultiarchImageContainer = "${dockerImageRoot}/${project.docker_image_default_repo_prefix}${javaVer}_sdk"
 def dockerTag = project.findProperty('docker-tag') ?: new Date().format('yyyyMMddHHmmss')
 ext.DockerJavaMultiarchImageName = "${DockerJavaMultiarchImageContainer}:${dockerTag}" as String
 
 def runnerV2PipelineOptionsARM = [
   "--runner=TestDataflowRunner",
-  "--project=${dataflowProject}",
-  "--region=${dataflowRegion}",
+  "--project=${gcpProject}",
+  "--region=${gcpRegion}",
   "--tempRoot=${dataflowValidatesTempRoot}",
   "--sdkContainerImage=${project.ext.DockerJavaMultiarchImageName}",
   "--experiments=use_unified_worker,use_runner_v2",

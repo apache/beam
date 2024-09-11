@@ -24,7 +24,7 @@ import static org.junit.Assert.assertSame;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
+import java.nio.charset.StandardCharsets;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -33,7 +33,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class ExposedByteArrayInputStreamTest {
 
-  private static final byte[] TEST_DATA = "Hello World!".getBytes(Charsets.UTF_8);
+  private static final byte[] TEST_DATA = "Hello World!".getBytes(StandardCharsets.UTF_8);
 
   private ByteArrayInputStream stream = new ByteArrayInputStream(TEST_DATA);
 
@@ -74,6 +74,6 @@ public class ExposedByteArrayInputStreamTest {
   public void testReadAllAfterReadPartial() throws IOException {
     assertNotEquals(-1, exposedStream.read());
     byte[] ret = exposedStream.readAll();
-    assertArrayEquals("ello World!".getBytes(Charsets.UTF_8), ret);
+    assertArrayEquals("ello World!".getBytes(StandardCharsets.UTF_8), ret);
   }
 }

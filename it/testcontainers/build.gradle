@@ -19,21 +19,23 @@
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
     automaticModuleName: 'org.apache.beam.it.testcontainers',
+    exportJavadoc: false,
     enableSpotbugs: false,
-    validateShadowJar: false,
-    shadowClosure: {},
 )
 
 description = "Apache Beam :: IT :: Testcontainers"
 ext.summary = "Integration test utilities for Testcontainers."
 
 dependencies {
-    implementation project(path: ":it:common", configuration: "shadow")
+    implementation project(path: ":it:common")
+    implementation library.java.slf4j_api
     implementation library.java.testcontainers_base
     // TODO: excluding Guava until Truth updates it to >32.1.x
     testImplementation(library.java.truth) {
         exclude group: 'com.google.guava', module: 'guava'
     }
+    implementation library.java.guava
+    permitUsedUndeclared library.java.guava
     testImplementation library.java.mockito_core
     testRuntimeOnly library.java.slf4j_simple
 }

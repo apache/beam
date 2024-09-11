@@ -22,8 +22,8 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/gcsx"
-	"github.com/golang/protobuf/proto"
 	"golang.org/x/net/context"
+	"google.golang.org/protobuf/proto"
 )
 
 // RetrievalServer is a artifact retrieval server backed by Google

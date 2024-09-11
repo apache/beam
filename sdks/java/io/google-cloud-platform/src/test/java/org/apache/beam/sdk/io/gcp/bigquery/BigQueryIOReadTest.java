@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryResourceNaming.createTempTableReference;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
@@ -42,9 +43,11 @@ import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.avro.specific.SpecificRecordBase;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
@@ -58,6 +61,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryResourceNaming.JobType;
 import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices;
 import org.apache.beam.sdk.io.gcp.testing.FakeDatasetService;
 import org.apache.beam.sdk.io.gcp.testing.FakeJobService;
+import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -344,6 +348,11 @@ public class BigQueryIOReadTest implements Serializable {
     assertEquals(validate, read.getValidate());
   }
 
+  private void checkLineageSourceMetric(PipelineResult pipelineResult, String tableName) {
+    Set<String> result = Lineage.query(pipelineResult.metrics(), Lineage.Type.SOURCE);
+    assertThat(result, contains("bigquery:" + tableName.replace(':', '.')));
+  }
+
   @Before
   public void setUp() throws ExecutionException, IOException, InterruptedException {
     FakeDatasetService.setUp();
@@ -578,7 +587,8 @@ public class BigQueryIOReadTest implements Serializable {
                 new MyData("a", 1L, bd1, bd2),
                 new MyData("b", 2L, bd1, bd2),
                 new MyData("c", 3L, bd1, bd2)));
-    p.run();
+    PipelineResult result = p.run();
+    checkLineageSourceMetric(result, "non-executing-project:somedataset.sometable");
   }
 
   @Test

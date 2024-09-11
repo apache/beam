@@ -33,7 +33,7 @@ See more information in the [Beam Programming Guide](/documentation/programming-
 We use `GroupByKey` to group all the produce for each season.
 
 {{< playground height="700px" >}}
-{{< playground_snippet language="py" path="SDK_PYTHON_GroupByKey" show="groupbykeysort" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_GroupByKeySort" show="groupbykey" >}}
 {{< /playground >}}
 
 **Example 2**:

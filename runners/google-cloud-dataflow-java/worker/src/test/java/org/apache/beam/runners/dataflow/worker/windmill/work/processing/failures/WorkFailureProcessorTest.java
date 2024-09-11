@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.mockito.Mockito.mock;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -34,6 +35,8 @@ import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
+import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.joda.time.Duration;
@@ -86,8 +89,9 @@ public class WorkFailureProcessorTest {
             Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
             Work.createProcessingContext(
                 "computationId",
-                (a, b) -> Windmill.KeyedGetDataResponse.getDefaultInstance(),
-                ignored -> {}),
+                new FakeGetDataClient(),
+                ignored -> {},
+                mock(HeartbeatSender.class)),
             clock,
             new ArrayList<>()),
         processWorkFn);

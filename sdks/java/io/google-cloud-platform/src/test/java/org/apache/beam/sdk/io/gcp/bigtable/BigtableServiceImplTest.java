@@ -245,6 +245,68 @@ public class BigtableServiceImplTest {
   }
 
   /**
+   * This test ensures that protobuf creation and interactions with {@link BigtableDataClient} work
+   * as expected. This test checks that a single row is returned from the future.
+   *
+   * @throws IOException
+   */
+  @Test
+  public void testReadSingleRangeAtSegmentLimit() throws Exception {
+    RowSet.Builder ranges = RowSet.newBuilder();
+    ranges.addRowRanges(
+        generateRowRange(
+            generateByteString(DEFAULT_PREFIX, SEGMENT_SIZE),
+            generateByteString(DEFAULT_PREFIX, SEGMENT_SIZE - 1)));
+
+    // Set up Callable to be returned by stub.createReadRowsCallable()
+    ServerStreamingCallable<Query, Row> mockCallable = Mockito.mock(ServerStreamingCallable.class);
+    List<List<Row>> expectedResults =
+        ImmutableList.of(
+            generateSegmentResult(DEFAULT_PREFIX, 0, SEGMENT_SIZE), ImmutableList.of());
+
+    // Return multiple answers when mockCallable is called
+    doAnswer(
+            new MultipleAnswer<Row>(
+                ImmutableList.of(
+                    generateSegmentResult(DEFAULT_PREFIX, 0, SEGMENT_SIZE),
+                    generateSegmentResult(DEFAULT_PREFIX, SEGMENT_SIZE, SEGMENT_SIZE * 2),
+                    ImmutableList.of())))
+        .when(mockCallable)
+        .call(any(Query.class), any(ResponseObserver.class), any(ApiCallContext.class));
+
+    when(mockStub.createReadRowsCallable(any(RowAdapter.class))).thenReturn(mockCallable);
+    ServerStreamingCallable<Query, Row> callable =
+        mockStub.createReadRowsCallable(new BigtableServiceImpl.BigtableRowProtoAdapter());
+    // Set up client to return callable
+    when(mockBigtableDataClient.readRowsCallable(any(RowAdapter.class))).thenReturn(callable);
+    when(mockBigtableSource.getTableId()).thenReturn(StaticValueProvider.of(TABLE_ID));
+
+    BigtableService.Reader underTest =
+        new BigtableServiceImpl.BigtableSegmentReaderImpl(
+            mockBigtableDataClient,
+            bigtableDataSettings.getProjectId(),
+            bigtableDataSettings.getInstanceId(),
+            mockBigtableSource.getTableId().get(),
+            ranges.build(),
+            RowFilter.getDefaultInstance(),
+            SEGMENT_SIZE,
+            DEFAULT_BYTE_SEGMENT_SIZE,
+            mockCallMetric);
+
+    List<Row> actualResults = new ArrayList<>();
+    Assert.assertTrue(underTest.start());
+    do {
+      actualResults.add(underTest.getCurrentRow());
+    } while (underTest.advance());
+
+    Assert.assertEquals(
+        expectedResults.stream().flatMap(Collection::stream).collect(Collectors.toList()),
+        actualResults);
+
+    Mockito.verify(mockCallMetric, Mockito.times(2)).call("ok");
+  }
+
+  /**
    * This test ensures that all the rows are properly added to the buffer and read. This example
    * uses a single range with SEGMENT_SIZE*2+1 rows. Range: [b00000, b00001, ... b00199, b00200)
    *

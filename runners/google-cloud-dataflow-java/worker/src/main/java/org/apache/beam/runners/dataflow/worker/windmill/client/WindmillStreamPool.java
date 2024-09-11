@@ -128,7 +128,7 @@ public class WindmillStreamPool<StreamT extends WindmillStream> {
       return resultStream;
     } finally {
       if (closeThisStream != null) {
-        closeThisStream.close();
+        closeThisStream.halfClose();
       }
     }
   }
@@ -166,7 +166,7 @@ public class WindmillStreamPool<StreamT extends WindmillStream> {
     }
 
     if (closeStream) {
-      stream.close();
+      stream.halfClose();
     }
   }
 

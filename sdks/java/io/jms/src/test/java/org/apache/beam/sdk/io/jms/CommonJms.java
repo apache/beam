@@ -22,6 +22,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Supplier;
 import javax.jms.BytesMessage;
 import javax.jms.ConnectionFactory;
 import javax.jms.Message;
@@ -34,8 +35,8 @@ import org.apache.activemq.store.memory.MemoryPersistenceAdapter;
 import org.apache.activemq.transport.TransportFactory;
 import org.apache.activemq.transport.amqp.AmqpTransportFactory;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.util.SerializableSupplier;
 import org.apache.beam.sdk.util.ThrowingSupplier;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
 
 /**
  * A common test fixture to create a broker and connection factories for {@link JmsIOIT} & {@link
@@ -46,8 +47,6 @@ public class CommonJms implements Serializable {
 
   // convenient typedefs and a helper conversion functions
   interface ThrowingSerializableSupplier<T> extends ThrowingSupplier<T>, Serializable {}
-
-  private interface SerializableSupplier<T> extends Serializable, Supplier<T> {}
 
   private static <T> SerializableSupplier<T> toSerializableSupplier(
       ThrowingSerializableSupplier<T> throwingSerializableSupplier) {

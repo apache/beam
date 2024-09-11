@@ -44,6 +44,7 @@ from google.cloud.storage.retry import DEFAULT_RETRY
 from apache_beam import version as beam_version
 from apache_beam.internal.gcp import auth
 from apache_beam.io.gcp import gcsio_retry
+from apache_beam.metrics.metric import Metrics
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.utils import retry
@@ -139,12 +140,19 @@ class GcsIO(object):
   """Google Cloud Storage I/O client."""
   def __init__(self, storage_client=None, pipeline_options=None):
     # type: (Optional[storage.Client], Optional[Union[dict, PipelineOptions]]) -> None
-    if not pipeline_options:
+    if pipeline_options is None:
       pipeline_options = PipelineOptions()
     elif isinstance(pipeline_options, dict):
       pipeline_options = PipelineOptions.from_dictionary(pipeline_options)
     if storage_client is None:
       storage_client = create_storage_client(pipeline_options)
+
+    google_cloud_options = pipeline_options.view_as(GoogleCloudOptions)
+    self.enable_read_bucket_metric = getattr(
+        google_cloud_options, 'enable_bucket_read_metric_counter', False)
+    self.enable_write_bucket_metric = getattr(
+        google_cloud_options, 'enable_bucket_write_metric_counter', False)
+
     self.client = storage_client
     self._rewrite_cb = None
     self.bucket_to_project_number = {}
@@ -158,11 +166,11 @@ class GcsIO(object):
 
     return self.bucket_to_project_number.get(bucket, None)
 
-  def get_bucket(self, bucket_name):
+  def get_bucket(self, bucket_name, **kwargs):
     """Returns an object bucket from its name, or None if it does not exist."""
     try:
       return self.client.lookup_bucket(
-          bucket_name, retry=self._storage_client_retry)
+          bucket_name, retry=self._storage_client_retry, **kwargs)
     except NotFound:
       return None
 
@@ -217,10 +225,17 @@ class GcsIO(object):
     if mode == 'r' or mode == 'rb':
       blob = bucket.blob(blob_name)
       return BeamBlobReader(
-          blob, chunk_size=read_buffer_size, retry=self._storage_client_retry)
+          blob,
+          chunk_size=read_buffer_size,
+          enable_read_bucket_metric=self.enable_read_bucket_metric, 
+          retry=self._storage_client_retry)
     elif mode == 'w' or mode == 'wb':
       blob = bucket.blob(blob_name)
-      return BeamBlobWriter(blob, mime_type, retry=self._storage_client_retry)
+      return BeamBlobWriter(
+          blob,
+          mime_type,
+          enable_write_bucket_metric=self.enable_write_bucket_metric,
+          retry=self._storage_client_retry)
     else:
       raise ValueError('Invalid file open mode: %s.' % mode)
 
@@ -537,7 +552,8 @@ class GcsIO(object):
   def is_soft_delete_enabled(self, gcs_path):
     try:
       bucket_name, _ = parse_gcs_path(gcs_path)
-      bucket = self.get_bucket(bucket_name)
+      # set retry timeout to 5 seconds when checking soft delete policy
+      bucket = self.get_bucket(bucket_name, retry=DEFAULT_RETRY.with_timeout(5))
       if (bucket.soft_delete_policy is not None and
           bucket.soft_delete_policy.retention_duration_seconds > 0):
         return True
@@ -550,18 +566,33 @@ class GcsIO(object):
 
 class BeamBlobReader(BlobReader):
   def __init__(
-      self, blob, chunk_size=DEFAULT_READ_BUFFER_SIZE, retry=DEFAULT_RETRY):
+      self,
+      blob,
+      chunk_size=DEFAULT_READ_BUFFER_SIZE,
+      enable_read_bucket_metric=False, 
+      retry=DEFAULT_RETRY):
     super().__init__(blob, chunk_size=chunk_size, retry=retry)
+    self.enable_read_bucket_metric = enable_read_bucket_metric
     self.mode = "r"
+
+  def read(self, size=-1):
+    bytesRead = super().read(size)
+    if self.enable_read_bucket_metric:
+      Metrics.counter(
+          self.__class__,
+          "GCS_read_bytes_counter_" + self._blob.bucket.name).inc(
+              len(bytesRead))
+    return bytesRead
 
 
 class BeamBlobWriter(BlobWriter):
   def __init__(
-      self,
+      self,  
       blob,
       content_type,
       chunk_size=16 * 1024 * 1024,
       ignore_flush=True,
+      enable_write_bucket_metric=False,
       retry=DEFAULT_RETRY):
     super().__init__(
         blob,
@@ -570,3 +601,12 @@ class BeamBlobWriter(BlobWriter):
         ignore_flush=ignore_flush,
         retry=retry)
     self.mode = "w"
+    self.enable_write_bucket_metric = enable_write_bucket_metric
+
+  def write(self, b):
+    bytesWritten = super().write(b)
+    if self.enable_write_bucket_metric:
+      Metrics.counter(
+          self.__class__, "GCS_write_bytes_counter_" +
+          self._blob.bucket.name).inc(bytesWritten)
+    return bytesWritten

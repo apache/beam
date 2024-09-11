@@ -23,7 +23,9 @@ import logging
 from functools import partial
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import Dict
 from typing import Optional
+from typing import Union
 
 from apache_beam import typehints
 from apache_beam.coders import coders
@@ -102,18 +104,19 @@ class _TextSource(filebasedsource.FileBasedSource):
       self.data = b''
       self.position = 0
 
-  def __init__(self,
-               file_pattern,
-               min_bundle_size,
-               compression_type,
-               strip_trailing_newlines,
-               coder,  # type: coders.Coder
-               buffer_size=DEFAULT_READ_BUFFER_SIZE,
-               validate=True,
-               skip_header_lines=0,
-               header_processor_fns=(None, None),
-               delimiter=None,
-               escapechar=None):
+  def __init__(
+      self,
+      file_pattern,
+      min_bundle_size,
+      compression_type,
+      strip_trailing_newlines,
+      coder: coders.Coder,
+      buffer_size=DEFAULT_READ_BUFFER_SIZE,
+      validate=True,
+      skip_header_lines=0,
+      header_processor_fns=(None, None),
+      delimiter=None,
+      escapechar=None):
     """Initialize a _TextSource
 
     Args:
@@ -433,21 +436,21 @@ class _TextSourceWithFilename(_TextSource):
 
 class _TextSink(filebasedsink.FileBasedSink):
   """A sink to a GCS or local text file or files."""
-
-  def __init__(self,
-               file_path_prefix,
-               file_name_suffix='',
-               append_trailing_newlines=True,
-               num_shards=0,
-               shard_name_template=None,
-               coder=coders.ToBytesCoder(),  # type: coders.Coder
-               compression_type=CompressionTypes.AUTO,
-               header=None,
-               footer=None,
-               *,
-               max_records_per_shard=None,
-               max_bytes_per_shard=None,
-               skip_if_empty=False):
+  def __init__(
+      self,
+      file_path_prefix,
+      file_name_suffix='',
+      append_trailing_newlines=True,
+      num_shards=0,
+      shard_name_template=None,
+      coder: coders.Coder = coders.ToBytesCoder(),
+      compression_type=CompressionTypes.AUTO,
+      header=None,
+      footer=None,
+      *,
+      max_records_per_shard=None,
+      max_bytes_per_shard=None,
+      skip_if_empty=False):
     """Initialize a _TextSink.
 
     Args:
@@ -591,7 +594,7 @@ class ReadAllFromText(PTransform):
       compression_type=CompressionTypes.AUTO,
       strip_trailing_newlines=True,
       validate=False,
-      coder=coders.StrUtf8Coder(),  # type: coders.Coder
+      coder: coders.Coder = coders.StrUtf8Coder(),
       skip_header_lines=0,
       with_filename=False,
       delimiter=None,
@@ -742,7 +745,7 @@ class ReadFromText(PTransform):
       min_bundle_size=0,
       compression_type=CompressionTypes.AUTO,
       strip_trailing_newlines=True,
-      coder=coders.StrUtf8Coder(),  # type: coders.Coder
+      coder: coders.Coder = coders.StrUtf8Coder(),
       validate=True,
       skip_header_lines=0,
       delimiter=None,
@@ -808,15 +811,14 @@ class ReadFromTextWithFilename(ReadFromText):
 class WriteToText(PTransform):
   """A :class:`~apache_beam.transforms.ptransform.PTransform` for writing to
   text files."""
-
   def __init__(
       self,
-      file_path_prefix,  # type: str
+      file_path_prefix: str,
       file_name_suffix='',
       append_trailing_newlines=True,
       num_shards=0,
-      shard_name_template=None,  # type: Optional[str]
-      coder=coders.ToBytesCoder(),  # type: coders.Coder
+      shard_name_template: Optional[str] = None,
+      coder: coders.Coder = coders.ToBytesCoder(),
       compression_type=CompressionTypes.AUTO,
       header=None,
       footer=None,
@@ -980,7 +982,12 @@ try:
 
   @append_pandas_args(pandas.read_json, exclude=['path_or_buf'])
   def ReadFromJson(
-      path: str, *, orient: str = 'records', lines: bool = True, **kwargs):
+      path: str,
+      *,
+      orient: str = 'records',
+      lines: bool = True,
+      dtype: Union[bool, Dict[str, Any]] = False,
+      **kwargs):
     """A PTransform for reading json values from files into a PCollection.
 
     Args:
@@ -992,11 +999,14 @@ try:
       lines (bool): Whether each line should be considered a separate record,
         as opposed to the entire file being a valid JSON object or list.
         Defaults to True (unlike Pandas).
+      dtype (bool): If True, infer dtypes; if a dict of column to dtype,
+        then use those; if False, then don’t infer dtypes at all.
+        Defaults to False (unlike Pandas).
       **kwargs: Extra arguments passed to `pandas.read_json` (see below).
     """
     from apache_beam.dataframe.io import ReadViaPandas
     return 'ReadFromJson' >> ReadViaPandas(
-        'json', path, orient=orient, lines=lines, **kwargs)
+        'json', path, orient=orient, lines=lines, dtype=dtype, **kwargs)
 
   @append_pandas_args(
       pandas.DataFrame.to_json, exclude=['path_or_buf', 'index'])

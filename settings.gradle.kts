@@ -24,8 +24,8 @@ pluginManagement {
 }
 
 plugins {
-  id("com.gradle.enterprise") version "3.17.4"
-  id("com.gradle.common-custom-user-data-gradle-plugin") version "1.12.1"
+  id("com.gradle.develocity") version "3.17.6"
+  id("com.gradle.common-custom-user-data-gradle-plugin") version "2.0.1"
 }
 
 
@@ -35,16 +35,12 @@ val isJenkinsBuild = arrayOf("JENKINS_HOME", "BUILD_ID").all { System.getenv(it)
 val isGithubActionsBuild = arrayOf("GITHUB_REPOSITORY", "GITHUB_RUN_ID").all { System.getenv(it) != null }
 val isCi = isJenkinsBuild || isGithubActionsBuild
 
-gradleEnterprise {
+develocity {
   server = "https://ge.apache.org"
-  allowUntrustedServer = false
 
   buildScan {
-    capture { isTaskInputFiles = true }
-    isUploadInBackground = !isCi
-    publishAlways()
-    this as BuildScanExtensionWithHiddenFeatures
-    publishIfAuthenticated()
+    uploadInBackground = !isCi
+    publishing.onlyIf { it.isAuthenticated }
     obfuscation {
       ipAddresses { addresses -> addresses.map { "0.0.0.0" } }
     }
@@ -63,7 +59,7 @@ buildCache {
       password = System.getenv("GRADLE_ENTERPRISE_CACHE_PASSWORD")
     }
     isEnabled = !System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME").isNullOrBlank()
-    isPush = isCi
+    isPush = isCi && !System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME").isNullOrBlank()
   }
 }
 
@@ -157,6 +153,7 @@ include(":runners:jet")
 include(":runners:local-java")
 include(":runners:portability:java")
 include(":runners:prism")
+include(":runners:prism:java")
 include(":runners:spark:3")
 include(":runners:spark:3:job-server")
 include(":runners:spark:3:job-server:container")
@@ -223,9 +220,6 @@ include(":sdks:java:io:contextualtextio")
 include(":sdks:java:io:debezium")
 include(":sdks:java:io:debezium:expansion-service")
 include(":sdks:java:io:elasticsearch")
-include(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-2")
-include(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-5")
-include(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-6")
 include(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-7")
 include(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-8")
 include(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-common")
@@ -369,3 +363,9 @@ include("sdks:java:io:iceberg")
 findProject(":sdks:java:io:iceberg")?.name = "iceberg"
 include("sdks:java:io:solace")
 findProject(":sdks:java:io:solace")?.name = "solace"
+include("sdks:java:extensions:combiners")
+findProject(":sdks:java:extensions:combiners")?.name = "combiners"
+include("sdks:java:io:iceberg:hive")
+findProject(":sdks:java:io:iceberg:hive")?.name = "hive"
+include("sdks:java:io:iceberg:hive:exec")
+findProject(":sdks:java:io:iceberg:hive:exec")?.name = "exec"

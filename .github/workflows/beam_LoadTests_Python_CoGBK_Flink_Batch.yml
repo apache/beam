@@ -42,13 +42,13 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
   INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
   INFLUXDB_USER_PASSWORD: ${{ secrets.INFLUXDB_USER_PASSWORD }}
   GCLOUD_ZONE: us-central1-a
-  CLUSTER_NAME: beam-loadtests-python-cogbk-flink-batch-${{ github.run_id }}
+  CLUSTER_NAME: beam-loadtests-py-cogbk-flink-batch-${{ github.run_id }}
   GCS_BUCKET: gs://beam-flink-cluster
   FLINK_DOWNLOAD_URL: https://archive.apache.org/dist/flink/flink-1.15.0/flink-1.15.0-bin-scala_2.12.tgz
   HADOOP_DOWNLOAD_URL: https://repo.maven.apache.org/maven2/org/apache/flink/flink-shaded-hadoop-2-uber/2.8.3-10.0/flink-shaded-hadoop-2-uber-2.8.3-10.0.jar

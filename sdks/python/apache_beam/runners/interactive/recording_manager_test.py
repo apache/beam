@@ -308,7 +308,7 @@ class RecordingManagerTest(unittest.TestCase):
     # that all elements were written to cache.
     elems = list(numbers_stream.read())
     expected_elems = [
-        WindowedValue(i, MIN_TIMESTAMP, [GlobalWindow()]) for i in range(3)
+        WindowedValue(i, MIN_TIMESTAMP, (GlobalWindow(), )) for i in range(3)
     ]
     self.assertListEqual(elems, expected_elems)
 

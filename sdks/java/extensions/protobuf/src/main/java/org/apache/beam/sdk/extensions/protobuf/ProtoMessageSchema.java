@@ -28,7 +28,7 @@ import java.util.Map;
 import org.apache.beam.sdk.extensions.protobuf.ProtoByteBuddyUtils.ProtoTypeConversionsFactory;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
-import org.apache.beam.sdk.schemas.GetterBasedSchemaProvider;
+import org.apache.beam.sdk.schemas.GetterBasedSchemaProviderV2;
 import org.apache.beam.sdk.schemas.RowMessages;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
@@ -49,17 +49,17 @@ import org.checkerframework.checker.nullness.qual.Nullable;
   "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
-public class ProtoMessageSchema extends GetterBasedSchemaProvider {
+public class ProtoMessageSchema extends GetterBasedSchemaProviderV2 {
 
   private static final class ProtoClassFieldValueTypeSupplier implements FieldValueTypeSupplier {
     @Override
-    public List<FieldValueTypeInformation> get(Class<?> clazz) {
+    public List<FieldValueTypeInformation> get(TypeDescriptor<?> typeDescriptor) {
       throw new RuntimeException("Unexpected call.");
     }
 
     @Override
-    public List<FieldValueTypeInformation> get(Class<?> clazz, Schema schema) {
-      Multimap<String, Method> methods = ReflectUtils.getMethodsMap(clazz);
+    public List<FieldValueTypeInformation> get(TypeDescriptor<?> typeDescriptor, Schema schema) {
+      Multimap<String, Method> methods = ReflectUtils.getMethodsMap(typeDescriptor.getRawType());
       List<FieldValueTypeInformation> types =
           Lists.newArrayListWithCapacity(schema.getFieldCount());
       for (int i = 0; i < schema.getFieldCount(); ++i) {
@@ -96,9 +96,10 @@ public class ProtoMessageSchema extends GetterBasedSchemaProvider {
   }
 
   @Override
-  public List<FieldValueGetter> fieldValueGetters(Class<?> targetClass, Schema schema) {
+  public List<FieldValueGetter> fieldValueGetters(
+      TypeDescriptor<?> targetTypeDescriptor, Schema schema) {
     return ProtoByteBuddyUtils.getGetters(
-        targetClass,
+        targetTypeDescriptor.getRawType(),
         schema,
         new ProtoClassFieldValueTypeSupplier(),
         new ProtoTypeConversionsFactory());
@@ -106,17 +107,19 @@ public class ProtoMessageSchema extends GetterBasedSchemaProvider {
 
   @Override
   public List<FieldValueTypeInformation> fieldValueTypeInformations(
-      Class<?> targetClass, Schema schema) {
-    return JavaBeanUtils.getFieldTypes(targetClass, schema, new ProtoClassFieldValueTypeSupplier());
+      TypeDescriptor<?> targetTypeDescriptor, Schema schema) {
+    return JavaBeanUtils.getFieldTypes(
+        targetTypeDescriptor, schema, new ProtoClassFieldValueTypeSupplier());
   }
 
   @Override
-  public SchemaUserTypeCreator schemaTypeCreator(Class<?> targetClass, Schema schema) {
+  public SchemaUserTypeCreator schemaTypeCreator(
+      TypeDescriptor<?> targetTypeDescriptor, Schema schema) {
     SchemaUserTypeCreator creator =
         ProtoByteBuddyUtils.getBuilderCreator(
-            targetClass, schema, new ProtoClassFieldValueTypeSupplier());
+            targetTypeDescriptor.getRawType(), schema, new ProtoClassFieldValueTypeSupplier());
     if (creator == null) {
-      throw new RuntimeException("Cannot create creator for " + targetClass);
+      throw new RuntimeException("Cannot create creator for " + targetTypeDescriptor);
     }
     return creator;
   }

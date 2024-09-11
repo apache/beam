@@ -57,6 +57,9 @@ abstract class BigtableWriteOptions implements Serializable {
   /** Returns the target latency if latency based throttling is enabled. */
   abstract @Nullable Integer getThrottlingTargetMs();
 
+  /** Returns the target latency if latency based throttling report to runner is enabled. */
+  abstract @Nullable Integer getThrottlingReportTargetMs();
+
   /** Returns true if batch write flow control is enabled. Otherwise return false. */
   abstract @Nullable Boolean getFlowControl();
 
@@ -87,6 +90,8 @@ abstract class BigtableWriteOptions implements Serializable {
     abstract Builder setMaxOutstandingBytes(long bytes);
 
     abstract Builder setThrottlingTargetMs(int targetMs);
+
+    abstract Builder setThrottlingReportTargetMs(int targetMs);
 
     abstract Builder setFlowControl(boolean enableFlowControl);
 

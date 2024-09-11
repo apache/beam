@@ -32,8 +32,8 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/proto"
 
-	dtyp "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/mount"
 	dcli "github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
@@ -132,7 +132,7 @@ func dockerEnvironment(ctx context.Context, logger *slog.Logger, dp *pipepb.Dock
 	}
 	if _, _, err := cli.ImageInspectWithRaw(ctx, dp.GetContainerImage()); err != nil {
 		// We don't have a local image, so we should pull it.
-		if rc, err := cli.ImagePull(ctx, dp.GetContainerImage(), dtyp.ImagePullOptions{}); err == nil {
+		if rc, err := cli.ImagePull(ctx, dp.GetContainerImage(), image.PullOptions{}); err == nil {
 			// Copy the output, but discard it so we can wait until the image pull is finished.
 			io.Copy(io.Discard, rc)
 			rc.Close()
@@ -164,7 +164,7 @@ func dockerEnvironment(ctx context.Context, logger *slog.Logger, dp *pipepb.Dock
 	containerID := ccr.ID
 	logger = logger.With("container", containerID)
 
-	if err := cli.ContainerStart(ctx, containerID, dtyp.ContainerStartOptions{}); err != nil {
+	if err := cli.ContainerStart(ctx, containerID, container.StartOptions{}); err != nil {
 		cli.Close()
 		return fmt.Errorf("unable to start container image %v with docker for env %v, err: %w", dp.GetContainerImage(), wk.Env, err)
 	}
@@ -189,7 +189,7 @@ func dockerEnvironment(ctx context.Context, logger *slog.Logger, dp *pipepb.Dock
 		case resp := <-statusCh:
 			logger.Info("docker container has self terminated", "status_code", resp.StatusCode)
 
-			rc, err := cli.ContainerLogs(ctx, containerID, dtyp.ContainerLogsOptions{Details: true, ShowStdout: true, ShowStderr: true})
+			rc, err := cli.ContainerLogs(ctx, containerID, container.LogsOptions{Details: true, ShowStdout: true, ShowStderr: true})
 			if err != nil {
 				logger.Error("docker container logs error", "error", err)
 			}

@@ -180,6 +180,7 @@ message OptionMessage {
             single_string: "foobar in field"
             single_int32: 56
             single_int64: 78
+            optional_string: "this is optional"
         },
         (proto3_schema_options.field_option_repeated) = "field_string_1",
         (proto3_schema_options.field_option_repeated) = "field_string_2",
@@ -209,4 +210,15 @@ message SecondCircularNested {
 }
 
 message Empty {
+}
+
+message OptionalPrimitive {
+    optional int32 primitive_int32 = 1;
+    optional bool primitive_bool = 2;
+    optional string primitive_string = 3;
+    optional bytes primitive_bytes = 4;
+}
+
+message OptionalNested {
+    optional OptionalPrimitive nested = 1;
 }

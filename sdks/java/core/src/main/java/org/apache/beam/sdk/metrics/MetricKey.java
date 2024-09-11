@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.metrics;
 
 import com.google.auto.value.AutoValue;
+import com.google.auto.value.extension.memoized.Memoized;
 import java.io.Serializable;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -32,7 +33,8 @@ public abstract class MetricKey implements Serializable {
   public abstract MetricName metricName();
 
   @Override
-  public final String toString() {
+  @Memoized
+  public String toString() {
     return stepName() + ":" + metricName();
   }
 
