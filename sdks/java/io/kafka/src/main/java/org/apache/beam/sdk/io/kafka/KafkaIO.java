@@ -890,7 +890,6 @@ public class KafkaIO {
           builder.setRedistributeNumKeys(0);
           builder.setAllowDuplicates(false);
         }
-        System.out.println("xxx builder service" + builder.toString());
       }
 
       private static <T> Coder<T> resolveCoder(Class<Deserializer<T>> deserializer) {
