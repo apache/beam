@@ -29,6 +29,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
@@ -40,6 +41,7 @@ public class PreparePubsubWriteDoFn<InputT> extends DoFn<InputT, PubsubMessage> 
   private static final int PUBSUB_MESSAGE_ATTRIBUTE_MAX_VALUE_BYTES = 1024;
   // The amount of bytes that each attribute entry adds up to the request
   private static final int PUBSUB_MESSAGE_ATTRIBUTE_ENCODE_ADDITIONAL_BYTES = 6;
+  private boolean allowOrderingKey;
   private int maxPublishBatchSize;
 
   private SerializableFunction<ValueInSingleWindow<InputT>, PubsubMessage> formatFunction;
@@ -65,6 +67,20 @@ public class PreparePubsubWriteDoFn<InputT> extends DoFn<InputT, PubsubMessage> 
               + " bytes. See https://cloud.google.com/pubsub/quotas#resource_limits");
     }
     int totalSize = payloadSize;
+
+    @Nullable String orderingKey = message.getOrderingKey();
+    if (orderingKey != null) {
+      int orderingKeySize = orderingKey.getBytes(StandardCharsets.UTF_8).length;
+      if (orderingKeySize > PUBSUB_MESSAGE_ATTRIBUTE_MAX_VALUE_BYTES) {
+        throw new SizeLimitExceededException(
+            "Pubsub message ordering key of length "
+                + orderingKeySize
+                + " exceeds maximum of "
+                + PUBSUB_MESSAGE_ATTRIBUTE_MAX_VALUE_BYTES
+                + " bytes. See https://cloud.google.com/pubsub/quotas#resource_limits");
+      }
+      totalSize += orderingKeySize;
+    }
 
     @Nullable Map<String, String> attributes = message.getAttributeMap();
     if (attributes != null) {
@@ -125,12 +141,14 @@ public class PreparePubsubWriteDoFn<InputT> extends DoFn<InputT, PubsubMessage> 
       SerializableFunction<ValueInSingleWindow<InputT>, PubsubMessage> formatFunction,
       @Nullable
           SerializableFunction<ValueInSingleWindow<InputT>, PubsubIO.PubsubTopic> topicFunction,
+      boolean allowOrderingKey,
       int maxPublishBatchSize,
       BadRecordRouter badRecordRouter,
       Coder<InputT> inputCoder,
       TupleTag<PubsubMessage> outputTag) {
     this.formatFunction = formatFunction;
     this.topicFunction = topicFunction;
+    this.allowOrderingKey = allowOrderingKey;
     this.maxPublishBatchSize = maxPublishBatchSize;
     this.badRecordRouter = badRecordRouter;
     this.inputCoder = inputCoder;
@@ -174,6 +192,16 @@ public class PreparePubsubWriteDoFn<InputT> extends DoFn<InputT, PubsubMessage> 
       Lineage.getSinks()
           .add("pubsub", "topic", PubsubClient.topicPathFromPath(topic).getDataCatalogSegments());
       reportedLineage = topic;
+    }
+    // TODO: Remove this check once Dataflow's native sink supports ordering keys.
+    if (!allowOrderingKey && !Strings.isNullOrEmpty(message.getOrderingKey())) {
+      badRecordRouter.route(
+          o,
+          element,
+          inputCoder,
+          null,
+          "The transform was not configured to publish messages with ordering keys");
+      return;
     }
     try {
       validatePubsubMessageSize(message, maxPublishBatchSize);

@@ -22,7 +22,6 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import com.google.api.client.util.Clock;
 import com.google.auto.value.AutoValue;
-import com.google.protobuf.ByteString;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -738,20 +737,6 @@ public class PubsubIO {
         .setTopicProvider(null)
         .setTopicFunction(null)
         .setDynamicDestinations(false)
-        .build();
-  }
-
-  /**
-   * Returns A {@link PTransform} that writes {@link PubsubMessage}s, along with the {@link
-   * PubsubMessage#getMessageId() messageId} and {@link PubsubMessage#getOrderingKey()}, to a Google
-   * Cloud Pub/Sub stream.
-   */
-  public static Write<PubsubMessage> writeMessagesWithOrderingKey() {
-    return Write.newBuilder()
-        .setTopicProvider(null)
-        .setTopicFunction(null)
-        .setDynamicDestinations(false)
-        .setNeedsOrderingKey(true)
         .build();
   }
 
@@ -1475,6 +1460,19 @@ public class PubsubIO {
     }
 
     /**
+     * Writes to Pub/Sub with each record's ordering key. A subscription with message ordering
+     * enabled will receive messages published in the same region with the same ordering key in the
+     * order in which they were received by the service. Note that the order in which Beam publishes
+     * records to the service remains unspecified.
+     *
+     * @see <a href="https://cloud.google.com/pubsub/docs/ordering">Pub/Sub documentation on message
+     *     ordering</a>
+     */
+    public Write<T> withOrderingKey() {
+      return toBuilder().setNeedsOrderingKey(true).build();
+    }
+
+    /**
      * Writes to Pub/Sub and adds each record's timestamp to the published messages in an attribute
      * with the specified name. The value of the attribute will be a number representing the number
      * of milliseconds since the Unix epoch. For example, if using the Joda time classes, {@link
@@ -1545,6 +1543,7 @@ public class PubsubIO {
                       new PreparePubsubWriteDoFn<>(
                           getFormatFn(),
                           topicFunction,
+                          getNeedsOrderingKey(),
                           maxMessageSize,
                           getBadRecordRouter(),
                           input.getCoder(),
@@ -1581,6 +1580,7 @@ public class PubsubIO {
                   getTimestampAttribute(),
                   getIdAttribute(),
                   100 /* numShards */,
+                  getNeedsOrderingKey(),
                   MoreObjects.firstNonNull(
                       getMaxBatchSize(), PubsubUnboundedSink.DEFAULT_PUBLISH_BATCH_SIZE),
                   MoreObjects.firstNonNull(
@@ -1613,7 +1613,9 @@ public class PubsubIO {
         }
       }
 
-      private transient Map<PubsubTopic, OutgoingData> output;
+      // NOTE: A single publish request may only write to one ordering key.
+      // See https://cloud.google.com/pubsub/docs/publisher#using-ordering-keys for details.
+      private transient Map<KV<PubsubTopic, String>, OutgoingData> output;
 
       private transient PubsubClient pubsubClient;
 
@@ -1644,51 +1646,44 @@ public class PubsubIO {
       public void processElement(@Element PubsubMessage message, @Timestamp Instant timestamp)
           throws IOException, SizeLimitExceededException {
         // Validate again here just as a sanity check.
+        // TODO(sjvanrossum): https://github.com/apache/beam/issues/31800
         PreparePubsubWriteDoFn.validatePubsubMessageSize(message, maxPublishBatchByteSize);
-        byte[] payload = message.getPayload();
-        int messageSize = payload.length;
+        // NOTE: The record id is always null.
+        final OutgoingMessage msg =
+            OutgoingMessage.of(message, timestamp.getMillis(), null, message.getTopic());
+        // TODO(sjvanrossum): https://github.com/apache/beam/issues/31800
+        final int messageSize = msg.getMessage().getData().size();
 
-        PubsubTopic pubsubTopic;
+        final PubsubTopic pubsubTopic;
         if (getTopicProvider() != null) {
           pubsubTopic = getTopicProvider().get();
         } else {
-          pubsubTopic =
-              PubsubTopic.fromPath(Preconditions.checkArgumentNotNull(message.getTopic()));
+          pubsubTopic = PubsubTopic.fromPath(Preconditions.checkArgumentNotNull(msg.topic()));
         }
+
         // Checking before adding the message stops us from violating max batch size or bytes
-        OutgoingData currentTopicOutput =
-            output.computeIfAbsent(pubsubTopic, t -> new OutgoingData());
-        if (currentTopicOutput.messages.size() >= maxPublishBatchSize
-            || (!currentTopicOutput.messages.isEmpty()
-                && (currentTopicOutput.bytes + messageSize) >= maxPublishBatchByteSize)) {
-          publish(pubsubTopic, currentTopicOutput.messages);
-          currentTopicOutput.messages.clear();
-          currentTopicOutput.bytes = 0;
+        final OutgoingData currentTopicAndOrderingKeyOutput =
+            output.computeIfAbsent(
+                KV.of(pubsubTopic, msg.getMessage().getOrderingKey()), t -> new OutgoingData());
+        // TODO(sjvanrossum): https://github.com/apache/beam/issues/31800
+        if (currentTopicAndOrderingKeyOutput.messages.size() >= maxPublishBatchSize
+            || (!currentTopicAndOrderingKeyOutput.messages.isEmpty()
+                && (currentTopicAndOrderingKeyOutput.bytes + messageSize)
+                    >= maxPublishBatchByteSize)) {
+          publish(pubsubTopic, currentTopicAndOrderingKeyOutput.messages);
+          currentTopicAndOrderingKeyOutput.messages.clear();
+          currentTopicAndOrderingKeyOutput.bytes = 0;
         }
 
-        Map<String, String> attributes = message.getAttributeMap();
-        String orderingKey = message.getOrderingKey();
-
-        com.google.pubsub.v1.PubsubMessage.Builder msgBuilder =
-            com.google.pubsub.v1.PubsubMessage.newBuilder()
-                .setData(ByteString.copyFrom(payload))
-                .putAllAttributes(attributes);
-
-        if (orderingKey != null) {
-          msgBuilder.setOrderingKey(orderingKey);
-        }
-
-        // NOTE: The record id is always null.
-        currentTopicOutput.messages.add(
-            OutgoingMessage.of(
-                msgBuilder.build(), timestamp.getMillis(), null, message.getTopic()));
-        currentTopicOutput.bytes += messageSize;
+        currentTopicAndOrderingKeyOutput.messages.add(msg);
+        // TODO(sjvanrossum): https://github.com/apache/beam/issues/31800
+        currentTopicAndOrderingKeyOutput.bytes += messageSize;
       }
 
       @FinishBundle
       public void finishBundle() throws IOException {
-        for (Map.Entry<PubsubTopic, OutgoingData> entry : output.entrySet()) {
-          publish(entry.getKey(), entry.getValue().messages);
+        for (Map.Entry<KV<PubsubTopic, String>, OutgoingData> entry : output.entrySet()) {
+          publish(entry.getKey().getKey(), entry.getValue().messages);
         }
         output = null;
         pubsubClient.close();

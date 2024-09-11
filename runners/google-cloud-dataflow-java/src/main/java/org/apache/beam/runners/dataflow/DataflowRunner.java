@@ -20,6 +20,7 @@ package org.apache.beam.runners.dataflow;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubIO.ENABLE_CUSTOM_PUBSUB_SINK;
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubIO.ENABLE_CUSTOM_PUBSUB_SOURCE;
+import static org.apache.beam.sdk.options.ExperimentalOptions.hasExperiment;
 import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
 import static org.apache.beam.sdk.util.SerializableUtils.serializeToByteArray;
 import static org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString;
@@ -2033,6 +2034,16 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         PubsubUnboundedSink overriddenTransform,
         StepTranslationContext stepContext,
         PCollection input) {
+      if (overriddenTransform.getPublishBatchWithOrderingKey()) {
+        throw new UnsupportedOperationException(
+            String.format(
+                "%s does not currently support publishing with ordering keys. "
+                    + "%s is required to support publishing with ordering keys. "
+                    + "Set the pipeline option --experiments=%s to use this PTransform.",
+                StreamingPubsubIOWrite.class.getSimpleName(),
+                PubsubUnboundedSink.class.getSimpleName(),
+                ENABLE_CUSTOM_PUBSUB_SINK));
+      }
       stepContext.addInput(PropertyNames.FORMAT, "pubsub");
       if (overriddenTransform.getTopicProvider() != null) {
         if (overriddenTransform.getTopicProvider().isAccessible()) {
