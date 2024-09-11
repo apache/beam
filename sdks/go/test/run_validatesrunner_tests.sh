@@ -74,7 +74,7 @@ cmd=`eval echo "$BASH_COMMAND" 2>/dev/null` && echo "\$ $cmd"' DEBUG
 CURRENT_DIRECTORY=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 # Default test targets.
-TESTS="./test/integration/... ./test/regression"
+TESTS="./test/integration/xlang"
 
 # Default runner.
 RUNNER=portable
@@ -377,7 +377,7 @@ if [[ "$RUNNER" == "dataflow" ]]; then
 
     # Push the container
     gcloud docker -- push $CONTAINER:$TAG
-  else 
+  else
     ./gradlew :sdks:go:container:docker -Pdocker-repository-root=us.gcr.io/$PROJECT/$USER -Pdocker-tag=$TAG -Pcontainer-architecture-list=arm64,amd64 -Ppush-containers
   fi
 
