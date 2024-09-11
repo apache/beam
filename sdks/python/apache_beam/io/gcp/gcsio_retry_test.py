@@ -47,7 +47,9 @@ class TestGCSIORetry(unittest.TestCase):
 
   def test_retry_on_throttling(self):
     mock = Mock(
-        side_effect=[api_exceptions.TooManyRequests("Slow down!"), 12345])
+        side_effect=[api_exceptions.TooManyRequests("Slow down!"),
+                     api_exceptions.TooManyRequests("Slow down again!"),
+                     12345])
     retry = gcsio_retry.DEFAULT_RETRY_WITH_THROTTLING_COUNTERS
 
     sampler = statesampler.StateSampler('', counters.CounterFactory())
