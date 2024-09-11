@@ -1,4 +1,69 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – blog</title><link>/categories/blog/</link><description>Recent content in blog on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Thu, 15 Aug 2024 13:00:00 -0800</lastBuildDate><atom:link href="/categories/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.58.1</title><link>/blog/beam-2.58.1/</link><pubDate>Thu, 15 Aug 2024 13:00:00 -0800</pubDate><guid>/blog/beam-2.58.1/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – blog</title><link>/categories/blog/</link><description>Recent content in blog on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Wed, 11 Sep 2024 13:00:00 -0800</lastBuildDate><atom:link href="/categories/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.59.0</title><link>/blog/beam-2.59.0/</link><pubDate>Wed, 11 Sep 2024 13:00:00 -0800</pubDate><guid>/blog/beam-2.59.0/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>We are happy to present the new 2.59.0 release of Beam.
+This release includes both improvements and new functionality.
+See the &lt;a href="/get-started/downloads/#2590-2024-09-11">download page&lt;/a> for this release.&lt;/p>
+&lt;p>For more information on changes in 2.59.0, check out the &lt;a href="https://github.com/apache/beam/milestone/23">detailed release notes&lt;/a>.&lt;/p>
+&lt;h2 id="highlights">Highlights&lt;/h2>
+&lt;ul>
+&lt;li>Added support for setting a configureable timeout when loading a model and performing inference in the &lt;a href="https://beam.apache.org/documentation/ml/inference-overview/">RunInference&lt;/a> transform using &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.base.html#apache_beam.ml.inference.base.RunInference.with_exception_handling">with_exception_handling&lt;/a> (&lt;a href="https://github.com/apache/beam/issues/32137">#32137&lt;/a>)&lt;/li>
+&lt;li>Initial experimental support for using Prism with the Java and Python SDKs
+&lt;ul>
+&lt;li>Prism is presently targeting local testing usage, or other small scale execution.&lt;/li>
+&lt;li>For Java, use &amp;lsquo;PrismRunner&amp;rsquo;, or &amp;lsquo;TestPrismRunner&amp;rsquo; as an argument to the &lt;code>--runner&lt;/code> flag.&lt;/li>
+&lt;li>For Python, use &amp;lsquo;PrismRunner&amp;rsquo; as an argument to the &lt;code>--runner&lt;/code> flag.&lt;/li>
+&lt;li>Go already uses Prism as the default local runner.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ul>
+&lt;h2 id="ios">I/Os&lt;/h2>
+&lt;ul>
+&lt;li>Improvements to the performance of BigqueryIO when using withPropagateSuccessfulStorageApiWrites(true) method (Java) (&lt;a href="https://github.com/apache/beam/pull/31840">#31840&lt;/a>).&lt;/li>
+&lt;li>[Managed Iceberg] Added support for writing to partitioned tables (&lt;a href="https://github.com/apache/beam/pull/32102">#32102&lt;/a>)&lt;/li>
+&lt;li>Update ClickHouseIO to use the latest version of the ClickHouse JDBC driver (&lt;a href="https://github.com/apache/beam/issues/32228">#32228&lt;/a>).&lt;/li>
+&lt;li>Add ClickHouseIO dedicated User-Agent (&lt;a href="https://github.com/apache/beam/issues/32252">#32252&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
+&lt;ul>
+&lt;li>BigQuery endpoint can be overridden via PipelineOptions, this enables BigQuery emulators (Java) (&lt;a href="https://github.com/apache/beam/issues/28149">#28149&lt;/a>).&lt;/li>
+&lt;li>Go SDK Minimum Go Version updated to 1.21 (&lt;a href="https://github.com/apache/beam/pull/32092">#32092&lt;/a>).&lt;/li>
+&lt;li>[BigQueryIO] Added support for withFormatRecordOnFailureFunction() for STORAGE_WRITE_API and STORAGE_API_AT_LEAST_ONCE methods (Java) (&lt;a href="https://github.com/apache/beam/issues/31354">#31354&lt;/a>).&lt;/li>
+&lt;li>Updated Go protobuf package to new version (Go) (&lt;a href="https://github.com/apache/beam/issues/21515">#21515&lt;/a>).&lt;/li>
+&lt;li>Added support for setting a configureable timeout when loading a model and performing inference in the &lt;a href="https://beam.apache.org/documentation/ml/inference-overview/">RunInference&lt;/a> transform using &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.base.html#apache_beam.ml.inference.base.RunInference.with_exception_handling">with_exception_handling&lt;/a> (&lt;a href="https://github.com/apache/beam/issues/32137">#32137&lt;/a>)&lt;/li>
+&lt;li>Adds OrderedListState support for Java SDK via FnApi.&lt;/li>
+&lt;li>Initial support for using Prism from the Python and Java SDKs.&lt;/li>
+&lt;/ul>
+&lt;h2 id="bugfixes">Bugfixes&lt;/h2>
+&lt;ul>
+&lt;li>Fixed incorrect service account impersonation flow for Python pipelines using BigQuery IOs (&lt;a href="https://github.com/apache/beam/issues/32030">#32030&lt;/a>).&lt;/li>
+&lt;li>Auto-disable broken and meaningless &lt;code>upload_graph&lt;/code> feature when using Dataflow Runner V2 (&lt;a href="https://github.com/apache/beam/issues/32159">#32159&lt;/a>).&lt;/li>
+&lt;li>(Python) Upgraded google-cloud-storage to version 2.18.2 to fix a data corruption issue (&lt;a href="https://github.com/apache/beam/pull/32135">#32135&lt;/a>).&lt;/li>
+&lt;li>(Go) Fix corruption on State API writes. (&lt;a href="https://github.com/apache/beam/issues/32245">#32245&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="known-issues">Known Issues&lt;/h2>
+&lt;ul>
+&lt;li>Prism is under active development and does not yet support all pipelines. See &lt;a href="https://github.com/apache/beam/issues/29650">#29650&lt;/a> for progress.
+&lt;ul>
+&lt;li>In the 2.59.0 release, Prism passes most runner validations tests with the exceptions of pipelines using the following features:
+OrderedListState, OnWindowExpiry (eg. GroupIntoBatches), CustomWindows, MergingWindowFns, Trigger and WindowingStrategy associated features, Bundle Finalization, Looping Timers, and some Coder related issues such as with Python combiner packing, and Java Schema transforms, and heterogenous flatten coders. Processing Time timers do not yet have real time support.&lt;/li>
+&lt;li>If your pipeline is having difficulty with the Python or Java direct runners, but runs well on Prism, please let us know.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ul>
+&lt;p>For the most up to date list of known issues, see &lt;a href="https://github.com/apache/beam/blob/master/CHANGES.md">https://github.com/apache/beam/blob/master/CHANGES.md&lt;/a>&lt;/p>
+&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
+&lt;p>According to git shortlog, the following people contributed to the 2.59.0 release. Thank you to all contributors!&lt;/p>
+&lt;p>Ahmed Abualsaud,Ahmet Altay,Andrew Crites,atask-g,Axel Magnuson,Ayush Pandey,Bartosz Zablocki,Chamikara Jayalath,cutiepie-10,Damon,Danny McCormick,dependabot[bot],Eddie Phillips,Francis O&amp;rsquo;Hara,Hyeonho Kim,Israel Herraiz,Jack McCluskey,Jaehyeon Kim,Jan Lukavský,Jeff Kinard,Jeffrey Kinard,jonathan-lemos,jrmccluskey,Kirill Berezin,Kiruphasankaran Nataraj,lahariguduru,liferoad,lostluck,Maciej Szwaja,Manit Gupta,Mark Zitnik,martin trieu,Naireen Hussain,Prerit Chandok,Radosław Stankiewicz,Rebecca Szper,Robert Bradshaw,Robert Burke,ron-gal,Sam Whittle,Sergei Lilichenko,Shunping Huang,Svetak Sundhar,Thiago Nunes,Timothy Itodo,tvalentyn,twosom,Vatsal,Vitaly Terentyev,Vlado Djerek,Yifan Ye,Yi Hu&lt;/p></description></item><item><title>Blog: Apache Beam 2.58.1</title><link>/blog/beam-2.58.1/</link><pubDate>Thu, 15 Aug 2024 13:00:00 -0800</pubDate><guid>/blog/beam-2.58.1/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -7118,97 +7183,4 @@ Quentin Sommer, Reuven Lax, Robert Bradshaw, Robert Burke, Rui Wang, Sam Rohde, 
 Siyuan Chen, Sruthi Sree Kumar, Steve Niemitz, Sylvain Veyrié, Tomo Suzuki, Udi Meiri, Valentyn Tymofieiev,
 Vitaly Terentyev, Wenbing, Xinyu Liu, Yichi Zhang, Yifan Mai, Yueyang Qiu, Yunqing Zhou, ajo thomas, brucearctor,
 dmkozh, dpcollins-google, emily, jordan-moore, kileys, lostluck, masahitojp, roger-mike, sychen, tvalentyn,
-vachan-shetty, yoshiki.obata&lt;/p></description></item><item><title>Blog: How to validate a Beam Release</title><link>/blog/validate-beam-release/</link><pubDate>Tue, 08 Jun 2021 00:00:01 -0800</pubDate><guid>/blog/validate-beam-release/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>Performing new releases is a core responsibility of any software project.
-It is even more important in the culture of Apache projects. Releases are
-the main flow of new code / features among the community of a project.&lt;/p>
-&lt;p>Beam is no exception: We aspire to keep a release cadence of about 6 weeks,
-and try to work with the community to release useful new features, and to
-keep Beam useful.&lt;/p>
-&lt;h3 id="configure-a-java-build-to-validate-a-beam-release-candidate">Configure a Java build to validate a Beam release candidate&lt;/h3>
-&lt;p>First of all, it would be useful to have a single property in your &lt;code>pom.xml&lt;/code>
-where you keep the global Beam version that you&amp;rsquo;re using. Something like this
-in your &lt;code>pom.xml&lt;/code>:&lt;/p>
-&lt;div class='language-java snippet'>
-&lt;div class="notebook-skip code-snippet">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="line">&lt;span class="cl">&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">properties&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">...&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">version&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">2&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">26&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">0&lt;/span>&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">version&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">...&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">properties&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">dependencies&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">dependency&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">groupId&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">org&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apache&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">beam&lt;/span>&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">groupId&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">artifactId&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="n">sdks&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="n">java&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="n">core&lt;/span>&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">artifactId&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">version&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">$&lt;/span>&lt;span class="o">{&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">version&lt;/span>&lt;span class="o">}&amp;lt;/&lt;/span>&lt;span class="n">version&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">dependency&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">...&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">dependencies&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;p>Second, you can add a new profile to your &lt;code>pom.xml&lt;/code> file. In this new profile,
-add a new repository with the staging repository for the new Beam release. For
-Beam 2.27.0, this was &lt;code>https://repository.apache.org/content/repositories/orgapachebeam-1149/&lt;/code>.&lt;/p>
-&lt;div class='language-java snippet'>
-&lt;div class="notebook-skip code-snippet">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="line">&lt;span class="cl"> &lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">profile&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">id&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">validaterelease&lt;/span>&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">id&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">repositories&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">repository&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">id&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">apache&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">newrelease&lt;/span>&lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">id&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">url&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">$&lt;/span>&lt;span class="o">{&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">release&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">repo&lt;/span>&lt;span class="o">}&amp;lt;/&lt;/span>&lt;span class="n">url&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">repository&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">repositories&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">&amp;lt;/&lt;/span>&lt;span class="n">profile&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;p>Once you have a &lt;code>beam.version&lt;/code> property in your &lt;code>pom.xml&lt;/code>, and a new profile
-with the new release, you can run your &lt;code>mvn&lt;/code> command activating the new profile,
-and the new Beam version:&lt;/p>
-&lt;pre tabindex="0">&lt;code>mvn test -Pvalidaterelease \
--Dbeam.version=2.27.0 \
--Dbeam.release.repo=https://repository.apache.org/content/repositories/orgapachebeam-XXXX/
-&lt;/code>&lt;/pre>&lt;p>This should build your project against the new release, and run basic tests.
-It will allow you to run basic validations against the new Beam release.
-If you find any issues, then you can share them &lt;em>before&lt;/em> the release is
-finalized, so your concerns can be addressed by the community.&lt;/p>
-&lt;h3 id="configuring-a-python-build-to-validate-a-beam-release-candidate">Configuring a Python build to validate a Beam release candidate&lt;/h3>
-&lt;p>For Python SDK releases, you can install SDK from Pypi, by enabling the
-installation of pre-release artifacts.&lt;/p>
-&lt;p>First, make sure that your &lt;code>requirements.txt&lt;/code> or &lt;code>setup.py&lt;/code> files allow
-for Beam versions above the current one. Something like this should install
-the latest available version:&lt;/p>
-&lt;pre tabindex="0">&lt;code>apache-beam&amp;lt;=3.0.0
-&lt;/code>&lt;/pre>&lt;p>With that, you can ask &lt;code>pip&lt;/code> to install pre-release versions of Beam in your
-environment:&lt;/p>
-&lt;pre tabindex="0">&lt;code>pip install --pre apache-beam
-&lt;/code>&lt;/pre>&lt;p>With that, the Beam version in your environment will be the latest release
-candidate, and you can go ahead and run your tests to verify that everything
-works well.&lt;/p>
-&lt;h3 id="configuring-a-go-build-to-validate-a-beam-release-candidate">Configuring a Go build to validate a Beam release candidate&lt;/h3>
-&lt;p>For Go SDK releases, you can fetch the Go SDK RC using &lt;a href="https://golang.org/ref/mod#go-get">&lt;code>go get&lt;/code>&lt;/a>,
-by requesting the specific pre-release version.&lt;/p>
-&lt;p>For example, to request the first release candidate for 2.44.0:&lt;/p>
-&lt;pre tabindex="0">&lt;code>go get -d github.com/apache/beam/sdks/v2@v2.44.0-RC1
-&lt;/code>&lt;/pre>&lt;p>With that, the Beam version in your &lt;code>go.mod&lt;/code> will be the specified release candidate.
-You can go ahead and run your tests to verify that everything works well.&lt;/p>
-&lt;p>You may need to also specify the RC&amp;rsquo;s matching container when running a job.
-Use the &lt;code>--environment_config&lt;/code> flag to specify the release candidate container:
-eg. &lt;code>--environment_config=apache/beam_go_sdk:2.44.0rc1&lt;/code>&lt;/p></description></item></channel></rss>
+vachan-shetty, yoshiki.obata&lt;/p></description></item></channel></rss>

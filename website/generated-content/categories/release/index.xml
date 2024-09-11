@@ -1,4 +1,69 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – release</title><link>/categories/release/</link><description>Recent content in release on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Thu, 15 Aug 2024 13:00:00 -0800</lastBuildDate><atom:link href="/categories/release/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.58.1</title><link>/blog/beam-2.58.1/</link><pubDate>Thu, 15 Aug 2024 13:00:00 -0800</pubDate><guid>/blog/beam-2.58.1/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – release</title><link>/categories/release/</link><description>Recent content in release on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Wed, 11 Sep 2024 13:00:00 -0800</lastBuildDate><atom:link href="/categories/release/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.59.0</title><link>/blog/beam-2.59.0/</link><pubDate>Wed, 11 Sep 2024 13:00:00 -0800</pubDate><guid>/blog/beam-2.59.0/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>We are happy to present the new 2.59.0 release of Beam.
+This release includes both improvements and new functionality.
+See the &lt;a href="/get-started/downloads/#2590-2024-09-11">download page&lt;/a> for this release.&lt;/p>
+&lt;p>For more information on changes in 2.59.0, check out the &lt;a href="https://github.com/apache/beam/milestone/23">detailed release notes&lt;/a>.&lt;/p>
+&lt;h2 id="highlights">Highlights&lt;/h2>
+&lt;ul>
+&lt;li>Added support for setting a configureable timeout when loading a model and performing inference in the &lt;a href="https://beam.apache.org/documentation/ml/inference-overview/">RunInference&lt;/a> transform using &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.base.html#apache_beam.ml.inference.base.RunInference.with_exception_handling">with_exception_handling&lt;/a> (&lt;a href="https://github.com/apache/beam/issues/32137">#32137&lt;/a>)&lt;/li>
+&lt;li>Initial experimental support for using Prism with the Java and Python SDKs
+&lt;ul>
+&lt;li>Prism is presently targeting local testing usage, or other small scale execution.&lt;/li>
+&lt;li>For Java, use &amp;lsquo;PrismRunner&amp;rsquo;, or &amp;lsquo;TestPrismRunner&amp;rsquo; as an argument to the &lt;code>--runner&lt;/code> flag.&lt;/li>
+&lt;li>For Python, use &amp;lsquo;PrismRunner&amp;rsquo; as an argument to the &lt;code>--runner&lt;/code> flag.&lt;/li>
+&lt;li>Go already uses Prism as the default local runner.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ul>
+&lt;h2 id="ios">I/Os&lt;/h2>
+&lt;ul>
+&lt;li>Improvements to the performance of BigqueryIO when using withPropagateSuccessfulStorageApiWrites(true) method (Java) (&lt;a href="https://github.com/apache/beam/pull/31840">#31840&lt;/a>).&lt;/li>
+&lt;li>[Managed Iceberg] Added support for writing to partitioned tables (&lt;a href="https://github.com/apache/beam/pull/32102">#32102&lt;/a>)&lt;/li>
+&lt;li>Update ClickHouseIO to use the latest version of the ClickHouse JDBC driver (&lt;a href="https://github.com/apache/beam/issues/32228">#32228&lt;/a>).&lt;/li>
+&lt;li>Add ClickHouseIO dedicated User-Agent (&lt;a href="https://github.com/apache/beam/issues/32252">#32252&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
+&lt;ul>
+&lt;li>BigQuery endpoint can be overridden via PipelineOptions, this enables BigQuery emulators (Java) (&lt;a href="https://github.com/apache/beam/issues/28149">#28149&lt;/a>).&lt;/li>
+&lt;li>Go SDK Minimum Go Version updated to 1.21 (&lt;a href="https://github.com/apache/beam/pull/32092">#32092&lt;/a>).&lt;/li>
+&lt;li>[BigQueryIO] Added support for withFormatRecordOnFailureFunction() for STORAGE_WRITE_API and STORAGE_API_AT_LEAST_ONCE methods (Java) (&lt;a href="https://github.com/apache/beam/issues/31354">#31354&lt;/a>).&lt;/li>
+&lt;li>Updated Go protobuf package to new version (Go) (&lt;a href="https://github.com/apache/beam/issues/21515">#21515&lt;/a>).&lt;/li>
+&lt;li>Added support for setting a configureable timeout when loading a model and performing inference in the &lt;a href="https://beam.apache.org/documentation/ml/inference-overview/">RunInference&lt;/a> transform using &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.base.html#apache_beam.ml.inference.base.RunInference.with_exception_handling">with_exception_handling&lt;/a> (&lt;a href="https://github.com/apache/beam/issues/32137">#32137&lt;/a>)&lt;/li>
+&lt;li>Adds OrderedListState support for Java SDK via FnApi.&lt;/li>
+&lt;li>Initial support for using Prism from the Python and Java SDKs.&lt;/li>
+&lt;/ul>
+&lt;h2 id="bugfixes">Bugfixes&lt;/h2>
+&lt;ul>
+&lt;li>Fixed incorrect service account impersonation flow for Python pipelines using BigQuery IOs (&lt;a href="https://github.com/apache/beam/issues/32030">#32030&lt;/a>).&lt;/li>
+&lt;li>Auto-disable broken and meaningless &lt;code>upload_graph&lt;/code> feature when using Dataflow Runner V2 (&lt;a href="https://github.com/apache/beam/issues/32159">#32159&lt;/a>).&lt;/li>
+&lt;li>(Python) Upgraded google-cloud-storage to version 2.18.2 to fix a data corruption issue (&lt;a href="https://github.com/apache/beam/pull/32135">#32135&lt;/a>).&lt;/li>
+&lt;li>(Go) Fix corruption on State API writes. (&lt;a href="https://github.com/apache/beam/issues/32245">#32245&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="known-issues">Known Issues&lt;/h2>
+&lt;ul>
+&lt;li>Prism is under active development and does not yet support all pipelines. See &lt;a href="https://github.com/apache/beam/issues/29650">#29650&lt;/a> for progress.
+&lt;ul>
+&lt;li>In the 2.59.0 release, Prism passes most runner validations tests with the exceptions of pipelines using the following features:
+OrderedListState, OnWindowExpiry (eg. GroupIntoBatches), CustomWindows, MergingWindowFns, Trigger and WindowingStrategy associated features, Bundle Finalization, Looping Timers, and some Coder related issues such as with Python combiner packing, and Java Schema transforms, and heterogenous flatten coders. Processing Time timers do not yet have real time support.&lt;/li>
+&lt;li>If your pipeline is having difficulty with the Python or Java direct runners, but runs well on Prism, please let us know.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ul>
+&lt;p>For the most up to date list of known issues, see &lt;a href="https://github.com/apache/beam/blob/master/CHANGES.md">https://github.com/apache/beam/blob/master/CHANGES.md&lt;/a>&lt;/p>
+&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
+&lt;p>According to git shortlog, the following people contributed to the 2.59.0 release. Thank you to all contributors!&lt;/p>
+&lt;p>Ahmed Abualsaud,Ahmet Altay,Andrew Crites,atask-g,Axel Magnuson,Ayush Pandey,Bartosz Zablocki,Chamikara Jayalath,cutiepie-10,Damon,Danny McCormick,dependabot[bot],Eddie Phillips,Francis O&amp;rsquo;Hara,Hyeonho Kim,Israel Herraiz,Jack McCluskey,Jaehyeon Kim,Jan Lukavský,Jeff Kinard,Jeffrey Kinard,jonathan-lemos,jrmccluskey,Kirill Berezin,Kiruphasankaran Nataraj,lahariguduru,liferoad,lostluck,Maciej Szwaja,Manit Gupta,Mark Zitnik,martin trieu,Naireen Hussain,Prerit Chandok,Radosław Stankiewicz,Rebecca Szper,Robert Bradshaw,Robert Burke,ron-gal,Sam Whittle,Sergei Lilichenko,Shunping Huang,Svetak Sundhar,Thiago Nunes,Timothy Itodo,tvalentyn,twosom,Vatsal,Vitaly Terentyev,Vlado Djerek,Yifan Ye,Yi Hu&lt;/p></description></item><item><title>Blog: Apache Beam 2.58.1</title><link>/blog/beam-2.58.1/</link><pubDate>Thu, 15 Aug 2024 13:00:00 -0800</pubDate><guid>/blog/beam-2.58.1/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -4972,104 +5037,4 @@ Maximilian Michels, Melissa Pashniak, Michael Luckey, Michal Walenia, Mike Peder
 Mikhail Gryzykhin, Niel Markwick, Pablo Estrada, Pascal Gula, Reuven Lax, Robbe Sneyders,
 Robert Bradshaw, Robert Burke, Rui Wang, Ruoyun Huang, Ryan Williams, Sam Rohde, Sam Whittle,
 Scott Wegner, Tanay Tummalapalli, Thomas Weise, Tianyang Hu, Tyler Akidau, Udi Meiri,
-Valentyn Tymofieiev, Xinyu Liu, Xu Mingmin, Łukasz Gajowy.&lt;/p></description></item><item><title>Blog: Apache Beam 2.10.0</title><link>/blog/beam-2.10.0/</link><pubDate>Fri, 15 Feb 2019 00:00:01 -0800</pubDate><guid>/blog/beam-2.10.0/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>We are happy to present the new 2.10.0 release of Beam. This release includes both improvements and new functionality.
-See the &lt;a href="/get-started/downloads/#2100-2019-02-01">download page&lt;/a> for this release.&lt;/p>
-&lt;p>For more information on changes in 2.10.0, check out the
-&lt;a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12344540">detailed release notes&lt;/a>.&lt;/p>
-&lt;h2 id="highlights">Highlights&lt;/h2>
-&lt;h3 id="dependency-upgradeschanges">Dependency Upgrades/Changes&lt;/h3>
-&lt;ul>
-&lt;li>FlinkRunner: Flink 1.5.x/1.6.x/1.7.x&lt;/li>
-&lt;li>Java: AutoValue 1.6.3&lt;/li>
-&lt;li>Java: Jackson 2.9.8&lt;/li>
-&lt;li>Java: google_cloud_bigdataoss 1.9.13&lt;/li>
-&lt;li>Java: Apache Commons Codec: 1.10&lt;/li>
-&lt;li>Python: avro&amp;gt;=1.8.1,&amp;lt;2.0.0; python_version &amp;lt; &amp;ldquo;3.0&amp;rdquo;&lt;/li>
-&lt;li>Python: avro-python3&amp;gt;=1.8.1,&amp;lt;2.0.0; python_version &amp;gt;= &amp;ldquo;3.0&amp;rdquo;&lt;/li>
-&lt;li>Python: bigdataoss_gcsio 1.9.12&lt;/li>
-&lt;li>Python: dill&amp;gt;=0.2.9,&amp;lt;0.2.10&lt;/li>
-&lt;li>Python: gcsio 1.9.13&lt;/li>
-&lt;li>Python: google-cloud-pubsub 0.39.0&lt;/li>
-&lt;li>Python: pytz&amp;gt;=2018.3&lt;/li>
-&lt;li>Python: pyyaml&amp;gt;=3.12,&amp;lt;4.0.0&lt;/li>
-&lt;li>MongoDbIO: mongo client 3.9.1&lt;/li>
-&lt;/ul>
-&lt;h3 id="ios">I/Os&lt;/h3>
-&lt;ul>
-&lt;li>ParquetIO for Python SDK&lt;/li>
-&lt;li>HadoopOutputFormatIO: Add batching support&lt;/li>
-&lt;li>HadoopOutputFormatIO: Add streaming support&lt;/li>
-&lt;li>MongoDbIO: Add projections&lt;/li>
-&lt;li>MongoDbIO: Add support for server with self signed SSL&lt;/li>
-&lt;li>MongoDbIO add ordered option (inserts documents even if errors)&lt;/li>
-&lt;li>KafkaIO: Add support to write to multiple topics&lt;/li>
-&lt;li>KafkaIO: add writing support with ProducerRecord&lt;/li>
-&lt;li>CassandraIO: Add ability to delete data&lt;/li>
-&lt;li>JdbcIO: Add ValueProvider support for Statement in JdbcIO.write(), so it can be templatized&lt;/li>
-&lt;/ul>
-&lt;h3 id="new-features--improvements">New Features / Improvements&lt;/h3>
-&lt;ul>
-&lt;li>FlinkRunner: support Flink config directory&lt;/li>
-&lt;li>FlinkRunner: master url now supports IPv6 addresses&lt;/li>
-&lt;li>FlinkRunner: portable runner savepoint / upgrade support&lt;/li>
-&lt;li>FlinkRunner: can be built against different Flink versions&lt;/li>
-&lt;li>FlinkRunner: Send metrics to Flink in portable runner&lt;/li>
-&lt;li>Java: Migrate to vendored gRPC (no conflicts with user gRPC, smaller jars)&lt;/li>
-&lt;li>Java: Migrate to vendored Guava (no conflicts with user Guava, smaller jars)&lt;/li>
-&lt;li>SQL: support joining unbounded to bounded sources via side input (and is no longer sensitive to left vs right join)&lt;/li>
-&lt;li>SQL: support table macro&lt;/li>
-&lt;li>Schemas: support for Avro, with automatic schema registration&lt;/li>
-&lt;li>Schemas: Automatic schema registration for AutoValue classes&lt;/li>
-&lt;/ul>
-&lt;h3 id="bugfixes">Bugfixes&lt;/h3>
-&lt;ul>
-&lt;li>Watch PTransform fixed (affects FileIO)&lt;/li>
-&lt;li>FlinkRunner: no longer fails if GroupByKey contains null values (streaming mode only)&lt;/li>
-&lt;li>FlinkRunner: no longer prepares to-be-staged file too late&lt;/li>
-&lt;li>FlinkRunner: sets number of shards for writes with runner determined sharding&lt;/li>
-&lt;li>FlinkRunner: prevents CheckpointMarks from not getting acknowledged&lt;/li>
-&lt;li>Schemas: Generated row object for POJOs, Avros, and JavaBeans should work if the wrapped class is package private&lt;/li>
-&lt;li>Schemas: Nested collection types in schemas no longer cause NullPointerException when converting to a POJO&lt;/li>
-&lt;li>BigQueryIO: now handles quotaExceeded errors properly&lt;/li>
-&lt;li>BigQueryIO: now handles triggering correctly in certain very large load jobs&lt;/li>
-&lt;li>FileIO and other file-based IOs: Beam LocalFilesystem now matches glob patterns in windows&lt;/li>
-&lt;li>SQL: joins no longer moves timestamps to the end of the window&lt;/li>
-&lt;li>SQL: was missing some transitive dependencies&lt;/li>
-&lt;li>SQL: JDBC driver no longer breaks interactions with other JDBC sources&lt;/li>
-&lt;li>pyarrow supported on Windows Python 2&lt;/li>
-&lt;/ul>
-&lt;h3 id="deprecations">Deprecations&lt;/h3>
-&lt;ul>
-&lt;li>Deprecate HadoopInputFormatIO&lt;/li>
-&lt;/ul>
-&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
-&lt;p>According to git shortlog, the following people contributed
-to the 2.10.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Ahmet Altay, Alan Myrvold, Alex Amato, Alexey Romanenko, Anton Kedin, Rui Wang,
-Andrew Brampton Andrew Pilloud, Ankur Goenka, Antonio D&amp;rsquo;souza, Bingfeng Shu,
-Boyuan Zhang, brucearctor, Cade Markegard, Chaim Turkel, Chamikara Jayalath,
-Charles Chen, Colm O hEigeartaigh, Cory, Craig Chambers, Cristian, Daniel
-Mills, Daniel Oliveira, David Cavazos, David Hrbacek, David Moravek, Dawid
-Wysakowicz, djhworld, Dustin Rhodes, Etienne Chauchot, Fabien Rousseau, Garrett
-Jones, Gleb Kanterov, Heejong Lee, Ismaël Mejía, Jason Kuster, Jean-Baptiste
-Onofré, Jeff Klukas, Joar Wandborg, Jozef Vilcek, Kadir Cetinkaya, Kasia
-Kucharczyk, Kengo Seki, Kenneth Knowles, lcaggio, Lukasz Cwik, Łukasz Gajowy,
-Manu Zhang, marek.simunek, Mark Daoust, Mark Liu, Maximilian Michels, Melissa
-Pashniak, Michael Luckey, Mikhail Gryzykhin, mlotstein, morokosi, Niel
-Markwick, Pablo Estrada, Prem Kumar Karunakaran, Reuven Lax, robbe, Robbe
-Sneyders, Robert Bradshaw, Robert Burke, Ruoyun Huang, Ryan Williams, Sam
-Whittle, Scott Wegner, Slava Chernyak, Theodore Siu, Thomas Weise, Udi Meiri,
-&lt;a href="mailto:vaclav.plajt@gmail.com">vaclav.plajt@gmail.com&lt;/a>, Valentyn Tymofieiev, Won Wook SONG, Wout Scheepers,
-Xinyu Liu, Yueyang Qiu, Zhuo Peng&lt;/p></description></item></channel></rss>
+Valentyn Tymofieiev, Xinyu Liu, Xu Mingmin, Łukasz Gajowy.&lt;/p></description></item></channel></rss>
